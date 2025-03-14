@@ -420,7 +420,7 @@ class _InducedVoltage:
                     dtype=bm.precision.complex_t,
                     order='C', copy=False)
                                        * beam_spectrum)
-        )
+                            )
 
         self.induced_voltage = induced_voltage[:self.n_induced_voltage].astype(
             dtype=bm.precision.real_t, order='C', copy=False)
@@ -476,8 +476,6 @@ class _InducedVoltage:
         self.mtw_memory = bm.interp(self.time_mtw + t_rev,
                                     self.time_mtw, self.mtw_memory,
                                     left=0, right=0)
-
-
 
     def _track(self):
         """
@@ -579,8 +577,8 @@ class InducedVoltageTime(_InducedVoltage):
                                       int(self.profile.n_slices) - 1)
         else:
             self.n_fft = (int(self.n_induced_voltage)
-                         + int(self.profile.n_slices)
-                         - 1)
+                          + int(self.profile.n_slices)
+                          - 1)
 
         # Frequency resolution in Hz
         self.frequency_resolution = 1 / (self.n_fft * self.profile.bin_size)
@@ -921,8 +919,6 @@ class InductiveImpedance(_InducedVoltage):
         self._device: DeviceType = 'CPU'
 
 
-
-
 class InducedVoltageResonator(_InducedVoltage):
     r"""
     *Calculates the induced voltage of several resonators for arbitrary
@@ -997,7 +993,7 @@ class InducedVoltageResonator(_InducedVoltage):
                  multi_turn_wake: bool = False,
                  counter_rotation: bool = False,
                  time_array: Optional[NDArray] = None,
-                 time_array_2: Optional[NDArray] = None,
+                 time_array_2: Optional[NDArray] = None,  # this is not correct...
                  rf_station: Optional[RFStation] = None,
                  array_length: Optional[int] = None,
                  use_regular_fft: bool = True) -> None:
@@ -1023,32 +1019,32 @@ class InducedVoltageResonator(_InducedVoltage):
             self.time_array = time_array
             self.atLineDensityTimes = False
 
-
         self.array_length = array_length
         self.counter_rotation = counter_rotation
         self.n_time = len(self.time_array)
 
         # todo
         if counter_rotation and multi_turn_wake:
-            if (self.wake_length_input != None):
+            if self.wake_length_input != None:
                 # Number of points of the induced voltage array
                 self.n_induced_voltage = int(np.ceil(self.wake_length_input / self.profile.bin_size))
                 if self.n_induced_voltage < self.profile.n_slices:
                     raise RuntimeError('Error: too short wake length. ' +
-                                       'Increase it above {0:1.2e} s.'.format(self.profile.n_slices * self.profile.bin_size))
+                                       'Increase it above {0:1.2e} s.'.format(
+                                           self.profile.n_slices * self.profile.bin_size))
                 # Wake length in s, rounded up to the next multiple of bin size
                 self.wake_length = self.n_induced_voltage * self.profile.bin_size
             elif (self.wake_length_input == None):
                 # By default the wake_length is the slicing frame length
-                self.wake_length = (self.profile.cut_right - self.profile.cut_left)
+                self.wake_length = self.profile.cut_right - self.profile.cut_left
                 self.n_induced_voltage = self.profile.n_slices
             else:
                 raise RuntimeError('Error: no wake_length specified.')
             self.n_mtw_memory = self.n_time
-            self.tArray2 = time_array_2
+            self.time_array_2 = time_array_2
             self.mtw_memory_counterrot = np.zeros(self.n_mtw_memory, dtype=bm.precision.real_t, order='C')
-            self.induced_voltage_CR = np.zeros(
-                int(self.array_length), dtype=bm.precision.real_t, order='C')
+            self.induced_voltage_CR = np.zeros(int(self.array_length), dtype=bm.precision.real_t, order='C')
+
         # todo
 
         # Copy of the shunt impedances of the Resonators in* :math:`\Omega`
@@ -1117,8 +1113,10 @@ class InducedVoltageResonator(_InducedVoltage):
                                                 self.profile.n_macroparticles,
                                                 self.profile.bin_centers,
                                                 self.profile.bin_size,
-                                                self.n_time, self._deltaT,
-                                                self.time_array, self._reOmegaP,
+                                                self.n_time,
+                                                self._deltaT,
+                                                self.time_array,
+                                                self._reOmegaP,
                                                 self._imOmegaP, self._Qtilde,
                                                 self.n_resonators,
                                                 self.omega_r,
@@ -1136,26 +1134,24 @@ class InducedVoltageResonator(_InducedVoltage):
         to the result.
         """
         try:
-            self.induced_voltage_CR, self._deltaT2  # todo fix attribute decalration
+            self.induced_voltage_CR, self._deltaT2
         except AttributeError:
             self.induced_voltage_CR, self._deltaT2 = deepcopy(self.induced_voltage), deepcopy(self._deltaT)
-        bm.resonator_induced_voltage_1_turn(self._kappa1,
-                                            self.profile.n_macroparticles,
-                                            self.profile.bin_centers,
-                                            self.profile.bin_size,
-                                            self.n_time, self._deltaT2,
-                                            self.tArray2, self._reOmegaP,
-                                            self._imOmegaP, self._Qtilde,
-                                            self.n_resonators,
-                                            self.omega_r,
-                                            self.Q, self._tmp_matrix,
-                                            self.beam.particle.charge,
-                                            self.beam.n_macroparticles,
-                                            self.beam.ratio, self.R,
-                                            self.induced_voltage_CR,
-                                            bm.precision.real_t)
-
-
+        self.induced_voltage_CR, self._deltaT2 = bm.resonator_induced_voltage_1_turn(self._kappa1,
+                                                                                     self.profile.n_macroparticles,
+                                                                                     self.profile.bin_centers,
+                                                                                     self.profile.bin_size,
+                                                                                     self.n_time, self._deltaT2,
+                                                                                     self.time_array_2, self._reOmegaP,
+                                                                                     self._imOmegaP, self._Qtilde,
+                                                                                     self.n_resonators,
+                                                                                     self.omega_r,
+                                                                                     self.Q, self._tmp_matrix,
+                                                                                     self.beam.particle.charge,
+                                                                                     self.beam.n_macroparticles,
+                                                                                     self.beam.ratio, self.R,
+                                                                                     self.induced_voltage_CR,
+                                                                                     bm.precision.real_t)
 
     def induced_voltage_mtw(self, beam_spectrum_dict={}):
         r"""
@@ -1166,6 +1162,7 @@ class InducedVoltageResonator(_InducedVoltage):
         """
         # shift the entries in array by 1 t_rev and set to 0
         self.mtw_memory = np.append(self.mtw_memory, np.zeros(self.array_length))
+        self.mtw_memory = np.append(self.mtw_memory, np.zeros(self.array_length))
         # remove one turn length of memory
         self.mtw_memory = self.mtw_memory[self.array_length:]
         # Induced voltage of the current turn
@@ -1174,16 +1171,17 @@ class InducedVoltageResonator(_InducedVoltage):
         self.mtw_memory[:int(self.n_time)] += self.induced_voltage
         self.induced_voltage = self.mtw_memory[:self.n_time]
 
-
         # todo
         if self.counter_rotation:
             self.mtw_memory_counterrot = np.append(self.mtw_memory_counterrot, np.zeros(self.array_length))
+            # shift by one turn
             self.mtw_memory_counterrot = self.mtw_memory_counterrot[self.array_length:]
+            # induced voltage from one turn
             self.induced_voltage_1turn_counterrot(beam_spectrum_dict)
+            # adds to memory from previous
             self.mtw_memory_counterrot[:int(
                 self.n_time)] += self.induced_voltage_CR
             self.induced_voltage_CR = self.mtw_memory_counterrot[:self.n_time]
-
 
     def to_gpu(self, recursive=True):
         """
@@ -1221,7 +1219,7 @@ class InducedVoltageResonator(_InducedVoltage):
         self._device: DeviceType = 'CPU'
 
 
-class InducedVoltage_from_cr(_InducedVoltage): #todo: Does it need to inherit from InducedVoltage?
+class InducedVoltage_from_cr():
     r"""
     *Takes the induced voltage from the counter-rotating beam, inverts it in time and applies it.*
 
@@ -1253,30 +1251,35 @@ class InducedVoltage_from_cr(_InducedVoltage): #todo: Does it need to inherit fr
         An array to store the calculated induced voltage values.
 
     """
-    def __init__(self, induced_voltage_object_cr: Optional = None,
+
+    def __init__(self, induced_voltage_object_cr: Optional[InducedVoltageResonator] = None,
                  n_slices: Optional[int] = None,
-                 Induced_voltage: Optional =None,):
+                 induced_voltage: Optional = None,
+                 multi_turn_wake=True,
+                 mtw_mode='time',
+                 counter_rotation=True,
+                 frequency_resolution=None, ):
 
         self.inducedvoltageobject = induced_voltage_object_cr
-        self.n_slices = N_slices
+        self.n_slices = n_slices
         self.wake_length = self.inducedvoltageobject.wake_length
         self.induced_voltage_generation = self.induced_voltage_counterbeam
-
 
     def process(self):
         r"""
         Reprocess the impedance contributions. To be run when slicing changes
         """
         _InducedVoltage().process()
-        self.induced_voltage = np.zeros(self.n_time, dtype=bm.precision.real_t, order='C') # todo: Investigate why induced_voltage set to 0
-
+        self.induced_voltage = np.zeros(self.n_time, dtype=bm.precision.real_t,
+                                        order='C')
+        self.induced_voltage_generation = self.induced_voltage_counterbeam
 
     def induced_voltage_counterbeam(self, beam_spectrum_dict={}):
         r"""
         Inverts the induced voltage object of the counter-rotating beam.
         """
         if hasattr(self.inducedvoltageobject, "induced_voltage_CR"):
+            # the end of this
             self.induced_voltage = -1 * (self.inducedvoltageobject.induced_voltage_CR[:self.n_slices])
         else:
             self.induced_voltage = np.zeros(self.inducedvoltageobject.n_time, dtype=bm.precision.real_t)
-

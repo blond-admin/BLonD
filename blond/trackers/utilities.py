@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import copy
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Tuple
 
 import numpy as np
 import scipy
@@ -37,7 +37,6 @@ from ..utils import bmath as bm
 if TYPE_CHECKING:
     from typing import Optional
 
-
     from numpy import ndarray
     from numpy.typing import NDArray
     from ..input_parameters.rf_parameters import RFStation
@@ -47,8 +46,6 @@ if TYPE_CHECKING:
     from ..beam.profile import CutOptions
     from ..input_parameters.rf_parameters import RFStation
     from ..impedances.impedance import TotalInducedVoltage
-
-
 
 
 @handle_legacy_kwargs
@@ -88,7 +85,7 @@ def synchrotron_frequency_distribution(beam: Beam,
 
     eom_factor_dE = abs(slippage_factor) / (2 * beam.beta ** 2. * beam.energy)
     eom_factor_potential = (np.sign(slippage_factor) * beam.particle.charge
-               / (full_ring_and_rf.ring_and_rf_section[0].rf_params.t_rev[0]))
+                            / (full_ring_and_rf.ring_and_rf_section[0].rf_params.t_rev[0]))
 
     # Generate potential well
     n_points_potential = int(1e4)
@@ -110,9 +107,9 @@ def synchrotron_frequency_distribution(beam: Beam,
         # Computing induced potential
         induced_potential = (- eom_factor_potential
                              * np.insert(cumtrapz(induced_voltage,
-                                                 dx=float(time_induced_voltage[1]
-                                                    - time_induced_voltage[0])),
-                                          0, 0))
+                                                  dx=float(time_induced_voltage[1]
+                                                           - time_induced_voltage[0])),
+                                         0, 0))
 
         # Interpolating the potential well
         induced_potential_final = np.interp(time_coord_array,
@@ -162,8 +159,8 @@ def synchrotron_frequency_distribution(beam: Beam,
                                  - pot_well_high_res) / eom_factor_dE)
         dE_trajectory[np.isnan(dE_trajectory)] = 0
         J_array_dE0[i] = 1 / np.pi * np.trapezoid(dE_trajectory,
-                                            dx=time_potential_high_res[1]
-                                                - time_potential_high_res[0])
+                                                  dx=time_potential_high_res[1]
+                                                     - time_potential_high_res[0])
 
     warnings.filterwarnings("default")
 
@@ -190,17 +187,17 @@ def synchrotron_frequency_distribution(beam: Beam,
 
     if smooth_option is not None:
         H_array_left = np.convolve(H_array_left, np.ones(smooth_option)
-                                                 / smooth_option,
+                                   / smooth_option,
                                    mode='valid')
         J_array_left = np.convolve(J_array_left, np.ones(smooth_option)
-                                                 / smooth_option,
+                                   / smooth_option,
                                    mode='valid')
         H_array_right = np.convolve(H_array_right, np.ones(smooth_option)
-                                                   / smooth_option,
-                                   mode='valid')
+                                    / smooth_option,
+                                    mode='valid')
         J_array_right = np.convolve(J_array_right, np.ones(smooth_option)
-                                                   / smooth_option,
-                                   mode='valid')
+                                    / smooth_option,
+                                    mode='valid')
         delta_time_left = (delta_time_left + (smooth_option - 1)
                            * (delta_time_left[1] - delta_time_left[0])
                            / 2)[0:len(delta_time_left) - smooth_option + 1]
@@ -223,9 +220,9 @@ def synchrotron_frequency_distribution(beam: Beam,
     emittance_array_right = J_array_right * (2 * np.pi)
 
     # Calculating particle distribution in synchrotron frequency
-    H_particles = eom_factor_dE * beam.dE**2 + np.interp(beam.dt,
-                                                         time_coord_array,
-                                                         total_potential)
+    H_particles = eom_factor_dE * beam.dE ** 2 + np.interp(beam.dt,
+                                                           time_coord_array,
+                                                           total_potential)
     sync_freq_distribution = np.concatenate((sync_freq_distribution_left,
                                              sync_freq_distribution_right))
     H_array = np.concatenate((np.fliplr([H_array_left])[0], H_array_right))
@@ -303,7 +300,7 @@ class SynchrotronFrequencyTracker:
                 raise RuntimeError('The input n_macroparticles does not match with the length of the theta_coordinates')
             else:
                 self.beam.dt = (np.array(theta_coordinate_range)
-                                * (self.ring.ring_radius / (self.beam.beta*c)))
+                                * (self.ring.ring_radius / (self.beam.beta * c)))
 
         self.beam.dE = np.zeros(int(n_macroparticles))
 
@@ -446,17 +443,16 @@ class SynchrotronFrequencyTracker:
             self.min_theta_save[indexParticle] = np.min(self.theta_save[start_turn:end_turn, indexParticle])
 
             if ((self.max_theta_save[indexParticle] < max_theta_range)
-                and (self.min_theta_save[indexParticle] > min_theta_range)):
-
+                    and (self.min_theta_save[indexParticle] > min_theta_range)):
                 theta_save_fft = abs(np.fft.rfft(
-                                self.theta_save[start_turn:end_turn, indexParticle]
-                                - np.mean(self.theta_save[start_turn:end_turn, indexParticle]),
-                                                n_sampling))
+                    self.theta_save[start_turn:end_turn, indexParticle]
+                    - np.mean(self.theta_save[start_turn:end_turn, indexParticle]),
+                    n_sampling))
 
                 dE_save_fft = abs(np.fft.rfft(
-                            self.dE_save[start_turn:end_turn, indexParticle]
-                            - np.mean(self.dE_save[start_turn:end_turn, indexParticle]),
-                                              n_sampling))
+                    self.dE_save[start_turn:end_turn, indexParticle]
+                    - np.mean(self.dE_save[start_turn:end_turn, indexParticle]),
+                    n_sampling))
 
                 self.frequency_theta_save[indexParticle] = self.frequency_array[
                     np.argmax(theta_save_fft == np.max(theta_save_fft))]
@@ -724,11 +720,11 @@ def is_in_separatrix(ring: Ring, rf_station: RFStation, beam: Beam,
 
     counter = rf_station.counter[0]
     dt_sep = ((np.pi - rf_station.phi_s[counter]
-              - rf_station.phi_rf_d[0, counter])
-               / rf_station.omega_rf[0, counter])
+               - rf_station.phi_rf_d[0, counter])
+              / rf_station.omega_rf[0, counter])
 
     Hsep = hamiltonian(ring, rf_station, beam, dt_sep, 0,
-                       total_voltage=None) # toodo maybe the kwarg should be passed here??
+                       total_voltage=None)  # toodo maybe the kwarg should be passed here??
     isin = bm.fabs(hamiltonian(ring, rf_station, beam,
                                dt, dE, total_voltage=None)) < bm.fabs(Hsep)
 
@@ -736,7 +732,7 @@ def is_in_separatrix(ring: Ring, rf_station: RFStation, beam: Beam,
 
 
 def minmax_location(x: NDArray, f: NDArray) -> tuple[list[ndarray],
-                                                     list[ndarray]]:
+list[ndarray]]:
     """
     *Function to locate the minima and maxima of the f(x) numerical function.*
     """
@@ -750,8 +746,8 @@ def minmax_location(x: NDArray, f: NDArray) -> tuple[list[ndarray],
 
     warnings.filterwarnings("ignore")
     f_derivative_zeros = np.unique(np.append(np.where(f_derivative == 0),
-                                   np.where(f_derivative[1:]
-                                            / f_derivative[0:-1] < 0)))
+                                             np.where(f_derivative[1:]
+                                                      / f_derivative[0:-1] < 0)))
 
     min_x_position = (x[f_derivative_zeros[f_derivative_second[f_derivative_zeros] > 0] + 1]
                       + x[f_derivative_zeros[f_derivative_second[f_derivative_zeros] > 0]]) / 2
@@ -887,67 +883,62 @@ def time_modulo(dt: NDArray, dt_offset: float, T: float) -> NDArray:
     return dt - T * bm.floor((dt + dt_offset) / T)
 
 
-def separatrix_with_intensity(ring: [Ring],
-                              full_ring_and_rf: [FullRingAndRF],
-                              longitudinal_tracker: [RingAndRFTracker],
-                              n_turn: [int],
-                              n_section: [int],
-                              cut_options: [CutOptions],
-                              total_induced_voltage: Optional[TotalInducedVoltage]):
-    r""" Computes separatrix including intensity effects for multiple RF stations. D. Quartullo, F. Batsch.
-
-    Parameters
-    ----------
-    ring : Ring
-        A Ring type class
-    full_ring_and_rf : FullRingAndRF
-    longitudinal_tracker : RingAndRFTracker
-        An object for beam and profile parameters used in the calculations.
-    n_turn : int
-        The index of the turn.
-    n_section : int
-        The index of the RF section.
-    cut_options : CutOptions
-        Options for profile cutting, including bin centers.
-    total_induced_voltage : Optional[TotalInducedVoltage]
-        The induced voltage that affects the potential well, or `None` if there is no induced voltage.
-
-    Returns
-    -------
-        - time_coord_sep: Separatrix time coordinates.
-        - separatrix: The undisturbed separatrix.
-        - time_coord_sep_intensity: Separatrix time coordinates with intensity effects.
-        - separatrix_intensity: The separatrix with intensity effects.
-        - bucket_area: The bucket area.
-        - bucket_area_intensity: The bucket area with intensity effects.
+def compute_separatrix_and_bucket_area(time_coord: NDArray, potential_well: NDArray, eom_factor_dE: float) -> Tuple[
+    NDArray, float]:
     """
+    Helper function to compute the separatrix and bucket area for calculate_separatrix_with_intensity.
+    """
+    separatrix = np.sqrt((potential_well - potential_well[0]) / eom_factor_dE)
+    separatrix[np.isnan(separatrix)] = 0
+    bucket_area = 2 * np.trapezoid(separatrix, dx=time_coord[1] - time_coord[0])
 
-    eom_factor_dE = -ring.eta_0[n_section, n_turn + 1] / (
-                2 * ring.beta[n_section, n_turn + 1] ** 2 * ring.energy[n_section, n_turn + 1])
-    eom_factor_potential = longitudinal_tracker.rf_params.Particle.charge / ring.t_rev[n_turn]
-    # Compute the undisturbed bucket area and separatrix
-    full_ring_and_rf.potential_well_generation(turn=n_turn)
-    time_coord_sep, potential_well_sep_ud = potential_well_cut(full_ring_and_rf.potential_well_coordinates,
-                                                               full_ring_and_rf.potential_well)
-    separatrix = np.sqrt((potential_well_sep_ud - potential_well_sep_ud[0]) / eom_factor_dE)
-    bucket_area = 2 * np.trapezoid(separatrix, dx=time_coord_sep[1] - time_coord_sep[0])
+    return separatrix, bucket_area
 
-    if total_induced_voltage is None:
-        return time_coord_sep, separatrix, time_coord_sep, separatrix , bucket_area, bucket_area
 
-    induced_potential = -np.sign(ring.eta_0[n_section, n_turn]) * eom_factor_potential * np.insert(
+def compute_induced_potential(total_induced_voltage: Optional[TotalInducedVoltage],
+                              ring: ring, cut_options: cut_options, turn: int, section: int,
+                              eom_factor_potential: float) -> NDArray:
+    """
+    Compute the induced potential based on the provided voltage for calculate_separatrix_with_intensity.
+    """
+    induced_potential = -np.sign(ring.eta_0[section, turn]) * eom_factor_potential * np.insert(
         cumtrapz(total_induced_voltage.induced_voltage * ring.n_sections,
                  dx=cut_options.bin_centers[1] - cut_options.bin_centers[0]), 0, 0)
 
+    return induced_potential
 
-    induced_potential_interp = np.interp(full_ring_and_rf.potential_well_coordinates, cut_options.bin_centers,
-                                         induced_potential)
 
-    total_potential = full_ring_and_rf.potential_well + induced_potential_interp
-    time_coord_sep_intensity, potential_well_sep = potential_well_cut(full_ring_and_rf.potential_well_coordinates,total_potential)
-    separatrix_intensity = np.sqrt((potential_well_sep - potential_well_sep[0]) / eom_factor_dE)
-    is_nandE = np.isnan(separatrix_intensity)
-    separatrix_intensity[np.isnan(separatrix_intensity)] = 0
-    bucket_area_intensity = 2 * np.trapezoid(separatrix_intensity,dx=time_coord_sep_intensity[1] - time_coord_sep_intensity[0])
-    separatrix_intensity[np.isnan(separatrix_intensity)] = np.nan
-    return time_coord_sep, separatrix, time_coord_sep_intensity, separatrix_intensity, bucket_area, bucket_area_intensity
+def separatrix_with_intensity(ring: Ring,
+                              full_ring_and_rf: FullRingAndRF,
+                              ring_and_rf_tracker: RingAndRFTracker,
+                              turn: int,
+                              section: int,
+                              cut_options: cut_options,
+                              total_induced_voltage: Optional[
+                                  TotalInducedVoltage] = None) -> Tuple:
+    """
+    Computes separatrix including intensity effects.
+    """
+
+    eom_factor_dE = -ring.eta_0[section, turn + 1] / (
+            2 * ring.beta[section, turn + 1] ** 2 * ring.energy[section, turn + 1])
+    eom_factor_potential = ring_and_rf_tracker.rf_params.particle.charge / ring.t_rev[turn]
+    full_ring_and_rf.potential_well_generation(turn=turn)
+    time_ud, potential_well_ud = potential_well_cut(full_ring_and_rf.potential_well_coordinates,
+                                                    full_ring_and_rf.potential_well)
+    separatrix_ud, bucket_area = compute_separatrix_and_bucket_area(time_ud, potential_well_ud, eom_factor_dE)
+
+    if total_induced_voltage is None:
+        # return the same result as no intensity effects
+        return (time_ud, separatrix_ud), (time_ud, separatrix_ud), bucket_area, bucket_area
+
+    ind_potential = compute_induced_potential(total_induced_voltage, ring, cut_options, turn, section,
+                                              eom_factor_potential)
+    ind_potential_interp = np.interp(full_ring_and_rf.potential_well_coordinates, cut_options.bin_centers,
+                                     ind_potential)
+    total_potential = full_ring_and_rf.potential_well + ind_potential_interp
+    time_int, potential_well_int = potential_well_cut(full_ring_and_rf.potential_well_coordinates, total_potential)
+    separatrix_int, bucket_area_int = compute_separatrix_and_bucket_area(time_int, potential_well_int, eom_factor_dE)
+
+    # return the undisturbed and the result with intensity effects
+    return (time_ud, separatrix), (time_int, separatrix_int), bucket_area, bucket_area_int
