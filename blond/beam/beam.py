@@ -17,8 +17,8 @@ statistics
 from __future__ import annotations
 
 import itertools as itl
-from typing import TYPE_CHECKING, Optional
 import warnings
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
@@ -29,13 +29,18 @@ from ..utils import bmath as bm
 from ..utils import exceptions as blond_exceptions
 from ..utils.legacy_support import handle_legacy_kwargs
 
-if TYPE_CHECKING:
-
-    from numpy.typing import NDArray
+try:
     import cupy as cp
+except ModuleNotFoundError:
+    pass
 
-    from ..input_parameters.ring import Ring
+
+if TYPE_CHECKING:
+    from cupy.typing import CupyArray
+    from numpy.typing import NupyArray
+
     from ..input_parameters.rf_parameters import RFStation
+    from ..input_parameters.ring import Ring
     from ..utils.types import DeviceType, SolverTypes
 
 m_mu = physical_constants['muon mass'][0]
@@ -231,8 +236,8 @@ class Beam(BeamBaseClass):
 
 
     @handle_legacy_kwargs
-    def __init__(self, ring: Ring, n_macroparticles: int, intensity: float, dt: Optional[NDArray] = None,
-                 dE: Optional[NDArray] = None) -> None:
+    def __init__(self, ring: Ring, n_macroparticles: int, intensity: float, dt: Optional[NupyArray] = None,
+                 dE: Optional[NupyArray] = None) -> None:
 
         super().__init__(
             ring=ring,
@@ -241,20 +246,23 @@ class Beam(BeamBaseClass):
         )
 
         if dt is None:
-            self.dt: NDArray | cp.array  = np.zeros([int(n_macroparticles)], dtype=bm.precision.real_t)
+            self.dt: NupyArray | CupyArray  = np.zeros([int(n_macroparticles)],
+                                               dtype=bm.precision.real_t)
         else:
             assert n_macroparticles == len(dt)
-            self.dt: NDArray | cp.array  = np.ascontiguousarray(dt)
+            self.dt: NupyArray | CupyArray  = np.ascontiguousarray(dt)
 
         if dE is None:
-            self.dE: NDArray | cp.array  = np.zeros([int(n_macroparticles)], dtype=bm.precision.real_t)
+            self.dE: NupyArray | CupyArray  = np.zeros([int(n_macroparticles)],
+                                               dtype=bm.precision.real_t)
         else:
             assert n_macroparticles == len(dE)
-            self.dE: NDArray | cp.array  = np.ascontiguousarray(dE)
+            self.dE: NupyArray | CupyArray  = np.ascontiguousarray(dE)
 
 
 
-        self.id: NDArray | cp.array = np.arange(1, self.n_macroparticles + 1, dtype=int)
+        self.id: NupyArray | CupyArray = np.arange(1, self.n_macroparticles + 1,
+                                           dtype=int)
 
 
     @property
@@ -482,7 +490,7 @@ class Beam(BeamBaseClass):
         """
         self.ratio *= np.exp(-time * self.particle.decay_rate / self.gamma)
 
-    def add_particles(self, new_particles: NDArray | list[list[float]]) -> None:
+    def add_particles(self, new_particles: NupyArray | list[list[float]]) -> None:
         """
         Method to add array of new particles to beam object
         New particles are given id numbers sequential from last id of this beam
@@ -544,7 +552,7 @@ class Beam(BeamBaseClass):
         self.id = bm.concatenate((self.id, newids))
         self.n_macroparticles += other_beam.n_macroparticles
 
-    def __iadd__(self, other: Beam | NDArray | list[list[float]]) -> Beam:
+    def __iadd__(self, other: Beam | NupyArray | list[list[float]]) -> Beam:
         """
         Initialisation of in place addition calls add_beam(other) if other
         is a blond beam object, calls add_particles(other) otherwise
@@ -729,7 +737,6 @@ class Beam(BeamBaseClass):
         if hasattr(self, '_device') and self._device == 'GPU':
             return
 
-        import cupy as cp
         self.dE = cp.array(self.dE)
         self.dt = cp.array(self.dt)
         self.id = cp.array(self.id)
@@ -744,7 +751,6 @@ class Beam(BeamBaseClass):
         if hasattr(self, '_device') and self._device == 'CPU':  # todo hasattr useless?
             return
 
-        import cupy as cp
         self.dE = cp.asnumpy(self.dE)
         self.dt = cp.asnumpy(self.dt)
         self.id = cp.asnumpy(self.id)
@@ -820,7 +826,9 @@ class Beam(BeamBaseClass):
     def dE_max(self):
         return self.dE.max()
 
-    def slice_beam(self, profile: NDArray, cut_left: float, cut_right: float):
+    def slice_beam(self, profile: NupyArray | CupyArray,
+                   cut_left: float, cut_right: float
+                   ):
         bm.slice_beam(
             dt=self.dt,
             profile=profile,
@@ -828,10 +836,29 @@ class Beam(BeamBaseClass):
             cut_right=cut_right,
         )
         if bm.in_mpi():
-            self.reduce_histo()
+            from ..utils.mpi_config import WORKER
+
+            if WORKER.workers == 1:
+                return
+
+            if self._mpi_is_splitted:
+                if isinstance(profile, np.ndarray):
+                    profile_tmp = profile.view() # guarantee numpy array
+                else: # assume is cupy array
+                    profile_tmp = cp.asnumpy(profile) # guarantee numpy array
+                WORKER.allreduce(profile_tmp) # collect from all workers
+                if isinstance(profile, np.ndarray):
+                    # write reduce result back
+                    # to memory of profile
+                    profile[:] = profile_tmp[:]
+                else: # assume is cupy array
+                    # write reduce
+                    # result back to memory of profile
+                    profile[:] = cp.array(profile_tmp[:])
+
 
     def kick(
-        self, rf_station: RFStation, acceleration_kicks: NDArray, turn_i: int
+        self, rf_station: RFStation, acceleration_kicks: NupyArray, turn_i: int
     ):
         r"""Function updating the dE array
 
@@ -906,8 +933,8 @@ class Beam(BeamBaseClass):
 
     def linear_interp_kick(
         self,
-        voltage: NDArray,
-        bin_centers: NDArray,
+        voltage: NupyArray,
+        bin_centers: NupyArray,
         charge: float,
         acceleration_kick: float,
     ):
@@ -919,7 +946,7 @@ class Beam(BeamBaseClass):
 
     def kickdrift_considering_periodicity(
         self,
-        acceleration_kicks: NDArray,
+        acceleration_kicks: NupyArray,
         rf_station: RFStation,
         solver: SolverTypes,
         turn_i: int,

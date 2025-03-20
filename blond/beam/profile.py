@@ -606,8 +606,6 @@ class Profile:
             cut_left=self.cut_left
         )
 
-        if bm.in_mpi():
-            self.reduce_histo()
 
     def reduce_histo(self, dtype=np.uint32):
         """
