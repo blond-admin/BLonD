@@ -22,6 +22,7 @@ from __future__ import print_function
 import argparse
 import ctypes
 import os
+import platform
 import subprocess
 import sys
 
@@ -211,21 +212,23 @@ def compile_cpp_library(args, cflags, float_flags, libs, cpp_files):
                 # Format the output list
                 stdout = ret.stdout.replace('#define ', '').replace(
                     '__ 1', '').replace('__', '').split('\n')
-                # Add the appropriate vectorization flag (not use avx512)
-                if 'AVX2' in stdout:
-                    cflags += ['-mavx2']
-                elif 'AVX' in stdout:
-                    cflags += ['-mavx']
-                elif 'SSE4_2' in stdout or 'SSE4_1' in stdout:
-                    cflags += ['-msse4']
-                elif 'SSE3' in stdout:
-                    cflags += ['-msse3']
-                else:
-                    cflags += ['-msse']
+                # following options exist only on x86 processors
+                if 'arm' not in platform.machine():
+                    # Add the appropriate vectorization flag (not use avx512)
+                    if 'AVX2' in stdout:
+                        cflags += ['-mavx2']
+                    elif 'AVX' in stdout:
+                        cflags += ['-mavx']
+                    elif 'SSE4_2' in stdout or 'SSE4_1' in stdout:
+                        cflags += ['-msse4']
+                    elif 'SSE3' in stdout:
+                        cflags += ['-msse3']
+                    else:
+                        cflags += ['-msse']
 
-                # Add FMA if supported
-                if 'FMA' in stdout:
-                    cflags += ['-mfma']
+                    # Add FMA if supported
+                    if 'FMA' in stdout:
+                        cflags += ['-mfma']
 
         root, ext = os.path.splitext(args['libname'])
         if not ext:
@@ -314,7 +317,6 @@ def compile_cuda_library(args, nvccflags, float_flags, cuda_files, nvcc):
     import cupy as cp
 
     print('\nCompiling the CUDA library')
-
     if args['gpu'] == 'discover':
         print('Discovering the device compute capability..')
 
