@@ -120,7 +120,7 @@ pages:
     - mkdir public
     - python3 -m pip install --upgrade pip
     - python3 -m pip install -v ${project_root}[doc]
-    - make -C __doc html
+    - export PATH=$HOME/.local/bin:$PATH && make -C __doc html
     - cp -r __doc/_build/html/* public/
   artifacts:
     paths:
