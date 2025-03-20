@@ -20,6 +20,10 @@ from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
+try:
+    np.trapezoid
+except AttributeError:
+    np.trapezoid = np.trapz
 from scipy.optimize import curve_fit
 from scipy.signal import cheb2ord, cheby2, filtfilt, freqz
 

@@ -23,7 +23,14 @@ import ctypes
 import os
 import subprocess
 import sys
-
+import warnings
+try:
+    # Early import of cupy.
+    # This fixes warnings that occurred when
+    # importing `cupy` later inside `compile_cuda_library`
+    import cupy as cp
+except ImportError:
+    pass # ignore missing cupy for users without GPU
 
 def main():
     """Compiles the blond C++ and/or CUDA library.
@@ -173,22 +180,24 @@ def compile_cpp_library(args, cflags, float_flags, libs, cpp_files):
     if args['flags']:
         cflags += args['flags'].split()
 
+    fftw_cflags = []
+    fftw_libs = []
     if with_fftw:
-        cflags += ['-DUSEFFTW3']
+        fftw_cflags += ['-DUSEFFTW3']
         if args['with_fftw_lib'] is not None:
-            libs += ['-L', args['with_fftw_lib']]
+            fftw_libs += ['-L', args['with_fftw_lib']]
         if args['with_fftw_header'] is not None:
-            cflags += ['-I', args['with_fftw_header']]
+            fftw_cflags += ['-I', args['with_fftw_header']]
         if 'win' in sys.platform:
-            libs += ['-lfftw3-3']
+            fftw_libs += ['-lfftw3-3']
         else:
-            libs += ['-lfftw3', '-lfftw3f']
+            fftw_libs += ['-lfftw3', '-lfftw3f']
             if args['with_fftw_omp']:
-                cflags += ['-DFFTW3PARALLEL']
-                libs += ['-lfftw3_omp', '-lfftw3f_omp']
+                fftw_cflags += ['-DFFTW3PARALLEL']
+                fftw_libs += ['-lfftw3_omp', '-lfftw3f_omp']
             elif args['with_fftw_threads']:
-                cflags += ['-DFFTW3PARALLEL']
-                libs += ['-lfftw3_threads', '-lfftw3f_threads']
+                fftw_cflags += ['-DFFTW3PARALLEL']
+                fftw_libs += ['-lfftw3_threads', '-lfftw3f_threads']
 
     if 'posix' in os.name:
         cflags += ['-fPIC']
@@ -273,6 +282,12 @@ def compile_cpp_library(args, cflags, float_flags, libs, cpp_files):
     command = [compiler] + cflags + float_flags + \
               cpp_files + libs + ['-o', libname_single]
     print('\nCompiling the single-precision (32-bit) C++ library')
+    if with_fftw:
+        msg = (
+            "The FFTW Library is only compiled for  double-precision (64-bit)."
+            " For single-precision, the FFTW Library is ignored."
+               )
+        warnings.warn(msg)
     ret = run_compile(command, libname_single)
     if ret != 0:
         print('There was a compilation error.')
@@ -288,7 +303,8 @@ def compile_cpp_library(args, cflags, float_flags, libs, cpp_files):
             print('Compilation failed.')
             print(exception)
 
-    command = [compiler] + cflags + cpp_files + libs + ['-o', libname_double]
+    command = ([compiler] + cflags + fftw_cflags + cpp_files
+               + libs +fftw_libs+ ['-o', libname_double])
     print('\nCompiling the double-precision (64-bit) C++ library')
     ret = run_compile(command, libname_double)
     if ret != 0:
@@ -310,7 +326,7 @@ def compile_cuda_library(args, nvccflags, float_flags, cuda_files, nvcc):
     # Compile the GPU library
     # print('\n' + ''.join(['='] * 80))
     print('\nCompiling the CUDA library')
-    import cupy as cp
+    import cupy as cp # force exception, if something is wrong with the installation
 
     if args['gpu'] == 'discover':
         print('Discovering the device compute capability..')

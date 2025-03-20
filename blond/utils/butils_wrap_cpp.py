@@ -562,7 +562,7 @@ def trapz_cpp(y: NDArray, x: Optional[NDArray] = None, dx: float = 1.0) -> float
                                               __getLen(y))
 
 
-def beam_phase(bin_centers: NDArray, profile: NDArray, alpha: float, omegarf: float, phirf: float,
+def beam_phase(bin_centers: NDArray, profile: NDArray, alpha: float, omega_rf: float, phi_rf: float,
                bin_size: float) -> float:
     bin_centers = bin_centers.astype(dtype=precision.real_t, order='C',
                                      copy=False)
@@ -572,14 +572,14 @@ def beam_phase(bin_centers: NDArray, profile: NDArray, alpha: float, omegarf: fl
     coeff = get_libblond().beam_phase(__getPointer(bin_centers),
                                       __getPointer(profile),
                                       c_real(alpha),
-                                      c_real(omegarf),
-                                      c_real(phirf),
+                                      c_real(omega_rf),
+                                      c_real(phi_rf),
                                       c_real(bin_size),
                                       __getLen(profile))
     return coeff
 
 
-def beam_phase_fast(bin_centers: NDArray, profile: NDArray, omegarf: float, phirf: float,
+def beam_phase_fast(bin_centers: NDArray, profile: NDArray, omega_rf: float, phi_rf: float,
                     bin_size: float) -> float:
     bin_centers = bin_centers.astype(dtype=precision.real_t, order='C',
                                      copy=False)
@@ -588,8 +588,8 @@ def beam_phase_fast(bin_centers: NDArray, profile: NDArray, omegarf: float, phir
     get_libblond().beam_phase_fast.restype = precision.c_real_t
     coeff = get_libblond().beam_phase_fast(__getPointer(bin_centers),
                                            __getPointer(profile),
-                                           c_real(omegarf),
-                                           c_real(phirf),
+                                           c_real(omega_rf),
+                                           c_real(phi_rf),
                                            c_real(bin_size),
                                            __getLen(profile))
     return coeff
@@ -800,14 +800,15 @@ def set_random_seed(seed):
     get_libblond().set_random_seed(ct.c_int(seed))
 
 
-def fast_resonator(R_S: np.ndarray, Q: np.ndarray, frequency_array: np.ndarray, frequency_R: np.ndarray) -> NDArray:
+def fast_resonator(R_S: np.ndarray, Q: np.ndarray, frequency_array: np.ndarray,
+                   frequency_R: np.ndarray, impedance: Optional[NDArray] = None) -> NDArray:
     R_S = R_S.astype(dtype=precision.real_t, order='C', copy=False)
     Q = Q.astype(dtype=precision.real_t, order='C', copy=False)
     frequency_array = frequency_array.astype(
         dtype=precision.real_t, order='C', copy=False)
     frequency_R = frequency_R.astype(
         dtype=precision.real_t, order='C', copy=False)
-
+    # Possible improvement: if impedance is not none, cast real and imaginary part to realImp, imagImp
     realImp = np.zeros(len(frequency_array), dtype=precision.real_t)
     imagImp = np.zeros(len(frequency_array), dtype=precision.real_t)
 
@@ -820,8 +821,11 @@ def fast_resonator(R_S: np.ndarray, Q: np.ndarray, frequency_array: np.ndarray, 
         __getPointer(frequency_R),
         __getLen(R_S),
         __getLen(frequency_array))
-
-    impedance = realImp + 1j * imagImp
+    if (impedance is not None) and (impedance.dtype == np.complex128) and len(imagImp) == len(impedance):
+        impedance.real = realImp
+        impedance.imag = imagImp
+    else:
+        impedance = realImp + 1j * imagImp
     return impedance
 
 

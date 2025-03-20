@@ -20,7 +20,7 @@ import os
 import matplotlib as mpl
 import numpy as np
 
-import blond.utils.bmath as bm
+from blond.utils import bmath as bm
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import matched_from_distribution_function
 from blond.beam.profile import CutOptions, Profile
