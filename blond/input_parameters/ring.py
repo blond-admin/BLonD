@@ -266,9 +266,12 @@ class Ring:
         # interpolation
         if self.momentum.shape[1] != (self.n_turns + 1):
             self.n_turns = self.momentum.shape[1] - 1
-            warnings.warn("WARNING in Ring: The number of turns for the " +
-                          "simulation was changed by passing a momentum " +
-                          "program.")
+            warnings.warn(
+                "WARNING in Ring: The number of turns for the "
+                "simulation was changed by passing a momentum "
+                "program.",
+                stacklevel=2
+            )
 
         # Derived from momentum
         # todo this should be attributes?
@@ -324,25 +327,25 @@ class Ring:
     @property
     def Particle(self):
         from warnings import warn
-        warn("Particle is deprecated, use particle", DeprecationWarning)
+        warn("Particle is deprecated, use particle", DeprecationWarning, stacklevel=2)
         return self.particle
 
     @Particle.setter
     def Particle(self, val):
         from warnings import warn
-        warn("Particle is deprecated, use particle", DeprecationWarning)
+        warn("Particle is deprecated, use particle", DeprecationWarning, stacklevel=2)
         self.particle = val
 
     @property
     def RingOptions(self):
         from warnings import warn
-        warn("RingOptions is deprecated, use ring_options", DeprecationWarning)
+        warn("RingOptions is deprecated, use ring_options", DeprecationWarning, stacklevel=2)
         return self.ring_options
 
     @RingOptions.setter
     def RingOptions(self, val):
         from warnings import warn
-        warn("RingOptions is deprecated, use ring_options", DeprecationWarning)
+        warn("RingOptions is deprecated, use ring_options", DeprecationWarning, stacklevel=2)
         self.ring_options = val
 
     def eta_generation(self) -> None:

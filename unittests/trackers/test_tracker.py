@@ -322,7 +322,7 @@ class Test:
         dt_new = self.long_tracker.beam.dt.copy()
 
 
-        bmath.use_gpu()
+        bmath.use_cpu()
         self._setUp()
         self.long_tracker._kickdrift_considering_periodicity(turn=self.turn)
         dt_ok= self.long_tracker.beam.dt.copy()

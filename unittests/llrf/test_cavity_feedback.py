@@ -101,7 +101,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
         self.OTFB = SPSCavityFeedback(
             self.rf, self.profile, G_llrf=20, G_tx=[1.0355739238973907, 1.078403005653143],
             a_comb=63/64, turns=1000, post_LS2=True, df=[0.18433333e6, 0.2275e6],
-            Commissioning=SPSCavityLoopCommissioning(open_ff=True, rot_iq=-1))
+            commissioning=SPSCavityLoopCommissioning(open_ff=True, rot_iq=-1))
 
         self.OTFB_tracker = RingAndRFTracker(self.rf, self.beam,
                                              profile=self.profile,
@@ -115,13 +115,13 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
         Vind3_mean = np.mean(np.absolute(self.OTFB.OTFB_1.V_ANT_COARSE[-self.OTFB.OTFB_1.n_coarse:]))/1e6
         Vind3_std = np.std(np.absolute(self.OTFB.OTFB_1.V_ANT_COARSE[-self.OTFB.OTFB_1.n_coarse:]))/1e6
-        Vind3_mean_exp = 2.7047955940118764
-        Vind3_std_exp = 2.4121534046270847e-12
+        Vind3_mean_exp = 0.6761952255314454
+        Vind3_std_exp = 5.802516784274078e-13
 
         Vind4_mean = np.mean(np.absolute(self.OTFB.OTFB_2.V_ANT_COARSE[-self.OTFB.OTFB_2.n_coarse:]))/1e6
         Vind4_std = np.std(np.absolute(self.OTFB.OTFB_2.V_ANT_COARSE[-self.OTFB.OTFB_2.n_coarse:]))/1e6
-        Vind4_mean_exp = 1.8057100857806163
-        Vind4_std_exp = 1.89451253314611e-12
+        Vind4_mean_exp = 0.9028493757326258
+        Vind4_std_exp = 8.817799015245741e-13
 
         self.assertAlmostEqual(Vind3_mean, Vind3_mean_exp,
                                places=digit_round,
@@ -152,8 +152,8 @@ class TestSPSCavityFeedback(unittest.TestCase):
             self.profile.bin_centers, self.OTFB.OTFB_2.rf_centers,
             self.OTFB.OTFB_2.V_IND_COARSE_GEN[-self.OTFB.OTFB_2.n_coarse:])
 
-        V_tot_3 = V_fine_tot_3 / 1e6
-        V_tot_4 = V_fine_tot_4 / 1e6
+        V_tot_3 = V_fine_tot_3 / 1e6 * self.OTFB.OTFB_1.n_cavities
+        V_tot_4 = V_fine_tot_4 / 1e6 * self.OTFB.OTFB_2.n_cavities
 
         V_sum = self.OTFB.V_sum / 1e6
 
@@ -398,7 +398,7 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         self.Commissioning = SPSCavityLoopCommissioning(open_ff=True, rot_iq=-1, cpp_conv=False)
 
         self.OTFB = SPSOneTurnFeedback(self.rfstation, self.profile, 3, a_comb=63 / 64,
-                                       Commissioning=self.Commissioning)
+                                       commissioning=self.Commissioning)
 
         self.OTFB.update_rf_variables()
         self.OTFB.update_fb_variables()
@@ -408,7 +408,7 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
     def test_set_point(self):
         self.OTFB.set_point()
         t_sig = np.zeros(2 * self.OTFB.n_coarse, dtype=complex)
-        t_sig[-self.OTFB.n_coarse:] = (4 / 9) * 10e6 * np.exp(1j * (np.pi / 2 - self.rfstation.phi_rf[0, 0]))
+        t_sig[-self.OTFB.n_coarse:] = (1 / 9) * 10e6 * np.exp(1j * (np.pi / 2 - self.rfstation.phi_rf[0, 0]))
 
         np.testing.assert_allclose(self.OTFB.V_SET, t_sig)
 
@@ -550,8 +550,10 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         sig[self.OTFB.n_mov_av + 1] = 2 * self.OTFB.TWC.R_gen / self.OTFB.TWC.tau
         sig *= self.OTFB.T_s
 
-        np.testing.assert_allclose(np.abs(self.OTFB.V_IND_COARSE_GEN[-self.OTFB.n_coarse:]), sig,
-                                   atol=5e-5)
+        np.testing.assert_allclose(
+            np.abs(self.OTFB.V_IND_COARSE_GEN[-self.OTFB.n_coarse:]) * self.OTFB.n_cavities,
+            sig, atol=5e-5
+        )
 
         # Tests generator response at carrier frequency.
         self.OTFB.TWC.impulse_response_gen(self.OTFB.omega_c, self.OTFB.rf_centers)
@@ -563,19 +565,23 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
 
         ref_V_IND_COARSE_GEN = np.load(os.path.join(this_directory, "ref_V_IND_COARSE_GEN.npy"))
 
-        # Test real part
-        np.testing.assert_allclose(np.around(self.OTFB.V_IND_COARSE_GEN[-self.OTFB.n_coarse:].real, 12),
-                                   np.around(ref_V_IND_COARSE_GEN.real, 12),
-                                   rtol=1e-6, atol=0,
-                                   err_msg="In TestSPSOneTurnFeedback test_gen_response(), "
-                                           "mismatch in real part of generator response")
+        # Test real part - sum of cavities
+        np.testing.assert_allclose(
+            np.around(self.OTFB.V_IND_COARSE_GEN[-self.OTFB.n_coarse:].real, 12) * self.OTFB.n_cavities,
+            np.around(ref_V_IND_COARSE_GEN.real, 12),
+            rtol=1e-6, atol=0,
+           err_msg="In TestSPSOneTurnFeedback test_gen_response(), "
+                   "mismatch in real part of generator response"
+        )
 
-        # Test imaginary part
-        np.testing.assert_allclose(np.around(self.OTFB.V_IND_COARSE_GEN[-self.OTFB.n_coarse:].imag, 12),
-                                   np.around(ref_V_IND_COARSE_GEN.imag, 12),
-                                   rtol=1e-6, atol=0,
-                                   err_msg="In TestSPSOneTurnFeedback test_gen_response(), "
-                                           "mismatch in imaginary part of generator response")
+        # Test imaginary part - sum of cavities
+        np.testing.assert_allclose(
+            np.around(self.OTFB.V_IND_COARSE_GEN[-self.OTFB.n_coarse:].imag, 12) * self.OTFB.n_cavities,
+           np.around(ref_V_IND_COARSE_GEN.imag, 12),
+           rtol=1e-6, atol=0,
+           err_msg="In TestSPSOneTurnFeedback test_gen_response(), "
+                   "mismatch in imaginary part of generator response"
+        )
 
 
 class TestSPSTransmitterGain(unittest.TestCase):
@@ -586,7 +592,7 @@ class TestSPSTransmitterGain(unittest.TestCase):
                          n_turns=1)
         # Set up RF parameters
         self.rf = RFStation(self.ring, [4620], [4.5e6], [0.], n_rf=1)
-        self.rf.omega_rf[0, 0] = 200.222e6*2*np.pi
+        self.rf.omega_rf[0, 0] = 200.222e6 * 2 * np.pi
         # Define beam and fill it
         self.beam = Beam(self.ring, int(1e5), 1.e11)
         bigaussian(self.ring, self.rf, self.beam, 3.2e-9/4, seed=1234,
@@ -605,12 +611,12 @@ class TestSPSTransmitterGain(unittest.TestCase):
                                   n_cavities=no_cavities, V_part=V_part,
                                   G_ff=0,
                                   G_llrf=5, G_tx=G_tx, a_comb=15/16,
-                                  Commissioning=commissioning)
+                                  commissioning=commissioning)
         for i in range(100):
             OTFB.track_no_beam()
 
-        V = np.average(np.absolute(OTFB.V_ANT_COARSE[-10]))*1e-6  # in MV
-        I = np.average(np.absolute(OTFB.I_GEN_COARSE[-10]))*1e-2  # in 100 A
+        V = np.average(np.absolute(OTFB.V_ANT_COARSE[-10])) * OTFB.n_cavities * 1e-6  # in MV
+        I = np.average(np.absolute(OTFB.I_GEN_COARSE[-10])) * 1e-2  # in 100 A
 
         return OTFB, V, I
 

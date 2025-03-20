@@ -109,25 +109,25 @@ class SparseSlices:
     @property
     def Beam(self):
         from warnings import warn
-        warn("Beam is deprecated, use beam", DeprecationWarning)
+        warn("Beam is deprecated, use beam", DeprecationWarning, stacklevel=2)
         return self.beam
 
     @Beam.setter
     def Beam(self, val):
         from warnings import warn
-        warn("Beam is deprecated, use beam", DeprecationWarning)
+        warn("Beam is deprecated, use beam", DeprecationWarning, stacklevel=2)
         self.beam = val
 
     @property
     def RFParams(self):
         from warnings import warn
-        warn("RFParams is deprecated, use rf_station", DeprecationWarning)
+        warn("RFParams is deprecated, use rf_station", DeprecationWarning, stacklevel=2)
         return self.rf_station
 
     @RFParams.setter
     def RFParams(self, val):
         from warnings import warn
-        warn("RFParams is deprecated, use rf_station", DeprecationWarning)
+        warn("RFParams is deprecated, use rf_station", DeprecationWarning, stacklevel=2)
         self.rf_station = val
 
     def set_cuts(self) -> None:
@@ -158,7 +158,7 @@ class SparseSlices:
 
     def _histrogram_one_by_one(self) -> None:
         from warnings import warn
-        warn("_histrogram_one_by_one is deprecated, use _histogram_one_by_one", DeprecationWarning)
+        warn("_histrogram_one_by_one is deprecated, use _histogram_one_by_one", DeprecationWarning, stacklevel=2)
         self._histogram_one_by_one()
 
     def _histogram_one_by_one(self) -> None:

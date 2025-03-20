@@ -593,10 +593,10 @@ extern "C"
             std::sort(in, in + n);
     }
 
-    void sort_longint(long int *__restrict__ in, const int n, bool reverse)
+    void sort_longint(int64_t *__restrict__ in, const int n, bool reverse)
     {
         if (reverse)
-            std::sort(in, in + n, std::greater<long int>());
+            std::sort(in, in + n, std::greater<int64_t>());
         else
             std::sort(in, in + n);
     }

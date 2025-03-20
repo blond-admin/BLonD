@@ -79,13 +79,13 @@ class FullRingAndRF:
     @property
     def RingAndRFSection_list(self):
         warnings.warn("RingAndRFSection_list is deprecated, use ring_and_rf_section",
-             DeprecationWarning)
+             DeprecationWarning, stacklevel=2)
         return self.ring_and_rf_section
 
     @RingAndRFSection_list.setter
     def RingAndRFSection_list(self, val):
         warnings.warn("RingAndRFSection_list is deprecated, use ring_and_rf_section",
-             DeprecationWarning)
+             DeprecationWarning, stacklevel=2)
         self.ring_and_rf_section = val
 
     def potential_well_generation(self, turn: int = 0, n_points: int = int(1e5),

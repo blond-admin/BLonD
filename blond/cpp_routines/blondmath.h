@@ -217,7 +217,7 @@ extern "C"
   void sort_double(double *__restrict__ in, const int n, bool reverse);
 
   void sort_int(int *__restrict__ in, const int n, bool reverse);
-  void sort_longint(long int *__restrict__ in, const int n, bool reverse);
+  void sort_longint(int64_t *__restrict__ in, const int n, bool reverse);
 
   void scalar_mul_int32(const int *__restrict__ a, const int b,
                         const int n, int *__restrict__ res);

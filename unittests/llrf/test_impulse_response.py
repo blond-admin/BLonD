@@ -171,7 +171,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
 
         # Beam loading via feed-back system
         OTFB_4 = SPSOneTurnFeedback(rf, profile, 4, n_cavities=1,
-            Commissioning=SPSCavityLoopCommissioning(open_ff=True, rot_iq=1), df=0.2275e6)
+            commissioning=SPSCavityLoopCommissioning(open_ff=True, rot_iq=1), df=0.2275e6)
         OTFB_4.counter = 0  # First turn
 
         OTFB_4.omega_c = factor * OTFB_4.TWC.omega_r
@@ -228,7 +228,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
 
         # Calculate impulse response and induced voltage
         OTFB = SPSOneTurnFeedback(rf, profile2, 3, n_cavities=1,
-            Commissioning=SPSCavityLoopCommissioning(open_ff=True, rot_iq=-1),
+            commissioning=SPSCavityLoopCommissioning(open_ff=True, rot_iq=-1),
                                   df=0.18433333e6)
         OTFB.TWC.impulse_response_beam(OTFB.omega_c, OTFB.profile.bin_centers,
                                        OTFB.rf_centers)
