@@ -54,12 +54,6 @@ class PrecisionClass:
 
 class c_complex128(ct.Structure):
     """128-bit (64+64) Complex number, compatible with std::complex layout
-
-    Args:
-        ct (_type_): _description_
-
-    Returns:
-        _type_: _description_
     """
     _fields_ = [("real", ct.c_double), ("imag", ct.c_double)]
 
@@ -84,11 +78,6 @@ class c_complex128(ct.Structure):
 class c_complex64(ct.Structure):
     """64-bit (32+32) Complex number, compatible with std::complex layout
 
-    Args:
-        ct (_type_): _description_
-
-    Returns:
-        _type_: _description_
     """
     _fields_ = [("real", ct.c_float), ("imag", ct.c_float)]
 
@@ -126,5 +115,10 @@ def c_complex(scalar: complex):
     return c_complex128(scalar)
 
 
-# By default use double precision
+# By default, use double precision
 precision = PrecisionClass('double')
+
+from .bmath_backends import BlondMathBackend
+bmath = BlondMathBackend() # this line controls static type hints of bmath
+bmath.use_cpu()
+

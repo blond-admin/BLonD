@@ -409,13 +409,13 @@ class Profile:
 
     beam : Beam
         Beam from which the profile has to be calculated
-    cut_options : Optional[CutOptions]
+    cut_options : CutOptions, Optional
         Options for profile cutting (see above)
-    fit_options : Optional[FitOptions]
+    fit_options : FitOptions, Optional
         Options to get profile position and length (see above)
-    filter_options : Optional[FilterOptions]
+    filter_options : FilterOptions, Optional
         Options to set a filter (see above)
-    other_slices_options : Optional[OtherSlicesOptions]
+    other_slices_options : OtherSlicesOptions, Optional
         All remaining options, like smooth histogram and direct
         slicing (see above)
 

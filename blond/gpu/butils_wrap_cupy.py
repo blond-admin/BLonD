@@ -19,11 +19,11 @@ from . import GPU_DEV
 
 # TODO all typing
 
-def rf_volt_comp(voltage, omega_rf, phi_rf, bin_centers):
+def rf_volt_comp(voltages, omega_rf, phi_rf, bin_centers):
     """Calculate the rf voltage at each profile bin
 
     Args:
-        voltage (float array): _description_
+        voltages (float array): _description_
         omega_rf (float array): _description_
         phi_rf (float array): _description_
         bin_centers (float array): _description_
@@ -34,15 +34,15 @@ def rf_volt_comp(voltage, omega_rf, phi_rf, bin_centers):
 
     rf_volt_comp_kernel = GPU_DEV.mod.get_function("rf_volt_comp")
 
-    assert voltage.dtype == precision.real_t
+    assert voltages.dtype == precision.real_t
     assert omega_rf.dtype == precision.real_t
     assert phi_rf.dtype == precision.real_t
     assert bin_centers.dtype == precision.real_t
 
     rf_voltage = cp.zeros(bin_centers.size, precision.real_t)
 
-    rf_volt_comp_kernel(args=(voltage, omega_rf, phi_rf, bin_centers,
-                              np.int32(voltage.size), np.int32(bin_centers.size), rf_voltage),
+    rf_volt_comp_kernel(args=(voltages, omega_rf, phi_rf, bin_centers,
+                              np.int32(voltages.size), np.int32(bin_centers.size), rf_voltage),
                         block=GPU_DEV.block_size, grid=GPU_DEV.grid_size)
     return rf_voltage
 

@@ -22,7 +22,7 @@ import numpy as np
 import pylab as plt
 from scipy.constants import c, e, m_p
 
-import blond.utils.bmath as bm
+from blond.utils import bmath as bm
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import matched_from_distribution_function
 from blond.beam.profile import CutOptions, Profile

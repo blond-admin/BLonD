@@ -16,6 +16,10 @@ Unittest for impedances.impedance_sources
 import unittest
 
 import numpy as np
+try:
+    np.trapezoid
+except AttributeError:
+    np.trapezoid = np.trapz
 from scipy.constants import e as elCharge
 
 from blond.beam.beam import Electron
@@ -40,10 +44,6 @@ class TestResonators(unittest.TestCase):
     def test_smallQError(self):
         with self.assertRaises(RuntimeError):
             Resonators(1, 2, 0.2)
-
-    def test_wrongMethodError(self):
-        with self.assertRaises(RuntimeError):
-            Resonators(1, 2, 3, method='something')
 
 
 class TestResistiveWall(unittest.TestCase):

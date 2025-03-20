@@ -20,7 +20,7 @@ import matplotlib as mpl
 import numpy as np
 from scipy.constants import c, e, m_p
 
-import blond.utils.bmath as bm
+from blond.utils import bmath as bm
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, Profile

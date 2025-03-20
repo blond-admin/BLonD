@@ -5,15 +5,16 @@ BLonD physics functions, python-only implementations
 """
 from __future__ import annotations
 
+import bisect
 from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.typing import NDArray
 from scipy.constants import e
 
-from blond.utils import bmath as bm
-
 if TYPE_CHECKING:
+    from typing import Optional
+
     from numpy.typing import NDArray
 
 RNG = np.random.default_rng()
@@ -240,6 +241,7 @@ def set_random_seed(seed: int) -> None:
     global RNG
     # Re-initialize the RNG with new seed
     RNG = np.random.default_rng(seed)
+    np.random.seed(seed)
 
 
 # ---------------------------------------------------
@@ -385,7 +387,7 @@ def music_track_multiturn(dt: NDArray, dE: NDArray, induced_voltage: NDArray,
 
 # --------------- Similar to fast_resonator.cpp -----------------
 def fast_resonator(R_S: NDArray, Q: NDArray, frequency_array: NDArray,
-                   frequency_R: NDArray, impedance: NDArray = None) -> NDArray:
+                   frequency_R: NDArray, impedance: Optional[NDArray] = None) -> NDArray:
     """
     This function takes as an input a list of resonators parameters and
     computes the impedance in an optimised way.
@@ -427,24 +429,24 @@ def fast_resonator(R_S: NDArray, Q: NDArray, frequency_array: NDArray,
 
 # --------------- Similar to beam_phase.cpp -----------------
 def beam_phase(bin_centers: NDArray, profile: NDArray,
-               alpha: float, omegarf: float,
-               phirf: float, bin_size: float) -> float:
-    scoeff = np.trapezoid(np.exp(alpha * (bin_centers))
-                          * np.sin(omegarf * bin_centers + phirf)
-                          * profile, dx=bin_size)
-    ccoeff = np.trapezoid(np.exp(alpha * (bin_centers))
-                          * np.cos(omegarf * bin_centers + phirf)
-                          * profile, dx=bin_size)
+               alpha: float, omega_rf: float,
+               phi_rf: float, bin_size: float) -> float:
+    scoeff = np.trapz(np.exp(alpha * (bin_centers))
+                      * np.sin(omega_rf * bin_centers + phi_rf)
+                      * profile, dx=bin_size)
+    ccoeff = np.trapz(np.exp(alpha * (bin_centers))
+                      * np.cos(omega_rf * bin_centers + phi_rf)
+                      * profile, dx=bin_size)
 
     return scoeff / ccoeff
 
 
 def beam_phase_fast(bin_centers: NDArray, profile: NDArray,
-                    omegarf: float, phirf: float, bin_size: float) -> float:
-    scoeff = np.trapezoid(profile * np.sin(omegarf * bin_centers + phirf),
-                          dx=bin_size)
-    ccoeff = np.trapezoid(profile * np.cos(omegarf * bin_centers + phirf),
-                          dx=bin_size)
+                    omega_rf: float, phi_rf: float, bin_size: float) -> float:
+    scoeff = np.trapz(profile * np.sin(omega_rf * bin_centers + phi_rf),
+                      dx=bin_size)
+    ccoeff = np.trapz(profile * np.cos(omega_rf * bin_centers + phi_rf),
+                      dx=bin_size)
 
     return scoeff / ccoeff
 
@@ -491,7 +493,6 @@ def distribution_from_tomoscope(dt: np.ndarray, dE: np.ndarray, probDistr: np.nd
     Generation of particle distribution from probability density
     Author: Helga Timko
     """
-    import bisect
 
     # Initialize random seed
     np.random.seed(seed)
@@ -593,6 +594,8 @@ def resonator_induced_voltage_1_turn(kappa1: NDArray,
     float_precision: type
         Digital precision of calculation
     """
+    from blond.utils import bmath as bm # local import to prevent cyclic import
+
     # Compute the slopes of the line sections of the linearly interpolated
     # (normalized) line density.
     kappa1[:] = (bm.diff(n_macroparticles)
