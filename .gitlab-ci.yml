@@ -95,8 +95,6 @@ release_sdist_310:
   extends:
     - .on_tag
   before_script:
-    - apt-get update
-    - apt-get install -y git
     - python3 -m pip install --upgrade pip
     - python3 -m pip install build twine
     # Without an up-to-date setuptools, we don't get the requirements.txt
