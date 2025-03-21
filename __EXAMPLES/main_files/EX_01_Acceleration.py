@@ -49,9 +49,9 @@ tau_0 = 0.4e-9          # Initial bunch length, 4 sigma [s]
 C = 26658.883        # Machine circumference [m]
 p_i = 450e9         # Synchronous momentum [eV/c]
 p_f = 460.005e9      # Synchronous momentum, final
-h = 35640            # Harmonic number
-V = 6e6                # RF voltage [V]
-dphi = 0             # Phase modulation/offset
+# Harmonic number
+# RF voltage [V]
+# Phase modulation/offset
 gamma_t = 55.759505  # Transition gamma
 alpha = 1. / gamma_t / gamma_t        # First order mom. comp. factor
 
@@ -90,9 +90,10 @@ bunchmonitor = BunchMonitor(ring, rf, beam,
                             this_directory + '../output_files/EX_01_output_data', profile=profile)
 
 format_options = {'dirname': this_directory + '../output_files/EX_01_fig'}
-plots = Plot(ring, rf, beam, dt_plt, N_t, 0, 0.0001763 * h,
+plots = Plot(ring, rf, beam, dt_plt, N_t, 0, 0.0001763 * 35640,
              -400e6, 400e6, xunit='rad', separatrix_plot=True,
-             profile=profile, h5file=this_directory + '../output_files/EX_01_output_data',
+             profile=profile,
+             h5file=this_directory + '../output_files/EX_01_output_data',
              format_options=format_options)
 
 # For testing purposes

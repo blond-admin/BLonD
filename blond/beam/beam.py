@@ -21,6 +21,7 @@ import warnings
 from typing import TYPE_CHECKING, Optional
 from warnings import warn
 
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
 
@@ -252,7 +253,7 @@ class Beam(BeamBaseClass):
             n_macroparticles=n_macroparticles,
             intensity=intensity
         )
-
+        self._ring = ring
         if dt is None:
             self.dt: NumpyArray | CupyArray  = bm.zeros([int(n_macroparticles)],
                                                         dtype=bm.precision.real_t)
@@ -273,7 +274,7 @@ class Beam(BeamBaseClass):
             weights: NumpyArray | CupyArray | None  = None
         else:
             assert n_macroparticles == len(weights)
-            weights: NumpyArray | CupyArray  = bm.ascontiguousarray(dE,
+            weights: NumpyArray | CupyArray  = bm.ascontiguousarray(weights,
                                                                     dtype=bm.precision.real_t)
             # normalize particles, so that the behaviour of weights=np.ones(..)
             # is equivalent to BLonD without weights
@@ -1128,3 +1129,30 @@ class Beam(BeamBaseClass):
                      rf_station.beta[index], rf_station.energy[index])
             self.dt[indices_left_outside] = left_outsiders_dt
             self.dE[indices_left_outside] = left_outsiders_dE
+
+    def get_new_beam_with_weights(self, bins: int) -> Beam:
+        """Generate beam with weights based on a 2D histogram"""
+        n_macroparticles = bins * bins
+        assert n_macroparticles < self.n_macroparticles, f"{n_macroparticles=} {self.n_macroparticles=}"
+
+
+        H, dt_edges, dE_edges = bm.histogram2d(self.dt, self.dE,bins=bins, weights=self.weights)
+        dt_centers = (dt_edges[:-1] + dt_edges[1:]) / 2
+        dE_centers = (dE_edges[:-1] + dE_edges[1:]) / 2
+
+        dt, dE = np.meshgrid(dt_centers, dE_centers, indexing='ij')
+        assert dE.shape == H.shape
+        assert dt.shape == H.shape
+        dt = dt.flatten()
+        dE = dE.flatten()
+        weights = H.flatten()
+        weights /= np.sum(weights) * n_macroparticles
+
+        new_beam = Beam(ring=self._ring,
+                        n_macroparticles=len(weights),
+                        intensity=self.intensity,
+                        dt=dt,
+                        dE=dE,
+                        weights=weights
+                        )
+        return new_beam
