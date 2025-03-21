@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import itertools as itl
 import warnings
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Tuple
 from warnings import warn
 
 import matplotlib.pyplot as plt
@@ -1130,13 +1130,25 @@ class Beam(BeamBaseClass):
             self.dt[indices_left_outside] = left_outsiders_dt
             self.dE[indices_left_outside] = left_outsiders_dE
 
-    def get_new_beam_with_weights(self, bins: int) -> Beam:
-        """Generate beam with weights based on a 2D histogram"""
-        n_macroparticles = bins * bins
-        assert n_macroparticles < self.n_macroparticles, f"{n_macroparticles=} {self.n_macroparticles=}"
+    def get_new_beam_with_weights(self,
+                                  bins: int | Tuple[int, int],
+                                  range: Optional[Tuple[Tuple[float,float], Tuple[float,float]]]=None
+    ) -> Beam:
+        """Generate beam with weights based on a 2D histogram
 
+        Parameters
+        ----------
+        bins
+            The number of bins for the two dimensions
+        range
+            The boundaries [[xmin, xmax], [ymin, ymax]]
+            """
 
-        H, dt_edges, dE_edges = bm.histogram2d(self.dt, self.dE,bins=bins, weights=self.weights)
+        H, dt_edges, dE_edges = bm.histogram2d(self.dt, self.dE,
+                                               bins=bins,
+                                               range=range,
+                                               weights=self.weights
+                                               )
         dt_centers = (dt_edges[:-1] + dt_edges[1:]) / 2
         dE_centers = (dE_edges[:-1] + dE_edges[1:]) / 2
 
@@ -1146,6 +1158,9 @@ class Beam(BeamBaseClass):
         dt = dt.flatten()
         dE = dE.flatten()
         weights = H.flatten()
+        select = weights > 0
+        dt,dE,weights = dt[select],dE[select],weights[select]
+        n_macroparticles = len(dt)
         weights /= np.sum(weights) * n_macroparticles
 
         new_beam = Beam(ring=self._ring,
