@@ -5,7 +5,7 @@ BLonD physics functions, python-only implementations
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 from numpy.typing import NDArray
@@ -114,17 +114,26 @@ def drift(dt: NDArray, dE: NDArray, solver: SolverTypes, t_rev: float,
 
 # --------------- Similar to histogram.cpp -----------------
 def slice_beam(dt: NDArray, profile: NDArray,
-               cut_left: float, cut_right: float) -> None:
-    """Slice the time coordinate of the beam.
+               cut_left: float, cut_right: float,
+               weights: Optional[NDArray]=None) -> None:
+    """Calculate a histogram of the beam
 
-    Args:
-        dt (NDArray): _description_
-        profile (NDArray): _description_
-        cut_left (float): _description_
-        cut_right (float): _description_
+    Parameters
+    ----------
+    dt
+        Time coordinates of each particle
+    profile
+        The array of the histogram, where the result is written
+    cut_left
+        Lower/left bound to calculate histogram
+    cut_right
+        Upper/right bound to calculate histogram
+    weights
+        Weight of each particle
     """
     profile[:] = np.histogram(dt, bins=len(profile),
-                              range=(cut_left, cut_right))[0]
+                              range=(cut_left, cut_right),
+                              weights=weights)[0]
 
 
 def slice_smooth(dt: NDArray, profile: NDArray,

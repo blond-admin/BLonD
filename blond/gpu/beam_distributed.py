@@ -204,6 +204,7 @@ class BeamDistributedSingleNode(BeamBaseClass):
         dE: NumpyNDArray,
         dt: NumpyNDArray,
         id_: NumpyNDArray,
+        weights: Optional[NumpyNDArray] = None,
         mock_n_gpus: Optional[int] = None,
     ):
         """Special version of beam, which storage of dE, dt and id distributed on several GPUs
@@ -236,6 +237,11 @@ class BeamDistributedSingleNode(BeamBaseClass):
         self.__dt_multi_gpu = DistributedMultiGpuArray(
             dt, mock_n_gpus=mock_n_gpus
         )
+        self.__weights_multi_gpu: DistributedMultiGpuArray | None = None
+        if weights is not None:
+            self.__weights_multi_gpu = DistributedMultiGpuArray(
+                weights, mock_n_gpus=mock_n_gpus
+            )
         self.__id_multi_gpu = DistributedMultiGpuArray(
             id_, mock_n_gpus=mock_n_gpus
         )
@@ -295,6 +301,10 @@ class BeamDistributedSingleNode(BeamBaseClass):
     @property
     def dt_multi_gpu(self):
         return self.__dt_multi_gpu
+
+    @property
+    def weights_multi_gpu(self):
+        return self.__weights_multi_gpu
 
     @property
     def id_multi_gpu(self):
@@ -589,11 +599,17 @@ class BeamDistributedSingleNode(BeamBaseClass):
         self._init_profile_multi_gpu(n_bins=len(profile))
         for gpu_i, dt_multi_gpu in self.dt_multi_gpu.gpu_arrays.items():
             with get_device(gpu_i=gpu_i):
+                if self.weights_multi_gpu is not None:
+                    weights = self.weights_multi_gpu.gpu_arrays[gpu_i]
+                else:
+                    weights = None
+
                 slice_beam(
                     dt=dt_multi_gpu,
                     profile=self.profile_multi_gpu[gpu_i],
                     cut_left=cut_left,
                     cut_right=cut_right,
+                    weights=weights,
                 )
         hist = self.profile_multi_gpu[0].get()
         if len(self.profile_multi_gpu) > 1:

@@ -12,7 +12,7 @@ Unittest for the FFTs used in blond with CuPy and NumPy
 
 :Authors: **Konstantinos Iliakis**
 """
-
+import time
 import unittest
 from copy import deepcopy
 import os
@@ -188,6 +188,32 @@ class Test:
         bm.slice_beam(dt_py, profile_py, cut_left, cut_right)
 
         np.testing.assert_allclose(profile_py, profile, atol=1)
+
+    def test_profile_slices_numba(self):
+        bm.use_py()
+        n_particles = 10_000
+        n_slices = 64
+        np.testing.assert_equal(bm.device, 'CPU_PY')
+
+        dt = np.random.normal(loc=1e-5, scale=1e-6, size=n_particles)
+        weights = np.random.randn(n_particles)
+        dt_py = dt.copy()
+
+        max_dt = dt.max()
+        min_dt = dt.min()
+        cut_left = min_dt
+        cut_right = max_dt
+        profile_py = np.empty(n_slices, dtype=float)
+
+        bm.slice_beam(dt, profile_py, cut_left, cut_right)
+
+        bm.use_numba()
+        np.testing.assert_equal(bm.device, 'CPU_NU')
+        profile_nu = bm.empty(n_slices, dtype=float)
+        bm.slice_beam(dt_py, profile_nu, cut_left, cut_right)
+
+        np.testing.assert_allclose(profile_py, profile_nu, atol=1)
+        bm.use_py()
 
     def test_resonator_induced_voltage_1_turn(self):
         folder = os.path.abspath(os.path.dirname(__file__)) + "/_kwargs_resonator_induced_voltage_1_turn/"

@@ -16,7 +16,6 @@ import time
 import unittest
 from copy import deepcopy
 
-import cupy
 import numpy as np
 import pytest
 
@@ -29,8 +28,12 @@ from blond.input_parameters.ring import Ring
 from blond.llrf.rf_modulation import PhaseModulation as PMod
 from blond.trackers.tracker import RingAndRFTracker
 from blond.utils import bmath
-from blond.gpu.butils_wrap_cupy import (kickdrift_considering_periodicity as
-                                        kickdrift_considering_periodicity_gpu)
+
+try:
+    import cupy
+    cupy_not_found = False
+except ModuleNotFoundError:
+    cupy_not_found = True
 
 
 def orig_rf_volt_comp(tracker):
@@ -312,6 +315,7 @@ class Test:
         # otherwise testcase has no sense
         assert (np.any(dt_org != dt_new))
 
+    @unittest.skipIf(cupy_not_found, "Cupy ModuleNotFoundError")
     def test_executes_gpu(self):
         bmath.use_gpu()
         self._setUp()
@@ -329,7 +333,11 @@ class Test:
         # otherwise testcase has no sense
         assert (np.any(dt_org != dt_new))
 
+    @unittest.skipIf(cupy_not_found, "Cupy ModuleNotFoundError")
     def test_gpu_correct(self):
+        from blond.gpu.butils_wrap_cupy import (
+            kickdrift_considering_periodicity as
+            kickdrift_considering_periodicity_gpu)
         bmath.use_gpu()
         self._setUp()
         self.long_tracker.to_gpu()

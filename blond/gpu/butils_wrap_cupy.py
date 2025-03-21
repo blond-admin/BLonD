@@ -8,7 +8,6 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING
 
-import cupy as cp
 import numpy as np
 from scipy.constants import c
 
@@ -16,6 +15,11 @@ from blond.trackers.utilities import hamiltonian
 from . import GPU_DEV
 from ..utils import precision
 from ..utils.legacy_support import handle_legacy_kwargs
+
+try:
+    import cupy as cp
+except ModuleNotFoundError:
+    pass
 
 if TYPE_CHECKING:
     from typing import Optional
@@ -420,7 +424,8 @@ def linear_interp_kick(dt: CupyNDArray, dE: CupyNDArray, voltage: CupyNDArray,
 
 
 def slice_beam(dt: CupyNDArray, profile: CupyNDArray,
-               cut_left: float, cut_right: float):
+               cut_left: float, cut_right: float,
+               weights:Optional[CupyNDArray]=None):
     """Constant space slicing with a constant frame.
 
     Args:
@@ -441,7 +446,8 @@ def slice_beam(dt: CupyNDArray, profile: CupyNDArray,
         cut_left = float(cut_left)
     if not isinstance(cut_right, float):
         cut_right = float(cut_right)
-
+    if weights is not None:
+        raise NotImplementedError('weights') # TODO
     if 4 * n_slices < GPU_DEV.attributes['MaxSharedMemoryPerBlock']:
         sm_histogram(args=(dt, profile, precision.real_t(cut_left),
                            precision.real_t(cut_right), np.uint32(n_slices),

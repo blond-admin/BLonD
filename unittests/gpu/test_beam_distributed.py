@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import unittest
 
-import cupy as cp
+try:
+    import cupy as cp
+except ModuleNotFoundError:
+    raise unittest.SkipTest('Cupy not found!')
 import numpy as np
 from cupy.cuda import Device
 from cupyx.profiler._time import _PerfCaseResult, benchmark
-
 from blond.beam.beam import Proton, Beam
 from blond.gpu import GPU_DEV
 from blond.gpu.beam_distributed import (

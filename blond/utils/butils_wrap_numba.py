@@ -8,13 +8,15 @@ import random
 from typing import TYPE_CHECKING
 
 import numpy as np
-from numba import get_num_threads, get_thread_id
+from numba import get_num_threads, get_thread_id, njit
 from numba import jit
 from numba import prange
 from scipy.constants import e
 
 
 if TYPE_CHECKING:
+    from typing import Optional
+
     from numpy.typing import NDArray
 
     from ..utils.types import SolverTypes
@@ -122,7 +124,7 @@ def drift(dt: NDArray, dE: NDArray, solver: SolverTypes, t_rev: float,
 
 # --------------- Similar to histogram.cpp -----------------
 @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-def slice_beam(dt: NDArray, profile: NDArray,
+def slice_beam_old(dt: NDArray, profile: NDArray,
                cut_left: float, cut_right: float) -> None:
     """Slice the time coordinate of the beam.
 
@@ -179,6 +181,40 @@ def slice_beam(dt: NDArray, profile: NDArray,
 
     # profile[:] = np.histogram(dt, bins=len(profile),
     #                          range=(cut_left, cut_right))[0]
+
+@njit( fastmath=True, parallel=True, cache=True)
+def slice_beam(dt: NDArray, profile: NDArray,
+               cut_left: float, cut_right: float, weights:Optional[None]=None) -> None:
+    # Operate in chunks of 512 particles to avoid calling the expensive
+    # get_thread_id() function too often
+    profile[:] = 0.0
+
+    len_dt = len(dt)
+    len_profile = len(profile)
+
+    chunk_size = 512
+    n_parallel = math.ceil(len_dt / chunk_size)
+
+    dt_to_profile_idx = 1 / (cut_right - cut_left) * len(profile)
+
+    for i_parallel in prange(n_parallel):
+        profile_loc = np.zeros(len_profile) # per thread
+
+        # Iterare over a part of dt
+        i_dt_start = i_parallel * chunk_size
+        i_dt_stop = i_dt_start + chunk_size
+        for i_dt in range(i_dt_start, min(i_dt_stop, (len_dt-1))):
+            # Calculate index of dt[index] with respect to profile
+            i_profile = int((dt[i_dt] - cut_left) * dt_to_profile_idx)
+
+            if 0 <= i_profile < len_profile: # otherwise IndexError
+                if weights is None:
+                    profile_loc[i_profile] += 1
+                else:
+                    profile_loc[i_profile] += weights[i_dt]
+
+        profile += profile_loc # only this syntax is without race condition
+
 
 
 @jit(nopython=True, fastmath=True, parallel=True, cache=True)

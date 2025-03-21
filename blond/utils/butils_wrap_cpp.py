@@ -688,17 +688,43 @@ def linear_interp_kick(dt: NDArray, dE: NDArray, voltage: NDArray,
 
 
 def slice_beam(dt: NDArray, profile: NDArray, cut_left: float,
-               cut_right: float) -> None:
+               cut_right: float,
+               weights:Optional[NDArray]=None) -> None:
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(profile[0], precision.real_t)
+    if weights is None:
+        weights = np.empty((1,),dtype=float)
+        use_weights = False
+    else:
+        use_weights = True
+    assert isinstance(weights[0], precision.real_t)
+
+    get_libblond().histogram_method2(__getPointer(dt),
+                         __getPointer(profile),
+                         c_real(cut_left),
+                         c_real(cut_right),
+                         __getLen(profile),
+                         __getLen(dt),
+                         __getPointer(weights),
+                         ct.c_bool(use_weights),)
+
+
+def slice_beam_old(dt: NDArray, profile: NDArray, cut_left: float,
+               cut_right: float,
+               weights:Optional[NDArray]=None) -> None:
+    assert isinstance(dt[0], precision.real_t)
+    assert isinstance(profile[0], precision.real_t)
+    if weights is not None:
+        raise NotImplementedError
+    assert weights is None
 
     get_libblond().histogram(__getPointer(dt),
-                             __getPointer(profile),
-                             c_real(cut_left),
-                             c_real(cut_right),
-                             __getLen(profile),
-                             __getLen(dt))
-
+                         __getPointer(profile),
+                         c_real(cut_left),
+                         c_real(cut_right),
+                         __getLen(profile),
+                         __getLen(dt)
+                             )
 
 def slice_smooth(dt: NDArray, profile: NDArray, cut_left: float, cut_right: float) -> None:
     assert isinstance(dt[0], precision.real_t)

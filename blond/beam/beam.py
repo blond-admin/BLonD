@@ -19,6 +19,7 @@ from __future__ import annotations
 import itertools as itl
 import warnings
 from typing import TYPE_CHECKING, Optional
+from warnings import warn
 
 import numpy as np
 from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
@@ -27,6 +28,7 @@ from .beam_abstract import BeamBaseClass
 from ..trackers.utilities import is_in_separatrix
 from ..utils import bmath as bm
 from ..utils import exceptions as blond_exceptions
+from ..utils.bmath_extras import mean_and_std
 from ..utils.legacy_support import handle_legacy_kwargs
 
 try:
@@ -37,7 +39,7 @@ except ModuleNotFoundError:
 
 if TYPE_CHECKING:
     from cupy.typing import CupyArray
-    from numpy.typing import NupyArray
+    from numpy.typing import NumpyArray
 
     from ..input_parameters.rf_parameters import RFStation
     from ..input_parameters.ring import Ring
@@ -236,8 +238,14 @@ class Beam(BeamBaseClass):
 
 
     @handle_legacy_kwargs
-    def __init__(self, ring: Ring, n_macroparticles: int, intensity: float, dt: Optional[NupyArray] = None,
-                 dE: Optional[NupyArray] = None) -> None:
+    def __init__(self,
+                 ring: Ring,
+                 n_macroparticles: int,
+                 intensity: float,
+                 dt: Optional[NumpyArray | CupyArray] = None,
+                 dE: Optional[NumpyArray | CupyArray] = None,
+                 weights: Optional[NumpyArray | CupyArray]=None
+                 ) -> None:
 
         super().__init__(
             ring=ring,
@@ -246,22 +254,36 @@ class Beam(BeamBaseClass):
         )
 
         if dt is None:
-            self.dt: NupyArray | CupyArray  = np.zeros([int(n_macroparticles)],
-                                               dtype=bm.precision.real_t)
+            self.dt: NumpyArray | CupyArray  = bm.zeros([int(n_macroparticles)],
+                                                        dtype=bm.precision.real_t)
         else:
             assert n_macroparticles == len(dt)
-            self.dt: NupyArray | CupyArray  = np.ascontiguousarray(dt)
+            self.dt: NumpyArray | CupyArray  = bm.ascontiguousarray(dt,
+                                                                    dtype=bm.precision.real_t)
 
         if dE is None:
-            self.dE: NupyArray | CupyArray  = np.zeros([int(n_macroparticles)],
+            self.dE: NumpyArray | CupyArray  = bm.zeros([int(n_macroparticles)],
                                                dtype=bm.precision.real_t)
         else:
             assert n_macroparticles == len(dE)
-            self.dE: NupyArray | CupyArray  = np.ascontiguousarray(dE)
+            self.dE: NumpyArray | CupyArray  = bm.ascontiguousarray(dE,
+                                                                    dtype=bm.precision.real_t)
 
+        if weights is None:
+            weights: NumpyArray | CupyArray | None  = None
+        else:
+            assert n_macroparticles == len(weights)
+            weights: NumpyArray | CupyArray  = bm.ascontiguousarray(dE,
+                                                                    dtype=bm.precision.real_t)
+            # normalize particles, so that the behaviour of weights=np.ones(..)
+            # is equivalent to BLonD without weights
+            sum_weights = bm.sum(weights)
+            if sum_weights != n_macroparticles:
+                warn(f"{sum_weights=} !The weights are rescaled so that sum(weights)=n_macroparticles !")
+                weights = weights / sum_weights * n_macroparticles
+        self.weights = weights
 
-
-        self.id: NupyArray | CupyArray = np.arange(1, self.n_macroparticles + 1,
+        self.id: NumpyArray | CupyArray = bm.arange(1, self.n_macroparticles + 1,
                                            dtype=int)
 
 
@@ -374,6 +396,9 @@ class Beam(BeamBaseClass):
                 self.dt[select_alive], dtype=bm.precision.real_t)
             self.dE = bm.ascontiguousarray(
                 self.dE[select_alive], dtype=bm.precision.real_t)
+            if self.weights is not None:
+                self.weights = bm.ascontiguousarray(
+                    self.weights[select_alive], dtype=bm.precision.real_t)
             self.n_macroparticles = len(self.dt)
             self.id = bm.arange(1, self.n_macroparticles + 1, dtype=int)
         else:
@@ -394,16 +419,27 @@ class Beam(BeamBaseClass):
         """
 
         # Statistics only for particles that are not flagged as lost
-        itemindex = bm.nonzero(self.id)[0]
-        self.mean_dt = bm.mean(self.dt[itemindex])
-        self.sigma_dt = bm.std(self.dt[itemindex])
+        if self.weights is not None:
+            itemindex = self.id > 0 # this could be as well used to set weights to 0..
+            self.mean_dt, self.sigma_dt = mean_and_std(
+                self.dt[itemindex],
+                weights=self.weights[itemindex]
+            )
+            self.mean_dE, self.sigma_dE = mean_and_std(
+                self.dE[itemindex],
+                weights=self.weights[itemindex]
+            )
+        else:
+            self.mean_dt = self.dt_mean(ignore_id_0=True)
+            self.sigma_dt = self.dt_std(ignore_id_0=True)
+            self.mean_dE = self.dE_mean(ignore_id_0=True)
+            self.sigma_dE = self.dE_std(ignore_id_0=True)
+        itemindex = self.id > 0 # this could be as well used to set weights to 0..
         self._mpi_sumsq_dt = bm.dot(self.dt[itemindex], self.dt[itemindex])
         # self.min_dt = bm.min(self.dt[itemindex])
         # self.max_dt = bm.max(self.dt[itemindex])
-
-        self.mean_dE = bm.mean(self.dE[itemindex])
-        self.sigma_dE = bm.std(self.dE[itemindex])
         self._mpi_sumsq_dE = bm.dot(self.dE[itemindex], self.dE[itemindex])
+        # TODO _mpi_sumsq_dE must be handled
 
         # self.min_dE = bm.min(self.dE[itemindex])
         # self.max_dE = bm.max(self.dE[itemindex])
@@ -490,7 +526,7 @@ class Beam(BeamBaseClass):
         """
         self.ratio *= np.exp(-time * self.particle.decay_rate / self.gamma)
 
-    def add_particles(self, new_particles: NupyArray | list[list[float]]) -> None:
+    def add_particles(self, new_particles: NumpyArray | list[list[float]]) -> None:
         """
         Method to add array of new particles to beam object
         New particles are given id numbers sequential from last id of this beam
@@ -502,9 +538,15 @@ class Beam(BeamBaseClass):
         """
 
         try:
-            newdt = new_particles[0]
-            newdE = new_particles[1]
-            if len(newdt) != len(newdE):
+            new_dt = new_particles[0]
+            new_dE = new_particles[1]
+            if len(new_particles) == 3:
+                new_weights = new_particles[2]
+                assert len(new_weights) == len(new_dt)
+            else:
+                len_dt = len(new_dt)
+                new_weights = None
+            if len(new_dt) != len(new_dE):
                 raise blond_exceptions.ParticleAdditionError(
                     "new_particles must have equal number of time and energy coordinates")
         except TypeError:
@@ -512,7 +554,7 @@ class Beam(BeamBaseClass):
                 "new_particles shape must be (2, n)"
             )
 
-        n_new = len(newdt)
+        n_new = len(new_dt)
 
         self.id = bm.concatenate((self.id, bm.arange(self.n_macroparticles + 1,
                                                      self.n_macroparticles + n_new + 1,
@@ -520,8 +562,12 @@ class Beam(BeamBaseClass):
                                   ))
         self.n_macroparticles += n_new
 
-        self.dt = bm.concatenate((self.dt, newdt))
-        self.dE = bm.concatenate((self.dE, newdE))
+        self.dt = bm.concatenate((self.dt, new_dt))
+        self.dE = bm.concatenate((self.dE, new_dE))
+        if new_weights is not None:
+            assert self.weights is not None
+            self.weights = bm.concatenate((self.weights, new_weights))
+            assert bm.sum(self.weights) == self.n_macroparticles
 
     def add_beam(self, other_beam: Beam) -> None:
         """
@@ -539,6 +585,9 @@ class Beam(BeamBaseClass):
 
         self.dt = bm.concatenate((self.dt, other_beam.dt))
         self.dE = bm.concatenate((self.dE, other_beam.dE))
+        if other_beam.weights is not None:
+            assert self.weights is not None
+            self.weights = bm.concatenate((self.weights, other_beam.weights))
 
         counter = itl.count(self.n_macroparticles + 1)
         newids = bm.zeros(other_beam.n_macroparticles)
@@ -551,8 +600,10 @@ class Beam(BeamBaseClass):
 
         self.id = bm.concatenate((self.id, newids))
         self.n_macroparticles += other_beam.n_macroparticles
+        if self.weights is not None:
+            assert bm.sum(self.weights) == self.n_macroparticles
 
-    def __iadd__(self, other: Beam | NupyArray | list[list[float]]) -> Beam:
+    def __iadd__(self, other: Beam | NumpyArray | list[list[float]]) -> Beam:
         """
         Initialisation of in place addition calls add_beam(other) if other
         is a blond beam object, calls add_particles(other) otherwise
@@ -596,14 +647,20 @@ class Beam(BeamBaseClass):
             if not fast:
                 self.dt = self.dt[self.id - 1]
                 self.dE = self.dE[self.id - 1]
+                if self.weights is not None:
+                    self.weights = self.weights[self.id - 1]
 
         self.id = WORKER.scatter(self.id)
         if fast:
             self.dt = bm.ascontiguousarray(self.dt[self.id - 1])
             self.dE = bm.ascontiguousarray(self.dE[self.id - 1])
+            if self.weights is not None:
+                self.weights = bm.ascontiguousarray(self.weights[self.id - 1])
         else:
             self.dt = WORKER.scatter(self.dt)
             self.dE = WORKER.scatter(self.dE)
+            if self.weights is not None:
+                self.weights = WORKER.scatter(self.weights)
 
         assert (len(self.dt) == len(self.dE) and len(self.dt) == len(self.id))
 
@@ -628,11 +685,15 @@ class Beam(BeamBaseClass):
         if all_gather:
             self.dt = WORKER.allgather(self.dt)
             self.dE = WORKER.allgather(self.dE)
+            if self.weights is not None:
+                self.weights = WORKER.allgather(self.weights)
             self.id = WORKER.allgather(self.id)
             self._mpi_is_splitted = False
         else:
             self.dt = WORKER.gather(self.dt)
             self.dE = WORKER.gather(self.dE)
+            if self.weights is not None:
+                self.weights = WORKER.gather(self.weights)
             self.id = WORKER.gather(self.id)
             if WORKER.is_master:
                 self._mpi_is_splitted = False
@@ -739,6 +800,8 @@ class Beam(BeamBaseClass):
 
         self.dE = cp.array(self.dE)
         self.dt = cp.array(self.dt)
+        if self.weights is not None:
+            self.weights = cp.array(self.weights)
         self.id = cp.array(self.id)
 
         self._device: DeviceType = 'GPU'
@@ -753,6 +816,8 @@ class Beam(BeamBaseClass):
 
         self.dE = cp.asnumpy(self.dE)
         self.dt = cp.asnumpy(self.dt)
+        if self.weights is not None:
+            self.weights = cp.asnumpy(self.weights)
         self.id = cp.asnumpy(self.id)
 
         # to make sure it will not be called again
@@ -768,9 +833,15 @@ class Beam(BeamBaseClass):
         """
         if ignore_id_0:
             mask = self.id > 0
-            return np.mean(self.dE[mask])
+            if self.weights is not None:
+                return bm.average(self.dE[mask], self.weights)
+            else:
+                return bm.mean(self.dE[mask])
         else:
-            return np.mean(self.dE)
+            if self.weights is not None:
+                return bm.average(self.dE, self.weights)
+            else:
+                return bm.mean(self.dE)
 
     def dE_std(self, ignore_id_0: bool = False):
         """Calculate standard deviation of energy
@@ -782,9 +853,15 @@ class Beam(BeamBaseClass):
         """
         if ignore_id_0:
             mask = self.id > 0
-            return np.std(self.dE[mask])
+            if self.weights is not None:
+                return mean_and_std(self.dE[mask], self.weights)[1]
+            else:
+                return np.std(self.dE[mask])
         else:
-            return np.std(self.dE)
+            if self.weights is not None:
+                return mean_and_std(self.dE, self.weights)[1]
+            else:
+                return np.std(self.dE)
 
     def dt_mean(self, ignore_id_0: bool = False):
         """Calculate mean of time
@@ -796,9 +873,15 @@ class Beam(BeamBaseClass):
         """
         if ignore_id_0:
             mask = self.id > 0
-            return np.mean(self.dt[mask])
+            if self.weights is not None:
+                return np.average(self.dt[mask],weights=self.weights)
+            else:
+                return np.mean(self.dt[mask])
         else:
-            return np.mean(self.dt)
+            if self.weights is not None:
+                return np.average(self.dt,weights=self.weights)
+            else:
+                return np.mean(self.dt)
 
     def dt_std(self, ignore_id_0: bool = False):
         """Calculate standard deviation of time
@@ -810,23 +893,45 @@ class Beam(BeamBaseClass):
         """
         if ignore_id_0:
             mask = self.id > 0
-            return np.std(self.dt[mask])
+            if self.weights is not None:
+                return mean_and_std(self.dt[mask], weights=self.weights)[1]
+            else:
+                return np.std(self.dt[mask])
         else:
-            return np.std(self.dt)
+            if self.weights is not None:
+                return mean_and_std(self.dt, weights=self.weights)[1]
+            else:
+                return np.std(self.dt)
 
-    def dt_min(self):
-        return self.dt.min()
+    def dt_min(self, ignore_id_0: bool = False):
+        if ignore_id_0:
+            mask = self.id > 0
+            return self.dt[mask].min()
+        else:
+            return self.dt.min()
 
-    def dE_min(self):
-        return self.dE.min()
+    def dE_min(self, ignore_id_0: bool = False):
+        if ignore_id_0:
+            mask = self.id > 0
+            return self.dE[mask].min()
+        else:
+            return self.dE.min()
 
-    def dt_max(self):
-        return self.dt.max()
+    def dt_max(self, ignore_id_0: bool = False):
+        if ignore_id_0:
+            mask = self.id > 0
+            return self.dt[mask].max()
+        else:
+            return self.dt.max()
 
-    def dE_max(self):
-        return self.dE.max()
+    def dE_max(self, ignore_id_0: bool = False):
+        if ignore_id_0:
+            mask = self.id > 0
+            return self.dE[mask].max()
+        else:
+            return self.dE.max()
 
-    def slice_beam(self, profile: NupyArray | CupyArray,
+    def slice_beam(self, profile: NumpyArray | CupyArray,
                    cut_left: float, cut_right: float
                    ):
         bm.slice_beam(
@@ -834,6 +939,7 @@ class Beam(BeamBaseClass):
             profile=profile,
             cut_left=cut_left,
             cut_right=cut_right,
+            weights=self.weights
         )
         if bm.in_mpi():
             from ..utils.mpi_config import WORKER
@@ -858,7 +964,7 @@ class Beam(BeamBaseClass):
 
 
     def kick(
-        self, rf_station: RFStation, acceleration_kicks: NupyArray, turn_i: int
+        self, rf_station: RFStation, acceleration_kicks: NumpyArray, turn_i: int
     ):
         r"""Function updating the dE array
 
@@ -933,8 +1039,8 @@ class Beam(BeamBaseClass):
 
     def linear_interp_kick(
         self,
-        voltage: NupyArray,
-        bin_centers: NupyArray,
+        voltage: NumpyArray,
+        bin_centers: NumpyArray,
         charge: float,
         acceleration_kick: float,
     ):
@@ -946,7 +1052,7 @@ class Beam(BeamBaseClass):
 
     def kickdrift_considering_periodicity(
         self,
-        acceleration_kicks: NupyArray,
+        acceleration_kicks: NumpyArray,
         rf_station: RFStation,
         solver: SolverTypes,
         turn_i: int,

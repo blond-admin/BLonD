@@ -1,11 +1,10 @@
 import unittest
 
 import numpy as np
+import pytest
 
 from blond.beam.beam import Beam, Proton
-from blond.gpu.butils_wrap_cupy import (
-    losses_separatrix as losses_separatrix_gpu,
-)
+
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.trackers.utilities import is_in_separatrix as is_in_separatrix_cpu
@@ -47,7 +46,11 @@ class TestLossesSeparatrix(unittest.TestCase):
             ring=self.ring, harmonic=4620, voltage=4.5e6, phi_rf_d=0.0
         )
 
+    @pytest.importorskip('cupy')
     def test_executable(self):
+        from blond.gpu.butils_wrap_cupy import (
+            losses_separatrix as losses_separatrix_gpu,
+        )
         bm.use_gpu()
         self.beam_.to_gpu()
         losses_separatrix_gpu(
@@ -60,8 +63,11 @@ class TestLossesSeparatrix(unittest.TestCase):
         )
         bm.use_cpu()
 
-
+    @pytest.importorskip('cupy')
     def test_correct(self):
+        from blond.gpu.butils_wrap_cupy import (
+            losses_separatrix as losses_separatrix_gpu,
+        )
         ids_correct = self.beam_.id.copy()
         lost_index = ~is_in_separatrix_cpu(
             ring=self.ring,
