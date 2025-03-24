@@ -1,7 +1,11 @@
 import unittest
 
+try:
+    import cupy as cp
+except ModuleNotFoundError:
+    raise unittest.SkipTest('Cupy not found!')
+
 import numpy as np
-import pytest
 
 from blond.beam.beam import Beam, Proton
 
@@ -46,7 +50,6 @@ class TestLossesSeparatrix(unittest.TestCase):
             ring=self.ring, harmonic=4620, voltage=4.5e6, phi_rf_d=0.0
         )
 
-    @pytest.importorskip('cupy')
     def test_executable(self):
         from blond.gpu.butils_wrap_cupy import (
             losses_separatrix as losses_separatrix_gpu,
@@ -63,7 +66,6 @@ class TestLossesSeparatrix(unittest.TestCase):
         )
         bm.use_cpu()
 
-    @pytest.importorskip('cupy')
     def test_correct(self):
         from blond.gpu.butils_wrap_cupy import (
             losses_separatrix as losses_separatrix_gpu,
