@@ -236,7 +236,7 @@ class _InducedVoltage:
                  frequency_resolution: Optional[float] = None,
                  wake_length: Optional[float] = None,
                  multi_turn_wake: bool = False,
-                 mtw_mode: Optional[MtwModeTypes] = 'time',  # todo fix
+                 mtw_mode: Optional[MtwModeTypes] = 'time',
                  rf_station: Optional[RFStation] = None,
                  use_regular_fft: bool = True) -> None:
 
@@ -942,9 +942,7 @@ class InducedVoltageResonator(_InducedVoltage):
     resonators : Resonators
         Resonators object
     frequency_resolution : float, optional
-
     wake_length : float, optional
-
     multi_turn_wake : bool, optional
         Flag to specify if wake calculation is multi-turn
     counter_rotation : bool, optional
@@ -963,17 +961,14 @@ class InducedVoltageResonator(_InducedVoltage):
 
     Attributes
     ----------
-    beam: Beam
-        Copy of the Beam object in order to access the beam info.
-    profile : Profile
-        Copy of the Profile object in order to access the line density.
-    timr_array : float array
+    beam: beam
+        Copy of the beam object in order to access the beam info.
+    profile : profile
+        Copy of the profile object in order to access the line density.
+    time_array : float array
         Array of time values where the induced voltage is calculated.
         If left out, the induced voltage is calculated at the times of the
         line density
-    atLineDensityTimes : boolean
-        flag indicating if the induced voltage has to be computed for time_array
-        or for the line density
     n_time : int
         length of time_array
     R, omega_r, Q : lists of float
@@ -985,15 +980,15 @@ class InducedVoltageResonator(_InducedVoltage):
     """
 
     @handle_legacy_kwargs
-    def __init__(self, beam: Beam,
-                 profile: Profile,
+    def __init__(self, beam: beam,
+                 profile: profile,
                  resonators: Optional[Resonators] = None,
                  frequency_resolution: Optional[float] = None,
                  wake_length: Optional[float] = None,
                  multi_turn_wake: bool = False,
                  counter_rotation: bool = False,
                  time_array: Optional[NDArray] = None,
-                 time_array_2: Optional[NDArray] = None,  # this is not correct...
+                 time_array_2: Optional[NDArray] = None,
                  rf_station: Optional[RFStation] = None,
                  array_length: Optional[int] = None,
                  use_regular_fft: bool = True) -> None:
@@ -1001,23 +996,17 @@ class InducedVoltageResonator(_InducedVoltage):
         # Test if one or more quality factors is smaller than 0.5.
         if sum(resonators.Q < 0.5) > 0:
             # ResonatorError
-            raise RuntimeError('All quality factors Q must be larger than 0.5')
-
-        # Copy of the Beam object in order to access the beam info.
-        self.beam = beam
-        # Copy of the Profile object in order to access the line density.
+            raise RuntimeError('All quality factors Q must be larger than 0.5 to use Resonator class')
         self.profile = profile
+        self.beam = beam
         self.wake_length_input = wake_length
 
         # Optional array of time values where the induced voltage is calculated.
-        # If left out, the induced voltage is calculated at the times of the
-        # line density.
+        # If left out, the induced voltage is calculated at the times of the line density.
         if time_array is None:
             self.time_array = self.profile.bin_centers
-            self.atLineDensityTimes = True
         else:
             self.time_array = time_array
-            self.atLineDensityTimes = False
 
         self.array_length = array_length
         self.counter_rotation = counter_rotation
@@ -1029,9 +1018,8 @@ class InducedVoltageResonator(_InducedVoltage):
                 # Number of points of the induced voltage array
                 self.n_induced_voltage = int(np.ceil(self.wake_length_input / self.profile.bin_size))
                 if self.n_induced_voltage < self.profile.n_slices:
-                    raise RuntimeError('Error: too short wake length. ' +
-                                       'Increase it above {0:1.2e} s.'.format(
-                                           self.profile.n_slices * self.profile.bin_size))
+                    raise RuntimeError('Error: too short wake length. Increase it above {0:1.2e} s.'.format(
+                        self.profile.n_slices * self.profile.bin_size))
                 # Wake length in s, rounded up to the next multiple of bin size
                 self.wake_length = self.n_induced_voltage * self.profile.bin_size
             elif (self.wake_length_input == None):
@@ -1043,9 +1031,7 @@ class InducedVoltageResonator(_InducedVoltage):
             self.n_mtw_memory = self.n_time
             self.time_array_2 = time_array_2
             self.mtw_memory_counterrot = np.zeros(self.n_mtw_memory, dtype=bm.precision.real_t, order='C')
-            self.induced_voltage_CR = np.zeros(int(self.array_length), dtype=bm.precision.real_t, order='C')
-
-        # todo
+            self.induced_voltage_cr = np.zeros(int(self.array_length), dtype=bm.precision.real_t, order='C')
 
         # Copy of the shunt impedances of the Resonators in* :math:`\Omega`
         self.R = resonators.R_S
@@ -1064,11 +1050,9 @@ class InducedVoltageResonator(_InducedVoltage):
         # at the 'n_time' time-values of one cavity. For internal use.
         self._tmp_matrix = np.ones(
             (self.n_resonators, self.n_time), dtype=bm.precision.real_t, order='C')
-
         # Slopes of the line segments. For internal use.
         self._kappa1 = np.zeros(
             int(self.profile.n_slices - 1), dtype=bm.precision.real_t, order='C')
-
         # Matrix to hold n_times many time_array[t]-bin_centers arrays.
         self._deltaT = np.zeros(
             (self.n_time, self.profile.n_slices), dtype=bm.precision.real_t, order='C')
@@ -1088,8 +1072,7 @@ class InducedVoltageResonator(_InducedVoltage):
 
         _InducedVoltage.process(self)
 
-        # Since profile object changed, need to assign the proper dimensions to
-        # _kappa1 and _deltaT
+        # Since profile object changed, assign dimensions to _kappa1 and _deltaT
         self._kappa1 = np.zeros(
             int(self.profile.n_slices - 1), dtype=bm.precision.real_t, order='C')
         self._deltaT = np.zeros(
@@ -1099,7 +1082,7 @@ class InducedVoltageResonator(_InducedVoltage):
             (self.n_time, self.profile.n_slices), dtype=bm.precision.real_t, order='C')
         self.induced_voltage = np.zeros(
             (self.n_time), dtype=bm.precision.real_t, order='C')
-        self.induced_voltage_CR = np.zeros(
+        self.induced_voltage_cr = np.zeros(
             (self.n_time), dtype=bm.precision.real_t, order='C')
 
     def induced_voltage_1turn(self, beam_spectrum_dict={}):
@@ -1134,10 +1117,10 @@ class InducedVoltageResonator(_InducedVoltage):
         to the result.
         """
         try:
-            self.induced_voltage_CR, self._deltaT2
+            self.induced_voltage_cr, self._deltaT2
         except AttributeError:
-            self.induced_voltage_CR, self._deltaT2 = deepcopy(self.induced_voltage), deepcopy(self._deltaT)
-        self.induced_voltage_CR, self._deltaT2 = bm.resonator_induced_voltage_1_turn(self._kappa1,
+            self.induced_voltage_cr, self._deltaT2 = deepcopy(self.induced_voltage), deepcopy(self._deltaT)
+        self.induced_voltage_cr, self._deltaT2 = bm.resonator_induced_voltage_1_turn(self._kappa1,
                                                                                      self.profile.n_macroparticles,
                                                                                      self.profile.bin_centers,
                                                                                      self.profile.bin_size,
@@ -1150,7 +1133,7 @@ class InducedVoltageResonator(_InducedVoltage):
                                                                                      self.beam.particle.charge,
                                                                                      self.beam.n_macroparticles,
                                                                                      self.beam.ratio, self.R,
-                                                                                     self.induced_voltage_CR,
+                                                                                     self.induced_voltage_cr,
                                                                                      bm.precision.real_t)
 
     def induced_voltage_mtw(self, beam_spectrum_dict={}):
@@ -1161,7 +1144,6 @@ class InducedVoltageResonator(_InducedVoltage):
         Implementation by F. Batsch.
         """
         # shift the entries in array by 1 t_rev and set to 0
-        self.mtw_memory = np.append(self.mtw_memory, np.zeros(self.array_length))
         self.mtw_memory = np.append(self.mtw_memory, np.zeros(self.array_length))
         # remove one turn length of memory
         self.mtw_memory = self.mtw_memory[self.array_length:]
@@ -1180,8 +1162,8 @@ class InducedVoltageResonator(_InducedVoltage):
             self.induced_voltage_1turn_counterrot(beam_spectrum_dict)
             # adds to memory from previous
             self.mtw_memory_counterrot[:int(
-                self.n_time)] += self.induced_voltage_CR
-            self.induced_voltage_CR = self.mtw_memory_counterrot[:self.n_time]
+                self.n_time)] += self.induced_voltage_cr
+            self.induced_voltage_cr = self.mtw_memory_counterrot[:self.n_time]
 
     def to_gpu(self, recursive=True):
         """
@@ -1219,34 +1201,28 @@ class InducedVoltageResonator(_InducedVoltage):
         self._device: DeviceType = 'CPU'
 
 
-class InducedVoltage_from_cr():
+class InducedVoltageFromCr():
     r"""
     *Takes the induced voltage from the counter-rotating beam, inverts it in time and applies it.*
-
 
     Parameters
     ----------
     induced_voltage_object_cr : Optional
         An object containing induced voltage data from the counter-rotating beam. This object should
-        have an attribute `induced_voltage_CR` which holds the voltage values.
+        have an attribute `induced_voltage_cr` which holds the voltage values.
     n_slices : Optional
     wake_length : Optional[float]
         The length of the wake, which determines how long the induced voltage persists over time.
 
     Attributes
     ----------
-
     inducedvoltageobject : object
         The object that provides the induced voltage data for the counter-rotating beam.
-
     n_slices :
-
     wake_length : float
         The length of the wake for the induced voltage.
-
     induced_voltage_generation : callable
         The method to generate the induced voltage, in this case, the `induced_voltage_counterbeam` method.
-
     induced_voltage : NDArray
         An array to store the calculated induced voltage values.
 
@@ -1278,8 +1254,8 @@ class InducedVoltage_from_cr():
         r"""
         Inverts the induced voltage object of the counter-rotating beam.
         """
-        if hasattr(self.inducedvoltageobject, "induced_voltage_CR"):
+        if hasattr(self.inducedvoltageobject, "induced_voltage_cr"):
             # the end of this
-            self.induced_voltage = -1 * (self.inducedvoltageobject.induced_voltage_CR[:self.n_slices])
+            self.induced_voltage = -1 * (self.inducedvoltageobject.induced_voltage_cr[:self.n_slices])
         else:
             self.induced_voltage = np.zeros(self.inducedvoltageobject.n_time, dtype=bm.precision.real_t)
