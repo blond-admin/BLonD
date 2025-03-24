@@ -72,6 +72,59 @@ extern "C" void histogram(const real_t *__restrict__ input,
     free(histo);
 }
 
+#include <omp.h>
+#include <cmath>
+
+extern "C" void histogram_method2(const real_t *__restrict__ input,
+                          real_t *__restrict__ output,
+                          const real_t cut_left,
+                          const real_t cut_right,
+                          const int n_slices,
+                          const int n_macroparticles
+                          )
+{
+    // This is an alternative way to calculate the histogram
+    // which should be more efficient than 'histogram'
+    // 'histogram' is kept for completeness
+
+    // Initialize the output histogram with zeroes
+    #pragma omp parallel for
+    for (int i = 0; i < n_slices; i++) {
+        output[i] = 0;
+    }
+
+    // Calculate the bin width
+    const real_t inv_bin_width = n_slices / (cut_right - cut_left);
+
+    // Parallel loop to compute the histogram
+    #pragma omp parallel
+    {
+        // Local histogram for each thread to avoid race conditions
+        unsigned int local_histogram[n_slices] = {0};
+
+        #pragma omp for
+        for (int i = 0; i < n_macroparticles; i++) {
+            // Calculate the bin index for the current input value
+            real_t dt = input[i];
+            if (dt < cut_left || dt >= cut_right){
+                continue;
+            }
+            // index should be correct because of if-condition above
+            unsigned int bin_index = floor((dt - cut_left) * inv_bin_width);
+            local_histogram[bin_index] += 1;
+
+        }
+
+        // Combine the results from all threads
+        #pragma omp critical
+        {
+            for (int i = 0; i < n_slices; i++) {
+                output[i] += local_histogram[i];
+            }
+        }
+    }
+}
+
 extern "C" void smooth_histogram(const real_t *__restrict__ input,
                                  real_t *__restrict__ output, const real_t cut_left,
                                  const real_t cut_right, const int n_slices,

@@ -5,8 +5,9 @@ BLonD physics functions, numba implementations
 import math
 import random
 
+import numba
 import numpy as np
-from numba import get_num_threads, get_thread_id
+from numba import get_num_threads, get_thread_id, njit
 from numba import jit
 from numba import prange
 from numpy.typing import NDArray
@@ -114,8 +115,8 @@ def drift(dt: np.ndarray, dE: np.ndarray, solver: str, t_rev: float,
 
 
 # --------------- Similar to histogram.cpp -----------------
-@jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-def slice_beam(dt: np.ndarray, profile: np.ndarray,
+@jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=False)
+def slice_beam_old(dt: np.ndarray, profile: np.ndarray,
                cut_left: float, cut_right: float) -> None:
     """Slice the time coordinate of the beam.
 
@@ -172,6 +173,42 @@ def slice_beam(dt: np.ndarray, profile: np.ndarray,
 
     # profile[:] = np.histogram(dt, bins=len(profile),
     #                          range=(cut_left, cut_right))[0]
+
+@njit( fastmath=True, parallel=True, cache=False)
+def slice_beam(dt: NDArray, profile: NDArray,
+               cut_left: float, cut_right: float) -> None:
+    # Operate in chunks of 512 particles to avoid calling the expensive
+    # get_thread_id() function too often
+    profile[:] = 0.0
+
+    len_dt = len(dt)
+    len_profile = len(profile)
+
+    n_parallel = numba.get_num_threads()
+    chunk_size = math.ceil(len_dt / n_parallel)
+
+    dt_to_profile_idx = len(profile) / (cut_right - cut_left)
+    const1 = - cut_left * dt_to_profile_idx
+
+    for i_parallel in prange(n_parallel):
+        profile_loc = np.zeros(len_profile) # per thread
+
+        # Iterate over a part of dt
+        i_dt_start = i_parallel * chunk_size
+        if i_parallel == (n_parallel - 1):
+            i_dt_stop = len_dt - 1
+        else:
+            i_dt_stop = i_dt_start + chunk_size
+
+        for i_dt in range(i_dt_start, i_dt_stop):
+            dt_tmp = dt[i_dt]
+            if (dt_tmp < cut_left) or (dt_tmp >= cut_right):
+                continue
+            # Calculate index of dt[index] with respect to profile
+
+            profile_loc[int(dt_tmp * dt_to_profile_idx + const1)] += 1
+
+        profile += profile_loc # only this syntax is without race condition
 
 
 @jit(nopython=True, fastmath=True, parallel=True, cache=True)

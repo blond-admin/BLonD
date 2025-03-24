@@ -655,7 +655,7 @@ def linear_interp_kick(dt, dE, voltage,
                                       c_real(acceleration_kick))
 
 
-def slice_beam(dt, profile, cut_left, cut_right):
+def slice_beam_old(dt, profile, cut_left, cut_right):
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(profile[0], precision.real_t)
 
@@ -666,6 +666,16 @@ def slice_beam(dt, profile, cut_left, cut_right):
                              __getLen(profile),
                              __getLen(dt))
 
+def slice_beam(dt, profile, cut_left, cut_right):
+    assert isinstance(dt[0], precision.real_t)
+    assert isinstance(profile[0], precision.real_t)
+
+    get_libblond().histogram_method2(__getPointer(dt),
+                             __getPointer(profile),
+                             c_real(cut_left),
+                             c_real(cut_right),
+                             __getLen(profile),
+                             __getLen(dt))
 
 def slice_smooth(dt, profile, cut_left, cut_right):
     assert isinstance(dt[0], precision.real_t)
