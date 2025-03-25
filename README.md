@@ -41,9 +41,10 @@ BLonD example project: https://gitlab.cern.ch/blond/blond-simulation-template
 
 #### Windows
 
-1.  Download the latest mingw-w64 using this link:
+1.  Download the latest _mingw-w64_ using this link:
     <https://winlibs.com/#download-release>
-2.  Extract the downloaded zip/7-zip under e.g. `C:\`. You should now
+    (if you download _mingw-w64_ from another source, it might cause problems due to an altered folder structure)
+2.  Extract the downloaded _zip_/_7-zip_ under e.g. `C:\`. You should now
     see a directory `C:\mingw64`.
 3.  Add `C:\mingw64\bin` in the PATH Environment Variable. [Here you can
     see how to do this in Windows
