@@ -689,15 +689,15 @@ def linear_interp_kick(dt: NDArray, dE: NDArray, voltage: NDArray,
 
 def slice_beam(dt: NDArray, profile: NDArray, cut_left: float,
                cut_right: float,
-               weights:Optional[NDArray]=None) -> None:
+               weights: Optional[NDArray]=None) -> None:
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(profile[0], precision.real_t)
     if weights is None:
-        weights = np.empty((1,),dtype=float)
         use_weights = False
+        weights = np.empty((1,),np.int32)
     else:
         use_weights = True
-    assert isinstance(weights[0], precision.real_t)
+    assert weights.dtype == np.int32, f"{weights.dtype}"
 
     get_libblond().histogram_method2(__getPointer(dt),
                          __getPointer(profile),
@@ -706,8 +706,10 @@ def slice_beam(dt: NDArray, profile: NDArray, cut_left: float,
                          __getLen(profile),
                          __getLen(dt),
                          __getPointer(weights),
-                         ct.c_bool(use_weights),)
-
+                         ct.c_bool(use_weights),
+    )
+    if use_weights:
+        profile *= len(dt) / weights.sum()
 
 def slice_beam_old(dt: NDArray, profile: NDArray, cut_left: float,
                cut_right: float,

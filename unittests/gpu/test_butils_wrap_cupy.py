@@ -1,14 +1,13 @@
 import unittest
 
+import numpy as np
+
 try:
     import cupy as cp
 except ModuleNotFoundError:
     raise unittest.SkipTest('Cupy not found!')
 
-import numpy as np
-
 from blond.beam.beam import Beam, Proton
-
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.trackers.utilities import is_in_separatrix as is_in_separatrix_cpu

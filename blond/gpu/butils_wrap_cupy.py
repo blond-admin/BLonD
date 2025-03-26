@@ -434,8 +434,6 @@ def slice_beam(dt: CupyNDArray, profile: CupyNDArray,
         cut_left (_type_): _description_ # TODO
         cut_right (_type_): _description_ # TODO
     """
-    sm_histogram = GPU_DEV.mod.get_function("sm_histogram")
-    hybrid_histogram = GPU_DEV.mod.get_function("hybrid_histogram")
 
     assert dt.dtype == precision.real_t, f"{dt.dtype=}, not {precision.real_t}"
 
@@ -446,20 +444,62 @@ def slice_beam(dt: CupyNDArray, profile: CupyNDArray,
         cut_left = float(cut_left)
     if not isinstance(cut_right, float):
         cut_right = float(cut_right)
-    if weights is not None:
-        raise NotImplementedError('weights') # TODO
-    if 4 * n_slices < GPU_DEV.attributes['MaxSharedMemoryPerBlock']:
-        sm_histogram(args=(dt, profile, precision.real_t(cut_left),
-                           precision.real_t(cut_right), np.uint32(n_slices),
-                           np.uint32(dt.size)),
-                     grid=GPU_DEV.grid_size, block=GPU_DEV.block_size, shared_mem=4 * n_slices)
+
+
+    if (4 * n_slices) < GPU_DEV.attributes['MaxSharedMemoryPerBlock']:
+        if weights is not None:
+            sm_histogram_weights = GPU_DEV.mod.get_function(
+                "sm_histogram_weights"
+            )
+            assert weights.dtype == np.int32
+            sm_histogram_weights(args=(dt,
+                                       profile,
+                                       precision.real_t(cut_left),
+                                       precision.real_t(cut_right),
+                                       np.uint32(n_slices),
+                                       np.uint32(dt.size),
+                                       weights,
+                                       ),
+                                 grid=GPU_DEV.grid_size,
+                                 block=GPU_DEV.block_size,
+                                 shared_mem=4 * n_slices,
+                                 )
+            profile *= len(dt) / weights.sum()
+            if cp.min(profile) < 0 :
+                raise OverflowError("Overflow in `profile`!")
+        else:
+            sm_histogram = GPU_DEV.mod.get_function("sm_histogram")
+
+            sm_histogram(args=(dt,
+                               profile,
+                               precision.real_t(cut_left),
+                               precision.real_t(cut_right),
+                               np.uint32(n_slices),
+                               np.uint32(dt.size)
+                               ),
+                         grid=GPU_DEV.grid_size,
+                         block=GPU_DEV.block_size,
+                         shared_mem=4 * n_slices)
+
+
     else:
-        hybrid_histogram(args=(dt, profile, precision.real_t(cut_left),
-                               precision.real_t(cut_right), np.uint32(n_slices),
-                               np.uint32(dt.size), np.int32(
-            GPU_DEV.attributes['MaxSharedMemoryPerBlock'] / 4)),
-                         grid=GPU_DEV.grid_size, block=GPU_DEV.block_size,
+        if weights is not None:
+            msg = ('`hybrid_histogram` must be'
+                   ' implemented with weights!')
+            raise NotImplementedError(msg)
+        hybrid_histogram = GPU_DEV.mod.get_function("hybrid_histogram")
+        hybrid_histogram(args=(dt,
+                               profile,
+                               precision.real_t(cut_left),
+                               precision.real_t(cut_right),
+                               np.uint32(n_slices),
+                               np.uint32(dt.size),
+                               np.int32(GPU_DEV.attributes['MaxSharedMemoryPerBlock'] / 4)
+                               ),
+                         grid=GPU_DEV.grid_size,
+                         block=GPU_DEV.block_size,
                          shared_mem=GPU_DEV.attributes['MaxSharedMemoryPerBlock'])
+
 
 
 def synchrotron_radiation(dE: CupyNDArray, U0: float, n_kicks: int,

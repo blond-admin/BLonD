@@ -46,15 +46,11 @@ class TestBeam(unittest.TestCase):
         beam.dE = np.random.randn(beam.n_macroparticles) + 5
         hist_range = [
             [np.min(beam.dt), np.max(beam.dt)],
-            [np.min(beam.dE), np.max(beam.dE)]
+            [np.min(beam.dE), np.max(beam.dE)],
         ]
         weighted_beam = beam.get_new_beam_with_weights(bins=bins)
         H1, xbins1, ybins1 = np.histogram2d(
-            beam.dt,
-            beam.dE,
-            bins=bins,
-            range=hist_range,
-            density=True
+            beam.dt, beam.dE, bins=bins, range=hist_range, density=True
         )
         H2, xbins2, ybins2 = np.histogram2d(
             weighted_beam.dt,
@@ -62,11 +58,77 @@ class TestBeam(unittest.TestCase):
             weights=weighted_beam.weights,
             bins=bins,
             range=hist_range,
-            density=True
+            density=True,
         )
+
         np.testing.assert_allclose(H1, H2)
         np.testing.assert_allclose(xbins1, xbins2)
         np.testing.assert_allclose(ybins1, ybins2)
+
+    def test_statistics(self):
+        dt = np.concatenate((np.zeros(10), 5 * np.ones(10), 199 * np.ones(1)))
+        dE = np.concatenate((np.zeros(10), 10.0 * np.ones(10), 98 * np.ones(
+            1)))
+        weights = np.concatenate((np.ones(10), np.zeros(10), np.ones(1)))
+        beam = Beam(
+            Ring=self.ring,
+            n_macroparticles=21,
+            intensity=1e9,
+            dt=dt,
+            dE=dE,
+            weights=weights,
+        )
+        beam.id[:10] = 0
+        assert beam.dE_mean(ignore_id_0=False) == 8.909090909090908
+        assert beam.dE_mean(ignore_id_0=True) == 98.0
+        assert beam.dE_std(ignore_id_0=False) == 28.17301915422738
+        assert beam.dE_std(ignore_id_0=True) == 0.0
+        assert beam.dE_min(ignore_id_0=False) == 0
+        assert beam.dE_min(ignore_id_0=True) == 10
+        assert beam.dE_max(ignore_id_0=False) == 98
+        assert beam.dE_max(ignore_id_0=True) == 98
+
+        assert beam.dt_mean(ignore_id_0=False) == 18.09090909090909
+        assert beam.dt_mean(ignore_id_0=True) == 199.0
+        assert beam.dt_std(ignore_id_0=False) == 57.20847767031886
+        assert beam.dt_std(ignore_id_0=True) == 0
+        assert beam.dt_min(ignore_id_0=False) == 0
+        assert beam.dt_min(ignore_id_0=True) == 5
+        assert beam.dt_max(ignore_id_0=False) == 199
+        assert beam.dt_max(ignore_id_0=True) == 199
+
+    def test_statistics_no_weights(self):
+        dt = np.concatenate((np.zeros(10), 5 * np.ones(10), 199 * np.ones(1)))
+        dE = np.concatenate((np.zeros(10), 10.0 * np.ones(10), 98 * np.ones(
+            1)))
+        beam = Beam(
+            Ring=self.ring,
+            n_macroparticles=21,
+            intensity=1e9,
+            dt=dt,
+            dE=dE,
+        )
+        beam.id[:10] = 0
+
+        assert beam.dE_mean(ignore_id_0=False) == 9.428571428571429
+        assert beam.dE_mean(ignore_id_0=True) == 18.0
+        assert beam.dE_std(ignore_id_0=False) == 20.397412134109256
+        assert beam.dE_std(ignore_id_0=True) == 25.298221281347036
+        assert beam.dE_min(ignore_id_0=False) == 0
+        assert beam.dE_min(ignore_id_0=True) == 10
+        assert beam.dE_max(ignore_id_0=False) == 98
+        assert beam.dE_max(ignore_id_0=True) == 98
+
+        assert beam.dt_mean(ignore_id_0=False) == 11.857142857142858
+        assert beam.dt_mean(ignore_id_0=True) == 22.636363636363637
+        assert beam.dt_std(ignore_id_0=False) == 41.91747642609193
+        assert beam.dt_std(ignore_id_0=True) == 55.77107873387869
+        assert beam.dt_min(ignore_id_0=False) == 0
+        assert beam.dt_min(ignore_id_0=True) == 5
+        assert beam.dt_max(ignore_id_0=False) == 199
+        assert beam.dt_max(ignore_id_0=True) == 199
+
+
 
 
 if __name__ == "__main__":

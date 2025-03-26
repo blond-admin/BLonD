@@ -291,7 +291,7 @@ extern "C"
 __global__ void sm_histogram(const real_t * __restrict__  input,
                              real_t * __restrict__  output, const real_t cut_left,
                              const real_t cut_right, const unsigned int n_slices,
-                             const int n_macroparticles)
+                             const unsigned int n_macroparticles)
 {
     extern __shared__ int block_hist[];
     for (int i = threadIdx.x; i < n_slices; i += blockDim.x)
@@ -311,6 +311,33 @@ __global__ void sm_histogram(const real_t * __restrict__  input,
         atomicAdd(&output[i], (real_t) block_hist[i]);
 }
 
+extern "C"
+__global__ void sm_histogram_weights(const real_t * __restrict__  input,
+                             real_t * __restrict__  output, const real_t cut_left,
+                             const real_t cut_right, const unsigned int n_slices,
+                             const unsigned int n_macroparticles,
+                             const int * __restrict__ weights)
+{
+    // Same as sm_histogram, but using weights.
+    // This is a duplicate function to keep performance.
+
+    extern __shared__ int block_hist2[];
+    for (int i = threadIdx.x; i < n_slices; i += blockDim.x)
+        block_hist2[i] = 0;
+    __syncthreads();
+    int const tid = threadIdx.x + blockDim.x * blockIdx.x;
+    int target_bin;
+    real_t const inv_bin_width = n_slices / (cut_right - cut_left);
+    for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+        target_bin = floor((input[i] - cut_left) * inv_bin_width);
+        if (target_bin < 0 || target_bin >= n_slices)
+            continue;
+        atomicAdd(&(block_hist2[target_bin]), weights[i]);
+    }
+    __syncthreads();
+    for (int i = threadIdx.x; i < n_slices; i += blockDim.x)
+        atomicAdd(&output[i], (real_t) block_hist2[i]);
+}
 
 extern "C"
 __global__ void lik_only_gm_copy(

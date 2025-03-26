@@ -21,7 +21,6 @@ import warnings
 from typing import TYPE_CHECKING, Optional, Tuple
 from warnings import warn
 
-import matplotlib.pyplot as plt
 import numpy as np
 from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
 
@@ -30,6 +29,7 @@ from ..trackers.utilities import is_in_separatrix
 from ..utils import bmath as bm
 from ..utils import exceptions as blond_exceptions
 from ..utils.bmath_extras import mean_and_std
+from ..utils.custom_warnings import PerformanceWarning
 from ..utils.legacy_support import handle_legacy_kwargs
 
 try:
@@ -274,18 +274,35 @@ class Beam(BeamBaseClass):
             weights: NumpyArray | CupyArray | None  = None
         else:
             assert n_macroparticles == len(weights)
-            weights: NumpyArray | CupyArray  = bm.ascontiguousarray(weights,
-                                                                    dtype=bm.precision.real_t)
-            # normalize particles, so that the behaviour of weights=np.ones(..)
-            # is equivalent to BLonD without weights
+
+            # machine limits for integer types
+            machine_max = np.iinfo(np.int32).max
+            # check upper limit
+            msg = (f"`weights` should be < {machine_max},"
+                   f" but {bm.max(weights)=}")
+            assert bm.max(weights) < machine_max, msg
+            # check lower limit
+            msg = (f"`weights` should be > 0,"
+                   f" but {bm.min(weights)=}")
+            if bm.min(weights) == 0:
+                warn(msg, PerformanceWarning, stacklevel=2)
+
             sum_weights = bm.sum(weights)
-            if sum_weights != n_macroparticles:
-                warn(f"{sum_weights=} !The weights are rescaled so that sum(weights)=n_macroparticles !")
-                weights = weights / sum_weights * n_macroparticles
+            if sum_weights >= machine_max:
+                msg = (f"Overflow possible with `weights`, because the"
+                       f" maximum allowed integer in one histogram bin is {machine_max},"
+                       f" but could reach {sum_weights}!")
+                warn(msg, UserWarning, stacklevel=2)
+            weights: NumpyArray | CupyArray  = bm.ascontiguousarray(
+                weights,
+                dtype=np.int32)
         self.weights = weights
 
-        self.id: NumpyArray | CupyArray = bm.arange(1, self.n_macroparticles + 1,
-                                           dtype=int)
+        self.id: NumpyArray | CupyArray = bm.arange(
+            1,
+            self.n_macroparticles + 1,
+            dtype=int
+        )
 
 
     @property
@@ -399,7 +416,7 @@ class Beam(BeamBaseClass):
                 self.dE[select_alive], dtype=bm.precision.real_t)
             if self.weights is not None:
                 self.weights = bm.ascontiguousarray(
-                    self.weights[select_alive], dtype=bm.precision.real_t)
+                    self.weights[select_alive], dtype=np.int32)
             self.n_macroparticles = len(self.dt)
             self.id = bm.arange(1, self.n_macroparticles + 1, dtype=int)
         else:
@@ -835,12 +852,12 @@ class Beam(BeamBaseClass):
         if ignore_id_0:
             mask = self.id > 0
             if self.weights is not None:
-                return bm.average(self.dE[mask], self.weights)
+                return bm.average(self.dE[mask], weights=self.weights[mask])
             else:
                 return bm.mean(self.dE[mask])
         else:
             if self.weights is not None:
-                return bm.average(self.dE, self.weights)
+                return bm.average(self.dE, weights=self.weights)
             else:
                 return bm.mean(self.dE)
 
@@ -855,14 +872,14 @@ class Beam(BeamBaseClass):
         if ignore_id_0:
             mask = self.id > 0
             if self.weights is not None:
-                return mean_and_std(self.dE[mask], self.weights)[1]
+                return mean_and_std(self.dE[mask], self.weights[mask])[1]
             else:
-                return np.std(self.dE[mask])
+                return bm.std(self.dE[mask])
         else:
             if self.weights is not None:
                 return mean_and_std(self.dE, self.weights)[1]
             else:
-                return np.std(self.dE)
+                return bm.std(self.dE)
 
     def dt_mean(self, ignore_id_0: bool = False):
         """Calculate mean of time
@@ -875,14 +892,14 @@ class Beam(BeamBaseClass):
         if ignore_id_0:
             mask = self.id > 0
             if self.weights is not None:
-                return np.average(self.dt[mask],weights=self.weights)
+                return bm.average(self.dt[mask], weights=self.weights[mask])
             else:
-                return np.mean(self.dt[mask])
+                return bm.mean(self.dt[mask])
         else:
             if self.weights is not None:
-                return np.average(self.dt,weights=self.weights)
+                return bm.average(self.dt,weights=self.weights)
             else:
-                return np.mean(self.dt)
+                return bm.mean(self.dt)
 
     def dt_std(self, ignore_id_0: bool = False):
         """Calculate standard deviation of time
@@ -895,14 +912,14 @@ class Beam(BeamBaseClass):
         if ignore_id_0:
             mask = self.id > 0
             if self.weights is not None:
-                return mean_and_std(self.dt[mask], weights=self.weights)[1]
+                return mean_and_std(self.dt[mask], weights=self.weights[mask])[1]
             else:
-                return np.std(self.dt[mask])
+                return bm.std(self.dt[mask])
         else:
             if self.weights is not None:
                 return mean_and_std(self.dt, weights=self.weights)[1]
             else:
-                return np.std(self.dt)
+                return bm.std(self.dt)
 
     def dt_min(self, ignore_id_0: bool = False):
         if ignore_id_0:
@@ -1144,24 +1161,24 @@ class Beam(BeamBaseClass):
             The boundaries [[xmin, xmax], [ymin, ymax]]
             """
 
-        H, dt_edges, dE_edges = bm.histogram2d(self.dt, self.dE,
+        H, dt_edges, dE_edges = bm.histogram2d(self.dt,
+                                               self.dE,
                                                bins=bins,
                                                range=range,
-                                               weights=self.weights
+                                               weights=self.weights,
+                                               density=False
                                                )
         dt_centers = (dt_edges[:-1] + dt_edges[1:]) / 2
         dE_centers = (dE_edges[:-1] + dE_edges[1:]) / 2
 
-        dt, dE = np.meshgrid(dt_centers, dE_centers, indexing='ij')
+        dt, dE = bm.meshgrid(dt_centers, dE_centers, indexing='ij')
         assert dE.shape == H.shape
         assert dt.shape == H.shape
         dt = dt.flatten()
         dE = dE.flatten()
         weights = H.flatten()
         select = weights > 0
-        dt,dE,weights = dt[select],dE[select],weights[select]
-        n_macroparticles = len(dt)
-        weights /= np.sum(weights) * n_macroparticles
+        dt, dE, weights = dt[select], dE[select], weights[select]
 
         new_beam = Beam(ring=self._ring,
                         n_macroparticles=len(weights),

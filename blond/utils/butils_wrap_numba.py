@@ -214,7 +214,8 @@ def slice_beam(dt: NDArray, profile: NDArray,
                     profile_loc[i_profile] += weights[i_dt]
 
         profile += profile_loc # only this syntax is without race condition
-
+    if weights is not None:
+        profile *= len(dt) / np.sum(weights)
 
 
 @jit(nopython=True, fastmath=True, parallel=True, cache=True)

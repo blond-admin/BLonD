@@ -131,9 +131,14 @@ def slice_beam(dt: NDArray, profile: NDArray,
     weights
         Weight of each particle
     """
+    if weights is not None:
+        weights = weights.astype(float) # otherwise buggy
+
     profile[:] = np.histogram(dt, bins=len(profile),
                               range=(cut_left, cut_right),
                               weights=weights)[0]
+    if weights is not None:
+        profile *= len(dt) / weights.sum()
 
 
 def slice_smooth(dt: NDArray, profile: NDArray,

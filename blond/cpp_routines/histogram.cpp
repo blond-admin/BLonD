@@ -76,49 +76,47 @@ extern "C" void histogram(const real_t *__restrict__ input,
 #include <omp.h>
 #include <cmath>
 
-extern "C" void histogram_method2(const real_t *__restrict__ input,
-                          real_t *__restrict__ output,
+
+extern "C" void histogram_method2(
+                          const real_t *__restrict__ input,
+                          real_t * __restrict__ output,
                           const real_t cut_left,
                           const real_t cut_right,
                           const int n_slices,
                           const int n_macroparticles,
-                          const real_t *__restrict__ weights,
+                          const int *__restrict__ weights,
                           const bool use_weights
                           )
 {
     // This is an alternative way to calculate the histogram
-    // which should be more efficient than 'histogram'
+    // which should be more readable than 'histogram'
     // 'histogram' is kept for completeness
 
     // Initialize the output histogram with zeroes
+    #pragma omp parallel for
     for (int i = 0; i < n_slices; i++) {
         output[i] = 0;
     }
 
     // Calculate the bin width
-    const real_t bin_width = (cut_right - cut_left) / n_slices;
+    const real_t inv_bin_width = n_slices / (cut_right - cut_left);
 
     // Parallel loop to compute the histogram
     #pragma omp parallel
     {
         // Local histogram for each thread to avoid race conditions
-        real_t local_histogram[n_slices] = {0};
+        int local_histogram[n_slices] = {0};
 
         #pragma omp for
         for (int i = 0; i < n_macroparticles; i++) {
-            // Calculate the bin index for the current input value
-            real_t value = input[i];
+            real_t dt = input[i];
+            int bin_index = floor((dt - cut_left) * inv_bin_width);
 
-            if (value >= cut_left && value < cut_right) {
-                int bin_index = floor((value - cut_left) / bin_width);
-                if (bin_index >= 0 && bin_index < n_slices) {
-                    if (use_weights){
-                        local_histogram[bin_index] += weights[i];
-                    } else {
-                        local_histogram[bin_index] += 1.0;
-                    }
-
-                }
+            // skip calculation if outside histogram range
+            if (bin_index >= 0 && bin_index < n_slices){
+                // Calculate the bin index for the current input value
+                // index should be correct because of if-condition above
+                local_histogram[bin_index] += (use_weights) ? weights[i] : 1;
             }
         }
 
@@ -126,15 +124,11 @@ extern "C" void histogram_method2(const real_t *__restrict__ input,
         #pragma omp critical
         {
             for (int i = 0; i < n_slices; i++) {
-                output[i] += local_histogram[i];
+                output[i] += (real_t) local_histogram[i];
             }
         }
     }
 }
-
-
-
-
 
 extern "C" void smooth_histogram(const real_t *__restrict__ input,
                                  real_t *__restrict__ output, const real_t cut_left,

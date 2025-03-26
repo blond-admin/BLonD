@@ -242,13 +242,13 @@ class TestCompareWraps:
         cut_right = np.max(_dt) + 1e-8
 
         _profile = np.empty(64).astype(bm.precision.real_t)
-        _weights = np.random.randn(len(_dt))
+        _weights = 1e3 * np.random.rand(len(_dt))
         bm.use_py()
         bm.use_precision(_precision=precision)
         dE = bm.array(deepcopy(_dE), dtype=bm.precision.real_t)
         dt = bm.array(deepcopy(_dt), dtype=bm.precision.real_t)
         profile = bm.array(deepcopy(_profile), dtype=bm.precision.real_t)
-        weights = bm.array(deepcopy(_weights), dtype=bm.precision.real_t)
+        weights = bm.array(deepcopy(_weights), dtype=np.int32)
 
         bm.slice_beam(
             dt=dt,
@@ -267,7 +267,7 @@ class TestCompareWraps:
         dE2 = bm.array(deepcopy(_dE), dtype=bm.precision.real_t)
         dt2 = bm.array(deepcopy(_dt), dtype=bm.precision.real_t)
         profile2 = bm.array(deepcopy(_profile), dtype=bm.precision.real_t)
-        weights2 = bm.array(deepcopy(_weights), dtype=bm.precision.real_t)
+        weights2 = bm.array(deepcopy(_weights), dtype=np.int32)
 
         bm.slice_beam(
             dt=dt2,
