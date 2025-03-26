@@ -1085,14 +1085,15 @@ class InducedVoltageResonator(_InducedVoltage):
         The current turn's induced voltage is added to the memory of the previous turn.
         Implementation by F. Batsch.
         """
-        # shift the entries in array by 1 t_rev and set to 0
+        # Shift the entries in array by 1 t_rev and set to 0
         self.mtw_memory = np.append(self.mtw_memory, np.zeros(self.array_length))
-        # remove one turn length of memory
+        # Remove one turn length of memory
         self.mtw_memory = self.mtw_memory[self.array_length:]
         # Induced voltage of the current turn
         self.induced_voltage_1turn(beam_spectrum_dict)
-        # Add induced voltage of the current turn to the memory from previous
+        # Add induced voltage of the current turn, up to array length n_time, to the previous turn
         self.mtw_memory[:int(self.n_time)] += self.induced_voltage
+        # Save the total induced voltage up to array length n_time
         self.induced_voltage = self.mtw_memory[:self.n_time]
 
     def to_gpu(self, recursive=True):
@@ -1102,9 +1103,11 @@ class InducedVoltageResonator(_InducedVoltage):
         # Check if to_gpu has been invoked already
         if hasattr(self, '_device') and self._device == 'GPU':
             return
-
+        # todo for mtw
         import cupy as cp
         self.induced_voltage = cp.array(self.induced_voltage)
+        if self.mtw_memory is not None: # todo check if correct
+            self.mtw_memory = cp.array(self.mtw_memory)
         self._kappa1 = cp.array(self._kappa1)
         self._deltaT = cp.array(self._deltaT)
         self.time_array = cp.array(self.time_array)
@@ -1121,7 +1124,10 @@ class InducedVoltageResonator(_InducedVoltage):
             return
 
         import cupy as cp
+        # todo for mtw
         self.induced_voltage = cp.asnumpy(self.induced_voltage)
+        if self.mtw_memory is not None: # todo check if correct
+            self.mtw_memory = cp.asnumpy(self.mtw_memory)
         self._kappa1 = cp.asnumpy(self._kappa1)
         self._deltaT = cp.asnumpy(self._deltaT)
         self.time_array = cp.asnumpy(self.time_array)
