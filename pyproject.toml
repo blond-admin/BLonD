@@ -14,7 +14,7 @@ name = "blond"
 dynamic = ["dependencies", "optional-dependencies", "version"]
 description = "CERN code for simulating longitudinal beam dynamics in synchrotrons."
 readme = "README.md"
-license = {file= "LICENSE.txt" }
+license = "GPL-3.0"
 requires-python = ">=3.9"
 authors = [
     { name = "Helga Timko", email = "helga.timko@cern.ch" },
@@ -26,7 +26,6 @@ maintainers = [
 ]
 classifiers = [
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3.10",
@@ -36,7 +35,7 @@ classifiers = [
 ]
 
 [tool.setuptools]
-packages = ["blond"]
+packages = { find = {} }
 include-package-data = true
 
 [project.urls]
