@@ -896,7 +896,7 @@ def compute_separatrix_and_bucket_area(time_coord: NDArray, potential_well: NDAr
 
 
 def compute_induced_potential(total_induced_voltage: Optional[TotalInducedVoltage],
-                              ring: ring, cut_options: cut_options, turn: int, section: int,
+                              ring: Ring, cut_options: CutOptions, turn: int, section: int,
                               eom_factor_potential: float) -> NDArray:
     """
     Compute the induced potential based on the provided voltage for calculate_separatrix_with_intensity.
@@ -913,7 +913,7 @@ def separatrix_with_intensity(ring: Ring,
                               ring_and_rf_tracker: RingAndRFTracker,
                               turn: int,
                               section: int,
-                              cut_options: cut_options,
+                              cut_options: CutOptions,
                               total_induced_voltage: Optional[
                                   TotalInducedVoltage] = None) -> Tuple:
     """
