@@ -914,8 +914,9 @@ def separatrix_with_intensity(ring: Ring,
                               section: int) -> Tuple:
     """
     Computes separatrix including intensity effects.
+    If multiple RF stations, FullRingAndRF takes a list of RingAndRFTracker
     """
-    cut_options = full_ring_and_rf.ring_and_rf_section[0].profile.cut_options # can be done by the RFstation
+    cut_options = full_ring_and_rf.ring_and_rf_section[section].profile.cut_options # can be done by the RFstation
     total_induced_voltage = full_ring_and_rf.ring_and_rf_section[section].totalInducedVoltage
     eom_factor_dE = -ring.eta_0[section, turn + 1] / (
             2 * ring.beta[section, turn + 1] ** 2 * ring.energy[section, turn + 1])
@@ -937,4 +938,4 @@ def separatrix_with_intensity(ring: Ring,
     separatrix_int, bucket_area_int = compute_separatrix_and_bucket_area(time_int, potential_well_int, eom_factor_dE)
 
     # return the undisturbed and the result with intensity effects
-    return (time_ud, separatrix_ud), (time_int, separatrix_int), bucket_area, bucket_area_int
+    return time_ud, separatrix_ud, time_int, separatrix_int, bucket_area, bucket_area_int
