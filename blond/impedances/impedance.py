@@ -232,7 +232,8 @@ class _InducedVoltage:
     """
 
     @handle_legacy_kwargs
-    def __init__(self, beam: Beam, profile: Profile,
+    def __init__(self, beam: Beam,
+                 profile: Profile,
                  frequency_resolution: Optional[float] = None,
                  wake_length: Optional[float] = None,
                  multi_turn_wake: bool = False,
@@ -976,19 +977,22 @@ class InducedVoltageResonator(_InducedVoltage):
     @handle_legacy_kwargs
     def __init__(self, beam: Beam,
                  profile: Profile,
-                 resonators: Optional[Resonators] = None,
                  frequency_resolution: Optional[float] = None,
                  wake_length: Optional[float] = None,
                  multi_turn_wake: bool = False,
-                 time_array: Optional[NDArray] = None,
+                 mtw_mode: Optional[MtwModeTypes] = 'time',
                  rf_station: Optional[RFStation] = None,
+                 use_regular_fft: bool = True,
                  array_length: Optional[int] = None,
-                 use_regular_fft: bool = True) -> None:
+                 time_array: Optional[NDArray] = None,
+                 resonators: Optional[Resonators] = None) -> None:
 
         # Test if one or more quality factors is smaller than 0.5.
         if sum(resonators.Q < 0.5) > 0:
             # ResonatorError
             raise RuntimeError('All quality factors Q must be larger than 0.5')
+        if mtw_mode != 'time':
+            raise RuntimeError('InducedVoltageResonator only allows for "time" mtw_mode')
 
         # Copy of the Beam object in order to access the beam info.
         self.beam = beam
