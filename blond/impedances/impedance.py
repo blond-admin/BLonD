@@ -422,7 +422,7 @@ class _InducedVoltage:
                     dtype=bm.precision.complex_t,
                     order='C', copy=False)
                                        * beam_spectrum)
-        )
+                            )
 
         self.induced_voltage = induced_voltage[:self.n_induced_voltage].astype(
             dtype=bm.precision.real_t, order='C', copy=False)
@@ -581,8 +581,8 @@ class InducedVoltageTime(_InducedVoltage):
                                       int(self.profile.n_slices) - 1)
         else:
             self.n_fft = (int(self.n_induced_voltage)
-                         + int(self.profile.n_slices)
-                         - 1)
+                          + int(self.profile.n_slices)
+                          - 1)
 
         # Frequency resolution in Hz
         self.frequency_resolution = 1 / (self.n_fft * self.profile.bin_size)
@@ -958,14 +958,12 @@ class InducedVoltageResonator(_InducedVoltage):
         RFStation object for turn counter and revolution period
     use_regular_fft : boolean
         As FFTs are not used, the parameter will not change anything
-    time_array: NDArray, optional
-        This defines the times, at which the induced voltage is calculated. It should be noted, that
-        giving this array makes the user responsible for determining how long the induced voltage
-        needs to be calculated for.
     resonators: list of Resonators
         This input is necessary for the function to not throw an error and should include all
         resonators meant to be modeled by this class
-
+    time_decay_factor: float, between 1 and 0.
+        Fraction of the resonator with smallest decay constant $\tau$ to be decayed over a
+        number of turns which is calculated. Default 0.01. (1%).
 
 
     Attributes
@@ -995,7 +993,7 @@ class InducedVoltageResonator(_InducedVoltage):
                  mtw_mode: Optional[MtwModeTypes] = 'time',
                  rf_station: Optional[RFStation] = None,
                  use_regular_fft: bool = True,
-                 time_array: Optional[NDArray] = None,
+                 time_decay_factor: Optional[float] = 0.01,
                  resonators: Optional[Resonators] = None) -> None:
 
         # Test if one or more quality factors is smaller than 0.5.
@@ -1019,20 +1017,31 @@ class InducedVoltageResonator(_InducedVoltage):
         # Copy of the Profile object in order to access the line density.
         self.profile = profile
 
-        # Optional array of time values where the induced voltage is calculated.
-        # If left out, the induced voltage is calculated at the times of the
-        # line density.
-        if time_array is None:
-            self.time_array = self.profile.bin_centers
-            self.atLineDensityTimes = True
-        else:
-            self.time_array = time_array
+        # Make the time array necessary for wake calculation.
+        # If the time decay is longer than n_turns of simulation, the induced voltage is calculated for n_turns.
+        # Length of the time decay dictated by the time decay factor.
+
+        if multi_turn_wake:
+            # take the maximum of the resonators
+            decay_time = 2 * np.max(resonators.Q / resonators.omega_R)
+            decay_turns = np.ceil(np.log(time_decay_factor) / np.log(e) * decay_time / np.min(rf_station.t_rev))
+            n_turns_calculation = min(int(decay_turns), rf_station.n_turns)
+            potential_min_cav = rf_station.phi_s[0] / rf_station.omega_rf[0, 0]
+            min_index = np.abs(profile.bin_centers[0] - potential_min_cav).argmin()
+            self.time_array = np.array([])
+            for turn_ind in range(n_turns_calculation):
+                self.time_array = np.append(self.time_array, rf_station.t_rev[turn_ind] * turn_ind + np.linspace(
+                    profile.bin_centers[0],
+                    profile.bin_centers[-1] + 2 * (profile.bin_centers[min_index] - profile.bin_centers[0]),
+                    profile.n_slices + 2 * min_index))
             self.atLineDensityTimes = False
 
-        self.array_length = array_length
+        else:
+            self.time_array = self.profile.bin_centers
+            self.atLineDensityTimes = True
 
+        self.array_length = len(self.profile.bin_centers)
         self.n_time = len(self.time_array)
-
         # Copy of the shunt impedances of the Resonators in* :math:`\Omega`
         self.R = resonators.R_S
         # Copy of the resonant frequencies of the Resonators in 1/s
@@ -1059,10 +1068,12 @@ class InducedVoltageResonator(_InducedVoltage):
         self._deltaT = np.zeros(
             (self.n_time, self.profile.n_slices), dtype=bm.precision.real_t, order='C')
 
+        wake_length = len(self.time_array) * self.profile.bin_size
+
         # Call the __init__ method of the parent class [calls process()]
         super().__init__(beam=beam, profile=profile,
                          frequency_resolution=None,
-                         wake_length=None,
+                         wake_length=wake_length,
                          multi_turn_wake=multi_turn_wake,
                          rf_station=rf_station, mtw_mode='time',
                          use_regular_fft=True)
@@ -1132,7 +1143,7 @@ class InducedVoltageResonator(_InducedVoltage):
         # todo for mtw
         import cupy as cp
         self.induced_voltage = cp.array(self.induced_voltage)
-        if self.mtw_memory is not None: # todo check if correct
+        if self.mtw_memory is not None:  # todo check if correct
             self.mtw_memory = cp.array(self.mtw_memory)
         self._kappa1 = cp.array(self._kappa1)
         self._deltaT = cp.array(self._deltaT)
@@ -1152,7 +1163,7 @@ class InducedVoltageResonator(_InducedVoltage):
         import cupy as cp
         # todo for mtw
         self.induced_voltage = cp.asnumpy(self.induced_voltage)
-        if self.mtw_memory is not None: # todo check if correct
+        if self.mtw_memory is not None:  # todo check if correct
             self.mtw_memory = cp.asnumpy(self.mtw_memory)
         self._kappa1 = cp.asnumpy(self._kappa1)
         self._deltaT = cp.asnumpy(self._deltaT)

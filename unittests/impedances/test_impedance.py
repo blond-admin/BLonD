@@ -159,32 +159,23 @@ class TestInducedVoltageResonatorMultiTurnWake(unittest.TestCase):
         self.resonator = Resonators(self.R_shunt, self.f_res + fdet, self.Q_factor)
 
     def test_total_induced_voltage(self):
-        potential_min_cav = self.rf_station.phi_s[0] / self.rf_station.omega_rf[0, 0]
-        min_index = np.abs(self.profile.bin_centers - potential_min_cav).argmin()
-        timeArray = []
-        for turn_ind in range(self.n_turns):
-            timeArray = np.append(timeArray,
-                                  self.rf_station.t_rev[turn_ind] * turn_ind +
-                                  np.linspace(self.profile.bin_centers[0],
-                                              self.profile.bin_centers[-1] + 2 * (
-                                                      self.profile.bin_centers[min_index] -
-                                                      self.profile.bin_centers[0]),
-                                              self.n_slices + 2 * min_index))
-        ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile, time_array=timeArray,
+
+        ivr = InducedVoltageResonator(beam=self.beam, profile=self.profile,
                                       multi_turn_wake=True,
                                       resonators=self.resonator,
                                       rf_station=self.rf_station,
-                                      wake_length=len(timeArray) * self.profile.bin_size,
-                                      array_length=int(len(timeArray) / self.n_turns))
+                                      time_decay_factor=0.00001)
+
         totalvolt = TotalInducedVoltage(beam=self.beam, profile=self.profile, induced_voltage_list=[ivr])
         longitudinal_tracker = RingAndRFTracker(rf_station=self.rf_station, beam=self.beam, profile=self.profile,
                                                 total_induced_voltage=totalvolt,
                                                 interpolation=True)
         induced_voltages = []
-        for i in range(self.n_turns):
+        for _ in range(self.n_turns):
             totalvolt.induced_voltage_sum()
             longitudinal_tracker.track()
             induced_voltages.append(longitudinal_tracker.totalInducedVoltage.induced_voltage)
+
         induced_voltages = np.array(induced_voltages)
 
         folder = os.path.abspath(os.path.dirname(__file__)) + "/data/"
