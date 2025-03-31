@@ -910,19 +910,16 @@ def compute_induced_potential(total_induced_voltage: Optional[TotalInducedVoltag
 
 def separatrix_with_intensity(ring: Ring,
                               full_ring_and_rf: FullRingAndRF,
-                              ring_and_rf_tracker: RingAndRFTracker,
                               turn: int,
-                              section: int,
-                              cut_options: CutOptions,
-                              total_induced_voltage: Optional[
-                                  TotalInducedVoltage] = None) -> Tuple:
+                              section: int) -> Tuple:
     """
     Computes separatrix including intensity effects.
     """
-
+    cut_options = full_ring_and_rf.RingAndRFSection_list[0].profile.cut_options
+    total_induced_voltage = full_ring_and_rf.RingAndRFSection_list[section].totalInducedVoltage
     eom_factor_dE = -ring.eta_0[section, turn + 1] / (
             2 * ring.beta[section, turn + 1] ** 2 * ring.energy[section, turn + 1])
-    eom_factor_potential = ring_and_rf_tracker.rf_params.particle.charge / ring.t_rev[turn]
+    eom_factor_potential = ring.particle.charge / ring.t_rev[turn]
     full_ring_and_rf.potential_well_generation(turn=turn)
     time_ud, potential_well_ud = potential_well_cut(full_ring_and_rf.potential_well_coordinates,
                                                     full_ring_and_rf.potential_well)
