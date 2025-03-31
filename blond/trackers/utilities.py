@@ -888,11 +888,10 @@ def compute_separatrix_and_bucket_area(time_coord: NDArray, potential_well: NDAr
     """
     Helper function to compute the separatrix and bucket area for calculate_separatrix_with_intensity.
     """
-    separatrix = np.sqrt((potential_well - potential_well[0]) / eom_factor_dE)
-    separatrix[np.isnan(separatrix)] = 0
-    bucket_area = 2 * np.trapezoid(separatrix, dx=time_coord[1] - time_coord[0])
+    sep = np.sqrt((potential_well - potential_well[0]) / eom_factor_dE)
+    bucket_area = 2 * np.trapezoid(np.nan_to_num(sep, copy=False), dx=time_coord[1] - time_coord[0])
 
-    return separatrix, bucket_area
+    return sep, bucket_area
 
 
 def compute_induced_potential(total_induced_voltage: Optional[TotalInducedVoltage],
@@ -901,9 +900,9 @@ def compute_induced_potential(total_induced_voltage: Optional[TotalInducedVoltag
     """
     Compute the induced potential based on the provided voltage for calculate_separatrix_with_intensity.
     """
-    induced_potential = -np.sign(ring.eta_0[section, turn]) * eom_factor_potential * np.insert(
-        cumtrapz(total_induced_voltage.induced_voltage * ring.n_sections,
-                 dx=cut_options.bin_centers[1] - cut_options.bin_centers[0]), 0, 0)
+    induced_potential = (-np.sign(ring.eta_0[section, turn]) * eom_factor_potential *
+                         np.insert(cumtrapz(total_induced_voltage.induced_voltage * ring.n_sections,
+                         dx=cut_options.bin_centers[1] - cut_options.bin_centers[0]), 0, 0))
 
     return induced_potential
 
@@ -927,7 +926,7 @@ def separatrix_with_intensity(ring: Ring,
     separatrix_ud, bucket_area = compute_separatrix_and_bucket_area(time_ud, potential_well_ud, eom_factor_dE)
     if total_induced_voltage is None:
         # return the same result as no intensity effects
-        return (time_ud, separatrix_ud), (time_ud, separatrix_ud), bucket_area, bucket_area
+        return time_ud, separatrix_ud, time_ud, separatrix_ud, bucket_area, bucket_area
 
     ind_potential = compute_induced_potential(total_induced_voltage, ring, cut_options, turn, section,
                                               eom_factor_potential)
