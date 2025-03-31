@@ -910,7 +910,7 @@ def compute_induced_potential(total_induced_voltage: Optional[TotalInducedVoltag
 def separatrix_with_intensity(ring: Ring,
                               full_ring_and_rf: FullRingAndRF,
                               turn: int,
-                              section: int) -> Tuple:
+                              section: int) -> Tuple[NDArray, NDArray, NDArray, NDArray, float, float]:
     """
     Computes separatrix including intensity effects.
     If multiple RF stations, FullRingAndRF takes a list of RingAndRFTracker
@@ -943,24 +943,56 @@ def separatrix_with_intensity(ring: Ring,
 def separatrix_from_tracker(ring: Ring,
                             full_ring_and_rf: FullRingAndRF,
                             turn: int,
-                            section: int) -> Tuple:
+                            section: int) -> Tuple[NDArray, NDArray, NDArray, NDArray, float, float]:
     """
-    Computes separatrix including intensity effects.
-    If multiple RF stations, FullRingAndRF takes a list of RingAndRFTracker
+    Computes the separatrix from the tracker object. The total_voltage value of the simulation is used, hence all
+    intensity effects as well as Feedbacks are automatically taken into account.
+
+    Parameters
+    ----------
+    ring: Ring
+        ring of the simulation
+    full_ring_and_rf: FullRingAndRF
+        full ring and rf object, holding all RingAndRFTracker objects of the ring
+    turn: int
+        index of the current turn
+    section: section
+        index of the current section
+
+
+    Returns
+    -------
+        tuple of time_ud, separatrix_ud, time_int, separatrix_int, bucket_area, bucket_area_int
+        time_ud: NDArray
+            time array of the undisturbed bucket
+        separatrix_ud: NDArray
+            value array of the undisturbed separatrix
+        time_ud: NDArray
+            time array of the disturbed bucket
+        separatrix_ud: NDArray
+            value array of the disturbed separatrix
+        bucket_area: float
+            bucket area
+        bucket_area_dist: float
+            area of the disturbed bucket
+            
     """
-    cut_options = full_ring_and_rf.ring_and_rf_section[section].profile.cut_options # can be done by the RFstation
-    total_induced_voltage = full_ring_and_rf.ring_and_rf_section[section].totalInducedVoltage
+    if turn <= 0:
+        raise RuntimeError("the tracker can only be used to calculate the separatrix after the first turn, as all "
+                           "stations need to be tracked at least once to have the voltage available")
+    if section > ring.n_sections:
+        raise RuntimeError("Number of sections cannot be above ring.n_sections")
+    cut_options = full_ring_and_rf.ring_and_rf_section[section].profile.cut_options
+
+    # + 1, as the 0th entry is the initializer
     eom_factor_dE = -ring.eta_0[section, turn + 1] / (
             2 * ring.beta[section, turn + 1] ** 2 * ring.energy[section, turn + 1])
-    eom_factor_potential = (np.sign(full_ring_and_rf.ring_and_rf_section[0].rf_params.eta_0[turn]) *
+    eom_factor_potential = (np.sign(full_ring_and_rf.ring_and_rf_section[0].rf_params.eta_0[turn + 1]) *
                             ring.particle.charge / ring.t_rev[turn])
     full_ring_and_rf.potential_well_generation(turn=turn)
     time_ud, potential_well_ud = potential_well_cut(full_ring_and_rf.potential_well_coordinates,
                                                     full_ring_and_rf.potential_well)
     separatrix_ud, bucket_area = compute_separatrix_and_bucket_area(time_ud, potential_well_ud, eom_factor_dE)
-    if total_induced_voltage is None:
-        # return the same result as no intensity effects
-        return time_ud, separatrix_ud, None, None, bucket_area, bucket_area
 
     total_potential = np.zeros(len(full_ring_and_rf.ring_and_rf_section[0].total_voltage))
     total_energy_gain = 0
@@ -976,8 +1008,9 @@ def separatrix_from_tracker(ring: Ring,
                                                           full_ring_and_rf.potential_well_coordinates[0]), initial=0)
     potential_well = potential_well - np.min(potential_well)
 
-    time_int, potential_well_int = potential_well_cut(full_ring_and_rf.potential_well_coordinates, potential_well)
-    separatrix_int, bucket_area_int = compute_separatrix_and_bucket_area(time_int, potential_well_int, eom_factor_dE)
+    time_dist, potential_well_dist = potential_well_cut(full_ring_and_rf.potential_well_coordinates, potential_well)
+    separatrix_dist, bucket_area_dist = compute_separatrix_and_bucket_area(time_dist, potential_well_dist,
+                                                                           eom_factor_dE)
 
-    # return the undisturbed and the result with intensity effects
-    return time_ud, separatrix_ud, time_int, separatrix_int, bucket_area, bucket_area_int
+    # return the undisturbed and disturbed buckets
+    return time_ud, separatrix_ud, time_dist, separatrix_dist, bucket_area, bucket_area_dist
