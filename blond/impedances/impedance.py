@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -232,7 +233,8 @@ class _InducedVoltage:
     """
 
     @handle_legacy_kwargs
-    def __init__(self, beam: Beam, profile: Profile,
+    def __init__(self, beam: Beam,
+                 profile: Profile,
                  frequency_resolution: Optional[float] = None,
                  wake_length: Optional[float] = None,
                  multi_turn_wake: bool = False,
@@ -467,15 +469,17 @@ class _InducedVoltage:
     def shift_trev_time(self):
         """
         Method to shift the induced voltage by a revolution period in the
-        time domain (linear interpolation)
+        time domain (linear interpolation). The interpolation is necessary to allow
+        for a time shift, which is not an integer multiple of the delta_t of the
+        mtw_memory array (necessary due to shifting t_rev during acceleration).
+        The values, which are outside of the interpolation range are filled with 0s.
         """
 
         t_rev = self.rf_params.t_rev[self.rf_params.counter[0]]
 
-        # self.mtw_memory = bm.interp_const_space(self.time_mtw + t_rev,
         self.mtw_memory = bm.interp(self.time_mtw + t_rev,
                                     self.time_mtw, self.mtw_memory,
-                                    left=0, right=0)  # todo
+                                    left=0, right=0)
 
     def _track(self):
         """
@@ -927,25 +931,41 @@ class InducedVoltageResonator(_InducedVoltage):
     The line density need NOT be sampled at equidistant points. The times when
     the induced voltage is calculated need to be the same where the line
     density is sampled. If no time_array is passed, the induced voltage is
-    evaluated at the points of the line density. This is necessary of
+    evaluated at the points of the line density. This is necessary for
     compatibility with other functions that calculate the induced voltage.
-    Currently, it requires the all quality factors :math:`Q>0.5`
-    Currently, only works for single turn.*
+    From the longest decay constant of the given modes, the function determines
+    where to compute the induced voltages for the following turns in the
+    multi-turn-wake case.
+    Currently, the function requires the all quality factors :math:`Q>0.5`.*
 
-    Parameters
-    ----------
     beam: Beam
         Beam object
     profile : Profile
         Profile object
-    resonators : Resonators
-        Resonators object
-    time_array : float array, optional
-        Array of time values where the induced voltage is calculated.
-        If left out, the induced voltage is calculated at the times of the line
-        density.
-    array_length : int, optional
-        length of an array of one turn
+    frequency_resolution : float, optional
+        Frequency resolution of the impedance [Hz]. This is ignored in the context
+        of this subclass
+    wake_length : float, optional
+        This is ignored in the context of this subclass
+        , as the wake_length will be controlled by the setting of the
+        decay percentage
+    multi_turn_wake : boolean, optional
+        Multi-turn wake enable flag
+    mtw_mode : str
+        Multi-turn wake mode can be 'freq' or 'time' (default). 'freq' is ignored in the
+        context of this class.
+    rf_station : RFStation, optional
+        RFStation object for turn counter and revolution period
+    use_regular_fft : boolean
+        As FFTs are not used, the parameter will not change anything
+    time_array: NDArray, optional
+        This defines the times, at which the induced voltage is calculated. It should be noted, that
+        giving this array makes the user responsible for determining how long the induced voltage
+        needs to be calculated for.
+    resonators: list of Resonators
+        This input is necessary for the function to not throw an error and should include all
+        resonators meant to be modeled by this class
+
 
 
     Attributes
@@ -954,15 +974,10 @@ class InducedVoltageResonator(_InducedVoltage):
         Copy of the Beam object in order to access the beam info.
     profile : Profile
         Copy of the Profile object in order to access the line density.
-    timr_array : float array
+    time_array : float array
         Array of time values where the induced voltage is calculated.
         If left out, the induced voltage is calculated at the times of the
         line density
-    atLineDensityTimes : boolean
-        flag indicating if the induced voltage has to be computed for time_array
-        or for the line density
-    n_time : int
-        length of time_array
     R, omega_r, Q : lists of float
         Resonators parameters
     n_resonators : int
@@ -974,19 +989,30 @@ class InducedVoltageResonator(_InducedVoltage):
     @handle_legacy_kwargs
     def __init__(self, beam: Beam,
                  profile: Profile,
-                 resonators: Optional[Resonators] = None,
                  frequency_resolution: Optional[float] = None,
                  wake_length: Optional[float] = None,
                  multi_turn_wake: bool = False,
-                 time_array: Optional[NDArray] = None,
+                 mtw_mode: Optional[MtwModeTypes] = 'time',
                  rf_station: Optional[RFStation] = None,
-                 array_length: Optional[int] = None,
-                 use_regular_fft: bool = True) -> None:
+                 use_regular_fft: bool = True,
+                 time_array: Optional[NDArray] = None,
+                 resonators: Optional[Resonators] = None) -> None:
 
         # Test if one or more quality factors is smaller than 0.5.
+        if resonators is None:
+            raise RuntimeError('No resonators given')
         if sum(resonators.Q < 0.5) > 0:
             # ResonatorError
             raise RuntimeError('All quality factors Q must be larger than 0.5')
+        if mtw_mode != 'time':
+            warnings.warn('InducedVoltageResonator only allows for "time" mtw_mode, "freq" will be ignored')
+        if wake_length is not None:
+            warnings.warn('InducedVoltageResonator ignores the setting of wake_length')
+        if frequency_resolution is not None:
+            warnings.warn('InducedVoltageResonator ignores the setting of frequency_resolution')
+        if not use_regular_fft:
+            warnings.warn("use_regular_fft is not supported and will be ignored by InducedVoltageResonator",
+                          UserWarning)
 
         # Copy of the Beam object in order to access the beam info.
         self.beam = beam
@@ -1035,11 +1061,11 @@ class InducedVoltageResonator(_InducedVoltage):
 
         # Call the __init__ method of the parent class [calls process()]
         super().__init__(beam=beam, profile=profile,
-                         frequency_resolution=frequency_resolution,
-                         wake_length=wake_length,
+                         frequency_resolution=None,
+                         wake_length=None,
                          multi_turn_wake=multi_turn_wake,
                          rf_station=rf_station, mtw_mode='time',
-                         use_regular_fft=use_regular_fft)
+                         use_regular_fft=True)
 
     def process(self):
         r"""
