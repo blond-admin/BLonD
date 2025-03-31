@@ -110,6 +110,7 @@ class FullRingAndRF:
         voltages = np.array([])
         omega_rf = np.array([])
         phi_offsets = np.array([])
+        energy_gain = np.array([])
 
         for RingAndRFSectionElement in self.ring_and_rf_section:
             RF_params = RingAndRFSectionElement.rf_params
@@ -121,6 +122,7 @@ class FullRingAndRF:
                                      RF_params.omega_rf[rf_system, turn])
                 phi_offsets = np.append(phi_offsets,
                                         RF_params.phi_rf[rf_system, turn])
+                energy_gain = np.append(energy_gain, RingAndRFSectionElement.acceleration_kick[turn])
 
         voltages = np.array(voltages, ndmin=2)
         omega_rf = np.array(omega_rf, ndmin=2)
@@ -149,16 +151,17 @@ class FullRingAndRF:
             time_array = np.linspace(float(first_dt), float(last_dt),
                                      int(n_points))
 
-        self.total_voltage = np.sum(voltages.T * np.sin(omega_rf.T * time_array
+        total_voltage = np.sum(voltages.T * np.sin(omega_rf.T * time_array
                                                         + phi_offsets.T),
                                     axis=0)
+        total_energy_gain = np.sum(energy_gain)
 
         eom_factor_potential = (np.sign(slippage_factor) * charge
                                 / (RingAndRFSectionElement.rf_params.t_rev[turn]))
 
         potential_well = - cumtrapz(eom_factor_potential
-                                    * (self.total_voltage
-                                       - (- RingAndRFSectionElement.acceleration_kick[turn])
+                                    * (total_voltage
+                                       - (- total_energy_gain)
                                        / abs(charge)),
                                     dx=time_array[1] - time_array[0], initial=0)
 
