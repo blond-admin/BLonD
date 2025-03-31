@@ -467,15 +467,17 @@ class _InducedVoltage:
     def shift_trev_time(self):
         """
         Method to shift the induced voltage by a revolution period in the
-        time domain (linear interpolation)
+        time domain (linear interpolation). The interpolation is necessary to allow
+        for a time shift, which is not an integer multiple of the delta_t of the
+        mtw_memory array (necessary due to shifting t_rev during acceleration).
+        The values, which are outside of the interpolation range are filled with 0s.
         """
 
         t_rev = self.rf_params.t_rev[self.rf_params.counter[0]]
 
-        # self.mtw_memory = bm.interp_const_space(self.time_mtw + t_rev,
         self.mtw_memory = bm.interp(self.time_mtw + t_rev,
                                     self.time_mtw, self.mtw_memory,
-                                    left=0, right=0)  # todo
+                                    left=0, right=0)
 
     def _track(self):
         """
