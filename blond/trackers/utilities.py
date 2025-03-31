@@ -901,8 +901,8 @@ def compute_induced_potential(total_induced_voltage: Optional[TotalInducedVoltag
     Compute the induced potential based on the provided voltage for calculate_separatrix_with_intensity.
     """
     induced_potential = (-np.sign(ring.eta_0[section, turn]) * eom_factor_potential *
-                         np.insert(cumtrapz(total_induced_voltage.induced_voltage * ring.n_sections,
-                         dx=cut_options.bin_centers[1] - cut_options.bin_centers[0]), 0, 0))
+                         cumtrapz(total_induced_voltage.induced_voltage * ring.n_sections,
+                                  dx=cut_options.bin_centers[1] - cut_options.bin_centers[0], initial=0))
 
     return induced_potential
 
@@ -926,7 +926,7 @@ def separatrix_with_intensity(ring: Ring,
     separatrix_ud, bucket_area = compute_separatrix_and_bucket_area(time_ud, potential_well_ud, eom_factor_dE)
     if total_induced_voltage is None:
         # return the same result as no intensity effects
-        return time_ud, separatrix_ud, time_ud, separatrix_ud, bucket_area, bucket_area
+        return time_ud, separatrix_ud, None, None, bucket_area, bucket_area
 
     ind_potential = compute_induced_potential(total_induced_voltage, ring, cut_options, turn, section,
                                               eom_factor_potential)
@@ -934,6 +934,49 @@ def separatrix_with_intensity(ring: Ring,
                                      ind_potential)
     total_potential = full_ring_and_rf.potential_well + ind_potential_interp
     time_int, potential_well_int = potential_well_cut(full_ring_and_rf.potential_well_coordinates, total_potential)
+    separatrix_int, bucket_area_int = compute_separatrix_and_bucket_area(time_int, potential_well_int, eom_factor_dE)
+
+    # return the undisturbed and the result with intensity effects
+    return time_ud, separatrix_ud, time_int, separatrix_int, bucket_area, bucket_area_int
+
+
+def separatrix_from_tracker(ring: Ring,
+                            full_ring_and_rf: FullRingAndRF,
+                            turn: int,
+                            section: int) -> Tuple:
+    """
+    Computes separatrix including intensity effects.
+    If multiple RF stations, FullRingAndRF takes a list of RingAndRFTracker
+    """
+    cut_options = full_ring_and_rf.ring_and_rf_section[section].profile.cut_options # can be done by the RFstation
+    total_induced_voltage = full_ring_and_rf.ring_and_rf_section[section].totalInducedVoltage
+    eom_factor_dE = -ring.eta_0[section, turn + 1] / (
+            2 * ring.beta[section, turn + 1] ** 2 * ring.energy[section, turn + 1])
+    eom_factor_potential = (np.sign(full_ring_and_rf.ring_and_rf_section[0].rf_params.eta_0[turn]) *
+                            ring.particle.charge / ring.t_rev[turn])
+    full_ring_and_rf.potential_well_generation(turn=turn)
+    time_ud, potential_well_ud = potential_well_cut(full_ring_and_rf.potential_well_coordinates,
+                                                    full_ring_and_rf.potential_well)
+    separatrix_ud, bucket_area = compute_separatrix_and_bucket_area(time_ud, potential_well_ud, eom_factor_dE)
+    if total_induced_voltage is None:
+        # return the same result as no intensity effects
+        return time_ud, separatrix_ud, None, None, bucket_area, bucket_area
+
+    total_potential = np.zeros(len(full_ring_and_rf.ring_and_rf_section[0].total_voltage))
+    total_energy_gain = 0
+    for rf_sec in full_ring_and_rf.ring_and_rf_section:
+        total_potential += rf_sec.total_voltage
+        total_energy_gain += rf_sec.acceleration_kick[turn]
+    total_potential_interp = np.interp(full_ring_and_rf.potential_well_coordinates, cut_options.bin_centers,
+                                       total_potential)
+
+    potential_well = -eom_factor_potential * cumtrapz(total_potential_interp - (- total_energy_gain) /
+                                                      abs(ring.particle.charge),
+                                                      dx=(full_ring_and_rf.potential_well_coordinates[1] -
+                                                          full_ring_and_rf.potential_well_coordinates[0]), initial=0)
+    potential_well = potential_well - np.min(potential_well)
+
+    time_int, potential_well_int = potential_well_cut(full_ring_and_rf.potential_well_coordinates, potential_well)
     separatrix_int, bucket_area_int = compute_separatrix_and_bucket_area(time_int, potential_well_int, eom_factor_dE)
 
     # return the undisturbed and the result with intensity effects
