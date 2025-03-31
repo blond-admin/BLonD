@@ -1143,7 +1143,7 @@ class InducedVoltageResonator(_InducedVoltage):
         # todo for mtw
         import cupy as cp
         self.induced_voltage = cp.array(self.induced_voltage)
-        if self.mtw_memory is not None:  
+        if self.mtw_memory is not None:
             self.mtw_memory = cp.array(self.mtw_memory)
         self._kappa1 = cp.array(self._kappa1)
         self._deltaT = cp.array(self._deltaT)
