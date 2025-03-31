@@ -915,8 +915,8 @@ def separatrix_with_intensity(ring: Ring,
     """
     Computes separatrix including intensity effects.
     """
-    cut_options = full_ring_and_rf.RingAndRFSection_list[0].profile.cut_options
-    total_induced_voltage = full_ring_and_rf.RingAndRFSection_list[section].totalInducedVoltage
+    cut_options = full_ring_and_rf.ring_and_rf_section[0].profile.cut_options # can be done by the RFstation
+    total_induced_voltage = full_ring_and_rf.ring_and_rf_section[section].totalInducedVoltage
     eom_factor_dE = -ring.eta_0[section, turn + 1] / (
             2 * ring.beta[section, turn + 1] ** 2 * ring.energy[section, turn + 1])
     eom_factor_potential = ring.particle.charge / ring.t_rev[turn]
@@ -924,7 +924,6 @@ def separatrix_with_intensity(ring: Ring,
     time_ud, potential_well_ud = potential_well_cut(full_ring_and_rf.potential_well_coordinates,
                                                     full_ring_and_rf.potential_well)
     separatrix_ud, bucket_area = compute_separatrix_and_bucket_area(time_ud, potential_well_ud, eom_factor_dE)
-
     if total_induced_voltage is None:
         # return the same result as no intensity effects
         return (time_ud, separatrix_ud), (time_ud, separatrix_ud), bucket_area, bucket_area
