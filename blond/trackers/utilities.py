@@ -941,4 +941,4 @@ def separatrix_with_intensity(ring: Ring,
     separatrix_int, bucket_area_int = compute_separatrix_and_bucket_area(time_int, potential_well_int, eom_factor_dE)
 
     # return the undisturbed and the result with intensity effects
-    return (time_ud, separatrix), (time_int, separatrix_int), bucket_area, bucket_area_int
+    return (time_ud, separatrix_ud), (time_int, separatrix_int), bucket_area, bucket_area_int
