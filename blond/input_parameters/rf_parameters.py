@@ -255,7 +255,14 @@ class RFStation:
         self.delta_E = Ring.delta_E[self.section_index]
         self.alpha_order = Ring.alpha_order
         self.charge = self.Particle.charge
-
+        self.sr_flag = False
+        if Ring.sr_flag:
+            self.sr_flag = True
+            self.I1 = Ring.I1
+            self.I2 = Ring.I2
+            self.I3 = Ring.I3
+            self.I4 = Ring.I4
+            self.I5 = Ring.I5
         # The order alpha_order used here can be replaced by Ring.alpha_order
         # when the assembler can differentiate the cases 'simple' and 'exact'
         # for the drift
@@ -510,9 +517,16 @@ def calculate_phi_s(RFStation, Particle=Proton(),
     eta0 = RFStation.eta_0
 
     if accelerating_systems == 'as_single':
-
+        # VERIFIER S'IL Y A UN DECALAGE D'INDICES ENTRE ENERGIE ET PERTES
         denergy = np.append(RFStation.delta_E, RFStation.delta_E[-1])
-        acceleration_ratio = denergy / (Particle.charge * RFStation.voltage[0, :])
+        if RFStation.sr_flag:
+            U0 = Particle.c_gamma / (2 * np.pi) * np.append(RFStation.momentum[1:],
+                                                            RFStation.momentum[0]) ** 4 * RFStation.I2
+            U0 = Particle.c_gamma / (2 * np.pi) * RFStation.momentum** 4 * RFStation.I2 # eV per turn
+            acceleration_ratio = (denergy + U0) / (Particle.charge * RFStation.voltage[0, :])
+        else :
+            acceleration_ratio = denergy / (Particle.charge * RFStation.voltage[0, :])
+
         acceleration_test = ((acceleration_ratio > -1) & (acceleration_ratio < 1)) == 0
         
         # Validity check on acceleration_ratio
