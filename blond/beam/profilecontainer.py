@@ -1,15 +1,12 @@
+from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import numpy as np
-from numba import Literal
-
-from blond.utils import bmath as bm
 from scipy.signal import fftconvolve
 
-from utils import precision
+from blond.utils import bmath as bm, precision
 
 if TYPE_CHECKING:
-    from typing import Tuple
+    from typing import Tuple, Literal
     from numpy.typing import NDArray as NumpyArray
     from cupy.typing import NDArray as CupyArray
     from .beam import Beam
@@ -89,6 +86,14 @@ class ProfileContainer(Lockable):
             assert profile.bin_width == self.bin_width, msg
             msg = f"{profile.number_of_bins=}, but must be {self.number_of_bins}"
             assert profile.number_of_bins == self.number_of_bins, msg
+            for p in self._profiles:
+                start = p.cut_left
+                stop = p.cut_right
+                if not (
+                    ((profile.cut_left <= start) & (profile.cut_right <= start))
+                    or ((profile.cut_left >= stop) & (profile.cut_right >= stop))
+                ):
+                    raise ValueError("Profiles are overlapping")
         self._profiles = (*self._profiles, profile)
         self._update_memory()
 
@@ -246,7 +251,7 @@ class TotalInducedVoltageNew:
 
             assert t_start < t_stop, f"{t_start=} {t_stop=}"
             msg = f"Bins must be  even, but {profile_dest.number_of_bins=}"
-            assert profile_dest.number_of_bins // 2 == 0, msg
+            assert profile_dest.number_of_bins % 2 == 0, msg
 
             wake_kernel_at_single_profile = bm.zeros(
                 # Factor 2 because `start` and `stop` was increased by `width / 2`

@@ -31,7 +31,7 @@ from blond.trackers.tracker import RingAndRFTracker
 from blond.utils import bmath
 
 
-def orig_rf_volt_comp(tracker):
+def orig_rf_volt_comp(tracker: RingAndRFTracker):
     """Function calculating the total, discretised RF voltage seen by the
     beam at a given turn. Requires a Profile object.
 
