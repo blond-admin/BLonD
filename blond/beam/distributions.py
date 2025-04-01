@@ -544,7 +544,7 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
                                            potential_well_low_res[j]]) / eom_factor_dE)
             dE_trajectory[pot_well_high_res > potential_well_low_res[j]] = 0
 
-            J_array_dE0[j] = 1 / np.pi * np.trapz(dE_trajectory,
+            J_array_dE0[j] = 1 / np.pi * np.trapezoid(dE_trajectory,
                                                   dx=time_potential_high_res[1] - time_potential_high_res[0])
 
         # Sorting the H and J functions to be able to interpolate J(H)
