@@ -987,18 +987,16 @@ class InducedVoltageResonator(_InducedVoltage):
     @handle_legacy_kwargs
     def __init__(self, beam: Beam,
                  profile: Profile,
+                 resonators: Resonators,
                  frequency_resolution: Optional[float] = None,
                  wake_length: Optional[float] = None,
                  multi_turn_wake: bool = False,
                  mtw_mode: Optional[MtwModeTypes] = 'time',
                  rf_station: Optional[RFStation] = None,
                  use_regular_fft: bool = True,
-                 time_decay_factor: Optional[float] = 0.01,
-                 resonators: Optional[Resonators] = None) -> None:
+                 time_decay_factor: Optional[float] = 0.01) -> None:
 
         # Test if one or more quality factors is smaller than 0.5.
-        if resonators is None:
-            raise RuntimeError('No resonators given')
         if sum(resonators.Q < 0.5) > 0:
             # ResonatorError
             raise RuntimeError('All quality factors Q must be larger than 0.5')
