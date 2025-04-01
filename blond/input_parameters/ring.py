@@ -80,6 +80,7 @@ class Ring:
         :math:`\alpha_{2,k,i}` [1]; can be input as single float or as a
         program of (n_turns + 1) turns (should be of the same size as
         synchronous_data and alpha_0).
+    rad_int : float array [5,1] or [5, n_turns]
     RingOptions : class
         Optional : A RingOptions-based class with default options to check the
         input and initialize the momentum program for the simulation.
@@ -201,7 +202,7 @@ class Ring:
 
     def __init__(self, ring_length, alpha_0, synchronous_data, Particle,
                  n_turns=1, synchronous_data_type='momentum',
-                 bending_radius=None, n_sections=1, alpha_1=None, alpha_2=None,
+                 bending_radius=None, n_sections=1, alpha_1=None, alpha_2=None, rad_int = None,
                  RingOptions=RingOptions()):
 
         # Conversion of initial inputs to expected types
@@ -300,6 +301,55 @@ class Ring:
         # Slippage factor derived from alpha, beta, gamma
         self.eta_generation()
 
+
+        #Radiation integrals integration
+        self.sr_flag = False
+        if rad_int is not None:
+            integrals = [0]
+            if type(rad_int) in {np.ndarray, list}:
+                try :
+                    integrals = np.array(rad_int)
+                except ValueError as ve:
+                    raise ValueError(ve)
+
+                if integrals.__len__() == integrals.size:
+                    if integrals.__len__() >= 5:
+                        self.sr_flag = True
+                        self.I1 = integrals[0]
+                        self.I2 = integrals[1]
+                        self.I3 = integrals[2]
+                        self.I4 = integrals[3]
+                        self.I5 = integrals[4]
+                        if integrals.__len__() > 5:
+                            warnings.warn("WARNING in Ring: Ignoring extra inputs.")
+                    else :
+                        raise ValueError("The first five synchrotron " +
+                                         "radiation integrals are requires " +
+                                         "Ignoring input.")
+                else :
+                    if  integrals.__len__() != self.n_turns + 1 :
+                        if len(integrals) == 1 :
+                            warnings.warn("WARNING in Ring: Constant synchrotron radiation integrals.")
+                        else :
+                            raise RuntimeError("ERROR in Ring: The radiation integral evolution does not match the number of turns!")
+
+                    if integrals[0].__len__() >= 5:
+                        self.sr_flag = True
+                        self.I1 = integrals[:, 0]
+                        self.I2 = integrals[:, 1]
+                        self.I3 = integrals[:, 2]
+                        self.I4 = integrals[:, 3]
+                        self.I5 = integrals[:, 4]
+                        if integrals[0].__len__():
+                            warnings.warn("WARNING in Ring: Ignoring extra inputs.")
+                    else:
+                        raise ValueError("The first five synchrotron " +
+                                      "radiation integrals are requires " +
+                                      "Ignoring input.")
+            else:
+                raise TypeError(f"Expected a list or numpy.ndarray as an input. Received {type(rad_int)}.")
+
+
     def eta_generation(self):
         """ Function to generate the slippage factors (zeroth, first, and
         second orders, see [1]_) from the momentum compaction and the
@@ -365,6 +415,7 @@ class Ring:
             to the moments contained in the 'cycle_moments' array
 
         """
+        # INCLUDE SR losses
 
         parameters = {}
         parameters['momentum'] = np.interp(cycle_moments, self.cycle_time,
