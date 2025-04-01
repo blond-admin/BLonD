@@ -554,15 +554,12 @@ class InducedVoltageTime(_InducedVoltage):
         ####################################
 
         # Call the __init__ method of the parent class [calls process()]
-        super().__init__(beam=beam,
-                         profile=profile,
-                         frequency_resolution=None,
-                         wake_length=wake_length,
-                         multi_turn_wake=multi_turn_wake,
-                         rf_station=rf_station,
-                         mtw_mode=mtw_mode,
-                         use_regular_fft=use_regular_fft,
-                         )
+        _InducedVoltage.__init__(self, beam, profile,
+                                 frequency_resolution=None,
+                                 wake_length=wake_length,
+                                 multi_turn_wake=multi_turn_wake,
+                                 rf_station=rf_station, mtw_mode=mtw_mode,
+                                 use_regular_fft=use_regular_fft)
 
     def process(self) -> None:
         """
@@ -581,8 +578,8 @@ class InducedVoltageTime(_InducedVoltage):
                                       int(self.profile.n_slices) - 1)
         else:
             self.n_fft = (int(self.n_induced_voltage)
-                          + int(self.profile.n_slices)
-                          - 1)
+                         + int(self.profile.n_slices)
+                         - 1)
 
         # Frequency resolution in Hz
         self.frequency_resolution = 1 / (self.n_fft * self.profile.bin_size)
@@ -738,11 +735,11 @@ class InducedVoltageFreq(_InducedVoltage):
         ###############
 
         # Call the __init__ method of the parent class
-        super().__init__(beam, profile, wake_length=None,
-                         frequency_resolution=frequency_resolution,
-                         multi_turn_wake=multi_turn_wake,
-                         rf_station=rf_station, mtw_mode=mtw_mode,
-                         use_regular_fft=use_regular_fft)
+        _InducedVoltage.__init__(self, beam, profile, wake_length=None,
+                                 frequency_resolution=frequency_resolution,
+                                 multi_turn_wake=multi_turn_wake,
+                                 rf_station=rf_station, mtw_mode=mtw_mode,
+                                 use_regular_fft=use_regular_fft)
 
     def process(self) -> None:
         """
@@ -874,7 +871,7 @@ class InductiveImpedance(_InducedVoltage):
         self.deriv_mode = deriv_mode
 
         # Call the __init__ method of the parent class
-        super().__init__(beam, profile, rf_station=rf_station)
+        _InducedVoltage.__init__(self, beam, profile, rf_station=rf_station)
 
     def induced_voltage_1turn(self, beam_spectrum_dict={}):
         """
