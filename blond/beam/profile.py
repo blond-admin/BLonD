@@ -85,10 +85,10 @@ class CutOptions:
     >>> from input_parameters.rf_parameters import RFStation
     >>> self.ring = Ring(n_turns = 1, ring_length = 100,
     >>> alpha = 0.00001, momentum = 1e9)
-    >>> self.rf_params = RFStation(ring=self.ring, n_rf=1, harmonic=[4620],
+    >>> self.rf_station = RFStation(ring=self.ring, n_rf=1, harmonic=[4620],
     >>>                  voltage=[7e6], phi_rf_d=[0.])
     >>> CutOptions = profileModule.CutOptions(cut_left=0, cut_right=2*np.pi,
-    >>> n_slices = 100, cuts_unit='rad', rf_station=self.rf_params)
+    >>> n_slices = 100, cuts_unit='rad', rf_station=self.rf_station)
 
     """
 

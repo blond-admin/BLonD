@@ -246,7 +246,7 @@ class RingAndRFTracker:
         # self.logger.info("Class initialized")
 
         # Imports from RF parameters
-        self.rf_params = rf_station
+        self.rf_params = rf_station # TODO rename correctly
         self.counter = rf_station.counter
         self.acceleration_kick = - rf_station.delta_E
 
