@@ -28,7 +28,6 @@ class TestExamples(unittest.TestCase):
     def _runExample(self, example, timeout=timeout):
         file = os.path.join(main_files_dir, example)
         try:
-            ret = subprocess.run(exec_args + ['-m', 'pip', 'show', 'blond'])
             ret = subprocess.run(exec_args + [file], timeout=timeout)
             self.assertEqual(ret.returncode, 0)
         except subprocess.TimeoutExpired as e:
