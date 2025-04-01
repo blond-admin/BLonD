@@ -455,7 +455,7 @@ class RingAndRFTracker:
                                           voltage=self.total_voltage,
                                           bin_centers=self.profile.bin_centers,
                                           charge=self.beam.particle.charge,
-                                          acceleration_kick=self.acceleration_kick[turn])
+                                          acceleration_kick=self.acceleration_kick[turn]) # TODO this should be handeled internally by TotalInducedVoltage.track?
 
                 else:
                     self.kick(self.beam.dt, self.beam.dE, turn)

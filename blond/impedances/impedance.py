@@ -236,7 +236,7 @@ class _InducedVoltage:
                  frequency_resolution: Optional[float] = None,
                  wake_length: Optional[float] = None,
                  multi_turn_wake: bool = False,
-                 mtw_mode: Optional[MtwModeTypes] = 'time',  # todo fix
+                 mtw_mode: MtwModeTypes = 'time',
                  rf_station: Optional[RFStation] = None,
                  use_regular_fft: bool = True) -> None:
 

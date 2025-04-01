@@ -578,6 +578,12 @@ class Profile:
         from warnings import warn
         warn("filterExtraOptions is deprecated, use filter_extra_options", DeprecationWarning, stacklevel=2)
         self.filter_extra_options = val
+    @property
+    def bin_width(self):
+        return (self.cut_right - self.cut_left) / len(self.n_macroparticles)
+    @property
+    def number_of_bins(self):
+        return len(self.n_macroparticles)
 
     def set_slices_parameters(self) -> None:
         """
@@ -773,6 +779,7 @@ class Profile:
             raise RuntimeError('Option for derivative is not recognized.')
 
         return bin_centers, derivative
+
 
     def to_gpu(self, recursive=True):
         """
