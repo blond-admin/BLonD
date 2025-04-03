@@ -1017,6 +1017,7 @@ class InducedVoltageResonator(_InducedVoltage):
         # Copy of the Beam object in order to access the beam info.
         self.beam = beam
         self.wake_length_input = wake_length
+        self.profile = profile
 
         # Make the time array necessary for wake calculation.
         # If the time decay is longer than n_turns of simulation, the induced voltage is calculated for n_turns.
