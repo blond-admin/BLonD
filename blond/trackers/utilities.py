@@ -982,14 +982,14 @@ def separatrix_from_tracker(ring: Ring,
                            "stations need to be tracked at least once to have the voltage available")
     if section > ring.n_sections:
         raise RuntimeError("Number of sections cannot be above ring.n_sections")
-    cut_options = full_ring_and_rf.ring_and_rf_section[section].profile.cut_options
+    cut_options: CutOptions = full_ring_and_rf.ring_and_rf_section[section].profile.cut_options
 
     # + 1, as the 0th entry is the initializer
     eom_factor_dE = -ring.eta_0[section, turn + 1] / (
             2 * ring.beta[section, turn + 1] ** 2 * ring.energy[section, turn + 1])
     eom_factor_potential = (np.sign(full_ring_and_rf.ring_and_rf_section[0].rf_params.eta_0[turn + 1]) *
                             ring.particle.charge / ring.t_rev[turn])
-    full_ring_and_rf.potential_well_generation(turn=turn)
+    full_ring_and_rf.potential_well_generation(turn=turn, time_array=cut_options.bin_centers)
     time_ud, potential_well_ud = potential_well_cut(full_ring_and_rf.potential_well_coordinates,
                                                     full_ring_and_rf.potential_well)
     separatrix_ud, bucket_area = compute_separatrix_and_bucket_area(time_ud, potential_well_ud, eom_factor_dE)
