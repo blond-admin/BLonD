@@ -90,14 +90,14 @@ class CavityFeedback:
     """
 
     def __init__(self, rf_station: RFStation, profile: Profile, n_cavities: int,
-             n_s: int, n_h: int, lpf: bool = False) -> None:
+                 n_s: float, n_h: int, lpf: bool = False) -> None:
         # BLonD classes the feedback should get information from
         self.rf_station: RFStation = rf_station
         self.profile: Profile = profile
         self.counter = self.rf_station.counter[0]
 
         # Number of cavities the feedback is working on
-        self.n_cavities = int(n_cavities)
+        self.n_cavities = n_cavities
         if self.n_cavities < 1:
             raise RuntimeError(
                 "ERROR in CavityFeedback: argument" " n_cavities has invalid value!"
@@ -115,7 +115,7 @@ class CavityFeedback:
             )
 
         # Sampling time in the model and the number of samples per turn
-        self.n_s = int(n_s)
+        self.n_s = n_s #int(n_s)
         self.T_s = (
                 self.n_s
                 * 2
