@@ -27,7 +27,7 @@ class SynchrotronRadiation:
 
     ''' Class to compute synchrotron radiation effects, including radiation
         damping and quantum excitation.
-        For multiple RF section, instanciate one object per RF section an call
+        For multiple RF section, instantiate one object per RF section and call
         the track() method after tracking each section.
     '''
 
@@ -52,15 +52,22 @@ class SynchrotronRadiation:
         self.beam = Beam
 
         # Input check
-        if bending_radius is None and rad_int is None:
-            raise MissingParameterError("Synchrotron radiation damping and quantum excitation require either the bending radius for an isomagnetic ring, or the first five synchrotron radiation integrals.")
-
-        if bending_radius is not None and rad_int is None:
-            self.rho = bending_radius
-            self.I2 = 2.0 * np.pi / self.rho  # Assuming isomagnetic machine
-            self.I3 = 2.0 * np.pi / self.rho ** 2.0
-            self.I4 = self.ring.ring_circumference * self.ring.alpha_0[0, 0] / self.rho ** 2.0
-            self.jz = 2.0 + self.I4 / self.I2
+        if rad_int is None:
+            if bending_radius is None:
+                if Ring.sr_flag:
+                    self.I2 = Ring.I2
+                    self.I3 = Ring.I3
+                    self.I4 = Ring.I4
+                    self.jz = 2.0 + self.I4 / self.I2
+                else :
+                    raise MissingParameterError("Synchrotron radiation damping and quantum excitation require either the bending radius "
+                                            "for an isomagnetic ring, or the first five synchrotron radiation integrals.")
+            if bending_radius is not None:
+                self.rho = bending_radius
+                self.I2 = 2.0 * np.pi / self.rho  # Assuming isomagnetic machine
+                self.I3 = 2.0 * np.pi / self.rho ** 2.0
+                self.I4 = self.ring.ring_circumference * self.ring.alpha_0[0, 0] / self.rho ** 2.0
+                self.jz = 2.0 + self.I4 / self.I2
 
         if rad_int is not None:
             if type(rad_int) in {np.ndarray, list}:
@@ -186,7 +193,7 @@ class SynchrotronRadiation:
                               self.U0 / self.n_kicks - 2.0 * self.sigma_dE /
                               np.sqrt(self.tau_z * self.n_kicks) *
                               self.ring.energy[0, i_turn] *
-                              np.random.randn(self.beam.n_macroparticles))
+                              np.random.normal(self.beam.n_macroparticles))
 
     # Track particles with SR only (without quantum excitation)
     # C implementation
