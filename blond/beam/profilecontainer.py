@@ -1,6 +1,8 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+import matplotlib.pyplot as plt
+import numpy as np
 from scipy.signal import fftconvolve
 
 from blond.utils import bmath as bm, precision
@@ -83,7 +85,7 @@ class ProfileContainer(Lockable):
         assert not self.is_locked
         if self.n_profiles > 0:
             msg = f"{profile.bin_width=}, but must be {self.bin_width}"
-            assert profile.bin_width == self.bin_width, msg
+            assert np.isclose(profile.bin_width, self.bin_width), msg
             msg = f"{profile.number_of_bins=}, but must be {self.number_of_bins}"
             assert profile.number_of_bins == self.number_of_bins, msg
             for p in self._profiles:
@@ -105,6 +107,7 @@ class ProfileContainer(Lockable):
         )
         for i, profile in enumerate(self._profiles):
             # TODO WRITE TEST THAT ITS WRITING TO THE CORRECT POSITION IN
+            self._total_histogram[:, i] = profile.n_macroparticles
             profile.n_macroparticles = self._total_histogram[:, i].view()
 
     def track(self):
@@ -176,8 +179,13 @@ class TotalInducedVoltageNew:
         self._induced_voltage_container = induced_voltage_container
         self._induced_voltage_container.lock()  # DONT ALLOW ANY CHANGED ANYMORE
 
+        self._profile_source = self._profile_container._total_histogram[
+            :, :
+        ].T.flatten()
         self.track_update_wake_kernel = track_update_wake_kernel
-        self._compressed_wake_kernel = self._get_compressed_wake_kernel()
+        self._compressed_wake_kernel = self._get_compressed_wake_kernel(
+            self._profile_container
+        )
 
         self._induced_voltage_amplitude: NumpyArray | CupyArray = None  # TODO
         # self._induced_voltage_time: NumpyArray | CupyArray # TODO
@@ -200,54 +208,112 @@ class TotalInducedVoltageNew:
             # from the outside.
 
     def _induced_voltage_sum(self):
-        for profile_j, profile_dest in enumerate(self._profile_container):
-            profile_dest: Profile
-            profile_dest.wake = bm.zeros(profile_dest.number_of_bins)
+        for profile_j, profile_target in enumerate(self._profile_container):
+            profile_target: Profile
+            # attribute `wake` to be used in `track`. This is private to
+            # `TotalInducedVoltageNew`
+            profile_target.wake = bm.zeros(profile_target.number_of_bins)
 
         # Size of compressed wake per profile, defined in `_get_compressed_wake_kernel`
-        step = 2 * self._profile_container.number_of_bins
+        step = (2 * self._profile_container.number_of_bins)
 
+        if self.track_update_wake_kernel:
+            # This is potentially a non-performing operation,
+            # but would be required if the profiles change their position
+            self._compressed_wake_kernel = self._get_compressed_wake_kernel(
+                self._profile_container
+            )
+        if len(self._compressed_wake_kernel) > 2048:
+            convolve = fftconvolve
+        else:
+            convolve = np.convolve
         for profile_i, profile_source in enumerate(self._profile_container):
             profile_source: Profile
-            if self.track_update_wake_kernel:
-                self._compressed_wake_kernel = self._get_compressed_wake_kernel()
 
-            # skip waves backwards in time, so that the first profile
-            # affects all following profiles, but the last profile affects
-            # only itself.
-            start = profile_i * step
-            compressed_wake = fftconvolve(
-                profile_source, self._compressed_wake_kernel[start:]
+            compressed_wake = convolve(
+                self._compressed_wake_kernel,
+                profile_source.n_macroparticles[:],
+                mode="same",
             )
+            """fig_n = plt.gcf().number
+            plt.figure(22)
+            plt.subplot(3, 1, 1)
+            plt.title("self._compressed_wake_kernel")
+            plt.plot(self._compressed_wake_kernel, label=f"{profile_i}")
+            plt.subplot(3, 1, 2)
+            plt.title("profile_source.n_macroparticles")
+            plt.plot(profile_source.n_macroparticles, label=f"{profile_i}")
+            plt.subplot(3, 1, 3)
+            plt.plot(compressed_wake, label=f"{profile_i=}")
+            plt.figure(fig_n)"""
 
-            for profile_j, profile_dest in enumerate(self._profile_container):
-                profile_dest: Profile
-                # skip waves backward in time (explained above)
+            for profile_j, profile_target in enumerate(self._profile_container):
+                profile_target: Profile
+                # skip waves backwards in time, so that the first profile
+                # affects all following profiles, but the last profile affects
+                # only itself.
                 if profile_j < profile_i:
                     continue
 
                 # Read/write the wakefield from the compressed wake.
-
+                dev_debug = profile_j - profile_i
+                #print(f"{profile_j=} {dev_debug=}")
+                assert dev_debug >= 0
                 # Because the wake is `2 * number_of_bins` in the compressed wake
                 # `start` and `stop` are shifted to include only the relevant
                 # `1 * number_of_bins`.
-                start = (profile_j - profile_i + 0) * step + step / 4
-                stop = (profile_j - profile_i + 1) * step - step / 4
-                profile_dest.wake += compressed_wake[start:stop]  # Set fake
-                # attribute to be used in `track`. This is private to
-                # `TotalInducedVoltageNew`
+                start = (profile_j - profile_i + 0) * step + step // 4
+                stop = (profile_j - profile_i + 1) * step - step // 4
+                size = stop - start
+                assert size == len(profile_target.wake), (f"{size} !="
+                                                          f" {len(profile_target.wake)}")
+
+                # Set fake attribute `wake` to be used in `track`. This is
+                # private to `TotalInducedVoltageNew`
+                """idxs = np.arange(len(compressed_wake))
+                plt.figure(22)
+
+                plt.subplot(3, 1, 3)
+
+                plt.plot(
+                    idxs[start:stop],
+                    compressed_wake[start:stop],
+                    "x",
+                    label=f"{profile_i=} {profile_j=}",
+                )
+                plt.legend()
+                plt.figure(fig_n)"""
+                profile_target.wake += compressed_wake[start:stop]
+
 
     def _get_compressed_wake_kernel(
-        self,
+        self, profile_container: ProfileContainer
     ) -> NumpyArray | CupyArray:
         """Calculates the wake kernel at every profile"""
         concat_later = []
         # TODO CONSIDER MTW
-        for profile_dest in self._profile_container:
+        t_min_glob = min(map(lambda p: p.cut_left, self._profile_container))
+        first_profile_center = (
+            profile_container._profiles[0].cut_left
+            + profile_container._profiles[0].cut_right
+        ) / 2
+        t_offset = first_profile_center
+        for profile_dest in profile_container:
             profile_dest: Profile
             width = profile_dest.cut_right - profile_dest.cut_left
-            t_start = profile_dest.cut_left - width / 2
-            t_stop = profile_dest.cut_right + width / 2
+
+            # make the kernel_width 2 * profile_width,
+            # so that during convolution, the kernel will reach all profile
+            # entries when at left and right end of profile
+            t_start = profile_dest.cut_left - width / 2 - t_offset
+            t_stop = profile_dest.cut_right + width / 2 - t_offset
+            if t_start < 0:
+                assert np.isclose(t_start, -t_stop), (
+                    "Must be symmetric "
+                    f"around 0, "
+                    f"but {t_start=}, "
+                    f"and {t_stop=}"
+                )
 
             assert t_start < t_stop, f"{t_start=} {t_stop=}"
             msg = f"Bins must be  even, but {profile_dest.number_of_bins=}"
@@ -260,8 +326,10 @@ class TotalInducedVoltageNew:
             )
             # Sum all wakes (impedances) for a single profile target
             for induced_voltage_object in self._induced_voltage_container:
-                wake_kernel_at_single_profile += induced_voltage_object.get_wake(
-                    t_start=t_start, t_stop=t_stop, n=len(wake_kernel_at_single_profile)
+                wake_kernel_at_single_profile += induced_voltage_object.get_wake_kernel(
+                    t_start=t_start,
+                    t_stop=t_stop,
+                    n=len(wake_kernel_at_single_profile),
                 )
 
             concat_later.append(wake_kernel_at_single_profile)

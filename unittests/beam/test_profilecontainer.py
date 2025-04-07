@@ -1,5 +1,6 @@
 import unittest
 
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.constants import c, e, m_p
 
@@ -12,6 +13,7 @@ from blond.beam.profilecontainer import (
     InducedVoltageContainer,
     TotalInducedVoltageNew,
 )
+from blond.impedances.impedance import InducedVoltageFreq
 from blond.impedances.impedance import InducedVoltageTime
 from blond.impedances.impedance import (
     InductiveImpedance,
@@ -20,7 +22,6 @@ from blond.impedances.impedance import (
 from blond.impedances.impedance_sources import Resonators
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
-from blond.trackers.tracker import RingAndRFTracker
 
 
 class TestLockable(unittest.TestCase):
@@ -149,9 +150,10 @@ class TestInducedVoltageContainer(unittest.TestCase):
         assert len(self.induced_voltage_container) == 1
 
     def test___iter__(self):
-        for indced_voltage in self.induced_voltage_container:
-            for indced_voltage in self.induced_voltage_container:
-                pass
+        for i, indced_voltage_i in enumerate(self.induced_voltage_container):
+            for j, indced_voltage_j in enumerate(self.induced_voltage_container):
+                if i != j:
+                    assert indced_voltage_i is not indced_voltage_j
 
 
 class TestTotalInducedVoltageNew(unittest.TestCase):
@@ -186,7 +188,12 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
         # DEFINE SLICES----------------------------------------------------------------
         profile1 = Profile(
             beam,
-            CutOptions(cut_left=-sigma_dt, cut_right=sigma_dt, n_slices=64),
+            CutOptions(cut_left=np.min(dt), cut_right=np.max(dt), n_slices=64),
+        )
+        profile1.track()
+        self.profile2 = Profile(
+            beam,
+            CutOptions(cut_left=sigma_dt, cut_right=3 * sigma_dt, n_slices=64),
         )
 
         steps = InductiveImpedance(
@@ -196,6 +203,7 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
             rf_station,
             deriv_mode="diff",
         )
+
         # direct space charge
         dir_space_charge = InductiveImpedance(
             beam,
@@ -203,34 +211,257 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
             -376.730313462 / (ring.beta[0] * ring.gamma[0] ** 2),
             rf_station,
         )
-
-        self.total_induced_voltage_ORG = TotalInducedVoltage(
-            beam, profile1, [steps, dir_space_charge]
-        )
         profile_container = ProfileContainer()
         profile_container.add_profile(profile1)
+        # profile_container.add_profile(profile2)
         induced_voltage_container = InducedVoltageContainer()
         induced_voltage_container.add_induced_voltage(steps)
         induced_voltage_container.add_induced_voltage(dir_space_charge)
 
-        self.obj = TotalInducedVoltageNew(
+        self.total_induced_voltage_NEW = TotalInducedVoltageNew(
             beam=beam,
             profile_container=profile_container,
             induced_voltage_container=induced_voltage_container,
             track_update_wake_kernel=False,
         )
 
-    def test_something(self):
+        self.total_induced_voltage_ORG = TotalInducedVoltage(
+            beam, profile1, [steps, dir_space_charge]
+        )
+
+    def test___init__(self):
         pass
 
     def test_track(self):
-        self.obj.track()
+        self.total_induced_voltage_NEW.track()
 
-    def test__induced_voltage_sum(self):
-        self.obj._induced_voltage_sum()
+    def test__induced_voltage_sum_single_profile(self):
+        self.total_induced_voltage_NEW._induced_voltage_sum()
+        self.total_induced_voltage_ORG.induced_voltage_sum()
+        DEV_DEBUG = True
+        if DEV_DEBUG:
+            plt.subplot(4, 1, 1)
+            plt.plot(
+                self.total_induced_voltage_NEW._profile_container._profiles[
+                    0
+                ].n_macroparticles,
+                "-x",
+            )
+            plt.subplot(4, 1, 2)
+            plt.plot(self.total_induced_voltage_NEW._compressed_wake_kernel)
+            plt.axvline(64)
+            plt.subplot(4, 1, 3)
+            plt.plot(
+                self.total_induced_voltage_NEW._profile_container._profiles[0].wake[1:],
+                label="TotalInducedVoltageNew",
+            )  # NOQA
+            # `wake` is hidden variable of `_induced_voltage_sum`
+            # plt.twinx()
+            plt.plot(
+                self.total_induced_voltage_ORG.induced_voltage[1:],
+                "--",
+                label="total_induced_voltage_ORG",
+            )
+            plt.subplot(4, 1, 4)
+            plt.plot(
+                self.total_induced_voltage_NEW._profile_container._profiles[0].wake[1:]
+                - self.total_induced_voltage_ORG.induced_voltage[1:],
+                label="TotalInducedVoltageNew",
+            )
+            """compressed_wake = fftconvolve(
+                self.total_induced_voltage_NEW._compressed_wake_kernel[:],
+                self.total_induced_voltage_NEW._profile_container._profiles[0].n_macroparticles[:],
+                mode="same",
+            )
+            plt.legend(loc="upper right")
+            #plt.twinx()
+            plt.plot(compressed_wake[:],
+                     "--",
+                     label="fftconvolve",
+                     )"""
+            plt.legend(loc="upper left")
+            plt.show()
+        np.testing.assert_allclose(
+            self.total_induced_voltage_NEW._profile_container._profiles[0].wake[1:],
+            self.total_induced_voltage_ORG.induced_voltage[1:],
+            atol=5e-2 * np.max(np.abs(self.total_induced_voltage_ORG.induced_voltage)),
+        )
 
-    def test__get_compressed_wake_kernel(self):
-        self.obj._get_compressed_wake_kernel()
+    def test__induced_voltage_sum_multi_profile(self):
+        print("--" * 20)
+        N_PROFILES = 3
+        EMPTY_BUCKETS = 10
+        # Beam parameters
+        sigma_dt = 180e-9 / 4  # [s]
+        kin_beam_energy = 1.4e9  # [eV]
+
+        E_0 = m_p * c**2 / e  # [eV]
+        tot_beam_energy = E_0 + kin_beam_energy  # [eV]
+
+        ring = Ring(
+            2 * np.pi * 25,
+            1 / 4.4**2,
+            np.sqrt(tot_beam_energy**2 - E_0**2),
+            Proton(),
+            2,
+        )
+
+        rf_station = RFStation(ring, [1], [8e3], [np.pi], 1)
+        for i in range(N_PROFILES):
+            _dt = (
+                np.random.randn(1001) * sigma_dt / 10
+                + ((EMPTY_BUCKETS + 1) * i) * sigma_dt
+            )
+            _dE = np.random.randn(len(_dt)) / sigma_dt / 10
+            if i == 0:
+                dE = _dE
+                dt = _dt
+            else:
+                dt = np.concatenate((dt, _dt))  # NOQA
+                dE = np.concatenate((dE, _dE))  # NOQA
+
+        beam = Beam(ring, len(dt), 1e11, dt=dt, dE=dE)
+        profiles = []
+        for i in range(N_PROFILES):
+            _profile = Profile(
+                beam,
+                CutOptions(
+                    cut_left=(((EMPTY_BUCKETS + 1) * i) - 0.5) * sigma_dt,
+                    cut_right=(((EMPTY_BUCKETS + 1) * i) + 0.5) * sigma_dt,
+                    n_slices=64,
+                ),
+            )
+            _profile.track()
+            profiles.append(_profile)
+        del _profile
+        # DEFINE SLICES----------------------------------------------------------------
+        cut_left = profiles[0].cut_left
+        cut_right = profiles[-1].cut_right
+        width = cut_right - cut_left
+        n_bins = int(round(width / profiles[0].bin_width))
+        profile_full = Profile(
+            beam,
+            CutOptions(
+                cut_left=profiles[0].cut_left,
+                cut_right=profiles[-1].cut_right,
+                n_slices=n_bins,
+            ),
+        )
+        steps = InductiveImpedance(
+            beam,
+            profile_full,
+            34.6669349520904 / 10e9 * ring.f_rev,
+            rf_station,
+            deriv_mode="diff",
+        )
+
+        # direct space charge
+        dir_space_charge = InductiveImpedance(
+            beam,
+            profile_full,
+            -376.730313462 / (ring.beta[0] * ring.gamma[0] ** 2),
+            rf_station,
+        )
+        profile_container = ProfileContainer()
+        for profile in profiles:
+            profile_container.add_profile(profile)
+        induced_voltage_freq_resonators = InducedVoltageTime(
+            beam=beam,
+            profile=profile_full,
+            wake_source_list=[Resonators([4.5e6], [100.222e6], [200])],
+        )
+
+        induced_voltage_freq_resonators.process()
+        OPTION = 1
+        if OPTION == 0:
+            induced_voltage_list = [steps, dir_space_charge]
+        elif OPTION == 1:
+            induced_voltage_list = [induced_voltage_freq_resonators]
+        else:
+            raise ValueError(f"{OPTION=}")
+        induced_voltage_container = InducedVoltageContainer()
+        for induced_voltage_tmp in induced_voltage_list:
+            induced_voltage_container.add_induced_voltage(induced_voltage_tmp)
+        ax = plt.subplot(3, 1, 2)
+        plt.cla()
+        self.total_induced_voltage_NEW = TotalInducedVoltageNew(
+            beam=beam,
+            profile_container=profile_container,
+            induced_voltage_container=induced_voltage_container,
+            track_update_wake_kernel=False,
+        )
+
+        self.total_induced_voltage_ORG = TotalInducedVoltage(
+            beam, profile_full, induced_voltage_list
+        )
+
+        import time
+        total_induced_voltage_NEW = 0.
+        total_induced_voltage_ORG = 0.
+        for i in range(100):
+            t0 = time.time()
+            self.total_induced_voltage_NEW._induced_voltage_sum()
+            t1 = time.time()
+            total_induced_voltage_NEW += t1 - t0
+
+            t0 = time.time()
+            self.total_induced_voltage_ORG.induced_voltage_sum()
+            t1 = time.time()
+            total_induced_voltage_ORG += t1 - t0
+        print("total_induced_voltage_NEW", total_induced_voltage_NEW)
+
+        print("total_induced_voltage_ORG", total_induced_voltage_ORG)
+
+        ax = plt.subplot(3, 1, 1)
+        for profile in profiles:
+            plt.plot(
+                profile.bin_centers,
+                profile.n_macroparticles,
+            )
+
+        plt.subplot(3, 1, 2)
+        # plt.plot(
+        #    profile_full.bin_centers,
+        #    self.total_induced_voltage_ORG.induced_voltage,
+        #    label="total_induced_voltage_ORG.induced_voltage"
+        # )
+        w = profile_full.cut_right - profile_full.cut_left
+        profile_full_bin_centers = np.linspace(
+            profile_full.cut_left - w ,
+            profile_full.cut_right + w ,
+            (3*profile_full.number_of_bins) + 1,
+        )
+        dt = profile_full_bin_centers[1] - profile_full_bin_centers[0]
+        profile_full_bin_centers = profile_full_bin_centers[:-1] + dt / 2
+        induced_voltage_freq_resonators.sum_wakes(profile_full_bin_centers)
+        wake_kernel = induced_voltage_freq_resonators.total_wake
+        wake = np.convolve(profile_full.n_macroparticles, wake_kernel, mode="same")
+        wake_dt = (np.arange(len(wake)) - 800) * dt
+        # plt.plot((np.arange(len(wake_kernel))) * profile_full.bin_width,
+        #          wake_kernel)
+        plt.legend()
+        plt.subplot(3, 1, 3, sharex=ax)
+
+        plt.plot(wake_dt, wake, label="wake np.convolve")
+        ymax = max(plt.ylim())
+        plt.ylim(-ymax, ymax)
+        plt.legend(loc="upper right")
+
+        # plt.twinx()
+
+        for profile in self.total_induced_voltage_NEW._profile_container:
+            plt.plot(
+                profile.bin_centers,
+                profile.wake,
+                "--",
+                c="C1",
+                label="total_induced_voltage_NEW",
+            )
+        plt.legend(loc="lower left")
+        ymax = max(plt.ylim())
+        plt.ylim(-ymax, ymax)
+
+        plt.show()
 
 
 if __name__ == "__main__":

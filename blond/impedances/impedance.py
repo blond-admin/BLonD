@@ -19,6 +19,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 import numpy as np
+from matplotlib import pyplot as plt
 from scipy.constants import e
 
 from ..toolbox.next_regular import next_regular
@@ -399,7 +400,8 @@ class _InducedVoltage(ABC):
             self.induced_voltage_generation = self.induced_voltage_1turn
 
     @abstractmethod
-    def get_wake(self, t_start: float, t_stop: float, n: int):
+    def get_wake_kernel(
+        self, t_start: float, t_stop: float, n: int) -> NumpyNDArray | CupyNDArray:
         """Get wakefield in time interval
 
         Parameters
@@ -618,9 +620,8 @@ class InducedVoltageTime(_InducedVoltage):
         # frequency domain (padding zeros)
         self.total_impedance = bm.rfft(self.total_wake, self.n_fft)
 
-    def get_wake(
-        self, t_start: float, t_stop: float, n: int
-    ) -> NumpyNDArray | CupyNDArray:
+    def get_wake_kernel(
+        self, t_start: float, t_stop: float, n: int) -> NumpyNDArray | CupyNDArray:
         """Get wakefield in time interval
 
         Parameters
@@ -632,32 +633,10 @@ class InducedVoltageTime(_InducedVoltage):
         n
             Number of entries in wake
         """
-        assert t_stop > t_start, f"{t_stop=}, but {t_start=}"
-        step = (t_stop - t_start) / n
-        n_entries = int(t_stop / step)
 
-        profile = Profile(
-            self.beam, CutOptions(cut_left=0, cut_right=t_stop, n_slices=n_entries)
-        )
-        # make a copy of this class, but with different profile
-        other_self = InducedVoltageTime(
-            beam=self.beam,
-            profile=profile,
-            wake_source_list=self.wake_source_list,
-            rf_station=self.rf_station,
-            use_regular_fft=self.use_regular_fft,
-            # Ignore in favor of profile
-            wake_length=None,
-            multi_turn_wake=False,
-            # mtw_mode=self.mtw_mode,
-        )
-
-        other_self.induced_voltage_1turn()  # calculate the induced voltage
-
-        start = int(t_start / step)
-        stop = int(t_stop / step)
-        wake = other_self.induced_voltage[start:stop]
-        assert len(wake) == n
+        time_array = np.linspace(t_start, t_stop, n)
+        self.sum_wakes(time_array=time_array)
+        wake = self.total_wake
         return wake
 
     def to_gpu(self, recursive=True):
@@ -669,6 +648,7 @@ class InducedVoltageTime(_InducedVoltage):
             return
 
         import cupy as cp
+
         self.induced_voltage = cp.array(self.induced_voltage)
         self.time = cp.array(self.time)
         self.total_wake = cp.array(self.total_wake)
@@ -766,7 +746,7 @@ class InducedVoltageFreq(_InducedVoltage):
                  multi_turn_wake: bool = False,
                  front_wake_length: float = 0,
                  rf_station: Optional[RFStation] = None,
-                 mtw_mode: Optional[MtwModeTypes] = 'time',
+                 mtw_mode: MtwModeTypes = 'time',
                  use_regular_fft: bool = True) -> None:
 
         # Impedance sources list (e.g. list of Resonator objects)
@@ -839,9 +819,8 @@ class InducedVoltageFreq(_InducedVoltage):
         # Factor relating Fourier transform and DFT
         self.total_impedance /= self.profile.bin_size
 
-    def get_wake(
-        self, t_start: float, t_stop: float, n: int
-    ) -> NumpyNDArray | CupyNDArray:
+    def get_wake_kernel(
+        self, t_start: float, t_stop: float, n: int) -> NumpyNDArray | CupyNDArray:
         """Get wakefield in time interval
 
         Parameters
@@ -853,31 +832,17 @@ class InducedVoltageFreq(_InducedVoltage):
         n
             Number of entries in wake
         """
-        assert t_stop > t_start, f"{t_stop=}, but {t_start=}"
-        step = (t_stop - t_start) / n
-        n_entries = int(t_stop / step)
-        profile = Profile(
-            self.beam, CutOptions(cut_left=0, cut_right=t_stop, n_slices=n_entries)
-        )
-        other_self = InducedVoltageFreq(
-            beam=self.beam,
-            profile=profile,
-            impedance_source_list=self.impedance_source_list,
-            rf_station=self.rf_station,
-            use_regular_fft=self.use_regular_fft,
-            # Ignore in favor of profile
-            frequency_resolution=None,
-            multi_turn_wake=False,
-            front_wake_length=0,
-            # mtw_mode=self.mtw_mode,
-        )
+        # Recycle method `get_wake_kernel`.
 
-        other_self.induced_voltage_1turn()
-
-        start = int(t_start / step)
-        stop = int(t_stop / step)
-        wake = other_self.induced_voltage[start:stop]
-        assert len(wake) == n
+        # This is possible, because the method requires only
+        # self.wake_source_list, that exists in both `InducedVoltageTime`
+        # and `InducedVoltageFreq`
+        return InducedVoltageTime.get_wake_kernel(
+            self=self, # NOQA
+            t_start=t_start,
+            t_stop=t_stop,
+            n=n,
+        )
 
     def to_gpu(self, recursive=True):
         """
@@ -928,8 +893,7 @@ class InducedVoltageFreq(_InducedVoltage):
         self._device: DeviceType = 'CPU'
 
 
-class InductiveImpedance(_InducedVoltage): # TODO shouldnt this be a
-    # impedance source???
+class InductiveImpedance(_InducedVoltage):
     r"""
     Constant imaginary Z/n impedance
 
@@ -955,10 +919,14 @@ class InductiveImpedance(_InducedVoltage): # TODO shouldnt this be a
     """
 
     @handle_legacy_kwargs
-    def __init__(self, beam: Beam, profile: Profile, Z_over_n: float,
-                 rf_station: RFStation,
-                 deriv_mode: BeamProfileDerivativeModes = 'gradient'):
-
+    def __init__(
+        self,
+        beam: Beam,
+        profile: Profile,
+        Z_over_n: NumpyNDArray | float,
+        rf_station: RFStation,
+        deriv_mode: BeamProfileDerivativeModes = "gradient",
+    ):
         # Constant imaginary Z/n program in* :math:`\Omega`.
         self.Z_over_n = Z_over_n
 
@@ -966,7 +934,8 @@ class InductiveImpedance(_InducedVoltage): # TODO shouldnt this be a
         self.deriv_mode = deriv_mode
 
         # Call the __init__ method of the parent class
-        _InducedVoltage.__init__(self, beam, profile, rf_station=rf_station)
+        _InducedVoltage.__init__(self, beam=beam, profile=profile,
+                                 rf_station=rf_station)
 
     def induced_voltage_1turn(self, beam_spectrum_dict={}):
         """
@@ -986,7 +955,7 @@ class InductiveImpedance(_InducedVoltage): # TODO shouldnt this be a
         self.induced_voltage = (induced_voltage[:self.n_induced_voltage]).astype(
             dtype=bm.precision.real_t, order='C', copy=False)
 
-    def get_wake(self, t_start: float, t_stop: float, n: int):
+    def get_wake_kernel(self, t_start: float, t_stop: float, n: int):
         """Get wakefield in time interval
 
         Parameters
@@ -998,26 +967,31 @@ class InductiveImpedance(_InducedVoltage): # TODO shouldnt this be a
         n
             Number of entries in wake
         """
-        assert t_stop > t_start, f"{t_stop=}, but {t_start=}"
-        step = (t_stop - t_start) / n
-        n_entries = int(t_stop / step)
-        profile = Profile(
-            self.beam, CutOptions(cut_left=0, cut_right=t_stop, n_slices=n_entries)
-        )
-        other_self = InductiveImpedance(
-            beam=self.beam,
-            profile=profile,
-            Z_over_n=self.Z_over_n,
-            rf_station=self.rf_station,
-            deriv_mode=self.deriv_mode,
-        )
+        if self.deriv_mode not in ("gradient", "diff"):
+            msg = f"`get_wake_kernel` is not implemented for " f"{self.deriv_mode=}"
+            raise NotImplementedError(msg)
+        ts = bm.linspace(t_start, t_stop, n)
+        derative_wake = np.zeros(n, dtype=bm.precision.real_t)
+        step = ts[1] - ts[0]
+        # if is first histogram,
+        if t_start <= 0 < t_stop:
+            idx = len(ts) // 2 - 1
+            derative_wake[idx + 1] = -1.0 / (2 * step)
+            derative_wake[idx - 1] = +1.0 / (2 * step)
 
-        other_self.induced_voltage_1turn()
-
-        start = int(t_start / step)
-        stop = int(t_stop / step)
-        wake = other_self.induced_voltage[start:stop]
-        assert len(wake) == n
+        # introduce scalars that reflect `induced_voltage_1turn`
+        index = self.rf_station.counter[0]
+        derative_wake = -(
+            self.beam.particle.charge
+            * e
+            / (2 * np.pi)
+            * self.beam.ratio
+            * self.Z_over_n[index]
+            * self.rf_station.t_rev[index]
+            / self.profile.bin_size
+            * derative_wake  # only this one is different to have wakefield
+        )
+        return derative_wake
 
     def to_gpu(self, recursive=True):
         """
@@ -1194,7 +1168,8 @@ class InducedVoltageResonator(_InducedVoltage):
                                                 self.induced_voltage,
                                                 bm.precision.real_t))
 
-    def get_wake(self, t_start: float, t_stop: float, n: int):
+    def get_wake_kernel(
+        self, t_start: float, t_stop: float, n: int) -> NumpyNDArray | CupyNDArray:
         """Get wakefield in time interval
 
         Parameters
@@ -1206,30 +1181,7 @@ class InducedVoltageResonator(_InducedVoltage):
         n
             Number of entries in wake
         """
-        assert t_stop > t_start, f"{t_stop=}, but {t_start=}"
-        step = (t_stop - t_start) / n
-        n_entries = int(t_stop / step)
-        profile = Profile(
-            self.beam, CutOptions(cut_left=0, cut_right=t_stop, n_slices=n_entries)
-        )
-        other_self = InducedVoltageResonator(
-            beam=self.beam,
-            profile=profile,
-            resonators=Resonators(
-                R_S=self.R,
-                frequency_R=self.omega_r / (2 * np.pi),
-                Q=self.Q,
-            ),
-            # ignore in facor of profile
-            time_array=None,
-        )
-
-        other_self.induced_voltage_1turn()
-
-        start = int(t_start / step)
-        stop = int(t_stop / step)
-        wake = other_self.induced_voltage[start:stop]
-        assert len(wake) == n
+        raise NotImplementedError("Use `Resonators` with `InducedVoltageTime` instead!")
 
     def to_gpu(self, recursive=True):
         """

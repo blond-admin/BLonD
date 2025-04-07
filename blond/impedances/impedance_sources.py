@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import matplotlib.pyplot as plt
 import mpmath
 import numpy as np
 from scipy import integrate
@@ -353,11 +354,11 @@ class Resonators(_ImpedanceObject):
 
             alpha = self.omega_R[i] / (2 * self.Q[i])
             omega_bar = np.sqrt(self.omega_R[i] ** 2 - alpha ** 2)
-
             self.wake += ((np.sign(self.time_array) + 1) * self.R_S[i]
                           * alpha * np.exp(-alpha * self.time_array)
                           * (bm.cos(omega_bar * self.time_array) - alpha /
                              omega_bar * bm.sin(omega_bar * self.time_array)))
+
 
     def _imped_calc_python(self, frequency_array: NDArray):
         r"""
