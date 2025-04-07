@@ -304,8 +304,12 @@ def use_gpu(gpu_id=0):
         'rfft': cp.fft.rfft,
         'irfft': cp.fft.irfft,
         'rfftfreq': cp.fft.rfftfreq,
+        'concatenate': cp.concatenate,
+        'diags': cp.sparse.diags,
+        'spsolve': cp.sparse.linalg.spsolve,
         'convolve': cp.convolve,
         # 'convolve': _cupy.convolve,
+        'cavity_response_sparse_matrix': _cupy.cavity_response_sparse_matrix,
         'beam_phase': _cupy.beam_phase,
         'beam_phase_fast': _cupy.beam_phase_fast,
         'kick': _cupy.kick,
@@ -320,7 +324,7 @@ def use_gpu(gpu_id=0):
         'resonator_induced_voltage_1_turn':
             _py.resonator_induced_voltage_1_turn,
         'interp_const_space': cp.interp,
-        'device': 'GPU'
+        'device': 'GPU',
     }
     # add cupy functions in the dictionary
     for fname in dir(cp):

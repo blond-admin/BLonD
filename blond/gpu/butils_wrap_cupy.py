@@ -274,6 +274,73 @@ def __beam_phase_helper(bin_centers, profile, alpha, omega_rf, phi_rf):
     a = omega_rf * bin_centers + phi_rf
     return base * cp.sin(a), base * cp.cos(a)
 
+def cavity_response_sparse_matrix(
+        I_beam: NDArray,
+        I_gen: NDArray,
+        n_samples: int,
+        V_ant_init: float,
+        I_gen_init: float,
+        samples_per_rf: float,
+        R_over_Q: float,
+        Q_L: float,
+        detuning: float,
+) -> NDArray:
+    """Solving the ACS cavity response model as a sparse matrix problem
+    for a given set of initial conditions, resonator parameters and
+    generator and RF beam currents.
+
+    Parameters
+    ----------
+    I_beam : complex array
+        RF beam current
+    I_gen : complex array
+        Generator current
+    n_samples : int
+        Number of samples of the result array - 1
+    V_ant_init : complex float
+        Initial condition for the antenna voltage
+    I_gen_init : complex float
+        Initial condition of the generator current, i.e. one sample before the I_gen array
+    samples_per_rf : int
+        Number of samples per RF period
+    R_over_Q : float
+        The R over Q of the cavity
+    Q_L : float
+        The loaded quality factor of the cavity
+    detuning : float
+        The detuning of the cavity in frequency divided by the rf frequency
+
+    Returns
+    -------
+    complex array
+        The antenna voltage evaluated for the same period as I_beam and I_gen of length n_samples + 1
+
+    """
+
+    # Add a zero at the start of RF beam current
+    if len(I_beam) != n_samples + 1:
+        I_beam = cp.concatenate((np.zeros(1, dtype=complex), I_beam))
+
+    # Check length of the generator current array
+    if len(I_gen) != n_samples + 1:
+        I_gen = cp.concatenate((I_gen_init * np.ones(1, dtype=complex), I_gen))
+
+    # Compute matrix elements
+    A = 0.5 * R_over_Q * samples_per_rf
+    B = 1 - 0.5 * samples_per_rf / Q_L + 1j * detuning * samples_per_rf
+
+    # Initialize the two sparse matrices needed to find antenna voltage
+    B_matrix = cp.scipy.sparse.diags(
+        [-B, 1], [-1, 0], (n_samples + 1, n_samples + 1), dtype=complex, format="csc"
+    )
+    I_matrix = cp.scipy.sparse.diags([A], [-1], (n_samples + 1, n_samples + 1), dtype=complex)
+
+    # Find vector on the "current" side of the equation
+    b = I_matrix.dot(2 * I_gen - I_beam)
+    b[0] = V_ant_init
+
+    # Solve the sparse linear system of equations and return
+    return cp.scipy.sparse.linalg.spsolve(B_matrix, b)
 
 def beam_phase(bin_centers: NDArray, profile: NDArray, alpha: float, omega_rf: float, phi_rf: float,
                bin_size: float):
