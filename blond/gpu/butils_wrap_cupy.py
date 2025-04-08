@@ -9,12 +9,12 @@ from typing import Tuple, Union, TYPE_CHECKING
 
 import cupy as cp
 import numpy as np
-from cupy import ndarray as CupyArray
-from cupy._core.fusion import _FusionVarArray, _FusionVarScalar
-from numpy import float64
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray as NumpyArray
+    from cupy.typing import NDArray as CupyArray
+    from cupy._core.fusion import _FusionVarArray, _FusionVarScalar
+    from numpy import float64
 
 from ..utils import precision
 from . import GPU_DEV
@@ -248,7 +248,7 @@ def linear_interp_kick(
     )
 
 
-def slice_beam(dt: NDArray, profile: NDArray, cut_left: float, cut_right: float):
+def slice_beam(dt: NumpyArray, profile: NumpyArray, cut_left: float, cut_right: float):
     """Constant space slicing with a constant frame.
 
     Args:
@@ -390,8 +390,8 @@ def __beam_phase_helper(
 
 
 def beam_phase(
-    bin_centers: NDArray,
-    profile: NDArray,
+    bin_centers: NumpyArray,
+    profile: NumpyArray,
     alpha: float,
     omega_rf: float,
     phi_rf: float,
@@ -448,8 +448,8 @@ def __beam_phase_fast_helper(
 
 
 def beam_phase_fast(
-    bin_centers: NDArray,
-    profile: NDArray,
+    bin_centers: NumpyArray,
+    profile: NumpyArray,
     omega_rf: float,
     phi_rf: float,
     bin_size: float,

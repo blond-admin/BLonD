@@ -26,7 +26,7 @@ from ..utils.legacy_support import handle_legacy_kwargs
 if TYPE_CHECKING:
     from os import PathLike
 
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray as NumpyArray
     from h5py import File
 
     from ..input_parameters.ring import Ring
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
 
 @handle_legacy_kwargs
-def plot_noise_spectrum(frequency: NDArray, spectrum: NDArray,
+def plot_noise_spectrum(frequency: NumpyArray, spectrum: NumpyArray,
                         sampling: int = 1, dirname: str | PathLike[str] = 'fig',
                         show_plot: bool = False, figno: int = 0):
     """
@@ -65,7 +65,7 @@ def plot_noise_spectrum(frequency: NDArray, spectrum: NDArray,
 
 
 @handle_legacy_kwargs
-def plot_phase_noise(time: NDArray, dphi: NDArray, sampling: int = 1,
+def plot_phase_noise(time: NumpyArray, dphi: NumpyArray, sampling: int = 1,
                      dirname: str | PathLike[str] = 'fig',
                      show_plot: bool = False, figno: int = 0):
     """

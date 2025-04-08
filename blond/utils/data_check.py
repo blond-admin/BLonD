@@ -21,7 +21,7 @@ import numpy as np
 from ..utils import exceptions as blond_exceptions
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray as NumpyArray
     from typing import Any, Iterable
 
 
@@ -101,7 +101,7 @@ def _check_number(input_data: Any) -> bool:
     except (TypeError, ValueError):
         return False
 
-def _check_length(input_data: NDArray | list | tuple, length: int) -> bool:
+def _check_length(input_data: NumpyArray | list | tuple, length: int) -> bool:
     """ Returns True if len(input_data) == length
     Should this return True if n-dim > 1?
 
@@ -124,7 +124,7 @@ def _check_length(input_data: NDArray | list | tuple, length: int) -> bool:
         return False
 
 
-def _check_dimensions(input_data: NDArray | list | tuple, dim: Iterable[int]) -> bool:
+def _check_dimensions(input_data: NumpyArray | list | tuple, dim: Iterable[int]) -> bool:
     """
     Casts input_data to numpy array and dimensions to tuple
     compares shape of array to tuple and returns True if equal.

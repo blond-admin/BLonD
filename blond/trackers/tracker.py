@@ -38,7 +38,7 @@ else:
 if TYPE_CHECKING:
     from typing import Optional, Literal
 
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray as NumpyArray
 
     from ..impedances.impedance import TotalInducedVoltage
     from ..llrf.beam_feedback import BeamFeedback
@@ -63,10 +63,10 @@ class FullRingAndRF:
         self.ring_and_rf_section = ring_and_rf_section
 
         #: *Total potential well in [V]*
-        self.potential_well: NDArray | None = None
+        self.potential_well: NumpyArray | None = None
 
         #: *Total potential well theta coordinates in [rad]*
-        self.potential_well_coordinates: NDArray | None = None
+        self.potential_well_coordinates: NumpyArray | None = None
 
         #: *Ring circumference in [m]*
         self.ring_circumference: float = 0.0
@@ -91,7 +91,7 @@ class FullRingAndRF:
     def potential_well_generation(self, turn: int = 0, n_points: int = int(1e5),
                                   main_harmonic_option: MainHarmonicOptionType = 'lowest_freq',
                                   dt_margin_percent: float = 0.,
-                                  time_array: NDArray = None):
+                                  time_array: NumpyArray = None):
         """Method to generate the potential well out of the RF systems. The
         assumption made is that all the RF voltages are averaged over one turn.
         The potential well is then approximated over one turn, which is not the
@@ -299,7 +299,7 @@ class RingAndRFTracker:
         if (self.cavityFB is not None) and (not hasattr(self.cavityFB, '__iter__')):
             self.cavityFB = [self.cavityFB]
 
-    def kick(self, beam_dt: NDArray, beam_dE: NDArray, index: int):
+    def kick(self, beam_dt: NumpyArray, beam_dE: NumpyArray, index: int):
         r"""Function updating the particle energy due to the RF kick in a given
         RF station. The kicks are summed over the different harmonic RF systems
         in the station. The cavity phase can be shifted by the user via
@@ -318,7 +318,7 @@ class RingAndRFTracker:
                 self.rf_params.particle.charge, self.rf_params.n_rf,
                 self.acceleration_kick[index])
 
-    def drift(self, beam_dt: NDArray, beam_dE: NDArray, index: int):
+    def drift(self, beam_dt: NumpyArray, beam_dE: NumpyArray, index: int):
         r"""Function updating the particle arrival time to the RF station
         (drift). If only the zeroth order slippage factor is given, 'simple'
         and 'exact' solvers are available. The 'simple' solver is somewhat

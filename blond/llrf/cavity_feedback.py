@@ -65,8 +65,8 @@ from ..utils.legacy_support import handle_legacy_kwargs
 if TYPE_CHECKING:
     from typing import Optional, Any
 
-    from numpy import float64, ndarray
-    from numpy.typing import NDArray
+    from numpy import float64
+    from numpy.typing import NDArray as NumpyArray
 
     from ..input_parameters.rf_parameters import RFStation
     from ..beam.profile import Profile
@@ -224,7 +224,7 @@ class CavityFeedback:
                 self.I_BEAM_COARSE[-self.n_coarse:] / self.T_s
         )
 
-    def set_point_from_rfstation(self) -> NDArray:
+    def set_point_from_rfstation(self) -> NumpyArray:
         r"""Computes the setpoint in I/Q based on the RF voltage in the RFStation"""
 
         V_set = polar_to_cartesian(
@@ -299,7 +299,7 @@ class SPSCavityLoopCommissioning:
             open_fb: bool = False,
             open_drive: bool = False,
             open_ff: bool = True,
-            v_set: Optional[NDArray] = None,
+            v_set: Optional[NumpyArray] = None,
             cpp_conv: bool = False,
             pwr_clamp: bool = False,
             rot_iq: complex = 1,
@@ -963,7 +963,7 @@ class SPSOneTurnFeedback(CavityFeedback):
                 * self.T_s
         )
 
-    def matr_conv(self, I: NDArray, h: NDArray) -> NDArray:
+    def matr_conv(self, I: NumpyArray, h: NumpyArray) -> NumpyArray:
         r"""Convolution of beam current with impulse response; uses a complete
         matrix with off-diagonal elements."""
 
@@ -1555,7 +1555,7 @@ class LHCCavityLoop(CavityFeedback):
                 + self.open_drive_inv * self.I_gen_offset
         )
 
-    def generator_power(self) -> NDArray:
+    def generator_power(self) -> NumpyArray:
         r"""Calculation of generator power from generator current"""
 
         return 0.5 * self.R_over_Q * self.Q_L * np.absolute(self.I_GEN_COARSE) ** 2
@@ -1776,7 +1776,7 @@ class LHCCavityLoop(CavityFeedback):
         self.samples = self.omega_rf * self.T_s
         self.detuning = self.d_omega / self.omega_c
 
-    def update_set_point_excitation(self, excitation: NDArray, turn: int):
+    def update_set_point_excitation(self, excitation: NumpyArray, turn: int):
         r"""Updates the set point for the next turn based on the excitation to
         be injected."""
 

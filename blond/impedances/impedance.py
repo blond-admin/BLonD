@@ -23,15 +23,14 @@ from scipy.constants import e
 from ..toolbox.next_regular import next_regular
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
-from numpy import ndarray
 
 if TYPE_CHECKING:
     from typing import Optional, Callable, Literal, Any, Dict, Optional
 
-    from numpy.typing import NDArray as NumpyNDArray
-    from cupy.typing import NDArray as CupyNDArray
+    from numpy.typing import NDArray as NumpyArray
+    from cupy.typing import NDArray as CupyArray
 
-    NDArray = NumpyNDArray | CupyNDArray
+    NDArray = NumpyArray | CupyArray
 
     from ..beam.beam import Beam
     from ..beam.profile import Profile
@@ -871,7 +870,7 @@ class InductiveImpedance(_InducedVoltage):
         # Call the __init__ method of the parent class
         _InducedVoltage.__init__(self, beam, profile, rf_station=rf_station)
 
-    def induced_voltage_1turn(self, beam_spectrum_dict: Dict[int, ndarray]={}):
+    def induced_voltage_1turn(self, beam_spectrum_dict: Dict[int, NumpyArray]={}):
         """
         Method to calculate the induced voltage through the derivative of the
         profile. The impedance must be a constant Z/n.

@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
     from typing import TYPE_CHECKING, Literal, Protocol
 
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray as NumpyArray
 
 
     class DistributionOptionsType(TypedDict):
@@ -24,18 +24,18 @@ if TYPE_CHECKING:
 
 
     class DistributionUserTableType(TypedDict):
-        user_table_action: NDArray
-        user_table_distribution: NDArray
+        user_table_action: NumpyArray
+        user_table_distribution: NumpyArray
 
 
     class LineDensityInputType(TypedDict):
-        time_line_den: NDArray
-        line_density: NDArray
+        time_line_den: NumpyArray
+        line_density: NumpyArray
 
 
     class ExtraVoltageDictType(TypedDict):
-        time_array: NDArray
-        voltage_array: NDArray
+        time_array: NumpyArray
+        voltage_array: NumpyArray
 
 
     class FilterExtraOptionsType(TypedDict):

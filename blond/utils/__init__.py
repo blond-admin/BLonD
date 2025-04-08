@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray as NumpyArray
 
 
 class PrecisionClass:
@@ -65,7 +65,7 @@ class c_complex128(ct.Structure):
     """
     _fields_ = [("real", ct.c_double), ("imag", ct.c_double)]
 
-    def __init__(self, pycomplex: NDArray):
+    def __init__(self, pycomplex: NumpyArray):
         """Init from Python complex
 
         Args:
@@ -94,7 +94,7 @@ class c_complex64(ct.Structure):
     """
     _fields_ = [("real", ct.c_float), ("imag", ct.c_float)]
 
-    def __init__(self, pycomplex: NDArray):
+    def __init__(self, pycomplex: NumpyArray):
         """Init from Python complex
 
         Args:

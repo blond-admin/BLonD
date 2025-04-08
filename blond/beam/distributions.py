@@ -26,7 +26,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy
 from packaging.version import Version
-from numpy import ndarray
 
 
 if Version(scipy.__version__) >= Version("1.14"):
@@ -43,7 +42,7 @@ from ..utils.legacy_support import handle_legacy_kwargs
 if TYPE_CHECKING:
     from typing import Literal, Callable, Optional
 
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray as NumpyArray
 
     from ..input_parameters.ring import Ring
     from ..input_parameters.rf_parameters import RFStation
@@ -76,8 +75,8 @@ def matched_from_line_density(beam: Beam,
                               line_density_exponent: Optional[float] = None,
                               seed: Optional[int] = None,
                               process_pot_well: bool = True)\
-                    -> (tuple[list[NDArray], TotalInducedVoltage]
-                        | tuple[list[NDArray, NDArray], list[NDArray, NDArray]]):
+                    -> (tuple[list[NumpyArray], TotalInducedVoltage]
+                        | tuple[list[NumpyArray, NumpyArray], list[NumpyArray, NumpyArray]]):
     """
     *Function to generate a beam by inputting the line density. The distribution
     function is then reconstructed with the Abel transform and the particles
@@ -443,7 +442,7 @@ def matched_from_distribution_function(beam: Beam, full_ring_and_rf: FullRingAnd
                                        distribution_variable: DistributionVariableType = 'Hamiltonian',
                                        process_pot_well: bool = True,
                                        turn_number: int = 0) \
-                 -> tuple[list[NDArray], TotalInducedVoltage] | list[NDArray]:
+                 -> tuple[list[NumpyArray], TotalInducedVoltage] | list[NumpyArray]:
     """
     *Function to generate a beam by inputting the distribution function (by
     choosing the type of distribution and the emittance).
@@ -490,8 +489,8 @@ def matched_from_distribution_function(beam: Beam, full_ring_and_rf: FullRingAnd
                                                n_points=n_points_potential,
                                                dt_margin_percent=dt_margin_percent,
                                                main_harmonic_option=main_harmonic_option)
-    potential_well: NDArray = full_ring_and_rf.potential_well
-    time_potential: NDArray = full_ring_and_rf.potential_well_coordinates
+    potential_well: NumpyArray = full_ring_and_rf.potential_well
+    time_potential: NumpyArray = full_ring_and_rf.potential_well_coordinates
 
     induced_potential = 0
 
@@ -708,10 +707,10 @@ def matched_from_distribution_function(beam: Beam, full_ring_and_rf: FullRingAnd
 @handle_legacy_kwargs
 def x0_from_bunch_length(bunch_length: float,
                          bunch_length_fit: BunchLengthFitTypes,
-                         X_grid: NDArray,
-                         sorted_X_dE0: NDArray,
+                         X_grid: NumpyArray,
+                         sorted_X_dE0: NumpyArray,
                          n_points_grid: int,
-                         time_potential_low_res: NDArray,
+                         time_potential_low_res: NumpyArray,
                          distribution_function_: Callable,
                          # TODO this is just distribution_function with strange way, is this intended?
                          distribution_type: str,
@@ -816,8 +815,8 @@ def x0_from_bunch_length(bunch_length: float,
 
 
 @handle_legacy_kwargs
-def populate_bunch(beam: Beam, time_grid: NDArray, deltaE_grid: NDArray,
-                   density_grid: NDArray, time_step: float,
+def populate_bunch(beam: Beam, time_grid: NumpyArray, deltaE_grid: NumpyArray,
+                   density_grid: NumpyArray, time_step: float,
                    deltaE_step: float, seed: int):
     """
     *Method to populate the bunch using a random number generator from the
@@ -841,8 +840,8 @@ def populate_bunch(beam: Beam, time_grid: NDArray, deltaE_grid: NDArray,
         dtype=bm.precision.real_t, order='C', copy=False)
 
 
-def __distribution_function_by_exponent(action_array: NDArray, exponent: float,
-                                        length: float) -> NDArray:
+def __distribution_function_by_exponent(action_array: NumpyArray, exponent: float,
+                                        length: float) -> NumpyArray:
     warnings.filterwarnings("ignore")
     distribution_function_ = (1 - action_array / length) ** exponent
     warnings.filterwarnings("default")
@@ -850,10 +849,10 @@ def __distribution_function_by_exponent(action_array: NDArray, exponent: float,
     return distribution_function_
 
 
-def distribution_function(action_array: NDArray,
+def distribution_function(action_array: NumpyArray,
                           dist_type: DistTypeDistFunction,
                           length: float,
-                          exponent: Optional[float] = None) -> ndarray:
+                          exponent: Optional[float] = None) -> NumpyArray:
     """
     *Distribution function (formulas from Laclare).*
     """
@@ -896,8 +895,8 @@ def distribution_function(action_array: NDArray,
 
 def __line_density_by_exponent(bunch_length: float,
                                bunch_position: float,
-                               coord_array: NDArray,
-                               exponent: float) -> NDArray:
+                               coord_array: NumpyArray,
+                               exponent: float) -> NumpyArray:
     warnings.filterwarnings("ignore")
     line_density_ = ((1 - (2.0 * (coord_array - bunch_position) /
                            bunch_length) ** 2) ** (exponent + 0.5))
@@ -907,9 +906,9 @@ def __line_density_by_exponent(bunch_length: float,
     return line_density_
 
 
-def line_density(coord_array: NDArray, dist_type: str, bunch_length: float,
+def line_density(coord_array: NumpyArray, dist_type: str, bunch_length: float,
                  bunch_position: float = 0.0,
-                 exponent: Optional[float] = None) -> NDArray:
+                 exponent: Optional[float] = None) -> NumpyArray:
     """
     *Line density*
     """

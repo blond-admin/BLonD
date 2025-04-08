@@ -24,12 +24,11 @@ from scipy import ndimage
 from ..toolbox import filters_and_fitting as ffroutines
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
-from numpy import ndarray
 
 if TYPE_CHECKING:
     from typing import Callable, Optional, Tuple
 
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray as NumpyArray
 
     from ..utils.types import DeviceType
     from .beam import Beam
@@ -125,8 +124,8 @@ class CutOptions:
             # CutError
             raise NameError(f'cuts_unit should be "s" or "rad", not {cuts_unit=} !')
 
-        self.edges: NDArray = np.zeros(n_slices + 1, dtype=bm.precision.real_t, order='C')
-        self.bin_centers: NDArray = np.zeros(n_slices, dtype=bm.precision.real_t, order='C')
+        self.edges: NumpyArray = np.zeros(n_slices + 1, dtype=bm.precision.real_t, order='C')
+        self.bin_centers: NumpyArray = np.zeros(n_slices, dtype=bm.precision.real_t, order='C')
         self.bin_size: float = 0.0
         # For CuPy backend
         self._device: DeviceType = 'CPU'
@@ -209,7 +208,7 @@ class CutOptions:
         else:
             raise NameError(input_unit_type)
 
-    def get_slices_parameters(self) -> tuple[int, float, float, None, NDArray, NDArray, float]:
+    def get_slices_parameters(self) -> tuple[int, float, float, None, NumpyArray, NumpyArray, float]:
         """
         Return all the computed parameters.
         """
@@ -435,7 +434,7 @@ class Profile:
         not given explicitly
     edges : float array
         contains the edges of the slices
-    bin_centers : NDArray, optional
+    bin_centers : NumpyArray, optional
         contains the centres of the slices
     bin_size : float
         lenght of one bin (or slice)
@@ -509,19 +508,19 @@ class Profile:
         self.cut_left = 0.
         self.cut_right = 0.
         self.n_sigma = 0
-        self.edges: NDArray | None = None
-        self.bin_centers: NDArray | None = None
+        self.edges: NumpyArray | None = None
+        self.bin_centers: NumpyArray | None = None
         self.bin_size = 0.
         self.fit_extra_options = None  # todo typing
         # Get all computed parameters from CutOptions
         self.set_slices_parameters()
 
         # Initialize profile array as zero array
-        self.n_macroparticles: NDArray = np.zeros(self.n_slices, dtype=bm.precision.real_t, order='C')
+        self.n_macroparticles: NumpyArray = np.zeros(self.n_slices, dtype=bm.precision.real_t, order='C')
 
         # Initialize beam_spectrum and beam_spectrum_freq as empty arrays
-        self.beam_spectrum: NDArray = np.array([], dtype=bm.precision.real_t, order='C')
-        self.beam_spectrum_freq: NDArray = np.array([], dtype=bm.precision.real_t, order='C')
+        self.beam_spectrum: NumpyArray = np.array([], dtype=bm.precision.real_t, order='C')
+        self.beam_spectrum_freq: NumpyArray = np.array([], dtype=bm.precision.real_t, order='C')
 
         self.operations: list[Callable] = []
         if other_slices_options.smooth:
@@ -746,7 +745,7 @@ class Profile:
         """
         self.beam_spectrum = bm.rfft(self.n_macroparticles, n_sampling_fft)
 
-    def beam_profile_derivative(self, mode: BeamProfileDerivativeModes = 'gradient') -> Tuple[ndarray, ndarray]:
+    def beam_profile_derivative(self, mode: BeamProfileDerivativeModes = 'gradient') -> Tuple[NumpyArray, NumpyArray]:
         """
         The input is one of the three available methods for differentiating
         a function. The two outputs are the bin centres and the discrete

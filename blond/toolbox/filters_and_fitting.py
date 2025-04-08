@@ -28,22 +28,22 @@ from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
 
-    from numpy.typing import NDArray as NumpyNDArray
+    from numpy.typing import NDArray as NumpyArray
 
     try:
-        from cupy.typing import NDArray as CupyNDArray
+        from cupy.typing import NDArray as CupyArray
     except ImportError:
-        NDArray = NumpyNDArray
+        NDArray = NumpyArray
     else:
-        NDArray = NumpyNDArray | CupyNDArray
+        NDArray = NumpyArray | CupyArray
 
     from ..utils.types import FilterExtraOptionsType
 
 @handle_legacy_kwargs
-def beam_profile_filter_chebyshev(y_array: NumpyNDArray,
-                                  x_array: NumpyNDArray,
+def beam_profile_filter_chebyshev(y_array: NumpyArray,
+                                  x_array: NumpyArray,
                                   filter_option: FilterExtraOptionsType
-                                  ) -> NumpyNDArray:
+                                  ) -> NumpyArray:
     """
     This routine is filtering the beam profile with a type II Chebyshev
     filter. The input is a library having the following structure and
@@ -120,7 +120,7 @@ def beam_profile_filter_chebyshev(y_array: NumpyNDArray,
 
 @handle_legacy_kwargs
 def gaussian_fit(y_array: NDArray, x_array: NDArray,
-                 p0: list[float]) -> NumpyNDArray:
+                 p0: list[float]) -> NumpyArray:
     """
     Gaussian fit of the profile, in order to get the bunch length and
     position. Returns fit values in units of s.
@@ -132,7 +132,7 @@ def gaussian_fit(y_array: NDArray, x_array: NDArray,
     return curve_fit(gauss, x_array, y_array, p0)[0]
 
 
-def gauss(x: NumpyNDArray, *p) -> NumpyNDArray:
+def gauss(x: NumpyArray, *p) -> NumpyArray:
     r"""
     Defined as:
 
@@ -144,7 +144,7 @@ def gauss(x: NumpyNDArray, *p) -> NumpyNDArray:
     return A * np.exp(-(x - x0) ** 2 / 2. / sx ** 2)
 
 @handle_legacy_kwargs
-def rms(y_array: NumpyNDArray, x_array: NumpyNDArray) -> tuple[float, float]:
+def rms(y_array: NumpyArray, x_array: NumpyArray) -> tuple[float, float]:
     """
     Computation of the RMS bunch length and position from the line
     density (bunch length = 4sigma).
@@ -162,7 +162,7 @@ def rms(y_array: NumpyNDArray, x_array: NumpyNDArray) -> tuple[float, float]:
     return bp_rms, bl_rms
 
 @handle_legacy_kwargs
-def fwhm(y_array: NumpyNDArray, x_array: NumpyNDArray,
+def fwhm(y_array: NumpyArray, x_array: NumpyArray,
          shift: float = 0) -> tuple[float, float]:
     """
     Computation of the bunch length and position from the FWHM

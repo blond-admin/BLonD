@@ -14,8 +14,11 @@ import platform
 import subprocess
 from os.path import isfile
 from warnings import warn
+from typing import TYPE_CHECKING
 
-from numpy.typing import NDArray
+if TYPE_CHECKING:
+    from numpy.typing import NDArray as NumpyArray
+
 _local_path = pathlib.Path(__file__).parent.resolve()
 
 def _generate_compiled_file_name() -> str:
@@ -116,28 +119,28 @@ _library_rf_noise.rf_noise_wrapper.argtypes = [
 ]
 
 
-def rf_noise(frequency_high: NDArray,
-             frequency_low: NDArray,
-             gain_x: NDArray,
-             gain_y: NDArray,
+def rf_noise(frequency_high: NumpyArray,
+             frequency_low: NumpyArray,
+             gain_x: NumpyArray,
+             gain_y: NumpyArray,
              n_source: int,
              n_pnt_min: int,
              r_seed: int,
              sampling_rate: float,
              rms: float,
-             results: NDArray = None,
-             ) -> NDArray:
+             results: NumpyArray = None,
+             ) -> NumpyArray:
     """Generates RF noise along time (overwriting results)
 
     Parameters
     ----------
-    frequency_high: NDArray
+    frequency_high: NumpyArray
         Array of frequency upper limit along time
-    frequency_low: NDArray
+    frequency_low: NumpyArray
         Array of frequency lower limit along time
-    gain_x: NDArray
+    gain_x: NumpyArray
         array from 0 (fLow) to 1 (fHigh)
-    gain_y: NDArray
+    gain_y: NumpyArray
         Frequency density distribution in between high and low.
         Stays the same along time
     n_source: int
@@ -158,14 +161,14 @@ def rf_noise(frequency_high: NDArray,
     rms: float
         Rms value of total time-domain output stream, does not change when limit frequencies are changed
         i.e. amplitudes for wider bands are lower
-    results: NDArray, Optional
+    results: NumpyArray, Optional
         The calculation-result will be written to the results array if given.
         By this, array creation routines (np.empty(...)) can be prevented.
 
 
     Returns
     -------
-    results: NDArray
+    results: NumpyArray
         The RF noise along time
 
     Examples

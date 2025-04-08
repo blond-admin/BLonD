@@ -25,7 +25,7 @@ from ..utils.legacy_support import handle_legacy_kwargs
 if TYPE_CHECKING:
     from typing import Optional
 
-    from numpy.typing import NDArray, ArrayLike
+    from numpy.typing import NDArray as NumpyArray, ArrayLike
 
     from ..input_parameters.ring import Ring
     from ..input_parameters.rf_parameters import RFStation
@@ -39,7 +39,7 @@ def x2(phimax: ArrayLike) -> ArrayLike:
     return np.sin(0.5 * phimax) ** 2
 
 
-def action_from_phase_amplitude(x2: NDArray) -> NDArray:
+def action_from_phase_amplitude(x2: NumpyArray) -> NumpyArray:
     """
     Returns the relative action for given oscillation amplitude in time.
     Action is normalised to the value at the separatrix, given in units of 1.
@@ -67,7 +67,7 @@ def tune_from_phase_amplitude(phimax: float) -> float:
     return 0.5 * np.pi / ellipk(x(phimax))
 
 
-def phase_amplitude_from_tune(tune: NDArray) -> NDArray:
+def phase_amplitude_from_tune(tune: NumpyArray) -> NumpyArray:
     """
     Find the amplitude of synchrotron oscillations in phase corresponding to a
     given tune w.r.t. the central synchrotron frequency
@@ -112,9 +112,9 @@ def phase_amplitude_from_tune(tune: NDArray) -> NDArray:
 
 @handle_legacy_kwargs
 def oscillation_amplitude_from_coordinates(ring: Ring, rf_station: RFStation,
-                                           dt: NDArray, dE: NDArray,
+                                           dt: NumpyArray, dE: NumpyArray,
                                            timestep: int = 0,
-                                           Np_histogram: Optional[NDArray] = None):
+                                           Np_histogram: Optional[NumpyArray] = None):
     """
     Returns the oscillation amplitude in time for given particle coordinates,
     assuming single-harmonic RF system and no intensity effects.
@@ -152,7 +152,7 @@ def oscillation_amplitude_from_coordinates(ring: Ring, rf_station: RFStation,
 @handle_legacy_kwargs
 def action_from_oscillation_amplitude(rf_station: RFStation, dtmax: float,
                                       timestep: int = 0,
-                                      Np_histogram: Optional[NDArray] = None):
+                                      Np_histogram: Optional[NumpyArray] = None):
     """
     Returns the relative action for given oscillation amplitude in time,
     assuming single-harmonic RF system and no intensity effects.

@@ -24,7 +24,7 @@ from ..utils.legacy_support import handle_legacy_kwargs
 if TYPE_CHECKING:
     from typing import Optional, TYPE_CHECKING
 
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray as NumpyArray
 
     from ..input_parameters.rf_parameters import RFStation
     from ..input_parameters.ring import Ring
@@ -81,7 +81,7 @@ class _FrequencyOffset:
         warn("mainH is deprecated, use main_harmonic", DeprecationWarning, stacklevel=2)
         self.main_harmonic = val
 
-    def set_frequency(self, new_frequency_program: NDArray):
+    def set_frequency(self, new_frequency_program: NumpyArray):
         """
         Set new frequency program
         """

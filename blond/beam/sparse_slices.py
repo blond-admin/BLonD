@@ -27,7 +27,7 @@ from ..utils.legacy_support import handle_legacy_kwargs
 if TYPE_CHECKING:
     from typing import Literal
 
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray as NumpyArray
 
     from .beam import Beam
     from ..input_parameters.rf_parameters import RFStation
@@ -44,7 +44,7 @@ class SparseSlices:
 
     @handle_legacy_kwargs
     def __init__(self, rf_station: RFStation, beam: Beam, n_slices_bucket: int,
-                 filling_pattern: NDArray, tracker: TrackerTypes = 'C',
+                 filling_pattern: NumpyArray, tracker: TrackerTypes = 'C',
                  direct_slicing: bool = False):
 
         #: *Import (reference) Beam*
