@@ -49,7 +49,9 @@ class PrecisionClass:
             self.c_real_t = ct.c_double
             self.complex_t = np.complex128
             self.num = 2
-        # todo else??
+        else:
+            msg = f"{_precision=} is not recognized, use 'single' or 'double'"
+            raise ValueError(msg)
 
 
 class c_complex128(ct.Structure):
