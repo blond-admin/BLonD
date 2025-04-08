@@ -33,7 +33,7 @@ class PhaseModulation:
     def __init__(self, timebase: NDArray, frequency: float | NDArray,
                  amplitude: float | NDArray, offset: float | NDArray,
                  harmonic: float | int, multiplier: int = 1,
-                 modulate_frequency: bool = True) -> None:
+                 modulate_frequency: bool = True):
 
         msg = "must be a single numerical value or have shape (2, n)"
         dCheck.check_input(timebase, "Timebase must have shape (n)", [-1])
@@ -56,7 +56,7 @@ class PhaseModulation:
         self._mod_freq = modulate_frequency
 
     # Calculate the modulation with linear interpolation of functions
-    def calc_modulation(self) -> None:
+    def calc_modulation(self):
 
         amplitude = self._interp_param(self.amplitude)
         frequency = self._interp_param(self.frequency)
@@ -71,7 +71,7 @@ class PhaseModulation:
                     + offset
 
     @handle_legacy_kwargs
-    def calc_delta_omega(self, omega_prog: NDArray) -> None:
+    def calc_delta_omega(self, omega_prog: NDArray):
 
         dCheck.check_input(omega_prog, "omegaProg must have shape (2, n)", (2, -1))
 

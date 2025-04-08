@@ -96,7 +96,7 @@ class CutOptions:
     def __init__(self, cut_left: Optional[float] = None,
                  cut_right: Optional[float] = None, n_slices: int = 100,
                  n_sigma: Optional[int] = None, cuts_unit: CutUnitType = 's',
-                 rf_station: Optional[RFStation] = None) -> None:
+                 rf_station: Optional[RFStation] = None):
         """
         Constructor
         """
@@ -142,7 +142,7 @@ class CutOptions:
         warn("AMBIGUOUS is deprecated, use ring", DeprecationWarning, stacklevel=2)
         self.rf_station = val
 
-    def set_cuts(self, beam: Optional[Beam] = None) -> None:
+    def set_cuts(self, beam: Optional[Beam] = None):
         r"""
         Method to set self.cut_left, self.cut_right, self.edges and
         self.bin_centers attributes.
@@ -220,7 +220,7 @@ class CutOptions:
         Transfer all necessary arrays to the GPU
         """
         # Check if to_gpu has been invoked already
-        if hasattr(self, '_device') and self._device == 'GPU':  # todo why should property not exist
+        if self._device == 'GPU':
             return
 
         # transfer recursively objects
@@ -284,7 +284,7 @@ class FitOptions:
     @handle_legacy_kwargs
     def __init__(self,
                  fit_option: Optional[FitOptionTypes] = None,
-                 fit_extra_options: None = None) -> None:  # todo type hint
+                 fit_extra_options: None = None):  # todo type hint
         """
         Constructor
         """
@@ -330,7 +330,7 @@ class FilterOptions:
 
     @handle_legacy_kwargs
     def __init__(self, filter_method: Optional[FilterMethodType] = None,
-                 filter_extra_options: Optional[FilterExtraOptionsType] = None) -> None:
+                 filter_extra_options: Optional[FilterExtraOptionsType] = None):
         """
         Constructor
         """
@@ -390,7 +390,7 @@ class OtherSlicesOptions:
 
     """
 
-    def __init__(self, smooth: bool = False, direct_slicing: bool = True) -> None:
+    def __init__(self, smooth: bool = False, direct_slicing: bool = True):
         """
         Constructor
         """
@@ -481,7 +481,7 @@ class Profile:
                  cut_options: Optional[CutOptions] = None,
                  fit_options: Optional[FitOptions] = None,
                  filter_options: Optional[FilterOptions] = None,
-                 other_slices_options: Optional[OtherSlicesOptions] = None) -> None:
+                 other_slices_options: Optional[OtherSlicesOptions] = None):
         """
         Constructor
         """
@@ -579,7 +579,7 @@ class Profile:
         warn("filterExtraOptions is deprecated, use filter_extra_options", DeprecationWarning, stacklevel=2)
         self.filter_extra_options = val
 
-    def set_slices_parameters(self) -> None:
+    def set_slices_parameters(self):
         """
         Set various slices parameters.
         """
@@ -587,7 +587,7 @@ class Profile:
             self.edges, self.bin_centers, self.bin_size = \
             self.cut_options.get_slices_parameters()  # fixme get_slices_parameters doesnt exist
 
-    def track(self) -> None:
+    def track(self):
         """
         Track method in order to update the slicing along with the tracker.
         The kwargs are currently only needed to forward the reduce kw argument
@@ -597,7 +597,7 @@ class Profile:
         for operation in self.operations:
             operation()
 
-    def _slice(self) -> None:
+    def _slice(self):
         """
         Constant space slicing with a constant frame.
         """
@@ -644,7 +644,7 @@ class Profile:
                 self.n_macroparticles = self.n_macroparticles.astype(
                     dtype=bm.precision.real_t, order='C', copy=False)
 
-    def _slice_smooth(self, reduce: bool = True) -> None:
+    def _slice_smooth(self, reduce: bool = True):
         """
         At the moment 4x slower than _slice but smoother (filtered).
         """
@@ -654,7 +654,7 @@ class Profile:
         if bm.in_mpi():
             self.reduce_histo(dtype=np.float64)
 
-    def apply_fit(self) -> None:
+    def apply_fit(self):
         """
         It applies Gaussian fit to the profile.
         """
@@ -686,14 +686,14 @@ class Profile:
         warn("fitExtraOptions is deprecated, use fit_extra_options", DeprecationWarning, stacklevel=2)  # TODO
         self.fit_extra_options = val
 
-    def apply_filter(self) -> None:
+    def apply_filter(self):
         """
         It applies Chebishev filter to the profile.
         """
         self.n_macroparticles = ffroutines.beam_profile_filter_chebyshev(
             self.n_macroparticles, self.bin_centers, self.filter_extra_options)
 
-    def rms(self) -> None:
+    def rms(self):
         """
         Computation of the RMS bunch length and position from the line
         density (bunch length = 4sigma).
@@ -712,7 +712,7 @@ class Profile:
             self.n_macroparticles, self.bin_centers, n_bunches,
             bunch_spacing_buckets, bucket_size_tau, bucket_tolerance)
 
-    def fwhm(self, shift: float = 0) -> None:
+    def fwhm(self, shift: float = 0):
         """
         Computation of the bunch length and position from the FWHM
         assuming Gaussian line density.
@@ -732,14 +732,14 @@ class Profile:
             self.n_macroparticles, self.bin_centers, n_bunches,
             bunch_spacing_buckets, bucket_size_tau, bucket_tolerance, shift)
 
-    def beam_spectrum_freq_generation(self, n_sampling_fft: int) -> None:
+    def beam_spectrum_freq_generation(self, n_sampling_fft: int):
         """
         Frequency array of the beam spectrum
         """
 
         self.beam_spectrum_freq = bm.rfftfreq(n_sampling_fft, self.bin_size)
 
-    def beam_spectrum_generation(self, n_sampling_fft: int) -> None:
+    def beam_spectrum_generation(self, n_sampling_fft: int):
         """
         Beam spectrum calculation
         """

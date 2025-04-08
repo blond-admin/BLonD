@@ -280,7 +280,7 @@ class Resonators(_ImpedanceObject):
     def __init__(self, R_S: float | list[float] | NDArray,
                  frequency_R: float | list[float] | NDArray,
                  Q: float | list[float] | NDArray,
-                 method: ResonatorsMethodType = 'c++') -> None:
+                 method: ResonatorsMethodType = 'c++'):
 
         _ImpedanceObject.__init__(self)
 
@@ -329,7 +329,7 @@ class Resonators(_ImpedanceObject):
         self.__frequency_R = omega_R / 2 / np.pi
         self.__omega_R = omega_R
 
-    def wake_calc(self, time_array: NDArray) -> None:
+    def wake_calc(self, time_array: NDArray):
         r"""
         Wake calculation method as a function of time.
 
@@ -385,7 +385,7 @@ class Resonators(_ImpedanceObject):
                                                  * (self.frequency_array[1:] / self.frequency_R[i] -
                                                     self.frequency_R[i] / self.frequency_array[1:]))
 
-    def _imped_calc_cpp(self, frequency_array: NDArray) -> None:
+    def _imped_calc_cpp(self, frequency_array: NDArray):
         r"""
         Impedance calculation method as a function of frequency optimised in C++
 
@@ -462,7 +462,7 @@ class TravelingWaveCavity(_ImpedanceObject):
 
     def __init__(self, R_S: float | Iterable[float] | NDArray,
                  frequency_R: float | Iterable[float] | NDArray,
-                 a_factor: float | Iterable[float] | NDArray) -> None:
+                 a_factor: float | Iterable[float] | NDArray):
 
         _ImpedanceObject.__init__(self)
 
@@ -478,7 +478,7 @@ class TravelingWaveCavity(_ImpedanceObject):
         # Number of resonant modes
         self.n_twc = len(self.R_S)
 
-    def wake_calc(self, time_array: NDArray) -> None:
+    def wake_calc(self, time_array: NDArray):
         r"""
         Wake calculation method as a function of time.
 
@@ -755,7 +755,7 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
     """
 
     def __init__(self, r_bend: float, gamma: Optional[float] = None,
-                 chamber_height: float = np.inf) -> None:
+                 chamber_height: float = np.inf):
         r"""
 
 
@@ -1063,7 +1063,7 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
     def _fs_spectrum(self, frequency_array: NDArray,
                      epsilon: float = 1e-6,
                      low_frequency_transition: float = 1e-5,
-                     high_frequency_transition: float = 10) -> None:
+                     high_frequency_transition: float = 10):
         r"""
         Computes the exact free-space synchrotron radiation impedance, based on eqs. A4 and A5 of
         [Murphy1997]_. For computation speed and numerical stability, the approximate expressions

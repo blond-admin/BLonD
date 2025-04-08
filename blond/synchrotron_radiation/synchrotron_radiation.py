@@ -48,7 +48,7 @@ class SynchrotronRadiation:
                  python: bool = False,
                  seed: Optional[int] = None,
                  shift_beam: bool = True
-                 ) -> None:
+                 ):
 
         self.ring = ring
         self.rf_params = rf_parameters
@@ -109,7 +109,7 @@ class SynchrotronRadiation:
         self.track_mode: str | None = None
 
     # Method to compute the SR parameters
-    def calculate_SR_params(self) -> None:
+    def calculate_SR_params(self):
         i_turn = self.rf_params.counter[0]
 
         # Energy loss per turn/RF section [eV]
@@ -156,7 +156,7 @@ class SynchrotronRadiation:
         self.track_models[self.track_mode]()
 
     # Track particles with SR only (without quantum excitation)
-    def track_SR_python(self) -> None:
+    def track_SR_python(self):
         i_turn = self.rf_params.counter[0]
         # Recalculate SR parameters if energy changes
         if (i_turn != 0 and self.ring.energy[0, i_turn] !=
@@ -167,7 +167,7 @@ class SynchrotronRadiation:
                               + self.U0 / self.n_kicks)
 
     # Track particles with SR and quantum excitation
-    def track_full_python(self) -> None:
+    def track_full_python(self):
         i_turn = self.rf_params.counter[0]
         # Recalculate SR parameters if energy changes
         if (i_turn != 0 and self.ring.energy[0, i_turn] !=
@@ -182,7 +182,7 @@ class SynchrotronRadiation:
 
     # Track particles with SR only (without quantum excitation)
     # C implementation
-    def track_SR_C(self) -> None:
+    def track_SR_C(self):
         i_turn = self.rf_params.counter[0]
         # Recalculate SR parameters if energy changes
         if (i_turn != 0 and self.ring.energy[0, i_turn]
@@ -193,7 +193,7 @@ class SynchrotronRadiation:
                                  self.n_kicks, self.tau_z)
 
     # Track particles with SR and quantum excitation. C implementation
-    def track_full_C(self) -> None:
+    def track_full_C(self):
         i_turn = self.rf_params.counter[0]
         # Recalculate SR parameters if energy changes
         if (i_turn != 0 and self.ring.energy[0, i_turn] !=

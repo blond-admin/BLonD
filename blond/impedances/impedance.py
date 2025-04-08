@@ -77,7 +77,7 @@ class TotalInducedVoltage:
 
     @handle_legacy_kwargs
     def __init__(self, beam: Beam, profile: Profile,
-                 induced_voltage_list: list[_InducedVoltage]) -> None:
+                 induced_voltage_list: list[_InducedVoltage]):
         """
         Constructor.
         """
@@ -105,7 +105,7 @@ class TotalInducedVoltage:
         for induced_voltage_object in self.induced_voltage_list:
             induced_voltage_object.process()
 
-    def induced_voltage_sum(self) -> None:
+    def induced_voltage_sum(self):
         """
         Method to sum all the induced voltages in one single array.
         """
@@ -238,7 +238,7 @@ class _InducedVoltage:
                  multi_turn_wake: bool = False,
                  mtw_mode: Optional[MtwModeTypes] = 'time',  # todo fix
                  rf_station: Optional[RFStation] = None,
-                 use_regular_fft: bool = True) -> None:
+                 use_regular_fft: bool = True):
 
         # Beam object in order to access the beam info
         self.beam = beam
@@ -316,7 +316,7 @@ class _InducedVoltage:
         warn("RFParams is deprecated, use rf_params", DeprecationWarning, stacklevel=2)
         self.rf_params = val
 
-    def process(self) -> None:
+    def process(self):
         """
         Reprocess the impedance contributions. To be run when profile changes
         """
@@ -400,7 +400,7 @@ class _InducedVoltage:
             self.induced_voltage_generation = self.induced_voltage_1turn
 
     def induced_voltage_1turn(self,
-                              beam_spectrum_dict: Optional[dict] = None) -> None:  # todo improve type hint for dict
+                              beam_spectrum_dict: Optional[dict] = None):  # todo improve type hint for dict
         """
         Method to calculate the induced voltage at the current turn. DFTs are
         used for calculations in time and frequency domain (see classes below)
@@ -535,7 +535,7 @@ class InducedVoltageTime(_InducedVoltage):
                  multi_turn_wake: bool = False,
                  rf_station: Optional[RFStation] = None,
                  mtw_mode: Optional[MtwModeTypes] = 'time',
-                 use_regular_fft: bool = True) -> None:
+                 use_regular_fft: bool = True):
 
         # Wake sources list (e.g. list of Resonator objects)
         self.wake_source_list: list[_ImpedanceObject] = wake_source_list
@@ -558,7 +558,7 @@ class InducedVoltageTime(_InducedVoltage):
                                  rf_station=rf_station, mtw_mode=mtw_mode,
                                  use_regular_fft=use_regular_fft)
 
-    def process(self) -> None:
+    def process(self):
         """
         Reprocess the impedance contributions. To be run when profile changes
         """
@@ -589,7 +589,7 @@ class InducedVoltageTime(_InducedVoltage):
         # Processing the wakes
         self.sum_wakes(self.time)
 
-    def sum_wakes(self, time_array: NDArray) -> None:
+    def sum_wakes(self, time_array: NDArray):
         """
         Summing all the wake contributions in one total wake.
         """
@@ -710,7 +710,7 @@ class InducedVoltageFreq(_InducedVoltage):
                  front_wake_length: float = 0,
                  rf_station: Optional[RFStation] = None,
                  mtw_mode: Optional[MtwModeTypes] = 'time',
-                 use_regular_fft: bool = True) -> None:
+                 use_regular_fft: bool = True):
 
         # Impedance sources list (e.g. list of Resonator objects)
         self.impedance_source_list: list[_ImpedanceObject] = impedance_source_list
@@ -738,7 +738,7 @@ class InducedVoltageFreq(_InducedVoltage):
                                  rf_station=rf_station, mtw_mode=mtw_mode,
                                  use_regular_fft=use_regular_fft)
 
-    def process(self) -> None:
+    def process(self):
         """
         Reprocess the impedance contributions. To be run when profile change
         """
@@ -767,7 +767,7 @@ class InducedVoltageFreq(_InducedVoltage):
         # Processing the impedances
         self.sum_impedances(self.freq)
 
-    def sum_impedances(self, freq: NDArray) -> None:
+    def sum_impedances(self, freq: NDArray):
         """
         Summing all the wake contributions in one total impedance.
         """

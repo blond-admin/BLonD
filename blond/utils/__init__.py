@@ -19,7 +19,7 @@ class PrecisionClass:
     """
     __instance = None
 
-    def __init__(self, _precision: str = 'double') -> None:
+    def __init__(self, _precision: str = 'double'):
         """Constructor
 
         Args:
@@ -31,7 +31,7 @@ class PrecisionClass:
         PrecisionClass.__instance = self
         self.set(_precision)
 
-    def set(self, _precision: str = 'double') -> None:
+    def set(self, _precision: str = 'double'):
         """Set the precision to single or double.
 
         Args:

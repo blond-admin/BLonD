@@ -22,7 +22,7 @@ RNG = np.random.default_rng()
 # --------------- Similar to kick.cpp -----------------
 def kick(dt: NDArray, dE: NDArray, voltage: NDArray,
          omega_rf: NDArray, phi_rf: NDArray,
-         charge: float, n_rf: int, acceleration_kick: float) -> None:
+         charge: float, n_rf: int, acceleration_kick: float):
     """
     Function to apply RF kick on the particles with sin function
     """
@@ -64,7 +64,7 @@ def rf_volt_comp(voltages: NDArray, omega_rf: NDArray, phi_rf: NDArray,
 def drift(dt: NDArray, dE: NDArray, solver: str, t_rev: float,
           length_ratio: float, alpha_order, eta_0: float,
           eta_1: float, eta_2: float, alpha_0: float,
-          alpha_1: float, alpha_2: float, beta: float, energy: float) -> None:
+          alpha_1: float, alpha_2: float, beta: float, energy: float):
     """
     Function to apply drift equation of motion
     """
@@ -113,7 +113,7 @@ def drift(dt: NDArray, dE: NDArray, solver: str, t_rev: float,
 
 # --------------- Similar to histogram.cpp -----------------
 def slice_beam(dt: NDArray, profile: NDArray,
-               cut_left: float, cut_right: float) -> None:
+               cut_left: float, cut_right: float):
     """Slice the time coordinate of the beam.
 
     Args:
@@ -127,7 +127,7 @@ def slice_beam(dt: NDArray, profile: NDArray,
 
 
 def slice_smooth(dt: NDArray, profile: NDArray,
-                 cut_left: float, cut_right: float) -> None:
+                 cut_left: float, cut_right: float):
     """Smooth slice method.
 
     Args:
@@ -166,7 +166,7 @@ def slice_smooth(dt: NDArray, profile: NDArray,
 # --------------- Similar to linear_interp_kick.cpp -----------------
 def linear_interp_kick(dt: NDArray, dE: NDArray, voltage: NDArray,
                        bin_centers: NDArray, charge: float,
-                       acceleration_kick: float) -> None:
+                       acceleration_kick: float):
     """Interpolated kick method.
 
     Args:
@@ -197,7 +197,7 @@ def linear_interp_kick(dt: NDArray, dE: NDArray, voltage: NDArray,
 
 # --------------- Similar to synchrotron_radiation.cpp -----------------
 def synchrotron_radiation(dE: NDArray, U0: float,
-                          n_kicks: int, tau_z: float) -> None:
+                          n_kicks: int, tau_z: float):
     """Apply SR
 
     Args:
@@ -212,7 +212,7 @@ def synchrotron_radiation(dE: NDArray, U0: float,
 
 def synchrotron_radiation_full(dE: NDArray, U0: float,
                                n_kicks: int, tau_z: float,
-                               sigma_dE: float, energy: float) -> None:
+                               sigma_dE: float, energy: float):
     """Apply SR with quantum excitation
 
     Args:
@@ -231,7 +231,7 @@ def synchrotron_radiation_full(dE: NDArray, U0: float,
                 RNG.standard_normal(len(dE)))
 
 
-def set_random_seed(seed: int) -> None:
+def set_random_seed(seed: int):
     """Set the seed of the RNG used in synchrotron radiation
 
     Args:
@@ -249,7 +249,7 @@ def set_random_seed(seed: int) -> None:
 def music_track(dt: NDArray, dE: NDArray, induced_voltage: NDArray,
                 array_parameters: NDArray, alpha: float, omega_bar: float,
                 const: float, coeff1: float, coeff2: float,
-                coeff3: float, coeff4: float) -> None:
+                coeff3: float, coeff4: float):
     """
     This function calculates the single-turn induced voltage and updates the
     energies of the particles.
@@ -312,7 +312,7 @@ def music_track(dt: NDArray, dE: NDArray, induced_voltage: NDArray,
 def music_track_multiturn(dt: NDArray, dE: NDArray, induced_voltage: NDArray,
                           array_parameters: NDArray, alpha: float, omega_bar: float,
                           const: float, coeff1: float, coeff2: float,
-                          coeff3: float, coeff4: float) -> None:
+                          coeff3: float, coeff4: float):
     """This function calculates the multi-turn induced voltage and updates the
     energies of the particles.
     Parameters and Returns as for music_track.
@@ -455,7 +455,7 @@ def beam_phase_fast(bin_centers: NDArray, profile: NDArray,
 # --------------- Similar to sparse_histogram.cpp -----------------
 def sparse_histogram(dt: NDArray, profile: NDArray,
                      cut_left: NDArray, cut_right: NDArray,
-                     bunch_indexes: NDArray, n_slices_bucket: int) -> None:
+                     bunch_indexes: NDArray, n_slices_bucket: int):
     """
     Optimised routine that calculates the histogram for a sparse beam
     Author: Juan F. Esteban Mueller, Danilo Quartullo, Alexandre Lasheen, Markus Schwarz
@@ -486,7 +486,7 @@ def sparse_histogram(dt: NDArray, profile: NDArray,
 def distribution_from_tomoscope(dt: np.ndarray, dE: np.ndarray, probDistr: np.ndarray,
                                 seed: int, profLen: int,
                                 cutoff: float, x0: float, y0: float,
-                                dtBin: float, dEBin: float) -> None:
+                                dtBin: float, dEBin: float):
     """
     Generation of particle distribution from probability density
     Author: Helga Timko

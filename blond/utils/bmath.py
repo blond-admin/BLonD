@@ -11,7 +11,7 @@ from numpy import *  # todo the namespaces are overwritten by the functions belo
 from . import butils_wrap_cpp as _cpp, butils_wrap_python as _py, precision
 
 
-def use_cpp() -> None:
+def use_cpp():
     """
     Replace all python functions by there equivalent in cpp
     """
@@ -179,7 +179,7 @@ def use_py():
     # print('---------- Using the Python computational backend ----------')
 
 
-def use_cpu() -> None:
+def use_cpu():
     """
     If not library is found, use the python implementations
     """
@@ -215,7 +215,7 @@ def in_mpi() -> bool:
     return globals()['device'] == 'CPU_MPI'
 
 
-def use_fftw() -> None:
+def use_fftw():
     """
     Replace the existing rfft and irfft implementations
     with the ones coming from _cpp.

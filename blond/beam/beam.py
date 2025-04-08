@@ -81,7 +81,7 @@ class Particle:
 
     """
 
-    def __init__(self, user_mass: float, user_charge: float, user_decay_rate: float = 0) -> None:
+    def __init__(self, user_mass: float, user_charge: float, user_decay_rate: float = 0):
 
         if user_mass > 0.:
             self.mass = float(user_mass)
@@ -112,7 +112,7 @@ class Proton(Particle):
     """ Implements a proton `Particle`.
     """
 
-    def __init__(self) -> None:
+    def __init__(self):
         Particle.__init__(self, m_p * c ** 2 / e, 1)
 
 
@@ -120,7 +120,7 @@ class Electron(Particle):
     """ Implements an electron `Particle`.
     """
 
-    def __init__(self) -> None:
+    def __init__(self):
         Particle.__init__(self, m_e * c ** 2 / e, -1)
 
 
@@ -128,7 +128,7 @@ class Positron(Particle):
     """ Implements a positron `Particle`.
     """
 
-    def __init__(self) -> None:
+    def __init__(self):
         Particle.__init__(self, m_e * c ** 2 / e, 1)
 
 
@@ -229,7 +229,7 @@ class Beam:
 
     @handle_legacy_kwargs
     def __init__(self, ring: Ring, n_macroparticles: int, intensity: float,
-                 dt:Optional[NDArray]=None, dE:Optional[NDArray]=None) -> None:
+                 dt:Optional[NDArray]=None, dE:Optional[NDArray]=None):
         self.particle = ring.particle
         self.beta: float = ring.beta[0][0]
         self.gamma: float = ring.gamma[0][0]
@@ -408,7 +408,7 @@ class Beam:
             raise RuntimeError("ERROR in Beams: all particles lost and" +
                                " eliminated!")
 
-    def statistics(self) -> None:
+    def statistics(self):
         r"""
         Calculation of the mean and standard deviation of beam coordinates,
         as well as beam emittance using different definitions.
@@ -439,7 +439,7 @@ class Beam:
         self.epsn_rms_l = np.pi * self.sigma_dE * self.sigma_dt  # in eVs
 
     @handle_legacy_kwargs
-    def losses_separatrix(self, ring: Ring, rf_station: RFStation) -> None:
+    def losses_separatrix(self, ring: Ring, rf_station: RFStation):
         """Beam losses based on separatrix.
 
         Set to 0 all the particle's id not in the separatrix anymore.
@@ -457,7 +457,7 @@ class Beam:
 
         self.id[lost_index] = 0
 
-    def losses_longitudinal_cut(self, dt_min: float, dt_max: float) -> None:
+    def losses_longitudinal_cut(self, dt_min: float, dt_max: float):
         """Beam losses based on longitudinal cuts.
 
         Set to 0 all the particle's id with dt not in the interval
@@ -474,7 +474,7 @@ class Beam:
         lost_index = (self.dt < dt_min) | (self.dt > dt_max)
         self.id[lost_index] = 0
 
-    def losses_energy_cut(self, dE_min: float, dE_max: float) -> None:
+    def losses_energy_cut(self, dE_min: float, dE_max: float):
         """Beam losses based on energy cuts, e.g. on collimators.
 
         Set to 0 all the particle's id with dE not in the interval (dE_min, dE_max).
@@ -504,7 +504,7 @@ class Beam:
         lost_index = (self.dE < dE_min)
         self.id[lost_index] = 0
 
-    def particle_decay(self, time: float) -> None:
+    def particle_decay(self, time: float):
         """Decreases beam intensity due to the particle decay
 
         Sets the ratio to a lower value if the particle can decay. Number of macroparticles remains unchanged.
@@ -517,7 +517,7 @@ class Beam:
         """
         self.ratio *= np.exp(-time * self.particle.decay_rate / self.gamma)
 
-    def add_particles(self, new_particles: NDArray | list[list[float]]) -> None:
+    def add_particles(self, new_particles: NDArray | list[list[float]]):
         """
         Method to add array of new particles to beam object
         New particles are given id numbers sequential from last id of this beam
@@ -550,7 +550,7 @@ class Beam:
         self.dt = bm.concatenate((self.dt, newdt))
         self.dE = bm.concatenate((self.dE, newdE))
 
-    def add_beam(self, other_beam: Beam) -> None:
+    def add_beam(self, other_beam: Beam):
         """
         Method to add the particles from another beam to this beam
         New particles are given id numbers sequential from last id of this beam

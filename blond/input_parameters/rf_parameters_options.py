@@ -64,7 +64,7 @@ class RFStationOptions:
                  figdir: os.PathLike | str = 'fig',
                  figname: list[str] = ['data'],
                  sampling: int = 1
-                 ) -> None:
+                 ):
 
         if interpolation in ['linear', 'cubic']:
             self.interpolation = str(interpolation)

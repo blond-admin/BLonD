@@ -222,7 +222,7 @@ class Ring:
                  alpha_1: None | float | list | tuple | NDArray = None,
                  alpha_2: None | float | list | tuple | NDArray = None,
                  ring_options: Optional[RingOptions] = None
-                 ) -> None:
+                 ):
         if ring_options is None:
             ring_options = RingOptions()
         # Conversion of initial inputs to expected types
@@ -348,7 +348,7 @@ class Ring:
         warn("RingOptions is deprecated, use ring_options", DeprecationWarning, stacklevel=2)
         self.ring_options = val
 
-    def eta_generation(self) -> None:
+    def eta_generation(self):
         """ Function to generate the slippage factors (zeroth, first, and
         second orders, see [1]_) from the momentum compaction and the
         relativistic beta and gamma program through the cycle.
@@ -370,14 +370,14 @@ class Ring:
         for i in range(self.alpha_order + 1, 3):
             setattr(self, f"eta_{i}", np.zeros([self.n_sections, self.n_turns + 1]))
 
-    def _eta0(self) -> None:
+    def _eta0(self):
         """ Function to calculate the zeroth order slippage factor eta_0 """
 
         self.eta_0 = np.empty([self.n_sections, self.n_turns + 1])
         for i in range(0, self.n_sections):
             self.eta_0[i] = self.alpha_0[i] - self.gamma[i] ** (-2.)
 
-    def _eta1(self) -> None:
+    def _eta1(self):
         """ Function to calculate the first order slippage factor eta_1 """
 
         self.eta_1 = np.empty([self.n_sections, self.n_turns + 1])
@@ -385,7 +385,7 @@ class Ring:
             self.eta_1[i] = 3 * self.beta[i] ** 2 / (2 * self.gamma[i] ** 2) + \
                             self.alpha_1[i] - self.alpha_0[i] * self.eta_0[i]
 
-    def _eta2(self) -> None:
+    def _eta2(self):
         """ Function to calculate the second order slippage factor eta_2 """
 
         self.eta_2 = np.empty([self.n_sections, self.n_turns + 1])

@@ -817,7 +817,7 @@ def x0_from_bunch_length(bunch_length: float,
 @handle_legacy_kwargs
 def populate_bunch(beam: Beam, time_grid: NDArray, deltaE_grid: NDArray,
                    density_grid: NDArray, time_step: float,
-                   deltaE_step: float, seed: int) -> None:
+                   deltaE_step: float, seed: int):
     """
     *Method to populate the bunch using a random number generator from the
     particle density in phase space.*
@@ -960,7 +960,7 @@ def line_density(coord_array: NDArray, dist_type: str, bunch_length: float,
 @handle_legacy_kwargs
 def bigaussian(ring: Ring, rf_station: RFStation, beam: Beam, sigma_dt: float,
                sigma_dE: Optional[float] = None, seed: int = 1234,
-               reinsertion: bool = False) -> None:
+               reinsertion: bool = False):
     r"""Function generating a Gaussian beam both in time and energy
     coordinates. Fills Beam.dt and Beam.dE arrays.
 

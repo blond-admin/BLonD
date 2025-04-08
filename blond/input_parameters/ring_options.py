@@ -79,7 +79,7 @@ class RingOptions:
                  plot: bool = False,
                  figdir: os.PathLike | str = 'fig',
                  figname: str = 'preprocess_ramp',
-                 sampling: int = 1) -> None:
+                 sampling: int = 1):
 
         if interpolation in ['linear', 'cubic', 'derivative', 'akima']:
             self.interpolation = str(interpolation)

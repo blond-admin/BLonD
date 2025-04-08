@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 __LIBBLOND = None
 
 
-def load_libblond(precision: str = 'single') -> None:
+def load_libblond(precision: str = 'single'):
     """Locates and initializes the blond compiled library
     @param precision: The floating point precision of the calculations. Can be 'single' or 'double'.
     """
@@ -617,7 +617,7 @@ def rf_volt_comp(voltages: NDArray, omega_rf: NDArray, phi_rf: NDArray, bin_cent
 
 def kick(dt: NDArray, dE: NDArray, voltage: NDArray, omega_rf: NDArray,
          phi_rf: NDArray, charge: float, n_rf: int,
-         acceleration_kick: float) -> None:
+         acceleration_kick: float):
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(dE[0], precision.real_t)
 
@@ -648,7 +648,7 @@ def kick(dt: NDArray, dE: NDArray, voltage: NDArray, omega_rf: NDArray,
 def drift(dt: NDArray, dE: NDArray, solver: Literal["simple", "legacy", "exact"], t_rev: float,
           length_ratio: float, alpha_order: int, eta_0: float, eta_1: float,
           eta_2: float, alpha_0: float, alpha_1: float, alpha_2: float, beta: float,
-          energy: float) -> None:
+          energy: float):
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(dE[0], precision.real_t)
 
@@ -688,7 +688,7 @@ def linear_interp_kick(dt: NDArray, dE: NDArray, voltage: NDArray,
 
 
 def slice_beam(dt: NDArray, profile: NDArray, cut_left: float,
-               cut_right: float) -> None:
+               cut_right: float):
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(profile[0], precision.real_t)
 
@@ -700,7 +700,7 @@ def slice_beam(dt: NDArray, profile: NDArray, cut_left: float,
                              __getLen(dt))
 
 
-def slice_smooth(dt: NDArray, profile: NDArray, cut_left: float, cut_right: float) -> None:
+def slice_smooth(dt: NDArray, profile: NDArray, cut_left: float, cut_right: float):
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(profile[0], precision.real_t)
 
@@ -713,7 +713,7 @@ def slice_smooth(dt: NDArray, profile: NDArray, cut_left: float, cut_right: floa
 
 
 def sparse_histogram(dt: NDArray, profile: NDArray, cut_left: NDArray, cut_right: NDArray,
-                     bunch_indexes: NDArray, n_slices_bucket: int) -> None:
+                     bunch_indexes: NDArray, n_slices_bucket: int):
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(profile[0][0], precision.real_t)
 
@@ -771,7 +771,7 @@ def music_track_multiturn(dt: NDArray, dE: NDArray, induced_voltage: NDArray, ar
                                          c_real(coeff4))
 
 
-def synchrotron_radiation(dE: NDArray, U0: float, n_kicks: int, tau_z: float) -> None:
+def synchrotron_radiation(dE: NDArray, U0: float, n_kicks: int, tau_z: float):
     assert isinstance(dE[0], precision.real_t)
 
     get_libblond().synchrotron_radiation(
@@ -783,7 +783,7 @@ def synchrotron_radiation(dE: NDArray, U0: float, n_kicks: int, tau_z: float) ->
 
 
 def synchrotron_radiation_full(dE: NDArray, U0: float, n_kicks: int, tau_z: float, sigma_dE: float,
-                               energy: float) -> None:
+                               energy: float):
     assert isinstance(dE[0], precision.real_t)
 
     get_libblond().synchrotron_radiation_full(

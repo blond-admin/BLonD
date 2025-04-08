@@ -35,7 +35,7 @@ def generate_coasting_beam(
         distribution: Literal['gaussian', 'parabolic', 'user'] = 'gaussian',
         user_distribution: Optional[NDArray] = None,
         user_probability: Optional[NDArray] = None
-) -> None:
+):
     """
     energy_offset represents the absolute energy difference between the center
     of the coasting beam and the synchronous particle spread is used for the
