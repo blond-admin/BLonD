@@ -26,6 +26,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy
 from packaging.version import Version
+from numpy import ndarray
 
 
 if Version(scipy.__version__) >= Version("1.14"):
@@ -852,7 +853,7 @@ def __distribution_function_by_exponent(action_array: NDArray, exponent: float,
 def distribution_function(action_array: NDArray,
                           dist_type: DistTypeDistFunction,
                           length: float,
-                          exponent: Optional[float] = None):
+                          exponent: Optional[float] = None) -> ndarray:
     """
     *Distribution function (formulas from Laclare).*
     """

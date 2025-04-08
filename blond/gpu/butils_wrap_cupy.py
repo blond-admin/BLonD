@@ -5,10 +5,13 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING
+from typing import Tuple, Union, TYPE_CHECKING
 
 import cupy as cp
 import numpy as np
+from cupy import ndarray as CupyArray
+from cupy._core.fusion import _FusionVarArray, _FusionVarScalar
+from numpy import float64
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -19,7 +22,10 @@ from . import GPU_DEV
 
 # TODO all typing
 
-def rf_volt_comp(voltage, omega_rf, phi_rf, bin_centers):
+
+def rf_volt_comp(
+    voltage: CupyArray, omega_rf: CupyArray, phi_rf: CupyArray, bin_centers: CupyArray
+) -> CupyArray:
     """Calculate the rf voltage at each profile bin
 
     Args:
@@ -41,13 +47,32 @@ def rf_volt_comp(voltage, omega_rf, phi_rf, bin_centers):
 
     rf_voltage = cp.zeros(bin_centers.size, precision.real_t)
 
-    rf_volt_comp_kernel(args=(voltage, omega_rf, phi_rf, bin_centers,
-                              np.int32(voltage.size), np.int32(bin_centers.size), rf_voltage),
-                        block=GPU_DEV.block_size, grid=GPU_DEV.grid_size)
+    rf_volt_comp_kernel(
+        args=(
+            voltage,
+            omega_rf,
+            phi_rf,
+            bin_centers,
+            np.int32(voltage.size),
+            np.int32(bin_centers.size),
+            rf_voltage,
+        ),
+        block=GPU_DEV.block_size,
+        grid=GPU_DEV.grid_size,
+    )
     return rf_voltage
 
 
-def kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick):
+def kick(
+    dt: CupyArray,
+    dE: CupyArray,
+    voltage: CupyArray,
+    omega_rf: CupyArray,
+    phi_rf: CupyArray,
+    charge: float,
+    n_rf: int,
+    acceleration_kick: Union[float64, float],
+):
     """Apply the energy kick
 
     Args:
@@ -62,33 +87,49 @@ def kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick):
     """
     kick_kernel = GPU_DEV.mod.get_function("simple_kick")
 
-
     if not (voltage.flags.f_contiguous or voltage.flags.c_contiguous):
         warnings.warn("voltage must be contigous!")
-        voltage = voltage.astype(dtype=precision.real_t, order='C', copy=False)
+        voltage = voltage.astype(dtype=precision.real_t, order="C", copy=False)
     if not (omega_rf.flags.f_contiguous or omega_rf.flags.c_contiguous):
         warnings.warn("omega_rf must be contigous!")
-        omega_rf = omega_rf.astype(dtype=precision.real_t, order='C', copy=False)
+        omega_rf = omega_rf.astype(dtype=precision.real_t, order="C", copy=False)
     if not (phi_rf.flags.f_contiguous or phi_rf.flags.c_contiguous):
         warnings.warn("phi_rf must be contigous!")
-        phi_rf = phi_rf.astype(dtype=precision.real_t, order='C', copy=False)
+        phi_rf = phi_rf.astype(dtype=precision.real_t, order="C", copy=False)
+
+    kick_kernel(
+        args=(
+            dt,
+            dE,
+            np.int32(n_rf),
+            precision.real_t(charge),
+            voltage,
+            omega_rf,
+            phi_rf,
+            np.int32(dt.size),
+            precision.real_t(acceleration_kick),
+        ),
+        block=GPU_DEV.block_size,
+        grid=GPU_DEV.grid_size,
+    )
 
 
-    kick_kernel(args=(dt,
-                      dE,
-                      np.int32(n_rf),
-                      precision.real_t(charge),
-                      voltage,
-                      omega_rf,
-                      phi_rf,
-                      np.int32(dt.size),
-                      precision.real_t(acceleration_kick),
-                      ),
-                block=GPU_DEV.block_size, grid=GPU_DEV.grid_size)
-
-
-def drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
-          eta_1, eta_2, alpha_0, alpha_1, alpha_2, beta, energy):
+def drift(
+    dt: CupyArray,
+    dE: CupyArray,
+    solver: str,
+    t_rev: Union[float, CupyArray],
+    length_ratio: float,
+    alpha_order: int,
+    eta_0: Union[float64, float],
+    eta_1: Union[float64, float],
+    eta_2: Union[float64, float],
+    alpha_0: Union[float64, float],
+    alpha_1: Union[float64, float],
+    alpha_2: Union[float64, float],
+    beta: Union[float64, float],
+    energy: Union[float64, float],
+):
     """Apply the time drift function.
 
     Args:
@@ -110,30 +151,48 @@ def drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
     drift_kernel = GPU_DEV.mod.get_function("drift")
 
     solver_to_int = {
-        'simple': 0,
-        'legacy': 1,
-        'exact': 2,
+        "simple": 0,
+        "legacy": 1,
+        "exact": 2,
     }
     solver = solver_to_int[solver]
 
     if not isinstance(t_rev, precision.real_t):  # todo bugfix typecheck for cupy type
         t_rev = precision.real_t(
-            t_rev)  # todo in order for this line to work, we need .get() find out python versioning
+            t_rev
+        )  # todo in order for this line to work, we need .get() find out python versioning
 
-    drift_kernel(args=(dt, dE, solver,
-                       precision.real_t(t_rev), precision.real_t(length_ratio),
-                       precision.real_t(alpha_order), precision.real_t(eta_0),
-                       precision.real_t(eta_1), precision.real_t(eta_2),
-                       precision.real_t(alpha_0), precision.real_t(alpha_1),
-                       precision.real_t(alpha_2),
-                       precision.real_t(beta), precision.real_t(energy),
-                       np.int32(dt.size)),
-                 block=GPU_DEV.block_size, grid=GPU_DEV.grid_size)
+    drift_kernel(
+        args=(
+            dt,
+            dE,
+            solver,
+            precision.real_t(t_rev),
+            precision.real_t(length_ratio),
+            precision.real_t(alpha_order),
+            precision.real_t(eta_0),
+            precision.real_t(eta_1),
+            precision.real_t(eta_2),
+            precision.real_t(alpha_0),
+            precision.real_t(alpha_1),
+            precision.real_t(alpha_2),
+            precision.real_t(beta),
+            precision.real_t(energy),
+            np.int32(dt.size),
+        ),
+        block=GPU_DEV.block_size,
+        grid=GPU_DEV.grid_size,
+    )
 
 
-def linear_interp_kick(dt, dE, voltage,
-                       bin_centers, charge,
-                       acceleration_kick):
+def linear_interp_kick(
+    dt: CupyArray,
+    dE: CupyArray,
+    voltage: CupyArray,
+    bin_centers: CupyArray,
+    charge: float,
+    acceleration_kick: float,
+):
     """An accelerated version of the kick function.
 
     Args:
@@ -156,27 +215,37 @@ def linear_interp_kick(dt, dE, voltage,
     slices = bin_centers.size
 
     glob_vkick_factor = cp.empty(2 * (slices - 1), precision.real_t)
-    gm_linear_interp_kick_help(args=(dt,
-                                     dE,
-                                     voltage,
-                                     bin_centers,
-                                     precision.real_t(charge),
-                                     np.int32(slices),
-                                     np.int32(macros),
-                                     precision.real_t(acceleration_kick),
-                                     glob_vkick_factor),
-                               grid=GPU_DEV.grid_size, block=GPU_DEV.block_size)
+    gm_linear_interp_kick_help(
+        args=(
+            dt,
+            dE,
+            voltage,
+            bin_centers,
+            precision.real_t(charge),
+            np.int32(slices),
+            np.int32(macros),
+            precision.real_t(acceleration_kick),
+            glob_vkick_factor,
+        ),
+        grid=GPU_DEV.grid_size,
+        block=GPU_DEV.block_size,
+    )
 
-    gm_linear_interp_kick_comp(args=(dt,
-                                     dE,
-                                     voltage,
-                                     bin_centers,
-                                     precision.real_t(charge),
-                                     np.int32(slices),
-                                     np.int32(macros),
-                                     precision.real_t(acceleration_kick),
-                                     glob_vkick_factor),
-                               grid=GPU_DEV.grid_size, block=GPU_DEV.block_size)
+    gm_linear_interp_kick_comp(
+        args=(
+            dt,
+            dE,
+            voltage,
+            bin_centers,
+            precision.real_t(charge),
+            np.int32(slices),
+            np.int32(macros),
+            precision.real_t(acceleration_kick),
+            glob_vkick_factor,
+        ),
+        grid=GPU_DEV.grid_size,
+        block=GPU_DEV.block_size,
+    )
 
 
 def slice_beam(dt: NDArray, profile: NDArray, cut_left: float, cut_right: float):
@@ -201,21 +270,38 @@ def slice_beam(dt: NDArray, profile: NDArray, cut_left: float, cut_right: float)
     if not isinstance(cut_right, float):
         cut_right = float(cut_right)
 
-    if 4 * n_slices < GPU_DEV.attributes['MaxSharedMemoryPerBlock']:
-        sm_histogram(args=(dt, profile, precision.real_t(cut_left),
-                           precision.real_t(cut_right), np.uint32(n_slices),
-                           np.uint32(dt.size)),
-                     grid=GPU_DEV.grid_size, block=GPU_DEV.block_size, shared_mem=4 * n_slices)
+    if 4 * n_slices < GPU_DEV.attributes["MaxSharedMemoryPerBlock"]:
+        sm_histogram(
+            args=(
+                dt,
+                profile,
+                precision.real_t(cut_left),
+                precision.real_t(cut_right),
+                np.uint32(n_slices),
+                np.uint32(dt.size),
+            ),
+            grid=GPU_DEV.grid_size,
+            block=GPU_DEV.block_size,
+            shared_mem=4 * n_slices,
+        )
     else:
-        hybrid_histogram(args=(dt, profile, precision.real_t(cut_left),
-                               precision.real_t(cut_right), np.uint32(n_slices),
-                               np.uint32(dt.size), np.int32(
-            GPU_DEV.attributes['MaxSharedMemoryPerBlock'] / 4)),
-                         grid=GPU_DEV.grid_size, block=GPU_DEV.block_size,
-                         shared_mem=GPU_DEV.attributes['MaxSharedMemoryPerBlock'])
+        hybrid_histogram(
+            args=(
+                dt,
+                profile,
+                precision.real_t(cut_left),
+                precision.real_t(cut_right),
+                np.uint32(n_slices),
+                np.uint32(dt.size),
+                np.int32(GPU_DEV.attributes["MaxSharedMemoryPerBlock"] / 4),
+            ),
+            grid=GPU_DEV.grid_size,
+            block=GPU_DEV.block_size,
+            shared_mem=GPU_DEV.attributes["MaxSharedMemoryPerBlock"],
+        )
 
 
-def synchrotron_radiation(dE, U0, n_kicks, tau_z):
+def synchrotron_radiation(dE: CupyArray, U0: float, n_kicks: int, tau_z: float):
     """Track particles with SR only (without quantum excitation)
 
     Args:
@@ -228,13 +314,27 @@ def synchrotron_radiation(dE, U0, n_kicks, tau_z):
 
     assert dE.dtype == precision.real_t
 
-    synch_rad(args=(dE, precision.real_t(U0 / n_kicks), np.int32(dE.size),
-                    precision.real_t(tau_z * n_kicks),
-                    np.int32(n_kicks)),
-              block=GPU_DEV.block_size, grid=GPU_DEV.grid_size)
+    synch_rad(
+        args=(
+            dE,
+            precision.real_t(U0 / n_kicks),
+            np.int32(dE.size),
+            precision.real_t(tau_z * n_kicks),
+            np.int32(n_kicks),
+        ),
+        block=GPU_DEV.block_size,
+        grid=GPU_DEV.grid_size,
+    )
 
 
-def synchrotron_radiation_full(dE, U0, n_kicks, tau_z, sigma_dE, energy):
+def synchrotron_radiation_full(
+    dE: CupyArray,
+    U0: float,
+    n_kicks: int,
+    tau_z: float,
+    sigma_dE: Union[float64, float],
+    energy: float,
+):
     """Track particles with SR and quantum excitation.
 
     Args:
@@ -249,15 +349,29 @@ def synchrotron_radiation_full(dE, U0, n_kicks, tau_z, sigma_dE, energy):
 
     assert dE.dtype == precision.real_t
 
-    synch_rad_full(args=(dE, precision.real_t(U0 / n_kicks), np.int32(dE.size),
-                         precision.real_t(sigma_dE),
-                         precision.real_t(tau_z * n_kicks),
-                         precision.real_t(energy), np.int32(n_kicks)),
-                   block=GPU_DEV.block_size, grid=GPU_DEV.grid_size)
+    synch_rad_full(
+        args=(
+            dE,
+            precision.real_t(U0 / n_kicks),
+            np.int32(dE.size),
+            precision.real_t(sigma_dE),
+            precision.real_t(tau_z * n_kicks),
+            precision.real_t(energy),
+            np.int32(n_kicks),
+        ),
+        block=GPU_DEV.block_size,
+        grid=GPU_DEV.grid_size,
+    )
 
 
-@cp.fuse(kernel_name='beam_phase_helper')
-def __beam_phase_helper(bin_centers, profile, alpha, omega_rf, phi_rf):
+@cp.fuse(kernel_name="beam_phase_helper")
+def __beam_phase_helper(
+    bin_centers: _FusionVarArray,
+    profile: _FusionVarArray,
+    alpha: Union[_FusionVarArray, _FusionVarScalar],
+    omega_rf: Union[_FusionVarArray, _FusionVarScalar],
+    phi_rf: Union[_FusionVarArray, _FusionVarScalar],
+) -> Tuple[_FusionVarArray, _FusionVarArray]:
     """Helper function, used by beam_phase
 
     Args:
@@ -275,8 +389,14 @@ def __beam_phase_helper(bin_centers, profile, alpha, omega_rf, phi_rf):
     return base * cp.sin(a), base * cp.cos(a)
 
 
-def beam_phase(bin_centers: NDArray, profile: NDArray, alpha: float, omega_rf: float, phi_rf: float,
-               bin_size: float):
+def beam_phase(
+    bin_centers: NDArray,
+    profile: NDArray,
+    alpha: float,
+    omega_rf: float,
+    phi_rf: float,
+    bin_size: float,
+) -> float:
     """Beam phase measured at the main RF frequency and phase. The beam is
        convolved with the window function of the band-pass filter of the
        machine. The coefficients of sine and cosine components determine the
@@ -297,8 +417,7 @@ def beam_phase(bin_centers: NDArray, profile: NDArray, alpha: float, omega_rf: f
     assert bin_centers.dtype == precision.real_t
     assert profile.dtype == precision.real_t
 
-    array1, array2 = __beam_phase_helper(
-        bin_centers, profile, alpha, omega_rf, phi_rf)
+    array1, array2 = __beam_phase_helper(bin_centers, profile, alpha, omega_rf, phi_rf)
     # due to the division, the bin_size is not needed
     scoeff = cp.trapz(array1, dx=1)
     ccoeff = cp.trapz(array2, dx=1)
@@ -306,8 +425,13 @@ def beam_phase(bin_centers: NDArray, profile: NDArray, alpha: float, omega_rf: f
     return float(scoeff / ccoeff)
 
 
-@cp.fuse(kernel_name='beam_phase_fast_helper')
-def __beam_phase_fast_helper(bin_centers, profile, omega_rf, phi_rf):
+@cp.fuse(kernel_name="beam_phase_fast_helper")
+def __beam_phase_fast_helper(
+    bin_centers: _FusionVarArray,
+    profile: _FusionVarArray,
+    omega_rf: Union[_FusionVarScalar, _FusionVarArray],
+    phi_rf: Union[_FusionVarScalar, _FusionVarArray],
+) -> Tuple[_FusionVarArray, _FusionVarArray]:
     """Helper function used by beam_phase_fast
 
     Args:
@@ -323,7 +447,13 @@ def __beam_phase_fast_helper(bin_centers, profile, omega_rf, phi_rf):
     return profile * cp.sin(arr), profile * cp.cos(arr)
 
 
-def beam_phase_fast(bin_centers: NDArray, profile: NDArray, omega_rf: float, phi_rf: float, bin_size: float):
+def beam_phase_fast(
+    bin_centers: NDArray,
+    profile: NDArray,
+    omega_rf: float,
+    phi_rf: float,
+    bin_size: float,
+) -> float:
     """Simplified, faster variation of the beam_phase function
 
     Args:
@@ -339,8 +469,7 @@ def beam_phase_fast(bin_centers: NDArray, profile: NDArray, omega_rf: float, phi
     assert bin_centers.dtype == precision.real_t
     assert profile.dtype == precision.real_t
 
-    array1, array2 = __beam_phase_fast_helper(
-        bin_centers, profile, omega_rf, phi_rf)
+    array1, array2 = __beam_phase_fast_helper(bin_centers, profile, omega_rf, phi_rf)
     # due to the division, the bin_size is not needed
     scoeff = cp.trapz(array1, dx=1)
     ccoeff = cp.trapz(array2, dx=1)

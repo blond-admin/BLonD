@@ -378,7 +378,7 @@ class Beam:
         return bm.count_nonzero(self.id)
 
     @property
-    def n_macroparticles_not_alive(self):
+    def n_macroparticles_not_alive(self) -> int:
         '''Number of macro-particles marked as not-alive
 
         Returns
@@ -756,7 +756,7 @@ class Beam:
             temp = WORKER.gather(np.array([self.n_macroparticles_lost]))
             self._mpi_n_total_macroparticles_lost = np.sum(temp)
 
-    def to_gpu(self, recursive=True):
+    def to_gpu(self, recursive: bool=True):
         """
         Transfer all necessary arrays to the GPU
         """

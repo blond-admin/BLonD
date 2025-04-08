@@ -23,9 +23,10 @@ from scipy.constants import e
 from ..toolbox.next_regular import next_regular
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
+from numpy import ndarray
 
 if TYPE_CHECKING:
-    from typing import Optional, Callable, Literal
+    from typing import Optional, Callable, Literal, Any, Dict, Optional
 
     from numpy.typing import NDArray as NumpyNDArray
     from cupy.typing import NDArray as CupyNDArray
@@ -144,7 +145,7 @@ class TotalInducedVoltage:
                               charge=self.beam.particle.charge,
                               acceleration_kick=0.)
 
-    def to_gpu(self, recursive=True):
+    def to_gpu(self, recursive: bool=True):
         """
         Transfer all necessary arrays to the GPU
         """
@@ -603,7 +604,7 @@ class InducedVoltageTime(_InducedVoltage):
         # frequency domain (padding zeros)
         self.total_impedance = bm.rfft(self.total_wake, self.n_fft)
 
-    def to_gpu(self, recursive=True):
+    def to_gpu(self, recursive: bool=True):
         """
         Transfer all necessary arrays to the GPU
         """
@@ -782,7 +783,7 @@ class InducedVoltageFreq(_InducedVoltage):
         # Factor relating Fourier transform and DFT
         self.total_impedance /= self.profile.bin_size
 
-    def to_gpu(self, recursive=True):
+    def to_gpu(self, recursive: bool=True):
         """
         Transfer all necessary arrays to the GPU
         """
@@ -870,7 +871,7 @@ class InductiveImpedance(_InducedVoltage):
         # Call the __init__ method of the parent class
         _InducedVoltage.__init__(self, beam, profile, rf_station=rf_station)
 
-    def induced_voltage_1turn(self, beam_spectrum_dict={}):
+    def induced_voltage_1turn(self, beam_spectrum_dict: Dict[int, ndarray]={}):
         """
         Method to calculate the induced voltage through the derivative of the
         profile. The impedance must be a constant Z/n.
@@ -1040,7 +1041,7 @@ class InducedVoltageResonator(_InducedVoltage):
         self._deltaT = np.zeros(
             (self.n_time, self.profile.n_slices), dtype=bm.precision.real_t, order='C')
 
-    def induced_voltage_1turn(self, beam_spectrum_dict={}):
+    def induced_voltage_1turn(self, beam_spectrum_dict: Dict[Any, Any]={}):
         r"""
         Method to calculate the induced voltage through linearly
         interpolating the line density and applying the analytic equation
@@ -1063,7 +1064,7 @@ class InducedVoltageResonator(_InducedVoltage):
                                                 self.induced_voltage,
                                                 bm.precision.real_t))
 
-    def to_gpu(self, recursive=True):
+    def to_gpu(self, recursive: bool=True):
         """
         Transfer all necessary arrays to the GPU
         """

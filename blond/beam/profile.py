@@ -24,9 +24,10 @@ from scipy import ndimage
 from ..toolbox import filters_and_fitting as ffroutines
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
+from numpy import ndarray
 
 if TYPE_CHECKING:
-    from typing import Callable, Optional
+    from typing import Callable, Optional, Tuple
 
     from numpy.typing import NDArray
 
@@ -215,7 +216,7 @@ class CutOptions:
         return self.n_slices, self.cut_left, self.cut_right, self.n_sigma, \
             self.edges, self.bin_centers, self.bin_size
 
-    def to_gpu(self, recursive=True):
+    def to_gpu(self, recursive: bool=True):
         """
         Transfer all necessary arrays to the GPU
         """
@@ -745,7 +746,7 @@ class Profile:
         """
         self.beam_spectrum = bm.rfft(self.n_macroparticles, n_sampling_fft)
 
-    def beam_profile_derivative(self, mode: BeamProfileDerivativeModes = 'gradient'):
+    def beam_profile_derivative(self, mode: BeamProfileDerivativeModes = 'gradient') -> Tuple[ndarray, ndarray]:
         """
         The input is one of the three available methods for differentiating
         a function. The two outputs are the bin centres and the discrete
@@ -774,7 +775,7 @@ class Profile:
 
         return bin_centers, derivative
 
-    def to_gpu(self, recursive=True):
+    def to_gpu(self, recursive: bool=True):
         """
         Transfer all necessary arrays to the GPU
         """
