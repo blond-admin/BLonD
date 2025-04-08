@@ -1,7 +1,7 @@
 import subprocess
 
 # monkeytype.sqlite3 database with potential type hits is generated
-# RUN IN TERMINAL: "monkeytype run runtests.py"
+# RUN IN TERMINAL: "monkeytype run run_pytest.py"
 
 # lists all available modules
 # that might be type hinted
@@ -13,10 +13,14 @@ targets = [
     # "utils.test_iteration",
     # "utils.test_ffts",
     # "utils.test_data_check",
+    # "utils.test_cpp_single_precision",
+    # "utils.test_butils_wrap_python",
+    # "utils.test_butils_wrap_numba",
     # "utils.test_blondmath",
     # "trackers.test_tracker",
     # "trackers.test_drift",
     # "test_installation",
+    # "test_compare_wraps",
     # "synchrotron_radiation.test_synch_rad",
     # "llrf.test_signal_processing",
     # "llrf.test_rf_modulation",
@@ -34,10 +38,16 @@ targets = [
     # "input_parameters.test_preprocess",
     # "impedances.test_impedance_sources",
     # "impedances.test_impedance",
+    # "gpu.test_single_precision",
+    # "gpu.test_physics_kernels",
+    # "gpu.test_impedance",
+    # "gpu.test_ffts",
     # "general.test_separatrix_bigaussian",
     "blond.utils.track_iteration",
     "blond.utils.legacy_support",
     "blond.utils.data_check",
+    "blond.utils.butils_wrap_python",
+    "blond.utils.butils_wrap_numba",
     "blond.utils.butils_wrap_cpp",
     "blond.utils.bmath",
     "blond.utils",
@@ -46,7 +56,11 @@ targets = [
     "blond.toolbox.next_regular",
     "blond.toolbox.filters_and_fitting",
     "blond.synchrotron_radiation.synchrotron_radiation",
+    "blond.plots.plot_impedance",
+    "blond.plots.plot",
+    "blond.monitors.monitors",
     "blond.llrf.signal_processing",
+    "blond.llrf.rf_noise",
     "blond.llrf.rf_modulation",
     "blond.llrf.offset_frequency",
     "blond.llrf.impulse_response",
@@ -57,19 +71,24 @@ targets = [
     "blond.input_parameters.ring",
     "blond.input_parameters.rf_parameters_options",
     "blond.input_parameters.rf_parameters",
+    "blond.impedances.music",
+    "blond.impedances.induced_voltage_analytical",
     "blond.impedances.impedance_sources",
     "blond.impedances.impedance",
+    "blond.gpu.butils_wrap_cupy",
     "blond.gpu",
     "blond.beam.sparse_slices",
     "blond.beam.profile",
     "blond.beam.distributions",
     "blond.beam.coasting_beam",
     "blond.beam.beam",
+    "blond",
     # "beams.test_coasting_beam",
     # "beams.test_beam_object",
     # "beam_profile.test_sparse_profile",
     # "beam_profile.test_beam_profile_object",
     # "beam.test_beam",
+    # "EX_13_synchrotron_radiation",
 
 ]
 # add type hints from database to files
