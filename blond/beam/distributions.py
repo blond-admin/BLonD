@@ -1,4 +1,3 @@
-
 # Copyright 2016 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
@@ -15,17 +14,27 @@
           **Joel Repond**
 '''
 
-from __future__ import absolute_import, division, print_function
+from __future__ import annotations
 
 import copy
 import gc
 import warnings
-from builtins import range, str
 
+import at
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
+from at.collective import Wake
+from at.collective.haissinski import Haissinski
 from packaging.version import Version
+from scipy.constants import c
+
+from blond.impedances.impedance_sources import Resonators
+from blond.input_parameters.ring import Ring
+from ..beam.profile import CutOptions, Profile
+from ..trackers.utilities import (is_in_separatrix, minmax_location,
+                                  potential_well_cut)
+from ..utils import bmath as bm
 
 if Version(scipy.__version__) >= Version("1.14"):
     from scipy.integrate import cumulative_trapezoid as cumtrapz
@@ -33,11 +42,69 @@ else:
     from scipy.integrate import cumtrapz
 
 
-from ..beam.profile import CutOptions, Profile
-from ..trackers.utilities import (is_in_separatrix, minmax_location,
-                                  potential_well_cut)
-from ..utils import bmath as bm
+def haissinki_distribution(ring: Ring, resonator: Resonators, bunch_ext: float = 10., n_points: int = 100, k_max: int = 10,
+                           current: float = 0, n_iterations: int = 50, tolerance: float = 1e-13):
+    """Generate a Haïssinki distribution
+    
+    Function to generate a Haïssinki distribution in the presence of
+    a short range wakefield, using the available package in Accelerator Toolbox (A.T.).
+    More documentation following:
+    https://github.com/atcollab/at/blob/master/pyat/at/collective/haissinski.py
+    and : https://github.com/atcollab/at/blob/master/pyat/at/collective/wake_object.py
 
+    :param ring: BLonD Ring class object
+    :param resonator: Resonator class object
+    :param bunch_ext: maximum bunch extension
+    :param n_points: number of points of the full distribution
+    :param k_max: the min and max of the range of the distribution
+    :param current: bunch current
+    :param n_iterations: number of iterations of the solver
+    :param tolerance: convergence criterion
+    """
+
+
+    ring_esrf = at.load_m('esrf.m')
+    srange = Wake.build_srange(start=0., bunch_ext=bunch_ext, short_step=1.0e-5, long_step=1.0e-2,
+                               bunch_interval=ring.ring_circumference, totallength=ring.ring_circumference)
+    wobj = Wake.long_resonator(srange=srange, frequency=resonator.frequency_R, qfactor=resonator.Q,
+                               rshunt=resonator.R_S, beta=ring.beta)
+    ha_blond = Haissinski(wobj, ring_esrf, m=n_points, kmax=k_max, current=current, numIters=n_iterations, eps=tolerance)
+
+    resonator.wake_calc(srange / c)
+
+    ha_blond.energy = ring.energy[0]
+    ha_blond.circumference = ring.ring_circumference
+    ha_blond.f_s = ring.f_rev
+    ha_blond.nu_s = ha_blond.f_s / c / ha_blond.circumference
+    if "I1" not in dir(ring):
+        warnings.warn("Synchrotron radiation integrals missing. Assuming an isomagnetic ring.")
+        ring.I2 = 2.0 * np.pi / ring.bending_radius  # Assuming isomagnetic machine
+        ring.I3 = 2.0 * np.pi / ring.bending_radius ** 2.0
+        ring.I4 = ring.ring_circumference * ring.alpha_0[0, 0] / ring.bending_radius ** 2.0
+        ring.jz = 2.0 + ring.I4 / ring.I2
+
+    jz = 2 + ring.I4 / ring.I2
+    sigmaE02 = ring.Particle.c_q * ring.gamma[0][0] ** 2 / jz * ring.I3 / (
+        ring.I2)
+
+    ha_blond.sigma_e = np.sqrt(sigmaE02) * ha_blond.energy
+    ha_blond.sigma_l = ring.I1 / ring.ring_circumference * c / (
+            2 * np.pi * ring.f_rev[0]) * np.sqrt(sigmaE02)
+    ha_blond.eta = -ring.I1 / ring.ring_circumference
+    ha_blond.ga = ring.gamma[0][0]
+    ha_blond.betrel = ring.beta
+
+    ha_blond.solve()
+    ha_blond_x_tmp = ha_blond.q_array * ha_blond.sigma_l
+    haissinki_profile = ha_blond.res / ha_blond.Ic
+    haissinki_profile /= np.trapezoid(haissinki_profile, x=ha_blond_x_tmp)
+    ha_blond_cc = np.average(ha_blond_x_tmp, weights=haissinki_profile) # weighted average
+    haissinki_s = (ha_blond_x_tmp - ha_blond_cc) # center according to average
+    return haissinki_profile, haissinki_s
+
+
+# Requires : wakefield of a resonator, ring, current ?
+# npts
 
 def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
                               main_harmonic_option='lowest_freq',
@@ -58,7 +125,7 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
     # Initialize variables depending on the accelerator parameters
     slippage_factor = full_ring_and_RF.RingAndRFSection_list[0].rf_params.eta_0[0]
 
-    eom_factor_dE = abs(slippage_factor) / (2 * beam.beta**2. * beam.energy)
+    eom_factor_dE = abs(slippage_factor) / (2 * beam.beta ** 2. * beam.energy)
     eom_factor_potential = (np.sign(slippage_factor) * beam.Particle.charge /
                             (full_ring_and_RF.RingAndRFSection_list[0].rf_params.t_rev[0]))
 
@@ -79,7 +146,7 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
         extra_potential_input = - (eom_factor_potential *
                                    cumtrapz(extra_voltage_input,
                                             dx=extra_voltage_time_input[1] -
-                                            extra_voltage_time_input[0], initial=0))
+                                               extra_voltage_time_input[0], initial=0))
         extra_potential = np.interp(time_potential, extra_voltage_time_input,
                                     extra_potential_input)
 
@@ -122,9 +189,9 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
 
         # Inputing new line density
         profile.cut_options.cut_left = time_line_den[0] - \
-            0.5 * line_den_resolution
+                                       0.5 * line_den_resolution
         profile.cut_options.cut_right = time_line_den[-1] + \
-            0.5 * line_den_resolution
+                                        0.5 * line_den_resolution
         profile.cut_options.n_slices = n_points_line_den
         profile.cut_options.cuts_unit = 's'
         profile.cut_options.set_cuts()
@@ -321,7 +388,7 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
     potential_well_grid = np.meshgrid(potential_well_for_grid,
                                       potential_well_for_grid)[0]
 
-    hamiltonian_grid = eom_factor_dE * deltaE_grid**2 + potential_well_grid
+    hamiltonian_grid = eom_factor_dE * deltaE_grid ** 2 + potential_well_grid
 
     # Sort the distribution function and generate the density grid
     hamiltonian_argsort = np.argsort(hamiltonian_coord)
@@ -357,9 +424,9 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
     if TotalInducedVoltage is not None:
         # Inputing new line density
         profile.cut_options.cut_left = time_for_grid[0] - \
-            0.5 * (time_for_grid[1] - time_for_grid[0])
+                                       0.5 * (time_for_grid[1] - time_for_grid[0])
         profile.cut_options.cut_right = time_for_grid[-1] + 0.5 * (
-            time_for_grid[1] - time_for_grid[0])
+                time_for_grid[1] - time_for_grid[0])
         profile.cut_options.n_slices = n_points_grid
         profile.cut_options.set_cuts()
         profile.set_slices_parameters()
@@ -376,8 +443,8 @@ def matched_from_line_density(beam, full_ring_and_RF, line_density_input=None,
             induced_voltage_object
 
     gc.collect()
-    return [hamiltonian_coord, distribution_function_],\
-            [time_line_den, line_density_]
+    return [hamiltonian_coord, distribution_function_], \
+        [time_line_den, line_density_]
 
 
 def matched_from_distribution_function(beam, full_ring_and_RF,
@@ -431,7 +498,7 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
     beta = full_ring_and_RF.RingAndRFSection_list[0].rf_params.beta[turn_number]
     energy = full_ring_and_RF.RingAndRFSection_list[0].rf_params.energy[turn_number]
 
-    eom_factor_dE = abs(slippage_factor) / (2 * beta**2. * energy)
+    eom_factor_dE = abs(slippage_factor) / (2 * beta ** 2. * energy)
     eom_factor_potential = (np.sign(slippage_factor) * beam.Particle.charge /
                             (full_ring_and_RF.RingAndRFSection_list[0].rf_params.t_rev[turn_number]))
 
@@ -454,7 +521,7 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
         extra_voltage_input = extraVoltageDict['voltage_array']
         extra_potential_input = -(eom_factor_potential *
                                   cumtrapz(extra_voltage_input, dx=extra_voltage_time_input[1] -
-                                           extra_voltage_time_input[0], initial=0))
+                                                                   extra_voltage_time_input[0], initial=0))
         extra_potential = np.interp(time_potential, extra_voltage_time_input,
                                     extra_potential_input)
 
@@ -474,7 +541,7 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
         total_potential = (potential_well + induced_potential +
                            extra_potential)
 
-        sse = np.sqrt(np.sum((old_potential - total_potential)**2))
+        sse = np.sqrt(np.sum((old_potential - total_potential) ** 2))
 
         print('Matching the bunch... (iteration: ' + str(i) + ' and sse: ' +
               str(sse) + ')')
@@ -545,7 +612,7 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
             dE_trajectory[pot_well_high_res > potential_well_low_res[j]] = 0
 
             J_array_dE0[j] = 1 / np.pi * np.trapz(dE_trajectory,
-                                                  dx=time_potential_high_res[1] - time_potential_high_res[0])
+                                                      dx=time_potential_high_res[1] - time_potential_high_res[0])
 
         # Sorting the H and J functions to be able to interpolate J(H)
         H_array_dE0 = potential_well_low_res
@@ -553,7 +620,7 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
         sorted_J_dE0 = J_array_dE0[H_array_dE0.argsort()]
 
         # Calculating the H and J grid
-        H_grid = eom_factor_dE * deltaE_grid**2 + potential_well_grid
+        H_grid = eom_factor_dE * deltaE_grid ** 2 + potential_well_grid
         J_grid = np.interp(H_grid, sorted_H_dE0, sorted_J_dE0, left=0,
                            right=np.inf)
 
@@ -606,9 +673,9 @@ def matched_from_distribution_function(beam, full_ring_and_RF,
         if TotalInducedVoltage is not None:
             # Inputing new line density
             profile.cut_options.cut_left = time_potential_low_res[0] - \
-                0.5 * time_resolution_low
+                                           0.5 * time_resolution_low
             profile.cut_options.cut_right = time_potential_low_res[-1] + \
-                0.5 * time_resolution_low
+                                            0.5 * time_resolution_low
             profile.cut_options.n_slices = n_points_grid
             profile.cut_options.cuts_unit = 's'
             profile.cut_options.set_cuts()
@@ -684,19 +751,22 @@ def X0_from_bunch_length(bunch_length, bunch_length_fit, X_grid, sorted_X_dE0,
             if (line_density_ > 0).any():
                 tau = 4.0 * np.sqrt(np.sum((time_potential_low_res -
                                             np.sum(line_density_ * time_potential_low_res) /
-                                            np.sum(line_density_))**2 * line_density_) /
+                                            np.sum(line_density_)) ** 2 * line_density_) /
                                     np.sum(line_density_))
 
                 if bunch_length_fit is not None:
                     profile = Profile(
                         beam, CutOptions=CutOptions(cut_left=time_potential_low_res[0] -
-                                                    0.5 * bin_size, cut_right=time_potential_low_res[-1] +
-                                                    0.5 * bin_size, n_slices=n_points_grid, RFSectionParameters=full_ring_and_RF.RingAndRFSection_list[0].rf_params))
-#                     profile = Profile(
-#                       full_ring_and_RF.RingAndRFSection_list[0].rf_params,
-#                       beam, n_points_grid, cut_left=time_potential_low_res[0] -
-#                       0.5*bin_size , cut_right=time_potential_low_res[-1] +
-#                       0.5*bin_size)
+                                                             0.5 * bin_size, cut_right=time_potential_low_res[-1] +
+                                                                                       0.5 * bin_size,
+                                                    n_slices=n_points_grid,
+                                                    RFSectionParameters=full_ring_and_RF.RingAndRFSection_list[
+                                                        0].rf_params))
+                    #                     profile = Profile(
+                    #                       full_ring_and_RF.RingAndRFSection_list[0].rf_params,
+                    #                       beam, n_points_grid, cut_left=time_potential_low_res[0] -
+                    #                       0.5*bin_size , cut_right=time_potential_low_res[-1] +
+                    #                       0.5*bin_size)
 
                     profile.n_macroparticles = line_density_
 
@@ -727,7 +797,7 @@ def X0_from_bunch_length(bunch_length, bunch_length_fit, X_grid, sorted_X_dE0,
             print('WARNING: The desired bunch length is too small ' +
                   'to be generated accurately!')
 
-#    return 0.5 * (X_low + X_hi)
+    #    return 0.5 * (X_low + X_hi)
     return X0
 
 
@@ -746,9 +816,11 @@ def populate_bunch(beam, time_grid, deltaE_grid, density_grid, time_step,
 
     # Randomize particles inside each grid cell (uniform distribution)
     beam.dt = (np.ascontiguousarray(time_grid.flatten()[indexes] +
-                                    (np.random.rand(beam.n_macroparticles) - 0.5) * time_step)).astype(dtype=bm.precision.real_t, order='C', copy=False)
+                                    (np.random.rand(beam.n_macroparticles) - 0.5) * time_step)).astype(
+        dtype=bm.precision.real_t, order='C', copy=False)
     beam.dE = (np.ascontiguousarray(deltaE_grid.flatten()[indexes] +
-                                    (np.random.rand(beam.n_macroparticles) - 0.5) * deltaE_step)).astype(dtype=bm.precision.real_t, order='C', copy=False)
+                                    (np.random.rand(beam.n_macroparticles) - 0.5) * deltaE_step)).astype(
+        dtype=bm.precision.real_t, order='C', copy=False)
 
 
 def distribution_function(action_array, dist_type, length, exponent=None):
@@ -766,7 +838,7 @@ def distribution_function(action_array, dist_type, length, exponent=None):
             exponent = 0.5
 
         warnings.filterwarnings("ignore")
-        distribution_function_ = (1 - action_array / length)**exponent
+        distribution_function_ = (1 - action_array / length) ** exponent
         warnings.filterwarnings("default")
         distribution_function_[action_array > length] = 0
     elif dist_type == 'gaussian':
@@ -795,7 +867,7 @@ def line_density(coord_array, dist_type, bunch_length, bunch_position=0,
 
         warnings.filterwarnings("ignore")
         line_density_ = ((1 - (2.0 * (coord_array - bunch_position) /
-                         bunch_length)**2)**(exponent + 0.5))
+                               bunch_length) ** 2) ** (exponent + 0.5))
         warnings.filterwarnings("default")
         line_density_[np.abs(coord_array - bunch_position)
                       > bunch_length / 2] = 0
@@ -803,12 +875,12 @@ def line_density(coord_array, dist_type, bunch_length, bunch_position=0,
     elif dist_type == 'gaussian':
         sigma = bunch_length / 4
         line_density_ = np.exp(-(coord_array - bunch_position)
-                               ** 2 / (2 * sigma**2))
+                                ** 2 / (2 * sigma ** 2))
 
     elif dist_type == 'cosine_squared':
         warnings.filterwarnings("ignore")
         line_density_ = (np.cos(np.pi * (coord_array - bunch_position) /
-                                bunch_length)**2)
+                                bunch_length) ** 2)
         warnings.filterwarnings("default")
         line_density_[np.abs(coord_array - bunch_position)
                       > bunch_length / 2] = 0
@@ -844,7 +916,7 @@ def bigaussian(Ring, RFStation, Beam, sigma_dt, sigma_dE=None, seed=1234,
         bucket; default in False
 
     """
-    
+
     if sigma_dE is None:
         sigma_dE = _get_dE_from_dt(Ring, RFStation, sigma_dt)
     counter = RFStation.counter[0]
@@ -852,7 +924,7 @@ def bigaussian(Ring, RFStation, Beam, sigma_dt, sigma_dE=None, seed=1234,
     phi_s = RFStation.phi_s[counter]
     phi_rf = RFStation.phi_rf[0, counter]
     eta0 = RFStation.eta_0[counter]
-    
+
     # RF wave is shifted by Pi below transition
     if eta0 < 0:
         phi_rf -= np.pi
@@ -864,11 +936,12 @@ def bigaussian(Ring, RFStation, Beam, sigma_dt, sigma_dE=None, seed=1234,
     rng_dt = np.random.default_rng(seed)
     rng_dE = np.random.default_rng(seed + 1)
 
-    Beam.dt = sigma_dt * rng_dt.normal(size=Beam.n_macroparticles).astype(dtype=bm.precision.real_t, order='C', copy=False) + \
-        (phi_s - phi_rf) / omega_rf
+    Beam.dt = sigma_dt * rng_dt.normal(size=Beam.n_macroparticles).astype(dtype=bm.precision.real_t, order='C',
+                                                                          copy=False) + \
+              (phi_s - phi_rf) / omega_rf
     Beam.dE = sigma_dE * \
-        rng_dE.normal(size=Beam.n_macroparticles).astype(
-            dtype=bm.precision.real_t, order='C')
+              rng_dE.normal(size=Beam.n_macroparticles).astype(
+                  dtype=bm.precision.real_t, order='C')
 
     # Re-insert if necessary
     if reinsertion:
@@ -876,9 +949,9 @@ def bigaussian(Ring, RFStation, Beam, sigma_dt, sigma_dE=None, seed=1234,
         itemindex = bm.where(is_in_separatrix(Ring, RFStation, Beam,
                                               Beam.dt, Beam.dE) == False)[0]
         while itemindex.size > 0:
-
-            Beam.dt[itemindex] = sigma_dt * rng_dt.normal(size=itemindex.size).astype(dtype=bm.precision.real_t, order='C', copy=False) \
-                + (phi_s - phi_rf) / omega_rf
+            Beam.dt[itemindex] = sigma_dt * rng_dt.normal(size=itemindex.size).astype(dtype=bm.precision.real_t,
+                                                                                      order='C', copy=False) \
+                                 + (phi_s - phi_rf) / omega_rf
 
             Beam.dE[itemindex] = sigma_dE * rng_dE.normal(
                 size=itemindex.size).astype(dtype=bm.precision.real_t, order='C')
@@ -889,7 +962,7 @@ def bigaussian(Ring, RFStation, Beam, sigma_dt, sigma_dE=None, seed=1234,
 
 def parabolic(Ring, RFStation, Beam,
               bunch_length,
-              bunch_position=None, 
+              bunch_position=None,
               bunch_energy=None,
               energy_spread=None,
               seed=1234):
@@ -916,24 +989,24 @@ def parabolic(Ring, RFStation, Beam,
         Fixed seed to have a reproducible distribution
 
     """
-    
+
     # Getting the position and spread if not defined by user
     counter = RFStation.counter[0]
     omega_rf = RFStation.omega_rf[0, counter]
     phi_s = RFStation.phi_s[counter]
     phi_rf = RFStation.phi_rf[0, counter]
     eta0 = RFStation.eta_0[counter]
-    
+
     # RF wave is shifted by Pi below transition
     if eta0 < 0:
         phi_rf -= np.pi
-    
+
     if bunch_position is None:
         bunch_position = (phi_s - phi_rf) / omega_rf
-        
+
     if bunch_energy is None:
         bunch_energy = 0
-    
+
     if energy_spread is None:
         energy_spread = _get_dE_from_dt(Ring, RFStation, bunch_length)
 
@@ -954,12 +1027,12 @@ def parabolic(Ring, RFStation, Beam,
     bin_energy = energy_array[1] - energy_array[0]
 
     # Density grid
-    isodensity_lines = ((dt_grid - bunch_position) / bunch_length * 2)**2. + \
-        ((deltaE_grid - bunch_energy) / energy_spread * 2)**2.
-    density_grid = 1 - isodensity_lines**2.
+    isodensity_lines = ((dt_grid - bunch_position) / bunch_length * 2) ** 2. + \
+                       ((deltaE_grid - bunch_energy) / energy_spread * 2) ** 2.
+    density_grid = 1 - isodensity_lines ** 2.
     density_grid[density_grid < 0] = 0
     density_grid /= np.sum(density_grid)
-    
+
     populate_bunch(Beam, dt_grid, deltaE_grid, density_grid, bin_dt,
                    bin_energy, seed)
 
@@ -987,12 +1060,12 @@ def _get_dE_from_dt(Ring, RFStation, dt_amplitude):
     warnings.filterwarnings("once")
     if Ring.n_sections > 1:
         warnings.warn("WARNING in bigaussian(): the usage of several" +
-                        " sections is not yet implemented. Ignoring" +
-                        " all but the first!")
+                      " sections is not yet implemented. Ignoring" +
+                      " all but the first!")
     if RFStation.n_rf > 1:
         warnings.warn("WARNING in bigaussian(): the usage of multiple RF" +
-                        " systems is not yet implemented. Ignoring" +
-                        " higher harmonics!")
+                      " systems is not yet implemented. Ignoring" +
+                      " higher harmonics!")
 
     counter = RFStation.counter[0]
 
@@ -1010,12 +1083,12 @@ def _get_dE_from_dt(Ring, RFStation, dt_amplitude):
 
     # Calculate dE_amplitude from dt_amplitude using single-harmonic Hamiltonian
     voltage = RFStation.charge * \
-        RFStation.voltage[0, counter]
+              RFStation.voltage[0, counter]
     eta0 = RFStation.eta_0[counter]
 
     phi_b = omega_rf * dt_amplitude + phi_s
-    dE_amplitude = np.sqrt(voltage * energy * beta**2
-                        * (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) * np.sin(phi_s))
-                        / (np.pi * harmonic * np.fabs(eta0)))
-    
+    dE_amplitude = np.sqrt(voltage * energy * beta ** 2
+                           * (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) * np.sin(phi_s))
+                           / (np.pi * harmonic * np.fabs(eta0)))
+
     return dE_amplitude
