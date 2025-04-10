@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ..impedances.impedance_sources import InputTable
+from ..impedances.impedance_sources import InputTableFrequencyDomain, InputTableTimeDomain
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
@@ -143,23 +143,26 @@ def plot_impedance_vs_frequency(induced_voltage_freq: InducedVoltageFreq,
         ax1 = fig1.add_subplot(111)
         # The impedance sources themselves are properly normalized already.
         for i in range(len(induced_voltage_freq.impedance_source_list)):
-            if isinstance(induced_voltage_freq.impedance_source_list[i],
-                          InputTable) and not plot_interpolated_impedances:
-                ax0.plot(induced_voltage_freq.impedance_source_list[i].frequency_array_loaded,
-                         induced_voltage_freq.impedance_source_list[i].Re_Z_array_loaded, style)
+            impedance_object = induced_voltage_freq.impedance_source_list[i]
+            if (isinstance(impedance_object,
+                            InputTableFrequencyDomain) and not
+            plot_interpolated_impedances):
+                impedance_object: InputTableFrequencyDomain
+                ax0.plot(impedance_object._frequency_array_org,
+                         impedance_object._impedance_org.real, style)
                 ax0.set_xlim(cut_left_right)
                 ax0.set_ylim(cut_up_down)
-                ax1.plot(induced_voltage_freq.impedance_source_list[i].frequency_array_loaded,
-                         induced_voltage_freq.impedance_source_list[i].Im_Z_array_loaded, style)
+                ax1.plot(impedance_object._frequency_array_org,
+                         impedance_object._impedance_org.imag, style)
                 ax1.set_xlim(cut_left_right)
                 ax1.set_ylim(cut_up_down)
             elif plot_interpolated_impedances:
-                ax0.plot(induced_voltage_freq.impedance_source_list[i].frequency_array,
-                         induced_voltage_freq.impedance_source_list[i].impedance.real, style)
+                ax0.plot(impedance_object.frequency_array,
+                         impedance_object.impedance.real, style)
                 ax0.set_xlim(cut_left_right)
                 ax0.set_ylim(cut_up_down)
-                ax1.plot(induced_voltage_freq.impedance_source_list[i].frequency_array,
-                         induced_voltage_freq.impedance_source_list[i].impedance.imag, style)
+                ax1.plot(impedance_object.frequency_array,
+                         impedance_object.impedance.imag, style)
                 ax1.set_xlim(cut_left_right)
                 ax1.set_ylim(cut_up_down)
 
@@ -287,8 +290,10 @@ def plot_wake_vs_time(induced_voltage_time: InducedVoltageTime,
         ax0 = fig0.add_subplot(111)
 
         for i in range(len(induced_voltage_time.wake_source_list)):
-            if isinstance(induced_voltage_time.wake_source_list[i],
-                          InputTable) and not plot_interpolated_wake:
+            if (isinstance(induced_voltage_time.wake_source_list[i],
+                          InputTableFrequencyDomain) or isinstance(
+                induced_voltage_time.wake_source_list[i],
+                          InputTableTimeDomain)) and not plot_interpolated_wake:
                 ax0.plot(induced_voltage_time.wake_source_list[i].time_array,
                          induced_voltage_time.wake_source_list[i].wake_array,
                          style)

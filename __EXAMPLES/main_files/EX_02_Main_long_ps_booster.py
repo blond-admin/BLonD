@@ -25,7 +25,7 @@ from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, Profile
 from blond.impedances.impedance import (InducedVoltageFreq, InductiveImpedance,
                                         TotalInducedVoltage)
-from blond.impedances.impedance_sources import InputTable
+from blond.impedances.impedance_sources import InputTableFrequencyDomain
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.monitors.monitors import BunchMonitor
@@ -108,7 +108,7 @@ Ekicker = np.loadtxt(this_directory + '../input_files/EX_02_Ekicker_1.4GeV.txt',
                      converters={0: lambda s: complex(bytes(s, encoding="utf-8").decode('UTF-8').replace('i', 'j')),
                                  1: lambda y: complex(bytes(y, encoding="utf-8").decode('UTF-8').replace('i', 'j'))})
 
-Ekicker_table = InputTable(Ekicker[:, 0].real, Ekicker[:, 1].real, Ekicker[:, 1].imag)
+Ekicker_table = InputTableFrequencyDomain(Ekicker[:, 0].real, Ekicker[:, 1].real, Ekicker[:, 1].imag)
 
 
 # Finemet cavity
@@ -121,15 +121,15 @@ option = "closed loop"
 if option == "open loop":
     Re_Z = F_C[:, 4] * np.cos(F_C[:, 3])
     Im_Z = F_C[:, 4] * np.sin(F_C[:, 3])
-    F_C_table = InputTable(F_C[:, 0], 13 * Re_Z, 13 * Im_Z)
+    F_C_table = InputTableFrequencyDomain(F_C[:, 0], 13 * Re_Z, 13 * Im_Z)
 elif option == "closed loop":
     Re_Z = F_C[:, 2] * np.cos(F_C[:, 5])
     Im_Z = F_C[:, 2] * np.sin(F_C[:, 5])
-    F_C_table = InputTable(F_C[:, 0], 13 * Re_Z, 13 * Im_Z)
+    F_C_table = InputTableFrequencyDomain(F_C[:, 0], 13 * Re_Z, 13 * Im_Z)
 elif option == "shorted":
     Re_Z = F_C[:, 6] * np.cos(F_C[:, 7])
     Im_Z = F_C[:, 6] * np.sin(F_C[:, 7])
-    F_C_table = InputTable(F_C[:, 0], 13 * Re_Z, 13 * Im_Z)
+    F_C_table = InputTableFrequencyDomain(F_C[:, 0], 13 * Re_Z, 13 * Im_Z)
 else:
     pass
 

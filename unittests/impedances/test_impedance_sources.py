@@ -10,51 +10,171 @@
 """
 Unittest for impedances.impedance_sources
 
-:Authors: **Markus Schwarz**
+:Authors: **Simon Lauber**, **Markus Schwarz**
 """
 
 import unittest
+from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.constants import e as elCharge
 
 from blond.beam.beam import Electron
-from blond.impedances.impedance_sources import (CoherentSynchrotronRadiation,
-                                                ResistiveWall, Resonators,
-                                                _ImpedanceObject)
+from blond.impedances.impedance_sources import (
+    CoherentSynchrotronRadiation,
+    ResistiveWall,
+    Resonators,
+    _FftHandler,
+    InputTableTimeDomain,
+    InputTableFrequencyDomain,
+    TravelingWaveCavity,
+)
 
 
-class Test_ImpedanceObject(unittest.TestCase):
-
+class Test_FftHandler(unittest.TestCase):
     def setUp(self):
-        self.test_object = _ImpedanceObject()
+        frequencies = np.linspace(0, 1e9, 500)
+        index = len(frequencies) // 2
+        amplitudes = np.zeros_like(frequencies, dtype=float)
+        amplitudes[index] = 1
+        self.sinus_freq = float(frequencies[index])
+        self.fft_handler = _FftHandler(
+            frequencies=frequencies,
+            amplitudes=amplitudes,
+        )
 
-    def test_notImplemented(self):
+    def test___init__(self):
+        pass  # tests only if `setUp` works
 
-        self.assertRaises(NotImplementedError, self.test_object.imped_calc)
-        self.assertRaises(NotImplementedError, self.test_object.wake_calc)
+    def test_get_periodic_wake_by_time(self):
+        time_array = np.linspace(0, 2 * 1 / self.sinus_freq, 500)
+        wake = self.fft_handler.get_periodic_wake_by_time(time_array=time_array)
+        DEV_DEBUG = False
+        if DEV_DEBUG:
+            plt.plot(time_array, wake)
+            plt.show()
+        wake_expected = np.load(
+            Path(__file__).parent.resolve()
+            / Path("resources/test_get_periodic_wake_by_time.npy")
+        )
+        np.testing.assert_allclose(wake, wake_expected)
+
+    def test_get_periodic_wake(self):
+        ts_itp, wake_itp = self.fft_handler.get_periodic_wake(
+            t_periodicity=1 / self.sinus_freq
+        )
+        DEV_DEBUG = False
+        if DEV_DEBUG:
+            plt.plot(ts_itp, wake_itp)
+            plt.show()
+
+        wake_expected = np.load(
+            Path(__file__).parent.resolve()
+            / Path("resources/test_get_periodic_wake.npy")
+        )
+        np.testing.assert_allclose(wake_itp, wake_expected)
+
+    def test_get_non_periodic_wake(self):
+        time_array = np.linspace(0, 2 * 1 / self.sinus_freq, 500)
+        wave = self.fft_handler.get_non_periodic_wake(time_array=time_array)
+
+        DEV_DEBUG = False
+        if DEV_DEBUG:
+            plt.plot(time_array, wave)
+            plt.show()
+
+        wake_expected = np.load(
+            Path(__file__).parent.resolve()
+            / Path("resources/test_get_non_periodic_wake.npy")
+        )
+        np.testing.assert_allclose(wave, wake_expected)
+
+
+class TestInputTableTimeDomain(unittest.TestCase):
+    def setUp(self):
+        time_array = np.linspace(0, 6, 100)
+        wake = np.sin(time_array)
+        self.input_table_time_domain = InputTableTimeDomain(
+            time_array=time_array,
+            wake=wake,
+        )
+
+    def test___init__(self):
+        pass  # tests only if `setUp` works
+
+    def test_wake_calc(self):
+        self.input_table_time_domain.wake_calc(np.linspace(-1, 7, 100))
+
+    def test_imped_calc(self):
+        self.input_table_time_domain.imped_calc(
+            frequency_array=np.linspace(0, 1 / (2 * 6 / 100))
+        )
+
+
+class TestInputTableFrequencyDomain(unittest.TestCase):
+    def setUp(self):
+        frequency_array = np.linspace(0, 1e9, 1000)
+        Re_Z_array = np.random.rand(len(frequency_array))
+        Im_Z_array = np.random.rand(len(frequency_array))
+        self.input_table_frequency_domain = InputTableFrequencyDomain(
+            frequency_array=frequency_array,
+            Re_Z_array=Re_Z_array,
+            Im_Z_array=Im_Z_array,
+        )
+
+    def test___init__(self):
+        pass  # tests only if `setUp` works
+
+    def test_wake_calc(self):
+        time_array = np.linspace(0, 1, 100)
+        wake = self.input_table_frequency_domain.wake_calc(time_array=time_array)
+
+    def test_imped_calc(self):
+        frequency_array = np.linspace(0, 1, 100)
+        self.input_table_frequency_domain.imped_calc(frequency_array=frequency_array)
+        np.testing.assert_allclose(
+            self.input_table_frequency_domain.frequency_array, frequency_array
+        )
+
+
+class TestTravelingWaveCavity(unittest.TestCase):
+    def setUp(self):
+        self.traveling_wave_cavity = TravelingWaveCavity(
+            R_S=np.linspace(0, 1, 10),
+            frequency_R=np.linspace(0, 1, 10),
+            a_factor=np.linspace(0, 1, 10),
+        )
+
+    def test___init__(self):
+        pass  # tests only if `setUp` works
+
+
+class TestCoherentSynchrotronRadiation(unittest.TestCase):
+    def setUp(self):
+        self.coherent_synchrotron_ratiation = CoherentSynchrotronRadiation(
+            r_bend=1.2,
+            gamma=1.2,
+            chamber_height=1.2,
+        )
+
+    def test___init__(self):
+        pass  # tests only if `setUp` works
 
 
 class TestResonators(unittest.TestCase):
-
     def test_smallQError(self):
         with self.assertRaises(RuntimeError):
             Resonators(1, 2, 0.2)
 
-    def test_wrongMethodError(self):
-        with self.assertRaises(RuntimeError):
-            Resonators(1, 2, 3, method='something')
-
 
 class TestResistiveWall(unittest.TestCase):
-
     def test_noNecessaryKwargs(self):
         with self.assertRaises(RuntimeError):
             ResistiveWall(1, 2)
 
 
 class TestCoherentSynchrotronRadiation(unittest.TestCase):
-
     def test_wrongBendingRadius(self):
         with self.assertRaises(ValueError):
             CoherentSynchrotronRadiation(-1)
@@ -74,46 +194,66 @@ class TestCoherentSynchrotronRadiation(unittest.TestCase):
     def test_correctImpedanceFuncion1(self):
         csr_imped = CoherentSynchrotronRadiation(1)
 
-        self.assertEqual(csr_imped.imped_calc.__func__,
-                         CoherentSynchrotronRadiation._fs_low_frequency_wrapper)
+        self.assertEqual(
+            csr_imped.imped_calc.__func__,
+            CoherentSynchrotronRadiation._fs_low_frequency_wrapper,
+        )
 
     def test_correctImpedanceFuncion2(self):
         csr_imped = CoherentSynchrotronRadiation(1, gamma=42)
 
-        self.assertTrue(hasattr(csr_imped, 'f_crit'))
-        self.assertEqual(csr_imped.imped_calc.__func__,
-                         CoherentSynchrotronRadiation._fs_spectrum)
+        self.assertTrue(hasattr(csr_imped, "f_crit"))
+        self.assertEqual(
+            csr_imped.imped_calc.__func__, CoherentSynchrotronRadiation._fs_spectrum
+        )
 
     def test_correctImpedanceFuncion3(self):
         csr_imped = CoherentSynchrotronRadiation(1, chamber_height=42)
 
-        self.assertTrue(hasattr(csr_imped, 'f_cut'))
-        self.assertEqual(csr_imped.imped_calc.__func__,
-                         CoherentSynchrotronRadiation._pp_low_frequency)
+        self.assertTrue(hasattr(csr_imped, "f_cut"))
+        self.assertEqual(
+            csr_imped.imped_calc.__func__,
+            CoherentSynchrotronRadiation._pp_low_frequency,
+        )
 
     def test_correctImpedanceFuncion4(self):
         csr_imped = CoherentSynchrotronRadiation(1, gamma=42, chamber_height=4.2)
 
-        self.assertTrue(hasattr(csr_imped, 'f_crit'))
-        self.assertTrue(hasattr(csr_imped, 'f_cut'))
-        self.assertEqual(csr_imped.imped_calc.__func__,
-                         CoherentSynchrotronRadiation._pp_spectrum)
+        self.assertTrue(hasattr(csr_imped, "f_crit"))
+        self.assertTrue(hasattr(csr_imped, "f_cut"))
+        self.assertEqual(
+            csr_imped.imped_calc.__func__, CoherentSynchrotronRadiation._pp_spectrum
+        )
 
     def test_lowHighFrequencyTransitionFreeSpace(self):
         csr_imped = CoherentSynchrotronRadiation(1, gamma=42)
 
-        self.assertRaises(ValueError, csr_imped.imped_calc, np.arange(5),
-                          high_frequency_transition=0.2)
-        self.assertRaises(ValueError, csr_imped.imped_calc, np.arange(5),
-                          low_frequency_transition=2)
-        self.assertRaises(ValueError, csr_imped.imped_calc, np.arange(5),
-                          low_frequency_transition=1.1, high_frequency_transition=1)
+        self.assertRaises(
+            ValueError,
+            csr_imped.imped_calc,
+            np.arange(5),
+            high_frequency_transition=0.2,
+        )
+        self.assertRaises(
+            ValueError, csr_imped.imped_calc, np.arange(5), low_frequency_transition=2
+        )
+        self.assertRaises(
+            ValueError,
+            csr_imped.imped_calc,
+            np.arange(5),
+            low_frequency_transition=1.1,
+            high_frequency_transition=1,
+        )
 
     def test_lowHighFrequencyTransitionApproxPP(self):
         csr_imped = CoherentSynchrotronRadiation(1, chamber_height=42)
 
-        self.assertRaises(ValueError, csr_imped.imped_calc, np.arange(5),
-                          high_frequency_transition=0.2)
+        self.assertRaises(
+            ValueError,
+            csr_imped.imped_calc,
+            np.arange(5),
+            high_frequency_transition=0.2,
+        )
 
     def test_energyLoss(self):
         # based on Example 22: Coherent Radiation
@@ -122,12 +262,14 @@ class TestCoherentSynchrotronRadiation(unittest.TestCase):
         gamma = energy / Electron().mass  # Lorentz factor
 
         # frequencies at which to compute impedance (from 1e8 to 1e15 Hz)
-        frequencies = 10**np.linspace(8, 15, num=200)
+        frequencies = 10 ** np.linspace(8, 15, num=200)
 
         Z_fs = CoherentSynchrotronRadiation(r_bend, gamma=gamma)
         Z_fs.imped_calc(frequencies, low_frequency_transition=1e-4)
 
-        energy_loss = 2 * np.trapezoid(Z_fs.impedance.real, frequencies) * elCharge  # [eV]
+        energy_loss = (
+            2 * np.trapezoid(Z_fs.impedance.real, frequencies) * elCharge
+        )  # [eV]
 
         energy_loss_textbook = Electron().c_gamma * energy**4 / r_bend  # [eV]
 
@@ -146,30 +288,44 @@ class TestCoherentSynchrotronRadiation(unittest.TestCase):
         times = np.linspace(-2e-11, 2e-11, num=11)
 
         # frequencies at which to compute impedance (from 1e8 to 1e15 Hz)
-        freqs = 10**np.linspace(8, 15, num=200)
+        freqs = 10 ** np.linspace(8, 15, num=200)
 
         Z_fs = CoherentSynchrotronRadiation(r_bend, gamma=gamma)
         Z_fs.imped_calc(freqs, high_frequency_transition=10)
 
         # Fourier transform of Gaussian bunch profile
-        Lambda = np.exp(-0.5 * (2*np.pi*freqs*sigma_dt)**2)
+        Lambda = np.exp(-0.5 * (2 * np.pi * freqs * sigma_dt) ** 2)
 
         W_fs = np.zeros_like(times)
         for it, t in enumerate(times):
-            W_fs[it] = 2 * np.trapezoid(
-                Z_fs.impedance*Lambda*np.exp(2j*np.pi*freqs*t), freqs).real
+            W_fs[it] = (
+                2
+                * np.trapezoid(
+                    Z_fs.impedance * Lambda * np.exp(2j * np.pi * freqs * t), freqs
+                ).real
+            )
 
         # convert to volt
         W_fs *= elCharge * intensity
 
-        W_fs_test = np.array([-2.99526459e+01, -4.11849124e+01, -6.39549552e+01,
-                              -1.15710237e+02, -2.71278552e+01,  +4.34850900e+02,
-                              +2.48528445e+02, +1.86894225e+01, -2.58048424e-01,
-                              -2.86820828e-01, -2.03095038e-01])
+        W_fs_test = np.array(
+            [
+                -2.99526459e01,
+                -4.11849124e01,
+                -6.39549552e01,
+                -1.15710237e02,
+                -2.71278552e01,
+                +4.34850900e02,
+                +2.48528445e02,
+                +1.86894225e01,
+                -2.58048424e-01,
+                -2.86820828e-01,
+                -2.03095038e-01,
+            ]
+        )
 
         np.testing.assert_allclose(W_fs, W_fs_test)
 
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     unittest.main()
