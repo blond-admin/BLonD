@@ -247,7 +247,7 @@ class _InducedVoltage:
         self.profile = profile
 
         # Induced voltage from the sum of the wake sources in V
-        self.induced_voltage = np.zeros(int(profile.n_slices),
+        self.induced_voltage: NDArray = np.zeros(int(profile.n_slices),
                                         dtype=bm.precision.real_t, order='C')
 
         # Wake length in s (optional)
@@ -490,6 +490,12 @@ class _InducedVoltage:
                               bin_centers=self.profile.bin_centers,
                               charge=self.beam.particle.charge,
                               acceleration_kick=0.)
+
+    def to_gpu(self, recursive=True):
+        raise NotImplementedError()
+
+    def to_cpu(self, recursive=True):
+        raise NotImplementedError()
 
 
 class InducedVoltageTime(_InducedVoltage):
