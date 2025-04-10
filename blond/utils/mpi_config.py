@@ -19,7 +19,7 @@ from mpi4py import MPI
 from . import bmath as bm
 
 if TYPE_CHECKING:
-    from typing import Callable
+    from typing import Callable, Optional, Dict
 
     from ..beam.beam import Beam
 

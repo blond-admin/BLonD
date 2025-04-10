@@ -24,12 +24,12 @@ from . import GPU_DEV
 
 
 def rf_volt_comp(
-    voltage: CupyArray, omega_rf: CupyArray, phi_rf: CupyArray, bin_centers: CupyArray
+    voltages: CupyArray, omega_rf: CupyArray, phi_rf: CupyArray, bin_centers: CupyArray
 ) -> CupyArray:
     """Calculate the rf voltage at each profile bin
 
     Args:
-        voltage (float array): _description_
+        voltages (float array): _description_
         omega_rf (float array): _description_
         phi_rf (float array): _description_
         bin_centers (float array): _description_
@@ -40,7 +40,7 @@ def rf_volt_comp(
 
     rf_volt_comp_kernel = GPU_DEV.mod.get_function("rf_volt_comp")
 
-    assert voltage.dtype == precision.real_t
+    assert voltages.dtype == precision.real_t
     assert omega_rf.dtype == precision.real_t
     assert phi_rf.dtype == precision.real_t
     assert bin_centers.dtype == precision.real_t
@@ -49,11 +49,11 @@ def rf_volt_comp(
 
     rf_volt_comp_kernel(
         args=(
-            voltage,
+            voltages,
             omega_rf,
             phi_rf,
             bin_centers,
-            np.int32(voltage.size),
+            np.int32(voltages.size),
             np.int32(bin_centers.size),
             rf_voltage,
         ),

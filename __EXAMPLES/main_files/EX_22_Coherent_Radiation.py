@@ -18,6 +18,10 @@ import os
 
 import matplotlib as mpl
 import numpy as np
+try:
+    np.trapezoid
+except AttributeError:
+    np.trapezoid = np.trapz
 from matplotlib import pyplot as plt
 from scipy.constants import e as elCharge
 
@@ -175,10 +179,10 @@ w_fs_appr = np.zeros_like(w_fs)
 w_pp_appr = np.zeros_like(w_fs)
 # compute the wake potentials
 for it, t in enumerate(times):
-    w_fs[it] = np.trapz(Z_fs.impedance*Lambda*np.exp(2j*np.pi*freqs*t), freqs).real
-    w_pp[it] = np.trapz(Z_pp.impedance*Lambda*np.exp(2j*np.pi*freqs*t), freqs).real
-    w_fs_appr[it] = np.trapz(Z_fs_appr.impedance*Lambda*np.exp(2j*np.pi*freqs*t), freqs).real
-    w_pp_appr[it] = np.trapz(Z_pp_appr.impedance*Lambda*np.exp(2j*np.pi*freqs*t), freqs).real
+    w_fs[it] = np.trapezoid(Z_fs.impedance*Lambda*np.exp(2j*np.pi*freqs*t), freqs).real
+    w_pp[it] = np.trapezoid(Z_pp.impedance*Lambda*np.exp(2j*np.pi*freqs*t), freqs).real
+    w_fs_appr[it] = np.trapezoid(Z_fs_appr.impedance*Lambda*np.exp(2j*np.pi*freqs*t), freqs).real
+    w_pp_appr[it] = np.trapezoid(Z_pp_appr.impedance*Lambda*np.exp(2j*np.pi*freqs*t), freqs).real
 # convert to volt
 for tmp in [w_fs, w_pp, w_fs_appr, w_pp_appr]:
     tmp *= 2 * elCharge * intensity
