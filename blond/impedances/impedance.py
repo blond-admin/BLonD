@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
@@ -36,7 +37,8 @@ if TYPE_CHECKING:
     NDArray = NumpyNDArray | CupyNDArray
 
     from ..beam.beam import Beam
-    from .impedance_sources import _ImpedanceObject, Resonators
+    from .impedance_sources import _ImpedanceObject, Resonators, \
+    InputTableFrequencyDomain, ResistiveWall
     from ..input_parameters.rf_parameters import RFStation
     from ..utils.types import DeviceType, BeamProfileDerivativeModes
 
@@ -633,7 +635,23 @@ class InducedVoltageTime(_InducedVoltage):
         n
             Number of entries in wake
         """
-
+        warning_message =f"It is recommended to use `t_periodicity = None`"
+        # Check if the wake sources are generated correctly
+        for wake_object in self.wake_source_list:
+            if isinstance(wake_object, InputTableFrequencyDomain):
+                a: InputTableFrequencyDomain = wake_object
+                if a.t_periodicity is not None:
+                    warnings.warn(f"{warning_message} for {a}", UserWarning)
+            elif isinstance(wake_object, ResistiveWall):
+                b: ResistiveWall = wake_object
+                if b.t_periodicity is not None:
+                    warnings.warn(f"{warning_message} for {b}", UserWarning)
+            elif hasattr(wake_object, "t_periodicity"):
+                c: _ImpedanceObject = wake_object
+                if c.t_periodicity is not None:
+                    warnings.warn(f"{warning_message} for {c}", UserWarning)
+            else:
+                pass
         time_array = np.linspace(t_start, t_stop, n)
         self.sum_wakes(time_array=time_array)
         wake = self.total_wake

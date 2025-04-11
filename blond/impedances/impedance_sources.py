@@ -307,8 +307,8 @@ class _ImpedanceObject(ABC):
         # WrongCalcError
         raise NotImplementedError(
             "wake_calc() method not implemented in this class. "
-            + "This object is probably meant to be used in the "
-            + "frequency domain"
+            "This object is probably meant to be used in the "
+            "frequency domain"
         )
 
     @abstractmethod

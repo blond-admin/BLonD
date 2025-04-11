@@ -18,6 +18,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+from parameterized import parameterized
 from scipy.constants import e as elCharge
 
 from blond.beam.beam import Electron
@@ -126,7 +127,9 @@ class TestInputTableFrequencyDomain(unittest.TestCase):
     def test___init__(self):
         pass  # tests only if `setUp` works
 
-    def test_wake_calc(self):
+    @parameterized.expand(["auto", 1.0, None])
+    def test_wake_calc(self, t_periodicity):
+        self.input_table_frequency_domain.t_periodicity = t_periodicity
         time_array = np.linspace(0, 1, 100)
         wake = self.input_table_frequency_domain.wake_calc(time_array=time_array)
 
@@ -169,9 +172,24 @@ class TestResonators(unittest.TestCase):
 
 
 class TestResistiveWall(unittest.TestCase):
+    def setUp(self):
+        self.resistive_wall = ResistiveWall(
+            pipe_radius=0.5, pipe_length=2, resistivity=1e-3
+        )
+
     def test_noNecessaryKwargs(self):
         with self.assertRaises(RuntimeError):
             ResistiveWall(1, 2)
+
+    def test___init__(self):
+        pass  # tests only if `setUp` works
+
+    @parameterized.expand(["auto", 1.0, None])
+    def test_wake_calc(self, t_periodicity):
+        self.resistive_wall.imped_calc(np.linspace(0, 5e9, 500))
+        self.resistive_wall.t_periodicity = t_periodicity
+        time_array = np.linspace(0, 1, 100)
+        wake = self.resistive_wall.wake_calc(time_array=time_array)
 
 
 class TestCoherentSynchrotronRadiation(unittest.TestCase):
