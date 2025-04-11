@@ -30,7 +30,7 @@ from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
 
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray as NumpyArray
     import cupy as cp
 
     from ..input_parameters.ring import Ring
@@ -81,7 +81,7 @@ class Particle:
 
     """
 
-    def __init__(self, user_mass: float, user_charge: float, user_decay_rate: float = 0) -> None:
+    def __init__(self, user_mass: float, user_charge: float, user_decay_rate: float = 0):
 
         if user_mass > 0.:
             self.mass = float(user_mass)
@@ -112,7 +112,7 @@ class Proton(Particle):
     """ Implements a proton `Particle`.
     """
 
-    def __init__(self) -> None:
+    def __init__(self):
         Particle.__init__(self, m_p * c ** 2 / e, 1)
 
 
@@ -120,7 +120,7 @@ class Electron(Particle):
     """ Implements an electron `Particle`.
     """
 
-    def __init__(self) -> None:
+    def __init__(self):
         Particle.__init__(self, m_e * c ** 2 / e, -1)
 
 
@@ -128,7 +128,7 @@ class Positron(Particle):
     """ Implements a positron `Particle`.
     """
 
-    def __init__(self) -> None:
+    def __init__(self):
         Particle.__init__(self, m_e * c ** 2 / e, 1)
 
 
@@ -229,23 +229,23 @@ class Beam:
 
     @handle_legacy_kwargs
     def __init__(self, ring: Ring, n_macroparticles: int, intensity: float,
-                 dt:Optional[NDArray]=None, dE:Optional[NDArray]=None) -> None:
+                 dt:Optional[NumpyArray]=None, dE:Optional[NumpyArray]=None):
         self.particle = ring.particle
         self.beta: float = ring.beta[0][0]
         self.gamma: float = ring.gamma[0][0]
         self.energy: float = ring.energy[0][0]
         self.momentum: float = ring.momentum[0][0]
         if dt is None:
-            self.dt: NDArray | cp.array  = np.zeros([int(n_macroparticles)], dtype=bm.precision.real_t)
+            self.dt: NumpyArray | cp.array  = np.zeros([int(n_macroparticles)], dtype=bm.precision.real_t)
         else:
             assert n_macroparticles == len(dt)
-            self.dt: NDArray | cp.array  = np.ascontiguousarray(dt)
+            self.dt: NumpyArray | cp.array  = np.ascontiguousarray(dt)
 
         if dE is None:
-            self.dE: NDArray | cp.array  = np.zeros([int(n_macroparticles)], dtype=bm.precision.real_t)
+            self.dE: NumpyArray | cp.array  = np.zeros([int(n_macroparticles)], dtype=bm.precision.real_t)
         else:
             assert n_macroparticles == len(dE)
-            self.dE: NDArray | cp.array  = np.ascontiguousarray(dE)
+            self.dE: NumpyArray | cp.array  = np.ascontiguousarray(dE)
 
 
         self.mean_dt: float = 0.
@@ -255,7 +255,7 @@ class Beam:
         self.intensity: float = float(intensity)
         self.n_macroparticles: int = int(n_macroparticles)
         self.ratio: float = self.intensity / self.n_macroparticles
-        self.id: NDArray | cp.array = np.arange(1, self.n_macroparticles + 1, dtype=int)
+        self.id: NumpyArray | cp.array = np.arange(1, self.n_macroparticles + 1, dtype=int)
         self.epsn_rms_l: float = 0.
         self.n_macroparticles_eliminated = 0
 
@@ -263,8 +263,8 @@ class Beam:
         self._mpi_n_total_macroparticles_lost: int = 0
         self._mpi_n_total_macroparticles: int = n_macroparticles
         self._mpi_is_splitted: bool = False
-        self._mpi_sumsq_dt: NDArray | float = 0.
-        self._mpi_sumsq_dE: NDArray | float = 0.
+        self._mpi_sumsq_dt: NumpyArray | float = 0.
+        self._mpi_sumsq_dE: NumpyArray | float = 0.
         # For handling arrays on CPU/GPU
         self._device = 'CPU'
 
@@ -378,7 +378,7 @@ class Beam:
         return bm.count_nonzero(self.id)
 
     @property
-    def n_macroparticles_not_alive(self):
+    def n_macroparticles_not_alive(self) -> int:
         '''Number of macro-particles marked as not-alive
 
         Returns
@@ -408,7 +408,7 @@ class Beam:
             raise RuntimeError("ERROR in Beams: all particles lost and" +
                                " eliminated!")
 
-    def statistics(self) -> None:
+    def statistics(self):
         r"""
         Calculation of the mean and standard deviation of beam coordinates,
         as well as beam emittance using different definitions.
@@ -439,7 +439,7 @@ class Beam:
         self.epsn_rms_l = np.pi * self.sigma_dE * self.sigma_dt  # in eVs
 
     @handle_legacy_kwargs
-    def losses_separatrix(self, ring: Ring, rf_station: RFStation) -> None:
+    def losses_separatrix(self, ring: Ring, rf_station: RFStation):
         """Beam losses based on separatrix.
 
         Set to 0 all the particle's id not in the separatrix anymore.
@@ -457,7 +457,7 @@ class Beam:
 
         self.id[lost_index] = 0
 
-    def losses_longitudinal_cut(self, dt_min: float, dt_max: float) -> None:
+    def losses_longitudinal_cut(self, dt_min: float, dt_max: float):
         """Beam losses based on longitudinal cuts.
 
         Set to 0 all the particle's id with dt not in the interval
@@ -474,7 +474,7 @@ class Beam:
         lost_index = (self.dt < dt_min) | (self.dt > dt_max)
         self.id[lost_index] = 0
 
-    def losses_energy_cut(self, dE_min: float, dE_max: float) -> None:
+    def losses_energy_cut(self, dE_min: float, dE_max: float):
         """Beam losses based on energy cuts, e.g. on collimators.
 
         Set to 0 all the particle's id with dE not in the interval (dE_min, dE_max).
@@ -504,7 +504,7 @@ class Beam:
         lost_index = (self.dE < dE_min)
         self.id[lost_index] = 0
 
-    def particle_decay(self, time: float) -> None:
+    def particle_decay(self, time: float):
         """Decreases beam intensity due to the particle decay
 
         Sets the ratio to a lower value if the particle can decay. Number of macroparticles remains unchanged.
@@ -517,7 +517,7 @@ class Beam:
         """
         self.ratio *= np.exp(-time * self.particle.decay_rate / self.gamma)
 
-    def add_particles(self, new_particles: NDArray | list[list[float]]) -> None:
+    def add_particles(self, new_particles: NumpyArray | list[list[float]]):
         """
         Method to add array of new particles to beam object
         New particles are given id numbers sequential from last id of this beam
@@ -550,7 +550,7 @@ class Beam:
         self.dt = bm.concatenate((self.dt, newdt))
         self.dE = bm.concatenate((self.dE, newdE))
 
-    def add_beam(self, other_beam: Beam) -> None:
+    def add_beam(self, other_beam: Beam):
         """
         Method to add the particles from another beam to this beam
         New particles are given id numbers sequential from last id of this beam
@@ -579,7 +579,7 @@ class Beam:
         self.id = bm.concatenate((self.id, newids))
         self.n_macroparticles += other_beam.n_macroparticles
 
-    def __iadd__(self, other: Beam | NDArray | list[list[float]]) -> Beam:
+    def __iadd__(self, other: Beam | NumpyArray | list[list[float]]) -> Beam:
         """
         Initialisation of in place addition calls add_beam(other) if other
         is a blond beam object, calls add_particles(other) otherwise
@@ -756,7 +756,7 @@ class Beam:
             temp = WORKER.gather(np.array([self.n_macroparticles_lost]))
             self._mpi_n_total_macroparticles_lost = np.sum(temp)
 
-    def to_gpu(self, recursive=True):
+    def to_gpu(self, recursive: bool=True):
         """
         Transfer all necessary arrays to the GPU
         """

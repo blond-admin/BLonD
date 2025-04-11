@@ -24,7 +24,7 @@ from ..utils.legacy_support import handle_legacy_kwargs
 if TYPE_CHECKING:
     from typing import Optional, TYPE_CHECKING
 
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray as NumpyArray
 
     from ..input_parameters.rf_parameters import RFStation
     from ..input_parameters.ring import Ring
@@ -38,7 +38,7 @@ class _FrequencyOffset:
     @handle_legacy_kwargs
     def __init__(self, ring: Ring, rf_station: RFStation,
                  system: Optional[int, Iterable[int]] = None,
-                 main_harmonic: Optional[float] = None) -> None:
+                 main_harmonic: Optional[float] = None):
 
         #: | *Import Ring*
         self.ring = ring
@@ -81,7 +81,7 @@ class _FrequencyOffset:
         warn("mainH is deprecated, use main_harmonic", DeprecationWarning, stacklevel=2)
         self.main_harmonic = val
 
-    def set_frequency(self, new_frequency_program: NDArray) -> None:
+    def set_frequency(self, new_frequency_program: NumpyArray):
         """
         Set new frequency program
         """
@@ -104,7 +104,7 @@ class _FrequencyOffset:
         #: | *Store design frequency during offset*
         self.design_frequency = self.rf_station.omega_rf_d[:, :self.end_turn]
 
-    def calculate_phase_slip(self) -> None:
+    def calculate_phase_slip(self):
         """
         Calculate the phase slippage resulting from the frequency offset for \
         each RF system
@@ -117,7 +117,7 @@ class _FrequencyOffset:
                      / self.design_frequency)
         self.phase_slippage = np.cumsum(delta_phi, axis=1)
 
-    def apply_new_frequency(self) -> None:
+    def apply_new_frequency(self):
         """
         Sets the RF frequency and phase
         """
@@ -153,7 +153,7 @@ class FixedFrequency(_FrequencyOffset):
     @handle_legacy_kwargs
     def __init__(self, ring: Ring, rf_station: RFStation,
                  fixed_frequency: float, fixed_duration: float,
-                 transition_duration: float, transition: bool = True) -> None:
+                 transition_duration: float, transition: bool = True):
 
         super().__init__(ring, rf_station)
 
@@ -178,7 +178,7 @@ class FixedFrequency(_FrequencyOffset):
 
         self.compute()
 
-    def compute(self) -> None:
+    def compute(self):
         self.calculate_frequency_prog()
         self.set_frequency(self.frequency_prog)
         self.calculate_phase_slip()
@@ -198,7 +198,7 @@ class FixedFrequency(_FrequencyOffset):
         self.frequency_prog = np.concatenate((fixed_frequency_prog,
                                               transition_frequency_prog))
 
-    def transition_1(self) -> None:
+    def transition_1(self):
         t1 = (self.ring.cycle_time[self.end_transition_turn]
               - self.ring.cycle_time[self.end_fixed_turn])
         f1 = self.end_frequency

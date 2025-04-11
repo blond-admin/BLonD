@@ -30,8 +30,9 @@ class GPUDev:
         self.grid_size = 0
         self.block_size = 0
         self.mod = None
+        self.set() # try to initialize mod
 
-    def set(self, _gpu_num=0):
+    def set(self, _gpu_num: int=0):
         import cupy as cp
 
         self.id = _gpu_num
@@ -72,7 +73,7 @@ class GPUDev:
         """
         return self.mod.get_function(name)
 
-    def load_library(self, _precision):
+    def load_library(self, _precision: str):
         """Load the GPU library
 
         Args:

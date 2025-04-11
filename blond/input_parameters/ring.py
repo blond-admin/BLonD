@@ -26,7 +26,7 @@ from ..utils.legacy_support import handle_legacy_kwargs
 if TYPE_CHECKING:  # only for Python type hints
     from typing import Literal, Any, Optional, Iterable
 
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray as NumpyArray
 
     from ..beam.beam import Particle
 
@@ -211,18 +211,18 @@ class Ring:
 
     @handle_legacy_kwargs
     def __init__(self,
-                 ring_length: float | list | tuple | NDArray,
-                 alpha_0: float | list | tuple | NDArray,
+                 ring_length: float | list | tuple | NumpyArray,
+                 alpha_0: float | list | tuple | NumpyArray,
                  synchronous_data: Any,  # todo type hint
                  particle: Particle,
                  n_turns: int = 1,
                  synchronous_data_type: SynchronousDataTypes = 'momentum',
                  bending_radius: Optional[float] = None,
                  n_sections: int = 1,
-                 alpha_1: None | float | list | tuple | NDArray = None,
-                 alpha_2: None | float | list | tuple | NDArray = None,
+                 alpha_1: None | float | list | tuple | NumpyArray = None,
+                 alpha_2: None | float | list | tuple | NumpyArray = None,
                  ring_options: Optional[RingOptions] = None
-                 ) -> None:
+                 ):
         if ring_options is None:
             ring_options = RingOptions()
         # Conversion of initial inputs to expected types
@@ -230,7 +230,7 @@ class Ring:
         self.n_sections = int(n_sections)
 
         # Ring length and checks
-        self.ring_length: NDArray = np.array(ring_length, ndmin=1, dtype=float)
+        self.ring_length: NumpyArray = np.array(ring_length, ndmin=1, dtype=float)
         self.ring_circumference: float = np.sum(self.ring_length)
         self.ring_radius: float = self.ring_circumference / (2 * np.pi)
 
@@ -250,7 +250,7 @@ class Ring:
 
         # Reshaping the input synchronous data to the adequate format and
         # get back the momentum program from RingOptions
-        self.momentum: NDArray = ring_options.reshape_data(
+        self.momentum: NumpyArray = ring_options.reshape_data(
             synchronous_data,
             self.n_turns,
             self.n_sections,
@@ -275,16 +275,16 @@ class Ring:
 
         # Derived from momentum
         # todo this should be attributes?
-        self.beta: NDArray = np.sqrt(1 / (1 + (self.particle.mass / self.momentum) ** 2))
-        self.gamma: NDArray = np.sqrt(1 + (self.momentum / self.particle.mass) ** 2)
-        self.energy: NDArray = np.sqrt(self.momentum ** 2 + self.particle.mass ** 2)
-        self.kin_energy: NDArray = (np.sqrt(self.momentum ** 2 + self.particle.mass ** 2) -
+        self.beta: NumpyArray = np.sqrt(1 / (1 + (self.particle.mass / self.momentum) ** 2))
+        self.gamma: NumpyArray = np.sqrt(1 + (self.momentum / self.particle.mass) ** 2)
+        self.energy: NumpyArray = np.sqrt(self.momentum ** 2 + self.particle.mass ** 2)
+        self.kin_energy: NumpyArray = (np.sqrt(self.momentum ** 2 + self.particle.mass ** 2) -
                                        self.particle.mass)
-        self.delta_E: NDArray = np.diff(self.energy, axis=1)
-        self.t_rev: NDArray = np.dot(self.ring_length, 1 / (self.beta * c))
-        self.cycle_time: NDArray = np.cumsum(self.t_rev)  # Always starts with zero
-        self.f_rev: NDArray = 1 / self.t_rev
-        self.omega_rev: NDArray = 2 * np.pi * self.f_rev
+        self.delta_E: NumpyArray = np.diff(self.energy, axis=1)
+        self.t_rev: NumpyArray = np.dot(self.ring_length, 1 / (self.beta * c))
+        self.cycle_time: NumpyArray = np.cumsum(self.t_rev)  # Always starts with zero
+        self.f_rev: NumpyArray = 1 / self.t_rev
+        self.omega_rev: NumpyArray = 2 * np.pi * self.f_rev
 
         # Momentum compaction, checks, and derived slippage factors
         if ring_options.t_start is None:
@@ -348,7 +348,7 @@ class Ring:
         warn("RingOptions is deprecated, use ring_options", DeprecationWarning, stacklevel=2)
         self.ring_options = val
 
-    def eta_generation(self) -> None:
+    def eta_generation(self):
         """ Function to generate the slippage factors (zeroth, first, and
         second orders, see [1]_) from the momentum compaction and the
         relativistic beta and gamma program through the cycle.
@@ -370,14 +370,14 @@ class Ring:
         for i in range(self.alpha_order + 1, 3):
             setattr(self, f"eta_{i}", np.zeros([self.n_sections, self.n_turns + 1]))
 
-    def _eta0(self) -> None:
+    def _eta0(self):
         """ Function to calculate the zeroth order slippage factor eta_0 """
 
         self.eta_0 = np.empty([self.n_sections, self.n_turns + 1])
         for i in range(0, self.n_sections):
             self.eta_0[i] = self.alpha_0[i] - self.gamma[i] ** (-2.)
 
-    def _eta1(self) -> None:
+    def _eta1(self):
         """ Function to calculate the first order slippage factor eta_1 """
 
         self.eta_1 = np.empty([self.n_sections, self.n_turns + 1])
@@ -385,7 +385,7 @@ class Ring:
             self.eta_1[i] = 3 * self.beta[i] ** 2 / (2 * self.gamma[i] ** 2) + \
                             self.alpha_1[i] - self.alpha_0[i] * self.eta_0[i]
 
-    def _eta2(self) -> None:
+    def _eta2(self):
         """ Function to calculate the second order slippage factor eta_2 """
 
         self.eta_2 = np.empty([self.n_sections, self.n_turns + 1])

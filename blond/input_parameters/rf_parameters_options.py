@@ -29,7 +29,7 @@ from ..utils.legacy_support import handle_legacy_kwargs
 if TYPE_CHECKING:
     from typing import Literal, Optional, Callable, Sequence
 
-    from numpy.typing import NDArray, ArrayLike
+    from numpy.typing import NDArray as NumpyArray, ArrayLike
 
     from .ring import Ring
 
@@ -64,7 +64,7 @@ class RFStationOptions:
                  figdir: os.PathLike | str = 'fig',
                  figname: list[str] = ['data'],
                  sampling: int = 1
-                 ) -> None:
+                 ):
 
         if interpolation in ['linear', 'cubic']:
             self.interpolation = str(interpolation)
@@ -94,8 +94,8 @@ class RFStationOptions:
                                " not recognised. Aborting...")
 
     def reshape_data(self, input_data: ArrayLike, n_turns: int, n_rf: int,
-                     interp_time: NDArray, t_start: Optional[float] = None)\
-                                                                    -> NDArray:
+                     interp_time: NumpyArray, t_start: Optional[float] = None)\
+                                                                    -> NumpyArray:
         r"""Checks whether the user input is consistent with the expectation
         for the RFStation object. The possibilites are detailed in the
         documentation of the RFStation object.
@@ -257,7 +257,7 @@ class RFStationOptions:
 def combine_rf_functions(function_list: list[tuple[Callable, list[float]]],
                          merge_type: str | Sequence[str] = 'linear',
                          resolution: float = 1e-3, ring: Optional[Ring] = None,
-                         main_h: bool = True) -> NDArray:
+                         main_h: bool = True) -> NumpyArray:
     r"""Function to combine different RF programs. Each program is passed in a
     tuple with complete function (single valued or numpy array) and 2-list
     [start_time, stop_time].

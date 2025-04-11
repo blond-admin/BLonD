@@ -35,7 +35,7 @@ from ..utils import precision
 if TYPE_CHECKING:
     from typing import Optional, Iterable, Tuple, Literal
 
-    from numpy.typing import ArrayLike
+    from numpy.typing import NDArray as NumpyArray, ArrayLike
 
     from numpy.typing import NDArray as NumpyArray
     from cupy.typing import NDArray as CupyArray
@@ -272,7 +272,6 @@ class _FftHandler:
         wake : NumpyArray | CupyArray
             The single-particle wakefield evaluated at the given time points.
         """
-        # TODO write test, assertion might fail
         return _infinite_samples_fourier_transform(
             impedance=self._amplitudes, ts=time_array, freq=self._frequencies
         )
@@ -601,7 +600,7 @@ class Resonators(_ImpedanceObject):
         R_S: float | list[float] | NumpyArray,
         frequency_R: float | list[float] | NumpyArray,
         Q: float | list[float] | NumpyArray,
-    ) -> None:
+    ):
         _ImpedanceObject.__init__(self)
 
         # Shunt impedance in :math:`\Omega`
@@ -640,7 +639,7 @@ class Resonators(_ImpedanceObject):
         self.__frequency_R = omega_R / 2 / np.pi
         self.__omega_R = omega_R
 
-    def wake_calc(self, time_array: NumpyArray) -> None:
+    def wake_calc(self, time_array: NumpyArray):
         r"""
         Wake calculation method as a function of time.
 
@@ -689,15 +688,26 @@ class Resonators(_ImpedanceObject):
         Attributes
         ----------
         frequency_array : float array
-            input frequency array in Hz
+            Input frequency array in Hz
         impedance : complex array
             Output impedance in :math:`\Omega + j \Omega`
         """
-        # TODO does bm.fast_resonator exist in all backends?
+        # if self.impedance is an array with the correct size
+        if not isinstance(self.impedance, int) and (len(self.impedance) == len(frequency_array)):
+            # reuse array
+            impedance = self.impedance
+        else:
+            # otherwise fast_resonator will create an array anyway
+            impedance = None
         self.frequency_array = frequency_array
-        self.impedance = bm.fast_resonator(
-            self.R_S, self.Q, self.frequency_array, self.frequency_R
-        )
+        # fast_resonator should use and write on impedance, if not None
+        self.impedance = bm.fast_resonator(R_S=self.R_S,
+                                           Q=self.Q,
+                                           frequency_array=self.frequency_array,
+                                           frequency_R=self.frequency_R,
+                                           impedance=impedance
+                                           )
+
 
     def _imped_calc_python(self, frequency_array: NumpyArray):
         r"""
@@ -736,7 +746,7 @@ class Resonators(_ImpedanceObject):
                 )
             )
 
-    def _imped_calc_cpp(self, frequency_array: NumpyArray) -> None:
+    def _imped_calc_cpp(self, frequency_array: NumpyArray):
         r"""
         Impedance calculation method as a function of frequency optimised in C++
 
@@ -836,7 +846,7 @@ class TravelingWaveCavity(_ImpedanceObject):
         # Number of resonant modes
         self.n_twc = len(self.R_S)
 
-    def wake_calc(self, time_array: NumpyArray) -> None:
+    def wake_calc(self, time_array: NumpyArray):
         r"""
         Wake calculation method as a function of time.
 
@@ -1226,7 +1236,7 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         r_bend: float,
         gamma: Optional[float] = None,
         chamber_height: float = np.inf,
-    ) -> None:
+    ):
         r"""
 
 
@@ -1245,7 +1255,7 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
             plates impedances are used. If false, the Lorentz factor `gamma` must be specified.
             The default is True.
         parallel_plates : TYPE, optional
-            If ture, the parallel plates impedance is computed. In this case, `chamber_height`
+            If true, the parallel plates impedance is computed. In this case, `chamber_height`
             must be specified. If false, the free-space impedance is computed. The default is False.
 
         Raises
@@ -1612,7 +1622,7 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         epsilon: float = 1e-6,
         low_frequency_transition: float = 1e-5,
         high_frequency_transition: float = 10,
-    ) -> None:
+    ):
         r"""
         Computes the exact free-space synchrotron radiation impedance, based on eqs. A4 and A5 of
         [Murphy1997]_. For computation speed and numerical stability, the approximate expressions

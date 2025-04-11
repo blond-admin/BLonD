@@ -32,6 +32,10 @@ from blond.impedances.impedance_sources import (
     TravelingWaveCavity,
 )
 
+try:
+    np.trapezoid
+except AttributeError:
+    np.trapezoid = np.trapz
 
 class Test_FftHandler(unittest.TestCase):
     def setUp(self):

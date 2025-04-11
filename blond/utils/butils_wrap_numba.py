@@ -2,10 +2,12 @@
 BLonD physics functions, numba implementations
 """
 from __future__ import annotations
-
 import math
 import random
 from typing import TYPE_CHECKING
+
+import math
+import random
 
 import numpy as np
 from numba import get_num_threads, get_thread_id
@@ -14,14 +16,14 @@ from numba import prange
 from scipy.constants import e
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray as NumpyArray
 
 
 # --------------- Similar to kick.cpp -----------------
 @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-def kick(dt: NDArray, dE: NDArray, voltage: NDArray,
-         omega_rf: NDArray, phi_rf: NDArray,
-         charge: float, n_rf: int, acceleration_kick: float) -> None:
+def kick(dt: NumpyArray, dE: NumpyArray, voltage: NumpyArray,
+         omega_rf: NumpyArray, phi_rf: NumpyArray,
+         charge: float, n_rf: int, acceleration_kick: float):
     """
     Function to apply RF kick on the particles with sin function
     """
@@ -35,18 +37,18 @@ def kick(dt: NDArray, dE: NDArray, voltage: NDArray,
 
 
 @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-def rf_volt_comp(voltages: NDArray, omega_rf: NDArray, phi_rf: NDArray,
-                 bin_centers: NDArray) -> NDArray:
+def rf_volt_comp(voltages: NumpyArray, omega_rf: NumpyArray, phi_rf: NumpyArray,
+                 bin_centers: NumpyArray) -> NumpyArray:
     """Compute rf voltage at each bin.
 
     Args:
-        voltages (NDArray): _description_
-        omega_rf (NDArray): _description_
-        phi_rf (NDArray): _description_
-        bin_centers (NDArray): _description_
+        voltages (NumpyArray): _description_
+        omega_rf (NumpyArray): _description_
+        phi_rf (NumpyArray): _description_
+        bin_centers (NumpyArray): _description_
 
     Returns:
-        NDArray: _description_
+        NumpyArray: _description_
     """
     rf_voltage = np.zeros(len(bin_centers))
 
@@ -63,10 +65,10 @@ def rf_volt_comp(voltages: NDArray, omega_rf: NDArray, phi_rf: NDArray,
 
 # --------------- Similar to drift.cpp -----------------
 @jit(nopython=True, fastmath=True, parallel=True, cache=True)
-def drift(dt: NDArray, dE: NDArray, solver: str, t_rev: float,
+def drift(dt: NumpyArray, dE: NumpyArray, solver: str, t_rev: float,
           length_ratio: float, alpha_order, eta_0: float,
           eta_1: float, eta_2: float, alpha_0: float,
-          alpha_1: float, alpha_2: float, beta: float, energy: float) -> None:
+          alpha_1: float, alpha_2: float, beta: float, energy: float):
     """
     Function to apply drift equation of motion
     0 == 'simple'
@@ -119,13 +121,13 @@ def drift(dt: NDArray, dE: NDArray, solver: str, t_rev: float,
 
 # --------------- Similar to histogram.cpp -----------------
 @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-def slice_beam(dt: NDArray, profile: NDArray,
-               cut_left: float, cut_right: float) -> None:
+def slice_beam(dt: NumpyArray, profile: NumpyArray,
+               cut_left: float, cut_right: float):
     """Slice the time coordinate of the beam.
 
     Args:
-        dt (NDArray): _description_
-        profile (NDArray): _description_
+        dt (NumpyArray): _description_
+        profile (NumpyArray): _description_
         cut_left (float): _description_
         cut_right (float): _description_
     """
@@ -162,72 +164,21 @@ def slice_beam(dt: NDArray, profile: NDArray,
         for j in range(n_threads):
             profile[i] += local_profile[j, i]
 
-    # profile[:] = 0.0
 
-    # profile_len = len(profile)
-    # inv_bin_width = profile_len / (cut_right - cut_left)
-    # target_bin = np.empty(len(dt), dtype=np.int32)
-    # for i in prange(len(dt)):
-    #     target_bin[i] = int(np.floor((dt[i] - cut_left) * inv_bin_width))
-
-    # for tbin in target_bin:
-    #     if tbin >= 0 and tbin < profile_len:
-    #         profile[tbin] += 1.0
-
-    # profile[:] = np.histogram(dt, bins=len(profile),
-    #                          range=(cut_left, cut_right))[0]
-
-
-@jit(nopython=True, fastmath=True, parallel=True, cache=True)
-def slice_smooth(dt: NDArray, profile: NDArray,
-                 cut_left: float, cut_right: float) -> None:
-    """Smooth slice method.
-
-    Args:
-        dt (NDArray): _description_
-        profile (NDArray): _description_
-        cut_left (float): _description_
-        cut_right (float): _description_
-    """
-    # Constants init
-    n_slices = len(profile)
-    bin_width = (cut_right - cut_left) / n_slices
-    inv_bin_width = 1. / bin_width
-    const1 = (cut_left + bin_width * 0.5)
-    const2 = (cut_right - bin_width * 0.5)
-
-    profile[:] = 0.0
-
-    for a in dt:
-        if (a < const1) or (a > const2):
-            continue
-
-        fbin = (a - cut_left) * inv_bin_width
-        ffbin = int(fbin)
-        distToCenter = fbin - ffbin
-        if distToCenter > 0.5:
-            fffbin = int(fbin + 1)
-        else:
-            fffbin = int(fbin - 1)
-        profile[ffbin] += (0.5 - distToCenter)
-        profile[fffbin] += (0.5 + distToCenter)
-
-
-# ---------------------------------------------------
 
 
 # --------------- Similar to linear_interp_kick.cpp -----------------
 @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-def linear_interp_kick(dt: NDArray, dE: NDArray, voltage: NDArray,
-                       bin_centers: NDArray, charge: float,
-                       acceleration_kick: float) -> None:
+def linear_interp_kick(dt: NumpyArray, dE: NumpyArray, voltage: NumpyArray,
+                       bin_centers: NumpyArray, charge: float,
+                       acceleration_kick: float):
     """Interpolated kick method.
 
     Args:
-        dt (NDArray): _description_
-        dE (NDArray): _description_
-        voltage (NDArray): _description_
-        bin_centers (NDArray): _description_
+        dt (NumpyArray): _description_
+        dE (NumpyArray): _description_
+        voltage (NumpyArray): _description_
+        bin_centers (NumpyArray): _description_
         charge (float): _description_
         acceleration_kick (float): _description_
     """
@@ -241,7 +192,7 @@ def linear_interp_kick(dt: NDArray, dE: NDArray, voltage: NDArray,
                              * helper[2 * i]) + acceleration_kick
 
     for i in prange(len(dt)):
-        fbin = int(np.floor((dt[i] - bin_centers[0]) * inv_bin_width))
+        fbin = int(np.floor((dt[i] - bin_centers[0]) * inv_bin_width))  # FIXME THIS IS DEACTIVATED IN PYTHON VERSION
         if (fbin >= 0) and (fbin < n_slices - 1):
             dE[i] += dt[i] * helper[2 * fbin] + helper[2 * fbin + 1]
 
@@ -251,12 +202,12 @@ def linear_interp_kick(dt: NDArray, dE: NDArray, voltage: NDArray,
 
 # --------------- Similar to synchrotron_radiation.cpp -----------------
 @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-def synchrotron_radiation(dE: NDArray, U0: float,
-                          n_kicks: int, tau_z: float) -> None:
+def synchrotron_radiation(dE: NumpyArray, U0: float,
+                          n_kicks: int, tau_z: float):
     """Apply SR
 
     Args:
-        dE (NDArray): _description_
+        dE (NumpyArray): _description_
         U0 (float): _description_
         n_kicks (int): _description_
         tau_z (float): _description_
@@ -269,18 +220,19 @@ def synchrotron_radiation(dE: NDArray, U0: float,
     const_synch_rad = 1.0 - 2.0 / tau_z
 
     for i in prange(len(dE)):
-        for _ in range(n_kicks):
+        for _ in range(n_kicks): \
+            # FIXME THIS SEEMS TO BE VERY DIFFERENT FROM PYTHON IMPLEMENTATION
             dE[i] = dE[i] * const_synch_rad - U0
 
 
 @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-def synchrotron_radiation_full(dE: NDArray, U0: float,
+def synchrotron_radiation_full(dE: NumpyArray, U0: float,
                                n_kicks: int, tau_z: float,
-                               sigma_dE: float, energy: float) -> None:
+                               sigma_dE: float, energy: float):
     """Apply SR with quantum excitation
 
     Args:
-        dE (NDArray): _description_
+        dE (NumpyArray): _description_
         U0 (float): _description_
         n_kicks (int): _description_
         tau_z (float): _description_
@@ -298,184 +250,14 @@ def synchrotron_radiation_full(dE: NDArray, U0: float,
     for i in prange(len(dE)):
         # rand_arr = np.random.normal(0.0, 1.0, size=n_kicks)
         for j in range(n_kicks):
+            # FIXME THIS SEEMS TO BE VERY DIFFERENT FROM PYTHON IMPLEMENTATION
             dE[i] = dE[i] * const_synch_rad + \
                     const_quantum_exc * random.gauss(0.0, 1.0) - U0
 
 
-# @jit(nopython=False, nogil=True, fastmath=False, parallel=False)
-def set_random_seed(seed: int) -> None:
-    """Set the seed of the RNG used in synchrotron radiation
-
-    Args:
-        seed (int): _description_
-    """
-    np.random.seed(seed)
-    random.seed(seed)
-
-
-# ---------------------------------------------------
-
-
-# --------------- Similar to music_track.cpp -----------------
-@jit(nopython=True, nogil=True, fastmath=True, cache=True)
-def music_track(dt: NDArray, dE: NDArray, induced_voltage: NDArray,
-                array_parameters: NDArray, alpha: float, omega_bar: float,
-                const: float, coeff1: float, coeff2: float,
-                coeff3: float, coeff4: float) -> None:
-    """
-    This function calculates the single-turn induced voltage and updates the
-    energies of the particles.
-
-    Parameters
-    ----------
-    dt : float array
-        Longitudinal coordinates [s]
-    dE : float array
-        Initial energies [V]
-    induced_voltage : float array
-        array used to store the output of the computation
-    array_parameters : float array
-        See documentation in music.py
-    alpha, omega_bar, const, coeff1, coeff2, coeff3, coeff4 : floats
-        See documentation in music.py
-
-    Returns
-    -------
-    induced_voltage : float array
-        Computed induced voltage.
-    beam_dE : float array
-        Array of energies updated.
-    """
-
-    indices_sorted = np.argsort(dt)
-    dt = dt[indices_sorted]
-    dE = dE[indices_sorted]
-
-    # MuSiC algorithm
-    dE[0] += induced_voltage[0]
-    input_first_component = 1.0
-    input_second_component = 0.0
-
-    for i in range(len(dt) - 1):
-        time_difference = dt[i + 1] - dt[i]
-
-        exp_term = np.exp(-alpha * time_difference)
-        cos_term = np.cos(omega_bar * time_difference)
-        sin_term = np.sin(omega_bar * time_difference)
-
-        product_first_component = exp_term * \
-                                  ((cos_term + coeff1 * sin_term) * input_first_component
-                                   + coeff2 * sin_term * input_second_component)
-        product_second_component = exp_term * \
-                                   (coeff3 * sin_term * input_first_component
-                                    + (cos_term + coeff4 * sin_term) * input_second_component)
-
-        induced_voltage[i + 1] = const * (0.5 + product_first_component)
-        dE[i + 1] += induced_voltage[i + 1]
-
-        input_first_component = product_first_component + 1.0
-        input_second_component = product_second_component
-
-    array_parameters[0] = input_first_component
-    array_parameters[1] = input_second_component
-    array_parameters[3] = dt[-1]
-
-
-@jit(nopython=True, nogil=True, fastmath=True, cache=True)
-def music_track_multiturn(dt: NDArray, dE: NDArray, induced_voltage: NDArray,
-                          array_parameters: NDArray, alpha: float, omega_bar: float,
-                          const: float, coeff1: float, coeff2: float,
-                          coeff3: float, coeff4: float) -> None:
-    """This function calculates the multi-turn induced voltage and updates the
-    energies of the particles.
-    Parameters and Returns as for music_track.
-
-    Args:
-        dt (NDArray): _description_
-        dE (NDArray): _description_
-        induced_voltage (NDArray): _description_
-        array_parameters (NDArray): _description_
-        alpha (float): _description_
-        omega_bar (float): _description_
-        const (float): _description_
-        coeff1 (float): _description_
-        coeff2 (float): _description_
-        coeff3 (float): _description_
-        coeff4 (float): _description_
-    """
-    indices_sorted = np.argsort(dt)
-    dt = dt[indices_sorted]
-    dE = dE[indices_sorted]
-    time_difference_0 = dt[0] + array_parameters[2] - array_parameters[3]
-    exp_term = np.exp(-alpha * time_difference_0)
-    cos_term = np.cos(omega_bar * time_difference_0)
-    sin_term = np.sin(omega_bar * time_difference_0)
-
-    product_first_component = exp_term * (
-            (cos_term + coeff1 * sin_term)
-            * array_parameters[0]
-            + coeff2 * sin_term * array_parameters[1])
-
-    product_second_component = exp_term * (
-            coeff3 * sin_term * array_parameters[0]
-            + (cos_term + coeff4 * sin_term) * array_parameters[1])
-
-    induced_voltage[0] = const * (0.5 + product_first_component)
-
-    dE[0] += induced_voltage[0]
-    input_first_component = product_first_component + 1.0
-    input_second_component = product_second_component
-
-    # MuSiC algorithm for the current turn
-
-    for i in range(len(dt) - 1):
-        time_difference = dt[i + 1] - dt[i]
-
-        exp_term = np.exp(-alpha * time_difference)
-        cos_term = np.cos(omega_bar * time_difference)
-        sin_term = np.sin(omega_bar * time_difference)
-
-        product_first_component = exp_term * \
-                                  ((cos_term + coeff1 * sin_term) * input_first_component
-                                   + coeff2 * sin_term * input_second_component)
-        product_second_component = exp_term * \
-                                   (coeff3 * sin_term * input_first_component
-                                    + (cos_term + coeff4 * sin_term) * input_second_component)
-
-        induced_voltage[i + 1] = const * (0.5 + product_first_component)
-        dE[i + 1] += induced_voltage[i + 1]
-
-        input_first_component = product_first_component + 1.0
-        input_second_component = product_second_component
-
-    array_parameters[0] = input_first_component
-    array_parameters[1] = input_second_component
-    array_parameters[3] = dt[-1]
-
-
-# ---------------------------------------------------
-
-
-# # --------------- Similar to fast_resonator.cpp -----------------
-# @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-# def fast_resonator(R_S: NDArray, Q: NDArray, frequency_array: NDArray,
-#                    frequency_R: NDArray, impedance: NDArray = None) -> NDArray:
-
-#     if impedance is None:
-#         impedance = np.zeros(len(frequency_array), dtype=np.complex128)
-
-#     for freq in prange(1, len(frequency_array)):
-#         impedance[freq] = 0.0
-#         for i in range(len(R_S)):
-#             impedance[freq] += R_S[i] / (1 + 1j * Q[i] * (frequency_array[freq] / frequency_R[i] -
-#                                                           frequency_R[i] / frequency_array[freq]))
-
-#     return impedance
-# # ---------------------------------------------------
-
-# --------------- Similar to fast_resonator.cpp -----------------
-def fast_resonator(R_S: NDArray, Q: NDArray, frequency_array: NDArray,
-                   frequency_R: NDArray, impedance: NDArray = None) -> NDArray:
+def fast_resonator(R_S: NumpyArray, Q: NumpyArray, frequency_array: NumpyArray,
+                   frequency_R: NumpyArray, impedance: NumpyArray = None) -> (
+        NumpyArray):
     """
     We're defining and calling a function internally due to issues
     dealing with parallelization and the allocation of the impedance array.
@@ -484,10 +266,11 @@ def fast_resonator(R_S: NDArray, Q: NDArray, frequency_array: NDArray,
         impedance = np.zeros(len(frequency_array), dtype=np.complex128)
 
     @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-    def calc_impedance(R_S: NDArray, Q: NDArray, frequency_array: NDArray,
-                       frequency_R: NDArray, impedance: NDArray):
+    def calc_impedance(R_S: NumpyArray, Q: NumpyArray, frequency_array: NumpyArray,
+                       frequency_R: NumpyArray, impedance: NumpyArray):
         for freq in prange(1, len(frequency_array)):
             for i in range(len(R_S)):
+                # todo speedup with tmp variable
                 impedance[freq] += R_S[i] / (1 + 1j * Q[i] * (frequency_array[freq] / frequency_R[i] -
                                                               frequency_R[i] / frequency_array[freq]))
 
@@ -496,132 +279,18 @@ def fast_resonator(R_S: NDArray, Q: NDArray, frequency_array: NDArray,
     return impedance
 
 
-# ---------------------------------------------------
-
-
-# --------------- Similar to beam_phase.cpp -----------------
 @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-def beam_phase(bin_centers: NDArray, profile: NDArray,
-               alpha: float, omegarf: float,
-               phirf: float, bin_size: float) -> float:
-    scoeff = np.trapz(np.exp(alpha * (bin_centers))
-                      * np.sin(omegarf * bin_centers + phirf)
-                      * profile, dx=bin_size)
-    ccoeff = np.trapz(np.exp(alpha * (bin_centers))
-                      * np.cos(omegarf * bin_centers + phirf)
-                      * profile, dx=bin_size)
-
-    return scoeff / ccoeff
-
-
-@jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-def beam_phase_fast(bin_centers: NDArray, profile: NDArray,
-                    omegarf: float, phirf: float, bin_size: float) -> float:
-    scoeff = np.trapz(profile * np.sin(omegarf * bin_centers + phirf),
-                      dx=bin_size)
-    ccoeff = np.trapz(profile * np.cos(omegarf * bin_centers + phirf),
-                      dx=bin_size)
-
-    return scoeff / ccoeff
-
-
-# ---------------------------------------------------
-
-
-# --------------- Similar to sparse_histogram.cpp -----------------
-@jit(nopython=True, nogil=True, fastmath=True, parallel=False)
-def sparse_histogram(dt: NDArray, profile: NDArray,
-                     cut_left: NDArray, cut_right: NDArray,
-                     bunch_indexes: NDArray, n_slices_bucket: int) -> None:
-    """
-    Optimised routine that calculates the histogram for a sparse beam
-    Author: Juan F. Esteban Mueller, Danilo Quartullo, Alexandre Lasheen, Markus Schwarz
-    """
-    # Only valid for cut_edges = edges
-    inv_bucket_length = 1.0 / (cut_right[0] - cut_left[0])
-    inv_bin_width = inv_bucket_length * n_slices_bucket
-
-    profile[:] = 0.0
-
-    for a in dt:
-        if ((a < cut_left[0]) or (a > cut_right[-1])):
-            continue
-        # Find bucket in which the particle is and its index
-        fbunch = int((a - cut_left[0]) * inv_bucket_length)
-        i_bucket = int(bunch_indexes[fbunch])
-        if i_bucket == -1:
-            continue
-        # Find the bin inside the corresponding bucket
-        fbin = int((a - cut_left[i_bucket]) * inv_bin_width)
-        profile[i_bucket, fbin] += 1.0
-
-
-# ---------------------------------------------------
-
-
-# --------------- Similar to tomoscope.cpp -----------------
-@jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-def distribution_from_tomoscope(dt: NDArray, dE: NDArray, probDistr: NDArray,
-                                seed: int, profLen: int,
-                                cutoff: float, x0: float, y0: float,
-                                dtBin: float, dEBin: float) -> None:
-    """
-    Generation of particle distribution from probability density
-    Author: Helga Timko
-    """
-    import bisect
-
-    # Initialize random seed
-    np.random.seed(seed)
-
-    # Initialize variables
-    cutoff2 = cutoff * cutoff
-    dtMin = -1.0 * x0 * dtBin
-    dEMin = -1.0 * y0 * dEBin
-
-    # Calculate cumulative probability
-    # profLen2 = np.uint32(profLen * profLen)
-    cumulDistr = np.cumsum(probDistr)
-
-    # Normalize probability distribution
-    totProb = cumulDistr[-1]
-    cumulDistr = cumulDistr / totProb
-
-    # Generate particle coordinates
-
-    n = 0
-    while n < len(dt):
-        randProb = np.random.random()
-        m = bisect.bisect(cumulDistr, randProb)
-        # for m in range(profLen2):
-        #     if randProb < cumulDistr[m]:
-        #         break
-        i = int(m / profLen)
-        k = m % profLen
-
-        iPos = i + np.random.random() - 0.5
-        kPos = k + np.random.random() - 0.5
-
-        if ((iPos - x0) * (iPos - x0) + (kPos - y0) * (kPos - y0)) < cutoff2:
-            dt[n] = dtMin + iPos * dtBin
-            dE[n] = dEMin + kPos * dEBin
-            n += 1
-
-
-# ---------------------------------------------------
-
-@jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-def _resonator_induced_voltage_1_turn(kappa1: NDArray,
-                                      n_macroparticles: NDArray,
-                                      bin_centers: NDArray, bin_size: float,
-                                      deltaT: NDArray,
-                                      tArray: NDArray, reOmegaP: NDArray,
-                                      imOmegaP: NDArray, Qtilde: NDArray,
-                                      n_resonators: int, omega_r: NDArray,
-                                      Q: NDArray,
+def _resonator_induced_voltage_1_turn(kappa1: NumpyArray,
+                                      n_macroparticles: NumpyArray,
+                                      bin_centers: NumpyArray, bin_size: float,
+                                      deltaT: NumpyArray,
+                                      tArray: NumpyArray, reOmegaP: NumpyArray,
+                                      imOmegaP: NumpyArray, Qtilde: NumpyArray,
+                                      n_resonators: int, omega_r: NumpyArray,
+                                      Q: NumpyArray,
                                       charge: float, beam_n_macroparticles: int,
-                                      ratio: float, R: NDArray,
-                                      induced_voltage: NDArray):
+                                      ratio: float, R: NumpyArray,
+                                      induced_voltage: NumpyArray):
     r"""
         Method to calculate the induced voltage through linearly
         interpolating the line density and applying the analytic equation
@@ -629,31 +298,31 @@ def _resonator_induced_voltage_1_turn(kappa1: NDArray,
 
         Parameters
         ----------
-        kappa1: NDArray
+        kappa1: NumpyArray
             For ``InducedVoltageResonator``:  np.zeros(int(profile.n_slices - 1), dtype=bm.precision.real_t, order='C')
-        n_macroparticles: NDArray
+        n_macroparticles: NumpyArray
             ``Profile`` options
-        bin_centers: NDArray
+        bin_centers: NumpyArray
             ``Profile`` options
         bin_size: float
             ``Profile`` options
-        deltaT: NDArray
+        deltaT: NumpyArray
             For ``InducedVoltageResonator``: np.zeros((n_time, profile.n_slices), dtype=bm.precision.real_t, order='C')
-        tArray: NDArray
+        tArray: NumpyArray
             Array of time values where the induced voltage is calculated.
             If left out, the induced voltage is calculated at the times of the
             line density
-        reOmegaP: NDArray
+        reOmegaP: NumpyArray
             For``InducedVoltageResonator``:  omega_r * Qtilde / Q
-        imOmegaP: NDArray
+        imOmegaP: NumpyArray
             For``InducedVoltageResonator``: omega_r / (2. * Q)
-        Qtilde: NDArray
+        Qtilde: NumpyArray
             For ``InducedVoltageResonator``:  Q * np.sqrt(1. - 1. / (4. * Q**2.))
         n_resonators: int
             Number of resonators
-        omega_r: NDArray
+        omega_r: NumpyArray
             The resonant frequencies of the Resonators [1/s]
-        Q: NDArray
+        Q: NumpyArray
             Resonators parameters: Quality factors of the resonators
         charge: float
             ``Beam`` parameter
@@ -661,9 +330,9 @@ def _resonator_induced_voltage_1_turn(kappa1: NDArray,
             ``Beam`` parameter
         ratio: float
             ``Beam`` parameter
-        R: NDArray
+        R: NumpyArray
             Resonators parameters: Shunt impedances of the Resonators [:math:`\Omega`]
-        induced_voltage: NDArray
+        induced_voltage: NumpyArray
             Computed induced voltage [V]
         """
     # Compute the slopes of the line sections of the linearly interpolated
@@ -694,17 +363,17 @@ def _resonator_induced_voltage_1_turn(kappa1: NDArray,
         deltaT[i, :] = deltaTi[:]
 
 
-def resonator_induced_voltage_1_turn(kappa1: NDArray,
-                                     n_macroparticles: NDArray,
-                                     bin_centers: NDArray, bin_size: float,
-                                     n_time: int, deltaT: NDArray,
-                                     tArray: NDArray, reOmegaP: NDArray,
-                                     imOmegaP: NDArray, Qtilde: NDArray,
-                                     n_resonators: int, omega_r: NDArray,
-                                     Q: NDArray, tmp_matrix: NDArray,
+def resonator_induced_voltage_1_turn(kappa1: NumpyArray,
+                                     n_macroparticles: NumpyArray,
+                                     bin_centers: NumpyArray, bin_size: float,
+                                     n_time: int, deltaT: NumpyArray,
+                                     tArray: NumpyArray, reOmegaP: NumpyArray,
+                                     imOmegaP: NumpyArray, Qtilde: NumpyArray,
+                                     n_resonators: int, omega_r: NumpyArray,
+                                     Q: NumpyArray, tmp_matrix: NumpyArray,
                                      charge: float, beam_n_macroparticles: int,
-                                     ratio: float, R: NDArray,
-                                     induced_voltage: NDArray,
+                                     ratio: float, R: NumpyArray,
+                                     induced_voltage: NumpyArray,
                                      float_precision: type):
     r"""
         Method to calculate the induced voltage through linearly
@@ -713,31 +382,31 @@ def resonator_induced_voltage_1_turn(kappa1: NDArray,
 
         Parameters
         ----------
-        kappa1: NDArray
+        kappa1: NumpyArray
             For ``InducedVoltageResonator``:  np.zeros(int(profile.n_slices - 1), dtype=bm.precision.real_t, order='C')
-        n_macroparticles: NDArray
+        n_macroparticles: NumpyArray
             ``Profile`` options
-        bin_centers: NDArray
+        bin_centers: NumpyArray
             ``Profile`` options
         bin_size: float
             ``Profile`` options
-        deltaT: NDArray
+        deltaT: NumpyArray
             For ``InducedVoltageResonator``: np.zeros((n_time, profile.n_slices), dtype=bm.precision.real_t, order='C')
-        tArray: NDArray
+        tArray: NumpyArray
             Array of time values where the induced voltage is calculated.
             If left out, the induced voltage is calculated at the times of the
             line density
-        reOmegaP: NDArray
+        reOmegaP: NumpyArray
             For``InducedVoltageResonator``:  omega_r * Qtilde / Q
-        imOmegaP: NDArray
+        imOmegaP: NumpyArray
             For``InducedVoltageResonator``: omega_r / (2. * Q)
-        Qtilde: NDArray
+        Qtilde: NumpyArray
             For ``InducedVoltageResonator``:  Q * np.sqrt(1. - 1. / (4. * Q**2.))
         n_resonators: int
             Number of resonators
-        omega_r: NDArray
+        omega_r: NumpyArray
             The resonant frequencies of the Resonators [1/s]
-        Q: NDArray
+        Q: NumpyArray
             Resonators parameters: Quality factors of the resonators
         charge: float
             ``Beam`` parameter
@@ -745,9 +414,9 @@ def resonator_induced_voltage_1_turn(kappa1: NDArray,
             ``Beam`` parameter
         ratio: float
             ``Beam`` parameter
-        R: NDArray
+        R: NumpyArray
             Resonators parameters: Shunt impedances of the Resonators [:math:`\Omega`]
-        induced_voltage: NDArray
+        induced_voltage: NumpyArray
             Computed induced voltage [V]
         """
     assert isinstance(induced_voltage, np.ndarray)
@@ -766,3 +435,199 @@ def resonator_induced_voltage_1_turn(kappa1: NDArray,
     induced_voltage = induced_voltage.astype(dtype=float_precision, order='C',
                                              copy=False)
     return induced_voltage, deltaT
+
+
+@jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
+def _resonator_induced_voltage_1_turn(kappa1: NumpyArray,
+                                      n_macroparticles: NumpyArray,
+                                      bin_centers: NumpyArray, bin_size: float,
+                                      deltaT: NumpyArray,
+                                      tArray: NumpyArray, reOmegaP: NumpyArray,
+                                      imOmegaP: NumpyArray, Qtilde: NumpyArray,
+                                      n_resonators: int, omega_r: NumpyArray,
+                                      Q: NumpyArray,
+                                      charge: float, beam_n_macroparticles: int,
+                                      ratio: float, R: NumpyArray,
+                                      induced_voltage: NumpyArray):
+    r"""
+        Method to calculate the induced voltage through linearly
+        interpolating the line density and applying the analytic equation
+        to the result.
+
+        Parameters
+        ----------
+        kappa1: NumpyArray
+            For ``InducedVoltageResonator``:  np.zeros(int(profile.n_slices - 1), dtype=bm.precision.real_t, order='C')
+        n_macroparticles: NumpyArray
+            ``Profile`` options
+        bin_centers: NumpyArray
+            ``Profile`` options
+        bin_size: float
+            ``Profile`` options
+        deltaT: NumpyArray
+            For ``InducedVoltageResonator``: np.zeros((n_time, profile.n_slices), dtype=bm.precision.real_t, order='C')
+        tArray: NumpyArray
+            Array of time values where the induced voltage is calculated.
+            If left out, the induced voltage is calculated at the times of the
+            line density
+        reOmegaP: NumpyArray
+            For``InducedVoltageResonator``:  omega_r * Qtilde / Q
+        imOmegaP: NumpyArray
+            For``InducedVoltageResonator``: omega_r / (2. * Q)
+        Qtilde: NumpyArray
+            For ``InducedVoltageResonator``:  Q * np.sqrt(1. - 1. / (4. * Q**2.))
+        n_resonators: int
+            Number of resonators
+        omega_r: NumpyArray
+            The resonant frequencies of the Resonators [1/s]
+        Q: NumpyArray
+            Resonators parameters: Quality factors of the resonators
+        charge: float
+            ``Beam`` parameter
+        beam_n_macroparticles: int
+            ``Beam`` parameter
+        ratio: float
+            ``Beam`` parameter
+        R: NumpyArray
+            Resonators parameters: Shunt impedances of the Resonators [:math:`\Omega`]
+        induced_voltage: NumpyArray
+            Computed induced voltage [V]
+        """
+    # Compute the slopes of the line sections of the linearly interpolated
+    # (normalized) line density.
+    val = (-charge * e * beam_n_macroparticles * ratio)
+    for k in prange(1, len(kappa1)):
+        kappa1[k - 1] = ((n_macroparticles[k] - n_macroparticles[k - 1])
+                         / (bin_centers[k] - bin_centers[k - 1])
+                         / (beam_n_macroparticles * bin_size))
+
+    # For each cavity compute the induced voltage and store in the r-th row
+    for i in prange(len(induced_voltage)):
+        deltaTi = tArray[i] - bin_centers[:]
+        signdeltaTi = np.sign(deltaTi[:])
+        induced_voltagei = 0.0
+        for j in range(n_resonators):
+            reOmegaPdeltaTi = reOmegaP[j] * deltaTi[:]
+            sum_ = 0.0
+            tmp_sum = ((((2 * np.cos(reOmegaPdeltaTi[:]) + np.sin(reOmegaPdeltaTi[:]) / Qtilde[j])
+                         * (np.exp(-imOmegaP[j] * deltaTi[:])))
+                        * 0.5 * (signdeltaTi + 1.))  # Heaviside
+                       - signdeltaTi[:])
+
+            for k in range(kappa1.shape[0]):
+                sum_ += kappa1[k] * (tmp_sum[k + 1] - tmp_sum[k])
+            induced_voltagei += (R[j] / (2 * omega_r[j] * Q[j]) * sum_)
+        induced_voltage[i] = induced_voltagei * val
+        deltaT[i, :] = deltaTi[:]
+
+
+def resonator_induced_voltage_1_turn(kappa1: NumpyArray,
+                                     n_macroparticles: NumpyArray,
+                                     bin_centers: NumpyArray, bin_size: float,
+                                     n_time: int, deltaT: NumpyArray,
+                                     tArray: NumpyArray, reOmegaP: NumpyArray,
+                                     imOmegaP: NumpyArray, Qtilde: NumpyArray,
+                                     n_resonators: int, omega_r: NumpyArray,
+                                     Q: NumpyArray, tmp_matrix: NumpyArray,
+                                     charge: float, beam_n_macroparticles: int,
+                                     ratio: float, R: NumpyArray,
+                                     induced_voltage: NumpyArray,
+                                     float_precision: type):
+    r"""
+        Method to calculate the induced voltage through linearly
+        interpolating the line density and applying the analytic equation
+        to the result.
+
+        Parameters
+        ----------
+        kappa1: NumpyArray
+            For ``InducedVoltageResonator``:  np.zeros(int(profile.n_slices - 1), dtype=bm.precision.real_t, order='C')
+        n_macroparticles: NumpyArray
+            ``Profile`` options
+        bin_centers: NumpyArray
+            ``Profile`` options
+        bin_size: float
+            ``Profile`` options
+        deltaT: NumpyArray
+            For ``InducedVoltageResonator``: np.zeros((n_time, profile.n_slices), dtype=bm.precision.real_t, order='C')
+        tArray: NumpyArray
+            Array of time values where the induced voltage is calculated.
+            If left out, the induced voltage is calculated at the times of the
+            line density
+        reOmegaP: NumpyArray
+            For``InducedVoltageResonator``:  omega_r * Qtilde / Q
+        imOmegaP: NumpyArray
+            For``InducedVoltageResonator``: omega_r / (2. * Q)
+        Qtilde: NumpyArray
+            For ``InducedVoltageResonator``:  Q * np.sqrt(1. - 1. / (4. * Q**2.))
+        n_resonators: int
+            Number of resonators
+        omega_r: NumpyArray
+            The resonant frequencies of the Resonators [1/s]
+        Q: NumpyArray
+            Resonators parameters: Quality factors of the resonators
+        charge: float
+            ``Beam`` parameter
+        beam_n_macroparticles: int
+            ``Beam`` parameter
+        ratio: float
+            ``Beam`` parameter
+        R: NumpyArray
+            Resonators parameters: Shunt impedances of the Resonators [:math:`\Omega`]
+        induced_voltage: NumpyArray
+            Computed induced voltage [V]
+        """
+    assert isinstance(induced_voltage, np.ndarray)
+    _resonator_induced_voltage_1_turn(kappa1=kappa1,
+                                      n_macroparticles=n_macroparticles,
+                                      bin_centers=bin_centers, bin_size=bin_size,
+                                      deltaT=deltaT,
+                                      tArray=tArray, reOmegaP=reOmegaP,
+                                      imOmegaP=imOmegaP, Qtilde=Qtilde,
+                                      n_resonators=n_resonators, omega_r=omega_r,
+                                      Q=Q,
+                                      charge=charge, beam_n_macroparticles=beam_n_macroparticles,
+                                      ratio=ratio, R=R,
+                                      induced_voltage=induced_voltage
+                                      )
+    induced_voltage = induced_voltage.astype(dtype=float_precision, order='C',
+                                             copy=False)
+    return induced_voltage, deltaT
+
+from blond.utils.butils_wrap_python import (
+    distribution_from_tomoscope as __distribution_from_tomoscope_python,
+    sparse_histogram as __sparse_histogram_python,
+    beam_phase_fast as __beam_phase_fast_python,
+    beam_phase as __beam_phase_python,
+    music_track_multiturn as __music_track_multiturn_python,
+    music_track as __music_track_python,
+    slice_smooth as __slice_smooth_python,
+    # as __XXX_python,
+)
+# Just-in-time (JIT) compilation of Python routines for speedup
+# TODO define signature, similar to the C++ callbacks
+# TODO implement versions that can be executed in parallel
+options = dict(nopython=True, nogil=True, fastmath=True, cache=True)
+sparse_histogram = jit(__sparse_histogram_python, **options)
+sparse_histogram.__doc__ = __sparse_histogram_python.__doc__
+
+distribution_from_tomoscope = jit(__distribution_from_tomoscope_python, **options)
+distribution_from_tomoscope.__doc__ = __distribution_from_tomoscope_python.__doc__
+
+beam_phase_fast = jit(__beam_phase_fast_python, **options)
+beam_phase_fast.__doc__ = __beam_phase_fast_python.__doc__
+
+beam_phase = jit(__beam_phase_python, **options)
+beam_phase.__doc__ = __beam_phase_python.__doc__
+
+music_track_multiturn = jit(__music_track_multiturn_python, **options)
+music_track_multiturn.__doc__ = __music_track_multiturn_python.__doc__
+
+music_track = jit(__music_track_python, **options)
+music_track.__doc__ = __music_track_python.__doc__
+
+slice_smooth = jit(__slice_smooth_python, **options)
+slice_smooth.__doc__ = __slice_smooth_python.__doc__
+
+# XXX = jit(__XXX_python, **options)
+# XXX.__doc__ = __XXX_python.__doc__

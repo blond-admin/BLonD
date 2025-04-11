@@ -29,12 +29,12 @@ from ..utils.legacy_support import handle_legacy_kwargs
 from ..beam.profile import Profile, CutOptions
 
 if TYPE_CHECKING:
-    from typing import Optional, Callable, Literal
+    from typing import Optional, Callable, Literal, Any, Dict, Optional
 
-    from numpy.typing import NDArray as NumpyNDArray
-    from cupy.typing import NDArray as CupyNDArray
+    from numpy.typing import NDArray as NumpyArray
+    from cupy.typing import NDArray as CupyArray
 
-    NDArray = NumpyNDArray | CupyNDArray
+    NDArray = NumpyArray | CupyArray
 
     from ..beam.beam import Beam
     from .impedance_sources import _ImpedanceObject, Resonators, \
@@ -79,7 +79,7 @@ class TotalInducedVoltage:
 
     @handle_legacy_kwargs
     def __init__(self, beam: Beam, profile: Profile,
-                 induced_voltage_list: list[_InducedVoltage]) -> None:
+                 induced_voltage_list: list[_InducedVoltage]):
         """
         Constructor.
         """
@@ -107,7 +107,7 @@ class TotalInducedVoltage:
         for induced_voltage_object in self.induced_voltage_list:
             induced_voltage_object.process()
 
-    def induced_voltage_sum(self) -> None:
+    def induced_voltage_sum(self):
         """
         Method to sum all the induced voltages in one single array.
         """
@@ -146,7 +146,7 @@ class TotalInducedVoltage:
                               charge=self.beam.particle.charge,
                               acceleration_kick=0.)
 
-    def to_gpu(self, recursive=True):
+    def to_gpu(self, recursive: bool=True):
         """
         Transfer all necessary arrays to the GPU
         """
@@ -240,7 +240,7 @@ class _InducedVoltage(ABC):
                  multi_turn_wake: bool = False,
                  mtw_mode: MtwModeTypes = 'time',
                  rf_station: Optional[RFStation] = None,
-                 use_regular_fft: bool = True) -> None:
+                 use_regular_fft: bool = True):
 
         # Beam object in order to access the beam info
         self.beam = beam
@@ -249,7 +249,7 @@ class _InducedVoltage(ABC):
         self.profile = profile
 
         # Induced voltage from the sum of the wake sources in V
-        self.induced_voltage = np.zeros(int(profile.n_slices),
+        self.induced_voltage: NDArray = np.zeros(int(profile.n_slices),
                                         dtype=bm.precision.real_t, order='C')
 
         # Wake length in s (optional)
@@ -318,7 +318,7 @@ class _InducedVoltage(ABC):
         warn("RFParams is deprecated, use rf_params", DeprecationWarning, stacklevel=2)
         self.rf_station = val
 
-    def process(self) -> None:
+    def process(self):
         """
         Reprocess the impedance contributions. To be run when profile changes
         """
@@ -419,7 +419,7 @@ class _InducedVoltage(ABC):
 
 
     def induced_voltage_1turn(self,
-                              beam_spectrum_dict: Optional[dict] = None) -> None:  # todo improve type hint for dict
+                              beam_spectrum_dict: Optional[dict] = None):  # todo improve type hint for dict
         """
         Method to calculate the induced voltage at the current turn. DFTs are
         used for calculations in time and frequency domain (see classes below)
@@ -510,6 +510,12 @@ class _InducedVoltage(ABC):
                               charge=self.beam.particle.charge,
                               acceleration_kick=0.)
 
+    def to_gpu(self, recursive=True):
+        raise NotImplementedError()
+
+    def to_cpu(self, recursive=True):
+        raise NotImplementedError()
+
 
 class InducedVoltageTime(_InducedVoltage):
     r"""
@@ -554,7 +560,7 @@ class InducedVoltageTime(_InducedVoltage):
                  multi_turn_wake: bool = False,
                  rf_station: Optional[RFStation] = None,
                  mtw_mode: Optional[MtwModeTypes] = 'time',
-                 use_regular_fft: bool = True) -> None:
+                 use_regular_fft: bool = True):
 
         # Wake sources list (e.g. list of Resonator objects)
         self.wake_source_list: list[_ImpedanceObject] = wake_source_list
@@ -577,7 +583,7 @@ class InducedVoltageTime(_InducedVoltage):
                                  rf_station=rf_station, mtw_mode=mtw_mode,
                                  use_regular_fft=use_regular_fft)
 
-    def process(self) -> None:
+    def process(self):
         """
         Reprocess the impedance contributions. To be run when profile changes
         """
@@ -608,7 +614,7 @@ class InducedVoltageTime(_InducedVoltage):
         # Processing the wakes
         self.sum_wakes(self.time)
 
-    def sum_wakes(self, time_array: NDArray) -> None:
+    def sum_wakes(self, time_array: NDArray):
         """
         Summing all the wake contributions in one total wake.
         """
@@ -657,7 +663,7 @@ class InducedVoltageTime(_InducedVoltage):
         wake = self.total_wake
         return wake
 
-    def to_gpu(self, recursive=True):
+    def to_gpu(self, recursive: bool=True):
         """
         Transfer all necessary arrays to the GPU
         """
@@ -765,7 +771,7 @@ class InducedVoltageFreq(_InducedVoltage):
                  front_wake_length: float = 0,
                  rf_station: Optional[RFStation] = None,
                  mtw_mode: MtwModeTypes = 'time',
-                 use_regular_fft: bool = True) -> None:
+                 use_regular_fft: bool = True):
 
         # Impedance sources list (e.g. list of Resonator objects)
         self.impedance_source_list: list[_ImpedanceObject] = impedance_source_list
@@ -793,7 +799,7 @@ class InducedVoltageFreq(_InducedVoltage):
                                  rf_station=rf_station, mtw_mode=mtw_mode,
                                  use_regular_fft=use_regular_fft)
 
-    def process(self) -> None:
+    def process(self):
         """
         Reprocess the impedance contributions. To be run when profile change
         """
@@ -822,7 +828,7 @@ class InducedVoltageFreq(_InducedVoltage):
         # Processing the impedances
         self.sum_impedances(self.freq)
 
-    def sum_impedances(self, freq: NDArray) -> None:
+    def sum_impedances(self, freq: NDArray):
         """
         Summing all the wake contributions in one total impedance.
         """
@@ -862,7 +868,7 @@ class InducedVoltageFreq(_InducedVoltage):
             n=n,
         )
 
-    def to_gpu(self, recursive=True):
+    def to_gpu(self, recursive: bool=True):
         """
         Transfer all necessary arrays to the GPU
         """
@@ -955,7 +961,7 @@ class InductiveImpedance(_InducedVoltage):
         _InducedVoltage.__init__(self, beam=beam, profile=profile,
                                  rf_station=rf_station)
 
-    def induced_voltage_1turn(self, beam_spectrum_dict={}):
+    def induced_voltage_1turn(self, beam_spectrum_dict: Dict[int, NumpyArray]={}):
         """
         Method to calculate the induced voltage through the derivative of the
         profile. The impedance must be a constant Z/n.
@@ -1163,7 +1169,7 @@ class InducedVoltageResonator(_InducedVoltage):
         self._deltaT = np.zeros(
             (self.n_time, self.profile.n_slices), dtype=bm.precision.real_t, order='C')
 
-    def induced_voltage_1turn(self, beam_spectrum_dict={}):
+    def induced_voltage_1turn(self, beam_spectrum_dict: Dict[Any, Any]={}):
         r"""
         Method to calculate the induced voltage through linearly
         interpolating the line density and applying the analytic equation
@@ -1201,7 +1207,7 @@ class InducedVoltageResonator(_InducedVoltage):
         """
         raise NotImplementedError("Use `Resonators` with `InducedVoltageTime` instead!")
 
-    def to_gpu(self, recursive=True):
+    def to_gpu(self, recursive: bool=True):
         """
         Transfer all necessary arrays to the GPU
         """

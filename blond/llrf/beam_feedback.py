@@ -44,7 +44,7 @@ class BeamFeedback:
     def __init__(self, ring: Ring, rf_station: RFStation, profile: Profile,
                  configuration: dict[str, str | float],  # todo improve type hint
                  PhaseNoise: None = None,  # todo class doesnt exist anymore??
-                 LHCNoiseFB: Optional[LHCNoiseFB] = None, delay: int = 0) -> None:
+                 LHCNoiseFB: Optional[LHCNoiseFB] = None, delay: int = 0):
 
         #: | *Import Ring*
         self.ring = ring
@@ -258,7 +258,7 @@ class BeamFeedback:
         else:
             self.on_time = np.arange(ring.t_rev.size)
 
-    def beam_phase(self) -> None:
+    def beam_phase(self):
         """
         *Beam phase measured at the main RF frequency and phase. The beam is
         convolved with the window function of the band-pass filter of the

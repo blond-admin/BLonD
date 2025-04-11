@@ -14,14 +14,13 @@
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
-import numpy as np
 
 if TYPE_CHECKING:
     from os import PathLike
 
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray as NumpyArray
 
-def plot_voltage_programme(time: NDArray, voltage: NDArray, sampling: int = 1,
+def plot_voltage_programme(time: NumpyArray, voltage: NumpyArray, sampling: int = 1,
                            dirname: str | PathLike[str] = 'fig', figno: int = 0):
     """
     Plot of the RF voltage as a function of time.

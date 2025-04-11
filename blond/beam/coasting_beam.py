@@ -23,7 +23,7 @@ from ..utils import exceptions as blond_exceptions
 if TYPE_CHECKING:
     from typing import Literal, Optional
 
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray as NumpyArray
 
     from .beam import Beam
 
@@ -33,9 +33,9 @@ def generate_coasting_beam(
         spread_type: Literal['dp/p', 'dE/E', 'dp', 'dE',] = 'dp/p',
         energy_offset: float = 0,
         distribution: Literal['gaussian', 'parabolic', 'user'] = 'gaussian',
-        user_distribution: Optional[NDArray] = None,
-        user_probability: Optional[NDArray] = None
-) -> None:
+        user_distribution: Optional[NumpyArray] = None,
+        user_probability: Optional[NumpyArray] = None
+):
     """
     energy_offset represents the absolute energy difference between the center
     of the coasting beam and the synchronous particle spread is used for the

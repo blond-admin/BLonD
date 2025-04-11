@@ -26,7 +26,7 @@ from scipy.sparse.linalg import spsolve
 
 if TYPE_CHECKING:
     from typing import Optional
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray as NumpyArray
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +100,7 @@ def cavity_response_sparse_matrix(
     return spsolve(B_matrix, b)
 
 
-def rectangle(t: NDArray, tau: float) -> NDArray:
+def rectangle(t: NumpyArray, tau: float) -> NumpyArray:
     r"""Rectangular function of time
 
     .. math:: \mathsf{rect} \left( \frac{t}{\tau} \right) =
@@ -151,7 +151,7 @@ def rectangle(t: NDArray, tau: float) -> NDArray:
     return y
 
 
-def triangle(t: NDArray, tau: float) -> NDArray:
+def triangle(t: NumpyArray, tau: float) -> NumpyArray:
     r"""Triangular function of time
 
     .. math:: \mathsf{tri} \left( \frac{t}{\tau} \right) =
@@ -300,7 +300,7 @@ class TravellingWaveCavity:
             v_g: float,
             omega_r: float,
             df: float = 0,
-    ) -> None:
+    ):
         self.l_cell = float(l_cell)
         self.N_cells = int(N_cells)
         self.rho = float(rho)
@@ -330,7 +330,7 @@ class TravellingWaveCavity:
         self.logger.info("Class initialized")
         self.logger.debug("Filling time %.4e s", self.tau)
 
-    def impulse_response_gen(self, omega_c: float, time_coarse: NDArray) -> None:
+    def impulse_response_gen(self, omega_c: float, time_coarse: NumpyArray):
         r"""Impulse response from the cavity towards the
         generator. For a signal that is I,Q demodulated at a given carrier
         frequency :math:`\omega_c`. The formulae assume that the carrier
@@ -382,8 +382,8 @@ class TravellingWaveCavity:
             )
 
     def impulse_response_beam(
-            self, omega_c: float, time_fine: NDArray, time_coarse: Optional[NDArray] = None
-    ) -> None:
+            self, omega_c: float, time_fine: NumpyArray, time_coarse: Optional[NumpyArray] = None
+    ):
         r"""Impulse response from the cavity towards the beam. For a signal
         that is I,Q demodulated at a given carrier
         frequency :math:`\omega_c`. The formulae assume that the carrier
@@ -395,9 +395,9 @@ class TravellingWaveCavity:
         ----------
         omega_c : float
             Carrier revolution frequency [1/s]
-        time_fine : NDArray
+        time_fine : NumpyArray
             Time array of the beam profile to act on
-        time_coarse : NDArray
+        time_coarse : NumpyArray
             Time array of the LLRF to act on; default is None
 
         Attributes
@@ -451,7 +451,7 @@ class TravellingWaveCavity:
                         np.cos(self.d_omega * t_beam) - 1j * np.sin(self.d_omega * t_beam)
                 )
 
-    def compute_wakes(self, time: NDArray) -> None:
+    def compute_wakes(self, time: NumpyArray):
         r"""Computes the wake fields towards the beam and generator on the
         central cavity frequency.
         """
@@ -465,18 +465,18 @@ class TravellingWaveCavity:
 
 
 class SPS3Section200MHzTWC(TravellingWaveCavity):
-    def __init__(self, df: float = 0) -> None:
+    def __init__(self, df: float = 0):
         super().__init__(0.374, 32, 2.71e4, 0.0946, 2 * np.pi * 200.03766667e6,
                          df=df)
 
 
 class SPS4Section200MHzTWC(TravellingWaveCavity):
-    def __init__(self, df: float = 0) -> None:
+    def __init__(self, df: float = 0):
         super().__init__(0.374, 43, 2.71e4, 0.0946, 2 * np.pi * 199.9945e6,
                          df=df)
 
 
 class SPS5Section200MHzTWC(TravellingWaveCavity):
-    def __init__(self, df: float = 0) -> None:
+    def __init__(self, df: float = 0):
         super().__init__(0.374, 54, 2.71e4, 0.0946, 2 * np.pi * 200.1e6,
                          df=df)

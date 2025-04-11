@@ -5,24 +5,25 @@ BLonD physics functions, python-only implementations
 """
 from __future__ import annotations
 
+import bisect
 from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy.typing import NDArray
+from numpy.typing import NDArray as NumpyArray
 from scipy.constants import e
 
-from blond.utils import bmath as bm
-
 if TYPE_CHECKING:
-    from numpy.typing import NDArray
+    from typing import Optional
+
+    from numpy.typing import NDArray as NumpyArray
 
 RNG = np.random.default_rng()
 
 
 # --------------- Similar to kick.cpp -----------------
-def kick(dt: NDArray, dE: NDArray, voltage: NDArray,
-         omega_rf: NDArray, phi_rf: NDArray,
-         charge: float, n_rf: int, acceleration_kick: float) -> None:
+def kick(dt: NumpyArray, dE: NumpyArray, voltage: NumpyArray,
+         omega_rf: NumpyArray, phi_rf: NumpyArray,
+         charge: float, n_rf: int, acceleration_kick: float):
     """
     Function to apply RF kick on the particles with sin function
     """
@@ -35,18 +36,18 @@ def kick(dt: NDArray, dE: NDArray, voltage: NDArray,
     dE[:] += acceleration_kick
 
 
-def rf_volt_comp(voltages: NDArray, omega_rf: NDArray, phi_rf: NDArray,
-                 bin_centers: NDArray) -> NDArray:
+def rf_volt_comp(voltages: NumpyArray, omega_rf: NumpyArray, phi_rf: NumpyArray,
+                 bin_centers: NumpyArray) -> NumpyArray:
     """Compute rf voltage at each bin.
 
     Args:
-        voltages (NDArray): _description_
-        omega_rf (NDArray): _description_
-        phi_rf (NDArray): _description_
-        bin_centers (NDArray): _description_
+        voltages (NumpyArray): _description_
+        omega_rf (NumpyArray): _description_
+        phi_rf (NumpyArray): _description_
+        bin_centers (NumpyArray): _description_
 
     Returns:
-        NDArray: _description_
+        NumpyArray: _description_
     """
     rf_voltage = np.zeros(len(bin_centers))
 
@@ -61,10 +62,10 @@ def rf_volt_comp(voltages: NDArray, omega_rf: NDArray, phi_rf: NDArray,
 
 
 # --------------- Similar to drift.cpp -----------------
-def drift(dt: NDArray, dE: NDArray, solver: str, t_rev: float,
+def drift(dt: NumpyArray, dE: NumpyArray, solver: str, t_rev: float,
           length_ratio: float, alpha_order, eta_0: float,
           eta_1: float, eta_2: float, alpha_0: float,
-          alpha_1: float, alpha_2: float, beta: float, energy: float) -> None:
+          alpha_1: float, alpha_2: float, beta: float, energy: float):
     """
     Function to apply drift equation of motion
     """
@@ -112,13 +113,13 @@ def drift(dt: NDArray, dE: NDArray, solver: str, t_rev: float,
 
 
 # --------------- Similar to histogram.cpp -----------------
-def slice_beam(dt: NDArray, profile: NDArray,
-               cut_left: float, cut_right: float) -> None:
+def slice_beam(dt: NumpyArray, profile: NumpyArray,
+               cut_left: float, cut_right: float):
     """Slice the time coordinate of the beam.
 
     Args:
-        dt (NDArray): _description_
-        profile (NDArray): _description_
+        dt (NumpyArray): _description_
+        profile (NumpyArray): _description_
         cut_left (float): _description_
         cut_right (float): _description_
     """
@@ -126,13 +127,13 @@ def slice_beam(dt: NDArray, profile: NDArray,
                               range=(cut_left, cut_right))[0]
 
 
-def slice_smooth(dt: NDArray, profile: NDArray,
-                 cut_left: float, cut_right: float) -> None:
+def slice_smooth(dt: NumpyArray, profile: NumpyArray,
+                 cut_left: float, cut_right: float):
     """Smooth slice method.
 
     Args:
-        dt (NDArray): _description_
-        profile (NDArray): _description_
+        dt (NumpyArray): _description_
+        profile (NumpyArray): _description_
         cut_left (float): _description_
         cut_right (float): _description_
     """
@@ -164,16 +165,16 @@ def slice_smooth(dt: NDArray, profile: NDArray,
 
 
 # --------------- Similar to linear_interp_kick.cpp -----------------
-def linear_interp_kick(dt: NDArray, dE: NDArray, voltage: NDArray,
-                       bin_centers: NDArray, charge: float,
-                       acceleration_kick: float) -> None:
+def linear_interp_kick(dt: NumpyArray, dE: NumpyArray, voltage: NumpyArray,
+                       bin_centers: NumpyArray, charge: float,
+                       acceleration_kick: float):
     """Interpolated kick method.
 
     Args:
-        dt (NDArray): _description_
-        dE (NDArray): _description_
-        voltage (NDArray): _description_
-        bin_centers (NDArray): _description_
+        dt (NumpyArray): _description_
+        dE (NumpyArray): _description_
+        voltage (NumpyArray): _description_
+        bin_centers (NumpyArray): _description_
         charge (float): _description_
         acceleration_kick (float): _description_
     """
@@ -196,12 +197,12 @@ def linear_interp_kick(dt: NDArray, dE: NDArray, voltage: NDArray,
 
 
 # --------------- Similar to synchrotron_radiation.cpp -----------------
-def synchrotron_radiation(dE: NDArray, U0: float,
-                          n_kicks: int, tau_z: float) -> None:
+def synchrotron_radiation(dE: NumpyArray, U0: float,
+                          n_kicks: int, tau_z: float):
     """Apply SR
 
     Args:
-        dE (NDArray): _description_
+        dE (NumpyArray): _description_
         U0 (float): _description_
         n_kicks (int): _description_
         tau_z (float): _description_
@@ -210,13 +211,13 @@ def synchrotron_radiation(dE: NDArray, U0: float,
         dE += -(2.0 / tau_z / n_kicks * dE + U0 / n_kicks)
 
 
-def synchrotron_radiation_full(dE: NDArray, U0: float,
+def synchrotron_radiation_full(dE: NumpyArray, U0: float,
                                n_kicks: int, tau_z: float,
-                               sigma_dE: float, energy: float) -> None:
+                               sigma_dE: float, energy: float):
     """Apply SR with quantum excitation
 
     Args:
-        dE (NDArray): _description_
+        dE (NumpyArray): _description_
         U0 (float): _description_
         n_kicks (int): _description_
         tau_z (float): _description_
@@ -231,7 +232,7 @@ def synchrotron_radiation_full(dE: NDArray, U0: float,
                 RNG.standard_normal(len(dE)))
 
 
-def set_random_seed(seed: int) -> None:
+def set_random_seed(seed: int):
     """Set the seed of the RNG used in synchrotron radiation
 
     Args:
@@ -240,16 +241,17 @@ def set_random_seed(seed: int) -> None:
     global RNG
     # Re-initialize the RNG with new seed
     RNG = np.random.default_rng(seed)
+    np.random.seed(seed)
 
 
 # ---------------------------------------------------
 
 
 # --------------- Similar to music_track.cpp -----------------
-def music_track(dt: NDArray, dE: NDArray, induced_voltage: NDArray,
-                array_parameters: NDArray, alpha: float, omega_bar: float,
+def music_track(dt: NumpyArray, dE: NumpyArray, induced_voltage: NumpyArray,
+                array_parameters: NumpyArray, alpha: float, omega_bar: float,
                 const: float, coeff1: float, coeff2: float,
-                coeff3: float, coeff4: float) -> None:
+                coeff3: float, coeff4: float):
     """
     This function calculates the single-turn induced voltage and updates the
     energies of the particles.
@@ -309,19 +311,19 @@ def music_track(dt: NDArray, dE: NDArray, induced_voltage: NDArray,
     array_parameters[3] = dt[-1]
 
 
-def music_track_multiturn(dt: NDArray, dE: NDArray, induced_voltage: NDArray,
-                          array_parameters: NDArray, alpha: float, omega_bar: float,
+def music_track_multiturn(dt: NumpyArray, dE: NumpyArray, induced_voltage: NumpyArray,
+                          array_parameters: NumpyArray, alpha: float, omega_bar: float,
                           const: float, coeff1: float, coeff2: float,
-                          coeff3: float, coeff4: float) -> None:
+                          coeff3: float, coeff4: float):
     """This function calculates the multi-turn induced voltage and updates the
     energies of the particles.
     Parameters and Returns as for music_track.
 
     Args:
-        dt (NDArray): _description_
-        dE (NDArray): _description_
-        induced_voltage (NDArray): _description_
-        array_parameters (NDArray): _description_
+        dt (NumpyArray): _description_
+        dE (NumpyArray): _description_
+        induced_voltage (NumpyArray): _description_
+        array_parameters (NumpyArray): _description_
         alpha (float): _description_
         omega_bar (float): _description_
         const (float): _description_
@@ -384,8 +386,8 @@ def music_track_multiturn(dt: NDArray, dE: NDArray, induced_voltage: NDArray,
 
 
 # --------------- Similar to fast_resonator.cpp -----------------
-def fast_resonator(R_S: NDArray, Q: NDArray, frequency_array: NDArray,
-                   frequency_R: NDArray, impedance: NDArray = None) -> NDArray:
+def fast_resonator(R_S: NumpyArray, Q: NumpyArray, frequency_array: NumpyArray,
+                   frequency_R: NumpyArray, impedance: Optional[NumpyArray] = None) -> NumpyArray:
     """
     This function takes as an input a list of resonators parameters and
     computes the impedance in an optimised way.
@@ -426,25 +428,25 @@ def fast_resonator(R_S: NDArray, Q: NDArray, frequency_array: NDArray,
 
 
 # --------------- Similar to beam_phase.cpp -----------------
-def beam_phase(bin_centers: NDArray, profile: NDArray,
-               alpha: float, omegarf: float,
-               phirf: float, bin_size: float) -> float:
+def beam_phase(bin_centers: NumpyArray, profile: NumpyArray,
+               alpha: float, omega_rf: float,
+               phi_rf: float, bin_size: float) -> float:
     scoeff = np.trapezoid(np.exp(alpha * (bin_centers))
-                          * np.sin(omegarf * bin_centers + phirf)
-                          * profile, dx=bin_size)
+                      * np.sin(omega_rf * bin_centers + phi_rf)
+                      * profile, dx=bin_size)
     ccoeff = np.trapezoid(np.exp(alpha * (bin_centers))
-                          * np.cos(omegarf * bin_centers + phirf)
-                          * profile, dx=bin_size)
+                      * np.cos(omega_rf * bin_centers + phi_rf)
+                      * profile, dx=bin_size)
 
     return scoeff / ccoeff
 
 
-def beam_phase_fast(bin_centers: NDArray, profile: NDArray,
-                    omegarf: float, phirf: float, bin_size: float) -> float:
-    scoeff = np.trapezoid(profile * np.sin(omegarf * bin_centers + phirf),
-                          dx=bin_size)
-    ccoeff = np.trapezoid(profile * np.cos(omegarf * bin_centers + phirf),
-                          dx=bin_size)
+def beam_phase_fast(bin_centers: NumpyArray, profile: NumpyArray,
+                    omega_rf: float, phi_rf: float, bin_size: float) -> float:
+    scoeff = np.trapezoid(profile * np.sin(omega_rf * bin_centers + phi_rf),
+                      dx=bin_size)
+    ccoeff = np.trapezoid(profile * np.cos(omega_rf * bin_centers + phi_rf),
+                      dx=bin_size)
 
     return scoeff / ccoeff
 
@@ -453,9 +455,9 @@ def beam_phase_fast(bin_centers: NDArray, profile: NDArray,
 
 
 # --------------- Similar to sparse_histogram.cpp -----------------
-def sparse_histogram(dt: NDArray, profile: NDArray,
-                     cut_left: NDArray, cut_right: NDArray,
-                     bunch_indexes: NDArray, n_slices_bucket: int) -> None:
+def sparse_histogram(dt: NumpyArray, profile: NumpyArray,
+                     cut_left: NumpyArray, cut_right: NumpyArray,
+                     bunch_indexes: NumpyArray, n_slices_bucket: int):
     """
     Optimised routine that calculates the histogram for a sparse beam
     Author: Juan F. Esteban Mueller, Danilo Quartullo, Alexandre Lasheen, Markus Schwarz
@@ -486,12 +488,11 @@ def sparse_histogram(dt: NDArray, profile: NDArray,
 def distribution_from_tomoscope(dt: np.ndarray, dE: np.ndarray, probDistr: np.ndarray,
                                 seed: int, profLen: int,
                                 cutoff: float, x0: float, y0: float,
-                                dtBin: float, dEBin: float) -> None:
+                                dtBin: float, dEBin: float):
     """
     Generation of particle distribution from probability density
     Author: Helga Timko
     """
-    import bisect
 
     # Initialize random seed
     np.random.seed(seed)
@@ -531,17 +532,17 @@ def distribution_from_tomoscope(dt: np.ndarray, dE: np.ndarray, probDistr: np.nd
 # ---------------------------------------------------
 
 
-def resonator_induced_voltage_1_turn(kappa1: NDArray,
-                                     n_macroparticles: NDArray,
-                                     bin_centers: NDArray, bin_size: float,
-                                     n_time: int, deltaT: NDArray,
-                                     tArray: NDArray, reOmegaP: NDArray,
-                                     imOmegaP: NDArray, Qtilde: NDArray,
-                                     n_resonators: int, omega_r: NDArray,
-                                     Q: NDArray, tmp_matrix: NDArray,
+def resonator_induced_voltage_1_turn(kappa1: NumpyArray,
+                                     n_macroparticles: NumpyArray,
+                                     bin_centers: NumpyArray, bin_size: float,
+                                     n_time: int, deltaT: NumpyArray,
+                                     tArray: NumpyArray, reOmegaP: NumpyArray,
+                                     imOmegaP: NumpyArray, Qtilde: NumpyArray,
+                                     n_resonators: int, omega_r: NumpyArray,
+                                     Q: NumpyArray, tmp_matrix: NumpyArray,
                                      charge: float, beam_n_macroparticles: int,
-                                     ratio: float, R: NDArray,
-                                     induced_voltage: NDArray,
+                                     ratio: float, R: NumpyArray,
+                                     induced_voltage: NumpyArray,
                                      float_precision: type):
     r"""
     Method to calculate the induced voltage through linearly
@@ -550,35 +551,35 @@ def resonator_induced_voltage_1_turn(kappa1: NDArray,
 
     Parameters
     ----------
-    kappa1: NDArray
+    kappa1: NumpyArray
         For ``InducedVoltageResonator``:  np.zeros(int(profile.n_slices - 1), dtype=bm.precision.real_t, order='C')
-    n_macroparticles: NDArray
+    n_macroparticles: NumpyArray
         ``Profile`` options
-    bin_centers: NDArray
+    bin_centers: NumpyArray
         ``Profile`` options
     bin_size: float
         ``Profile`` options
     n_time: int
         length of ``tArray``
-    deltaT: NDArray
+    deltaT: NumpyArray
         For ``InducedVoltageResonator``: np.zeros((n_time, profile.n_slices), dtype=bm.precision.real_t, order='C')
-    tArray: NDArray
+    tArray: NumpyArray
         Array of time values where the induced voltage is calculated.
         If left out, the induced voltage is calculated at the times of the
         line density
-    reOmegaP: NDArray
+    reOmegaP: NumpyArray
         For``InducedVoltageResonator``:  omega_r * Qtilde / Q
-    imOmegaP: NDArray
+    imOmegaP: NumpyArray
         For``InducedVoltageResonator``: omega_r / (2. * Q)
-    Qtilde: NDArray
+    Qtilde: NumpyArray
         For ``InducedVoltageResonator``:  Q * np.sqrt(1. - 1. / (4. * Q**2.))
     n_resonators: int
         Number of resonators
-    omega_r: NDArray
+    omega_r: NumpyArray
         The resonant frequencies of the Resonators [1/s]
-    Q: NDArray
+    Q: NumpyArray
         Resonators parameters: Quality factors of the resonators
-    tmp_matrix: NDArray
+    tmp_matrix: NumpyArray
         For ``InducedVoltageResonator``: np.ones((n_resonators, n_time), dtype=bm.precision.real_t, order='C')
     charge: float
         ``Beam`` parameter
@@ -586,13 +587,15 @@ def resonator_induced_voltage_1_turn(kappa1: NDArray,
         ``Beam`` parameter
     ratio: float
         ``Beam`` parameter
-    R: NDArray
+    R: NumpyArray
         Resonators parameters: Shunt impedances of the Resonators [:math:`\Omega`]
-    induced_voltage: NDArray
+    induced_voltage: NumpyArray
         Computed induced voltage [V]
     float_precision: type
         Digital precision of calculation
     """
+    from blond.utils import bmath as bm # local import to prevent cyclic import
+
     # Compute the slopes of the line sections of the linearly interpolated
     # (normalized) line density.
     kappa1[:] = (bm.diff(n_macroparticles)

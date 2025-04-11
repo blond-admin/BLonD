@@ -17,11 +17,11 @@ import numpy as np
 import scipy.special as scisp
 from scipy.constants import e
 if TYPE_CHECKING:
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray as NumpyArray
 
 def analytical_gaussian_resonator(sigma_t: float, Q: float, R_s: float,
-                                  omega_r: float, tau_array: NDArray | float,
-                                  n_particles: int) -> NDArray | float:
+                                  omega_r: float, tau_array: NumpyArray | float,
+                                  n_particles: int) -> NumpyArray | float:
     r"""Calculate the analytical induced voltage for a gaussian bunch and a resonator.
 
     Parameters

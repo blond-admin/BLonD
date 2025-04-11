@@ -11,6 +11,10 @@ import gc
 
 import matplotlib.pyplot as plt
 import numpy as np
+try:
+    np.trapezoid
+except AttributeError:
+    np.trapezoid = np.trapz
 import scipy
 from packaging.version import Version
 
@@ -32,7 +36,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Optional
 
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray as NumpyArray
 
     from ..input_parameters.ring import Ring
     from .beam import Beam
@@ -47,7 +51,7 @@ def matched_from_distribution_density_multibunch(beam: Beam, ring: Ring, full_ri
                                                  distribution_options_list: list | dict,  # todo better specify
                                                  n_bunches: int,
                                                  bunch_spacing_buckets: int,
-                                                 intensity_list: list | NDArray | None = None,
+                                                 intensity_list: list | NumpyArray | None = None,
                                                  minimum_n_macroparticles: Optional[int] = None,
                                                  main_harmonic_option: MainHarmonicOptionType = 'lowest_freq',
                                                  total_induced_voltage: Optional[TotalInducedVoltage] = None,
@@ -246,7 +250,7 @@ def matched_from_line_density_multibunch(beam: Beam, ring: Ring,
                                          full_ring_and_rf: FullRingAndRF,
                                          line_density_options_list: list | dict, n_bunches,
                                          bunch_spacing_buckets: int,
-                                         intensity_list: list | NDArray | None = None,
+                                         intensity_list: list | NumpyArray | None = None,
                                          minimum_n_macroparticles: Optional[int] = None,
                                          main_harmonic_option: MainHarmonicOptionType = 'lowest_freq',
                                          total_induced_voltage: Optional[TotalInducedVoltage] = None,
@@ -792,7 +796,7 @@ def match_beam_from_distribution_multibatch(beam: Beam, full_ring_and_rf: FullRi
 
 
 def compute_x_grid(normalization_DeltaE,  # todo TypeHint
-                   time_array: NDArray, potential_well: NDArray,
+                   time_array: NumpyArray, potential_well: NumpyArray,
                    distribution_variable: DistributionVariableType):
     # Delta Energy array
     max_DeltaE = np.sqrt(np.max(potential_well) / normalization_DeltaE)
@@ -837,10 +841,10 @@ def compute_H0(emittance, H, J):
 
 @handle_legacy_kwargs
 def match_a_bunch(normalization_DeltaE: float, beam: Beam,
-                  potential_well_coordinates: NDArray, potential_well: NDArray,
+                  potential_well_coordinates: NumpyArray, potential_well: NumpyArray,
                   seed: int, distribution_options: DistributionOptionsType,
                   full_ring_and_rf: Optional[FullRingAndRF] = None)\
-                     -> tuple[NDArray, NDArray, NDArray, float, float, NDArray]:
+                     -> tuple[NumpyArray, NumpyArray, NumpyArray, float, float, NumpyArray]:
     if 'type' in distribution_options:
         distribution_type = distribution_options['type']
     else:

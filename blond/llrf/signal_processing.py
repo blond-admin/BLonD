@@ -31,7 +31,7 @@ from ..utils.legacy_support import handle_legacy_kwargs
 if TYPE_CHECKING:
     from typing import Optional
 
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray as NumpyArray
 
     from .impulse_response import TravellingWaveCavity
     from ..beam.profile import Profile
@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def polar_to_cartesian(amplitude: float | NDArray, phase: float | NDArray) -> NDArray | complex:
+def polar_to_cartesian(amplitude: float | NumpyArray, phase: float | NumpyArray) -> NumpyArray | complex:
     """Convert data from polar to cartesian (I,Q) coordinates.
 
     Parameters
@@ -60,7 +60,7 @@ def polar_to_cartesian(amplitude: float | NDArray, phase: float | NDArray) -> ND
     return amplitude * (np.cos(phase) + 1j * np.sin(phase))
 
 
-def cartesian_to_polar(IQ_vector: NDArray) -> tuple[NDArray, NDArray]:
+def cartesian_to_polar(IQ_vector: NumpyArray) -> tuple[NumpyArray, NumpyArray]:
     """Convert data from Cartesian (I,Q) to polar coordinates.
 
     Parameters
@@ -82,7 +82,7 @@ def cartesian_to_polar(IQ_vector: NDArray) -> tuple[NDArray, NDArray]:
     return np.absolute(IQ_vector), np.angle(IQ_vector)
 
 
-def get_power_gen_i(I_gen_per_cav: NDArray, Z_0: float) -> float:
+def get_power_gen_i(I_gen_per_cav: NumpyArray, Z_0: float) -> float:
     """RF generator power from generator current (physical, in [A]), for any
     f_r (and thus any tau)
 
@@ -101,8 +101,8 @@ def get_power_gen_i(I_gen_per_cav: NDArray, Z_0: float) -> float:
     return 0.5 * Z_0 * np.abs(I_gen_per_cav) ** 2
 
 
-def modulator(signal: NDArray, omega_i: float, omega_f: float,
-              T_sampling: float, phi_0: float = 0, dt: float = 0) -> NDArray:
+def modulator(signal: NumpyArray, omega_i: float, omega_f: float,
+              T_sampling: float, phi_0: float = 0, dt: float = 0) -> NumpyArray:
     """Demodulate a signal from initial frequency to final frequency. The two
     frequencies should be close.
 
@@ -145,7 +145,7 @@ def modulator(signal: NDArray, omega_i: float, omega_f: float,
 def rf_beam_current(profile: Profile, omega_c: float, T_rev: float, lpf: bool = True,
                     downsample: Optional[dict] = None,
                     external_reference: bool = True, dT: float = 0
-                    ) -> NDArray | tuple[NDArray, NDArray]:
+                    ) -> NumpyArray | tuple[NumpyArray, NumpyArray]:
     r"""Function calculating the beam charge at the (RF) frequency, slice by
     slice. The charge distribution [C] of the beam is determined from the beam
     profile :math:`\lambda_i`, the particle charge :math:`q_p` and the real vs.
@@ -261,14 +261,14 @@ def rf_beam_current(profile: Profile, omega_c: float, T_rev: float, lpf: bool = 
         return charges_fine
 
 
-def comb_filter(y: NDArray, x: NDArray, a: float) -> NDArray:
+def comb_filter(y: NumpyArray, x: NumpyArray, a: float) -> NumpyArray:
     """Feedback comb filter.
     """
 
     return a * y + (1 - a) * x
 
 
-def fir_filter_coefficients(n_taps: int, sampling_freq: float, cutoff_freq: float) -> NDArray:
+def fir_filter_coefficients(n_taps: int, sampling_freq: float, cutoff_freq: float) -> NumpyArray:
     """Band-stop type FIR filter from scipy
     http://docs.scipy.org
 
@@ -331,7 +331,7 @@ def fir_filter_lhc_otfb_coeff(n_taps: int = 63) -> list[float]:
     return coeff
 
 
-def fir_filter(coeff: NDArray, signal: NDArray):
+def fir_filter(coeff: NumpyArray, signal: NumpyArray):
     """Apply FIR filter on discrete time signal.
 
     Parameters
@@ -356,7 +356,7 @@ def fir_filter(coeff: NDArray, signal: NDArray):
     return filtered_signal
 
 
-def low_pass_filter(signal: NDArray, cutoff_frequency: float = 0.5) -> NDArray:
+def low_pass_filter(signal: NumpyArray, cutoff_frequency: float = 0.5) -> NumpyArray:
     """Low-pass filter based on Butterworth 5th order digital filter from
     scipy,
     http://docs.scipy.org
@@ -381,7 +381,7 @@ def low_pass_filter(signal: NDArray, cutoff_frequency: float = 0.5) -> NDArray:
     return sgn.filtfilt(b, a, signal)
 
 
-def moving_average(x: NDArray, N: int, x_prev: Optional[NDArray] = None) -> NDArray:
+def moving_average(x: NumpyArray, N: int, x_prev: Optional[NumpyArray] = None) -> NumpyArray:
     """Function to calculate the moving average (or running mean) of the input
     data.
 
@@ -413,7 +413,7 @@ def moving_average(x: NDArray, N: int, x_prev: Optional[NDArray] = None) -> NDAr
     return mov_avg[N - 1:] / N
 
 
-def moving_average_improved(x: NDArray, N: int, x_prev: Optional[NDArray] = None):
+def moving_average_improved(x: NumpyArray, N: int, x_prev: Optional[NumpyArray] = None):
     if x_prev is not None:
         x = np.concatenate((x_prev, x))
 
@@ -422,7 +422,7 @@ def moving_average_improved(x: NDArray, N: int, x_prev: Optional[NDArray] = None
     return mov_avg[:x.shape[0] - N + 1]
 
 
-def H_cav(x: NDArray, n_sections: int, x_prev: Optional[NDArray] = None):
+def H_cav(x: NumpyArray, n_sections: int, x_prev: Optional[NumpyArray] = None):
     if x_prev is not None:
         x = np.concatenate((x_prev, x))
 
@@ -448,7 +448,7 @@ def H_cav(x: NDArray, n_sections: int, x_prev: Optional[NDArray] = None):
     return resp[:x.shape[0] - h.shape[0] + 1]
 
 
-def smooth_step(x: NDArray, x_min: float = 0, x_max: float = 1, N: int = 1):
+def smooth_step(x: NumpyArray, x_min: float = 0, x_max: float = 1, N: int = 1):
     """Function to make a smooth step.
 
     Parameters
@@ -481,7 +481,7 @@ def smooth_step(x: NDArray, x_min: float = 0, x_max: float = 1, N: int = 1):
 
 def feedforward_filter(TWC: TravellingWaveCavity, T_s: float,
                        taps: Optional[int] = None, opt_output: bool = False)\
-                                              -> tuple[NDArray, int, int, int]:
+                                              -> tuple[NumpyArray, int, int, int]:
     """Function to design n-tap FIR filter for SPS TravellingWaveCavity.
 
     Parameters
@@ -678,7 +678,7 @@ feedforward_filter_TWC5 = np.array(
      -0.01802423])
 
 
-def plot_frequency_response(b: NDArray, a=1):
+def plot_frequency_response(b: NumpyArray, a=1):
     """Plotting the frequency response of a filter with coefficients a, b."""
 
     w, H = sgn.freqz(b, a)
