@@ -238,7 +238,7 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
     def test__induced_voltage_sum_single_profile(self):
         self.total_induced_voltage_NEW._induced_voltage_sum()
         self.total_induced_voltage_ORG.induced_voltage_sum()
-        DEV_DEBUG = False
+        DEV_DEBUG = True
         if DEV_DEBUG:
             plt.subplot(4, 1, 1)
             plt.plot(
@@ -461,7 +461,7 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
         ymax = max(plt.ylim())
         plt.ylim(-ymax, ymax)
 
-        #plt.show()
+        plt.show()
 
 
 if __name__ == "__main__":

@@ -20,13 +20,18 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 import numpy as np
-from matplotlib import pyplot as plt
 from scipy.constants import e
 
+from .impedance_sources import (
+    _ImpedanceObject,
+    Resonators,
+    InputTableFrequencyDomain,
+    ResistiveWall,
+)
+from ..beam.profile import Profile
 from ..toolbox.next_regular import next_regular
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
-from ..beam.profile import Profile, CutOptions
 
 if TYPE_CHECKING:
     from typing import Optional, Callable, Literal, Any, Dict, Optional
@@ -37,13 +42,11 @@ if TYPE_CHECKING:
     NDArray = NumpyArray | CupyArray
 
     from ..beam.beam import Beam
-    from .impedance_sources import _ImpedanceObject, Resonators, \
-    InputTableFrequencyDomain, ResistiveWall
+
     from ..input_parameters.rf_parameters import RFStation
     from ..utils.types import DeviceType, BeamProfileDerivativeModes
 
     MtwModeTypes = Literal["freq", "time"]
-
 
 
 class TotalInducedVoltage:
@@ -78,8 +81,9 @@ class TotalInducedVoltage:
     """
 
     @handle_legacy_kwargs
-    def __init__(self, beam: Beam, profile: Profile,
-                 induced_voltage_list: list[_InducedVoltage]):
+    def __init__(
+        self, beam: Beam, profile: Profile, induced_voltage_list: list[_InducedVoltage]
+    ):
         """
         Constructor.
         """
@@ -93,9 +97,9 @@ class TotalInducedVoltage:
         self.induced_voltage_list = induced_voltage_list
 
         # Induced voltage from the sum of the wake sources in V
-        self.induced_voltage: NDArray = np.zeros(int(self.profile.n_slices),
-                                                 dtype=bm.precision.real_t,
-                                                 order='C')
+        self.induced_voltage: NDArray = np.zeros(
+            int(self.profile.n_slices), dtype=bm.precision.real_t, order="C"
+        )
 
         # Time array of the wake in s
         self.time_array: NDArray = self.profile.bin_centers
@@ -116,14 +120,14 @@ class TotalInducedVoltage:
         temp_induced_voltage = 0
 
         for induced_voltage_object in self.induced_voltage_list:
-            induced_voltage_object.induced_voltage_generation(
-                beam_spectrum_dict)
-            temp_induced_voltage += \
-                induced_voltage_object.induced_voltage[:self.profile.n_slices]
+            induced_voltage_object.induced_voltage_generation(beam_spectrum_dict)
+            temp_induced_voltage += induced_voltage_object.induced_voltage[
+                : self.profile.n_slices
+            ]
 
         self.induced_voltage = temp_induced_voltage.astype(
-            dtype=bm.precision.real_t,
-            order='C', copy=False)
+            dtype=bm.precision.real_t, order="C", copy=False
+        )
 
     def track(self):
         """
@@ -131,27 +135,32 @@ class TotalInducedVoltage:
         """
 
         self.induced_voltage_sum()
-        bm.linear_interp_kick(dt=self.beam.dt, dE=self.beam.dE,
-                              voltage=self.induced_voltage,
-                              bin_centers=self.profile.bin_centers,
-                              charge=self.beam.particle.charge,
-                              acceleration_kick=0.)
+        bm.linear_interp_kick(
+            dt=self.beam.dt,
+            dE=self.beam.dE,
+            voltage=self.induced_voltage,
+            bin_centers=self.profile.bin_centers,
+            charge=self.beam.particle.charge,
+            acceleration_kick=0.0,
+        )
 
     @handle_legacy_kwargs
     def track_ghosts_particles(self, ghost_beam: Beam):
+        bm.linear_interp_kick(
+            dt=ghost_beam.dt,
+            dE=ghost_beam.dE,
+            voltage=self.induced_voltage,
+            bin_centers=self.profile.bin_centers,
+            charge=self.beam.particle.charge,
+            acceleration_kick=0.0,
+        )
 
-        bm.linear_interp_kick(dt=ghost_beam.dt, dE=ghost_beam.dE,
-                              voltage=self.induced_voltage,
-                              bin_centers=self.profile.bin_centers,
-                              charge=self.beam.particle.charge,
-                              acceleration_kick=0.)
-
-    def to_gpu(self, recursive: bool=True):
+    def to_gpu(self, recursive: bool = True):
         """
         Transfer all necessary arrays to the GPU
         """
         # Check if to_gpu has been invoked already
-        if hasattr(self, '_device') and self._device == 'GPU':
+        if hasattr(self, "_device") and self._device == "GPU":
             return
 
         if recursive:
@@ -160,18 +169,19 @@ class TotalInducedVoltage:
                 obj.to_gpu()
 
         import cupy as cp
+
         self.induced_voltage = cp.array(self.induced_voltage)
         self.time_array = cp.array(self.time_array)
 
         # to make sure it will not be called again
-        self._device: DeviceType = 'GPU'
+        self._device: DeviceType = "GPU"
 
     def to_cpu(self, recursive=True):
         """
         Transfer all necessary arrays back to the CPU
         """
         # Check if to_cpu has been invoked already
-        if hasattr(self, '_device') and self._device == 'CPU':
+        if hasattr(self, "_device") and self._device == "CPU":
             # todo statement shouldn't be required
             return
 
@@ -181,10 +191,11 @@ class TotalInducedVoltage:
                 obj.to_cpu()
 
         import cupy as cp
+
         self.induced_voltage = cp.asnumpy(self.induced_voltage)
         self.time_array = cp.asnumpy(self.time_array)
         # to make sure it will not be called again
-        self._device: DeviceType = 'CPU'
+        self._device: DeviceType = "CPU"
 
 
 class _InducedVoltage(ABC):
@@ -234,14 +245,17 @@ class _InducedVoltage(ABC):
     """
 
     @handle_legacy_kwargs
-    def __init__(self, beam: Beam, profile: Profile,
-                 frequency_resolution: Optional[float] = None,
-                 wake_length: Optional[float] = None,
-                 multi_turn_wake: bool = False,
-                 mtw_mode: MtwModeTypes = 'time',
-                 rf_station: Optional[RFStation] = None,
-                 use_regular_fft: bool = True):
-
+    def __init__(
+        self,
+        beam: Beam,
+        profile: Profile,
+        frequency_resolution: Optional[float] = None,
+        wake_length: Optional[float] = None,
+        multi_turn_wake: bool = False,
+        mtw_mode: MtwModeTypes = "time",
+        rf_station: Optional[RFStation] = None,
+        use_regular_fft: bool = True,
+    ):
         # Beam object in order to access the beam info
         self.beam = beam
 
@@ -249,8 +263,9 @@ class _InducedVoltage(ABC):
         self.profile = profile
 
         # Induced voltage from the sum of the wake sources in V
-        self.induced_voltage: NDArray = np.zeros(int(profile.n_slices),
-                                        dtype=bm.precision.real_t, order='C')
+        self.induced_voltage: NDArray = np.zeros(
+            int(profile.n_slices), dtype=bm.precision.real_t, order="C"
+        )
 
         # Wake length in s (optional)
         self.wake_length_input = wake_length
@@ -294,27 +309,29 @@ class _InducedVoltage(ABC):
         self.process()
 
     @property
-    def mtw_mode(self) -> Literal['freq', 'time']:
+    def mtw_mode(self) -> Literal["freq", "time"]:
         """Multi-turn wake mode can be 'freq' or 'time' (default). If 'freq'
         is used, each turn the induced voltage of previous turns is shifted
         in the frequency domain. For 'time', a linear interpolation is used."""
         return self._mtw_mode
 
     @mtw_mode.setter
-    def mtw_mode(self, mtw_mode: Literal['freq', 'time']):
-        if mtw_mode not in ('freq', 'time'):
+    def mtw_mode(self, mtw_mode: Literal["freq", "time"]):
+        if mtw_mode not in ("freq", "time"):
             raise ValueError(f"{mtw_mode=} not valid, choose either 'freq' or 'time'")
         self._mtw_mode = mtw_mode
 
     @property
     def RFParams(self):
         from warnings import warn
+
         warn("RFParams is deprecated, use rf_params", DeprecationWarning, stacklevel=2)
         return self.rf_station
 
     @RFParams.setter
     def RFParams(self, val):
         from warnings import warn
+
         warn("RFParams is deprecated, use rf_params", DeprecationWarning, stacklevel=2)
         self.rf_station = val
 
@@ -323,38 +340,50 @@ class _InducedVoltage(ABC):
         Reprocess the impedance contributions. To be run when profile changes
         """
 
-        if (self.wake_length_input is not None
-                and self.frequency_resolution_input is None):
+        if (
+            self.wake_length_input is not None
+            and self.frequency_resolution_input is None
+        ):
             # Number of points of the induced voltage array
             self.n_induced_voltage = int(
-                np.ceil(self.wake_length_input / self.profile.bin_size))
+                np.ceil(self.wake_length_input / self.profile.bin_size)
+            )
             if self.n_induced_voltage < self.profile.n_slices:
                 # WakeLengthError
-                raise RuntimeError('Error: too short wake length. ' +
-                                   'Increase it above {0:1.2e} s.'.format(
-                                       self.profile.n_slices * self.profile.bin_size))
+                raise RuntimeError(
+                    "Error: too short wake length. "
+                    + "Increase it above {0:1.2e} s.".format(
+                        self.profile.n_slices * self.profile.bin_size
+                    )
+                )
             # Wake length in s, rounded up to the next multiple of bin size
             self.wake_length = self.n_induced_voltage * self.profile.bin_size
-        elif (self.frequency_resolution_input is not None
-              and self.wake_length_input is None):
+        elif (
+            self.frequency_resolution_input is not None
+            and self.wake_length_input is None
+        ):
             self.n_induced_voltage = int(
-                np.ceil(1 / (self.profile.bin_size * self.frequency_resolution_input)))
+                np.ceil(1 / (self.profile.bin_size * self.frequency_resolution_input))
+            )
             if self.n_induced_voltage < self.profile.n_slices:
                 # FrequencyResolutionError
-                raise RuntimeError('Error: too large frequency_resolution. ' +
-                                   'Reduce it below {0:1.2e} Hz.'.format(
-                                       1 / (self.profile.cut_right - self.profile.cut_left)))
+                raise RuntimeError(
+                    "Error: too large frequency_resolution. "
+                    + "Reduce it below {0:1.2e} Hz.".format(
+                        1 / (self.profile.cut_right - self.profile.cut_left)
+                    )
+                )
             self.wake_length = self.n_induced_voltage * self.profile.bin_size
             # Frequency resolution in Hz
-        elif (self.wake_length_input is None
-              and self.frequency_resolution_input is None):
+        elif self.wake_length_input is None and self.frequency_resolution_input is None:
             # By default, the wake_length is the slicing frame length
-            self.wake_length = (self.profile.cut_right
-                                - self.profile.cut_left)
+            self.wake_length = self.profile.cut_right - self.profile.cut_left
             self.n_induced_voltage = self.profile.n_slices
         else:
-            raise RuntimeError('Error: only one of wake_length or ' +
-                               'frequency_resolution can be specified.')
+            raise RuntimeError(
+                "Error: only one of wake_length or "
+                + "frequency_resolution can be specified."
+            )
 
         if self.multi_turn_wake:
             # Number of points of the memory array for multi-turn wake
@@ -362,15 +391,17 @@ class _InducedVoltage(ABC):
 
             self.front_wake_buffer = 0
 
-            if self.mtw_mode == 'freq':
+            if self.mtw_mode == "freq":
                 # In frequency domain, an extra buffer for a revolution turn is
                 # needed due to the circular time shift in frequency domain
-                self.buffer_size = np.ceil(np.max(self.rf_station.t_rev)
-                                           / self.profile.bin_size)
+                self.buffer_size = np.ceil(
+                    np.max(self.rf_station.t_rev) / self.profile.bin_size
+                )
                 # Extending the buffer to reduce the effect of the front wake
                 # FIXME buffer_extra not declared
-                self.buffer_size += np.ceil(np.max(self.buffer_extra)
-                                            / self.profile.bin_size)
+                self.buffer_size += np.ceil(
+                    np.max(self.buffer_extra) / self.profile.bin_size
+                )
                 self.n_mtw_memory += int(self.buffer_size)
                 # Using next regular for FFTs speedup
                 if self.use_regular_fft:
@@ -378,23 +409,27 @@ class _InducedVoltage(ABC):
                 else:
                     self.n_mtw_fft = self.n_mtw_memory
                 # Frequency and omega arrays
-                self.freq_mtw = \
-                    bm.rfftfreq(self.n_mtw_fft, d=self.profile.bin_size)
+                self.freq_mtw = bm.rfftfreq(self.n_mtw_fft, d=self.profile.bin_size)
                 self.omegaj_mtw = 2.0j * np.pi * self.freq_mtw
                 # Selecting time-shift method
                 self.shift_trev = self.shift_trev_freq
-            elif self.mtw_mode == 'time':
+            elif self.mtw_mode == "time":
                 # Selecting time-shift method
                 self.shift_trev = self.shift_trev_time
                 # Time array
-                self.time_mtw = np.linspace(0, self.wake_length,
-                                            self.n_mtw_memory, endpoint=False,
-                                            dtype=bm.precision.real_t)
+                self.time_mtw = np.linspace(
+                    0,
+                    self.wake_length,
+                    self.n_mtw_memory,
+                    endpoint=False,
+                    dtype=bm.precision.real_t,
+                )
             else:
                 raise RuntimeError(f"Invalid value for {self.mtw_mode=}")
             # Array to add and shift in time the multi-turn wake over the turns
-            self.mtw_memory = np.zeros(self.n_mtw_memory,
-                                       dtype=bm.precision.real_t, order='C')
+            self.mtw_memory = np.zeros(
+                self.n_mtw_memory, dtype=bm.precision.real_t, order="C"
+            )
 
             # Select induced voltage generation method to be used
             self.induced_voltage_generation = self.induced_voltage_mtw
@@ -403,7 +438,8 @@ class _InducedVoltage(ABC):
 
     @abstractmethod
     def get_wake_kernel(
-        self, t_start: float, t_stop: float, n: int) -> NumpyNDArray | CupyNDArray:
+        self, t_start: float, t_stop: float, n: int
+    ) -> NumpyNDArray | CupyNDArray:
         """Get wakefield in time interval
 
         Parameters
@@ -417,9 +453,9 @@ class _InducedVoltage(ABC):
         """
         pass
 
-
-    def induced_voltage_1turn(self,
-                              beam_spectrum_dict: Optional[dict] = None):  # todo improve type hint for dict
+    def induced_voltage_1turn(
+        self, beam_spectrum_dict: Optional[dict] = None
+    ):  # todo improve type hint for dict
         """
         Method to calculate the induced voltage at the current turn. DFTs are
         used for calculations in time and frequency domain (see classes below)
@@ -435,17 +471,25 @@ class _InducedVoltage(ABC):
         beam_spectrum = beam_spectrum_dict[self.n_fft]
 
         # FIXME total_impedance might be not None
-        induced_voltage = -(self.beam.particle.charge * e * self.beam.ratio
-                            * bm.irfft(self.total_impedance.astype(
-                    dtype=bm.precision.complex_t,
-                    order='C', copy=False)
-                                       * beam_spectrum)
-                            )
+        induced_voltage = -(
+            self.beam.particle.charge
+            * e
+            * self.beam.ratio
+            * bm.irfft(
+                self.total_impedance.astype(
+                    dtype=bm.precision.complex_t, order="C", copy=False
+                )
+                * beam_spectrum
+            )
+        )
 
-        self.induced_voltage = induced_voltage[:self.n_induced_voltage].astype(
-            dtype=bm.precision.real_t, order='C', copy=False)
+        self.induced_voltage = induced_voltage[: self.n_induced_voltage].astype(
+            dtype=bm.precision.real_t, order="C", copy=False
+        )
 
-    def induced_voltage_mtw(self, beam_spectrum_dict: Optional[dict] = None):  # todo improve type hint for dict
+    def induced_voltage_mtw(
+        self, beam_spectrum_dict: Optional[dict] = None
+    ):  # todo improve type hint for dict
         """
         Method to calculate the induced voltage taking into account the effect
         from previous passages (multi-turn wake)
@@ -460,14 +504,13 @@ class _InducedVoltage(ABC):
 
         # Setting to zero to the last part to remove the contribution from the
         # front wake
-        self.induced_voltage[self.n_induced_voltage -
-                             self.front_wake_buffer:] = 0
+        self.induced_voltage[self.n_induced_voltage - self.front_wake_buffer :] = 0
 
         # Add the induced voltage of the current turn to the memory from
         # previous turns
-        self.mtw_memory[:self.n_induced_voltage] += self.induced_voltage
+        self.mtw_memory[: self.n_induced_voltage] += self.induced_voltage
 
-        self.induced_voltage = self.mtw_memory[:self.n_induced_voltage]
+        self.induced_voltage = self.mtw_memory[: self.n_induced_voltage]
 
     def shift_trev_freq(self):
         """
@@ -479,10 +522,10 @@ class _InducedVoltage(ABC):
         # Shift in frequency domain
         induced_voltage_f = bm.rfft(self.mtw_memory, self.n_mtw_fft)
         induced_voltage_f *= bm.exp(self.omegaj_mtw * t_rev)
-        self.mtw_memory = bm.irfft(induced_voltage_f)[:self.n_mtw_memory]
+        self.mtw_memory = bm.irfft(induced_voltage_f)[: self.n_mtw_memory]
         # Setting to zero to the last part to remove the contribution from the
         # circular convolution
-        self.mtw_memory[-int(self.buffer_size):] = 0
+        self.mtw_memory[-int(self.buffer_size) :] = 0
 
     def shift_trev_time(self):
         """
@@ -493,9 +536,9 @@ class _InducedVoltage(ABC):
         t_rev = self.rf_station.t_rev[self.rf_station.counter[0]]
 
         # self.mtw_memory = bm.interp_const_space(self.time_mtw + t_rev,
-        self.mtw_memory = bm.interp(self.time_mtw + t_rev,
-                                    self.time_mtw, self.mtw_memory,
-                                    left=0, right=0)
+        self.mtw_memory = bm.interp(
+            self.time_mtw + t_rev, self.time_mtw, self.mtw_memory, left=0, right=0
+        )
 
     def _track(self):
         """
@@ -504,11 +547,14 @@ class _InducedVoltage(ABC):
 
         self.induced_voltage_generation()
 
-        bm.linear_interp_kick(dt=self.beam.dt, dE=self.beam.dE,
-                              voltage=self.induced_voltage,
-                              bin_centers=self.profile.bin_centers,
-                              charge=self.beam.particle.charge,
-                              acceleration_kick=0.)
+        bm.linear_interp_kick(
+            dt=self.beam.dt,
+            dE=self.beam.dE,
+            voltage=self.induced_voltage,
+            bin_centers=self.profile.bin_centers,
+            charge=self.beam.particle.charge,
+            acceleration_kick=0.0,
+        )
 
     def to_gpu(self, recursive=True):
         raise NotImplementedError()
@@ -553,15 +599,17 @@ class InducedVoltageTime(_InducedVoltage):
     """
 
     @handle_legacy_kwargs
-    def __init__(self, beam: Beam,
-                 profile: Profile,
-                 wake_source_list: list[_ImpedanceObject],
-                 wake_length: Optional[float] = None,
-                 multi_turn_wake: bool = False,
-                 rf_station: Optional[RFStation] = None,
-                 mtw_mode: Optional[MtwModeTypes] = 'time',
-                 use_regular_fft: bool = True):
-
+    def __init__(
+        self,
+        beam: Beam,
+        profile: Profile,
+        wake_source_list: list[_ImpedanceObject],
+        wake_length: Optional[float] = None,
+        multi_turn_wake: bool = False,
+        rf_station: Optional[RFStation] = None,
+        mtw_mode: Optional[MtwModeTypes] = "time",
+        use_regular_fft: bool = True,
+    ):
         # Wake sources list (e.g. list of Resonator objects)
         self.wake_source_list: list[_ImpedanceObject] = wake_source_list
 
@@ -576,12 +624,17 @@ class InducedVoltageTime(_InducedVoltage):
         ####################################
 
         # Call the __init__ method of the parent class [calls process()]
-        _InducedVoltage.__init__(self, beam, profile,
-                                 frequency_resolution=None,
-                                 wake_length=wake_length,
-                                 multi_turn_wake=multi_turn_wake,
-                                 rf_station=rf_station, mtw_mode=mtw_mode,
-                                 use_regular_fft=use_regular_fft)
+        _InducedVoltage.__init__(
+            self,
+            beam,
+            profile,
+            frequency_resolution=None,
+            wake_length=wake_length,
+            multi_turn_wake=multi_turn_wake,
+            rf_station=rf_station,
+            mtw_mode=mtw_mode,
+            use_regular_fft=use_regular_fft,
+        )
 
     def process(self):
         """
@@ -596,20 +649,22 @@ class InducedVoltageTime(_InducedVoltage):
         # therefore the frequency resolution is always equal or finer than
         # the input value
         if self.use_regular_fft:
-            self.n_fft = next_regular(int(self.n_induced_voltage) +
-                                      int(self.profile.n_slices) - 1)
+            self.n_fft = next_regular(
+                int(self.n_induced_voltage) + int(self.profile.n_slices) - 1
+            )
         else:
-            self.n_fft = (int(self.n_induced_voltage)
-                         + int(self.profile.n_slices)
-                         - 1)
+            self.n_fft = int(self.n_induced_voltage) + int(self.profile.n_slices) - 1
 
         # Frequency resolution in Hz
         self.frequency_resolution = 1 / (self.n_fft * self.profile.bin_size)
 
         # Time array of the wake in s
-        self.time = np.arange(0, self.wake_length, self.wake_length
-                              / self.n_induced_voltage,
-                              dtype=bm.precision.real_t)
+        self.time = np.arange(
+            0,
+            self.wake_length,
+            self.wake_length / self.n_induced_voltage,
+            dtype=bm.precision.real_t,
+        )
 
         # Processing the wakes
         self.sum_wakes(self.time)
@@ -629,7 +684,8 @@ class InducedVoltageTime(_InducedVoltage):
         self.total_impedance = bm.rfft(self.total_wake, self.n_fft)
 
     def get_wake_kernel(
-        self, t_start: float, t_stop: float, n: int) -> NumpyNDArray | CupyNDArray:
+        self, t_start: float, t_stop: float, n: int
+    ) -> NumpyNDArray | CupyNDArray:
         """Get wakefield in time interval
 
         Parameters
@@ -641,7 +697,7 @@ class InducedVoltageTime(_InducedVoltage):
         n
             Number of entries in wake
         """
-        warning_message =f"It is recommended to use `t_periodicity = None`"
+        warning_message = f"It is recommended to use `t_periodicity = None`"
         # Check if the wake sources are generated correctly
         for wake_object in self.wake_source_list:
             if isinstance(wake_object, InputTableFrequencyDomain):
@@ -663,12 +719,12 @@ class InducedVoltageTime(_InducedVoltage):
         wake = self.total_wake
         return wake
 
-    def to_gpu(self, recursive: bool=True):
+    def to_gpu(self, recursive: bool = True):
         """
         Transfer all necessary arrays to the GPU
         """
         # Check if to_gpu has been invoked already
-        if self._device == 'GPU':
+        if self._device == "GPU":
             return
 
         import cupy as cp
@@ -691,17 +747,18 @@ class InducedVoltageTime(_InducedVoltage):
             self.time = cp.array(self.time)
 
         # to make sure it will not be called again
-        self._device: DeviceType = 'GPU'
+        self._device: DeviceType = "GPU"
 
     def to_cpu(self, recursive=True):
         """
         Transfer all necessary arrays back to the CPU
         """
         # Check if to_cpu has been invoked already
-        if self._device == 'CPU':
+        if self._device == "CPU":
             return
 
         import cupy as cp
+
         self.induced_voltage = cp.asnumpy(self.induced_voltage)
         self.time = cp.asnumpy(self.time)
         self.total_wake = cp.asnumpy(self.total_wake)
@@ -720,7 +777,7 @@ class InducedVoltageTime(_InducedVoltage):
             self.time = cp.asnumpy(self.time)
 
         # to make sure it will not be called again
-        self._device: DeviceType = 'CPU'
+        self._device: DeviceType = "CPU"
 
 
 class InducedVoltageFreq(_InducedVoltage):
@@ -763,16 +820,18 @@ class InducedVoltageFreq(_InducedVoltage):
     """
 
     @handle_legacy_kwargs
-    def __init__(self, beam: Beam,
-                 profile: Profile,
-                 impedance_source_list: list[_ImpedanceObject],
-                 frequency_resolution: Optional[float] = None,
-                 multi_turn_wake: bool = False,
-                 front_wake_length: float = 0,
-                 rf_station: Optional[RFStation] = None,
-                 mtw_mode: MtwModeTypes = 'time',
-                 use_regular_fft: bool = True):
-
+    def __init__(
+        self,
+        beam: Beam,
+        profile: Profile,
+        impedance_source_list: list[_ImpedanceObject],
+        frequency_resolution: Optional[float] = None,
+        multi_turn_wake: bool = False,
+        front_wake_length: float = 0,
+        rf_station: Optional[RFStation] = None,
+        mtw_mode: MtwModeTypes = "time",
+        use_regular_fft: bool = True,
+    ):
         # Impedance sources list (e.g. list of Resonator objects)
         self.impedance_source_list: list[_ImpedanceObject] = impedance_source_list
 
@@ -793,11 +852,17 @@ class InducedVoltageFreq(_InducedVoltage):
         ###############
 
         # Call the __init__ method of the parent class
-        _InducedVoltage.__init__(self, beam, profile, wake_length=None,
-                                 frequency_resolution=frequency_resolution,
-                                 multi_turn_wake=multi_turn_wake,
-                                 rf_station=rf_station, mtw_mode=mtw_mode,
-                                 use_regular_fft=use_regular_fft)
+        _InducedVoltage.__init__(
+            self,
+            beam,
+            profile,
+            wake_length=None,
+            frequency_resolution=frequency_resolution,
+            multi_turn_wake=multi_turn_wake,
+            rf_station=rf_station,
+            mtw_mode=mtw_mode,
+            use_regular_fft=use_regular_fft,
+        )
 
     def process(self):
         """
@@ -822,8 +887,9 @@ class InducedVoltageFreq(_InducedVoltage):
 
         # Length of the front wake in frequency domain calculations
         if self.front_wake_length:
-            self.front_wake_buffer = int(np.ceil(
-                np.max(self.front_wake_length) / self.profile.bin_size))
+            self.front_wake_buffer = int(
+                np.ceil(np.max(self.front_wake_length) / self.profile.bin_size)
+            )
 
         # Processing the impedances
         self.sum_impedances(self.freq)
@@ -834,7 +900,8 @@ class InducedVoltageFreq(_InducedVoltage):
         """
 
         self.total_impedance = np.zeros(
-            freq.shape, dtype=bm.precision.complex_t, order='C')
+            freq.shape, dtype=bm.precision.complex_t, order="C"
+        )
 
         for impedance_source in self.impedance_source_list:
             impedance_source.imped_calc(freq)
@@ -844,7 +911,8 @@ class InducedVoltageFreq(_InducedVoltage):
         self.total_impedance /= self.profile.bin_size
 
     def get_wake_kernel(
-        self, t_start: float, t_stop: float, n: int) -> NumpyNDArray | CupyNDArray:
+        self, t_start: float, t_stop: float, n: int
+    ) -> NumpyNDArray | CupyNDArray:
         """Get wakefield in time interval
 
         Parameters
@@ -862,21 +930,22 @@ class InducedVoltageFreq(_InducedVoltage):
         # self.wake_source_list, that exists in both `InducedVoltageTime`
         # and `InducedVoltageFreq`
         return InducedVoltageTime.get_wake_kernel(
-            self=self, # NOQA
+            self=self,  # NOQA
             t_start=t_start,
             t_stop=t_stop,
             n=n,
         )
 
-    def to_gpu(self, recursive: bool=True):
+    def to_gpu(self, recursive: bool = True):
         """
         Transfer all necessary arrays to the GPU
         """
         # Check if to_gpu has been invoked already
-        if self._device == 'GPU':
+        if self._device == "GPU":
             return
 
         import cupy as cp
+
         self.induced_voltage = cp.array(self.induced_voltage)
         self.freq = cp.array(self.freq)
         self.total_impedance = cp.array(self.total_impedance)
@@ -890,17 +959,18 @@ class InducedVoltageFreq(_InducedVoltage):
             self.omegaj_mtw = cp.array(self.omegaj_mtw)
 
         # to make sure it will not be called again
-        self._device: DeviceType = 'GPU'
+        self._device: DeviceType = "GPU"
 
     def to_cpu(self, recursive=True):
         """
         Transfer all necessary arrays back to the CPU
         """
         # Check if to_cpu has been invoked already
-        if self._device and self._device == 'CPU':
+        if self._device and self._device == "CPU":
             return
 
         import cupy as cp
+
         self.induced_voltage = cp.asnumpy(self.induced_voltage)
         self.freq = cp.asnumpy(self.freq)
         self.total_impedance = cp.asnumpy(self.total_impedance)
@@ -914,7 +984,7 @@ class InducedVoltageFreq(_InducedVoltage):
             self.omegaj_mtw = cp.asnumpy(self.omegaj_mtw)
 
         # to make sure it will not be called again
-        self._device: DeviceType = 'CPU'
+        self._device: DeviceType = "CPU"
 
 
 class InductiveImpedance(_InducedVoltage):
@@ -958,10 +1028,11 @@ class InductiveImpedance(_InducedVoltage):
         self.deriv_mode = deriv_mode
 
         # Call the __init__ method of the parent class
-        _InducedVoltage.__init__(self, beam=beam, profile=profile,
-                                 rf_station=rf_station)
+        _InducedVoltage.__init__(
+            self, beam=beam, profile=profile, rf_station=rf_station
+        )
 
-    def induced_voltage_1turn(self, beam_spectrum_dict: Dict[int, NumpyArray]={}):
+    def induced_voltage_1turn(self, beam_spectrum_dict: Dict[int, NumpyArray] = {}):
         """
         Method to calculate the induced voltage through the derivative of the
         profile. The impedance must be a constant Z/n.
@@ -969,15 +1040,20 @@ class InductiveImpedance(_InducedVoltage):
 
         index = self.rf_station.counter[0]
 
-        induced_voltage = - (self.beam.particle.charge * e / (2 * np.pi)
-                             * self.beam.ratio * self.Z_over_n[index]
-                             * self.rf_station.t_rev[index]
-                             / self.profile.bin_size
-                             * self.profile.beam_profile_derivative(
-                    self.deriv_mode)[1])
+        induced_voltage = -(
+            self.beam.particle.charge
+            * e
+            / (2 * np.pi)
+            * self.beam.ratio
+            * self.Z_over_n[index]
+            * self.rf_station.t_rev[index]
+            / self.profile.bin_size
+            * self.profile.beam_profile_derivative(self.deriv_mode)[1]
+        )
 
-        self.induced_voltage = (induced_voltage[:self.n_induced_voltage]).astype(
-            dtype=bm.precision.real_t, order='C', copy=False)
+        self.induced_voltage = (induced_voltage[: self.n_induced_voltage]).astype(
+            dtype=bm.precision.real_t, order="C", copy=False
+        )
 
     def get_wake_kernel(self, t_start: float, t_stop: float, n: int):
         """Get wakefield in time interval
@@ -1022,28 +1098,30 @@ class InductiveImpedance(_InducedVoltage):
         Transfer all necessary arrays to the GPU
         """
         # Check if to_gpu has been invoked already
-        if hasattr(self, '_device') and self._device == 'GPU':
+        if hasattr(self, "_device") and self._device == "GPU":
             return
 
         import cupy as cp
+
         self.induced_voltage = cp.array(self.induced_voltage)
         self.Z_over_n = cp.array(self.Z_over_n)
         # to make sure it will not be called again
-        self._device: DeviceType = 'GPU'
+        self._device: DeviceType = "GPU"
 
     def to_cpu(self, recursive=True):
         """
         Transfer all necessary arrays back to the CPU
         """
         # Check if to_cpu has been invoked already
-        if hasattr(self, '_device') and self._device == 'CPU':
+        if hasattr(self, "_device") and self._device == "CPU":
             return
 
         import cupy as cp
+
         self.induced_voltage = cp.asnumpy(self.induced_voltage)
         self.Z_over_n = cp.asnumpy(self.Z_over_n)
         # to make sure it will not be called again
-        self._device: DeviceType = 'CPU'
+        self._device: DeviceType = "CPU"
 
 
 class InducedVoltageResonator(_InducedVoltage):
@@ -1096,13 +1174,17 @@ class InducedVoltageResonator(_InducedVoltage):
     """
 
     @handle_legacy_kwargs
-    def __init__(self, beam: Beam, profile: Profile, resonators: Resonators,
-                 time_array: Optional[NDArray] = None):
-
+    def __init__(
+        self,
+        beam: Beam,
+        profile: Profile,
+        resonators: Resonators,
+        time_array: Optional[NDArray] = None,
+    ):
         # Test if one or more quality factors is smaller than 0.5.
         if sum(resonators.Q < 0.5) > 0:
             # ResonatorError
-            raise RuntimeError('All quality factors Q must be larger than 0.5')
+            raise RuntimeError("All quality factors Q must be larger than 0.5")
 
         # Copy of the Beam object in order to access the beam info.
         self.beam = beam
@@ -1123,7 +1205,7 @@ class InducedVoltageResonator(_InducedVoltage):
         self.n_time = len(self.tArray)
 
         # Copy of the shunt impedances of the Resonators in* :math:`\Omega`
-        self.R = resonators.R_S # TODO Rename
+        self.R = resonators.R_S  # TODO Rename
         # Copy of the resonant frequencies of the Resonators in 1/s
         self.omega_r = resonators.omega_R  # resonant frequencies [1/s]
         # Copy of the quality factors of the Resonators
@@ -1132,28 +1214,37 @@ class InducedVoltageResonator(_InducedVoltage):
         self.n_resonators = len(self.R)
 
         # For internal use
-        self._Qtilde = self.Q * np.sqrt(1. - 1. / (4. * self.Q ** 2.))
+        self._Qtilde = self.Q * np.sqrt(1.0 - 1.0 / (4.0 * self.Q**2.0))
         self._reOmegaP = self.omega_r * self._Qtilde / self.Q
-        self._imOmegaP = self.omega_r / (2. * self.Q)
+        self._imOmegaP = self.omega_r / (2.0 * self.Q)
 
         # Each the 'n_resonator' rows of the matrix holds the induced voltage
         # at the 'n_time' time-values of one cavity. For internal use.
         self._tmp_matrix = np.ones(
-            (self.n_resonators, self.n_time), dtype=bm.precision.real_t, order='C')
+            (self.n_resonators, self.n_time), dtype=bm.precision.real_t, order="C"
+        )
 
         # Slopes of the line segments. For internal use.
         self._kappa1 = np.zeros(
-            int(self.profile.n_slices - 1), dtype=bm.precision.real_t, order='C')
+            int(self.profile.n_slices - 1), dtype=bm.precision.real_t, order="C"
+        )
 
         # Matrix to hold n_times many tArray[t]-bin_centers arrays.
         self._deltaT = np.zeros(
-            (self.n_time, self.profile.n_slices), dtype=bm.precision.real_t, order='C')
+            (self.n_time, self.profile.n_slices), dtype=bm.precision.real_t, order="C"
+        )
 
         # Call the __init__ method of the parent class [calls process()]
-        _InducedVoltage.__init__(self, beam, profile, wake_length=None,
-                                 frequency_resolution=None,
-                                 multi_turn_wake=False, rf_station=None,
-                                 mtw_mode='time')
+        _InducedVoltage.__init__(
+            self,
+            beam,
+            profile,
+            wake_length=None,
+            frequency_resolution=None,
+            multi_turn_wake=False,
+            rf_station=None,
+            mtw_mode="time",
+        )
 
     def process(self):
         r"""
@@ -1165,35 +1256,44 @@ class InducedVoltageResonator(_InducedVoltage):
         # Since profile object changed, need to assign the proper dimensions to
         # _kappa1 and _deltaT
         self._kappa1 = np.zeros(
-            int(self.profile.n_slices - 1), dtype=bm.precision.real_t, order='C')
+            int(self.profile.n_slices - 1), dtype=bm.precision.real_t, order="C"
+        )
         self._deltaT = np.zeros(
-            (self.n_time, self.profile.n_slices), dtype=bm.precision.real_t, order='C')
+            (self.n_time, self.profile.n_slices), dtype=bm.precision.real_t, order="C"
+        )
 
-    def induced_voltage_1turn(self, beam_spectrum_dict: Dict[Any, Any]={}):
+    def induced_voltage_1turn(self, beam_spectrum_dict: Dict[Any, Any] = {}):
         r"""
         Method to calculate the induced voltage through linearly
         interpolating the line density and applying the analytic equation
         to the result.
         """
-        self.induced_voltage, self._deltaT = (
-            bm.resonator_induced_voltage_1_turn(self._kappa1,
-                                                self.profile.n_macroparticles,
-                                                self.profile.bin_centers,
-                                                self.profile.bin_size,
-                                                self.n_time, self._deltaT,
-                                                self.tArray, self._reOmegaP,
-                                                self._imOmegaP, self._Qtilde,
-                                                self.n_resonators,
-                                                self.omega_r,
-                                                self.Q, self._tmp_matrix,
-                                                self.beam.particle.charge,
-                                                self.beam.n_macroparticles,
-                                                self.beam.ratio, self.R,
-                                                self.induced_voltage,
-                                                bm.precision.real_t))
+        self.induced_voltage, self._deltaT = bm.resonator_induced_voltage_1_turn(
+            self._kappa1,
+            self.profile.n_macroparticles,
+            self.profile.bin_centers,
+            self.profile.bin_size,
+            self.n_time,
+            self._deltaT,
+            self.tArray,
+            self._reOmegaP,
+            self._imOmegaP,
+            self._Qtilde,
+            self.n_resonators,
+            self.omega_r,
+            self.Q,
+            self._tmp_matrix,
+            self.beam.particle.charge,
+            self.beam.n_macroparticles,
+            self.beam.ratio,
+            self.R,
+            self.induced_voltage,
+            bm.precision.real_t,
+        )
 
     def get_wake_kernel(
-        self, t_start: float, t_stop: float, n: int) -> NumpyNDArray | CupyNDArray:
+        self, t_start: float, t_stop: float, n: int
+    ) -> NumpyNDArray | CupyNDArray:
         """Get wakefield in time interval
 
         Parameters
@@ -1207,32 +1307,34 @@ class InducedVoltageResonator(_InducedVoltage):
         """
         raise NotImplementedError("Use `Resonators` with `InducedVoltageTime` instead!")
 
-    def to_gpu(self, recursive: bool=True):
+    def to_gpu(self, recursive: bool = True):
         """
         Transfer all necessary arrays to the GPU
         """
         # Check if to_gpu has been invoked already
-        if hasattr(self, '_device') and self._device == 'GPU':
+        if hasattr(self, "_device") and self._device == "GPU":
             return
 
         import cupy as cp
+
         self.induced_voltage = cp.array(self.induced_voltage)
         self._kappa1 = cp.array(self._kappa1)
         self._deltaT = cp.array(self._deltaT)
         self.tArray = cp.array(self.tArray)
         self._tmp_matrix = cp.array(self._tmp_matrix)
         # to make sure it will not be called again
-        self._device: DeviceType = 'GPU'
+        self._device: DeviceType = "GPU"
 
     def to_cpu(self, recursive=True):
         """
         Transfer all necessary arrays back to the CPU
         """
         # Check if to_cpu has been invoked already
-        if hasattr(self, '_device') and self._device == 'CPU':
+        if hasattr(self, "_device") and self._device == "CPU":
             return
 
         import cupy as cp
+
         self.induced_voltage = cp.asnumpy(self.induced_voltage)
         self._kappa1 = cp.asnumpy(self._kappa1)
         self._deltaT = cp.asnumpy(self._deltaT)
@@ -1240,4 +1342,4 @@ class InducedVoltageResonator(_InducedVoltage):
         self._tmp_matrix = cp.asnumpy(self._tmp_matrix)
 
         # to make sure it will not be called again
-        self._device: DeviceType = 'CPU'
+        self._device: DeviceType = "CPU"
