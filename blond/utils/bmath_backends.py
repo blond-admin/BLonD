@@ -7,15 +7,15 @@
 from __future__ import annotations
 
 import logging
-import traceback
 import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
-
+import scipy # NOQA later used for specific imports
 
 try:
     import cupy as cp
+    import cupyx
 
 except ImportError as _cupy_import_error:
     _cupy_available = False
@@ -69,6 +69,8 @@ class MasterBackend:
         # listing definitions that shall be declared !
         # _verify_backend() will check for declaration
         # and raise exception if not declared
+        self.fftconvolve = None
+        self.pi = None
         self.diff = None
         self.uint = None
         self.empty = None
@@ -349,7 +351,9 @@ class __NumpyBackend(MasterBackend):
         missing"""
 
         super().__init__()
-
+        from scipy.signal import fftconvolve
+        self.fftconvolve = fftconvolve
+        self.pi = np.pi
         self.arctan = np.arctan
         self.ones = np.ones
         self.float64 = np.float64
@@ -445,7 +449,11 @@ class __CupyBackend(MasterBackend):
             raise _cupy_import_error
 
         # self.cumtrapz = None # not available in cupy..
+        from cupyx.scipy.signal import fftconvolve
+
+        self.fftconvolve = fftconvolve
         self.float32 = cp.float32
+        self.pi = cp.pi
         self.int32 = cp.int32
         self.all = cp.all
         self.hamming = cp.hamming
@@ -575,7 +583,7 @@ class CppBackend(__NumpyBackend):
         # elf.linspace_cpp = _cpp.linspace_cpp # todo add?
         # elf.argmin_cpp = _cpp.argmin_cpp # todo add?
         # elf.argmax_cpp = _cpp.argmax_cpp # todo add?
-        self.convolve = _cpp.convolve
+        # self.convolve = _cpp.convolve # fixme does not support mode "same"
         # elf.arange_cpp = _cpp.arange_cpp # todo add?
         # elf.sum_cpp = _cpp.sum_cpp # todo add?
         # elf.sort_cpp = _cpp.sort_cpp # todo add?

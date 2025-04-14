@@ -1,9 +1,8 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
-import matplotlib.pyplot as plt
 import numpy as np
-from scipy.signal import fftconvolve
 
 from blond.utils import bmath as bm, precision
 
@@ -224,9 +223,9 @@ class TotalInducedVoltageNew:
                 self._profile_container
             )
         if len(self._compressed_wake_kernel) > 2048:
-            convolve = fftconvolve
+            convolve = bm.fftconvolve
         else:
-            convolve = np.convolve
+            convolve = bm.convolve
         for profile_i, profile_source in enumerate(self._profile_container):
             profile_source: Profile
 
