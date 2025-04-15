@@ -25,6 +25,7 @@ def plot_hamiltonian(ring, rfstation, beam, dt, dE, k = int(0), hamiltonian_ener
     dt_array = np.linspace(-dt, dt, n_points)
     dE_array = np.linspace(-dE, dE, n_points)
     plt.figure()
+    #plt.xlim([-1, 1])
     hE_t = lambda DE: c * np.pi/ (ring.ring_circumference * beam.beta * beam.energy) * \
                       (
                         1/2 * ring.eta_0[0, k] * DE ** 2 + 1/3 * ring.eta_1[0, k] * DE ** 3 + 1/4 * ring.eta_2[0, k] * DE ** 4)
@@ -52,11 +53,10 @@ def plot_hamiltonian(ring, rfstation, beam, dt, dE, k = int(0), hamiltonian_ener
     #plt.xlim([0, (2 * np.pi - rfstation.phi_rf_d[0,k])/rfstation.omega_rf[0,k]])
     plt.ylabel('DE [GeV]')
     plt.scatter(-beam.dt*1e9, beam.dE/1e9, s = 0.2)
+
     plt.title(f'Turns {k}')
-    text = 'output_figs/plot_' + str(k) + option
+    text = 'outputfigs_wigglers_nf3/plot_' + str(k) + option
     plt.savefig(text)
     plt.close()
-
-
 
 

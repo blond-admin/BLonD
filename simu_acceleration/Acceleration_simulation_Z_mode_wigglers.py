@@ -15,6 +15,7 @@ from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
 from blond.beam.distributions import matched_from_distribution_function
 from blond.synchrotron_radiation.synchrotron_radiation import SynchrotronRadiation
 from simu_acceleration.plots_theory import plot_hamiltonian, get_hamiltonian
+from simu_acceleration.functions_wiggler import wiggler, update_rad_int, update_SRtracker_and_track
 
 test_mode = False
 optimise = False
@@ -30,7 +31,7 @@ dt = 1e-9
 dE = 1e9
         # Number of turns to track
 
-with open("/Users/lvalle/cernbox/FCC-ee/Voltage_program/ramps_14_04_2025_14_27_48.pickle", "rb") as file:
+with open("/Users/lvalle/cernbox/FCC-ee/Voltage_program/ramps_before_optimisation09_04_2025_16_35_02overshoot_wiggler.pickle", "rb") as file:
     data_opt = pkl.load(file)
 
 voltage_ramp = data_opt['turn']['voltage_ramp_V']
@@ -39,6 +40,7 @@ phi_s = data_opt['turn']['phi_s']
 Nturns = len(energy_ramp)-1
 tracking_parameters = HEBee_Eramp_parameters(op_mode='Z', dec_mode = True)
 ring_HEB = generate_HEB_ring(op_mode='Z', Nturns=Nturns, momentum=energy_ramp)
+wiggler_HEB = wiggler()
 
 beam = Beam(ring_HEB, n_macroparticles, n_particles)
 beam.dt = np.load('../beam_phase.npy')
@@ -48,11 +50,13 @@ rfcav = RFStation(ring_HEB, tracking_parameters.harmonic, voltage_ramp, phi_rf_d
 long_tracker = RingAndRFTracker(rfcav, beam)
 full_tracker = FullRingAndRF([long_tracker])
 
-
-SR = [SynchrotronRadiation(ring_HEB, rfcav, beam, quantum_excitation=True, python=True, shift_beam=False)]
+SR = [SynchrotronRadiation(ring_HEB, rfcav, beam,rad_int = update_rad_int(ring_HEB, wiggler_HEB, E=20e9), quantum_excitation=True, python=True, shift_beam=False)]
 SR[0].print_SR_params()
+
 plot_hamiltonian(ring_HEB, rfcav, beam, 1e-9, ring_HEB.energy[0][0]/20, k = 0, n_lines = 0, separatrix = True, option = 'test')
-map_ = [long_tracker] + SR #+ [slice_beam]
+
+map_ = [long_tracker]
+
 #for hamiltonian
 n_points = 1001
 bl=[]
@@ -70,6 +74,7 @@ for i in range(1, Nturns+1):
     # Track
     for m in map_:
         m.track()
+    update_SRtracker_and_track(ring_HEB, rfcav, beam, wiggler_HEB, E= ring_HEB.energy[0,i])
     beam.statistics()
     bl.append(beam.sigma_dt * c * 1e3)
     sE.append(beam.sigma_dE/beam.energy * 100)
@@ -78,7 +83,7 @@ for i in range(1, Nturns+1):
     position.append(beam.mean_dt*1e9)
     #print("   Longitudinal emittance (rms) %.4e eVs" % (np.pi * 4 * beam.sigma_dt * beam.sigma_dE))
     if (i % 50) == 0:
-        plot_hamiltonian(ring_HEB, rfcav, beam, 1e-9, ring_HEB.energy[0][0]/20, k = i, n_lines = 0, separatrix = True, option = 'test')
+        plot_hamiltonian(ring_HEB, rfcav, beam, 1e-9, ring_HEB.energy[0][0]/10, k = i, n_lines = 0, separatrix = True, option = 'test')
 
 
 fig, ax = plt.subplots()
@@ -87,7 +92,7 @@ ax.plot(pos, label = 'expected')
 ax.set_title('Average bunch position [ns]')
 ax.set(xlabel='turn', ylabel = 'Bunch position [ns]')
 ax.legend()
-plt.savefig('output_figs/bunch_position')
+plt.savefig('output_figs_wigglers/bunch_position')
 plt.close()
 
 fig, ax = plt.subplots()
@@ -96,7 +101,7 @@ ax.plot(data_opt['turn']['rms_bunch_length']*1e3, label = 'expected')
 ax.legend()
 ax.set(xlabel='turn', ylabel = 'Bunch length [mm]')
 ax.set_title('RMS bunch length [mm]')
-plt.savefig('output_figs/bunch_length')
+plt.savefig('output_figs_wigglers/bunch_length')
 plt.close()
 
 fig, ax = plt.subplots()
@@ -105,7 +110,7 @@ ax.plot(data_opt['turn']['energy_spread']*100, label = 'expected')
 ax.legend()
 ax.set(xlabel='turn', ylabel = 'Energy spread [%]')
 ax.set_title('RMS energy spread [%]')
-plt.savefig('output_figs/energy_spread')
+plt.savefig('output_figs_wigglers/energy_spread')
 plt.close()
 
 
