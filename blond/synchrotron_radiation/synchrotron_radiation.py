@@ -20,7 +20,9 @@ from builtins import range
 import numpy as np
 from blond.utils.exceptions import InputDataError
 from blond.utils.exceptions import MissingParameterError
-from blond.beam.beam import Electron, Positron
+from blond.beam.beam import Electron, Positron, Beam
+from blond.input_parameters.ring import Ring
+from blond.input_parameters.rf_parameters import RFStation
 from ..utils import bmath as bm
 
 
@@ -32,10 +34,13 @@ class SynchrotronRadiation:
         the track() method after tracking each section.
     '''
 
-    def __init__(self, Ring, RFParameters, Beam, bending_radius = None, rad_int = None,
-                 n_kicks=1, quantum_excitation=True, python=True, seed=None,
-                 shift_beam=False):
+    def __init__(self, Ring: Ring, RFParameters: RFStation, Beam: Beam, bending_radius:float = None, rad_int : (np.ndarray,list) = None,
+                 n_kicks:int =1, quantum_excitation: bool=True, python: bool=True, seed: int=None,
+                 shift_beam:bool=False):
         """
+        Synchrotron radiation tracker
+        Calculates and updates the energy losses per turn and longitudinal damping time according to the ring energy program, and implements the effect of
+        synchrotron radiation damping and quantum excitation (if enabled) on the beam coordinates.
         :param Ring: a Ring-type class
         :param RFParameters: RF Station class
         :param Beam: Beam class
