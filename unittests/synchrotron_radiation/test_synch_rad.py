@@ -15,7 +15,7 @@ Unittest for synchrotron_radiation.synchrotron_radiation.py
 
 import os
 import unittest
-
+import random
 import numpy as np
 from scipy.constants import c, e, m_e
 
@@ -82,6 +82,11 @@ class TestSynchtrotronRadiation(unittest.TestCase):
                                  seed=self.seed, n_kicks=1, shift_beam=False,
                                  python=True, quantum_excitation=False)
         #Wrong type for the radiation integrals
+        rad_int = [[random.random() for k in range(5)], [random.random() for k in range(7)]]
+        with self.assertRaises(ValueError):
+            SynchrotronRadiation(ring, self.rf_station, self.beam, rad_int=rad_int,
+                                 seed=self.seed, n_kicks=1, shift_beam=False,
+                                 python=True, quantum_excitation=False)
         with self.assertRaisesRegex(
                 TypeError, f"Expected a list or numpy.ndarray as an input. Received {type('not an array')}."):
             SynchrotronRadiation(ring, self.rf_station, self.beam, rad_int='not an array',
