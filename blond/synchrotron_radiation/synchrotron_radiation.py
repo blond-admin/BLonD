@@ -20,6 +20,7 @@ from builtins import range
 import numpy as np
 from blond.utils.exceptions import InputDataError
 from blond.utils.exceptions import MissingParameterError
+from blond.beam.beam import Electron, Positron
 from ..utils import bmath as bm
 
 
@@ -52,6 +53,9 @@ class SynchrotronRadiation:
         self.beam = Beam
 
         # Input check
+        if not isinstance(Ring.Particle, Electron) and not isinstance(Ring.Particle, Positron):
+            raise TypeError('Particles not expected. Expected an electron or positron beam.')
+
         if rad_int is None:
             if bending_radius is None:
                 if Ring.sr_flag:
