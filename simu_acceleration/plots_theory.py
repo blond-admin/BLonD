@@ -21,7 +21,7 @@ def get_hamiltonian(ring, rfstation, beam, X, Y, k = int(0)):
     return Z, hphi_DE(np.pi - rfstation.phi_s[k])
 
 
-def plot_hamiltonian(ring, rfstation, beam, dt, dE, k = int(0), hamiltonian_energy = None, n_points = 1001, n_lines = 100, separatrix = True, option = ''):
+def plot_hamiltonian(ring, rfstation, beam, dt, dE, k = int(0), hamiltonian_energy = None, n_points = 1001, n_lines = 100, separatrix = True, directory = 'output_figs_wigglers', option = ''):
     dt_array = np.linspace(-dt, dt, n_points)
     dE_array = np.linspace(-dE, dE, n_points)
     plt.figure()
@@ -55,8 +55,23 @@ def plot_hamiltonian(ring, rfstation, beam, dt, dE, k = int(0), hamiltonian_ener
     plt.scatter(-beam.dt*1e9, beam.dE/1e9, s = 0.2)
 
     plt.title(f'Turns {k}')
-    text = 'outputfigs_wigglers_nf3/plot_' + str(k) + option
+    text = directory + '/plot_' + str(k) + option
     plt.savefig(text)
     plt.close()
 
 
+def animate(i, map):
+    for m in map_:
+        m.track()
+    beam.statistics()
+    bl.append(4. * beam.sigma_dt * c * 1e3)
+    eml.append(np.pi * 4 * beam.sigma_dt * beam.sigma_dE)
+    print("   Longitudinal emittance (rms) %.4e eVs" % (np.pi * 4 * beam.sigma_dt * beam.sigma_dE))
+    x.append(beam.dt*1e9)
+    y.append(beam.dE/1e9)
+    for coll in C[0].axes.collections:
+        coll.remove()
+    Z, hamiltonian_energy = get_hamiltonian(ring_HEB, rfcav, beam, X, Y, k=i)
+    C[0] = axes.contour(X,Y,Z, [hamiltonian_energy], colors = 'red')
+    scat.set_offsets(np.c_[x, y])
+    plt.draw()

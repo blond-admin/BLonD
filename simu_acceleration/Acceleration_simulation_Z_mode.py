@@ -32,7 +32,7 @@ dE = 1e9
 
 with open("/Users/lvalle/cernbox/FCC-ee/Voltage_program/ramps_14_04_2025_14_27_48.pickle", "rb") as file:
     data_opt = pkl.load(file)
-
+directory = 'output_figs'
 voltage_ramp = data_opt['turn']['voltage_ramp_V']
 energy_ramp = data_opt['turn']['energy_ramp_eV']
 phi_s = data_opt['turn']['phi_s']
@@ -78,8 +78,8 @@ for i in range(1, Nturns+1):
     position.append(beam.mean_dt*1e9)
     #print("   Longitudinal emittance (rms) %.4e eVs" % (np.pi * 4 * beam.sigma_dt * beam.sigma_dE))
     if (i % 50) == 0:
-        plot_hamiltonian(ring_HEB, rfcav, beam, 1e-9, ring_HEB.energy[0][0]/20, k = i, n_lines = 0, separatrix = True, option = 'test')
-
+        plot_hamiltonian(ring_HEB, rfcav, beam, 1e-9, ring_HEB.energy[0][0] / 10, k=i, n_lines=0, separatrix=True,
+                         directory=directory, option='test')
 
 fig, ax = plt.subplots()
 ax.plot(position, label = 'from tracking')
@@ -87,7 +87,7 @@ ax.plot(pos, label = 'expected')
 ax.set_title('Average bunch position [ns]')
 ax.set(xlabel='turn', ylabel = 'Bunch position [ns]')
 ax.legend()
-plt.savefig('output_figs/bunch_position')
+plt.savefig(directory+'/bunch_position')
 plt.close()
 
 fig, ax = plt.subplots()
@@ -96,7 +96,7 @@ ax.plot(data_opt['turn']['rms_bunch_length']*1e3, label = 'expected')
 ax.legend()
 ax.set(xlabel='turn', ylabel = 'Bunch length [mm]')
 ax.set_title('RMS bunch length [mm]')
-plt.savefig('output_figs/bunch_length')
+plt.savefig(directory+'/bunch_length')
 plt.close()
 
 fig, ax = plt.subplots()
@@ -105,7 +105,7 @@ ax.plot(data_opt['turn']['energy_spread']*100, label = 'expected')
 ax.legend()
 ax.set(xlabel='turn', ylabel = 'Energy spread [%]')
 ax.set_title('RMS energy spread [%]')
-plt.savefig('output_figs/energy_spread')
+plt.savefig(directory+'/energy_spread')
 plt.close()
 
 
@@ -171,8 +171,8 @@ if test_beams:
     beam1 = Beam(ring_HEB, n_macroparticles, n_particles)
     beam2 = Beam(ring_HEB, n_macroparticles, n_particles)
     beam3 = Beam(ring_HEB, n_macroparticles, n_particles)
-    beam3.dt = np.load('../initial_distribution_dt.npy')
-    beam3.dE = np.load('../initial_distribution_dE.npy')
+    beam3.dt = np.load('../beam_phase.npy')
+    beam3.dE = np.load('../beam_energy.npy')
     rfcav = RFStation(ring_HEB, tracking_parameters.harmonic, voltage_ramp, phi_rf_d= np.pi)
     bigaussian(ring_HEB, rfcav, beam1, tracking_parameters.sigmaz_0 / c / 4, sigma_dE = tracking_parameters.sigmaE_0 * tracking_parameters.E_flat_bottom , reinsertion=True, seed=1)
     number_slices = 500
@@ -189,3 +189,4 @@ if test_beams:
     plt.scatter(beam3.dt * 1e9, beam3.dE / 1e9, label='damped_right_emittance')
     plt.scatter(-beam3.dt * 1e9, beam3.dE / 1e9, label='minus t damped_right_emittance')
     plt.legend()
+    plt.show()
