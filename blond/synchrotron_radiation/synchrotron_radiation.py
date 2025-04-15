@@ -69,7 +69,7 @@ class SynchrotronRadiation:
                     self.I4 = Ring.I4
                     self.jz = 2.0 + self.I4 / self.I2
                 else :
-                    raise MissingParameterError("Synchrotron radiation damping and quantum excitation require either the bending radius "
+                    raise MissingParameterError("Synchrotron radiation damping and quantum excitation require either the bending radius "+
                                             "for an isomagnetic ring, or the first five synchrotron radiation integrals.")
             if bending_radius is not None:
                 self.rho = bending_radius
@@ -84,17 +84,17 @@ class SynchrotronRadiation:
                     integrals = np.array(rad_int)
                 except ValueError as ve:
                     raise ValueError(ve)
-                if integrals.__len__() >=5:
-                    if bending_radius is not None:
-                        warnings.warn('Synchrotron radiation integrals prevail. Bending radius input ignored.')
+
+                if integrals.__len__() < 5:
+                    raise ValueError("The first five synchrotron " +
+                                     "radiation integrals are requires " +
+                                     "Ignoring input.")
+                if bending_radius is not None:
+                    warnings.warn('Synchrotron radiation integrals prevail. Bending radius input ignored.')
                     self.I2 = integrals[1]
                     self.I3 = integrals[2]
                     self.I4 = integrals[3]
                     self.jz = 2.0 + self.I4 / self.I2
-                else :
-                    raise ValueError("The first five synchrotron " +
-                                     "radiation integrals are requires " +
-                                     "Ignoring input.")
             else:
                 raise TypeError(f"Expected a list or numpy.ndarray as an input. Received {type(rad_int)}.")
 
