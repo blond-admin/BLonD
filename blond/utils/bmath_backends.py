@@ -69,6 +69,7 @@ class MasterBackend:
         # listing definitions that shall be declared !
         # _verify_backend() will check for declaration
         # and raise exception if not declared
+        self.roll = None
         self.fftconvolve = None
         self.pi = None
         self.diff = None
@@ -352,6 +353,7 @@ class __NumpyBackend(MasterBackend):
 
         super().__init__()
         from scipy.signal import fftconvolve
+        self.roll = np.roll
         self.fftconvolve = fftconvolve
         self.pi = np.pi
         self.arctan = np.arctan
@@ -452,6 +454,7 @@ class __CupyBackend(MasterBackend):
         from cupyx.scipy.signal import fftconvolve
 
         self.fftconvolve = fftconvolve
+        self.roll = cp.roll
         self.float32 = cp.float32
         self.pi = cp.pi
         self.int32 = cp.int32

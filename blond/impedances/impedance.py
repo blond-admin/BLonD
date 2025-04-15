@@ -20,6 +20,7 @@ import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.constants import e
 
@@ -28,6 +29,7 @@ from .impedance_sources import (
     Resonators,
     InputTableFrequencyDomain,
     ResistiveWall,
+    _FftHandler,
 )
 from ..beam.profile import Profile
 from ..toolbox.next_regular import next_regular
@@ -489,6 +491,30 @@ class _InducedVoltage(ABC):
             dtype=bm.precision.real_t, order="C", copy=False
         )
 
+    def dev_plot(self):
+        if isinstance(self, InductiveImpedance):
+            return
+        self.profile.beam_spectrum_generation(self.n_fft)
+        beam_spectrum = self.profile.beam_spectrum
+        kernel = bm.irfft(
+            self.total_impedance.astype(
+                dtype=bm.precision.complex_t, order="C", copy=False
+            )
+        )
+        profile = bm.irfft(beam_spectrum)
+        wake = bm.irfft(
+            self.total_impedance.astype(
+                dtype=bm.precision.complex_t, order="C", copy=False
+            )
+            * beam_spectrum
+        )
+        plt.subplot(3, 1, 1)
+        plt.plot(kernel, "o-", label="org", c="C0")
+        plt.subplot(3, 1, 2)
+        plt.plot(profile, label="org", c="C0")
+        plt.subplot(3, 1, 3)
+        plt.plot(wake, label="org", c="C0")
+
     def induced_voltage_mtw(
         self, beam_spectrum_dict: Optional[dict] = None
     ):  # todo improve type hint for dict
@@ -626,8 +652,7 @@ class InducedVoltageTime(_InducedVoltage):
         ####################################
 
         # Call the __init__ method of the parent class [calls process()]
-        _InducedVoltage.__init__(
-            self,
+        super().__init__(
             beam,
             profile,
             frequency_resolution=None,
@@ -661,6 +686,10 @@ class InducedVoltageTime(_InducedVoltage):
         self.frequency_resolution = 1 / (self.n_fft * self.profile.bin_size)
 
         # Time array of the wake in s
+        print(
+            self.wake_length,
+            self.n_induced_voltage,
+        )
         self.time = np.arange(
             0,
             self.wake_length,
@@ -724,7 +753,9 @@ class InducedVoltageTime(_InducedVoltage):
                 pass
         time_array = np.linspace(t_start, t_stop, n)
         self.sum_wakes(time_array=time_array)
-        wake = self.total_wake / self.profile.bin_size
+
+        # Factor relating Fourier transform and DFT
+        wake = self.total_wake  / self.profile.bin_size
         return wake
 
     def to_gpu(self, recursive: bool = True):
@@ -860,8 +891,7 @@ class InducedVoltageFreq(_InducedVoltage):
         ###############
 
         # Call the __init__ method of the parent class
-        _InducedVoltage.__init__(
-            self,
+        super().__init__(
             beam,
             profile,
             wake_length=None,
@@ -921,7 +951,7 @@ class InducedVoltageFreq(_InducedVoltage):
         self.total_impedance /= self.profile.bin_size
 
     def get_wake_kernel(
-            self, t_start: float, t_stop: float, n: int
+        self, t_start: float, t_stop: float, n: int
     ) -> NumpyArray | CupyArray:
         """Get wakefield in time interval
 
@@ -934,17 +964,38 @@ class InducedVoltageFreq(_InducedVoltage):
         n
             Number of entries in wake
         """
-        # Recycle method `get_wake_kernel`.
+        time_array = bm.linspace(t_start, t_stop, n, endpoint=False)
 
-        # This is possible, because the method requires only
-        # self.wake_source_list, that exists in both `InducedVoltageTime`
-        # and `InducedVoltageFreq`
-        return InducedVoltageTime.get_wake_kernel(
-            self=self,  # NOQA
-            t_start=t_start,
-            t_stop=t_stop,
-            n=n,
+        self.sum_impedances(freq=self.freq)
+
+        fft_handler = _FftHandler(
+            frequencies=self.freq, amplitudes=self.total_impedance
         )
+        if self.frequency_resolution == "auto":
+            wake = fft_handler.get_periodic_wake_by_time(time_array=time_array)
+        elif isinstance(self.frequency_resolution, float):
+            t_periodicity = 1 / (self.frequency_resolution)
+
+            dt = time_array[1] - time_array[0]
+            ts_itp, wake_itp = fft_handler.get_periodic_wake(
+                t_periodicity=t_periodicity,
+                dt=dt,
+            )
+            wake = np.interp(time_array, ts_itp-dt, wake_itp,
+                             period=t_periodicity)
+            DEV_PLOT = False
+            if DEV_PLOT:
+                plt.figure()
+                plt.plot( ts_itp, wake_itp, "o")
+                plt.plot( time_array, wake, "x")
+                plt.axvline(t_periodicity)
+                plt.show()
+
+        elif self.frequency_resolution is None:
+            wake = fft_handler.get_non_periodic_wake(time_array=time_array)
+        else:
+            raise ValueError(self.frequency_resolution)
+        return wake
 
     def to_gpu(self, recursive: bool = True):
         """
@@ -1038,9 +1089,7 @@ class InductiveImpedance(_InducedVoltage):
         self.deriv_mode = deriv_mode
 
         # Call the __init__ method of the parent class
-        _InducedVoltage.__init__(
-            self, beam=beam, profile=profile, rf_station=rf_station
-        )
+        super().__init__(beam=beam, profile=profile, rf_station=rf_station)
 
     def induced_voltage_1turn(self, beam_spectrum_dict: Dict[int, NumpyArray] = {}):
         """
@@ -1085,7 +1134,7 @@ class InductiveImpedance(_InducedVoltage):
         step = ts[1] - ts[0]
         # if is first histogram,
         if t_start <= 0 < t_stop:
-            idx = len(ts) // 2
+            idx = len(ts) // 2 - 1
             derative_wake[idx + 1] = -1.0 / (2 * step)
             derative_wake[idx - 1] = +1.0 / (2 * step)
 
@@ -1246,8 +1295,7 @@ class InducedVoltageResonator(_InducedVoltage):
         )
 
         # Call the __init__ method of the parent class [calls process()]
-        _InducedVoltage.__init__(
-            self,
+        super().__init__(
             beam,
             profile,
             wake_length=None,

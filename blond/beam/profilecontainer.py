@@ -185,9 +185,7 @@ class TotalInducedVoltageNew:
         self._induced_voltage_container = induced_voltage_container
         self._induced_voltage_container.lock()  # DONT ALLOW ANY CHANGED ANYMORE
 
-        self._profile_source = self._profile_container._total_histogram[
-            :, :
-        ].T.flatten()
+
         self.track_update_wake_kernel = track_update_wake_kernel
         self._compressed_wake_kernel = self._get_compressed_wake_kernel(
             self._profile_container
@@ -195,6 +193,19 @@ class TotalInducedVoltageNew:
 
         self._induced_voltage_amplitude: NumpyArray | CupyArray = None  # TODO
         # self._induced_voltage_time: NumpyArray | CupyArray # TODO
+
+    def dev_plot(self):
+        from matplotlib import pyplot as plt
+
+        kernel = self._compressed_wake_kernel
+        profile = self.profile.n_macroparticles
+        wake = self.profile.wake
+        plt.subplot(3, 1, 1)
+        plt.plot(np.arange(len(kernel))+1, kernel,'x-', label="new", c="C1")
+        plt.subplot(3, 1, 2)
+        plt.plot( profile, label="new", c="C1")
+        plt.subplot(3, 1, 3)
+        plt.plot( wake, label="new", c="C1")
 
     @property
     def profile(self):
@@ -280,19 +291,30 @@ class TotalInducedVoltageNew:
             )
             DEV_DEBUG = False
             if DEV_DEBUG:
-                try: # .get() so it works only on GPU
+                try:  # .get() so it works only on GPU
                     from matplotlib import pyplot as plt
+                    import cupy as cp
+
                     fig_n = plt.gcf().number
                     plt.figure(22)
                     plt.clf()
                     plt.subplot(3, 1, 1)
                     plt.title("self._compressed_wake_kernel")
-                    plt.plot(self._compressed_wake_kernel.get(), label=f"{profile_i}")
+                    xs = self._compressed_wake_kernel
+                    if isinstance(xs, cp.ndarray):
+                        xs = xs.get()
+                    plt.plot(xs, label=f"{profile_i}")
                     plt.subplot(3, 1, 2)
                     plt.title("profile_source.n_macroparticles")
-                    plt.plot(profile_source.n_macroparticles.get(), label=f"{profile_i}")
+                    xs = profile_source.n_macroparticles
+                    if isinstance(xs, cp.ndarray):
+                        xs = xs.get()
+                    plt.plot(xs, label=f"{profile_i}")
                     plt.subplot(3, 1, 3)
-                    plt.plot(compressed_wake.get(), label=f"{profile_i=}")
+                    xs = compressed_wake
+                    if isinstance(xs, cp.ndarray):
+                        xs = xs.get()
+                    plt.plot(xs, label=f"{profile_i=}")
                     plt.figure(fig_n)
                 except AttributeError:
                     pass
@@ -315,7 +337,6 @@ class TotalInducedVoltageNew:
                 start = (profile_j - profile_i + 0) * step + step // 4
                 stop = (profile_j - profile_i + 1) * step - step // 4
                 size = stop - start
-
 
                 # Set fake attribute `wake` to be used in `track`. This is
                 # private to `TotalInducedVoltageNew`
@@ -340,14 +361,12 @@ class TotalInducedVoltageNew:
                     )
                     profile_target.wake += compressed_wake[start:stop]
 
-
     def _get_compressed_wake_kernel(
         self, profile_container: ProfileContainer
     ) -> NumpyArray | CupyArray:
         """Calculates the wake kernel at every profile"""
         concat_later = []
-        # TODO CONSIDER MTW
-        t_min_glob = min(map(lambda p: p.cut_left, self._profile_container))
+
         first_profile_center = (
             profile_container._profiles[0].cut_left
             + profile_container._profiles[0].cut_right
@@ -371,7 +390,6 @@ class TotalInducedVoltageNew:
                     f"but {t_start=}, "
                     f"and {t_stop=}"
                 )
-                n_entries -= 1
             assert t_start < t_stop, f"{t_start=} {t_stop=}"
             msg = f"Bins must be  even, but {profile_dest.number_of_bins=}"
             assert profile_dest.number_of_bins % 2 == 0, msg
@@ -395,9 +413,13 @@ class TotalInducedVoltageNew:
             # This script can be further developed to consider different
             # wake kernel sizes.  Must be considered in
             # `_induced_voltage_sum` too.
-            msg = (f"Not all wake kernels have the same size: "
-                   f"{[len(w) for w in concat_later]}")
-            assert len(wake) == (len(concat_later[0])+1), f"{len(wake)} == {(len(concat_later[0]) + 1)}"
+            msg = (
+                f"Not all wake kernels have the same size: "
+                f"{[len(w) for w in concat_later]}"
+            )
+            assert len(wake) == (
+                len(concat_later[0]) + 1
+            ), f"{len(wake)} == {(len(concat_later[0]) + 1)}"
         compressed_wake_kernel = bm.concatenate(concat_later, dtype=precision.real_t)
 
         return compressed_wake_kernel

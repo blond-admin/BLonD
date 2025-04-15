@@ -201,7 +201,11 @@ class _FftHandler:
             right=0,
         )
         wake = bm.irfft(imp_itp)
-        assert len(wake) == len(time_array)
+        if len(time_array) % 2 == 0:
+            assert len(wake) == len(time_array), f"{len(wake)} != {len(time_array)}"
+        else:
+            assert (len(wake)+1) == len(
+                time_array), f"{len(wake)} != {len(time_array)}"
         if time_array[0] != 0:
             wake = bm.interp(
                 time_array,
@@ -212,8 +216,9 @@ class _FftHandler:
         return wake
 
     def get_periodic_wake(
-        self, t_periodicity: float,
-            dt : float,
+        self,
+        t_periodicity: float,
+        dt: float,
     ) -> Tuple[NumpyArray | CupyArray, NumpyArray | CupyArray]:
         """
         Generate a time-domain periodic wake signal over a specified interval.
@@ -233,7 +238,8 @@ class _FftHandler:
             - `ts_itp`: Array of time samples over the interval [0, t_periodicity].
             - `wake_itp`: Reconstructed periodic wake signal corresponding to `ts_itp`.
         """
-        fs_itp = bm.fft.rfftfreq(int(math.ceil(t_periodicity / dt)), d=dt)
+        n = int(math.ceil((t_periodicity) / dt))
+        fs_itp = bm.fft.rfftfreq(n, d=dt)
         amps_itp = bm.interp(
             fs_itp, self._frequencies, self._amplitudes, left=0, right=0
         )
@@ -360,6 +366,13 @@ class InputTableTimeDomain(_ImpedanceObject):
 
     def __init__(self, time_array: ArrayLike[float], wake: ArrayLike[float]):
         _ImpedanceObject.__init__(self)
+        if not time_array.min() <= 0:
+            warnings.warn(
+                f"Uninitended side effects are possible, if your "
+                f"wake doesnt start before 0: {time_array.min()=}",
+                UserWarning,
+                stacklevel=2,
+            )
         # Time array of the wake in s
         self.time_array = self._time_array_org = time_array
         # Wake array in :math:`\Omega / s`
@@ -492,8 +505,7 @@ class InputTableFrequencyDomain(_ImpedanceObject):
         elif isinstance(self.t_periodicity, float):
             # this allows periodicity to be different from time_array length
             ts_itp, wake_itp = fft_handler.get_periodic_wake(
-                t_periodicity=self.t_periodicity, dt=time_array[
-                                                         1]-time_array[0]
+                t_periodicity=self.t_periodicity, dt=time_array[1] - time_array[0]
             )
             wake = np.interp(time_array, ts_itp, wake_itp, period=self.t_periodicity)
         elif self.t_periodicity is None:
@@ -698,7 +710,9 @@ class Resonators(_ImpedanceObject):
             Output impedance in :math:`\Omega + j \Omega`
         """
         # if self.impedance is an array with the correct size
-        if not isinstance(self.impedance, int) and (len(self.impedance) == len(frequency_array)):
+        if not isinstance(self.impedance, int) and (
+            len(self.impedance) == len(frequency_array)
+        ):
             # reuse array
             impedance = self.impedance
         else:
@@ -706,13 +720,13 @@ class Resonators(_ImpedanceObject):
             impedance = None
         self.frequency_array = frequency_array
         # fast_resonator should use and write on impedance, if not None
-        self.impedance = bm.fast_resonator(R_S=self.R_S,
-                                           Q=self.Q,
-                                           frequency_array=self.frequency_array,
-                                           frequency_R=self.frequency_R,
-                                           impedance=impedance
-                                           )
-
+        self.impedance = bm.fast_resonator(
+            R_S=self.R_S,
+            Q=self.Q,
+            frequency_array=self.frequency_array,
+            frequency_R=self.frequency_R,
+            impedance=impedance,
+        )
 
     def _imped_calc_python(self, frequency_array: NumpyArray):
         r"""
@@ -935,7 +949,6 @@ class TravelingWaveCavity(_ImpedanceObject):
 
             self.impedance += Zplus + Zminus
 
-
 class ResistiveWall(_ImpedanceObject):
     r"""
     Impedance contribution from resistive wall for a cilindrical beam pipe
@@ -1058,8 +1071,7 @@ class ResistiveWall(_ImpedanceObject):
         elif isinstance(self.t_periodicity, float):
             # this allows periodicity to be different from time_array length
             ts_itp, wake_itp = fft_handler.get_periodic_wake(
-                t_periodicity=self.t_periodicity,dt=time_array[
-                                                         1]-time_array[0]
+                t_periodicity=self.t_periodicity, dt=time_array[1] - time_array[0]
             )
             wake = np.interp(time_array, ts_itp, wake_itp, period=self.t_periodicity)
         elif self.t_periodicity is None:
