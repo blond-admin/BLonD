@@ -67,7 +67,8 @@ class Test_FftHandler(unittest.TestCase):
 
     def test_get_periodic_wake(self):
         ts_itp, wake_itp = self.fft_handler.get_periodic_wake(
-            t_periodicity=1 / self.sinus_freq
+            t_periodicity=1 / self.sinus_freq,
+            dt=1 / self.sinus_freq / 10
         )
         DEV_DEBUG = False
         if DEV_DEBUG:
@@ -135,7 +136,9 @@ class TestInputTableFrequencyDomain(unittest.TestCase):
     def test_wake_calc(self, t_periodicity):
         self.input_table_frequency_domain.t_periodicity = t_periodicity
         time_array = np.linspace(0, 1, 100)
-        wake = self.input_table_frequency_domain.wake_calc(time_array=time_array)
+        self.input_table_frequency_domain.wake_calc(time_array=time_array)
+        wake = self.input_table_frequency_domain.wake
+        assert wake is not None
 
     def test_imped_calc(self):
         frequency_array = np.linspace(0, 1, 100)
@@ -193,7 +196,9 @@ class TestResistiveWall(unittest.TestCase):
         self.resistive_wall.imped_calc(np.linspace(0, 5e9, 500))
         self.resistive_wall.t_periodicity = t_periodicity
         time_array = np.linspace(0, 1, 100)
-        wake = self.resistive_wall.wake_calc(time_array=time_array)
+        self.resistive_wall.wake_calc(time_array=time_array)
+        wake = self.resistive_wall.wake
+        assert wake is not None
 
 
 class TestCoherentSynchrotronRadiation(unittest.TestCase):

@@ -252,7 +252,7 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
             plt.axvline(64)
             plt.subplot(4, 1, 3)
             plt.plot(
-                self.total_induced_voltage_NEW._profile_container._profiles[0].wake[1:],
+                self.total_induced_voltage_NEW.induced_voltage[1:],
                 label="TotalInducedVoltageNew",
             )  # NOQA
             # `wake` is hidden variable of `_induced_voltage_sum`
@@ -262,6 +262,7 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
                 "--",
                 label="total_induced_voltage_ORG",
             )
+
             plt.subplot(4, 1, 4)
             plt.plot(
                 self.total_induced_voltage_NEW._profile_container._profiles[0].wake[1:]
@@ -282,7 +283,7 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
             plt.legend(loc="upper left")
             plt.show()
         np.testing.assert_allclose(
-            self.total_induced_voltage_NEW._profile_container._profiles[0].wake[1:],
+            self.total_induced_voltage_NEW.induced_voltage[1:],
             self.total_induced_voltage_ORG.induced_voltage[1:],
             atol=5e-2 * np.max(np.abs(self.total_induced_voltage_ORG.induced_voltage)),
         )
@@ -461,7 +462,7 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
         ymax = max(plt.ylim())
         plt.ylim(-ymax, ymax)
 
-        plt.show()
+        #plt.show()
 
 
 if __name__ == "__main__":

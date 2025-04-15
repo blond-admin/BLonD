@@ -282,7 +282,8 @@ class TestInductiveImpedance(unittest.TestCase):
             inductive_impedance.induced_voltage_1turn()
             result_expected = inductive_impedance.induced_voltage[1:-1]
             result_under_test = np.convolve(
-                self.profile1.n_macroparticles, wake_kernel, "full"
+                self.profile1.n_macroparticles, wake_kernel / (-
+            self._beam.particle.charge * e * self._beam.ratio), "full"
             )[32 : 32 + 62]
             DEV_DEBUG = False
 
