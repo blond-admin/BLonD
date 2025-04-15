@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib import animation
 import pickle as pkl
 
-from blond.beam.beam import Beam, Electron, Positron
+from blond.beam.beam import Beam, Electron, Positron, Proton, MuPlus
 from blond.input_parameters.rf_parameters import RFStation
 from blond.beam.distributions import bigaussian, parabolic
 
@@ -22,7 +22,8 @@ verbose  = False
 test_beams = True
 tracking = False
 
-particle_type = Positron()
+particle_type = Proton()
+particle_type = Electron()
 n_particles = int(1.7e11)
 n_macroparticles = int(1e5)
 
