@@ -57,10 +57,6 @@ class SynchrotronRadiation:
         self.rf_params = RFParameters
         self.beam = Beam
 
-        # Input check
-        if not isinstance(Ring.Particle, Electron) and not isinstance(Ring.Particle, Positron):
-            raise TypeError('Particles not expected. Expected an electron or positron beam.')
-
         if rad_int is None:
             if bending_radius is None:
                 if Ring.sr_flag:

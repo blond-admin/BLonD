@@ -68,12 +68,6 @@ class TestSynchtrotronRadiation(unittest.TestCase):
     def test_input(self):
         ring = Ring(90, 1e-6, 20e9, Proton(),
                          synchronous_data_type='total energy', n_turns=1)
-        # Particle type
-        with self.assertRaisesRegex(
-                TypeError, 'Particles not expected. Expected an electron or positron beam.'):
-            SynchrotronRadiation(ring, self.rf_station, self.beam, self.R_bend,
-                                 seed=self.seed, n_kicks=1, shift_beam=False,
-                                 python=True, quantum_excitation=False)
         # No bending radius, no radiation integrals
         with self.assertRaisesRegex(
                 MissingParameterError, "Synchrotron radiation damping and quantum excitation require either the bending radius "
