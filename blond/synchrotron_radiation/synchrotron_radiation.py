@@ -181,6 +181,7 @@ class SynchrotronRadiation:
 
     # Track particles with SR only (without quantum excitation)
     def track_SR_python(self):
+        "Adds the effect of synchrotron radiation damping on the beam coordinates"
         i_turn = self.rf_params.counter[0]
         # Recalculate SR parameters if energy changes
         if (i_turn != 0 and self.ring.energy[0, i_turn] !=
@@ -192,6 +193,7 @@ class SynchrotronRadiation:
 
     # Track particles with SR and quantum excitation
     def track_full_python(self):
+        "Adds the effect of synchrotron radiation damping and quantum excitation on the beam coordinates"
         i_turn = self.rf_params.counter[0]
         # Recalculate SR parameters if energy changes
         if (i_turn != 0 and self.ring.energy[0, i_turn] !=
@@ -200,8 +202,8 @@ class SynchrotronRadiation:
         for i in range(self.n_kicks):
             self.beam.dE += -(2.0 / self.tau_z / self.n_kicks * self.beam.dE +  # damping
                               self.U0 / self.n_kicks # SR kick
-                              - 2.0 * self.sigma_dE /  np.sqrt(self.tau_z * self.n_kicks) *
-                              self.beam.energy * np.random.normal(size=len(self.beam.dE)))  # tentative to implement quantum excitation
+                              - 2.0 * self.sigma_dE /  np.sqrt(self.tau_z * self.n_kicks) * # quantum excitation kick
+                              self.beam.energy * np.random.normal(size=len(self.beam.dE)))
 
 
 
