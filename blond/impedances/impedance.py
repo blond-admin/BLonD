@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import math
 import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
@@ -164,6 +165,7 @@ class TotalInducedVoltage:
             return
 
         if recursive:
+            self.profile.to_gpu(recursive=recursive)
             # transfer recursively objects
             for obj in self.induced_voltage_list:
                 obj.to_gpu()
@@ -439,7 +441,7 @@ class _InducedVoltage(ABC):
     @abstractmethod
     def get_wake_kernel(
         self, t_start: float, t_stop: float, n: int
-    ) -> NumpyNDArray | CupyNDArray:
+    ) -> NumpyArray | CupyArray:
         """Get wakefield in time interval
 
         Parameters
@@ -685,7 +687,7 @@ class InducedVoltageTime(_InducedVoltage):
 
     def get_wake_kernel(
         self, t_start: float, t_stop: float, n: int
-    ) -> NumpyNDArray | CupyNDArray:
+    ) -> NumpyArray | CupyArray:
         """Get wakefield in time interval
 
         Parameters
@@ -702,21 +704,27 @@ class InducedVoltageTime(_InducedVoltage):
         for wake_object in self.wake_source_list:
             if isinstance(wake_object, InputTableFrequencyDomain):
                 a: InputTableFrequencyDomain = wake_object
-                if a.t_periodicity is not None:
+                if a.t_periodicity is not None and not isinstance(
+                    a.t_periodicity, float
+                ):
                     warnings.warn(f"{warning_message} for {a}", UserWarning)
             elif isinstance(wake_object, ResistiveWall):
                 b: ResistiveWall = wake_object
-                if b.t_periodicity is not None:
+                if b.t_periodicity is not None and not isinstance(
+                    b.t_periodicity, float
+                ):
                     warnings.warn(f"{warning_message} for {b}", UserWarning)
             elif hasattr(wake_object, "t_periodicity"):
                 c: _ImpedanceObject = wake_object
-                if c.t_periodicity is not None:
+                if c.t_periodicity is not None and not isinstance(
+                    c.t_periodicity, float
+                ):
                     warnings.warn(f"{warning_message} for {c}", UserWarning)
             else:
                 pass
         time_array = np.linspace(t_start, t_stop, n)
         self.sum_wakes(time_array=time_array)
-        wake = self.total_wake
+        wake = self.total_wake / self.profile.bin_size
         return wake
 
     def to_gpu(self, recursive: bool = True):
@@ -884,6 +892,8 @@ class InducedVoltageFreq(_InducedVoltage):
         # Frequency array and resolution of the impedance in Hz
         self.freq = self.profile.beam_spectrum_freq
         self.frequency_resolution = 1 / (self.n_fft * self.profile.bin_size)
+        # FIXME why would you overwrite the user-given
+        #  `self.frequency_resolution` from `__init__` here??
 
         # Length of the front wake in frequency domain calculations
         if self.front_wake_length:
@@ -911,8 +921,8 @@ class InducedVoltageFreq(_InducedVoltage):
         self.total_impedance /= self.profile.bin_size
 
     def get_wake_kernel(
-        self, t_start: float, t_stop: float, n: int
-    ) -> NumpyNDArray | CupyNDArray:
+            self, t_start: float, t_stop: float, n: int
+    ) -> NumpyArray | CupyArray:
         """Get wakefield in time interval
 
         Parameters
@@ -1017,7 +1027,7 @@ class InductiveImpedance(_InducedVoltage):
         self,
         beam: Beam,
         profile: Profile,
-        Z_over_n: NumpyNDArray | float,
+        Z_over_n: NumpyArray | float,
         rf_station: RFStation,
         deriv_mode: BeamProfileDerivativeModes = "gradient",
     ):
@@ -1075,17 +1085,18 @@ class InductiveImpedance(_InducedVoltage):
         step = ts[1] - ts[0]
         # if is first histogram,
         if t_start <= 0 < t_stop:
-            idx = len(ts) // 2 - 1
+            idx = len(ts) // 2
             derative_wake[idx + 1] = -1.0 / (2 * step)
             derative_wake[idx - 1] = +1.0 / (2 * step)
 
         # introduce scalars that reflect `induced_voltage_1turn`
         index = self.rf_station.counter[0]
-        derative_wake = -(
-            self.beam.particle.charge
-            * e
+        derative_wake = (
+            1
+            # self.beam.particle.charge
+            # * e
             / (2 * np.pi)
-            * self.beam.ratio
+            # * self.beam.ratio
             * self.Z_over_n[index]
             * self.rf_station.t_rev[index]
             / self.profile.bin_size
@@ -1293,7 +1304,7 @@ class InducedVoltageResonator(_InducedVoltage):
 
     def get_wake_kernel(
         self, t_start: float, t_stop: float, n: int
-    ) -> NumpyNDArray | CupyNDArray:
+    ) -> NumpyArray | CupyArray:
         """Get wakefield in time interval
 
         Parameters

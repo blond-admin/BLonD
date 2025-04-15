@@ -80,6 +80,13 @@ class ProfileContainer(Lockable):
             raise ValueError(msg)
         return self._profiles[0].number_of_bins
 
+    def to_gpu(self, recursive: bool = True):
+        import cupy as cp
+
+        self._total_histogram = cp.array(self._total_histogram)
+        for i, profile in enumerate(self._profiles):
+            profile.n_macroparticles = self._total_histogram[:, i].view()
+
     def add_profile(self, profile: Profile):
         assert not self.is_locked
         if self.n_profiles > 0:
@@ -189,6 +196,39 @@ class TotalInducedVoltageNew:
         self._induced_voltage_amplitude: NumpyArray | CupyArray = None  # TODO
         # self._induced_voltage_time: NumpyArray | CupyArray # TODO
 
+    @property
+    def profile(self):
+        # TODO: PRELIMINARY CODE
+        return self._profile_container._profiles[0]
+
+    @property
+    def induced_voltage(self):
+        # TODO: PRELIMINARY CODE
+        from scipy.constants import elementary_charge as e
+
+        induced_voltage = -(
+            self._beam.particle.charge * e * self._beam.ratio * self.profile.wake
+        )
+        return induced_voltage
+
+    def to_gpu(self, recursive: bool = True):
+        # TODO: PRELIMINARY CODE
+        import cupy as cp
+
+        self._compressed_wake_kernel = cp.array(self._compressed_wake_kernel)
+        if recursive:
+            self._profile_container.to_gpu(recursive=recursive)
+
+    def reprocess(self):
+        # TODO: PRELIMINARY CODE
+        self._compressed_wake_kernel = self._get_compressed_wake_kernel(
+            self._profile_container
+        )
+
+    def induced_voltage_sum(self):
+        # TODO: PRELIMINARY CODE
+        return self._induced_voltage_sum()
+
     def track(self):
         """Apply kick function to beam"""
 
@@ -198,23 +238,27 @@ class TotalInducedVoltageNew:
             bm.linear_interp_kick(
                 dt=self._beam.dt,
                 dE=self._beam.dE,
-                voltage=profile.wake,  # NOQA, This is set by `_induced_voltage_sum`
+                voltage=self.induced_voltage,  # NOQA, This is set by `_induced_voltage_sum`
                 bin_centers=profile.bin_centers,
                 charge=self._beam.particle.charge,
                 acceleration_kick=0.0,
             )
-            del profile.wake  # NOQA remove attribute, so its not visible
+            # TODO activate del wake
+            # del profile.wake  # NOQA remove attribute, so its not visible
             # from the outside.
 
     def _induced_voltage_sum(self):
-        for profile_j, profile_target in enumerate(self._profile_container):
-            profile_target: Profile
-            # attribute `wake` to be used in `track`. This is private to
-            # `TotalInducedVoltageNew`
-            profile_target.wake = bm.zeros(profile_target.number_of_bins)
+        has_one_profile = self._profile_container.n_profiles == 1
+
+        if not has_one_profile:
+            for profile_j, profile_target in enumerate(self._profile_container):
+                profile_target: Profile
+                # attribute `wake` to be used in `track`. This is private to
+                # `TotalInducedVoltageNew`
+                profile_target.wake = bm.zeros(profile_target.number_of_bins)
 
         # Size of compressed wake per profile, defined in `_get_compressed_wake_kernel`
-        step = (2 * self._profile_container.number_of_bins)
+        step = 2 * self._profile_container.number_of_bins
 
         if self.track_update_wake_kernel:
             # This is potentially a non-performing operation,
@@ -234,17 +278,24 @@ class TotalInducedVoltageNew:
                 profile_source.n_macroparticles[:],
                 mode="same",
             )
-            """fig_n = plt.gcf().number
-            plt.figure(22)
-            plt.subplot(3, 1, 1)
-            plt.title("self._compressed_wake_kernel")
-            plt.plot(self._compressed_wake_kernel, label=f"{profile_i}")
-            plt.subplot(3, 1, 2)
-            plt.title("profile_source.n_macroparticles")
-            plt.plot(profile_source.n_macroparticles, label=f"{profile_i}")
-            plt.subplot(3, 1, 3)
-            plt.plot(compressed_wake, label=f"{profile_i=}")
-            plt.figure(fig_n)"""
+            DEV_DEBUG = False
+            if DEV_DEBUG:
+                try: # .get() so it works only on GPU
+                    from matplotlib import pyplot as plt
+                    fig_n = plt.gcf().number
+                    plt.figure(22)
+                    plt.clf()
+                    plt.subplot(3, 1, 1)
+                    plt.title("self._compressed_wake_kernel")
+                    plt.plot(self._compressed_wake_kernel.get(), label=f"{profile_i}")
+                    plt.subplot(3, 1, 2)
+                    plt.title("profile_source.n_macroparticles")
+                    plt.plot(profile_source.n_macroparticles.get(), label=f"{profile_i}")
+                    plt.subplot(3, 1, 3)
+                    plt.plot(compressed_wake.get(), label=f"{profile_i=}")
+                    plt.figure(fig_n)
+                except AttributeError:
+                    pass
 
             for profile_j, profile_target in enumerate(self._profile_container):
                 profile_target: Profile
@@ -256,7 +307,7 @@ class TotalInducedVoltageNew:
 
                 # Read/write the wakefield from the compressed wake.
                 dev_debug = profile_j - profile_i
-                #print(f"{profile_j=} {dev_debug=}")
+                # print(f"{profile_j=} {dev_debug=}")
                 assert dev_debug >= 0
                 # Because the wake is `2 * number_of_bins` in the compressed wake
                 # `start` and `stop` are shifted to include only the relevant
@@ -264,8 +315,7 @@ class TotalInducedVoltageNew:
                 start = (profile_j - profile_i + 0) * step + step // 4
                 stop = (profile_j - profile_i + 1) * step - step // 4
                 size = stop - start
-                assert size == len(profile_target.wake), (f"{size} !="
-                                                          f" {len(profile_target.wake)}")
+
 
                 # Set fake attribute `wake` to be used in `track`. This is
                 # private to `TotalInducedVoltageNew`
@@ -282,7 +332,13 @@ class TotalInducedVoltageNew:
                 )
                 plt.legend()
                 plt.figure(fig_n)"""
-                profile_target.wake += compressed_wake[start:stop]
+                if has_one_profile:
+                    profile_target.wake = compressed_wake[start:stop]
+                else:
+                    assert size == len(profile_target.wake), (
+                        f"{size} !=" f" {len(profile_target.wake)}"
+                    )
+                    profile_target.wake += compressed_wake[start:stop]
 
 
     def _get_compressed_wake_kernel(
@@ -306,6 +362,8 @@ class TotalInducedVoltageNew:
             # entries when at left and right end of profile
             t_start = profile_dest.cut_left - width / 2 - t_offset
             t_stop = profile_dest.cut_right + width / 2 - t_offset
+            n_entries = 2 * self._profile_container.number_of_bins
+
             if t_start < 0:
                 assert np.isclose(t_start, -t_stop), (
                     "Must be symmetric "
@@ -313,14 +371,14 @@ class TotalInducedVoltageNew:
                     f"but {t_start=}, "
                     f"and {t_stop=}"
                 )
-
+                n_entries -= 1
             assert t_start < t_stop, f"{t_start=} {t_stop=}"
             msg = f"Bins must be  even, but {profile_dest.number_of_bins=}"
             assert profile_dest.number_of_bins % 2 == 0, msg
 
             wake_kernel_at_single_profile = bm.zeros(
                 # Factor 2 because `start` and `stop` was increased by `width / 2`
-                2 * self._profile_container.number_of_bins,
+                n_entries,
                 dtype=precision.real_t,
             )
             # Sum all wakes (impedances) for a single profile target
@@ -333,12 +391,13 @@ class TotalInducedVoltageNew:
 
             concat_later.append(wake_kernel_at_single_profile)
 
-        for wake in concat_later:
+        for wake_i, wake in enumerate(concat_later[1:]):
             # This script can be further developed to consider different
             # wake kernel sizes.  Must be considered in
             # `_induced_voltage_sum` too.
-            msg = "Not all wake kernels have the same size.."
-            assert len(wake) == len(concat_later[0]), msg
+            msg = (f"Not all wake kernels have the same size: "
+                   f"{[len(w) for w in concat_later]}")
+            assert len(wake) == (len(concat_later[0])+1), f"{len(wake)} == {(len(concat_later[0]) + 1)}"
         compressed_wake_kernel = bm.concatenate(concat_later, dtype=precision.real_t)
 
         return compressed_wake_kernel

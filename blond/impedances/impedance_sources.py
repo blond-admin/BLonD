@@ -19,6 +19,7 @@ classes, as for example InputTable, Resonators and TravelingWaveCavity.**
 
 from __future__ import annotations
 
+import math
 import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
@@ -211,7 +212,8 @@ class _FftHandler:
         return wake
 
     def get_periodic_wake(
-        self, t_periodicity: float
+        self, t_periodicity: float,
+            dt : float,
     ) -> Tuple[NumpyArray | CupyArray, NumpyArray | CupyArray]:
         """
         Generate a time-domain periodic wake signal over a specified interval.
@@ -231,12 +233,12 @@ class _FftHandler:
             - `ts_itp`: Array of time samples over the interval [0, t_periodicity].
             - `wake_itp`: Reconstructed periodic wake signal corresponding to `ts_itp`.
         """
-        ts_itp = np.linspace(0, t_periodicity, 2 * len(self._frequencies) - 2)
-        fs_itp = bm.fft.rfftfreq(len(ts_itp), d=ts_itp[1] - ts_itp[0])
+        fs_itp = bm.fft.rfftfreq(int(math.ceil(t_periodicity / dt)), d=dt)
         amps_itp = bm.interp(
             fs_itp, self._frequencies, self._amplitudes, left=0, right=0
         )
         wake_itp = bm.fft.irfft(amps_itp)
+        ts_itp = dt * np.arange(len(wake_itp))
         assert len(wake_itp) == len(ts_itp)
         return ts_itp, wake_itp
 
@@ -473,10 +475,10 @@ class InputTableFrequencyDomain(_ImpedanceObject):
         """
         time_array_dt = time_array[1] - time_array[0]
         time_array_f_cutoff = 1 / (2 * time_array_dt)
-        if time_array_f_cutoff > self._frequency_array_org.max():
+        if time_array_f_cutoff < self._frequency_array_org.max():
             msg = (
                 f"`time_array` has a cutoff frequency of "
-                f"{time_array_f_cutoff} Hz, but the input table ends already "
+                f"{time_array_f_cutoff} Hz, but the input table ends "
                 f"at {self._frequency_array_org.max()} Hz"
             )
             warnings.warn(msg, UserWarning, stacklevel=2)
@@ -490,7 +492,8 @@ class InputTableFrequencyDomain(_ImpedanceObject):
         elif isinstance(self.t_periodicity, float):
             # this allows periodicity to be different from time_array length
             ts_itp, wake_itp = fft_handler.get_periodic_wake(
-                t_periodicity=self.t_periodicity
+                t_periodicity=self.t_periodicity, dt=time_array[
+                                                         1]-time_array[0]
             )
             wake = np.interp(time_array, ts_itp, wake_itp, period=self.t_periodicity)
         elif self.t_periodicity is None:
@@ -498,6 +501,8 @@ class InputTableFrequencyDomain(_ImpedanceObject):
             wake = fft_handler.get_non_periodic_wake(time_array=time_array)
         else:
             raise ValueError(f"{self.t_periodicity=}")
+        self.wake = wake
+        self.time_array = time_array
         return wake
 
     def imped_calc(self, frequency_array: NumpyArray):
@@ -1053,7 +1058,8 @@ class ResistiveWall(_ImpedanceObject):
         elif isinstance(self.t_periodicity, float):
             # this allows periodicity to be different from time_array length
             ts_itp, wake_itp = fft_handler.get_periodic_wake(
-                t_periodicity=self.t_periodicity
+                t_periodicity=self.t_periodicity,dt=time_array[
+                                                         1]-time_array[0]
             )
             wake = np.interp(time_array, ts_itp, wake_itp, period=self.t_periodicity)
         elif self.t_periodicity is None:
@@ -1061,6 +1067,8 @@ class ResistiveWall(_ImpedanceObject):
             wake = fft_handler.get_non_periodic_wake(time_array=time_array)
         else:
             raise ValueError(f"{self.t_periodicity=}")
+        self.wake = wake
+        self.time_array = time_array
         return wake
 
     def wake_calc_old(self, time_array: NumpyArray):
