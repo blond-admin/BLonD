@@ -22,7 +22,7 @@ verbose  = False
 test_beams = True
 tracking = False
 
-particle_type = Electron()
+particle_type = Positron()
 n_particles = int(1.7e11)
 n_macroparticles = int(1e5)
 
@@ -174,11 +174,11 @@ if test_beams:
     beam3.dt = np.load('../beam_phase.npy')
     beam3.dE = np.load('../beam_energy.npy')
     rfcav = RFStation(ring_HEB, tracking_parameters.harmonic, voltage_ramp, phi_rf_d= np.pi)
-    bigaussian(ring_HEB, rfcav, beam1, tracking_parameters.sigmaz_0 / c / 4, sigma_dE = tracking_parameters.sigmaE_0 * tracking_parameters.E_flat_bottom , reinsertion=True, seed=1)
+    bigaussian(ring_HEB, rfcav, beam1, tracking_parameters.sigmaz_0 / c / 4, sigma_dE = tracking_parameters.sigmaE_0* tracking_parameters.E_flat_bottom, reinsertion=True, seed=1)
     number_slices = 500
     long_tracker = RingAndRFTracker(rfcav, beam2)
     full_tracker = FullRingAndRF([long_tracker])
-    matched_from_distribution_function(beam2, full_tracker, emittance=0.02,
+    matched_from_distribution_function(beam2, full_tracker, emittance=0.0008,
                                       distribution_type='gaussian',
                                       distribution_variable='Action',
                                       seed=1000)
@@ -186,7 +186,7 @@ if test_beams:
     plot_hamiltonian(ring_HEB, rfcav, beam1, 1e-9, ring_HEB.energy[0][0]/20, n_lines = 100, separatrix = True)
     plt.scatter(beam1.dt * 1e9, beam1.dE / 1e9, label='bigaussian')
     plt.scatter(beam2.dt*1e9, beam2.dE/1e9, label='matched_from_distribution')
-    plt.scatter(beam3.dt * 1e9, beam3.dE / 1e9, label='damped_right_emittance')
-    plt.scatter(-beam3.dt * 1e9, beam3.dE / 1e9, label='minus t damped_right_emittance')
+    #plt.scatter(beam3.dt * 1e9, beam3.dE / 1e9, label='damped_right_emittance')
+    #plt.scatter(-beam3.dt * 1e9, beam3.dE / 1e9, label='minus t damped_right_emittance')
     plt.legend()
     plt.show()
