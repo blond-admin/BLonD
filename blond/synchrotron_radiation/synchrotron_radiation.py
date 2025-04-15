@@ -189,11 +189,12 @@ class SynchrotronRadiation:
                 self.ring.energy[0, i_turn - 1]):
             self.calculate_SR_params()
         for i in range(self.n_kicks):
-            self.beam.dE += -(2.0 / self.tau_z / self.n_kicks * self.beam.dE +
-                              self.U0 / self.n_kicks - 2.0 * self.sigma_dE /
-                              np.sqrt(self.tau_z * self.n_kicks) *
-                              self.ring.energy[0, i_turn] *
-                              np.random.normal(self.beam.n_macroparticles))
+            self.beam.dE += -(2.0 / self.tau_z / self.n_kicks * self.beam.dE +  # damping
+                              self.U0 / self.n_kicks # SR kick
+                              - 2.0 * self.sigma_dE /  np.sqrt(self.tau_z * self.n_kicks) *
+                              self.beam.energy * np.random.normal(size=len(self.beam.dE)))  # tentative to implement quantum excitation
+
+
 
     # Track particles with SR only (without quantum excitation)
     # C implementation

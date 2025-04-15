@@ -60,8 +60,8 @@ position = []
 sE = []
 beam.statistics()
 bl.append(beam.sigma_dt * c * 1e3)
-sE.append(beam.sigma_dE/beam.energy)
-eml.append(np.pi * 4 * beam.sigma_dt * beam.sigma_dE* 100)
+sE.append(beam.sigma_dE/beam.energy*100)
+eml.append(np.pi * 4 * beam.sigma_dt * beam.sigma_dE)
 for i in range(1, Nturns+1):
     # Track
     for m in map_:
