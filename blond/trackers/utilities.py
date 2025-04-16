@@ -589,7 +589,7 @@ def is_in_separatrix(Ring, RFStation, Beam, dt, dE,
     isin = bm.fabs(hamiltonian(Ring, RFStation, Beam,
                                dt, dE, total_voltage=None)) < bm.fabs(Hsep)
 
-    return isin
+    return isin, Hsep
 
 
 def minmax_location(x, f):

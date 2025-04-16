@@ -16,16 +16,15 @@ from scipy.constants import c, e
 from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
 from blond.beam.distributions import matched_from_distribution_function
 from blond.synchrotron_radiation.synchrotron_radiation import SynchrotronRadiation
-from simu_acceleration.plots_theory import plot_hamiltonian, get_hamiltonian
+from simu_acceleration_positron.plots_theory_positron import plot_hamiltonian, get_hamiltonian
 from simu_acceleration.functions_wiggler import wiggler, update_rad_int, update_SRtracker_and_track
 
 test_mode = False
 optimise = False
 verbose  = False
-test_beams = True
 tracking = False
 
-particle_type = Electron()
+particle_type = Positron()
 n_particles = int(1.7e11)
 n_macroparticles = int(1e5)
 
@@ -33,24 +32,23 @@ dt = 1e-9
 dE = 1e9
         # Number of turns to track
 
-with open("/Users/lvalle/cernbox/FCC-ee/Voltage_program/ramps_before_optimisation10_04_2025_17_19_52overshoot_wiggler_aggressive_filling_factor.pickle", "rb") as file:
-#with open("/Users/lvalle/cernbox/FCC-ee/Voltage_program/ramps_before_optimisation10_04_2025_16_33_10overshoot_wiggler_new_filling_factor.pickle",
-     #       "rb") as file:
+#with open("/Users/lvalle/cernbox/FCC-ee/Voltage_program/ramps_before_optimisation10_04_2025_17_19_52overshoot_wiggler_aggressive_filling_factor.pickle", "rb") as file:
+with open("/Users/lvalle/cernbox/FCC-ee/Voltage_program/ramps_before_optimisation10_04_2025_16_33_10overshoot_wiggler_new_filling_factor.pickle", "rb") as file:
     data_opt = pkl.load(file)
-directory = 'output_figs_wigglers_nf'
+directory = 'output_figs_wigglers_nf3'
 voltage_ramp = data_opt['turn']['voltage_ramp_V']
 energy_ramp = data_opt['turn']['energy_ramp_eV']
 phi_s = data_opt['turn']['phi_s']
 Nturns = len(energy_ramp)-1
 tracking_parameters = HEBee_Eramp_parameters(op_mode='Z', dec_mode = True)
-ring_HEB = generate_HEB_ring(op_mode='Z', particle=particle_type, Nturns=Nturns, momentum=energy_ramp)
+ring_HEB = generate_HEB_ring(op_mode='Z', particle=particle_type,Nturns=Nturns, momentum=energy_ramp)
 wiggler_HEB = wiggler()
 
 beam = Beam(ring_HEB, n_macroparticles, n_particles)
 beam.dt = np.load('../beam_phase.npy')
 beam.dE = np.load('../beam_energy.npy')
 
-rfcav = RFStation(ring_HEB, tracking_parameters.harmonic, voltage_ramp, phi_rf_d= np.pi)
+rfcav = RFStation(ring_HEB, tracking_parameters.harmonic, voltage_ramp, phi_rf_d= 0)
 long_tracker = RingAndRFTracker(rfcav, beam)
 full_tracker = FullRingAndRF([long_tracker])
 
@@ -176,27 +174,3 @@ if tracking:
     #ani = animation.FuncAnimation(fig, animate, interval=10, save_count=200)
     plt.show()
     #ani.save('animated_simulation_ramp_final_gain.gif')
-
-
-if test_beams:
-    beam1 = Beam(ring_HEB, n_macroparticles, n_particles)
-    beam2 = Beam(ring_HEB, n_macroparticles, n_particles)
-    beam3 = Beam(ring_HEB, n_macroparticles, n_particles)
-    beam3.dt = np.load('../initial_distribution_dt.npy')
-    beam3.dE = np.load('../initial_distribution_dE.npy')
-    rfcav = RFStation(ring_HEB, tracking_parameters.harmonic, voltage_ramp, phi_rf_d= np.pi)
-    bigaussian(ring_HEB, rfcav, beam1, tracking_parameters.sigmaz_0 / c / 4, sigma_dE = tracking_parameters.sigmaE_0 * tracking_parameters.E_flat_bottom , reinsertion=True, seed=1)
-    number_slices = 500
-    long_tracker = RingAndRFTracker(rfcav, beam2)
-    full_tracker = FullRingAndRF([long_tracker])
-    matched_from_distribution_function(beam2, full_tracker, emittance=0.02,
-                                      distribution_type='gaussian',
-                                      distribution_variable='Action',
-                                      seed=1000)
-
-    plot_hamiltonian(ring_HEB, rfcav, beam1, 1e-9, ring_HEB.energy[0][0]/20, n_lines = 100, separatrix = True)
-    plt.scatter(beam1.dt * 1e9, beam1.dE / 1e9, label='bigaussian')
-    plt.scatter(beam2.dt*1e9, beam2.dE/1e9, label='matched_from_distribution')
-    plt.scatter(beam3.dt * 1e9, beam3.dE / 1e9, label='damped_right_emittance')
-    plt.scatter(-beam3.dt * 1e9, beam3.dE / 1e9, label='minus t damped_right_emittance')
-    plt.legend()

@@ -7,22 +7,22 @@ import pickle as pkl
 from blond.beam.beam import Beam, Electron, Positron, Proton, MuPlus
 from blond.input_parameters.rf_parameters import RFStation
 from blond.beam.distributions import bigaussian, parabolic
-
+from blond.trackers.utilities import is_in_separatrix
 from ramp_modules.Ramp_optimiser_functions import HEBee_Eramp_parameters, optimizer_voltage_ramp
 from ring_parameters.generate_rings import generate_HEB_ring
 from scipy.constants import c, e
 from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
 from blond.beam.distributions import matched_from_distribution_function
 from blond.synchrotron_radiation.synchrotron_radiation import SynchrotronRadiation
-from simu_acceleration.plots_theory import plot_hamiltonian, get_hamiltonian
-
+from simu_acceleration.plots_theory import plot_hamiltonian, get_hamiltonian, animated_plot_tracking
+tracking_outdated = False
 test_mode = False
 optimise = False
 verbose  = False
-test_beams = True
+test_beams = False
 tracking = False
+ani_fig = True
 
-particle_type = Proton()
 particle_type = Electron()
 n_particles = int(1.7e11)
 n_macroparticles = int(1e5)
@@ -33,7 +33,7 @@ dE = 1e9
 
 with open("/Users/lvalle/cernbox/FCC-ee/Voltage_program/ramps_14_04_2025_14_27_48.pickle", "rb") as file:
     data_opt = pkl.load(file)
-directory = 'output_figs'
+directory = 'output_figs_electron'
 voltage_ramp = data_opt['turn']['voltage_ramp_V']
 energy_ramp = data_opt['turn']['energy_ramp_eV']
 phi_s = data_opt['turn']['phi_s']
@@ -67,50 +67,56 @@ sE.append(beam.sigma_dE/beam.energy*100)
 eml.append(np.pi * 4 * beam.sigma_dt * beam.sigma_dE)
 pos.append(phi_s[0]/rfcav.omega_rf[0,0]*1e9)
 
-for i in range(1, Nturns+1):
-    # Track
-    for m in map_:
-        m.track()
-    beam.statistics()
-    bl.append(beam.sigma_dt * c * 1e3)
-    sE.append(beam.sigma_dE/beam.energy * 100)
-    eml.append(np.pi * 4 * beam.sigma_dt * beam.sigma_dE)
-    pos.append(phi_s[i]/rfcav.omega_rf[0,i]*1e9)
-    position.append(beam.mean_dt*1e9)
-    #print("   Longitudinal emittance (rms) %.4e eVs" % (np.pi * 4 * beam.sigma_dt * beam.sigma_dE))
-    if (i % 50) == 0:
-        plot_hamiltonian(ring_HEB, rfcav, beam, 1e-9, ring_HEB.energy[0][0] / 10, k=i, n_lines=0, separatrix=True,
-                         directory=directory, option='test')
-
-fig, ax = plt.subplots()
-ax.plot(position, label = 'from tracking')
-ax.plot(pos, label = 'expected')
-ax.set_title('Average bunch position [ns]')
-ax.set(xlabel='turn', ylabel = 'Bunch position [ns]')
-ax.legend()
-plt.savefig(directory+'/bunch_position')
-plt.close()
-
-fig, ax = plt.subplots()
-ax.plot(bl, label = 'from tracking')
-ax.plot(data_opt['turn']['rms_bunch_length']*1e3, label = 'expected')
-ax.legend()
-ax.set(xlabel='turn', ylabel = 'Bunch length [mm]')
-ax.set_title('RMS bunch length [mm]')
-plt.savefig(directory+'/bunch_length')
-plt.close()
-
-fig, ax = plt.subplots()
-ax.plot(sE, label = 'from tracking')
-ax.plot(data_opt['turn']['energy_spread']*100, label = 'expected')
-ax.legend()
-ax.set(xlabel='turn', ylabel = 'Energy spread [%]')
-ax.set_title('RMS energy spread [%]')
-plt.savefig(directory+'/energy_spread')
-plt.close()
-
-
+if ani_fig:
+    animated_plot_tracking(ring_HEB, rfcav, beam, map_, 1e-9, ring_HEB.energy[0][0]/20, n_points=1001,
+                           saving_file='animated_tracking_Z_mode_electrons', option='')
 if tracking:
+    for i in range(1, Nturns+1):
+        # Track
+        for m in map_:
+            m.track()
+        beam.statistics()
+        beam.losses_separatrix(ring_HEB, rfcav)
+        beam.eliminate_lost_particles()
+        bl.append(beam.sigma_dt * c * 1e3)
+        sE.append(beam.sigma_dE/beam.energy * 100)
+        eml.append(np.pi * 4 * beam.sigma_dt * beam.sigma_dE)
+        pos.append(phi_s[i]/rfcav.omega_rf[0,i]*1e9)
+        position.append(beam.mean_dt*1e9)
+        #print("   Longitudinal emittance (rms) %.4e eVs" % (np.pi * 4 * beam.sigma_dt * beam.sigma_dE))
+        if (i % 50) == 0:
+            plot_hamiltonian(ring_HEB, rfcav, beam, 1e-9, ring_HEB.energy[0][0] / 10, k=i, n_lines=0, separatrix=True,
+                             directory=directory, option='test')
+
+    fig, ax = plt.subplots()
+    ax.plot(position, label = 'from tracking')
+    ax.plot(pos, label = 'expected')
+    ax.set_title('Average bunch position [ns]')
+    ax.set(xlabel='turn', ylabel = 'Bunch position [ns]')
+    ax.legend()
+    plt.savefig(directory+'/bunch_position')
+    plt.close()
+    
+    fig, ax = plt.subplots()
+    ax.plot(bl, label = 'from tracking')
+    ax.plot(data_opt['turn']['rms_bunch_length']*1e3, label = 'expected')
+    ax.legend()
+    ax.set(xlabel='turn', ylabel = 'Bunch length [mm]')
+    ax.set_title('RMS bunch length [mm]')
+    plt.savefig(directory+'/bunch_length')
+    plt.close()
+    
+    fig, ax = plt.subplots()
+    ax.plot(sE, label = 'from tracking')
+    ax.plot(data_opt['turn']['energy_spread']*100, label = 'expected')
+    ax.legend()
+    ax.set(xlabel='turn', ylabel = 'Energy spread [%]')
+    ax.set_title('RMS energy spread [%]')
+    plt.savefig(directory+'/energy_spread')
+    plt.close()
+
+
+if tracking_outdated:
     plt.ion()
     fig, axes = plt.subplots()
     dt_array = np.linspace(-dt, dt, n_points)

@@ -1,9 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.constants import c, e
+from scipy.constants import c
 from blond.trackers.utilities import hamiltonian
-import matplotlib.animation as ani
-import matplotlib.pyplot as plt
+
 
 
 def get_hamiltonian(ring, rfstation, beam, X, Y, k = int(0)):
@@ -26,7 +25,6 @@ def plot_hamiltonian(ring, rfstation, beam, dt, dE, k = int(0), hamiltonian_ener
     dt_array = np.linspace(-dt, dt, n_points)
     dE_array = np.linspace(-dE, dE, n_points)
     plt.figure()
-    #plt.xlim([-1, 1])
     hE_t = lambda DE: c * np.pi/ (ring.ring_circumference * beam.beta * beam.energy) * \
                       (
                         1/2 * ring.eta_0[0, k] * DE ** 2 + 1/3 * ring.eta_1[0, k] * DE ** 3 + 1/4 * ring.eta_2[0, k] * DE ** 4)
@@ -53,44 +51,9 @@ def plot_hamiltonian(ring, rfstation, beam, dt, dE, k = int(0), hamiltonian_ener
     plt.xlabel('t [ns]')
     #plt.xlim([0, (2 * np.pi - rfstation.phi_rf_d[0,k])/rfstation.omega_rf[0,k]])
     plt.ylabel('DE [GeV]')
-    plt.scatter(-beam.dt*1e9, beam.dE/1e9, s = 0.2)
+    plt.scatter(beam.dt*1e9, beam.dE/1e9, s = 0.2)
 
     plt.title(f'Turns {k}')
     text = directory + '/plot_' + str(k) + option
     plt.savefig(text)
     plt.close()
-
-
-
-def animated_plot_tracking(ring, rfcav, beam, map_, dt, dE, n_points = 1001, saving_file='animated_tracking_Z_mode_electrons', option = ''):
-
-    fig, ax = plt.subplots()
-    ax.set_xlim([-dt, dt/2])
-    ax.set_ylim([-2.0, 2.0])
-    scat = ax.scatter(1,0)
-    dt_array = np.linspace(-dt, dt, n_points)
-    dE_array = np.linspace(-dE, dE, n_points)
-    X, Y = np.meshgrid(dt_array, dE_array)
-    Z, hamiltonian_energy = get_hamiltonian(ring, rfcav, beam, X, Y, k=0)
-    C = ax.contour(X, Y, Z, [hamiltonian_energy], colors='red')
-
-    def animate(i):
-        for m in map_:
-            m.track()
-        beam.statistics()
-        for coll in C[0].axes.collections:
-            coll.remove()
-        Z, hamiltonian_energy = get_hamiltonian(ring, rfcav, beam, X, Y, k=i)
-        C = ax.contour(X, Y, Z, [hamiltonian_energy], colors='red')
-        scat.set_offsets((beam.dt, beam.dE))
-        return [C, scat,]
-
-    animated_fig = ani.FuncAnimation(fig, animate, repeat=True, frames = ring.n_turns+1, interval = 50)
-    plt.show()
-    writer = ani.PillowWriter(fps=15,
-                                     metadata=dict(artist='Me'),
-                                     bitrate=1800)
-    animated_fig.save(saving_file+option+'.gif', writer=writer)
-
-
-
