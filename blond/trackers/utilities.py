@@ -943,7 +943,8 @@ def separatrix_with_intensity(ring: Ring,
 def separatrix_from_tracker(ring: Ring,
                             full_ring_and_rf: FullRingAndRF,
                             turn: int,
-                            section: int) -> Tuple[NDArray, NDArray, NDArray, NDArray, float, float]:
+                            section: int,
+                            from_current_section_only: bool =False) -> Tuple[NDArray, NDArray, NDArray, NDArray, float, float, float]:
     """
     Computes the separatrix from the tracker object. The total_voltage value of the simulation is used, hence all
     intensity effects as well as Feedbacks are automatically taken into account.
@@ -977,7 +978,7 @@ def separatrix_from_tracker(ring: Ring,
             area of the disturbed bucket
             
     """
-    if turn <= 0:
+    if turn <= 0 and not from_current_section_only:
         raise RuntimeError("the tracker can only be used to calculate the separatrix after the first turn, as all "
                            "stations need to be tracked at least once to have the voltage available")
     if section > ring.n_sections:
@@ -996,9 +997,13 @@ def separatrix_from_tracker(ring: Ring,
 
     total_potential = np.zeros(len(full_ring_and_rf.ring_and_rf_section[0].total_voltage))
     total_energy_gain = 0
-    for rf_sec in full_ring_and_rf.ring_and_rf_section:
-        total_potential += rf_sec.total_voltage
-        total_energy_gain += rf_sec.acceleration_kick[turn]
+    if not from_current_section_only:
+        for rf_sec in full_ring_and_rf.ring_and_rf_section:
+            total_potential += rf_sec.total_voltage
+            total_energy_gain += rf_sec.acceleration_kick[turn]
+    else:
+        total_potential = full_ring_and_rf.ring_and_rf_section[section].total_voltage * len(full_ring_and_rf.ring_and_rf_section)
+        total_energy_gain = full_ring_and_rf.ring_and_rf_section[section].acceleration_kick[turn] * len(full_ring_and_rf.ring_and_rf_section)
     total_potential_interp = np.interp(full_ring_and_rf.potential_well_coordinates, cut_options.bin_centers,
                                        total_potential)
 
@@ -1011,6 +1016,6 @@ def separatrix_from_tracker(ring: Ring,
     time_dist, potential_well_dist = potential_well_cut(full_ring_and_rf.potential_well_coordinates, potential_well)
     separatrix_dist, bucket_area_dist = compute_separatrix_and_bucket_area(time_dist, potential_well_dist,
                                                                            eom_factor_dE)
-
+    stable_fp = float(time_dist[np.argmin(potential_well_dist)])
     # return the undisturbed and disturbed buckets
-    return time_ud, separatrix_ud, time_dist, separatrix_dist, bucket_area, bucket_area_dist
+    return time_ud, separatrix_ud, time_dist, separatrix_dist, bucket_area, bucket_area_dist, stable_fp
