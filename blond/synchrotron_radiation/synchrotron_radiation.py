@@ -32,18 +32,23 @@ class SynchrotronRadiation:
         damping and quantum excitation.
         For multiple RF section, instantiate one object per RF section and call
         the track() method after tracking each section.
+
+        TO DO list:
+        - multi-turn radiation integrals handling
+        - inclusion of damping wigglers
+        - handling of lost particles during tracking
     '''
 
-    def __init__(self, Ring: Ring, RFParameters: RFStation, Beam: Beam, bending_radius:float = None, rad_int : (np.ndarray,list) = None,
+    def __init__(self, ring: Ring, rfstation: RFStation, beam: Beam, bending_radius:float = None, rad_int : (np.ndarray,list) = None,
                  n_kicks:int =1, quantum_excitation: bool=True, python: bool=True, seed: int=None,
                  shift_beam:bool=False):
         """
         Synchrotron radiation tracker
         Calculates and updates the energy losses per turn and longitudinal damping time according to the ring energy program, and implements the effect of
         synchrotron radiation damping and quantum excitation (if enabled) on the beam coordinates.
-        :param Ring: a Ring-type class
-        :param RFParameters: RF Station class
-        :param Beam: Beam class
+        :param ring: a Ring-type class
+        :param rfstation: RF Station class
+        :param beam: Beam class
         :param bending_radius: to compute the radiation integral assuming an isomagnetic ring
         :param rad_int: to compute the damping and quantum excitation terms for a known ring. Expected list or numpy array of at least 5 components
         :param n_kicks: Number of kicks to distribute the SR and quantum excitation impact into
@@ -53,13 +58,13 @@ class SynchrotronRadiation:
         :param shift_beam: # Displace the beam in phase to account for the energy loss due to synchrotron radiation (temporary until bunch generation is updated)
         """
 
-        self.ring = Ring
-        self.rf_params = RFParameters
-        self.beam = Beam
+        self.ring = ring
+        self.rf_params = rfstation
+        self.beam = beam
 
-        if rad_int is None:
-            if bending_radius is None:
-                if Ring.sr_flag:
+        if isinstance(rad_int, type(None)):
+            if isinstance(bending_radius, type(None)):
+                if self.ring.sr_flag:
                     self.I2 = Ring.I2
                     self.I3 = Ring.I3
                     self.I4 = Ring.I4
@@ -67,32 +72,31 @@ class SynchrotronRadiation:
                 else :
                     raise MissingParameterError("Synchrotron radiation damping and quantum excitation require either the bending radius "+
                                             "for an isomagnetic ring, or the first five synchrotron radiation integrals.")
-            if bending_radius is not None:
+            else :
                 self.rho = bending_radius
                 self.I2 = 2.0 * np.pi / self.rho  # Assuming isomagnetic machine
                 self.I3 = 2.0 * np.pi / self.rho ** 2.0
                 self.I4 = self.ring.ring_circumference * self.ring.alpha_0[0, 0] / self.rho ** 2.0
                 self.jz = 2.0 + self.I4 / self.I2
 
-        if rad_int is not None:
-            if type(rad_int) in {np.ndarray, list}:
-                try :
+        else :
+            if not isinstance(type(rad_int),(np.ndarray, list)):
+                raise TypeError(f"Expected a list or numpy.ndarray as an input. Received {type(rad_int)}.")
+            else :
+                try : # TO DO: multi-turn radiation integrals, taken from ring or as input
                     integrals = np.array(rad_int)
                 except ValueError as ve:
                     raise ValueError(ve)
-
                 if integrals.__len__() < 5:
                     raise ValueError("The first five synchrotron " +
                                      "radiation integrals are requires " +
                                      "Ignoring input.")
-                if bending_radius is not None:
+                if not isinstance(bending_radius, type(None)):
                     warnings.warn('Synchrotron radiation integrals prevail. Bending radius input ignored.')
-                    self.I2 = integrals[1]
-                    self.I3 = integrals[2]
-                    self.I4 = integrals[3]
-                    self.jz = 2.0 + self.I4 / self.I2
-            else:
-                raise TypeError(f"Expected a list or numpy.ndarray as an input. Received {type(rad_int)}.")
+                self.I2 = integrals[1]
+                self.I3 = integrals[2]
+                self.I4 = integrals[3]
+                self.jz = 2.0 + self.I4 / self.I2
 
         self.n_kicks = n_kicks  # To apply SR in several kicks
         np.random.seed(seed=seed)
@@ -199,7 +203,7 @@ class SynchrotronRadiation:
             self.beam.dE += -(2.0 / self.tau_z / self.n_kicks * self.beam.dE +  # damping
                               self.U0 / self.n_kicks # SR kick
                               - 2.0 * self.sigma_dE /  np.sqrt(self.tau_z * self.n_kicks) * # quantum excitation kick
-                              self.beam.energy * np.random.normal(size=len(self.beam.dE)))
+                              self.beam.energy * np.random.normal(size=len(self.beam.n_macroparticles)))
 
 
 
