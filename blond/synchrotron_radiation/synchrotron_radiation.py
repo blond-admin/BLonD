@@ -203,9 +203,7 @@ class SynchrotronRadiation:
             self.beam.dE += -(2.0 / self.tau_z / self.n_kicks * self.beam.dE +  # damping
                               self.U0 / self.n_kicks # SR kick
                               - 2.0 * self.sigma_dE /  np.sqrt(self.tau_z * self.n_kicks) * # quantum excitation kick
-                              self.beam.energy * np.random.normal(size=len(self.beam.n_macroparticles)))
-
-
+                              self.beam.energy * np.random.normal(size=self.beam.n_macroparticles))
 
     # Track particles with SR only (without quantum excitation)
     # C implementation
