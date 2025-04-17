@@ -69,6 +69,10 @@ class MasterBackend:
         # listing definitions that shall be declared !
         # _verify_backend() will check for declaration
         # and raise exception if not declared
+        self.histogram2d = None
+        self.maximum = None
+        self.minimum = None
+        self.amax = None
         self.roll = None
         self.fftconvolve = None
         self.pi = None
@@ -353,6 +357,11 @@ class __NumpyBackend(MasterBackend):
 
         super().__init__()
         from scipy.signal import fftconvolve
+
+        self.histogram2d = np.histogram2d
+        self.maximum = np.maximum
+        self.minimum = np.minimum
+        self.amax = np.amax
         self.roll = np.roll
         self.fftconvolve = fftconvolve
         self.pi = np.pi
@@ -453,6 +462,10 @@ class __CupyBackend(MasterBackend):
         # self.cumtrapz = None # not available in cupy..
         from cupyx.scipy.signal import fftconvolve
 
+        self.histogram2d = cp.histogram2d
+        self.maximum = cp.maximum
+        self.minimum = cp.minimum
+        self.amax = cp.amax
         self.fftconvolve = fftconvolve
         self.roll = cp.roll
         self.float32 = cp.float32

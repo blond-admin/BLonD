@@ -801,7 +801,8 @@ def set_random_seed(seed):
 
 
 def fast_resonator(R_S: np.ndarray, Q: np.ndarray, frequency_array: np.ndarray,
-                   frequency_R: np.ndarray, impedance: Optional[NDArray] = None) -> NumpyArray:
+                   frequency_R: np.ndarray, impedance: Optional[NumpyArray] =
+                   None) -> NumpyArray:
     R_S = R_S.astype(dtype=precision.real_t, order='C', copy=False)
     Q = Q.astype(dtype=precision.real_t, order='C', copy=False)
     frequency_array = frequency_array.astype(
