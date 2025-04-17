@@ -63,33 +63,39 @@ def plot_hamiltonian(ring, rfstation, beam, dt, dE, k = int(0), hamiltonian_ener
 
 
 def animated_plot_tracking(ring, rfcav, beam, map_, dt, dE, n_points = 1001, saving_file='animated_tracking_Z_mode_electrons', option = ''):
-
+    global C, scat
     fig, ax = plt.subplots()
-    ax.set_xlim([-dt, dt/2])
+    ax.set_xlim([-dt*1e9, dt*1e9/2])
     ax.set_ylim([-2.0, 2.0])
-    scat = ax.scatter(1,0)
+    scat = ax.scatter(-beam.dt*1e9,beam.dE/1e9, s = 0.2, color = 'blue')
     dt_array = np.linspace(-dt, dt, n_points)
     dE_array = np.linspace(-dE, dE, n_points)
     X, Y = np.meshgrid(dt_array, dE_array)
     Z, hamiltonian_energy = get_hamiltonian(ring, rfcav, beam, X, Y, k=0)
-    C = ax.contour(X, Y, Z, [hamiltonian_energy], colors='red')
+    C = ax.contour(X*1e9, Y/1e9, Z, [hamiltonian_energy], colors='red')
 
-    def animate(i):
+    def animate(i, ax):
         for m in map_:
             m.track()
         beam.statistics()
-        for coll in C[0].axes.collections:
-            coll.remove()
-        Z, hamiltonian_energy = get_hamiltonian(ring, rfcav, beam, X, Y, k=i)
-        C = ax.contour(X, Y, Z, [hamiltonian_energy], colors='red')
-        scat.set_offsets((beam.dt, beam.dE))
-        return [C, scat,]
+        if (i%10)==0:
+            for coll in ax.collections:
+                coll.remove()
+            Z, hamiltonian_energy = get_hamiltonian(ring, rfcav, beam, X, Y, k=i)
+            ax.scatter(-beam.dt * 1e9, beam.dE / 1e9, s=0.2, color='cyan')
+            ax.contour(X*1e9, Y/1e9, Z, [hamiltonian_energy], colors='red')
+            #scat.set_offsets(np.column_stack([-beam.dt*1e9, beam.dE/1e9]))
+            #ax.scatter(-beam.dt * 1e9, beam.dE / 1e9, s=0.2, color = 'blue')
+            fig.suptitle(f'Turn: {i}')
+        return ax
 
-    animated_fig = ani.FuncAnimation(fig, animate, repeat=True, frames = ring.n_turns+1, interval = 50)
+    animated_fig = ani.FuncAnimation(fig, animate, fargs = {ax},repeat=True, frames = ring.n_turns+1, interval = ring.t_rev[0]*1e3/10)
     plt.show()
     writer = ani.PillowWriter(fps=15,
                                      metadata=dict(artist='Me'),
                                      bitrate=1800)
+    #animated_fig.to_html5_video()
+    #animated_fig.to_jshtml()
     animated_fig.save(saving_file+option+'.gif', writer=writer)
 
 
