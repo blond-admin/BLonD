@@ -157,10 +157,12 @@ def drift(
     }
     solver = solver_to_int[solver]
 
-    if not isinstance(t_rev, precision.real_t):  # todo bugfix typecheck for cupy type
+    if not isinstance(t_rev, precision.real_t):
+        if hasattr(t_rev, "get"):
+            t_rev = t_rev.get()
         t_rev = precision.real_t(
             t_rev
-        )  # todo in order for this line to work, we need .get() find out python versioning
+        )
 
     drift_kernel(
         args=(

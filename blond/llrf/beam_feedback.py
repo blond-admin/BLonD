@@ -44,7 +44,7 @@ class BeamFeedback:
     def __init__(self, ring: Ring, rf_station: RFStation, profile: Profile,
                  configuration: dict[str, str | float],  # todo improve type hint
                  PhaseNoise: None = None,  # todo class doesnt exist anymore??
-                 LHCNoiseFB: Optional[LHCNoiseFB] = None, delay: int = 0):
+                 lhc_noise_feedback: Optional[LHCNoiseFB] = None, delay: int = 0):
 
         #: | *Import Ring*
         self.ring = ring
@@ -217,7 +217,7 @@ class BeamFeedback:
                 'Phase noise has to have a length of n_turns + 1')
 
         #: | *Optional import of amplitude-scaling feedback object LHCNoiseFB*
-        self.noiseFB = LHCNoiseFB
+        self.noiseFB = lhc_noise_feedback
 
     def track(self):
         """

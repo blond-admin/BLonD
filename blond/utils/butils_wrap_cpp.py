@@ -689,7 +689,7 @@ def linear_interp_kick(dt: NumpyArray, dE: NumpyArray, voltage: NumpyArray,
 
 def slice_beam(dt: NumpyArray, profile: NumpyArray, cut_left: float,
                cut_right: float):
-    assert isinstance(dt[0], precision.real_t)
+    assert isinstance(dt[0], precision.real_t), f"{dt.dtype}"
     assert isinstance(profile[0], precision.real_t)
 
     get_libblond().histogram(__getPointer(dt),

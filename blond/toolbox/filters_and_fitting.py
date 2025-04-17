@@ -172,13 +172,15 @@ def fwhm(y_array: NumpyArray, x_array: NumpyArray,
     Computation of the bunch length and position from the FWHM
     assuming Gaussian line density.
     """
-
+    if not isinstance(y_array, np.ndarray):
+        x_array = x_array.get()
+        y_array = y_array.get()
     half_max = shift + 0.5 * (y_array.max() - shift)
 
     # First aproximation for the half maximum values
-    taux = np.where(y_array >= half_max)
-    t1 = taux[0][0]
-    t2 = taux[0][-1]
+    taux = y_array >= half_max
+    t1 = int(np.argmax(taux))
+    t2 = len(y_array) - 1 - int(np.argmax(taux[::-1]))
     # Interpolation of the time, where the line density is half the maximum
     bin_size = x_array[1] - x_array[0]
     try:
