@@ -944,7 +944,9 @@ def separatrix_from_tracker(ring: Ring,
                             full_ring_and_rf: FullRingAndRF,
                             turn: int,
                             section: int,
-                            from_current_section_only: bool =False) -> Tuple[NDArray, NDArray, NDArray, NDArray, float, float, float]:
+                            from_current_section_only: bool = False,
+                            min_bin: float = 0,
+                            max_bin: float = -1) -> Tuple[NDArray, NDArray, NDArray, NDArray, float, float, float]:
     """
     Computes the separatrix from the tracker object. The total_voltage value of the simulation is used, hence all
     intensity effects as well as Feedbacks are automatically taken into account.
@@ -990,7 +992,7 @@ def separatrix_from_tracker(ring: Ring,
             2 * ring.beta[section, turn + 1] ** 2 * ring.energy[section, turn + 1])
     eom_factor_potential = (np.sign(full_ring_and_rf.ring_and_rf_section[0].rf_params.eta_0[turn + 1]) *
                             ring.particle.charge / ring.t_rev[turn])
-    full_ring_and_rf.potential_well_generation(turn=turn, time_array=cut_options.bin_centers)
+    full_ring_and_rf.potential_well_generation(turn=turn, time_array=cut_options.bin_centers[min_bin:max_bin])
     time_ud, potential_well_ud = potential_well_cut(full_ring_and_rf.potential_well_coordinates,
                                                     full_ring_and_rf.potential_well)
     separatrix_ud, bucket_area = compute_separatrix_and_bucket_area(time_ud, potential_well_ud, eom_factor_dE)
@@ -1004,8 +1006,8 @@ def separatrix_from_tracker(ring: Ring,
     else:
         total_potential = full_ring_and_rf.ring_and_rf_section[section].total_voltage * len(full_ring_and_rf.ring_and_rf_section)
         total_energy_gain = full_ring_and_rf.ring_and_rf_section[section].acceleration_kick[turn] * len(full_ring_and_rf.ring_and_rf_section)
-    total_potential_interp = np.interp(full_ring_and_rf.potential_well_coordinates, cut_options.bin_centers,
-                                       total_potential)
+    total_potential_interp = np.interp(full_ring_and_rf.potential_well_coordinates, cut_options.bin_centers[min_bin:max_bin],
+                                       total_potential[min_bin:max_bin])  # potential well coordinates are already adjusted
 
     potential_well = -eom_factor_potential * cumtrapz(total_potential_interp - (- total_energy_gain) /
                                                       abs(ring.particle.charge),
