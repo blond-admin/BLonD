@@ -29,7 +29,7 @@ from ..utils.legacy_support import handle_legacy_kwargs
 if TYPE_CHECKING:
     from typing import Optional, Literal, Tuple, Sequence
 
-    from numpy.typing import ArrayLike, NDArray
+    from numpy.typing import ArrayLike, NDArray as NumpyArray
 
     from ..input_parameters.rf_parameters import RFStation
     from ..input_parameters.ring import Ring
@@ -87,7 +87,7 @@ class FlatSpectrum:
         self.folder_plots = folder_plots
         self.print_option = print_option
 
-    def spectrum_to_phase_noise(self, freq: NDArray, spectrum: NDArray,
+    def spectrum_to_phase_noise(self, freq: NumpyArray, spectrum: NumpyArray,
                                 transform: Optional[str] = None):
 
         nf = len(spectrum)
