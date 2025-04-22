@@ -736,6 +736,7 @@ list[ndarray]]:
     """
     *Function to locate the minima and maxima of the f(x) numerical function.*
     """
+    assert len(x) == len(f), f"{len(x)} != {len(f)}"
 
     f_derivative = np.diff(f)
     x_derivative = x[0:-1] + (x[1] - x[0]) / 2
@@ -768,7 +769,7 @@ def potential_well_cut(time_potential: NDArray,
     *Function to cut the potential well in order to take only the separatrix
     (several cases according to the number of min/max).*
     """
-
+    assert len(time_potential) == len(potential_array), f"{len(time_potential)} != {len(potential_array)}"
     # Check for the min/max of the potential well
     minmax_positions, minmax_values = minmax_location(time_potential,
                                                       potential_array)
