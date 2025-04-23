@@ -33,7 +33,7 @@ class SynchrotronRadiation:
 
     def __init__(self, Ring, RFParameters, Beam, bending_radius = None, rad_int = None,
                  n_kicks=1, quantum_excitation=True, python=False, seed=None,
-                 shift_beam=True):
+                 shift_beam=False):
         """
         :param Ring: a Ring-type class
         :param RFParameters: RF Station class
@@ -106,6 +106,8 @@ class SynchrotronRadiation:
         # Displace the beam in phase to account for the energy loss due to
         # synchrotron radiation (temporary until bunch generation is updated)
         if (shift_beam) and (self.rf_params.section_index == 0):
+            if self.U0 / (self.ring.Particle.charge * self.rf_params.voltage[0][0]) > 1:
+                raise ValueError("Voltage too low to compensate synchrotron radiation losses.")
             self.beam_phase_to_compensate_SR = np.abs(np.arcsin(
                 self.U0 / (self.ring.Particle.charge * self.rf_params.voltage[0][0])))
             self.beam_position_to_compensate_SR = self.beam_phase_to_compensate_SR \
