@@ -128,9 +128,9 @@ def rf_noise(frequency_high: NumpyArray,
              r_seed: int,
              sampling_rate: float,
              rms: float,
-             results: NumpyArray = None,
+             phase_array: NumpyArray = None,
              ) -> NumpyArray:
-    """Generates RF noise along time (overwriting results)
+    """Generates RF noise along time (overwriting phase_array)
 
     Parameters
     ----------
@@ -161,14 +161,14 @@ def rf_noise(frequency_high: NumpyArray,
     rms: float
         Rms value of total time-domain output stream, does not change when limit frequencies are changed
         i.e. amplitudes for wider bands are lower
-    results: NumpyArray, Optional
-        The calculation-result will be written to the results array if given.
+    phase_array: NumpyArray, Optional
+        The calculation-result will be written to the phase_array array if given.
         By this, array creation routines (np.empty(...)) can be prevented.
 
 
     Returns
     -------
-    results: NumpyArray
+    phase_array: NumpyArray
         The RF noise along time
 
     Examples
@@ -179,9 +179,9 @@ def rf_noise(frequency_high: NumpyArray,
     >>> N = 20000000
     >>> f_low = np.linspace(10, 100, N)
     >>> f_high = np.linspace(20, 200, N)
-    >>> results = np.empty(N)
+    >>> phase_array = np.empty(N)
     >>>
-    >>> results = rf_noise(
+    >>> phase_array = rf_noise(
     >>>     frequency_high=f_high,
     >>>     frequency_low=f_low,
     >>>     gain_x=xs,
@@ -191,12 +191,12 @@ def rf_noise(frequency_high: NumpyArray,
     >>>     r_seed=0,
     >>>     sampling_rate=11245.49,
     >>>     rms=1.0,
-    >>>     results=results,
+    >>>     phase_array=phase_array,
     >>> )
     >>> from matplotlib import pyplot as plt
     >>>
     >>> plt.title("rf_noise_wrapper Python ctypes interface")
-    >>> plt.specgram(results, Fs=11245.49, NFFT=int(20000000 / 1000), label="specgram(results)")
+    >>> plt.specgram(phase_array, Fs=11245.49, NFFT=int(20000000 / 1000), label="specgram(phase_array)")
     >>> xxx = np.linspace(0, 20000000 / 11245.49, 20000000)
     >>> plt.plot(xxx, f_low, label="fLo", color="red")
     >>> plt.plot(xxx, f_high, label="fHi", color="red")
@@ -205,8 +205,8 @@ def rf_noise(frequency_high: NumpyArray,
     >>>
     >>> plt.show()
     """
-    if results is None:
-        results = np.empty(len(frequency_high), dtype=np.double)
+    if phase_array is None:
+        phase_array = np.empty(len(frequency_high), dtype=np.double)
 
     # check dtypes
     if frequency_high.dtype != np.double:
@@ -221,13 +221,13 @@ def rf_noise(frequency_high: NumpyArray,
     if gain_y.dtype != np.double:
         warn(f"{gain_y.dtype =}, but should be np.double")
         gain_y = gain_y.astype(np.double)
-    if results.dtype != np.double:
-        warn(f"{results.dtype=}, but should be np.double")
-        results = results.astype(np.double)
+    if phase_array.dtype != np.double:
+        warn(f"{phase_array.dtype=}, but should be np.double")
+        phase_array = phase_array.astype(np.double)
 
     # make sure everything is as expected
     # compare lengths
-    assert len(frequency_high) == len(results), f'{len(frequency_high)=}, {len(results)=}'
+    assert len(frequency_high) == len(phase_array), f'{len(frequency_high)=}, {len(phase_array)=}'
     assert len(frequency_high) == len(frequency_low), f'{len(frequency_high)=}, {len(frequency_low)=}'
     assert len(gain_x) == len(gain_y), f'{len(gain_x)=}, {len(gain_y)=}'
     # check ranges
@@ -240,7 +240,7 @@ def rf_noise(frequency_high: NumpyArray,
     f_low_ptr = frequency_low.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
     xs_ptr = gain_x.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
     ys_ptr = gain_y.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-    result_ptr = results.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+    result_ptr = phase_array.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
 
     # Call the function
 
@@ -249,11 +249,11 @@ def rf_noise(frequency_high: NumpyArray,
         f_low_ptr, ctypes.c_size_t(frequency_low.size),
         xs_ptr, ctypes.c_size_t(gain_x.size),
         ys_ptr, ctypes.c_size_t(gain_y.size),
-        result_ptr, ctypes.c_size_t(results.size),
+        result_ptr, ctypes.c_size_t(phase_array.size),
         ctypes.c_int(n_source),  # nSource
         ctypes.c_int(n_pnt_min),  # nPntMin
         ctypes.c_int(r_seed),  # rSeed
         ctypes.c_double(sampling_rate),  # samplingRate
         ctypes.c_double(rms)  # rms
     )
-    return results
+    return phase_array
