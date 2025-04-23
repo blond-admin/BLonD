@@ -246,9 +246,10 @@ class RFStationOptions:
 
                 else:
                     # InputDataError
-                    raise RuntimeError("ERROR in Ring: The input data " +
+                    raise RuntimeError("ERROR in Ring: The input "
+                                       f"{input_data.shape=} " +
                                        "does not match the proper length " +
-                                       "(n_turns+1)")
+                                       f"{(n_turns+1)=}")
 
         return output_data
 
