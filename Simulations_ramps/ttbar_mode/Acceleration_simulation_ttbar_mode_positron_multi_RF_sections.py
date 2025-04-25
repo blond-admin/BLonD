@@ -26,7 +26,8 @@ dE = 1e9
 
 # Number of RF sections
 n_sections = 4
-
+option_summary = f'n_Sections_{n_sections}_elle_input'
+op_mode = 'ttbar'
 with open("/Users/lvalle/cernbox/FCC-ee/Voltage_program/ttbar/ramps_ramp22_04_2025_16_32_18ttbar.pickle", "rb") as file:
     data_opt = pkl.load(file)
 directory = 'output_figs_multi_sections'
@@ -34,9 +35,8 @@ voltage_ramp = data_opt['turn']['voltage_ramp_V']
 energy_ramp = data_opt['turn']['energy_ramp_eV']
 phi_s = data_opt['turn']['phi_s']
 Nturns = len(energy_ramp)-1
-tracking_parameters = HEBee_Eramp_parameters(op_mode='ttbar', dec_mode = True)
-ring_HEB = generate_HEB_ring(op_mode='ttbar', particle=particle_type, n_sections= n_sections, Nturns=Nturns, momentum=energy_ramp)
-
+tracking_parameters = HEBee_Eramp_parameters(op_mode=op_mode, dec_mode = True)
+ring_HEB = generate_HEB_ring(op_mode=op_mode, particle=particle_type, n_sections= n_sections, Nturns=Nturns, momentum=energy_ramp)
 
 beam = Beam(ring_HEB, n_macroparticles, n_particles)
 beam.dt = np.load('../../damped_distribution_dt_4mm.npy')
@@ -51,7 +51,7 @@ for i in range(n_sections):
     rfcavs.append(RFStation(ring_HEB, tracking_parameters.harmonic, voltage_ramp/n_sections, phi_rf_d= 0, section_index=i+1))
     long_tracker.append(RingAndRFTracker(rfcavs[i], beam))
     SR.append(SynchrotronRadiation(ring_HEB, rfcavs[i], beam, quantum_excitation=True, python=True, shift_beam=False))
-    map_ += [long_tracker[i]] + [SR[i]]
+    map_ += [SR[i]] + [long_tracker[i]]
 
 full_tracker = FullRingAndRF(long_tracker)
 SR[0].print_SR_params()
@@ -83,16 +83,16 @@ for i in range(1, Nturns+1):
     position.append(beam.mean_dt*1e9)
     #print("   Longitudinal emittance (rms) %.4e eVs" % (np.pi * 4 * beam.sigma_dt * beam.sigma_dE))
     if (i % 50) == 0:
-        plot_hamiltonian(ring_HEB, rfcav, beam, 1e-9, ring_HEB.energy[0][0] /10, k=i, n_lines=0, separatrix=True,
+        plot_hamiltonian(ring_HEB, rfcav, beam, 1e-9, ring_HEB.energy[0][0] /2, k=i, n_lines=0, separatrix=True,
                          directory=directory, option='test')
 
 fig, ax = plt.subplots()
 ax.plot(position, label = 'from tracking')
 ax.plot(pos, label = 'expected')
-ax.set_title('Average bunch position [ns]')
+ax.set_title(f'Average bunch position [ns], n_sections = {n_sections}')
 ax.set(xlabel='turn', ylabel = 'Bunch position [ns]')
 ax.legend()
-plt.savefig(directory+'/bunch_position')
+plt.savefig(directory+'/bunch_position'+option_summary)
 plt.close()
 
 fig, ax = plt.subplots()
@@ -100,8 +100,8 @@ ax.plot(bl, label = 'from tracking')
 ax.plot(data_opt['turn']['rms_bunch_length']*1e3, label = 'expected')
 ax.legend()
 ax.set(xlabel='turn', ylabel = 'Bunch length [mm]')
-ax.set_title('RMS bunch length [mm]')
-plt.savefig(directory+'/bunch_length')
+ax.set_title(f'RMS bunch length [mm], n_sections = {n_sections}')
+plt.savefig(directory+'/bunch_length'+option_summary)
 plt.close()
 
 fig, ax = plt.subplots()
@@ -109,9 +109,29 @@ ax.plot(sE, label = 'from tracking')
 ax.plot(data_opt['turn']['energy_spread']*100, label = 'expected')
 ax.legend()
 ax.set(xlabel='turn', ylabel = 'Energy spread [%]')
-ax.set_title('RMS energy spread [%]')
-plt.savefig(directory+'/energy_spread')
+ax.set_title(f'RMS energy spread [%], n_sections = {n_sections}')
+plt.savefig(directory+'/energy_spread'+option_summary)
 plt.close()
+
+
+dictresults = {}
+dictresults.update({'energy_ramp_eV': energy_ramp,
+             'voltage_ramp_V': voltage_ramp,
+             'phi_s': phi_s,
+             'tracking_sigmaE_perc': sE,
+             'expected_sigmaE_perc': data_opt['turn']['energy_spread']*100,
+             'tracking_bl_mm': bl,
+             'expected_bl_mm': data_opt['turn']['rms_bunch_length']*1e3,
+             'tracking_bpos_ns': position,
+             'expected_bpos_ns': pos,
+             'n_sections': n_sections,
+             'op_mode':op_mode,
+            })
+filename = f'summary_characteristics_{n_sections}_rf_sections_{op_mode}_mode'
+
+pkl.dump(dictresults, open(filename, "wb"))
+
+
 
 
 if tracking:

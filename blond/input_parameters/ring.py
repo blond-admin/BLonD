@@ -257,7 +257,15 @@ class Ring:
         self.energy = np.sqrt(self.momentum**2 + self.Particle.mass**2)
         self.kin_energy = np.sqrt(self.momentum**2 + self.Particle.mass**2) - \
             self.Particle.mass
-        self.delta_E = np.diff(self.energy, axis=1)
+        #self.delta_E = np.diff(self.energy, axis=1)/self.n_sections
+        if self.n_sections == 1:
+            self.delta_E = np.diff(self.energy, axis=1)
+        else:
+            # when there is more than 1 RF station, self.energy has shape (n_sections, n_turns+1)
+            self.delta_E = np.zeros((n_sections, n_turns))
+            self.delta_E[0, :] = self.energy[0, 1:n_turns + 1] - self.energy[-1, 0:n_turns]
+            self.delta_E[1:, :] = self.energy[1:, 1:n_turns + 1] - self.energy[:-1, 1:n_turns + 1]
+
         self.t_rev = np.dot(self.ring_length, 1 / (self.beta * c))
         self.cycle_time = np.cumsum(self.t_rev)  # Always starts with zero
         self.f_rev = 1 / self.t_rev

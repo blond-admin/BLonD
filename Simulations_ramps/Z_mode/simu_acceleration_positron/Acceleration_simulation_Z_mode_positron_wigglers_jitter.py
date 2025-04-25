@@ -1,21 +1,24 @@
+from __future__ import division, print_function
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle as pkl
+
 from blond.beam.beam import Beam, Positron
 from blond.input_parameters.rf_parameters import RFStation
+
 from ramp_modules.Ramp_optimiser_functions import HEBee_Eramp_parameters
 from ring_parameters.generate_rings import generate_HEB_ring
 from scipy.constants import c
 from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
 from blond.synchrotron_radiation.synchrotron_radiation import SynchrotronRadiation
 from Simulations_ramps.Z_mode.simu_acceleration_positron.plots_theory_positron import plot_hamiltonian, get_hamiltonian
+from Simulations_ramps.Z_mode.simu_acceleration.functions_wiggler import wiggler, update_rad_int, update_SRtracker_and_track
 
 test_mode = False
 optimise = False
 verbose  = False
-test_beams = False
-tracking = True
-
+tracking = False
+jitter = True
 particle_type = Positron()
 n_particles = int(1.7e11)
 n_macroparticles = int(1e5)
@@ -24,29 +27,38 @@ dt = 1e-9
 dE = 1e9
         # Number of turns to track
 
-with open("/Users/lvalle/cernbox/FCC-ee/Voltage_program/ramps_14_04_2025_14_27_48.pickle", "rb") as file:
+with open("/Users/lvalle/cernbox/FCC-ee/Voltage_program/ramps_before_optimisation09_04_2025_16_35_02overshoot_wiggler.pickle", "rb") as file:
     data_opt = pkl.load(file)
-directory = 'output_figs'
+directory = 'output_figs_wigglers_jitter'
 voltage_ramp = data_opt['turn']['voltage_ramp_V']
 energy_ramp = data_opt['turn']['energy_ramp_eV']
 phi_s = data_opt['turn']['phi_s']
 Nturns = len(energy_ramp)-1
 tracking_parameters = HEBee_Eramp_parameters(op_mode='Z', dec_mode = True)
-ring_HEB = generate_HEB_ring(op_mode='Z', particle=particle_type, Nturns=Nturns, momentum=energy_ramp)
+ring_HEB = generate_HEB_ring(op_mode='Z', particle=particle_type,Nturns=Nturns, momentum=energy_ramp)
+wiggler_HEB = wiggler()
 
 beam = Beam(ring_HEB, n_macroparticles, n_particles)
-beam.dt = np.load('../../../damped_distribution_dt_4mm.npy')
-beam.dE = np.load('../../../damped_distribution_dE_4mm.npy')
+beam.dt = np.load('../../../beam_phase.npy')
+beam.dE = np.load('../../../beam_energy.npy')
+###### Shift the injected beam ##############
+Delta_E = 3e-3 * ring_HEB.energy[0][0] #eV # max. 3e-3 relative energy error (from transfer line)
+Delta_t = 50e-12 #s max 50ps max time jitter
 
+if jitter:
+    beam.dt += Delta_t
+    beam.dE += Delta_E
 rfcav = RFStation(ring_HEB, tracking_parameters.harmonic, voltage_ramp, phi_rf_d= 0)
 long_tracker = RingAndRFTracker(rfcav, beam)
 full_tracker = FullRingAndRF([long_tracker])
 
-
-SR = [SynchrotronRadiation(ring_HEB, rfcav, beam, quantum_excitation=True, python=True, shift_beam=False)]
+SR = [SynchrotronRadiation(ring_HEB, rfcav, beam,rad_int = update_rad_int(ring_HEB, wiggler_HEB, E=20e9), quantum_excitation=True, python=True, shift_beam=False)]
 SR[0].print_SR_params()
-plot_hamiltonian(ring_HEB, rfcav, beam, 1e-9, ring_HEB.energy[0][0]/20, k = 0, n_lines = 0, directory=directory,separatrix_flag = True, option = 'test')
-map_ = [long_tracker] + SR #+ [slice_beam]
+
+plot_hamiltonian(ring_HEB, rfcav, beam, 1e-9, ring_HEB.energy[0][0]/20, k = 0, n_lines = 0, directory=directory, separatrix_flag = True, option = 'test')
+
+map_ = [long_tracker]
+
 #for hamiltonian
 n_points = 1001
 bl=[]
@@ -60,23 +72,21 @@ sE.append(beam.sigma_dE/beam.energy*100)
 eml.append(np.pi * 4 * beam.sigma_dt * beam.sigma_dE)
 pos.append(phi_s[0]/rfcav.omega_rf[0,0]*1e9)
 
-
-
-if tracking:
-    for i in range(1, Nturns+1):
-        # Track
-        for m in map_:
-            m.track()
-        beam.statistics()
-        bl.append(beam.sigma_dt * c * 1e3)
-        sE.append(beam.sigma_dE/beam.energy * 100)
-        eml.append(np.pi * 4 * beam.sigma_dt * beam.sigma_dE)
-        pos.append(phi_s[i]/rfcav.omega_rf[0,i]*1e9)
-        position.append(beam.mean_dt*1e9)
-        #print("   Longitudinal emittance (rms) %.4e eVs" % (np.pi * 4 * beam.sigma_dt * beam.sigma_dE))
-        if (i % 50) == 0:
-            plot_hamiltonian(ring_HEB, rfcav, beam, 1e-9, ring_HEB.energy[0][0] / 10, k=i, n_lines=0, separatrix_flag=True,
-                             directory=directory, option='test')
+for i in range(1, Nturns+1):
+    # Track
+    for m in map_:
+        m.track()
+    update_SRtracker_and_track(ring_HEB, rfcav, beam, wiggler_HEB, E= ring_HEB.energy[0,i])
+    beam.statistics()
+    bl.append(beam.sigma_dt * c * 1e3)
+    sE.append(beam.sigma_dE/beam.energy * 100)
+    eml.append(np.pi * 4 * beam.sigma_dt * beam.sigma_dE)
+    pos.append(phi_s[i]/rfcav.omega_rf[0,i]*1e9)
+    position.append(beam.mean_dt*1e9)
+    #print("   Longitudinal emittance (rms) %.4e eVs" % (np.pi * 4 * beam.sigma_dt * beam.sigma_dE))
+    if (i % 50) == 0:
+        plot_hamiltonian(ring_HEB, rfcav, beam, 1e-9, ring_HEB.energy[0][0] / 10, k=i, n_lines=0, separatrix_flag=True,
+                         directory=directory, option='test')
 
 fig, ax = plt.subplots()
 ax.plot(position, label = 'from tracking')

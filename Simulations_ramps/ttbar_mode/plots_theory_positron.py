@@ -27,7 +27,7 @@ def plot_hamiltonian(ring, rfstation, beam, dt, dE, k = int(0), hamiltonian_ener
     plt.figure()
     hE_t = lambda DE: c * np.pi/ (ring.ring_circumference * beam.beta * beam.energy) * \
                       (
-                        1/2 * ring.eta_0[0, k] * DE ** 2 + 1/3 * ring.eta_1[0, k] * DE ** 3 + 1/4 * ring.eta_2[0, k] * DE ** 4)
+                        ring.eta_0[0, k] * DE ** 2 + ring.eta_1[0, k] * DE ** 3 + ring.eta_2[0, k] * DE ** 4)
 
     hdelta_phi = lambda delta:   1 / 2 * rfstation.harmonic * ring.eta_0[0, k] * delta ** 2 + \
                                  1 / 3 * rfstation.harmonic * ring.eta_1[0, k] * delta ** 3 + \
@@ -49,7 +49,7 @@ def plot_hamiltonian(ring, rfstation, beam, dt, dE, k = int(0), hamiltonian_ener
         for energy in hamiltonian_energy:
             plt.contour(X*1e9, Y/1e9, Z, [energy])
     plt.xlabel('t [ns]')
-    #plt.xlim([0, (2 * np.pi - rfstation.phi_rf_d[0,k])/rfstation.omega_rf[0,k]])
+    plt.xlim([0,1.25])
     plt.ylabel('DE [GeV]')
     plt.scatter(beam.dt*1e9, beam.dE/1e9, s = 0.2)
 

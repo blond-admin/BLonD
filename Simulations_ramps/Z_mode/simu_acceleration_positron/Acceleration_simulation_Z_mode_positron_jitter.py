@@ -14,7 +14,9 @@ test_mode = False
 optimise = False
 verbose  = False
 test_beams = False
+tracking_animate = False
 tracking = True
+jitter = True
 
 particle_type = Positron()
 n_particles = int(1.7e11)
@@ -22,11 +24,10 @@ n_macroparticles = int(1e5)
 
 dt = 1e-9
 dE = 1e9
-        # Number of turns to track
 
 with open("/Users/lvalle/cernbox/FCC-ee/Voltage_program/ramps_14_04_2025_14_27_48.pickle", "rb") as file:
     data_opt = pkl.load(file)
-directory = 'output_figs'
+directory = 'output_figs_max_jitter'
 voltage_ramp = data_opt['turn']['voltage_ramp_V']
 energy_ramp = data_opt['turn']['energy_ramp_eV']
 phi_s = data_opt['turn']['phi_s']
@@ -38,10 +39,17 @@ beam = Beam(ring_HEB, n_macroparticles, n_particles)
 beam.dt = np.load('../../../damped_distribution_dt_4mm.npy')
 beam.dE = np.load('../../../damped_distribution_dE_4mm.npy')
 
+###### Shift the injected beam ##############
+Delta_E = 3e-3 * ring_HEB.energy[0][0] #eV # max. 3e-3 relative energy error (from transfer line)
+Delta_t = 50e-12 #s max 50ps max time jitter
+
+if jitter:
+    beam.dt += Delta_t
+    beam.dE += Delta_E
+
 rfcav = RFStation(ring_HEB, tracking_parameters.harmonic, voltage_ramp, phi_rf_d= 0)
 long_tracker = RingAndRFTracker(rfcav, beam)
 full_tracker = FullRingAndRF([long_tracker])
-
 
 SR = [SynchrotronRadiation(ring_HEB, rfcav, beam, quantum_excitation=True, python=True, shift_beam=False)]
 SR[0].print_SR_params()
@@ -106,7 +114,7 @@ plt.savefig(directory+'/energy_spread')
 plt.close()
 
 
-if tracking:
+if tracking_animate:
     plt.ion()
     fig, axes = plt.subplots()
     dt_array = np.linspace(-dt, dt, n_points)

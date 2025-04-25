@@ -158,7 +158,7 @@ def plot_bunch_length_evol(RFStation, h5data, output_freq = 1,
     if show_plot:
         plt.show()
     else:
-        fign = dirname +'/bunch_length.png'
+        fign = dirname +'/bunch_length_multi_formalism_nsection_1.png'
         plt.savefig(fign)
     plt.clf()
 
