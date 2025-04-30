@@ -16,6 +16,7 @@ optimise = False
 verbose  = False
 test_beams = True
 tracking = False
+jitter = True
 
 particle_type = Positron()
 n_particles = int(1.7e11)
@@ -24,9 +25,10 @@ n_macroparticles = int(1e5)
 dt = 1e-9
 dE = 1e9
         # Number of turns to track
-with open("/Users/lvalle/cernbox/FCC-ee/Voltage_program/WW_mode/ramps_ramp22_04_2025_15_57_53W.pickle", "rb") as file:
+#with open("/Users/lvalle/cernbox/FCC-ee/Voltage_program/WW_mode/ramps_ramp22_04_2025_15_57_53W.pickle", "rb") as file:
+with open("/Users/lvalle/cernbox/FCC-ee/Voltage_program/WW_mode/ramps_ramp_right_blext_30_04_2025_10_07_12_W.pickle", "rb") as file:
     data_opt = pkl.load(file)
-directory = 'output_figs'
+directory = 'output_figs_jitter'
 voltage_ramp = data_opt['turn']['voltage_ramp_V']
 energy_ramp = data_opt['turn']['energy_ramp_eV']
 phi_s = data_opt['turn']['phi_s']
@@ -37,6 +39,14 @@ ring_HEB = generate_HEB_ring(op_mode='W', particle=particle_type, Nturns=Nturns,
 beam = Beam(ring_HEB, n_macroparticles, n_particles)
 beam.dt = np.load('../../damped_distribution_dt_4mm.npy')
 beam.dE = np.load('../../damped_distribution_dE_4mm.npy')
+
+###### Shift the injected beam ##############
+Delta_E = 3e-3 * ring_HEB.energy[0][0] #eV # max. 3e-3 relative energy error (from transfer line)
+Delta_t = 50e-12 #s max 50ps max time jitter
+
+if jitter:
+    beam.dt -= Delta_t
+    beam.dE += Delta_E
 
 rfcav = RFStation(ring_HEB, tracking_parameters.harmonic, voltage_ramp, phi_rf_d= 0)
 long_tracker = RingAndRFTracker(rfcav, beam)
@@ -77,7 +87,7 @@ for i in range(1, Nturns+1):
 
 fig, ax = plt.subplots()
 ax.plot(position, label = 'from tracking')
-ax.plot(pos, label = 'expected')
+ax.plot(pos, lw = 2,label = 'expected')
 ax.set_title('Average bunch position [ns]')
 ax.set(xlabel='turn', ylabel = 'Bunch position [ns]')
 ax.legend()
@@ -86,7 +96,7 @@ plt.close()
 
 fig, ax = plt.subplots()
 ax.plot(bl, label = 'from tracking')
-ax.plot(data_opt['turn']['rms_bunch_length']*1e3, label = 'expected')
+ax.plot(data_opt['turn']['rms_bunch_length']*1e3, lw = 2,label = 'expected')
 ax.legend()
 ax.set(xlabel='turn', ylabel = 'Bunch length [mm]')
 ax.set_title('RMS bunch length [mm]')
@@ -95,7 +105,7 @@ plt.close()
 
 fig, ax = plt.subplots()
 ax.plot(sE, label = 'from tracking')
-ax.plot(data_opt['turn']['energy_spread']*100, label = 'expected')
+ax.plot(data_opt['turn']['energy_spread']*100, lw = 2, label = 'expected')
 ax.legend()
 ax.set(xlabel='turn', ylabel = 'Energy spread [%]')
 ax.set_title('RMS energy spread [%]')

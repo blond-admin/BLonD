@@ -24,7 +24,9 @@ n_macroparticles = int(1e5)
 dt = 1e-9
 dE = 1e9
         # Number of turns to track
-with open("/Users/lvalle/cernbox/FCC-ee/Voltage_program/WW_mode/ramps_ramp22_04_2025_15_57_53W.pickle", "rb") as file:
+#with open("/Users/lvalle/cernbox/FCC-ee/Voltage_program/WW_mode/ramps_ramp22_04_2025_15_57_53W.pickle", "rb") as file:
+with open("/Users/lvalle/cernbox/FCC-ee/Voltage_program/WW_mode/ramps_ramp_right_blext_30_04_2025_10_07_12_W.pickle",
+              "rb") as file:
     data_opt = pkl.load(file)
 directory = 'output_figs'
 voltage_ramp = data_opt['turn']['voltage_ramp_V']

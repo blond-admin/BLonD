@@ -91,3 +91,4 @@ def analytical_gaussian_resonator(sigma_t, Q, R_s, omega_r, tau_array, n_particl
     induced_voltage = -n_particles * e * result
 
     return induced_voltage
+

@@ -230,7 +230,7 @@ plt.figure()
 plt.plot(bunch_std * 1e9)
 plt.xlabel('Turns')
 plt.ylabel('Bunch length [ns]')
-plt.savefig(this_directory + '../mpi_output_files/EX_18_fig/bunch_length.png')
+plt.savefig(this_directory + '../mpi_output_files/EX_18_fig/bunch_length_multi_formalism_nsection_1.png')
 plt.close()
 
 # For testing purposes
