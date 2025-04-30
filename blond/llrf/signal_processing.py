@@ -256,12 +256,134 @@ def rf_beam_current(profile: Profile, omega_c: float, T_rev: float, lpf: bool = 
         for i in range(1, len(indices)):
             charges_coarse[i + ind_fine[0]] = np.sum(charges_fine[np.arange(indices[i - 1],
                                                                             indices[i])])
-
         return charges_fine, charges_coarse
 
     else:
         return charges_fine
 
+
+@handle_legacy_kwargs
+def rf_beam_current_gradient(profile: Profile, omega_c: float, T_rev: float,
+                             lpf: bool = True, downsample: Optional[dict] = None,
+                             external_reference: bool = True, dT: float = 0,
+                             derivative: bool = False,
+                             ) -> NDArray | tuple[NDArray, NDArray]:
+    r"""Function calculating the beam charge gradient at the (RF) frequency, slice by
+    slice. The charge distribution [C] of the beam is determined from the beam
+    profile :math:`\lambda_i`, the particle charge :math:`q_p` and the real vs.
+    macro-particle ratio :math:`N_{\mathsf{real}}/N_{\mathsf{macro}}`
+
+    .. math::
+        Q_i = \frac{N_{\mathsf{real}}}{N_{\mathsf{macro}}} q_p \lambda_i
+
+    The total charge [C] in the beam is then
+
+    .. math::
+        Q_{\mathsf{tot}} = \sum_i{Q_i}
+
+    The DC beam current [A] is the total number of charges per turn :math:`T_0`
+
+    .. math:: I_{\mathsf{DC}} = \frac{Q_{\mathsf{tot}}}{T_0}
+
+    The RF beam charge distribution [C] at a revolution frequency
+    :math:`\omega_c` is the complex quantity
+
+    .. math::
+        \left( \begin{matrix} I_{rf,i} \\
+        Q_{rf,i} \end{matrix} \right)
+        = 2 Q_i \left( \begin{matrix} \cos(\omega_c t_i) \\
+        \sin(\omega_c t_i)\end{matrix} \right) \, ,
+
+    where :math:`t_i` are the time coordinates of the beam profile. After de-
+    modulation, a low-pass filter at 20 MHz is applied.
+
+    For multi-bunch cases, make sure that the real beam intensity is the total
+    number of charges in the ring.
+
+    Parameters
+    ----------
+    profile : class
+        A Profile type class
+    omega_c : float
+        Revolution frequency [1/s] at which the current should be calculated
+    T_rev : float
+        Revolution period [s] of the machine
+    lpf : bool
+        Apply low-pass filter; default is True
+    downsample : dict
+        Dictionary containing float value for 'Ts' sampling time and int value
+        for 'points'. Will downsample the RF beam charge onto a coarse time
+        grid with 'Ts' sampling time and 'points' points.
+    external_reference : bool
+        Option to include the changing external reference of the time-grid
+    dT : float
+        The shift in time due to shifting reference frames
+
+    Returns
+    -------
+    complex array
+        RF beam charge gradient array [C] at 'frequency' omega_c, with the sampling time
+        of the Profile object. To obtain current, divide by the sampling time
+    (complex array)
+        If time_coarse is specified, returns also the RF beam charge gradient array [C]
+        on the coarse time grid
+
+    """
+
+    # Convert from dimensionless to Coulomb/Ampères
+    # Take into account macro-particle charge with real-to-macro-particle ratio
+    charges = (profile.beam.ratio * profile.beam.particle.charge * e
+               * np.copy(profile.n_macroparticles))
+    logger.debug("Sum of particles: %d, total charge: %.4e C",
+                 np.sum(profile.n_macroparticles), np.sum(charges))
+    logger.debug("DC current is %.4e A", np.sum(charges) / T_rev)
+
+    # Mix with frequency of interest; remember factor 2 demodulation
+    charge_gradient = np.gradient(charges, profile.bin_centers)
+    I_f_gradient = 2. * (1j * omega_c * charges + charge_gradient) * np.cos(
+        omega_c * profile.bin_centers)
+    Q_f_gradient = -2. * (1j * omega_c * charges + charge_gradient) * np.sin(
+        omega_c * profile.bin_centers)
+
+    # Pass through a low-pass filter
+    if lpf is True:
+        # Nyquist frequency 0.5*f_slices; cutoff at 20 MHz
+        cutoff = 20.e6 * 2. * profile.bin_size
+        I_f_gradient = low_pass_filter(I_f_gradient, cutoff_frequency=cutoff)
+        Q_f_gradient = low_pass_filter(Q_f_gradient, cutoff_frequency=cutoff)
+
+    gradient_fine = I_f_gradient + 1j * Q_f_gradient
+    if external_reference:
+        # slippage in phase due to a non-integer harmonic number
+        dphi = dT * omega_c
+        # Total phase correction
+        phase = dphi
+        gradient_fine = gradient_fine * np.exp(1j * phase)
+
+    if downsample:
+        try:
+            T_s = float(downsample['Ts'])
+            n_points = int(downsample['points'])
+        except Exception:
+            raise RuntimeError('Downsampling input erroneous in rf_beam_current')
+
+        # Find which index in fine grid matches index in coarse grid
+        ind_fine = np.round((profile.bin_centers + dT - np.pi / omega_c) / T_s)
+        ind_fine = np.array(ind_fine, dtype=int)
+        indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
+        if len(indices) == 0:
+            indices = [ind_fine[0]]
+
+        # Pick total current within one coarse grid
+        gradient_coarse = np.zeros(n_points, dtype=complex)
+        gradient_coarse[ind_fine[0]] = np.sum(gradient_fine[np.arange(indices[0])])
+        for i in range(1, len(indices)):
+            gradient_coarse[i + ind_fine[0]] = np.sum(gradient_fine[np.arange(indices[i - 1],
+                                                                            indices[i])])
+        return gradient_fine, gradient_coarse
+
+    else:
+        return gradient_fine
 
 def comb_filter(y: NDArray, x: NDArray, a: float) -> NDArray:
     """Feedback comb filter.
