@@ -225,7 +225,7 @@ def compile_cpp_library(args, cflags, float_flags, libs, cpp_files):
                         cflags += ['-msse3']
                     else:
                         cflags += ['-msse']
-    
+
                     # Add FMA if supported
                     if 'FMA' in stdout:
                         cflags += ['-mfma']
@@ -314,10 +314,11 @@ def compile_cpp_library(args, cflags, float_flags, libs, cpp_files):
 def compile_cuda_library(args, nvccflags, float_flags, cuda_files, nvcc):
     # Compile the GPU library
     # print('\n' + ''.join(['='] * 80))
+    import cupy as cp
+
     print('\nCompiling the CUDA library')
     if args['gpu'] == 'discover':
         print('Discovering the device compute capability..')
-        import cupy as cp
 
         dev = cp.cuda.Device(0)
         dev_name = cp.cuda.runtime.getDeviceProperties(dev)['name']
