@@ -1,11 +1,16 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 from scipy.constants import c
 from blond.trackers.utilities import hamiltonian
+import pickle as pkl
 
 
-
-def get_hamiltonian(ring, rfstation, beam, X, Y, k = int(0)):
+def get_hamiltonian(ring, rfstation, beam, dt, dE, k = int(0), n_points = 1001):
+    dt_array = np.linspace(-dt, dt, n_points)
+    dE_array = np.linspace(-dE, dE, n_points)
+    X, Y = np.meshgrid(dt_array, dE_array)
+    Xt = rfstation.omega_rf[0, k] * X + rfstation.phi_rf_d[0, k]
     hE_t = lambda DE: c * np.pi / (ring.ring_circumference * beam.beta * beam.energy) * \
                       (1 / 2 * ring.eta_0[0, k] * DE ** 2 + 1 / 3 * ring.eta_1[0, k] * DE ** 3 + 1 / 4 *
                               ring.eta_2[0, k] * DE ** 4)
@@ -18,13 +23,13 @@ def get_hamiltonian(ring, rfstation, beam, X, Y, k = int(0)):
     Xt = rfstation.omega_rf[0, k] * X + rfstation.phi_rf_d[0, k]
     Z = hphi_DE(Xt) + hE_t(Y)
 
-    return Z, hphi_DE(np.pi - rfstation.phi_s[k])
+    return X, Y, Z, hphi_DE(np.pi - rfstation.phi_s[k])
 
 
-def plot_hamiltonian(ring, rfstation, beam, dt, dE, k = int(0), hamiltonian_energy = None, n_points = 1001, n_lines = 100, separatrix = True, directory = 'output_figs_wigglers', option = ''):
+def plot_hamiltonian(ring, rfstation, beam, dt, dE, k = int(0), hamiltonian_energy = None, n_points = 1001, n_lines = 100, separatrix = True, directory = 'output_figs_wigglers', option = '',
+                     frame_path = '', get_data_animation = False):
     dt_array = np.linspace(-dt, dt, n_points)
     dE_array = np.linspace(-dE, dE, n_points)
-    plt.figure()
     hE_t = lambda DE: c * np.pi/ (ring.ring_circumference * beam.beta * beam.energy) * \
                       (
                         ring.eta_0[0, k] * DE ** 2 + ring.eta_1[0, k] * DE ** 3 + ring.eta_2[0, k] * DE ** 4)
@@ -45,6 +50,23 @@ def plot_hamiltonian(ring, rfstation, beam, dt, dE, k = int(0), hamiltonian_ener
         plt.contour(X*1e9, Y/1e9, Z, n_lines)
     if separatrix:
         plt.contour(X*1e9, Y/1e9, Z, [hphi_DE(np.pi - rfstation.phi_s[k])], colors=['red'])
+        #plt.figure(figsize=(6, 5))
+        #sns.kdeplot(data=Z, x=X, y=Y)
+        if get_data_animation:
+            cm = 1 / 2.54  # centimeters in inches
+            plt.figure(figsize=(14*cm, 7*cm))
+            plt.title(f'WW mode\n Turn: {k}')
+            plt.xlabel('t [ns]')
+            plt.ylabel('DE [GeV]')
+            plt.xlim([0, 1.25])
+
+            dt = beam.dt[0:10000] * 1e9
+            dE = beam.dE[0:10000] * 1e-9
+            plt.contour(X * 1e9, Y / 1e9, Z, [hphi_DE(np.pi - rfstation.phi_s[k])], colors=['red'])
+            plt.scatter(dt, dE, s = 0.2)
+            plt.savefig(frame_path)
+            plt.close()
+            plt.close()
     if hamiltonian_energy is not None:
         for energy in hamiltonian_energy:
             plt.contour(X*1e9, Y/1e9, Z, [energy])
@@ -54,6 +76,7 @@ def plot_hamiltonian(ring, rfstation, beam, dt, dE, k = int(0), hamiltonian_ener
     plt.scatter(beam.dt*1e9, beam.dE/1e9, s = 0.2)
 
     plt.title(f'WW \n turn #{k}')
-    text = directory + '/plot_' + str(k) + option
-    plt.savefig(text)
+    if not get_data_animation:
+        text = directory + '/plot_' + str(k) + option
+        plt.savefig(text)
     plt.close()

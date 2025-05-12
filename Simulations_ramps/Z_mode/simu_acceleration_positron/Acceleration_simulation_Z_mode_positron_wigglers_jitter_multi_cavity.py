@@ -1,3 +1,4 @@
+from __future__ import division, print_function
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle as pkl
@@ -5,19 +6,20 @@ import os
 import imageio
 from blond.beam.beam import Beam, Positron
 from blond.input_parameters.rf_parameters import RFStation
-from blond.beam.distributions import bigaussian
+
 from ramp_modules.Ramp_optimiser_functions import HEBee_Eramp_parameters
 from ring_parameters.generate_rings import generate_HEB_ring
 from scipy.constants import c
 from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
 from blond.synchrotron_radiation.synchrotron_radiation import SynchrotronRadiation
-from plots_theory_positron import plot_hamiltonian, get_hamiltonian
+from Simulations_ramps.Z_mode.simu_acceleration_positron.plots_theory_positron import plot_hamiltonian, get_hamiltonian
+from Simulations_ramps.Z_mode.simu_acceleration.functions_wiggler import wiggler, update_rad_int, update_SRtracker_and_track
 
 test_mode = False
 optimise = False
 verbose  = False
-test_beams = True
 tracking = False
+jitter = True
 get_data_animation = True
 
 particle_type = Positron()
@@ -26,41 +28,41 @@ n_macroparticles = int(1e5)
 
 dt = 1e-9
 dE = 1e9
-
-# Number of RF sections
-n_sections = 4
-option_summary = f'n_Sections_{n_sections}_elle_input'
-op_mode = 'ttbar'
-with open("/Users/lvalle/cernbox/FCC-ee/Voltage_program/ttbar/ramps_ramp22_04_2025_16_32_18ttbar.pickle", "rb") as file:
+        # Number of turns to track
+n_sections = 1
+with open("/Users/lvalle/cernbox/FCC-ee/Voltage_program/ramps_before_optimisation09_04_2025_16_35_02overshoot_wiggler.pickle", "rb") as file:
     data_opt = pkl.load(file)
-directory = 'output_figs_multi_sections'
+directory = 'output_figs_wigglers_jitter_multi_cavity_10'
 voltage_ramp = data_opt['turn']['voltage_ramp_V']
 energy_ramp = data_opt['turn']['energy_ramp_eV']
 phi_s = data_opt['turn']['phi_s']
 Nturns = len(energy_ramp)-1
-tracking_parameters = HEBee_Eramp_parameters(op_mode=op_mode, dec_mode = True)
-ring_HEB = generate_HEB_ring(op_mode=op_mode, particle=particle_type, n_sections= n_sections, Nturns=Nturns, momentum=energy_ramp)
+tracking_parameters = HEBee_Eramp_parameters(op_mode='Z', dec_mode = True)
+ring_HEB = generate_HEB_ring(op_mode='Z', particle=particle_type,Nturns=Nturns, n_sections= n_sections,momentum=energy_ramp)
+wiggler_HEB = wiggler()
 
 beam = Beam(ring_HEB, n_macroparticles, n_particles)
-beam.dt = np.load('../../damped_distribution_dt_4mm.npy')
-beam.dE = np.load('../../damped_distribution_dE_4mm.npy')
+beam.dt = np.load('../../../beam_phase.npy')
+beam.dE = np.load('../../../beam_energy.npy')
+###### Shift the injected beam ##############
+Delta_E = 3e-3 * ring_HEB.energy[0][0] #eV # max. 3e-3 relative energy error (from transfer line)
+Delta_t = 50e-12 #s max 50ps max time jitter
+
+if jitter:
+    beam.dt += Delta_t
+    beam.dE += Delta_E
 
 rfcavs = []
 long_tracker = []
 SR = []
 map_ = []
 
-for i in range(n_sections):
-    rfcavs.append(RFStation(ring_HEB, tracking_parameters.harmonic, voltage_ramp/n_sections, phi_rf_d= 0, section_index=i+1))
-    long_tracker.append(RingAndRFTracker(rfcavs[i], beam))
-    SR.append(SynchrotronRadiation(ring_HEB, rfcavs[i], beam, quantum_excitation=True, python=True, shift_beam=False))
-    map_ += [SR[i]] + [long_tracker[i]]
 
-full_tracker = FullRingAndRF(long_tracker)
-SR[0].print_SR_params()
 
 rfcav = RFStation(ring_HEB, tracking_parameters.harmonic, voltage_ramp, phi_rf_d= 0)
-plot_hamiltonian(ring_HEB, rfcav, beam, 1e-9, ring_HEB.energy[0][0]/20, k = 0, n_lines = 0, directory=directory,separatrix = True, option = 'test')
+
+plot_hamiltonian(ring_HEB, rfcav, beam, 1e-9, ring_HEB.energy[0][0]/20, k = 0, n_lines = 0, directory=directory, separatrix_flag = True, option = 'test')
+
 #for hamiltonian
 n_points = 1001
 bl=[]
@@ -73,51 +75,67 @@ bl.append(beam.sigma_dt * c * 1e3)
 sE.append(beam.sigma_dE/beam.energy*100)
 eml.append(np.pi * 4 * beam.sigma_dt * beam.sigma_dE)
 pos.append(phi_s[0]/rfcav.omega_rf[0,0]*1e9)
-
 folder_paths = [
-    '/Users/lvalle/PycharmProjects/BLonD/Simulations_ramps/ttbar_mode/data_figs/',
+    '/Users/lvalle/PycharmProjects/BLonD/Simulations_ramps/Z_mode/data_figs/',
 ]
 gif_paths = [
-    '/Users/lvalle/PycharmProjects/BLonD/Simulations_ramps/ttbar_mode/gif_path/animated_ramp_ttbar_mode.gif',
+    '/Users/lvalle/PycharmProjects/BLonD/Simulations_ramps/Z_mode/simu_acceleration_positron/gif_path/animated_ramp_Z_mode_jitter_wiggler_multi_cavity_10.gif',
 ]
 
-n=0
-
-get_images=True
+n = 0
+for k in range(n_sections):
+    rfcavs.append(RFStation(ring_HEB, tracking_parameters.harmonic, voltage_ramp / n_sections, phi_rf_d=0,
+                            section_index=k + 1))
+    long_tracker.append(RingAndRFTracker(rfcavs[k], beam))
+get_images = True
 # Folder to save frames
-opmode = 'ttbar'
-folder_name = opmode + '_mode/frames'
-os.makedirs("frames", exist_ok=True)
+opmode = 'Z'
+folder_name = opmode + '_mode/frames_jitter_wiggler'
+os.makedirs("frames_jitter_wiggler", exist_ok=True)
 filenames = []
-for i in range(1, Nturns+1):
+for i in range(1, Nturns-1):
     # Track
-    for m in map_:
-        m.track()
+    for k in range(n_sections):
+        long_tracker[k].track()
+        SR = [SynchrotronRadiation(ring_HEB, rfcav, beam, rad_int = update_rad_int(ring_HEB, wiggler_HEB, E=energy_ramp[i]),
+                                 quantum_excitation=True, python=True, shift_beam=False)]
+        SR[0].track()
+        #map_ += [SR[k]] + [long_tracker[k]]
+
+    full_tracker = FullRingAndRF(long_tracker)
+
+    print(energy_ramp[i])
+    #SR[0].print_SR_params()
+    #for m in map_:
+    #    m.track()
     beam.statistics()
     bl.append(beam.sigma_dt * c * 1e3)
-    sE.append(beam.sigma_dE/beam.energy * 100)
+    sE.append(beam.sigma_dE / beam.energy * 100)
     eml.append(np.pi * 4 * beam.sigma_dt * beam.sigma_dE)
-    pos.append(phi_s[i]/rfcav.omega_rf[0,i]*1e9)
-    position.append(beam.mean_dt*1e9)
+    pos.append(phi_s[i] / rfcav.omega_rf[0, i] * 1e9)
+    position.append(beam.mean_dt * 1e9)
     if get_data_animation:
         if i < 50:
-            frame_path = f"frames/plot_{i:03d}.png"
-            plot_hamiltonian(ring_HEB, rfcav, beam, 1.25e-9, ring_HEB.energy[0][0] / 10, k=i, n_lines=0, separatrix=True,
-                             directory=directory, option='test', get_data_animation=get_data_animation, frame_path = frame_path)
+            frame_path = f"frames_jitter_wiggler/plot_{i:03d}.png"
+            plot_hamiltonian(ring_HEB, rfcav, beam, 1.25e-9, ring_HEB.energy[0][0] / 10, k=i, n_lines=0,
+                             separatrix_flag=True,
+                             directory=directory, option='test', get_data_animation=get_data_animation,
+                             frame_path=frame_path)
             filenames.append(frame_path)
             print(f"Iteration {i} done")
-        elif (i % 40) == 0:
-            frame_path = f"frames/plot_{i:03d}.png"
+        elif (i % 10) == 0:
+            frame_path = f"frames_jitter_wiggler/plot_{i:03d}.png"
             plot_hamiltonian(ring_HEB, rfcav, beam, 1.25e-9, ring_HEB.energy[0][0] / 10, k=i, n_lines=0,
-                             separatrix=True,
+                             separatrix_flag=True,
                              directory=directory, option='test', get_data_animation=get_data_animation,
                              frame_path=frame_path)
             filenames.append(frame_path)
             print(f"Iteration {i} done")
     else:
         if (i % 50) == 0:
-            plot_hamiltonian(ring_HEB, rfcav, beam, 1.25e-9, ring_HEB.energy[0][0] / 10, k=i, n_lines=0, separatrix=True,
-                         directory=directory, option='test', get_data_animation = get_data_animation)
+            plot_hamiltonian(ring_HEB, rfcav, beam, 1.25e-9, ring_HEB.energy[0][0] / 10, k=i, n_lines=0,
+                             separatrix_flag=True,
+                             directory=directory, option='test', get_data_animation=get_data_animation)
 
 if filenames:
     with imageio.get_writer(gif_paths[n], mode='I', duration=0.05) as writer:
@@ -133,19 +151,18 @@ else:
 for filename in filenames:
     if os.path.exists(filename):
         os.remove(filename)
-if os.path.exists("frames") and not os.listdir("frames"):
-    os.rmdir("frames")
+if os.path.exists("frames_jitter_wiggler") and not os.listdir("frames_jitter_wiggler"):
+    os.rmdir("frames_jitter_wiggler")
     print(f"Saved frame {i:03d} at {frame_path}")
 
 print("Temporary frames deleted.")
-
 fig, ax = plt.subplots()
 ax.plot(position, label = 'from tracking')
 ax.plot(pos, label = 'expected')
-ax.set_title(f'Average bunch position [ns], n_sections = {n_sections}')
+ax.set_title('Average bunch position [ns]')
 ax.set(xlabel='turn', ylabel = 'Bunch position [ns]')
 ax.legend()
-plt.savefig(directory+'/bunch_position'+option_summary)
+plt.savefig(directory+'/bunch_position')
 plt.close()
 
 fig, ax = plt.subplots()
@@ -153,8 +170,8 @@ ax.plot(bl, label = 'from tracking')
 ax.plot(data_opt['turn']['rms_bunch_length']*1e3, label = 'expected')
 ax.legend()
 ax.set(xlabel='turn', ylabel = 'Bunch length [mm]')
-ax.set_title(f'RMS bunch length [mm], n_sections = {n_sections}')
-plt.savefig(directory+'/bunch_length'+option_summary)
+ax.set_title('RMS bunch length [mm]')
+plt.savefig(directory+'/bunch_length')
 plt.close()
 
 fig, ax = plt.subplots()
@@ -162,29 +179,9 @@ ax.plot(sE, label = 'from tracking')
 ax.plot(data_opt['turn']['energy_spread']*100, label = 'expected')
 ax.legend()
 ax.set(xlabel='turn', ylabel = 'Energy spread [%]')
-ax.set_title(f'RMS energy spread [%], n_sections = {n_sections}')
-plt.savefig(directory+'/energy_spread'+option_summary)
+ax.set_title('RMS energy spread [%]')
+plt.savefig(directory+'/energy_spread')
 plt.close()
-
-
-dictresults = {}
-dictresults.update({'energy_ramp_eV': energy_ramp,
-             'voltage_ramp_V': voltage_ramp,
-             'phi_s': phi_s,
-             'tracking_sigmaE_perc': sE,
-             'expected_sigmaE_perc': data_opt['turn']['energy_spread']*100,
-             'tracking_bl_mm': bl,
-             'expected_bl_mm': data_opt['turn']['rms_bunch_length']*1e3,
-             'tracking_bpos_ns': position,
-             'expected_bpos_ns': pos,
-             'n_sections': n_sections,
-             'op_mode':op_mode,
-            })
-filename = f'summary_characteristics_{n_sections}_rf_sections_{op_mode}_mode'
-
-pkl.dump(dictresults, open(filename, "wb"))
-
-
 
 
 if tracking:
@@ -197,7 +194,7 @@ if tracking:
     C = [axes.contour(X * 1e9, Y / 1e9, Z, [hamiltonian_energy], colors=['red'])]
     x, y = [], []
     scat = axes.scatter(x, y)
-    axes.set_title('Acceleration simulation ttbar mode')
+    axes.set_title('Acceleration simulation Z mode')
     bl=[]
     eml=[]
     beam.statistics()

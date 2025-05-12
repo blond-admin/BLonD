@@ -2,7 +2,8 @@ from __future__ import division, print_function
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle as pkl
-
+import os
+import imageio
 from blond.beam.beam import Beam, Positron
 from blond.input_parameters.rf_parameters import RFStation
 
@@ -19,6 +20,8 @@ optimise = False
 verbose  = False
 tracking = False
 jitter = True
+get_data_animation = True
+
 particle_type = Positron()
 n_particles = int(1.7e11)
 n_macroparticles = int(1e5)
@@ -29,7 +32,7 @@ dE = 1e9
 
 with open("/Users/lvalle/cernbox/FCC-ee/Voltage_program/ramps_before_optimisation09_04_2025_16_35_02overshoot_wiggler.pickle", "rb") as file:
     data_opt = pkl.load(file)
-directory = 'output_figs_wigglers_jitter'
+directory = 'output_figs_jitter_wiggler_updated_SRI'
 voltage_ramp = data_opt['turn']['voltage_ramp_V']
 energy_ramp = data_opt['turn']['energy_ramp_eV']
 phi_s = data_opt['turn']['phi_s']
@@ -52,12 +55,12 @@ rfcav = RFStation(ring_HEB, tracking_parameters.harmonic, voltage_ramp, phi_rf_d
 long_tracker = RingAndRFTracker(rfcav, beam)
 full_tracker = FullRingAndRF([long_tracker])
 
-SR = [SynchrotronRadiation(ring_HEB, rfcav, beam,rad_int = update_rad_int(ring_HEB, wiggler_HEB, E=20e9), quantum_excitation=True, python=True, shift_beam=False)]
+SR = [SynchrotronRadiation(ring_HEB, rfcav, beam, rad_int = update_rad_int(ring_HEB, wiggler_HEB, E=20e9), quantum_excitation=True, python=True, shift_beam=False)]
 SR[0].print_SR_params()
 
 plot_hamiltonian(ring_HEB, rfcav, beam, 1e-9, ring_HEB.energy[0][0]/20, k = 0, n_lines = 0, directory=directory, separatrix_flag = True, option = 'test')
 
-map_ = [long_tracker]
+map_ = [long_tracker] + SR
 
 #for hamiltonian
 n_points = 1001
@@ -71,23 +74,78 @@ bl.append(beam.sigma_dt * c * 1e3)
 sE.append(beam.sigma_dE/beam.energy*100)
 eml.append(np.pi * 4 * beam.sigma_dt * beam.sigma_dE)
 pos.append(phi_s[0]/rfcav.omega_rf[0,0]*1e9)
+folder_paths = [
+    '/Users/lvalle/PycharmProjects/BLonD/Simulations_ramps/Z_mode/data_figs/',
+]
+gif_paths = [
+    '/Users/lvalle/PycharmProjects/BLonD/Simulations_ramps/Z_mode/simu_acceleration_positron/gif_path/animated_ramp_Z_mode_jitter_wiggler_updated_radiation_integrals.gif',
+]
 
-for i in range(1, Nturns+1):
+n = 0
+
+get_images = True
+# Folder to save frames
+opmode = 'Z'
+folder_name = opmode + '_mode/frames_jitter_wiggler'
+os.makedirs("frames_jitter_wiggler", exist_ok=True)
+filenames = []
+for i in range(1, Nturns + 1):
     # Track
-    for m in map_:
-        m.track()
-    update_SRtracker_and_track(ring_HEB, rfcav, beam, wiggler_HEB, E= ring_HEB.energy[0,i])
+    #for m in map_:
+    #    m.track()
+    long_tracker.track()
+    SR = [SynchrotronRadiation(ring_HEB, rfcav, beam, rad_int=update_rad_int(ring_HEB, wiggler_HEB, E=energy_ramp[i]),
+                                   quantum_excitation=True, python=True, shift_beam=False)]
+    SR[0].print_SR_params()
+    SR[0].track()
     beam.statistics()
     bl.append(beam.sigma_dt * c * 1e3)
-    sE.append(beam.sigma_dE/beam.energy * 100)
+    sE.append(beam.sigma_dE / beam.energy * 100)
     eml.append(np.pi * 4 * beam.sigma_dt * beam.sigma_dE)
-    pos.append(phi_s[i]/rfcav.omega_rf[0,i]*1e9)
-    position.append(beam.mean_dt*1e9)
-    #print("   Longitudinal emittance (rms) %.4e eVs" % (np.pi * 4 * beam.sigma_dt * beam.sigma_dE))
-    if (i % 50) == 0:
-        plot_hamiltonian(ring_HEB, rfcav, beam, 1e-9, ring_HEB.energy[0][0] / 10, k=i, n_lines=0, separatrix_flag=True,
-                         directory=directory, option='test')
+    pos.append(phi_s[i] / rfcav.omega_rf[0, i] * 1e9)
+    position.append(beam.mean_dt * 1e9)
+    if get_data_animation:
+        if i < 50:
+            frame_path = f"frames_jitter_wiggler/plot_{i:03d}.png"
+            plot_hamiltonian(ring_HEB, rfcav, beam, 1.25e-9, ring_HEB.energy[0][0] / 10, k=i, n_lines=0,
+                             separatrix_flag=True,
+                             directory=directory, option='test', get_data_animation=get_data_animation,
+                             frame_path=frame_path)
+            filenames.append(frame_path)
+            print(f"Iteration {i} done")
+        elif (i % 10) == 0:
+            frame_path = f"frames_jitter_wiggler/plot_{i:03d}.png"
+            plot_hamiltonian(ring_HEB, rfcav, beam, 1.25e-9, ring_HEB.energy[0][0] / 10, k=i, n_lines=0,
+                             separatrix_flag=True,
+                             directory=directory, option='test', get_data_animation=get_data_animation,
+                             frame_path=frame_path)
+            filenames.append(frame_path)
+            print(f"Iteration {i} done")
+    else:
+        if (i % 50) == 0:
+            plot_hamiltonian(ring_HEB, rfcav, beam, 1.25e-9, ring_HEB.energy[0][0] / 10, k=i, n_lines=0,
+                             separatrix_flag=True,
+                             directory=directory, option='test', get_data_animation=get_data_animation)
 
+if filenames:
+    with imageio.get_writer(gif_paths[n], mode='I', duration=0.05) as writer:
+        for filename in filenames:
+            image = imageio.imread(filename)
+            writer.append_data(image)
+            print(f"Added {filename} to GIF")
+    print(f"GIF saved as {filename}.gif.")
+else:
+    print("No frames to create a GIF.")
+
+# # Clean up frames
+for filename in filenames:
+    if os.path.exists(filename):
+        os.remove(filename)
+if os.path.exists("frames_jitter_wiggler") and not os.listdir("frames_jitter_wiggler"):
+    os.rmdir("frames_jitter_wiggler")
+    print(f"Saved frame {i:03d} at {frame_path}")
+
+print("Temporary frames deleted.")
 fig, ax = plt.subplots()
 ax.plot(position, label = 'from tracking')
 ax.plot(pos, label = 'expected')

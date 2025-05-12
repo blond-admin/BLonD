@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle as pkl
+import os
+import imageio
 from blond.beam.beam import Beam, Positron
 from blond.input_parameters.rf_parameters import RFStation
 from blond.beam.distributions import bigaussian
@@ -17,6 +19,8 @@ verbose  = False
 test_beams = True
 tracking = False
 jitter = True
+get_data_animation = True
+
 particle_type = Positron()
 n_particles = int(1.7e11)
 n_macroparticles = int(1e5)
@@ -28,7 +32,8 @@ dE = 1e9
 n_sections = 4
 option_summary = f'n_Sections_{n_sections}_elle_input'
 op_mode = 'ttbar'
-with open("/Users/lvalle/cernbox/FCC-ee/Voltage_program/ttbar/ramps_ramp22_04_2025_16_32_18ttbar.pickle", "rb") as file:
+#with open("/Users/lvalle/cernbox/FCC-ee/Voltage_program/ttbar/ramps_ramp22_04_2025_16_32_18ttbar.pickle", "rb") as file:
+with open("/Users/lvalle/cernbox/FCC-ee/Voltage_program/ttbar/ramps_ramp09_05_2025_14_33_49ttbar_larger_linear_ramp.pickle", "rb") as file:
     data_opt = pkl.load(file)
 directory = 'output_figs_max_jitter'
 voltage_ramp = data_opt['turn']['voltage_ramp_V']
@@ -77,6 +82,20 @@ sE.append(beam.sigma_dE/beam.energy*100)
 eml.append(np.pi * 4 * beam.sigma_dt * beam.sigma_dE)
 pos.append(phi_s[0]/rfcav.omega_rf[0,0]*1e9)
 
+folder_paths = [
+    '/Users/lvalle/PycharmProjects/BLonD/Simulations_ramps/ttbar_mode/data_figs/',
+]
+gif_paths = [
+    '/Users/lvalle/PycharmProjects/BLonD/Simulations_ramps/ttbar_mode/gif_path/animated_ramp_jitter_ttbar_mode.gif',
+]
+
+n=0
+
+get_images=True
+# Folder to save frames
+folder_name = op_mode + '_mode/frames'
+os.makedirs("frames", exist_ok=True)
+filenames = []
 for i in range(1, Nturns+1):
     # Track
     for m in map_:
@@ -87,10 +106,46 @@ for i in range(1, Nturns+1):
     eml.append(np.pi * 4 * beam.sigma_dt * beam.sigma_dE)
     pos.append(phi_s[i]/rfcav.omega_rf[0,i]*1e9)
     position.append(beam.mean_dt*1e9)
-    #print("   Longitudinal emittance (rms) %.4e eVs" % (np.pi * 4 * beam.sigma_dt * beam.sigma_dE))
-    if (i % 50) == 0:
-        plot_hamiltonian(ring_HEB, rfcav, beam, 1.5e-9, ring_HEB.energy[0][0] /2, k=i, n_lines=0, separatrix=True,
-                         directory=directory, option='test')
+    if get_data_animation:
+        if i < 50:
+            frame_path = f"frames/plot_{i:03d}.png"
+            plot_hamiltonian(ring_HEB, rfcav, beam, 1.25e-9, ring_HEB.energy[0][0] / 10, k=i, n_lines=0, separatrix=True,
+                             directory=directory, option='test', get_data_animation=get_data_animation, frame_path = frame_path)
+            filenames.append(frame_path)
+            print(f"Iteration {i} done")
+        elif (i % 40) == 0:
+            frame_path = f"frames/plot_{i:03d}.png"
+            plot_hamiltonian(ring_HEB, rfcav, beam, 1.25e-9, ring_HEB.energy[0][0] / 10, k=i, n_lines=0,
+                             separatrix=True,
+                             directory=directory, option='test', get_data_animation=get_data_animation,
+                             frame_path=frame_path)
+            filenames.append(frame_path)
+            print(f"Iteration {i} done")
+    else:
+        if (i % 50) == 0:
+            plot_hamiltonian(ring_HEB, rfcav, beam, 1.25e-9, ring_HEB.energy[0][0] / 10, k=i, n_lines=0, separatrix=True,
+                         directory=directory, option='test', get_data_animation = get_data_animation)
+
+
+if filenames:
+    with imageio.get_writer(gif_paths[n], mode='I', duration=0.05) as writer:
+        for filename in filenames:
+            image = imageio.imread(filename)
+            writer.append_data(image)
+            print(f"Added {filename} to GIF")
+    print(f"GIF saved as {filename}.gif.")
+else:
+    print("No frames to create a GIF.")
+
+# # Clean up frames
+for filename in filenames:
+    if os.path.exists(filename):
+        os.remove(filename)
+if os.path.exists("frames") and not os.listdir("frames"):
+    os.rmdir("frames")
+    print(f"Saved frame {i:03d} at {frame_path}")
+
+print("Temporary frames deleted.")
 
 fig, ax = plt.subplots()
 ax.plot(position, label = 'from tracking')

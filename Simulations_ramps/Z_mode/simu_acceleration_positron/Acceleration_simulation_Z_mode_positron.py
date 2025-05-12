@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle as pkl
+import os
+import imageio
 from blond.beam.beam import Beam, Positron
 from blond.input_parameters.rf_parameters import RFStation
 from ramp_modules.Ramp_optimiser_functions import HEBee_Eramp_parameters
@@ -14,7 +16,8 @@ test_mode = False
 optimise = False
 verbose  = False
 test_beams = False
-tracking = True
+tracking = False
+get_data_animation = True
 
 particle_type = Positron()
 n_particles = int(1.7e11)
@@ -60,23 +63,70 @@ sE.append(beam.sigma_dE/beam.energy*100)
 eml.append(np.pi * 4 * beam.sigma_dt * beam.sigma_dE)
 pos.append(phi_s[0]/rfcav.omega_rf[0,0]*1e9)
 
+folder_paths = [
+    '/Users/lvalle/PycharmProjects/BLonD/Simulations_ramps/Z_mode/data_figs/',
+]
+gif_paths = [
+    '/Users/lvalle/PycharmProjects/BLonD/Simulations_ramps/Z_mode/simu_acceleration_positron/gif_path/animated_ramp_Z_mode.gif',
+]
 
+n=0
 
-if tracking:
-    for i in range(1, Nturns+1):
-        # Track
-        for m in map_:
-            m.track()
-        beam.statistics()
-        bl.append(beam.sigma_dt * c * 1e3)
-        sE.append(beam.sigma_dE/beam.energy * 100)
-        eml.append(np.pi * 4 * beam.sigma_dt * beam.sigma_dE)
-        pos.append(phi_s[i]/rfcav.omega_rf[0,i]*1e9)
-        position.append(beam.mean_dt*1e9)
-        #print("   Longitudinal emittance (rms) %.4e eVs" % (np.pi * 4 * beam.sigma_dt * beam.sigma_dE))
+get_images=True
+# Folder to save frames
+opmode = 'Z'
+folder_name = opmode + '_mode/frames'
+os.makedirs("frames", exist_ok=True)
+filenames = []
+for i in range(1, Nturns):
+    # Track
+    for m in map_:
+        m.track()
+    beam.statistics()
+    bl.append(beam.sigma_dt * c * 1e3)
+    sE.append(beam.sigma_dE/beam.energy * 100)
+    eml.append(np.pi * 4 * beam.sigma_dt * beam.sigma_dE)
+    pos.append(phi_s[i]/rfcav.omega_rf[0,i]*1e9)
+    position.append(beam.mean_dt*1e9)
+    if get_data_animation:
+        if i < 50:
+            frame_path = f"frames/plot_{i:03d}.png"
+            plot_hamiltonian(ring_HEB, rfcav, beam, 1.25e-9, ring_HEB.energy[0][0] / 10, k=i, n_lines=0, separatrix_flag=True,
+                             directory=directory, option='test', get_data_animation=get_data_animation, frame_path = frame_path)
+            filenames.append(frame_path)
+            print(f"Iteration {i} done")
+        elif (i % 10) == 0:
+            frame_path = f"frames/plot_{i:03d}.png"
+            plot_hamiltonian(ring_HEB, rfcav, beam, 1.25e-9, ring_HEB.energy[0][0] / 10, k=i, n_lines=0,
+                             separatrix_flag=True,
+                             directory=directory, option='test', get_data_animation=get_data_animation,
+                             frame_path=frame_path)
+            filenames.append(frame_path)
+            print(f"Iteration {i} done")
+    else:
         if (i % 50) == 0:
-            plot_hamiltonian(ring_HEB, rfcav, beam, 1e-9, ring_HEB.energy[0][0] / 10, k=i, n_lines=0, separatrix_flag=True,
-                             directory=directory, option='test')
+            plot_hamiltonian(ring_HEB, rfcav, beam, 1.25e-9, ring_HEB.energy[0][0] / 10, k=i, n_lines=0, separatrix_flag=True,
+                         directory=directory, option='test', get_data_animation = get_data_animation)
+
+if filenames:
+    with imageio.get_writer(gif_paths[n], mode='I', duration=0.05) as writer:
+        for filename in filenames:
+            image = imageio.imread(filename)
+            writer.append_data(image)
+            print(f"Added {filename} to GIF")
+    print(f"GIF saved as {filename}.gif.")
+else:
+    print("No frames to create a GIF.")
+
+# # Clean up frames
+for filename in filenames:
+    if os.path.exists(filename):
+        os.remove(filename)
+if os.path.exists("frames") and not os.listdir("frames"):
+    os.rmdir("frames")
+    print(f"Saved frame {i:03d} at {frame_path}")
+
+print("Temporary frames deleted.")
 
 fig, ax = plt.subplots()
 ax.plot(position, label = 'from tracking')

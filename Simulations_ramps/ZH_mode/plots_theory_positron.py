@@ -21,7 +21,8 @@ def get_hamiltonian(ring, rfstation, beam, X, Y, k = int(0)):
     return Z, hphi_DE(np.pi - rfstation.phi_s[k])
 
 
-def plot_hamiltonian(ring, rfstation, beam, dt, dE, k = int(0), hamiltonian_energy = None, n_points = 1001, n_lines = 100, separatrix = True, directory = 'output_figs_wigglers', option = ''):
+def plot_hamiltonian(ring, rfstation, beam, dt, dE, k = int(0), hamiltonian_energy = None, n_points = 1001, n_lines = 100, separatrix = True, get_data_animation = False, frame_path = '',
+                     directory = 'output_figs_wigglers', option = ''):
     dt_array = np.linspace(-dt, dt, n_points)
     dE_array = np.linspace(-dE, dE, n_points)
     plt.figure()
@@ -45,6 +46,20 @@ def plot_hamiltonian(ring, rfstation, beam, dt, dE, k = int(0), hamiltonian_ener
         plt.contour(X*1e9, Y/1e9, Z, n_lines)
     if separatrix:
         plt.contour(X*1e9, Y/1e9, Z, [hphi_DE(np.pi - rfstation.phi_s[k])], colors=['red'])
+        if get_data_animation:
+            plt.figure(figsize=(4, 8))
+            plt.title(f'ZH mode\n Turn: {k}')
+            plt.xlabel('t [ns]')
+            plt.ylabel('DE [GeV]')
+            plt.xlim([0, 1.25])
+
+            dt = beam.dt[0:10000] * 1e9
+            dE = beam.dE[0:10000] * 1e-9
+            plt.contour(X * 1e9, Y / 1e9, Z, [hphi_DE(np.pi - rfstation.phi_s[k])], colors=['red'])
+            plt.scatter(dt, dE, s = 0.2)
+            plt.savefig(frame_path)
+            plt.close()
+            plt.close()
     if hamiltonian_energy is not None:
         for energy in hamiltonian_energy:
             plt.contour(X*1e9, Y/1e9, Z, [energy])
