@@ -13,9 +13,9 @@ Unittest for the FFTs used in blond with CuPy and NumPy
 :Authors: **Konstantinos Iliakis**
 """
 
+import os
 import unittest
 from copy import deepcopy
-import os
 
 import numpy as np
 import pytest

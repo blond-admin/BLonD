@@ -30,6 +30,7 @@ from blond.llrf.cavity_feedback import (SPSCavityLoopCommissioning,
 from blond.llrf.impulse_response import (SPS4Section200MHzTWC, rectangle,
                                          triangle)
 
+
 class TestRectangle(unittest.TestCase):
 
     def test_1(self):

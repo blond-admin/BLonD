@@ -26,9 +26,10 @@ from blond.impedances.impedance import InducedVoltageTime, TotalInducedVoltage
 from blond.impedances.impedance_sources import TravelingWaveCavity
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
+from blond.llrf.cavity_feedback import LHCCavityLoop, \
+    LHCCavityLoopCommissioning
 from blond.llrf.cavity_feedback import (SPSCavityLoopCommissioning,
                                         SPSCavityFeedback, SPSOneTurnFeedback)
-from blond.llrf.cavity_feedback import LHCCavityLoop, LHCCavityLoopCommissioning
 from blond.trackers.tracker import RingAndRFTracker
 
 this_directory = os.path.dirname(os.path.realpath(__file__))

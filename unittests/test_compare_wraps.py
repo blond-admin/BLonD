@@ -1,8 +1,6 @@
 import unittest
 from copy import deepcopy
-from time import perf_counter
 
-import cupyx
 import numpy as np
 import pytest
 

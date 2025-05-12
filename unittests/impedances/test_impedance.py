@@ -22,7 +22,8 @@ from scipy.constants import c, e, m_p
 
 from blond.beam.beam import Beam, Proton
 from blond.beam.profile import CutOptions, Profile
-from blond.impedances.impedance import InducedVoltageFreq, InducedVoltageResonator
+from blond.impedances.impedance import InducedVoltageFreq, \
+    InducedVoltageResonator
 from blond.impedances.impedance import InducedVoltageTime
 from blond.impedances.impedance import (
     InductiveImpedance,
@@ -283,7 +284,7 @@ class TestInductiveImpedance(unittest.TestCase):
             result_expected = inductive_impedance.induced_voltage[1:-1]
             result_under_test = np.convolve(
                 self.profile1.n_macroparticles, wake_kernel / (-
-            self._beam.particle.charge * e * self._beam.ratio), "full"
+            self.beam.particle.charge * e * self.beam.ratio), "full"
             )[32 : 32 + 62]
             DEV_DEBUG = False
 

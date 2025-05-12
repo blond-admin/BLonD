@@ -19,6 +19,7 @@ import sys
 import unittest
 
 import pytest
+
 os.environ["BLOND_EXAMPLES_DRAFT_MODE"] = "1"
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'

@@ -17,14 +17,14 @@ Comparison of the different implementations using plots
 import matplotlib.pyplot as plt
 # General imports
 import numpy as np
-# Drift test equations import
-from test_drift import exact_drift, expected_drift, legacy_drift, linear_drift
 
 from blond.beam.beam import Beam, Proton
 from blond.input_parameters.rf_parameters import RFStation
 # BLonD imports
 from blond.input_parameters.ring import Ring
 from blond.trackers.tracker import RingAndRFTracker
+# Drift test equations import
+from test_drift import exact_drift, expected_drift, legacy_drift, linear_drift
 
 
 class CompareDrift:

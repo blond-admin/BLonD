@@ -19,7 +19,6 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 from parameterized import parameterized
-from scipy.constants import e as elCharge
 
 from blond.beam.beam import Electron
 from blond.impedances.impedance_sources import (

@@ -29,6 +29,7 @@ from blond.beam.beam import Beam, Proton
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 
+
 # import matplotlib.pyplot as plt
 
 

@@ -13,7 +13,6 @@ from blond.beam.profilecontainer import (
     InducedVoltageContainer,
     TotalInducedVoltageNew,
 )
-from blond.impedances.impedance import InducedVoltageFreq
 from blond.impedances.impedance import InducedVoltageTime
 from blond.impedances.impedance import (
     InductiveImpedance,

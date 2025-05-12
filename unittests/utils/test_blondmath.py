@@ -14,14 +14,14 @@ Unittest for utils.bmath
 """
 
 import unittest
-import pytest
 
 import numpy as np
+import pytest
+import scipy
+from packaging.version import Version
 
 import blond
 from blond.utils import bmath as bm
-from packaging.version import Version
-import scipy
 
 if Version(scipy.__version__) >= Version("1.14"):
     from scipy.integrate import cumulative_trapezoid as cumtrapz
