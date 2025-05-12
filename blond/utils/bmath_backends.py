@@ -77,6 +77,9 @@ class MasterBackend:
         self.fftconvolve = None
         self.pi = None
         self.diff = None
+        self.amax = None
+        self.maximum = None
+        self.minimum = None
         self.uint = None
         self.empty = None
         self.sign = None
@@ -366,6 +369,9 @@ class __NumpyBackend(MasterBackend):
         self.fftconvolve = fftconvolve
         self.pi = np.pi
         self.arctan = np.arctan
+        self.amax = np.amax
+        self.maximum = np.maximum
+        self.minimum = np.minimum
         self.ones = np.ones
         self.float64 = np.float64
         self.sign = np.sign

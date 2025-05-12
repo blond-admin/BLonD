@@ -36,6 +36,7 @@ try:
     np.trapezoid
 except AttributeError:
     np.trapezoid = np.trapz
+from scipy.constants import e as e_charge
 
 class Test_FftHandler(unittest.TestCase):
     def setUp(self):
@@ -294,9 +295,7 @@ class TestCoherentSynchrotronRadiation(unittest.TestCase):
         Z_fs = CoherentSynchrotronRadiation(r_bend, gamma=gamma)
         Z_fs.imped_calc(frequencies, low_frequency_transition=1e-4)
 
-        energy_loss = (
-            2 * np.trapezoid(Z_fs.impedance.real, frequencies) * elCharge
-        )  # [eV]
+        energy_loss = 2 * np.trapezoid(Z_fs.impedance.real, frequencies) * e_charge  # [eV]
 
         energy_loss_textbook = Electron().c_gamma * energy**4 / r_bend  # [eV]
 
@@ -333,7 +332,7 @@ class TestCoherentSynchrotronRadiation(unittest.TestCase):
             )
 
         # convert to volt
-        W_fs *= elCharge * intensity
+        W_fs *= e_charge * intensity
 
         W_fs_test = np.array(
             [

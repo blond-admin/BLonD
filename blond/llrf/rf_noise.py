@@ -302,7 +302,7 @@ class LHCNoiseFB:
         self.rf_params = rf_station
 
         #: | *Import Profile*
-        self.profile = profile
+        self.profile: Profile = profile
 
         #: | *Phase noise scaling factor. Initially 0.*
         self.x = 0.
