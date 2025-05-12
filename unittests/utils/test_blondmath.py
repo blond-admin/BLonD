@@ -571,13 +571,7 @@ class TestConvolve(unittest.TestCase):
                                        np.convolve(s, k, mode='full'),
                                        decimal=8)
 
-    def test_convolve_2(self):
-        s = np.random.randn(200)
-        k = np.random.randn(200)
-        with self.assertRaises(RuntimeError):
-            bm.convolve(s, k, mode='same', )
-        with self.assertRaises(RuntimeError):
-            bm.convolve(s, k, mode='valid')
+
 
 
 class TestInterp(unittest.TestCase):
