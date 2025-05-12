@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import logging
-import traceback
 import warnings
 from typing import TYPE_CHECKING
 
@@ -69,10 +68,14 @@ class MasterBackend:
         # listing definitions that shall be declared !
         # _verify_backend() will check for declaration
         # and raise exception if not declared
-        self.diff = None
-        self.amax = None
+        self.histogram2d = None
         self.maximum = None
         self.minimum = None
+        self.amax = None
+        self.roll = None
+        self.fftconvolve = None
+        self.pi = None
+        self.diff = None
         self.uint = None
         self.empty = None
         self.sign = None
@@ -352,11 +355,16 @@ class __NumpyBackend(MasterBackend):
         missing"""
 
         super().__init__()
+        from scipy.signal import fftconvolve
 
-        self.arctan = np.arctan
-        self.amax = np.amax
+        self.histogram2d = np.histogram2d
         self.maximum = np.maximum
         self.minimum = np.minimum
+        self.amax = np.amax
+        self.roll = np.roll
+        self.fftconvolve = fftconvolve
+        self.pi = np.pi
+        self.arctan = np.arctan
         self.ones = np.ones
         self.float64 = np.float64
         self.sign = np.sign
@@ -451,10 +459,16 @@ class __CupyBackend(MasterBackend):
             raise _cupy_import_error
 
         # self.cumtrapz = None # not available in cupy..
-        self.amax = cp.amax
+        from cupyx.scipy.signal import fftconvolve
+
+        self.histogram2d = cp.histogram2d
         self.maximum = cp.maximum
         self.minimum = cp.minimum
+        self.amax = cp.amax
+        self.fftconvolve = fftconvolve
+        self.roll = cp.roll
         self.float32 = cp.float32
+        self.pi = cp.pi
         self.int32 = cp.int32
         self.all = cp.all
         self.hamming = cp.hamming
