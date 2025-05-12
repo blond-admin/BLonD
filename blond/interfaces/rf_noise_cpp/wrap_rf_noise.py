@@ -211,19 +211,19 @@ def rf_noise(frequency_high: NumpyArray,
     # check dtypes
     if frequency_high.dtype != np.double:
         warn(f"{frequency_high.dtype=}, but should be np.double")
-        frequency_high = frequency_high.astype(np.double)
+    frequency_high = frequency_high.astype(np.double)
     if frequency_low.dtype != np.double:
         warn(f"{frequency_low.dtype=}, but should be np.double")
-        frequency_low = frequency_low.astype(np.double)
+    frequency_low = frequency_low.astype(np.double)
     if gain_x.dtype != np.double:
         warn(f"{gain_x.dtype =}, but should be np.double")
-        gain_x = gain_x.astype(np.double)
+    gain_x = gain_x.astype(np.double)
     if gain_y.dtype != np.double:
         warn(f"{gain_y.dtype =}, but should be np.double")
-        gain_y = gain_y.astype(np.double)
+    gain_y = gain_y.astype(np.double)
     if phase_array.dtype != np.double:
         warn(f"{phase_array.dtype=}, but should be np.double")
-        phase_array = phase_array.astype(np.double)
+    phase_array = phase_array.astype(np.double)
 
     # make sure everything is as expected
     # compare lengths

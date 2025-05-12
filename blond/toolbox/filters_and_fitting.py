@@ -118,8 +118,8 @@ def beam_profile_filter_chebyshev(y_array: NumpyArray,
         return y_array
 
 @handle_legacy_kwargs
-def gaussian_fit(y_array: NumpyArray | CupyArray, x_array: NumpyArray |
-                                                          CupyArray,
+def gaussian_fit(y_array: NumpyArray | CupyArray,
+                 x_array: NumpyArray | CupyArray,
                  p0: list[float]) -> NumpyArray:
     """
     Gaussian fit of the profile, in order to get the bunch length and
