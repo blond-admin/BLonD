@@ -158,10 +158,11 @@ def drift(
     solver = solver_to_int[solver]
 
     if not isinstance(t_rev, precision.real_t):
-        if not isinstance(t_rev, np.ndarray):
-            t_rev = t_rev.get()
+        try:
+            t_rev = precision.real_t(t_rev.get())
+        except:
+            t_rev = precision.real_t(t_rev)
 
-        t_rev = precision.real_t(t_rev)
     drift_kernel(
         args=(
             dt,

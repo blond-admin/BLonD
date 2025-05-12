@@ -70,6 +70,9 @@ class MasterBackend:
         # _verify_backend() will check for declaration
         # and raise exception if not declared
         self.diff = None
+        self.amax = None
+        self.maximum = None
+        self.minimum = None
         self.uint = None
         self.empty = None
         self.sign = None
@@ -351,6 +354,9 @@ class __NumpyBackend(MasterBackend):
         super().__init__()
 
         self.arctan = np.arctan
+        self.amax = np.amax
+        self.maximum = np.maximum
+        self.minimum = np.minimum
         self.ones = np.ones
         self.float64 = np.float64
         self.sign = np.sign
@@ -445,6 +451,9 @@ class __CupyBackend(MasterBackend):
             raise _cupy_import_error
 
         # self.cumtrapz = None # not available in cupy..
+        self.amax = cp.amax
+        self.maximum = cp.maximum
+        self.minimum = cp.minimum
         self.float32 = cp.float32
         self.int32 = cp.int32
         self.all = cp.all
