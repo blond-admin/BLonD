@@ -1,3 +1,4 @@
+import time
 import unittest
 from typing import Optional
 
@@ -29,7 +30,9 @@ from blond.impedances.impedance_sources import (
 
 class MyTestCase(unittest.TestCase):
     def setUp(self):
-        from ..example_simulation import ExampleSimulation
+        import sys
+        sys.path.append("/home/slauber/PycharmProjects/BLonD/unittests")
+        from example_simulation import ExampleSimulation
 
         self.sim = ExampleSimulation()
 
@@ -72,7 +75,8 @@ class MyTestCase(unittest.TestCase):
                 resistivity=3e6,
                 # conductivity=conductivity,
             )
-            impedance_source.imped_calc(np.linspace(0, 10e9, 50))  # object
+            impedance_source.imped_calc(frequency_array=np.linspace(0, 20039436719.676308,
+                                                                    50))  # object
             # doesnt initialize impedance
         elif mode == CoherentSynchrotronRadiation:
             impedance_source = CoherentSynchrotronRadiation(
@@ -132,23 +136,25 @@ class MyTestCase(unittest.TestCase):
 
     @parameterized.expand(
         (
-            # FIXME
-            #  ("InducedVoltageTime", InputTableTimeDomain),
-            #  ("InducedVoltageTime", InputTableFrequencyDomain),
-            #  induced_voltage_org seems broken
-            # ("InducedVoltageTime", Resonators), # TODO STRANGE SHIFT
-            #("InducedVoltageTime", TravelingWaveCavity), # TODO STRANGE SHIFT
-            # ("InducedVoltageTime", ResistiveWall), # TODO STRANGE SHIFT
+            # InducedVoltageTime is disallowed because resampling of wake in
+            # time-domain could lead to a lot of problems.
+            # Anyway is after all only an alternative calculation method of InducedVoltageFreq
+
+            # ("InducedVoltageTime", InputTableTimeDomain),
+            # ("InducedVoltageTime", InputTableFrequencyDomain),
+            # ("InducedVoltageTime", Resonators),
+            # ("InducedVoltageTime", TravelingWaveCavity),
+            # ("InducedVoltageTime", ResistiveWall),
             # ("InducedVoltageTime", CoherentSynchrotronRadiation),
-            # NotImplementedError
-            (InducedVoltageFreq, InputTableTimeDomain),  # TODO ALMOST
-            #(InducedVoltageFreq, InputTableFrequencyDomain),  # TODO ALMOST
-            #(InducedVoltageFreq, Resonators),  # TODO ALMOST
-            # (InducedVoltageFreq, TravelingWaveCavity),  # TODO BUGGY SCALE
-            #(InducedVoltageFreq, ResistiveWall),  # TODO ALMOST
-            #(InducedVoltageFreq, CoherentSynchrotronRadiation),  # WORKS
-            #(InductiveImpedance, None),  # WORKS
-            # ("InducedVoltageResonator", None), # NotImplementedError
+
+            (InducedVoltageFreq, InputTableTimeDomain),
+            (InducedVoltageFreq, InputTableFrequencyDomain),
+            (InducedVoltageFreq, Resonators),
+            (InducedVoltageFreq, TravelingWaveCavity),
+            (InducedVoltageFreq, ResistiveWall),
+            (InducedVoltageFreq, CoherentSynchrotronRadiation),
+            (InductiveImpedance, None),
+            # ("InducedVoltageResonator", None), # NotImplementedError intended
         )
     )
     def test_something(self, mode: str, mode_impedance: Optional[str] = None):
@@ -170,9 +176,14 @@ class MyTestCase(unittest.TestCase):
             profile=self.sim.profile,
             induced_voltage_list=[induced_voltage],
         )
-
+        t0 = time.time()
         induced_voltage_new.induced_voltage_sum()
+        t1 = time.time()
+        print(f"Runtime {t1-t0} s (new)")
+        t0 = time.time()
         induced_voltage_org.induced_voltage_sum()
+        t1 = time.time()
+        print(f"Runtime {t1-t0} s")
         DEV_DEBUG = True
         if DEV_DEBUG:
             plt.figure(2)
@@ -180,18 +191,18 @@ class MyTestCase(unittest.TestCase):
             induced_voltage_new.dev_plot()
             plt.figure(1)
             plt.clf()
-            plt.subplot(3, 1, 1)
+            plt.subplot(4, 1, 1)
             plt.suptitle(f"{mode} {mode_impedance}")
             plt.plot(
                 induced_voltage_new.induced_voltage, label="induced_voltage_new", c="C0"
             )
             plt.legend()
-            plt.subplot(3, 1, 2)
+            plt.subplot(4, 1, 2)
             plt.plot(
                 induced_voltage_org.induced_voltage, label="induced_voltage_org", c="C1"
             )
             plt.legend()
-            plt.subplot(3, 1, 3)
+            plt.subplot(4, 1, 3)
             plt.plot(
                 induced_voltage_new.induced_voltage, label="induced_voltage_new", c="C0"
             )
@@ -199,10 +210,18 @@ class MyTestCase(unittest.TestCase):
                 induced_voltage_org.induced_voltage, label="induced_voltage_org", c="C1"
             )
             plt.legend()
+            plt.subplot(4, 1, 4)
+            plt.plot(
+                induced_voltage_new.induced_voltage[1:-1] - induced_voltage_org.induced_voltage[1:-1],
+                label="residual", c="C0"
+            )
+
             plt.tight_layout()
             plt.show()
+
         np.testing.assert_allclose(
-            induced_voltage_new.induced_voltage, induced_voltage_org.induced_voltage
+            induced_voltage_new.induced_voltage,
+            induced_voltage_org.induced_voltage
         )
 
 

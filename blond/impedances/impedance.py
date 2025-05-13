@@ -509,7 +509,7 @@ class _InducedVoltage(ABC):
             * beam_spectrum
         )
         plt.subplot(3, 1, 1)
-        plt.plot(kernel, "o-", label="org", c="C0")
+        plt.plot(np.concatenate((kernel,kernel)), "o-", label="org", c="C0")
         plt.subplot(3, 1, 2)
         plt.plot(profile, label="org", c="C0")
         plt.subplot(3, 1, 3)
@@ -986,10 +986,9 @@ class InducedVoltageFreq(_InducedVoltage):
             DEV_PLOT = False
             if DEV_PLOT:
                 plt.figure()
-                plt.plot( ts_itp, wake_itp, "o")
-                plt.plot( time_array, wake, "x")
+                plt.plot( ts_itp-dt, wake_itp, "o", label="before interpolation")
+                plt.plot( time_array, wake, "x", label="before interpolation")
                 plt.axvline(t_periodicity)
-                plt.show()
 
         elif self.frequency_resolution is None:
             wake = fft_handler.get_non_periodic_wake(time_array=time_array)

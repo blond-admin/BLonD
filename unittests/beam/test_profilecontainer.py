@@ -39,7 +39,7 @@ class TestLockable(unittest.TestCase):
         assert self.obj.is_locked is True
         self.obj.unlock()
 
-        assert self.obj.is_locked is True
+        assert self.obj.is_locked is False
 
 
 class TestProfileContainer(unittest.TestCase):

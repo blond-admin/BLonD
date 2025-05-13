@@ -28,7 +28,6 @@ from blond.impedances.music import Music
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.utils import bmath as bm
-# from blond import get_libblond()
 from blond.utils.butils_wrap_cpp import get_libblond
 
 

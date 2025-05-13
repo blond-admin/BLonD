@@ -22,7 +22,8 @@ if TYPE_CHECKING:
 
     InducedVoltageTyes = (
         Literal[
-            InducedVoltageTime,
+            # InducedVoltageTime, # disallowed because resampling of wake in
+            # time-domain could lead to a lot of problems
             InducedVoltageFreq,
             InductiveImpedance,
             InducedVoltageResonator,
@@ -40,7 +41,7 @@ class Lockable:
         self.__locked = True
 
     def unlock(self):
-        self.__locked = True
+        self.__locked = False
 
     @property
     def is_locked(self):
@@ -180,10 +181,10 @@ class TotalInducedVoltageNew:
         self._beam = beam
 
         self._profile_container = profile_container
-        self._profile_container.lock()  # DONT ALLOW ANY CHANGED ANYMORE
+        self._profile_container.lock()  # DONT ALLOW ANY CHANGE ANYMORE
 
         self._induced_voltage_container = induced_voltage_container
-        self._induced_voltage_container.lock()  # DONT ALLOW ANY CHANGED ANYMORE
+        self._induced_voltage_container.lock()  # DONT ALLOW ANY CHANGE ANYMORE
 
 
         self.track_update_wake_kernel = track_update_wake_kernel
@@ -202,10 +203,13 @@ class TotalInducedVoltageNew:
         wake = self.profile.wake
         plt.subplot(3, 1, 1)
         plt.plot(np.arange(len(kernel))+1, kernel,'x-', label="new", c="C1")
+        plt.legend()
         plt.subplot(3, 1, 2)
         plt.plot( profile, label="new", c="C1")
+        plt.legend()
         plt.subplot(3, 1, 3)
         plt.plot( wake, label="new", c="C1")
+        plt.legend()
 
     @property
     def profile(self):

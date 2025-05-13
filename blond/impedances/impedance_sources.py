@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING
 
 import mpmath
 import numpy as np
+from matplotlib import pyplot as plt
 from scipy import integrate
 from scipy.constants import c, physical_constants
 from scipy.special import airy, gamma as gamma_func, kv, polygamma
@@ -204,7 +205,7 @@ class _FftHandler:
         if len(time_array) % 2 == 0:
             assert len(wake) == len(time_array), f"{len(wake)} != {len(time_array)}"
         else:
-            assert (len(wake)+1) == len(
+            assert (len(wake) + 1) == len(
                 time_array), f"{len(wake)} != {len(time_array)}"
         if time_array[0] != 0:
             wake = bm.interp(
@@ -238,11 +239,22 @@ class _FftHandler:
             - `ts_itp`: Array of time samples over the interval [0, t_periodicity].
             - `wake_itp`: Reconstructed periodic wake signal corresponding to `ts_itp`.
         """
-        n = int(math.ceil((t_periodicity) / dt))
+        n = int((t_periodicity / dt))
         fs_itp = bm.fft.rfftfreq(n, d=dt)
-        amps_itp = bm.interp(
-            fs_itp, self._frequencies, self._amplitudes, left=0, right=0
+
+        # Extend the array with an entry that is 0.
+        # This leads to a linear interpolation from the (pre)last entry to 0
+        # instead of abrupt change to 0 if fs_itp[-1] is slightly outside range
+        f_step = self._frequencies[-1] - self._frequencies[-2]
+        _frequencies = np.append(
+            self._frequencies,
+            self._frequencies[-1] + f_step,
         )
+        _amplitudes = np.append(self._amplitudes, 0)
+
+
+        amps_itp = bm.interp(fs_itp, _frequencies, _amplitudes, left=0, right=0)
+
         wake_itp = bm.fft.irfft(amps_itp)
         ts_itp = dt * np.arange(len(wake_itp))
         assert len(wake_itp) == len(ts_itp)
