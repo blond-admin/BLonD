@@ -2,6 +2,7 @@ import unittest
 
 import matplotlib.pyplot as plt
 import numpy as np
+from fontTools.varLib.interpolatable import recursivelyAddGlyph
 from scipy.constants import c, e, m_p
 
 from blond.beam.beam import Beam, Proton
@@ -9,9 +10,9 @@ from blond.beam.profile import CutOptions, Profile
 from blond.beam.profile import FitOptions
 from blond.beam.profilecontainer import (
     Lockable,
-    ProfileContainer,
+    _ProfileContainer,
     InducedVoltageContainer,
-    TotalInducedVoltageNew,
+    TotalInducedVoltageNew, EquiSpacedProfiles,
 )
 from blond.impedances.impedance import InducedVoltageTime
 from blond.impedances.impedance import (
@@ -70,7 +71,7 @@ class TestProfileContainer(unittest.TestCase):
             ),
         )
 
-        self.profile_container = ProfileContainer()
+        self.profile_container = _ProfileContainer()
         self.profile_container.add_profile(self.profile1)
 
     def test_bin_width(self):
@@ -123,7 +124,9 @@ class TestInducedVoltageContainer(unittest.TestCase):
             [0.0],
             1,
         )
+        self.rf_station = rf_station
         beam = Beam(ring, 5 * 1e6, 1e10)
+        self.beam = beam
         cut_options = CutOptions(
             cut_left=0,
             cut_right=2 * np.pi,
@@ -154,6 +157,42 @@ class TestInducedVoltageContainer(unittest.TestCase):
                 if i != j:
                     assert indced_voltage_i is not indced_voltage_j
 
+
+class TestEquiSpacedProfiles(unittest.TestCase):
+    def setUp(self):
+        TestInducedVoltageContainer.setUp(self)
+
+    def test_add_correctly(self):
+        esp = EquiSpacedProfiles()
+        step = 10
+        for i in range(3):
+            cut_options = CutOptions(
+                cut_left=i*step + 0, # add profiles equidistantly
+                cut_right=i*step + 2 * np.pi,
+                n_slices=10,
+                rf_station=self.rf_station,
+                cuts_unit="rad",
+            )
+            profile = Profile(self.beam, cut_options, FitOptions(
+                fit_option="gaussian"))
+            esp.add_profile(profile=profile)
+
+    def test_add_incorrectly(self):
+        def crash():
+            esp = EquiSpacedProfiles()
+            for i in range(3):
+                cut_options = CutOptions(
+                    cut_left=i*i + 0, # this will add with uneven distance,
+                    # which is not allowed
+                    cut_right=i*i + 2 * np.pi,
+                    n_slices=10,
+                    rf_station=self.rf_station,
+                    cuts_unit="rad",
+                )
+                profile = Profile(self.beam, cut_options, FitOptions(
+                    fit_option="gaussian"))
+                esp.add_profile(profile=profile)
+        self.assertRaises(ValueError, crash)
 
 class TestTotalInducedVoltageNew(unittest.TestCase):
     def setUp(self):
@@ -210,7 +249,7 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
             -376.730313462 / (ring.beta[0] * ring.gamma[0] ** 2),
             rf_station,
         )
-        profile_container = ProfileContainer()
+        profile_container = _ProfileContainer()
         profile_container.add_profile(profile1)
         # profile_container.add_profile(profile2)
         induced_voltage_container = InducedVoltageContainer()
@@ -219,7 +258,7 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
 
         self.total_induced_voltage_NEW = TotalInducedVoltageNew(
             beam=beam,
-            profile_container=profile_container,
+            equi_spaced_profiles=profile_container,
             induced_voltage_container=induced_voltage_container,
             track_update_wake_kernel=False,
         )
@@ -237,11 +276,11 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
     def test__induced_voltage_sum_single_profile(self):
         self.total_induced_voltage_NEW._induced_voltage_sum()
         self.total_induced_voltage_ORG.induced_voltage_sum()
-        DEV_DEBUG = True
+        DEV_DEBUG = False
         if DEV_DEBUG:
             plt.subplot(4, 1, 1)
             plt.plot(
-                self.total_induced_voltage_NEW._profile_container._profiles[
+                self.total_induced_voltage_NEW._equi_spaced_profiles._profiles[
                     0
                 ].n_macroparticles,
                 "-x",
@@ -264,7 +303,9 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
 
             plt.subplot(4, 1, 4)
             plt.plot(
-                self.total_induced_voltage_NEW._profile_container._profiles[0].wake[1:]
+                self.total_induced_voltage_NEW._equi_spaced_profiles._profiles[0].wake[
+                    1:
+                ]
                 - self.total_induced_voltage_ORG.induced_voltage[1:],
                 label="TotalInducedVoltageNew",
             )
@@ -362,7 +403,7 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
             -376.730313462 / (ring.beta[0] * ring.gamma[0] ** 2),
             rf_station,
         )
-        profile_container = ProfileContainer()
+        profile_container = _ProfileContainer()
         for profile in profiles:
             profile_container.add_profile(profile)
         induced_voltage_freq_resonators = InducedVoltageTime(
@@ -386,7 +427,7 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
         plt.cla()
         self.total_induced_voltage_NEW = TotalInducedVoltageNew(
             beam=beam,
-            profile_container=profile_container,
+            equi_spaced_profiles=profile_container,
             induced_voltage_container=induced_voltage_container,
             track_update_wake_kernel=False,
         )
@@ -396,8 +437,9 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
         )
 
         import time
-        total_induced_voltage_NEW = 0.
-        total_induced_voltage_ORG = 0.
+
+        total_induced_voltage_NEW = 0.0
+        total_induced_voltage_ORG = 0.0
         for i in range(100):
             t0 = time.time()
             self.total_induced_voltage_NEW._induced_voltage_sum()
@@ -427,9 +469,9 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
         # )
         w = profile_full.cut_right - profile_full.cut_left
         profile_full_bin_centers = np.linspace(
-            profile_full.cut_left - w ,
-            profile_full.cut_right + w ,
-            (3*profile_full.number_of_bins) + 1,
+            profile_full.cut_left - w,
+            profile_full.cut_right + w,
+            (3 * profile_full.number_of_bins) + 1,
         )
         dt = profile_full_bin_centers[1] - profile_full_bin_centers[0]
         profile_full_bin_centers = profile_full_bin_centers[:-1] + dt / 2
@@ -449,7 +491,7 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
 
         # plt.twinx()
 
-        for profile in self.total_induced_voltage_NEW._profile_container:
+        for profile in self.total_induced_voltage_NEW._equi_spaced_profiles:
             plt.plot(
                 profile.bin_centers,
                 profile.wake,
@@ -461,7 +503,7 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
         ymax = max(plt.ylim())
         plt.ylim(-ymax, ymax)
 
-        #plt.show()
+        # plt.show()
 
 
 if __name__ == "__main__":

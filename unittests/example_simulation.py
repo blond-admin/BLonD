@@ -18,12 +18,13 @@ class ExampleSimulation:
             2000,
         )
         self.rf_station = RFStation(ring, [35640], [6e6], [0])
-
+        np.random.seed(1)
         dt = np.random.randn(1001)
         dt /= dt.max()
         dt *= 0.5
         dt += 0.5
         dt *= (self.rf_station.t_rev[0] / self.rf_station.harmonic[0, 0])
+        np.random.seed(1)
         dE = np.random.randn(1001)
         dE *= 1e9
 

@@ -578,9 +578,15 @@ class Profile:
         from warnings import warn
         warn("filterExtraOptions is deprecated, use filter_extra_options", DeprecationWarning, stacklevel=2)
         self.filter_extra_options = val
+
+    @property
+    def center(self):
+        return (self.cut_right + self.cut_left) / 2
+    
     @property
     def bin_width(self):
         return (self.cut_right - self.cut_left) / len(self.n_macroparticles)
+
     @property
     def number_of_bins(self):
         return len(self.n_macroparticles)
@@ -760,6 +766,7 @@ class Profile:
 
         bin_centers = self.bin_centers
         dist_centers = bin_centers[1] - bin_centers[0]
+        print(f"beam_profile_derivative {dist_centers=}")
 
         if mode == 'filter1d':
             if bm.device == 'GPU':

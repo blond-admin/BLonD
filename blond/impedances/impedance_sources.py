@@ -19,7 +19,6 @@ classes, as for example InputTable, Resonators and TravelingWaveCavity.**
 
 from __future__ import annotations
 
-import math
 import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
@@ -413,7 +412,8 @@ class InputTableTimeDomain(_ImpedanceObject):
     def imped_calc(self, frequency_array: NumpyArray):
         dt = 1 / (2 * frequency_array.max())  # Nyquist rate
         ts_itp = dt * np.arange(len(frequency_array) * 2 - 2)
-        wake_itp = np.interp(ts_itp, self.time_array, self.wake)
+        wake_itp = np.interp(ts_itp, self.time_array, self.wake,
+                             left=0, right=0)
         impedance = np.fft.rfft(wake_itp)
         assert len(frequency_array) == len(impedance)
         self.frequency_array = frequency_array
@@ -486,9 +486,18 @@ class InputTableFrequencyDomain(_ImpedanceObject):
         # Impedance array in :math:`\Omega`
         self._impedance_org = self.impedance = _Re_Z_array_org + 1j * _Im_Z_array_org
 
-        self.t_periodicity: Optional[float, Literal["auto"]] = "auto"  # "auto",
+        self.__t_periodicity: Optional[float, Literal["auto"]] = "auto"  #
+        # "auto",
         # to guarantee original `wake_calc` behaviour
 
+    @property
+    def t_periodicity(self):
+        return self.__t_periodicity
+
+    @t_periodicity.setter
+    def t_periodicity(self, val):
+        self.__t_periodicity = val
+        
     def wake_calc(self, time_array: NumpyArray | CupyArray) -> NumpyArray | CupyArray:
         r"""The wake from the table is interpolated using the new time array.
 

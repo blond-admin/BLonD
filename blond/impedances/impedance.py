@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import math
+import random
 import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
@@ -508,12 +509,18 @@ class _InducedVoltage(ABC):
             )
             * beam_spectrum
         )
-        plt.subplot(3, 1, 1)
-        plt.plot(np.concatenate((kernel,kernel)), "o-", label="org", c="C0")
-        plt.subplot(3, 1, 2)
-        plt.plot(profile, label="org", c="C0")
-        plt.subplot(3, 1, 3)
-        plt.plot(wake, label="org", c="C0")
+        plt.subplot(4, 1, 1)
+        plt.plot(self.total_impedance, "x-",
+                 label="org",
+                 c="C0")
+        plt.subplot(4, 1, 2)
+        plt.plot(np.concatenate((kernel[-500:], kernel[:-500])), "x-",
+                 label="org",
+                 c="C0")
+        plt.subplot(4, 1, 3)
+        plt.plot(profile, "--",label="org", c="C0")
+        plt.subplot(4, 1, 4)
+        plt.plot(wake, "--",label="org", c="C0")
 
     def induced_voltage_mtw(
         self, beam_spectrum_dict: Optional[dict] = None
@@ -885,8 +892,8 @@ class InducedVoltageFreq(_InducedVoltage):
 
         ###############
         # Previously only declared in process()
-        self.freq: NDArray | None = None
-        self.frequency_resolution: Optional[float] = None
+        self.__freq: NDArray | None = None
+        self.__frequency_resolution: Optional[float] = None
 
         ###############
 
@@ -901,6 +908,24 @@ class InducedVoltageFreq(_InducedVoltage):
             mtw_mode=mtw_mode,
             use_regular_fft=use_regular_fft,
         )
+
+
+    @property
+    def freq(self):
+        return self.__freq
+
+    @freq.setter
+    def freq(self, val):
+        self.__freq = val
+
+
+    @property
+    def frequency_resolution(self):
+        return self.__frequency_resolution
+
+    @frequency_resolution.setter
+    def frequency_resolution(self, val):
+        self.__frequency_resolution = val
 
     def process(self):
         """
@@ -938,7 +963,6 @@ class InducedVoltageFreq(_InducedVoltage):
         """
         Summing all the wake contributions in one total impedance.
         """
-
         self.total_impedance = np.zeros(
             freq.shape, dtype=bm.precision.complex_t, order="C"
         )
@@ -967,7 +991,11 @@ class InducedVoltageFreq(_InducedVoltage):
         time_array = bm.linspace(t_start, t_stop, n, endpoint=False)
 
         self.sum_impedances(freq=self.freq)
-
+        """plt.figure(2)
+        plt.subplot(4,1,1)
+        plt.plot(self.total_impedance, "o-", label="new",
+                     c="C1")
+"""
         fft_handler = _FftHandler(
             frequencies=self.freq, amplitudes=self.total_impedance
         )
@@ -985,10 +1013,14 @@ class InducedVoltageFreq(_InducedVoltage):
                              period=t_periodicity)
             DEV_PLOT = False
             if DEV_PLOT:
-                plt.figure()
-                plt.plot( ts_itp-dt, wake_itp, "o", label="before interpolation")
-                plt.plot( time_array, wake, "x", label="before interpolation")
+                plt.figure(random.randint(0,153153114))
+                plt.title(f"{len(ts_itp)=}")
+                plt.plot( ts_itp-dt, wake_itp, "o", label="before "
+                                                          "interpolation")
+                plt.plot( time_array, wake, "x", label="after interpolation")
                 plt.axvline(t_periodicity)
+                plt.legend()
+                plt.figure()
 
         elif self.frequency_resolution is None:
             wake = fft_handler.get_non_periodic_wake(time_array=time_array)
@@ -1128,9 +1160,11 @@ class InductiveImpedance(_InducedVoltage):
         if self.deriv_mode not in ("gradient", "diff"):
             msg = f"`get_wake_kernel` is not implemented for " f"{self.deriv_mode=}"
             raise NotImplementedError(msg)
+        ts = bm.linspace(t_start, t_stop, n+1)
+        step = ts[1] - ts[0]
         ts = bm.linspace(t_start, t_stop, n)
         derative_wake = np.zeros(n, dtype=bm.precision.real_t)
-        step = ts[1] - ts[0]
+        print(f"get_wake_kernel {step=}")
         # if is first histogram,
         if t_start <= 0 < t_stop:
             idx = len(ts) // 2 - 1

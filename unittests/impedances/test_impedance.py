@@ -180,36 +180,36 @@ class TestInducedVoltageTime(unittest.TestCase):
 
         expected_wake = np.array(
             [
-                0.00000000e00,
-                0.00000000e00,
-                0.00000000e00,
-                0.00000000e00,
-                0.00000000e00,
-                0.00000000e00,
-                0.00000000e00,
-                0.00000000e00,
-                0.00000000e00,
-                0.00000000e00,
-                0.00000000e00,
-                0.00000000e00,
-                0.00000000e00,
-                0.00000000e00,
-                0.00000000e00,
-                2.56263196e13,
-                7.44086865e12,
-                -1.59128951e13,
-                -2.79443712e13,
-                -2.02184087e13,
-                1.73140050e12,
-                2.23652759e13,
-                2.71386518e13,
-                1.27541710e13,
-                -1.05618240e13,
-                -2.63290766e13,
-                -2.34617669e13,
-                -4.06248036e12,
-                1.81175476e13,
-                2.74257276e13,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                8.200422271126403e22,
+                2.3810779675734804e22,
+                -5.092126417570513e22,
+                -8.942198796001867e22,
+                -6.4698907981748676e22,
+                5.540481596132329e21,
+                7.1568882770809885e22,
+                8.68436859149943e22,
+                4.081334730895319e22,
+                -3.379783688116925e22,
+                -8.425304502124579e22,
+                -7.50776540585775e22,
+                -1.2999937162797352e22,
+                5.797615224426486e22,
+                8.776232818326853e22,
             ]
         )
         np.testing.assert_allclose(wake, expected_wake)
@@ -240,9 +240,6 @@ class TestInductiveImpedance(unittest.TestCase):
         dE = np.random.randn(len(dt)) / sigma_dt
         self.beam = Beam(self.ring, len(dt), 1e11, dt=dt, dE=dE)
 
-        # DEFINE BEAM------------------------------------------------------------------
-        # ring_RF_section = RingAndRFTracker(rf_station, beam)
-        # bigaussian(ring, rf_station, my_beam, sigma_dt, seed=1)
 
         # DEFINE SLICES----------------------------------------------------------------
         self.profile1 = Profile(
@@ -250,10 +247,6 @@ class TestInductiveImpedance(unittest.TestCase):
             CutOptions(cut_left=np.min(dt), cut_right=np.max(dt), n_slices=64),
         )
         self.profile1.track()
-        profile2 = Profile(
-            self.beam,
-            CutOptions(cut_left=sigma_dt, cut_right=3 * sigma_dt, n_slices=64),
-        )
 
     @parameterized.expand(
         [
@@ -281,25 +274,25 @@ class TestInductiveImpedance(unittest.TestCase):
             )
             inductive_impedance.induced_voltage_1turn()
             result_expected = inductive_impedance.induced_voltage[1:-1]
-            result_under_test = np.convolve(
+            result_under_test = ((-self.beam.particle.charge * e *
+                                 self.beam.ratio)*
+                                 np.convolve(
                 self.profile1.n_macroparticles,
-                wake_kernel / (-self.beam.particle.charge * e * self.beam.ratio),
+                wake_kernel,
                 "full",
-            )[32 : 32 + 62]
+            )[32 : 32 + 62])
             DEV_DEBUG = False
 
             if DEV_DEBUG:
-                plt.subplot(2,2,1)
                 plt.plot(result_under_test, label="result_under_test")
-                plt.subplot(2,2,2)
                 plt.plot(result_expected, label="result_expected")
                 plt.legend()
                 plt.show()
 
             np.testing.assert_allclose(
-                result_under_test / result_under_test.max(),
-                result_expected / result_expected.max(),
-                atol=1e-1 * np.max(np.abs(result_expected)),
+                result_under_test,
+                result_expected,
+                atol=1e-12,
             )
 
 
