@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
 
 class RFStationOptions:
-    r""" Class to preprocess the RF data (voltage, phase, harmonic) for
+    r"""Class to preprocess the RF data (voltage, phase, harmonic) for
     RFStation, interpolating it to every turn.
 
     Parameters
@@ -57,22 +57,23 @@ class RFStationOptions:
 
     """
 
-    def __init__(self,
-                 interpolation: Literal['linear', 'cubic'] = 'linear',
-                 smoothing: float = 0.0,
-                 plot: bool = False,
-                 figdir: os.PathLike | str = 'fig',
-                 figname: list[str] = ['data'],
-                 sampling: int = 1
-                 ):
-
-        if interpolation in ['linear', 'cubic']:
+    def __init__(
+        self,
+        interpolation: Literal["linear", "cubic"] = "linear",
+        smoothing: float = 0.0,
+        plot: bool = False,
+        figdir: os.PathLike | str = "fig",
+        figname: list[str] = ["data"],
+        sampling: int = 1,
+    ):
+        if interpolation in ["linear", "cubic"]:
             self.interpolation = str(interpolation)
         else:
             # InterpolationError
             raise RuntimeError(
-                "ERROR: Interpolation scheme in" +
-                " RFStationOptions not recognised. Aborting...")
+                "ERROR: Interpolation scheme in"
+                + " RFStationOptions not recognised. Aborting..."
+            )
 
         self.smoothing = float(smoothing)
 
@@ -80,8 +81,10 @@ class RFStationOptions:
             self.plot = bool(plot)
         else:
             # TypeError
-            raise RuntimeError("ERROR: plot value in PreprocessRamp" +
-                               " not recognised. Aborting...")
+            raise RuntimeError(
+                "ERROR: plot value in PreprocessRamp"
+                + " not recognised. Aborting..."
+            )
 
         self.figdir = str(figdir)
         self.figname = figname  # str(figname)
@@ -90,12 +93,19 @@ class RFStationOptions:
             self.sampling = int(sampling)
         else:
             # TypeError
-            raise RuntimeError("ERROR: sampling value in PreprocessRamp" +
-                               " not recognised. Aborting...")
+            raise RuntimeError(
+                "ERROR: sampling value in PreprocessRamp"
+                + " not recognised. Aborting..."
+            )
 
-    def reshape_data(self, input_data: ArrayLike, n_turns: int, n_rf: int,
-                     interp_time: NumpyArray, t_start: Optional[float] = None)\
-                                                                    -> NumpyArray:
+    def reshape_data(
+        self,
+        input_data: ArrayLike,
+        n_turns: int,
+        n_rf: int,
+        interp_time: NumpyArray,
+        t_start: Optional[float] = None,
+    ) -> NumpyArray:
         r"""Checks whether the user input is consistent with the expectation
         for the RFStation object. The possibilites are detailed in the
         documentation of the RFStation object.
@@ -144,7 +154,6 @@ class RFStationOptions:
 
         # If tuple, separate time and synchronous data and check data
         elif isinstance(input_data, tuple):
-
             output_data = []
 
             interp_time = interp_time + t_start
@@ -158,8 +167,10 @@ class RFStationOptions:
 
             if len(input_data) != n_rf:
                 # InputDataError
-                raise RuntimeError("ERROR in RFStation: the input data " +
-                                   "does not match the number of rf harmonics")
+                raise RuntimeError(
+                    "ERROR in RFStation: the input data "
+                    + "does not match the number of rf harmonics"
+                )
 
             # Loops over all the rf harmonics to interpolate the programs,
             # appends the results on the output_data list which is afterwards
@@ -168,19 +179,23 @@ class RFStationOptions:
                 input_data_time = input_data[index_rf][0]
                 input_data_values = input_data[index_rf][1]
 
-                if len(input_data_values) \
-                        != len(input_data_time):
+                if len(input_data_values) != len(input_data_time):
                     # InputDataError
-                    raise RuntimeError("ERROR in RFStation: synchronous " +
-                                       "data does not match the time data")
+                    raise RuntimeError(
+                        "ERROR in RFStation: synchronous "
+                        + "data does not match the time data"
+                    )
 
-                if self.interpolation == 'linear':
-                    output_data.append(np.interp(interp_time,
-                                                 input_data_time,
-                                                 input_data_values))
-                elif self.interpolation == 'cubic':
-                    interp_funtion = splrep(input_data_time, input_data_values,
-                                            s=self.smoothing)
+                if self.interpolation == "linear":
+                    output_data.append(
+                        np.interp(
+                            interp_time, input_data_time, input_data_values
+                        )
+                    )
+                elif self.interpolation == "cubic":
+                    interp_funtion = splrep(
+                        input_data_time, input_data_values, s=self.smoothing
+                    )
                     output_data.append(splev(interp_time, interp_funtion))
 
             output_data = np.array(output_data, ndmin=2, dtype=float)
@@ -195,31 +210,44 @@ class RFStationOptions:
                     input_data_time = input_data[index_rf][0]
                     input_data_values = input_data[index_rf][1]
 
-                    plt.figure('RFStationOptions', figsize=(8, 6))
+                    plt.figure("RFStationOptions", figsize=(8, 6))
                     plt.clf()
                     ax = plt.axes([0.15, 0.1, 0.8, 0.8])
-                    ax.plot(interp_time[::self.sampling],
-                            output_data[index_rf][::self.sampling],
-                            label='Interpolated data')
-                    ax.plot(input_data_time, input_data_values, '.',
-                            label='Input data', color='r')
-                    ax.set_xlabel('Time [s]')
+                    ax.plot(
+                        interp_time[:: self.sampling],
+                        output_data[index_rf][:: self.sampling],
+                        label="Interpolated data",
+                    )
+                    ax.plot(
+                        input_data_time,
+                        input_data_values,
+                        ".",
+                        label="Input data",
+                        color="r",
+                    )
+                    ax.set_xlabel("Time [s]")
                     ax.set_ylabel("%s" % self.figname[index_rf])
                     ax.legend = plt.legend(
-                        bbox_to_anchor=(0., 1.02, 1., .102),
-                        loc=3, ncol=2, mode='expand', borderaxespad=0.)
+                        bbox_to_anchor=(0.0, 1.02, 1.0, 0.102),
+                        loc=3,
+                        ncol=2,
+                        mode="expand",
+                        borderaxespad=0.0,
+                    )
 
                     # Save figure
-                    fign = self.figdir + '/preprocess_' "%s" % self.figname[index_rf] + \
-                           '.png'
+                    fign = (
+                        self.figdir + "/preprocess_"
+                        "%s" % self.figname[index_rf] + ".png"
+                    )
                     plt.savefig(fign)
 
         # If array/list, compares with the input number of turns and
         # if synchronous_data is a single value converts it into a (n_turns+1)
         # array
-        elif isinstance(input_data, np.ndarray) or \
-                isinstance(input_data, list):
-
+        elif isinstance(input_data, np.ndarray) or isinstance(
+            input_data, list
+        ):
             input_data = np.array(input_data, ndmin=2, dtype=float)
             output_data = np.zeros((n_rf, n_turns + 1), dtype=float)
 
@@ -232,33 +260,40 @@ class RFStationOptions:
 
             if len(input_data) != n_rf:
                 # InputDataError
-                raise RuntimeError("ERROR in RFStation: the input data " +
-                                   "does not match the number of rf harmonics")
+                raise RuntimeError(
+                    "ERROR in RFStation: the input data "
+                    + "does not match the number of rf harmonics"
+                )
 
             for index_rf in range(len(input_data)):
                 if len(input_data[index_rf]) == 1:
-                    output_data[index_rf] = input_data[index_rf] * \
-                                            np.ones(n_turns + 1)
+                    output_data[index_rf] = input_data[index_rf] * np.ones(
+                        n_turns + 1
+                    )
 
                 elif len(input_data[index_rf]) == (n_turns + 1):
-                    output_data[index_rf] = np.array(
-                        input_data[index_rf])
+                    output_data[index_rf] = np.array(input_data[index_rf])
 
                 else:
                     # InputDataError
-                    raise RuntimeError("ERROR in Ring: The input "
-                                       f"{input_data.shape=} " +
-                                       "does not match the proper length " +
-                                       f"{(n_turns+1)=}")
+                    raise RuntimeError(
+                        "ERROR in Ring: The input "
+                        f"{input_data.shape=} "
+                        + "does not match the proper length "
+                        + f"{(n_turns+1)=}"
+                    )
 
         return output_data
 
 
 @handle_legacy_kwargs
-def combine_rf_functions(function_list: list[tuple[Callable, list[float]]],
-                         merge_type: str | Sequence[str] = 'linear',
-                         resolution: float = 1e-3, ring: Optional[Ring] = None,
-                         main_h: bool = True) -> NumpyArray:
+def combine_rf_functions(
+    function_list: list[tuple[Callable, list[float]]],
+    merge_type: str | Sequence[str] = "linear",
+    resolution: float = 1e-3,
+    ring: Optional[Ring] = None,
+    main_h: bool = True,
+) -> NumpyArray:
     r"""Function to combine different RF programs. Each program is passed in a
     tuple with complete function (single valued or numpy array) and 2-list
     [start_time, stop_time].
@@ -307,8 +342,10 @@ def combine_rf_functions(function_list: list[tuple[Callable, list[float]]],
         timePoints += function_list[i][1]
     if not np.all(np.diff(timePoints)) > 0:
         # InputDataError
-        raise RuntimeError("ERROR: in combine_rf_functions, times are not" +
-                           " monotonically increasing!")
+        raise RuntimeError(
+            "ERROR: in combine_rf_functions, times are not"
+            + " monotonically increasing!"
+        )
 
     fullFunction = []
     fullTime = []
@@ -322,11 +359,14 @@ def combine_rf_functions(function_list: list[tuple[Callable, list[float]]],
         start = np.where(function_list[0][0][0] > function_list[0][1][0])[0][0]
         stop = np.where(function_list[0][0][0] > function_list[0][1][1])[0][0]
 
-        funcTime = [function_list[0][1][0]] + \
-                   function_list[0][0][0][start:stop].tolist() + \
-                   [function_list[0][1][1]]
-        funcProg = np.interp(funcTime, function_list[0][0][0],
-                             function_list[0][0][1])
+        funcTime = (
+            [function_list[0][1][0]]
+            + function_list[0][0][0][start:stop].tolist()
+            + [function_list[0][1][1]]
+        )
+        funcProg = np.interp(
+            funcTime, function_list[0][0][0], function_list[0][0][1]
+        )
 
         fullFunction += funcProg.tolist()
         fullTime += funcTime
@@ -334,75 +374,81 @@ def combine_rf_functions(function_list: list[tuple[Callable, list[float]]],
     # Loops through remaining functions merging them as requested and
     # storing results
     for i in range(1, nFunctions):
-
-        if merge_type[i - 1] == 'linear':
-
+        if merge_type[i - 1] == "linear":
             if not isinstance(function_list[i][0], np.ndarray):
                 fullFunction += 2 * [function_list[i][0]]
                 fullTime += function_list[i][1]
 
             else:
-                start = np.where(function_list[i][0][0] >=
-                                 function_list[i][1][0])[0][0]
-                stop = np.where(function_list[i][0][0] >=
-                                function_list[i][1][1])[0][0]
+                start = np.where(
+                    function_list[i][0][0] >= function_list[i][1][0]
+                )[0][0]
+                stop = np.where(
+                    function_list[i][0][0] >= function_list[i][1][1]
+                )[0][0]
 
-                funcTime = [function_list[i][1][0]] + \
-                           function_list[i][0][0][start:stop].tolist() + \
-                           [function_list[i][1][1]]
-                funcProg = np.interp(funcTime, function_list[i][0][0],
-                                     function_list[i][0][1])
+                funcTime = (
+                    [function_list[i][1][0]]
+                    + function_list[i][0][0][start:stop].tolist()
+                    + [function_list[i][1][1]]
+                )
+                funcProg = np.interp(
+                    funcTime, function_list[i][0][0], function_list[i][0][1]
+                )
 
                 fullFunction += funcProg.tolist()
                 fullTime += funcTime
 
-        elif merge_type[i - 1] == 'isoadiabatic':
-
+        elif merge_type[i - 1] == "isoadiabatic":
             if not isinstance(function_list[i][0], np.ndarray):
-
                 tDur = function_list[i][1][0] - fullTime[-1]
                 Vinit = fullFunction[-1]
                 Vfin = function_list[i][0]
-                k = (1. / tDur) * (1 - (1. * Vinit / Vfin) ** 0.5)
+                k = (1.0 / tDur) * (1 - (1.0 * Vinit / Vfin) ** 0.5)
 
                 nSteps = int(tDur / resolution[i - 1])
-                time = np.linspace(float(fullTime[-1]),
-                                   float(function_list[i][1][0]), nSteps)
+                time = np.linspace(
+                    float(fullTime[-1]), float(function_list[i][1][0]), nSteps
+                )
                 volts = Vinit / ((1 - k * (time - time[0])) ** 2)
 
                 fullFunction += volts.tolist() + 2 * [function_list[i][0]]
                 fullTime += time.tolist() + function_list[i][1]
 
             else:
+                start = np.where(
+                    function_list[i][0][0] >= function_list[i][1][0]
+                )[0][0]
+                stop = np.where(
+                    function_list[i][0][0] >= function_list[i][1][1]
+                )[0][0]
 
-                start = np.where(function_list[i][0][0] >=
-                                 function_list[i][1][0])[0][0]
-                stop = np.where(function_list[i][0][0] >=
-                                function_list[i][1][1])[0][0]
-
-                funcTime = [function_list[i][1][0]] + \
-                           function_list[i][0][0][start:stop].tolist() + \
-                           [function_list[i][1][1]]
-                funcProg = np.interp(funcTime, function_list[i][0][0],
-                                     function_list[i][0][1])
+                funcTime = (
+                    [function_list[i][1][0]]
+                    + function_list[i][0][0][start:stop].tolist()
+                    + [function_list[i][1][1]]
+                )
+                funcProg = np.interp(
+                    funcTime, function_list[i][0][0], function_list[i][0][1]
+                )
 
                 tDur = funcTime[0] - fullTime[-1]
                 Vinit = fullFunction[-1]
                 Vfin = funcProg[0]
-                k = (1. / tDur) * (1 - (1. * Vinit / Vfin) ** 0.5)
+                k = (1.0 / tDur) * (1 - (1.0 * Vinit / Vfin) ** 0.5)
 
                 nSteps = int(tDur / resolution[i - 1])
-                time = np.linspace(float(fullTime[-1]), float(funcTime[0]), nSteps)
+                time = np.linspace(
+                    float(fullTime[-1]), float(funcTime[0]), nSteps
+                )
                 volts = Vinit / ((1 - k * (time - time[0])) ** 2)
 
                 fullFunction += volts.tolist() + funcProg.tolist()
                 fullTime += time.tolist() + funcTime
 
-        elif merge_type[i - 1] == 'linear_tune':
-
+        elif merge_type[i - 1] == "linear_tune":
             # harmonic, charge and 2pi are constant so can be ignored
             if not isinstance(function_list[i][0], np.ndarray):
-
                 initPars = ring.parameters_at_time(fullTime[-1])
                 finalPars = ring.parameters_at_time(function_list[i][1][0])
 
@@ -410,86 +456,129 @@ def combine_rf_functions(function_list: list[tuple[Callable, list[float]]],
                 vFin = function_list[i][0]
 
                 if main_h is False:
-                    initPars['delta_E'] = 0.
-                    finalPars['delta_E'] = 0.
+                    initPars["delta_E"] = 0.0
+                    finalPars["delta_E"] = 0.0
 
                 initTune = np.sqrt(
-                    (vInit * np.abs(initPars['eta_0']) *
-                     np.sqrt(1 - (initPars['delta_E'] / vInit) ** 2)) /
-                    (initPars['beta'] ** 2 * initPars['energy']))
+                    (
+                        vInit
+                        * np.abs(initPars["eta_0"])
+                        * np.sqrt(1 - (initPars["delta_E"] / vInit) ** 2)
+                    )
+                    / (initPars["beta"] ** 2 * initPars["energy"])
+                )
 
                 finalTune = np.sqrt(
-                    (vFin * np.abs(finalPars['eta_0']) *
-                     np.sqrt(1 - (finalPars['delta_E'] / vFin) ** 2)) /
-                    (finalPars['beta'] ** 2 * finalPars['energy']))
+                    (
+                        vFin
+                        * np.abs(finalPars["eta_0"])
+                        * np.sqrt(1 - (finalPars["delta_E"] / vFin) ** 2)
+                    )
+                    / (finalPars["beta"] ** 2 * finalPars["energy"])
+                )
 
                 tDur = function_list[i][1][0] - fullTime[-1]
                 nSteps = int(tDur / resolution[i - 1])
-                time = np.linspace(float(fullTime[-1]), float(function_list[i][1][0]),
-                                   nSteps)
-                tuneInterp = np.linspace(float(initTune), float(finalTune), nSteps)
+                time = np.linspace(
+                    float(fullTime[-1]), float(function_list[i][1][0]), nSteps
+                )
+                tuneInterp = np.linspace(
+                    float(initTune), float(finalTune), nSteps
+                )
 
                 mergePars = ring.parameters_at_time(time)
 
                 if main_h is False:
-                    mergePars['delta_E'] *= 0
+                    mergePars["delta_E"] *= 0
 
                 volts = np.sqrt(
-                    ((tuneInterp ** 2 * mergePars['beta'] ** 2 *
-                      mergePars['energy']) / (np.abs(mergePars['eta_0']))) ** 2 +
-                    mergePars['delta_E'] ** 2)
+                    (
+                        (
+                            tuneInterp**2
+                            * mergePars["beta"] ** 2
+                            * mergePars["energy"]
+                        )
+                        / (np.abs(mergePars["eta_0"]))
+                    )
+                    ** 2
+                    + mergePars["delta_E"] ** 2
+                )
 
                 fullFunction += volts.tolist() + 2 * [function_list[i][0]]
                 fullTime += time.tolist() + function_list[i][1]
 
             else:
+                start = np.where(
+                    function_list[i][0][0] >= function_list[i][1][0]
+                )[0][0]
+                stop = np.where(
+                    function_list[i][0][0] >= function_list[i][1][1]
+                )[0][0]
 
-                start = np.where(function_list[i][0][0] >=
-                                 function_list[i][1][0])[0][0]
-                stop = np.where(function_list[i][0][0] >=
-                                function_list[i][1][1])[0][0]
-
-                funcTime = [function_list[i][1][0]] + \
-                           function_list[i][0][0][start:stop].tolist() + \
-                           [function_list[i][1][1]]
-                funcProg = np.interp(funcTime, function_list[i][0][0],
-                                     function_list[i][0][1])
+                funcTime = (
+                    [function_list[i][1][0]]
+                    + function_list[i][0][0][start:stop].tolist()
+                    + [function_list[i][1][1]]
+                )
+                funcProg = np.interp(
+                    funcTime, function_list[i][0][0], function_list[i][0][1]
+                )
 
                 tDur = funcTime[0] - fullTime[-1]
                 nSteps = int(tDur / resolution[i - 1])
-                time = np.linspace(float(fullTime[-1]), float(funcTime[0]), nSteps)
+                time = np.linspace(
+                    float(fullTime[-1]), float(funcTime[0]), nSteps
+                )
 
                 initPars = ring.parameters_at_time(fullTime[-1])
                 finalPars = ring.parameters_at_time(funcTime[0])
 
                 if main_h is False:
-                    initPars['delta_E'] = 0.
-                    finalPars['delta_E'] = 0.
+                    initPars["delta_E"] = 0.0
+                    finalPars["delta_E"] = 0.0
 
                 vInit = fullFunction[-1]
                 vFin = funcProg[0]
 
                 initTune = np.sqrt(
-                    (vInit * np.abs(initPars['eta_0']) *
-                     np.sqrt(1 - (initPars['delta_E'] / vInit) ** 2)) /
-                    (initPars['beta'] ** 2 * initPars['energy']))
+                    (
+                        vInit
+                        * np.abs(initPars["eta_0"])
+                        * np.sqrt(1 - (initPars["delta_E"] / vInit) ** 2)
+                    )
+                    / (initPars["beta"] ** 2 * initPars["energy"])
+                )
 
                 finalTune = np.sqrt(
-                    (vFin * np.abs(finalPars['eta_0']) *
-                     np.sqrt(1 - (finalPars['delta_E'] / vFin) ** 2)) /
-                    (finalPars['beta'] ** 2 * finalPars['energy']))
+                    (
+                        vFin
+                        * np.abs(finalPars["eta_0"])
+                        * np.sqrt(1 - (finalPars["delta_E"] / vFin) ** 2)
+                    )
+                    / (finalPars["beta"] ** 2 * finalPars["energy"])
+                )
 
-                tuneInterp = np.linspace(float(initTune), float(finalTune), nSteps)
+                tuneInterp = np.linspace(
+                    float(initTune), float(finalTune), nSteps
+                )
 
                 mergePars = ring.parameters_at_time(time)
 
                 if main_h is False:
-                    mergePars['delta_E'] *= 0
+                    mergePars["delta_E"] *= 0
 
                 volts = np.sqrt(
-                    ((tuneInterp ** 2 * mergePars['beta'] ** 2 *
-                      mergePars['energy']) / (np.abs(mergePars['eta_0']))) ** 2 +
-                    mergePars['delta_E'] ** 2)
+                    (
+                        (
+                            tuneInterp**2
+                            * mergePars["beta"] ** 2
+                            * mergePars["energy"]
+                        )
+                        / (np.abs(mergePars["eta_0"]))
+                    )
+                    ** 2
+                    + mergePars["delta_E"] ** 2
+                )
 
                 fullFunction += volts.tolist() + funcProg.tolist()
                 fullTime += time.tolist() + funcTime

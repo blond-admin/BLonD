@@ -21,9 +21,12 @@ if TYPE_CHECKING:
 
 _local_path = pathlib.Path(__file__).parent.resolve()
 
+
 def _generate_compiled_file_name() -> str:
     # Get system information
-    os_name = platform.system()  # e.g., 'Linux', 'Windows', 'Darwin' (for macOS)
+    os_name = (
+        platform.system()
+    )  # e.g., 'Linux', 'Windows', 'Darwin' (for macOS)
     processor = platform.processor()  # e.g., 'x86_64', 'Intel64'
 
     # Format the name
@@ -44,7 +47,7 @@ if "RF_NOISE_DIR" in os.environ.keys():
     _rf_noise_dir = pathlib.Path(os.environ["RF_NOISE_DIR"])
 else:
     # assume that its in a neighboring folder of BLonD
-    _rf_noise_dir = pathlib.Path('./../../../../rf-noise-cpp/').resolve()
+    _rf_noise_dir = pathlib.Path("./../../../../rf-noise-cpp/").resolve()
 
 
 def _compile_rf_noise_library(rf_noise_dir: pathlib.Path):
@@ -79,20 +82,28 @@ def _compile_rf_noise_library(rf_noise_dir: pathlib.Path):
 
     # get all C++ files in rf-noise directory
     rf_noise_src = rf_noise_dir / "src/rf-noise/"
-    cpp_files = tuple(filter(lambda s: s.endswith(".cpp"), os.listdir(rf_noise_src)))
+    cpp_files = tuple(
+        filter(lambda s: s.endswith(".cpp"), os.listdir(rf_noise_src))
+    )
     rf_noise_cpp_files = " ".join([str(rf_noise_src / s) for s in cpp_files])
-    make_command = (f"g++ -m64 -fPIC -shared -o {_target_library} {_local_path / 'rf_noise_wrapper.cpp'} "
-                    f"{rf_noise_cpp_files} "
-                    f"-I{rf_noise_src} "
-                    f"-lboost_system")
-    process = subprocess.Popen(make_command.strip().split(" "), )
+    make_command = (
+        f"g++ -m64 -fPIC -shared -o {_target_library} {_local_path / 'rf_noise_wrapper.cpp'} "
+        f"{rf_noise_cpp_files} "
+        f"-I{rf_noise_src} "
+        f"-lboost_system"
+    )
+    process = subprocess.Popen(
+        make_command.strip().split(" "),
+    )
     process.communicate()
     if process.returncode != 0:
         try:
             os.remove(_target_library)
         except FileNotFoundError:
             pass
-        raise RuntimeError(f"Compilation terminated with {process.returncode=}\n for {make_command=}")
+        raise RuntimeError(
+            f"Compilation terminated with {process.returncode=}\n for {make_command=}"
+        )
 
 
 if _make_library:
@@ -106,11 +117,16 @@ _library_rf_noise = ctypes.CDLL(str(_target_library))
 
 # Define the function's argument and return types
 _library_rf_noise.rf_noise_wrapper.argtypes = [
-    ctypes.POINTER(ctypes.c_double), ctypes.c_size_t,
-    ctypes.POINTER(ctypes.c_double), ctypes.c_size_t,
-    ctypes.POINTER(ctypes.c_double), ctypes.c_size_t,
-    ctypes.POINTER(ctypes.c_double), ctypes.c_size_t,
-    ctypes.POINTER(ctypes.c_double), ctypes.c_size_t,
+    ctypes.POINTER(ctypes.c_double),
+    ctypes.c_size_t,
+    ctypes.POINTER(ctypes.c_double),
+    ctypes.c_size_t,
+    ctypes.POINTER(ctypes.c_double),
+    ctypes.c_size_t,
+    ctypes.POINTER(ctypes.c_double),
+    ctypes.c_size_t,
+    ctypes.POINTER(ctypes.c_double),
+    ctypes.c_size_t,
     ctypes.c_int,
     ctypes.c_int,
     ctypes.c_int,
@@ -119,17 +135,18 @@ _library_rf_noise.rf_noise_wrapper.argtypes = [
 ]
 
 
-def rf_noise(frequency_high: NumpyArray,
-             frequency_low: NumpyArray,
-             gain_x: NumpyArray,
-             gain_y: NumpyArray,
-             n_source: int,
-             n_pnt_min: int,
-             r_seed: int,
-             sampling_rate: float,
-             rms: float,
-             phase_array: NumpyArray = None,
-             ) -> NumpyArray:
+def rf_noise(
+    frequency_high: NumpyArray,
+    frequency_low: NumpyArray,
+    gain_x: NumpyArray,
+    gain_y: NumpyArray,
+    n_source: int,
+    n_pnt_min: int,
+    r_seed: int,
+    sampling_rate: float,
+    rms: float,
+    phase_array: NumpyArray = None,
+) -> NumpyArray:
     """Generates RF noise along time (overwriting phase_array)
 
     Parameters
@@ -151,8 +168,8 @@ def rf_noise(frequency_high: NumpyArray,
         oscillators ca be resolved and the result depends on the precise frequency observed.
     n_pnt_min: int
         Minimum number of steps to express the highest-frequency oscillation, automatically set to 6 if lower.
- 		To allow reasonable FFT with small prime-factors, the finally used nPnt might be a slightly higher number
- 		(nData = nSource*nPnt should be able to be split in low prime factors; FFT is done for nData long arrays!!)
+                To allow reasonable FFT with small prime-factors, the finally used nPnt might be a slightly higher number
+                (nData = nSource*nPnt should be able to be split in low prime factors; FFT is done for nData long arrays!!)
     r_seed: int
         If < 0, use clock seed, i.e. each call even with else identical parameters is different
         If � 0, use the given number as starting seed, reproducing same noise for same starting seed
@@ -227,13 +244,23 @@ def rf_noise(frequency_high: NumpyArray,
 
     # make sure everything is as expected
     # compare lengths
-    assert len(frequency_high) == len(phase_array), f'{len(frequency_high)=}, {len(phase_array)=}'
-    assert len(frequency_high) == len(frequency_low), f'{len(frequency_high)=}, {len(frequency_low)=}'
-    assert len(gain_x) == len(gain_y), f'{len(gain_x)=}, {len(gain_y)=}'
+    assert len(frequency_high) == len(
+        phase_array
+    ), f"{len(frequency_high)=}, {len(phase_array)=}"
+    assert len(frequency_high) == len(
+        frequency_low
+    ), f"{len(frequency_high)=}, {len(frequency_low)=}"
+    assert len(gain_x) == len(gain_y), f"{len(gain_x)=}, {len(gain_y)=}"
     # check ranges
-    assert np.all(frequency_low < frequency_high), "All 'fLow' must be smaller 'fHigh'"
-    assert np.min(gain_x) >= 0.0, f"'xs' must be within 0.0 and 1.0, but got {np.min(gain_x)=}"
-    assert np.max(gain_x) <= 1.0, f"'xs' must be within 0.0 and 1.0, but got {np.max(gain_x)=}"
+    assert np.all(
+        frequency_low < frequency_high
+    ), "All 'fLow' must be smaller 'fHigh'"
+    assert (
+        np.min(gain_x) >= 0.0
+    ), f"'xs' must be within 0.0 and 1.0, but got {np.min(gain_x)=}"
+    assert (
+        np.max(gain_x) <= 1.0
+    ), f"'xs' must be within 0.0 and 1.0, but got {np.max(gain_x)=}"
 
     # Prepare pointers to the numpy arrays
     f_high_ptr = frequency_high.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
@@ -245,15 +272,20 @@ def rf_noise(frequency_high: NumpyArray,
     # Call the function
 
     _library_rf_noise.rf_noise_wrapper(
-        f_high_ptr, ctypes.c_size_t(frequency_high.size),
-        f_low_ptr, ctypes.c_size_t(frequency_low.size),
-        xs_ptr, ctypes.c_size_t(gain_x.size),
-        ys_ptr, ctypes.c_size_t(gain_y.size),
-        result_ptr, ctypes.c_size_t(phase_array.size),
+        f_high_ptr,
+        ctypes.c_size_t(frequency_high.size),
+        f_low_ptr,
+        ctypes.c_size_t(frequency_low.size),
+        xs_ptr,
+        ctypes.c_size_t(gain_x.size),
+        ys_ptr,
+        ctypes.c_size_t(gain_y.size),
+        result_ptr,
+        ctypes.c_size_t(phase_array.size),
         ctypes.c_int(n_source),  # nSource
         ctypes.c_int(n_pnt_min),  # nPntMin
         ctypes.c_int(r_seed),  # rSeed
         ctypes.c_double(sampling_rate),  # samplingRate
-        ctypes.c_double(rms)  # rms
+        ctypes.c_double(rms),  # rms
     )
     return phase_array

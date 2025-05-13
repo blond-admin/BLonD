@@ -1,8 +1,8 @@
 # coding: utf8
 # Copyright 2014-2017 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3), 
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities 
+# In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
@@ -23,33 +23,35 @@ from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, Profile
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
-from blond.llrf.cavity_feedback import (SPSCavityLoopCommissioning,
-                                        SPSCavityFeedback)
+from blond.llrf.cavity_feedback import (
+    SPSCavityLoopCommissioning,
+    SPSCavityFeedback,
+)
 from blond.toolbox.logger import Logger
 
 # CERN SPS --------------------------------------------------------------------
 # Machine and RF parameters
-C = 2 * np.pi * 1100.009    # Ring circumference [m]
-gamma_t = 18.0              # Gamma at transition
-alpha = 1/gamma_t**2        # Momentum compaction factor
-p_s = 25.92e9               # Synchronous momentum at injection [eV]
-h = [4620]                  # 200 MHz system harmonic
-V = [4.5e6]                 # 200 MHz RF voltage
+C = 2 * np.pi * 1100.009  # Ring circumference [m]
+gamma_t = 18.0  # Gamma at transition
+alpha = 1 / gamma_t**2  # Momentum compaction factor
+p_s = 25.92e9  # Synchronous momentum at injection [eV]
+h = [4620]  # 200 MHz system harmonic
+V = [4.5e6]  # 200 MHz RF voltage
 # With this setting, amplitude in the two four-section cavity must converge to
 # 4.5 MV * 4/18 * 2 = 2.0 MV
-phi = [0.]                  # 200 MHz RF phase
+phi = [0.0]  # 200 MHz RF phase
 
 # Beam and tracking parameters
-N_m = 1e5                   # Number of macro-particles for tracking
-N_b = 1.e11                 # Bunch intensity [ppb]
-N_t = 1                     # Number of turns to track
+N_m = 1e5  # Number of macro-particles for tracking
+N_b = 1.0e11  # Bunch intensity [ppb]
+N_t = 1  # Number of turns to track
 # CERN SPS --------------------------------------------------------------------
 
 # Plot settings
-plt.rc('axes', labelsize=16, labelweight='normal')
-plt.rc('lines', linewidth=1.5, markersize=6)
-plt.rc('font', family='sans-serif')  
-plt.rc('legend', fontsize=12)  
+plt.rc("axes", labelsize=16, labelweight="normal")
+plt.rc("lines", linewidth=1.5, markersize=6)
+plt.rc("font", family="sans-serif")
+plt.rc("legend", fontsize=12)
 
 CLOSED_LOOP = True
 OPEN_LOOP = True
@@ -71,50 +73,93 @@ logging.info("...... RF parameters set!")
 
 # Define beam and fill it
 beam = Beam(ring, N_m, N_b)
-bigaussian(ring, rf, beam, 3.2e-9/4, seed=1234, reinsertion=True)
+bigaussian(ring, rf, beam, 3.2e-9 / 4, seed=1234, reinsertion=True)
 logging.info("......Beam set!")
 logging.info("Number of particles %d" % len(beam.dt))
-logging.info("Time coordinates are in range %.4e to %.4e s" % (np.min(beam.dt), np.max(beam.dt)))
+logging.info(
+    "Time coordinates are in range %.4e to %.4e s"
+    % (np.min(beam.dt), np.max(beam.dt))
+)
 
-profile = Profile(beam, cut_options= CutOptions(cut_left=0.e-9,
-                                                cut_right=rf.t_rev[0], n_slices=4620))
+profile = Profile(
+    beam,
+    cut_options=CutOptions(
+        cut_left=0.0e-9, cut_right=rf.t_rev[0], n_slices=4620
+    ),
+)
 profile.track()
 
 if CLOSED_LOOP:
     logging.info("...... CLOSED LOOP test")
-    Commissioning = SPSCavityLoopCommissioning(debug=True, open_loop=False, open_fb=False,
-                                               open_drive=False, open_ff=True)
-    OTFB = SPSCavityFeedback(
-        rf, profile, G_llrf=10, G_tx=1, a_comb=15/16,
-        turns=50, post_LS2=POST_LS2, commissioning=Commissioning
+    Commissioning = SPSCavityLoopCommissioning(
+        debug=True,
+        open_loop=False,
+        open_fb=False,
+        open_drive=False,
+        open_ff=True,
     )
-    logging.info("Final voltage %.8e V"
-                 % np.average(np.absolute(OTFB.OTFB_1.V_ANT_COARSE[-10])))
+    OTFB = SPSCavityFeedback(
+        rf,
+        profile,
+        G_llrf=10,
+        G_tx=1,
+        a_comb=15 / 16,
+        turns=50,
+        post_LS2=POST_LS2,
+        commissioning=Commissioning,
+    )
+    logging.info(
+        "Final voltage %.8e V"
+        % np.average(np.absolute(OTFB.OTFB_1.V_ANT_COARSE[-10]))
+    )
 
 if OPEN_LOOP:
     logging.info("...... OPEN LOOP test")
-    Commissioning = SPSCavityLoopCommissioning(debug=True, open_loop=True, open_fb=False,
-                                               open_drive=True, open_ff=True)
-    OTFB = SPSCavityFeedback(
-        rf, profile, G_llrf=10, G_tx=1, a_comb=15/16,
-        turns=50, post_LS2=POST_LS2, commissioning=Commissioning
+    Commissioning = SPSCavityLoopCommissioning(
+        debug=True,
+        open_loop=True,
+        open_fb=False,
+        open_drive=True,
+        open_ff=True,
     )
-    logging.info("Final voltage %.8e V"
-                 % np.average(np.absolute(OTFB.OTFB_1.V_ANT_COARSE[-10])))
+    OTFB = SPSCavityFeedback(
+        rf,
+        profile,
+        G_llrf=10,
+        G_tx=1,
+        a_comb=15 / 16,
+        turns=50,
+        post_LS2=POST_LS2,
+        commissioning=Commissioning,
+    )
+    logging.info(
+        "Final voltage %.8e V"
+        % np.average(np.absolute(OTFB.OTFB_1.V_ANT_COARSE[-10]))
+    )
 
 if OPEN_FB:
     logging.info("...... OPEN FEEDBACK test")
     Commissioning = SPSCavityLoopCommissioning(
-        debug=True, open_loop=False, open_fb=True,
-        open_drive=False, open_ff=True
+        debug=True,
+        open_loop=False,
+        open_fb=True,
+        open_drive=False,
+        open_ff=True,
     )
     OTFB = SPSCavityFeedback(
-        rf, profile, G_llrf=10, G_tx=1, a_comb=15/16,
-        turns=50, post_LS2=POST_LS2, commissioning=Commissioning
+        rf,
+        profile,
+        G_llrf=10,
+        G_tx=1,
+        a_comb=15 / 16,
+        turns=50,
+        post_LS2=POST_LS2,
+        commissioning=Commissioning,
     )
-    logging.info("Final voltage %.8e V"
-                 % np.average(np.absolute(OTFB.OTFB_1.V_ANT_COARSE[-10])))
+    logging.info(
+        "Final voltage %.8e V"
+        % np.average(np.absolute(OTFB.OTFB_1.V_ANT_COARSE[-10]))
+    )
 
 logging.info("")
 logging.info("Done!")
-

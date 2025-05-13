@@ -1,4 +1,3 @@
-
 # Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
@@ -33,42 +32,42 @@ from blond.trackers.tracker import RingAndRFTracker
 DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 # To check if executing correctly, rather than to run the full simulation
 
-mpl.use('Agg')
+mpl.use("Agg")
 
 
 #  BLonD Imports
 
 
-this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
+this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 
-USE_GPU = os.environ.get('USE_GPU', '0')
+USE_GPU = os.environ.get("USE_GPU", "0")
 if len(USE_GPU) and int(USE_GPU):
     USE_GPU = True
 else:
     USE_GPU = False
 
-os.makedirs(this_directory + '../gpu_output_files/EX_01_fig', exist_ok=True)
+os.makedirs(this_directory + "../gpu_output_files/EX_01_fig", exist_ok=True)
 
 
 # Simulation parameters -------------------------------------------------------
 # Bunch parameters
-N_b = 1e9           # Intensity
+N_b = 1e9  # Intensity
 N_p = 1001 if DRAFT_MODE else 50000  # Macro-particles
-tau_0 = 0.4e-9          # Initial bunch length, 4 sigma [s]
+tau_0 = 0.4e-9  # Initial bunch length, 4 sigma [s]
 
 # Machine and RF parameters
-C = 26658.883        # Machine circumference [m]
-p_i = 450e9         # Synchronous momentum [eV/c]
-p_f = 460.005e9      # Synchronous momentum, final
-h = 35640            # Harmonic number
-V = 6e6                # RF voltage [V]
-dphi = 0             # Phase modulation/offset
+C = 26658.883  # Machine circumference [m]
+p_i = 450e9  # Synchronous momentum [eV/c]
+p_f = 460.005e9  # Synchronous momentum, final
+h = 35640  # Harmonic number
+V = 6e6  # RF voltage [V]
+dphi = 0  # Phase modulation/offset
 gamma_t = 55.759505  # Transition gamma
-alpha = 1. / gamma_t / gamma_t        # First order mom. comp. factor
+alpha = 1.0 / gamma_t / gamma_t  # First order mom. comp. factor
 
 # Tracking details
-N_t = 2000           # Number of turns to track
-dt_plt = 200         # Time steps between plots
+N_t = 2000  # Number of turns to track
+dt_plt = 200  # Time steps between plots
 
 
 # Simulation setup ------------------------------------------------------------
@@ -77,7 +76,7 @@ print("")
 
 
 # Define general parameters
-ring = Ring(C, alpha, np.linspace(p_i, p_f, N_t+1), Proton(), N_t)
+ring = Ring(C, alpha, np.linspace(p_i, p_f, N_t + 1), Proton(), N_t)
 
 # Define beam and distribution
 beam = Beam(ring, N_p, N_b)
@@ -92,27 +91,45 @@ bigaussian(ring, rf, beam, tau_0 / 4, reinsertion=True, seed=1)
 
 
 # Need slices for the Gaussian fit
-profile = Profile(beam, CutOptions(n_slices=100),
-                  FitOptions(fit_option='gaussian')
-                  )
+profile = Profile(
+    beam, CutOptions(n_slices=100), FitOptions(fit_option="gaussian")
+)
 
 # Define what to save in file
-bunchmonitor = BunchMonitor(ring, rf, beam,
-                            this_directory + '../gpu_output_files/EX_01_output_data',
-                            profile=profile)
+bunchmonitor = BunchMonitor(
+    ring,
+    rf,
+    beam,
+    this_directory + "../gpu_output_files/EX_01_output_data",
+    profile=profile,
+)
 
-format_options = {'dirname': this_directory + '../gpu_output_files/EX_01_fig'}
-plots = Plot(ring, rf, beam, dt_plt, N_t, 0, 0.0001763 * h,
-             -400e6, 400e6, xunit='rad', separatrix_plot=True,
-             profile=profile, h5file=this_directory + '../gpu_output_files/EX_01_output_data',
-             format_options=format_options)
+format_options = {"dirname": this_directory + "../gpu_output_files/EX_01_fig"}
+plots = Plot(
+    ring,
+    rf,
+    beam,
+    dt_plt,
+    N_t,
+    0,
+    0.0001763 * h,
+    -400e6,
+    400e6,
+    xunit="rad",
+    separatrix_plot=True,
+    profile=profile,
+    h5file=this_directory + "../gpu_output_files/EX_01_output_data",
+    format_options=format_options,
+)
 
 # For testing purposes
-test_string = ''
-test_string += '{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
-    'mean_dE', 'std_dE', 'mean_dt', 'std_dt')
-test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
-    beam.dE.mean(), beam.dE.std(), beam.dt.mean(), beam.dt.std())
+test_string = ""
+test_string += "{:<17}\t{:<17}\t{:<17}\t{:<17}\n".format(
+    "mean_dE", "std_dE", "mean_dt", "std_dt"
+)
+test_string += "{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n".format(
+    beam.dE.mean(), beam.dE.std(), beam.dt.mean(), beam.dt.std()
+)
 
 
 # For the GPU version we disable bunchmonitor and plots, since they
@@ -137,7 +154,6 @@ if USE_GPU:
 if DRAFT_MODE:
     N_t = 20
 for i in range(1, N_t + 1):
-
     # Plot has to be done before tracking (at least for cases with separatrix)
     if i % dt_plt == 0:
         print("Outputting at time step %d..." % i)
@@ -145,7 +161,9 @@ for i in range(1, N_t + 1):
         print("   Beam gamma %3.3f" % beam.gamma)
         print("   Beam beta %3.3f" % beam.beta)
         print("   Beam energy %.6e eV" % beam.energy)
-        print("   Four-times r.m.s. bunch length %.4e s" % (4. * beam.sigma_dt))
+        print(
+            "   Four-times r.m.s. bunch length %.4e s" % (4.0 * beam.sigma_dt)
+        )
         print("   Gaussian bunch length %.4e s" % profile.bunchLength)
         print("")
 
@@ -171,7 +189,7 @@ for i in range(1, N_t + 1):
 
     # Define losses according to separatrix and/or longitudinal position
     beam.losses_separatrix(ring, rf)
-    beam.losses_longitudinal_cut(0., 2.5e-9)
+    beam.losses_longitudinal_cut(0.0, 2.5e-9)
 
 if USE_GPU:
     bm.use_cpu()
@@ -180,16 +198,19 @@ if USE_GPU:
     long_tracker.to_cpu()
     profile.to_cpu()
 
-print('dE mean: ', beam.dE.mean())
-print('dE std: ', beam.dE.std())
-print('profile mean: ', profile.n_macroparticles.mean())
-print('profile std: ', profile.n_macroparticles.std())
+print("dE mean: ", beam.dE.mean())
+print("dE std: ", beam.dE.std())
+print("profile mean: ", profile.n_macroparticles.mean())
+print("profile std: ", profile.n_macroparticles.std())
 
 
 # For testing purposes
-test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
-    beam.dE.mean(), beam.dE.std(), beam.dt.mean(), beam.dt.std())
-with open(this_directory + '../gpu_output_files/EX_01_test_data.txt', 'w') as f:
+test_string += "{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n".format(
+    beam.dE.mean(), beam.dE.std(), beam.dt.mean(), beam.dt.std()
+)
+with open(
+    this_directory + "../gpu_output_files/EX_01_test_data.txt", "w"
+) as f:
     f.write(test_string)
 
 print("Done!")

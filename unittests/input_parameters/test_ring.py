@@ -23,19 +23,19 @@ from blond.input_parameters.ring_options import convert_data
 
 
 class TestGeneralParameters(unittest.TestCase):
-
     # Initialization ----------------------------------------------------------
 
     def setUp(self):
-
         self.n_turns = 10
         self.C = [13000, 13659]
         self.num_sections = 2
         self.alpha_0 = [[3.21e-4], [2.89e-4]]
-        self.alpha_1 = [[2.e-5], [1.e-5]]
-        self.alpha_2 = [[5.e-7], [5.e-7]]
-        self.momentum = [450e9 * (np.ones(self.n_turns + 1)),
-                         450e9 * (np.ones(self.n_turns + 1))]
+        self.alpha_1 = [[2.0e-5], [1.0e-5]]
+        self.alpha_2 = [[5.0e-7], [5.0e-7]]
+        self.momentum = [
+            450e9 * (np.ones(self.n_turns + 1)),
+            450e9 * (np.ones(self.n_turns + 1)),
+        ]
         self.particle = Electron()
 
         if int(sys.version[0]) == 2:
@@ -59,24 +59,41 @@ class TestGeneralParameters(unittest.TestCase):
         num_sections = 1  # only one rf-section!
 
         with self.assertRaisesRegex(
-                RuntimeError, 'ERROR in Ring: Number of sections and ring ' +
-                              'length size do not match!',
-                msg='No RuntimeError for wrong n_sections!'):
-            Ring(self.C, self.alpha_0, self.momentum,
-                 self.particle, self.n_turns, n_sections=num_sections,
-                 alpha_1=self.alpha_1, alpha_2=self.alpha_2)
+            RuntimeError,
+            "ERROR in Ring: Number of sections and ring "
+            + "length size do not match!",
+            msg="No RuntimeError for wrong n_sections!",
+        ):
+            Ring(
+                self.C,
+                self.alpha_0,
+                self.momentum,
+                self.particle,
+                self.n_turns,
+                n_sections=num_sections,
+                alpha_1=self.alpha_1,
+                alpha_2=self.alpha_2,
+            )
 
     def test_alpha_shape_exception(self):
         # Test if 'momentum compaction' RuntimeError gets thrown for wrong
         # shape of alpha
-        alpha = [[3.21e-4, 2.e-5, 5.e-7]]  # only one array!
+        alpha = [[3.21e-4, 2.0e-5, 5.0e-7]]  # only one array!
 
         with self.assertRaisesRegex(
-                RuntimeError, "ERROR in Ring: the input data " +
-                              "does not match the number of sections",
-                msg='No RuntimeError for wrong shape of alpha!'):
-            Ring(self.C, alpha, self.momentum, self.particle, self.n_turns,
-                 n_sections=self.num_sections)
+            RuntimeError,
+            "ERROR in Ring: the input data "
+            + "does not match the number of sections",
+            msg="No RuntimeError for wrong shape of alpha!",
+        ):
+            Ring(
+                self.C,
+                alpha,
+                self.momentum,
+                self.particle,
+                self.n_turns,
+                n_sections=self.num_sections,
+            )
 
     def test_synchronous_data_exception(self):
         # What to do when user wants momentum programme for multiple sections?
@@ -88,12 +105,19 @@ class TestGeneralParameters(unittest.TestCase):
         cycle_time = np.linspace(0, 1, self.n_turns)  # wrong length
 
         with self.assertRaisesRegex(
-                RuntimeError, "ERROR in Ring: synchronous data does " +
-                              "not match the time data",
-                msg='No RuntimeError for wrong synchronous_data!'):
-            Ring(self.C, self.alpha_0,
-                 ((cycle_time, self.momentum), (cycle_time, self.momentum)),
-                 self.particle, self.n_turns, n_sections=self.num_sections)
+            RuntimeError,
+            "ERROR in Ring: synchronous data does "
+            + "not match the time data",
+            msg="No RuntimeError for wrong synchronous_data!",
+        ):
+            Ring(
+                self.C,
+                self.alpha_0,
+                ((cycle_time, self.momentum), (cycle_time, self.momentum)),
+                self.particle,
+                self.n_turns,
+                n_sections=self.num_sections,
+            )
 
     def test_momentum_shape_exception(self):
         # Test if RuntimeError gets thrown for wrong shape of momentum
@@ -102,95 +126,144 @@ class TestGeneralParameters(unittest.TestCase):
         momentum = [[450e9], [450e9]]  # only one momentum!
 
         with self.assertRaisesRegex(
-                RuntimeError, "ERROR in Ring: synchronous data " +
-                              "does not match the time data",
-                msg='No RuntimeError for wrong shape of momentum!'):
-            Ring(self.C, self.alpha_0,
-                 ((cycle_time, momentum[0]), (cycle_time, momentum[1])),
-                 self.particle, self.n_turns, n_sections=self.num_sections)
+            RuntimeError,
+            "ERROR in Ring: synchronous data "
+            + "does not match the time data",
+            msg="No RuntimeError for wrong shape of momentum!",
+        ):
+            Ring(
+                self.C,
+                self.alpha_0,
+                ((cycle_time, momentum[0]), (cycle_time, momentum[1])),
+                self.particle,
+                self.n_turns,
+                n_sections=self.num_sections,
+            )
 
     def test_momentum_length_exception(self):
         # Test if RuntimeError gets thrown for wrong length of momentum
         # Only n_turns elements per section!
 
-        momentum = [np.linspace(450e9, 450e9, self.n_turns),
-                    np.linspace(450e9, 450e9, self.n_turns)]
+        momentum = [
+            np.linspace(450e9, 450e9, self.n_turns),
+            np.linspace(450e9, 450e9, self.n_turns),
+        ]
 
         with self.assertRaises(RuntimeError):
-            Ring(self.C, self.alpha_0, momentum, self.particle,
-                 self.n_turns, n_sections=self.num_sections)
+            Ring(
+                self.C,
+                self.alpha_0,
+                momentum,
+                self.particle,
+                self.n_turns,
+                n_sections=self.num_sections,
+            )
 
     # Other tests -------------------------------------------------------------
 
     def test_kinetic_energy_positive(self):
         # Kinetic energy must be greater or equal 0 for all turns
-        general_parameters = Ring(self.C, self.alpha_0, self.momentum,
-                                  self.particle, self.n_turns,
-                                  n_sections=self.num_sections)
+        general_parameters = Ring(
+            self.C,
+            self.alpha_0,
+            self.momentum,
+            self.particle,
+            self.n_turns,
+            n_sections=self.num_sections,
+        )
 
-        self.assertTrue((general_parameters.kin_energy >= 0.0).all(),
-                        msg='In TestGeneralParameters kinetic energy is ' +
-                            'negative!')
+        self.assertTrue(
+            (general_parameters.kin_energy >= 0.0).all(),
+            msg="In TestGeneralParameters kinetic energy is " + "negative!",
+        )
 
     def test_cycle_time_turn1(self):
         # Cycle_time[0] must be equal to t_rev[0]
-        general_parameters = Ring(self.C, self.alpha_0, self.momentum,
-                                  self.particle, self.n_turns,
-                                  n_sections=self.num_sections)
+        general_parameters = Ring(
+            self.C,
+            self.alpha_0,
+            self.momentum,
+            self.particle,
+            self.n_turns,
+            n_sections=self.num_sections,
+        )
 
-        self.assertEqual(general_parameters.cycle_time[0],
-                         general_parameters.t_rev[0],
-                         msg='In TestGeneralParameters cycle_time at first ' +
-                             'turn not equal to revolution time at first turn!')
+        self.assertEqual(
+            general_parameters.cycle_time[0],
+            general_parameters.t_rev[0],
+            msg="In TestGeneralParameters cycle_time at first "
+            + "turn not equal to revolution time at first turn!",
+        )
 
     def test_convert_data_exception(self):
         with self.assertRaisesRegex(
-                RuntimeError,
-                'ERROR in Ring: Synchronous data type not recognized!',
-                msg='No RuntimeError for wrong synchronous data type!'):
-            convert_data(25e9, self.particle.mass, self.particle.charge,
-                         synchronous_data_type='somethingCompletelyDifferent')
+            RuntimeError,
+            "ERROR in Ring: Synchronous data type not recognized!",
+            msg="No RuntimeError for wrong synchronous data type!",
+        ):
+            convert_data(
+                25e9,
+                self.particle.mass,
+                self.particle.charge,
+                synchronous_data_type="somethingCompletelyDifferent",
+            )
 
     def test_convert_data_value_rest_mass(self):
-
         self.assertEqual(
             convert_data(
-                Electron().mass, Electron().mass, Electron().charge,
-                synchronous_data_type='total energy'),
+                Electron().mass,
+                Electron().mass,
+                Electron().charge,
+                synchronous_data_type="total energy",
+            ),
             0.0,
-            msg='Momentum not zero for total engery equal rest mass!')
+            msg="Momentum not zero for total engery equal rest mass!",
+        )
 
     def test_convert_data_wrong_total_energy(self):
         # use energy 25 instead of 25e9
 
         self.assertIsNaN(
-            convert_data(25, self.particle.mass, self.particle.charge,
-                         synchronous_data_type='total energy'),
-            msg='No NaN for total energy less than rest mass!')
+            convert_data(
+                25,
+                self.particle.mass,
+                self.particle.charge,
+                synchronous_data_type="total energy",
+            ),
+            msg="No NaN for total energy less than rest mass!",
+        )
 
     def test_convert_data_wrong_kinetic_energy(self):
         # use negative kinetic energy
 
         self.assertIsNaN(
-            convert_data(-25, self.particle.mass, self.particle.charge,
-                         synchronous_data_type='kinetic energy'),
-            msg='No NaN for total energy less than rest mass!')
+            convert_data(
+                -25,
+                self.particle.mass,
+                self.particle.charge,
+                synchronous_data_type="kinetic energy",
+            ),
+            msg="No NaN for total energy less than rest mass!",
+        )
 
     def test_bug_floattype(self):
         from blond.beam.beam import Proton
+
         # Different treatment of python float and numpy float
         C = 2 * np.pi * 1100.009  # Ring circumference [m]
         gamma_t = 18.0  # Gamma at transition
-        alpha = 1 / gamma_t ** 2  # Momentum compaction factor
+        alpha = 1 / gamma_t**2  # Momentum compaction factor
         n_turns = 10
-        momentum = ([0, 0.1, 0.2], [1., 2., 3.])  # valid input parameters
+        momentum = ([0, 0.1, 0.2], [1.0, 2.0, 3.0])  # valid input parameters
         Ring(C, alpha, momentum, Proton(), n_turns)  # should work
         # When giving the momentum to the ring object in the format ([time0, time1, ...], [momentum0, momentum1, ...])
         # a TypeError is raised if momentumX is of type np.float64. The traceback is:
-        momentum = ([np.float64(0.0), np.float64(0.1), np.float64(0.2)],  # might crash
-                    [np.float64(1.0), np.float64(2.0), np.float64(3.0)])  # might crash
+        momentum = (
+            [np.float64(0.0), np.float64(0.1), np.float64(0.2)],  # might crash
+            [np.float64(1.0), np.float64(2.0), np.float64(3.0)],
+        )  # might crash
         Ring(C, alpha, momentum, Proton(), n_turns)  # might crash
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -25,86 +25,100 @@ from blond.impedances.impedance import InducedVoltageTime, TotalInducedVoltage
 from blond.impedances.impedance_sources import TravelingWaveCavity
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
-from blond.llrf.cavity_feedback import (SPSCavityLoopCommissioning,
-                                        SPSOneTurnFeedback)
-from blond.llrf.impulse_response import (SPS4Section200MHzTWC, rectangle,
-                                         triangle)
+from blond.llrf.cavity_feedback import (
+    SPSCavityLoopCommissioning,
+    SPSOneTurnFeedback,
+)
+from blond.llrf.impulse_response import (
+    SPS4Section200MHzTWC,
+    rectangle,
+    triangle,
+)
+
 
 class TestRectangle(unittest.TestCase):
-
     def test_1(self):
-
-        tau = 1.
-        time = np.array([-1, -0.75, -0.5, -0.25, 0., 0.25, 0.5, 0.75, 1])
-        rect_exp = np.array([0., 0., 0.5, 1., 1., 1., 0.5, 0., 0.])
+        tau = 1.0
+        time = np.array([-1, -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1])
+        rect_exp = np.array([0.0, 0.0, 0.5, 1.0, 1.0, 1.0, 0.5, 0.0, 0.0])
         rect_act = rectangle(time, tau)
 
         rect_exp = np.around(rect_exp, 12)
         rect_act = np.around(rect_act, 12)
-        self.assertSequenceEqual(rect_exp.tolist(), rect_act.tolist(),
-                                 msg="In TestRectangle test 1: rectangle arrays differ")
+        self.assertSequenceEqual(
+            rect_exp.tolist(),
+            rect_act.tolist(),
+            msg="In TestRectangle test 1: rectangle arrays differ",
+        )
 
     def test_2(self):
-
-        tau = 1.
+        tau = 1.0
         time = np.array([-0.51, -0.26, 0.01, 0.26, 0.51, 0.76, 1.01])
-        rect_exp = np.array([0.5, 1., 1., 1., 0.5, 0., 0.])
+        rect_exp = np.array([0.5, 1.0, 1.0, 1.0, 0.5, 0.0, 0.0])
         rect_act = rectangle(time, tau)
 
         rect_exp = np.around(rect_exp, 12)
         rect_act = np.around(rect_act, 12)
-        self.assertSequenceEqual(rect_exp.tolist(), rect_act.tolist(),
-                                 msg="In TestRectangle test 2: rectangle arrays differ")
+        self.assertSequenceEqual(
+            rect_exp.tolist(),
+            rect_act.tolist(),
+            msg="In TestRectangle test 2: rectangle arrays differ",
+        )
 
 
 class TestTriangle(unittest.TestCase):
-
     def test_1(self):
-
-        tau = 1.
-        time = np.array([-0.5, -0.25, 0., 0.25, 0.5, 0.75, 1, 1.25, 1.5])
-        tri_exp = np.array([0., 0., 0.5, 0.75, 0.5, 0.25, 0., 0., 0.])
+        tau = 1.0
+        time = np.array([-0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1, 1.25, 1.5])
+        tri_exp = np.array([0.0, 0.0, 0.5, 0.75, 0.5, 0.25, 0.0, 0.0, 0.0])
         tri_act = triangle(time, tau)
 
         tri_exp = np.around(tri_exp, 12)
         tri_act = np.around(tri_act, 12)
-        self.assertSequenceEqual(tri_exp.tolist(), tri_act.tolist(),
-                                 msg="In TestTriangle test 1: triangle arrays differ")
+        self.assertSequenceEqual(
+            tri_exp.tolist(),
+            tri_act.tolist(),
+            msg="In TestTriangle test 1: triangle arrays differ",
+        )
 
     def test_2(self):
-
-        tau = 1.
+        tau = 1.0
         time = np.array([-0.01, 0.26, 0.51, 0.76, 1.01, 1.26, 1.51])
-        tri_exp = np.array([0.5, 0.74, 0.49, 0.24, 0., 0., 0.])
+        tri_exp = np.array([0.5, 0.74, 0.49, 0.24, 0.0, 0.0, 0.0])
         tri_act = triangle(time, tau)
 
         tri_exp = np.around(tri_exp, 12)
         tri_act = np.around(tri_act, 12)
-        self.assertSequenceEqual(tri_exp.tolist(), tri_act.tolist(),
-                                 msg="In TestTriangle test 2: triangle arrays differ")
+        self.assertSequenceEqual(
+            tri_exp.tolist(),
+            tri_act.tolist(),
+            msg="In TestTriangle test 2: triangle arrays differ",
+        )
 
 
 class TestTravelingWaveCavity(unittest.TestCase):
-
     def test_vg(self):
         from blond.llrf.impulse_response import TravellingWaveCavity
+
         v_g = 0.0946 + 1
 
-        with self.assertRaises(RuntimeError, msg="In TestTravelingWaveCavity,"
-                               + " no exception for group velocity > 1"):
-
+        with self.assertRaises(
+            RuntimeError,
+            msg="In TestTravelingWaveCavity,"
+            + " no exception for group velocity > 1",
+        ):
             TravellingWaveCavity(0.374, 43, 2.71e4, v_g, 2 * np.pi * 200.222e6)
 
     def test_wake(self):
-
         time = np.linspace(-0.1e-6, 0.7e-6, 1000)
 
         l_cav = 16.082
         v_g = 0.0946
         tau = l_cav / (v_g * c) * (1 + v_g)
 
-        TWC_impedance_source = TravelingWaveCavity(l_cav**2 * 27.1e3 / 8,
-                                                   200.222e6, 2 * np.pi * tau)
+        TWC_impedance_source = TravelingWaveCavity(
+            l_cav**2 * 27.1e3 / 8, 200.222e6, 2 * np.pi * tau
+        )
 
         TWC_impedance_source.wake_calc(time - time[0])
         wake_impSource = np.around(TWC_impedance_source.wake / 1e12, 10)
@@ -116,11 +130,13 @@ class TestTravelingWaveCavity(unittest.TestCase):
         TWC_impulse_response.compute_wakes(time)
         wake_impResp = -np.around(TWC_impulse_response.W_beam / 1e12, 10)
 
-        self.assertListEqual(wake_impSource.tolist(), wake_impResp.tolist(),
-                             msg="In TestTravelingWaveCavity test_wake: wake fields differ")
+        self.assertListEqual(
+            wake_impSource.tolist(),
+            wake_impResp.tolist(),
+            msg="In TestTravelingWaveCavity test_wake: wake fields differ",
+        )
 
     def test_vind(self):
-
         # randomly chose omega_c from allowed range
         np.random.seed(1980)
         factor = np.random.uniform(0.9, 1.1)
@@ -129,49 +145,64 @@ class TestTravelingWaveCavity(unittest.TestCase):
         digit_round = 8
 
         # SPS parameters
-        C = 2 * np.pi * 1100.009    # Ring circumference [m]
-        gamma_t = 18.0              # Gamma at transition
-        alpha = 1 / gamma_t**2      # Momentum compaction factor
-        p_s = 25.92e9               # Synchronous momentum at injection [eV]
-        h = 4620                    # 200 MHz system harmonic
-        V = 4.5e6                   # 200 MHz RF voltage
-        phi = 0.                    # 200 MHz RF phase
+        C = 2 * np.pi * 1100.009  # Ring circumference [m]
+        gamma_t = 18.0  # Gamma at transition
+        alpha = 1 / gamma_t**2  # Momentum compaction factor
+        p_s = 25.92e9  # Synchronous momentum at injection [eV]
+        h = 4620  # 200 MHz system harmonic
+        V = 4.5e6  # 200 MHz RF voltage
+        phi = 0.0  # 200 MHz RF phase
 
         # Beam and tracking parameters
-        N_m = 1e5                   # Number of macro-particles for tracking
-        N_b = 1.0e11                # Bunch intensity [ppb]
-        N_t = 1                     # Number of turns to track
+        N_m = 1e5  # Number of macro-particles for tracking
+        N_b = 1.0e11  # Bunch intensity [ppb]
+        N_t = 1  # Number of turns to track
 
         ring = Ring(C, alpha, p_s, Proton(), n_turns=N_t)
         rf = RFStation(ring, h, V, phi)
         beam = Beam(ring, N_m, N_b)
         bigaussian(ring, rf, beam, 3.2e-9 / 4, seed=1234, reinsertion=True)
 
-        n_shift = 5     # how many rf-buckets to shift beam
+        n_shift = 5  # how many rf-buckets to shift beam
         beam.dt += n_shift * rf.t_rf[0, 0]
-        profile = Profile(beam, cut_options=CutOptions(cut_left=(n_shift - 1.5) * rf.t_rf[0, 0],
-                                                       cut_right=(n_shift + 1.5) * rf.t_rf[0, 0],
-                                                       n_slices=140))
+        profile = Profile(
+            beam,
+            cut_options=CutOptions(
+                cut_left=(n_shift - 1.5) * rf.t_rf[0, 0],
+                cut_right=(n_shift + 1.5) * rf.t_rf[0, 0],
+                n_slices=140,
+            ),
+        )
         profile.track()
 
         l_cav = 16.082
         v_g = 0.0946
         tau = l_cav / (v_g * c) * (1 + v_g)
-        TWC_impedance_source = TravelingWaveCavity(l_cav**2 * 27.1e3 / 8,
-                                                   200.222e6, 2 * np.pi * tau)
+        TWC_impedance_source = TravelingWaveCavity(
+            l_cav**2 * 27.1e3 / 8, 200.222e6, 2 * np.pi * tau
+        )
 
         # Beam loading by convolution of beam and wake from cavity
-        inducedVoltageTWC = InducedVoltageTime(beam, profile,
-                                               [TWC_impedance_source])
-        induced_voltage = TotalInducedVoltage(beam, profile,
-                                              [inducedVoltageTWC])
+        inducedVoltageTWC = InducedVoltageTime(
+            beam, profile, [TWC_impedance_source]
+        )
+        induced_voltage = TotalInducedVoltage(
+            beam, profile, [inducedVoltageTWC]
+        )
         induced_voltage.induced_voltage_sum()
-        V_ind_impSource = np.around(induced_voltage.induced_voltage,
-                                    digit_round)
+        V_ind_impSource = np.around(
+            induced_voltage.induced_voltage, digit_round
+        )
 
         # Beam loading via feed-back system
-        OTFB_4 = SPSOneTurnFeedback(rf, profile, 4, n_cavities=1,
-            commissioning=SPSCavityLoopCommissioning(open_ff=True, rot_iq=1), df=0.2275e6)
+        OTFB_4 = SPSOneTurnFeedback(
+            rf,
+            profile,
+            4,
+            n_cavities=1,
+            commissioning=SPSCavityLoopCommissioning(open_ff=True, rot_iq=1),
+            df=0.2275e6,
+        )
         OTFB_4.counter = 0  # First turn
 
         OTFB_4.omega_c = factor * OTFB_4.TWC.omega_r
@@ -181,35 +212,46 @@ class TestTravelingWaveCavity(unittest.TestCase):
         # Compute induced voltage in (I,Q) coordinates
         OTFB_4.track()
         # convert back to time
-        V_ind_OTFB \
-            = np.abs(OTFB_4.V_IND_FINE_BEAM[-OTFB_4.profile.n_slices:]) \
-                * np.sin(OTFB_4.omega_rf * profile.bin_centers +
-                         np.angle(OTFB_4.V_IND_FINE_BEAM[-OTFB_4.profile.n_slices:])
-                         + rf.phi_rf[0, rf.counter[0]]
-                         - np.angle(OTFB_4.V_SET[-OTFB_4.n_coarse]))
+        V_ind_OTFB = np.abs(
+            OTFB_4.V_IND_FINE_BEAM[-OTFB_4.profile.n_slices :]
+        ) * np.sin(
+            OTFB_4.omega_rf * profile.bin_centers
+            + np.angle(OTFB_4.V_IND_FINE_BEAM[-OTFB_4.profile.n_slices :])
+            + rf.phi_rf[0, rf.counter[0]]
+            - np.angle(OTFB_4.V_SET[-OTFB_4.n_coarse])
+        )
 
         V_ind_OTFB = np.around(V_ind_OTFB, digit_round)
 
-        ratio_array = np.array(V_ind_impSource.tolist()) / np.array(V_ind_OTFB.tolist())
+        ratio_array = np.array(V_ind_impSource.tolist()) / np.array(
+            V_ind_OTFB.tolist()
+        )
         ratio_array = ratio_array[~np.isnan(ratio_array)]
         max_ratio = np.max(ratio_array)
 
         max_ratio_exp = 1.0
         len_wo_nan_exp = 80
-        self.assertAlmostEqual(max_ratio, max_ratio_exp,
-                               places=digit_round,
-                               msg="In TravelingWaveCavity test_vind: induced voltages differ")
-        self.assertAlmostEqual(len(ratio_array), len_wo_nan_exp,
-                               places=digit_round,
-                               msg="In TravelingWaveCavity test_vind: induced voltages differ")
+        self.assertAlmostEqual(
+            max_ratio,
+            max_ratio_exp,
+            places=digit_round,
+            msg="In TravelingWaveCavity test_vind: induced voltages differ",
+        )
+        self.assertAlmostEqual(
+            len(ratio_array),
+            len_wo_nan_exp,
+            places=digit_round,
+            msg="In TravelingWaveCavity test_vind: induced voltages differ",
+        )
 
     def test_beam_fine_coarse(self):
-
         # Test beam impulse response and induced voltage
         # Compare on coarse and fine grid
 
         # Create a batch of 100 equal, short bunches at HL-LHC intensity
-        ring = Ring(2 * np.pi * 1100.009, 1 / 18 ** 2, 25.92e9, particle=Proton())
+        ring = Ring(
+            2 * np.pi * 1100.009, 1 / 18**2, 25.92e9, particle=Proton()
+        )
         rf = RFStation(ring, [4620], [4.5e6], [0], n_rf=1)
         bunches = 100
         N_m = int(1e5)
@@ -220,447 +262,494 @@ class TestTravelingWaveCavity(unittest.TestCase):
         bunch_spacing = 5 * rf.t_rf[0, 0]
         buckets = 5 * bunches
         for i in range(bunches):
-            beam2.dt[i * N_m:(i + 1) * N_m] = beam.dt + i * bunch_spacing
-            beam2.dE[i * N_m:(i + 1) * N_m] = beam.dE
-        profile2 = Profile(beam2, cut_options=CutOptions(cut_left=0,
-                                                         cut_right=bunches * bunch_spacing, n_slices=1000 * buckets))
+            beam2.dt[i * N_m : (i + 1) * N_m] = beam.dt + i * bunch_spacing
+            beam2.dE[i * N_m : (i + 1) * N_m] = beam.dE
+        profile2 = Profile(
+            beam2,
+            cut_options=CutOptions(
+                cut_left=0,
+                cut_right=bunches * bunch_spacing,
+                n_slices=1000 * buckets,
+            ),
+        )
         profile2.track()
 
         # Calculate impulse response and induced voltage
-        OTFB = SPSOneTurnFeedback(rf, profile2, 3, n_cavities=1,
+        OTFB = SPSOneTurnFeedback(
+            rf,
+            profile2,
+            3,
+            n_cavities=1,
             commissioning=SPSCavityLoopCommissioning(open_ff=True, rot_iq=-1),
-                                  df=0.18433333e6)
-        OTFB.TWC.impulse_response_beam(OTFB.omega_c, OTFB.profile.bin_centers,
-                                       OTFB.rf_centers)
+            df=0.18433333e6,
+        )
+        OTFB.TWC.impulse_response_beam(
+            OTFB.omega_c, OTFB.profile.bin_centers, OTFB.rf_centers
+        )
         OTFB.track()
 
         imp_fine_meas = (OTFB.TWC.h_beam[::1000])[:100]
         imp_coarse_meas = OTFB.TWC.h_beam_coarse[:100]
 
-        imp_fine_ref = np.array([1.0504062083e+12 + 0.0000000000e+00j,
-                                 2.0781004955e+12 + 2.7183115978e+09j,
-                                 2.0553850965e+12 + 5.3772054987e+09j,
-                                 2.0326663360e+12 + 7.9766773057e+09j,
-                                 2.0099443306e+12 + 1.0516722825e+10j,
-                                 1.9872191969e+12 + 1.2997338066e+10j,
-                                 1.9644910516e+12 + 1.5418519242e+10j,
-                                 1.9417600113e+12 + 1.7780262770e+10j,
-                                 1.9190261924e+12 + 2.0082565269e+10j,
-                                 1.8962897118e+12 + 2.2325423561e+10j,
-                                 1.8735506859e+12 + 2.4508834674e+10j,
-                                 1.8508092314e+12 + 2.6632795838e+10j,
-                                 1.8280654649e+12 + 2.8697304485e+10j,
-                                 1.8053195030e+12 + 3.0702358252e+10j,
-                                 1.7825714624e+12 + 3.2647954978e+10j,
-                                 1.7598214597e+12 + 3.4534092708e+10j,
-                                 1.7370696115e+12 + 3.6360769688e+10j,
-                                 1.7143160345e+12 + 3.8127984368e+10j,
-                                 1.6915608452e+12 + 3.9835735402e+10j,
-                                 1.6688041604e+12 + 4.1484021645e+10j,
-                                 1.6460460966e+12 + 4.3072842159e+10j,
-                                 1.6232867705e+12 + 4.4602196207e+10j,
-                                 1.6005262987e+12 + 4.6072083256e+10j,
-                                 1.5777647978e+12 + 4.7482502976e+10j,
-                                 1.5550023845e+12 + 4.8833455241e+10j,
-                                 1.5322391754e+12 + 5.0124940128e+10j,
-                                 1.5094752871e+12 + 5.1356957918e+10j,
-                                 1.4867108362e+12 + 5.2529509093e+10j,
-                                 1.4639459395e+12 + 5.3642594342e+10j,
-                                 1.4411807134e+12 + 5.4696214555e+10j,
-                                 1.4184152746e+12 + 5.5690370826e+10j,
-                                 1.3956497397e+12 + 5.6625064451e+10j,
-                                 1.3728842254e+12 + 5.7500296932e+10j,
-                                 1.3501188481e+12 + 5.8316069972e+10j,
-                                 1.3273537246e+12 + 5.9072385477e+10j,
-                                 1.3045889714e+12 + 5.9769245560e+10j,
-                                 1.2818247051e+12 + 6.0406652532e+10j,
-                                 1.2590610424e+12 + 6.0984608912e+10j,
-                                 1.2362980996e+12 + 6.1503117419e+10j,
-                                 1.2135359936e+12 + 6.1962180977e+10j,
-                                 1.1907748407e+12 + 6.2361802713e+10j,
-                                 1.1680147576e+12 + 6.2701985956e+10j,
-                                 1.1452558608e+12 + 6.2982734240e+10j,
-                                 1.1224982669e+12 + 6.3204051301e+10j,
-                                 1.0997420924e+12 + 6.3365941080e+10j,
-                                 1.0769874538e+12 + 6.3468407718e+10j,
-                                 1.0542344676e+12 + 6.3511455561e+10j,
-                                 1.0314832504e+12 + 6.3495089159e+10j,
-                                 1.0087339187e+12 + 6.3419313265e+10j,
-                                 9.8598658892e+11 + 6.3284132832e+10j,
-                                 9.6324137757e+11 + 6.3089553021e+10j,
-                                 9.4049840113e+11 + 6.2835579191e+10j,
-                                 9.1775777605e+11 + 6.2522216909e+10j,
-                                 8.9501961879e+11 + 6.2149471941e+10j,
-                                 8.7228404579e+11 + 6.1717350259e+10j,
-                                 8.4955117347e+11 + 6.1225858036e+10j,
-                                 8.2682111826e+11 + 6.0675001648e+10j,
-                                 8.0409399656e+11 + 6.0064787676e+10j,
-                                 7.8136992476e+11 + 5.9395222903e+10j,
-                                 7.5864901923e+11 + 5.8666314312e+10j,
-                                 7.3593139635e+11 + 5.7878069094e+10j,
-                                 7.1321717247e+11 + 5.7030494640e+10j,
-                                 6.9050646392e+11 + 5.6123598543e+10j,
-                                 6.6779938704e+11 + 5.5157388601e+10j,
-                                 6.4509605813e+11 + 5.4131872814e+10j,
-                                 6.2239659348e+11 + 5.3047059384e+10j,
-                                 5.9970110939e+11 + 5.1902956716e+10j,
-                                 5.7700972210e+11 + 5.0699573420e+10j,
-                                 5.5432254788e+11 + 4.9436918305e+10j,
-                                 5.3163970295e+11 + 4.8115000386e+10j,
-                                 5.0896130353e+11 + 4.6733828878e+10j,
-                                 4.8628746583e+11 + 4.5293413201e+10j,
-                                 4.6361830601e+11 + 4.3793762975e+10j,
-                                 4.4095394026e+11 + 4.2234888026e+10j,
-                                 4.1829448472e+11 + 4.0616798379e+10j,
-                                 3.9564005551e+11 + 3.8939504264e+10j,
-                                 3.7299076875e+11 + 3.7203016111e+10j,
-                                 3.5034674052e+11 + 3.5407344556e+10j,
-                                 3.2770808692e+11 + 3.3552500435e+10j,
-                                 3.0507492397e+11 + 3.1638494786e+10j,
-                                 2.8244736773e+11 + 2.9665338851e+10j,
-                                 2.5982553421e+11 + 2.7633044074e+10j,
-                                 2.3720953939e+11 + 2.5541622099e+10j,
-                                 2.1459949925e+11 + 2.3391084776e+10j,
-                                 1.9199552975e+11 + 2.1181444154e+10j,
-                                 1.6939774681e+11 + 1.8912712486e+10j,
-                                 1.4680626634e+11 + 1.6584902227e+10j,
-                                 1.2422120423e+11 + 1.4198026033e+10j,
-                                 1.0164267634e+11 + 1.1752096764e+10j,
-                                 7.9070798521e+10 + 9.2471274799e+09j,
-                                 5.6505686581e+10 + 6.6831314440e+09j,
-                                 3.3947456317e+10 + 4.0601221211e+09j,
-                                 1.1396223503e+10 + 1.3781131781e+09j,
-                                 0.0000000000e+00 + 0.0000000000e+00j,
-                                 0.0000000000e+00 + 0.0000000000e+00j,
-                                 0.0000000000e+00 + 0.0000000000e+00j,
-                                 0.0000000000e+00 + 0.0000000000e+00j,
-                                 0.0000000000e+00 + 0.0000000000e+00j,
-                                 0.0000000000e+00 + 0.0000000000e+00j,
-                                 0.0000000000e+00 + 0.0000000000e+00j])
+        imp_fine_ref = np.array(
+            [
+                1.0504062083e12 + 0.0000000000e00j,
+                2.0781004955e12 + 2.7183115978e09j,
+                2.0553850965e12 + 5.3772054987e09j,
+                2.0326663360e12 + 7.9766773057e09j,
+                2.0099443306e12 + 1.0516722825e10j,
+                1.9872191969e12 + 1.2997338066e10j,
+                1.9644910516e12 + 1.5418519242e10j,
+                1.9417600113e12 + 1.7780262770e10j,
+                1.9190261924e12 + 2.0082565269e10j,
+                1.8962897118e12 + 2.2325423561e10j,
+                1.8735506859e12 + 2.4508834674e10j,
+                1.8508092314e12 + 2.6632795838e10j,
+                1.8280654649e12 + 2.8697304485e10j,
+                1.8053195030e12 + 3.0702358252e10j,
+                1.7825714624e12 + 3.2647954978e10j,
+                1.7598214597e12 + 3.4534092708e10j,
+                1.7370696115e12 + 3.6360769688e10j,
+                1.7143160345e12 + 3.8127984368e10j,
+                1.6915608452e12 + 3.9835735402e10j,
+                1.6688041604e12 + 4.1484021645e10j,
+                1.6460460966e12 + 4.3072842159e10j,
+                1.6232867705e12 + 4.4602196207e10j,
+                1.6005262987e12 + 4.6072083256e10j,
+                1.5777647978e12 + 4.7482502976e10j,
+                1.5550023845e12 + 4.8833455241e10j,
+                1.5322391754e12 + 5.0124940128e10j,
+                1.5094752871e12 + 5.1356957918e10j,
+                1.4867108362e12 + 5.2529509093e10j,
+                1.4639459395e12 + 5.3642594342e10j,
+                1.4411807134e12 + 5.4696214555e10j,
+                1.4184152746e12 + 5.5690370826e10j,
+                1.3956497397e12 + 5.6625064451e10j,
+                1.3728842254e12 + 5.7500296932e10j,
+                1.3501188481e12 + 5.8316069972e10j,
+                1.3273537246e12 + 5.9072385477e10j,
+                1.3045889714e12 + 5.9769245560e10j,
+                1.2818247051e12 + 6.0406652532e10j,
+                1.2590610424e12 + 6.0984608912e10j,
+                1.2362980996e12 + 6.1503117419e10j,
+                1.2135359936e12 + 6.1962180977e10j,
+                1.1907748407e12 + 6.2361802713e10j,
+                1.1680147576e12 + 6.2701985956e10j,
+                1.1452558608e12 + 6.2982734240e10j,
+                1.1224982669e12 + 6.3204051301e10j,
+                1.0997420924e12 + 6.3365941080e10j,
+                1.0769874538e12 + 6.3468407718e10j,
+                1.0542344676e12 + 6.3511455561e10j,
+                1.0314832504e12 + 6.3495089159e10j,
+                1.0087339187e12 + 6.3419313265e10j,
+                9.8598658892e11 + 6.3284132832e10j,
+                9.6324137757e11 + 6.3089553021e10j,
+                9.4049840113e11 + 6.2835579191e10j,
+                9.1775777605e11 + 6.2522216909e10j,
+                8.9501961879e11 + 6.2149471941e10j,
+                8.7228404579e11 + 6.1717350259e10j,
+                8.4955117347e11 + 6.1225858036e10j,
+                8.2682111826e11 + 6.0675001648e10j,
+                8.0409399656e11 + 6.0064787676e10j,
+                7.8136992476e11 + 5.9395222903e10j,
+                7.5864901923e11 + 5.8666314312e10j,
+                7.3593139635e11 + 5.7878069094e10j,
+                7.1321717247e11 + 5.7030494640e10j,
+                6.9050646392e11 + 5.6123598543e10j,
+                6.6779938704e11 + 5.5157388601e10j,
+                6.4509605813e11 + 5.4131872814e10j,
+                6.2239659348e11 + 5.3047059384e10j,
+                5.9970110939e11 + 5.1902956716e10j,
+                5.7700972210e11 + 5.0699573420e10j,
+                5.5432254788e11 + 4.9436918305e10j,
+                5.3163970295e11 + 4.8115000386e10j,
+                5.0896130353e11 + 4.6733828878e10j,
+                4.8628746583e11 + 4.5293413201e10j,
+                4.6361830601e11 + 4.3793762975e10j,
+                4.4095394026e11 + 4.2234888026e10j,
+                4.1829448472e11 + 4.0616798379e10j,
+                3.9564005551e11 + 3.8939504264e10j,
+                3.7299076875e11 + 3.7203016111e10j,
+                3.5034674052e11 + 3.5407344556e10j,
+                3.2770808692e11 + 3.3552500435e10j,
+                3.0507492397e11 + 3.1638494786e10j,
+                2.8244736773e11 + 2.9665338851e10j,
+                2.5982553421e11 + 2.7633044074e10j,
+                2.3720953939e11 + 2.5541622099e10j,
+                2.1459949925e11 + 2.3391084776e10j,
+                1.9199552975e11 + 2.1181444154e10j,
+                1.6939774681e11 + 1.8912712486e10j,
+                1.4680626634e11 + 1.6584902227e10j,
+                1.2422120423e11 + 1.4198026033e10j,
+                1.0164267634e11 + 1.1752096764e10j,
+                7.9070798521e10 + 9.2471274799e09j,
+                5.6505686581e10 + 6.6831314440e09j,
+                3.3947456317e10 + 4.0601221211e09j,
+                1.1396223503e10 + 1.3781131781e09j,
+                0.0000000000e00 + 0.0000000000e00j,
+                0.0000000000e00 + 0.0000000000e00j,
+                0.0000000000e00 + 0.0000000000e00j,
+                0.0000000000e00 + 0.0000000000e00j,
+                0.0000000000e00 + 0.0000000000e00j,
+                0.0000000000e00 + 0.0000000000e00j,
+                0.0000000000e00 + 0.0000000000e00j,
+            ]
+        )
 
-        imp_coarse_ref = np.array([1.0504062083e+12 + 0.0000000000e+00j,
-                                   2.0781004955e+12 + 2.7183115978e+09j,
-                                   2.0553850965e+12 + 5.3772054987e+09j,
-                                   2.0326663360e+12 + 7.9766773057e+09j,
-                                   2.0099443306e+12 + 1.0516722825e+10j,
-                                   1.9872191969e+12 + 1.2997338066e+10j,
-                                   1.9644910516e+12 + 1.5418519242e+10j,
-                                   1.9417600113e+12 + 1.7780262770e+10j,
-                                   1.9190261924e+12 + 2.0082565269e+10j,
-                                   1.8962897118e+12 + 2.2325423561e+10j,
-                                   1.8735506859e+12 + 2.4508834674e+10j,
-                                   1.8508092314e+12 + 2.6632795838e+10j,
-                                   1.8280654649e+12 + 2.8697304485e+10j,
-                                   1.8053195030e+12 + 3.0702358252e+10j,
-                                   1.7825714624e+12 + 3.2647954978e+10j,
-                                   1.7598214597e+12 + 3.4534092708e+10j,
-                                   1.7370696115e+12 + 3.6360769688e+10j,
-                                   1.7143160345e+12 + 3.8127984368e+10j,
-                                   1.6915608452e+12 + 3.9835735402e+10j,
-                                   1.6688041604e+12 + 4.1484021645e+10j,
-                                   1.6460460966e+12 + 4.3072842159e+10j,
-                                   1.6232867705e+12 + 4.4602196207e+10j,
-                                   1.6005262987e+12 + 4.6072083256e+10j,
-                                   1.5777647978e+12 + 4.7482502976e+10j,
-                                   1.5550023845e+12 + 4.8833455241e+10j,
-                                   1.5322391754e+12 + 5.0124940128e+10j,
-                                   1.5094752871e+12 + 5.1356957918e+10j,
-                                   1.4867108362e+12 + 5.2529509093e+10j,
-                                   1.4639459395e+12 + 5.3642594342e+10j,
-                                   1.4411807134e+12 + 5.4696214555e+10j,
-                                   1.4184152746e+12 + 5.5690370826e+10j,
-                                   1.3956497397e+12 + 5.6625064451e+10j,
-                                   1.3728842254e+12 + 5.7500296932e+10j,
-                                   1.3501188481e+12 + 5.8316069972e+10j,
-                                   1.3273537246e+12 + 5.9072385477e+10j,
-                                   1.3045889714e+12 + 5.9769245560e+10j,
-                                   1.2818247051e+12 + 6.0406652532e+10j,
-                                   1.2590610424e+12 + 6.0984608912e+10j,
-                                   1.2362980996e+12 + 6.1503117419e+10j,
-                                   1.2135359936e+12 + 6.1962180977e+10j,
-                                   1.1907748407e+12 + 6.2361802713e+10j,
-                                   1.1680147576e+12 + 6.2701985956e+10j,
-                                   1.1452558608e+12 + 6.2982734240e+10j,
-                                   1.1224982669e+12 + 6.3204051301e+10j,
-                                   1.0997420924e+12 + 6.3365941080e+10j,
-                                   1.0769874538e+12 + 6.3468407718e+10j,
-                                   1.0542344676e+12 + 6.3511455561e+10j,
-                                   1.0314832504e+12 + 6.3495089159e+10j,
-                                   1.0087339187e+12 + 6.3419313265e+10j,
-                                   9.8598658892e+11 + 6.3284132832e+10j,
-                                   9.6324137757e+11 + 6.3089553021e+10j,
-                                   9.4049840113e+11 + 6.2835579191e+10j,
-                                   9.1775777605e+11 + 6.2522216909e+10j,
-                                   8.9501961879e+11 + 6.2149471941e+10j,
-                                   8.7228404579e+11 + 6.1717350259e+10j,
-                                   8.4955117347e+11 + 6.1225858036e+10j,
-                                   8.2682111826e+11 + 6.0675001648e+10j,
-                                   8.0409399656e+11 + 6.0064787676e+10j,
-                                   7.8136992476e+11 + 5.9395222903e+10j,
-                                   7.5864901923e+11 + 5.8666314312e+10j,
-                                   7.3593139635e+11 + 5.7878069094e+10j,
-                                   7.1321717247e+11 + 5.7030494640e+10j,
-                                   6.9050646392e+11 + 5.6123598543e+10j,
-                                   6.6779938704e+11 + 5.5157388601e+10j,
-                                   6.4509605813e+11 + 5.4131872814e+10j,
-                                   6.2239659348e+11 + 5.3047059384e+10j,
-                                   5.9970110939e+11 + 5.1902956716e+10j,
-                                   5.7700972210e+11 + 5.0699573420e+10j,
-                                   5.5432254788e+11 + 4.9436918305e+10j,
-                                   5.3163970295e+11 + 4.8115000386e+10j,
-                                   5.0896130353e+11 + 4.6733828878e+10j,
-                                   4.8628746583e+11 + 4.5293413201e+10j,
-                                   4.6361830601e+11 + 4.3793762975e+10j,
-                                   4.4095394026e+11 + 4.2234888026e+10j,
-                                   4.1829448472e+11 + 4.0616798379e+10j,
-                                   3.9564005551e+11 + 3.8939504264e+10j,
-                                   3.7299076875e+11 + 3.7203016111e+10j,
-                                   3.5034674052e+11 + 3.5407344556e+10j,
-                                   3.2770808692e+11 + 3.3552500435e+10j,
-                                   3.0507492397e+11 + 3.1638494786e+10j,
-                                   2.8244736773e+11 + 2.9665338851e+10j,
-                                   2.5982553421e+11 + 2.7633044074e+10j,
-                                   2.3720953939e+11 + 2.5541622099e+10j,
-                                   2.1459949925e+11 + 2.3391084776e+10j,
-                                   1.9199552975e+11 + 2.1181444154e+10j,
-                                   1.6939774681e+11 + 1.8912712486e+10j,
-                                   1.4680626634e+11 + 1.6584902227e+10j,
-                                   1.2422120423e+11 + 1.4198026033e+10j,
-                                   1.0164267634e+11 + 1.1752096764e+10j,
-                                   7.9070798521e+10 + 9.2471274799e+09j,
-                                   5.6505686581e+10 + 6.6831314440e+09j,
-                                   3.3947456317e+10 + 4.0601221211e+09j,
-                                   1.1396223503e+10 + 1.3781131781e+09j,
-                                   0.0000000000e+00 + 0.0000000000e+00j,
-                                   0.0000000000e+00 + 0.0000000000e+00j,
-                                   0.0000000000e+00 + 0.0000000000e+00j,
-                                   0.0000000000e+00 + 0.0000000000e+00j,
-                                   0.0000000000e+00 + 0.0000000000e+00j,
-                                   0.0000000000e+00 + 0.0000000000e+00j,
-                                   0.0000000000e+00 + 0.0000000000e+00j])
+        imp_coarse_ref = np.array(
+            [
+                1.0504062083e12 + 0.0000000000e00j,
+                2.0781004955e12 + 2.7183115978e09j,
+                2.0553850965e12 + 5.3772054987e09j,
+                2.0326663360e12 + 7.9766773057e09j,
+                2.0099443306e12 + 1.0516722825e10j,
+                1.9872191969e12 + 1.2997338066e10j,
+                1.9644910516e12 + 1.5418519242e10j,
+                1.9417600113e12 + 1.7780262770e10j,
+                1.9190261924e12 + 2.0082565269e10j,
+                1.8962897118e12 + 2.2325423561e10j,
+                1.8735506859e12 + 2.4508834674e10j,
+                1.8508092314e12 + 2.6632795838e10j,
+                1.8280654649e12 + 2.8697304485e10j,
+                1.8053195030e12 + 3.0702358252e10j,
+                1.7825714624e12 + 3.2647954978e10j,
+                1.7598214597e12 + 3.4534092708e10j,
+                1.7370696115e12 + 3.6360769688e10j,
+                1.7143160345e12 + 3.8127984368e10j,
+                1.6915608452e12 + 3.9835735402e10j,
+                1.6688041604e12 + 4.1484021645e10j,
+                1.6460460966e12 + 4.3072842159e10j,
+                1.6232867705e12 + 4.4602196207e10j,
+                1.6005262987e12 + 4.6072083256e10j,
+                1.5777647978e12 + 4.7482502976e10j,
+                1.5550023845e12 + 4.8833455241e10j,
+                1.5322391754e12 + 5.0124940128e10j,
+                1.5094752871e12 + 5.1356957918e10j,
+                1.4867108362e12 + 5.2529509093e10j,
+                1.4639459395e12 + 5.3642594342e10j,
+                1.4411807134e12 + 5.4696214555e10j,
+                1.4184152746e12 + 5.5690370826e10j,
+                1.3956497397e12 + 5.6625064451e10j,
+                1.3728842254e12 + 5.7500296932e10j,
+                1.3501188481e12 + 5.8316069972e10j,
+                1.3273537246e12 + 5.9072385477e10j,
+                1.3045889714e12 + 5.9769245560e10j,
+                1.2818247051e12 + 6.0406652532e10j,
+                1.2590610424e12 + 6.0984608912e10j,
+                1.2362980996e12 + 6.1503117419e10j,
+                1.2135359936e12 + 6.1962180977e10j,
+                1.1907748407e12 + 6.2361802713e10j,
+                1.1680147576e12 + 6.2701985956e10j,
+                1.1452558608e12 + 6.2982734240e10j,
+                1.1224982669e12 + 6.3204051301e10j,
+                1.0997420924e12 + 6.3365941080e10j,
+                1.0769874538e12 + 6.3468407718e10j,
+                1.0542344676e12 + 6.3511455561e10j,
+                1.0314832504e12 + 6.3495089159e10j,
+                1.0087339187e12 + 6.3419313265e10j,
+                9.8598658892e11 + 6.3284132832e10j,
+                9.6324137757e11 + 6.3089553021e10j,
+                9.4049840113e11 + 6.2835579191e10j,
+                9.1775777605e11 + 6.2522216909e10j,
+                8.9501961879e11 + 6.2149471941e10j,
+                8.7228404579e11 + 6.1717350259e10j,
+                8.4955117347e11 + 6.1225858036e10j,
+                8.2682111826e11 + 6.0675001648e10j,
+                8.0409399656e11 + 6.0064787676e10j,
+                7.8136992476e11 + 5.9395222903e10j,
+                7.5864901923e11 + 5.8666314312e10j,
+                7.3593139635e11 + 5.7878069094e10j,
+                7.1321717247e11 + 5.7030494640e10j,
+                6.9050646392e11 + 5.6123598543e10j,
+                6.6779938704e11 + 5.5157388601e10j,
+                6.4509605813e11 + 5.4131872814e10j,
+                6.2239659348e11 + 5.3047059384e10j,
+                5.9970110939e11 + 5.1902956716e10j,
+                5.7700972210e11 + 5.0699573420e10j,
+                5.5432254788e11 + 4.9436918305e10j,
+                5.3163970295e11 + 4.8115000386e10j,
+                5.0896130353e11 + 4.6733828878e10j,
+                4.8628746583e11 + 4.5293413201e10j,
+                4.6361830601e11 + 4.3793762975e10j,
+                4.4095394026e11 + 4.2234888026e10j,
+                4.1829448472e11 + 4.0616798379e10j,
+                3.9564005551e11 + 3.8939504264e10j,
+                3.7299076875e11 + 3.7203016111e10j,
+                3.5034674052e11 + 3.5407344556e10j,
+                3.2770808692e11 + 3.3552500435e10j,
+                3.0507492397e11 + 3.1638494786e10j,
+                2.8244736773e11 + 2.9665338851e10j,
+                2.5982553421e11 + 2.7633044074e10j,
+                2.3720953939e11 + 2.5541622099e10j,
+                2.1459949925e11 + 2.3391084776e10j,
+                1.9199552975e11 + 2.1181444154e10j,
+                1.6939774681e11 + 1.8912712486e10j,
+                1.4680626634e11 + 1.6584902227e10j,
+                1.2422120423e11 + 1.4198026033e10j,
+                1.0164267634e11 + 1.1752096764e10j,
+                7.9070798521e10 + 9.2471274799e09j,
+                5.6505686581e10 + 6.6831314440e09j,
+                3.3947456317e10 + 4.0601221211e09j,
+                1.1396223503e10 + 1.3781131781e09j,
+                0.0000000000e00 + 0.0000000000e00j,
+                0.0000000000e00 + 0.0000000000e00j,
+                0.0000000000e00 + 0.0000000000e00j,
+                0.0000000000e00 + 0.0000000000e00j,
+                0.0000000000e00 + 0.0000000000e00j,
+                0.0000000000e00 + 0.0000000000e00j,
+                0.0000000000e00 + 0.0000000000e00j,
+            ]
+        )
 
-        np.testing.assert_allclose(-imp_fine_meas[:-7], np.conj(imp_fine_ref[:-7]), rtol=1e-8,
-                                   atol=0, err_msg="In TestTravelingWaveCavity test_beam_fine_coarse,"
-                                   "mismatch in beam impulse response on fine grid")
-        np.testing.assert_allclose(-imp_coarse_meas[:-7], np.conj(imp_coarse_ref[:-7]), rtol=1e-8,
-                                   atol=0, err_msg="In TestTravelingWaveCavity test_beam_fine_coarse,"
-                                   "mismatch in beam impulse response on coarse grid")
+        np.testing.assert_allclose(
+            -imp_fine_meas[:-7],
+            np.conj(imp_fine_ref[:-7]),
+            rtol=1e-8,
+            atol=0,
+            err_msg="In TestTravelingWaveCavity test_beam_fine_coarse,"
+            "mismatch in beam impulse response on fine grid",
+        )
+        np.testing.assert_allclose(
+            -imp_coarse_meas[:-7],
+            np.conj(imp_coarse_ref[:-7]),
+            rtol=1e-8,
+            atol=0,
+            err_msg="In TestTravelingWaveCavity test_beam_fine_coarse,"
+            "mismatch in beam impulse response on coarse grid",
+        )
 
-        Vind_fine_meas = OTFB.V_IND_FINE_BEAM[-OTFB.profile.n_slices:]
-        Vind_coarse_meas = OTFB.V_IND_COARSE_BEAM[-OTFB.n_coarse:]
+        Vind_fine_meas = OTFB.V_IND_FINE_BEAM[-OTFB.profile.n_slices :]
+        Vind_coarse_meas = OTFB.V_IND_COARSE_BEAM[-OTFB.n_coarse :]
         Vind_fine_meas = (Vind_fine_meas[::1000])[:100]
         Vind_coarse_meas = Vind_coarse_meas[:100]
 
-        Vind_fine_ref = np.array([-8.377562510703072e-11+-1.6493326192946672e-10j,
-                                -131104.898159313+162.8286057825999j,
-                                -129679.59873312167+331.48363499385994j,
-                                -128254.08484675355+496.41015353530656j,
-                                -126828.36381576584+657.6078921159265j,
-                                -125402.44295604786+815.0765942020347j,
-                                -255081.2277431158+1131.6446218046628j,
-                                -252229.6297486465+1450.3095615540774j,
-                                -249377.63941473255+1761.5162610991324j,
-                                -246525.2713739458+2065.2642456541594j,
-                                -243672.54025942014+2361.553065954503j,
-                                -371924.35886412347+2813.2109040370938j,
-                                -367645.64607737283+3263.2351793214957j,
-                                -363366.3996590664+3702.070585006191j,
-                                -359086.64155972796+4129.716504618625j,
-                                -354806.393730568+4546.172359965353j,
-                                -481630.57628273463+5114.266216918351j,
-                                -475924.11542380793+5676.995391492569j,
-                                -470217.0162320119+6224.8044862453835j,
-                                -464509.30797623686+6757.692806821797j,
-                                -458801.01992608065+7275.659709909355j,
-                                -584197.0795110783+7941.533209021842j,
-                                -577062.420257175+8598.31058057874j,
-                                -569927.0545609187+9236.436400301049j,
-                                -562791.0190094594+9855.909959759485j,
-                                -555654.3501905717+10456.730614327396j,
-                                -679621.9828518619+11201.726388967127j,
-                                -671058.8578372216+11933.894584302849j,
-                                -662494.9948609982+12643.679813023333j,
-                                -653930.4378279739+13331.081416425377j,
-                                -645365.2306433674+13996.098812369557j,
-                                -767904.3153720201+14801.560101061223j,
-                                -757912.6401748285+15590.462671128154j,
-                                -747920.2320828941+16353.25123601875j,
-                                -737927.1423174822+17089.925250549597j,
-                                -727933.422100001+17800.484258854238j,
-                                -849044.02081117+18647.756500169828j,
-                                -837623.8939274275+19474.7395149101j,
-                                -826203.0757950627+20271.878181066593j,
-                                -814781.624950153+21039.17213075027j,
-                                -803359.599928522+21776.62109814515j,
-                                -923041.9574248856+22647.053525289946j,
-                                -910193.6602292416+23493.46716815407j,
-                                -897344.7500009789+24306.30713303325j,
-                                -884495.2925887948+25085.57329309533j,
-                                -871645.3538406307+25831.26563632919j,
-                                -989899.8977628001+26706.212871329706j,
-                                -975623.8944563548+27553.41303336667j,
-                                -961347.3928911742+28363.311520785446j,
-                                -947070.4662258619+29135.90851154788j,
-                                -932793.1876176605+29871.204311183297j,
-                                -1049620.528381558+30732.02795856845j,
-                                -1033917.465926636+31561.37783199827j,
-                                -1018214.0565301337+32349.699685585645j,
-                                -1002510.3806573264+33096.9940658001j,
-                                -986806.5187714203+33803.26165941662j,
-                                -1102207.4494926366+34631.33189929579j,
-                                -1085078.1575345371+35424.2035704537j,
-                                -1067948.7064780714+36172.32284645944j,
-                                -1050819.184091433+36875.690705971116j,
-                                -1033689.6781399314+37534.30828068673j,
-                                -1147665.1745450576+38311.00546112017j,
-                                -1129110.6653207876+39048.78150267138j,
-                                -1110556.221347611+39738.08306202067j,
-                                -1092001.9376923623+40378.91161366504j,
-                                -1073447.9094180765+40971.2687978653j,
-                                -1185999.1297430291+41677.98502642455j,
-                                -1166020.5979770254+42342.06008875023j,
-                                -1146042.392295402+42953.941188253484j,
-                                -1126064.6150588398+43513.6303588798j,
-                                -1106087.3686231992+44021.12981305722j,
-                                -1217215.6534985395+44639.27054746928j,
-                                -1195814.4762853847+45211.05294911979j,
-                                -1174413.9224487087+45726.92483172539j,
-                                -1153014.101637723+46186.8888522506j,
-                                -1131615.1234956945+46590.94785884748j,
-                                -1241321.9958189435+47101.93349663218j,
-                                -1218499.7324930872+47562.846813743636j,
-                                -1195678.4262670036+47964.13629773885j,
-                                -1172858.1940726028+48305.80529212065j,
-                                -1150039.152834619+48587.85734427913j,
-                                -1258326.3176295897+48973.12481126408j,
-                                -1234084.7096220788+49304.60946584404j,
-                                -1209844.4288386214+49572.760532895816j,
-                                -1185605.5994874702+49777.58210593356j,
-                                -1161368.34576837+49919.07849504577j,
-                                -1268237.6900315147+50160.082832667875j,
-                                -1242578.6607137513+50343.59767963545j,
-                                -1216921.3651125005+50460.073061575196j,
-                                -1191265.9347054875+50509.51388542866j,
-                                -1165612.5009604895+50491.92528739046j,
-                                -1271066.0934942793+50570.14123867374j,
-                                -1243991.7480088023+50587.16515156518j,
-                                -1216963.0109105688+50503.68424204401j,
-                                -1191265.934705487+50509.513885429544j,
-                                -1165612.5009604895+50491.92528739132j,
-                                -1271066.0934942795+50570.14123867463j,
-                                -1243991.7480088032+50587.16515156587j,
-                                -1216963.010910569+50503.68424204504j,
-                                -1191265.934705487+50509.51388543046j])
+        Vind_fine_ref = np.array(
+            [
+                -8.377562510703072e-11 + -1.6493326192946672e-10j,
+                -131104.898159313 + 162.8286057825999j,
+                -129679.59873312167 + 331.48363499385994j,
+                -128254.08484675355 + 496.41015353530656j,
+                -126828.36381576584 + 657.6078921159265j,
+                -125402.44295604786 + 815.0765942020347j,
+                -255081.2277431158 + 1131.6446218046628j,
+                -252229.6297486465 + 1450.3095615540774j,
+                -249377.63941473255 + 1761.5162610991324j,
+                -246525.2713739458 + 2065.2642456541594j,
+                -243672.54025942014 + 2361.553065954503j,
+                -371924.35886412347 + 2813.2109040370938j,
+                -367645.64607737283 + 3263.2351793214957j,
+                -363366.3996590664 + 3702.070585006191j,
+                -359086.64155972796 + 4129.716504618625j,
+                -354806.393730568 + 4546.172359965353j,
+                -481630.57628273463 + 5114.266216918351j,
+                -475924.11542380793 + 5676.995391492569j,
+                -470217.0162320119 + 6224.8044862453835j,
+                -464509.30797623686 + 6757.692806821797j,
+                -458801.01992608065 + 7275.659709909355j,
+                -584197.0795110783 + 7941.533209021842j,
+                -577062.420257175 + 8598.31058057874j,
+                -569927.0545609187 + 9236.436400301049j,
+                -562791.0190094594 + 9855.909959759485j,
+                -555654.3501905717 + 10456.730614327396j,
+                -679621.9828518619 + 11201.726388967127j,
+                -671058.8578372216 + 11933.894584302849j,
+                -662494.9948609982 + 12643.679813023333j,
+                -653930.4378279739 + 13331.081416425377j,
+                -645365.2306433674 + 13996.098812369557j,
+                -767904.3153720201 + 14801.560101061223j,
+                -757912.6401748285 + 15590.462671128154j,
+                -747920.2320828941 + 16353.25123601875j,
+                -737927.1423174822 + 17089.925250549597j,
+                -727933.422100001 + 17800.484258854238j,
+                -849044.02081117 + 18647.756500169828j,
+                -837623.8939274275 + 19474.7395149101j,
+                -826203.0757950627 + 20271.878181066593j,
+                -814781.624950153 + 21039.17213075027j,
+                -803359.599928522 + 21776.62109814515j,
+                -923041.9574248856 + 22647.053525289946j,
+                -910193.6602292416 + 23493.46716815407j,
+                -897344.7500009789 + 24306.30713303325j,
+                -884495.2925887948 + 25085.57329309533j,
+                -871645.3538406307 + 25831.26563632919j,
+                -989899.8977628001 + 26706.212871329706j,
+                -975623.8944563548 + 27553.41303336667j,
+                -961347.3928911742 + 28363.311520785446j,
+                -947070.4662258619 + 29135.90851154788j,
+                -932793.1876176605 + 29871.204311183297j,
+                -1049620.528381558 + 30732.02795856845j,
+                -1033917.465926636 + 31561.37783199827j,
+                -1018214.0565301337 + 32349.699685585645j,
+                -1002510.3806573264 + 33096.9940658001j,
+                -986806.5187714203 + 33803.26165941662j,
+                -1102207.4494926366 + 34631.33189929579j,
+                -1085078.1575345371 + 35424.2035704537j,
+                -1067948.7064780714 + 36172.32284645944j,
+                -1050819.184091433 + 36875.690705971116j,
+                -1033689.6781399314 + 37534.30828068673j,
+                -1147665.1745450576 + 38311.00546112017j,
+                -1129110.6653207876 + 39048.78150267138j,
+                -1110556.221347611 + 39738.08306202067j,
+                -1092001.9376923623 + 40378.91161366504j,
+                -1073447.9094180765 + 40971.2687978653j,
+                -1185999.1297430291 + 41677.98502642455j,
+                -1166020.5979770254 + 42342.06008875023j,
+                -1146042.392295402 + 42953.941188253484j,
+                -1126064.6150588398 + 43513.6303588798j,
+                -1106087.3686231992 + 44021.12981305722j,
+                -1217215.6534985395 + 44639.27054746928j,
+                -1195814.4762853847 + 45211.05294911979j,
+                -1174413.9224487087 + 45726.92483172539j,
+                -1153014.101637723 + 46186.8888522506j,
+                -1131615.1234956945 + 46590.94785884748j,
+                -1241321.9958189435 + 47101.93349663218j,
+                -1218499.7324930872 + 47562.846813743636j,
+                -1195678.4262670036 + 47964.13629773885j,
+                -1172858.1940726028 + 48305.80529212065j,
+                -1150039.152834619 + 48587.85734427913j,
+                -1258326.3176295897 + 48973.12481126408j,
+                -1234084.7096220788 + 49304.60946584404j,
+                -1209844.4288386214 + 49572.760532895816j,
+                -1185605.5994874702 + 49777.58210593356j,
+                -1161368.34576837 + 49919.07849504577j,
+                -1268237.6900315147 + 50160.082832667875j,
+                -1242578.6607137513 + 50343.59767963545j,
+                -1216921.3651125005 + 50460.073061575196j,
+                -1191265.9347054875 + 50509.51388542866j,
+                -1165612.5009604895 + 50491.92528739046j,
+                -1271066.0934942793 + 50570.14123867374j,
+                -1243991.7480088023 + 50587.16515156518j,
+                -1216963.0109105688 + 50503.68424204401j,
+                -1191265.934705487 + 50509.513885429544j,
+                -1165612.5009604895 + 50491.92528739132j,
+                -1271066.0934942795 + 50570.14123867463j,
+                -1243991.7480088032 + 50587.16515156587j,
+                -1216963.010910569 + 50503.68424204504j,
+                -1191265.934705487 + 50509.51388543046j,
+            ]
+        )
 
-        Vind_coarse_ref = np.array([-65904.66638940957+1.981790233338957j,
-                                -130384.33456985156+174.47323597420322j,
-                                -128959.11825389834+341.25489541744935j,
-                                -127533.69114568745+504.30828313725647j,
-                                -126108.06056029051+663.6331362321833j,
-                                -190586.90020251193+821.2109947920824j,
-                                -253640.55278967103+1145.5694867061763j,
-                                -250789.13935031835+1460.4889455428977j,
-                                -247937.34090482973+1767.9506740092127j,
-                                -245085.17208475445+2067.9542100957633j,
-                                -308137.31391159334+2362.4809075441894j,
-                                -369764.1164195602+2820.0582206554745j,
-                                -365485.70795427635+3264.466322169293j,
-                                -361206.77685334504+3697.6863667247626j,
-                                -356927.34506567783+4119.7177570047725j,
-                                -418552.1009302523+4532.541724203488j,
-                                -478751.4017988522+5104.6856128348445j,
-                                -473045.38333474164+5659.92949861221j,
-                                -467338.7411932183+6200.25445190888j,
-                                -461631.5046409194+6725.659803902063j,
-                                -521828.36933455744+7238.126727041466j,
-                                -580599.6999436407+7906.182519855801j,
-                                -573465.6394491266+8553.607224834172j,
-                                -566330.8908239525+9182.381891885207j,
-                                -559195.4906523224+9792.505844481617j,
-                                -617964.1419084213+10385.960260127707j,
-                                -675307.2165791153+11131.27245516679j,
-                                -666744.8649625821+11852.222502660748j,
-                                -658181.7973488244+12550.791495850279j,
-                                -649618.0576389326+13226.978814298245j,
-                                -706958.3561237798+13882.765704357038j,
-                                -762873.0721067007+14686.679563975493j,
-                                -752882.3632021019+15462.500560578157j,
-                                -742890.9470159522+16212.209894524773j,
-                                -732898.874765028+16935.8070652534j,
-                                -788810.8640555847+17635.273451747216j,
-                                -843297.3015060149+18479.13659734031j,
-                                -831878.3520454398+19291.176827596897j,
-                                -820458.7405941773+20073.375513770057j,
-                                -809038.5256829652+20825.732338944093j,
-                                -863522.4322316145+21550.22887850023j,
-                                -916580.8541716451+22415.392884922458j,
-                                -903733.9637448567+23245.00490567519j,
-                                -890886.4931837756+24041.046546661568j,
-                                -878038.5083308584+24803.517738364902j,
-                                -931094.7414171229+25534.400316313666j,
-                                -982725.5936847639+26402.222305885734j,
-                                -968451.2446857026+27230.764540186028j,
-                                -954176.4339620133+28022.008923503236j,
-                                -939901.2346651062+28775.95569745038j,
-                                -991530.3863343361+29494.58702142895j,
-                                -1041734.2975195998+30346.431257431675j,
-                                -1026033.1550798625+31155.269587919145j,
-                                -1010331.705863565+31923.084279275634j,
-                                -994630.0303277841+32649.875947948523j,
-                                -1044832.8753168231+33337.62714091061j,
-                                -1093610.6566847856+34154.86662046252j,
-                                -1076483.5685940825+34925.37598210712j,
-                                -1059356.3651958187+35651.13791800497j,
-                                -1042229.1342489318+36332.15348311162j,
-                                -1091006.629898762+36970.40567563893j,
-                                -1138359.275299606+37734.423721856j,
-                                -1119807.2719132013+38447.98969396225j,
-                                -1101255.381189094+39113.086773541225j,
-                                -1082703.6981837556+39729.71651769605j,
-                                -1130056.9843391334+40299.862439510434j,
-                                -1175985.6701051802+40992.05429284631j,
-                                -1156009.9642383237+41630.074690216716j,
-                                -1136034.6354818067+42215.90736623714j,
-                                -1116059.7861847887+42749.55444376002j,
-                                -1161990.1850808708+43233.00001433314j,
-                                -1206496.269910611+43834.774422996394j,
-                                -1185098.2567199643+44378.66088615219j,
-                                -1163700.9215406107+44866.64375501549j,
-                                -1142304.3740090292+45298.72578174646j,
-                                -1186813.3901450066+45676.89169990683j,
-                                -1229898.4149741288+46169.67250925432j,
-                                -1207079.6718262022+46600.85209361198j,
-                                -1184261.94401556+46972.41548431586j,
-                                -1161445.3484601162+47284.36612634552j,
-                                -1204534.6684598525+47538.68945877864j,
-                                -1246200.3563192892+47903.9171995829j,
-                                -1221962.6426458873+48203.83396348386j,
-                                -1197726.3180303322+48440.425525410385j,
-                                -1173491.506665567+48613.69608662214j,
-                                -1215162.9991252595+48725.631855163476j,
-                                -1255411.2549862536+48944.76533065199j,
-                                -1229756.5121269473+49094.88192214417j,
-                                -1204103.568407558+49177.96821157892j,
-                                -1178452.5552891353+49194.02921990315j,
-                                -1218708.2706120072+49145.051987521976j,
-                                -1257541.181218207+49199.56985908622j,
-                                -1230471.5322498383+49181.369101355005j,
-                                -1204103.568407558+49177.96821157999j,
-                                -1178452.555289135+49194.0292199041j,
-                                -1218708.2706120072+49145.05198752297j,
-                                -1257541.181218207+49199.56985908717j,
-                                -1230471.532249838+49181.3691013557j,
-                                -1204103.568407558+49177.96821158078j,
-                                -1178452.5552891348+49194.02921990495j])
+        Vind_coarse_ref = np.array(
+            [
+                -65904.66638940957 + 1.981790233338957j,
+                -130384.33456985156 + 174.47323597420322j,
+                -128959.11825389834 + 341.25489541744935j,
+                -127533.69114568745 + 504.30828313725647j,
+                -126108.06056029051 + 663.6331362321833j,
+                -190586.90020251193 + 821.2109947920824j,
+                -253640.55278967103 + 1145.5694867061763j,
+                -250789.13935031835 + 1460.4889455428977j,
+                -247937.34090482973 + 1767.9506740092127j,
+                -245085.17208475445 + 2067.9542100957633j,
+                -308137.31391159334 + 2362.4809075441894j,
+                -369764.1164195602 + 2820.0582206554745j,
+                -365485.70795427635 + 3264.466322169293j,
+                -361206.77685334504 + 3697.6863667247626j,
+                -356927.34506567783 + 4119.7177570047725j,
+                -418552.1009302523 + 4532.541724203488j,
+                -478751.4017988522 + 5104.6856128348445j,
+                -473045.38333474164 + 5659.92949861221j,
+                -467338.7411932183 + 6200.25445190888j,
+                -461631.5046409194 + 6725.659803902063j,
+                -521828.36933455744 + 7238.126727041466j,
+                -580599.6999436407 + 7906.182519855801j,
+                -573465.6394491266 + 8553.607224834172j,
+                -566330.8908239525 + 9182.381891885207j,
+                -559195.4906523224 + 9792.505844481617j,
+                -617964.1419084213 + 10385.960260127707j,
+                -675307.2165791153 + 11131.27245516679j,
+                -666744.8649625821 + 11852.222502660748j,
+                -658181.7973488244 + 12550.791495850279j,
+                -649618.0576389326 + 13226.978814298245j,
+                -706958.3561237798 + 13882.765704357038j,
+                -762873.0721067007 + 14686.679563975493j,
+                -752882.3632021019 + 15462.500560578157j,
+                -742890.9470159522 + 16212.209894524773j,
+                -732898.874765028 + 16935.8070652534j,
+                -788810.8640555847 + 17635.273451747216j,
+                -843297.3015060149 + 18479.13659734031j,
+                -831878.3520454398 + 19291.176827596897j,
+                -820458.7405941773 + 20073.375513770057j,
+                -809038.5256829652 + 20825.732338944093j,
+                -863522.4322316145 + 21550.22887850023j,
+                -916580.8541716451 + 22415.392884922458j,
+                -903733.9637448567 + 23245.00490567519j,
+                -890886.4931837756 + 24041.046546661568j,
+                -878038.5083308584 + 24803.517738364902j,
+                -931094.7414171229 + 25534.400316313666j,
+                -982725.5936847639 + 26402.222305885734j,
+                -968451.2446857026 + 27230.764540186028j,
+                -954176.4339620133 + 28022.008923503236j,
+                -939901.2346651062 + 28775.95569745038j,
+                -991530.3863343361 + 29494.58702142895j,
+                -1041734.2975195998 + 30346.431257431675j,
+                -1026033.1550798625 + 31155.269587919145j,
+                -1010331.705863565 + 31923.084279275634j,
+                -994630.0303277841 + 32649.875947948523j,
+                -1044832.8753168231 + 33337.62714091061j,
+                -1093610.6566847856 + 34154.86662046252j,
+                -1076483.5685940825 + 34925.37598210712j,
+                -1059356.3651958187 + 35651.13791800497j,
+                -1042229.1342489318 + 36332.15348311162j,
+                -1091006.629898762 + 36970.40567563893j,
+                -1138359.275299606 + 37734.423721856j,
+                -1119807.2719132013 + 38447.98969396225j,
+                -1101255.381189094 + 39113.086773541225j,
+                -1082703.6981837556 + 39729.71651769605j,
+                -1130056.9843391334 + 40299.862439510434j,
+                -1175985.6701051802 + 40992.05429284631j,
+                -1156009.9642383237 + 41630.074690216716j,
+                -1136034.6354818067 + 42215.90736623714j,
+                -1116059.7861847887 + 42749.55444376002j,
+                -1161990.1850808708 + 43233.00001433314j,
+                -1206496.269910611 + 43834.774422996394j,
+                -1185098.2567199643 + 44378.66088615219j,
+                -1163700.9215406107 + 44866.64375501549j,
+                -1142304.3740090292 + 45298.72578174646j,
+                -1186813.3901450066 + 45676.89169990683j,
+                -1229898.4149741288 + 46169.67250925432j,
+                -1207079.6718262022 + 46600.85209361198j,
+                -1184261.94401556 + 46972.41548431586j,
+                -1161445.3484601162 + 47284.36612634552j,
+                -1204534.6684598525 + 47538.68945877864j,
+                -1246200.3563192892 + 47903.9171995829j,
+                -1221962.6426458873 + 48203.83396348386j,
+                -1197726.3180303322 + 48440.425525410385j,
+                -1173491.506665567 + 48613.69608662214j,
+                -1215162.9991252595 + 48725.631855163476j,
+                -1255411.2549862536 + 48944.76533065199j,
+                -1229756.5121269473 + 49094.88192214417j,
+                -1204103.568407558 + 49177.96821157892j,
+                -1178452.5552891353 + 49194.02921990315j,
+                -1218708.2706120072 + 49145.051987521976j,
+                -1257541.181218207 + 49199.56985908622j,
+                -1230471.5322498383 + 49181.369101355005j,
+                -1204103.568407558 + 49177.96821157999j,
+                -1178452.555289135 + 49194.0292199041j,
+                -1218708.2706120072 + 49145.05198752297j,
+                -1257541.181218207 + 49199.56985908717j,
+                -1230471.532249838 + 49181.3691013557j,
+                -1204103.568407558 + 49177.96821158078j,
+                -1178452.5552891348 + 49194.02921990495j,
+            ]
+        )
 
-        np.testing.assert_allclose(Vind_fine_meas, Vind_fine_ref, rtol=1e-8,
-                                   atol=1e-9, err_msg="In TestTravelingWaveCavity test_beam_fine_coarse,"
-                                   "mismatch in beam-induced voltage on fine grid")
-        np.testing.assert_allclose(Vind_coarse_meas, Vind_coarse_ref, rtol=1e-8,
-                                   atol=0, err_msg="In TestTravelingWaveCavity test_beam_fine_coarse,"
-                                   "mismatch in beam-induced voltage on coarse grid")
+        np.testing.assert_allclose(
+            Vind_fine_meas,
+            Vind_fine_ref,
+            rtol=1e-8,
+            atol=1e-9,
+            err_msg="In TestTravelingWaveCavity test_beam_fine_coarse,"
+            "mismatch in beam-induced voltage on fine grid",
+        )
+        np.testing.assert_allclose(
+            Vind_coarse_meas,
+            Vind_coarse_ref,
+            rtol=1e-8,
+            atol=0,
+            err_msg="In TestTravelingWaveCavity test_beam_fine_coarse,"
+            "mismatch in beam-induced voltage on coarse grid",
+        )
 
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     unittest.main()

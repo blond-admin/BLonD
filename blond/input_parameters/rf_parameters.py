@@ -22,7 +22,7 @@ import scipy
 from packaging.version import Version
 from scipy.constants import c
 
-from ..beam.beam import Particle,Proton
+from ..beam.beam import Particle, Proton
 from .rf_parameters_options import RFStationOptions
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 
 
 class RFStation:
-    r""" Class containing all the RF parameters for all the RF systems in one
+    r"""Class containing all the RF parameters for all the RF systems in one
     ring segment or RF station.
 
     **How to use RF programs:**
@@ -234,20 +234,29 @@ class RFStation:
     """
 
     @handle_legacy_kwargs
-    def __init__(self, ring: Ring, harmonic: int| list[int], voltage: float | list[float], phi_rf_d,
-                 n_rf=1,
-                 section_index=1, omega_rf=None, phi_noise=None,
-                 phi_modulation=None, rf_station_options: Optional[RFStationOptions] = None):
+    def __init__(
+        self,
+        ring: Ring,
+        harmonic: int | list[int],
+        voltage: float | list[float],
+        phi_rf_d,
+        n_rf=1,
+        section_index=1,
+        omega_rf=None,
+        phi_noise=None,
+        phi_modulation=None,
+        rf_station_options: Optional[RFStationOptions] = None,
+    ):
         if rf_station_options is None:
             rf_station_options = RFStationOptions()
 
         # Different indices
         self.counter = [int(0)]
         self.section_index = int(section_index - 1)
-        if self.section_index < 0 \
-                or self.section_index > ring.n_sections - 1:
-            raise RuntimeError("ERROR in RFStation: section_index out of" +
-                               " allowed range!")
+        if self.section_index < 0 or self.section_index > ring.n_sections - 1:
+            raise RuntimeError(
+                "ERROR in RFStation: section_index out of" + " allowed range!"
+            )
         self.n_rf = int(n_rf)
 
         # Imported from Ring
@@ -255,7 +264,9 @@ class RFStation:
         self.n_turns = ring.n_turns
         self.ring_circumference = ring.ring_circumference
         self.section_length = ring.ring_length[self.section_index]
-        self.length_ratio = float(self.section_length / self.ring_circumference)
+        self.length_ratio = float(
+            self.section_length / self.ring_circumference
+        )
         self.t_rev = ring.t_rev
         self.momentum = ring.momentum[self.section_index]
         self.beta = ring.beta[self.section_index]
@@ -289,22 +300,30 @@ class RFStation:
 
         # Reshape input rf programs
         # Reshape design harmonic
-        self.harmonic = rf_station_options.reshape_data(harmonic,
-                                                        self.n_turns,
-                                                        self.n_rf,
-                                                        ring.cycle_time,
-                                                        ring.ring_options.t_start)
-        self.harmonic = self.harmonic.astype(bm.precision.real_t, order='C', copy=False)
+        self.harmonic = rf_station_options.reshape_data(
+            harmonic,
+            self.n_turns,
+            self.n_rf,
+            ring.cycle_time,
+            ring.ring_options.t_start,
+        )
+        self.harmonic = self.harmonic.astype(
+            bm.precision.real_t, order="C", copy=False
+        )
 
         # Reshape design voltage
-        self.voltage = rf_station_options.reshape_data(voltage,
-                                                       self.n_turns,
-                                                       self.n_rf,
-                                                       ring.cycle_time,
-                                                       ring.ring_options.t_start)
-        self.voltage = self.voltage.astype(bm.precision.real_t,
-                                           order='F', # F contigous, so voltage[:,turn_i] is contigous
-                                           copy=False)
+        self.voltage = rf_station_options.reshape_data(
+            voltage,
+            self.n_turns,
+            self.n_rf,
+            ring.cycle_time,
+            ring.ring_options.t_start,
+        )
+        self.voltage = self.voltage.astype(
+            bm.precision.real_t,
+            order="F",  # F contigous, so voltage[:,turn_i] is contigous
+            copy=False,
+        )
         # Checking if the RFStation is empty
         if np.sum(self.voltage) == 0:
             self.empty = True
@@ -312,24 +331,35 @@ class RFStation:
             self.empty = False
 
         # Reshape design phase
-        self.phi_rf_d = rf_station_options.reshape_data(phi_rf_d,
-                                                        self.n_turns,
-                                                        self.n_rf,
-                                                        ring.cycle_time,
-                                                        ring.ring_options.t_start)
+        self.phi_rf_d = rf_station_options.reshape_data(
+            phi_rf_d,
+            self.n_turns,
+            self.n_rf,
+            ring.cycle_time,
+            ring.ring_options.t_start,
+        )
 
         # Calculating design rf angular frequency
         if omega_rf is None:
-            self.omega_rf_d = 2. * np.pi * self.beta * c * self.harmonic / \
-                              (self.ring_circumference)
+            self.omega_rf_d = (
+                2.0
+                * np.pi
+                * self.beta
+                * c
+                * self.harmonic
+                / (self.ring_circumference)
+            )
         else:
             self.omega_rf_d = rf_station_options.reshape_data(
                 omega_rf,
                 self.n_turns,
                 self.n_rf,
                 ring.cycle_time,
-                ring.ring_options.t_start)
-        self.omega_rf_d = self.omega_rf_d.astype(bm.precision.real_t, order='C', copy=False)
+                ring.ring_options.t_start,
+            )
+        self.omega_rf_d = self.omega_rf_d.astype(
+            bm.precision.real_t, order="C", copy=False
+        )
 
         # Reshape phase noise
         if phi_noise is not None:
@@ -338,21 +368,27 @@ class RFStation:
                 self.n_turns,
                 self.n_rf,
                 ring.cycle_time,
-                ring.ring_options.t_start)
-            self.phi_noise = self.phi_noise.astype(bm.precision.real_t, order='C', copy=False)
+                ring.ring_options.t_start,
+            )
+            self.phi_noise = self.phi_noise.astype(
+                bm.precision.real_t, order="C", copy=False
+            )
 
         else:
             self.phi_noise = None
 
         if phi_modulation is not None:
-
             try:
                 iter(phi_modulation)
             except TypeError:
                 phi_modulation = [phi_modulation]
 
-            dPhi = np.zeros([self.n_rf, self.n_turns + 1], dtype=bm.precision.real_t)
-            dOmega = np.zeros([self.n_rf, self.n_turns + 1], dtype=bm.precision.real_t)
+            dPhi = np.zeros(
+                [self.n_rf, self.n_turns + 1], dtype=bm.precision.real_t
+            )
+            dOmega = np.zeros(
+                [self.n_rf, self.n_turns + 1], dtype=bm.precision.real_t
+            )
             for pMod in phi_modulation:
                 system = np.where(self.harmonic[:, 0] == pMod.harmonic)[0]
                 if len(system) == 0:
@@ -365,33 +401,46 @@ class RFStation:
                     system = system[0]
 
                 pMod.calc_modulation()
-                pMod.calc_delta_omega((ring.cycle_time, self.omega_rf_d[system]))
-                dPhiInput, dOmegaInput = pMod.extend_to_n_rf(self.harmonic[:, 0])
-                dPhi += rf_station_options.reshape_data(dPhiInput,
-                                                        self.n_turns,
-                                                        self.n_rf,
-                                                        ring.cycle_time,
-                                                        ring.ring_options.t_start)
-                dOmega += rf_station_options.reshape_data(dOmegaInput,
-                                                          self.n_turns,
-                                                          self.n_rf,
-                                                          ring.cycle_time,
-                                                          ring.ring_options.t_start)
+                pMod.calc_delta_omega(
+                    (ring.cycle_time, self.omega_rf_d[system])
+                )
+                dPhiInput, dOmegaInput = pMod.extend_to_n_rf(
+                    self.harmonic[:, 0]
+                )
+                dPhi += rf_station_options.reshape_data(
+                    dPhiInput,
+                    self.n_turns,
+                    self.n_rf,
+                    ring.cycle_time,
+                    ring.ring_options.t_start,
+                )
+                dOmega += rf_station_options.reshape_data(
+                    dOmegaInput,
+                    self.n_turns,
+                    self.n_rf,
+                    ring.cycle_time,
+                    ring.ring_options.t_start,
+                )
 
             self.phi_modulation = (dPhi, dOmega)
         else:
-
             self.phi_modulation = None
 
         # Copy of the design rf programs in the one used for tracking
         # and that can be changed by feedbacks
-        self.phi_rf = np.array(self.phi_rf_d).astype(bm.precision.real_t, order="F")
+        self.phi_rf = np.array(self.phi_rf_d).astype(
+            bm.precision.real_t, order="F"
+        )
         # F contigous, so phi_rf[:,turn_i] is contigous
 
-        self.dphi_rf = np.zeros(self.n_rf).astype(bm.precision.real_t, order="F")
+        self.dphi_rf = np.zeros(self.n_rf).astype(
+            bm.precision.real_t, order="F"
+        )
         # F contigous, so dphi_rf[:,turn_i] is contigous
 
-        self.omega_rf = np.array(self.omega_rf_d).astype(bm.precision.real_t, order="F")
+        self.omega_rf = np.array(self.omega_rf_d).astype(
+            bm.precision.real_t, order="F"
+        )
         # F contigous, so omega_rf[:,turn_i] is contigous
 
         self.t_rf = 2 * np.pi / self.omega_rf
@@ -405,13 +454,23 @@ class RFStation:
     @property
     def Particle(self):
         from warnings import warn
-        warn("Particle is deprecated, use particle", DeprecationWarning, stacklevel=2)
+
+        warn(
+            "Particle is deprecated, use particle",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self.particle
 
     @Particle.setter
     def Particle(self, val):
         from warnings import warn
-        warn("Particle is deprecated, use particle", DeprecationWarning, stacklevel=2)
+
+        warn(
+            "Particle is deprecated, use particle",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.particle = val
 
     def eta_tracking(self, beam, counter, dE):
@@ -427,10 +486,10 @@ class RFStation:
             return self.eta_0[counter]
         else:
             eta = 0
-            delta = dE / (beam.beta ** 2 * beam.energy)
+            delta = dE / (beam.beta**2 * beam.energy)
             for i in range(self.alpha_order + 1):
-                eta_i = getattr(self, 'eta_' + str(i))[counter]
-                eta += eta_i * (delta ** i)
+                eta_i = getattr(self, "eta_" + str(i))[counter]
+                eta += eta_i * (delta**i)
             return eta
 
     def to_gpu(self, recursive=True):
@@ -438,12 +497,15 @@ class RFStation:
         Transfer all necessary arrays to the GPU
         """
         # Check if to_gpu has been invoked already
-        if hasattr(self, '_device') and self._device == 'GPU':
+        if hasattr(self, "_device") and self._device == "GPU":
             return
         import cupy as cp
+
         if self.phi_modulation is not None:
-            self.phi_modulation = (cp.array(self.phi_modulation[0]),
-                                   cp.array(self.phi_modulation[1]))
+            self.phi_modulation = (
+                cp.array(self.phi_modulation[0]),
+                cp.array(self.phi_modulation[1]),
+            )
         if self.phi_noise is not None:
             self.phi_noise = cp.array(self.phi_noise)
 
@@ -457,19 +519,22 @@ class RFStation:
         self.t_rev = cp.array(self.t_rev)
 
         # to make sure it will not be called again
-        self._device: DeviceType = 'GPU'
+        self._device: DeviceType = "GPU"
 
     def to_cpu(self, recursive=True):
         """
         Transfer all necessary arrays back to the CPU
         """
         # Check if to_cpu has been invoked already
-        if hasattr(self, '_device') and self._device == 'CPU':
+        if hasattr(self, "_device") and self._device == "CPU":
             return
         import cupy as cp
+
         if self.phi_modulation is not None:
-            self.phi_modulation = (cp.asnumpy(self.phi_modulation[0]),
-                                   cp.asnumpy(self.phi_modulation[1]))
+            self.phi_modulation = (
+                cp.asnumpy(self.phi_modulation[0]),
+                cp.asnumpy(self.phi_modulation[1]),
+            )
         if self.phi_noise is not None:
             self.phi_noise = cp.asnumpy(self.phi_noise)
 
@@ -482,12 +547,12 @@ class RFStation:
         self.t_rf = cp.asnumpy(self.t_rf)
         self.t_rev = cp.asnumpy(self.t_rev)
         # to make sure it will not be called again
-        self._device: DeviceType = 'CPU'
+        self._device: DeviceType = "CPU"
 
 
 @handle_legacy_kwargs
 def calculate_Q_s(rf_station: RFStation, particle: Optional[Particle] = None):
-    r""" Function calculating the turn-by-turn synchrotron tune for
+    r"""Function calculating the turn-by-turn synchrotron tune for
     single-harmonic RF, without intensity effects.
 
     Parameters
@@ -506,15 +571,21 @@ def calculate_Q_s(rf_station: RFStation, particle: Optional[Particle] = None):
     if particle is None:
         particle = Proton()
 
-    return np.sqrt(rf_station.harmonic[0] * np.abs(particle.charge)
-                   * rf_station.voltage[0] * np.abs(rf_station.eta_0
-                                                    * np.cos(rf_station.phi_s))
-                   / (2*np.pi*rf_station.beta**2 * rf_station.energy))
+    return np.sqrt(
+        rf_station.harmonic[0]
+        * np.abs(particle.charge)
+        * rf_station.voltage[0]
+        * np.abs(rf_station.eta_0 * np.cos(rf_station.phi_s))
+        / (2 * np.pi * rf_station.beta**2 * rf_station.energy)
+    )
 
 
 @handle_legacy_kwargs
-def calculate_phi_s(rf_station: RFStation, particle: Optional[Particle] = None,
-                    accelerating_systems:Literal['as_single','all','first']='as_single'):
+def calculate_phi_s(
+    rf_station: RFStation,
+    particle: Optional[Particle] = None,
+    accelerating_systems: Literal["as_single", "all", "first"] = "as_single",
+):
     r"""Function calculating the turn-by-turn synchronous phase according to
     the parameters in the RFStation object. The phase is expressed in
     the lowest RF harmonic and with respect to the RF bucket (see the equations
@@ -554,17 +625,23 @@ def calculate_phi_s(rf_station: RFStation, particle: Optional[Particle] = None,
         particle = Proton()
     eta0 = rf_station.eta_0
 
-    if accelerating_systems == 'as_single':
-
+    if accelerating_systems == "as_single":
         denergy = np.append(rf_station.delta_E, rf_station.delta_E[-1])
-        acceleration_ratio = denergy / (particle.charge * rf_station.voltage[0, :])
-        acceleration_test = ((acceleration_ratio > -1) & (acceleration_ratio < 1)) == 0
+        acceleration_ratio = denergy / (
+            particle.charge * rf_station.voltage[0, :]
+        )
+        acceleration_test = (
+            (acceleration_ratio > -1) & (acceleration_ratio < 1)
+        ) == 0
 
         # Validity check on acceleration_ratio
         if np.count_nonzero(acceleration_test) > 0:
-            print("WARNING in calculate_phi_s(): acceleration is not " +
-                  "possible (momentum increment is too big or voltage too " +
-                  "low) at index " + str(acceleration_test.nonzero()[0]))
+            print(
+                "WARNING in calculate_phi_s(): acceleration is not "
+                + "possible (momentum increment is too big or voltage too "
+                + "low) at index "
+                + str(acceleration_test.nonzero()[0])
+            )
 
         phi_s = np.arcsin(acceleration_ratio)
 
@@ -575,46 +652,57 @@ def calculate_phi_s(rf_station: RFStation, particle: Optional[Particle] = None,
         index_below = np.where(eta0_middle_points < 0)[0]
 
         # Project phi_s in correct range
-        phi_s[index] = (np.heaviside(np.sign(particle.charge), 0) * np.pi - phi_s[index]) % (2 * np.pi)
-        phi_s[index_below] = (np.heaviside(np.sign(particle.charge), 0) * np.pi + phi_s[index_below]) \
-                             % (2 * np.pi)
+        phi_s[index] = (
+            np.heaviside(np.sign(particle.charge), 0) * np.pi - phi_s[index]
+        ) % (2 * np.pi)
+        phi_s[index_below] = (
+            np.heaviside(np.sign(particle.charge), 0) * np.pi
+            + phi_s[index_below]
+        ) % (2 * np.pi)
         # phi_s[index] = (np.pi - phi_s[index]) % (2*np.pi)
         # phi_s[index_below] = (np.pi + phi_s[index_below]) % (2*np.pi)
 
         return phi_s
 
-    elif accelerating_systems == 'all':
-
+    elif accelerating_systems == "all":
         phi_s = np.zeros(len(rf_station.voltage[0, 1:]))
 
         for indexTurn in range(len(rf_station.delta_E)):
-
             totalRF = 0
             if np.sign(eta0[indexTurn]) > 0:
                 phase_array = np.linspace(
                     -float(rf_station.phi_rf[0, indexTurn + 1]),
-                    -float(rf_station.phi_rf[0, indexTurn + 1]) + 2 * np.pi, 1000)
+                    -float(rf_station.phi_rf[0, indexTurn + 1]) + 2 * np.pi,
+                    1000,
+                )
             else:
                 phase_array = np.linspace(
                     -float(rf_station.phi_rf[0, indexTurn + 1]) - np.pi,
-                    -float(rf_station.phi_rf[0, indexTurn + 1]) + np.pi, 1000)
+                    -float(rf_station.phi_rf[0, indexTurn + 1]) + np.pi,
+                    1000,
+                )
 
             for indexRF in range(len(rf_station.voltage[:, indexTurn + 1])):
-                totalRF += (rf_station.voltage[indexRF, indexTurn+1]
-                            * np.sin(rf_station.harmonic[indexRF, indexTurn+1]
-                                     /np.min(rf_station.harmonic[:, indexTurn+1])
-                            * phase_array
-                            + rf_station.phi_rf[indexRF, indexTurn + 1]))
+                totalRF += rf_station.voltage[indexRF, indexTurn + 1] * np.sin(
+                    rf_station.harmonic[indexRF, indexTurn + 1]
+                    / np.min(rf_station.harmonic[:, indexTurn + 1])
+                    * phase_array
+                    + rf_station.phi_rf[indexRF, indexTurn + 1]
+                )
 
-            potential_well = - cumtrapz(np.sign(eta0[indexTurn])
-                                        * (totalRF
-                                           - rf_station.delta_E[indexTurn]
-                                           / abs(particle.charge)),
-                                        dx=phase_array[1] - phase_array[0],
-                                        initial=0)
+            potential_well = -cumtrapz(
+                np.sign(eta0[indexTurn])
+                * (
+                    totalRF
+                    - rf_station.delta_E[indexTurn] / abs(particle.charge)
+                ),
+                dx=phase_array[1] - phase_array[0],
+                initial=0,
+            )
 
-            phi_s[indexTurn] = np.mean(phase_array[
-                                           potential_well == np.min(potential_well)])
+            phi_s[indexTurn] = np.mean(
+                phase_array[potential_well == np.min(potential_well)]
+            )
 
         phi_s = np.insert(phi_s, 0, phi_s[0]) + rf_station.phi_rf[0, :]
         phi_s[eta0 < 0] += np.pi
@@ -622,11 +710,14 @@ def calculate_phi_s(rf_station: RFStation, particle: Optional[Particle] = None,
 
         return phi_s
 
-    elif accelerating_systems == 'first':
-
-        print("WARNING in calculate_phi_s(): accelerating_systems 'first'" +
-              " not yet implemented")
+    elif accelerating_systems == "first":
+        print(
+            "WARNING in calculate_phi_s(): accelerating_systems 'first'"
+            + " not yet implemented"
+        )
         pass
     else:
-        raise RuntimeError("ERROR in calculate_phi_s(): unrecognised" +
-                           " accelerating_systems option")
+        raise RuntimeError(
+            "ERROR in calculate_phi_s(): unrecognised"
+            + " accelerating_systems option"
+        )

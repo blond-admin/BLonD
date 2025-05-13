@@ -13,7 +13,6 @@ if TYPE_CHECKING:
 
     from numpy.typing import NDArray as NumpyArray
 
-
     class DistributionOptionsType(TypedDict):
         type: NotRequired[str]
         exponent: NotRequired[float]
@@ -22,21 +21,17 @@ if TYPE_CHECKING:
         bunch_length_fit: NotRequired[BunchLengthFitTypes]
         density_variable: NotRequired[DistributionVariableType]
 
-
     class DistributionUserTableType(TypedDict):
         user_table_action: NumpyArray
         user_table_distribution: NumpyArray
-
 
     class LineDensityInputType(TypedDict):
         time_line_den: NumpyArray
         line_density: NumpyArray
 
-
     class ExtraVoltageDictType(TypedDict):
         time_array: NumpyArray
         voltage_array: NumpyArray
-
 
     class FilterExtraOptionsType(TypedDict):
         pass_frequency: float
@@ -45,40 +40,50 @@ if TYPE_CHECKING:
         gain_stop: float
         transfer_function_plot: NotRequired[bool]
 
+    DistributionVariableType = Literal["Action", "Hamiltonian"]
 
-    DistributionVariableType = Literal['Action', 'Hamiltonian']
+    HalfOptionType = Literal["first", "second", "both"]
 
-    HalfOptionType = Literal['first', 'second', 'both']
+    BunchLengthFitTypes = Literal["full", "gauss", "fwhm"] | None
 
-    BunchLengthFitTypes = Literal['full', 'gauss', 'fwhm'] | None
-
-    LineDensityDistType = Literal['waterbag', 'parabolic_amplitude',
-    'parabolic_line', 'binomial',
-    'gaussian', 'cosine_squared'
+    LineDensityDistType = Literal[
+        "waterbag",
+        "parabolic_amplitude",
+        "parabolic_line",
+        "binomial",
+        "gaussian",
+        "cosine_squared",
     ]
 
-    DistributionFunctionDistType = Literal['waterbag', 'parabolic_amplitude',
-    'parabolic_line', 'binomial',
-    'gaussian'
+    DistributionFunctionDistType = Literal[
+        "waterbag",
+        "parabolic_amplitude",
+        "parabolic_line",
+        "binomial",
+        "gaussian",
     ]
 
     DeviceType = Literal["CPU", "GPU"]
 
-    CutUnitType = Literal['rad', 's']
+    CutUnitType = Literal["rad", "s"]
 
     FitOptionTypes = Literal["gaussian", "fwhm", "rms"]
 
-    FilterMethodType = Literal['chebishev']
+    FilterMethodType = Literal["chebishev"]
 
-    ResonatorsMethodType = Literal['c++', 'python']
-    InterpolationTypes = Literal['linear', 'cubic', 'derivative', 'akima']
+    ResonatorsMethodType = Literal["c++", "python"]
+    InterpolationTypes = Literal["linear", "cubic", "derivative", "akima"]
 
-    BeamProfileDerivativeModes = Literal["filter1d", "gradient", "diff",]
+    BeamProfileDerivativeModes = Literal[
+        "filter1d",
+        "gradient",
+        "diff",
+    ]
 
     class Trackable(Protocol):
-        def track(self):
-            ...
+        def track(self): ...
 
-DistTypeDistFunction = Literal['waterbag', 'parabolic_amplitude',
-'parabolic_line', 'binomial',
-'gaussian']
+
+DistTypeDistFunction = Literal[
+    "waterbag", "parabolic_amplitude", "parabolic_line", "binomial", "gaussian"
+]

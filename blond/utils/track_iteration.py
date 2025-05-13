@@ -12,6 +12,7 @@ user specified functions every n turns**
 
 :Authors: **Simon Albright**
 """
+
 # Futurisation
 from __future__ import annotations
 
@@ -24,9 +25,13 @@ if TYPE_CHECKING:
     from .types import Trackable
 
     class Predicate(Protocol):
-        def __call__(self, _map: Iterable[Trackable], turn_number: int,
-                     *args: Any, **kwargs: Any):
-            ...
+        def __call__(
+            self,
+            _map: Iterable[Trackable],
+            turn_number: int,
+            *args: Any,
+            **kwargs: Any,
+        ): ...
 
 
 class TrackIteration:
@@ -51,10 +56,13 @@ class TrackIteration:
     function_list : list of functions to be called with specified interval
     """
 
-    def __init__(self, track_map: Iterable[Trackable], init_turn: int = 0,
-                 final_turn: int = -1):
-
-        if not all((hasattr(m, 'track') for m in track_map)):
+    def __init__(
+        self,
+        track_map: Iterable[Trackable],
+        init_turn: int = 0,
+        final_turn: int = -1,
+    ):
+        if not all((hasattr(m, "track") for m in track_map)):
             raise AttributeError("All map objects must be trackable")
 
         self._map = list(track_map)
@@ -79,15 +87,21 @@ class TrackIteration:
         for i in range(n_turns):
             next(self)
 
-    def add_function(self, predicate: Predicate, repetion_rate: int,
-                     *args: Any, **kwargs: Any):
+    def add_function(
+        self,
+        predicate: Predicate,
+        repetion_rate: int,
+        *args: Any,
+        **kwargs: Any,
+    ):
         """
         Takes a user defined callable and calls it every repetion_rate
         number of turns with predicate(track_map, turn_number, *args, **kwargs)
         """
 
-        self.function_list.append((self._partial(predicate, *args, **kwargs),
-                                   repetion_rate))
+        self.function_list.append(
+            (self._partial(predicate, *args, **kwargs), repetion_rate)
+        )
 
     def __next__(self) -> int:
         """

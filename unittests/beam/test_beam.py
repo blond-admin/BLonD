@@ -13,8 +13,10 @@ class TestBeam(unittest.TestCase):
         # Define general parameters
         ring = Ring(
             ring_length=26658.883,
-            alpha_0=1. / 55.759505 ** 2,
-            synchronous_data=np.linspace(450e9, 460.005e9, number_of_turns + 1),
+            alpha_0=1.0 / 55.759505**2,
+            synchronous_data=np.linspace(
+                450e9, 460.005e9, number_of_turns + 1
+            ),
             particle=Proton(),
             n_turns=number_of_turns,
         )
@@ -33,5 +35,5 @@ class TestBeam(unittest.TestCase):
         self.assertEqual(self.beam.n_macroparticles_not_alive, 0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

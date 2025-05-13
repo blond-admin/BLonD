@@ -15,6 +15,7 @@ def all_python_files():
             ret.append(pythonfile)
     return ret
 
+
 def old_by_new(new):
     ret = []
     for old_tmp, new_tmp in __new_by_old.items():
@@ -24,6 +25,7 @@ def old_by_new(new):
         return ret[0]
     else:
         return "AMBIGUOUS"
+
 
 def any_search_for_in_line(search_for: set, line: str, print_reason=False):
     for s in search_for:
@@ -35,7 +37,9 @@ def any_search_for_in_line(search_for: set, line: str, print_reason=False):
 
 
 def check_definitions():
-    search_for = set(__new_by_old.keys()) | set(val for key, val in __new_by_old.items())
+    search_for = set(__new_by_old.keys()) | set(
+        val for key, val in __new_by_old.items()
+    )
 
     myregex = re.compile(r"\n\ndef[\s|\S]*?\:\n")
 
@@ -44,10 +48,12 @@ def check_definitions():
             content = fobj.read()
             lines = myregex.findall(content)
             for line in lines:
-                if any_search_for_in_line(search_for, line, print_reason=True)[0]:
-                    line = line[line.index("def"):]
+                if any_search_for_in_line(search_for, line, print_reason=True)[
+                    0
+                ]:
+                    line = line[line.index("def") :]
                     if "\n" in line:
-                        line = line[:line.index("\n")]
+                        line = line[: line.index("\n")]
                     print(line)
 
 
@@ -69,9 +75,11 @@ def check_attributes_propierties():
             for line in fobj.readlines():
                 if line.strip().startswith("class"):
                     class_tmp = line
-                is_inline, string = any_search_for_in_line(search_for_new, line)
+                is_inline, string = any_search_for_in_line(
+                    search_for_new, line
+                )
                 if is_inline:
-                    print("--"* 20)
+                    print("--" * 20)
                     print(pythonfile)
                     print(class_tmp)
                     print(line)
@@ -79,8 +87,8 @@ def check_attributes_propierties():
                     print(propose_property(newww, old_by_new(newww)))
 
 
-def propose_property(new:str, old:str, todo=True):
-    ret = f'''
+def propose_property(new: str, old: str, todo=True):
+    ret = f"""
     @property
     def {old}(self):  # TODO
         from warnings import warn
@@ -92,12 +100,10 @@ def propose_property(new:str, old:str, todo=True):
         from warnings import warn
         warn("{old} is deprecated, use {new}", DeprecationWarning)  # TODO
         self.{new} = val
-'''
+"""
     if not todo:
         ret = ret.replace("  # TODO", "")
     return ret
-
-
 
 
 if __name__ == "__main__":

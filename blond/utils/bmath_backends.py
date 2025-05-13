@@ -271,14 +271,11 @@ class MasterBackend:
         else:
             backend_class = PyBackend
 
-
         # overwrite class methods etc.
         self.__class__ = backend_class
 
         # overwrite class attributes declared in __init__
         backend_class.__init__(self)
-
-
 
     def use_mpi(self):
         """Sets the device to CPU_MPI"""
@@ -299,7 +296,9 @@ class MasterBackend:
         self.irfft = _cpp.irfft
         self.rfftfreq = _cpp.rfftfreq
 
-    def use_precision(self, _precision: Literal["single", "double"] = "double"):
+    def use_precision(
+        self, _precision: Literal["single", "double"] = "double"
+    ):
         """Change the precision used in calculations.
 
         Parameters
@@ -574,7 +573,9 @@ class CppBackend(__NumpyBackend):
         self.synchrotron_radiation = _cpp.synchrotron_radiation
         self.synchrotron_radiation_full = _cpp.synchrotron_radiation_full
         self.music_track = _cpp.music_track  # todo might be legacy?
-        self.music_track_multiturn = _cpp.music_track_multiturn  # todo might be legacy
+        self.music_track_multiturn = (
+            _cpp.music_track_multiturn
+        )  # todo might be legacy
         self.fast_resonator = _cpp.fast_resonator
         self.beam_phase = _cpp.beam_phase
         self.beam_phase_fast = _cpp.beam_phase_fast
@@ -582,7 +583,9 @@ class CppBackend(__NumpyBackend):
         self.distribution_from_tomoscope = _cpp.distribution_from_tomoscope
         # self.set_random_seed = _cpp.set_random_seed # fixme
         self.set_random_seed = np.random.seed
-        self.resonator_induced_voltage_1_turn = _py.resonator_induced_voltage_1_turn
+        self.resonator_induced_voltage_1_turn = (
+            _py.resonator_induced_voltage_1_turn
+        )
 
         # elf.sin_cpp = _cpp.sin_cpp # todo add?
         # elf.cos_cpp = _cpp.cos_cpp # todo add?
@@ -606,7 +609,9 @@ class CppBackend(__NumpyBackend):
         # elf.mul_cpp = _cpp.mul_cpp # todo add?
         # self.random_normal = _cpp.random_normal # todo required
 
-    def use_precision(self, _precision: Literal["single", "double"] = "double"):
+    def use_precision(
+        self, _precision: Literal["single", "double"] = "double"
+    ):
         """Change the precision used in calculations.
 
         Parameters
@@ -644,14 +649,18 @@ class NumbaBackend(__NumpyBackend):
         self.synchrotron_radiation = _nu.synchrotron_radiation
         self.synchrotron_radiation_full = _nu.synchrotron_radiation_full
         self.music_track = _nu.music_track  # todo might be legacy?
-        self.music_track_multiturn = _nu.music_track_multiturn  # todo might be legacy
+        self.music_track_multiturn = (
+            _nu.music_track_multiturn
+        )  # todo might be legacy
         self.fast_resonator = _nu.fast_resonator
         self.beam_phase = _nu.beam_phase
         self.beam_phase_fast = _nu.beam_phase_fast
         self.sparse_histogram = _nu.sparse_histogram
         self.distribution_from_tomoscope = _nu.distribution_from_tomoscope
         self.set_random_seed = np.random.seed  # fixme
-        self.resonator_induced_voltage_1_turn = _nu.resonator_induced_voltage_1_turn
+        self.resonator_induced_voltage_1_turn = (
+            _nu.resonator_induced_voltage_1_turn
+        )
 
 
 class PyBackend(__NumpyBackend):
@@ -674,14 +683,18 @@ class PyBackend(__NumpyBackend):
         self.synchrotron_radiation = _py.synchrotron_radiation
         self.synchrotron_radiation_full = _py.synchrotron_radiation_full
         self.music_track = _py.music_track  # todo might be legacy?
-        self.music_track_multiturn = _py.music_track_multiturn  # todo might be legacy
+        self.music_track_multiturn = (
+            _py.music_track_multiturn
+        )  # todo might be legacy
         self.fast_resonator = _py.fast_resonator
         self.beam_phase = _py.beam_phase
         self.beam_phase_fast = _py.beam_phase_fast
         self.sparse_histogram = _py.sparse_histogram
         self.distribution_from_tomoscope = _py.distribution_from_tomoscope
         self.set_random_seed = _py.set_random_seed
-        self.resonator_induced_voltage_1_turn = _py.resonator_induced_voltage_1_turn
+        self.resonator_induced_voltage_1_turn = (
+            _py.resonator_induced_voltage_1_turn
+        )
 
 
 def not_implemented():
@@ -723,25 +736,33 @@ class GpuBackend(__CupyBackend):
         self.linear_interp_kick = butils_wrap_cupy.linear_interp_kick
         # 'LIKick_n_drift' = butils_wrap_cupy.linear_interp_kick_drift
         self.synchrotron_radiation = butils_wrap_cupy.synchrotron_radiation
-        self.synchrotron_radiation_full = butils_wrap_cupy.synchrotron_radiation_full
+        self.synchrotron_radiation_full = (
+            butils_wrap_cupy.synchrotron_radiation_full
+        )
         self.slice_beam = butils_wrap_cupy.slice_beam
         # 'interp_const_space' = butils_wrap_cupy.interp
         self.rf_volt_comp = butils_wrap_cupy.rf_volt_comp
-        self.resonator_induced_voltage_1_turn = _py.resonator_induced_voltage_1_turn
+        self.resonator_induced_voltage_1_turn = (
+            _py.resonator_induced_voltage_1_turn
+        )
 
         # self.interp_const_space = cp.interp  # todo add?
         self.sparse_histogram = not_implemented  # todo implement !
-        self.distribution_from_tomoscope = not_implemented # todo implement !
+        self.distribution_from_tomoscope = not_implemented  # todo implement !
         self.fast_resonator = not_implemented  # todo implement !
         self.slice_smooth = not_implemented  # todo implement !
         self.music_track_multiturn = (
             not_implemented  # todo implement ! # todo might be legacy
         )
-        self.music_track = not_implemented  # todo implement ! todo might be legacy?
+        self.music_track = (
+            not_implemented  # todo implement ! todo might be legacy?
+        )
 
         self.set_random_seed = cp.random.seed
 
-    def use_precision(self, _precision: Literal["single", "double"] = "double"):
+    def use_precision(
+        self, _precision: Literal["single", "double"] = "double"
+    ):
         """Change the precision used in calculations.
 
         Parameters
@@ -755,7 +776,9 @@ class GpuBackend(__CupyBackend):
         GPU_DEV.load_library(_precision)
 
 
-available_backends = [PyBackend(),]
+available_backends = [
+    PyBackend(),
+]
 if _cupy_available:
     available_backends.append(GpuBackend())
 

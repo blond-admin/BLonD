@@ -14,7 +14,6 @@ main file (CERN PS Booster context).
 :Authors: **Danilo Quartullo**
 """
 
-
 import os
 
 import matplotlib as mpl
@@ -29,15 +28,14 @@ from blond.input_parameters.ring_options import RingOptions
 DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 # To check if executing correctly, rather than to run the full simulation
 
-mpl.use('Agg')
+mpl.use("Agg")
 
-this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
+this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 
-os.makedirs(this_directory + '../output_files/EX_06_fig', exist_ok=True)
+os.makedirs(this_directory + "../output_files/EX_06_fig", exist_ok=True)
 
 # Beam parameters
 n_particles = 1001 if DRAFT_MODE else 3e12
-
 
 
 # Machine and RF parameters
@@ -50,18 +48,24 @@ C = 2 * np.pi * radius  # [m]
 initial_time = 0.277  # [s]
 final_time = 0.700  # [s]
 
-momentum_program = np.loadtxt(this_directory + '../input_files/EX_06_Source_TOF_P.csv',
-                              delimiter=',')
+momentum_program = np.loadtxt(
+    this_directory + "../input_files/EX_06_Source_TOF_P.csv", delimiter=","
+)
 time_array = momentum_program[:, 0] * 1e-3  # [s]
 momentum = momentum_program[:, 1] * 1e9  # [eV/c]
 
 particle_type = Proton()
-ring_opt = RingOptions(interpolation='linear', plot=True,
-                       figdir=this_directory + '../output_files/EX_06_fig',
-                       t_start=initial_time, t_end=final_time)
+ring_opt = RingOptions(
+    interpolation="linear",
+    plot=True,
+    figdir=this_directory + "../output_files/EX_06_fig",
+    t_start=initial_time,
+    t_end=final_time,
+)
 
-general_params = Ring(C, alpha, (time_array, momentum), particle_type,
-                      ring_options=ring_opt)
+general_params = Ring(
+    C, alpha, (time_array, momentum), particle_type, ring_options=ring_opt
+)
 
 # Cavities parameters
 n_rf_systems = 3
@@ -73,11 +77,14 @@ phi_rf_2 = np.pi  # [rad]
 phi_rf_3 = np.pi / 6  # [rad]
 
 voltage_program_C02 = np.loadtxt(
-    this_directory + '../input_files/EX_06_voltage_program_LHC25_c02.txt')
+    this_directory + "../input_files/EX_06_voltage_program_LHC25_c02.txt"
+)
 voltage_program_C04 = np.loadtxt(
-    this_directory + '../input_files/EX_06_voltage_program_LHC25_c04.txt')
+    this_directory + "../input_files/EX_06_voltage_program_LHC25_c04.txt"
+)
 voltage_program_C16 = np.loadtxt(
-    this_directory + '../input_files/EX_06_voltage_program_LHC25_c16.txt')
+    this_directory + "../input_files/EX_06_voltage_program_LHC25_c16.txt"
+)
 time_C02 = voltage_program_C02[:, 0] * 1e-3  # [s]
 voltage_C02 = voltage_program_C02[:, 1] * 1e3  # [V]
 time_C04 = voltage_program_C04[:, 0] * 1e-3  # [s]
@@ -86,18 +93,25 @@ time_C16 = voltage_program_C16[:, 0] * 1e-3  # [s]
 voltage_C16 = voltage_program_C16[:, 1] * 1e3  # [V]
 
 rf_station_options = RFStationOptions(
-    interpolation='linear', smoothing=0,
-    plot=True, figdir=this_directory + '../output_files/EX_06_fig',
-    figname=['voltage_C02 [V]', 'voltage_C04 [V]', 'voltage_C16 [V]'],
-    sampling=1)
+    interpolation="linear",
+    smoothing=0,
+    plot=True,
+    figdir=this_directory + "../output_files/EX_06_fig",
+    figname=["voltage_C02 [V]", "voltage_C04 [V]", "voltage_C16 [V]"],
+    sampling=1,
+)
 
 rf_params = RFStation(
     general_params,
     [harmonic_numbers_1, harmonic_numbers_2, harmonic_numbers_3],
-    ((time_C02, voltage_C02),
-     (time_C04, voltage_C04),
-     (time_C16, voltage_C16)),
-    [phi_rf_1, phi_rf_2, phi_rf_3], n_rf_systems,
-    rf_station_options=rf_station_options)
+    (
+        (time_C02, voltage_C02),
+        (time_C04, voltage_C04),
+        (time_C16, voltage_C16),
+    ),
+    [phi_rf_1, phi_rf_2, phi_rf_3],
+    n_rf_systems,
+    rf_station_options=rf_station_options,
+)
 
 print("Done!")

@@ -89,8 +89,7 @@ targets = [
     # "beam_profile.test_beam_profile_object",
     # "beam.test_beam",
     # "EX_13_synchrotron_radiation",
-
 ]
 # add type hints from database to files
 for target in targets:
-    subprocess.run(f'monkeytype apply {target}'.split(" "))
+    subprocess.run(f"monkeytype apply {target}".split(" "))

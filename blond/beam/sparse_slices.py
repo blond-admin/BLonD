@@ -43,10 +43,15 @@ class SparseSlices:
     """
 
     @handle_legacy_kwargs
-    def __init__(self, rf_station: RFStation, beam: Beam, n_slices_bucket: int,
-                 filling_pattern: NumpyArray, tracker: TrackerTypes = 'C',
-                 direct_slicing: bool = False):
-
+    def __init__(
+        self,
+        rf_station: RFStation,
+        beam: Beam,
+        n_slices_bucket: int,
+        filling_pattern: NumpyArray,
+        tracker: TrackerTypes = "C",
+        direct_slicing: bool = False,
+    ):
         #: *Import (reference) Beam*
         self.beam = beam
 
@@ -75,29 +80,41 @@ class SparseSlices:
         self.profiles_list = []
         # Group n_macroparticles from all objects in a single array
         # (for C++ track).
-        self.n_macroparticles_array = np.zeros((self.n_filled_buckets,
-                                                n_slices_bucket))
+        self.n_macroparticles_array = np.zeros(
+            (self.n_filled_buckets, n_slices_bucket)
+        )
         # Group bin_centers from all objects in a single array (for impedance)
-        self.bin_centers_array = np.zeros((self.n_filled_buckets, n_slices_bucket))
-        self.edges_array = np.zeros((self.n_filled_buckets, n_slices_bucket + 1))
+        self.bin_centers_array = np.zeros(
+            (self.n_filled_buckets, n_slices_bucket)
+        )
+        self.edges_array = np.zeros(
+            (self.n_filled_buckets, n_slices_bucket + 1)
+        )
         for i in range(self.n_filled_buckets):
             # Only valid for cut_edges='edges'
 
             self.profiles_list.append(
-                    Profile(beam,
-                            CutOptions(cut_left=float(self.cut_left_array[i]),
-                                       cut_right=float(self.cut_right_array[i]),
-                                       n_slices=n_slices_bucket)))
+                Profile(
+                    beam,
+                    CutOptions(
+                        cut_left=float(self.cut_left_array[i]),
+                        cut_right=float(self.cut_right_array[i]),
+                        n_slices=n_slices_bucket,
+                    ),
+                )
+            )
 
-            self.profiles_list[i].n_macroparticles = self.n_macroparticles_array[i, :]
+            self.profiles_list[
+                i
+            ].n_macroparticles = self.n_macroparticles_array[i, :]
             self.bin_centers_array[i, :] = self.profiles_list[i].bin_centers
             self.edges_array[i, :] = self.profiles_list[i].edges
             self.profiles_list[i].bin_centers = self.bin_centers_array[i, :]
 
         # Select the tracker
-        if tracker == 'C':
+        if tracker == "C":
             self.track = self._histogram_c
-        elif tracker == 'onebyone':
+        elif tracker == "onebyone":
             self.track = self._histogram_one_by_one
         else:
             raise NameError(f"{tracker=}")
@@ -109,25 +126,37 @@ class SparseSlices:
     @property
     def Beam(self):
         from warnings import warn
+
         warn("Beam is deprecated, use beam", DeprecationWarning, stacklevel=2)
         return self.beam
 
     @Beam.setter
     def Beam(self, val):
         from warnings import warn
+
         warn("Beam is deprecated, use beam", DeprecationWarning, stacklevel=2)
         self.beam = val
 
     @property
     def RFParams(self):
         from warnings import warn
-        warn("RFParams is deprecated, use rf_station", DeprecationWarning, stacklevel=2)
+
+        warn(
+            "RFParams is deprecated, use rf_station",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self.rf_station
 
     @RFParams.setter
     def RFParams(self, val):
         from warnings import warn
-        warn("RFParams is deprecated, use rf_station", DeprecationWarning, stacklevel=2)
+
+        warn(
+            "RFParams is deprecated, use rf_station",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.rf_station = val
 
     def set_cuts(self):
@@ -152,13 +181,23 @@ class SparseSlices:
         calculates all the profile at once.*
         """
         # todo could be any backend, not only C
-        bm.sparse_histogram(self.beam.dt, self.n_macroparticles_array,
-                            self.cut_left_array, self.cut_right_array,
-                            self.bunch_indexes, self.n_slices_bucket)
+        bm.sparse_histogram(
+            self.beam.dt,
+            self.n_macroparticles_array,
+            self.cut_left_array,
+            self.cut_right_array,
+            self.bunch_indexes,
+            self.n_slices_bucket,
+        )
 
     def _histrogram_one_by_one(self):
         from warnings import warn
-        warn("_histrogram_one_by_one is deprecated, use _histogram_one_by_one", DeprecationWarning, stacklevel=2)
+
+        warn(
+            "_histrogram_one_by_one is deprecated, use _histogram_one_by_one",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self._histogram_one_by_one()
 
     def _histogram_one_by_one(self):

@@ -11,6 +11,7 @@
 
 :Authors: **Helga Timko**
 """
+
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
@@ -20,8 +21,14 @@ if TYPE_CHECKING:
 
     from numpy.typing import NDArray as NumpyArray
 
-def plot_voltage_programme(time: NumpyArray, voltage: NumpyArray, sampling: int = 1,
-                           dirname: str | PathLike[str] = 'fig', figno: int = 0):
+
+def plot_voltage_programme(
+    time: NumpyArray,
+    voltage: NumpyArray,
+    sampling: int = 1,
+    dirname: str | PathLike[str] = "fig",
+    figno: int = 0,
+):
     """
     Plot of the RF voltage as a function of time.
     For large amount of data, use "sampling" to plot a fraction of the data.
@@ -36,6 +43,6 @@ def plot_voltage_programme(time: NumpyArray, voltage: NumpyArray, sampling: int 
     ax.set_ylabel(r"RF voltage [V]")
 
     # Save figure
-    fign = dirname + '/RF_voltage_' "%d" % figno + '.png'
+    fign = dirname + "/RF_voltage_" "%d" % figno + ".png"
     plt.savefig(fign)
     plt.clf()
