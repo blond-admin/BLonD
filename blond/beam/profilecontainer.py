@@ -26,7 +26,8 @@ if TYPE_CHECKING:
             # time-domain could lead to a lot of problems
             InducedVoltageFreq,
             InductiveImpedance,
-            InducedVoltageResonator,
+            # InducedVoltageResonator, # use InducedVoltageFreq with
+            # Resonatros insteead
         ]
         | _InducedVoltage
     )
@@ -49,8 +50,9 @@ class Lockable:
 
 
 class _ProfileContainer(Lockable):
+    """Helper class to contain several Profile objects"""
+
     def __init__(self):
-        """Helper class to contain several Profile objects"""
         super().__init__()
         self._profiles: Tuple[Profile] = tuple()
 
@@ -131,9 +133,9 @@ class _ProfileContainer(Lockable):
 
 
 class EquiSpacedProfiles(_ProfileContainer):
-    def __init__(
-        self,
-    ):
+    """Helper class to contain several evently spaced Profile objects"""
+
+    def __init__(self):
         super().__init__()
 
     def add_profile(self, profile: Profile):
@@ -151,8 +153,8 @@ class EquiSpacedProfiles(_ProfileContainer):
 
 
 class InducedVoltageContainer(Lockable):
+    """Helper class to contain several InducedVoltage objects"""
     def __init__(self):
-        """Helper class to contain several InducedVoltage objects"""
 
         super().__init__()
         self._induced_voltage_objects: Tuple[InducedVoltageTyes] = tuple()
@@ -176,8 +178,8 @@ class InducedVoltageContainer(Lockable):
             yield induced_voltage_object
 
 
-class TotalInducedVoltageNew:
-    """Helper to calculate induced voltage for several profiles
+class InducedVoltageCompactWakeSolver:
+    """Solver to calculate induced voltage for several profiles
 
     Parameters
     ----------
@@ -199,6 +201,38 @@ class TotalInducedVoltageNew:
     assume_periodic_wake
         If True, the wake kernel will be symmetric around t=0,
         otherwise it will be only defined for t>0.
+
+    Examples
+    --------
+    >>> from blond.beam.profile import Profile
+    >>> from blond.beam.profilecontainer import (
+    >>>     InducedVoltageCompactWakeSolver,
+    >>>     InducedVoltageContainer,
+    >>>     EquiSpacedProfiles,
+    >>> )
+    >>> from blond.impedances.impedance import (
+    >>>     InducedVoltageFreq,
+    >>>     InductiveImpedance,
+    >>> )
+    >>>
+    >>> profile1 = Profile(**fill_this)
+    >>> inductive_impedance_1 = InductiveImpedance(**fill_this)
+    >>> inductive_impedance_2 = InducedVoltageFreq(**fill_this)
+    >>> induced_voltage_container = InducedVoltageContainer()
+    >>> induced_voltage_container.add_induced_voltage(inductive_impedance_1)
+    >>> induced_voltage_container.add_induced_voltage(inductive_impedance_2)
+    >>>
+    >>> equi_spaced_profiles = EquiSpacedProfiles()
+    >>> equi_spaced_profiles.add_profile(profile1)
+    >>>
+    >>>
+    >>> total_induced_voltage_NEW = InducedVoltageCompactWakeSolver(
+    >>>     beam=beam,
+    >>>     equi_spaced_profiles=equi_spaced_profiles,
+    >>>     induced_voltage_container=induced_voltage_container,
+    >>>     track_update_wake_kernel=False,
+    >>> )
+    >>>
     """
 
     def __init__(
@@ -229,8 +263,9 @@ class TotalInducedVoltageNew:
 
         self._induced_voltage_amplitude: NumpyArray | CupyArray = None  # TODO
         # self._induced_voltage_time: NumpyArray | CupyArray # TODO
+        self._reference_profile_idx = 0
 
-    def dev_plot(self):
+    def _dev_plot(self):
         kernel = self._compressed_wake_kernel
         profile = self.profile
         for i, profile in enumerate(self._equi_spaced_profiles):
@@ -247,12 +282,12 @@ class TotalInducedVoltageNew:
     @property
     def profile(self):
         # TODO: PRELIMINARY CODE
-        return self._equi_spaced_profiles._profiles[0]
+        return self._equi_spaced_profiles._profiles[self._reference_profile_idx]
 
     @property
     def induced_voltage(self):
         # TODO: PRELIMINARY CODE
-        return self.get_induced_voltage(profile_i=0)
+        return self.get_induced_voltage(profile_i=self._reference_profile_idx)
 
     def get_induced_voltage(self, profile_i: int):
         # TODO: PRELIMINARY CODE

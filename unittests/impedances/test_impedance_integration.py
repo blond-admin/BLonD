@@ -3,6 +3,9 @@ import unittest
 from typing import Optional
 
 import matplotlib.pyplot as plt
+from pathlib import Path
+
+
 def yolo(*args, **kwargs):
     raise Exception
 import numpy as np
@@ -10,7 +13,7 @@ from parameterized import parameterized
 
 from blond.beam.profile import Profile, CutOptions
 from blond.beam.profilecontainer import (
-    TotalInducedVoltageNew,
+    InducedVoltageCompactWakeSolver,
     EquiSpacedProfiles,
     InducedVoltageContainer,
 )
@@ -36,8 +39,8 @@ r50_b = np.random.rand(50)
 class MyTestCase(unittest.TestCase):
     def setUp(self):
         import sys
-
-        sys.path.append("/home/slauber/PycharmProjects/BLonD/unittests")
+        current_script_path = Path(__file__).resolve()
+        sys.path.append(current_script_path.parent.parent)
         from example_simulation import ExampleSimulation
 
         self.sim = ExampleSimulation()
@@ -180,7 +183,7 @@ class MyTestCase(unittest.TestCase):
 
         induced_voltage_container = InducedVoltageContainer()
         induced_voltage_container.add_induced_voltage(induced_voltage=induced_voltage)
-        induced_voltage_new = TotalInducedVoltageNew(
+        induced_voltage_new = InducedVoltageCompactWakeSolver(
             beam=self.sim.beam,
             equi_spaced_profiles=profile_container,
             induced_voltage_container=induced_voltage_container,
@@ -203,7 +206,7 @@ class MyTestCase(unittest.TestCase):
         if DEV_DEBUG:
             plt.figure(2)
             induced_voltage.dev_plot()
-            induced_voltage_new.dev_plot()
+            induced_voltage_new._dev_plot()
             plt.figure(1)
             plt.clf()
             plt.subplot(4, 1, 1)
@@ -340,7 +343,7 @@ class MyTestCase(unittest.TestCase):
         induced_voltage_container.add_induced_voltage(
             induced_voltage=induced_voltage_new
         )
-        induced_voltage_new = TotalInducedVoltageNew(
+        induced_voltage_new = InducedVoltageCompactWakeSolver(
             beam=self.sim.beam,
             equi_spaced_profiles=profile_container,
             induced_voltage_container=induced_voltage_container,
@@ -362,7 +365,7 @@ class MyTestCase(unittest.TestCase):
         DEV_DEBUG = False
         if DEV_DEBUG:
             plt.figure(2)
-            induced_voltage_new.dev_plot()
+            induced_voltage_new._dev_plot()
             induced_voltage_entire.dev_plot()
             for subplot_i in range(3):
                 plt.subplot(4, 1, 1 + subplot_i)

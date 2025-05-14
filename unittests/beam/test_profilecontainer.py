@@ -12,7 +12,7 @@ from blond.beam.profilecontainer import (
     Lockable,
     _ProfileContainer,
     InducedVoltageContainer,
-    TotalInducedVoltageNew, EquiSpacedProfiles,
+    InducedVoltageCompactWakeSolver, EquiSpacedProfiles,
 )
 from blond.impedances.impedance import InducedVoltageTime
 from blond.impedances.impedance import (
@@ -256,7 +256,7 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
         induced_voltage_container.add_induced_voltage(steps)
         induced_voltage_container.add_induced_voltage(dir_space_charge)
 
-        self.total_induced_voltage_NEW = TotalInducedVoltageNew(
+        self.total_induced_voltage_NEW = InducedVoltageCompactWakeSolver(
             beam=beam,
             equi_spaced_profiles=profile_container,
             induced_voltage_container=induced_voltage_container,
@@ -425,7 +425,7 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
             induced_voltage_container.add_induced_voltage(induced_voltage_tmp)
         ax = plt.subplot(3, 1, 2)
         plt.cla()
-        self.total_induced_voltage_NEW = TotalInducedVoltageNew(
+        self.total_induced_voltage_NEW = InducedVoltageCompactWakeSolver(
             beam=beam,
             equi_spaced_profiles=profile_container,
             induced_voltage_container=induced_voltage_container,
