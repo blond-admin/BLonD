@@ -5,19 +5,24 @@ from typing import TYPE_CHECKING
 import numpy as np
 from matplotlib import pyplot as plt
 
-from blond.utils import bmath as bm, precision
-from blond.beam.profile import Profile
+from ...beam.profile import Profile
+from ...utils import bmath as bm, precision
+from ..impedance import TotalInducedVoltageAbstract
 
 if TYPE_CHECKING:
-    from typing import Tuple, Literal
+
+    from typing import Literal
     from numpy.typing import NDArray as NumpyArray
     from cupy.typing import NDArray as CupyArray
-    from .beam import Beam
-    from ..impedances.impedance import (
+    from . import EquiSpacedProfiles, InducedVoltageContainer
+
+    from ...beam.beam import Beam
+    from ...utils.types import DeviceType
+
+    from ...impedances.impedance import (
         _InducedVoltage,
         InducedVoltageFreq,
         InductiveImpedance,
-        InducedVoltageResonator,
     )
 
     InducedVoltageTyes = (
@@ -33,152 +38,7 @@ if TYPE_CHECKING:
     )
 
 
-class Lockable:
-    def __init__(self):
-        """Class that can be locked and unlocked"""
-        self.__locked = False
-
-    def lock(self):
-        self.__locked = True
-
-    def unlock(self):
-        self.__locked = False
-
-    @property
-    def is_locked(self):
-        return self.__locked
-
-
-class _ProfileContainer(Lockable):
-    """Helper class to contain several Profile objects"""
-
-    def __init__(self):
-        super().__init__()
-        self._profiles: Tuple[Profile] = tuple()
-
-        # Memory helper to calculate histogram of several profiles efficiently
-        self._total_histogram: NumpyArray | CupyArray = None
-
-    @property
-    def bin_width(self):
-        if self.n_profiles == 0:
-            msg = (
-                "`bin_width` is undefined because no profiles are in the "
-                "`MultiProfileContainer`, use `add_profile()` first!"
-            )
-            raise ValueError(msg)
-        return self._profiles[0].bin_width
-
-    @property
-    def n_profiles(self):
-        return len(self._profiles)
-
-    @property
-    def number_of_bins(self):
-        if self.n_profiles == 0:
-            msg = (
-                "`number_of_bins` is undefined because no profiles are in the "
-                "`MultiProfileContainer`, use `add_profile()` first!"
-            )
-            raise ValueError(msg)
-        return self._profiles[0].number_of_bins
-
-    def to_gpu(self, recursive: bool = True):
-        import cupy as cp
-
-        self._total_histogram = cp.array(self._total_histogram)
-        for i, profile in enumerate(self._profiles):
-            profile.n_macroparticles = self._total_histogram[:, i].view()
-
-    def add_profile(self, profile: Profile):
-        assert not self.is_locked
-        if self.n_profiles > 0:
-            msg = f"{profile.bin_width=}, but must be {self.bin_width}"
-            assert np.isclose(profile.bin_width, self.bin_width), msg
-            msg = f"{profile.number_of_bins=}, but must be {self.number_of_bins}"
-            assert profile.number_of_bins == self.number_of_bins, msg
-            for p in self._profiles:
-                start = p.cut_left
-                stop = p.cut_right
-                if not (
-                    ((profile.cut_left <= start) & (profile.cut_right <= start))
-                    or ((profile.cut_left >= stop) & (profile.cut_right >= stop))
-                ):
-                    raise ValueError("Profiles are overlapping")
-        self._profiles = (*self._profiles, profile)
-        self._update_memory()
-
-    def _update_memory(self):
-        self._total_histogram = bm.zeros(
-            shape=(self.number_of_bins, self.n_profiles),
-            dtype=bm.precision.real_t,
-            order="F",
-        )
-        for i, profile in enumerate(self._profiles):
-            # TODO WRITE TEST THAT ITS WRITING TO THE CORRECT POSITION IN
-            self._total_histogram[:, i] = profile.n_macroparticles
-            profile.n_macroparticles = self._total_histogram[:, i].view()
-
-    def track(self):
-        #  TODO implement more efficient method using `_total_histogram`
-        for profile in self._profiles:
-            profile.track()
-
-    def __len__(self):
-        return len(self._profiles)
-
-    def __iter__(self):
-        for profile in self._profiles:
-            yield profile
-
-
-class EquiSpacedProfiles(_ProfileContainer):
-    """Helper class to contain several evently spaced Profile objects"""
-
-    def __init__(self):
-        super().__init__()
-
-    def add_profile(self, profile: Profile):
-        if self.n_profiles >= 2:
-            dist_reference = self._profiles[1].center - self._profiles[0].center
-            dist_new = profile.center - self._profiles[1].center
-            if not np.isclose(dist_reference, dist_new):
-                raise ValueError(
-                    "Can only accept evenly spaced profiles!"
-                    f" The distance of the first two profiles is "
-                    f" {dist_reference}, but the distance to the added"
-                    f" profile is {dist_new}."
-                )
-        super().add_profile(profile=profile)
-
-
-class InducedVoltageContainer(Lockable):
-    """Helper class to contain several InducedVoltage objects"""
-    def __init__(self):
-
-        super().__init__()
-        self._induced_voltage_objects: Tuple[InducedVoltageTyes] = tuple()
-
-    @property
-    def n_objects(self):
-        return len(self._induced_voltage_objects)
-
-    def add_induced_voltage(self, induced_voltage: InducedVoltageTyes):
-        assert not self.is_locked
-        self._induced_voltage_objects = (
-            *self._induced_voltage_objects,
-            induced_voltage,
-        )
-
-    def __len__(self):
-        return len(self._induced_voltage_objects)
-
-    def __iter__(self):
-        for induced_voltage_object in self._induced_voltage_objects:
-            yield induced_voltage_object
-
-
-class InducedVoltageCompactWakeSolver:
+class InducedVoltageCompactWakeSolver(TotalInducedVoltageAbstract):
     """Solver to calculate induced voltage for several profiles
 
     Parameters
@@ -204,12 +64,10 @@ class InducedVoltageCompactWakeSolver:
 
     Examples
     --------
-    >>> from blond.beam.profile import Profile
-    >>> from blond.beam.profilecontainer import (
+    >>> from impedances.induced_voltage_compact_wake_solver import EquiSpacedProfiles, InducedVoltageContainer    >>> from blond.beam.profile import Profile
+    >>> from blond.impedances.induced_voltage_compact_wake_solver import (
     >>>     InducedVoltageCompactWakeSolver,
-    >>>     InducedVoltageContainer,
-    >>>     EquiSpacedProfiles,
-    >>> )
+    >>>     )
     >>> from blond.impedances.impedance import (
     >>>     InducedVoltageFreq,
     >>>     InductiveImpedance,
@@ -244,6 +102,8 @@ class InducedVoltageCompactWakeSolver:
     ):
         self._beam = beam
         if isinstance(equi_spaced_profiles, Profile):
+            # iImport here to prevent cyclic dependency
+            from . import EquiSpacedProfiles
             __profile = equi_spaced_profiles
             equi_spaced_profiles = EquiSpacedProfiles()
             equi_spaced_profiles.add_profile(__profile)
@@ -323,12 +183,22 @@ class InducedVoltageCompactWakeSolver:
         self._compressed_wake_kernel = cp.array(self._compressed_wake_kernel)
         if recursive:
             self._equi_spaced_profiles.to_gpu(recursive=recursive)
+        self._device: DeviceType = "GPU"
+
+    def to_cpu(self, recursive=True):
+        import cupy as cp
+
+        self._compressed_wake_kernel = cp.asnumpy(self._compressed_wake_kernel)
+        if recursive:
+            self._equi_spaced_profiles.to_cpu(recursive=recursive)
+        self._device: DeviceType = "CPU"
 
     def reprocess(self):
         # TODO: PRELIMINARY CODE
         self._compressed_wake_kernel = self._get_compressed_wake_kernel(
             self._equi_spaced_profiles
         )
+        print("reprocess")
 
     def induced_voltage_sum(self):
         # TODO: PRELIMINARY CODE
@@ -350,6 +220,21 @@ class InducedVoltageCompactWakeSolver:
             # TODO activate del wake
             # del profile.wake  # NOQA remove attribute, so its not visible
             # from the outside.
+
+    def track_ghosts_particles(self, ghost_beam: Beam):
+        """Apply kick function to beam"""
+
+        self._induced_voltage_sum()
+        for profile_i, profile in enumerate(self._equi_spaced_profiles):
+            bm.linear_interp_kick(
+                dt=ghost_beam.dt,
+                dE=ghost_beam.dE,
+                voltage=self.get_induced_voltage(profile_i),
+                bin_centers=profile.bin_centers,
+                charge=self._beam.particle.charge,  # FIXME is this the correct
+                # charge? Should it bhe the one of ghost_beam?
+                acceleration_kick=0.0,
+            )
 
     def _induced_voltage_sum(self):
         has_one_profile = self._equi_spaced_profiles.n_profiles == 1

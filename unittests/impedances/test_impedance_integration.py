@@ -3,7 +3,6 @@ import unittest
 from typing import Optional
 
 import matplotlib.pyplot as plt
-from pathlib import Path
 
 
 def yolo(*args, **kwargs):
@@ -12,7 +11,7 @@ import numpy as np
 from parameterized import parameterized
 
 from blond.beam.profile import Profile, CutOptions
-from blond.beam.profilecontainer import (
+from blond.impedances.induced_voltage_compact_wake_solver import (
     InducedVoltageCompactWakeSolver,
     EquiSpacedProfiles,
     InducedVoltageContainer,
@@ -38,10 +37,7 @@ r50_b = np.random.rand(50)
 
 class MyTestCase(unittest.TestCase):
     def setUp(self):
-        import sys
-        current_script_path = Path(__file__).resolve()
-        sys.path.append(current_script_path.parent.parent)
-        from example_simulation import ExampleSimulation
+        from .example_simulation import ExampleSimulation
 
         self.sim = ExampleSimulation()
 

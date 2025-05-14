@@ -581,7 +581,7 @@ class Profile:
 
     @property
     def center(self):
-        return (self.cut_right + self.cut_left) / 2
+        return (self.cut_right + self.cut_left) / 2.0
     
     @property
     def bin_width(self):

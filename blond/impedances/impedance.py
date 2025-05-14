@@ -52,8 +52,31 @@ if TYPE_CHECKING:
 
     MtwModeTypes = Literal["freq", "time"]
 
+class TotalInducedVoltageAbstract(ABC):
+    @abstractmethod # TODO
+    def reprocess(self):
+        pass
+    @abstractmethod
+    def induced_voltage_sum(self):
+        pass
 
-class TotalInducedVoltage:
+    @abstractmethod
+    def track(self):
+        pass
+
+    @abstractmethod
+    def track_ghosts_particles(self, ghost_beam: Beam):
+        pass
+
+    @abstractmethod
+    def to_gpu(self, recursive: bool = True):
+        pass
+
+    @abstractmethod
+    def to_cpu(self, recursive=True):
+        pass
+
+class TotalInducedVoltage(TotalInducedVoltageAbstract):
     r"""
     Object gathering all the induced voltage contributions. The input is a
     list of objects able to compute induced voltages (InducedVoltageTime,
@@ -155,7 +178,8 @@ class TotalInducedVoltage:
             dE=ghost_beam.dE,
             voltage=self.induced_voltage,
             bin_centers=self.profile.bin_centers,
-            charge=self.beam.particle.charge,
+            charge=self.beam.particle.charge, # FIXME is this the correct
+            # charge? Should it bhe the one of ghost_beam?
             acceleration_kick=0.0,
         )
 

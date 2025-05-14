@@ -2,18 +2,15 @@ import unittest
 
 import matplotlib.pyplot as plt
 import numpy as np
-from fontTools.varLib.interpolatable import recursivelyAddGlyph
 from scipy.constants import c, e, m_p
 
 from blond.beam.beam import Beam, Proton
 from blond.beam.profile import CutOptions, Profile
 from blond.beam.profile import FitOptions
-from blond.beam.profilecontainer import (
-    Lockable,
-    _ProfileContainer,
-    InducedVoltageContainer,
-    InducedVoltageCompactWakeSolver, EquiSpacedProfiles,
-)
+from blond.impedances.induced_voltage_compact_wake_solver import (
+    InducedVoltageCompactWakeSolver, )
+from impedances.induced_voltage_compact_wake_solver import Lockable, \
+    _ProfileContainer, EquiSpacedProfiles, InducedVoltageContainer
 from blond.impedances.impedance import InducedVoltageTime
 from blond.impedances.impedance import (
     InductiveImpedance,
