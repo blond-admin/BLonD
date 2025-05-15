@@ -377,7 +377,6 @@ class __NumpyBackend(MasterBackend):
         self.minimum = np.minimum
         self.amax = np.amax
         self.roll = np.roll
-        self.fftconvolve = fftconvolve
         self.pi = np.pi
         self.arctan = np.arctan
         self.ones = np.ones
@@ -613,7 +612,7 @@ class CppBackend(__NumpyBackend):
         # elf.linspace_cpp = _cpp.linspace_cpp # todo add?
         # elf.argmin_cpp = _cpp.argmin_cpp # todo add?
         # elf.argmax_cpp = _cpp.argmax_cpp # todo add?
-        self.convolve = _cpp.convolve
+        # self.convolve = _cpp.convolve
         # elf.arange_cpp = _cpp.arange_cpp # todo add?
         # elf.sum_cpp = _cpp.sum_cpp # todo add?
         # elf.sort_cpp = _cpp.sort_cpp # todo add?
