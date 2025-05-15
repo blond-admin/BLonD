@@ -37,7 +37,7 @@ def plot_comparison():
                 np.random.rand(profile_size),
                 "same",
             )
-            runtime_i = runtime_cpu(func, args, n_warmup=1, n_iter=1)
+            runtime_i = runtime_cpu(func, args, n_warmup=1, n_iter=10)
             results[i] = runtime_i
         plt.plot(sizes, results, label=name)
     plt.legend()

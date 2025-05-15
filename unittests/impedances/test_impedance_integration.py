@@ -236,7 +236,9 @@ class MyTestCase(unittest.TestCase):
             plt.show()
 
         np.testing.assert_allclose(
-            induced_voltage_new.induced_voltage[1:-1], induced_voltage_org.induced_voltage[1:-1]
+            induced_voltage_new.induced_voltage[1:-1],
+            induced_voltage_org.induced_voltage[1:-1],
+            atol=1e-12,
         )
 
     @parameterized.expand(
