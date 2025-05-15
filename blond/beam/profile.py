@@ -766,7 +766,6 @@ class Profile:
 
         bin_centers = self.bin_centers
         dist_centers = bin_centers[1] - bin_centers[0]
-        print(f"beam_profile_derivative {dist_centers=}")
 
         if mode == 'filter1d':
             if bm.device == 'GPU':

@@ -18,6 +18,7 @@ import unittest
 import numpy as np
 import pytest
 import scipy
+from matplotlib import pyplot as plt
 from packaging.version import Version
 
 import blond
@@ -550,7 +551,6 @@ class TestArgMax(unittest.TestCase):
         a = np.random.randn(1000)
         np.testing.assert_equal(bm.argmax_cpp(a), np.argmax(a))
 
-
 class TestConvolve(unittest.TestCase):
 
     # Run before every test
@@ -564,12 +564,32 @@ class TestConvolve(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def test_convolve_1(self):
-        s = np.random.randn(100)
-        k = np.random.randn(100)
-        np.testing.assert_almost_equal(bm.convolve(s, k, mode='full'),
-                                       np.convolve(s, k, mode='full'),
+    def _test_convolve_1(self, mode, s1):
+        s = np.random.randn(s1).astype(bm.precision.real_t)
+        k = np.random.randn(50).astype(bm.precision.real_t)
+
+        actual = bm.convolve(s, k, mode=mode)
+        expected = np.convolve(s, k, mode=mode)
+        DEV_DEBUG = False
+        if DEV_DEBUG:
+            if not np.all(np.isclose(actual,expected)):
+                plt.title(f"{s1}")
+                plt.plot(expected, label='numpy')
+                plt.plot(actual,"--", label='dev')
+                plt.show()
+        np.testing.assert_almost_equal(actual,
+                                       expected,
                                        decimal=8)
+    def test_convolve_1_full(self):
+        for i in range(2, 100):
+            self._test_convolve_1(mode='full',s1=i)
+
+    def test_convolve_1_same(self):
+        for i in range(2, 100):
+            self._test_convolve_1(mode='same', s1=i)
+
+
+
 
 
 

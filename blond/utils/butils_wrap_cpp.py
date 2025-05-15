@@ -283,16 +283,41 @@ def sort_cpp(x: NumpyArray, reverse: bool = False) -> NumpyArray:
     return x
 
 
-def convolve(signal: NumpyArray, kernel: NumpyArray, mode: str = 'full',
+def convolve(signal: NumpyArray, kernel: NumpyArray, mode: Literal["full", "same"] = 'full',
              result: Optional[NumpyArray] = None) -> NumpyArray:
-    if mode != 'full':
+    if mode == 'full':
         # ConvolutionError
-        raise RuntimeError('[convolve] Only full mode is supported')
-    if result is None:
-        result = np.empty(len(signal) + len(kernel) - 1, dtype=float)
-    get_libblond().convolution(__getPointer(signal), __getLen(signal),
-                               __getPointer(kernel), __getLen(kernel),
-                               __getPointer(result))
+        result_size = len(signal) + len(kernel) - 1
+        if result is None:
+            result = np.empty(result_size, dtype=precision.real_t)
+        else:
+            assert len(result) == result_size
+        get_libblond().convolution_full(
+            __getPointer(signal),
+            __getLen(signal),
+            __getPointer(kernel),
+            __getLen(kernel),
+            __getPointer(result)
+        )
+    elif mode == 'same':
+        if len(kernel) > len(signal):
+            kernel, signal = signal, kernel
+        result_size = len(signal)
+        if result is None:
+            result = np.empty(result_size, dtype=precision.real_t)
+            result[:] = np.nan
+        else:
+            assert len(result) == result_size
+        get_libblond().convolution_same(
+            __getPointer(signal),
+            __getLen(signal),
+            __getPointer(kernel),
+            __getLen(kernel),
+            __getPointer(result)
+        )
+    else:
+        raise ValueError(f"{mode=}, but must be 'full' or 'same' !")
+
     return result
 
 

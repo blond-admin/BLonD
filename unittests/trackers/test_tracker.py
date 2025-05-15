@@ -16,7 +16,6 @@ import time
 import unittest
 from copy import deepcopy
 
-import cupy
 import numpy as np
 import pytest
 
@@ -316,6 +315,8 @@ class Test:
         assert (np.any(dt_org != dt_new))
 
     def test_gpu_correct(self):
+        import cupy
+
         bmath.use_gpu()
         self._setUp()
         self.long_tracker._kickdrift_considering_periodicity_gpu(turn=self.turn)

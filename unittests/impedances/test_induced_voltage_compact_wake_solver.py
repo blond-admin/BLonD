@@ -9,7 +9,7 @@ from blond.beam.profile import CutOptions, Profile
 from blond.beam.profile import FitOptions
 from blond.impedances.induced_voltage_compact_wake_solver import (
     InducedVoltageCompactWakeSolver, )
-from impedances.induced_voltage_compact_wake_solver import Lockable, \
+from blond.impedances.induced_voltage_compact_wake_solver import Lockable, \
     _ProfileContainer, EquiSpacedProfiles, InducedVoltageContainer
 from blond.impedances.impedance import InducedVoltageTime
 from blond.impedances.impedance import (
@@ -320,9 +320,9 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
             plt.legend(loc="upper left")
             plt.show()
         np.testing.assert_allclose(
-            self.total_induced_voltage_NEW.induced_voltage[1:],
-            self.total_induced_voltage_ORG.induced_voltage[1:],
-            atol=5e-2 * np.max(np.abs(self.total_induced_voltage_ORG.induced_voltage)),
+            self.total_induced_voltage_NEW.induced_voltage[1:-1],
+            self.total_induced_voltage_ORG.induced_voltage[1:-1],
+            atol=1e-12,
         )
 
     def test__induced_voltage_sum_multi_profile(self):

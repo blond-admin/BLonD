@@ -248,28 +248,58 @@ extern "C"
         }
     }
 
-    void convolution(const real_t *__restrict__ signal,
-                     const int SignalLen,
+    void convolution_full(const real_t *__restrict__ signal,
+                     const long SignalLen,
                      const real_t *__restrict__ kernel,
-                     const int KernelLen,
+                     const long KernelLen,
                      real_t *__restrict__ res)
     {
         const int size = KernelLen + SignalLen - 1;
 
-#pragma omp parallel for
+        #pragma omp parallel for
         for (int n = 0; n < size; ++n)
         {
-            res[n] = 0;
+            real_t sum_ = 0;
             const int kmin = (n >= KernelLen - 1) ? n - (KernelLen - 1) : 0;
             const int kmax = (n < SignalLen - 1) ? n : SignalLen - 1;
             // uint j = n - kmin;
             for (int k = kmin; k <= kmax; k++)
             {
-                res[n] += signal[k] * kernel[n - k];
+                sum_ += signal[k] * kernel[n - k];
                 //--j;
             }
+            res[n] = sum_;
         }
     }
+
+void convolution_same(const real_t *__restrict__ signal,
+                      const long SignalLen,
+                      const real_t *__restrict__ kernel,
+                      const long KernelLen,
+                      real_t *__restrict__ res)
+{
+    int pad;
+    if ((KernelLen % 2) == 0){
+        pad = KernelLen / 2 - 1;
+    }else{
+        pad = KernelLen / 2;
+    }
+    #pragma omp parallel for
+    for (int n = 0; n < SignalLen; ++n)
+    {
+        real_t sum_ = 0;
+        int signal_idx;
+        for (int m = 0; m < KernelLen; ++m)
+        {
+            signal_idx = n - m + pad;
+            if ((signal_idx >= 0) && (signal_idx < SignalLen))
+            {
+                sum_ += kernel[m] * signal[signal_idx];
+            }
+        }
+        res[n] = sum_;
+    }
+}
 
     real_t mean(const real_t *__restrict__ data, const int n)
     {

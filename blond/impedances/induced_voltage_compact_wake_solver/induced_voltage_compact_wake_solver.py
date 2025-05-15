@@ -198,7 +198,6 @@ class InducedVoltageCompactWakeSolver(TotalInducedVoltageAbstract):
         self._compressed_wake_kernel = self._get_compressed_wake_kernel(
             self._equi_spaced_profiles
         )
-        print("reprocess")
 
     def induced_voltage_sum(self):
         # TODO: PRELIMINARY CODE
