@@ -717,10 +717,6 @@ class InducedVoltageTime(_InducedVoltage):
         self.frequency_resolution = 1 / (self.n_fft * self.profile.bin_size)
 
         # Time array of the wake in s
-        print(
-            self.wake_length,
-            self.n_induced_voltage,
-        )
         self.time = np.arange(
             0,
             self.wake_length,
