@@ -497,7 +497,7 @@ class InputTableFrequencyDomain(_ImpedanceObject):
     @t_periodicity.setter
     def t_periodicity(self, val):
         self.__t_periodicity = val
-        
+
     def wake_calc(self, time_array: NumpyArray | CupyArray) -> NumpyArray | CupyArray:
         r"""The wake from the table is interpolated using the new time array.
 
@@ -677,7 +677,11 @@ class Resonators(_ImpedanceObject):
         self.__frequency_R = omega_R / 2 / np.pi
         self.__omega_R = omega_R
 
-    def wake_calc(self, time_array: NumpyArray):
+    def get_periodic_wake(self, time_array: NumpyArray, t_period: float):
+        # FftHandler needed
+        raise NotImplementedError()
+
+    def get_nonperiodic_wake(self, time_array: NumpyArray):
         r"""
         Wake calculation method as a function of time.
 
@@ -693,26 +697,29 @@ class Resonators(_ImpedanceObject):
         wake : float array
             Output wake in :math:`\Omega / s`
         """
-
-        self.time_array = time_array
-        self.wake = np.zeros(
-            self.time_array.shape, dtype=bm.precision.real_t, order="C"
-        )
+        wake = np.zeros(time_array.shape, dtype=bm.precision.real_t, order="C")
 
         for i in range(0, self.n_resonators):
             alpha = self.omega_R[i] / (2 * self.Q[i])
-            omega_bar = np.sqrt(self.omega_R[i] ** 2 - alpha**2)
+            omega_bar = np.sqrt(self.omega_R[i] ** 2 - alpha ** 2)
 
-            self.wake += (
-                (np.sign(self.time_array) + 1)
-                * self.R_S[i]
-                * alpha
-                * np.exp(-alpha * self.time_array)
-                * (
-                    bm.cos(omega_bar * self.time_array)
-                    - alpha / omega_bar * bm.sin(omega_bar * self.time_array)
-                )
+            wake += (
+                    (np.sign(time_array) + 1)
+                    * self.R_S[i]
+                    * alpha
+                    * np.exp(-alpha * time_array)
+                    * (
+                            bm.cos(omega_bar * time_array)
+                            - alpha / omega_bar * bm.sin(
+                        omega_bar * time_array)
+                    )
             )
+        assert not np.any(np.isnan(wake))
+        return wake
+
+    def wake_calc(self, time_array: NumpyArray):
+        self.time_array = time_array
+        self.wake = self.get_nonperiodic_wake(time_array=time_array)
 
     def imped_calc(self, frequency_array: NumpyArray):
         r"""

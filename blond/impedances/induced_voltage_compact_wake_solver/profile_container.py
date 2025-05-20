@@ -29,7 +29,7 @@ class Lockable:
         return self.__locked
 
 
-class _ProfileContainer(Lockable):
+class ProfileContainer(Lockable):
     """Helper class to contain several Profile objects"""
 
     def __init__(self):
@@ -119,7 +119,7 @@ class _ProfileContainer(Lockable):
             yield profile
 
 
-class EquiSpacedProfiles(_ProfileContainer):
+class EquiSpacedProfiles(ProfileContainer):
     """Helper class to contain several evently spaced Profile objects"""
 
     def __init__(self):

@@ -10,7 +10,7 @@ from blond.beam.profile import FitOptions
 from blond.impedances.induced_voltage_compact_wake_solver import (
     InducedVoltageCompactWakeSolver, )
 from blond.impedances.induced_voltage_compact_wake_solver import Lockable, \
-    _ProfileContainer, EquiSpacedProfiles, InducedVoltageContainer
+    ProfileContainer, EquiSpacedProfiles, InducedVoltageContainer
 from blond.impedances.impedance import InducedVoltageTime
 from blond.impedances.impedance import (
     InductiveImpedance,
@@ -68,7 +68,7 @@ class TestProfileContainer(unittest.TestCase):
             ),
         )
 
-        self.profile_container = _ProfileContainer()
+        self.profile_container = ProfileContainer()
         self.profile_container.add_profile(self.profile1)
 
     def test_bin_width(self):
@@ -246,7 +246,7 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
             -376.730313462 / (ring.beta[0] * ring.gamma[0] ** 2),
             rf_station,
         )
-        profile_container = _ProfileContainer()
+        profile_container = ProfileContainer()
         profile_container.add_profile(profile1)
         # profile_container.add_profile(profile2)
         induced_voltage_container = InducedVoltageContainer()
@@ -400,7 +400,7 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
             -376.730313462 / (ring.beta[0] * ring.gamma[0] ** 2),
             rf_station,
         )
-        profile_container = _ProfileContainer()
+        profile_container = ProfileContainer()
         for profile in profiles:
             profile_container.add_profile(profile)
         induced_voltage_freq_resonators = InducedVoltageTime(

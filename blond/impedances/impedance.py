@@ -1184,7 +1184,6 @@ class InductiveImpedance(_InducedVoltage):
         step = ts[1] - ts[0]
         ts = bm.linspace(t_start, t_stop, n)
         derative_wake = np.zeros(n, dtype=bm.precision.real_t)
-        print(f"get_wake_kernel {step=}")
         # if is first histogram,
         if t_start <= 0 < t_stop:
             idx = len(ts) // 2 - 1
