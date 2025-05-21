@@ -109,3 +109,58 @@ class BarrierBucket:
         self._barrier_waveform = cp.asnumpy(self._barrier_waveform)
 
         self._device = 'CPU'
+
+def barrier_to_harmonics(waveform: NDArray, harmonics: Iterable[int])\
+                                -> tuple[tuple[float, ...], tuple[float, ...]]:
+    """
+    Converts an arbitrary waveform to a fourier series in amplitude and
+    phase.  Waveform is assumed to be 1 revolution period in length.
+    the harmonic numbers must be an integer and are used to select the
+    required fourier components.
+
+    The input waveform can be reconstructed with a sin function.
+
+    Returns:
+        tuple[tuple[float, ...]]:
+            Two tuples of float, length equal to len(harmonics).
+            Element 0 is the amplitudes, element 1 is the phases.
+    """
+
+    wave_fft = np.fft.rfft(waveform)
+
+    harm_series = np.array([wave_fft[h] for h in harmonics])
+
+    harm_amps = np.abs(harm_series)/(len(waveform)/2)
+    harm_phases = np.arctan2(harm_series.real, harm_series.imag) + np.pi
+
+    return harm_amps, harm_phases
+
+def sinc_filtering(harmonic_amplitudes: Iterable[float], m: int=1) -> NDArray:
+    """
+    Filters the fourier components with a sinc function window as
+    described in PhD thesis:
+        Beam Loss Reduction by Barrier Buckets in the CERN Accelerator
+        Complex:  M. Vadai CERN-THESIS-2021-043 Chapter 3.2.3.2
+
+    Args:
+        harmonic_amplitudes (Iterable[float]):
+            The amplitudes of the fourier series.  Assumed to be
+            uniformly spaced in the range 1..n
+        m (int, optional):
+            Power applied to the sinc function.  Higher values give more
+            aggressive filtering, 0 is equivalent to a square window, or
+            no filtering.
+            Defaults to 1.
+
+    Returns:
+        NDArray: The modified harmonic amplitudes.
+    """
+
+    filtered_amplitudes = np.zeros_like(harmonic_amplitudes)
+    n_harm = len(harmonic_amplitudes)
+
+    for i, a in enumerate(harmonic_amplitudes):
+
+        filtered_amplitudes[i] = a * np.sinc((i*np.pi) / (2 * (n_harm+1)))**m
+
+    return filtered_amplitudes
