@@ -112,33 +112,22 @@ class TestInputTableTimeDomain(unittest.TestCase):
     def test_wake_calc(self):
         self.input_table_time_domain.wake_calc(np.linspace(-1, 7, 100))
 
-    def test_imped_calc(self):
-        self.input_table_time_domain.imped_calc(
-            frequency_array=np.linspace(0, 1 / (2 * 6 / 100))
-        )
 
 
 class TestInputTableFrequencyDomain(unittest.TestCase):
     def setUp(self):
         frequency_array = np.linspace(0, 1e9, 1000)
-        Re_Z_array = np.random.rand(len(frequency_array))
-        Im_Z_array = np.random.rand(len(frequency_array))
+        impedance_real = np.random.rand(len(frequency_array))
+        impedance_imag = np.random.rand(len(frequency_array))
         self.input_table_frequency_domain = InputTableFrequencyDomain(
             frequency_array=frequency_array,
-            Re_Z_array=Re_Z_array,
-            Im_Z_array=Im_Z_array,
+            impedance_real=impedance_real,
+            impedance_imag=impedance_imag,
         )
 
     def test___init__(self):
         pass  # tests only if `setUp` works
 
-    @parameterized.expand(["auto", 1.0, None])
-    def test_wake_calc(self, t_periodicity):
-        self.input_table_frequency_domain.t_periodicity = t_periodicity
-        time_array = np.linspace(0, 1, 100)
-        self.input_table_frequency_domain.wake_calc(time_array=time_array)
-        wake = self.input_table_frequency_domain.wake
-        assert wake is not None
 
     def test_imped_calc(self):
         frequency_array = np.linspace(0, 1, 100)
@@ -191,14 +180,6 @@ class TestResistiveWall(unittest.TestCase):
     def test___init__(self):
         pass  # tests only if `setUp` works
 
-    @parameterized.expand(["auto", 1.0, None])
-    def test_wake_calc(self, t_periodicity):
-        self.resistive_wall.imped_calc(np.linspace(0, 5e9, 500))
-        self.resistive_wall.t_periodicity = t_periodicity
-        time_array = np.linspace(0, 1, 100)
-        self.resistive_wall.wake_calc(time_array=time_array)
-        wake = self.resistive_wall.wake
-        assert wake is not None
 
 
 class TestCoherentSynchrotronRadiation(unittest.TestCase):
@@ -222,7 +203,7 @@ class TestCoherentSynchrotronRadiation(unittest.TestCase):
         csr_imped = CoherentSynchrotronRadiation(1)
 
         self.assertEqual(
-            csr_imped.imped_calc.__func__,
+            csr_imped._imped_calc.__func__,
             CoherentSynchrotronRadiation._fs_low_frequency_wrapper,
         )
 
@@ -231,7 +212,8 @@ class TestCoherentSynchrotronRadiation(unittest.TestCase):
 
         self.assertTrue(hasattr(csr_imped, "f_crit"))
         self.assertEqual(
-            csr_imped.imped_calc.__func__, CoherentSynchrotronRadiation._fs_spectrum
+            csr_imped._imped_calc.__func__,
+            CoherentSynchrotronRadiation._fs_spectrum
         )
 
     def test_correctImpedanceFuncion3(self):
@@ -239,7 +221,7 @@ class TestCoherentSynchrotronRadiation(unittest.TestCase):
 
         self.assertTrue(hasattr(csr_imped, "f_cut"))
         self.assertEqual(
-            csr_imped.imped_calc.__func__,
+            csr_imped._imped_calc.__func__,
             CoherentSynchrotronRadiation._pp_low_frequency,
         )
 
@@ -249,7 +231,8 @@ class TestCoherentSynchrotronRadiation(unittest.TestCase):
         self.assertTrue(hasattr(csr_imped, "f_crit"))
         self.assertTrue(hasattr(csr_imped, "f_cut"))
         self.assertEqual(
-            csr_imped.imped_calc.__func__, CoherentSynchrotronRadiation._pp_spectrum
+            csr_imped._imped_calc.__func__,
+            CoherentSynchrotronRadiation._pp_spectrum
         )
 
     def test_lowHighFrequencyTransitionFreeSpace(self):

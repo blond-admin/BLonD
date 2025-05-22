@@ -7,22 +7,19 @@ from scipy.constants import c, e, m_p
 from blond.beam.beam import Beam, Proton
 from blond.beam.profile import CutOptions, Profile
 from blond.impedances.impedance import (
-    InductiveImpedanceShortcutSolver,
     TotalInducedVoltage,
-    InducedVoltageFreqDomainSolver,
-    InducedVoltageTimeDomainSolver,
+    InducedVoltageFreq,
+    InducedVoltageTime,
 )
+from blond.impedances.impedance_sources import Resonators
 from blond.impedances.induced_voltage_compact_wake_solver import (
     InducedVoltageCompactWakeMultiTurnSolver,
     ProfileRangeMultiTurnEvolution,
 )
 from blond.impedances.induced_voltage_compact_wake_solver import (
-    ProfileContainer,
     InducedVoltageContainer,
 )
-from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
-from blond.impedances.impedance_sources import Resonators
 
 
 class TestProfileMultiTurnEvolution(unittest.TestCase):
@@ -111,7 +108,7 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
         )
         profile1.track()
 
-        """steps = InductiveImpedanceShortcutSolver(
+        """steps = InductiveImpedance(
             beam,
             profile1,
             34.6669349520904 / 10e9 * ring.f_rev,
@@ -121,17 +118,18 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
 
         # direct space charge
         resonators = Resonators([4.5e6], [200.222e6], [200])
-        freqsolver = InducedVoltageFreqDomainSolver(
+        t_wake = 16 * (profile1.cut_right - profile1.cut_left)
+        freqsolver = InducedVoltageFreq(
             beam=beam,
             profile=profile1,
             impedance_source_list=[resonators],
-            frequency_resolution=float(1 / ring.t_rev[0]),
+            frequency_resolution=float(1 / t_wake),
         )
-        timesolver = InducedVoltageTimeDomainSolver(
+        timesolver = InducedVoltageTime(
             beam=beam,
             profile=profile1,
             wake_source_list=[resonators],
-            wake_length=16 * (profile1.cut_right - profile1.cut_left),
+            wake_length=t_wake,
         )
         induced_voltage_container = InducedVoltageContainer()
         induced_voltage_container.add_induced_voltage(freqsolver)
@@ -164,13 +162,13 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
         self.total_induced_voltage_NEW.track()
 
     def test__induced_voltage_sum_single_profile(self):
-        self.total_induced_voltage_NEW._induced_voltage_sum()
+        self.total_induced_voltage_NEW.induced_voltage_sum()
         self.total_induced_voltage_ORG.induced_voltage_sum()
         DEV_DEBUG = False
         if DEV_DEBUG:
             plt.subplot(4, 1, 1)
             plt.plot(
-                self.total_induced_voltage_NEW._profile.n_macroparticles,
+                self.total_induced_voltage_NEW.profile.n_macroparticles,
                 "-x",
             )
             plt.subplot(4, 1, 2)
@@ -192,7 +190,7 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
 
             plt.subplot(4, 1, 4)
             plt.plot(
-                self.total_induced_voltage_NEW._profile.wake[1:]
+                self.total_induced_voltage_NEW.profile.wake[1:]
                 - self.total_induced_voltage_ORG.induced_voltage[1:],
                 label="TotalInducedVoltageNew",
             )

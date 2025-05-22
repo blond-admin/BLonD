@@ -25,22 +25,17 @@ from typing import TYPE_CHECKING
 
 import mpmath
 import numpy as np
-from matplotlib import pyplot as plt
 from scipy import integrate
 from scipy.constants import c, physical_constants
 from scipy.special import airy, gamma as gamma_func, kv, polygamma
 
 from ..utils import bmath as bm
-from ..utils import precision
 
 if TYPE_CHECKING:
-    from typing import Optional, Iterable, Tuple, Literal
-
-    from numpy.typing import NDArray as NumpyArray, ArrayLike
+    from typing import Optional, Iterable, Tuple
 
     from numpy.typing import NDArray as NumpyArray
     from cupy.typing import NDArray as CupyArray
-
 
 def _infinite_samples_fourier_transform(
     ts: NumpyArray | CupyArray,
@@ -82,10 +77,10 @@ def _infinite_samples_fourier_transform(
         The single particle wakefield along ts
     """
     if out is None:
-        wave = bm.zeros_like(ts, dtype=precision.real_t)
+        wave = bm.zeros_like(ts, dtype=bm.precision.real_t)
     else:
         assert len(out) == len(ts)
-        assert out.dtype == precision.real_t
+        assert out.dtype == bm.precision.real_t
         wave = out
 
     for i in range(len(wave)):
@@ -296,7 +291,12 @@ class _FftHandler:
         )
 
 
-class _ImpedanceObject(ABC):
+class ImpedanceObjectAbstract(ABC):
+    def __init__(self):
+        super().__init__()
+
+
+class ImpedanceObjectTime(ImpedanceObjectAbstract, ABC):
     r"""
     Parent impedance object to implement required methods and attributes
     common to all the child classes. The attributes are initialised to 0 but
@@ -304,20 +304,16 @@ class _ImpedanceObject(ABC):
     """
 
     def __init__(self):
+        super().__init__()
         # Time array of the wake in s
         self.time_array: NumpyArray | CupyArray = 0
 
         # Wake array in :math:`\Omega / s`
         self.wake: NumpyArray | CupyArray = 0
 
-        # Frequency array of the impedance in Hz
-        self.frequency_array: NumpyArray | CupyArray = 0
-
-        # Impedance array in :math:`\Omega`
-        self.impedance: NumpyArray | CupyArray = 0
 
     @abstractmethod
-    def wake_calc(self, time_array: NumpyArray):
+    def wake_calc(self, time_array: NumpyArray, **kwargs):
         r"""
         Method required to compute the wake function. Returns an error if
         called from an object which does not implement this method.
@@ -329,8 +325,33 @@ class _ImpedanceObject(ABC):
             "frequency domain"
         )
 
+    def update_attributes_time(self, time_array: NumpyArray | CupyArray,
+                               wake: NumpyArray | CupyArray):
+        self.time_array: NumpyArray | CupyArray = time_array
+
+        # Wake array in :math:`\Omega / s`
+        self.wake: NumpyArray | CupyArray = wake
+
+
+class ImpedanceObjectFreq(ImpedanceObjectAbstract, ABC):
+    r"""
+    Parent impedance object to implement required methods and attributes
+    common to all the child classes. The attributes are initialised to 0 but
+    they are overwritten by float arrays when the child classes are used.
+    """
+
+    def __init__(self):
+        super().__init__()
+
+        # Frequency array of the impedance in Hz
+        self.frequency_array: NumpyArray | CupyArray = 0
+
+        # Impedance array in :math:`\Omega`
+        self.impedance: NumpyArray | CupyArray = 0
+
+
     @abstractmethod
-    def imped_calc(self, frequency_array: NumpyArray):
+    def imped_calc(self, frequency_array: NumpyArray, **kwargs):
         r"""
         Method required to compute the impedance. Returns an error if called
         from an object which does not implement this method.
@@ -342,12 +363,24 @@ class _ImpedanceObject(ABC):
             + "time domain"
         )
 
+    def update_attributes_freq(self, frequency_array: NumpyArray | CupyArray,
+                               impedance: NumpyArray | CupyArray):
+        self.frequency_array = frequency_array
+        self.impedance = impedance
 
-class InputTableTimeDomain(_ImpedanceObject):
+
+
+class InputTableTimeDomain(ImpedanceObjectTime):
     r"""
-    Intensity effects from impedance and wake tables of a wake table is passed;
-    Be careful, the input wake for W(t=0) should be already
-    divided by two (beam loading theorem)
+    Intensity effects from impedance and wake tables.
+    If the constructor takes just two arguments, then a wake table is passed;
+    if it takes three arguments, then an impedance table is passed. Be careful
+    that if you input a wake, the input wake for W(t=0) should be already
+    divided by two (beam loading theorem) ; and that if you input impedance,
+    only the positive  frequencies of the impedance is needed (the impedance
+    will be assumed to be Hermitian (Real part symmetric and Imaginary part
+    antisymmetric).Note that we add the point (f, Z(f)) = (0, 0) to the
+    frequency and impedance arrays derived from the table.
 
     Parameters
     ----------
@@ -371,25 +404,26 @@ class InputTableTimeDomain(_ImpedanceObject):
     >>> time = np.array([1.1,2.2,3.3])
     >>> wake = np.array([4.4,5.5,6.6])
     >>> table = InputTableTimeDomain(time, wake)
-    >>> time_array = np.array([7.7,8.8,9.9])
-    >>> table.wake_calc(time_array)
+    >>> new_time_array = np.array([7.7,8.8,9.9])
+    >>> table.wake_calc(new_time_array)
+
+
     """
 
-    def __init__(self, time_array: ArrayLike[float], wake: ArrayLike[float]):
-        _ImpedanceObject.__init__(self)
-        if not time_array.min() <= 0:
-            warnings.warn(
-                f"Uninitended side effects are possible, if your "
-                f"wake doesnt start before 0: {time_array.min()=}",
-                UserWarning,
-                stacklevel=2,
-            )
-        # Time array of the wake in s
-        self.time_array = self._time_array_org = time_array
-        # Wake array in :math:`\Omega / s`
-        self.wake = self._wake_org = wake
 
-    def wake_calc(self, time_array: NumpyArray):
+    def __init__(self, time_array: NumpyArray, wake: NumpyArray):
+
+        super().__init__()
+            # Time array of the wake in s
+        self._time_array_base = time_array
+            # Wake array in :math:`\Omega / s`
+        self._wake_array_base = wake
+
+        self.time_array: NumpyArray = time_array
+        self.wake: NumpyArray = wake
+
+
+    def wake_calc(self, time_array: NumpyArray, **kwargs):
         r"""
         The wake from the table is interpolated using the new time array.
 
@@ -398,29 +432,22 @@ class InputTableTimeDomain(_ImpedanceObject):
         time_array : float array
             Input time array in s
 
-        Attributes
-        ----------
-        time_array : float array
-            Input time array in s
         """
 
-        self.time_array = time_array
-        self.wake = np.interp(
-            self.time_array, self._time_array_org, self._wake_org, right=0
-        )
-
-    def imped_calc(self, frequency_array: NumpyArray):
-        dt = 1 / (2 * frequency_array.max())  # Nyquist rate
-        ts_itp = dt * np.arange(len(frequency_array) * 2 - 2)
-        wake_itp = np.interp(ts_itp, self.time_array, self.wake,
-                             left=0, right=0)
-        impedance = np.fft.rfft(wake_itp)
-        assert len(frequency_array) == len(impedance)
-        self.frequency_array = frequency_array
-        self.impedance = impedance
+        wake = np.interp(self.time_array, self._time_array_base,
+                              self._wake_array_base, right=0)
+        self.update_attributes_time(time_array=time_array, wake=wake)
 
 
-class InputTableFrequencyDomain(_ImpedanceObject):
+    """def get_periodic_wake(self, any_linear_timeframe: NumpyArray,
+                          t_periodicity: float | None):
+        raise NotImplementedError # TODO
+
+
+    def get_nonperiodic_wake(self, any_linear_timeframe: NumpyArray):
+        raise NotImplementedError # TODO"""
+
+class InputTableFrequencyDomain(ImpedanceObjectFreq):
     r"""
     Intensity effects from impedance and wake tables.
     If the constructor takes just two arguments, then a wake table is passed;
@@ -436,23 +463,22 @@ class InputTableFrequencyDomain(_ImpedanceObject):
     ----------
     frequency_array : float array
         Time array of the wake in s or frequency array of the impedance in Hz
-    Re_Z_array : float array
+    impedance_real : float array
         Wake array in :math:`\Omega / s` or real part of impedance
         in :math:`\Omega`
-    Im_Z_array : float array
+    impedance_imag : float array
         Imaginary part of impedance in :math:`\Omega`
 
 
-    Attributes
-    ----------
-    _frequency_array float array
+        Attributes
+        ----------
+    _frequency_array_base : float array
         Input frequency array of the impedance in Hz
-    _impedance complex array
+    _impedance_base : complex array
         Input impedance array in :math:`\Omega + j \Omega`
 
     Examples
     --------
-
     >>> ##### IMPEDANCE TABLE
     >>> frequency = np.array([1.1,2.2,3.3])
     >>> real_part = np.array([4.4,5.5,6.6])
@@ -461,84 +487,28 @@ class InputTableFrequencyDomain(_ImpedanceObject):
     >>> new_freq_array = np.array([7.7,8.8,9.9])
     >>> table2.imped_calc(new_freq_array)
 
-    """
+        """
 
-    def __init__(
-        self,
-        frequency_array: ArrayLike[float],
-        Re_Z_array: ArrayLike[float],
-        Im_Z_array: Optional[ArrayLike[float]] = None,
-    ):
-        _ImpedanceObject.__init__(self)
 
+    def __init__(self, frequency_array: NumpyArray, impedance_real: NumpyArray,
+                 impedance_imag: NumpyArray):
+
+        super().__init__()
         # Frequency array of the impedance in Hz
-        self._frequency_array_org = frequency_array
-        # Real part of impedance in :math:`\Omega`
-        _Re_Z_array_org = Re_Z_array = Re_Z_array
-        # Imaginary part of impedance in :math:`\Omega`
-        _Im_Z_array_org = Im_Z_array = Im_Z_array
-
-        if self._frequency_array_org[0] != 0:
-            self._frequency_array_org = np.hstack((0, self._frequency_array_org))
-            _Re_Z_array_org = np.hstack((0, _Re_Z_array_org))
-            _Im_Z_array_org = np.hstack((0, _Im_Z_array_org))
+        self._frequency_array_base = frequency_array
 
         # Impedance array in :math:`\Omega`
-        self._impedance_org = self.impedance = _Re_Z_array_org + 1j * _Im_Z_array_org
+        self._impedance_base = (impedance_real + 1j * impedance_imag)
 
-        self.__t_periodicity: Optional[float, Literal["auto"]] = "auto"  #
-        # "auto",
-        # to guarantee original `wake_calc` behaviour
+        if self._frequency_array_base[0] != 0:
+            warnings.warn(f"frequency[0] is not 0, but {frequency_array[0]}."
+                          f" Prepending 0 to array..")
+            self._frequency_array_base = np.hstack((0,
+                                                    self._frequency_array_base))
+            self._impedance_base = np.hstack((0, self._impedance_base))
 
-    @property
-    def t_periodicity(self):
-        return self.__t_periodicity
 
-    @t_periodicity.setter
-    def t_periodicity(self, val):
-        self.__t_periodicity = val
-
-    def wake_calc(self, time_array: NumpyArray | CupyArray) -> NumpyArray | CupyArray:
-        r"""The wake from the table is interpolated using the new time array.
-
-        Parameters
-        ----------
-        time_array : float array
-            Input time array in s
-
-        """
-        time_array_dt = time_array[1] - time_array[0]
-        time_array_f_cutoff = 1 / (2 * time_array_dt)
-        if time_array_f_cutoff < self._frequency_array_org.max():
-            msg = (
-                f"`time_array` has a cutoff frequency of "
-                f"{time_array_f_cutoff} Hz, but the input table ends "
-                f"at {self._frequency_array_org.max()} Hz"
-            )
-            warnings.warn(msg, UserWarning, stacklevel=2)
-        fft_handler = _FftHandler(
-            frequencies=self._frequency_array_org, amplitudes=self._impedance_org
-        )
-
-        if self.t_periodicity == "auto":
-            # periodicity is same as time array length
-            wake = fft_handler.get_periodic_wake_by_time(time_array=time_array)
-        elif isinstance(self.t_periodicity, float):
-            # this allows periodicity to be different from time_array length
-            ts_itp, wake_itp = fft_handler.get_periodic_wake(
-                t_periodicity=self.t_periodicity, dt=time_array[1] - time_array[0]
-            )
-            wake = np.interp(time_array, ts_itp, wake_itp, period=self.t_periodicity)
-        elif self.t_periodicity is None:
-            # wave that decays towards infinity
-            wake = fft_handler.get_non_periodic_wake(time_array=time_array)
-        else:
-            raise ValueError(f"{self.t_periodicity=}")
-        self.wake = wake
-        self.time_array = time_array
-        return wake
-
-    def imped_calc(self, frequency_array: NumpyArray):
+    def imped_calc(self, frequency_array: NumpyArray, **kwargs):
         r"""
         The impedance from the table is interpolated using the new frequency
         array.
@@ -548,35 +518,16 @@ class InputTableFrequencyDomain(_ImpedanceObject):
         frequency_array : float array
             frequency array in :math:`\Omega`
 
-        Attributes
-        ----------
-        frequency_array : float array
-            frequency array in :math:`\Omega`
-        Re_Z_array : float array
-            Real part of the interpolated impedance in :math:`\Omega`
-        Im_Z_array : float array
-            Imaginary part of the interpolated impedance in :math:`\Omega`
-        impedance : complex array
-            Output interpolated impedance array in :math:`\Omega + j \Omega`
         """
+        impedance = np.interp(frequency_array, self._frequency_array_base,
+                         self._impedance_base, right=0)
 
-        Re_Z = np.interp(
-            frequency_array,
-            self._frequency_array_org,
-            self._impedance_org.real,
-            right=0,
-        )
-        Im_Z = np.interp(
-            frequency_array,
-            self._frequency_array_org,
-            self._impedance_org.imag,
-            right=0,
-        )
-        self.frequency_array = frequency_array
-        self.impedance = Re_Z + 1j * Im_Z
+        self.update_attributes_freq(frequency_array=frequency_array,
+                                    impedance=impedance)
 
 
-class Resonators(_ImpedanceObject):
+
+class Resonators(ImpedanceObjectTime, ImpedanceObjectFreq):
     r"""
     Impedance contribution from resonators, analytic formulas for both wake
     and impedance. The resonant modes (and the corresponding R and Q)
@@ -633,13 +584,11 @@ class Resonators(_ImpedanceObject):
     >>> resonators.imped_calc(frequency)
     """
 
-    def __init__(
-        self,
-        R_S: float | list[float] | NumpyArray,
-        frequency_R: float | list[float] | NumpyArray,
-        Q: float | list[float] | NumpyArray,
-    ):
-        _ImpedanceObject.__init__(self)
+    def __init__(self, R_S: float | list[float] | NumpyArray,
+                 frequency_R: float | list[float] | NumpyArray,
+                 Q: float | list[float] | NumpyArray):
+
+        super().__init__()
 
         # Shunt impedance in :math:`\Omega`
         self.R_S = np.array([R_S], dtype=float).flatten()
@@ -653,7 +602,7 @@ class Resonators(_ImpedanceObject):
         # Test if one or more quality factors is smaller than 0.5.
         if np.count_nonzero(self.Q < 0.5) > 0:
             # ResonatorError
-            raise RuntimeError("All quality factors Q must be greater or equal 0.5")
+            raise RuntimeError('All quality factors Q must be greater or equal 0.5')
 
         # Number of resonant modes
         self.n_resonators = len(self.R_S)
@@ -667,19 +616,19 @@ class Resonators(_ImpedanceObject):
         self.__frequency_R = frequency_R
         self.__omega_R = 2 * np.pi * frequency_R
 
+    # Resonant angular frequency in rad/s
     @property
     def omega_R(self):
         return self.__omega_R
 
-    # Resonant angular frequency in rad/s
     @omega_R.setter
     def omega_R(self, omega_R):
         self.__frequency_R = omega_R / 2 / np.pi
         self.__omega_R = omega_R
 
-    def get_periodic_wake(self, time_array: NumpyArray, t_period: float):
-        # FftHandler needed
-        raise NotImplementedError()
+    def wake_calc(self, time_array: NumpyArray, **kwargs):
+        wake = self.get_nonperiodic_wake(time_array)
+        self.update_attributes_time(time_array=time_array, wake=wake)
 
     def get_nonperiodic_wake(self, time_array: NumpyArray):
         r"""
@@ -697,33 +646,22 @@ class Resonators(_ImpedanceObject):
         wake : float array
             Output wake in :math:`\Omega / s`
         """
-        wake = np.zeros(time_array.shape, dtype=bm.precision.real_t, order="C")
+
+        wake = np.zeros(time_array.shape, dtype=bm.precision.real_t, order='C')
 
         for i in range(0, self.n_resonators):
+
             alpha = self.omega_R[i] / (2 * self.Q[i])
             omega_bar = np.sqrt(self.omega_R[i] ** 2 - alpha ** 2)
 
-            wake += (
-                    (np.sign(time_array) + 1)
-                    * self.R_S[i]
-                    * alpha
-                    * np.exp(-alpha * time_array)
-                    * (
-                            bm.cos(omega_bar * time_array)
-                            - alpha / omega_bar * bm.sin(
-                        omega_bar * time_array)
-                    )
-            )
-        assert not np.any(np.isnan(wake))
+            wake += ((np.sign(time_array) + 1) * self.R_S[i]
+                          * alpha * np.exp(-alpha * time_array)
+                          * (bm.cos(omega_bar * time_array) - alpha /
+                             omega_bar * bm.sin(omega_bar * time_array)))
         return wake
 
-    def wake_calc(self, time_array: NumpyArray):
-        self.time_array = time_array
-        self.wake = self.get_nonperiodic_wake(time_array=time_array)
-
-    def imped_calc(self, frequency_array: NumpyArray):
-        r"""
-        Impedance calculation method as a function of frequency optimised in C++
+    def imped_calc(self, frequency_array: NumpyArray, **kwargs):
+        r"""Impedance calculation method as a function of frequency
 
         Parameters
         ----------
@@ -738,24 +676,21 @@ class Resonators(_ImpedanceObject):
             Output impedance in :math:`\Omega + j \Omega`
         """
         # if self.impedance is an array with the correct size
-        if not isinstance(self.impedance, int) and (
-            len(self.impedance) == len(frequency_array)
-        ):
+        if not isinstance(self.impedance, int) and (len(self.impedance) == len(frequency_array)):
             # reuse array
             impedance = self.impedance
         else:
             # otherwise fast_resonator will create an array anyway
             impedance = None
-        self.frequency_array = frequency_array
         # fast_resonator should use and write on impedance, if not None
-        self.impedance = bm.fast_resonator(
-            R_S=self.R_S,
-            Q=self.Q,
-            frequency_array=self.frequency_array,
-            frequency_R=self.frequency_R,
-            impedance=impedance,
-        )
-
+        impedance = bm.fast_resonator(R_S=self.R_S,
+                                           Q=self.Q,
+                                           frequency_array=frequency_array,
+                                           frequency_R=self.frequency_R,
+                                           impedance=impedance
+                                           )
+        self.update_attributes_freq(frequency_array=frequency_array,
+                                    impedance=impedance)
     def _imped_calc_python(self, frequency_array: NumpyArray):
         r"""
         Impedance calculation method as a function of frequency using Python.
@@ -772,26 +707,16 @@ class Resonators(_ImpedanceObject):
         impedance : complex array
             Output impedance in :math:`\Omega + j \Omega`
         """
-        warnings.warn(
-            f"Use imped_calc(frequency_array=your_array) instead!",
-            DeprecationWarning,
-            stacklevel=2,
-        )
+        warnings.warn("Use '_imped_calc_()' instead!", DeprecationWarning)
 
         self.frequency_array = frequency_array
-        self.impedance = np.zeros(
-            len(self.frequency_array), dtype=bm.precision.complex_t, order="C"
-        )
+        self.impedance = np.zeros(len(self.frequency_array), dtype=bm.precision.complex_t, order='C')
 
         for i in range(0, self.n_resonators):
-            self.impedance[1:] += self.R_S[i] / (
-                1
-                + (1j * self.Q[i])
-                * (
-                    self.frequency_array[1:] / self.frequency_R[i]
-                    - self.frequency_R[i] / self.frequency_array[1:]
-                )
-            )
+
+            self.impedance[1:] += self.R_S[i] / (1 + 1j * self.Q[i]
+                                                 * (self.frequency_array[1:] / self.frequency_R[i] -
+                                                    self.frequency_R[i] / self.frequency_array[1:]))
 
     def _imped_calc_cpp(self, frequency_array: NumpyArray):
         r"""
@@ -809,19 +734,16 @@ class Resonators(_ImpedanceObject):
         impedance : complex array
             Output impedance in :math:`\Omega + j \Omega`
         """
-        warnings.warn(
-            f"Use imped_calc(frequency_array=your_array) instead!",
-            DeprecationWarning,
-            stacklevel=2,
-        )
+        warnings.warn("Use '_imped_calc_()' instead!", DeprecationWarning)
 
         self.frequency_array = frequency_array
-        self.impedance = bm.fast_resonator(
-            self.R_S, self.Q, self.frequency_array, self.frequency_R
-        )
+        self.impedance = bm.fast_resonator(self.R_S, self.Q,
+                                           self.frequency_array,
+                                           self.frequency_R)
 
 
-class TravelingWaveCavity(_ImpedanceObject):
+
+class TravelingWaveCavity(ImpedanceObjectTime, ImpedanceObjectFreq):
     r"""
     Impedance contribution from travelling wave cavities, analytic formulas for
     both wake and impedance. The resonance modes (and the corresponding R and a)
@@ -873,13 +795,12 @@ class TravelingWaveCavity(_ImpedanceObject):
     >>> twc.imped_calc(frequency)
     """
 
-    def __init__(
-        self,
-        R_S: float | Iterable[float] | NumpyArray,
-        frequency_R: float | Iterable[float] | NumpyArray,
-        a_factor: float | Iterable[float] | NumpyArray,
-    ) -> None:
-        _ImpedanceObject.__init__(self)
+
+    def __init__(self, R_S: float | Iterable[float] | NumpyArray,
+                 frequency_R: float | Iterable[float] | NumpyArray,
+                 a_factor: float | Iterable[float] | NumpyArray):
+
+        super().__init__()
 
         # Shunt impepdance in :math:`\Omega`
         self.R_S = np.array([R_S], dtype=float).flatten()
@@ -893,7 +814,7 @@ class TravelingWaveCavity(_ImpedanceObject):
         # Number of resonant modes
         self.n_twc = len(self.R_S)
 
-    def wake_calc(self, time_array: NumpyArray):
+    def wake_calc(self, time_array: NumpyArray, **kwargs):
         r"""
         Wake calculation method as a function of time.
 
@@ -911,24 +832,19 @@ class TravelingWaveCavity(_ImpedanceObject):
         """
 
         self.time_array = time_array
-        self.wake = np.zeros(
-            self.time_array.shape, dtype=bm.precision.real_t, order="C"
-        )
-        self.wake = np.zeros(self.time_array.shape)
+        self.wake = np.zeros(self.time_array.shape, dtype=bm.precision.real_t, order='C')
+        self.wake = np.zeros(self.time_array.shape) # TODO FIXME line duplication
 
         for i in range(0, self.n_twc):
             a_tilde = self.a_factor[i] / (2 * np.pi)
             indexes = self.time_array <= a_tilde
-            self.wake[indexes] += (
-                (np.sign(self.time_array[indexes]) + 1)
-                * 2
-                * self.R_S[i]
-                / a_tilde
-                * (1 - self.time_array[indexes] / a_tilde)
-                * bm.cos(2 * np.pi * self.frequency_R[i] * self.time_array[indexes])
-            )
+            self.wake[indexes] += ((np.sign(self.time_array[indexes]) + 1) * 2
+                                   * self.R_S[i] / a_tilde
+                                   * (1 - self.time_array[indexes] / a_tilde)
+                                   * bm.cos(2 * np.pi * self.frequency_R[i] *
+                                            self.time_array[indexes]))
 
-    def imped_calc(self, frequency_array: NumpyArray):
+    def imped_calc(self, frequency_array: NumpyArray, **kwargs):
         r"""
         Impedance calculation method as a function of frequency.
 
@@ -940,44 +856,33 @@ class TravelingWaveCavity(_ImpedanceObject):
         Attributes
         ----------
         frequency_array : float array
-            input frequency array in Hz
+            nput frequency array in Hz
         impedance : complex array
             Output impedance in :math:`\Omega + j \Omega`
         """
 
         self.frequency_array = frequency_array
-        freq = self.frequency_array
-        self.impedance = np.zeros(len(freq), dtype=bm.precision.complex_t, order="C")
+        self.impedance = np.zeros(len(self.frequency_array), dtype=bm.precision.complex_t, order='C')
 
         for i in range(0, self.n_twc):
-            freq_r = self.frequency_R[i]
-            a_factor = self.a_factor[i]
-            r_s = self.R_S[i]
-            Zplus = r_s * (
-                (
-                    bm.sin((a_factor / 2) * (freq - freq_r))
-                    / ((a_factor / 2) * (freq - freq_r))
-                )
-                ** 2
-                - 2j
-                * (a_factor * (freq - freq_r) - bm.sin(a_factor * (freq - freq_r)))
-                / (a_factor * (freq - freq_r)) ** 2
-            )
+            Zplus = (self.R_S[i]
+                     * ((bm.sin(self.a_factor[i] / 2 * (self.frequency_array - self.frequency_R[i]))
+                         / (self.a_factor[i] / 2 * (self.frequency_array - self.frequency_R[i]))) ** 2
+                        - 2j * (self.a_factor[i] * (self.frequency_array - self.frequency_R[i])
+                                - bm.sin(self.a_factor[i] * (self.frequency_array - self.frequency_R[i])))
+                        / (self.a_factor[i] * (self.frequency_array - self.frequency_R[i])) ** 2))
 
-            Zminus = r_s * (
-                (
-                    bm.sin((a_factor / 2) * (freq + freq_r))
-                    / ((a_factor / 2) * (freq + freq_r))
-                )
-                ** 2
-                - 2j
-                * (a_factor * (freq + freq_r) - bm.sin(a_factor * (freq + freq_r)))
-                / (a_factor * (freq + freq_r)) ** 2
-            )
+            Zminus = (self.R_S[i]
+                      * ((bm.sin(self.a_factor[i] / 2 * (self.frequency_array + self.frequency_R[i]))
+                          / (self.a_factor[i] / 2 * (self.frequency_array + self.frequency_R[i]))) ** 2
+                         - 2j * (self.a_factor[i] * (self.frequency_array + self.frequency_R[i])
+                                 - bm.sin(self.a_factor[i] * (self.frequency_array + self.frequency_R[i])))
+                         / (self.a_factor[i] * (self.frequency_array + self.frequency_R[i])) ** 2))
 
             self.impedance += Zplus + Zminus
 
-class ResistiveWall(_ImpedanceObject):
+
+class ResistiveWall(ImpedanceObjectFreq):
     r"""
     Impedance contribution from resistive wall for a cilindrical beam pipe
 
@@ -1020,14 +925,11 @@ class ResistiveWall(_ImpedanceObject):
     >>> rw.imped_calc(frequency)
     """
 
-    def __init__(
-        self,
-        pipe_radius: float,
-        pipe_length: float,
-        resistivity: Optional[float] = None,
-        conductivity: Optional[float] = None,
-    ):
-        _ImpedanceObject.__init__(self)
+    def __init__(self, pipe_radius: float, pipe_length: float,
+                 resistivity: Optional[float] = None,
+                 conductivity: Optional[float] = None):
+
+        super().__init__()
 
         # Beam pipe radius in m
         self.pipe_radius = float(pipe_radius)
@@ -1042,16 +944,11 @@ class ResistiveWall(_ImpedanceObject):
             self.conductivity = conductivity
         else:
             # MissingParameterError
-            raise RuntimeError(
-                "At least one of the following parameters "
-                "should be provided: resistivity or conductivity"
-            )
+            raise RuntimeError('At least one of the following parameters ' +
+                               'should be provided: resistivity or conductivity')
 
         # Characteristic impedance of vacuum in* :math:`\Omega`
-        self.Z0 = physical_constants["characteristic impedance of vacuum"][0]
-
-        self.t_periodicity: Optional[float, Literal["auto"]] = "auto"  # "auto",
-        # to guarantee original `wake_calc` behaviour
+        self.Z0 = physical_constants['characteristic impedance of vacuum'][0]
 
     @property
     def resistivity(self):
@@ -1071,81 +968,7 @@ class ResistiveWall(_ImpedanceObject):
         self.__resistivity = 1 / conductivity
         self.__conductivity = conductivity
 
-    def wake_calc(self, time_array: NumpyArray | CupyArray) -> NumpyArray | CupyArray:
-        r"""The wake from the table is interpolated using the new time array.
-
-        Parameters
-        ----------
-        time_array : float array
-            Input time array in s
-
-        """
-        time_array_dt = time_array[1] - time_array[0]
-        time_array_f_cutoff = 1 / (2 * time_array_dt)
-        if time_array_f_cutoff > self.frequency_array.max():
-            msg = (
-                f"`time_array` has a cutoff frequency of "
-                f"{time_array_f_cutoff} Hz, but the input table ends already "
-                f"at {self.frequency_array.max()} Hz"
-            )
-            warnings.warn(msg, UserWarning, stacklevel=2)
-        fft_handler = _FftHandler(
-            frequencies=self.frequency_array, amplitudes=self.impedance
-        )
-
-        if self.t_periodicity == "auto":
-            # periodicity is same as time array length
-            wake = fft_handler.get_periodic_wake_by_time(time_array=time_array)
-        elif isinstance(self.t_periodicity, float):
-            # this allows periodicity to be different from time_array length
-            ts_itp, wake_itp = fft_handler.get_periodic_wake(
-                t_periodicity=self.t_periodicity, dt=time_array[1] - time_array[0]
-            )
-            wake = np.interp(time_array, ts_itp, wake_itp, period=self.t_periodicity)
-        elif self.t_periodicity is None:
-            # wave that decays towards infinity
-            wake = fft_handler.get_non_periodic_wake(time_array=time_array)
-        else:
-            raise ValueError(f"{self.t_periodicity=}")
-        self.wake = wake
-        self.time_array = time_array
-        return wake
-
-    def wake_calc_old(self, time_array: NumpyArray):
-        r"""
-        The wake from the table is interpolated using the new time array.
-
-        Parameters
-        ----------
-        time_array : float array
-            Input time array in s
-
-        Attributes
-        ----------
-        time_array : float array
-            Input time array in s
-        wake: float array
-            Output interpolated wake in :math:`\Omega / s`
-        """
-        warnings.warn(
-            "Use `self.wake_calc` instead with `self.t_periodicity = auto`!",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        f_itp = np.fft.rfftfreq(len(time_array), d=(time_array[1] - time_array[0]))
-
-        imp_itp = np.interp(
-            f_itp,
-            self.frequency_array,
-            self.impedance,
-            left=0,
-            right=0,
-        )
-        self.wake = bm.irfft(imp_itp)
-        assert len(self.wake) == len(time_array)
-        self.time_array = time_array
-
-    def imped_calc(self, frequency_array: NumpyArray):
+    def imped_calc(self, frequency_array: NumpyArray, **kwargs):
         r"""
         Impedance calculation method as a function of frequency.
 
@@ -1164,25 +987,23 @@ class ResistiveWall(_ImpedanceObject):
 
         self.frequency_array = frequency_array
 
-        self.impedance = (
-            self.Z0
-            * c
-            * self.pipe_length
-            / (
-                (1.0 - 1j * np.sign(self.frequency_array))
-                * (np.pi * 2 * self.pipe_radius * c)
-                * np.sqrt(
-                    (self.conductivity * self.Z0 * c)
-                    / (4.0 * np.pi * np.abs(self.frequency_array))
-                )
-                + 1j * self.pipe_radius**2.0 * 2.0 * np.pi * self.frequency_array
-            )
-        ).astype(dtype=bm.precision.complex_t, order="C", copy=False)
+        self.impedance = (self.Z0 * c * self.pipe_length
+                          / (np.pi * (1.0 - 1j * np.sign(self.frequency_array))
+                             * 2 * self.pipe_radius * c
+                             * np.sqrt(self.conductivity * self.Z0 * c
+                                       / (4.0 * np.pi
+                                          * np.abs(self.frequency_array)))
+                             + 1j * self.pipe_radius ** 2.0 * 2.0 * np.pi
+                             * self.frequency_array)
+                          ).astype(dtype=bm.precision.complex_t, order='C',
+                                   copy=False)
 
         self.impedance[np.isnan(self.impedance)] = 0.0
 
 
-class CoherentSynchrotronRadiation(_ImpedanceObject):
+
+
+class CoherentSynchrotronRadiation(ImpedanceObjectFreq):
     r"""
     Impedance contribution of coherent synchrotron radiation emitted insisde a dipole magnet with
     bending raidus :math:`R`.
@@ -1271,20 +1092,9 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
 
     """
 
-    def wake_calc(self, time_array: NumpyArray):
-        raise NotImplementedError
-        pass  # TODO
 
-    def imped_calc(self, frequency_array: NumpyArray):
-        raise NotImplementedError
-        pass  # TODO
-
-    def __init__(
-        self,
-        r_bend: float,
-        gamma: Optional[float] = None,
-        chamber_height: float = np.inf,
-    ):
+    def __init__(self, r_bend: float, gamma: Optional[float] = None,
+                 chamber_height: float = np.inf):
         r"""
 
 
@@ -1319,10 +1129,10 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         None.
 
         """
-        _ImpedanceObject.__init__(self)
+        super().__init__()
 
         # Characteristic impedance of vacuum in* :math:`\Omega`
-        self.Z0 = physical_constants["characteristic impedance of vacuum"][0]
+        self.Z0 = physical_constants['characteristic impedance of vacuum'][0]
 
         self.r_bend = r_bend
         self.gamma = gamma
@@ -1330,11 +1140,11 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
 
         # test for input consistency
         if self.r_bend <= 0.0:
-            raise ValueError("bending radius must be greater 0")
+            raise ValueError('bending radius must be greater 0')
         if self.chamber_height <= 0.0:
-            raise ValueError("chamber_height must be greater 0")
+            raise ValueError('chamber_height must be greater 0')
         if self.gamma is not None and self.gamma <= 1.0:
-            raise ValueError("gamma must be greater 1")
+            raise ValueError('gamma must be greater 1')
 
         # TODO use f_0 = f_rev (from ring length) or f_0 = c/r_bend/2pi (only path in dipoles)?
         self.f_0 = 0.5 * c / self.r_bend / np.pi  # assumes beta == 1
@@ -1346,37 +1156,35 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
 
         if self.gamma is not None:
             # critical frequency in Hz
-            self.f_crit = 0.75 * self.gamma**3 * c / self.r_bend / np.pi
+            self.f_crit = 0.75 * self.gamma ** 3 * c / self.r_bend / np.pi
 
             # used for the computation of the free-space impedance
             self.hyper_vec = np.vectorize(mpmath.hyper, excluded=[0, 1], otypes=[float])
 
         # chose proper impedance method based on input
         if self.gamma is None and np.isinf(self.chamber_height):
-            self.imped_calc = self._fs_low_frequency_wrapper
+            self._imped_calc = self._fs_low_frequency_wrapper
 
         elif self.gamma is not None and np.isinf(self.chamber_height):
-            self.imped_calc = self._fs_spectrum
+            self._imped_calc = self._fs_spectrum
 
         elif self.gamma is None and not np.isinf(self.chamber_height):
-            self.imped_calc = self._pp_low_frequency
+            self._imped_calc = self._pp_low_frequency
 
         elif self.gamma is not None and not np.isinf(self.chamber_height):
-            self.imped_calc = self._pp_spectrum
+            self._imped_calc = self._pp_spectrum
 
         else:
             # WrongCalcError
             raise RuntimeError(
-                "method for impedance calculation in CoherentSynchrotronRadiation object "
-                "not recognized"
-            )
+                'method for impedance calculation in CoherentSynchrotronRadiation object '
+                + 'not recognized')
 
-    def _pp_low_frequency(
-        self,
-        frequency_array: NumpyArray,
-        u_max: float = 10.0,
-        high_frequency_transition: float = np.inf,
-    ):
+    def imped_calc(self, frequency_array: NumpyArray, **kwargs):
+        return self._imped_calc(frequency_array=frequency_array, **kwargs)
+
+    def _pp_low_frequency(self, frequency_array: NumpyArray, u_max: float = 10.,
+                          high_frequency_transition: float = np.inf):
         """
         Computes the parallel-plates impedance according to eq. 8 of [Chao2011]_. For frequencies
         larger than the cut-off frequencies, it approaches the low-frequency free-space impedance,
@@ -1408,7 +1216,7 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
 
         # using high_frequency_transition factor of 1 yields unphysical results
         if high_frequency_transition <= 1.0:
-            raise ValueError("high frequency transition must be greater than 1")
+            raise ValueError('high frequency transition must be greater than 1')
 
         n_array = frequency_array / self.f_0
 
@@ -1420,9 +1228,7 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         # use approximate equation for frequencies above high_frequency_transition * n_cut
         approx_indexes = n_array > (high_frequency_transition * n_cut)
         if np.count_nonzero(approx_indexes) > 0:
-            self.impedance[approx_indexes] = self._fs_low_frequency(
-                frequency_array[approx_indexes]
-            )
+            self.impedance[approx_indexes] = self._fs_low_frequency(frequency_array[approx_indexes])
 
         # use exact result for all other frequencies (and ignore f=0)
         exact_indexes = np.invert(approx_indexes) * n_array != 0
@@ -1434,19 +1240,10 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         n_array = n_array[exact_indexes]  # override for convenience and exclude f=0
 
         # maximum p(n) to have u(p,n)<u_max(n)
-        pMax_array = np.array(
-            np.ceil(
-                self.Delta
-                * n_array ** (2 / 3)
-                * np.sqrt(u_max)
-                / (2 ** (2 / 3) * np.pi)
-                - 0.5
-            ),
-            dtype=int,
-        )
+        pMax_array = np.array(np.ceil(self.Delta * n_array ** (2 / 3) * np.sqrt(u_max) / (2 ** (2 / 3) * np.pi)
+                                      - 0.5), dtype=int)
 
-        # maximum p; assumes largest frequency is at last array element
-        pMax = pMax_array[-1]
+        pMax = pMax_array[-1]  # maximum p; assumes largest frequency is at last array element
 
         p_matrix = np.zeros(shape=(len(n_array), pMax), dtype=int)
 
@@ -1455,25 +1252,17 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
 
         for nit, n in enumerate(n_array):
             # first element of p_matrix is 1 to ensure evaluation at u_min...
-            # ... if n is large enough so that u_min < 100, (i.e. airy(
-            # u_min) does not yield np.nan)
-            if (
-                pMax_array[nit] == 0
-                and n > (np.pi / self.Delta) ** 1.5 / np.sqrt(2) / 100**0.75
-            ):
+            # ... if n is large enough so that u_min < 100, (i.e. airy(u_min) does not yield np.nan)
+            if pMax_array[nit] == 0 and n > (np.pi / self.Delta) ** 1.5 / np.sqrt(2) / 100 ** 0.75:
                 p_matrix[nit, 0] = 1
             else:
-                p_matrix[nit, : pMax_array[nit]] = (
-                    2 * np.arange(pMax_array[nit]) + 1
-                ) ** 2
+                p_matrix[nit, :pMax_array[nit]] = (2 * np.arange(pMax_array[nit]) + 1) ** 2
 
         # evaluate Airy functions only at these values of p
         indexes = p_matrix > 0
 
         # argument of the Airy functions
-        u_matrix = (
-            (np.pi / 2 ** (1 / 3) / self.Delta) ** 2 / n_array ** (4 / 3) * p_matrix.T
-        ).T
+        u_matrix = ((np.pi / 2 ** (1 / 3) / self.Delta) ** 2 / n_array ** (4 / 3) * p_matrix.T).T
 
         # evaluate Airy function only at relevant indexes
         airy_matrix = airy(u_matrix[indexes])  # returns Ai(u), Ai'(u), Bi(u), Bi'(u)
@@ -1481,36 +1270,25 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         Ci_matrix = airy_matrix[0] - 1j * airy_matrix[2]
         Ci_prime_matrix = airy_matrix[1] - 1j * airy_matrix[3]
 
-        Z_matrix[indexes] = (
-            airy_matrix[1] * Ci_prime_matrix
-            + u_matrix[indexes] * airy_matrix[0] * Ci_matrix
-        )
+        Z_matrix[indexes] = airy_matrix[1] * Ci_prime_matrix \
+                            + u_matrix[indexes] * airy_matrix[0] * Ci_matrix
 
         # sum over p
         self.impedance[exact_indexes] = np.sum(Z_matrix, axis=1)
 
-        # the sum in eq. 8 is up to infinity, but we stop at p_max; the real
-        # part is exponentially surpressed for large u, but the imaginary
-        # part is not; using the assymptotic expression of the imaginary
-        # summands for large u, the remaining sum from p_max to infinity can be
+        # the sum in eq. 8 is up to infinity, but we stop at p_max; the real part is exponentially
+        # surpressed for large u, but the imaginary part is not; using the assymptotic expression
+        # of the imaginary summands for large u, the remaining sum from p_max to infinity can be
         # performed analytically by Mathematica 12.1.0.0.
-        self.impedance[exact_indexes] += (
-            1j
-            * 2 ** (5 / 3)
-            / (4096 * np.pi**6)
-            * (self.Delta * n_array ** (2 / 3)) ** 5
-            * polygamma(4, pMax_array + 1)
-        )
+        self.impedance[exact_indexes] += 1j * 2 ** (5 / 3) / (4096 * np.pi ** 6) \
+                                         * (self.Delta * n_array ** (2 / 3)) ** 5 * polygamma(4, pMax_array + 1)
 
-        self.impedance[exact_indexes] *= (
-            self.Z0 * 4 * np.pi**2 * 2 ** (1 / 3) * 1 / self.Delta / n_array ** (1 / 3)
-        )
+        self.impedance[exact_indexes] *= self.Z0 * 4 * np.pi**2 * 2**(1 / 3) \
+            * 1 / self.Delta / n_array**(1 / 3)
         # fixed sign of imaginary part
         self.impedance[exact_indexes] = self.impedance[exact_indexes].conj()
 
-    def _pp_spectrum(
-        self, frequency_array: NumpyArray, zeta_max: float = 9.0, **kwargs
-    ):
+    def _pp_spectrum(self, frequency_array: NumpyArray, zeta_max: float = 9., **kwargs):
         r"""
         Computes the parallel-plates impedance, based on eq. B13 of [Murphy1997]_.
 
@@ -1545,14 +1323,7 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         # (from top to bottom) => we need to use 0.5*self.Delta in their equations
 
         # based an eq. B8
-        alphas = (
-            np.sqrt(2)
-            * np.exp(-1j * np.pi / 6)
-            * n_array ** (2 / 3)
-            * 0.5
-            * self.Delta
-            / 3 ** (1 / 6)
-        )
+        alphas = np.sqrt(2) * np.exp(-1j * np.pi / 6) * n_array ** (2 / 3) * 0.5 * self.Delta / 3 ** (1 / 6)
 
         # sets self.impedance to the full free-space impedance
         self._fs_spectrum(frequency_array, **kwargs)
@@ -1563,21 +1334,10 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         # parallel plates part
 
         # maximum summation index p(n), such that zeta(p,n) < zeta_max
-        pMax_array = np.array(
-            np.ceil(
-                np.sqrt(zeta_max / 3 ** (1 / 3))
-                / np.pi
-                * 0.5
-                * self.Delta
-                * n_array ** (2 / 3)
-                - 0.5
-            ),
-            dtype=int,
-        )
+        pMax_array = np.array(np.ceil(np.sqrt(zeta_max / 3 ** (1 / 3)) / np.pi * 0.5 * self.Delta
+                                      * n_array ** (2 / 3) - 0.5), dtype=int)
 
-        pMax = pMax_array[
-            -1
-        ]  # maximum p; assumes largest frequency is at last array element
+        pMax = pMax_array[-1]  # maximum p; assumes largest frequency is at last array element
 
         p_matrix = np.zeros(shape=(len(n_array), pMax), dtype=int)
 
@@ -1587,15 +1347,10 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         for nit, n in enumerate(n_array):
             # first element of p_matrix is 1 to ensure evaluation at zeta_min...
             # ... if n is large enough so that zeta_min < zeta_max
-            if (
-                pMax_array[nit] == 0
-                and n > 3**0.25 * (np.pi / (0.5 * self.Delta)) ** 1.5 / zeta_max**0.75
-            ):
+            if pMax_array[nit] == 0 and n > 3 ** 0.25 * (np.pi / (0.5 * self.Delta)) ** 1.5 / zeta_max ** 0.75:
                 p_matrix[nit, 0] = 1
             else:
-                p_matrix[nit, : pMax_array[nit]] = (
-                    2 * np.arange(pMax_array[nit]) + 1
-                ) ** 2
+                p_matrix[nit, :pMax_array[nit]] = (2 * np.arange(pMax_array[nit]) + 1) ** 2
 
         # evaluate h function only at these values of p
         indexes = p_matrix > 0
@@ -1610,22 +1365,11 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         # we cut the infinite sum at p_max; using the assymptotic expression of _hFun for large
         # zeta, the remaining sum from p_max to infinity can be performed analytically by
         # Mathematica 12.1.0.0
-        Z_pp += (
-            np.sqrt(np.pi)
-            / (32 * 3 ** (5 / 6))
-            * np.exp(1j * np.pi / 6)
-            * (0.5 * self.Delta * n_array ** (2 / 3) / np.pi) ** 5
-            * polygamma(4, pMax_array + 0.5)
-        )
+        Z_pp += np.sqrt(np.pi) / (32 * 3 ** (5 / 6)) * np.exp(1j * np.pi / 6) \
+                * (0.5 * self.Delta * n_array ** (2 / 3) / np.pi) ** 5 \
+                * polygamma(4, pMax_array + 0.5)
 
-        Z_pp *= (
-            self.Z0
-            * (8 * np.pi) ** 0.5
-            * 3 ** (2 / 3)
-            * np.exp(1j * np.pi / 6)
-            * n_array ** (1 / 3)
-            / alphas
-        )
+        Z_pp *= self.Z0 * (8 * np.pi)**0.5 * 3**(2 / 3) * np.exp(1j * np.pi / 6) * n_array**(1 / 3) / alphas
         # fixed sign of imaginary part
         Z_pp = Z_pp.conj()
         self.impedance[non_zero_indexes] += Z_pp
@@ -1654,23 +1398,14 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         """
 
         airy_array = airy(-z / 12 ** (1 / 3))  # returns Ai(), Ai'(), Bi(), Bi'()
-        return (
-            -(np.pi**1.5)
-            / (2 ** (2 / 3) * 3 ** (5 / 6))
-            * (
-                z * (airy_array[0] ** 2 + airy_array[2] ** 2) / 12 ** (1 / 3)
-                - airy_array[1] ** 2
-                - airy_array[3] ** 2
-            )
-        )
+        return - np.pi ** 1.5 / (2 ** (2 / 3) * 3 ** (5 / 6)) \
+            * (z * (airy_array[0] ** 2 + airy_array[2] ** 2) / 12 ** (1 / 3)
+               - airy_array[1] ** 2 - airy_array[3] ** 2)
 
-    def _fs_spectrum(
-        self,
-        frequency_array: NumpyArray,
-        epsilon: float = 1e-6,
-        low_frequency_transition: float = 1e-5,
-        high_frequency_transition: float = 10,
-    ):
+    def _fs_spectrum(self, frequency_array: NumpyArray,
+                     epsilon: float = 1e-6,
+                     low_frequency_transition: float = 1e-5,
+                     high_frequency_transition: float = 10):
         r"""
         Computes the exact free-space synchrotron radiation impedance, based on eqs. A4 and A5 of
         [Murphy1997]_. For computation speed and numerical stability, the approximate expressions
@@ -1707,19 +1442,17 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
 
         # check for input consistency
         if high_frequency_transition <= low_frequency_transition:
-            raise ValueError(
-                "high_frequency_transition ratio must be larger than the "
-                + "low_frequency_transition rato"
-            )
+            raise ValueError('high_frequency_transition ratio must be larger than the '
+                             + 'low_frequency_transition rato')
 
         if high_frequency_transition < 1.0:
-            raise ValueError("high_frequency_transition ratio must be greater than 1")
+            raise ValueError('high_frequency_transition ratio must be greater than 1')
 
         if low_frequency_transition > 1.0:
-            raise ValueError("low_frequency_transition ratio must be smaller than 1")
+            raise ValueError('low_frequency_transition ratio must be smaller than 1')
 
         if epsilon < 0 or epsilon > 1:
-            raise ValueError("epsilon must be a small positive value")
+            raise ValueError('epsilon must be a small positive value')
 
         self.impedance = np.zeros_like(frequency_array, dtype=complex)
 
@@ -1729,17 +1462,13 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
         # low_indexes = np.where(l_array < low_frequency_transition)[0]
         low_indexes = l_array < low_frequency_transition
         if np.count_nonzero(low_indexes) > 0:
-            self.impedance[low_indexes] = self._fs_low_frequency(
-                frequency_array[low_indexes]
-            )
+            self.impedance[low_indexes] = self._fs_low_frequency(frequency_array[low_indexes])
 
         # use the high frequency approximation where f > HFT * f_c
         # high_indexes = np.where(l_array > high_frequency_transition)[0]
         high_indexes = l_array > high_frequency_transition
         if np.count_nonzero(high_indexes) > 0:
-            self.impedance[high_indexes] = self._fs_high_frequency(
-                frequency_array[high_indexes]
-            )
+            self.impedance[high_indexes] = self._fs_high_frequency(frequency_array[high_indexes])
 
         # use full integration for frequencies inbetween
         exact_indexes = np.invert(low_indexes + high_indexes)
@@ -1748,39 +1477,19 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
 
         # Real part: eq. A4, is solved analytically with Mathematica 12.1.0.0 in terms of
         # generalized hypergeometric functions
-        # Imaginary part: quad_vec can't handle the integrable singularity
-        # at y=1 for y<1, we need to integrate up to 1-epsilon fixed sign of
-        # imaginary part
-        self.impedance[exact_indexes] = (
-            np.sqrt(3)
-            * gamma_func(2 / 3)
-            / l_array[exact_indexes] ** (2 / 3)
-            / 2 ** (4 / 3)
-            * self.hyper_vec(
-                [-1 / 3], [-2 / 3, 2 / 3], 0.25 * l_array[exact_indexes] ** 2
-            )
-            + 81
-            * np.pi
-            * l_array[exact_indexes] ** (8 / 3)
-            / (640 * 2 ** (2 / 3) * gamma_func(-1 / 3))
-            * self.hyper_vec(
-                [4 / 3], [7 / 3, 8 / 3], 0.25 * l_array[exact_indexes] ** 2
-            )
-            - 0.25 * np.pi
-            - 1j
-            * (
-                integrate.quad_vec(
-                    lambda y: self._fs_integrandImZ1(y, l_array[exact_indexes]),
-                    0,
-                    1 - epsilon,
-                )[0]
-                - integrate.quad_vec(
-                    lambda y: self._fs_integrandImZ2(y, l_array[exact_indexes]),
-                    1,
-                    np.inf,
-                )[0]
-            )
-        )
+        # Imaginary part: quad_vec can't handle the integrable singularity at y=1 for y<1, we need
+        # to integrate up to 1-epsilon
+        # fixed sign of imaginary part
+        self.impedance[exact_indexes] =\
+            np.sqrt(3) * gamma_func(2 / 3) / l_array[exact_indexes]**(2 / 3) / 2**(4 / 3)\
+            * self.hyper_vec([-1 / 3], [-2 / 3, 2 / 3], 0.25 * l_array[exact_indexes]**2) \
+            + 81 * np.pi * l_array[exact_indexes]**(8 / 3) / (640 * 2**(2 / 3) * gamma_func(-1 / 3))\
+            * self.hyper_vec([4 / 3], [7 / 3, 8 / 3], 0.25 * l_array[exact_indexes]**2)\
+            - 0.25 * np.pi\
+            - 1j * (integrate.quad_vec(lambda y: self._fs_integrandImZ1(y, l_array[exact_indexes]),
+                                       0, 1 - epsilon)[0]
+                    - integrate.quad_vec(lambda y: self._fs_integrandImZ2(y, l_array[exact_indexes]),
+                                         1, np.inf)[0])
 
         self.impedance[exact_indexes] *= self.Z0 * self.gamma * l_array[exact_indexes]
 
@@ -1824,13 +1533,8 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
             impedance
         """
         # fixed sign of imaginary part
-        return (
-            self.Z0
-            * gamma_func(2 / 3)
-            / 3 ** (1 / 3)
-            * np.exp(-1j * np.pi / 6)
-            * (frequency_array / self.f_0) ** (1 / 3)
-        )
+        return self.Z0 * gamma_func(2 / 3) / 3**(1 / 3) * np.exp(-1j * np.pi / 6) \
+            * (frequency_array / self.f_0)**(1 / 3)
 
     def _fs_high_frequency(self, frequency_array: NumpyArray) -> NumpyArray:
         r"""
@@ -1849,16 +1553,9 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
             impedance
         """
         # fixed sign of imaginary part
-        return (
-            self.Z0
-            * self.gamma
-            * (
-                np.sqrt(3 * np.pi / 32)
-                * np.sqrt(frequency_array / self.f_crit)
-                * bm.exp(-frequency_array / self.f_crit)
-                + 4j / 9 * self.f_crit / frequency_array
-            )
-        )
+        return self.Z0 * self.gamma * (np.sqrt(3 * np.pi / 32)
+                                       * np.sqrt(frequency_array / self.f_crit) * bm.exp(-frequency_array / self.f_crit)
+                                       + 4j / 9 * self.f_crit / frequency_array)
 
     # todo type hint
     def _fs_integrandReZ(self, x):
@@ -1868,25 +1565,16 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
     # todo type hint
     def _fs_integrandImZ1(self, y, x):
         # integrand of imaginary part of free-space impedance for y<1
-        return np.real(
-            bm.exp(-x * y)
-            * (
-                (1j * y + np.sqrt(1 - y**2)) ** (5 / 3)
-                + 1 / (1j * y + np.sqrt(1 - y**2)) ** (5 / 3)
-                - 2 * np.sqrt(1 - y**2)
-            )
-            / (4 * y * np.sqrt(1 - y**2))
-        )
+        return np.real(bm.exp(-x * y) * ((1j * y + np.sqrt(1 - y ** 2)) ** (5 / 3)
+                                         + 1 / (1j * y + np.sqrt(1 - y ** 2)) ** (5 / 3)
+                                         - 2 * np.sqrt(1 - y ** 2))
+                       / (4 * y * np.sqrt(1 - y ** 2)))
 
     # todo type hint
     def _fs_integrandImZ2(self, y, x):
         # integrand of imaginary part of free-space impedance for y>1
-        return (
-            bm.exp(-x * y)
-            * (
-                8 * np.sqrt(y**2 - 1)
-                - (y + np.sqrt(y**2 - 1)) ** (5 / 3)
-                + 1 / (y + np.sqrt(y**2 - 1)) ** (5 / 3)
-            )
-            / (8 * y * np.sqrt(y**2 - 1))
-        )
+        return (bm.exp(-x * y) * (8 * np.sqrt(y ** 2 - 1)
+                                  - (y + np.sqrt(y ** 2 - 1)) ** (5 / 3)
+                                  + 1 / (y + np.sqrt(y ** 2 - 1)) ** (5 / 3))
+                / (8 * y * np.sqrt(y ** 2 - 1)))
+

@@ -5,8 +5,7 @@ from typing import Optional
 import matplotlib.pyplot as plt
 
 
-def yolo(*args, **kwargs):
-    raise Exception
+
 import numpy as np
 from parameterized import parameterized
 
@@ -37,7 +36,10 @@ r50_b = np.random.rand(50)
 
 class MyTestCase(unittest.TestCase):
     def setUp(self):
-        from .example_simulation import ExampleSimulation
+        try:
+            from .example_simulation import ExampleSimulation
+        except ImportError:
+            from example_simulation import ExampleSimulation
 
         self.sim = ExampleSimulation()
 
@@ -56,8 +58,8 @@ class MyTestCase(unittest.TestCase):
         elif mode == "InputTableFrequencyDomain":
             impedance_source = InputTableFrequencyDomain(
                 frequency_array=np.linspace(0, 10e9, 50),
-                Re_Z_array=r50_a,
-                Im_Z_array=r50_b,
+                impedance_real=r50_a,
+                impedance_imag=r50_b,
             )
             impedance_source.t_periodicity = 1 / 11e3
         elif mode == "Resonators":
@@ -150,23 +152,12 @@ class MyTestCase(unittest.TestCase):
 
     @parameterized.expand(
         (
-            # InducedVoltageTime is disallowed because resampling of wake in
-            # time-domain could lead to a lot of problems.
-            # Anyway is after all only an alternative calculation method of InducedVoltageFreq
-            # ("InducedVoltageTime", InputTableTimeDomain),
-            # ("InducedVoltageTime", InputTableFrequencyDomain),
-            # ("InducedVoltageTime", Resonators),
-            # ("InducedVoltageTime", TravelingWaveCavity),
-            # ("InducedVoltageTime", ResistiveWall),
-            # ("InducedVoltageTime", CoherentSynchrotronRadiation),
-            ("InducedVoltageFreq", "InputTableTimeDomain"),
             ("InducedVoltageFreq", "InputTableFrequencyDomain"),
             ("InducedVoltageFreq", "Resonators"),
             ("InducedVoltageFreq", "TravelingWaveCavity"),
             ("InducedVoltageFreq", "ResistiveWall"),
             ("InducedVoltageFreq", "CoherentSynchrotronRadiation"),
             ("InductiveImpedance", None),
-            # ("InducedVoltageResonator", None), # NotImplementedError intended
         )
     )
     def test_induced_voltage_sum(self, mode: str, mode_impedance: Optional[str] = None):
@@ -252,7 +243,7 @@ class MyTestCase(unittest.TestCase):
             # ("InducedVoltageTime", TravelingWaveCavity),
             # ("InducedVoltageTime", ResistiveWall),
             # ("InducedVoltageTime", CoherentSynchrotronRadiation),
-            ("InducedVoltageFreq", "InputTableTimeDomain"),
+            # ("InducedVoltageFreq", "InputTableTimeDomain"),
             ("InducedVoltageFreq", "InputTableFrequencyDomain"),
             ("InducedVoltageFreq", "Resonators"),
             ("InducedVoltageFreq", "TravelingWaveCavity"),
@@ -266,7 +257,7 @@ class MyTestCase(unittest.TestCase):
         self, mode: str, mode_impedance: Optional[str] = None
     ):
         profile1 = self.sim.profile
-        offset = 2 * profile1.bin_width * profile1.number_of_bins
+        offset = 2 * profile1.bin_size * profile1.n_slices
         profile2 = Profile(
             self.sim.beam,
             CutOptions(

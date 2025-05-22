@@ -40,28 +40,28 @@ class ProfileContainer(Lockable):
         self._total_histogram: NumpyArray | CupyArray = None
 
     @property
-    def bin_width(self):
+    def bin_size(self):
         if self.n_profiles == 0:
             msg = (
-                "`bin_width` is undefined because no profiles are in the "
+                "`bin_size` is undefined because no profiles are in the "
                 "`MultiProfileContainer`, use `add_profile()` first!"
             )
             raise ValueError(msg)
-        return self._profiles[0].bin_width
+        return self._profiles[0].bin_size
 
     @property
     def n_profiles(self):
         return len(self._profiles)
 
     @property
-    def number_of_bins(self):
+    def n_slices(self):
         if self.n_profiles == 0:
             msg = (
                 "`number_of_bins` is undefined because no profiles are in the "
                 "`MultiProfileContainer`, use `add_profile()` first!"
             )
             raise ValueError(msg)
-        return self._profiles[0].number_of_bins
+        return self._profiles[0].n_slices
 
     def to_gpu(self, recursive: bool = True):
         import cupy as cp
@@ -80,10 +80,10 @@ class ProfileContainer(Lockable):
     def add_profile(self, profile: Profile):
         assert not self.is_locked
         if self.n_profiles > 0:
-            msg = f"{profile.bin_width=}, but must be {self.bin_width}"
-            assert np.isclose(profile.bin_width, self.bin_width), msg
-            msg = f"{profile.number_of_bins=}, but must be {self.number_of_bins}"
-            assert profile.number_of_bins == self.number_of_bins, msg
+            msg = f"{profile.bin_size=}, but must be {self.bin_size}"
+            assert np.isclose(profile.bin_size, self.bin_size), msg
+            msg = f"{profile.n_slices=}, but must be {self.n_slices}"
+            assert profile.n_slices == self.n_slices, msg
             for p in self._profiles:
                 start = p.cut_left
                 stop = p.cut_right
@@ -97,7 +97,7 @@ class ProfileContainer(Lockable):
 
     def _update_memory(self):
         self._total_histogram = bm.zeros(
-            shape=(self.number_of_bins, self.n_profiles),
+            shape=(self.n_slices, self.n_profiles),
             dtype=bm.precision.real_t,
             order="F",
         )

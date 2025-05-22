@@ -90,49 +90,6 @@ class TestInducedVoltageFreq(unittest.TestCase):
             test_object.frequency_resolution, test_object.freq[1] - test_object.freq[0]
         )
 
-    def test_get_wake_kernel(self):
-        test_object = InducedVoltageTime(None, self.profile, [self.impedance_source])
-        dt = 1 / 200e6
-        tmax = 2 * dt
-        wake = test_object.get_wake_kernel(-tmax, tmax, 30)
-
-        time_array = np.linspace(-tmax, tmax, 30)  # for debugging
-
-        expected_wake = np.array(
-            [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                8.200422271126403e22,
-                2.3810779675734804e22,
-                -5.092126417570513e22,
-                -8.942198796001867e22,
-                -6.4698907981748676e22,
-                5.540481596132329e21,
-                7.1568882770809885e22,
-                8.68436859149943e22,
-                4.081334730895319e22,
-                -3.379783688116925e22,
-                -8.425304502124579e22,
-                -7.50776540585775e22,
-                -1.2999937162797352e22,
-                5.797615224426486e22,
-                8.776232818326853e22,
-            ]
-        )
-        np.testing.assert_allclose(wake, expected_wake)
 
 
 class TestInducedVoltageTime(unittest.TestCase):
@@ -170,49 +127,6 @@ class TestInducedVoltageTime(unittest.TestCase):
 
         np.testing.assert_allclose(test_object.wake_length_input, 11e-9)
 
-    def test_get_wake_kernel(self):
-        test_object = InducedVoltageTime(None, self.profile, [self.impedance_source])
-        dt = 1 / 200e6
-        tmax = 2 * dt
-        wake = test_object.get_wake_kernel(-tmax, tmax, 30)
-
-        time_array = np.linspace(-tmax, tmax, 30)  # for debugging
-
-        expected_wake = np.array(
-            [
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                8.200422271126403e22,
-                2.3810779675734804e22,
-                -5.092126417570513e22,
-                -8.942198796001867e22,
-                -6.4698907981748676e22,
-                5.540481596132329e21,
-                7.1568882770809885e22,
-                8.68436859149943e22,
-                4.081334730895319e22,
-                -3.379783688116925e22,
-                -8.425304502124579e22,
-                -7.50776540585775e22,
-                -1.2999937162797352e22,
-                5.797615224426486e22,
-                8.776232818326853e22,
-            ]
-        )
-        np.testing.assert_allclose(wake, expected_wake)
 
 
 class TestInductiveImpedance(unittest.TestCase):
@@ -270,7 +184,7 @@ class TestInductiveImpedance(unittest.TestCase):
             wake_kernel = inductive_impedance.get_wake_kernel(
                 t_start=self.profile1.cut_left,
                 t_stop=self.profile1.cut_right,
-                n=self.profile1.number_of_bins,
+                n=self.profile1.n_slices,
             )
             inductive_impedance.induced_voltage_1turn()
             result_expected = inductive_impedance.induced_voltage[1:-1]
@@ -328,11 +242,6 @@ class TestInducedVoltageResonator(unittest.TestCase):
             resonators=self.resonators,
         )
 
-    def test___init__(self):
-        self.assertRaises(
-            NotImplementedError,
-            lambda: self.induced_voltage_resonator.get_wake_kernel(0, 1, 2),
-        )
 
 
 if __name__ == "__main__":

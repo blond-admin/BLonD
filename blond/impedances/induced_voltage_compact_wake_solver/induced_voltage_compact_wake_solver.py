@@ -32,7 +32,7 @@ if TYPE_CHECKING:
             InducedVoltageFreq,
             InductiveImpedance,
             # InducedVoltageResonator, # use InducedVoltageFreq with
-            # Resonatros insteead
+            # Resonatros instead
         ]
         | _InducedVoltage
     )
@@ -125,32 +125,40 @@ class InducedVoltageCompactWakeSolver(TotalInducedVoltageAbstract):
         # self._induced_voltage_time: NumpyArray | CupyArray # TODO
         self._reference_profile_idx = 0
 
-    def _dev_plot(self):
-        kernel = self._compressed_wake_kernel
-        profile = self.profile
-        for i, profile in enumerate(self._equi_spaced_profiles):
-            profile_ = profile.n_macroparticles
-            wake = profile.wake
-            plt.subplot(4, 1, 1)
-            plt.subplot(4, 1, 2)
-            plt.plot(np.arange(len(kernel)) + 1, kernel, "o-", label="new", c="C1")
-            plt.subplot(4, 1, 3)
-            plt.plot(profile_, label="new", c=f"C{1+i}")
-            plt.subplot(4, 1, 4)
-            plt.plot(wake, label="new", c=f"C{1+i}")
-
-    @property
-    def profile(self):
-        # TODO: PRELIMINARY CODE
-        return self._equi_spaced_profiles._profiles[self._reference_profile_idx]
-
     @property
     def induced_voltage(self):
-        # TODO: PRELIMINARY CODE
+        """
+        Get the induced voltage for the reference equi-spaced profile.
+
+        This is a preliminary implementation that returns the induced voltage
+        for a single profile, currently selected via `self._reference_profile_idx`.
+
+        Returns
+        -------
+        induced_voltage : NumpyArray or CupyArray
+            The induced voltage corresponding to the reference profile.
+
+        """
         return self.get_induced_voltage(profile_i=self._reference_profile_idx)
 
-    def get_induced_voltage(self, profile_i: int):
-        # TODO: PRELIMINARY CODE
+
+    def get_induced_voltage(self, profile_i: int) -> NumpyArray | CupyArray:
+        """
+        Return the induced voltage for a given equi-spaced profile.
+
+        Parameters
+        ----------
+        profile_i : int
+            Index of the equi-spaced profile
+
+        Returns
+        -------
+        induced_voltage_ : NumpyArray or CupyArray
+            The induced voltage computed as:
+            `- (particle_charge * elementary_charge * beam_ratio * profile_wake)`.
+            The type depends on the backend used (NumPy or CuPy).
+
+        """
         from scipy.constants import elementary_charge as e
 
         profile = self._equi_spaced_profiles._profiles[profile_i]
@@ -160,8 +168,27 @@ class InducedVoltageCompactWakeSolver(TotalInducedVoltageAbstract):
         return induced_voltage_
 
     @property
-    def entire_induced_voltage(self):
-        # TODO: PRELIMINARY CODE
+    def entire_induced_voltage(self) -> NumpyArray | CupyArray:
+        """
+        Compute the total induced voltage across all equi-spaced profiles.
+
+        This method loops through each equi-spaced profile and computes the induced
+        voltage using the formula:
+
+        Between each induced voltage segment, a zero-valued buffer of the same length
+        as each segment is inserted.
+
+        Returns
+        -------
+        induced_voltage : NumpyArray or CupyArray
+            Concatenated induced voltage from all profiles, with zero-padding between segments.
+            The return type depends on the backend used (NumPy or CuPy).
+
+        Notes
+        -----
+        This is useful for constructing a full wakefield voltage profile over
+        a concatenated domain that includes spacing between individual bunch profiles.
+        """
         from scipy.constants import elementary_charge as e
 
         for i, profile in enumerate(self._equi_spaced_profiles):
@@ -177,7 +204,6 @@ class InducedVoltageCompactWakeSolver(TotalInducedVoltageAbstract):
         return induced_voltage
 
     def to_gpu(self, recursive: bool = True):
-        # TODO: PRELIMINARY CODE
         import cupy as cp
 
         self._compressed_wake_kernel = cp.array(self._compressed_wake_kernel)
@@ -194,19 +220,16 @@ class InducedVoltageCompactWakeSolver(TotalInducedVoltageAbstract):
         self._device: DeviceType = "CPU"
 
     def reprocess(self):
-        # TODO: PRELIMINARY CODE
+        """Recalculates the compressed wake for induced voltage calculation"""
         self._compressed_wake_kernel = self._get_compressed_wake_kernel(
             self._equi_spaced_profiles
         )
 
-    def induced_voltage_sum(self):
-        # TODO: PRELIMINARY CODE
-        return self._induced_voltage_sum()
 
     def track(self):
-        """Apply kick function to beam"""
+        """Update induced voltage and apply kick function to beam for all profiles"""
 
-        self._induced_voltage_sum()
+        self.induced_voltage_sum()
         for profile_i, profile in enumerate(self._equi_spaced_profiles):
             bm.linear_interp_kick(
                 dt=self._beam.dt,
@@ -223,7 +246,7 @@ class InducedVoltageCompactWakeSolver(TotalInducedVoltageAbstract):
     def track_ghosts_particles(self, ghost_beam: Beam):
         """Apply kick function to beam"""
 
-        self._induced_voltage_sum()
+        self.induced_voltage_sum()
         for profile_i, profile in enumerate(self._equi_spaced_profiles):
             bm.linear_interp_kick(
                 dt=ghost_beam.dt,
@@ -235,7 +258,24 @@ class InducedVoltageCompactWakeSolver(TotalInducedVoltageAbstract):
                 acceleration_kick=0.0,
             )
 
-    def _induced_voltage_sum(self):
+    def induced_voltage_sum(self):
+        """
+        Compute the summed induced voltage for all equi-spaced profiles.
+
+        This method:
+        - Initializes wake arrays for each profile (if multiple exist),
+        - Optionally updates the compressed wake kernel,
+        - Selects between FFT-based and standard convolution,
+        - Applies the convolution between the wake kernel and macroparticle distributions.
+
+        The result is stored in the `wake` attribute of each profile for
+        internal use (e.g. in tracking calculations).
+
+        Notes
+        -----
+        - Uses `bm.fftconvolve` or `bm.convolve` depending on kernel size.
+        - `self._compressed_wake_kernel` is updated if `self.track_update_wake_kernel` is True.
+        """
         has_one_profile = self._equi_spaced_profiles.n_profiles == 1
 
         if not has_one_profile:
@@ -243,10 +283,10 @@ class InducedVoltageCompactWakeSolver(TotalInducedVoltageAbstract):
                 profile_target: Profile
                 # attribute `wake` to be used in `track`. This is private to
                 # `TotalInducedVoltageNew`
-                profile_target.wake = bm.zeros(profile_target.number_of_bins)
+                profile_target.wake = bm.zeros(profile_target.n_slices)
 
         # Size of compressed wake per profile, defined in `_get_compressed_wake_kernel`
-        step = 2 * self._equi_spaced_profiles.number_of_bins
+        step = 2 * self._equi_spaced_profiles.n_slices
         if self.assume_periodic_wake:
             offset = (self._equi_spaced_profiles.n_profiles - 1) * step
         else:
@@ -272,38 +312,6 @@ class InducedVoltageCompactWakeSolver(TotalInducedVoltageAbstract):
                 profile_source.n_macroparticles[:],
                 mode="same",
             )
-            DEV_DEBUG = False
-            if DEV_DEBUG:
-                try:  # .get() so it works only on GPU
-                    import cupy as cp
-
-                    fig_n = plt.gcf().number
-                    plt.figure(22)
-                    plt.clf()
-                    plt.subplot(3, 1, 1)
-                    plt.title("self._compressed_wake_kernel")
-                    xs = self._compressed_wake_kernel
-                    if isinstance(xs, cp.ndarray):
-                        xs = xs.get()
-                    plt.plot(xs, label=f"{profile_i}")
-                    plt.subplot(3, 1, 2)
-                    plt.title("profile_source.n_macroparticles")
-                    xs = profile_source.n_macroparticles
-                    if isinstance(xs, cp.ndarray):
-                        xs = xs.get()
-                    plt.plot(xs, label=f"{profile_i}")
-
-                    plt.legend()
-                    plt.subplot(3, 1, 3)
-                    xs = compressed_wake
-                    if isinstance(xs, cp.ndarray):
-                        xs = xs.get()
-                    plt.plot(xs, label=f"{profile_i=}")
-                    plt.legend()
-                    plt.figure(fig_n)
-                    plt.show()
-                except AttributeError:
-                    pass
 
             for profile_j, profile_target in enumerate(self._equi_spaced_profiles):
                 profile_target: Profile
@@ -325,22 +333,6 @@ class InducedVoltageCompactWakeSolver(TotalInducedVoltageAbstract):
 
                 # Set fake attribute `wake` to be used in `track`. This is
                 # private to `TotalInducedVoltageNew`
-                """idxs = np.arange(len(compressed_wake))
-                fig_n = plt.gcf().number
-                plt.figure(22)
-
-                plt.subplot(3, 1, 1)
-                plt.plot(idxs, compressed_wake)
-                plt.subplot(3, 1, 3)
-
-                plt.plot(
-                    idxs[start:stop],
-                    compressed_wake[start:stop],
-                    "x",
-                    label=f"{profile_i=} {profile_j=}",
-                )
-                plt.legend()
-                plt.figure(fig_n)"""
                 if has_one_profile:
                     profile_target.wake = compressed_wake[start:stop]
                 else:
@@ -353,7 +345,7 @@ class InducedVoltageCompactWakeSolver(TotalInducedVoltageAbstract):
     def _get_compressed_wake_kernel(
         self, profile_container: EquiSpacedProfiles
     ) -> NumpyArray | CupyArray:
-        """Calculates the wake kernel at every profile"""
+        """Calculates the wake kernel at every profile in a common array"""
         concat_later = []
 
         first_profile_center = (
@@ -370,7 +362,7 @@ class InducedVoltageCompactWakeSolver(TotalInducedVoltageAbstract):
             # entries when at left and right end of profile
             t_start = profile_dest.cut_left - width / 2 - t_offset
             t_stop = profile_dest.cut_right + width / 2 - t_offset
-            n_entries = 2 * self._equi_spaced_profiles.number_of_bins
+            n_entries = 2 * self._equi_spaced_profiles.n_slices
 
             if t_start < 0:
                 assert np.isclose(t_start, -t_stop), (
@@ -380,8 +372,8 @@ class InducedVoltageCompactWakeSolver(TotalInducedVoltageAbstract):
                     f"and {t_stop=}"
                 )
             assert t_start < t_stop, f"{t_start=} {t_stop=}"
-            msg = f"Bins must be  even, but {profile_dest.number_of_bins=}"
-            assert profile_dest.number_of_bins % 2 == 0, msg
+            msg = f"Bins must be  even, but {profile_dest.n_slices=}"
+            assert profile_dest.n_slices % 2 == 0, msg
 
             wake_kernel_at_single_profile = bm.zeros(
                 # Factor 2 because `start` and `stop` was increased by `width / 2`
@@ -420,7 +412,7 @@ class InducedVoltageCompactWakeSolver(TotalInducedVoltageAbstract):
         for wake_i, wake in enumerate(concat_later[:]):
             # This script can be further developed to consider different
             # wake kernel sizes.  Must be considered in
-            # `_induced_voltage_sum` too.
+            # `induced_voltage_sum` too.
             msg = (
                 f"Not all wake kernels have the same size: "
                 f"{[len(w) for w in concat_later]}"

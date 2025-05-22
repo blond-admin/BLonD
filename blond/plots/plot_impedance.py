@@ -148,12 +148,12 @@ def plot_impedance_vs_frequency(induced_voltage_freq: InducedVoltageFreq,
                             InputTableFrequencyDomain) and not
             plot_interpolated_impedances):
                 impedance_object: InputTableFrequencyDomain
-                ax0.plot(impedance_object._frequency_array_org,
-                         impedance_object._impedance_org.real, style)
+                ax0.plot(impedance_object._frequency_array_base,
+                         impedance_object._impedance_base.real, style)
                 ax0.set_xlim(cut_left_right)
                 ax0.set_ylim(cut_up_down)
-                ax1.plot(impedance_object._frequency_array_org,
-                         impedance_object._impedance_org.imag, style)
+                ax1.plot(impedance_object._frequency_array_base,
+                         impedance_object._impedance_base.imag, style)
                 ax1.set_xlim(cut_left_right)
                 ax1.set_ylim(cut_up_down)
             elif plot_interpolated_impedances:

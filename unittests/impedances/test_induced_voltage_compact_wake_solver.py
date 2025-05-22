@@ -19,6 +19,7 @@ from blond.impedances.impedance import (
 from blond.impedances.impedance_sources import Resonators
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
+from blond.impedances.impedance import InducedVoltageFreq
 
 
 class TestLockable(unittest.TestCase):
@@ -72,13 +73,13 @@ class TestProfileContainer(unittest.TestCase):
         self.profile_container.add_profile(self.profile1)
 
     def test_bin_width(self):
-        assert self.profile_container.bin_width == 0.1
+        assert self.profile_container.bin_size == 0.1
 
     def test_n_profiles(self):
         assert self.profile_container.n_profiles == 1
 
     def test_number_of_bins(self):
-        assert self.profile_container.number_of_bins == 100
+        assert self.profile_container.n_slices == 100
 
     def test_add_profile(self):
         profile2 = Profile(
@@ -271,7 +272,7 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
         self.total_induced_voltage_NEW.track()
 
     def test__induced_voltage_sum_single_profile(self):
-        self.total_induced_voltage_NEW._induced_voltage_sum()
+        self.total_induced_voltage_NEW.induced_voltage_sum()
         self.total_induced_voltage_ORG.induced_voltage_sum()
         DEV_DEBUG = False
         if DEV_DEBUG:
@@ -376,7 +377,7 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
         cut_left = profiles[0].cut_left
         cut_right = profiles[-1].cut_right
         width = cut_right - cut_left
-        n_bins = int(round(width / profiles[0].bin_width))
+        n_bins = int(round(width / profiles[0].bin_size))
         profile_full = Profile(
             beam,
             CutOptions(
@@ -400,10 +401,15 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
             -376.730313462 / (ring.beta[0] * ring.gamma[0] ** 2),
             rf_station,
         )
-        profile_container = ProfileContainer()
+        profile_container = EquiSpacedProfiles()
         for profile in profiles:
             profile_container.add_profile(profile)
-        induced_voltage_freq_resonators = InducedVoltageTime(
+        induced_voltage_freq_resonators = InducedVoltageFreq(
+            beam=beam,
+            profile=profile_full,
+            impedance_source_list=[Resonators([4.5e6], [100.222e6], [200])],
+        )
+        induced_voltage_time_resonators = InducedVoltageTime(
             beam=beam,
             profile=profile_full,
             wake_source_list=[Resonators([4.5e6], [100.222e6], [200])],
@@ -439,7 +445,7 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
         total_induced_voltage_ORG = 0.0
         for i in range(100):
             t0 = time.time()
-            self.total_induced_voltage_NEW._induced_voltage_sum()
+            self.total_induced_voltage_NEW.induced_voltage_sum()
             t1 = time.time()
             total_induced_voltage_NEW += t1 - t0
 
@@ -468,15 +474,15 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
         profile_full_bin_centers = np.linspace(
             profile_full.cut_left - w,
             profile_full.cut_right + w,
-            (3 * profile_full.number_of_bins) + 1,
+            (3 * profile_full.n_slices) + 1,
         )
         dt = profile_full_bin_centers[1] - profile_full_bin_centers[0]
         profile_full_bin_centers = profile_full_bin_centers[:-1] + dt / 2
-        induced_voltage_freq_resonators.sum_wakes(profile_full_bin_centers)
-        wake_kernel = induced_voltage_freq_resonators.total_wake
+        induced_voltage_time_resonators.sum_wakes(profile_full_bin_centers)
+        wake_kernel = induced_voltage_time_resonators.total_wake
         wake = np.convolve(profile_full.n_macroparticles, wake_kernel, mode="same")
         wake_dt = (np.arange(len(wake)) - 800) * dt
-        # plt.plot((np.arange(len(wake_kernel))) * profile_full.bin_width,
+        # plt.plot((np.arange(len(wake_kernel))) * profile_full.bin_size,
         #          wake_kernel)
         plt.legend()
         plt.subplot(3, 1, 3, sharex=ax)

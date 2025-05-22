@@ -582,14 +582,7 @@ class Profile:
     @property
     def center(self):
         return (self.cut_right + self.cut_left) / 2.0
-    
-    @property
-    def bin_width(self):
-        return (self.cut_right - self.cut_left) / len(self.n_macroparticles)
 
-    @property
-    def number_of_bins(self):
-        return len(self.n_macroparticles)
 
     def set_slices_parameters(self):
         """
@@ -785,7 +778,6 @@ class Profile:
             raise RuntimeError('Option for derivative is not recognized.')
 
         return bin_centers, derivative
-
 
     def to_gpu(self, recursive: bool=True):
         """

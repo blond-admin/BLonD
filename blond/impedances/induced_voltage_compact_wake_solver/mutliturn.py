@@ -7,6 +7,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from numpy._typing import NDArray
 
+from ..impedance_sources import Resonators
 from ...utils import bmath as bm, precision
 from ..impedance import TotalInducedVoltageAbstract
 
@@ -20,21 +21,21 @@ if TYPE_CHECKING:
     from ...utils.types import DeviceType
 
     from ...impedances.impedance import (
-        _InducedVoltageSolver,
-        InducedVoltageFreqDomainSolver,
-        InductiveImpedanceShortcutSolver,
+        _InducedVoltage,
+        InducedVoltageFreq,
+        InductiveImpedance,
     )
 
     InducedVoltageTyes = (
         Literal[
             # InducedVoltageTime, # disallowed because resampling of wake in
             # time-domain could lead to a lot of problems
-            InducedVoltageFreqDomainSolver,
-            InductiveImpedanceShortcutSolver,
+            InducedVoltageFreq,
+            InductiveImpedance,
             # InducedVoltageResonator, # use InducedVoltageFreq with
-            # Resonatros insteead
+            # Resonatros instead
         ]
-        | _InducedVoltageSolver
+        | _InducedVoltage
     )
 
 
@@ -46,6 +47,20 @@ def find_closest(arr: NDArray, target: float):
 
 @dataclass(frozen=True)  # Dont allow modifications
 class ProfileRangeMultiTurnEvolution:
+    """Dataclass to store how the beam profile evolves for several turns
+
+    Parameters
+    ----------
+    starts
+        `cut_left` of a `Profile` for n turns
+    stops
+        `cut_right` of a `Profile` for n turns
+    t_revs
+        `t_rev` of a `Ring` for n turns
+        The evolution of the revolution time of a synchrotron
+
+    """
+
     starts: NDArray
     stops: NDArray
     t_revs: NDArray
@@ -88,7 +103,14 @@ class ProfileRangeMultiTurnEvolution:
         profile.set_slices_parameters()
 
     def get_mutliturn_profile_limits(self, turn_start: int = 0) -> NDArray:
-        """Profile limits in absolute time, fist profile centered"""
+        """Profile limits in absolute time, fist profile centered
+
+        Parameters
+        ----------
+        turn_start
+            Will ignore all turns less than `turn_start`
+            and put the zero to `cut_left` of the n-th turn.
+        """
 
         #  profile                   profile (next turn)
         # [       ]                    [             ]
@@ -105,6 +127,55 @@ class ProfileRangeMultiTurnEvolution:
 
 
 class InducedVoltageCompactWakeMultiTurnSolver(TotalInducedVoltageAbstract):
+    """Solver to calculate multi-turn wakes with a single profile and compact convolution
+
+    Parameters
+    ----------
+    beam
+        Class containing the beam properties.
+    profile
+        Profile object
+    profile_evolution
+        Helper class to know how the profile boundaries look like for n turns
+    induced_voltage_container
+        Helper class to contain several InducedVoltage objects
+    current_turn
+        Initial turn to calculate from
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>>
+    >>> from impedances.impedance import InducedVoltageFreq
+    >>> from impedances.impedance_sources import Resonators
+    >>> from impedances.induced_voltage_compact_wake_solver import \
+    >>>     InducedVoltageContainer, ProfileRangeMultiTurnEvolution, \
+    >>>     InducedVoltageCompactWakeMultiTurnSolver
+    >>>
+    >>> resonators = Resonators([4.5e6], [200.222e6], [200])
+    >>> induced_voltage_freq = InducedVoltageFreq(
+    >>>     beam=beam,
+    >>>     profile=profile1,
+    >>>     impedance_source_list=[resonators],
+    >>>     frequency_resolution=1 / ring.t_rev[0],
+    >>> )
+    >>>
+    >>> induced_voltage_container = InducedVoltageContainer()
+    >>> induced_voltage_container.add_induced_voltage(induced_voltage_freq)
+    >>>
+    >>> profile_evolution1 = ProfileRangeMultiTurnEvolution(
+    >>>     starts=profile1.cut_left * np.ones(ring.n_turns + 1), # no change
+    >>>     stops=profile1.cut_right * np.ones(ring.n_turns + 1), # no change
+    >>>     t_revs=ring.t_rev,
+    >>> )
+    >>> total_induced_voltage = InducedVoltageCompactWakeMultiTurnSolver(
+    >>>     beam=beam,
+    >>>     profile=profile1,
+    >>>     induced_voltage_container=induced_voltage_container,
+    >>>     profile_evolution=profile_evolution1,
+    >>> )
+
+    """
     def __init__(
         self,
         beam: Beam,
@@ -114,15 +185,14 @@ class InducedVoltageCompactWakeMultiTurnSolver(TotalInducedVoltageAbstract):
         current_turn: int = 0,
     ):
         self._beam = beam
-        self._profile = profile
+        self.profile = profile
         self._profile_evolution = profile_evolution
-        self.current_turn = current_turn
 
         self._induced_voltage_container = induced_voltage_container
         self._induced_voltage_container.lock()  # DONT ALLOW ANY CHANGE ANYMORE
 
         self._entire_multiparticle_wake = np.zeros(  # fixme GPU?
-            self._profile_evolution.max_turns * self.profile.number_of_bins * 2
+            self._profile_evolution.max_turns * self.profile.n_slices * 2
         )
 
         self._turn_i = 0  # incremented by self.track()
@@ -130,14 +200,17 @@ class InducedVoltageCompactWakeMultiTurnSolver(TotalInducedVoltageAbstract):
 
         self._n_fft_faster = 1024  # decides whether to use `convolve` or `fftconvolve`
 
-    @property
-    def profile(self):
-        # TODO: PRELIMINARY CODE
-        return self._profile
 
     @property
     def induced_voltage(self):
-        # TODO: PRELIMINARY CODE
+        """
+        Get the induced voltage for the  profile.
+
+        Returns
+        -------
+        induced_voltage : NumpyArray or CupyArray
+            The induced voltage corresponding to the reference profile.
+        """
         from scipy.constants import elementary_charge as e
 
         profile = self.profile
@@ -147,34 +220,25 @@ class InducedVoltageCompactWakeMultiTurnSolver(TotalInducedVoltageAbstract):
         return induced_voltage_
 
     def to_gpu(self, recursive: bool = True):
-        # TODO: PRELIMINARY CODE
-
         if recursive:
             self.profile.to_gpu(recursive=recursive)
         self._device: DeviceType = "GPU"
 
     def to_cpu(self, recursive=True):
-        # TODO: PRELIMINARY CODE
-
         if recursive:
             self.profile.to_cpu(recursive=recursive)
         self._device: DeviceType = "CPU"
 
     def reprocess(self):
-        # TODO: PRELIMINARY CODE
+        """Recalculates the compressed wake for induced voltage calculation"""
         if self._turn_i != self._turn_i_already_calculated:
             self._compressed_wake_kernel = self._get_compressed_wake_kernel(
                 turn_i=self._turn_i
             )
 
-    def induced_voltage_sum(self):
-        # TODO: PRELIMINARY CODE
-        return self._induced_voltage_sum()
-
     def track(self):
-        """Apply kick function to beam"""
-
-        self._induced_voltage_sum()
+        """Update induced voltage and apply kick function to beam"""
+        self.induced_voltage_sum()
         bm.linear_interp_kick(
             dt=self._beam.dt,
             dE=self._beam.dE,
@@ -190,7 +254,7 @@ class InducedVoltageCompactWakeMultiTurnSolver(TotalInducedVoltageAbstract):
     def track_ghosts_particles(self, ghost_beam: Beam):
         """Apply kick function to beam"""
 
-        self._induced_voltage_sum()
+        self.induced_voltage_sum()
         bm.linear_interp_kick(
             dt=ghost_beam.dt,
             dE=ghost_beam.dE,
@@ -201,27 +265,34 @@ class InducedVoltageCompactWakeMultiTurnSolver(TotalInducedVoltageAbstract):
             acceleration_kick=0.0,
         )
 
-    def _induced_voltage_sum(self):
+    def induced_voltage_sum(self):
+        """
+        Compute and update the induced voltage for the current turn.
+
+        This method performs:
+        - An update of the compressed wake kernel for all remaining turns,
+        - A convolution between the wake kernel (remaining turns) and the current
+           macro particle distribution (current turn)
+        - Accumulation into a wake buffer for remaining turns
+
+        The computed wake for the current turn is stored in
+        `self.profile.wake` for internal use.
+
+        """
         assert self._turn_i_already_calculated == (self._turn_i - 1)
 
         # Update wake kernel on each turn
         self._compressed_wake_kernel = self._get_compressed_wake_kernel(
             turn_i=self._turn_i
         )
-        fig_n = plt.gcf().number
-        plt.figure("dev")
-        plt.plot(self._compressed_wake_kernel)
-        plt.figure(fig_n)
-        plt.draw()
-        plt.pause(1)
         # Size of compressed wake per profile, defined in `_get_compressed_wake_kernel`
-        step = 2 * self._profile.number_of_bins
+        step = 2 * self.profile.n_slices
 
         if len(self._compressed_wake_kernel) > self._n_fft_faster:
             convolve = bm.fftconvolve
         else:
             convolve = bm.convolve
-
+        # accumulate multi turn wakes into this buffer
         self._entire_multiparticle_wake[:] += convolve(
             self._compressed_wake_kernel[:],
             self.profile.n_macroparticles[:],
@@ -235,36 +306,24 @@ class InducedVoltageCompactWakeMultiTurnSolver(TotalInducedVoltageAbstract):
         stop = 1 * step - step // 4
         size = stop - start
 
-        assert size == self.profile.number_of_bins, (
-            f"{size=} == " f"{self.profile.number_of_bins=}"
-        )
+        assert size == self.profile.n_slices, f"{size=} == " f"{self.profile.n_slices=}"
 
-        idxs = np.arange(len(self._entire_multiparticle_wake))
-        fig_n = plt.gcf().number
-        plt.figure(22)
 
-        plt.subplot(3, 1, 1)
-        plt.plot(idxs, self._entire_multiparticle_wake)
-        plt.subplot(3, 1, 1)
 
-        plt.plot(
-            idxs[start:stop],
-            self._entire_multiparticle_wake[start:stop],
-            "x",
-        )
-        plt.legend()
-        plt.figure(fig_n)
-
+        # Read the current turn wake, which finished accumulation
         # Set fake attribute `wake` to be used in `track`. This is
         # private to `TotalInducedVoltageNew`
         self.profile.wake = self._entire_multiparticle_wake[start:stop]
+
         self._turn_i_already_calculated = self._turn_i
         self._turn_i += 1
+
+        # forget about the current turn, ready buffer for all remaining turns
         self._entire_multiparticle_wake = self._entire_multiparticle_wake[(1 * step) :]
 
     def _get_compressed_wake_kernel(self, turn_i: int) -> NumpyArray | CupyArray:
         """Calculates the wake kernel at every profile"""
-        n_entries = 2 * self._profile.number_of_bins
+        n_entries = 2 * self.profile.n_slices
 
         compressed_wake_kernel = bm.empty(
             ((self._profile_evolution.max_turns - turn_i) * n_entries)
@@ -280,12 +339,12 @@ class InducedVoltageCompactWakeMultiTurnSolver(TotalInducedVoltageAbstract):
             # so that during convolution, the kernel will reach all profile
             # entries when at left and right end of profile
             width = cut_right - cut_left
-            step = width / self._profile.number_of_bins
+            step = width / self.profile.n_slices
             t_start = cut_left - width / 2 + step / 2
             t_stop = cut_right + width / 2 - step / 2
 
-            msg = f"Bins must be  even, but {self._profile.number_of_bins=}"
-            assert self._profile.number_of_bins % 2 == 0, msg
+            msg = f"Bins must be  even, but {self.profile.n_slices=}"
+            assert self.profile.n_slices % 2 == 0, msg
             time_array = np.linspace(t_start, t_stop, n_entries)
             if i == 0:
                 # force to have one entry that is t=0
@@ -294,8 +353,10 @@ class InducedVoltageCompactWakeMultiTurnSolver(TotalInducedVoltageAbstract):
             time_array -= offset
             # Sum all wakes (impedances) for a single profile target
             for induced_voltage_object in self._induced_voltage_container:
-                induced_voltage_object: InducedVoltageFreqDomainSolver
+                induced_voltage_object: InducedVoltageFreq
                 for imp in induced_voltage_object.impedance_source_list:
+                    if not isinstance(imp, Resonators):
+                        raise NotImplementedError("Discuss with the " "developers")
                     wake_tmp = imp.get_nonperiodic_wake(time_array=time_array)
                     compressed_wake_kernel[sel_tmp] += wake_tmp
 
