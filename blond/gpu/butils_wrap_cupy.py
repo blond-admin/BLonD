@@ -173,7 +173,6 @@ def linear_interp_kick(dt, dE, voltage,
                                grid=GPU_DEV.grid_size, block=GPU_DEV.block_size)
 
 
-
 def slice_beam(dt, profile, cut_left, cut_right):
     """Constant space slicing with a constant frame.
 
