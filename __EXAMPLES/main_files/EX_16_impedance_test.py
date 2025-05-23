@@ -7,19 +7,17 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Example script to take into account intensity effects without multi-turn wakes
 Example for the PSB with a narrow-band resonator, both in frequency and time
 domain, and with an inductive impedance.
 
 :Authors: **Juan F. Esteban Mueller**
-'''
+"""
 
 
-from __future__ import division, print_function
 
 import os
-from builtins import range
 
 import matplotlib as mpl
 import numpy as np

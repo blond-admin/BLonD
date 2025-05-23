@@ -7,34 +7,32 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Example script to take into account intensity effects with multi-turn wakes
 Example for the PSB with a narrow-band resonator, both in frequency and time
 domain.
 
 :Authors: **Juan F. Esteban Mueller**
-'''
+"""
 
 
-from __future__ import division, print_function
-from blond.trackers.tracker import RingAndRFTracker
-from blond.input_parameters.ring import Ring
-from blond.input_parameters.rf_parameters import RFStation
-from blond.impedances.impedance_sources import Resonators
-from blond.impedances.impedance import (InducedVoltageFreq, InducedVoltageTime,
-                                        TotalInducedVoltage)
-from blond.beam.profile import CutOptions, Profile
-from blond.beam.distributions import bigaussian
-from blond.beam.beam import Beam, Proton
-import blond.utils.bmath as bm
-from scipy.constants import c, e, m_p
 import os
-
-from builtins import range
 
 import matplotlib as mpl
 import numpy as np
 import pylab as plt
+from scipy.constants import c, e, m_p
+
+from blond.utils import bmath as bm
+from blond.beam.beam import Beam, Proton
+from blond.beam.distributions import bigaussian
+from blond.beam.profile import CutOptions, Profile
+from blond.impedances.impedance import (InducedVoltageFreq, InducedVoltageTime,
+                                        TotalInducedVoltage)
+from blond.impedances.impedance_sources import Resonators
+from blond.input_parameters.rf_parameters import RFStation
+from blond.input_parameters.ring import Ring
+from blond.trackers.tracker import RingAndRFTracker
 
 DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 # To check if executing correctly, rather than to run the full simulation
@@ -129,11 +127,11 @@ resonator = Resonators(R_S, frequency_R, Q)
 imp_list = [resonator]
 
 ind_volt_freq = InducedVoltageFreq(beam, slice_beam, imp_list,
-                                   RFParams=RF_sct_par, frequency_resolution=1e3,
+                                   rf_station=RF_sct_par, frequency_resolution=1e3,
                                    multi_turn_wake=True, mtw_mode='time')
 
 ind_volt_time = InducedVoltageTime(beam, slice_beam, imp_list,
-                                   RFParams=RF_sct_par, wake_length=n_turns * bucket_length,
+                                   rf_station=RF_sct_par, wake_length=n_turns * bucket_length,
                                    multi_turn_wake=True)
 
 ind_volt_freq_periodic = InducedVoltageFreq(beam, slice_beam, imp_list)
@@ -208,8 +206,8 @@ for i in range(1, n_turns + 1):
                                                           np.sqrt(2.0 * np.pi)) * np.exp(-0.5 * (time_array - bucket_length / 2.0 +
                                                                                                  np.sum(RF_sct_par.t_rev[i:-1]))**2.0 / sigma_dt**2.0)
 
-ind_volt = - beam.Particle.charge * e * beam.ratio * \
-    np.convolve(profiles, ind_volt_time.total_wake)
+ind_volt = - beam.particle.charge * e * beam.ratio * \
+           np.convolve(profiles, ind_volt_time.total_wake)
 
 plt.plot(time_array * 1e9, ind_volt[:time_array.shape[0]], lw=2, alpha=0.75,
          label='"Manual" convolution')
@@ -266,7 +264,7 @@ for i in range(1, n_turns + 1):
                                                           np.sqrt(2.0 * np.pi)) * np.exp(-0.5 * (time_array - bucket_length / 2.0 +
                                                                                                  np.sum(RF_sct_par.t_rev[i:-1]))**2.0 / sigma_dt**2.0)
 
-ind_volt = -(beam.Particle.charge * e * beam.ratio *
+ind_volt = -(beam.particle.charge * e * beam.ratio *
              np.convolve(profiles, ind_volt_time.total_wake))
 
 plt.plot(time_array * 1e9, ind_volt[:time_array.shape[0]], lw=2, alpha=0.75,
