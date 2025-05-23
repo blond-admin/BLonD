@@ -165,7 +165,7 @@ def drift(
     if not isinstance(t_rev, precision.real_t):
         try:
             t_rev = precision.real_t(t_rev.get())
-        except:
+        except Exception:
             t_rev = precision.real_t(t_rev)
 
     drift_kernel(

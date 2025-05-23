@@ -267,9 +267,7 @@ class Plot:
             self.msize = format_options["markersize"]
 
         if "alpha" not in format_options:
-            self.alpha = alpha = 10 ** (
-                -np.log10(self.beam.n_macroparticles) / 6
-            )
+            self.alpha = 10 ** (-np.log10(self.beam.n_macroparticles) / 6)
         else:
             self.alpha = format_options["alpha"]
 

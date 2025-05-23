@@ -1,4 +1,3 @@
-import inspect
 from typing import Callable
 from warnings import warn
 

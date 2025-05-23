@@ -184,7 +184,7 @@ def plot_long_phase_space(
     if show_plot:
         plt.show()
     else:
-        fign = dirname + "/long_distr_" "%d" % rf_station.counter[0] + ".png"
+        fign = dirname + "/long_distr_%d" % rf_station.counter[0] + ".png"
         plt.savefig(fign)
     plt.clf()
 

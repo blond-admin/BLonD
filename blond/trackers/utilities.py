@@ -47,8 +47,6 @@ if TYPE_CHECKING:
     from ..input_parameters.ring import Ring
     from .tracker import FullRingAndRF, MainHarmonicOptionType
     from ..beam.beam import Beam
-    from ..input_parameters.rf_parameters import RFStation
-    from ..input_parameters.ring import Ring
     from ..impedances.impedance import TotalInducedVoltage
 
 

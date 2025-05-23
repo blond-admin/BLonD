@@ -37,8 +37,6 @@ if TYPE_CHECKING:
 
     from numpy.typing import NDArray as NumpyArray, ArrayLike
 
-    from ..utils.types import ResonatorsMethodType
-
 
 class _ImpedanceObject:
     r"""
@@ -379,7 +377,7 @@ class Resonators(_ImpedanceObject):
                 )
             )
 
-    def imped_calc(self, frequency_array: NDArray) -> None:
+    def imped_calc(self, frequency_array: NumpyArray) -> None:
         r"""Impedance calculation method as a function of frequency
 
         Parameters

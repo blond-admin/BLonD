@@ -1,8 +1,6 @@
 import unittest
 from copy import deepcopy
-from time import perf_counter
 
-import cupyx
 import numpy as np
 import pytest
 
@@ -57,7 +55,7 @@ class TestCompareWraps:
             ("double", bm.use_gpu),
         ],
     )
-    def test_drift_legacy(self, precision, bm_use_other):
+    def test_drift_legacy2(self, precision, bm_use_other):
         self._test_drift(precision, bm_use_other, solver="legacy")
 
     def _test_drift(self, precision, bm_use_other, solver):

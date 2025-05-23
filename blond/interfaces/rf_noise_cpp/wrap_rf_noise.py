@@ -8,13 +8,16 @@ Author: Simon Lauber
 
 from __future__ import annotations
 
+import ctypes
 import os
 import pathlib
 import platform
 import subprocess
 from os.path import isfile
-from warnings import warn
 from typing import TYPE_CHECKING
+from warnings import warn
+
+import numpy as np
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
@@ -109,8 +112,6 @@ def _compile_rf_noise_library(rf_noise_dir: pathlib.Path):
 if _make_library:
     _compile_rf_noise_library(_rf_noise_dir)
 
-import ctypes
-import numpy as np
 
 # Load the shared library
 _library_rf_noise = ctypes.CDLL(str(_target_library))
@@ -244,23 +245,23 @@ def rf_noise(
 
     # make sure everything is as expected
     # compare lengths
-    assert len(frequency_high) == len(
-        phase_array
-    ), f"{len(frequency_high)=}, {len(phase_array)=}"
-    assert len(frequency_high) == len(
-        frequency_low
-    ), f"{len(frequency_high)=}, {len(frequency_low)=}"
+    assert len(frequency_high) == len(phase_array), (
+        f"{len(frequency_high)=}, {len(phase_array)=}"
+    )
+    assert len(frequency_high) == len(frequency_low), (
+        f"{len(frequency_high)=}, {len(frequency_low)=}"
+    )
     assert len(gain_x) == len(gain_y), f"{len(gain_x)=}, {len(gain_y)=}"
     # check ranges
-    assert np.all(
-        frequency_low < frequency_high
-    ), "All 'fLow' must be smaller 'fHigh'"
-    assert (
-        np.min(gain_x) >= 0.0
-    ), f"'xs' must be within 0.0 and 1.0, but got {np.min(gain_x)=}"
-    assert (
-        np.max(gain_x) <= 1.0
-    ), f"'xs' must be within 0.0 and 1.0, but got {np.max(gain_x)=}"
+    assert np.all(frequency_low < frequency_high), (
+        "All 'fLow' must be smaller 'fHigh'"
+    )
+    assert np.min(gain_x) >= 0.0, (
+        f"'xs' must be within 0.0 and 1.0, but got {np.min(gain_x)=}"
+    )
+    assert np.max(gain_x) <= 1.0, (
+        f"'xs' must be within 0.0 and 1.0, but got {np.max(gain_x)=}"
+    )
 
     # Prepare pointers to the numpy arrays
     f_high_ptr = frequency_high.ctypes.data_as(ctypes.POINTER(ctypes.c_double))

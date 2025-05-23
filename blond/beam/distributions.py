@@ -1257,7 +1257,7 @@ def bigaussian(
     # Re-insert if necessary
     if reinsertion:
         itemindex = bm.where(
-            is_in_separatrix(ring, rf_station, beam, beam.dt, beam.dE) == False
+            ~is_in_separatrix(ring, rf_station, beam, beam.dt, beam.dE)
         )[0]
         while itemindex.size > 0:
             beam.dt[itemindex] = (
@@ -1273,8 +1273,7 @@ def bigaussian(
             ).astype(dtype=bm.precision.real_t, order="C")
 
             itemindex = bm.where(
-                is_in_separatrix(ring, rf_station, beam, beam.dt, beam.dE)
-                == False
+                ~is_in_separatrix(ring, rf_station, beam, beam.dt, beam.dE)
             )[0]
 
 

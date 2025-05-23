@@ -138,7 +138,7 @@ class ParameterScaling:
 
     def frequencies(self):
         self.t_rev = self.circumference / (self.beta * c)
-        self.tb1.append(f"    Revolution period: {self.t_rev * 1.e6} us")
+        self.tb1.append(f"    Revolution period: {self.t_rev * 1.0e6} us")
 
         self.f_rev = 1.0 / self.t_rev
         self.tb1.append(f"    Revolution frequency: {self.f_rev} Hz")
@@ -149,7 +149,7 @@ class ParameterScaling:
         )
 
         self.f_RF = self.harmonic * self.f_rev
-        self.tb1.append(f"    RF frequency: {self.f_RF * 1.e-6} MHz")
+        self.tb1.append(f"    RF frequency: {self.f_RF * 1.0e-6} MHz")
 
         self.omega_rf = 2.0 * np.pi * self.f_RF
         self.tb1.append(f"        Angular RF frequency: {self.omega_rf} 1/s\n")
@@ -193,7 +193,7 @@ class ParameterScaling:
         self.tb1.append(f"    Bucket area: {self.bucket_area} eVs")
 
         self.dt_max = 0.5 * self.t_rev / self.harmonic
-        self.tb1.append(f"    Half of bucket length: {self.dt_max * 1.e9} ns")
+        self.tb1.append(f"    Half of bucket length: {self.dt_max * 1.0e9} ns")
 
         self.dE_max = np.sqrt(
             2.0
@@ -203,7 +203,7 @@ class ParameterScaling:
             / (np.pi * self.eta_0 * self.harmonic)
         )
         self.tb1.append(
-            f"    Half of bucket height: {self.dE_max * 1.e-6} MeV"
+            f"    Half of bucket height: {self.dE_max * 1.0e-6} MeV"
         )
 
         self.delta_max = self.dE_max / (self.beta_sq * self.energy)
@@ -221,14 +221,14 @@ class ParameterScaling:
                 "Chosen bunch length too large for this bucket. Aborting!"
             )
         self.tb1.append(
-            f"Calculating emittance of 4-sigma bunch length: {self.tau * 1.e9} ns"
+            f"Calculating emittance of 4-sigma bunch length: {self.tau * 1.0e9} ns"
         )
         self.tb1.append(f"    Emittance contour in phase: {self.phi_b} rad")
         self.tb1.append(
             f"    Emittance contour in relative momentum: {self.delta_b}"
         )
         self.tb1.append(
-            f"    Emittance contour in energy offset: {self.dE_b * 1.e-6} MeV"
+            f"    Emittance contour in energy offset: {self.dE_b * 1.0e-6} MeV"
         )
         self.tb1.append(
             f"    R.m.s. bunch length is: {self.tau * c / 4 * 100} cm"
@@ -262,7 +262,7 @@ class ParameterScaling:
         ):
             self.tau *= np.sqrt(self.emittance_aim / self.emittance)
 
-        self.tb1.append(f"    Bunch length is: {self.tau * 1.e9} ns")
+        self.tb1.append(f"    Bunch length is: {self.tau * 1.0e9} ns")
         self.tb1.append(
             f"    Corresponding matched rms relative momentum offset: {self.delta_b}"
         )
@@ -504,7 +504,7 @@ class ParameterScaling:
         elif self.energy_type == "Flat top":
             self.energy = energies_ft[self.setup]
         self.tb1.append(
-            f"Input -- synchronous total energy: {self.energy * 1.e-6} MeV"
+            f"Input -- synchronous total energy: {self.energy * 1.0e-6} MeV"
         )
 
         try:
@@ -512,10 +512,10 @@ class ParameterScaling:
         except ValueError:
             self.tb1.append("Voltage not recognised!")
             return
-        self.tb1.append(f"Input -- RF voltage: {self.voltage * 1.e-6} MV")
+        self.tb1.append(f"Input -- RF voltage: {self.voltage * 1.0e-6} MV")
 
         self.mass = m_p * c**2 / e
-        self.tb1.append(f"Input -- particle mass: {self.mass * 1.e-6} MeV\n")
+        self.tb1.append(f"Input -- particle mass: {self.mass * 1.0e-6} MeV\n")
 
         # Derived quantities --------------------------------------------------
         self.relativistic_quantities()

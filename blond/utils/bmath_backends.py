@@ -26,7 +26,7 @@ else:
     _cupy_available = True
 
 try:
-    import numba
+    import numba  # NOQA
 except ImportError:
     _numba_available = False
 else:
@@ -455,7 +455,7 @@ class __CupyBackend(MasterBackend):
         missing"""
         super().__init__()
         if not _cupy_available:
-            raise _cupy_import_error
+            raise _cupy_import_error  # NOQA
 
         # self.cumtrapz = None # not available in cupy..
         from cupyx.scipy.signal import fftconvolve

@@ -39,7 +39,7 @@ class TestSameResult(unittest.TestCase):
     def setUp(self):
         # set up backends that are compared against python backend
         try:
-            import cupy
+            import cupy  # NOQA
 
             self.tested_backends = (NumbaBackend(), CppBackend(), GpuBackend())
 

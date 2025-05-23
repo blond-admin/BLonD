@@ -18,8 +18,6 @@ import os
 
 import matplotlib.pyplot as plt
 import numpy as np
-from IPython.core.pylabtools import figsize
-from matplotlib import gridspec
 
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian

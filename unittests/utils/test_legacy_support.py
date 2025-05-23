@@ -33,7 +33,7 @@ class TestHandleLegacyKwargs(unittest.TestCase):
         def execute(new):
             return new
 
-        val = execute(
+        execute(
             2,
         )  # not crashing
         execute(

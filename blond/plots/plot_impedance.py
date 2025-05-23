@@ -142,7 +142,7 @@ def plot_impedance_vs_frequency(
             ax2.legend()
         else:
             ax1.legend()
-        fign = dirname + "/sum_imp_vs_freq_fft" "%d" % figure_index + ".png"
+        fign = dirname + "/sum_imp_vs_freq_fft%d" % figure_index + ".png"
 
         if show_plots:
             plt.show()
@@ -338,9 +338,7 @@ def plot_wake_vs_time(
         ax1.set_xlabel("Time [s]")
         ax1.set_ylabel("Wake [Ohm/s]")
         ax1.legend()
-        fign = (
-            dirname + "/sum_wake_vs_table_times" "%d" % figure_index + ".png"
-        )
+        fign = dirname + "/sum_wake_vs_table_times%d" % figure_index + ".png"
 
         if show_plots:
             plt.show()
@@ -384,8 +382,7 @@ def plot_wake_vs_time(
         ax0.set_ylabel("Wake [Ohm/s]")
 
         fign1 = (
-            dirname + "/wake_vs_" + fig_suffix + "_"
-            "%d" % figure_index + ".png"
+            dirname + "/wake_vs_" + fig_suffix + "_%d" % figure_index + ".png"
         )
 
         plt.figure(0)
@@ -436,7 +433,7 @@ def plot_induced_voltage_vs_bin_centers(
     ax0.set_ylabel("Induced voltage [V]")
 
     # Save plot
-    fign = dirname + "/induced_voltage_" "%d" % figure_index + ".png"
+    fign = dirname + "/induced_voltage_%d" % figure_index + ".png"
     if show_plots:
         plt.show()
     else:

@@ -43,6 +43,6 @@ def plot_voltage_programme(
     ax.set_ylabel(r"RF voltage [V]")
 
     # Save figure
-    fign = dirname + "/RF_voltage_" "%d" % figno + ".png"
+    fign = dirname + "/RF_voltage_%d" % figno + ".png"
     plt.savefig(fign)
     plt.clf()

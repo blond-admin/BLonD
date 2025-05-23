@@ -14,8 +14,6 @@ Benchmarking open loop gain
 :Authors: **Birk Emil Karlsen-Bæck**, **Helga Timko**
 """
 
-from matplotlib.pyplot import tight_layout
-
 from blond.toolbox.logger import Logger
 from blond.input_parameters.ring import Ring
 from blond.input_parameters.rf_parameters import RFStation
@@ -25,7 +23,6 @@ from blond.llrf.cavity_feedback import (
     LHCCavityLoop,
     LHCCavityLoopCommissioning,
 )
-from blond.llrf.transfer_function import TransferFunction
 
 import logging
 import numpy as np

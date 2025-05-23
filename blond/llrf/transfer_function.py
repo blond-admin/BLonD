@@ -174,7 +174,7 @@ class TransferFunction(object):
         # interval in which the P_ss signal is greater that min P_ss
         interval = np.where(abs(P_ss) >= 10 ** (P_bw / 20))[0]
 
-        f_m_bw, P_ss_bw = f_m[interval], P_ss[interval]
+        f_m_bw, _ = f_m[interval], P_ss[interval]
 
         f_max = min(-min(f_m_bw), max(f_m_bw))
 

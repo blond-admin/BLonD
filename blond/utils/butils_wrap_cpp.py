@@ -227,7 +227,7 @@ def add_cpp(
 def mul_cpp(
     a: NumpyArray, b: NumpyArray, result: Optional[NumpyArray] = None
 ) -> NumpyArray:
-    if type(a) == np.ndarray and type(b) != np.ndarray:
+    if type(a) is np.ndarray and type(b) is not np.ndarray:
         if result is None:
             result = np.empty_like(a, order="C")
 
@@ -276,9 +276,9 @@ def mul_cpp(
         else:
             raise TypeError("type ", a.dtype, " is not supported")
 
-    elif type(b) == np.ndarray and type(a) != np.ndarray:
+    elif type(b) is np.ndarray and type(a) is not np.ndarray:
         return mul_cpp(b, a, result)
-    elif type(a) == np.ndarray and type(b) == np.ndarray:
+    elif type(a) is np.ndarray and type(b) is np.ndarray:
         if result is None:
             result = np.empty_like(a, order="C")
 
@@ -371,11 +371,11 @@ def arange_cpp(
     size = int(np.ceil((stop - start) / step))
     if result is None:
         result = np.empty(size, dtype=dtype)
-    if dtype == float:
+    if dtype is float:
         get_libblond().arange_double(
             c_real(start), c_real(stop), c_real(step), __getPointer(result)
         )
-    elif dtype == int:
+    elif dtype is int:
         get_libblond().arange_int(
             ct.c_int(start),
             ct.c_int(stop),
@@ -1135,7 +1135,7 @@ def fast_resonator(
     Q: np.ndarray,
     frequency_array: np.ndarray,
     frequency_R: np.ndarray,
-    impedance: Optional[NDArray] = None,
+    impedance: Optional[NumpyArray] = None,
 ) -> NumpyArray:
     R_S = R_S.astype(dtype=precision.real_t, order="C", copy=False)
     Q = Q.astype(dtype=precision.real_t, order="C", copy=False)

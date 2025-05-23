@@ -58,7 +58,7 @@ def plot_beam_profile(
     if show_plot:
         plt.show()
     else:
-        fign = dirname + "/beam_profile_" "%d" % counter + ".png"
+        fign = dirname + "/beam_profile_%d" % counter + ".png"
         plt.savefig(fign)
     plt.clf()
 
@@ -88,7 +88,7 @@ def plot_beam_profile_derivative(
     if show_plot:
         plt.show()
     else:
-        fign = dirname + "/beam_profile_derivative_" "%d" % counter + ".png"
+        fign = dirname + "/beam_profile_derivative_%d" % counter + ".png"
         plt.savefig(fign)
     plt.clf()
 
@@ -124,6 +124,6 @@ def plot_beam_spectrum(
     if show_plot:
         plt.show()
     else:
-        fign = dirname + "/beam_spectrum_" "%d" % counter + ".png"
+        fign = dirname + "/beam_spectrum_%d" % counter + ".png"
         plt.savefig(fign)
     plt.clf()

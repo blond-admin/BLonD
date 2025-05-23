@@ -1,7 +1,5 @@
-import os
 import subprocess
 import unittest
-from pathlib import Path
 
 import numpy as np
 
@@ -21,11 +19,6 @@ def clone_gitlab_repo(repo_url: str, destination_folder: str):
 
 def rf_noise_repo_is_missing():
     try:
-        from blond.interfaces.rf_noise_cpp.wrap_rf_noise import (
-            rf_noise,
-            _local_path,
-        )  # only possible after setUp
-
         return False, ""
     except FileNotFoundError as exc:
         return True, str(exc)

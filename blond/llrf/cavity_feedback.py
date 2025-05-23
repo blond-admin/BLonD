@@ -67,7 +67,6 @@ from ..utils.legacy_support import handle_legacy_kwargs
 if TYPE_CHECKING:
     from typing import Optional, Any
 
-    from numpy import float64
     from numpy.typing import NDArray as NumpyArray
 
     from ..input_parameters.rf_parameters import RFStation
@@ -549,8 +548,7 @@ class SPSOneTurnFeedback(CavityFeedback):
         self.V_part = float(V_part)
         if self.V_part * (1 - self.V_part) < 0:
             raise RuntimeError(
-                "ERROR in SPSOneTurnFeedback: V_part"
-                " should be in range (0,1)!"
+                "ERROR in SPSOneTurnFeedback: V_part should be in range (0,1)!"
             )
 
         # Gain settings

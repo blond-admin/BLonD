@@ -471,11 +471,9 @@ class Beam:
             Used to call the function is_in_separatrix.
         """
 
-        lost_index = (
-            is_in_separatrix(ring, rf_station, self, self.dt, self.dE) == False
-        )
+        lost_index = is_in_separatrix(ring, rf_station, self, self.dt, self.dE)
 
-        self.id[lost_index] = 0
+        self.id[~lost_index] = 0
 
     def losses_longitudinal_cut(self, dt_min: float, dt_max: float):
         """Beam losses based on longitudinal cuts.

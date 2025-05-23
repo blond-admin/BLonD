@@ -29,7 +29,7 @@ try:
     # Early import of cupy.
     # This fixes warnings that occurred when
     # importing `cupy` later inside `compile_cuda_library`
-    import cupy as cp
+    import cupy as cp  # NOQA
 except ImportError:
     pass  # ignore missing cupy for users without GPU
 

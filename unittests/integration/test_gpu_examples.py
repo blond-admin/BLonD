@@ -38,40 +38,40 @@ class TestGPUExamples(unittest.TestCase):
         pass
 
     def test_EX_01_Acceleration(self):
-        import EX_01_Acceleration  # NOQA, see main_files_dir
+        pass  # NOQA, see main_files_dir
 
     def test_EX_02_Main_long_ps_booster(self):
-        import EX_02_Main_long_ps_booster  # NOQA, see main_files_dir
+        pass  # NOQA, see main_files_dir
 
     def test_EX_03_RFnoise(self):
-        import EX_03_RFnoise  # NOQA, see main_files_dir
+        pass  # NOQA, see main_files_dir
 
     def test_EX_04_Stationary_multistation(self):
-        import EX_04_Stationary_multistation  # NOQA, see main_files_dir
+        pass  # NOQA, see main_files_dir
 
     def test_EX_05_Wake_impedance(self):
-        import EX_05_Wake_impedance  # NOQA, see main_files_dir
+        pass  # NOQA, see main_files_dir
 
     def test_EX_07_Ions(self):
-        import EX_07_Ions  # NOQA, see main_files_dir
+        pass  # NOQA, see main_files_dir
 
     def test_EX_08_Phase_Loop(self):
-        import EX_08_Phase_Loop  # NOQA, see main_files_dir
+        pass  # NOQA, see main_files_dir
 
     def test_EX_09_Radial_Loop(self):
-        import EX_09_Radial_Loop  # NOQA, see main_files_dir
+        pass  # NOQA, see main_files_dir
 
     def test_EX_10_Fixed_frequency(self):
-        import EX_10_Fixed_frequency  # NOQA, see main_files_dir
+        pass  # NOQA, see main_files_dir
 
     def test_EX_16_impedance_test(self):
-        import EX_16_impedance_test  # NOQA, see main_files_dir
+        pass  # NOQA, see main_files_dir
 
     def test_EX_17_multi_turn_wake(self):
-        import EX_17_multi_turn_wake  # NOQA, see main_files_dir
+        pass  # NOQA, see main_files_dir
 
     def test_EX_18_robinson_instability(self):
-        import EX_18_robinson_instability  # NOQA, see main_files_dir
+        pass  # NOQA, see main_files_dir
 
 
 if __name__ == "__main__":

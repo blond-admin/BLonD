@@ -25,7 +25,7 @@ from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from typing import Optional, Callable, Literal, Any, Dict, Optional
+    from typing import Callable, Literal, Any, Dict, Optional
 
     from numpy.typing import NDArray as NumpyArray
     from cupy.typing import NDArray as CupyArray

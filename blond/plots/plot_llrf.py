@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import h5py as hp
 import matplotlib.pyplot as plt
 import numpy as np
 from pylab import cm
@@ -64,7 +63,7 @@ def plot_noise_spectrum(
     if show_plot:
         plt.show()
     else:
-        fign = dirname + "/noise_spectrum_" "%d" % figno + ".png"
+        fign = dirname + "/noise_spectrum_%d" % figno + ".png"
         plt.savefig(fign)
     plt.clf()
 
@@ -95,7 +94,7 @@ def plot_phase_noise(
     if show_plot:
         plt.show()
     else:
-        fign = dirname + "/phase_noise_" "%d" % figno + ".png"
+        fign = dirname + "/phase_noise_%d" % figno + ".png"
         plt.savefig(fign)
     plt.clf()
 

@@ -134,7 +134,8 @@ print(
 
 # compare to textbook result
 print(
-    f"energy loss per turn (Sand's constant): {Electron().c_gamma * (40e6)**4 / r_bend:1.3f} eV"
+    f"energy loss per turn (Sand's constant):"
+    f" {Electron().c_gamma * (40e6) ** 4 / r_bend:1.3f} eV"
 )
 
 # create beam with above parameters

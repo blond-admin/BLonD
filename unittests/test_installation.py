@@ -11,7 +11,7 @@ this_directory = pathlib.Path(__file__).parent.resolve()
 def execute_command(commands: List[str]):
     if platform.system() == "Windows":
         # For Windows, we use PowerShell to run the commands
-        command = f"powershell -Command \"{'; '.join(commands)}\""
+        command = f'powershell -Command "{"; ".join(commands)}"'
     else:
         # For Linux (or Unix-like systems), we can use bash
         command = f"bash -i -c '{'; '.join(commands)}'"
@@ -47,10 +47,10 @@ class TestInstallation(unittest.TestCase):
         else:  # For Linux/Unix-based systems
             activate_venv = f"source {venv_tmp}/bin/activate"
         commands = [
-            f"python -m pip install --upgrade pip",
+            "python -m pip install --upgrade pip",
             f"python -m venv {venv_tmp}",
             activate_venv,  # activate virtual environment to install fresh blond
-            f"cd ..",  # # change to BLonD folder
+            "cd ..",  # # change to BLonD folder
             "pip install .[all]",  # run installation of BLonD
             "python -c 'from blond import test; test()'",
         ]
