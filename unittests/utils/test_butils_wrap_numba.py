@@ -32,8 +32,9 @@ from blond.utils.butils_wrap_numba import \
     resonator_induced_voltage_1_turn as resonator_induced_voltage_1_turn_numba, \
     _resonator_induced_voltage_1_turn, distribution_from_tomoscope, \
     linear_interp_kick, set_random_seed, slice_beam, sparse_histogram, \
-    synchrotron_radiation, synchrotron_radiation_full, resonator_induced_voltage_1_turn
-
+    synchrotron_radiation, synchrotron_radiation_full
+from blond.utils.butils_wrap_python import \
+    resonator_induced_voltage_1_turn as resonator_induced_voltage_1_turn_python
 
 class Test:
 
