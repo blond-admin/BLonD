@@ -29,9 +29,10 @@ from blond.input_parameters.ring import Ring
 from blond.utils import bmath as bm
 from blond.utils.butils_wrap_cpp import get_libblond
 from blond.utils.butils_wrap_numba import \
-    resonator_induced_voltage_1_turn as resonator_induced_voltage_1_turn_numba
-from blond.utils.butils_wrap_python import \
-    resonator_induced_voltage_1_turn as resonator_induced_voltage_1_turn_python
+    resonator_induced_voltage_1_turn as resonator_induced_voltage_1_turn_numba, \
+    _resonator_induced_voltage_1_turn, distribution_from_tomoscope, \
+    linear_interp_kick, set_random_seed, slice_beam, sparse_histogram, \
+    synchrotron_radiation, synchrotron_radiation_full, resonator_induced_voltage_1_turn
 
 
 class Test:
@@ -564,6 +565,50 @@ class TestWithObjects:
         np.testing.assert_array_almost_equal(
             music_py.induced_voltage, music_cpp.induced_voltage, decimal=8)
 
+
+
+
+class TestFunctions(unittest.TestCase):
+    @unittest.skip
+    def test__resonator_induced_voltage_1_turn(self):
+        # TODO: implement test for `_resonator_induced_voltage_1_turn`
+        _resonator_induced_voltage_1_turn(kappa1=None, n_macroparticles=None, bin_centers=None, bin_size=None, deltaT=None, tArray=None, reOmegaP=None, imOmegaP=None, Qtilde=None, n_resonators=None, omega_r=None, Q=None, charge=None, beam_n_macroparticles=None, ratio=None, R=None, induced_voltage=None)
+
+
+    @unittest.skip
+    def test_distribution_from_tomoscope(self):
+        # TODO: implement test for `distribution_from_tomoscope`
+        distribution_from_tomoscope(dt=None, dE=None, probDistr=None, seed=None, profLen=None, cutoff=None, x0=None, y0=None, dtBin=None, dEBin=None)
+
+    @unittest.skip
+    def test_linear_interp_kick(self):
+        # TODO: implement test for `linear_interp_kick`
+        linear_interp_kick(dt=None, dE=None, voltage=None, bin_centers=None, charge=None, acceleration_kick=None)
+
+    @unittest.skip
+    def test_set_random_seed(self):
+        # TODO: implement test for `set_random_seed`
+        set_random_seed(seed=None)
+
+    @unittest.skip
+    def test_slice_beam(self):
+        # TODO: implement test for `slice_beam`
+        slice_beam(dt=None, profile=None, cut_left=None, cut_right=None)
+
+    @unittest.skip
+    def test_sparse_histogram(self):
+        # TODO: implement test for `sparse_histogram`
+        sparse_histogram(dt=None, profile=None, cut_left=None, cut_right=None, bunch_indexes=None, n_slices_bucket=None)
+
+    @unittest.skip
+    def test_synchrotron_radiation(self):
+        # TODO: implement test for `synchrotron_radiation`
+        synchrotron_radiation(dE=None, U0=None, n_kicks=None, tau_z=None)
+
+    @unittest.skip
+    def test_synchrotron_radiation_full(self):
+        # TODO: implement test for `synchrotron_radiation_full`
+        synchrotron_radiation_full(dE=None, U0=None, n_kicks=None, tau_z=None, sigma_dE=None, energy=None)
 
 if __name__ == '__main__':
     unittest.main()

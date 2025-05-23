@@ -18,7 +18,8 @@ import unittest
 import numpy as np
 
 from blond.beam.profile import CutOptions, Profile
-from blond.impedances.impedance import InducedVoltageFreq, InducedVoltageTime
+from blond.impedances.impedance import InducedVoltageFreq, InducedVoltageTime, \
+    InducedVoltageResonator, TotalInducedVoltage, _InducedVoltage
 from blond.impedances.impedance_sources import Resonators
 
 
@@ -121,6 +122,117 @@ class TestInducedVoltageTime(unittest.TestCase):
         np.testing.assert_allclose(test_object.wake_length_input, 11e-9)
 
 
-if __name__ == '__main__':
+class TestInducedVoltageFreq2(unittest.TestCase):
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.induced_voltage_freq = InducedVoltageFreq(Beam=None, Profile=None, impedance_source_list=None, frequency_resolution=None, multi_turn_wake=None, front_wake_length=None, RFParams=None, mtw_mode=None, use_regular_fft=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
 
+    @unittest.skip
+    def test_process(self):
+        # TODO: implement test for `process`
+        self.induced_voltage_freq.process()
+
+    @unittest.skip
+    def test_to_cpu(self):
+        # TODO: implement test for `to_cpu`
+        self.induced_voltage_freq.to_cpu(recursive=None)
+
+    @unittest.skip
+    def test_to_gpu(self):
+        # TODO: implement test for `to_gpu`
+        self.induced_voltage_freq.to_gpu(recursive=None)
+
+
+class TestInducedVoltageResonator(unittest.TestCase):
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.induced_voltage_resonator = InducedVoltageResonator(Beam=None, Profile=None, Resonators=None, timeArray=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.induced_voltage_time = InducedVoltageTime(Beam=None, Profile=None, wake_source_list=None, wake_length=None, multi_turn_wake=None, RFParams=None, mtw_mode=None, use_regular_fft=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
+    @unittest.skip
+    def test_process(self):
+        # TODO: implement test for `process`
+        self.induced_voltage_time.process()
+
+    @unittest.skip
+    def test_to_cpu(self):
+        # TODO: implement test for `to_cpu`
+        self.induced_voltage_time.to_cpu(recursive=None)
+
+    @unittest.skip
+    def test_to_gpu(self):
+        # TODO: implement test for `to_gpu`
+        self.induced_voltage_time.to_gpu(recursive=None)
+
+
+class TestTotalInducedVoltage(unittest.TestCase):
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.total_induced_voltage = TotalInducedVoltage(Beam=None, Profile=None, induced_voltage_list=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
+    @unittest.skip
+    def test_to_cpu(self):
+        # TODO: implement test for `to_cpu`
+        self.total_induced_voltage.to_cpu(recursive=None)
+
+    @unittest.skip
+    def test_to_gpu(self):
+        # TODO: implement test for `to_gpu`
+        self.total_induced_voltage.to_gpu(recursive=None)
+
+    @unittest.skip
+    def test_track_ghosts_particles(self):
+        # TODO: implement test for `track_ghosts_particles`
+        self.total_induced_voltage.track_ghosts_particles(ghostBeam=None)
+
+
+class Test_InducedVoltage(unittest.TestCase):
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.__induced_voltage = _InducedVoltage(Beam=None, Profile=None, frequency_resolution=None, wake_length=None, multi_turn_wake=None, mtw_mode=None, RFParams=None, use_regular_fft=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
+    @unittest.skip
+    def test__track(self):
+        # TODO: implement test for `_track`
+        self.__induced_voltage._track()
+
+    @unittest.skip
+    def test_mtw_mode(self):
+        # TODO: implement test for `mtw_mode`
+        self.__induced_voltage.mtw_mode(mtw_mode=None)
+
+    @unittest.skip
+    def test_process(self):
+        # TODO: implement test for `process`
+        self.__induced_voltage.process()
+
+    @unittest.skip
+    def test_shift_trev_freq(self):
+        # TODO: implement test for `shift_trev_freq`
+        self.__induced_voltage.shift_trev_freq()
+
+if __name__ == '__main__':
     unittest.main()

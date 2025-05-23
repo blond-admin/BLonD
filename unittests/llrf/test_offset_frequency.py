@@ -77,6 +77,42 @@ class TestOffsetFrequency(unittest.TestCase):
             offFreq._FrequencyOffset(self.ring, self.rf_params, ['a'])
 
 
-if __name__ == '__main__':
 
+
+
+class TestFixedFrequency(unittest.TestCase):
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.fixed_frequency = offFreq.FixedFrequency(Ring=None, RFStation=None, FixedFrequency=None, FixedDuration=None, TransitionDuration=None, transition=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
+    @unittest.skip
+    def test_linear_calculate_frequency_prog(self):
+        # TODO: implement test for `linear_calculate_frequency_prog`
+        self.fixed_frequency.linear_calculate_frequency_prog()
+
+
+class Test_FrequencyOffset(unittest.TestCase):
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.__frequency_offset = offFreq._FrequencyOffset(Ring=None, RFStation=None, System=None, MainH=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
+    @unittest.skip
+    def test_apply_new_frequency(self):
+        # TODO: implement test for `apply_new_frequency`
+        self.__frequency_offset.apply_new_frequency()
+
+    @unittest.skip
+    def test_set_frequency(self):
+        # TODO: implement test for `set_frequency`
+        self.__frequency_offset.set_frequency(NewFrequencyProgram=None)
+
+if __name__ == '__main__':
     unittest.main()

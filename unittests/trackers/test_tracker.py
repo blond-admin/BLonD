@@ -23,7 +23,7 @@ from blond.beam.profile import CutOptions, FitOptions, Profile
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.llrf.rf_modulation import PhaseModulation as PMod
-from blond.trackers.tracker import RingAndRFTracker
+from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
 
 
 def orig_rf_volt_comp(tracker):
@@ -249,6 +249,52 @@ class TestRfVoltageCalcWCavityFB(unittest.TestCase):
                 self.rf.phi_modulation[0][0][i], msg="""Phi modulation not added correctly in tracker""")
 
 
-if __name__ == '__main__':
 
+
+
+class TestFullRingAndRF(unittest.TestCase):
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.full_ring_and_rf = FullRingAndRF(RingAndRFSection_list=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
+    @unittest.skip
+    def test_potential_well_generation(self):
+        # TODO: implement test for `potential_well_generation`
+        self.full_ring_and_rf.potential_well_generation(turn=None, n_points=None, main_harmonic_option=None, dt_margin_percent=None, time_array=None)
+
+
+class TestRingAndRFTracker(unittest.TestCase):
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.ring_and_rf_tracker = RingAndRFTracker(RFStation=None, Beam=None, solver=None, BeamFeedback=None, NoiseFeedback=None, CavityFeedback=None, periodicity=None, interpolation=None, Profile=None, TotalInducedVoltage=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
+    @unittest.skip
+    def test_rf_voltage_calculation(self):
+        # TODO: implement test for `rf_voltage_calculation`
+        self.ring_and_rf_tracker.rf_voltage_calculation()
+
+    @unittest.skip
+    def test_to_cpu(self):
+        # TODO: implement test for `to_cpu`
+        self.ring_and_rf_tracker.to_cpu(recursive=None)
+
+    @unittest.skip
+    def test_to_gpu(self):
+        # TODO: implement test for `to_gpu`
+        self.ring_and_rf_tracker.to_gpu(recursive=None)
+
+    @unittest.skip
+    def test_track(self):
+        # TODO: implement test for `track`
+        self.ring_and_rf_tracker.track()
+
+if __name__ == '__main__':
     unittest.main()

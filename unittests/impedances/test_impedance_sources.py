@@ -21,7 +21,9 @@ from scipy.constants import e as elCharge
 from blond.beam.beam import Electron
 from blond.impedances.impedance_sources import (CoherentSynchrotronRadiation,
                                                 ResistiveWall, Resonators,
-                                                _ImpedanceObject)
+                                                _ImpedanceObject,
+                                                TravelingWaveCavity,
+                                                InputTable)
 
 
 class Test_ImpedanceObject(unittest.TestCase):
@@ -169,6 +171,116 @@ class TestCoherentSynchrotronRadiation(unittest.TestCase):
 
         np.testing.assert_allclose(W_fs, W_fs_test)
 
+
+class TestCoherentSynchrotronRadiation2(unittest.TestCase):
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.coherent_synchrotron_radiation = CoherentSynchrotronRadiation(r_bend=None, gamma=None, chamber_height=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
+    @unittest.skip
+    def test__fs_integrandReZ(self):
+        # TODO: implement test for `_fs_integrandReZ`
+        self.coherent_synchrotron_radiation._fs_integrandReZ(x=None)
+
+    @unittest.skip
+    def test__fs_spectrum(self):
+        # TODO: implement test for `_fs_spectrum`
+        self.coherent_synchrotron_radiation._fs_spectrum(frequency_array=None, epsilon=None, low_frequency_transition=None, high_frequency_transition=None)
+
+    @unittest.skip
+    def test__pp_low_frequency(self):
+        # TODO: implement test for `_pp_low_frequency`
+        self.coherent_synchrotron_radiation._pp_low_frequency(frequency_array=None, u_max=None, high_frequency_transition=None)
+
+    @unittest.skip
+    def test__pp_spectrum(self):
+        # TODO: implement test for `_pp_spectrum`
+        self.coherent_synchrotron_radiation._pp_spectrum(frequency_array=None, zeta_max=None)
+
+
+class TestInputTable(unittest.TestCase):
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.input_table = InputTable(input_1=None, input_2=None, input_3=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
+    @unittest.skip
+    def test_wake_calc(self):
+        # TODO: implement test for `wake_calc`
+        self.input_table.wake_calc(new_time_array=None)
+
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.resistive_wall = ResistiveWall(pipe_radius=None, pipe_length=None, resistivity=None, conductivity=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
+    @unittest.skip
+    def test_conductivity(self):
+        # TODO: implement test for `conductivity`
+        self.resistive_wall.conductivity()
+
+    @unittest.skip
+    def test_conductivity(self):
+        # TODO: implement test for `conductivity`
+        self.resistive_wall.conductivity(conductivity=None)
+
+    @unittest.skip
+    def test_imped_calc(self):
+        # TODO: implement test for `imped_calc`
+        self.resistive_wall.imped_calc(frequency_array=None)
+
+    @unittest.skip
+    def test_resistivity(self):
+        # TODO: implement test for `resistivity`
+        self.resistive_wall.resistivity()
+
+    @unittest.skip
+    def test_resistivity(self):
+        # TODO: implement test for `resistivity`
+        self.resistive_wall.resistivity(resistivity=None)
+
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.resonators = Resonators(R_S=None, frequency_R=None, Q=None, method=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
+    @unittest.skip
+    def test__imped_calc_python(self):
+        # TODO: implement test for `_imped_calc_python`
+        self.resonators._imped_calc_python(frequency_array=None)
+
+    @unittest.skip
+    def test_omega_R(self):
+        # TODO: implement test for `omega_R`
+        self.resonators.omega_R(omega_R=None)
+
+
+class TestTravelingWaveCavity(unittest.TestCase):
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.traveling_wave_cavity = TravelingWaveCavity(R_S=None, frequency_R=None, a_factor=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
+    @unittest.skip
+    def test_imped_calc(self):
+        # TODO: implement test for `imped_calc`
+        self.traveling_wave_cavity.imped_calc(frequency_array=None)
 
 if __name__ == '__main__':
 

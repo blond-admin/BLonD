@@ -30,6 +30,8 @@ from blond.utils import bmath as bm
 from blond.impedances.impedance import InducedVoltageResonator
 from blond.impedances.impedance_sources import Resonators
 from blond.beam.profile import CutOptions, FitOptions, Profile
+from utils.butils_wrap_python import distribution_from_tomoscope, \
+    sparse_histogram
 
 
 class Test:
@@ -619,3 +621,15 @@ class TestWithObjects:
 if __name__ == '__main__':
 
     unittest.main()
+
+
+class TestFunctions(unittest.TestCase):
+    @unittest.skip
+    def test_distribution_from_tomoscope(self):
+        # TODO: implement test for `distribution_from_tomoscope`
+        distribution_from_tomoscope(dt=None, dE=None, probDistr=None, seed=None, profLen=None, cutoff=None, x0=None, y0=None, dtBin=None, dEBin=None)
+
+    @unittest.skip
+    def test_sparse_histogram(self):
+        # TODO: implement test for `sparse_histogram`
+        sparse_histogram(dt=None, profile=None, cut_left=None, cut_right=None, bunch_indexes=None, n_slices_bucket=None)

@@ -33,7 +33,12 @@ from blond.llrf.signal_processing import (cartesian_to_polar, comb_filter,
                                           feedforward_filter_TWC5,
                                           low_pass_filter, modulator,
                                           moving_average, polar_to_cartesian,
-                                          rf_beam_current)
+                                          rf_beam_current, H_cav, smooth_step,
+                                          plot_frequency_response,
+                                          moving_average_improved,
+                                          get_power_gen_i,
+                                          fir_filter_lhc_otfb_coeff,
+                                          fir_filter_coefficients, fir_filter)
 
 
 class TestIQ(unittest.TestCase):
@@ -593,6 +598,58 @@ class TestFeedforwardFilter(unittest.TestCase):
         del TWC
 
 
-if __name__ == '__main__':
 
+
+class TestFunctions(unittest.TestCase):
+    @unittest.skip
+    def test_H_cav(self):
+        # TODO: implement test for `H_cav`
+        H_cav(x=None, n_sections=None, x_prev=None)
+
+    @unittest.skip
+    def test_feedforward_filter(self):
+        # TODO: implement test for `feedforward_filter`
+        feedforward_filter(TWC=None, T_s=None, taps=None, opt_output=None)
+
+    @unittest.skip
+    def test_fir_filter(self):
+        # TODO: implement test for `fir_filter`
+        fir_filter(coeff=None, signal=None)
+
+    @unittest.skip
+    def test_fir_filter_coefficients(self):
+        # TODO: implement test for `fir_filter_coefficients`
+        fir_filter_coefficients(n_taps=None, sampling_freq=None, cutoff_freq=None)
+
+    @unittest.skip
+    def test_fir_filter_lhc_otfb_coeff(self):
+        # TODO: implement test for `fir_filter_lhc_otfb_coeff`
+        fir_filter_lhc_otfb_coeff(n_taps=None)
+
+    @unittest.skip
+    def test_get_power_gen_i(self):
+        # TODO: implement test for `get_power_gen_i`
+        get_power_gen_i(I_gen_per_cav=None, Z_0=None)
+
+    @unittest.skip
+    def test_moving_average_improved(self):
+        # TODO: implement test for `moving_average_improved`
+        moving_average_improved(x=None, N=None, x_prev=None)
+
+    @unittest.skip
+    def test_plot_frequency_response(self):
+        # TODO: implement test for `plot_frequency_response`
+        plot_frequency_response(b=None, a=None)
+
+    @unittest.skip
+    def test_rf_beam_current(self):
+        # TODO: implement test for `rf_beam_current`
+        rf_beam_current(Profile=None, omega_c=None, T_rev=None, lpf=None, downsample=None, external_reference=None, dT=None)
+
+    @unittest.skip
+    def test_smooth_step(self):
+        # TODO: implement test for `smooth_step`
+        smooth_step(x=None, x_min=None, x_max=None, N=None)
+
+if __name__ == '__main__':
     unittest.main()

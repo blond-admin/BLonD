@@ -27,7 +27,8 @@ from blond.impedances.impedance_sources import TravelingWaveCavity
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.llrf.cavity_feedback import (SPSCavityLoopCommissioning,
-                                        SPSCavityFeedback, SPSOneTurnFeedback)
+                                        SPSCavityFeedback, SPSOneTurnFeedback,
+                                        CavityFeedback)
 from blond.llrf.cavity_feedback import LHCCavityLoop, LHCCavityLoopCommissioning
 from blond.trackers.tracker import RingAndRFTracker
 
@@ -725,6 +726,181 @@ class TestLHCOpenDrive(unittest.TestCase):
         # Generator power [kW]
         P_gen = CL.generator_power()[-1]*1e-3
         self.assertAlmostEqual(P_gen, 69.4555560000, places=10)
+
+
+
+
+class TestCavityFeedback(unittest.TestCase):
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.cavity_feedback = CavityFeedback(RFStation=None, Profile=None, n_cavities=None, n_s=None, n_h=None, lpf=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
+    @unittest.skip
+    def test_circuit_track(self):
+        # TODO: implement test for `circuit_track`
+        self.cavity_feedback.circuit_track(no_beam=None)
+
+    @unittest.skip
+    def test_track_no_beam(self):
+        # TODO: implement test for `track_no_beam`
+        self.cavity_feedback.track_no_beam(n_pretrack=None)
+
+    @unittest.skip
+    def test_update_fb_variables(self):
+        # TODO: implement test for `update_fb_variables`
+        self.cavity_feedback.update_fb_variables()
+
+
+class TestLHCCavityLoop(unittest.TestCase):
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.lhc_cavity_loop = LHCCavityLoop(RFStation=None, Profile=None, n_cavities=None, f_c=None, G_gen=None, I_gen_offset=None, n_pretrack=None, Q_L=None, R_over_Q=None, tau_loop=None, tau_otfb=None, RFFB=None, n_h=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
+    @unittest.skip
+    def test_cavity_response_fine_matrix(self):
+        # TODO: implement test for `cavity_response_fine_matrix`
+        self.lhc_cavity_loop.cavity_response_fine_matrix()
+
+    @unittest.skip
+    def test_circuit_track(self):
+        # TODO: implement test for `circuit_track`
+        self.lhc_cavity_loop.circuit_track(no_beam=None)
+
+    @unittest.skip
+    def test_half_detuning(self):
+        # TODO: implement test for `half_detuning`
+        self.lhc_cavity_loop.half_detuning(imag_peak_beam_current=None, R_over_Q=None, rf_frequency=None, voltage=None)
+
+    @unittest.skip
+    def test_half_detuning_power(self):
+        # TODO: implement test for `half_detuning_power`
+        self.lhc_cavity_loop.half_detuning_power(peak_beam_current=None, voltage=None)
+
+    @unittest.skip
+    def test_optimum_Q_L(self):
+        # TODO: implement test for `optimum_Q_L`
+        self.lhc_cavity_loop.optimum_Q_L(detuning=None, rf_frequency=None)
+
+    @unittest.skip
+    def test_optimum_Q_L_beam(self):
+        # TODO: implement test for `optimum_Q_L_beam`
+        self.lhc_cavity_loop.optimum_Q_L_beam(R_over_Q=None, real_peak_beam_current=None, voltage=None)
+
+    @unittest.skip
+    def test_swap(self):
+        # TODO: implement test for `swap`
+        self.lhc_cavity_loop.swap()
+
+    @unittest.skip
+    def test_track_no_beam_excitation(self):
+        # TODO: implement test for `track_no_beam_excitation`
+        self.lhc_cavity_loop.track_no_beam_excitation(n_turns=None)
+
+    @unittest.skip
+    def test_track_no_beam_excitation_otfb(self):
+        # TODO: implement test for `track_no_beam_excitation_otfb`
+        self.lhc_cavity_loop.track_no_beam_excitation_otfb(n_turns=None)
+
+    @unittest.skip
+    def test_tuner(self):
+        # TODO: implement test for `tuner`
+        self.lhc_cavity_loop.tuner()
+
+    @unittest.skip
+    def test_update_arrays(self):
+        # TODO: implement test for `update_arrays`
+        self.lhc_cavity_loop.update_arrays()
+
+    @unittest.skip
+    def test_update_set_point(self):
+        # TODO: implement test for `update_set_point`
+        self.lhc_cavity_loop.update_set_point()
+
+    @unittest.skip
+    def test_update_set_point_excitation(self):
+        # TODO: implement test for `update_set_point_excitation`
+        self.lhc_cavity_loop.update_set_point_excitation(excitation=None, turn=None)
+
+
+class TestLHCCavityLoopCommissioning(unittest.TestCase):
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.lhc_cavity_loop_commissioning = LHCCavityLoopCommissioning(alpha=None, d_phi_ad=None, G_a=None, G_d=None, G_o=None, tau_a=None, tau_d=None, tau_o=None, mu=None, power_thres=None, open_drive=None, open_loop=None, open_otfb=None, open_rffb=None, open_tuner=None, clamping=None, excitation=None, excitation_otfb_1=None, excitation_otfb_2=None, seed1=None, seed2=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
+    @unittest.skip
+    def test_generate_white_noise(self):
+        # TODO: implement test for `generate_white_noise`
+        self.lhc_cavity_loop_commissioning.generate_white_noise(n_points=None)
+
+class TestSPSCavityFeedback2(unittest.TestCase):
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.sps_cavity_feedback = SPSCavityFeedback(RFStation=None, Profile=None, G_ff=None, G_llrf=None, G_tx=None, a_comb=None, turns=None, post_LS2=None, V_part=None, df=None, commissioning=None, n_h=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
+    @unittest.skip
+    def test_track_init(self):
+        # TODO: implement test for `track_init`
+        self.sps_cavity_feedback.track_init(debug=None)
+
+class TestSPSOneTurnFeedback2(unittest.TestCase):
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.sps_one_turn_feedback = SPSOneTurnFeedback(RFStation=None, Profile=None, n_sections=None, n_cavities=None, V_part=None, G_ff=None, G_llrf=None, G_tx=None, a_comb=None, df=None, commissioning=None, n_h=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
+    @unittest.skip
+    def test_beam_model(self):
+        # TODO: implement test for `beam_model`
+        self.sps_one_turn_feedback.beam_model()
+
+    @unittest.skip
+    def test_calc_power(self):
+        # TODO: implement test for `calc_power`
+        self.sps_one_turn_feedback.calc_power()
+
+    @unittest.skip
+    def test_call_conv(self):
+        # TODO: implement test for `call_conv`
+        self.sps_one_turn_feedback.call_conv(signal=None, kernel=None)
+
+    @unittest.skip
+    def test_set_point_mod(self):
+        # TODO: implement test for `set_point_mod`
+        self.sps_one_turn_feedback.set_point_mod()
+
+    @unittest.skip
+    def test_update_fb_variables(self):
+        # TODO: implement test for `update_fb_variables`
+        self.sps_one_turn_feedback.update_fb_variables()
+
+    @unittest.skip
+    def test_w_clamping(self):
+        # TODO: implement test for `w_clamping`
+        self.sps_one_turn_feedback.w_clamping()
+
+    @unittest.skip
+    def test_wo_clamping(self):
+        # TODO: implement test for `wo_clamping`
+        self.sps_one_turn_feedback.wo_clamping()
 
 
 if __name__ == '__main__':

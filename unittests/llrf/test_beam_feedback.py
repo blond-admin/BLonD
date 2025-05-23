@@ -174,6 +174,64 @@ class TestBeamFeedback(unittest.TestCase):
                                    err_msg='In TestBeamFeedback test_SPS_RL: difference between simulated and analytic result different than expected')
 
 
-if __name__ == '__main__':
+class TestBeamFeedback2(unittest.TestCase):
+    @unittest.skip
+    def test_LHC(self):
+        # TODO: implement test for `LHC`
+        self.beam_feedback.LHC()
 
+    @unittest.skip
+    def test_LHC_F(self):
+        # TODO: implement test for `LHC_F`
+        self.beam_feedback.LHC_F()
+
+    @unittest.skip
+    def test_PSB(self):
+        # TODO: implement test for `PSB`
+        self.beam_feedback.PSB()
+
+    @unittest.skip
+    def test_SPS_F(self):
+        # TODO: implement test for `SPS_F`
+        self.beam_feedback.SPS_F()
+
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.beam_feedback = BeamFeedback(Ring=None, RFStation=None, Profile=None, configuration=None, PhaseNoise=None, LHCNoiseFB=None, delay=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
+    @unittest.skip
+    def test_beam_phase(self):
+        # TODO: implement test for `beam_phase`
+        self.beam_feedback.beam_phase()
+
+    @unittest.skip
+    def test_beam_phase_sharpWindow(self):
+        # TODO: implement test for `beam_phase_sharpWindow`
+        self.beam_feedback.beam_phase_sharpWindow()
+
+    @unittest.skip
+    def test_phase_difference(self):
+        # TODO: implement test for `phase_difference`
+        self.beam_feedback.phase_difference()
+
+    @unittest.skip
+    def test_precalculate_time(self):
+        # TODO: implement test for `precalculate_time`
+        self.beam_feedback.precalculate_time(Ring=None)
+
+    @unittest.skip
+    def test_radial_difference(self):
+        # TODO: implement test for `radial_difference`
+        self.beam_feedback.radial_difference()
+
+    @unittest.skip
+    def test_radial_steering_from_freq(self):
+        # TODO: implement test for `radial_steering_from_freq`
+        self.beam_feedback.radial_steering_from_freq()
+
+if __name__ == '__main__':
     unittest.main()

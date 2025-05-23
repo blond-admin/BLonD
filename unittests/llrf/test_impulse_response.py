@@ -28,7 +28,8 @@ from blond.input_parameters.ring import Ring
 from blond.llrf.cavity_feedback import (SPSCavityLoopCommissioning,
                                         SPSOneTurnFeedback)
 from blond.llrf.impulse_response import (SPS4Section200MHzTWC, rectangle,
-                                         triangle)
+                                         triangle, TravellingWaveCavity,
+                                         cavity_response_sparse_matrix)
 
 class TestRectangle(unittest.TestCase):
 
@@ -661,6 +662,43 @@ class TestTravelingWaveCavity(unittest.TestCase):
                                    "mismatch in beam-induced voltage on coarse grid")
 
 
-if __name__ == '__main__':
 
+
+class TestFunctions(unittest.TestCase):
+    @unittest.skip
+    def test_cavity_response_sparse_matrix(self):
+        # TODO: implement test for `cavity_response_sparse_matrix`
+        cavity_response_sparse_matrix(I_beam=None, I_gen=None, n_samples=None, V_ant_init=None, I_gen_init=None, samples_per_rf=None, R_over_Q=None, Q_L=None, detuning=None)
+
+    @unittest.skip
+    def test_rectangle(self):
+        # TODO: implement test for `rectangle`
+        rectangle(t=None, tau=None)
+
+    @unittest.skip
+    def test_triangle(self):
+        # TODO: implement test for `triangle`
+        triangle(t=None, tau=None)
+
+
+class TestTravellingWaveCavity(unittest.TestCase):
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.travelling_wave_cavity = TravellingWaveCavity(l_cell=None, N_cells=None, rho=None, v_g=None, omega_r=None, df=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
+    @unittest.skip
+    def test_impulse_response_beam(self):
+        # TODO: implement test for `impulse_response_beam`
+        self.travelling_wave_cavity.impulse_response_beam(omega_c=None, time_fine=None, time_coarse=None)
+
+    @unittest.skip
+    def test_impulse_response_gen(self):
+        # TODO: implement test for `impulse_response_gen`
+        self.travelling_wave_cavity.impulse_response_gen(omega_c=None, time_coarse=None)
+
+if __name__ == '__main__':
     unittest.main()
