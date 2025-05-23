@@ -37,7 +37,7 @@ class BufferedFftConvolve1D:
     so `fftconvolve` uses only two instead of three fft calls"""
 
     def __init__(self, array1: NDArray, array2: NDArray):
-        assert len(array1.shape) == 0, "Only 1D arrays allowed!"
+        assert len(array1.shape) == 1, "Only 1D arrays allowed!"
         assert len(array2.shape) == 1, "Only 1D arrays allowed!"
         self.size1 = len(array1)
         self.size2 = len(array2)
