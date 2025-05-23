@@ -53,7 +53,7 @@ class TestProfileMultiTurnEvolution(unittest.TestCase):
             Proton(),
             2,
         )
-
+        np.random.seed(1)
         dt = np.random.randn(1001) * sigma_dt
         dE = np.random.randn(len(dt)) / sigma_dt
         beam = Beam(ring, len(dt), 1e11, dt=dt, dE=dE)
@@ -98,7 +98,7 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
             Proton(),
             20,
         )
-
+        np.random.seed(1)
         dt = np.random.randn(1001) * sigma_dt
         dE = np.random.randn(len(dt)) / sigma_dt
         beam = Beam(ring, len(dt), 1e11, dt=dt, dE=dE)
@@ -164,7 +164,7 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
     def test__induced_voltage_sum_single_profile(self):
         self.total_induced_voltage_NEW.induced_voltage_sum()
         self.total_induced_voltage_ORG.induced_voltage_sum()
-        DEV_DEBUG = False
+        DEV_DEBUG = True
         if DEV_DEBUG:
             plt.subplot(4, 1, 1)
             plt.plot(
@@ -190,7 +190,7 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
 
             plt.subplot(4, 1, 4)
             plt.plot(
-                self.total_induced_voltage_NEW.profile.wake[1:]
+                self.total_induced_voltage_NEW.induced_voltage[1:]
                 - self.total_induced_voltage_ORG.induced_voltage[1:],
                 label="TotalInducedVoltageNew",
             )
