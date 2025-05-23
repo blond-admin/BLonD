@@ -56,9 +56,9 @@ class TestBeamFeedback(unittest.TestCase):
 
         # Profile setup
 
-        self.profile = Profile(self.beam, CutOptions=CutOptions(cut_left=0,
-                                                                cut_right=t_rf,
-                                                                n_slices=1024))
+        self.profile = Profile(self.beam, cut_options=CutOptions(cut_left=0,
+                                                                 cut_right=t_rf,
+                                                                 n_slices=1024))
 
     @unittest.skip("FIXME")
     def test_SPS_RL(self):
@@ -73,8 +73,8 @@ class TestBeamFeedback(unittest.TestCase):
 
         # Tracker setup
         section_tracker = RingAndRFTracker(
-            self.rf_station, self.beam, Profile=self.profile,
-            BeamFeedback=phase_loop, interpolation=False)
+            self.rf_station, self.beam, profile=self.profile,
+            beam_feedback=phase_loop, interpolation=False)
         tracker = FullRingAndRF([section_tracker])
 
         # average beam position

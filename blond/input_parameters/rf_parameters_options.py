@@ -7,22 +7,31 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Function(s) for pre-processing input data**
 
 :Authors: **Helga Timko**, **Alexandre Lasheen**, **Danilo Quartullo**,
     **Simon Albright**
-'''
+"""
 
-from __future__ import division
+from __future__ import annotations
 
-from builtins import range, str
+import os
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import splev, splrep
 
 from ..plots.plot import fig_folder
+from ..utils.legacy_support import handle_legacy_kwargs
+
+if TYPE_CHECKING:
+    from typing import Literal, Optional, Callable, Sequence
+
+    from numpy.typing import NDArray as NumpyArray, ArrayLike
+
+    from .ring import Ring
 
 
 class RFStationOptions:
@@ -48,8 +57,14 @@ class RFStationOptions:
 
     """
 
-    def __init__(self, interpolation='linear', smoothing=0, plot=False,
-                 figdir='fig', figname=['data'], sampling=1):
+    def __init__(self,
+                 interpolation: Literal['linear', 'cubic'] = 'linear',
+                 smoothing: float = 0.0,
+                 plot: bool = False,
+                 figdir: os.PathLike | str = 'fig',
+                 figname: list[str] = ['data'],
+                 sampling: int = 1
+                 ):
 
         if interpolation in ['linear', 'cubic']:
             self.interpolation = str(interpolation)
@@ -78,8 +93,9 @@ class RFStationOptions:
             raise RuntimeError("ERROR: sampling value in PreprocessRamp" +
                                " not recognised. Aborting...")
 
-    def reshape_data(self, input_data, n_turns, n_rf, interp_time,
-                     t_start=0):
+    def reshape_data(self, input_data: ArrayLike, n_turns: int, n_rf: int,
+                     interp_time: NumpyArray, t_start: Optional[float] = None)\
+                                                                    -> NumpyArray:
         r"""Checks whether the user input is consistent with the expectation
         for the RFStation object. The possibilites are detailed in the
         documentation of the RFStation object.
@@ -112,11 +128,14 @@ class RFStationOptions:
             Returns the data with the adequate shape for the RStation object
 
         """
-
+        if t_start is None:
+            t_start = 0.0
+        else:
+            t_start = float(t_start)
         # TO BE IMPLEMENTED: if you pass a filename the function reads the file
         # and reshape the data
         if isinstance(input_data, str):
-            pass
+            raise NotImplementedError()
 
         # If single float, expands the value to match the input number of turns
         # and rf harmonics
@@ -128,10 +147,6 @@ class RFStationOptions:
 
             output_data = []
 
-            # Hot fix to safely treat t_start
-            if t_start is None:
-                t_start = 0
-
             interp_time = interp_time + t_start
 
             # If there is only one rf harmonic, it is expected that the user
@@ -139,7 +154,7 @@ class RFStationOptions:
             # a tuple which size is the number of section as ((time, data), ).
             # and this if condition takes this into account
             if (n_rf == 1) and (len(input_data) > 1):
-                input_data = (input_data, )
+                input_data = (input_data,)
 
             if len(input_data) != n_rf:
                 # InputDataError
@@ -196,7 +211,7 @@ class RFStationOptions:
 
                     # Save figure
                     fign = self.figdir + '/preprocess_' "%s" % self.figname[index_rf] + \
-                        '.png'
+                           '.png'
                     plt.savefig(fign)
 
         # If array/list, compares with the input number of turns and
@@ -223,7 +238,7 @@ class RFStationOptions:
             for index_rf in range(len(input_data)):
                 if len(input_data[index_rf]) == 1:
                     output_data[index_rf] = input_data[index_rf] * \
-                        np.ones(n_turns + 1)
+                                            np.ones(n_turns + 1)
 
                 elif len(input_data[index_rf]) == (n_turns + 1):
                     output_data[index_rf] = np.array(
@@ -231,15 +246,19 @@ class RFStationOptions:
 
                 else:
                     # InputDataError
-                    raise RuntimeError("ERROR in Ring: The input data " +
+                    raise RuntimeError("ERROR in Ring: The input "
+                                       f"{input_data.shape=} " +
                                        "does not match the proper length " +
-                                       "(n_turns+1)")
+                                       f"{(n_turns+1)=}")
 
         return output_data
 
 
-def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
-                         Ring=None, main_h=True):
+@handle_legacy_kwargs
+def combine_rf_functions(function_list: list[tuple[Callable, list[float]]],
+                         merge_type: str | Sequence[str] = 'linear',
+                         resolution: float = 1e-3, ring: Optional[Ring] = None,
+                         main_h: bool = True) -> NumpyArray:
     r"""Function to combine different RF programs. Each program is passed in a
     tuple with complete function (single valued or numpy array) and 2-list
     [start_time, stop_time].
@@ -258,7 +277,7 @@ def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
             linear_tune : for use with voltages, provides a linear change in the tune from function_1[stop_time] to function_2[start_time]
     resolution : float
         the time in seconds between points of the interpolation
-    Ring : class
+    ring : class
         A Ring type class, only used with linear_tune merge_type
     main_h : boolean
         if main_h is True dE is considered in linear_tune merge_type, otherwise dE is set to 0
@@ -304,8 +323,8 @@ def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
         stop = np.where(function_list[0][0][0] > function_list[0][1][1])[0][0]
 
         funcTime = [function_list[0][1][0]] + \
-            function_list[0][0][0][start:stop].tolist() + \
-            [function_list[0][1][1]]
+                   function_list[0][0][0][start:stop].tolist() + \
+                   [function_list[0][1][1]]
         funcProg = np.interp(funcTime, function_list[0][0][0],
                              function_list[0][0][1])
 
@@ -329,8 +348,8 @@ def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
                                 function_list[i][1][1])[0][0]
 
                 funcTime = [function_list[i][1][0]] + \
-                    function_list[i][0][0][start:stop].tolist() + \
-                    [function_list[i][1][1]]
+                           function_list[i][0][0][start:stop].tolist() + \
+                           [function_list[i][1][1]]
                 funcProg = np.interp(funcTime, function_list[i][0][0],
                                      function_list[i][0][1])
 
@@ -344,12 +363,12 @@ def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
                 tDur = function_list[i][1][0] - fullTime[-1]
                 Vinit = fullFunction[-1]
                 Vfin = function_list[i][0]
-                k = (1. / tDur) * (1 - (1. * Vinit / Vfin)**0.5)
+                k = (1. / tDur) * (1 - (1. * Vinit / Vfin) ** 0.5)
 
                 nSteps = int(tDur / resolution[i - 1])
                 time = np.linspace(float(fullTime[-1]),
                                    float(function_list[i][1][0]), nSteps)
-                volts = Vinit / ((1 - k * (time - time[0]))**2)
+                volts = Vinit / ((1 - k * (time - time[0])) ** 2)
 
                 fullFunction += volts.tolist() + 2 * [function_list[i][0]]
                 fullTime += time.tolist() + function_list[i][1]
@@ -362,19 +381,19 @@ def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
                                 function_list[i][1][1])[0][0]
 
                 funcTime = [function_list[i][1][0]] + \
-                    function_list[i][0][0][start:stop].tolist() + \
-                    [function_list[i][1][1]]
+                           function_list[i][0][0][start:stop].tolist() + \
+                           [function_list[i][1][1]]
                 funcProg = np.interp(funcTime, function_list[i][0][0],
                                      function_list[i][0][1])
 
                 tDur = funcTime[0] - fullTime[-1]
                 Vinit = fullFunction[-1]
                 Vfin = funcProg[0]
-                k = (1. / tDur) * (1 - (1. * Vinit / Vfin)**0.5)
+                k = (1. / tDur) * (1 - (1. * Vinit / Vfin) ** 0.5)
 
                 nSteps = int(tDur / resolution[i - 1])
                 time = np.linspace(float(fullTime[-1]), float(funcTime[0]), nSteps)
-                volts = Vinit / ((1 - k * (time - time[0]))**2)
+                volts = Vinit / ((1 - k * (time - time[0])) ** 2)
 
                 fullFunction += volts.tolist() + funcProg.tolist()
                 fullTime += time.tolist() + funcTime
@@ -384,8 +403,8 @@ def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
             # harmonic, charge and 2pi are constant so can be ignored
             if not isinstance(function_list[i][0], np.ndarray):
 
-                initPars = Ring.parameters_at_time(fullTime[-1])
-                finalPars = Ring.parameters_at_time(function_list[i][1][0])
+                initPars = ring.parameters_at_time(fullTime[-1])
+                finalPars = ring.parameters_at_time(function_list[i][1][0])
 
                 vInit = fullFunction[-1]
                 vFin = function_list[i][0]
@@ -396,13 +415,13 @@ def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
 
                 initTune = np.sqrt(
                     (vInit * np.abs(initPars['eta_0']) *
-                     np.sqrt(1 - (initPars['delta_E'] / vInit)**2)) /
-                    (initPars['beta']**2 * initPars['energy']))
+                     np.sqrt(1 - (initPars['delta_E'] / vInit) ** 2)) /
+                    (initPars['beta'] ** 2 * initPars['energy']))
 
                 finalTune = np.sqrt(
                     (vFin * np.abs(finalPars['eta_0']) *
-                     np.sqrt(1 - (finalPars['delta_E'] / vFin)**2)) /
-                    (finalPars['beta']**2 * finalPars['energy']))
+                     np.sqrt(1 - (finalPars['delta_E'] / vFin) ** 2)) /
+                    (finalPars['beta'] ** 2 * finalPars['energy']))
 
                 tDur = function_list[i][1][0] - fullTime[-1]
                 nSteps = int(tDur / resolution[i - 1])
@@ -410,15 +429,15 @@ def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
                                    nSteps)
                 tuneInterp = np.linspace(float(initTune), float(finalTune), nSteps)
 
-                mergePars = Ring.parameters_at_time(time)
+                mergePars = ring.parameters_at_time(time)
 
                 if main_h is False:
                     mergePars['delta_E'] *= 0
 
                 volts = np.sqrt(
-                    ((tuneInterp**2 * mergePars['beta']**2 *
-                      mergePars['energy']) / (np.abs(mergePars['eta_0'])))**2 +
-                    mergePars['delta_E']**2)
+                    ((tuneInterp ** 2 * mergePars['beta'] ** 2 *
+                      mergePars['energy']) / (np.abs(mergePars['eta_0']))) ** 2 +
+                    mergePars['delta_E'] ** 2)
 
                 fullFunction += volts.tolist() + 2 * [function_list[i][0]]
                 fullTime += time.tolist() + function_list[i][1]
@@ -431,8 +450,8 @@ def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
                                 function_list[i][1][1])[0][0]
 
                 funcTime = [function_list[i][1][0]] + \
-                    function_list[i][0][0][start:stop].tolist() + \
-                    [function_list[i][1][1]]
+                           function_list[i][0][0][start:stop].tolist() + \
+                           [function_list[i][1][1]]
                 funcProg = np.interp(funcTime, function_list[i][0][0],
                                      function_list[i][0][1])
 
@@ -440,8 +459,8 @@ def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
                 nSteps = int(tDur / resolution[i - 1])
                 time = np.linspace(float(fullTime[-1]), float(funcTime[0]), nSteps)
 
-                initPars = Ring.parameters_at_time(fullTime[-1])
-                finalPars = Ring.parameters_at_time(funcTime[0])
+                initPars = ring.parameters_at_time(fullTime[-1])
+                finalPars = ring.parameters_at_time(funcTime[0])
 
                 if main_h is False:
                     initPars['delta_E'] = 0.
@@ -452,25 +471,25 @@ def combine_rf_functions(function_list, merge_type='linear', resolution=1e-3,
 
                 initTune = np.sqrt(
                     (vInit * np.abs(initPars['eta_0']) *
-                     np.sqrt(1 - (initPars['delta_E'] / vInit)**2)) /
-                    (initPars['beta']**2 * initPars['energy']))
+                     np.sqrt(1 - (initPars['delta_E'] / vInit) ** 2)) /
+                    (initPars['beta'] ** 2 * initPars['energy']))
 
                 finalTune = np.sqrt(
                     (vFin * np.abs(finalPars['eta_0']) *
-                     np.sqrt(1 - (finalPars['delta_E'] / vFin)**2)) /
-                    (finalPars['beta']**2 * finalPars['energy']))
+                     np.sqrt(1 - (finalPars['delta_E'] / vFin) ** 2)) /
+                    (finalPars['beta'] ** 2 * finalPars['energy']))
 
                 tuneInterp = np.linspace(float(initTune), float(finalTune), nSteps)
 
-                mergePars = Ring.parameters_at_time(time)
+                mergePars = ring.parameters_at_time(time)
 
                 if main_h is False:
                     mergePars['delta_E'] *= 0
 
                 volts = np.sqrt(
-                    ((tuneInterp**2 * mergePars['beta']**2 *
-                      mergePars['energy']) / (np.abs(mergePars['eta_0'])))**2 +
-                    mergePars['delta_E']**2)
+                    ((tuneInterp ** 2 * mergePars['beta'] ** 2 *
+                      mergePars['energy']) / (np.abs(mergePars['eta_0']))) ** 2 +
+                    mergePars['delta_E'] ** 2)
 
                 fullFunction += volts.tolist() + funcProg.tolist()
                 fullTime += time.tolist() + funcTime

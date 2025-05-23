@@ -1,31 +1,38 @@
-'''
+"""
 BLonD math wrapper functions
 
 @author Konstantinos Iliakis
 @date 20.10.2017
-'''
+"""
+
+from __future__ import annotations
 
 import ctypes as ct
 import os
 import sys
+import warnings
+from typing import TYPE_CHECKING
+
 import numpy as np
 
-# from .. import get_libblond
 from . import c_complex64, c_complex128, c_real, precision
 
+if TYPE_CHECKING:
+    from typing import Optional, Type, Literal
+
+    from numpy.typing import NDArray as NumpyArray
 
 __LIBBLOND = None
 
 
-def load_libblond(precision='single'):
-    '''Locates and initializes the blond compiled library
+def load_libblond(precision: str = 'single'):
+    """Locates and initializes the blond compiled library
     @param precision: The floating point precision of the calculations. Can be 'single' or 'double'.
-    '''
+    """
     global __LIBBLOND
     libblond_path = os.environ.get('LIBBLOND', None)
     path = os.path.realpath(__file__)
     basepath = os.sep.join(path.split(os.sep)[:-1])
-    # print(f'Loading the BLonD library for {precision} precision...')
     try:
         if 'posix' in os.name:
             if libblond_path:
@@ -48,25 +55,25 @@ def load_libblond(precision='single'):
         else:
             print('YOU DO NOT HAVE A WINDOWS OR UNIX OPERATING SYSTEM. ABORTING.')
             sys.exit()
-    except OSError:
-        # Silently pass. An alternative backend can be used.
-        pass
+    except OSError as exc:
+        # An alternative backend can be used.
+        warnings.warn(str(exc))
 
 
 load_libblond(precision='double')
 
 
-def get_libblond():
-    '''Returns the blond library.
-    '''
+def get_libblond() -> ct.CDLL | None:
+    """Returns the blond library.
+    """
     return __LIBBLOND
 
 
-def __getPointer(x):
+def __getPointer(x: NumpyArray) -> ct.c_void_p:
     return x.ctypes.data_as(ct.c_void_p)
 
 
-def __getLen(x):
+def __getLen(x: NumpyArray) -> ct.c_int:
     return ct.c_int(len(x))
 
 
@@ -74,7 +81,8 @@ def __getLen(x):
 # You need to define at least one of more_than, less_than
 # @return: a bool array, size equal to the input,
 #           True: element satisfied the cond, False: otherwise
-def where_cpp(x, more_than=None, less_than=None, result=None):
+def where_cpp(x: NumpyArray, more_than: Optional[float] = None, less_than: Optional[float] = None,
+              result: Optional[NumpyArray] = None) -> NumpyArray:
     if result is None:
         result = np.empty_like(x, dtype=bool)
     if more_than is None and less_than is not None:
@@ -98,7 +106,7 @@ def where_cpp(x, more_than=None, less_than=None, result=None):
     return result
 
 
-def add_cpp(a, b, result=None, inplace=False):
+def add_cpp(a: NumpyArray, b: NumpyArray, result: Optional[NumpyArray] = None, inplace: bool = False) -> NumpyArray:
     if (len(a) != len(b)):
         raise ValueError(
             'operands could not be broadcast together with shapes ',
@@ -161,7 +169,7 @@ def add_cpp(a, b, result=None, inplace=False):
     return result
 
 
-def mul_cpp(a, b, result=None):
+def mul_cpp(a: NumpyArray, b: NumpyArray, result: Optional[NumpyArray] = None) -> NumpyArray:
     if (type(a) == np.ndarray and type(b) != np.ndarray):
         if result is None:
             result = np.empty_like(a, order='C')
@@ -219,17 +227,18 @@ def mul_cpp(a, b, result=None):
     return result
 
 
-def argmin_cpp(x):
+def argmin_cpp(x: NumpyArray) -> int:
     get_libblond().min_idx.restype = ct.c_int
     return get_libblond().min_idx(__getPointer(x), __getLen(x))
 
 
-def argmax_cpp(x):
+def argmax_cpp(x: NumpyArray) -> int:
     get_libblond().max_idx.restype = ct.c_int
     return get_libblond().max_idx(__getPointer(x), __getLen(x))
 
 
-def linspace_cpp(start, stop, num=50, retstep=False, result=None):
+def linspace_cpp(start: float, stop: float, num: int = 50, retstep: bool = False,
+                 result: Optional[NumpyArray] = None) -> NumpyArray | tuple[NumpyArray, float]:
     if result is None:
         result = np.empty(num, dtype=float)
     get_libblond().linspace(c_real(start), c_real(stop),
@@ -240,7 +249,9 @@ def linspace_cpp(start, stop, num=50, retstep=False, result=None):
         return result
 
 
-def arange_cpp(start, stop, step, dtype=float, result=None):
+def arange_cpp(start: float | int, stop: float | int, step: float | int,
+               dtype: Type[float, int] = float,
+               result: Optional[NumpyArray] = None) -> NumpyArray:
     size = int(np.ceil((stop - start) / step))
     if result is None:
         result = np.empty(size, dtype=dtype)
@@ -254,12 +265,12 @@ def arange_cpp(start, stop, step, dtype=float, result=None):
     return result
 
 
-def sum_cpp(x):
+def sum_cpp(x: NumpyArray) -> float:
     get_libblond().sum.restype = ct.c_double
     return get_libblond().sum(__getPointer(x), __getLen(x))
 
 
-def sort_cpp(x, reverse=False):
+def sort_cpp(x: NumpyArray, reverse: bool = False) -> NumpyArray:
     if x.dtype == 'int32':
         get_libblond().sort_int(__getPointer(x), __getLen(x), ct.c_bool(reverse))
     elif x.dtype == 'float64':
@@ -272,7 +283,8 @@ def sort_cpp(x, reverse=False):
     return x
 
 
-def convolve(signal, kernel, mode='full', result=None):
+def convolve(signal: NumpyArray, kernel: NumpyArray, mode: str = 'full',
+             result: Optional[NumpyArray] = None) -> NumpyArray:
     if mode != 'full':
         # ConvolutionError
         raise RuntimeError('[convolve] Only full mode is supported')
@@ -284,7 +296,7 @@ def convolve(signal, kernel, mode='full', result=None):
     return result
 
 
-def mean_cpp(x):
+def mean_cpp(x: NumpyArray) -> float:
     if isinstance(x[0], np.float32):
         get_libblond().meanf.restype = ct.c_float
         return get_libblond().meanf(__getPointer(x), __getLen(x))
@@ -293,7 +305,7 @@ def mean_cpp(x):
         return get_libblond().mean(__getPointer(x), __getLen(x))
 
 
-def std_cpp(x):
+def std_cpp(x: NumpyArray) -> float:
     if isinstance(x[0], np.float32):
         get_libblond().stdevf.restype = ct.c_float
         return get_libblond().stdevf(__getPointer(x), __getLen(x))
@@ -302,7 +314,7 @@ def std_cpp(x):
         return get_libblond().stdev(__getPointer(x), __getLen(x))
 
 
-def sin_cpp(x, result=None):
+def sin_cpp(x: NumpyArray | float | int, result: Optional[NumpyArray] = None) -> NumpyArray | float:
     if isinstance(x, np.ndarray) and isinstance(x[0], np.float64):
         if result is None:
             result = np.empty(len(x), dtype=np.float64, order='C')
@@ -321,7 +333,7 @@ def sin_cpp(x, result=None):
         raise RuntimeError('[sin] The type %s is not supported' % type(x))
 
 
-def cos_cpp(x, result=None):
+def cos_cpp(x: NumpyArray | float | int, result: Optional[NumpyArray] = None) -> NumpyArray | float:
     if isinstance(x, np.ndarray) and isinstance(x[0], np.float64):
         if result is None:
             result = np.empty(len(x), dtype=np.float64, order='C')
@@ -340,7 +352,7 @@ def cos_cpp(x, result=None):
         raise RuntimeError('[cos] The type %s is not supported' % type(x))
 
 
-def exp_cpp(x, result=None):
+def exp_cpp(x: NumpyArray | float | int, result: Optional[NumpyArray] = None) -> NumpyArray | float:
     if isinstance(x, np.ndarray) and isinstance(x[0], np.float64):
         if result is None:
             result = np.empty(len(x), dtype=np.float64, order='C')
@@ -359,7 +371,9 @@ def exp_cpp(x, result=None):
         raise RuntimeError('[exp] The type %s is not supported' % type(x))
 
 
-def interp_cpp(x, xp, yp, left=None, right=None, result=None):
+def interp_cpp(x: NumpyArray, xp: NumpyArray, yp: NumpyArray, left: Optional[float] = None,
+               right: Optional[float] = None,
+               result: Optional[NumpyArray] = None) -> NumpyArray:
     x = x.astype(dtype=precision.real_t, order='C', copy=False)
     xp = xp.astype(dtype=precision.real_t, order='C', copy=False)
     yp = yp.astype(dtype=precision.real_t, order='C', copy=False)
@@ -381,7 +395,10 @@ def interp_cpp(x, xp, yp, left=None, right=None, result=None):
     return result
 
 
-def interp_const_space(x, xp, yp, left=None, right=None, result=None):
+def interp_const_space(x: NumpyArray, xp: NumpyArray, yp: NumpyArray,
+                       left: Optional[float] = None, right: Optional[float] = None,
+                       result: Optional[NumpyArray] = None
+                       ) -> NumpyArray:
     x = x.astype(dtype=precision.real_t, order='C', copy=False)
     xp = xp.astype(dtype=precision.real_t, order='C', copy=False)
     yp = yp.astype(dtype=precision.real_t, order='C', copy=False)
@@ -403,7 +420,10 @@ def interp_const_space(x, xp, yp, left=None, right=None, result=None):
     return result
 
 
-def interp_const_bin(x, xp, yp, left=None, right=None, result=None):
+def interp_const_bin(x: NumpyArray, xp: NumpyArray, yp: NumpyArray,
+                     left: Optional[float] = None, right: Optional[float] = None,
+                     result: Optional[NumpyArray] = None
+                     ) -> NumpyArray:
     x = x.astype(dtype=precision.real_t, order='C', copy=False)
     xp = xp.astype(dtype=precision.real_t, order='C', copy=False)
     yp = yp.astype(dtype=precision.real_t, order='C', copy=False)
@@ -416,29 +436,29 @@ def interp_const_bin(x, xp, yp, left=None, right=None, result=None):
         result = np.empty(len(x), dtype=precision.real_t, order='C')
 
     get_libblond().interp_const_bin(__getPointer(x), __getLen(x),
-                                        __getPointer(xp),
-                                        __getPointer(yp), __getLen(xp),
-                                        c_real(left), c_real(right),
-                                        __getPointer(result))
+                                    __getPointer(xp),
+                                    __getPointer(yp), __getLen(xp),
+                                    c_real(left), c_real(right),
+                                    __getPointer(result))
 
     return result
 
 
-def random_normal(loc=0.0, scale=1.0, size=1, seed=1234):
+def random_normal(loc: float = 0.0, scale: float = 1.0, size: int = 1, seed=1234):
     arr = np.empty(size, dtype=precision.real_t)
     get_libblond().random_normal(
-            __getPointer(arr),
-            ct.c_double(loc),
-            ct.c_double(scale),
-            # c_real(loc),
-            # c_real(scale),
-            __getLen(arr),
-            ct.c_ulong(seed))
+        __getPointer(arr),
+        ct.c_double(loc),
+        ct.c_double(scale),
+        # c_real(loc),
+        # c_real(scale),
+        __getLen(arr),
+        ct.c_ulong(seed))
 
     return arr
 
 
-def rfft(a, n=0, result=None):
+def rfft(a: NumpyArray, n: int = 0, result: Optional[NumpyArray] = None) -> NumpyArray:
     a = a.astype(dtype=precision.real_t, order='C', copy=False)
     if (n == 0) and (result is None):
         result = np.empty(
@@ -455,7 +475,7 @@ def rfft(a, n=0, result=None):
     return result
 
 
-def irfft(a, n=0, result=None):
+def irfft(a: NumpyArray, n: int = 0, result: Optional[NumpyArray] = None) -> NumpyArray:
     a = a.astype(dtype=precision.complex_t, order='C', copy=False)
 
     if (n == 0) and (result is None):
@@ -472,7 +492,7 @@ def irfft(a, n=0, result=None):
     return result
 
 
-def rfftfreq(n, d=1.0, result=None):
+def rfftfreq(n: int, d: float | int = 1.0, result: Optional[NumpyArray] = None) -> NumpyArray:
     if d == 0:
         raise ZeroDivisionError('d must be non-zero')
     if result is None:
@@ -485,8 +505,7 @@ def rfftfreq(n, d=1.0, result=None):
     return result
 
 
-def irfft_packed(signal, fftsize=0, result=None):
-
+def irfft_packed(signal: NumpyArray, fftsize: int = 0, result: Optional[NumpyArray] = None) -> NumpyArray:
     n0 = len(signal[0])
     howmany = len(signal)
 
@@ -510,7 +529,8 @@ def irfft_packed(signal, fftsize=0, result=None):
     return result
 
 
-def cumtrapz(y, x=None, dx=1.0, initial=None, result=None):
+def cumtrapz(y: NumpyArray, x: Optional[NumpyArray] = None, dx: float = 1.0, initial: Optional[float] = None,
+             result: Optional[NumpyArray] = None) -> NumpyArray:
     raise NotImplementedError("The bmath.cumtrapz behaviour differs from"
                               "scipy.integrate.cumulative_trapezoid."
                               "Please contact the developers if you need this routine!")
@@ -531,18 +551,19 @@ def cumtrapz(y, x=None, dx=1.0, initial=None, result=None):
     return result
 
 
-def trapz_cpp(y, x=None, dx=1.0):
+def trapz_cpp(y: NumpyArray, x: Optional[NumpyArray] = None, dx: float = 1.0) -> float:
     if x is None:
         get_libblond().trapz_const_delta.restype = precision.c_real_t
         return get_libblond().trapz_const_delta(__getPointer(y), c_real(dx),
                                                 __getLen(y))
     else:
         get_libblond().trapz_var_delta.restype = precision.c_real_t
-        return get_libblond().trapz_var_delta(__getPointer(y), __getPointer(x),
+        return get_libblond().trapz_var_delta(__getPointer(y), __getPointer(x),  # todo function not declared??
                                               __getLen(y))
 
 
-def beam_phase(bin_centers, profile, alpha, omegarf, phirf, bin_size):
+def beam_phase(bin_centers: NumpyArray, profile: NumpyArray, alpha: float, omega_rf: float, phi_rf: float,
+               bin_size: float) -> float:
     bin_centers = bin_centers.astype(dtype=precision.real_t, order='C',
                                      copy=False)
     profile = profile.astype(dtype=precision.real_t, order='C', copy=False)
@@ -551,14 +572,15 @@ def beam_phase(bin_centers, profile, alpha, omegarf, phirf, bin_size):
     coeff = get_libblond().beam_phase(__getPointer(bin_centers),
                                       __getPointer(profile),
                                       c_real(alpha),
-                                      c_real(omegarf),
-                                      c_real(phirf),
+                                      c_real(omega_rf),
+                                      c_real(phi_rf),
                                       c_real(bin_size),
                                       __getLen(profile))
     return coeff
 
 
-def beam_phase_fast(bin_centers, profile, omegarf, phirf, bin_size):
+def beam_phase_fast(bin_centers: NumpyArray, profile: NumpyArray, omega_rf: float, phi_rf: float,
+                    bin_size: float) -> float:
     bin_centers = bin_centers.astype(dtype=precision.real_t, order='C',
                                      copy=False)
     profile = profile.astype(dtype=precision.real_t, order='C', copy=False)
@@ -566,15 +588,14 @@ def beam_phase_fast(bin_centers, profile, omegarf, phirf, bin_size):
     get_libblond().beam_phase_fast.restype = precision.c_real_t
     coeff = get_libblond().beam_phase_fast(__getPointer(bin_centers),
                                            __getPointer(profile),
-                                           c_real(omegarf),
-                                           c_real(phirf),
+                                           c_real(omega_rf),
+                                           c_real(phi_rf),
                                            c_real(bin_size),
                                            __getLen(profile))
     return coeff
 
 
-def rf_volt_comp(voltages, omega_rf, phi_rf, bin_centers):
-
+def rf_volt_comp(voltages: NumpyArray, omega_rf: NumpyArray, phi_rf: NumpyArray, bin_centers: NumpyArray) -> NumpyArray:
     bin_centers = bin_centers.astype(
         dtype=precision.real_t, order='C', copy=False)
     voltages = voltages.astype(dtype=precision.real_t, order='C', copy=False)
@@ -594,28 +615,40 @@ def rf_volt_comp(voltages, omega_rf, phi_rf, bin_centers):
     return rf_voltage
 
 
-def kick(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick):
+def kick(dt: NumpyArray, dE: NumpyArray, voltage: NumpyArray, omega_rf: NumpyArray,
+         phi_rf: NumpyArray, charge: float, n_rf: int,
+         acceleration_kick: float):
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(dE[0], precision.real_t)
 
-    voltage_kick = charge * \
-        voltage.astype(dtype=precision.real_t, order='C', copy=False)
-    omegarf_kick = omega_rf.astype(
-        dtype=precision.real_t, order='C', copy=False)
-    phirf_kick = phi_rf.astype(dtype=precision.real_t, order='C', copy=False)
+
+    if not  (voltage.flags.f_contiguous or voltage.flags.c_contiguous):
+        warnings.warn("voltage must be contigous!")
+        voltage = voltage.astype(dtype=precision.real_t, order='C', copy=False)
+    if not (omega_rf.flags.f_contiguous or omega_rf.flags.c_contiguous):
+        warnings.warn("omega_rf must be contigous!")
+        omega_rf = omega_rf.astype(dtype=precision.real_t, order='C', copy=False)
+    if not (phi_rf.flags.f_contiguous or phi_rf.flags.c_contiguous):
+        warnings.warn("phi_rf must be contigous!")
+        phi_rf = phi_rf.astype(dtype=precision.real_t, order='C', copy=False)
+
+
 
     get_libblond().kick(__getPointer(dt),
                         __getPointer(dE),
                         ct.c_int(n_rf),
-                        __getPointer(voltage_kick),
-                        __getPointer(omegarf_kick),
-                        __getPointer(phirf_kick),
+                        c_real(charge),
+                        __getPointer(voltage),
+                        __getPointer(omega_rf),
+                        __getPointer(phi_rf),
                         __getLen(dt),
                         c_real(acceleration_kick))
 
 
-def drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
-          eta_1, eta_2, alpha_0, alpha_1, alpha_2, beta, energy):
+def drift(dt: NumpyArray, dE: NumpyArray, solver: Literal["simple", "legacy", "exact"], t_rev: float,
+          length_ratio: float, alpha_order: int, eta_0: float, eta_1: float,
+          eta_2: float, alpha_0: float, alpha_1: float, alpha_2: float, beta: float,
+          energy: float):
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(dE[0], precision.real_t)
 
@@ -636,10 +669,9 @@ def drift(dt, dE, solver, t_rev, length_ratio, alpha_order, eta_0,
                          __getLen(dt))
 
 
-def linear_interp_kick(dt, dE, voltage,
-                       bin_centers, charge,
-                       acceleration_kick):
-
+def linear_interp_kick(dt: NumpyArray, dE: NumpyArray, voltage: NumpyArray,
+                       bin_centers: np.ndarray, charge: float,
+                       acceleration_kick: float):
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(dE[0], precision.real_t)
     assert isinstance(voltage[0], precision.real_t)
@@ -655,7 +687,8 @@ def linear_interp_kick(dt, dE, voltage,
                                       c_real(acceleration_kick))
 
 
-def slice_beam(dt, profile, cut_left, cut_right):
+def slice_beam(dt: NumpyArray, profile: NumpyArray, cut_left: float,
+               cut_right: float):
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(profile[0], precision.real_t)
 
@@ -667,7 +700,7 @@ def slice_beam(dt, profile, cut_left, cut_right):
                              __getLen(dt))
 
 
-def slice_smooth(dt, profile, cut_left, cut_right):
+def slice_smooth(dt: NumpyArray, profile: NumpyArray, cut_left: float, cut_right: float):
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(profile[0], precision.real_t)
 
@@ -679,7 +712,8 @@ def slice_smooth(dt, profile, cut_left, cut_right):
                                     __getLen(dt))
 
 
-def sparse_histogram(dt, profile, cut_left, cut_right, bunch_indexes, n_slices_bucket):
+def sparse_histogram(dt: NumpyArray, profile: NumpyArray, cut_left: NumpyArray, cut_right: NumpyArray,
+                     bunch_indexes: NumpyArray, n_slices_bucket: int):
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(profile[0][0], precision.real_t)
 
@@ -693,9 +727,9 @@ def sparse_histogram(dt, profile, cut_left, cut_right, bunch_indexes, n_slices_b
                                     __getLen(dt))
 
 
-def music_track(dt, dE, induced_voltage, array_parameters,
-                alpha, omega_bar,
-                const, coeff1, coeff2, coeff3, coeff4):
+def music_track(dt: NumpyArray, dE: NumpyArray, induced_voltage: NumpyArray, array_parameters: NumpyArray,
+                alpha: float, omega_bar: float,
+                const: float, coeff1: float, coeff2: float, coeff3: float, coeff4: float):
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(dE[0], precision.real_t)
     assert isinstance(induced_voltage[0], precision.real_t)
@@ -715,9 +749,9 @@ def music_track(dt, dE, induced_voltage, array_parameters,
                                c_real(coeff4))
 
 
-def music_track_multiturn(dt, dE, induced_voltage, array_parameters,
-                          alpha, omega_bar,
-                          const, coeff1, coeff2, coeff3, coeff4):
+def music_track_multiturn(dt: NumpyArray, dE: NumpyArray, induced_voltage: NumpyArray, array_parameters: NumpyArray,
+                          alpha: float, omega_bar: float, const: float, coeff1: float, coeff2: float,
+                          coeff3: float, coeff4: float):
     assert isinstance(dt[0], precision.real_t)
     assert isinstance(dE[0], precision.real_t)
     assert isinstance(induced_voltage[0], precision.real_t)
@@ -737,7 +771,7 @@ def music_track_multiturn(dt, dE, induced_voltage, array_parameters,
                                          c_real(coeff4))
 
 
-def synchrotron_radiation(dE, U0, n_kicks, tau_z):
+def synchrotron_radiation(dE: NumpyArray, U0: float, n_kicks: int, tau_z: float):
     assert isinstance(dE[0], precision.real_t)
 
     get_libblond().synchrotron_radiation(
@@ -748,7 +782,8 @@ def synchrotron_radiation(dE, U0, n_kicks, tau_z):
         ct.c_int(n_kicks))
 
 
-def synchrotron_radiation_full(dE, U0, n_kicks, tau_z, sigma_dE, energy):
+def synchrotron_radiation_full(dE: NumpyArray, U0: float, n_kicks: int, tau_z: float, sigma_dE: float,
+                               energy: float):
     assert isinstance(dE[0], precision.real_t)
 
     get_libblond().synchrotron_radiation_full(
@@ -765,14 +800,15 @@ def set_random_seed(seed):
     get_libblond().set_random_seed(ct.c_int(seed))
 
 
-def fast_resonator(R_S, Q, frequency_array, frequency_R, impedance=None):
+def fast_resonator(R_S: np.ndarray, Q: np.ndarray, frequency_array: np.ndarray,
+                   frequency_R: np.ndarray, impedance: Optional[NDArray] = None) -> NumpyArray:
     R_S = R_S.astype(dtype=precision.real_t, order='C', copy=False)
     Q = Q.astype(dtype=precision.real_t, order='C', copy=False)
     frequency_array = frequency_array.astype(
         dtype=precision.real_t, order='C', copy=False)
     frequency_R = frequency_R.astype(
         dtype=precision.real_t, order='C', copy=False)
-
+    # Possible improvement: if impedance is not none, cast real and imaginary part to realImp, imagImp
     realImp = np.zeros(len(frequency_array), dtype=precision.real_t)
     imagImp = np.zeros(len(frequency_array), dtype=precision.real_t)
 
@@ -785,14 +821,16 @@ def fast_resonator(R_S, Q, frequency_array, frequency_R, impedance=None):
         __getPointer(frequency_R),
         __getLen(R_S),
         __getLen(frequency_array))
-
-    impedance = realImp + 1j * imagImp
+    if (impedance is not None) and (impedance.dtype == np.complex128) and len(imagImp) == len(impedance):
+        impedance.real = realImp
+        impedance.imag = imagImp
+    else:
+        impedance = realImp + 1j * imagImp
     return impedance
 
 
-def distribution_from_tomoscope(dt, dE, probDistr, seed, profLen,
-                                cutoff, x0, y0, dtBin, dEBin):
-
+def distribution_from_tomoscope(dt: NumpyArray, dE: NumpyArray, probDistr: NumpyArray, seed: int, profLen: int,
+                                cutoff: float, x0: float, y0: float, dtBin: float, dEBin: float):
     get_libblond().generate_distribution(__getPointer(dt),
                                          __getPointer(dE),
                                          __getPointer(probDistr),

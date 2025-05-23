@@ -1,9 +1,9 @@
-'''
+"""
 Basic methods and objects related to the GPU computational core.
 
 @author: Konstantinos Iliakis
 @date: 25.05.2023
-'''
+"""
 
 import os
 
@@ -30,8 +30,9 @@ class GPUDev:
         self.grid_size = 0
         self.block_size = 0
         self.mod = None
+        self.set() # try to initialize mod
 
-    def set(self, _gpu_num=0):
+    def set(self, _gpu_num: int=0):
         import cupy as cp
 
         self.id = _gpu_num
@@ -71,8 +72,8 @@ class GPUDev:
             _type_: _description_
         """
         return self.mod.get_function(name)
-    
-    def load_library(self, _precision):
+
+    def load_library(self, _precision: str):
         """Load the GPU library
 
         Args:

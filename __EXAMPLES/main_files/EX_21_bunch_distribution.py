@@ -60,8 +60,8 @@ ring = Ring(C, alpha, p, Proton(), N_t)
 rf = RFStation(ring, [h], [V], [dphi])
 beam = Beam(ring, N_p, N_b)
 bigaussian(ring, rf, beam, tau_0 / 4, reinsertion=True, seed=1)
-profile = Profile(beam, CutOptions=CutOptions(n_slices=100, cut_left=0,
-                                              cut_right=2.5e-9))
+profile = Profile(beam, cut_options=CutOptions(n_slices=100, cut_left=0,
+                                               cut_right=2.5e-9))
 profile.track()
 
 # Calculate oscillation amplitude from coordinates

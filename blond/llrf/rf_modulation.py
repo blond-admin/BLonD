@@ -1,4 +1,3 @@
-
 # Copyright 2015 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
@@ -7,24 +6,34 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Methods to generate RF phase modulation from given frequency, amplitude
 and offset functions**
 
 :Authors: **Simon Albright**
-'''
+"""
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 # General imports
 import numpy as np
 
 # BLonD imports
-import blond.utils.data_check as dCheck
+from ..utils import data_check as dCheck
+from ..utils.legacy_support import handle_legacy_kwargs
 
+if TYPE_CHECKING:
+    from typing import Any
+
+    from numpy.typing import NDArray as NumpyArray
 
 class PhaseModulation:
 
-    def __init__(self, timebase, frequency, amplitude, offset,
-                 harmonic, multiplier=1, modulate_frequency=True):
+    def __init__(self, timebase: NumpyArray, frequency: float | NumpyArray,
+                 amplitude: float | NumpyArray, offset: float | NumpyArray,
+                 harmonic: float | int, multiplier: int = 1,
+                 modulate_frequency: bool = True):
 
         msg = "must be a single numerical value or have shape (2, n)"
         dCheck.check_input(timebase, "Timebase must have shape (n)", [-1])
@@ -32,8 +41,7 @@ class PhaseModulation:
         dCheck.check_input(amplitude, "Amplitude " + msg, 0, (2, -1))
         dCheck.check_input(offset, "Offset " + msg, 0, (2, -1))
         dCheck.check_input(multiplier, "Multiplier " + msg, 0, (2, -1))
-        dCheck.check_input(
-            harmonic, "Harmonic must be single valued number", 0)
+        dCheck.check_input(harmonic, "Harmonic must be single valued number", 0)
 
         self.timebase = timebase
         self.frequency = frequency
@@ -58,25 +66,25 @@ class PhaseModulation:
         frequency *= multiplier
 
         self.dphi = amplitude \
-            * np.sin(2 * np.pi * (np.cumsum(frequency
-                                            * np.gradient(self.timebase))))\
-            + offset
+                    * np.sin(2 * np.pi * (np.cumsum(frequency
+                                                    * np.gradient(self.timebase)))) \
+                    + offset
 
-    def calc_delta_omega(self, omegaProg):
+    @handle_legacy_kwargs
+    def calc_delta_omega(self, omega_prog: NumpyArray):
 
-        dCheck.check_input(omegaProg, "omegaProg must have shape (2, n)",
-                           (2, -1))
+        dCheck.check_input(omega_prog, "omegaProg must have shape (2, n)", (2, -1))
 
         if not self._mod_freq:
             self.domega = np.zeros(len(self.dphi))
 
         else:
-            omega = self._interp_param(omegaProg)
+            omega = self._interp_param(omega_prog)
             self.domega = np.gradient(self.dphi) * omega \
-                / (2 * np.pi * self.harmonic)
+                          / (2 * np.pi * self.harmonic)
 
     # Interpolate functions onto self.timebase
-    def _interp_param(self, param):
+    def _interp_param(self, param: Any) -> NumpyArray:
 
         if dCheck.check_data_dimensions(param, 0)[0]:
             return np.array([param] * len(self.timebase))
@@ -89,7 +97,7 @@ class PhaseModulation:
 
     # Extend passed parameter to requred n_rf if n_rf > 1 for treatment in
     # rf_parameters
-    def extend_to_n_rf(self, harmonics):
+    def extend_to_n_rf(self, harmonics: list[int] | NumpyArray) -> Any:
 
         try:
             n_rf = len(harmonics)
