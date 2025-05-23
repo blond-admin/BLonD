@@ -54,8 +54,8 @@ class TestProfileMultiTurnEvolution(unittest.TestCase):
             2,
         )
         np.random.seed(1)
-        dt = np.random.randn(1001) * sigma_dt
-        dE = np.random.randn(len(dt)) / sigma_dt
+        dt = np.random.rand(1001) * sigma_dt
+        dE = np.random.rand(len(dt)) / sigma_dt
         beam = Beam(ring, len(dt), 1e11, dt=dt, dE=dE)
 
         # DEFINE SLICES----------------------------------------------------------------
@@ -99,8 +99,8 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
             20,
         )
         np.random.seed(1)
-        dt = np.random.randn(1001) * sigma_dt
-        dE = np.random.randn(len(dt)) / sigma_dt
+        dt = np.random.rand(1001) * sigma_dt
+        dE = np.random.rand(len(dt)) / sigma_dt
         beam = Beam(ring, len(dt), 1e11, dt=dt, dE=dE)
         profile1 = Profile(
             beam,

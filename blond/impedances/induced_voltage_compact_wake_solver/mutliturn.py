@@ -39,12 +39,6 @@ if TYPE_CHECKING:
     )
 
 
-def find_closest(arr: NDArray, target: float):
-    arr = np.array(arr)
-    idx = np.abs(arr - target).argmin()
-    return arr[idx]
-
-
 @dataclass(frozen=True)  # Dont allow modifications
 class ProfileRangeMultiTurnEvolution:
     """Dataclass to store how the beam profile evolves for several turns
