@@ -317,7 +317,7 @@ class InducedVoltageCompactWakeMultiTurnSolver(TotalInducedVoltageAbstract):
         """Calculates the wake kernel at every profile"""
         n_entries = 2 * self.profile.n_slices
 
-        compressed_wake_kernel = bm.empty(
+        compressed_wake_kernel = bm.zeros(
             ((self._profile_evolution.max_turns - turn_i) * n_entries)
         )
         cuts_left, cuts_right = self._profile_evolution.get_mutliturn_profile_limits(
