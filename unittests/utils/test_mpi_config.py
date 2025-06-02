@@ -1,6 +1,11 @@
 import unittest
+# THESE TESTS HAVE TO BE WRITTEN CAREFULLY, SO THAT
+#  1. The imports don't break the tests that use `mpirun`
+#  2. The tests are actually considered in the test coverage
 
-from blond.utils.mpi_config import master_wrap, sequential_wrap, MPILog, Worker
+# Carefully!! This IMPORT will mess with the `mpirun` command
+# and has lead to nonfunctional `test_mpi_examples.py` already!!
+# from blond.utils.mpi_config import master_wrap, sequential_wrap, MPILog, Worker
 
 
 class TestFunctions(unittest.TestCase):
