@@ -470,7 +470,7 @@ class Beam:
             time in seconds, which is used to determine the fraction of the
             particle decay
         '''
-        self.ratio *= np.exp(-time * self.Particle.decay_rate / (self.gamma))
+        self.ratio *= np.exp(-time * self.Particle.decay_rate / self.gamma)
 
     def add_particles(self, new_particles):
         '''

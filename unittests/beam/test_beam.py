@@ -22,52 +22,19 @@ class TestBeam(unittest.TestCase):
         # Define beam and distribution
         self.beam = Beam(Ring=ring, n_macroparticles=1001, intensity=1e9)
 
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
     def test_n_macroparticles_not_alive(self):
         self.beam.id[1] = 0
         self.assertEqual(self.beam.n_macroparticles_not_alive, 1)
 
-    def test_n_macroparticles_eliminated(self):
+    def test_eliminate_lost_particles(self):
         self.beam.id[1] = 0
         self.beam.eliminate_lost_particles()
         self.assertEqual(self.beam.n_macroparticles_eliminated, 1)
         self.assertEqual(self.beam.n_macroparticles_not_alive, 0)
 
-
-if __name__ == '__main__':
-    unittest.main()
-
-    @unittest.skip
-    def setUp(self):
-        # TODO: implement test for `__init__`
-        self.beam = Beam(Ring=None, n_macroparticles=None, intensity=None, dE=None, dt=None)
-    @unittest.skip
-    def test___init__(self):
-        pass # calls __init__ in  self.setUp
-
-    @unittest.skip
-    def test__sumsq_dE(self):
-        # TODO: implement test for `_sumsq_dE`
-        self.beam._sumsq_dE()
-
-    @unittest.skip
-    def test__sumsq_dE(self):
-        # TODO: implement test for `_sumsq_dE`
-        self.beam._sumsq_dE(val=None)
-
-    @unittest.skip
-    def test__sumsq_dt(self):
-        # TODO: implement test for `_sumsq_dt`
-        self.beam._sumsq_dt()
-
-    @unittest.skip
-    def test__sumsq_dt(self):
-        # TODO: implement test for `_sumsq_dt`
-        self.beam._sumsq_dt(val=None)
-
-    @unittest.skip
-    def test_eliminate_lost_particles(self):
-        # TODO: implement test for `eliminate_lost_particles`
-        self.beam.eliminate_lost_particles()
 
     @unittest.skip
     def test_gather(self):
@@ -84,40 +51,16 @@ if __name__ == '__main__':
         # TODO: implement test for `gather_statistics`
         self.beam.gather_statistics(all_gather=None)
 
-    @unittest.skip
-    def test_is_splitted(self):
-        # TODO: implement test for `is_splitted`
-        self.beam.is_splitted()
 
-    @unittest.skip
-    def test_is_splitted(self):
-        # TODO: implement test for `is_splitted`
-        self.beam.is_splitted(val=None)
-
-    @unittest.skip
     def test_losses_below_energy(self):
         # TODO: implement test for `losses_below_energy`
-        self.beam.losses_below_energy(dE_min=None)
+        self.beam.dE = np.arange(len(self.beam.dE))
+        de_min = self.beam.dE[len(self.beam.dE)//2]
+        self.assertTrue(np.all(self.beam.id > 0))
+        self.beam.losses_below_energy(dE_min=de_min)
 
-    @unittest.skip
-    def test_n_total_macroparticles(self):
-        # TODO: implement test for `n_total_macroparticles`
-        self.beam.n_total_macroparticles()
+        self.assertTrue(np.sum(self.beam.id == 0), len(self.beam.id) // 2)
 
-    @unittest.skip
-    def test_n_total_macroparticles(self):
-        # TODO: implement test for `n_total_macroparticles`
-        self.beam.n_total_macroparticles(val=None)
-
-    @unittest.skip
-    def test_n_total_macroparticles_lost(self):
-        # TODO: implement test for `n_total_macroparticles_lost`
-        self.beam.n_total_macroparticles_lost()
-
-    @unittest.skip
-    def test_n_total_macroparticles_lost(self):
-        # TODO: implement test for `n_total_macroparticles_lost`
-        self.beam.n_total_macroparticles_lost(val=None)
 
     @unittest.skip
     def test_particle_decay(self):
@@ -152,3 +95,6 @@ class TestParticle(unittest.TestCase):
 
     def test___init__(self):
         pass # calls __init__ in  self.setUp
+
+if __name__ == '__main__':
+    unittest.main()
