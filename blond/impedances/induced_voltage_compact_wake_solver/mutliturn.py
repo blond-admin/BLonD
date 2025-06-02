@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
-from matplotlib import pyplot as plt
 from numpy._typing import NDArray
 
 from ..impedance_sources import Resonators
@@ -140,9 +139,9 @@ class InducedVoltageCompactWakeMultiTurnSolver(TotalInducedVoltageAbstract):
     --------
     >>> import numpy as np
     >>>
-    >>> from impedances.impedance import InducedVoltageFreq
-    >>> from impedances.impedance_sources import Resonators
-    >>> from impedances.induced_voltage_compact_wake_solver import \
+    >>> from blond.impedances.impedance import InducedVoltageFreq
+    >>> from blond.impedances.impedance_sources import Resonators
+    >>> from blond.impedances.induced_voltage_compact_wake_solver import \
     >>>     InducedVoltageContainer, ProfileRangeMultiTurnEvolution, \
     >>>     InducedVoltageCompactWakeMultiTurnSolver
     >>>
@@ -151,7 +150,6 @@ class InducedVoltageCompactWakeMultiTurnSolver(TotalInducedVoltageAbstract):
     >>>     beam=beam,
     >>>     profile=profile1,
     >>>     impedance_source_list=[resonators],
-    >>>     frequency_resolution=1 / ring.t_rev[0],
     >>> )
     >>>
     >>> induced_voltage_container = InducedVoltageContainer()
@@ -198,7 +196,7 @@ class InducedVoltageCompactWakeMultiTurnSolver(TotalInducedVoltageAbstract):
     @property
     def induced_voltage(self):
         """
-        Get the induced voltage for the  profile.
+        Get the induced voltage for the profile.
 
         Returns
         -------
@@ -337,7 +335,7 @@ class InducedVoltageCompactWakeMultiTurnSolver(TotalInducedVoltageAbstract):
             t_start = cut_left - width / 2 + step / 2
             t_stop = cut_right + width / 2 - step / 2
 
-            msg = f"Bins must be  even, but {self.profile.n_slices=}"
+            msg = f"Bins must be even, but {self.profile.n_slices=}"
             assert self.profile.n_slices % 2 == 0, msg
             time_array = np.linspace(t_start, t_stop, n_entries)
             if i == 0:

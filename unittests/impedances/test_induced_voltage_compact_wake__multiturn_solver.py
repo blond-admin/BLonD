@@ -123,7 +123,6 @@ class TestTotalInducedVoltageNew(unittest.TestCase):
             beam=beam,
             profile=profile1,
             impedance_source_list=[resonators],
-            frequency_resolution=float(1 / t_wake),
         )
         timesolver = InducedVoltageTime(
             beam=beam,
