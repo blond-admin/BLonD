@@ -1,7 +1,7 @@
 import unittest
 
 from blond.beam.distributions import (
-    X0_from_bunch_length,
+    x0_from_bunch_length,
     distribution_function,
     line_density,
     matched_from_distribution_function,
@@ -12,9 +12,9 @@ from blond.beam.distributions import (
 
 class TestFunctions(unittest.TestCase):
     @unittest.skip
-    def test_X0_from_bunch_length(self):
-        # TODO: implement test for `X0_from_bunch_length`
-        X0_from_bunch_length(
+    def test_x0_from_bunch_length(self):
+        # TODO: implement test for `x0_from_bunch_length`
+        x0_from_bunch_length(
             bunch_length=None,
             bunch_length_fit=None,
             X_grid=None,

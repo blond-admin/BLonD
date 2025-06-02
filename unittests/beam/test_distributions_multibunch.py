@@ -2,7 +2,7 @@ import unittest
 
 from blond.beam.distributions_multibunch import (
     compute_H0,
-    compute_X_grid,
+    compute_x_grid,
     match_a_bunch,
     match_beam_from_distribution,
     match_beam_from_distribution_multibatch,
@@ -18,9 +18,9 @@ class TestFunctions(unittest.TestCase):
         compute_H0(emittance=None, H=None, J=None)
 
     @unittest.skip
-    def test_compute_X_grid(self):
-        # TODO: implement test for `compute_X_grid`
-        compute_X_grid(
+    def test_compute_x_grid(self):
+        # TODO: implement test for `compute_x_grid`
+        compute_x_grid(
             normalization_DeltaE=None,
             time_array=None,
             potential_well=None,

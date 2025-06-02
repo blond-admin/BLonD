@@ -53,7 +53,6 @@ class TestBeam(unittest.TestCase):
 
 
     def test_losses_below_energy(self):
-        # TODO: implement test for `losses_below_energy`
         self.beam.dE = np.arange(len(self.beam.dE))
         de_min = self.beam.dE[len(self.beam.dE)//2]
         self.assertTrue(np.all(self.beam.id > 0))

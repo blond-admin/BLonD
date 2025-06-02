@@ -31,7 +31,7 @@ from blond.utils.butils_wrap_cpp import get_libblond
 from blond.utils.butils_wrap_numba import \
     resonator_induced_voltage_1_turn as resonator_induced_voltage_1_turn_numba, \
     _resonator_induced_voltage_1_turn, distribution_from_tomoscope, \
-    linear_interp_kick, set_random_seed, slice_beam, sparse_histogram, \
+    linear_interp_kick, slice_beam, sparse_histogram, \
     synchrotron_radiation, synchrotron_radiation_full
 from blond.utils.butils_wrap_python import \
     resonator_induced_voltage_1_turn as resonator_induced_voltage_1_turn_python
@@ -586,10 +586,6 @@ class TestFunctions(unittest.TestCase):
         # TODO: implement test for `linear_interp_kick`
         linear_interp_kick(dt=None, dE=None, voltage=None, bin_centers=None, charge=None, acceleration_kick=None)
 
-    @unittest.skip
-    def test_set_random_seed(self):
-        # TODO: implement test for `set_random_seed`
-        set_random_seed(seed=None)
 
     @unittest.skip
     def test_slice_beam(self):
