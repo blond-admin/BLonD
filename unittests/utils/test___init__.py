@@ -25,6 +25,10 @@ class TestPrecisionClass(unittest.TestCase):
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
+    @unittest.skip
+    def test_set(self):
+        # TODO: implement test for `set`
+        self.precision_class.set(_precision=None)
 
 class Testc_complex128(unittest.TestCase):
     @unittest.skip
@@ -56,3 +60,4 @@ class Testc_complex64(unittest.TestCase):
     def test_to_complex(self):
         # TODO: implement test for `to_complex`
         self.c_complex64.to_complex()
+

@@ -234,5 +234,16 @@ class Test_InducedVoltage(unittest.TestCase):
         # TODO: implement test for `shift_trev_freq`
         self.__induced_voltage.shift_trev_freq()
 
+    @unittest.skip
+    def test_induced_voltage_1turn(self):
+        # TODO: implement test for `induced_voltage_1turn`
+        self.__induced_voltage.induced_voltage_1turn(beam_spectrum_dict=None)
+
+    @unittest.skip
+    def test_induced_voltage_mtw(self):
+        # TODO: implement test for `induced_voltage_mtw`
+        self.__induced_voltage.induced_voltage_mtw(beam_spectrum_dict=None)
+
+
 if __name__ == '__main__':
     unittest.main()

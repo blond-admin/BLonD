@@ -1,6 +1,6 @@
 import unittest
 
-from blond.beam.profile import CutOptions, Profile
+from blond.beam.profile import CutOptions, Profile, FilterOptions
 
 
 class TestCutOptions(unittest.TestCase):
@@ -35,6 +35,10 @@ class TestCutOptions(unittest.TestCase):
         # TODO: implement test for `to_gpu`
         self.cut_options.to_gpu(recursive=None)
 
+    @unittest.skip
+    def test_convert_coordinates(self):
+        # TODO: implement test for `convert_coordinates`
+        self.cut_options.convert_coordinates(value=None, input_unit_type=None)
 
 class TestProfile(unittest.TestCase):
     @unittest.skip

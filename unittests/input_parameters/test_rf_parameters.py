@@ -1,6 +1,7 @@
 import unittest
 
-from blond.input_parameters.rf_parameters import calculate_phi_s, RFStation
+from blond.input_parameters.rf_parameters import calculate_phi_s, RFStation, \
+    calculate_Q_s
 
 
 class TestFunctions(unittest.TestCase):
@@ -9,6 +10,10 @@ class TestFunctions(unittest.TestCase):
         # TODO: implement test for `calculate_phi_s`
         calculate_phi_s(RFStation=None, Particle=None, accelerating_systems=None)
 
+    @unittest.skip
+    def test_calculate_Q_s(self):
+        # TODO: implement test for `calculate_Q_s`
+        calculate_Q_s(rf_station=None, particle=None)
 
 class TestRFStation(unittest.TestCase):
     @unittest.skip

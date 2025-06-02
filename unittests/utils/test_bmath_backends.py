@@ -3,7 +3,8 @@ from copy import deepcopy
 
 import numpy as np
 
-from blond.utils.bmath_backends import NumbaBackend, CppBackend, GpuBackend
+from blond.utils.bmath_backends import NumbaBackend, CppBackend, GpuBackend, \
+    not_implemented
 from blond.utils.bmath_backends import PyBackend
 
 py_backend = PyBackend()
@@ -545,6 +546,13 @@ class TestSameResult(unittest.TestCase):
                 np.allclose(expected_result, other_result),
                 f"Failed with {tested_backend}",
             )
+
+
+class TestFunctions(unittest.TestCase):
+    @unittest.skip
+    def test_not_implemented(self):
+        # TODO: implement test for `not_implemented`
+        self.assertRaises(not_implemented, NotImplementedError)
 
 
 if __name__ == "__main__":

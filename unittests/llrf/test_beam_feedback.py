@@ -231,7 +231,18 @@ class TestBeamFeedback2(unittest.TestCase):
     @unittest.skip
     def test_radial_steering_from_freq(self):
         # TODO: implement test for `radial_steering_from_freq`
+
         self.beam_feedback.radial_steering_from_freq()
+
+    @unittest.skip
+    def test_to_cpu(self):
+        # TODO: implement test for `to_cpu`
+        self.beam_feedback.to_cpu(recursive=None)
+
+    @unittest.skip
+    def test_to_gpu(self):
+        # TODO: implement test for `to_gpu`
+        self.beam_feedback.to_gpu(recursive=None)
 
 if __name__ == '__main__':
     unittest.main()

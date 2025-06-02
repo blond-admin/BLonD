@@ -1,6 +1,9 @@
 import unittest
 
 from blond.utils import butils_wrap_cpp
+from blond.utils.butils_wrap_cpp import (argmax_cpp, argmin_cpp, interp_cpp,
+                                      kick, \
+    random_normal, set_random_seed, sum_cpp, trapz_cpp)
 
 
 class TestFunctions(unittest.TestCase):
@@ -122,3 +125,43 @@ class TestFunctions(unittest.TestCase):
     def test_where_cpp(self):
         # TODO: implement test for `where_cpp`
         butils_wrap_cpp.where_cpp(x=None, more_than=None, less_than=None, result=None)
+
+    @unittest.skip
+    def test_argmax_cpp(self):
+        # TODO: implement test for `argmax_cpp`
+        argmax_cpp(x=None)
+
+    @unittest.skip
+    def test_argmin_cpp(self):
+        # TODO: implement test for `argmin_cpp`
+        argmin_cpp(x=None)
+
+    @unittest.skip
+    def test_interp_cpp(self):
+        # TODO: implement test for `interp_cpp`
+        interp_cpp(x=None, xp=None, yp=None, left=None, right=None, result=None)
+
+    @unittest.skip
+    def test_kick(self):
+        # TODO: implement test for `kick`
+        kick(dt=None, dE=None, voltage=None, omega_rf=None, phi_rf=None, charge=None, n_rf=None, acceleration_kick=None)
+
+    @unittest.skip
+    def test_random_normal(self):
+        # TODO: implement test for `random_normal`
+        random_normal(loc=None, scale=None, size=None, seed=None)
+
+    @unittest.skip
+    def test_set_random_seed(self):
+        # TODO: implement test for `set_random_seed`
+        set_random_seed(seed=None)
+
+    @unittest.skip
+    def test_sum_cpp(self):
+        # TODO: implement test for `sum_cpp`
+        sum_cpp(x=None)
+
+    @unittest.skip
+    def test_trapz_cpp(self):
+        # TODO: implement test for `trapz_cpp`
+        trapz_cpp(y=None, x=None, dx=None)
