@@ -15,12 +15,12 @@ class TestBeam(unittest.TestCase):
             ring_length=26658.883,
             alpha_0=1. / 55.759505 ** 2,
             synchronous_data=np.linspace(450e9, 460.005e9, number_of_turns + 1),
-            Particle=Proton(),
+            particle=Proton(),
             n_turns=number_of_turns,
         )
 
         # Define beam and distribution
-        self.beam = Beam(Ring=ring, n_macroparticles=1001, intensity=1e9)
+        self.beam = Beam(ring=ring, n_macroparticles=1001, intensity=1e9)
 
     def test___init__(self):
         pass # calls __init__ in  self.setUp

@@ -7,10 +7,10 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Test preprocess.py
 
-'''
+"""
 
 import sys
 import unittest

@@ -12,18 +12,23 @@ Unittest for trackers.tracker.py
 
 :Authors: **Konstantinos Iliakis**
 """
-
+import time
 import unittest
+from copy import deepcopy
 
+import cupy
 import numpy as np
+import pytest
+
 
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
-from blond.beam.profile import CutOptions, FitOptions, Profile
+from blond.beam.profile import CutOptions, FitOptions, Profile, OtherSlicesOptions
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.llrf.rf_modulation import PhaseModulation as PMod
 from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
+from blond.utils import bmath
 
 
 def orig_rf_volt_comp(tracker):
@@ -93,7 +98,7 @@ class TestRfVoltageCalc(unittest.TestCase):
         self.profile = Profile(self.beam, CutOptions(n_slices=100, cut_left=0, cut_right=self.rf.t_rf[0, 0]),
                                FitOptions(fit_option='gaussian'))
         self.long_tracker = RingAndRFTracker(
-            self.rf, self.beam, Profile=self.profile)
+            self.rf, self.beam, profile=self.profile)
 
     # Run after every test
 
@@ -166,7 +171,7 @@ class TestRfVoltageCalcWCavityFB(unittest.TestCase):
                                FitOptions(fit_option='gaussian'))
 
         self.long_tracker = RingAndRFTracker(
-            self.rf, self.beam, Profile=self.profile)
+            self.rf, self.beam, profile=self.profile)
 
     # Run after every test
 
@@ -240,7 +245,7 @@ class TestRfVoltageCalcWCavityFB(unittest.TestCase):
             [self.dphi], phi_modulation=phiMod)
 
         self.long_tracker = RingAndRFTracker(
-            self.rf, self.beam, Profile=self.profile)
+            self.rf, self.beam, profile=self.profile)
 
         for i in range(self.N_t):
             self.long_tracker.track()
@@ -249,7 +254,111 @@ class TestRfVoltageCalcWCavityFB(unittest.TestCase):
                 self.rf.phi_modulation[0][0][i], msg="""Phi modulation not added correctly in tracker""")
 
 
+class Test:
+    n_turns = 2000
+    turn = 0
+    def teardown_method(self):
+        bmath.use_cpu()
 
+    def _setUp(self):
+        print(f"{bmath.device=}")
+        np.random.seed(1)
+        self.ring = Ring(26658.883, 1. / 55.759505 ** 2, np.linspace(
+            450e9, 460.005e9, self.n_turns + 1), Proton(), self.n_turns)
+
+        self.beam = Beam(self.ring, int(10e6), 1e9)
+
+        self.rf_station = RFStation(
+            self.ring, [35640], 6e6 * np.linspace(1, 1.1, self.n_turns + 1), [0])
+        dt_test = np.linspace(-2 * self.rf_station.t_rev[self.turn + 1],
+                              +2 * self.rf_station.t_rev[self.turn + 1],
+                              self.beam.n_macroparticles)
+        dE_test = 1e3 + np.random.randn(self.beam.n_macroparticles)
+        self.beam.dt = dt_test
+        self.beam.dE = dE_test
+        self.profile = Profile(self.beam, CutOptions(n_slices=100, cut_left=0, cut_right=self.rf_station.t_rf[0, 0]),
+                               FitOptions(fit_option='gaussian'),
+                               other_slices_options=OtherSlicesOptions(direct_slicing=False)
+                               # crashes with bmath.use_gpu()
+                               )
+        self.long_tracker = RingAndRFTracker(
+
+            self.rf_station, self.beam, profile=self.profile)
+        if bmath.device == "GPU":
+            self._to_gpu()
+
+    def _to_gpu(self):
+        for obj in (self.beam, self.rf_station,
+                    self.profile, self.long_tracker,):
+            obj.to_gpu()
+
+    @pytest.mark.parametrize('set_mode',
+                             (bmath.use_cpp, bmath.use_py, bmath.use_numba, bmath.use_gpu))
+    def test_executes(self, set_mode):
+        print(set_mode)
+        set_mode()
+        self._setUp()
+        dt_org = deepcopy(self.long_tracker.beam.dt)
+        self.long_tracker._kickdrift_considering_periodicity(turn=self.turn)
+        dt_new = deepcopy(self.long_tracker.beam.dt)
+        # assert that _fix_periodicity is acting on dt
+        # otherwise testcase has no sense
+        assert (np.any(dt_org != dt_new))
+
+    def test_executes_gpu(self):
+        bmath.use_gpu()
+        self._setUp()
+        dt_org = deepcopy(self.long_tracker.beam.dt)
+        self.long_tracker._kickdrift_considering_periodicity_gpu(turn=self.turn)
+        dt_new = deepcopy(self.long_tracker.beam.dt)
+        # assert that _fix_periodicity is acting on dt
+        # otherwise testcase has no sense
+        assert (np.any(dt_org != dt_new))
+
+    def test_gpu_correct(self):
+        bmath.use_gpu()
+        self._setUp()
+        self.long_tracker._kickdrift_considering_periodicity_gpu(turn=self.turn)
+        dt_new = self.long_tracker.beam.dt.copy()
+
+
+        bmath.use_cpu()
+        self._setUp()
+        self.long_tracker._kickdrift_considering_periodicity(turn=self.turn)
+        dt_ok= self.long_tracker.beam.dt.copy()
+
+        # assert that _fix_periodicity is acting on dt
+        # otherwise testcase has no sense
+        cupy.testing.assert_allclose(dt_new, dt_ok)
+
+    @pytest.mark.skip(reason="Only for devs")
+    def test_gpu_faster(self):
+        from cupy.cuda import Device
+
+        bmath.use_gpu()
+        self._setUp()
+        t0 = time.perf_counter()
+        for i in range(100):
+            self.long_tracker._kickdrift_considering_periodicity_gpu(turn=self.turn)
+        Device().synchronize()
+        t1 = time.perf_counter()
+        runtime_new = t1 - t0
+        print("_fix_periodicity_gpu", runtime_new)
+
+
+        bmath.use_gpu()
+        self._setUp()
+        t0 = time.perf_counter()
+        for i in range(100):
+            self.long_tracker._kickdrift_considering_periodicity(turn=self.turn)
+        Device().synchronize()
+        t1 = time.perf_counter()
+        runtime_old = t1 - t0
+        print("_fix_periodicity", runtime_old)
+
+        # assert that _fix_periodicity is acting on dt
+        # otherwise testcase has no sense
+        self.assertTrue(runtime_old > runtime_new)
 
 
 class TestFullRingAndRF(unittest.TestCase):
@@ -295,6 +404,5 @@ class TestRingAndRFTracker(unittest.TestCase):
     def test_track(self):
         # TODO: implement test for `track`
         self.ring_and_rf_tracker.track()
-
 if __name__ == '__main__':
     unittest.main()

@@ -150,9 +150,9 @@ class TestTravelingWaveCavity(unittest.TestCase):
 
         n_shift = 5     # how many rf-buckets to shift beam
         beam.dt += n_shift * rf.t_rf[0, 0]
-        profile = Profile(beam, CutOptions=CutOptions(cut_left=(n_shift - 1.5) * rf.t_rf[0, 0],
-                                                      cut_right=(n_shift + 1.5) * rf.t_rf[0, 0],
-                                                      n_slices=140))
+        profile = Profile(beam, cut_options=CutOptions(cut_left=(n_shift - 1.5) * rf.t_rf[0, 0],
+                                                       cut_right=(n_shift + 1.5) * rf.t_rf[0, 0],
+                                                       n_slices=140))
         profile.track()
 
         l_cav = 16.082
@@ -210,7 +210,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         # Compare on coarse and fine grid
 
         # Create a batch of 100 equal, short bunches at HL-LHC intensity
-        ring = Ring(2 * np.pi * 1100.009, 1 / 18**2, 25.92e9, Particle=Proton())
+        ring = Ring(2 * np.pi * 1100.009, 1 / 18 ** 2, 25.92e9, particle=Proton())
         rf = RFStation(ring, [4620], [4.5e6], [0], n_rf=1)
         bunches = 100
         N_m = int(1e5)
@@ -223,8 +223,8 @@ class TestTravelingWaveCavity(unittest.TestCase):
         for i in range(bunches):
             beam2.dt[i * N_m:(i + 1) * N_m] = beam.dt + i * bunch_spacing
             beam2.dE[i * N_m:(i + 1) * N_m] = beam.dE
-        profile2 = Profile(beam2, CutOptions=CutOptions(cut_left=0,
-                                                        cut_right=bunches * bunch_spacing, n_slices=1000 * buckets))
+        profile2 = Profile(beam2, cut_options=CutOptions(cut_left=0,
+                                                         cut_right=bunches * bunch_spacing, n_slices=1000 * buckets))
         profile2.track()
 
         # Calculate impulse response and induced voltage

@@ -6,19 +6,15 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
-** CERN Tomoscope-related functions to generate particle distribution or 
+"""
+** CERN Tomoscope-related functions to generate particle distribution or
 probability density.**
 
 :Authors: **Helga Timko**
-'''
-
-
-from __future__ import division, print_function
+"""
 
 import linecache
 import os
-from builtins import str
 
 import h5py as hp
 import matplotlib.cm as cm
@@ -30,18 +26,18 @@ from ..utils import bmath as bm
 
 def distribution_from_tomoscope_data(dataDir, nPart, cutoff=1000, seed=1234,
                                      plotFig=True, saveDistr=False):
-    '''
-    'dataDir' is the directory of *directories* of offline-processed tomoscope 
+    """
+    'dataDir' is the directory of *directories* of offline-processed tomoscope
     data containing 'plotinfo.data' and 'image001.data'
     Use 'cutoff' to eliminate measurement noise (use values around 50-100).
     Use 'seed' to change the random number seed.
     Use 'plotFig = True' to plot and save figures.
-    Use 'saveDistr = True' to save particle coordinates.    
-    '''
+    Use 'saveDistr = True' to save particle coordinates.
+    """
 
     # Directory in which plots will be stored
     distrDir = dataDir + '\\Distributions_' + \
-        str(nPart) + 'particles_cutoff' + str(cutoff)
+               str(nPart) + 'particles_cutoff' + str(cutoff)
     # Try to create directory
     try:
         os.makedirs(distrDir)
@@ -80,7 +76,6 @@ def distribution_from_tomoscope_data(dataDir, nPart, cutoff=1000, seed=1234,
                                            cutoff, x0, y0, dtBin, dEBin)
 
             if plotFig:
-
                 # Settings for plots
                 plt.rc('axes', labelsize=14, labelweight='normal')
                 plt.rc('lines', linewidth=1.5, markersize=6)
@@ -96,7 +91,6 @@ def distribution_from_tomoscope_data(dataDir, nPart, cutoff=1000, seed=1234,
                 plt.clf()
 
             if saveDistr:
-
                 h5File = hp.File(distrDir + '\\' + directory + '.h5', 'w')
 
                 # Create group

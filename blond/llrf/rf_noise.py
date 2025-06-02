@@ -1,4 +1,3 @@
-
 # Copyright 2015 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
@@ -7,56 +6,70 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Methods to generate RF phase noise from noise spectrum and feedback noise
 amplitude as a function of bunch length**
 
 :Authors: **Helga Timko**
-'''
+"""
 
-from __future__ import division, print_function
+from __future__ import annotations
 
-from typing import Callable
+from typing import TYPE_CHECKING
 from blond.utils import bmath as bm
-from blond.beam.profile import Profile
-from blond.input_parameters.rf_parameters import RFStation
 
 import numpy as np
 import numpy.random as rnd
 
+from ..beam.profile import Profile
 from ..plots.plot import fig_folder
 from ..plots.plot_llrf import plot_phase_noise, plot_noise_spectrum
 from ..toolbox.next_regular import next_regular
+from ..utils.legacy_support import handle_legacy_kwargs
 
-cfwhm = np.sqrt(2. / np.log(2.))
+if TYPE_CHECKING:
+    from typing import Optional, Literal, Tuple, Sequence, Callable
+
+    from numpy.typing import ArrayLike, NDArray as NumpyArray
+
+    from ..input_parameters.rf_parameters import RFStation
+    from ..input_parameters.ring import Ring
+
+CFWHM = np.sqrt(2. / np.log(2.))
 
 
 class FlatSpectrum:
-
-    def __init__(self, Ring, RFStation, delta_f=1,
-                 corr_time=10000, fmin_s0=0.8571, fmax_s0=1.1,
-                 initial_amplitude=1.e-6, seed1=1234, seed2=7564,
-                 predistortion=None, continuous_phase=False, folder_plots='fig_noise', print_option=True, initial_final_turns=[0, -1]):
-        '''
+    @handle_legacy_kwargs
+    def __init__(self, ring: Ring, rf_station: RFStation, delta_f: float = 1,
+                 corr_time: int = 10000, fmin_s0: float = 0.8571,
+                 fmax_s0: float = 1.1, initial_amplitude: float = 1.e-6,
+                 seed1: int = 1234, seed2: int = 7564,
+                 predistortion: Optional[Literal["weightFunction"]] = None,
+                 continuous_phase: bool = False,
+                 folder_plots: str = 'fig_noise', print_option: bool = True,
+                 initial_final_turns: Tuple[int] = (0, -1)):
+        """
         Generate phase noise from a band-limited spectrum.
-        Input frequency band using 'fmin' and 'fmax' w.r.t. the synchrotron 
-        frequency. Input double-sided spectrum amplitude [rad^2/Hz] using 
+        Input frequency band using 'fmin' and 'fmax' w.r.t. the synchrotron
+        frequency. Input double-sided spectrum amplitude [rad^2/Hz] using
         'initial_amplitude'. Fix seeds to obtain reproducible phase noise.
-        Select 'time_points' suitably to resolve the spectrum in frequency 
+        Select 'time_points' suitably to resolve the spectrum in frequency
         domain. After 'corr_time' turns, the seed is changed to cut numerical
         correlated sequences of the random number generator.
-        '''
-        self.total_n_turns = Ring.n_turns
-        self.initial_final_turns = initial_final_turns
+        """
+        self.total_n_turns = ring.n_turns
+        self.initial_final_turns = list(initial_final_turns)
         if self.initial_final_turns[1] == -1:
             self.initial_final_turns[1] = self.total_n_turns + 1
 
-        self.f0 = Ring.f_rev[self.initial_final_turns[0]:self.initial_final_turns[1]]  # revolution frequency in Hz
-        self.delta_f = delta_f           # frequency resolution [Hz]
-        self.corr = corr_time           # adjust noise every 'corr' time steps
-        self.fmin_s0 = fmin_s0                # spectrum lower bound in synchr. freq.
-        self.fmax_s0 = fmax_s0                # spectrum upper bound in synchr. freq.
-        self.A_i = initial_amplitude    # initial spectrum amplitude [rad^2/Hz]
+        # revolution frequency in Hz
+        self.f0 = ring.f_rev[self.initial_final_turns[0]
+                             :self.initial_final_turns[1]]
+        self.delta_f = delta_f  # frequency resolution [Hz]
+        self.corr = corr_time  # adjust noise every 'corr' time steps
+        self.fmin_s0 = fmin_s0  # spectrum lower bound in synchr. freq.
+        self.fmax_s0 = fmax_s0  # spectrum upper bound in synchr. freq.
+        self.A_i = initial_amplitude  # initial spectrum amplitude [rad^2/Hz]
         self.seed1 = seed1
         self.seed2 = seed2
         self.predistortion = predistortion
@@ -64,7 +77,9 @@ class FlatSpectrum:
             # Overwrite frequencies
             self.fmin_s0 = 0.8571
             self.fmax_s0 = 1.001
-        self.fs = RFStation.omega_s0[self.initial_final_turns[0]:self.initial_final_turns[1]] / (2 * np.pi)  # synchrotron frequency in Hz
+        self.fs = (rf_station.omega_s0[self.initial_final_turns[0]
+                                       :self.initial_final_turns[1]]
+                   / (2 * np.pi))  # synchrotron frequency in Hz
         self.n_turns = len(self.fs) - 1
         self.dphi = bm.zeros(self.n_turns + 1)
         self.continuous_phase = continuous_phase
@@ -73,7 +88,8 @@ class FlatSpectrum:
         self.folder_plots = folder_plots
         self.print_option = print_option
 
-    def spectrum_to_phase_noise(self, freq, spectrum, transform=None):
+    def spectrum_to_phase_noise(self, freq: NumpyArray, spectrum: NumpyArray,
+                                transform: Optional[str] = None):
 
         nf = len(spectrum)
         fmax = freq[nf - 1]
@@ -128,7 +144,7 @@ class FlatSpectrum:
         for i in range(0, int(np.ceil(self.n_turns / self.corr))):
 
             # Scale amplitude to keep area (phase noise amplitude) constant
-            k = i * self.corr       # current time step
+            k = i * self.corr  # current time step
             ampl = self.A_i * self.fs[0] / self.fs[k]
 
             # Calculate the frequency step
@@ -150,14 +166,19 @@ class FlatSpectrum:
             # To compensate the notch due to PL at central frequency
             if self.predistortion == 'exponential':
 
-                spectrum = bm.concatenate((bm.zeros(nmin), ampl * bm.exp(
-                    np.log(100.) * bm.arange(0, nmax - nmin + 1) / (nmax - nmin)),
-                    bm.zeros(n_points_pos_f_incl_zero - nmax - 1)))
+                spectrum = bm.concatenate((
+                    bm.zeros(nmin),
+                    ampl * bm.exp(np.log(100.) * bm.arange(0, nmax - nmin + 1) / (nmax - nmin)),
+                    bm.zeros(n_points_pos_f_incl_zero - nmax - 1)
+                ))
 
             elif self.predistortion == 'linear':
 
-                spectrum = bm.concatenate((bm.zeros(nmin),
-                                           bm.linspace(0, float(ampl), nmax - nmin + 1), bm.zeros(n_points_pos_f_incl_zero - nmax - 1)))
+                spectrum = bm.concatenate((
+                    bm.zeros(nmin),
+                    bm.linspace(0, float(ampl), nmax - nmin + 1),
+                    bm.zeros(n_points_pos_f_incl_zero - nmax - 1)
+                ))
 
             elif self.predistortion == 'hyperbolic':
 
@@ -180,11 +201,14 @@ class FlatSpectrum:
                              8. * (1. - frel) / sigma**2))**2
                 weight /= weight[0]  # normalise to have 1 at fmin
                 spectrum = bm.concatenate((bm.zeros(nmin), ampl * weight,
-                                           bm.zeros(n_points_pos_f_incl_zero - nmax - 1)))
+                                           bm.zeros(n_points_pos_f_incl_zero
+                                                    - nmax - 1)))
 
             else:
                 spectrum = bm.concatenate((bm.zeros(nmin),
-                                           ampl * bm.ones(nmax - nmin + 1), bm.zeros(n_points_pos_f_incl_zero - nmax - 1)))
+                                           ampl * bm.ones(nmax - nmin + 1),
+                                           bm.zeros(n_points_pos_f_incl_zero
+                                                    - nmax - 1)))
 
             # Fill phase noise array
             if i < int(self.n_turns / self.corr) - 1:
@@ -207,14 +231,17 @@ class FlatSpectrum:
                 self.spectrum_to_phase_noise(freq, spectrum)
                 self.seed1 += 239
                 self.seed2 += 158
-                self.dphi2[(k + self.corr / 4):(kmax + self.corr / 4)] = self.dphi_output[0:(kmax - k)]
+                self.dphi2[(k + self.corr / 4):(kmax + self.corr / 4)] \
+                    = self.dphi_output[0:(kmax - k)]
 
             if self.folder_plots is not None:
                 fig_folder(self.folder_plots)
                 plot_noise_spectrum(freq, spectrum, sampling=1, figno=i,
                                     dirname=self.folder_plots)
-                plot_phase_noise(self.t[0:(kmax - k)], self.dphi_output[0:(kmax - k)],
-                                 sampling=1, figno=i, dirname=self.folder_plots)
+                plot_phase_noise(self.t[0:(kmax - k)],
+                                 self.dphi_output[0:(kmax - k)],
+                                 sampling=1, figno=i,
+                                 dirname=self.folder_plots)
 
             rms_noise = bm.std(self.dphi_output)
             if self.print_option:
@@ -223,27 +250,34 @@ class FlatSpectrum:
 
         if self.continuous_phase:
             psi = bm.arange(0, self.n_turns + 1) * 2 * np.pi / self.corr
-            self.dphi = self.dphi * bm.sin(psi[:self.n_turns + 1]) + self.dphi2[:(self.n_turns + 1)] * bm.cos(psi[:self.n_turns + 1])
+            self.dphi = (self.dphi * bm.sin(psi[:self.n_turns + 1])
+                         + self.dphi2[:(self.n_turns + 1)]
+                         * bm.cos(psi[:self.n_turns + 1]))
 
-        if self.initial_final_turns[0] > 0 or self.initial_final_turns[1] < self.total_n_turns + 1:
-            self.dphi = bm.concatenate((bm.zeros(self.initial_final_turns[0]), self.dphi, bm.zeros(1 + self.total_n_turns - self.initial_final_turns[1])))
+        if ((self.initial_final_turns[0] > 0)
+                or (self.initial_final_turns[1] < self.total_n_turns + 1)):
+            self.dphi = bm.concatenate((
+                bm.zeros(self.initial_final_turns[0]),
+                self.dphi,
+                bm.zeros(1 + self.total_n_turns - self.initial_final_turns[1])
+            ))
 
 
 class LHCNoiseFB:
-    '''
+    """
     *Feedback on phase noise amplitude for LHC controlled longitudinal emittance
     blow-up using noise injection through cavity controller or phase loop.
-    The feedback compares the FWHM bunch length of the bunch to a target value 
+    The feedback compares the FWHM bunch length of the bunch to a target value
     and scales the phase noise to keep the targeted value.
     Activate the feedback either by passing it in RfStation or in
     the PhaseLoop object.
     Update the noise amplitude scaling using track().
-    Pass the bunch pattern (occupied bucket numbers from 0...h-1) in buckets 
+    Pass the bunch pattern (occupied bucket numbers from 0...h-1) in buckets
     for multi-bunch simulations; the feedback uses the average bunch length.*
 
     Input parameters:
-    - RFStation_: RFStation object
-    - Profile_: Profile object
+    - rf_station: RFStation object
+    - profile: Profile object
     - bl_target: target bunch length [s]
     - gain: feedback gain [1/s]
     - factor: feedback recursion scaling factor
@@ -253,19 +287,23 @@ class LHCNoiseFB:
     - old_FESA_class: buffer size for noise injection 2s and delayed application of 2 buffers
     - no_delay: switch to not use delay on the BQM and noise injection
     - seed: seed for the random number generator
-    '''
+    """
 
-    def __init__(self, RFStation_: RFStation, Profile_: Profile, f_rev: float, bl_target: float, gain: int = 0.1e9,
-                 factor: float = 0.93, update_frequency: int = 11245, variable_gain: bool = True, bunch_pattern: np.ndarray = None,
-                 old_FESA_class: bool = False, no_delay: bool = False, seed: int | None = 1313) -> None:
+    def __init__(self, rf_station: RFStation, profile: Profile, f_rev: float,
+                 bl_target: float, gain: float = 0.1e9,
+                 factor: float = 0.93, update_frequency: int = 11245,
+                 variable_gain: bool = True,
+                 bunch_pattern: Optional[ArrayLike]  = None,
+                 old_FESA_class: bool = False, no_delay: bool = False,
+                 seed: int | None = 1313) -> None:
 
         self.LHC_frev = round(f_rev)  # LHC revolution frequency in Hz
 
         #: | *Import RfStation*
-        self.rf_params = RFStation_
+        self.rf_params = rf_station
 
         #: | *Import Profile*
-        self.profile = Profile_
+        self.profile: Profile = profile
 
         #: | *Phase noise scaling factor. Initially 0.*
         self.x = 0.
@@ -288,7 +326,7 @@ class LHCNoiseFB:
         #: | *Feedback gain [1/s].*
         if self.variable_gain:
             self.g = gain * (self.rf_params.omega_s0[0] /
-                             self.rf_params.omega_s0)**2
+                             self.rf_params.omega_s0) ** 2
         else:
             self.g = gain * bm.ones(self.rf_params.n_turns + 1)
 
@@ -335,10 +373,10 @@ class LHCNoiseFB:
             self.delay_noise_inj = self.LHC_frev  # in turns - delay noise injection for 1 chunk
 
     def track(self):
-        '''
-        *Calculate PhaseNoise Feedback scaling factor as a function of measured
-        FWHM bunch length.* Take into account the delay and asynchronisation between the BQM and the x update.
-        '''
+        """
+        *Calculate PhaseNoise Feedback scaling factor as a function of
+        measured FWHM bunch length.* Take into account the delay and asynchronisation between the BQM and the x update.
+        """
 
         if self.no_delay:
             # Track only in certain turns
@@ -348,8 +386,8 @@ class LHCNoiseFB:
                 self.fwhm()
 
                 # Update noise amplitude-scaling factor
-                self.x = self.a * self.x + self.g[self.rf_params.counter[0]] * \
-                         (self.bl_targ - self.bl_meas)
+                self.x = (self.a * self.x + self.g[self.rf_params.counter[0]]
+                      * (self.bl_targ - self.bl_meas))
 
                 # Limit to range [0,1]
                 self.x = bm.maximum(0, bm.minimum(self.x, 1))
@@ -370,7 +408,7 @@ class LHCNoiseFB:
             # Checks that the first bqm measurement was taken
             self.update_x = True
             return
-        
+
         # Update buffers by rotating them to the left and adding the new measurement at the end
         self.last_bqm_measurements = bm.roll(self.last_bqm_measurements, -1)
         self.last_bqm_measurements[-1] = self.bl_meas
@@ -396,24 +434,30 @@ class LHCNoiseFB:
         x = self.a * self.x + self.g[self.rf_params.counter[0]] * (self.bl_targ - bqm_measurement)
         self.x = bm.maximum(0, bm.minimum(x, 1))
 
-    def fwhm_interpolation(self, index, half_height):
+    def fwhm_interpolation(self, index: Sequence[int],
+                           half_height: int) -> float:
 
-        time_resolution = self.profile.bin_centers[1] - self.profile.bin_centers[0]
+        time_resolution = (self.profile.bin_centers[1]
+                           - self.profile.bin_centers[0])
 
-        left = self.profile.bin_centers[index[0]] - (self.profile.n_macroparticles[index[0]] -
-                                                     half_height) / (self.profile.n_macroparticles[index[0]] -
-                                                                     self.profile.n_macroparticles[index[0] - 1]) * time_resolution
+        left = (self.profile.bin_centers[index[0]]
+                - (self.profile.n_macroparticles[index[0]] - half_height)
+                / (self.profile.n_macroparticles[index[0]]
+                   - self.profile.n_macroparticles[index[0] - 1])
+                * time_resolution)
 
-        right = self.profile.bin_centers[index[-1]] + (self.profile.n_macroparticles[index[-1]]
-                                                       - half_height) / (self.profile.n_macroparticles[index[-1]] -
-                                                                         self.profile.n_macroparticles[index[-1] + 1]) * time_resolution
+        right = (self.profile.bin_centers[index[-1]]
+                 + (self.profile.n_macroparticles[index[-1]] - half_height)
+                 / (self.profile.n_macroparticles[index[-1]]
+                    - self.profile.n_macroparticles[index[-1] + 1])
+                 * time_resolution)
 
-        return cfwhm * (right - left)
+        return CFWHM * (right - left)
 
     def fwhm_single_bunch(self):
-        '''
+        """
         *Single-bunch FWHM bunch length calculation with interpolation.*
-        '''
+        """
 
         half_height = bm.max(self.profile.n_macroparticles) / 2.
         index = bm.where(self.profile.n_macroparticles > half_height)[0]
@@ -421,19 +465,18 @@ class LHCNoiseFB:
         self.bl_meas = self.fwhm_interpolation(index, half_height)
 
     def fwhm_multi_bunch(self):
-        '''
+        """
         *Multi-bunch FWHM bunch length calculation with interpolation.*
-        '''
+        """
 
         # Find correct RF buckets
-        phi_RF = self.rf_params.phi_RF[0, self.rf_params.counter[0]]
-        omega_RF = self.rf_params.omega_RF[0, self.rf_params.counter[0]]
+        phi_RF = self.rf_params.phi_rf[0, self.rf_params.counter[0]]
+        omega_RF = self.rf_params.omega_rf[0, self.rf_params.counter[0]]
         bucket_min = (phi_RF + 2. * np.pi * self.bunch_pattern) / omega_RF
         bucket_max = bucket_min + 2. * np.pi / omega_RF
 
         # Bunch-by-bunch FWHM bunch length
         for i in range(len(self.bunch_pattern)):
-
             bind = bm.where((self.profile.bin_centers - bucket_min[i]) *
                             (self.profile.bin_centers - bucket_max[i]) < 0)[0]
             hheight = bm.max(self.profile.n_macroparticles[bind]) / 2.

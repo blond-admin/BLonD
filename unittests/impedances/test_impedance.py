@@ -29,7 +29,7 @@ class TestInducedVoltageFreq(unittest.TestCase):
 
         # Nyquist frequency 1.6 GHz; frequency spacing 50 MHz
         self.profile = Profile(None,
-                               CutOptions=CutOptions(cut_left=0, cut_right=5e-9, n_slices=16))
+                               cut_options=CutOptions(cut_left=0, cut_right=5e-9, n_slices=16))
         self.impedance_source = Resonators([4.5e6], [200.222e6], [200])
 
     def test_default_wake_length(self):
@@ -90,7 +90,7 @@ class TestInducedVoltageTime(unittest.TestCase):
 
         # Nyquist frequency 1.6 GHz; frequency spacing 50 MHz
         self.profile = Profile(None,
-                               CutOptions=CutOptions(cut_left=0, cut_right=5e-9, n_slices=16))
+                               cut_options=CutOptions(cut_left=0, cut_right=5e-9, n_slices=16))
         self.impedance_source = Resonators([4.5e6], [200.222e6], [200])
 
     def test_default_wake_length(self):
