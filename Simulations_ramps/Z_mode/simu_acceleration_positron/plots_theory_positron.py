@@ -48,7 +48,7 @@ def plot_hamiltonian(ring, rfstation, beam, dt, dE, k = int(0), hamiltonian_ener
     if separatrix_flag:
         plt.contour(X*1e9, Y/1e9, Z, [hphi_DE(np.pi - rfstation.phi_s[k])], colors=['red'])
         if get_data_animation:
-            plt.figure(figsize=(4, 4))
+            plt.figure(figsize=(4, 5))
             plt.title(f'Z mode\n Turn: {k}')
             plt.xlabel('t [ns]')
             plt.ylabel('DE [GeV]')

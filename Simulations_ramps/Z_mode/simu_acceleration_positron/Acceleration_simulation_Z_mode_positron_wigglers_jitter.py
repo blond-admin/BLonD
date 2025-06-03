@@ -35,6 +35,7 @@ with open("/Users/lvalle/cernbox/FCC-ee/Voltage_program/ramps_before_optimisatio
 directory = 'output_figs_jitter_wiggler_updated_SRI'
 voltage_ramp = data_opt['turn']['voltage_ramp_V']
 energy_ramp = data_opt['turn']['energy_ramp_eV']
+time_ramp = data_opt['turn']['time_ramp_s']
 phi_s = data_opt['turn']['phi_s']
 Nturns = len(energy_ramp)-1
 tracking_parameters = HEBee_Eramp_parameters(op_mode='Z', dec_mode = True)
@@ -49,7 +50,7 @@ Delta_E = 3e-3 * ring_HEB.energy[0][0] #eV # max. 3e-3 relative energy error (fr
 Delta_t = 50e-12 #s max 50ps max time jitter
 
 if jitter:
-    beam.dt += Delta_t
+    beam.dt += -Delta_t
     beam.dE += Delta_E
 rfcav = RFStation(ring_HEB, tracking_parameters.harmonic, voltage_ramp, phi_rf_d= 0)
 long_tracker = RingAndRFTracker(rfcav, beam)
@@ -78,12 +79,13 @@ folder_paths = [
     '/Users/lvalle/PycharmProjects/BLonD/Simulations_ramps/Z_mode/data_figs/',
 ]
 gif_paths = [
-    '/Users/lvalle/PycharmProjects/BLonD/Simulations_ramps/Z_mode/simu_acceleration_positron/gif_path/animated_ramp_Z_mode_jitter_wiggler_updated_radiation_integrals.gif',
+    '/Users/lvalle/PycharmProjects/BLonD/Simulations_ramps/Z_mode/simu_acceleration_positron/gif_path/animated_ramp_Z_mode_jitter_wiggler_updated_radiation_integrals_latest.gif',
 ]
 
 n = 0
 
 get_images = True
+
 # Folder to save frames
 opmode = 'Z'
 folder_name = opmode + '_mode/frames_jitter_wiggler'
@@ -95,7 +97,7 @@ for i in range(1, Nturns + 1):
     #    m.track()
     long_tracker.track()
     SR = [SynchrotronRadiation(ring_HEB, rfcav, beam, rad_int=update_rad_int(ring_HEB, wiggler_HEB, E=energy_ramp[i]),
-                                   quantum_excitation=True, python=True, shift_beam=False)]
+                                 quantum_excitation=True, python=True, shift_beam=False)]
     SR[0].print_SR_params()
     SR[0].track()
     beam.statistics()
