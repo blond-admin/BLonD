@@ -23,7 +23,7 @@ import numpy as np
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional
     from ..input_parameters.rf_parameters import RFStation
     from ..input_parameters.ring import Ring

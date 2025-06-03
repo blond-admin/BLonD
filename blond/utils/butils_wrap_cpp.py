@@ -17,7 +17,7 @@ import numpy as np
 
 from . import c_complex64, c_complex128, c_real, precision
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional, Type, Literal
 
     from numpy.typing import NDArray as NumpyArray

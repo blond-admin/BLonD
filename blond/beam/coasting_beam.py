@@ -20,7 +20,7 @@ import numpy.random as rand
 
 from ..utils import exceptions as blond_exceptions
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal, Optional
 
     from numpy.typing import NDArray as NumpyArray

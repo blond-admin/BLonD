@@ -6,6 +6,9 @@ from blond.utils import butils_wrap_cpp
 
 
 class TestFunctions(unittest.TestCase):
+    def setUp(self):
+        butils_wrap_cpp.load_libblond("double")
+
     def test_add_cpp(self):
         a = np.array([1.0, 2.0, 3.0], dtype=np.float64)
         b = np.array([4.0, 5.0, 6.0], dtype=np.float64)

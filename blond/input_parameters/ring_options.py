@@ -26,7 +26,7 @@ from scipy.interpolate import splev, splrep, Akima1DInterpolator
 
 from ..plots.plot import fig_folder
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal, Optional
 
     from numpy.typing import NDArray as NumpyArray, ArrayLike

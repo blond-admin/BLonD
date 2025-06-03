@@ -38,7 +38,7 @@ else:
 
 from ..utils import bmath as bm
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional
 
     from numpy.typing import NDArray as NumpyArray

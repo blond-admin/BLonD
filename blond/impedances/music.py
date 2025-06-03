@@ -19,7 +19,7 @@ from scipy.constants import e
 
 from ..utils import bmath as bm
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
 
     from ..beam.beam import Beam
 

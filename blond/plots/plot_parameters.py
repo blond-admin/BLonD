@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from os import PathLike
 
     from numpy.typing import NDArray as NumpyArray
