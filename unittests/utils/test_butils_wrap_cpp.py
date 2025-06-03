@@ -29,10 +29,10 @@ class TestFunctions(unittest.TestCase):
     def test_arange_cpp(self):
         start, stop, step = 0.0, 5.0, 1.0
         expected = np.arange(start, stop, step, dtype=np.float64)
-        result = np.empty_like(expected)
+        result = np.full_like(expected,fill_value=np.nan)
 
         butils_wrap_cpp.arange_cpp(
-            start=start, stop=stop, step=step, dtype=np.float64, result=result
+            start=start, stop=stop, step=step, dtype=float, result=result
         )
         np.testing.assert_array_equal(result, expected)
 

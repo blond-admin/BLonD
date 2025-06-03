@@ -263,7 +263,8 @@ def arange_cpp(start: float | int, stop: float | int, step: float | int,
     elif dtype == int:
         get_libblond().arange_int(ct.c_int(start), ct.c_int(stop),
                                   ct.c_int(step), __getPointer(result))
-
+    else:
+        raise ValueError(dtype)
     return result
 
 
