@@ -618,11 +618,6 @@ class TestWithObjects:
         np.testing.assert_array_almost_equal(time_save, ind_volt_res._deltaT, decimal=8)
 
 
-if __name__ == '__main__':
-
-    unittest.main()
-
-
 class TestFunctions(unittest.TestCase):
     @unittest.skip
     def test_distribution_from_tomoscope(self):
@@ -633,3 +628,6 @@ class TestFunctions(unittest.TestCase):
     def test_sparse_histogram(self):
         # TODO: implement test for `sparse_histogram`
         sparse_histogram(dt=None, profile=None, cut_left=None, cut_right=None, bunch_indexes=None, n_slices_bucket=None)
+
+if __name__ == '__main__':
+    unittest.main()

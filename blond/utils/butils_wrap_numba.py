@@ -21,7 +21,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 # --------------- Similar to kick.cpp -----------------
 @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-def kick(dt: NumpyArray, dE: NumpyArray, voltage: NumpyArray,
+def kick(dt: NumpyArray, dE: NumpyArray, voltage: NumpyArray,  # pragma: no cover
          omega_rf: NumpyArray, phi_rf: NumpyArray,
          charge: float, n_rf: int, acceleration_kick: float):
     """
@@ -37,7 +37,7 @@ def kick(dt: NumpyArray, dE: NumpyArray, voltage: NumpyArray,
 
 
 @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-def rf_volt_comp(voltages: NumpyArray, omega_rf: NumpyArray, phi_rf: NumpyArray,
+def rf_volt_comp(voltages: NumpyArray, omega_rf: NumpyArray, phi_rf: NumpyArray,  # pragma: no cover
                  bin_centers: NumpyArray) -> NumpyArray:
     """Compute rf voltage at each bin.
 
@@ -65,7 +65,7 @@ def rf_volt_comp(voltages: NumpyArray, omega_rf: NumpyArray, phi_rf: NumpyArray,
 
 # --------------- Similar to drift.cpp -----------------
 @jit(nopython=True, fastmath=True, parallel=True, cache=True)
-def drift(dt: NumpyArray, dE: NumpyArray, solver: str, t_rev: float,
+def drift(dt: NumpyArray, dE: NumpyArray, solver: str, t_rev: float,  # pragma: no cover
           length_ratio: float, alpha_order, eta_0: float,
           eta_1: float, eta_2: float, alpha_0: float,
           alpha_1: float, alpha_2: float, beta: float, energy: float):
@@ -121,7 +121,7 @@ def drift(dt: NumpyArray, dE: NumpyArray, solver: str, t_rev: float,
 
 # --------------- Similar to histogram.cpp -----------------
 @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-def slice_beam(dt: NumpyArray, profile: NumpyArray,
+def slice_beam(dt: NumpyArray, profile: NumpyArray,  # pragma: no cover
                cut_left: float, cut_right: float):
     """Slice the time coordinate of the beam.
 
@@ -169,7 +169,7 @@ def slice_beam(dt: NumpyArray, profile: NumpyArray,
 
 # --------------- Similar to linear_interp_kick.cpp -----------------
 @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-def linear_interp_kick(dt: NumpyArray, dE: NumpyArray, voltage: NumpyArray,
+def linear_interp_kick(dt: NumpyArray, dE: NumpyArray, voltage: NumpyArray,  # pragma: no cover
                        bin_centers: NumpyArray, charge: float,
                        acceleration_kick: float):
     """Interpolated kick method.
@@ -202,7 +202,7 @@ def linear_interp_kick(dt: NumpyArray, dE: NumpyArray, voltage: NumpyArray,
 
 # --------------- Similar to synchrotron_radiation.cpp -----------------
 @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-def synchrotron_radiation(dE: NumpyArray, U0: float,
+def synchrotron_radiation(dE: NumpyArray, U0: float,  # pragma: no cover
                           n_kicks: int, tau_z: float):
     """Apply SR
 
@@ -226,7 +226,7 @@ def synchrotron_radiation(dE: NumpyArray, U0: float,
 
 
 @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-def synchrotron_radiation_full(dE: NumpyArray, U0: float,
+def synchrotron_radiation_full(dE: NumpyArray, U0: float,  # pragma: no cover
                                n_kicks: int, tau_z: float,
                                sigma_dE: float, energy: float):
     """Apply SR with quantum excitation
@@ -266,7 +266,7 @@ def fast_resonator(R_S: NumpyArray, Q: NumpyArray, frequency_array: NumpyArray,
         impedance = np.zeros(len(frequency_array), dtype=np.complex128)
 
     @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-    def calc_impedance(R_S: NumpyArray, Q: NumpyArray, frequency_array: NumpyArray,
+    def calc_impedance(R_S: NumpyArray, Q: NumpyArray, frequency_array: NumpyArray,  # pragma: no cover
                        frequency_R: NumpyArray, impedance: NumpyArray):
         for freq in prange(1, len(frequency_array)):
             for i in range(len(R_S)):
@@ -280,7 +280,7 @@ def fast_resonator(R_S: NumpyArray, Q: NumpyArray, frequency_array: NumpyArray,
 
 
 @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-def _resonator_induced_voltage_1_turn(kappa1: NumpyArray,
+def _resonator_induced_voltage_1_turn(kappa1: NumpyArray,  # pragma: no cover
                                       n_macroparticles: NumpyArray,
                                       bin_centers: NumpyArray, bin_size: float,
                                       deltaT: NumpyArray,
@@ -438,7 +438,7 @@ def resonator_induced_voltage_1_turn(kappa1: NumpyArray,
 
 
 @jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
-def _resonator_induced_voltage_1_turn(kappa1: NumpyArray,
+def _resonator_induced_voltage_1_turn(kappa1: NumpyArray,  # pragma: no cover
                                       n_macroparticles: NumpyArray,
                                       bin_centers: NumpyArray, bin_size: float,
                                       deltaT: NumpyArray,
