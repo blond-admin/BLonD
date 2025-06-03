@@ -19,6 +19,9 @@ import sys
 import unittest
 
 import pytest
+
+from unittests.test_utils import is_master_or_dev_branch
+
 os.environ["BLOND_EXAMPLES_DRAFT_MODE"] = "1"
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
@@ -40,6 +43,10 @@ class TestMpiExamples(unittest.TestCase):
     # Run before every test
 
     def setUp(self):
+
+        if is_master_or_dev_branch():
+            raise unittest.SkipTest("Runs only on 'develop' or 'master' branch")
+
         pytest.importorskip('mpi4py')
         try:
             subprocess.call(['mpirun', '--version'])

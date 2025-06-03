@@ -18,6 +18,8 @@ import unittest
 
 import pytest
 
+from unittests.test_utils import is_master_or_dev_branch
+
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 main_files_dir = os.path.join(this_directory, '../../__EXAMPLES/gpu_main_files')
 
@@ -29,6 +31,9 @@ class TestGPUExamples(unittest.TestCase):
 
 
     def setUp(self):
+
+        if is_master_or_dev_branch():
+            raise unittest.SkipTest("Runs only on 'develop' or 'master' branch")
         pytest.importorskip('cupy')
 
         if main_files_dir not in sys.path:

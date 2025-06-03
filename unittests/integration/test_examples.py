@@ -16,6 +16,8 @@ import os
 import sys
 import unittest
 
+from unittests.test_utils import is_master_or_dev_branch
+
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 main_files_dir = os.path.join(this_directory, '../../__EXAMPLES/main_files')
 
@@ -25,6 +27,8 @@ class TestExamples(unittest.TestCase):
 
 
     def setUp(self):
+        if is_master_or_dev_branch():
+            raise unittest.SkipTest("Runs only on 'develop' or 'master' branch")
         if main_files_dir not in sys.path:
             sys.path.append(main_files_dir)
 

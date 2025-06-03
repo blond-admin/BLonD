@@ -18,6 +18,8 @@ import unittest
 
 import numpy as np
 
+from unittests.test_utils import is_master_or_dev_branch
+
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 out_dir = os.path.join(this_directory, '../../__EXAMPLES/output_files/')
 mpi_out_dir = os.path.join(this_directory, '../../__EXAMPLES/mpi_output_files/')
@@ -60,7 +62,9 @@ class TestMPICorrectness(unittest.TestCase):
     # Run before every test
 
     def setUp(self):
-        pass
+
+        if is_master_or_dev_branch():
+            raise unittest.SkipTest("Runs only on 'develop' or 'master' branch")
 
     # Run after every test
     def tearDown(self):

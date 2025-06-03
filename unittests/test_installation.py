@@ -5,6 +5,8 @@ import sys
 import unittest
 from typing import List
 
+from unittests.test_utils import is_master_or_dev_branch
+
 this_directory = pathlib.Path(__file__).parent.resolve()
 
 
@@ -38,6 +40,11 @@ venv_tmp = "venv_tmp"
 class TestInstallation(unittest.TestCase):
     def test_execute_command(self):
         execute_command(["echo 'hello world'"])
+
+    @unittest.skipUnless(
+        is_master_or_dev_branch(),
+        "Runs only on 'develop' or 'master' branch",
+    )
     def test_installation_in_venv(self):
         """Integration test: run pip install in a temporary directory and ensure it works."""
 
