@@ -41,11 +41,21 @@ extern "C" void rf_volt_comp(const real_t * __restrict__ voltage,
                              const int n_rf,
                              const int n_bins,
                              real_t *__restrict__ rf_voltage) {
-    for (int j = 0; j < n_rf; j++) {
-        #pragma omp parallel for
-        for (int i = 0; i < n_bins; i++) {
-            rf_voltage[i] += voltage[j]
-                             * FAST_SIN(omega_RF[j] * bin_centers[i] + phi_RF[j]);
+    #pragma omp parallel for
+    for (int i = 0; i < n_bins; i++) {
+        const real_t bin_center = bin_centers[i];
+
+        if (n_rf == 1) {
+            rf_voltage[i] = voltage[0] * FAST_SIN(omega_RF[0] * bin_center + phi_RF[0]);
+        } else {
+            real_t rf_voltage_i = 0.0; // rf_voltage = np.empty in wrapper function
+            for (int j = 0; j < n_rf; j++) {
+                rf_voltage_i += voltage[j] * FAST_SIN(omega_RF[j] * bin_center + phi_RF[j]);
+            }
+            rf_voltage[i] = rf_voltage_i;
+
         }
+
     }
 }
+

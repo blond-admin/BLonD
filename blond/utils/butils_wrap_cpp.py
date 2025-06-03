@@ -602,7 +602,7 @@ def rf_volt_comp(voltages: NumpyArray, omega_rf: NumpyArray, phi_rf: NumpyArray,
     omega_rf = omega_rf.astype(dtype=precision.real_t, order='C', copy=False)
     phi_rf = phi_rf.astype(dtype=precision.real_t, order='C', copy=False)
 
-    rf_voltage = np.zeros(len(bin_centers), dtype=precision.real_t, order='C')
+    rf_voltage = np.empty(len(bin_centers), dtype=precision.real_t, order='C')
 
     get_libblond().rf_volt_comp(__getPointer(voltages),
                                 __getPointer(omega_rf),

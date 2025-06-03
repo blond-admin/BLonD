@@ -72,10 +72,9 @@ __global__ void rf_volt_comp(const real_t * __restrict__ voltage,
 {
     int tid = threadIdx.x + blockDim.x * blockIdx.x;
     real_t my_rf_voltage;
-    real_t my_bin_centers;
     for (int i = tid; i < n_bins; i += blockDim.x * gridDim.x) {
         my_rf_voltage = rf_voltage[i];
-        my_bin_centers = bin_centers[i];
+        const real_t my_bin_centers = bin_centers[i];
         for (int j = 0; j < n_rf; j++)
             my_rf_voltage += voltage[j] * sin(omega_rf[j] * my_bin_centers + phi_rf[j]);
         rf_voltage[i] = my_rf_voltage;
