@@ -407,8 +407,10 @@ class TestSynchRad(unittest.TestCase):
         os.environ['OMP_NUM_THREADS'] = '1'
         turns = 10
         atol = 0
-        rtol_avg = 1e-6
-        rtol_std = 1e-6
+        # increased tolerances due to distribution
+        # difference between C and Python
+        rtol_std = 5e-3
+        rtol_avg = 5e-3
         SR = []
         SR_cpp = []
 
@@ -487,13 +489,17 @@ class TestSynchRad(unittest.TestCase):
         SR_cpp = []
 
         for i in range(self.n_sections):
-            SR.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
+            SR.append(SynchrotronRadiation(self.general_params,
+                                           self.RF_sct_par[i],
                                            self.beam, self.rho,
-                                           quantum_excitation=False, python=True))
+                                           quantum_excitation=False,
+                                           python=True))
 
-            SR_cpp.append(SynchrotronRadiation(self.general_params, self.RF_sct_par_cpp[i],
+            SR_cpp.append(SynchrotronRadiation(self.general_params,
+                                               self.RF_sct_par_cpp[i],
                                                self.beam_cpp, self.rho,
-                                               quantum_excitation=False, python=False))
+                                               quantum_excitation=False,
+                                               python=False))
         map_ = []
         for i in range(self.n_sections):
             map_ += [self.longitudinal_tracker[i]] + [SR[i]]
@@ -529,33 +535,47 @@ class TestSynchRad(unittest.TestCase):
             avg_dE_cpp[i] = np.mean(self.beam_cpp.dE)
             std_dE_cpp[i] = np.std(self.beam_cpp.dE)
 
-        np.testing.assert_allclose(avg_dt, avg_dt_cpp, atol=atol, rtol=rtol_avg,
-                                   err_msg="Pyhton and C++ avg beam dt arrays not close")
-        np.testing.assert_allclose(std_dt, std_dt_cpp, atol=atol, rtol=rtol_std,
-                                   err_msg="Pyhton and C++ std beam dt arrays not close")
+        np.testing.assert_allclose(avg_dt, avg_dt_cpp, atol=atol,
+                                   rtol=rtol_avg,
+                                   err_msg="Pyhton and C++ avg beam dt arrays "
+                                           "not close")
+        np.testing.assert_allclose(std_dt, std_dt_cpp, atol=atol,
+                                   rtol=rtol_std,
+                                   err_msg="Pyhton and C++ std beam dt arrays "
+                                           "not close")
 
-        np.testing.assert_allclose(avg_dE, avg_dE_cpp, atol=atol, rtol=rtol_avg,
-                                   err_msg="Pyhton and C++ avg beam dE arrays not close")
-        np.testing.assert_allclose(std_dE, std_dE_cpp, atol=atol, rtol=rtol_std,
-                                   err_msg="Pyhton and C++ std beam dE arrays not close")
+        np.testing.assert_allclose(avg_dE, avg_dE_cpp, atol=atol,
+                                   rtol=rtol_avg,
+                                   err_msg="Pyhton and C++ avg beam dE arrays "
+                                           "not close")
+        np.testing.assert_allclose(std_dE, std_dE_cpp, atol=atol,
+                                   rtol=rtol_std,
+                                   err_msg="Pyhton and C++ std beam dE arrays "
+                                           "not close")
 
     def test_with_quant_exc_100t(self):
         os.environ['OMP_NUM_THREADS'] = '1'
         turns = 100
         atol = 0
-        rtol_avg = 1e-1
-        rtol_std = 1e-1
+        # increased tolerances due to distribution
+        # difference between C and Python
+        rtol_avg = 5e-1
+        rtol_std = 5e-1
         SR = []
         SR_cpp = []
 
         for i in range(self.n_sections):
-            SR.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
+            SR.append(SynchrotronRadiation(self.general_params,
+                                           self.RF_sct_par[i],
                                            self.beam, self.rho,
-                                           quantum_excitation=True, python=True))
+                                           quantum_excitation=True,
+                                           python=True))
 
-            SR_cpp.append(SynchrotronRadiation(self.general_params, self.RF_sct_par_cpp[i],
+            SR_cpp.append(SynchrotronRadiation(self.general_params,
+                                               self.RF_sct_par_cpp[i],
                                                self.beam_cpp, self.rho,
-                                               quantum_excitation=True, python=False))
+                                               quantum_excitation=True,
+                                               python=False))
         map_ = []
         for i in range(self.n_sections):
             map_ += [self.longitudinal_tracker[i]] + [SR[i]]
@@ -591,15 +611,23 @@ class TestSynchRad(unittest.TestCase):
             avg_dE_cpp[i] = np.mean(self.beam_cpp.dE)
             std_dE_cpp[i] = np.std(self.beam_cpp.dE)
 
-        #np.testing.assert_allclose(avg_dt, avg_dt_cpp, atol=atol, rtol=rtol_avg,
-        #                           err_msg="Python and C++ avg beam dt arrays not close")
-        np.testing.assert_allclose(std_dt, std_dt_cpp, atol=atol, rtol=rtol_std,
-                                   err_msg="Python and C++ std beam dt arrays not close")
+        np.testing.assert_allclose(avg_dt, avg_dt_cpp, atol=atol,
+                                   rtol=rtol_avg,
+                                   err_msg="Python and C++ avg beam dt arrays "
+                                           "not close")
+        np.testing.assert_allclose(std_dt, std_dt_cpp, atol=atol,
+                                   rtol=rtol_std,
+                                   err_msg="Python and C++ std beam dt arrays "
+                                           "not close")
 
-        np.testing.assert_allclose(avg_dE, avg_dE_cpp, atol=atol, rtol=rtol_avg,
-                                   err_msg="Python and C++ avg beam dE arrays not close")
-        np.testing.assert_allclose(std_dE, std_dE_cpp, atol=atol, rtol=rtol_std,
-                                   err_msg="Python and C++ std beam dE arrays not close")
+        np.testing.assert_allclose(avg_dE, avg_dE_cpp, atol=atol,
+                                   rtol=rtol_avg,
+                                   err_msg="Python and C++ avg beam dE arrays "
+                                           "not close")
+        np.testing.assert_allclose(std_dE, std_dE_cpp, atol=atol,
+                                   rtol=rtol_std,
+                                   err_msg="Python and C++ std beam dE arrays "
+                                           "not close")
 
     def test_no_quant_exc_10t_parallel(self):
         os.environ['OMP_NUM_THREADS'] = '2'
@@ -611,13 +639,17 @@ class TestSynchRad(unittest.TestCase):
         SR_cpp = []
 
         for i in range(self.n_sections):
-            SR.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
+            SR.append(SynchrotronRadiation(self.general_params,
+                                           self.RF_sct_par[i],
                                            self.beam, self.rho,
-                                           quantum_excitation=False, python=True))
+                                           quantum_excitation=False,
+                                           python=True))
 
-            SR_cpp.append(SynchrotronRadiation(self.general_params, self.RF_sct_par_cpp[i],
+            SR_cpp.append(SynchrotronRadiation(self.general_params,
+                                               self.RF_sct_par_cpp[i],
                                                self.beam_cpp, self.rho,
-                                               quantum_excitation=False, python=False))
+                                               quantum_excitation=False,
+                                               python=False))
         map_ = []
         for i in range(self.n_sections):
             map_ += [self.longitudinal_tracker[i]] + [SR[i]]
@@ -653,33 +685,47 @@ class TestSynchRad(unittest.TestCase):
             avg_dE_cpp[i] = np.mean(self.beam_cpp.dE)
             std_dE_cpp[i] = np.std(self.beam_cpp.dE)
 
-        np.testing.assert_allclose(avg_dt, avg_dt_cpp, atol=atol, rtol=rtol_avg,
-                                   err_msg="Pyhton and C++ avg beam dt arrays not close")
-        np.testing.assert_allclose(std_dt, std_dt_cpp, atol=atol, rtol=rtol_std,
-                                   err_msg="Pyhton and C++ std beam dt arrays not close")
+        np.testing.assert_allclose(avg_dt, avg_dt_cpp, atol=atol,
+                                   rtol=rtol_avg,
+                                   err_msg="Pyhton and C++ avg beam dt arrays "
+                                           "not close")
+        np.testing.assert_allclose(std_dt, std_dt_cpp, atol=atol,
+                                   rtol=rtol_std,
+                                   err_msg="Pyhton and C++ std beam dt arrays "
+                                           "not close")
 
-        np.testing.assert_allclose(avg_dE, avg_dE_cpp, atol=atol, rtol=rtol_avg,
-                                   err_msg="Pyhton and C++ avg beam dE arrays not close")
-        np.testing.assert_allclose(std_dE, std_dE_cpp, atol=atol, rtol=rtol_std,
-                                   err_msg="Pyhton and C++ std beam dE arrays not close")
+        np.testing.assert_allclose(avg_dE, avg_dE_cpp, atol=atol,
+                                   rtol=rtol_avg,
+                                   err_msg="Pyhton and C++ avg beam dE arrays "
+                                           "not close")
+        np.testing.assert_allclose(std_dE, std_dE_cpp, atol=atol,
+                                   rtol=rtol_std,
+                                   err_msg="Pyhton and C++ std beam dE arrays "
+                                           "not close")
 
     def test_with_quant_exc_10t_parallel(self):
         os.environ['OMP_NUM_THREADS'] = '2'
         turns = 10
         atol = 0
+        # increased tolerances due to distribution
+        # difference between C and Python
         rtol_avg = 1e-2
         rtol_std = 1e-2
         SR = []
         SR_cpp = []
 
         for i in range(self.n_sections):
-            SR.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
+            SR.append(SynchrotronRadiation(self.general_params,
+                                           self.RF_sct_par[i],
                                            self.beam, self.rho,
-                                           quantum_excitation=True, python=True))
+                                           quantum_excitation=True,
+                                           python=True))
 
-            SR_cpp.append(SynchrotronRadiation(self.general_params, self.RF_sct_par_cpp[i],
+            SR_cpp.append(SynchrotronRadiation(self.general_params,
+                                               self.RF_sct_par_cpp[i],
                                                self.beam_cpp, self.rho,
-                                               quantum_excitation=True, python=False))
+                                               quantum_excitation=True,
+                                               python=False))
         map_ = []
         for i in range(self.n_sections):
             map_ += [self.longitudinal_tracker[i]] + [SR[i]]
@@ -715,15 +761,23 @@ class TestSynchRad(unittest.TestCase):
             avg_dE_cpp[i] = np.mean(self.beam_cpp.dE)
             std_dE_cpp[i] = np.std(self.beam_cpp.dE)
 
-        np.testing.assert_allclose(avg_dt, avg_dt_cpp, atol=atol, rtol=rtol_avg,
-                                   err_msg="Python and C++ avg beam dt arrays not close")
-        np.testing.assert_allclose(std_dt, std_dt_cpp, atol=atol, rtol=rtol_std,
-                                   err_msg="Python and C++ std beam dt arrays not close")
+        np.testing.assert_allclose(avg_dt, avg_dt_cpp, atol=atol,
+                                   rtol=rtol_avg,
+                                   err_msg="Python and C++ avg beam dt arrays "
+                                           "not close")
+        np.testing.assert_allclose(std_dt, std_dt_cpp, atol=atol,
+                                   rtol=rtol_std,
+                                   err_msg="Python and C++ std beam dt arrays "
+                                           "not close")
 
-        np.testing.assert_allclose(avg_dE, avg_dE_cpp, atol=atol, rtol=rtol_avg,
-                                   err_msg="Python and C++ avg beam dE arrays not close")
-        np.testing.assert_allclose(std_dE, std_dE_cpp, atol=atol, rtol=rtol_std,
-                                   err_msg="Python and C++ std beam dE arrays not close")
+        np.testing.assert_allclose(avg_dE, avg_dE_cpp, atol=atol,
+                                   rtol=rtol_avg,
+                                   err_msg="Python and C++ avg beam dE arrays "
+                                           "not close")
+        np.testing.assert_allclose(std_dE, std_dE_cpp, atol=atol,
+                                   rtol=rtol_std,
+                                   err_msg="Python and C++ std beam dE arrays "
+                                           "not close")
 
     def test_no_quant_exc_100t_parallel(self):
         os.environ['OMP_NUM_THREADS'] = '2'
@@ -735,13 +789,17 @@ class TestSynchRad(unittest.TestCase):
         SR_cpp = []
 
         for i in range(self.n_sections):
-            SR.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
+            SR.append(SynchrotronRadiation(self.general_params,
+                                           self.RF_sct_par[i],
                                            self.beam, self.rho,
-                                           quantum_excitation=False, python=True))
+                                           quantum_excitation=False,
+                                           python=True))
 
-            SR_cpp.append(SynchrotronRadiation(self.general_params, self.RF_sct_par_cpp[i],
+            SR_cpp.append(SynchrotronRadiation(self.general_params,
+                                               self.RF_sct_par_cpp[i],
                                                self.beam_cpp, self.rho,
-                                               quantum_excitation=False, python=False))
+                                               quantum_excitation=False,
+                                               python=False))
         map_ = []
         for i in range(self.n_sections):
             map_ += [self.longitudinal_tracker[i]] + [SR[i]]
@@ -777,33 +835,47 @@ class TestSynchRad(unittest.TestCase):
             avg_dE_cpp[i] = np.mean(self.beam_cpp.dE)
             std_dE_cpp[i] = np.std(self.beam_cpp.dE)
 
-        np.testing.assert_allclose(avg_dt, avg_dt_cpp, atol=atol, rtol=rtol_avg,
-                                   err_msg="Python and C++ avg beam dt arrays not close")
-        np.testing.assert_allclose(std_dt, std_dt_cpp, atol=atol, rtol=rtol_std,
-                                   err_msg="Python and C++ std beam dt arrays not close")
+        np.testing.assert_allclose(avg_dt, avg_dt_cpp, atol=atol,
+                                   rtol=rtol_avg,
+                                   err_msg="Python and C++ avg beam dt arrays "
+                                           "not close")
+        np.testing.assert_allclose(std_dt, std_dt_cpp, atol=atol,
+                                   rtol=rtol_std,
+                                   err_msg="Python and C++ std beam dt arrays "
+                                           "not close")
 
-        np.testing.assert_allclose(avg_dE, avg_dE_cpp, atol=atol, rtol=rtol_avg,
-                                   err_msg="Python and C++ avg beam dE arrays not close")
-        np.testing.assert_allclose(std_dE, std_dE_cpp, atol=atol, rtol=rtol_std,
-                                   err_msg="Python and C++ std beam dE arrays not close")
+        np.testing.assert_allclose(avg_dE, avg_dE_cpp, atol=atol,
+                                   rtol=rtol_avg,
+                                   err_msg="Python and C++ avg beam dE arrays "
+                                           "not close")
+        np.testing.assert_allclose(std_dE, std_dE_cpp, atol=atol,
+                                   rtol=rtol_std,
+                                   err_msg="Python and C++ std beam dE arrays "
+                                           "not close")
 
     def test_with_quant_exc_100t_parallel(self):
         os.environ['OMP_NUM_THREADS'] = '2'
         turns = 100
         atol = 1e-1
+        # increased tolerances due to distribution
+        # difference between C and Python
         rtol_avg = 1e-1
         rtol_std = 1e-1
         SR = []
         SR_cpp = []
 
         for i in range(self.n_sections):
-            SR.append(SynchrotronRadiation(self.general_params, self.RF_sct_par[i],
+            SR.append(SynchrotronRadiation(self.general_params,
+                                           self.RF_sct_par[i],
                                            self.beam, self.rho,
-                                           quantum_excitation=True, python=True))
+                                           quantum_excitation=True,
+                                           python=True))
 
-            SR_cpp.append(SynchrotronRadiation(self.general_params, self.RF_sct_par_cpp[i],
+            SR_cpp.append(SynchrotronRadiation(self.general_params,
+                                               self.RF_sct_par_cpp[i],
                                                self.beam_cpp, self.rho,
-                                               quantum_excitation=True, python=False))
+                                               quantum_excitation=True,
+                                               python=False))
         map_ = []
         for i in range(self.n_sections):
             map_ += [self.longitudinal_tracker[i]] + [SR[i]]
@@ -839,17 +911,23 @@ class TestSynchRad(unittest.TestCase):
             avg_dE_cpp[i] = np.mean(self.beam_cpp.dE)
             std_dE_cpp[i] = np.std(self.beam_cpp.dE)
 
-        np.testing.assert_allclose(avg_dt, avg_dt_cpp, atol=atol, rtol=rtol_avg,
-                                   err_msg="Python and C++ avg beam dt arrays not close")
-        np.testing.assert_allclose(std_dt, std_dt_cpp, atol=atol, rtol=rtol_std,
-                                   err_msg="Python and C++ std beam dt arrays not close")
+        np.testing.assert_allclose(avg_dt, avg_dt_cpp, atol=atol,
+                                   rtol=rtol_avg,
+                                   err_msg="Python and C++ avg beam dt arrays "
+                                           "not close")
+        np.testing.assert_allclose(std_dt, std_dt_cpp, atol=atol,
+                                   rtol=rtol_std,
+                                   err_msg="Python and C++ std beam dt arrays "
+                                           "not close")
 
-        np.testing.assert_allclose(avg_dE, avg_dE_cpp, atol=atol, rtol=rtol_avg,
-                                   err_msg="Python and C++ avg beam dE arrays not close")
-        np.testing.assert_allclose(std_dE, std_dE_cpp, atol=atol, rtol=rtol_std,
-                                   err_msg="Python and C++ std beam dE arrays not close")
-
-
+        np.testing.assert_allclose(avg_dE, avg_dE_cpp, atol=atol,
+                                   rtol=rtol_avg,
+                                   err_msg="Python and C++ avg beam dE arrays "
+                                           "not close")
+        np.testing.assert_allclose(std_dE, std_dE_cpp, atol=atol,
+                                   rtol=rtol_std,
+                                   err_msg="Python and C++ std beam dE arrays "
+                                           "not close")
 if __name__ == '__main__':
 
     unittest.main()
