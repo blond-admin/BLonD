@@ -116,10 +116,6 @@ class SynchrotronRadiation:
         self.tracker_choice(python=python,
                             quantum_excitation=quantum_excitation, seed=seed)
 
-
-
-
-
     def shift_beam_function(self, shift_beam):
         """
         Displace the beam in phase to account for the energy loss due
@@ -162,8 +158,8 @@ class SynchrotronRadiation:
         Function to handle the synchrotron radiation integrals from an
         input array or a bending radius input.
         """
-        if isinstance(radiation_integrals, type(None)):
-            if isinstance(bending_radius, type(None)):
+        if radiation_integrals is None:
+            if bending_radius is None:
                 if hasattr(self.ring, 'I2'):
                     self.I2 = self.ring.I2
                     self.I3 = self.ring.I3
@@ -193,7 +189,7 @@ class SynchrotronRadiation:
                 if len(integrals) < 5:
                     raise ValueError(f"Length of radiation integrals must be "
                                      f"> 5, but is {len(integrals)}")
-                if not isinstance(bending_radius, type(None)):
+                if bending_radius is not None:
                     warnings.warn('Synchrotron radiation integrals prevail. '
                                   '\'bending radius\' is ignored.')
                 self.I2 = integrals[1]
