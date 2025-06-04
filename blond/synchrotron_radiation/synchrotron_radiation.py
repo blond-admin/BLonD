@@ -84,37 +84,6 @@ class SynchrotronRadiation:
 
         self.assign_radiation_integrals(radiation_integrals, bending_radius)
 
-        if isinstance(radiation_integrals, type(None)):
-            if isinstance(bending_radius, type(None)):
-                if hasattr(self.ring, 'I2'):
-                    self.I2 = self.ring.I2
-                    self.I3 = self.ring.I3
-                    self.I4 = self.ring.I4
-                    self.jz = 2.0 + self.I4 / self.I2
-                else :
-                    raise MissingParameterError("Synchrotron radiation damping and quantum excitation require either the bending radius "+
-                                            "for an isomagnetic ring, or the first five synchrotron radiation integrals.")
-            else :
-                self.rho = bending_radius
-                self.I2 = 2.0 * np.pi / self.rho  # Assuming isomagnetic machine
-                self.I3 = 2.0 * np.pi / self.rho ** 2.0
-                self.I4 = self.ring.ring_circumference * self.ring.alpha_0[0, 0] / self.rho ** 2.0
-                self.jz = 2.0 + self.I4 / self.I2
-
-        else :
-            if not isinstance(radiation_integrals,(np.ndarray, list)):
-                raise TypeError(f"Expected a list or a NDArray as an input. Received type(radiation_integrals)={type(radiation_integrals)}.")
-            else :
-                integrals = np.array(radiation_integrals)
-                if len(integrals) < 5:
-                    raise ValueError(f"Length of radiation integrals must be > 5, but is {len(integrals)}")
-                if not isinstance(bending_radius, type(None)):
-                    warnings.warn('Synchrotron radiation integrals prevail. \'bending radius\' is ignored.')
-                self.I2 = integrals[1]
-                self.I3 = integrals[2]
-                self.I4 = integrals[3]
-                self.jz = 2.0 + self.I4 / self.I2
-
         self.n_kicks = n_kicks  # To apply SR in several kicks
         np.random.seed(seed=seed)
 
@@ -174,7 +143,7 @@ class SynchrotronRadiation:
 
         else :
             if not isinstance(radiation_integrals,(np.ndarray, list)):
-                raise TypeError(f"Expected a list r numpy.ndarray as an input. Received type(radiation_integrals)={type(radiation_integrals)}.")
+                raise TypeError(f"Expected a list or a NDArray as an input. Received type(radiation_integrals)={type(radiation_integrals)}.")
             else :
                 integrals = np.array(radiation_integrals)
                 if len(integrals) < 5:
