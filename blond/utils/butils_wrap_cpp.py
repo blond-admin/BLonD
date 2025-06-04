@@ -19,7 +19,8 @@ __LIBBLOND = None
 
 def load_libblond(precision='single'):
     '''Locates and initializes the blond compiled library
-    @param precision: The floating point precision of the calculations. Can be 'single' or 'double'.
+    @param precision: The floating point precision of the calculations.
+    Can be 'single' or 'double'.
     '''
     global __LIBBLOND
     libblond_path = os.environ.get('LIBBLOND', None)
@@ -46,7 +47,8 @@ def load_libblond(precision='single'):
             else:
                 __LIBBLOND = ct.CDLL(libblond_path)
         else:
-            print('YOU DO NOT HAVE A WINDOWS OR UNIX OPERATING SYSTEM. ABORTING.')
+            print('YOU DO NOT HAVE A WINDOWS OR UNIX OPERATING SYSTEM. '
+                  'ABORTING.')
             sys.exit()
     except OSError:
         # Silently pass. An alternative backend can be used.
