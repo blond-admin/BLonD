@@ -24,6 +24,15 @@ from ..beam.beam import Beam
 from ..input_parameters.ring import Ring
 from ..input_parameters.rf_parameters import RFStation
 from ..utils import bmath as bm
+from ..utils.legacy_support import handle_legacy_kwargs
+
+if TYPE_CHECKING:
+    from typing import Callable, Optional
+
+    from ..beam.beam import Beam
+    from ..input_parameters.rf_parameters import RFStation
+    from ..input_parameters.ring import Ring
+    from ..utils.types import DeviceType
 
 
 class SynchrotronRadiation:
@@ -152,6 +161,13 @@ class SynchrotronRadiation:
                 self.track = self.track_full_C
             else:
                 self.track = self.track_SR_C
+        self.track_models: dict[str, Callable] = {
+            "track_SR_python": self.track_SR_python,
+            "track_full_python": self.track_full_python,
+            "track_SR_C": self.track_SR_C,
+            "track_full_C": self.track_full_C,
+        }
+        self.track_mode: str | None = None
 
     def assign_radiation_integrals(self, radiation_integrals, bending_radius):
         """
@@ -203,18 +219,17 @@ class SynchrotronRadiation:
 
         # Energy loss per turn/RF section [eV]
         self.U0 = (self.c_gamma * self.ring.energy[0, i_turn]**4.0
-                   * self.I2 / (2.0 * np. pi)
+                   * self.I2 / (2.0 * np.pi)
                    * self.rf_params.section_length
                    / self.ring.ring_circumference)
 
         # Damping time [turns]
-        self.tau_z = (2.0 / self.jz * self.ring.energy[0, i_turn] /
-                      self.U0)
+        self.tau_z = (2.0 / self.jz * self.ring.energy[0, i_turn]
+                      / self.U0)
 
         # Equilibrium energy spread
-        self.sigma_dE = np.sqrt(self.c_q *
-                                self.ring.gamma[0, i_turn]**2.0 *
-                                self.I3 / (self.jz * self.I2))
+        self.sigma_dE = np.sqrt(self.c_q * self.ring.gamma[0, i_turn]**2.0
+                                * self.I3 / (self.jz * self.I2))
 
     # Print SR parameters
     def print_SR_params(self):
@@ -224,7 +239,7 @@ class SynchrotronRadiation:
         print(f'jz = {self.jz:1.8f}')
         if (self.rf_params.section_length
                 == self.ring.ring_circumference):
-            print(f'Energy loss per turn = {self.U0/1e9:1.4f} GeV/turn')
+            print(f'Energy loss per turn = {self.U0 / 1e9:1.4f} GeV/turn')
             print(f'Damping time = {self.tau_z:1.4f} turns')
         else:
             print('Energy loss per RF section = {0:1.4f} GeV/section'.format(
@@ -285,8 +300,8 @@ class SynchrotronRadiation:
         """
         i_turn = self.rf_params.counter[0]
         # Recalculate SR parameters if energy changes
-        if (i_turn != 0 and self.ring.energy[0, i_turn] !=
-                self.ring.energy[0, i_turn - 1]):
+        if (i_turn != 0 and self.ring.energy[0, i_turn]
+                            != self.ring.energy[0, i_turn - 1]):
             self.calculate_SR_params()
 
         bm.synchrotron_radiation(self.beam.dE, self.U0,
@@ -309,9 +324,9 @@ class SynchrotronRadiation:
                                       self.ring.energy[0, i_turn])
 
     def to_gpu(self, recursive=True):
-        '''
+        """
         Transfer all necessary arrays to the GPU
-        '''
+        """
         # Check if to_gpu has been invoked already
         if hasattr(self, '_device') and self._device == 'GPU':
             return
@@ -319,12 +334,12 @@ class SynchrotronRadiation:
         # No arrays need to be transfered
 
         # to make sure it will not be called again
-        self._device = 'GPU'
+        self._device: DeviceType = 'GPU'
 
     def to_cpu(self, recursive=True):
-        '''
+        """
         Transfer all necessary arrays back to the CPU
-        '''
+        """
         # Check if to_cpu has been invoked already
         if hasattr(self, '_device') and self._device == 'CPU':
             return
@@ -332,4 +347,4 @@ class SynchrotronRadiation:
         # No arrays need to be transfered
 
         # to make sure it will not be called again
-        self._device = 'CPU'
+        self._device: DeviceType = 'CPU'

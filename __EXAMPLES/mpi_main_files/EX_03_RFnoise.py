@@ -7,19 +7,15 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Example input for simulation with RF noise
 No intensity effects
 
 :Authors: **Helga Timko**
-'''
+"""
 
-from __future__ import division, print_function
-from blond.utils.mpi_config import mpiprint, WORKER
-from blond.utils import bmath as bm
 
 import os
-from builtins import range
 
 import matplotlib as mpl
 import numpy as np
@@ -33,6 +29,8 @@ from blond.llrf.rf_noise import FlatSpectrum
 from blond.monitors.monitors import BunchMonitor
 from blond.plots.plot import Plot
 from blond.trackers.tracker import RingAndRFTracker
+from blond.utils import bmath as bm
+from blond.utils.mpi_config import mpiprint, WORKER
 
 DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 # To check if executing correctly, rather than to run the full simulation
@@ -114,14 +112,14 @@ slice_beam.track()
 map_ = [long_tracker] + [slice_beam]
 if WORKER.is_master:
     # Define what to save in file
-    bunchmonitor = BunchMonitor(general_params, rf_params, beam, this_directory + '../mpi_output_files/EX_03_output_data', Profile=slice_beam)
+    bunchmonitor = BunchMonitor(general_params, rf_params, beam, this_directory + '../mpi_output_files/EX_03_output_data', profile=slice_beam)
 
     # PLOTS
 
     format_options = {'dirname': this_directory + '../mpi_output_files/EX_03_fig', 'linestyle': '.'}
     plots = Plot(general_params, rf_params, beam, dt_plt, N_t, 0,
                  0.0001763 * h, -450e6, 450e6, xunit='rad',
-                 separatrix_plot=True, Profile=slice_beam, h5file=this_directory + '../mpi_output_files/EX_03_output_data',
+                 separatrix_plot=True, profile=slice_beam, h5file=this_directory + '../mpi_output_files/EX_03_output_data',
                  histograms_plot=True, format_options=format_options)
     map_ += [bunchmonitor, plots]
 

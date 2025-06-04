@@ -7,13 +7,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Test case to show how to use phase loop (CERN PS Booster context).
 
 :Authors: **Danilo Quartullo**
-'''
+"""
 
-from __future__ import division, print_function
 
 import os
 
@@ -65,7 +64,7 @@ my_beam = Beam(general_params, n_macroparticles, n_particles)
 
 
 cut_options = CutOptions(cut_left=0, cut_right=2 * np.pi, n_slices=200,
-                         RFSectionParameters=rf_params, cuts_unit='rad')
+                         rf_station=rf_params, cuts_unit='rad')
 slices_ring = Profile(my_beam, cut_options)
 
 # Phase loop
@@ -75,7 +74,7 @@ phase_loop = BeamFeedback(general_params, rf_params, slices_ring, configuration)
 
 # Long tracker
 long_tracker = RingAndRFTracker(rf_params, my_beam, periodicity=False,
-                                BeamFeedback=phase_loop
+                                beam_feedback=phase_loop
                                 )
 
 full_ring = FullRingAndRF([long_tracker])
@@ -96,15 +95,15 @@ slices_ring.track()
 # Monitor
 bunch_monitor = BunchMonitor(general_params, rf_params, my_beam,
                              this_directory + '../output_files/EX_08_output_data',
-                             Profile=slices_ring, PhaseLoop=phase_loop)
+                             profile=slices_ring, phase_loop=phase_loop)
 
 
 # Plots
 format_options = {'dirname': this_directory + '../output_files/EX_08_fig'}
 plots = Plot(general_params, rf_params, my_beam, 50, n_turns, 0.0, 2 * np.pi,
-             -1e6, 1e6, xunit='rad', separatrix_plot=True, Profile=slices_ring,
+             -1e6, 1e6, xunit='rad', separatrix_plot=True, profile=slices_ring,
              format_options=format_options,
-             h5file=this_directory + '../output_files/EX_08_output_data', PhaseLoop=phase_loop)
+             h5file=this_directory + '../output_files/EX_08_output_data', phase_loop=phase_loop)
 
 # For testing purposes
 test_string = ''

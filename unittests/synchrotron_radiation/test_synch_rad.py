@@ -293,18 +293,18 @@ class TestSynchRad(unittest.TestCase):
 
         cut_options = CutOptions(
             cut_left=0., cut_right=self.bucket_length, n_slices=number_slices)
-        self.slice_beam = Profile(self.beam, CutOptions=cut_options)
+        self.slice_beam = Profile(self.beam, cut_options=cut_options)
 
-        self.slice_beam_cpp = Profile(self.beam_cpp, CutOptions=cut_options)
+        self.slice_beam_cpp = Profile(self.beam_cpp, cut_options=cut_options)
 
         # DEFINE TRACKER---------------------------------------------------------------
         self.longitudinal_tracker = []
         self.longitudinal_tracker_cpp = []
         for i in range(self.n_sections):
             self.longitudinal_tracker.append(RingAndRFTracker(
-                self.RF_sct_par[i], self.beam, Profile=self.slice_beam))
+                self.RF_sct_par[i], self.beam, profile=self.slice_beam))
             self.longitudinal_tracker_cpp.append(RingAndRFTracker(
-                self.RF_sct_par_cpp[i], self.beam_cpp, Profile=self.slice_beam_cpp))
+                self.RF_sct_par_cpp[i], self.beam_cpp, profile=self.slice_beam_cpp))
 
         full_tracker = FullRingAndRF(self.longitudinal_tracker)
         full_tracker_cpp = FullRingAndRF(self.longitudinal_tracker_cpp)

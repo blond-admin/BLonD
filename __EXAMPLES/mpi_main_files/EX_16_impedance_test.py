@@ -7,21 +7,17 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Example script to take into account intensity effects without multi-turn wakes
 Example for the PSB with a narrow-band resonator, both in frequency and time
 domain, and with an inductive impedance.
 
 :Authors: **Juan F. Esteban Mueller**
-'''
+"""
 
 
-from __future__ import division, print_function
-from blond.utils.mpi_config import mpiprint, WORKER
-from blond.utils import bmath as bm
 
 import os
-from builtins import range
 
 import matplotlib as mpl
 import numpy as np
@@ -38,6 +34,8 @@ from blond.impedances.impedance_sources import Resonators
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.trackers.tracker import RingAndRFTracker
+from blond.utils import bmath as bm
+from blond.utils.mpi_config import mpiprint, WORKER
 
 DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 # To check if executing correctly, rather than to run the full simulation

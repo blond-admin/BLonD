@@ -7,38 +7,51 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Module to compute beam slicing for a sparse beam**
 **Only valid for cases with constant revolution and RF frequencies**
 
 :Authors: **Juan F. Esteban Mueller**
-'''
+"""
 
-from __future__ import division, print_function
+from __future__ import annotations
 
-from builtins import range
+from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ..beam.profile import CutOptions, Profile
+from .profile import CutOptions, Profile
 from ..utils import bmath as bm
+from ..utils.legacy_support import handle_legacy_kwargs
+
+if TYPE_CHECKING:
+    from typing import Literal
+
+    from numpy.typing import NDArray as NumpyArray
+
+    from .beam import Beam
+    from ..input_parameters.rf_parameters import RFStation
+
+    TrackerTypes = Literal["C", "onebyone"]
 
 
 class SparseSlices:
-    '''
+    """
     *This class instantiates a Profile object for each filled bucket according
     to the provided filling pattern. Each Profile object will be of the size of
     an RF bucket and will have the same number of slices.*
-    '''
+    """
 
-    def __init__(self, RFStation, Beam, n_slices_bucket, filling_pattern, tracker='C',
-                 direct_slicing=False):
+    @handle_legacy_kwargs
+    def __init__(self, rf_station: RFStation, beam: Beam, n_slices_bucket: int,
+                 filling_pattern: NumpyArray, tracker: TrackerTypes = 'C',
+                 direct_slicing: bool = False):
 
         #: *Import (reference) Beam*
-        self.Beam = Beam
+        self.beam = beam
 
         #: *Import (reference) RFStation*
-        self.RFParams = RFStation
+        self.rf_station = rf_station
 
         #: *Number of slices per bucket*
         self.n_slices_bucket = n_slices_bucket
@@ -54,6 +67,8 @@ class SparseSlices:
         self.n_filled_buckets = int(np.sum(filling_pattern))
 
         # Pre-processing the slicing edges
+        self.cut_left_array = np.zeros(self.n_filled_buckets)
+        self.cut_right_array = np.zeros(self.n_filled_buckets)
         self.set_cuts()
 
         # Initialize individual slicing objects
@@ -68,9 +83,11 @@ class SparseSlices:
         for i in range(self.n_filled_buckets):
             # Only valid for cut_edges='edges'
 
-            self.profiles_list.append(Profile(Beam, CutOptions(cut_left=self.cut_left_array[i],
-                                                               cut_right=self.cut_right_array[i],
-                                                               n_slices=n_slices_bucket)))
+            self.profiles_list.append(
+                    Profile(beam,
+                            CutOptions(cut_left=float(self.cut_left_array[i]),
+                                       cut_right=float(self.cut_right_array[i]),
+                                       n_slices=n_slices_bucket)))
 
             self.profiles_list[i].n_macroparticles = self.n_macroparticles_array[i, :]
             self.bin_centers_array[i, :] = self.profiles_list[i].bin_centers
@@ -81,24 +98,46 @@ class SparseSlices:
         if tracker == 'C':
             self.track = self._histogram_c
         elif tracker == 'onebyone':
-            self.track = self._histrogram_one_by_one
+            self.track = self._histogram_one_by_one
         else:
-            # WrongCalcError
-            raise RuntimeError(
-                'Tracking method not recognized!')
+            raise NameError(f"{tracker=}")
 
         # Track at initialisation
         if direct_slicing:
             self.track()
 
+    @property
+    def Beam(self):
+        from warnings import warn
+        warn("Beam is deprecated, use beam", DeprecationWarning, stacklevel=2)
+        return self.beam
+
+    @Beam.setter
+    def Beam(self, val):
+        from warnings import warn
+        warn("Beam is deprecated, use beam", DeprecationWarning, stacklevel=2)
+        self.beam = val
+
+    @property
+    def RFParams(self):
+        from warnings import warn
+        warn("RFParams is deprecated, use rf_station", DeprecationWarning, stacklevel=2)
+        return self.rf_station
+
+    @RFParams.setter
+    def RFParams(self, val):
+        from warnings import warn
+        warn("RFParams is deprecated, use rf_station", DeprecationWarning, stacklevel=2)
+        self.rf_station = val
+
     def set_cuts(self):
-        '''
+        """
         *Method to set the self.cut_left_array and self.cut_right_array
         properties, with the limits being an RF period.
         This is done as a pre-processing.*
-        '''
+        """
         # RF period
-        t_rf = self.RFParams.t_rf[0, self.RFParams.counter[0]]
+        t_rf = self.rf_station.t_rf[0, self.rf_station.counter[0]]
 
         self.cut_left_array = np.zeros(self.n_filled_buckets)
         self.cut_right_array = np.zeros(self.n_filled_buckets)
@@ -108,19 +147,25 @@ class SparseSlices:
             self.cut_right_array[i] = (bucket_index + 1) * t_rf
 
     def _histogram_c(self):
-        '''
-        *Histrogram generated by calling an optimized C++ function that
+        """
+        *Histogram generated by calling an optimized C++ function that
         calculates all the profile at once.*
-        '''
-        bm.sparse_histogram(self.Beam.dt, self.n_macroparticles_array,
+        """
+        # todo could be any backend, not only C
+        bm.sparse_histogram(self.beam.dt, self.n_macroparticles_array,
                             self.cut_left_array, self.cut_right_array,
                             self.bunch_indexes, self.n_slices_bucket)
 
     def _histrogram_one_by_one(self):
-        '''
-        *Histrogram generated by calling the tack() method of each Profile
+        from warnings import warn
+        warn("_histrogram_one_by_one is deprecated, use _histogram_one_by_one", DeprecationWarning, stacklevel=2)
+        self._histogram_one_by_one()
+
+    def _histogram_one_by_one(self):
+        """
+        *Histogram generated by calling the tack() method of each Profile
         object*
-        '''
+        """
 
         for i in range(self.n_filled_buckets):
             self.profiles_list[i].track()
