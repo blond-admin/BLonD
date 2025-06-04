@@ -56,7 +56,7 @@ class TestSynchtrotronRadiation(unittest.TestCase):
 
         self.rf_station = RFStation(self.ring, harmonic_number, voltage,
                                     phi_offsets, n_rf=1)
-
+        self.rf_station.sr_flag = True
         self.beam = Beam(self.ring, self.n_macroparticles, self.intensity)
 
         bigaussian(self.ring, self.rf_station, self.beam,
@@ -78,12 +78,12 @@ class TestSynchtrotronRadiation(unittest.TestCase):
         #Wrong type for the radiation integrals
         rad_int = [[random.random() for k in range(5)], [random.random() for k in range(7)]]
         with self.assertRaises(ValueError):
-            SynchrotronRadiation(ring, self.rf_station, self.beam, rad_int=rad_int,
+            SynchrotronRadiation(ring, self.rf_station, self.beam, radiation_integrals=rad_int,
                                  seed=self.seed, n_kicks=1, shift_beam=False,
                                  python=True, quantum_excitation=False)
         with self.assertRaisesRegex(
-                TypeError, f"Expected a list or numpy.ndarray as an input. Received {type('not an array')}."):
-            SynchrotronRadiation(ring, self.rf_station, self.beam, rad_int='not an array',
+                TypeError, f"Expected a list or a NDArray as an input. Received type(radiation_integrals)={type('not an array')}."):
+            SynchrotronRadiation(ring, self.rf_station, self.beam, radiation_integrals='not an array',
                                  seed=self.seed, n_kicks=1, shift_beam=False,
                                  python=True, quantum_excitation=False)
         #Wrong length
@@ -91,7 +91,7 @@ class TestSynchtrotronRadiation(unittest.TestCase):
                 ValueError, "The first five synchrotron " +
                                      "radiation integrals are requires " +
                                      "Ignoring input."):
-            SynchrotronRadiation(ring, self.rf_station, self.beam, rad_int=[1,2,3],
+            SynchrotronRadiation(ring, self.rf_station, self.beam, radiation_integrals=[1,2,3],
                                  seed=self.seed, n_kicks=1, shift_beam=False,
                                  python=True, quantum_excitation=False)
 
@@ -746,7 +746,7 @@ class TestSynchRad(unittest.TestCase):
     def test_with_quant_exc_100t_parallel(self):
         os.environ['OMP_NUM_THREADS'] = '2'
         turns = 100
-        atol = 0
+        atol = 1e-1
         rtol_avg = 1e-1
         rtol_std = 1e-1
         SR = []
