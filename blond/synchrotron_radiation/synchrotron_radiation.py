@@ -252,8 +252,7 @@ class SynchrotronRadiation:
                                           self.rf_params.section_length
                                           / self.ring.ring_circumference))
         print(f'Equilibrium energy spread = {self.sigma_dE * 100:1.4f}%'
-              + f' ({self.sigma_dE 
-                     * self.ring.energy[0, i_turn]*1e-6:1.4f}) MeV')
+              + f'({self.sigma_dE*self.ring.energy[0, i_turn]*1e-6:1.4f}) MeV')
         print('------------------------------------------------')
 
     def track_SR_python(self):
