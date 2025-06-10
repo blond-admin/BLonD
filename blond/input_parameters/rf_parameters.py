@@ -33,7 +33,9 @@ else:
     from scipy.integrate import cumtrapz
 
 if TYPE_CHECKING:
-    from typing import Literal, Optional
+    from typing import Literal, Optional, Iterable
+
+    from numpy.typing import NDArray
 
     from .ring import Ring
     from ..utils.types import DeviceType
@@ -433,10 +435,60 @@ class RFStation:
                 eta += eta_i * (delta ** i)
             return eta
 
+    def compute_voltage_waveform(self, time_array: Iterable[float],
+                                 turn_number: Optional[int] = None,
+                                 design: bool = False) -> NDArray:
+        """
+        Convenience function to compute the voltage waveform provided by
+        this RFStation at the current turn (if turn_number is None) or
+        at the turn specified by turn_number.
+
+        Parameters
+        ----------
+        time_array : Iterable[float]
+            The array of time values at which to compute the voltage
+        turn_number : Union[int, None], optional
+            The turn number at which to compute the voltage.
+            The default is None.
+            If None, the present value of self.counter is used.
+        design : bool, optional
+            Flag to force using the design value (ignore the influence
+                                                  of feedbacks)
+            The default is False.
+            If True, the design value is used, if False the actual
+            value is used.
+
+        Returns
+        -------
+        NDArray
+            2D numpy array of [time, voltage].
+        """
+
+        turn_number = self.counter[0] if turn_number is None else turn_number
+
+        waveform = np.array([time_array, np.zeros_like(time_array)])
+        for system in range(self.n_rf):
+            volt = self.voltage[system, turn_number]
+            if design:
+                phase = self.phi_rf_d[system, turn_number]
+                omega = self.omega_rf_d[system, turn_number]
+            else:
+                phase = self.phi_rf[system, turn_number]
+                omega = self.omega_rf[system, turn_number]
+
+            if hasattr(self, "_device") and self._device == 'GPU':
+                volt = volt.get()
+                phase = phase.get()
+                omega = omega.get()
+
+            waveform[1] += volt*np.sin(omega*waveform[0] + phase)
+
+        return waveform
+
     def to_gpu(self, recursive=True):
-        """
+        '''
         Transfer all necessary arrays to the GPU
-        """
+        '''
         # Check if to_gpu has been invoked already
         if hasattr(self, '_device') and self._device == 'GPU':
             return
