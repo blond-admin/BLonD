@@ -72,7 +72,7 @@ Logger(debug=True)
 np.set_printoptions(linewidth=70, precision=10)
 
 # Set up machine parameters
-ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=N_t)
+ring = Ring(C, alpha, p_s, particle=Proton(), n_turns=N_t)
 logging.info("...... Machine parameters set!")
 
 # Set up RF parameters
@@ -122,11 +122,11 @@ if FEEDFORWARD:
         beam.dt[int(i*N_m):int((i+1)*N_m)] = bunch.dt + (i + 10) * rf.t_rf[0, 0] * bunch_spacing
         beam.dE[int(i*N_m):int((i+1)*N_m)] = bunch.dE
 
-    profile = Profile(beam, CutOptions=CutOptions(cut_left=0.e-9,
-                                                  cut_right=rf.t_rf[0, 0] * (n_bunches * bunch_spacing + 200),
-                                                  n_slices=2**5 * (n_bunches * bunch_spacing)))
+    profile = Profile(beam, cut_options=CutOptions(cut_left=0.e-9,
+                                                   cut_right=rf.t_rf[0, 0] * (n_bunches * bunch_spacing + 200),
+                                                   n_slices=2**5 * (n_bunches * bunch_spacing)))
     profile.track()
-    logging.debug("Beam q/m ratio %.3e", profile.Beam.ratio)
+    logging.debug("Beam q/m ratio %.3e", profile.beam.ratio)
 
     OTFB = SPSCavityFeedback(
         rf, profile, G_ff=1, G_llrf=10, G_tx=1,
@@ -135,8 +135,8 @@ if FEEDFORWARD:
     )
 
     tracker = RingAndRFTracker(
-        rf, beam, CavityFeedback=OTFB,
-        interpolation=True, Profile=profile
+        rf, beam, cavity_feedback=OTFB,
+                               interpolation=True, profile=profile
     )
 
     if not os.path.exists("fig"):

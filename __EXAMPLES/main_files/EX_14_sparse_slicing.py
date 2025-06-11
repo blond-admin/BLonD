@@ -7,18 +7,15 @@
 # Project website: http://blond.web.cern.ch/
 
 
-'''
+"""
 Test case for the sparse_slicing routine.
 Example for the FCC-ee at 175 GeV.
 
 :Authors: **Juan F. Esteban Mueller**
-'''
-
-from __future__ import division, print_function
-import time
+"""
 
 import os
-from builtins import range
+import time
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt

@@ -7,11 +7,11 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Function(s) for pre-processing input data**
 
 :Authors: **Simon Albright**
-'''
+"""
 from __future__ import annotations
 
 import numbers
@@ -19,16 +19,16 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from . import exceptions as blExcept
+from . import exceptions as blond_exceptions
 from . import bmath as bm
 
 if TYPE_CHECKING:
-    from typing import Iterable, TypeVar
+    from numpy.typing import NDArray as NumpyArray
+    from typing import Any, Iterable, TypeVar
 
-    T = TypeVar("T")
 
 
-def check_input(variable, msg, *args):
+def check_input(variable: Any, msg: str, *args) -> tuple[bool, Any]:
     """Check input and return InputDataError exception with user defined
     message if False
 
@@ -37,7 +37,7 @@ def check_input(variable, msg, *args):
         msg (_type_): _description_
 
     Raises:
-        blExcept.InputDataError: _description_
+        blond_exceptions.InputDataError: _description_
 
     Returns:
         _type_: _description_
@@ -46,10 +46,10 @@ def check_input(variable, msg, *args):
 
     if result[0]:
         return result
-    raise blExcept.InputDataError(msg)
+    raise blond_exceptions.InputDataError(msg)
 
 
-def check_data_dimensions(input_data, *args):
+def check_data_dimensions(input_data: Any, *args) -> tuple[bool, Any]:
     """
     General function to check if input_data is number, or nD array
     for each member of args the input_data is checked
@@ -84,8 +84,7 @@ def check_data_dimensions(input_data, *args):
 
     return success, type(input_data)
 
-
-def _check_number(input_data):
+def _check_number(input_data: Any) -> bool:
     """returns True if input_data can be cast to int
 
     Args:
@@ -105,8 +104,7 @@ def _check_number(input_data):
     except (TypeError, ValueError):
         return False
 
-
-def _check_length(input_data, length):
+def _check_length(input_data: NumpyArray | list | tuple, length: int) -> bool:
     """ Returns True if len(input_data) == length
     Should this return True if n-dim > 1?
 
@@ -129,7 +127,7 @@ def _check_length(input_data, length):
         return False
 
 
-def _check_dimensions(input_data, dim):
+def _check_dimensions(input_data: NumpyArray | list | tuple, dim: Iterable[int]) -> bool:
     """
     Casts input_data to numpy array and dimensions to tuple
     compares shape of array to tuple and returns True if equal.
@@ -145,6 +143,7 @@ def _check_dimensions(input_data, dim):
     Returns:
         _type_: _description_
     """
+
     try:
         iter(dim)
     except TypeError:

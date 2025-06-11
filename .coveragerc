@@ -13,7 +13,10 @@ omit =
     *.cpp
     *.h
     *.cu
+    *.npy
+    *.npz
     blond/compile.py
+    blond/_version.py
     blond/sanity_check.py
     blond/gpu/*
     blond/utils/butils_wrap_numba.py

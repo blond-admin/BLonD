@@ -7,14 +7,13 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Test case for the synchrotron radiation routine.
 Example for the FCC-ee at 175 GeV.
 
 :Authors: **Juan F. Esteban Mueller**
-'''
+"""
 
-from __future__ import division
 from scipy.optimize import curve_fit
 
 import os
@@ -101,12 +100,12 @@ beam = Beam(general_params, n_macroparticles, n_particles)
 number_slices = 500
 
 cut_options = CutOptions(cut_left=0., cut_right=bucket_length, n_slices=number_slices)
-slice_beam = Profile(beam, CutOptions=cut_options)
+slice_beam = Profile(beam, cut_options=cut_options)
 
 # DEFINE TRACKER---------------------------------------------------------------
 longitudinal_tracker = []
 for i in range(n_sections):
-    longitudinal_tracker.append(RingAndRFTracker(RF_sct_par[i], beam, Profile=slice_beam))
+    longitudinal_tracker.append(RingAndRFTracker(RF_sct_par[i], beam, profile=slice_beam))
 
 full_tracker = FullRingAndRF(longitudinal_tracker)
 
@@ -241,12 +240,12 @@ beam = Beam(general_params, n_macroparticles, n_particles)
 # DEFINE SLICES----------------------------------------------------------------
 
 cut_options = CutOptions(cut_left=0., cut_right=bucket_length, n_slices=number_slices)
-slice_beam = Profile(beam, CutOptions=cut_options)
+slice_beam = Profile(beam, cut_options=cut_options)
 
 # DEFINE TRACKER---------------------------------------------------------------
 longitudinal_tracker = []
 for i in range(n_sections):
-    longitudinal_tracker.append(RingAndRFTracker(RF_sct_par[i], beam, Profile=slice_beam))
+    longitudinal_tracker.append(RingAndRFTracker(RF_sct_par[i], beam, profile=slice_beam))
 
 full_tracker = FullRingAndRF(longitudinal_tracker)
 

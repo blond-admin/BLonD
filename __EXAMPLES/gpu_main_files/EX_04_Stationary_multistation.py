@@ -7,21 +7,20 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Example input for simulating a ring with multiple RF stations
 No intensity effects
 
 :Authors: **Helga Timko**
-'''
+"""
 
-from __future__ import division, print_function
 
 import os
 
 import matplotlib as mpl
 import numpy as np
 
-import blond.utils.bmath as bm
+from blond.utils import bmath as bm
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, FitOptions, Profile
@@ -117,14 +116,14 @@ slice_beam = Profile(beam, CutOptions(n_slices=100),
 # Define what to save in file
 bunchmonitor = BunchMonitor(general_params, rf_params_tot, beam,
                             this_directory + '../gpu_output_files/EX_04_output_data',
-                            Profile=slice_beam, buffer_time=1)
+                            profile=slice_beam, buffer_time=1)
 
 # PLOTS
 format_options = {'dirname': this_directory +
                   '../gpu_output_files/EX_04_fig', 'linestyle': '.'}
 plots = Plot(general_params, rf_params_tot, beam, dt_plt, dt_plt, 0,
              0.0001763 * h, -450e6, 450e6, xunit='rad',
-             separatrix_plot=True, Profile=slice_beam,
+             separatrix_plot=True, profile=slice_beam,
              h5file=this_directory + '../gpu_output_files/EX_04_output_data',
              histograms_plot=True, format_options=format_options)
 

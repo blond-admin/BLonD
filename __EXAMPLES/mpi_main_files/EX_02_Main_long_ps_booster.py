@@ -7,16 +7,14 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Example script to take into account intensity effects from impedance tables
 
 :Authors: **Danilo Quartullo**
-'''
+"""
 
-from __future__ import division, print_function
 
 import os
-from builtins import bytes, range, str
 
 import matplotlib as mpl
 import numpy as np
@@ -171,7 +169,7 @@ if WORKER.is_master:
     format_options = {'dirname': this_directory + '../mpi_output_files/EX_02_fig', 'linestyle': '.'}
     plots = Plot(ring, RF_sct_par, my_beam, 1, n_turns, 0,
                  5.72984173562e-7, - my_beam.sigma_dE * 4.2, my_beam.sigma_dE * 4.2, xunit='s',
-                 separatrix_plot=True, Profile=slice_beam, h5file=this_directory + '../mpi_output_files/EX_02_output_data',
+                 separatrix_plot=True, profile=slice_beam, h5file=this_directory + '../mpi_output_files/EX_02_output_data',
                  histograms_plot=True, format_options=format_options)
     map_ += [bunchmonitor] + [plots]
 
