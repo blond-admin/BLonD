@@ -194,7 +194,7 @@ class BarrierGenerator:
 
         for i, (time, tr) in enumerate(zip(times, t_rev)):
             bin_width = tr/(10*max_h)
-            n_bins = tr/bin_width
+            n_bins = int(tr/bin_width)
             bin_cents = bm.linspace(0, tr, n_bins)
             barrier = self.waveform_at_time(time, bin_cents)
 
