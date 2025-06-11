@@ -13,13 +13,17 @@ else:
     _CUPY_AVAILABLE = True
 
 # BLonD imports
+from ..input_parameters import rf_parameters as rfpar
 from ..utils import bmath as bm
+from ..utils import data_check as dc
 
 
 if TYPE_CHECKING:
     from typing import Iterable
 
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray as NumpyArray
+    if _CUPY_AVAILABLE:
+        from cupy.typing import NDArray as CupyArray
 
     from blond.beam.beam import Beam
 
@@ -110,8 +114,120 @@ class BarrierBucket:
 
         self._device = 'CPU'
 
-def barrier_to_harmonics(waveform: NDArray, harmonics: Iterable[int])\
-                                -> tuple[tuple[float, ...], tuple[float, ...]]:
+
+class BarrierGenerator:
+
+    def __init__(self, t_center: float | Iterable[Iterable[float]],
+                 t_width: float | Iterable[Iterable[float]],
+                 peak: float | Iterable[Iterable[float]]):
+
+        self._input_t_center = t_center
+        self._input_t_width = t_width
+        self._input_peak = peak
+
+    def waveform_at_time(self, time: float, bin_centers: Iterable[float])\
+                                                     -> NumpyArray | CupyArray:
+        """
+        Construct the ideal barrier waveform at the specified time on
+        the given bin_centers
+
+        Returns:
+            CupyArray|NumpyArray: The array of the barrier waveform
+        """
+
+        cent = dc.interp_if_array(time, self._input_t_center)
+        width = dc.interp_if_array(time, self._input_t_width)
+        peak = dc.interp_if_array(time, self._input_peak)
+
+        return compute_sin_barrier(cent, width, peak, bin_centers)
+
+    def for_rf_station(self, times: Iterable[float], t_rev: Iterable[float],
+                       harmonics: Iterable[int], m: int = 1)\
+                                                    -> tuple[list[int],
+                                                             list[NumpyArray],
+                                                             list[NumpyArray]]:
+        """
+        Converts the barrier definition into a form that can be input to
+        the RFStation object.  The barrier will be constructed at all
+        given times and converted to a Fourier series to give the
+        amplitude and phase for each harmonic at those times.
+
+        Args:
+            times (Iterable[float]): The times at which to construct the
+                                     Fourier series
+            t_rev (Iterable[float]): The revolution time at the
+            harmonics (Iterable[int]): The RF harmonics used for the
+                                       barrier
+            m (int, optional): The order of the sinc filter to be
+                               applied.  For details, see sinc_filtering
+                               function.
+                               Defaults to 1.
+
+        Raises:
+            ValueError: Raised if len(times) != (len(t_rev)
+
+        Returns:
+            tuple[list[int], list[NumpyArray], list[NumpyArray]]:
+                    A tuple containing:
+                        The original input harmonics as a list
+                        A list of 2-arrays defining the voltages
+                        A list of 2-arrays defining the phases
+        """
+
+        max_h = bm.max(harmonics)
+
+        if len(times) != len(t_rev):
+            raise ValueError("Input times and t_rev must have the same"
+                             + " number of elements")
+
+        voltages = []
+        phases = []
+        harmonics = list(harmonics)
+
+        for _ in harmonics:
+            v = np.zeros([2, len(times)])
+            p = np.zeros([2, len(times)])
+            v[0] = times
+            p[0] = times
+            voltages.append(v)
+            phases.append(p)
+
+        for i, (time, tr) in enumerate(zip(times, t_rev)):
+            bin_width = tr/(10*max_h)
+            n_bins = tr/bin_width
+            bin_cents = bm.linspace(0, tr, n_bins)
+            barrier = self.waveform_at_time(time, bin_cents)
+
+            amps, phis = waveform_to_harmonics(barrier, harmonics)
+            amps = sinc_filtering(amps, m)
+
+            voltages[i][1] = amps
+            phases[i][1] = phis
+
+        return harmonics, voltages, phases
+
+
+
+def compute_sin_barrier(center: float, width: float, amplitude: float,
+                        bin_centers: Iterable[float]) -> NumpyArray | CupyArray:
+
+    barrier_waveform = bm.zeros_like(bin_centers)
+
+    low_bin = bm.where(bin_centers >= center-width/2)[0][0]
+    high_bin = bm.where(bin_centers >= center+width/2)[0][0]
+
+    b_time = bin_centers[low_bin:high_bin] - bin_centers[low_bin]
+
+    barrier = amplitude * bm.sin(2*np.pi * b_time/width)
+
+    barrier_waveform[low_bin:high_bin] = barrier
+
+    return barrier_waveform
+
+
+def waveform_to_harmonics(waveform: NumpyArray | CupyArray,
+                          harmonics: Iterable[int]) -> tuple[tuple[float, ...],
+                                                             tuple[float, ...]]:
     """
     Converts an arbitrary waveform to a fourier series in amplitude and
     phase.  Waveform is assumed to be 1 revolution period in length.
