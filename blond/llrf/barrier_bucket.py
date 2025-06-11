@@ -209,18 +209,28 @@ class BarrierGenerator:
 
 
 def compute_sin_barrier(center: float, width: float, amplitude: float,
-                        bin_centers: Iterable[float]) -> NumpyArray | CupyArray:
+                        bin_centers: Iterable[float],
+                        periodic: bool = True) -> NumpyArray | CupyArray:
 
     barrier_waveform = bm.zeros_like(bin_centers)
 
-    low_bin = bm.where(bin_centers >= center-width/2)[0][0]
-    high_bin = bm.where(bin_centers >= center+width/2)[0][0]
+    t_step = bin_centers[1] - bin_centers[0]
+    n_bins = int(width/t_step)
+    barr_time = np.linspace(center-width/2, center+width/2, n_bins)
 
-    b_time = bin_centers[low_bin:high_bin] - bin_centers[low_bin]
+    barrier = amplitude * bm.sin(2*np.pi * (barr_time-center)/width)
 
-    barrier = amplitude * bm.sin(2*np.pi * b_time/width)
-
-    barrier_waveform[low_bin:high_bin] = barrier
+    barrier_waveform += bm.interp(bin_centers, barr_time, barrier,
+                                  left = 0, right = 0)
+    if periodic:
+        if barr_time[-1] > bin_centers[-1]:
+            barrier_waveform += bm.interp(bin_centers,
+                                          barr_time-bin_centers[-1], barrier,
+                                          left = 0, right = 0)
+        if barr_time[0] < bin_centers[0]:
+            barrier_waveform += bm.interp(bin_centers,
+                                          barr_time+bin_centers[-1], barrier,
+                                          left = 0, right = 0)
 
     return barrier_waveform
 
