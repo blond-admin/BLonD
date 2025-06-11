@@ -211,6 +211,27 @@ class BarrierGenerator:
 def compute_sin_barrier(center: float, width: float, amplitude: float,
                         bin_centers: Iterable[float],
                         periodic: bool = True) -> NumpyArray | CupyArray:
+    """
+    Computes a single-period sinusoidal barrier.
+
+    Args:
+        center (float): The time-center of the barrier
+        width (float): The width of the barrier
+        amplitude (float): The peak amplitude of the barrier
+        bin_centers (Iterable[float]): The bin centers to use
+        periodic (bool, optional):
+                    Flag to enable barriers to wrap around at the
+                    start/end of bin_centers.
+                    Defaults to True.
+
+    Raises:
+        ValueError: Raises a ValueError if the barrier is longer than
+                    the given bin_centers.
+
+    Returns:
+        NumpyArray | CupyArray: Either a cupy or numpy array of the
+                                barrier waveform.
+    """
 
     barrier_waveform = bm.zeros_like(bin_centers)
 
