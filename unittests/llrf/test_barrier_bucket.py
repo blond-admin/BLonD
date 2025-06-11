@@ -113,5 +113,83 @@ class TestBarrierBucketFunctions(unittest.TestCase):
             self.assertAlmostEqual(a, a_exp, places = 1)
 
 
+
+class TestBarrierBucketGenerator(unittest.TestCase):
+
+    def test_fixed_barrier(self):
+
+        cent = 500E-9
+        width = 100E-9
+        ampl = 1E3
+
+        generator = bbuck.BarrierGenerator(cent, width, ampl)
+        bin_cents = np.linspace(0, 1000E-9, 1000)
+        wave = generator.waveform_at_time(1, bin_cents)
+
+        wave_pts = np.where(wave != 0)[0]
+        self.assertAlmostEqual(bin_cents[wave_pts[-1]]
+                               - bin_cents[wave_pts[0]], width, places=2)
+        self.assertAlmostEqual(np.mean(bin_cents[wave_pts]), cent, places=2)
+
+    def test_variable_barrier(self):
+
+        bin_cents = np.linspace(0, 1000E-9, 10000)
+
+        peak = [[0, 1], [1E3, 4E3]]
+        t_cent = [[0, 1], [200E-9, 800E-9]]
+        t_width = [[0, 1], [100E-9, 150E-9]]
+
+        generator = bbuck.BarrierGenerator(t_cent, t_width, peak)
+
+        for t in np.linspace(0, 1, 10):
+            peak_exp = np.interp(t, peak[0], peak[1])
+            cent_exp = np.interp(t, t_cent[0], t_cent[1])
+            width_exp = np.interp(t, t_width[0], t_width[1])
+            wave = generator.waveform_at_time(t, bin_cents)
+
+            self.assertAlmostEqual(np.max(wave), peak_exp, places=1)
+            self.assertAlmostEqual(np.min(wave), -peak_exp, places=1)
+
+            wave_pts = np.where(wave != 0)[0]
+            self.assertAlmostEqual(bin_cents[wave_pts[-1]]
+                                - bin_cents[wave_pts[0]], width_exp, places=1)
+            self.assertAlmostEqual(np.mean(bin_cents[wave_pts]), cent_exp,
+                                   places=1)
+
+    def test_for_rf_station(self):
+
+        cent = 500E-9
+        width = 100E-9
+        ampl = 1E3
+
+        generator = bbuck.BarrierGenerator(cent, width, ampl)
+
+        times = np.linspace(0, 1, 10)
+        t_rev = np.zeros_like(times) + 1000E-9
+        harmonics = np.arange(1, 11)
+
+        # Unfiltered
+        harms, amps, phases = generator.for_rf_station(times, t_rev,
+                                                       harmonics, m=0)
+
+        for a, p in zip(amps, phases):
+            self.assertListEqual(list(a[0]), list(times))
+            self.assertListEqual(list(p[0]), list(times))
+        self.assertListEqual(list(harms), list(harmonics))
+
+        bin_width = t_rev[0]/(10*harmonics[-1])
+        n_bins = int(t_rev[0]/bin_width)
+        bin_cents = np.linspace(0, t_rev[0], n_bins)
+
+        barrier = bbuck.compute_sin_barrier(cent, width, ampl, bin_cents)
+        amps_exp, phases_exp = bbuck.waveform_to_harmonics(barrier,
+                                                           harmonics)
+
+        for a, p in zip(amps, phases):
+            self.assertListEqual(list(a[1]), list(amps_exp))
+            self.assertListEqual(list(p[1]), list(phases_exp))
+
+
+
 if __name__ == "__main__":
     unittest.main()
