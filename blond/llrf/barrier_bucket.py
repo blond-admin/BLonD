@@ -218,6 +218,9 @@ def compute_sin_barrier(center: float, width: float, amplitude: float,
     n_bins = int(width/t_step)
     barr_time = np.linspace(center-width/2, center+width/2, n_bins)
 
+    if barr_time[-1] - barr_time[0] > bin_centers[-1] - bin_centers[0]:
+        raise ValueError("Given barrier width is too large and will overflow")
+
     barrier = amplitude * bm.sin(2*np.pi * (barr_time-center)/width)
 
     barrier_waveform += bm.interp(bin_centers, barr_time, barrier,
