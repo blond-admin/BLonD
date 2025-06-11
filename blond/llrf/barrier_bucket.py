@@ -163,8 +163,9 @@ class BarrierGenerator:
             amps, phis = waveform_to_harmonics(barrier, harmonics)
             amps = sinc_filtering(amps, m)
 
-            voltages[i][1] = amps
-            phases[i][1] = phis
+            for j in range(len(harmonics)):
+                voltages[j][1, i] = amps[j]
+                phases[j][1, i] = phis[j]
 
         return harmonics, voltages, phases
 

@@ -185,9 +185,9 @@ class TestBarrierBucketGenerator(unittest.TestCase):
         amps_exp, phases_exp = bbuck.waveform_to_harmonics(barrier,
                                                            harmonics)
 
-        for a, p in zip(amps, phases):
-            self.assertListEqual(list(a[1]), list(amps_exp))
-            self.assertListEqual(list(p[1]), list(phases_exp))
+        for i, (a, p) in enumerate(zip(amps, phases)):
+            self.assertEqual(a[1, 0], amps_exp[i])
+            self.assertEqual(p[1, 0], phases_exp[i])
 
 
 
