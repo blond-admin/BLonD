@@ -45,7 +45,7 @@ if TYPE_CHECKING:
     from ..beam.beam import Beam
     from ..input_parameters.rf_parameters import RFStation
     from ..utils.types import DeviceType
-
+    from cupy.typing import NDArray as CupyArray
     MainHarmonicOptionType = Literal['lowest_freq', 'highest_voltage'] | float
 
 
@@ -62,10 +62,11 @@ class FullRingAndRF:
         self.ring_and_rf_section = ring_and_rf_section
 
         #: *Total potential well in [V]*
-        self.potential_well: NumpyArray | None = None
+        self.potential_well: NumpyArray | CupyArray | None = None
 
         #: *Total potential well theta coordinates in [rad]*
-        self.potential_well_coordinates: NumpyArray | None = None
+        self.potential_well_coordinates: NumpyArray | CupyArray | None = None
+        self.total_voltage: NumpyArray | CupyArray | None = None
 
         #: *Ring circumference in [m]*
         self.ring_circumference: float = 0.0
@@ -74,6 +75,7 @@ class FullRingAndRF:
 
         #: *Ring radius in [m]*
         self.ring_radius = self.ring_circumference / (2 * np.pi)
+        self._device: DeviceType = 'CPU'
 
     @property
     def RingAndRFSection_list(self):
@@ -172,6 +174,28 @@ class FullRingAndRF:
 
         for RingAndRFSectionElement in self.ring_and_rf_section:
             RingAndRFSectionElement.track()
+
+    def to_gpu(self, recursive: bool = True):
+        """Function to loop over all the RingAndRFSection.track methods"""
+        import cupy as cp
+        self.potential_well_coordinates = cp.array(self.potential_well_coordinates)
+        self.potential_well = cp.array(self.potential_well)
+        self.total_voltage = cp.array(self.total_voltage)
+        if recursive:
+            for ring_and_rf_section in self.ring_and_rf_section:
+                ring_and_rf_section.to_gpu(recursive=recursive)
+        self._device: DeviceType = 'CPU'
+
+    def to_cpu(self, recursive: bool = True):
+        """Function to loop over all the RingAndRFSection.track methods"""
+        self.potential_well_coordinates = self.potential_well_coordinates.get()
+        self.potential_well = self.potential_well.get()
+        self.total_voltage = self.total_voltage.get()
+        if recursive:
+            for ring_and_rf_section in self.ring_and_rf_section:
+                ring_and_rf_section.to_cpu(recursive=recursive)
+
+        self._device: DeviceType = 'CPU'
 
 
 class RingAndRFTracker:
