@@ -28,55 +28,6 @@ if TYPE_CHECKING:
     from blond.beam.beam import Beam
 
 
-class ArbitraryWaveform:
-
-    def __init__(self, beam: Beam):
-
-        self.waveform = bm.array([[0], [0]])
-
-        self._beam = beam
-
-    def track(self):
-
-        self._beam.dE += (self._beam.Particle.charge
-                          * bm.interp(self._beam.dt, self.waveform[0],
-                                      self.waveform[1]))
-
-    def to_gpu(self, recursive: bool = True):
-
-        if not _CUPY_AVAILABLE:
-            raise RuntimeError("Cannot send to gpu, cupy not available")
-
-        # Check if to_gpu has been invoked already
-        if hasattr(self, '_device') and self._device == 'GPU':
-            return
-
-        if recursive:
-            self._beam.to_gpu()
-
-        self._bin_centers = cp.array(self._bin_centers)
-        self._barrier_waveform = cp.array(self._barrier_waveform)
-
-        self._device = 'GPU'
-
-    def to_cpu(self, recursive: bool = True):
-
-        if not _CUPY_AVAILABLE:
-            raise RuntimeError("Cannot send to gpu, cupy not available")
-
-        # Check if to_gpu has been invoked already
-        if hasattr(self, '_device') and self._device == 'CPU':
-            return
-
-        if recursive:
-            self._beam.to_cpu()
-
-        self._bin_centers = cp.asnumpy(self._bin_centers)
-        self._barrier_waveform = cp.asnumpy(self._barrier_waveform)
-
-        self._device = 'CPU'
-
-
 class BarrierGenerator:
 
     def __init__(self, t_center: float | Iterable[Iterable[float]],
