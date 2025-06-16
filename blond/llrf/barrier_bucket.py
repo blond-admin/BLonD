@@ -54,15 +54,22 @@ class BarrierGenerator:
         self._input_t_width = t_width
         self._input_peak = peak
 
-    def waveform_at_time(self, time: float, bin_centers: Iterable[float])\
-                                                     -> NumpyArray | CupyArray:
+    def waveform_at_time(self, time: float, bin_centers: Iterable[float]) -> NumpyArray | CupyArray:
         """
         Construct the ideal barrier waveform at the specified time on
         the given bin_centers
 
+        Args:
+            time (float):
+                The time in the ramp at which to compute the waveform.
+            bin_centers (Iterable[float]):
+                The bin centers for the timespan to cover with the
+                waveform.
+
         Returns:
             CupyArray|NumpyArray: The array of the barrier waveform
         """
+
 
         cent = dc.interp_if_array(time, self._input_t_center)
         width = dc.interp_if_array(time, self._input_t_width)
