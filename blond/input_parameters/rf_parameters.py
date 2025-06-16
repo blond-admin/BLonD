@@ -467,21 +467,20 @@ class RFStation:
         turn_number = self.counter[0] if turn_number is None else turn_number
 
         waveform = np.array([time_array, np.zeros_like(time_array)])
-        for system in range(self.n_rf):
-            volt = self.voltage[system, turn_number]
-            if design:
-                phase = self.phi_rf_d[system, turn_number]
-                omega = self.omega_rf_d[system, turn_number]
-            else:
-                phase = self.phi_rf[system, turn_number]
-                omega = self.omega_rf[system, turn_number]
 
-            if hasattr(self, "_device") and self._device == 'GPU':
-                volt = volt.get()
-                phase = phase.get()
-                omega = omega.get()
+        volts = self.voltage[:, turn_number]
+        if design:
+            phases = self.phi_rf_d[:, turn_number]
+            omegas = self.phi_rf_d[:, turn_number]
+        else:
+            phases = self.phi_rf[:, turn_number]
+            omegas = self.phi_rf[:, turn_number]
 
-            waveform[1] += volt*np.sin(omega*waveform[0] + phase)
+        volts = bm.rf_volt_comp(volts, omegas, phases, time_array)
+        if hasattr(self, '_device') and self._device == 'GPU':
+            volts = volts.get()
+
+        waveform[1] = volts
 
         return waveform
 
