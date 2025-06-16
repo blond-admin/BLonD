@@ -200,6 +200,12 @@ def waveform_to_harmonics(waveform: NumpyArray | CupyArray,
 
     The input waveform can be reconstructed with a sin function.
 
+    Args:
+        waveform (NumpyArray | CupyArray):
+            Voltage waveform covering a single revolution period.
+        harmonics (Iterable[int]):
+            The RF harmonics to be used for the final fourier series.
+
     Returns:
         tuple[tuple[float, ...]]:
             Two tuples of float, length equal to len(harmonics).
