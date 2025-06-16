@@ -29,6 +29,22 @@ if TYPE_CHECKING:
 
 
 class BarrierGenerator:
+    """
+    Class to generate barrier bucket RF systems.  Converts parameters
+    for a given barrier to suitable inputs for an RFStation object.
+
+    Based on developments of M. Vadai for PS barrier bucket system.
+    https://cds.cern.ch/record/2694233/files/mopts107.pdf
+
+    Parameters
+    ----------
+        t_center : (float | Iterable[Iterable[float]])
+            The center time of the barrier in seconds
+        t_width : (float | Iterable[Iterable[float]])
+            The width the barrier in seconds
+        peak : (float | Iterable[Iterable[float]])
+            The peak amplitude of the barrier in V
+    """
 
     def __init__(self, t_center: float | Iterable[Iterable[float]],
                  t_width: float | Iterable[Iterable[float]],
