@@ -469,13 +469,22 @@ def match_beam_from_distribution(beam: Beam, full_ring_and_rf: FullRingAndRF, ri
     beta = rf_params.beta[0]
     E = rf_params.energy[0]
     charge = rf_params.charge
+    omega_rf = rf_params.omega_rf
     #    acceleration_kick = FullRingAndRF.ring_and_rf_section[0].acceleration_kick[0]
 
-    # Minimum omega_rf is used to compute the size of the bucket
-    omega_rf = []
-    for i in range(n_rf):
-        omega_rf += [rf_params.omega_rf[i][0]]
-    omega_rf = np.array(omega_rf)
+    if main_harmonic_option == "lowest_freq":
+        omega_rf = np.min(omega_rf)
+    elif main_harmonic_option == 'highest_voltage':
+        omega_rf = np.min(omega_rf[rf_params.voltage
+                                               == np.max(rf_params.voltage)])
+    elif isinstance(main_harmonic_option, (int, float)):
+        if omega_rf[omega_rf == main_harmonic_option].size == 0:
+            # PotentialWellError
+            raise RuntimeError("ERROR in FullRingAndRF: The desired"
+                                + " harmonic to compute the potential well"
+                                + " does not match the RF parameters...")
+        omega_rf = np.min(omega_rf[omega_rf == main_harmonic_option])
+
 
     eta_0 = rf_params.eta_0[0]
 
@@ -485,7 +494,7 @@ def match_beam_from_distribution(beam: Beam, full_ring_and_rf: FullRingAndRF, ri
 
     intensity_per_bunch = beam.intensity / n_bunches
     n_macro_per_bunch = int(beam.n_macroparticles / n_bunches)
-    bucket_size_tau = 2 * np.pi / (np.min(omega_rf))
+    bucket_size_tau = 2 * np.pi / omega_rf
 
     # ------------------------------------------------------------------------
     # GENERATES N BUNCHES WITHOUT INTENSITY EFFECTS
