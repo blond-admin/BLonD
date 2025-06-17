@@ -471,6 +471,7 @@ def match_beam_from_distribution(beam: Beam, full_ring_and_rf: FullRingAndRF, ri
     charge = rf_params.charge
     #    acceleration_kick = FullRingAndRF.ring_and_rf_section[0].acceleration_kick[0]
 
+    # TODO:  Refactor definition of main harmonic more broadly
     if main_harmonic_option == "lowest_freq":
         omega_rf = np.min(rf_params.omega_rf)
     elif main_harmonic_option == 'highest_voltage':
