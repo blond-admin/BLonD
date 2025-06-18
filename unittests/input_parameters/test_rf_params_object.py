@@ -250,10 +250,10 @@ class testRFParamClass(unittest.TestCase):
 
         exp = numpy.zeros_like(time_arr)
         for i in range(2):
-            v = rf_params.voltage[0, 0]
-            p = rf_params.phi_rf_d[0, 0]
-            o = rf_params.omega_rf_d[0, 0]
-            exp += v * numpy.sin(o * time_arr + p)
+            v = rf_params.voltage[i, 0]
+            p = rf_params.phi_rf_d[i, 0]
+            o = rf_params.omega_rf_d[i, 0]
+            exp += v * numpy.sin(o * time_arr[:] + p)
 
         numpy.testing.assert_array_almost_equal(vwave[1], exp)
 
