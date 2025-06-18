@@ -21,27 +21,49 @@ if TYPE_CHECKING:
     from typing import Any, Union
 
 
-def blond_to_xsuite_transform(dt: Union[float, np.ndarray], de: Union[float, np.ndarray], beta0: float,
-                              energy0: float, omega_rf: float, phi_s: float = 0):
-    r'''
+def blond_to_xsuite_transform(
+        dt: Union[float, np.ndarray],
+        de: Union[float, np.ndarray],
+        beta0: float,
+        energy0: float,
+        omega_rf: float,
+        phi_s: float = 0
+    ):
+    r"""
     Coordinate transformation from Xsuite to BLonD at a given turn or multiple turns if numpy arrays ar given.
+    The coordinates are transformed in the following way
 
-    :param dt: float or NDArray.
+    .. math::
+
+        p_{\tau} = \frac{\Delta E}{\beta_s E_s}
+
+    .. math::
+
+        \zeta = - \left ( \Delta t - \frac{\phi_s}{\omega_\text{rf}} \right) \beta_s c
+
+    Parameters
+    ----------
+    dt : float or NDArray
         The deviation in time from the reference clock in BLonD.
-    :param de: float or NDArray.
+    de : float or NDArray
         The deviation in energy from the synchronous particle.
-    :param beta0: float.
+    beta0 : float
         Synchronous beta.
-    :param energy0: float.
+    energy0 : float
         Synchronous energy.
-    :param omega_rf: float.
+    omega_rf : float
         The rf angular frequency.
-    :param phi_s: float.
-        Synchronous phase in radians equivalent to Xsuite's phi_rf (below transition energy input should be phi_s-phi_rf).
-        The default value is 0.
+    phi_s : float
+        Synchronous phase in radians equivalent to Xsuite's :math:`\phi_\text{rf}`
+        (below transition energy input should be :math:`\phi_s - \phi_\text{rf}`). The default value is 0.
 
-    :return zeta, ptau: as numpy-arrays (or single variable)
-    '''
+    Returns
+    -------
+    zeta : numpy-arrays (or single variable)
+        The xsuite longitudinal coordinate.
+    ptau : numpy-arrays (or single variable)
+        The xsuite longitudinal momentum.
+    """
 
     ptau = de / (beta0 * energy0)
     zeta = -(dt - phi_s / omega_rf) * beta0 * clight
@@ -50,25 +72,40 @@ def blond_to_xsuite_transform(dt: Union[float, np.ndarray], de: Union[float, np.
 
 def xsuite_to_blond_transform(zeta: Union[float, np.ndarray], ptau: Union[float, np.ndarray],
                               beta0: float, energy0: float, omega_rf: float, phi_s: float = 0):
-    r'''
-    Coordinate transformation from Xsuite to BLonD.
+    r"""
+    Coordinate transformation from Xsuite to BLonD. The coordinates are transformed as
 
-    :param zeta: float or numpy-array.
+    .. math::
+
+        \Delta E = p_{\tau} \beta_s c
+
+    .. math::
+
+        \Delta t = \frac{\zeta}{\beta_s c} + \frac{\phi_s}{\omega_\text{rf}}
+
+    Parameters
+    ----------
+    zeta : float or numpy-array
         The zeta coordinate as defined in Xsuite.
-    :param ptau: float or numpy-array.
+    ptau : float or numpy-array
         The ptau coordinate as defined in Xsuite.
-    :param beta0: float.
+    beta0 : float
         The synchronous beta.
-    :param energy0: float.
+    energy0 : float
         The synchronous energy in eV.
-    :param omega_rf: float.
+    omega_rf : float
         The rf angular frequency.
-    :param phi_s: float.
-        The synchronous phase in radians equivalent to Xsuite's phi_rf
-        (below transition energy input should be phi_s-phi_rf)
+    phi_s : float
+        The synchronous phase in radians equivalent to Xsuite's :math:`\phi_\text{rf}`
+        (below transition energy input should be :math:`\phi_s - \phi_\text{rf}`)
 
-    :return dt, dE: as numpy-arrays (or single variable)
-    '''
+    Returns
+    -------
+    dt : numpy-arrays (or single variable)
+        The BLonD longitudinal coordinate.
+    dE : numpy-arrays (or single variable)
+        The BLonD longitudinal energy coordinate.
+    """
 
     dE = ptau * beta0 * energy0
     dt = -zeta / (beta0 * clight) + phi_s / omega_rf
@@ -76,25 +113,49 @@ def xsuite_to_blond_transform(zeta: Union[float, np.ndarray], ptau: Union[float,
 
 
 class BlondElement:
+    r"""
+    The BlondElement class contains a trackable object from the BLonD simulation suite and the Beam object from
+    BLonD. The class is intended to be an element to be added to the Line in XTrack instead of the default
+    RF cavities in XTrack.
 
-    def __init__(self, trackable: Any, beam: Beam, update_zeta: bool = False) -> None:
-        r"""
-        The BlondElement class contains a trackable object from the BLonD simulation suite and the Beam object from
-        BLonD. The class is intended to be an element to be added to the Line in XTrack instead of the default
-        RF cavities in XTrack.
+    The behavior of the tracking of the class depends on what trackable object is passed.
+    If the RingAndRFTracker class is passed then a coordinate transformation will be performed and the energy
+    deviation of the particles will be updated. If the TotalInducedVoltage class is passed then the
+    TotalInducedVoltage.induced_voltage_sum() method will be called. Lastly, if any other class is passed then
+    the tracking of BlondElement will track this class.
 
-        The behavior of the tracking of the class depends on what trackable object is passed.
-        If the RingAndRFTracker class is passed then a coordinate transformation will be performed and the energy
-        deviation of the particles will be updated. If the TotalInducedVoltage class is passed then the
-        TotalInducedVoltage.induced_voltage_sum() method will be called. Lastly, if any other class is passed then
-        the tracking of BlondElement will track this class.
+    Parameters
+    ----------
+    trackable : BLonD trackable object
+        BLonD object to be tracked, e.g. the RingAndRFTracker.
+    beam : blond.beam.beam.Beam class
+        BLonD Beam class used for tracking.
+    update_zeta : bool
+        Option to convert :math:`\zeta` in xsuite to :math:`\Delta t` in BLonD.
+        This is not usually needed since BLonD only does the kick, i.e. only acts on :math:`\Delta E`.
 
-        trackable : BLonD trackable object
-            BLonD object to be tracked, e.g. the RingAndRFTracker.
-        beam : blond.beam.beam.Beam class
-            BLonD Beam class used for tracking.
-        """
+    Attributes
+    ----------
+    trackable : BLonD trackable object
+        BLonD object to be tracked, e.g. the RingAndRFTracker.
+    beam : blond.beam.beam.Beam class
+        BLonD Beam class used for tracking.
+    update_zeta : bool
+        Option to convert :math:`\zeta` in xsuite to :math:`\Delta t` in BLonD.
+        This is not usually needed since BLonD only does the kick, i.e. only acts on :math:`\Delta E`.
+    _dt_shift : float
+        The reference frame shift from BLonD to xsuite based on synchronous phase.
+    orbit_shift : xtrack.ZetaShift class
+        Class taking into account deviations from the design orbit, e.g. due to
+        RF frequency shifts caused by global RF feedbacks.
+    """
 
+    def __init__(
+            self,
+            trackable: Any,
+            beam: Beam,
+            update_zeta: bool = False
+        ) -> None:
         self.trackable = trackable
         self.beam = beam
         self.update_zeta = update_zeta
@@ -115,6 +176,8 @@ class BlondElement:
         r"""
         Tracking method which is called if the trackable BLonD class is the RingAndRFTracker.
 
+        Parameters
+        ----------
         particles : xtrack.Particles
             Particles class from xtrack
         """
@@ -138,6 +201,8 @@ class BlondElement:
         r"""
         Tracking method which is called if the trackable BLonD class is the TotalInducedVoltage.
 
+        Parameters
+        ----------
         particles : xtrack.Particles
             Particles class from xtrack
         """
@@ -147,6 +212,8 @@ class BlondElement:
         r"""
         Tracking method which is called if the trackable BLonD class is not the RingAndRFTracker or TotalInducedVoltage.
 
+        Parameters
+        ----------
         particles : xtrack.Particles
             Particles class from xtrack
         """
@@ -157,8 +224,15 @@ class BlondElement:
         Coordinate transformation from Xsuite to BLonD.
         It uses the initial particle coordinates and beam properties in stored in the Particles class from xtrack.
 
+        Parameters
+        ----------
         particles : xtrack.Particles
             Particles class from xtrack
+
+        Attributes
+        ----------
+        beam : blond.beam.beam.Beam
+            BLonD Beam class used for tracking.
         """
         # Convert Xsuite momentum to BLonD energy deviation
         self.beam.dE[:] = particles.beta0 * particles.energy0 * particles.ptau
@@ -175,8 +249,15 @@ class BlondElement:
         It uses the particle coordinates stored in Beam class of BLonD
         It uses the beam properties in stored in the Particles class from xtrack
 
+        Parameters
+        ----------
         particles : xtrack.Particles
             Particles class from xtrack
+
+        Attributes
+        ----------
+        beam : blond.beam.beam.Beam
+            BLonD Beam class used for tracking.
         """
         # Subtract the given acceleration kick in BLonD, in Xsuite this is dealt with differently
         if isinstance(self.trackable, RingAndRFTracker):
@@ -199,6 +280,11 @@ class BlondElement:
     def _get_time_shift(self) -> None:
         r'''
         Computes the time-shift between the Xsuite and BLonD coordinate systems.
+
+        Attributes
+        ----------
+        _dt_shift : float
+            The reference frame shift from BLonD to xsuite based on synchronous phase.
         '''
         # Get turn counter from the RingAndRFTracker
         counter = self.trackable.rf_params.counter[0]
@@ -207,13 +293,21 @@ class BlondElement:
         self._dt_shift = ((self.trackable.rf_params.phi_s[counter] - self.trackable.rf_params.phi_rf[0, counter])
                           / self.trackable.rf_params.omega_rf[0, counter])
 
-    def _orbit_shift(self, particles) -> None:
+    def _orbit_shift(self, particles: Particles) -> None:
         r'''
         Computes the radial steering due to rf periods which are not an integer multiple of the revolution period.
         This is for example needed when tracking with global LLRF feedback loops.
 
+        Parameters
+        ----------
         particles : xtrack.Particles
             Particles class from xtrack
+
+        Attributes
+        ----------
+        orbit_shift : xtrack.ZetaShift class
+            Class taking into account deviations from the design orbit, e.g. due to
+            RF frequency shifts caused by global RF feedbacks.
         '''
         # Get turn counter from the RingAndRFTracker
         counter = self.trackable.counter[0]
@@ -235,15 +329,22 @@ class BlondElement:
 
 
 class EnergyUpdate:
+    r"""
+    Class to update the synchronous energy from the momentum program in BLonD.
 
+    Parameters
+    ----------
+    momentum : list or numpy-array
+        Momentum program from BLonD in units of eV.
+
+    Attributes
+    ----------
+    momentum : list or numpy-array
+        Momentum program from BLonD in units of eV.
+    xsuite_energy_update : xtrack.ReferenceEnergyIncrease class
+        Class to update the momentum in xsuite.
+    """
     def __init__(self, momentum: Union[list, np.ndarray]) -> None:
-        r"""
-        Class to update the synchronous energy from the momentum program in BLonD.
-
-        :param momentum: list or numpy-array.
-            Momentum program from BLonD in units of eV
-        """
-
         # Load momentum program
         self.momentum = momentum
 
@@ -257,8 +358,15 @@ class EnergyUpdate:
         r'''
         Track method for the class to update the synchronous energy.
 
+        Parameters
+        ----------
         particles : xtrack.Particles
             Particles class from xtrack
+
+        Attributes
+        ----------
+        xsuite_energy_update : xtrack.ReferenceEnergyIncrease class
+            Class to update the momentum in xsuite.
         '''
         # Check for particles which are still alive
         mask_alive = particles.state > 0
@@ -277,23 +385,43 @@ class EnergyUpdate:
 
 
 class EnergyFrequencyUpdate:
+    r"""
+    Class to update energy of Particles class turn-by-turn with the ReferenceEnergyIncrease function
+    from xtrack. Additionally it updates the frequency of the xtrack cavity in the line.
+    Intended to be used without BLonD-Xsuite interface.
 
-    def __init__(self, momentum: np.ndarray, f_rf: np.ndarray, line: Line, cavity_name: str) -> None:
-        r"""
-        Class to update energy of Particles class turn-by-turn with the ReferenceEnergyIncrease function
-        from xtrack. Additionally it updates the frequency of the xtrack cavity in the line.
-        Intended to be used without BLonD-Xsuite interface.
+    Parameters
+    ----------
+    momentum : numpy-array
+        The momentum program from BLonD in eV.
+    f_rf : numpy-array
+        The frequency program from BLonD in Hz.
+    line : xtrack.Line
+        Line class from xtrack.
+    cavity_name : string
+        Name of cavity to update frequency.
 
-        :param momentum: numpy-array
-            The momentum program from BLonD in eV
-        :param f_rf: numpy-array
-            The frequency program from BLonD in Hz.
-        particles : xtrack.Line
-            Line class from xtrack
-        :param cavity_name: string
-            Name of cavity to update frequency.
-        """
+    Attributes
+    ----------
+    momentum : numpy-array
+        The momentum program from BLonD in eV.
+    f_rf : numpy-array
+        The frequency program from BLonD in Hz.
+    line : xtrack.Line class
+        Line class from xtrack.
+    cavity_name : string
+        Name of cavity to update frequency.
+    xsuite_energy_update : xtrack.ReferenceEnergyIncrease class
+        Class to update the momentum in xsuite.
+    """
 
+    def __init__(
+            self,
+            momentum: np.ndarray,
+            f_rf: np.ndarray,
+            line: Line,
+            cavity_name: str
+        ) -> None:
         # Load the parameters
         self.momentum = momentum
         self.f_rf = f_rf
@@ -310,8 +438,17 @@ class EnergyFrequencyUpdate:
         r'''
         Track-method from for the class. This method updates the synchronous momentum and the rf frequency.
 
-        particles : xtrack.Particles
-            Particles class from xtrack
+        Parameters
+        ----------
+        particles : xtrack.Particles class
+            Particles class from xtrack.
+
+        Attributes
+        ----------
+        line : xtrack.Line class
+            Line class from xtrack.
+        xsuite_energy_update : xtrack.ReferenceEnergyIncrease class
+            Class to update the momentum in xsuite.
         '''
         # Check for particles which are still alive
         mask_alive = particles.state > 0
@@ -333,25 +470,51 @@ class EnergyFrequencyUpdate:
 
 
 class BlondObserver(BlondElement):
+    r'''
+    Child-class of the BlondElement, except that it updates the coordinates
+    in BLonD when an observing element is used such as BunchMonitor.
 
-    def __init__(self, trackable: Any, beam: Beam, blond_cavity: bool, update_zeta: bool = False,
-                 profile: Profile = None) -> None:
-        r'''
-        Child-class of the BlondElement, except that it updates the coordinates
-        in BLonD when an observing element is used such as BunchMonitor.
+    Parameters
+    ----------
+    trackable : BLonD trackable object
+        BLonD object to be tracked, e.g. the RingAndRFTracker.
+    beam : blond.beam.beam.Beam class
+        BLonD Beam class used for tracking.
+    blond_cavity : bool.
+        If there is no BlondCavity (bool = False), it updates its own turn-counter.
+    update_zeta : bool.
+        Boolean that decides whether zeta is converter back to dt after tracking object or not.
+        Usually not necessary so default is False.
+    profile : blond.beam.profile.Profile class
+        BLonD Profile class used for tracking.
 
-        :param trackable: BLonD trackable object
-            BLonD object to be tracked, e.g. the RingAndRFTracker.
-        :param beam: blond.beam.beam.Beam class
-            BLonD Beam class used for tracking.
-        :param blond_cavity: bool.
-            If there is no BlondCavity (bool = False), it updates its own turn-counter.
-        :param update_zeta: bool.
-            Boolean that decides whether zeta is converter back to dt after tracking object or not.
-            Usually not necessary so default is False.
-        :param profile: blond.beam.profile.Profile class
-            BLonD Profile class used for tracking.
-        '''
+    Attributes
+    ----------
+    trackable : BLonD trackable object
+        BLonD object to be tracked, e.g. the RingAndRFTracker.
+    beam : blond.beam.beam.Beam class
+        BLonD Beam class used for tracking.
+    blond_cavity : bool
+        If there is no BlondCavity (bool = False), it updates its own turn-counter.
+    update_zeta : bool
+        Boolean that decides whether zeta is converter back to dt after tracking object or not.
+        Usually not necessary so default is False.
+    profile : blond.beam.profile.Profile class
+        BLonD Profile class used for tracking.
+    xsuite_ref_energy : numpy-array
+        Array filled with the reference energy from xsuite.
+    xsuite_trev : numpy-array
+        Array filled with the revolution period from xsuite.
+    '''
+
+    def __init__(
+            self,
+            trackable: Any,
+            beam: Beam,
+            blond_cavity: bool,
+            update_zeta: bool = False,
+            profile: Profile = None
+        ) -> None:
         # Initialize the parent class
         super().__init__(trackable, beam, update_zeta)
 
@@ -368,8 +531,23 @@ class BlondObserver(BlondElement):
         r'''
         observation tracker which performs the coordinate transformations.
 
+        Parameters
+        ----------
         particles : xtrack.Particles
             Particles class from xtrack
+
+        Attributes
+        ----------
+        _dt_shift : float
+            The reference frame shift from BLonD to xsuite based on synchronous phase.
+        beam : blond.beam.beam.Beam
+            BLonD Beam class used for tracking.
+        trackable : BLonD trackable object
+            BLonD object to be tracked, e.g. the RingAndRFTracker.
+        xsuite_ref_energy : numpy-array
+            Array filled with the reference energy from xsuite.
+        xsuite_trev : numpy-array
+            Array filled with the revolution period from xsuite.
         '''
         # Compute the shift to BLonD coordinates
         self._get_time_shift()
