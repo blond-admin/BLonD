@@ -11,14 +11,22 @@ from dataclasses import dataclass
 from enum import Enum
 from functools import cached_property
 from os import PathLike
-from typing import Iterable, Any, List, Tuple, Optional, TypeVar, Type, Dict, Callable
+from typing import (
+    Iterable,
+    Any,
+    List,
+    Tuple,
+    Optional,
+    TypeVar,
+    Type,
+    Callable,
+)
 from typing import Optional as LateInit
 
 import numpy as np
 from cupy.typing import NDArray as CupyArray
 from numpy.typing import NDArray as NumpyArray
 from scipy.constants import m_p, c, e
-from torch.utils.flop_counter import normalize_tuple
 from tqdm import tqdm
 
 CLASS_DIAGRAM_HACKS = 0
@@ -146,6 +154,7 @@ class MainLoopRelevant(Preparable):
 
 class BeamPhysicsRelevant(MainLoopRelevant):
     n_instances = 0
+
     def __init__(self, group: int = 0, name: Optional[str] = None):
         super().__init__()
         self.__group = group
@@ -212,6 +221,29 @@ class SeparatrixLosses(Losses):
         self._simulation.get_separatrix()  # TODO
 
 
+TURN_CHANGED = 0
+GROUP_CHANGED = 1
+T_REV_CHANGED = 2
+
+
+"""class EventBus:
+    def __init__(self):
+        self.listeners = {}
+
+    def subscribe(self, event_type, callback):
+        if event_type not in self.listeners:
+            self.listeners[event_type] = []
+        self.listeners[event_type].append(callback)
+
+    def unsubscribe(self, event_type, callback):
+        if event_type in self.listeners:
+            self.listeners[event_type].remove(callback)
+
+    def publish(self, event_type, data=None):
+        for callback in self.listeners.get(event_type, []):
+            callback(data)"""
+
+
 class DynamicParameter:
     def __init__(self, value_init):
         self._value = value_init
@@ -221,7 +253,7 @@ class DynamicParameter:
         """Subscribe to changes on a specific parameter."""
         self._observers.append(callback)
 
-    def _notify(self, value: Any):
+    def _notify(self, value):
         """Notify all observers about a parameter change."""
         for callback in self._observers:
             callback(value)
@@ -231,9 +263,10 @@ class DynamicParameter:
         return self._value
 
     @value.setter
-    def value(self, new_val):
+    def value(self, new_val: T):
+        if new_val != self._value:
+            self._notify(new_val)
         self._value = new_val
-        self._notify(new_val)
 
 
 class BeamPhysicsRelevantElements(ABC):
@@ -359,27 +392,6 @@ class RFNoiseProgram(RfParameterCycle):
         return self._effective_voltage
 
 
-class Counter(ABC):
-    def __init__(self):
-        super().__init__()
-
-
-class TurnCounter(Counter):
-    def __init__(self, current_turn: int):
-        super().__init__()
-        self.current_turn: int = current_turn
-
-
-class GroupCounter(Counter):
-    def __init__(self, current_group: int):
-        super().__init__()
-        self.current_group: int = current_group
-
-
-class ElementCounter(Counter):
-    pass
-
-
 class Ring(ABC):
     def __init__(self, circumference):
         super().__init__()
@@ -488,6 +500,12 @@ class Ring(ABC):
         assert sum_share_of_circumference == 1, (
             f"{sum_share_of_circumference=}, but should be 1. It seems the "
             f"drifts are not correctly configured."
+        )
+        simulation.turn_i.subscribe(self.update_t_rev)
+
+    def update_t_rev(self, new_turn_i: int):
+        self.t_rev.value = self.circumference / beta_by_ekin(
+            self.energy_cycle.beam_energy_by_turn[new_turn_i]
         )
 
 
@@ -861,13 +879,13 @@ class ExampleImpedanceReader2(ImpedanceReader):
         data[:, 7] = np.deg2rad(data[:, 7])
 
         freq_x = data[:, 0]
-        if self._mode == ModesExampleReader2.OPEN_LOOP:
+        if self._mode.value == ModesExampleReader2.OPEN_LOOP.value:
             Re_Z = data[:, 4] * np.cos(data[:, 3])
             Im_Z = data[:, 4] * np.sin(data[:, 3])
-        elif self._mode == ModesExampleReader2.CLOSED_LOOP:
+        elif self._mode.value == ModesExampleReader2.CLOSED_LOOP.value:
             Re_Z = data[:, 2] * np.cos(data[:, 5])
             Im_Z = data[:, 2] * np.sin(data[:, 5])
-        elif self._mode == ModesExampleReader2.SHORTED:
+        elif self._mode.value == ModesExampleReader2.SHORTED.value:
             Re_Z = data[:, 6] * np.cos(data[:, 7])
             Im_Z = data[:, 6] * np.sin(data[:, 7])
         else:
@@ -1252,7 +1270,7 @@ class CavityPhaseObservation(Observables):
 
     def update(self, simulation: Simulation):
         self._phases[self._write_index] = self._cavity._rf_program.get_phase(
-            simulation.turn_counter.current_turn
+            simulation.turn_i.current_turn
         )
 
         self._write_index += 1
@@ -1307,8 +1325,8 @@ class Simulation(ABC):
         self.generate_hash()
         ring.late_init(simulation=self)
         self.ring: Ring = ring
-        self.turn_counter: TurnCounter | None = None
-        self.group_counter: GroupCounter | None = None
+        self.turn_i = DynamicParameter(None)
+        self.group_i = DynamicParameter(None)
 
         if CLASS_DIAGRAM_HACKS:
             self._ring = Ring()  # TODO remove
@@ -1320,7 +1338,7 @@ class Simulation(ABC):
     def print_one_turn_execution_order(self):
         self.ring.elements.print_order()
 
-    def invalidate_cache(self):
+    def invalidate_cache(self, turn_i: int):
         self.__dict__.pop("get_separatrix", None)
 
     def prepare_beam(
@@ -1374,26 +1392,20 @@ class Simulation(ABC):
         iterator = range(turn_i_init, turn_i_init + n_turns)
         if show_progressbar:
             iterator = tqdm(iterator)  # Add TQDM display to iteration
-        self.turn_counter = TurnCounter(turn_i_init)
-        self.group_counter = GroupCounter(self.ring.elements.elements[0].group)
+        self.turn_i.subscribe(self.invalidate_cache)
         for turn_i in iterator:
-            self.turn_counter.current_turn = turn_i
-            self.invalidate_cache()
+            self.turn_i.value = turn_i
             for element in self.ring.elements.elements:
-                group_onchange = self.group_counter.current_group != element.group
-                self.group_counter.current_group = element.group
-                if element.is_active_this_turn(turn_i=self.turn_counter.current_turn):
+                self.group_i.current_group = element.group
+                if element.is_active_this_turn(turn_i=self.turn_i.value):
                     element.track(self.ring.beams[0])
             for observable in observe:
-                if observable.is_active_this_turn(
-                    turn_i=self.turn_counter.current_turn
-                ):
+                if observable.is_active_this_turn(turn_i=self.turn_i.value):
                     observable.update(simulation=self)
 
         # reset counters to uninitialized again
-        self.turn_counter = None
-        self.group_counter = None
-        self.invalidate_cache()
+        self.turn_i.value = None
+        self.group_i.value = None
 
     def _run_simulation_counterrotating_beam(
         self,
