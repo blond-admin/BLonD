@@ -7,16 +7,15 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Unit-tests for the Beam Profile class.
    Run as python testBeamProfileObject.py in console or via travis. **
 
 :Authors: **Danilo Quartullo**
-'''
+"""
 
 # General imports
 # -----------------
-from __future__ import division, print_function
 
 import os
 import unittest
@@ -52,7 +51,7 @@ class testProfileClass(unittest.TestCase):
         self.ring = Ring(ring_length, alpha, momentum, Proton(), n_turns)
 
         # RF object initialization
-        self.rf_params = RFStation(Ring=self.ring, harmonic=[1],
+        self.rf_params = RFStation(ring=self.ring, harmonic=[1],
                                    voltage=[7e6], phi_rf_d=[0.],
                                    n_rf=1)
 
@@ -76,15 +75,15 @@ class testProfileClass(unittest.TestCase):
             cut_left=0, cut_right=2 * np.pi,
             n_slices=n_slices,
             cuts_unit='rad',
-            RFSectionParameters=self.rf_params)
+            rf_station=self.rf_params)
 
         FitOptions = profileModule.FitOptions(
             fit_option='fwhm',
-            fitExtraOptions=None)
+            fit_extra_options=None)
 
         FilterOptions = profileModule.FilterOptions(
-            filterMethod=None,
-            filterExtraOptions=None)
+            filter_method=None,
+            filter_extra_options=None)
 
         OtherSlicesOptions = profileModule.OtherSlicesOptions(
             smooth=False,
@@ -92,10 +91,10 @@ class testProfileClass(unittest.TestCase):
 
         self.profile2 = profileModule.Profile(
             my_beam,
-            CutOptions=CutOptions,
-            FitOptions=FitOptions,
-            FilterOptions=FilterOptions,
-            OtherSlicesOptions=OtherSlicesOptions)
+            cut_options=CutOptions,
+            fit_options=FitOptions,
+            filter_options=FilterOptions,
+            other_slices_options=OtherSlicesOptions)
 
         # Third profile object initialization and tracking
         n_slices = 150
@@ -107,11 +106,11 @@ class testProfileClass(unittest.TestCase):
 
         FitOptions = profileModule.FitOptions(
             fit_option='rms',
-            fitExtraOptions=None)
+            fit_extra_options=None)
 
         FilterOptions = profileModule.FilterOptions(
-            filterMethod=None,
-            filterExtraOptions=None)
+            filter_method=None,
+            filter_extra_options=None)
 
         OtherSlicesOptions = profileModule.OtherSlicesOptions(
             smooth=True,
@@ -119,10 +118,10 @@ class testProfileClass(unittest.TestCase):
 
         self.profile3 = profileModule.Profile(
             my_beam,
-            CutOptions=CutOptions,
-            FitOptions=FitOptions,
-            FilterOptions=FilterOptions,
-            OtherSlicesOptions=OtherSlicesOptions)
+            cut_options=CutOptions,
+            fit_options=FitOptions,
+            filter_options=FilterOptions,
+            other_slices_options=OtherSlicesOptions)
 
         self.profile3.track()
 
@@ -136,7 +135,7 @@ class testProfileClass(unittest.TestCase):
 
         FitOptions = profileModule.FitOptions(
             fit_option='gaussian',
-            fitExtraOptions=None)
+            fit_extra_options=None)
 
         filter_option = {'pass_frequency': 1e7,
                          'stop_frequency': 1e8,
@@ -145,8 +144,8 @@ class testProfileClass(unittest.TestCase):
                          'transfer_function_plot': False}
 
         FilterOptions = profileModule.FilterOptions(
-            filterMethod='chebishev',
-            filterExtraOptions=filter_option)
+            filter_method='chebishev',
+            filter_extra_options=filter_option)
 
         OtherSlicesOptions = profileModule.OtherSlicesOptions(
             smooth=False,
@@ -154,10 +153,10 @@ class testProfileClass(unittest.TestCase):
 
         self.profile4 = profileModule.Profile(
             my_beam,
-            CutOptions=CutOptions,
-            FitOptions=FitOptions,
-            FilterOptions=FilterOptions,
-            OtherSlicesOptions=OtherSlicesOptions)
+            cut_options=CutOptions,
+            fit_options=FitOptions,
+            filter_options=FilterOptions,
+            other_slices_options=OtherSlicesOptions)
 
     def test(self):
         rtol = 1e-6             # relative tolerance

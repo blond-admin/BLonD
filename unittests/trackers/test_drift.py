@@ -485,7 +485,7 @@ class TestDrift(unittest.TestCase):
             original_distribution_dE, self.ring.alpha_0[0, 0],
             self.ring.alpha_1[0, 0], self.ring.alpha_2[0, 0],
             self.ring.energy[0, 0], self.ring.t_rev[0],
-            self.ring.ring_circumference, self.ring.Particle.mass)
+            self.ring.ring_circumference, self.ring.particle.mass)
 
         np.testing.assert_allclose(self.beam.dt, original_distribution_dt,
                                    rtol=relative_tolerance,

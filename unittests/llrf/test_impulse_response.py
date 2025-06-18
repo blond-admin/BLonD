@@ -149,9 +149,9 @@ class TestTravelingWaveCavity(unittest.TestCase):
 
         n_shift = 5     # how many rf-buckets to shift beam
         beam.dt += n_shift * rf.t_rf[0, 0]
-        profile = Profile(beam, CutOptions=CutOptions(cut_left=(n_shift - 1.5) * rf.t_rf[0, 0],
-                                                      cut_right=(n_shift + 1.5) * rf.t_rf[0, 0],
-                                                      n_slices=140))
+        profile = Profile(beam, cut_options=CutOptions(cut_left=(n_shift - 1.5) * rf.t_rf[0, 0],
+                                                       cut_right=(n_shift + 1.5) * rf.t_rf[0, 0],
+                                                       n_slices=140))
         profile.track()
 
         l_cav = 16.082
@@ -171,7 +171,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
 
         # Beam loading via feed-back system
         OTFB_4 = SPSOneTurnFeedback(rf, profile, 4, n_cavities=1,
-            Commissioning=SPSCavityLoopCommissioning(open_ff=True, rot_iq=1), df=0.2275e6)
+            commissioning=SPSCavityLoopCommissioning(open_ff=True, rot_iq=1), df=0.2275e6)
         OTFB_4.counter = 0  # First turn
 
         OTFB_4.omega_c = factor * OTFB_4.TWC.omega_r
@@ -209,7 +209,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         # Compare on coarse and fine grid
 
         # Create a batch of 100 equal, short bunches at HL-LHC intensity
-        ring = Ring(2 * np.pi * 1100.009, 1 / 18**2, 25.92e9, Particle=Proton())
+        ring = Ring(2 * np.pi * 1100.009, 1 / 18 ** 2, 25.92e9, particle=Proton())
         rf = RFStation(ring, [4620], [4.5e6], [0], n_rf=1)
         bunches = 100
         N_m = int(1e5)
@@ -222,13 +222,13 @@ class TestTravelingWaveCavity(unittest.TestCase):
         for i in range(bunches):
             beam2.dt[i * N_m:(i + 1) * N_m] = beam.dt + i * bunch_spacing
             beam2.dE[i * N_m:(i + 1) * N_m] = beam.dE
-        profile2 = Profile(beam2, CutOptions=CutOptions(cut_left=0,
-                                                        cut_right=bunches * bunch_spacing, n_slices=1000 * buckets))
+        profile2 = Profile(beam2, cut_options=CutOptions(cut_left=0,
+                                                         cut_right=bunches * bunch_spacing, n_slices=1000 * buckets))
         profile2.track()
 
         # Calculate impulse response and induced voltage
         OTFB = SPSOneTurnFeedback(rf, profile2, 3, n_cavities=1,
-            Commissioning=SPSCavityLoopCommissioning(open_ff=True, rot_iq=-1),
+            commissioning=SPSCavityLoopCommissioning(open_ff=True, rot_iq=-1),
                                   df=0.18433333e6)
         OTFB.TWC.impulse_response_beam(OTFB.omega_c, OTFB.profile.bin_centers,
                                        OTFB.rf_centers)

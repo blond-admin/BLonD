@@ -6,10 +6,10 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 
 @author: Danilo Quartullo, Konstantinos Iliakis
-'''
+"""
 
 # MAKE SURE YOU HAVE GCC 4.8.1 OR LATER VERSIONS ON YOUR SYSTEM LINKED TO YOUR
 # SYSTEM PATH.IF YOU ARE ON CERN-LXPLUS YOU CAN TYPE FROM CONSOLE
@@ -17,18 +17,25 @@
 # TO GET GCC 4.8.1 64 BIT. IN GENERAL IT IS ADVISED TO USE PYTHON 64 BIT PLUS
 # GCC 64 BIT.
 
-from __future__ import print_function
 
 import argparse
 import ctypes
 import os
+import platform
 import subprocess
 import sys
-
+import warnings
+try:
+    # Early import of cupy.
+    # This fixes warnings that occurred when
+    # importing `cupy` later inside `compile_cuda_library`
+    import cupy as cp
+except ImportError:
+    pass # ignore missing cupy for users without GPU
 
 def main():
-    '''Compiles the blond C++ and/or CUDA library.
-    '''
+    """Compiles the blond C++ and/or CUDA library.
+    """
     path = os.path.realpath(__file__)
     basepath = os.sep.join(path.split(os.sep)[:-1])
 
@@ -40,19 +47,19 @@ def main():
     parser.add_argument('-p', '--parallel',
                         default=False, action='store_true',
                         help='Produce Multi-threaded code. Use the environment'
-                        ' variable OMP_NUM_THREADS=xx to control the number of'
-                        ' threads that will be used.'
-                        ' Default: Serial code')
+                             ' variable OMP_NUM_THREADS=xx to control the number of'
+                             ' threads that will be used.'
+                             ' Default: Serial code')
 
     parser.add_argument('-b', '--boost', type=str, nargs='?', const='',
                         help='Use boost library to speedup synchrotron radiation'
-                        ' routines. If the installation path of boost differs'
-                        ' from the default, you have to pass it as an argument.'
-                        ' Default: Boost will not be used')
+                             ' routines. If the installation path of boost differs'
+                             ' from the default, you have to pass it as an argument.'
+                             ' Default: Boost will not be used')
 
     parser.add_argument('-c', '--compiler', type=str, default='g++',
                         help='C++ compiler that will be used to compile the'
-                        ' source files. Default: g++')
+                             ' source files. Default: g++')
 
     parser.add_argument('--with-fftw', action='store_true',
                         help='Use the FFTs from FFTW3.')
@@ -86,7 +93,7 @@ def main():
 
     parser.add_argument('-gpu', '--gpu', nargs='?', const='discover', default=None,
                         help='Compile the GPU kernels too.'
-                        'Default: Only compile the C++ library.')
+                             'Default: Only compile the C++ library.')
 
     parser.add_argument('-cuda-libname', '--cuda-libname', type=str, default=os.path.join(basepath, 'gpu/kernels'),
                         help='The CUDA library name, without the file extension.')
@@ -153,8 +160,8 @@ def main():
 def compile_cpp_library(args, cflags, float_flags, libs, cpp_files):
     # Check if we need to compile with FFTW
     with_fftw = args['with_fftw'] or args['with_fftw_threads'] or args['with_fftw_omp'] or \
-        (args['with_fftw_lib'] is not None) or (args['with_fftw_header'] is not None)
-    
+                (args['with_fftw_lib'] is not None) or (args['with_fftw_header'] is not None)
+
     # Get boost path
     boost_path = None
     if args['boost'] is not None:
@@ -174,22 +181,24 @@ def compile_cpp_library(args, cflags, float_flags, libs, cpp_files):
     if args['flags']:
         cflags += args['flags'].split()
 
+    fftw_cflags = []
+    fftw_libs = []
     if with_fftw:
-        cflags += ['-DUSEFFTW3']
+        fftw_cflags += ['-DUSEFFTW3']
         if args['with_fftw_lib'] is not None:
-            libs += ['-L', args['with_fftw_lib']]
+            fftw_libs += ['-L', args['with_fftw_lib']]
         if args['with_fftw_header'] is not None:
-            cflags += ['-I', args['with_fftw_header']]
+            fftw_cflags += ['-I', args['with_fftw_header']]
         if 'win' in sys.platform:
-            libs += ['-lfftw3-3']
+            fftw_libs += ['-lfftw3-3']
         else:
-            libs += ['-lfftw3', '-lfftw3f']
+            fftw_libs += ['-lfftw3', '-lfftw3f']
             if args['with_fftw_omp']:
-                cflags += ['-DFFTW3PARALLEL']
-                libs += ['-lfftw3_omp', '-lfftw3f_omp']
+                fftw_cflags += ['-DFFTW3PARALLEL']
+                fftw_libs += ['-lfftw3_omp', '-lfftw3f_omp']
             elif args['with_fftw_threads']:
-                cflags += ['-DFFTW3PARALLEL']
-                libs += ['-lfftw3_threads', '-lfftw3f_threads']
+                fftw_cflags += ['-DFFTW3PARALLEL']
+                fftw_libs += ['-lfftw3_threads', '-lfftw3f_threads']
 
     if 'posix' in os.name:
         cflags += ['-fPIC']
@@ -211,21 +220,23 @@ def compile_cpp_library(args, cflags, float_flags, libs, cpp_files):
                 # Format the output list
                 stdout = ret.stdout.replace('#define ', '').replace(
                     '__ 1', '').replace('__', '').split('\n')
-                # Add the appropriate vectorization flag (not use avx512)
-                if 'AVX2' in stdout:
-                    cflags += ['-mavx2']
-                elif 'AVX' in stdout:
-                    cflags += ['-mavx']
-                elif 'SSE4_2' in stdout or 'SSE4_1' in stdout:
-                    cflags += ['-msse4']
-                elif 'SSE3' in stdout:
-                    cflags += ['-msse3']
-                else:
-                    cflags += ['-msse']
+                # following options exist only on x86 processors
+                if 'arm' not in platform.machine():
+                    # Add the appropriate vectorization flag (not use avx512)
+                    if 'AVX2' in stdout:
+                        cflags += ['-mavx2']
+                    elif 'AVX' in stdout:
+                        cflags += ['-mavx']
+                    elif 'SSE4_2' in stdout or 'SSE4_1' in stdout:
+                        cflags += ['-msse4']
+                    elif 'SSE3' in stdout:
+                        cflags += ['-msse3']
+                    else:
+                        cflags += ['-msse']
 
-                # Add FMA if supported
-                if 'FMA' in stdout:
-                    cflags += ['-mfma']
+                    # Add FMA if supported
+                    if 'FMA' in stdout:
+                        cflags += ['-mfma']
 
         root, ext = os.path.splitext(args['libname'])
         if not ext:
@@ -250,7 +261,6 @@ def compile_cpp_library(args, cflags, float_flags, libs, cpp_files):
             'YOU ARE NOT USING A WINDOWS OR LINUX OPERATING SYSTEM. ABORTING...')
         sys.exit(-1)
 
-
     # Report the compilation options
     print('Enable Multi-threaded code: ', args['parallel'])
     print('Use boost: ', args['boost'] is not None)
@@ -273,8 +283,14 @@ def compile_cpp_library(args, cflags, float_flags, libs, cpp_files):
     print('Extra libraries: ', ' '.join(libs))
 
     command = [compiler] + cflags + float_flags + \
-        cpp_files + libs + ['-o', libname_single]
+              cpp_files + libs + ['-o', libname_single]
     print('\nCompiling the single-precision (32-bit) C++ library')
+    if with_fftw:
+        msg = (
+            "The FFTW Library is only compiled for  double-precision (64-bit)."
+            " For single-precision, the FFTW Library is ignored."
+               )
+        warnings.warn(msg)
     ret = run_compile(command, libname_single)
     if ret != 0:
         print('There was a compilation error.')
@@ -290,7 +306,8 @@ def compile_cpp_library(args, cflags, float_flags, libs, cpp_files):
             print('Compilation failed.')
             print(exception)
 
-    command = [compiler] + cflags + cpp_files + libs + ['-o', libname_double]
+    command = ([compiler] + cflags + fftw_cflags + cpp_files
+               + libs +fftw_libs+ ['-o', libname_double])
     print('\nCompiling the double-precision (64-bit) C++ library')
     ret = run_compile(command, libname_double)
     if ret != 0:
@@ -311,9 +328,9 @@ def compile_cpp_library(args, cflags, float_flags, libs, cpp_files):
 def compile_cuda_library(args, nvccflags, float_flags, cuda_files, nvcc):
     # Compile the GPU library
     # print('\n' + ''.join(['='] * 80))
-    print('\nCompiling the CUDA library')
-    import cupy as cp
+    import cupy as cp # force exception, if something is wrong with the installation
 
+    print('\nCompiling the CUDA library')
     if args['gpu'] == 'discover':
         print('Discovering the device compute capability..')
 
@@ -329,13 +346,12 @@ def compile_cuda_library(args, nvccflags, float_flags, cuda_files, nvcc):
 
     # Add the -arch required argument
     nvccflags += ['-arch', f'sm_{comp_capability}']
-    
+
     # Get the CuPy header files location
     path = cp.__file__.split('/')[:-1]  # remove __init__.py from path
     path.extend(['_core', 'include'])
     cupyloc = os.path.join('/'.join(path))
 
-    
     print('CUDA Compiler: ', nvcc)
     compiler_version = subprocess.run([nvcc, '--version'],
                                       capture_output=True,
@@ -344,13 +360,12 @@ def compile_cuda_library(args, nvccflags, float_flags, cuda_files, nvcc):
     print('Compiler flags: ', ' '.join(nvccflags))
     print('CuPy location: ', cupyloc)
 
-    
     libname_double = args['cuda_libname'] + f'_sm_{comp_capability}_double.cubin'
     libname_single = args['cuda_libname'] + f'_sm_{comp_capability}_single.cubin'
 
     command = [nvcc] + nvccflags + \
-        ['-o', libname_single, '-I' + cupyloc] + float_flags + cuda_files
-    
+              ['-o', libname_single, '-I' + cupyloc] + float_flags + cuda_files
+
     print('\nCompiling the single-precision (32-bit) CUDA library')
     ret = run_compile(command, libname_single)
     if ret != 0:
@@ -359,7 +374,7 @@ def compile_cuda_library(args, nvccflags, float_flags, cuda_files, nvcc):
         print('Compiled successfully.')
 
     command = [nvcc] + nvccflags + \
-        ['-o', libname_double, '-I' + cupyloc] + cuda_files
+              ['-o', libname_double, '-I' + cupyloc] + cuda_files
     print('\nCompiling the double-precision (64-bit) CUDA library')
     ret = run_compile(command, libname_double)
     if ret != 0:
