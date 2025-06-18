@@ -51,7 +51,7 @@ wakefield1 = WakeField(
         InductiveImpedance(34.6669349520904 / 10e9),
         InductiveImpedance(34.6669349520904 / 10e9),
     ),
-    solver=PeriodicFreqSolver(),
+    solver=PeriodicFreqSolver(t_periodicity=12.0),
 )
 wakefield2 = WakeField(
     sources=(
