@@ -485,6 +485,9 @@ def match_beam_from_distribution(beam: Beam, full_ring_and_rf: FullRingAndRF, ri
                                 + " harmonic to compute the potential well"
                                 + " does not match the RF parameters...")
         omega_rf = np.min(omega_rf[omega_rf == main_harmonic_option])
+    else:
+        raise ValueError(f"main_harmonic_option {main_harmonic_option} not"
+                         + " recognised")
 
 
     eta_0 = rf_params.eta_0[0]
