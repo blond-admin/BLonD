@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from typing import Optional, Literal
 
     from numpy.typing import NDArray as NumpyArray
+    from cupy.typing import NDArray as CupyArray
 
     from ..impedances.impedance import TotalInducedVoltage
     from ..llrf.beam_feedback import BeamFeedback
@@ -45,7 +46,7 @@ if TYPE_CHECKING:
     from ..beam.beam import Beam
     from ..input_parameters.rf_parameters import RFStation
     from ..utils.types import DeviceType
-    from cupy.typing import NDArray as CupyArray
+
     MainHarmonicOptionType = Literal['lowest_freq', 'highest_voltage'] | float
 
 
@@ -178,19 +179,31 @@ class FullRingAndRF:
     def to_gpu(self, recursive: bool = True):
         """Function to loop over all the RingAndRFSection.track methods"""
         import cupy as cp
+
+        if self._device == 'GPU':
+            return
+
         self.potential_well_coordinates = cp.array(self.potential_well_coordinates)
         self.potential_well = cp.array(self.potential_well)
         self.total_voltage = cp.array(self.total_voltage)
+
         if recursive:
             for ring_and_rf_section in self.ring_and_rf_section:
                 ring_and_rf_section.to_gpu(recursive=recursive)
+
         self._device: DeviceType = 'CPU'
 
     def to_cpu(self, recursive: bool = True):
         """Function to loop over all the RingAndRFSection.track methods"""
-        self.potential_well_coordinates = self.potential_well_coordinates.get()
-        self.potential_well = self.potential_well.get()
-        self.total_voltage = self.total_voltage.get()
+        import cupy as cp
+
+        if self._device == 'GPU':
+            return
+
+        self.potential_well_coordinates = cp.asnumpy(self.potential_well_coordinates)
+        self.potential_well = cp.asnumpy(self.potential_well)
+        self.total_voltage = cp.asnumpy(self.total_voltage)
+
         if recursive:
             for ring_and_rf_section in self.ring_and_rf_section:
                 ring_and_rf_section.to_cpu(recursive=recursive)
