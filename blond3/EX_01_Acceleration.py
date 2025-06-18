@@ -4,7 +4,7 @@ from classes import *
 
 ring = Ring(circumference=26658.883)
 
-cavity1 = Cavity(
+cavity1 = SingleHarmonicCavity(
     harmonic=35640, rf_program=ConstantProgram(effective_voltage=6e6, phase=0)
 )
 

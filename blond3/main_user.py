@@ -1,9 +1,9 @@
 import numpy as np
 
 from classes import (
-    Cavity,
+    SingleHarmonicCavity,
     Drift,
-    LumpedCavities,
+    MultiHarmonicCavity,
     InductiveImpedance,
     LocalFeedback,
     GlobalFeedback,
@@ -22,13 +22,13 @@ class Main:
     @staticmethod
     def describe_accelerator():
         # Description of accelerator
-        cavity1 = Cavity(harmonic=1)
+        cavity1 = SingleHarmonicCavity(harmonic=1)
         profile1 = Profile()
         one_turn_execution_order = (
             Drift(share_of_circumference=0.4),
             cavity1,
             Drift(share_of_circumference=0.5),
-            LumpedCavities(),
+            MultiHarmonicCavity(),
             InductiveImpedance(),
             profile1,
             LocalFeedback(cavity1, profile1),
@@ -36,7 +36,7 @@ class Main:
             DriftXSuite(share_of_circumference=0.1),
         )
 
-        my_cycle = EnergyCycle(beam_energy_by_turn=np.linspace(1e9, 3e9, 50))
+        my_cycle = EnergyCycle.from_linspace(1e9, 3e9, 50)
 
         my_beam = Beam(
             n_particles=1e6,
