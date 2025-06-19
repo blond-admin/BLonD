@@ -15,6 +15,7 @@ class BackendBaseClass(ABC):
         self.int = int
 
         self.array = None
+        self.gradient = None
 
     def change_backend(self, new_backend: BackendBaseClass):
         self.__dict__ = new_backend.__dict__
@@ -27,17 +28,17 @@ class NumpyBackend(BackendBaseClass):
     ):
         super().__init__(float, int)
         self.array = np.array
+        self.gradient = np.gradient
 
 
-class Numpy32Bit(BackendBaseClass):
+class Numpy32Bit(NumpyBackend):
     def __init__(self):
         super().__init__(np.float32, np.int32)
 
 
-class Numpy64Bit(BackendBaseClass):
+class Numpy64Bit(NumpyBackend):
     def __init__(self):
         super().__init__(np.float64, np.int64)
-
 
 default = Numpy32Bit()  # use .change_backend(...) to change it anywhere
 backend = default

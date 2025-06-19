@@ -289,8 +289,9 @@ class EnergyCycle(ProgrammedCycle):
     @staticmethod
     def from_linspace(start, stop, turns, endpoint: bool = True):
         return EnergyCycle(
-            beam_energy_by_turn=backend.linspace(start, stop, turns,
-                                            endpoint=endpoint, dtype=backend.float)
+            beam_energy_by_turn=backend.linspace(
+                start, stop, turns, endpoint=endpoint, dtype=backend.float
+            )
         )
 
     def late_init(self, simulation: Simulation, **kwargs):
@@ -717,13 +718,14 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         self._T_rev_dynamic: LateInit[DynamicParameter] = None
 
     def _late_init(self, simulation: Simulation, parent_wakefield: WakeField):
+        self._parent_wakefield = parent_wakefield
         impedances: Tuple[InductiveImpedance] = parent_wakefield.sources
         assert all([isinstance(o, InductiveImpedance) for o in impedances])
         self._Z = np.array([o.Z_over_n for o in impedances])
         self._T_rev_dynamic = simulation.ring.t_rev
 
     def calc_induced_voltage(self):
-        diff = np.diff(self._beam)
+        diff = self._parent_wakefield._profile.diff()
         return diff * self._Z * self._T_rev_dynamic.value
 
 
@@ -1023,27 +1025,39 @@ class SimulationResults(ABC):
 class ProfileBaseClass(BeamPhysicsRelevant):
     def __init__(self):
         super().__init__()
-        self.hist_x: LateInit[NumpyArray | CupyArray] = None
-        self.hist_y: LateInit[NumpyArray | CupyArray] = None
+        self._hist_x: LateInit[NumpyArray | CupyArray] = None
+        self._hist_y: LateInit[NumpyArray | CupyArray] = None
 
         self._beam_spectrum_buffer = {}
 
+    @property
+    def hist_x(self):
+        return self._hist_x
+
+    @property
+    def hist_y(self):
+        return self._hist_y
+
+    @cached_property
+    def diff_hist_y(self):
+        return backend.gradient(self._hist_y, self.hist_step)
+
     @cached_property
     def hist_step(self):
-        return backend.float(self.hist_x[1] - self.hist_x[0])
+        return backend.float(self._hist_x[1] - self._hist_x[0])
 
     @cached_property
     def cut_left(self):
-        return backend.float(self.hist_x[0] - self.hist_step / 2.0)
+        return backend.float(self._hist_x[0] - self.hist_step / 2.0)
 
     @cached_property
     def cut_right(self):
-        return backend.float(self.hist_x[-1] + self.hist_step / 2.0)
+        return backend.float(self._hist_x[-1] + self.hist_step / 2.0)
 
     @cached_property
     def bin_edges(self):
         return backend.linspace(
-            self.cut_left, self.cut_right, len(self.hist_x) + 1, backend.float
+            self.cut_left, self.cut_right, len(self._hist_x) + 1, backend.float
         )
 
     def track(self, beam: BeamBaseClass):
@@ -1051,14 +1065,13 @@ class ProfileBaseClass(BeamPhysicsRelevant):
             raise NotImplementedError("Impleemt hisogram on distributed array")
         else:
             backend.histogram(
-                beam.read_partial_dt(), self.cut_left, self.cut_right, self.hist_y
+                beam.read_partial_dt(), self.cut_left, self.cut_right, self._hist_y
             )
-
         self.invalidate_cache()
 
     def late_init(self, simulation: Simulation, **kwargs):
-        assert self.hist_x is not None
-        assert self.hist_y is not None
+        assert self._hist_x is not None
+        assert self._hist_y is not None
         self.invalidate_cache()
 
     @staticmethod
@@ -1085,9 +1098,9 @@ class ProfileBaseClass(BeamPhysicsRelevant):
     @cached_property
     def beam_spectrum(self, n_fft: int):
         if n_fft in self._beam_spectrum_buffer.keys():
-            self._beam_spectrum_buffer = np.fft.irfft(self.hist_y, n_fft)
+            self._beam_spectrum_buffer = np.fft.irfft(self._hist_y, n_fft)
         else:
-            np.fft.irfft(self.hist_y, n_fft, out=self._beam_spectrum_buffer[n_fft])
+            np.fft.irfft(self._hist_y, n_fft, out=self._beam_spectrum_buffer[n_fft])
 
         return self._beam_spectrum_buffer
 
@@ -1339,6 +1352,15 @@ class Beam(BeamBaseClass):
 
 
 class WeightenedBeam(BeamBaseClass):
+    def __init__(
+        self,
+        n_particles: int | float,
+        n_macroparticles: int | float,
+        particle_type: ParticleType,
+    ):
+        super().__init__(n_particles, n_macroparticles, particle_type)
+        self._weights: LateInit[NumpyArray] = None
+
     @staticmethod
     def from_beam(beam: Beam):
         pass
@@ -1464,14 +1486,14 @@ class ProfileObservation(Observables):
                 profile, StaticProfile
             ), f"Only `DynamicProfileConstNBins` or `StaticProfile` allowed"
             self._profile = profile
-        n_bins = len(self._profile.hist_y)
+        n_bins = len(self._profile._hist_y)
 
         self._hist_ys = DenseArrayRecorder(
             f"{simulation.get_hash}_hist_ys", (n_bins, n_entries)
         )
 
     def update(self, simulation: Simulation):
-        self._hist_ys.write(self._profile.hist_y)
+        self._hist_ys.write(self._profile._hist_y)
 
     @property
     def hist_ys(self):
