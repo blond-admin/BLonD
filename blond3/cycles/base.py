@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 
 from numpy.typing import NDArray as NumpyArray
 
 from blond3.core.backend import backend
 from ..core.base import Preparable
-from ..core.simulation.base import Simulation
+from ..core.simulation.simulation import Simulation
 
 
-class ProgrammedCycle(Preparable):
+class ProgrammedCycle(Preparable, ABC):
     def __init__(self):
         super().__init__()
 

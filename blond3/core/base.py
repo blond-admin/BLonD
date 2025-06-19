@@ -13,7 +13,7 @@ from typing import (
 
 from .beam.base import BeamBaseClass
 from .ring.helpers import get_elements
-from .simulation.base import Simulation
+from .simulation.simulation import Simulation
 
 T = TypeVar("T")
 

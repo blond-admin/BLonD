@@ -13,7 +13,7 @@ from ..core.backend import backend
 from ..core.base import BeamPhysicsRelevant
 from ..core.beam.base import BeamBaseClass
 from ..core.helpers import int_from_float_with_warning
-from ..core.simulation.base import Simulation
+from ..core.simulation.simulation import Simulation
 
 
 class ProfileBaseClass(BeamPhysicsRelevant):

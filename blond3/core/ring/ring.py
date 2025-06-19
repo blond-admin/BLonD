@@ -14,7 +14,7 @@ from .helpers import get_init_order
 from ..base import BeamPhysicsRelevantElements, DynamicParameter, \
     BeamPhysicsRelevant, Preparable
 from ..beam.base import BeamBaseClass
-from ..simulation.base import Simulation
+from ..simulation.simulation import Simulation
 from blond3.core.backend import backend
 from ...cycles.base import EnergyCycle
 from ...physics.drifts import DriftBaseClass

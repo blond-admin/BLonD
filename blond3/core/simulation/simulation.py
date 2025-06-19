@@ -11,13 +11,12 @@ from typing import (
 from tqdm import tqdm
 
 from ..base import DynamicParameter
-from ..ring.base import Ring
+from ..ring.ring import Ring
 from ...beam_preparation.base import MatchingRoutine
-from ...classes import SimulationResults
 from ...handle_results.observables import Observables
 
 
-class Simulation(ABC):
+class Simulation:
     def __init__(self, ring: Ring, ring_attributes: Optional[dict | Iterable] = None):
         super().__init__()
         if ring_attributes is not None:

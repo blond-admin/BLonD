@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:  # pragma: no cover
-    from blond3.core.ring.base import Ring
+    from blond3.core.ring.ring import Ring
 
 
 class BeamPreparationRoutine(ABC):

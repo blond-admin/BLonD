@@ -6,7 +6,7 @@ from functools import cached_property
 from blond3.core.backend import backend
 from ..core.base import BeamPhysicsRelevant
 from ..core.beam.base import BeamBaseClass
-from ..core.simulation.base import Simulation
+from ..core.simulation.simulation import Simulation
 
 
 class DriftBaseClass(BeamPhysicsRelevant, ABC):

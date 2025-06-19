@@ -9,7 +9,7 @@ from ..helpers import int_from_float_with_warning
 
 if TYPE_CHECKING:  # pragma: no cover
     from .particle_types import ParticleType
-    from ..simulation.base import Simulation
+    from ..simulation.simulation import Simulation
 
 
 class BeamFlags(int, Enum):
@@ -17,7 +17,7 @@ class BeamFlags(int, Enum):
     ACTIVE = 1
 
 
-class BeamBaseClass(Preparable):
+class BeamBaseClass(Preparable, ABC):
     def __init__(
         self,
         n_particles: int | float,

@@ -3,6 +3,7 @@ from __future__ import annotations
 import os.path
 import warnings
 from abc import ABC, abstractmethod
+from os import PathLike
 from typing import (
     Tuple,
     Optional,
@@ -27,14 +28,14 @@ class ArrayRecorder(ABC):
         pass
 
     @abstractmethod
-    def from_disk(self):
+    @staticmethod
+    def from_disk(filepath: str | PathLike):
         pass
-
 
 class DenseArrayRecorder(ArrayRecorder):
     def __init__(
         self,
-        filepath: str,
+        filepath: str | PathLike,
         shape: int | Tuple[int, ...],
         dtype: Optional[DTypeLike] = None,
         order: Literal["C", "F"] = "C",
@@ -53,8 +54,13 @@ class DenseArrayRecorder(ArrayRecorder):
             assert not os.path.exists(self.filepath)
         np.save(self.filepath, self.get_valid_entries())
 
-    def from_disk(self):
-        pass
+    @staticmethod
+    def from_disk(filepath: str | PathLike):
+        _memory: NumpyArray = np.load(filepath)
+        dense_recorder = DenseArrayRecorder(filepath=filepath, shape=(1,1),)
+        dense_recorder._memory = _memory
+        dense_recorder._write_idx = _memory.shape[0]
+        return dense_recorder
 
     def write(self, newdata: NumpyArray):
         self._memory[self._write_idx] = newdata
@@ -65,4 +71,5 @@ class DenseArrayRecorder(ArrayRecorder):
 
 
 class ChunkedArrayRecorder(ArrayRecorder):
-    pass
+    def __init__(self):
+        raise NotImplementedError()  # TODO

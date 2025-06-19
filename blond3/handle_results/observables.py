@@ -9,7 +9,7 @@ from numpy.typing import NDArray as NumpyArray
 
 from .array_recorders import DenseArrayRecorder
 from ..core.base import MainLoopRelevant
-from ..core.simulation.base import Simulation
+from ..core.simulation.simulation import Simulation
 from ..physics.cavities import SingleHarmonicCavity
 from ..physics.profiles import ProfileBaseClass, DynamicProfileConstNBins, \
     StaticProfile

@@ -9,7 +9,7 @@ from ..profiles import ProfileBaseClass
 from ...core.base import BeamPhysicsRelevant
 from ...core.beam.base import BeamBaseClass
 from ...core.ring.helpers import requires
-from ...core.simulation.base import Simulation
+from ...core.simulation.simulation import Simulation
 
 
 class Feedback(BeamPhysicsRelevant):

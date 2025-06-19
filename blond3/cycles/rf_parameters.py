@@ -7,7 +7,7 @@ from numpy.typing import NDArray as NumpyArray
 from .base import RfParameterCycle
 from .noise_generators.base import NoiseGenerator
 from blond3.core.backend import backend
-from ..core.simulation.base import Simulation
+from ..core.simulation.simulation import Simulation
 
 
 class ConstantProgram(RfParameterCycle):

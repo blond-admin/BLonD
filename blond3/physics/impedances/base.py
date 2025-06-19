@@ -9,7 +9,7 @@ from ..profiles import ProfileBaseClass
 from blond3.core.backend import backend
 from ...core.base import Preparable, BeamPhysicsRelevant
 from ...core.beam.base import BeamBaseClass
-from ...core.simulation.base import Simulation
+from ...core.simulation.simulation import Simulation
 
 
 class WakeFieldSolver(Preparable):

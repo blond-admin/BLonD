@@ -20,7 +20,7 @@ from ..profiles import (
 from ...core.base import DynamicParameter
 from ...core.beam.base import BeamBaseClass
 from ...core.ring.helpers import requires
-from ...core.simulation.base import Simulation
+from ...core.simulation.simulation import Simulation
 
 
 class InductiveImpedanceSolver(WakeFieldSolver):

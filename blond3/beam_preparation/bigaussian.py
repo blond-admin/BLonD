@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from .base import MatchingRoutine
 
 if TYPE_CHECKING:  # pragma: no cover
-    from blond3.core.ring.base import Ring
+    from blond3.core.ring.ring import Ring
 
 
 class BiGaussian(MatchingRoutine):

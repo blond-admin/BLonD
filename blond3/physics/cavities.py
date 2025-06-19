@@ -10,7 +10,7 @@ from .impedances.base import WakeField
 from blond3.core.backend import backend
 from ..core.base import BeamPhysicsRelevant
 from ..core.beam.base import BeamBaseClass
-from ..core.simulation.base import Simulation
+from ..core.simulation.simulation import Simulation
 from ..cycles.base import RfParameterCycle
 
 
