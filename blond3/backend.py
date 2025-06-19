@@ -2,18 +2,18 @@ from __future__ import annotations
 
 import abc
 from abc import ABC
-from typing import Literal
 
 import numpy as np
 
 
 class BackendBaseClass(ABC):
     def __init__(
-        self, float: Literal[np.float32, np.float64], int: Literal[np.int32, np.int64]
+        self, float_: np.float32 | np.float64, int_: np.int32 | np.int64
     ):
-        self.float = float
-        self.int = int
+        self.float: np.float32 | np.float64 = float_
+        self.int: np.int32 | np.int64 = int_
 
+        # Callables
         self.array = None
         self.gradient = None
 
@@ -21,12 +21,16 @@ class BackendBaseClass(ABC):
         self.__dict__ = new_backend.__dict__
         self.__class__ = new_backend.__class__
 
+    @abc.abstractmethod
+    def loss_box(self, a, b, c, d):
+        pass
+
 
 class NumpyBackend(BackendBaseClass):
     def __init__(
-        self, float: Literal[np.float32, np.float64], int: Literal[np.int32, np.int64]
+        self, float_: np.float32 | np.float64, int_: np.int32 | np.int64
     ):
-        super().__init__(float, int)
+        super().__init__(float_, int_)
         self.array = np.array
         self.gradient = np.gradient
 
@@ -39,6 +43,7 @@ class Numpy32Bit(NumpyBackend):
 class Numpy64Bit(NumpyBackend):
     def __init__(self):
         super().__init__(np.float64, np.int64)
+
 
 default = Numpy32Bit()  # use .change_backend(...) to change it anywhere
 backend = default

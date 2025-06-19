@@ -185,20 +185,20 @@ class Losses(BeamPhysicsRelevant):
 class BoxLosses(Losses):
     def __init__(
         self,
-        t_min: Optional[float] = None,
-        t_max: Optional[float] = None,
-        e_min: Optional[float] = None,
-        e_max: Optional[float] = None,
+        t_min: Optional[backend.float] = None,
+        t_max: Optional[backend.float] = None,
+        e_min: Optional[backend.float] = None,
+        e_max: Optional[backend.float] = None,
     ):
         super().__init__()
 
-        self.t_min = t_min
-        self.t_max = t_max
-        self.e_min = e_min
-        self.e_max = e_max
+        self.t_min = backend.float(t_min)
+        self.t_max = backend.float(t_max)
+        self.e_min = backend.float(e_min)
+        self.e_max = backend.float(e_max)
 
     def track(self, beam: BeamBaseClass):
-        bm.loss_box(
+        backend.loss_box(
             beam.write_partial_flags(), self.t_min, self.t_max, self.e_min, self.e_max
         )
 
@@ -284,7 +284,11 @@ class ProgrammedCycle(Preparable):
 class EnergyCycle(ProgrammedCycle):
     def __init__(self, beam_energy_by_turn: NumpyArray):
         super().__init__()
-        self.beam_energy_by_turn = beam_energy_by_turn
+        self._beam_energy_by_turn = beam_energy_by_turn.astype(backend.float)
+
+    @property
+    def beam_energy_by_turn(self):
+        return self._beam_energy_by_turn
 
     @staticmethod
     def from_linspace(start, stop, turns, endpoint: bool = True):
@@ -328,8 +332,8 @@ class VariNoise(NoiseGenerator):
 class ConstantProgram(RfParameterCycle):
     def __init__(self, phase: float, effective_voltage: float):
         super().__init__()
-        self._phase = phase
-        self._effective_voltage = effective_voltage
+        self._phase = backend.float(phase)
+        self._effective_voltage = backend.float(effective_voltage)
 
     def get_phase(self, turn_i: int):
         return self._phase
@@ -349,16 +353,18 @@ class RFNoiseProgram(RfParameterCycle):
         phase_noise_generator: NoiseGenerator,
     ):
         super().__init__()
-        self._phase = phase
-        self._effective_voltage = effective_voltage
+        self._phase = backend.float(phase)
+        self._effective_voltage = backend.float(effective_voltage)
         self._phase_noise_generator = phase_noise_generator
 
         self._phase_noise: LateInit[NumpyArray] = None
 
     def late_init(self, simulation: Simulation, **kwargs):
-        n_turns = len(simulation.ring.energy_cycle.beam_energy_by_turn)
+        n_turns = len(simulation.ring.energy_cycle._beam_energy_by_turn)
         # TODO max_turns attribute
-        self._phase_noise = self._phase_noise_generator.get_noise(n_turns=n_turns)
+        self._phase_noise = self._phase_noise_generator.get_noise(
+            n_turns=n_turns
+        ).astype(backend.float)
 
     def get_phase(self, turn_i: int):
         return self._phase + self._phase_noise[turn_i]
@@ -370,7 +376,7 @@ class RFNoiseProgram(RfParameterCycle):
 class Ring(ABC):
     def __init__(self, circumference):
         super().__init__()
-        self._circumference = circumference
+        self._circumference = backend.float(circumference)
         self._elements = BeamPhysicsRelevantElements()
         self._beams: Tuple[BeamBaseClass, ...] = ()
         self._energy_cycle: LateInit[EnergyCycle] = None
@@ -496,7 +502,7 @@ class Ring(ABC):
 
     def get_t_rev(self, turn_i):
         return self.circumference / beta_by_ekin(
-            self.energy_cycle.beam_energy_by_turn[turn_i]
+            self.energy_cycle._beam_energy_by_turn[turn_i]
         )
 
     def update_t_rev(self, new_turn_i: int):
@@ -506,7 +512,7 @@ class Ring(ABC):
 class DriftBaseClass(BeamPhysicsRelevant, ABC):
     def __init__(self, share_of_circumference: float, group: int = 0):
         super().__init__(group=group)
-        self.__share_of_circumference = share_of_circumference
+        self.__share_of_circumference = backend.float(share_of_circumference)
 
     @property
     def share_of_circumference(self):
@@ -527,7 +533,7 @@ class DriftSimple(DriftBaseClass):
         group: int = 0,
     ):
         super().__init__(share_of_circumference=share_of_circumference, group=group)
-        self._transition_gamma = transition_gamma
+        self._transition_gamma = backend.float(transition_gamma)
 
     def late_init(self, simulation: Simulation, **kwargs):
         pass
