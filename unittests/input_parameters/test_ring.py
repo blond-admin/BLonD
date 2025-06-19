@@ -191,6 +191,35 @@ class TestGeneralParameters(unittest.TestCase):
                     [np.float64(1.0), np.float64(2.0), np.float64(3.0)])  # might crash
         Ring(C, alpha, momentum, Proton(), n_turns)  # might crash
 
+    def test_multi_RF_dE(self):
+        # test if the delta_E is correctly calculated with multi-RF stations
+        C = 2 * np.pi * 1100.009  # Ring circumference [m]
+        l_per_section = C / self.num_sections
+        section_lengths = np.full(self.num_sections, l_per_section)
+        # the shape of momentum should be (n_sections, n_turns+1)
+        mom_gain = 1e10
+        mom_program = np.zeros(self.num_sections * (self.n_turns + 1))
+        mom_program[self.num_sections - 1:] = np.arange(1, self.num_sections * self.n_turns + 2)
+        mom_program = mom_program.reshape(self.n_turns + 1, self.num_sections).transpose() * mom_gain
+        ring = Ring(ring_length=section_lengths, alpha_0=self.alpha_0,
+                    synchronous_data=mom_program, particle=self.particle,
+                    n_turns=self.n_turns, n_sections=self.num_sections,
+                    synchronous_data_type='momentum')
+        delta_E_values = ring.delta_E.flatten()
+        np.testing.assert_allclose(delta_E_values, mom_gain)
+
+    def test_single_RF_dE(self):
+        # test if the delta_E is correctly calculated with single-RF stations
+        num_sections = 1
+        mom_gain = 1e10
+        mom_program = np.arange(1, num_sections * self.n_turns + 2) * mom_gain
+        ring = Ring(ring_length=self.C[0], alpha_0=self.alpha_0[0],
+                    synchronous_data=mom_program, particle=self.particle,
+                    n_turns=self.n_turns, n_sections=num_sections,
+                    synchronous_data_type='momentum')
+        delta_E_values = ring.delta_E.flatten()
+        np.testing.assert_allclose(delta_E_values, mom_gain)
+
 
 if __name__ == '__main__':
     unittest.main()

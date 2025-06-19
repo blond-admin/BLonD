@@ -22,9 +22,7 @@ from . import GPU_DEV
 
 # TODO all typing
 
-
-def rf_volt_comp(
-    voltages: CupyArray, omega_rf: CupyArray, phi_rf: CupyArray, bin_centers: CupyArray
+def rf_volt_comp(voltages: CupyArray, omega_rf: CupyArray, phi_rf: CupyArray, bin_centers: CupyArray
 ) -> CupyArray:
     """Calculate the rf voltage at each profile bin
 
@@ -97,20 +95,18 @@ def kick(
         warnings.warn("phi_rf must be contigous!")
         phi_rf = phi_rf.astype(dtype=precision.real_t, order="C", copy=False)
 
-    kick_kernel(
-        args=(
-            dt,
-            dE,
-            np.int32(n_rf),
-            precision.real_t(charge),
-            voltage,
+
+    kick_kernel(args=(dt,
+                      dE,
+                      np.int32(n_rf),
+                      precision.real_t(charge),
+                      voltage,
             omega_rf,
             phi_rf,
             np.int32(dt.size),
             precision.real_t(acceleration_kick),
-        ),
-        block=GPU_DEV.block_size,
-        grid=GPU_DEV.grid_size,
+                      ),
+                block=GPU_DEV.block_size, grid=GPU_DEV.grid_size,
     )
 
 
@@ -159,7 +155,7 @@ def drift(
 
     if not isinstance(t_rev, precision.real_t):
         try:
-            t_rev = precision.real_t(t_rev.get())
+            t_rev = precision.real_t(t_rev.get()) # relevant for cupy
         except:
             t_rev = precision.real_t(t_rev)
 
@@ -295,10 +291,8 @@ def slice_beam(dt: NumpyArray, profile: NumpyArray, cut_left: float, cut_right: 
                 np.uint32(n_slices),
                 np.uint32(dt.size),
                 np.int32(GPU_DEV.attributes["MaxSharedMemoryPerBlock"] / 4),
-            ),
-            grid=GPU_DEV.grid_size,
-            block=GPU_DEV.block_size,
-            shared_mem=GPU_DEV.attributes["MaxSharedMemoryPerBlock"],
+                         ),grid=GPU_DEV.grid_size, block=GPU_DEV.block_size,
+                         shared_mem=GPU_DEV.attributes["MaxSharedMemoryPerBlock"],
         )
 
 
