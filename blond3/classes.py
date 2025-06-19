@@ -28,9 +28,10 @@ from typing import Optional as LateInit
 import numpy as np
 from cupy.typing import NDArray as CupyArray
 from numpy.typing import NDArray as NumpyArray, DTypeLike
-from partd.file import filename
 from scipy.constants import m_p, c, e
 from tqdm import tqdm
+
+from blond3.backend import backend
 
 CLASS_DIAGRAM_HACKS = 0
 T = TypeVar("T")
@@ -171,9 +172,9 @@ class BeamPhysicsRelevant(MainLoopRelevant):
         return self._group
 
     @abc.abstractmethod
-    def track(self, beam: Beam) -> None:
+    def track(self, beam: BeamBaseClass) -> None:
         if CLASS_DIAGRAM_HACKS:
-            self.track_beam = Beam()
+            self.track_beam = BeamBaseClass()
 
 
 class Losses(BeamPhysicsRelevant):
@@ -196,17 +197,10 @@ class BoxLosses(Losses):
         self.e_min = e_min
         self.e_max = e_max
 
-    def track(self, beam: Beam):
-        sel = np.zeros(len(beam.dt), dtype=beam)
-        if self.t_max is not None:
-            sel = sel | beam.dt > self.t_max
-        if self.t_min is not None:
-            sel = sel | beam.dt < self.t_min
-        if self.e_max is not None:
-            sel = sel | beam.dt > self.e_max
-        if self.e_min is not None:
-            sel = sel | beam.dt < self.e_min
-        beam.flags[sel] = BeamFlags.LOST
+    def track(self, beam: BeamBaseClass):
+        bm.loss_box(
+            beam.write_partial_flags(), self.t_min, self.t_max, self.e_min, self.e_max
+        )
 
     def late_init(self, simulation: Simulation, **kwargs):
         pass
@@ -220,26 +214,8 @@ class SeparatrixLosses(Losses):
     def late_init(self, simulation: Simulation, **kwargs):
         self._simulation = simulation
 
-    def track(self, beam: Beam):
+    def track(self, beam: BeamBaseClass):
         self._simulation.get_separatrix()  # TODO
-
-
-"""class EventBus:
-    def __init__(self):
-        self.listeners = {}
-
-    def subscribe(self, event_type, callback):
-        if event_type not in self.listeners:
-            self.listeners[event_type] = []
-        self.listeners[event_type].append(callback)
-
-    def unsubscribe(self, event_type, callback):
-        if event_type in self.listeners:
-            self.listeners[event_type].remove(callback)
-
-    def publish(self, event_type, data=None):
-        for callback in self.listeners.get(event_type, []):
-            callback(data)"""
 
 
 class DynamicParameter:  # TODO add code generation for this method with type-hints
@@ -313,7 +289,8 @@ class EnergyCycle(ProgrammedCycle):
     @staticmethod
     def from_linspace(start, stop, turns, endpoint: bool = True):
         return EnergyCycle(
-            beam_energy_by_turn=np.linspace(start, stop, turns, endpoint=endpoint)
+            beam_energy_by_turn=backend.linspace(start, stop, turns,
+                                            endpoint=endpoint, dtype=backend.float)
         )
 
     def late_init(self, simulation: Simulation, **kwargs):
@@ -394,12 +371,12 @@ class Ring(ABC):
         super().__init__()
         self._circumference = circumference
         self._elements = BeamPhysicsRelevantElements()
-        self._beams: Tuple[Beam, ...] = ()
+        self._beams: Tuple[BeamBaseClass, ...] = ()
         self._energy_cycle: LateInit[EnergyCycle] = None
         self._t_rev = DynamicParameter(None)
 
         if CLASS_DIAGRAM_HACKS:
-            self._beams = Beam()  # TODO
+            self._beams = BeamBaseClass()  # TODO
             self._energy_cycle = EnergyCycle()  # TODO
 
     @property
@@ -464,7 +441,7 @@ class Ring(ABC):
                 f"Cant handle {type(ring_attributes)=}, must be " f"`Iterable` instead"
             )
         for val in values:
-            if isinstance(val, Beam):
+            if isinstance(val, BeamBaseClass):
                 self.add_beam(beam=val)
             elif isinstance(val, BeamPhysicsRelevant):
                 self.add_element(element=val)
@@ -483,16 +460,16 @@ class Ring(ABC):
             energy_cycle = EnergyCycle(energy_cycle)
         self._energy_cycle = energy_cycle
 
-    def add_beam(self, beam: Beam):
+    def add_beam(self, beam: BeamBaseClass):
         if CLASS_DIAGRAM_HACKS:
-            self._beam = Beam()  # TODO
+            self._beam = BeamBaseClass()  # TODO
 
         if len(self.beams) == 0:
-            assert beam.counter_rotating is False
+            assert beam.is_counter_rotating is False
             self._beams = (beam,)
 
         elif len(self.beams) == 1:
-            assert beam.counter_rotating is True
+            assert beam.is_counter_rotating is True
             self._beams = (self.beams[0], beam)
         else:
             raise NotImplementedError("No more than two beam allowed!")
@@ -506,7 +483,7 @@ class Ring(ABC):
                 if not type(element) == cls:
                     continue
                 element.late_init(simulation=simulation)
-        all_drifts = self.elements.get_elements(Drift)
+        all_drifts = self.elements.get_elements(DriftBaseClass)
         sum_share_of_circumference = sum(
             [drift.share_of_circumference for drift in all_drifts]
         )
@@ -525,7 +502,7 @@ class Ring(ABC):
         self.t_rev.value = self.get_t_rev(new_turn_i)
 
 
-class Drift(BeamPhysicsRelevant, ABC):
+class DriftBaseClass(BeamPhysicsRelevant, ABC):
     def __init__(self, share_of_circumference: float, group: int = 0):
         super().__init__(group=group)
         self.__share_of_circumference = share_of_circumference
@@ -534,14 +511,14 @@ class Drift(BeamPhysicsRelevant, ABC):
     def share_of_circumference(self):
         return self.__share_of_circumference
 
-    def track(self, beam: Beam):
+    def track(self, beam: BeamBaseClass):
         pass
 
     def late_init(self, simulation: Simulation, **kwargs):
         pass
 
 
-class DriftSimple(Drift):
+class DriftSimple(DriftBaseClass):
     def __init__(
         self,
         transition_gamma: float,
@@ -551,33 +528,42 @@ class DriftSimple(Drift):
         super().__init__(share_of_circumference=share_of_circumference, group=group)
         self._transition_gamma = transition_gamma
 
+    def late_init(self, simulation: Simulation, **kwargs):
+        pass
+
     @property
+    def transition_gamma(self):
+        return self._transition_gamma
+
+    def track(self, beam: BeamBaseClass):
+        backend.drift_simple(
+            beam.write_partial_dt(), beam.read_partial_dE(), self._transition_gamma
+        )
+
+    @cached_property
     def momentum_compaction_factor(self):
         return 1 / self._transition_gamma**2
 
-    def track(self, beam: Beam):
+    def invalidate_cache(self):
+        self.__dict__.pop("momentum_compaction_factor", None)
+
+
+class DriftSpecial(DriftBaseClass):
+    def track(self, beam: BeamBaseClass):
         pass
 
     def late_init(self, simulation: Simulation, **kwargs):
-        pass
-
-
-class DriftSpecial(Drift):
-    def track(self, beam: Beam):
-        pass
-
-    def late_init(self, simulation: Simulation, **kwargs):
-        pass
+        super().late_init(simulation=simulation)
 
     pass
 
 
-class DriftXSuite(Drift):
-    def track(self, beam: Beam):
+class DriftXSuite(DriftBaseClass):
+    def track(self, beam: BeamBaseClass):
         pass
 
     def late_init(self, simulation: Simulation, **kwargs):
-        pass
+        super().late_init(simulation=simulation)
 
     pass
 
@@ -592,6 +578,7 @@ class CavityBaseClass(BeamPhysicsRelevant, ABC):
         super().__init__(group=group)
         self._rf_program: RfParameterCycle = rf_program
         self._local_wakefield = local_wakefield
+        self._turn_i_dynamic: LateInit[None]
 
         # TODO REMOVE
         if CLASS_DIAGRAM_HACKS:
@@ -603,9 +590,10 @@ class CavityBaseClass(BeamPhysicsRelevant, ABC):
 
     def late_init(self, simulation: Simulation, **kwargs):
         self.derive_rf_program(simulation=simulation)
+        self._turn_i_dynamic = simulation.turn_i
         assert self._rf_program is not None
 
-    def track(self, beam: Beam):
+    def track(self, beam: BeamBaseClass):
         if self._local_wakefield is not None:
             self._local_wakefield.track(beam=beam)
 
@@ -630,9 +618,14 @@ class SingleHarmonicCavity(CavityBaseClass):
     def derive_rf_program(self, simulation: Simulation):
         pass
 
-    def track(self, beam: Beam):
+    def track(self, beam: BeamBaseClass):
         super().track(beam=beam)
-        pass  # TODO
+        backend.kick_single_harmonic(
+            beam.read_partial_dt(),
+            beam.write_partial_dE(),
+            self._rf_program.get_phase(turn_i=self._turn_i_dynamic.value),
+            self._rf_program.get_effective_voltage(turn_i=self._turn_i_dynamic.value),
+        )
 
     def late_init(self, simulation: Simulation, **kwargs):
         super().late_init(simulation=simulation)
@@ -640,7 +633,7 @@ class SingleHarmonicCavity(CavityBaseClass):
 
 
 class MultiHarmonicCavity(CavityBaseClass):
-    def track(self, beam: Beam):
+    def track(self, beam: BeamBaseClass):
         pass
 
     def derive_rf_program(self, simulation: Simulation):
@@ -651,7 +644,7 @@ class MultiHarmonicCavity(CavityBaseClass):
 
 
 class Impedance(BeamPhysicsRelevant):
-    def __init__(self, group: int = 0, profile: LateInit[Profile] = None):
+    def __init__(self, group: int = 0, profile: LateInit[ProfileBaseClass] = None):
         super().__init__(group=group)
         self._profile = profile
 
@@ -661,7 +654,9 @@ class Impedance(BeamPhysicsRelevant):
 
     def late_init(self, simulation: Simulation, **kwargs):
         if self._profile is None:
-            profiles = simulation.ring.elements.get_elements(Profile, group=self.group)
+            profiles = simulation.ring.elements.get_elements(
+                ProfileBaseClass, group=self.group
+            )
             assert len(profiles) == 1, (
                 f"Found {len(profiles)} profiles in "
                 f"{self.group=}, but can only handle one. Set the attribute "
@@ -679,7 +674,7 @@ class WakeField(Impedance):
         sources: Tuple[WakeFieldSource, ...],
         solver: Optional[WakeFieldSolver],
         group: int = 0,
-        profile: LateInit[Profile] = None,
+        profile: LateInit[ProfileBaseClass] = None,
     ):
         super().__init__(group=group, profile=profile)
 
@@ -694,9 +689,9 @@ class WakeField(Impedance):
     def _calc_induced_voltage(self):
         return self.solver.calc_induced_voltage()
 
-    def track(self, beam: Beam):
+    def track(self, beam: BeamBaseClass):
         induced_voltage = self._calc_induced_voltage()
-        beam.kick(induced_voltage)
+        beam.kick_induced(self)
 
 
 class WakeFieldSolver(Preparable):
@@ -717,7 +712,7 @@ class WakeFieldSolver(Preparable):
 class InductiveImpedanceSolver(WakeFieldSolver):
     def __init__(self):
         super().__init__()
-        self._beam: LateInit[Beam] = None
+        self._beam: LateInit[BeamBaseClass] = None
         self._Z: LateInit[NumpyArray] = None
         self._T_rev_dynamic: LateInit[DynamicParameter] = None
 
@@ -793,7 +788,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
             self._update_internal_data()  # might cause performance issues :(
 
         induced_voltage = np.fft.irfft(
-            self._freq_y * self._profile.beam_spectrum(self._n)
+            self._freq_y * self._parent_wakefield._profile.beam_spectrum(self._n)
         )
         return induced_voltage
 
@@ -952,7 +947,7 @@ class Feedback(BeamPhysicsRelevant):
 class LocalFeedback(Feedback):
     def __init__(
         self,
-        profile: Profile,
+        profile: ProfileBaseClass,
         cavity: SingleHarmonicCavity | MultiHarmonicCavity,
         group: int = 0,
     ):
@@ -962,7 +957,7 @@ class LocalFeedback(Feedback):
         if CLASS_DIAGRAM_HACKS:
             self.cavity = CavityBaseClass()  # TODO
 
-    def track(self, beam: Beam):
+    def track(self, beam: BeamBaseClass):
         pass
 
     def late_init(self, simulation: Simulation, **kwargs):
@@ -973,11 +968,11 @@ RfFeedback = LocalFeedback  # just an alias name
 
 
 class GlobalFeedback(Feedback):
-    def __init__(self, profile: Profile, group: int = 0):
+    def __init__(self, profile: ProfileBaseClass, group: int = 0):
         super().__init__(group=group)
         self.profile = profile
 
-    def track(self, beam: Beam):
+    def track(self, beam: BeamBaseClass):
         pass
 
     # Use `requires` to automatically sort execution order of
@@ -993,7 +988,7 @@ BeamFeedback = GlobalFeedback  # just an alias name
 class GroupedFeedback(Feedback):
     def __init__(
         self,
-        profile: Profile,
+        profile: ProfileBaseClass,
         cavities: List[SingleHarmonicCavity | MultiHarmonicCavity],
         group: int = 0,
     ):
@@ -1003,14 +998,14 @@ class GroupedFeedback(Feedback):
 
 
 class LhcBeamFeedBack(GlobalFeedback):
-    def __init__(self, profile: Profile, group: int = 0):
+    def __init__(self, profile: ProfileBaseClass, group: int = 0):
         super().__init__(profile=profile, group=group)
 
 
 class LhcRfFeedback(LocalFeedback):
     def __init__(
         self,
-        profile: Profile,
+        profile: ProfileBaseClass,
         cavity: SingleHarmonicCavity | MultiHarmonicCavity,
         group: int = 0,
     ):
@@ -1025,43 +1020,60 @@ class SimulationResults(ABC):
             self.observables = Observables()  # TODO remove
 
 
-class Profile(BeamPhysicsRelevant):
+class ProfileBaseClass(BeamPhysicsRelevant):
     def __init__(self):
         super().__init__()
         self.hist_x: LateInit[NumpyArray | CupyArray] = None
         self.hist_y: LateInit[NumpyArray | CupyArray] = None
-        self.bin_edges: LateInit[NumpyArray | CupyArray] = None
-        self.cut_left: LateInit[float] = None
-        self.cut_right: LateInit[float] = None
-        self.dx: LateInit[float] = None
 
         self._beam_spectrum_buffer = {}
 
-    def track(self, beam: Beam):
-        histogram(beam.dt, start=self.cut_left, stop=self.cut_right, out=self.hist_y)
+    @cached_property
+    def hist_step(self):
+        return backend.float(self.hist_x[1] - self.hist_x[0])
+
+    @cached_property
+    def cut_left(self):
+        return backend.float(self.hist_x[0] - self.hist_step / 2.0)
+
+    @cached_property
+    def cut_right(self):
+        return backend.float(self.hist_x[-1] + self.hist_step / 2.0)
+
+    @cached_property
+    def bin_edges(self):
+        return backend.linspace(
+            self.cut_left, self.cut_right, len(self.hist_x) + 1, backend.float
+        )
+
+    def track(self, beam: BeamBaseClass):
+        if beam.is_distributed:
+            raise NotImplementedError("Impleemt hisogram on distributed array")
+        else:
+            backend.histogram(
+                beam.read_partial_dt(), self.cut_left, self.cut_right, self.hist_y
+            )
+
         self.invalidate_cache()
 
     def late_init(self, simulation: Simulation, **kwargs):
         assert self.hist_x is not None
-        assert self.dx is not None
         assert self.hist_y is not None
-        assert self.bin_edges is not None
-        assert self.cut_left is not None
-        assert self.cut_right is not None
         self.invalidate_cache()
 
     @staticmethod
     def get_arrays(cut_left: float, cut_right: float, n_bins: int):
-        bin_edges = cut_left + (cut_right - cut_left) * np.arange(
-            n_bins + 1, dtype=np.float64
+        step = (cut_right - cut_left) / n_bins
+        offset = step / 2
+        hist_x = backend.linspace(
+            cut_left + offset, cut_right - offset, n_bins, dtype=backend.float
         )
-        hist_x = bin_edges[:-1] + (bin_edges[1] - bin_edges[0])
-        hist_y = np.zeros(n_bins, dtype=np.float64)
-        return hist_x, hist_y, bin_edges
+        hist_y = backend.zeros(n_bins, dtype=backend.float)
+        return hist_x, hist_y
 
     @property
     def cutoff_frequency(self):
-        return 1 / (2 * self.dx)
+        return backend.float(1 / (2 * self.hist_step))
 
     def _calc_gauss(self):
         return
@@ -1080,19 +1092,23 @@ class Profile(BeamPhysicsRelevant):
         return self._beam_spectrum_buffer
 
     def invalidate_cache(self):
-        self.__dict__.pop("gauss_fit_params", None)
-        self.__dict__.pop("beam_spectrum", None)
+        for attribute in (
+            "gauss_fit_params",
+            "beam_spectrum",
+            "hist_step",
+            "cut_left",
+            "cut_right",
+            "bin_edges",
+        ):
+            self.__dict__.pop(attribute, None)
 
 
-class StaticProfile(Profile):
+class StaticProfile(ProfileBaseClass):
     def __init__(self, cut_left: float, cut_right: float, n_bins: int):
         super().__init__()
-        self.hist_x, self.hist_y, self.bin_edges = Profile.get_arrays(
+        self.hist_x, self.hist_y = ProfileBaseClass.get_arrays(
             cut_left=cut_left, cut_right=cut_right, n_bins=n_bins
         )
-        self.dx = self.hist_x[1] - self.hist_x[0]
-        self.start = float(self.bin_edges.min())
-        self.stop = float(self.bin_edges.max())
 
     @staticmethod
     def from_cutoff(cut_left: float, cut_right: float, cutoff_frequency: float):
@@ -1110,7 +1126,7 @@ class StaticProfile(Profile):
         return StaticProfile(cut_left=cut_left, cut_right=cut_right, n_bins=n_bins)
 
 
-class DynamicProfile(Profile):
+class DynamicProfile(ProfileBaseClass):
     def __init__(self):
         super().__init__()
 
@@ -1119,10 +1135,10 @@ class DynamicProfile(Profile):
         super().late_init(simulation=simulation)
 
     @abc.abstractmethod
-    def update_attributes(self, beam: Beam):
+    def update_attributes(self, beam: BeamBaseClass):
         pass
 
-    def track(self, beam: Beam):
+    def track(self, beam: BeamBaseClass):
         self.update_attributes(beam=beam)
         super().track(beam=beam)
 
@@ -1132,32 +1148,26 @@ class DynamicProfileConstCutoff(DynamicProfile):
         super().__init__()
         self.timestep = timestep
 
-    def update_attributes(self, beam: Beam):
-        cut_left = beam.dt.min()  # TODO caching of attribute acess
-        cut_right = beam.dt.max()  # TODO caching of attribute acess
+    def update_attributes(self, beam: BeamBaseClass):
+        cut_left = beam.dt_min()  # TODO caching of attribute acess
+        cut_right = beam.dt_max()  # TODO caching of attribute acess
         n_bins = int(math.ceil((cut_right - cut_left) / self.timestep))
-        self.hist_x, self.hist_y, self.bin_edges = Profile.get_arrays(
+        self.hist_x, self.hist_y = ProfileBaseClass.get_arrays(
             cut_left=cut_left, cut_right=cut_right, n_bins=n_bins
         )
-        self.dx = self.hist_x[1] - self.hist_x[0]
-        self.start = cut_left
-        self.stop = cut_right
 
 
-class DynamicProfileConstNBins(Profile):
+class DynamicProfileConstNBins(ProfileBaseClass):
     def __init__(self, n_bins: int):
         super().__init__()
         self.n_bins = int_from_float_with_warning(n_bins, warning_stacklevel=2)
 
-    def update_attributes(self, beam: Beam):
-        cut_left = beam.dt.min()  # TODO caching of attribute acess
-        cut_right = beam.dt.max()  # TODO caching of attribute acess
-        self.hist_x, self.hist_y, self.bin_edges = Profile.get_arrays(
+    def update_attributes(self, beam: BeamBaseClass):
+        cut_left = beam.dt_min()  # TODO caching of attribute acess
+        cut_right = beam.dt_max()  # TODO caching of attribute acess
+        self.hist_x, self.hist_y = ProfileBaseClass.get_arrays(
             cut_left=cut_left, cut_right=cut_right, n_bins=self.n_bins
         )
-        self.dx = self.hist_x[1] - self.hist_x[0]
-        self.start = cut_left
-        self.stop = cut_right
 
 
 @dataclass(frozen=True)
@@ -1189,33 +1199,149 @@ class BeamFlags(int, Enum):
     ACTIVE = 1
 
 
-class Beam(Preparable):
+class BeamBaseClass(Preparable, ABC):
     def __init__(
         self,
         n_particles: int | float,
         n_macroparticles: int | float,
         particle_type: ParticleType,
-        counter_rotating: bool = False,
+        is_counter_rotating: bool = False,
+        is_distributed=False,
     ):
-        self.__n_particles = int_from_float_with_warning(
+        super().__init__()
+
+        self.__n_particles__init = int_from_float_with_warning(
             n_particles, warning_stacklevel=2
         )
-        self.__n_macroparticles = int_from_float_with_warning(
+        self.__n_macroparticles__init = int_from_float_with_warning(
             n_macroparticles, warning_stacklevel=2
         )
+        self._is_distributed = is_distributed
         self.__particles = particle_type
-        super().__init__()
-        self.dE = None
-        self.dt = None
-        self.flags = None
-        self.counter_rotating = counter_rotating
+        self._dE = None
+        self._dt = None
+        self._flags = None
+        self._is_counter_rotating = is_counter_rotating
 
+    @property
+    def is_distributed(self):
+        return self._is_distributed
+
+    @property
+    def is_counter_rotating(self):
+        return self._is_counter_rotating
+
+    @abc.abstractmethod
     def late_init(self, simulation: Simulation, **kwargs):
         pass
 
+    @abc.abstractmethod
     @property
-    def n_macroparticles(self):
-        return self.__n_macroparticles
+    def dt_min(self):
+        pass
+
+    @abc.abstractmethod
+    @property
+    def dt_max(self):
+        pass
+
+    @abc.abstractmethod
+    @property
+    def dE_min(self):
+        pass
+
+    @abc.abstractmethod
+    @property
+    def dE_min(self):
+        pass
+
+    @abc.abstractmethod
+    @property
+    def common_array_size(self):
+        pass
+
+    @abc.abstractmethod
+    def invalidate_cache_dE(self):
+        pass
+
+    @abc.abstractmethod
+    def invalidate_cache_dt(self):
+        pass
+
+    @abc.abstractmethod
+    def invalidate_cache(self):
+        self.invalidate_cache_dE()
+        self.invalidate_cache_dt()
+
+    def read_partial_dt(self):
+        """Returns dt-array on current node (distributed computing ready)
+
+        Note
+        ----
+        Depends on `is_distributed`
+        """
+        return self._dt
+
+    def write_partial_dt(self):
+        """Returns dt-array on current node (distributed computing ready)
+
+        Note
+        ----
+        Depends on"""
+        self.invalidate_cache_dt()
+        return self._dt
+
+    def read_partial_dE(self):
+        """Returns dE-array on current node (distributed computing ready)
+
+        Note
+        ----
+        Depends on `is_distributed`
+        """
+        return self._dE
+
+    def write_partial_dE(self):
+        """Returns dE-array on current node (distributed computing ready)
+
+        Note
+        ----
+        Depends on `is_distributed`
+        """
+        self.invalidate_cache_dE()
+        return self._dE
+
+    def write_partial_flags(self):
+        """Returns flags-array on current node (distributed computing ready)
+
+        Note
+        ----
+        Depends on `is_distributed`
+        """
+        self.invalidate_cache_dt()
+        self.invalidate_cache_dE()
+        return self._flags
+
+
+class Beam(BeamBaseClass):
+    def __init__(
+        self,
+        n_particles: int | float,
+        n_macroparticles: int | float,
+        particle_type: ParticleType,
+        is_counter_rotating: bool = False,
+    ):
+        super().__init__(
+            n_particles=n_particles,
+            n_macroparticles=n_macroparticles,
+            particle_type=particle_type,
+            is_counter_rotating=is_counter_rotating,
+        )
+
+
+class WeightenedBeam(BeamBaseClass):
+    @staticmethod
+    def from_beam(beam: Beam):
+        pass
 
 
 class Observables(MainLoopRelevant):
@@ -1278,7 +1404,7 @@ class ArrayRecorder(ABC):
 class DenseArrayRecorder(ArrayRecorder):
     def __init__(
         self,
-        filename: str,
+        filepath: str,
         shape: int | Tuple[int, ...],
         dtype: Optional[DTypeLike] = None,
         order: Literal["C", "F"] = "C",
@@ -1286,13 +1412,16 @@ class DenseArrayRecorder(ArrayRecorder):
     ):
         self._memory = np.empty(shape=shape, dtype=dtype, order=order)
         self._write_idx = 0
-        self.filename = filename
+        self.filepath = filepath
         self.overwrite = overwrite
         if not self.overwrite:
-            assert not os.path.exists(self.filename)
+            if os.path.exists(self.filepath):
+                warnings.warn(f"{self.filepath} exists already!")
 
     def to_disk(self):
-        np.save(filename, self.get_valid_entries())
+        if not self.overwrite:
+            assert not os.path.exists(self.filepath)
+        np.save(self.filepath, self.get_valid_entries())
 
     def from_disk(self):
         pass
@@ -1310,7 +1439,7 @@ class ChunkedArrayRecorder(ArrayRecorder):
 
 
 class ProfileObservation(Observables):
-    def __init__(self, each_turn_i: int, profile: LateInit[Profile] = None):
+    def __init__(self, each_turn_i: int, profile: LateInit[ProfileBaseClass] = None):
         super().__init__(each_turn_i=each_turn_i)
         self._profile = profile
         self._hist_ys: LateInit[DenseArrayRecorder] = None
@@ -1322,7 +1451,7 @@ class ProfileObservation(Observables):
         n_entries = n_turns // self.each_turn_i
 
         if self._profile is None:
-            profiles = simulation.ring.elements.get_elements(Profile)
+            profiles = simulation.ring.elements.get_elements(ProfileBaseClass)
             if len(profiles) == 0:
                 raise Exception("Please define a profile for your simulation!")
             elif len(profiles) > 1:
@@ -1361,16 +1490,16 @@ class BunchObservation(Observables):
             simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
         )
         n_entries = n_turns // self.each_turn_i
-        n_particles = simulation.ring.beams[0].n_macroparticles
+        n_particles = simulation.ring.beams[0].common_array_size
         shape = (n_particles, n_entries)
         self._dts = DenseArrayRecorder(f"{simulation.get_hash}_dts", shape)
         self._dEs = DenseArrayRecorder(f"{simulation.get_hash}_dEs", shape)
         self._flags = DenseArrayRecorder(f"{simulation.get_hash}_flags", shape)
 
     def update(self, simulation: Simulation):
-        self._dts.write(simulation.ring.beams[0].dt)
-        self._dEs.write(simulation.ring.beams[0].dE)
-        self._flags.write(simulation.ring.beams[0].flags)
+        self._dts.write(simulation.ring.beams[0]._dt)
+        self._dEs.write(simulation.ring.beams[0]._dE)
+        self._flags.write(simulation.ring.beams[0]._flags)
 
     @property
     def dts(self):
@@ -1448,7 +1577,6 @@ class Simulation(ABC):
         super().__init__()
         if ring_attributes is not None:
             ring.magic_add(ring_attributes)
-        self.generate_hash()
         ring.late_init(simulation=self)
         self.ring: Ring = ring
         self.turn_i = DynamicParameter(None)
@@ -1501,8 +1629,8 @@ class Simulation(ABC):
             )
         elif len(self.ring.beams) == 2:
             assert (
-                self.ring.beams[0].counter_rotating,
-                self.ring.beams[1].counter_rotating,
+                self.ring.beams[0].is_counter_rotating,
+                self.ring.beams[1].is_counter_rotating,
             ) == (
                 False,
                 True,

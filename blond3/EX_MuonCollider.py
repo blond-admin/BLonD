@@ -38,10 +38,10 @@ for cavity_i in range(n_cavities):
 ring.add_elements(one_turn_model, reorder=False)
 ####################################################################
 beam1 = Beam(
-    n_particles=1e9, n_macroparticles=1001, particle_type=proton, counter_rotating=False
+    n_particles=1e9, n_macroparticles=1001, particle_type=proton, is_counter_rotating=False
 )
 beam2 = Beam(
-    n_particles=1e9, n_macroparticles=1001, particle_type=proton, counter_rotating=True
+    n_particles=1e9, n_macroparticles=1001, particle_type=proton, is_counter_rotating=True
 )
 ring.add_beam(beam1)
 ring.add_beam(beam2)
