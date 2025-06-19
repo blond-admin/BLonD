@@ -471,10 +471,10 @@ class RFStation:
         volts = self.voltage[:, turn_number]
         if design:
             phases = self.phi_rf_d[:, turn_number]
-            omegas = self.phi_rf_d[:, turn_number]
+            omegas = self.omega_rf_d[:, turn_number]
         else:
             phases = self.phi_rf[:, turn_number]
-            omegas = self.phi_rf[:, turn_number]
+            omegas = self.omega_rf[:, turn_number]
 
         volts = bm.rf_volt_comp(volts, omegas, phases, time_array)
         if hasattr(self, '_device') and self._device == 'GPU':
