@@ -1,8 +1,17 @@
-from copy import deepcopy
-
-from matplotlib import pyplot as plt
-
-from classes import *
+from blond3 import (
+    BiGaussian,
+    Beam,
+    proton,
+    Ring,
+    Simulation,
+    EnergyCycle,
+    ConstantProgram,
+    SingleHarmonicCavity,
+    DriftSimple,
+    WakeField,
+)
+from blond3.physics.impedances.sources import Resonators
+from blond3.physics.impedances.sovlers import MutliTurnResonatorSolver
 
 ring = Ring(circumference=26658.883)
 energy_cycle = EnergyCycle.from_linspace(450e9, 460.005e9, 2000)

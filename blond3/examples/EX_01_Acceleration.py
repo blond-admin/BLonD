@@ -1,7 +1,19 @@
+import numpy as np
 from matplotlib import pyplot as plt
 
-from classes import *
-
+from blond3 import (
+    Beam,
+    proton,
+    Ring,
+    Simulation,
+    SingleHarmonicCavity,
+    DriftSimple,
+    BiGaussian,
+    EnergyCycle,
+    ConstantProgram,
+    CavityPhaseObservation,
+    BunchObservation,
+)
 ring = Ring(circumference=26658.883)
 
 cavity1 = SingleHarmonicCavity(

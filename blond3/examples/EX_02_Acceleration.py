@@ -15,7 +15,31 @@ Example script to take into account intensity effects from impedance tables
 
 import os
 
-from classes import *
+import numpy as np
+from scipy.constants import m_p, c, e
+
+from blond3 import (
+    Beam,
+    proton,
+    Ring,
+    Simulation,
+    SingleHarmonicCavity,
+    DriftSimple,
+    EnergyCycle,
+    ConstantProgram,
+    WakeField,
+    StaticProfile,
+)
+from blond3.physics.impedances.sources import (
+    ImpedanceTableFreq,
+    ExampleImpedanceReader1,
+    ExampleImpedanceReader2,
+    InductiveImpedance,
+)
+from blond3.physics.impedances.sovlers import (
+    PeriodicFreqSolver,
+    InductiveImpedanceSolver,
+)
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 
@@ -54,9 +78,7 @@ wakefield1 = WakeField(
     solver=PeriodicFreqSolver(t_periodicity=12.0),
 )
 wakefield2 = WakeField(
-    sources=(
-        InductiveImpedance(34.6669349520904 / 10e9),
-    ),
+    sources=(InductiveImpedance(34.6669349520904 / 10e9),),
     solver=InductiveImpedanceSolver(),
 )
 

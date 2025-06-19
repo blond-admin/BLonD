@@ -16,7 +16,21 @@ No intensity effects
 
 import matplotlib.pyplot as plt
 
-from classes import *
+from blond3 import (
+    BiGaussian,
+    Beam,
+    proton,
+    Ring,
+    Simulation,
+    EnergyCycle,
+    ConstantProgram,
+    ProfileObservation,
+    SingleHarmonicCavity,
+    DriftSimple,
+    BoxLosses,
+)
+from blond3.physics.losses import SeparatrixLosses
+from blond3.physics.profiles import DynamicProfileConstNBins
 
 # Simulation parameters -------------------------------------------------------
 # Bunch parameters

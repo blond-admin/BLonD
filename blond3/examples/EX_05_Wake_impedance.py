@@ -20,9 +20,29 @@ the corresponding h5 files).
 import os
 
 import matplotlib as mpl
+import numpy as np
 
-from blond.impedances.induced_voltage_analytical import \
-    analytical_gaussian_resonator
+from blond.impedances.induced_voltage_analytical import analytical_gaussian_resonator
+from blond3 import (
+    BiGaussian,
+    Beam,
+    proton,
+    Ring,
+    Simulation,
+    EnergyCycle,
+    ConstantProgram,
+    SingleHarmonicCavity,
+    DriftSimple,
+    BunchObservation,
+    WakeField,
+    StaticProfile,
+)
+from blond3.physics.impedances.sources import Resonators
+from blond3.physics.impedances.sovlers import (
+    SingleTurnWakeSolverTimeDomain,
+    PeriodicFreqSolver,
+    AnalyticSingleTurnResonatorSolver,
+)
 
 DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 # To check if executing correctly, rather than to run the full simulation
@@ -32,7 +52,7 @@ mpl.use("Agg")
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 
 os.makedirs(this_directory + "../output_files/EX_05_fig", exist_ok=True)
-from classes import *
+
 
 # SIMULATION PARAMETERS -------------------------------------------------------
 
@@ -98,7 +118,7 @@ for wake_solver in (
 
 
 # Analytic result-----------------------------------------------------------
-VindGauss = np.zeros(len(slice_beam.bin_centers))
+VindGauss = np.zeros(len(profile.bin_centers))
 for r in range(len(Q_factor)):
     # Notice that the time-argument of inducedVoltageGauss is shifted by
     # mean(my_slices.bin_centers), because the analytical equation assumes the
@@ -109,7 +129,7 @@ for r in range(len(Q_factor)):
         Q_factor[r],
         R_shunt[r],
         2 * np.pi * f_res[r],
-        slice_beam.bin_centers - np.mean(slice_beam.bin_centers),
-        my_beam.intensity,
+        profile.bin_centers - np.mean(profile.bin_centers),
+        beam.intensity,
     )
     VindGauss += tmp.real

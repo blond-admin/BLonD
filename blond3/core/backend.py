@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import abc
-from abc import ABC
+from abc import ABC, abstractmethod
 
 import numpy as np
 
@@ -21,7 +20,7 @@ class BackendBaseClass(ABC):
         self.__dict__ = new_backend.__dict__
         self.__class__ = new_backend.__class__
 
-    @abc.abstractmethod
+    @abstractmethod
     def loss_box(self, a, b, c, d):
         pass
 

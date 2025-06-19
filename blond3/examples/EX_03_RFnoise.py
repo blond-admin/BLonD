@@ -16,8 +16,20 @@ No intensity effects
 
 import os
 
-from classes import *
-
+from blond3 import (
+    Beam,
+    proton,
+    Ring,
+    Simulation,
+    SingleHarmonicCavity,
+    DriftSimple,
+    EnergyCycle, BiGaussian,
+    BoxLosses
+)
+from blond3.cycles.noise_generators.vari_noise import VariNoise
+from blond3.cycles.rf_parameters import RFNoiseProgram
+from blond3.physics.losses import SeparatrixLosses
+from blond3.physics.profiles import DynamicProfileConstNBins
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 

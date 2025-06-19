@@ -1,21 +1,10 @@
-import numpy as np
-
-from classes import (
-    SingleHarmonicCavity,
-    Drift,
-    MultiHarmonicCavity,
-    InductiveImpedance,
-    LocalFeedback,
-    GlobalFeedback,
-    EnergyCycle,
-    Beam,
-    Ring,
-    Simulation,
-    EmittanceMatcher,
-    DriftXSuite,
-    Profile,
-)
-from iteration2.classes import proton
+from blond3 import SingleHarmonicCavity, StaticProfile, DriftSimple, \
+    EnergyCycle, Beam, proton, Ring, Simulation
+from blond3.beam_preparation.emittance import EmittanceMatcher
+from blond3.physics.cavities import MultiHarmonicCavity
+from blond3.physics.drifts import DriftXSuite
+from blond3.physics.feedbacks.base import LocalFeedback, GlobalFeedback
+from blond3.physics.impedances.sources import InductiveImpedance
 
 
 class Main:
@@ -23,11 +12,11 @@ class Main:
     def describe_accelerator():
         # Description of accelerator
         cavity1 = SingleHarmonicCavity(harmonic=1)
-        profile1 = Profile()
+        profile1 = StaticProfile()
         one_turn_execution_order = (
-            Drift(share_of_circumference=0.4),
+            DriftSimple(share_of_circumference=0.4),
             cavity1,
-            Drift(share_of_circumference=0.5),
+            DriftSimple(share_of_circumference=0.5),
             MultiHarmonicCavity(),
             InductiveImpedance(),
             profile1,
