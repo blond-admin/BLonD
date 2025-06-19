@@ -350,7 +350,7 @@ class Resonators(_ImpedanceObject):
                           * (bm.cos(omega_bar * self.time_array) - alpha /
                              omega_bar * bm.sin(omega_bar * self.time_array)))
 
-    def imped_calc(self, frequency_array: NDArray) -> None:
+    def imped_calc(self, frequency_array: NDArray):
         r"""Impedance calculation method as a function of frequency
 
         Parameters
