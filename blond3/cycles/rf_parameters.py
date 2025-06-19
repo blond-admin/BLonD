@@ -22,7 +22,7 @@ class ConstantProgram(RfParameterCycle):
     def get_effective_voltage(self, turn_i: int):
         return self._effective_voltage
 
-    def late_init(self, simulation: Simulation, **kwargs):
+    def late_init(self, simulation: Simulation, **kwargs) -> None:
         pass
 
 
@@ -40,7 +40,7 @@ class RFNoiseProgram(RfParameterCycle):
 
         self._phase_noise: LateInit[NumpyArray] = None
 
-    def late_init(self, simulation: Simulation, **kwargs):
+    def late_init(self, simulation: Simulation, **kwargs) -> None:
         n_turns = len(simulation.ring.energy_cycle._beam_energy_by_turn)
         # TODO max_turns attribute
         self._phase_noise = self._phase_noise_generator.get_noise(

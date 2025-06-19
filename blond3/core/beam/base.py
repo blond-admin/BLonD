@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import TYPE_CHECKING
 
+from ..backend import backend
 from ..base import Preparable
 from ..helpers import int_from_float_with_warning
 
@@ -50,44 +51,44 @@ class BeamBaseClass(Preparable, ABC):
         return self._is_counter_rotating
 
     @abstractmethod
-    def late_init(self, simulation: Simulation, **kwargs):
+    def late_init(self, simulation: Simulation, **kwargs) -> None:
         pass
 
     @abstractmethod
     @property
-    def dt_min(self):
+    def dt_min(self) -> backend.float:
         pass
 
     @abstractmethod
     @property
-    def dt_max(self):
+    def dt_max(self) -> backend.float:
         pass
 
     @abstractmethod
     @property
-    def dE_min(self):
+    def dE_min(self) -> backend.float:
         pass
 
     @abstractmethod
     @property
-    def dE_min(self):
+    def dE_min(self) -> backend.float:
         pass
 
     @abstractmethod
     @property
-    def common_array_size(self):
+    def common_array_size(self) -> int:
         pass
 
     @abstractmethod
-    def invalidate_cache_dE(self):
+    def invalidate_cache_dE(self) -> None:
         pass
 
     @abstractmethod
-    def invalidate_cache_dt(self):
+    def invalidate_cache_dt(self) -> None:
         pass
 
     @abstractmethod
-    def invalidate_cache(self):
+    def invalidate_cache(self) -> None:
         self.invalidate_cache_dE()
         self.invalidate_cache_dt()
 

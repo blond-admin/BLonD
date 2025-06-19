@@ -32,7 +32,7 @@ class EnergyCycle(ProgrammedCycle):
             )
         )
 
-    def late_init(self, simulation: Simulation, **kwargs):
+    def late_init(self, simulation: Simulation, **kwargs) -> None:
         pass
 
 
@@ -41,9 +41,9 @@ class RfParameterCycle(ProgrammedCycle):
         super().__init__()
 
     @abstractmethod
-    def get_phase(self, turn_i: int):
+    def get_phase(self, turn_i: int) -> backend.float:
         pass
 
     @abstractmethod
-    def get_effective_voltage(self, turn_i: int):
+    def get_effective_voltage(self, turn_i: int) -> backend.float:
         pass

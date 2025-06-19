@@ -12,9 +12,9 @@ class BeamPreparationRoutine(ABC):
     def prepare_beam(
         self,
         ring: Ring,
-    ):
+    ) -> None:
         pass
 
 
-class MatchingRoutine(BeamPreparationRoutine):
+class MatchingRoutine(BeamPreparationRoutine, ABC):
     pass

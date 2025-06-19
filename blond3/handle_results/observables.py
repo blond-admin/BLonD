@@ -29,10 +29,10 @@ class Observables(MainLoopRelevant):
         return self._turns_array
 
     @abstractmethod
-    def update(self, simulation: Simulation):
+    def update(self, simulation: Simulation) -> None:
         pass
 
-    def late_init(self, simulation: Simulation, **kwargs):
+    def late_init(self, simulation: Simulation, **kwargs) -> None:
         self._late_init(
             simulation=simulation,
             n_turns=kwargs["n_turns"],
@@ -40,17 +40,17 @@ class Observables(MainLoopRelevant):
         )
 
     @abstractmethod
-    def _late_init(self, simulation: Simulation, n_turns: int, turn_i_init: int):
+    def _late_init(self, simulation: Simulation, n_turns: int, turn_i_init: int) -> None:
         self._n_turns = n_turns
         self._turn_i_init = turn_i_init
         self._turns_array = np.arange(turn_i_init, turn_i_init + n_turns)
 
     @abstractmethod
-    def to_disk(self):
+    def to_disk(self) -> None:
         pass
 
     @abstractmethod
-    def from_disk(self):
+    def from_disk(self) -> None:
         pass
 
 

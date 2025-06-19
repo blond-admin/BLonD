@@ -16,20 +16,20 @@ from numpy.typing import NDArray as NumpyArray, DTypeLike
 
 class ArrayRecorder(ABC):
     @abstractmethod
-    def write(self, newdata: NumpyArray):
+    def write(self, newdata: NumpyArray) -> None:
         pass
 
     @abstractmethod
-    def get_valid_entries(self):
+    def get_valid_entries(self) -> NumpyArray:
         pass
 
     @abstractmethod
-    def to_disk(self):
+    def to_disk(self) -> None:
         pass
 
     @abstractmethod
     @staticmethod
-    def from_disk(filepath: str | PathLike):
+    def from_disk(filepath: str | PathLike) -> ArrayRecorder:
         pass
 
 class DenseArrayRecorder(ArrayRecorder):

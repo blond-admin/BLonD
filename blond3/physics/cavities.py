@@ -26,7 +26,7 @@ class CavityBaseClass(BeamPhysicsRelevant, ABC):
         self._local_wakefield = local_wakefield
         self._turn_i_dynamic: LateInit[None]
 
-    def late_init(self, simulation: Simulation, **kwargs):
+    def late_init(self, simulation: Simulation, **kwargs) -> None:
         self._turn_i_dynamic = simulation.turn_i
         assert self._rf_program is not None
         self._rf_program.late_init(simulation=simulation)
@@ -65,7 +65,7 @@ class SingleHarmonicCavity(CavityBaseClass):
             self._rf_program.get_effective_voltage(turn_i=self._turn_i_dynamic.value),
         )
 
-    def late_init(self, simulation: Simulation, **kwargs):
+    def late_init(self, simulation: Simulation, **kwargs) -> None:
         super().late_init(simulation=simulation)
         pass
 
@@ -77,5 +77,5 @@ class MultiHarmonicCavity(CavityBaseClass):
     def derive_rf_program(self, simulation: Simulation):
         pass
 
-    def late_init(self, simulation: Simulation, **kwargs):
+    def late_init(self, simulation: Simulation, **kwargs) -> None:
         pass

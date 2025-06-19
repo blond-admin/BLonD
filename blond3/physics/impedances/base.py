@@ -2,28 +2,31 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import Optional as LateInit, Tuple, Optional
+from typing import TYPE_CHECKING
 
-from numpy.typing import NDArray as NumpyArray
-
-from ..profiles import ProfileBaseClass
 from blond3.core.backend import backend
+from ..profiles import ProfileBaseClass
 from ...core.base import Preparable, BeamPhysicsRelevant
 from ...core.beam.base import BeamBaseClass
 from ...core.simulation.simulation import Simulation
 
+if TYPE_CHECKING:  # pragma: no cover
+    from cupy.typing import NDArray as CupyArray
+    from numpy.typing import NDArray as NumpyArray
+
 
 class WakeFieldSolver(Preparable):
-    def late_init(self, simulation: Simulation, **kwargs):
+    def late_init(self, simulation: Simulation, **kwargs) -> None:
         self._late_init(
             simulation=simulation, parent_wakefield=kwargs["parent_wakefield"]
         )
 
     @abstractmethod
-    def _late_init(self, simulation: Simulation, parent_wakefield: WakeField):
+    def _late_init(self, simulation: Simulation, parent_wakefield: WakeField) -> None:
         pass
 
     @abstractmethod
-    def calc_induced_voltage(self):
+    def calc_induced_voltage(self) -> NumpyArray | CupyArray:
         pass
 
 
@@ -37,7 +40,7 @@ class TimeDomain(ABC):
 
 class FreqDomain(ABC):
     @abstractmethod
-    def get_freq_y(self, freq_x: NumpyArray):
+    def get_freq_y(self, freq_x: NumpyArray) -> NumpyArray:
         pass
 
 
@@ -55,10 +58,10 @@ class Impedance(BeamPhysicsRelevant):
         self._profile = profile
 
     @abstractmethod
-    def calc_induced_voltage(self):
+    def calc_induced_voltage(self) -> NumpyArray | CupyArray:
         pass
 
-    def late_init(self, simulation: Simulation, **kwargs):
+    def late_init(self, simulation: Simulation, **kwargs) -> None:
         if self._profile is None:
             profiles = simulation.ring.elements.get_elements(
                 ProfileBaseClass, group=self.group
@@ -87,7 +90,7 @@ class WakeField(Impedance):
         self.solver = solver
         self.sources = sources
 
-    def late_init(self, simulation: Simulation, **kwargs):
+    def late_init(self, simulation: Simulation, **kwargs) -> None:
         super().late_init(simulation=simulation, **kwargs)
         assert len(self.sources) > 0, "Provide for at least one `WakeFieldSource`"
         self.solver.late_init(simulation=simulation, parent_wakefield=self)

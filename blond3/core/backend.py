@@ -21,7 +21,7 @@ class BackendBaseClass(ABC):
         self.__class__ = new_backend.__class__
 
     @abstractmethod
-    def loss_box(self, a, b, c, d):
+    def loss_box(self, a, b, c, d) -> None: # TODO
         pass
 
 

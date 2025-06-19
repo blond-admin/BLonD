@@ -63,7 +63,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
             )
         self.invalidate_cache()
 
-    def late_init(self, simulation: Simulation, **kwargs):
+    def late_init(self, simulation: Simulation, **kwargs) -> None:
         assert self._hist_x is not None
         assert self._hist_y is not None
         self.invalidate_cache()
@@ -137,12 +137,12 @@ class DynamicProfile(ProfileBaseClass):
     def __init__(self):
         super().__init__()
 
-    def late_init(self, simulation: Simulation, **kwargs):
+    def late_init(self, simulation: Simulation, **kwargs) -> None:
         self.update_attributes(beam=simulation.ring.beams[0])
         super().late_init(simulation=simulation)
 
     @abstractmethod
-    def update_attributes(self, beam: BeamBaseClass):
+    def update_attributes(self, beam: BeamBaseClass) -> None:
         pass
 
     def track(self, beam: BeamBaseClass):

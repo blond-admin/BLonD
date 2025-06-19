@@ -37,7 +37,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         self._Z = np.array([o.Z_over_n for o in impedances])
         self._T_rev_dynamic = simulation.ring.t_rev
 
-    def calc_induced_voltage(self):
+    def calc_induced_voltage(self) -> NumpyArray | CupyArray:
         diff = self._parent_wakefield.profile.diff()
         return diff * self._Z * self._T_rev_dynamic.value
 
@@ -98,7 +98,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         else:
             raise Exception(f"{parent_wakefield.profile=}")
 
-    def calc_induced_voltage(self):
+    def calc_induced_voltage(self) -> NumpyArray | CupyArray:
         if self._update_on_calc:
             self._update_internal_data()  # might cause performance issues :(
 
@@ -108,8 +108,6 @@ class PeriodicFreqSolver(WakeFieldSolver):
         return induced_voltage
 
 
-class SingleTurnWakeSolverTimeDomain(WakeFieldSolver):
-    pass
 
 
 class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):

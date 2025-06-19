@@ -32,7 +32,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
 class ImpedanceTable(DiscreteWakeFieldSource):
     @abstractmethod
     @staticmethod
-    def from_file(filepath: PathLike, reader: ImpedanceReader):
+    def from_file(filepath: PathLike, reader: ImpedanceReader) -> ImpedanceTable:
         reader.load_file(filepath=filepath)
 
 
@@ -42,7 +42,7 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
     freq_y: NumpyArray
 
     @staticmethod
-    def from_file(filepath: PathLike, reader: ImpedanceReader):
+    def from_file(filepath: PathLike, reader: ImpedanceReader) -> ImpedanceTableFreq:
         x_array, y_array = reader.load_file(filepath=filepath)
         return ImpedanceTableFreq(freq_x=x_array, freq_y=y_array)
 
@@ -53,7 +53,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
     wake_y: NumpyArray
 
     @staticmethod
-    def from_file(filepath: PathLike | str, reader: ImpedanceReader):
+    def from_file(filepath: PathLike | str, reader: ImpedanceReader) -> ImpedanceTableTime:
         x_array, y_array = reader.load_file(filepath=filepath)
         return ImpedanceTableTime(wake_x=x_array, wake_y=y_array)
 

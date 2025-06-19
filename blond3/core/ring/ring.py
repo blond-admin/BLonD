@@ -116,7 +116,7 @@ class Ring(Preparable):
         else:
             raise NotImplementedError("No more than two beam allowed!")
 
-    def late_init(self, simulation: Simulation, **kwargs):
+    def late_init(self, simulation: Simulation, **kwargs) -> None:
         assert self.beams != (), f"{self.beams=}"
         assert self.energy_cycle is not None, f"{self.energy_cycle}"
         self._energy_cycle.late_init(simulation=simulation)
