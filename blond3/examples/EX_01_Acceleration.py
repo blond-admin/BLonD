@@ -30,7 +30,7 @@ drift1 = DriftSimple(
 beam1 = Beam(n_particles=1e9, n_macroparticles=1001, particle_type=proton)
 
 
-sim = Simulation(ring=ring, ring_attributes=locals())
+sim = Simulation.from_locals(locals())
 sim.prepare_beam(
     preparation_routine=BiGaussian(rms_dt=0.4e-9 / 4, reinsertion=True, seed=1)
 )

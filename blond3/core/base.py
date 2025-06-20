@@ -26,6 +26,12 @@ class Preparable(ABC):
     def late_init(self, simulation: Simulation, **kwargs) -> None:
         pass
 
+    @abstractmethod
+    def on_run_simulation(
+        self, simulation: Simulation, n_turns: int, turn_i_init: int
+    ) -> None:
+        pass
+
 
 class MainLoopRelevant(Preparable):
     def __init__(self):
@@ -56,7 +62,6 @@ class BeamPhysicsRelevant(MainLoopRelevant):
         pass
 
 
-
 class BeamPhysicsRelevantElements(ABC):
     def __init__(self):
         self.elements: Tuple[BeamPhysicsRelevant, ...] = ()
@@ -75,6 +80,11 @@ class BeamPhysicsRelevantElements(ABC):
         if group is not None:
             elements = tuple(filter(lambda x: x.group == group, elements))
         return elements
+
+    def get_element(self, class_: Type[T], group: Optional[int] = None) -> T:
+        elements = self.get_elements(class_=class_, group=group)
+        assert len(elements) == 1, f"{len(elements)=}"
+        return elements[0]
 
     def reorder(self):
         pass

@@ -15,14 +15,10 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 
-class WakeFieldSolver(Preparable):
-    def late_init(self, simulation: Simulation, **kwargs) -> None:
-        self._late_init(
-            simulation=simulation, parent_wakefield=kwargs["parent_wakefield"]
-        )
+class WakeFieldSolver:
 
     @abstractmethod
-    def _late_init(self, simulation: Simulation, parent_wakefield: WakeField) -> None:
+    def on_wakefield_late_init(self, simulation: Simulation, parent_wakefield: WakeField) -> None:
         pass
 
     @abstractmethod
@@ -93,12 +89,12 @@ class WakeField(Impedance):
     def late_init(self, simulation: Simulation, **kwargs) -> None:
         super().late_init(simulation=simulation, **kwargs)
         assert len(self.sources) > 0, "Provide for at least one `WakeFieldSource`"
-        self.solver.late_init(simulation=simulation, parent_wakefield=self)
+        self.solver.on_wakefield_late_init(simulation=simulation, parent_wakefield=self)
 
-    def _calc_induced_voltage(self):
+    def calc_induced_voltage(self) -> NumpyArray | CupyArray:
         return self.solver.calc_induced_voltage()
 
-    def track(self, beam: BeamBaseClass):
+    def track(self, beam: BeamBaseClass) -> None:
         induced_voltage = self._calc_induced_voltage()
         backend.kick_induced(
             beam.read_partial_dt(), beam.read_partial_dE(), induced_voltage

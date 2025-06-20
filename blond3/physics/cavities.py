@@ -26,10 +26,13 @@ class CavityBaseClass(BeamPhysicsRelevant, ABC):
         self._local_wakefield = local_wakefield
         self._turn_i_dynamic: LateInit[None]
 
+    @property
+    def rf_program(self):
+        return self._rf_program
+
     def late_init(self, simulation: Simulation, **kwargs) -> None:
         self._turn_i_dynamic = simulation.turn_i
         assert self._rf_program is not None
-        self._rf_program.late_init(simulation=simulation)
 
     def track(self, beam: BeamBaseClass):
         if self._local_wakefield is not None:
@@ -53,8 +56,6 @@ class SingleHarmonicCavity(CavityBaseClass):
     def harmonic(self):
         return self._harmonic
 
-    def derive_rf_program(self, simulation: Simulation):
-        pass
 
     def track(self, beam: BeamBaseClass):
         super().track(beam=beam)
@@ -74,8 +75,7 @@ class MultiHarmonicCavity(CavityBaseClass):
     def track(self, beam: BeamBaseClass):
         pass
 
-    def derive_rf_program(self, simulation: Simulation):
-        pass
 
     def late_init(self, simulation: Simulation, **kwargs) -> None:
+        super().late_init(simulation=simulation)
         pass

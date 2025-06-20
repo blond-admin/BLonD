@@ -33,14 +33,9 @@ class Observables(MainLoopRelevant):
         pass
 
     def late_init(self, simulation: Simulation, **kwargs) -> None:
-        self._late_init(
-            simulation=simulation,
-            n_turns=kwargs["n_turns"],
-            turn_i_init=kwargs["turn_i_init"],
-        )
+        pass
 
-    @abstractmethod
-    def _late_init(self, simulation: Simulation, n_turns: int, turn_i_init: int) -> None:
+    def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int) -> None:
         self._n_turns = n_turns
         self._turn_i_init = turn_i_init
         self._turns_array = np.arange(turn_i_init, turn_i_init + n_turns)
@@ -60,8 +55,8 @@ class ProfileObservation(Observables):
         self._profile = profile
         self._hist_ys: LateInit[DenseArrayRecorder] = None
 
-    def _late_init(self, simulation: Simulation, n_turns: int, turn_i_init: int):
-        super()._late_init(
+    def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int):
+        super().on_run_simulation(
             simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
         )
         n_entries = n_turns // self.each_turn_i
@@ -101,8 +96,8 @@ class BunchObservation(Observables):
         self._dEs: LateInit[DenseArrayRecorder] = None
         self._flags: LateInit[DenseArrayRecorder] = None
 
-    def _late_init(self, simulation: Simulation, n_turns: int, turn_i_init: int):
-        super()._late_init(
+    def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int):
+        super().on_run_simulation(
             simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
         )
         n_entries = n_turns // self.each_turn_i
@@ -136,8 +131,8 @@ class CavityPhaseObservation(Observables):
         self._cavity = cavity
         self._phases: LateInit[DenseArrayRecorder] = None
 
-    def _late_init(self, simulation: Simulation, n_turns: int, turn_i_init: int):
-        super()._late_init(
+    def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int):
+        super().on_run_simulation(
             simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
         )
         n_entries = n_turns // self.each_turn_i

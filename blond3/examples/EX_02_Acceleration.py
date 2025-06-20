@@ -82,5 +82,5 @@ wakefield2 = WakeField(
     solver=InductiveImpedanceSolver(),
 )
 
-sim = Simulation(ring=ring, ring_attributes=locals())
+sim = Simulation.from_locals(locals())
 sim.run_simulation(n_turns=2)

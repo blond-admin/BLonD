@@ -25,17 +25,8 @@ class Ring(Preparable):
         super().__init__()
         self._circumference = backend.float(circumference)
         self._elements = BeamPhysicsRelevantElements()
-        self._beams: Tuple[BeamBaseClass, ...] = ()
-        self._energy_cycle: LateInit[EnergyCycle] = None
         self._t_rev = DynamicParameter(None)
 
-    @property
-    def beams(self):
-        return self._beams
-
-    @property
-    def energy_cycle(self):
-        return self._energy_cycle
 
     @property
     def elements(self):
@@ -76,58 +67,9 @@ class Ring(Preparable):
         if reorder:
             self.elements.reorder()
 
-    def magic_add(self, ring_attributes: dict | Iterable):
-        from collections.abc import Iterable as Iterable_  # so isinstance works
 
-        if isinstance(ring_attributes, dict):
-            values = ring_attributes.values()
-        elif isinstance(ring_attributes, Iterable_):
-            values = ring_attributes
-        else:
-            raise ValueError(
-                f"Cant handle {type(ring_attributes)=}, must be " f"`Iterable` instead"
-            )
-        for val in values:
-            if isinstance(val, BeamBaseClass):
-                self.add_beam(beam=val)
-            elif isinstance(val, BeamPhysicsRelevant):
-                self.add_element(element=val)
-            elif isinstance(val, EnergyCycle):
-                self.set_energy_cycle(val)
-            else:
-                pass
-
-        # reorder elements for correct execution order
-        self.elements.reorder()
-
-    def set_energy_cycle(self, energy_cycle: NumpyArray | EnergyCycle):
-        if isinstance(energy_cycle, np.ndarray):
-            energy_cycle = EnergyCycle(energy_cycle)
-        self._energy_cycle = energy_cycle
-
-    def add_beam(self, beam: BeamBaseClass):
-        if len(self.beams) == 0:
-            assert beam.is_counter_rotating is False
-            self._beams = (beam,)
-
-        elif len(self.beams) == 1:
-            assert beam.is_counter_rotating is True
-            self._beams = (self.beams[0], beam)
-        else:
-            raise NotImplementedError("No more than two beam allowed!")
 
     def late_init(self, simulation: Simulation, **kwargs) -> None:
-        assert self.beams != (), f"{self.beams=}"
-        assert self.energy_cycle is not None, f"{self.energy_cycle}"
-        self._energy_cycle.late_init(simulation=simulation)
-        ordered_classes = get_init_order(self.elements.elements, "late_init.requires")
-        for cls in ordered_classes:
-            for element in self.elements.elements:
-                if not type(element) == cls:
-                    continue
-                element.late_init(simulation=simulation)
-        for beam in self.beams:
-            beam.late_init(simulation=simulation)
         all_drifts = self.elements.get_elements(DriftBaseClass)
         sum_share_of_circumference = sum(
             [drift.share_of_circumference for drift in all_drifts]

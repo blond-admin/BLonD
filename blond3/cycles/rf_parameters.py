@@ -40,9 +40,7 @@ class RFNoiseProgram(RfParameterCycle):
 
         self._phase_noise: LateInit[NumpyArray] = None
 
-    def late_init(self, simulation: Simulation, **kwargs) -> None:
-        n_turns = len(simulation.ring.energy_cycle._beam_energy_by_turn)
-        # TODO max_turns attribute
+    def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int) -> None:
         self._phase_noise = self._phase_noise_generator.get_noise(
             n_turns=n_turns
         ).astype(backend.float)
