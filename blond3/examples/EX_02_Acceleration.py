@@ -30,10 +30,9 @@ from blond3 import (
     WakeField,
     StaticProfile,
 )
+from blond3.physics.impedances.readers import ExampleImpedanceReader1, ExampleImpedanceReader2
 from blond3.physics.impedances.sources import (
     ImpedanceTableFreq,
-    ExampleImpedanceReader1,
-    ExampleImpedanceReader2,
     InductiveImpedance,
 )
 from blond3.physics.impedances.sovlers import (

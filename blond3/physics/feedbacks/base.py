@@ -31,7 +31,7 @@ class LocalFeedback(Feedback):
     def track(self, beam: BeamBaseClass):
         pass
 
-    def late_init(self, simulation: Simulation, **kwargs) -> None:
+    def on_init_simulation(self, simulation: Simulation) -> None:
         pass
 
 
@@ -47,9 +47,9 @@ class GlobalFeedback(Feedback):
         pass
 
     # Use `requires` to automatically sort execution order of
-    # `element.late_init` for all elements
+    # `element.on_init_simulation` for all elements
     @requires([SingleHarmonicCavity])
-    def late_init(self, simulation: Simulation, **kwargs) -> None:
+    def on_init_simulation(self, simulation: Simulation) -> None:
         self.cavities = simulation.ring.elements.get_elements(SingleHarmonicCavity)
 
 

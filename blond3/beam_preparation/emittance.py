@@ -9,5 +9,5 @@ class EmittanceMatcher(MatchingRoutine):
         super().__init__()
         self.some_emittance = some_emittance
 
-    def prepare_beam(self, simulation: Simulation) -> None:
+    def on_prepare_beam(self, simulation: Simulation) -> None:
         pass

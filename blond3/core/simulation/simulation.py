@@ -1,16 +1,14 @@
 from __future__ import annotations
 
+from abc import abstractmethod, ABC
 from functools import cached_property
-from typing import (
-    Iterable,
-    Tuple,
-)
 from typing import (
     Optional,
 )
-from typing import Optional as LateInit
+from typing import (
+    Tuple,
+)
 
-import numpy as np
 from numpy.typing import NDArray as NumpyArray
 from tqdm import tqdm
 
@@ -25,29 +23,66 @@ from ...cycles.base import EnergyCycle
 from ...handle_results.observables import Observables
 
 
+class TurnDependent(ABC):
+    def __init__(self, simulation: Simulation):
+        self._simulation = simulation
+
+    @abstractmethod
+    def by_turn(self, turn_i: int):
+        pass
+
+class Gamma(TurnDependent):
+    def by_turn(self, turn_i: int):
+        beam_energy = self._simulation._energy_cycle.beam_energy_by_turn[turn_i]
+        beam_res_energy = self._simulation._beams.rest_mass
+        return # TODO
+
+class Beta(TurnDependent):
+
+    def by_turn(self, turn_i: int):
+        gamma = self._simulation.gamma.by_turn(turn_i=turn_i)
+        return  # TODO
+
+class Velocity(TurnDependent):
+    def by_turn(self, turn_i: int):
+        pass
+
+
+class RevolutionFrequency(TurnDependent):
+
+    def by_turn(self, turn_i: int):
+        pass
+
+
 class Simulation(Preparable):
     def __init__(
-        self,
-        ring: Ring,
-        beams: Tuple[BeamBaseClass, ...],
-        energy_cycle: NumpyArray | EnergyCycle,
+            self,
+            ring: Ring,
+            beams: Tuple[BeamBaseClass, ...],
+            energy_cycle: NumpyArray | EnergyCycle,
     ):
         super().__init__()
-        ring.late_init(simulation=self)
+        ring.on_init_simulation(simulation=self)
         self._ring: Ring = ring
         assert self.beams != (), f"{self.beams=}"
         assert len(self._beams) <= 2, "Maximum two beams allowed"
         self._beams: Tuple[BeamBaseClass, ...] = beams
         self._energy_cycle: EnergyCycle = energy_cycle
-        self.exec_late_init()
 
         self.turn_i = DynamicParameter(None)
         self.group_i = DynamicParameter(None)
 
-    def late_init(self, simulation: Simulation):
+        self.gamma = Gamma(self)
+        self.beta = Beta(self)
+        self.velocity = Velocity(self)
+        self.revolution_frequency = RevolutionFrequency(self)
+
+        self._exec_on_init_simulation()
+
+    def on_init_simulation(self, simulation: Simulation):
         pass
 
-    def exec_all_in_tree(self, method: str, **kwargs):
+    def _exec_all_in_tree(self, method: str, **kwargs):
         instances = find_instances_with_method(self, f"{method}")
         ordered_classes = get_init_order(instances, f"{method}.requires")
 
@@ -60,13 +95,13 @@ class Simulation(Preparable):
             for element in instances:
                 if not type(element) == cls:
                     continue
-                element.__dict__["late_init"](**kwargs)
+                element.__dict__["on_init_simulation"](**kwargs)
 
-    def exec_late_init(self):
-        self.exec_all_in_tree("late_init", simulation=self)
+    def _exec_on_init_simulation(self):
+        self._exec_all_in_tree("on_init_simulation", simulation=self)
 
-    def exec_on_run_simulation(self, n_turns: int, turn_i_init: int):
-        self.exec_all_in_tree(
+    def _exec_on_run_simulation(self, n_turns: int, turn_i_init: int):
+        self._exec_all_in_tree(
             "on_run_simulation",
             simulation=self,
             n_turns=n_turns,
@@ -118,28 +153,28 @@ class Simulation(Preparable):
         self._ring.elements.print_order()
 
     def invalidate_cache(
-        self,
-        # turn i needed to be
-        # compatible with subscription
-        turn_i: int,
+            self,
+            # turn i needed to be
+            # compatible with subscription
+            turn_i: int,
     ):
         self.__dict__.pop("get_separatrix", None)
         self.__dict__.pop("get_hash", None)
 
     def prepare_beam(
-        self,
-        preparation_routine: MatchingRoutine,
+            self,
+            preparation_routine: MatchingRoutine,
     ):
-        preparation_routine.prepare_beam(simulation=self)
+        preparation_routine.on_prepare_beam(simulation=self)
 
     def run_simulation(
-        self,
-        n_turns: Optional[int] = None,
-        turn_i_init: int = 0,
-        observe: Tuple[Observables, ...] = tuple(),
-        show_progressbar: bool = True,
+            self,
+            n_turns: Optional[int] = None,
+            turn_i_init: int = 0,
+            observe: Tuple[Observables, ...] = tuple(),
+            show_progressbar: bool = True,
     ) -> None:
-        self.exec_on_run_simulation(n_turns=n_turns, turn_i_init=turn_i_init,)
+        self._exec_on_run_simulation(n_turns=n_turns, turn_i_init=turn_i_init, )
         if len(self._beams) == 1:
             self._run_simulation_single_beam(
                 n_turns=n_turns,
@@ -149,12 +184,12 @@ class Simulation(Preparable):
             )
         elif len(self._beams) == 2:
             assert (
-                self._beams[0].is_counter_rotating,
-                self._beams[1].is_counter_rotating,
-            ) == (
-                False,
-                True,
-            ), "First beam must be normal, second beam must be counter-rotating"
+                       self._beams[0].is_counter_rotating,
+                       self._beams[1].is_counter_rotating,
+                   ) == (
+                       False,
+                       True,
+                   ), "First beam must be normal, second beam must be counter-rotating"
             self._run_simulation_counterrotating_beam(
                 n_turns=n_turns,
                 turn_i_init=turn_i_init,
@@ -163,11 +198,11 @@ class Simulation(Preparable):
             )
 
     def _run_simulation_single_beam(
-        self,
-        n_turns: int,
-        turn_i_init: int = 0,
-        observe: Tuple[Observables, ...] = tuple(),
-        show_progressbar: bool = True,
+            self,
+            n_turns: int,
+            turn_i_init: int = 0,
+            observe: Tuple[Observables, ...] = tuple(),
+            show_progressbar: bool = True,
     ) -> None:
         iterator = range(turn_i_init, turn_i_init + n_turns)
         if show_progressbar:
@@ -188,18 +223,19 @@ class Simulation(Preparable):
         self.group_i.value = None
 
     def _run_simulation_counterrotating_beam(
-        self,
-        n_turns: int,
-        turn_i_init: int = 0,
-        observe: Tuple[Observables, ...] = tuple(),
-        show_progressbar: bool = True,
+            self,
+            n_turns: int,
+            turn_i_init: int = 0,
+            observe: Tuple[Observables, ...] = tuple(),
+            show_progressbar: bool = True,
     ) -> None:
         pass  # todo
 
     def load_results(
-        self,
-        n_turns: int,
-        turn_i_init: int = 0,
-        observe=Tuple[Observables, ...],
+            self,
+            n_turns: int,
+            turn_i_init: int = 0,
+            observe=Tuple[Observables, ...],
     ) -> SimulationResults:
         return
+

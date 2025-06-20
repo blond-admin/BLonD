@@ -51,7 +51,7 @@ class BeamBaseClass(Preparable, ABC):
         return self._is_counter_rotating
 
     @abstractmethod
-    def late_init(self, simulation: Simulation, **kwargs) -> None:
+    def on_init_simulation(self, simulation: Simulation) -> None:
         pass
 
     @abstractmethod

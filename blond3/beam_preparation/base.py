@@ -10,7 +10,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 class BeamPreparationRoutine(ABC):
     @abstractmethod
-    def prepare_beam(
+    def on_prepare_beam(
         self,
         simulation: Simulation,
     ) -> None:

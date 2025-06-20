@@ -22,7 +22,7 @@ class ConstantProgram(RfParameterCycle):
     def get_effective_voltage(self, turn_i: int):
         return self._effective_voltage
 
-    def late_init(self, simulation: Simulation, **kwargs) -> None:
+    def on_init_simulation(self, simulation: Simulation) -> None:
         pass
 
 

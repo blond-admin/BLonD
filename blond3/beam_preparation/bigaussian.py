@@ -21,7 +21,7 @@ class BiGaussian(MatchingRoutine):
         self._reinsertion = reinsertion
         self._seed = seed
 
-    def prepare_beam(
+    def on_prepare_beam(
         self,
         simulation: Simulation,
     ) -> None:
@@ -31,6 +31,8 @@ class BiGaussian(MatchingRoutine):
             sigma_dE = _get_dE_from_dt(ring, rf_station, sigma_dt) # NOQA TODO
             # IMPORT
         counter = simulation.turn_i.value # todo might need to be set
+        rf_station.rf_program.get_phase(turn_i=counter)
+        rf_station.rf_program.get_effective_voltage(turn_i=counter)
         omega_rf = rf_station.omega_rf[0, counter]
         phi_s = rf_station.phi_s[counter]
         phi_rf = rf_station.phi_rf[0, counter]

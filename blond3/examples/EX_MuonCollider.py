@@ -52,9 +52,7 @@ beam1 = Beam(
 beam2 = Beam(
     n_particles=1e9, n_macroparticles=1001, particle_type=proton, is_counter_rotating=True
 )
-ring.add_beam(beam1)
-ring.add_beam(beam2)
-sim = Simulation(ring=ring)
+sim = Simulation(ring=ring, beams=(beam1, beam2), energy_cycle=energy_cycle)
 sim.prepare_beam(
     preparation_routine=BiGaussian(rms_dt=0.4e-9 / 4, reinsertion=True, seed=1)
 )

@@ -30,7 +30,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         self._Z: LateInit[NumpyArray] = None
         self._T_rev_dynamic: LateInit[DynamicParameter] = None
 
-    def on_wakefield_late_init(self, simulation: Simulation, parent_wakefield: WakeField):
+    def on_wakefield_on_init_simulation(self, simulation: Simulation, parent_wakefield: WakeField):
         self._parent_wakefield = parent_wakefield
         assert all([isinstance(o, InductiveImpedance) for o in parent_wakefield.sources])
         impedances: Tuple[InductiveImpedance, ...] = parent_wakefield.sources
@@ -75,7 +75,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
                 f"periodicity is {t_rev_new:.2e} s, a deviation of {deviation} %."
             )
 
-    def on_wakefield_late_init(self, simulation: Simulation, parent_wakefield: WakeField):
+    def on_wakefield_on_init_simulation(self, simulation: Simulation, parent_wakefield: WakeField):
         simulation.ring.t_rev.on_change(self._warning_callback)
 
         if parent_wakefield.profile is not None:

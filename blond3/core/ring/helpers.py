@@ -37,7 +37,7 @@ def build_dependency_graph(
     instances: Iterable[Any], dependency_attribute: str
 ) -> (defaultdict[Any, list], defaultdict[Any, int], set):
     """Function to build a dependency graph based on
-    'late_init_dependencies' defined in classes"""
+    'on_init_simulation_dependencies' defined in classes"""
 
     graph = defaultdict(list)  # Directed graph: dependency -> list of dependent classes
     in_degree = defaultdict(
@@ -49,7 +49,7 @@ def build_dependency_graph(
     for cls in [type(o) for o in instances]:
         all_classes.add(cls)  # Register the class
         # Traverse the class's MRO (method resolution order) to get parent classes as well
-        # For each dependency declared in 'late_init_dependencies'
+        # For each dependency declared in 'on_init_simulation_dependencies'
         dependencies = set()
         for cls_ in inspect.getmro(cls):
             deps = get_dependencies(cls_, dependency_attribute)

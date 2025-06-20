@@ -32,7 +32,7 @@ class Observables(MainLoopRelevant):
     def update(self, simulation: Simulation) -> None:
         pass
 
-    def late_init(self, simulation: Simulation, **kwargs) -> None:
+    def on_init_simulation(self, simulation: Simulation) -> None:
         pass
 
     def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int) -> None:

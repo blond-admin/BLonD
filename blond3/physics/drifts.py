@@ -21,7 +21,7 @@ class DriftBaseClass(BeamPhysicsRelevant, ABC):
     def track(self, beam: BeamBaseClass):
         pass
 
-    def late_init(self, simulation: Simulation, **kwargs) -> None:
+    def on_init_simulation(self, simulation: Simulation) -> None:
         pass
 
 
@@ -35,7 +35,7 @@ class DriftSimple(DriftBaseClass):
         super().__init__(share_of_circumference=share_of_circumference, group=group)
         self._transition_gamma = backend.float(transition_gamma)
 
-    def late_init(self, simulation: Simulation, **kwargs) -> None:
+    def on_init_simulation(self, simulation: Simulation) -> None:
         pass
 
     @property
@@ -59,8 +59,8 @@ class DriftSpecial(DriftBaseClass):
     def track(self, beam: BeamBaseClass):
         pass
 
-    def late_init(self, simulation: Simulation, **kwargs) -> None:
-        super().late_init(simulation=simulation)
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        super().on_init_simulation(simulation=simulation)
 
     pass
 
@@ -69,7 +69,7 @@ class DriftXSuite(DriftBaseClass):
     def track(self, beam: BeamBaseClass):
         pass
 
-    def late_init(self, simulation: Simulation, **kwargs) -> None:
-        super().late_init(simulation=simulation)
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        super().on_init_simulation(simulation=simulation)
 
     pass

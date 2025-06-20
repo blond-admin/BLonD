@@ -38,7 +38,7 @@ class BoxLosses(Losses):
             beam.write_partial_flags(), self.t_min, self.t_max, self.e_min, self.e_max
         )
 
-    def late_init(self, simulation: Simulation, **kwargs) -> None:
+    def on_init_simulation(self, simulation: Simulation) -> None:
         pass
 
 
@@ -47,7 +47,7 @@ class SeparatrixLosses(Losses):
         super().__init__()
         self._simulation: LateInit[Simulation] = None
 
-    def late_init(self, simulation: Simulation, **kwargs) -> None:
+    def on_init_simulation(self, simulation: Simulation) -> None:
         self._simulation = simulation
 
     def track(self, beam: BeamBaseClass):
