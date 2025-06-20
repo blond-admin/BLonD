@@ -57,7 +57,6 @@ class SingleHarmonicCavity(CavityBaseClass):
     def harmonic(self):
         return self._harmonic
 
-
     def track(self, beam: BeamBaseClass):
         super().track(beam=beam)
         backend.kick_single_harmonic(
@@ -75,7 +74,6 @@ class SingleHarmonicCavity(CavityBaseClass):
 class MultiHarmonicCavity(CavityBaseClass):
     def track(self, beam: BeamBaseClass):
         pass
-
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         super().on_init_simulation(simulation=simulation)

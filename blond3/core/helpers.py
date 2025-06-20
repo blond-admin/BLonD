@@ -41,7 +41,7 @@ def find_instances_with_method(root: Any, methodname: str):
         elif isinstance(obj, (list, tuple, set)):
             for item in obj:
                 walk(item)
-        elif hasattr(obj, "__dict__"): # checks if is python class
+        elif hasattr(obj, "__dict__"):  # checks if is python class
             for attr_name in dir(obj):
                 # Skip built-in attributes
                 if attr_name.startswith("__") and attr_name.endswith("__"):

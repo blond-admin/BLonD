@@ -16,9 +16,10 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class WakeFieldSolver:
-
     @abstractmethod
-    def on_wakefield_on_init_simulation(self, simulation: Simulation, parent_wakefield: WakeField) -> None:
+    def on_wakefield_on_init_simulation(
+        self, simulation: Simulation, parent_wakefield: WakeField
+    ) -> None:
         pass
 
     @abstractmethod
@@ -89,7 +90,9 @@ class WakeField(Impedance):
     def on_init_simulation(self, simulation: Simulation) -> None:
         super().on_init_simulation(simulation=simulation, **kwargs)
         assert len(self.sources) > 0, "Provide for at least one `WakeFieldSource`"
-        self.solver.on_wakefield_on_init_simulation(simulation=simulation, parent_wakefield=self)
+        self.solver.on_wakefield_on_init_simulation(
+            simulation=simulation, parent_wakefield=self
+        )
 
     def calc_induced_voltage(self) -> NumpyArray | CupyArray:
         return self.solver.calc_induced_voltage()

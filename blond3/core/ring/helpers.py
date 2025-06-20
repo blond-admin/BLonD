@@ -65,9 +65,7 @@ def build_dependency_graph(
 def get_dependencies(cls_: type, dependency_attribute: str):
     if "." in dependency_attribute:
         if dependency_attribute.count(".") != 1:
-            raise NotImplementedError(
-                f"Only one . allowed in " f"{dependency_attribute=}"
-            )
+            raise NotImplementedError(f"Only one . allowed in {dependency_attribute=}")
         atr1, atr2 = dependency_attribute.split(".")
         attr = getattr(cls_, atr1, None)
         if attr is not None:

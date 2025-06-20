@@ -11,8 +11,12 @@ import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
 from .helpers import get_init_order
-from ..base import BeamPhysicsRelevantElements, DynamicParameter, \
-    BeamPhysicsRelevant, Preparable
+from ..base import (
+    BeamPhysicsRelevantElements,
+    DynamicParameter,
+    BeamPhysicsRelevant,
+    Preparable,
+)
 from ..beam.base import BeamBaseClass
 from ..simulation.simulation import Simulation
 from blond3.core.backend import backend
@@ -26,11 +30,9 @@ class Ring(Preparable):
         self._circumference = backend.float(circumference)
         self._elements = BeamPhysicsRelevantElements()
 
-
     @property
     def elements(self):
         return self._elements
-
 
     @property
     def circumference(self):
@@ -62,7 +64,6 @@ class Ring(Preparable):
 
         if reorder:
             self.elements.reorder()
-
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         all_drifts = self.elements.get_elements(DriftBaseClass)

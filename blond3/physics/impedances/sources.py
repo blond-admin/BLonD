@@ -53,8 +53,8 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
     wake_y: NumpyArray
 
     @staticmethod
-    def from_file(filepath: PathLike | str, reader: ImpedanceReader) -> ImpedanceTableTime:
+    def from_file(
+        filepath: PathLike | str, reader: ImpedanceReader
+    ) -> ImpedanceTableTime:
         x_array, y_array = reader.load_file(filepath=filepath)
         return ImpedanceTableTime(wake_x=x_array, wake_y=y_array)
-
-

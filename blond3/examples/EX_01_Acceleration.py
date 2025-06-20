@@ -14,6 +14,7 @@ from blond3 import (
     CavityPhaseObservation,
     BunchObservation,
 )
+
 ring = Ring(circumference=26658.883)
 
 cavity1 = SingleHarmonicCavity(

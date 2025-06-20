@@ -6,9 +6,7 @@ import numpy as np
 
 
 class BackendBaseClass(ABC):
-    def __init__(
-        self, float_: np.float32 | np.float64, int_: np.int32 | np.int64
-    ):
+    def __init__(self, float_: np.float32 | np.float64, int_: np.int32 | np.int64):
         self.float: np.float32 | np.float64 = float_
         self.int: np.int32 | np.int64 = int_
 
@@ -21,14 +19,12 @@ class BackendBaseClass(ABC):
         self.__class__ = new_backend.__class__
 
     @abstractmethod
-    def loss_box(self, a, b, c, d) -> None: # TODO
+    def loss_box(self, a, b, c, d) -> None:  # TODO
         pass
 
 
 class NumpyBackend(BackendBaseClass):
-    def __init__(
-        self, float_: np.float32 | np.float64, int_: np.int32 | np.int64
-    ):
+    def __init__(self, float_: np.float32 | np.float64, int_: np.int32 | np.int64):
         super().__init__(float_, int_)
         self.array = np.array
         self.gradient = np.gradient

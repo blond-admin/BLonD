@@ -32,6 +32,7 @@ class ArrayRecorder(ABC):
     def from_disk(filepath: str | PathLike) -> ArrayRecorder:
         pass
 
+
 class DenseArrayRecorder(ArrayRecorder):
     def __init__(
         self,
@@ -57,7 +58,10 @@ class DenseArrayRecorder(ArrayRecorder):
     @staticmethod
     def from_disk(filepath: str | PathLike):
         _memory: NumpyArray = np.load(filepath)
-        dense_recorder = DenseArrayRecorder(filepath=filepath, shape=(1,1),)
+        dense_recorder = DenseArrayRecorder(
+            filepath=filepath,
+            shape=(1, 1),
+        )
         dense_recorder._memory = _memory
         dense_recorder._write_idx = _memory.shape[0]
         return dense_recorder

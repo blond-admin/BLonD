@@ -30,9 +30,13 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         self._Z: LateInit[NumpyArray] = None
         self._T_rev_dynamic: LateInit[DynamicParameter] = None
 
-    def on_wakefield_on_init_simulation(self, simulation: Simulation, parent_wakefield: WakeField):
+    def on_wakefield_on_init_simulation(
+        self, simulation: Simulation, parent_wakefield: WakeField
+    ):
         self._parent_wakefield = parent_wakefield
-        assert all([isinstance(o, InductiveImpedance) for o in parent_wakefield.sources])
+        assert all(
+            [isinstance(o, InductiveImpedance) for o in parent_wakefield.sources]
+        )
         impedances: Tuple[InductiveImpedance, ...] = parent_wakefield.sources
         self._Z = np.array([o.Z_over_n for o in impedances])
         self._T_rev_dynamic = simulation.ring.t_rev
@@ -75,7 +79,9 @@ class PeriodicFreqSolver(WakeFieldSolver):
                 f"periodicity is {t_rev_new:.2e} s, a deviation of {deviation} %."
             )
 
-    def on_wakefield_on_init_simulation(self, simulation: Simulation, parent_wakefield: WakeField):
+    def on_wakefield_on_init_simulation(
+        self, simulation: Simulation, parent_wakefield: WakeField
+    ):
         simulation.ring.t_rev.on_change(self._warning_callback)
 
         if parent_wakefield.profile is not None:
@@ -91,8 +97,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
                 self._update_on_calc = True
             else:
                 raise NotImplementedError(
-                    f"Unrecognized type(profile) = "
-                    f"{type(parent_wakefield.profile)}"
+                    f"Unrecognized type(profile) = {type(parent_wakefield.profile)}"
                 )
         else:
             raise Exception(f"{parent_wakefield.profile=}")
@@ -105,8 +110,6 @@ class PeriodicFreqSolver(WakeFieldSolver):
             self._freq_y * self._parent_wakefield.profile.beam_spectrum(self._n)
         )
         return induced_voltage
-
-
 
 
 class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):

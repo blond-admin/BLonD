@@ -16,8 +16,6 @@ class Losses(BeamPhysicsRelevant):
         super().__init__()
 
 
-
-
 class BoxLosses(Losses):
     def __init__(
         self,
@@ -52,4 +50,3 @@ class SeparatrixLosses(Losses):
 
     def track(self, beam: BeamBaseClass):
         self._simulation.get_separatrix()  # TODO
-

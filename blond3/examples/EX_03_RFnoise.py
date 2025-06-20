@@ -23,8 +23,9 @@ from blond3 import (
     Simulation,
     SingleHarmonicCavity,
     DriftSimple,
-    EnergyCycle, BiGaussian,
-    BoxLosses
+    EnergyCycle,
+    BiGaussian,
+    BoxLosses,
 )
 from blond3.cycles.noise_generators.vari_noise import VariNoise
 from blond3.cycles.rf_parameters import RFNoiseProgram
