@@ -7,13 +7,8 @@ from os import PathLike
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
-from blond3.physics.impedances.base import (
-    AnalyticWakeFieldSource,
-    FreqDomain,
-    TimeDomain,
-    DiscreteWakeFieldSource,
-)
-from blond3.physics.impedances.readers import ImpedanceReader, ExampleImpedanceReader1
+from .readers import ImpedanceReader
+from ..impedances.base import AnalyticWakeFieldSource, FreqDomain, TimeDomain, DiscreteWakeFieldSource
 
 
 class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain):
@@ -33,7 +28,7 @@ class ImpedanceTable(DiscreteWakeFieldSource):
     @abstractmethod
     @staticmethod
     def from_file(filepath: PathLike, reader: ImpedanceReader) -> ImpedanceTable:
-        reader.load_file(filepath=filepath)
+        pass
 
 
 @dataclass(frozen=True)

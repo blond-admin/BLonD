@@ -2,14 +2,13 @@ from __future__ import annotations
 
 from abc import abstractmethod, ABC
 from typing import Optional as LateInit
+
 from numpy.typing import NDArray as NumpyArray
 
-from blond3.core.backend import backend
-from .. import SingleHarmonicCavity
+from ..core.backend import backend
 from ..core.base import Preparable
 from ..core.simulation.simulation import Simulation
-from ..physics.cavities import CavityBaseClass, MultiHarmonicCavity
-from ..physics.impedances.sovlers import MutliTurnResonatorSolver
+from ..physics.cavities import CavityBaseClass, MultiHarmonicCavity, SingleHarmonicCavity
 
 
 class ProgrammedCycle(Preparable, ABC):

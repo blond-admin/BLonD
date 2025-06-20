@@ -1,4 +1,5 @@
 import subprocess
+
 import pylint  # NOQA
 
 subprocess.run(["ls"], check=True)

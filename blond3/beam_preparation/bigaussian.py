@@ -28,7 +28,7 @@ class BiGaussian(MatchingRoutine):
         rf_station: CavityBaseClass = simulation.ring.elements.get_element(
             CavityBaseClass
         )
-        if sigma_dE is None:
+        if self._sigma_dE is None:
             sigma_dE = _get_dE_from_dt(ring, rf_station, sigma_dt)  # NOQA TODO
             # IMPORT
         counter = simulation.turn_i.value  # todo might need to be set

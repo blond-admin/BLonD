@@ -3,24 +3,15 @@ from __future__ import annotations
 import copy
 from typing import (
     Iterable,
-    Tuple,
 )
-from typing import Optional as LateInit
 
-import numpy as np
-from numpy.typing import NDArray as NumpyArray
-
-from .helpers import get_init_order
+from ..backend import backend
 from ..base import (
     BeamPhysicsRelevantElements,
-    DynamicParameter,
     BeamPhysicsRelevant,
     Preparable,
 )
-from ..beam.base import BeamBaseClass
 from ..simulation.simulation import Simulation
-from blond3.core.backend import backend
-from ...cycles.base import EnergyCycle
 from ...physics.drifts import DriftBaseClass
 
 

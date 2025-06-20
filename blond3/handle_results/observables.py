@@ -6,7 +6,6 @@ from typing import Optional as LateInit
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
-
 from .array_recorders import DenseArrayRecorder
 from ..core.base import MainLoopRelevant
 from ..core.simulation.simulation import Simulation
