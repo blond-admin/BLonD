@@ -22,6 +22,7 @@ class EnergyCycle(ProgrammedCycle):
     def __init__(self, beam_energy_by_turn: NumpyArray):
         super().__init__()
         self._beam_energy_by_turn = beam_energy_by_turn.astype(backend.float)
+        self._beam_energy_by_turn.flags.writeable = False
 
     @property
     def beam_energy_by_turn(self):
@@ -46,15 +47,15 @@ class RfParameterCycle(ProgrammedCycle, ABC):
     def __init__(self):
         super().__init__()
         self._simulation : LateInit[Simulation] = None
-        self.owner: SingleHarmonicCavity | MultiHarmonicCavity | None = None
+        self._owner: SingleHarmonicCavity | MultiHarmonicCavity | None = None
 
     def set_owner(self, cavity: CavityBaseClass):
-        assert self.owner is None
-        self.owner = cavity
+        assert self._owner is None
+        self._owner = cavity
 
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        assert self.owner is not None
+        assert self._owner is not None
         self._simulation = simulation
 
     def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int) -> None:
@@ -62,9 +63,11 @@ class RfParameterCycle(ProgrammedCycle, ABC):
 
 
 class RfProgramSingleHarmonic(RfParameterCycle):
+    _owner: SingleHarmonicCavity
+
     def get_frequency(self, turn_i: int) -> backend.float:
-        shc: SingleHarmonicCavity = self.owner
-        freq: backend.float = shc.harmonic * self._simulation.revolution_frequency.by_turn(turn_i=turn_i)
+        freq: backend.float = self._owner.harmonic * self._simulation.revolution_frequency.by_turn(turn_i=turn_i)
+        return freq
 
     def get_omega(self, turn_i: int) -> backend.float:
         return backend.twopi * self.get_frequency(turn_i=turn_i)
@@ -79,10 +82,9 @@ class RfProgramSingleHarmonic(RfParameterCycle):
 
 
 class RfProgramMultiHarmonic(RfParameterCycle):
+    _owner = MultiHarmonicCavity
     def get_frequencies(self, turn_i: int) -> NumpyArray | CupyArray:
-        mhc = self.owner
-        freqs = mhc.harmonics * self._simulation.revolution_frequency.by_turn(turn_i=turn_i)
-
+        freqs = self._owner.harmonics * self._simulation.revolution_frequency.by_turn(turn_i=turn_i)
         return freqs
 
     def get_omegas(self, turn_i: int) ->  NumpyArray | CupyArray:

@@ -12,6 +12,7 @@ from typing import (
 from numpy.typing import NDArray as NumpyArray
 from tqdm import tqdm
 
+from ..backend import backend
 from ..base import BeamPhysicsRelevant, Preparable
 from ..base import DynamicParameter
 from ..beam.base import BeamBaseClass
@@ -28,26 +29,27 @@ class TurnDependent(ABC):
         self._simulation = simulation
 
     @abstractmethod
-    def by_turn(self, turn_i: int):
+    def by_turn(self, turn_i: int) -> backend.float:
         pass
 
 
 class Gamma(TurnDependent):
-    def by_turn(self, turn_i: int):
+    def by_turn(self, turn_i: int) -> backend.float:
         beam_energy = self._simulation._energy_cycle.beam_energy_by_turn[turn_i]
-        beam_res_energy = self._simulation._beams.rest_mass
+        beam_res_energy = self._simulation._beams[0].rest_mass
         return  # TODO
 
 
 class Beta(TurnDependent):
-    def by_turn(self, turn_i: int):
+    def by_turn(self, turn_i: int) -> backend.float:
         gamma = self._simulation.gamma.by_turn(turn_i=turn_i)
         return  # TODO
 
 
 class Velocity(TurnDependent):
-    def by_turn(self, turn_i: int):
-        pass
+    def by_turn(self, turn_i: int) -> backend.float:
+        from scipy.constants import speed_of_light as c0
+        return self._simulation.beta.by_turn(turn_i=turn_i) * c0
 
 
 class RevolutionFrequency(TurnDependent):
@@ -63,7 +65,6 @@ class Simulation(Preparable):
         energy_cycle: NumpyArray | EnergyCycle,
     ):
         super().__init__()
-        ring.on_init_simulation(simulation=self)
         self._ring: Ring = ring
         assert self.beams != (), f"{self.beams=}"
         assert len(self._beams) <= 2, "Maximum two beams allowed"
@@ -112,7 +113,7 @@ class Simulation(Preparable):
             for element in instances:
                 if not type(element) == cls:
                     continue
-                element.__dict__["on_init_simulation"](**kwargs)
+                element.__dict__[f"{method}"](**kwargs)
 
     def _exec_on_init_simulation(self):
         self._exec_all_in_tree("on_init_simulation", simulation=self)

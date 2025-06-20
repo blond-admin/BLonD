@@ -29,9 +29,6 @@ class Ring(Preparable):
     def circumference(self):
         return self._circumference
 
-    @property
-    def one_turn_pathlength(self):
-        return
 
     def add_element(
         self,
@@ -65,4 +62,3 @@ class Ring(Preparable):
             f"{sum_share_of_circumference=}, but should be 1. It seems the "
             f"drifts are not correctly configured."
         )
-        simulation.turn_i.on_change(self.update_t_rev)

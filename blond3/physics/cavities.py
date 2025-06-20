@@ -56,7 +56,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         super().__init__(
             rf_program=rf_program, group=group, local_wakefield=local_wakefield
         )
-        self._harmonic = harmonic
+        self._harmonic = backend.float(harmonic)
 
     @property
     def rf_program(self):
@@ -76,6 +76,7 @@ class SingleHarmonicCavity(CavityBaseClass):
             beam.write_partial_dE(),
             self._rf_program.get_phase(turn_i=self._turn_i.value),
             self._rf_program.get_effective_voltage(turn_i=self._turn_i.value),
+            self._rf_program.get_frequency(turn_i=self._turn_i.value)
         )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -101,6 +102,7 @@ class MultiHarmonicCavity(CavityBaseClass):
     @property
     def harmonics(self) -> NumpyArray | CupyArray:
         return self._harmonics
+
     @property
     def rf_program(self):
         return self._rf_program

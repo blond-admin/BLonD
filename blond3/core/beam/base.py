@@ -12,6 +12,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from .particle_types import ParticleType
     from ..simulation.simulation import Simulation
 
+    from numpy.typing import NDArray as NumpyArray
+    from cupy.typing import NDArray as CupyArray
 
 class BeamFlags(int, Enum):
     LOST = 0
@@ -41,6 +43,11 @@ class BeamBaseClass(Preparable, ABC):
         self._dt = None
         self._flags = None
         self._is_counter_rotating = is_counter_rotating
+
+
+    @abstractmethod
+    def setup_beam(self, dt: NumpyArray | CupyArray, dE: NumpyArray | CupyArray, flags: NumpyArray | CupyArray):
+        pass
 
     @property
     def is_distributed(self):
