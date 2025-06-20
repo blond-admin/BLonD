@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
+from typing import Optional
 
 from .base import MatchingRoutine
 from ..core.backend import backend
@@ -10,16 +11,15 @@ from ..core.beam.base import BeamBaseClass
 from ..physics.cavities import SingleHarmonicCavity
 
 if TYPE_CHECKING:  # pragma: no cover
-    from .. import Simulation
-
+    from ..core.simulation.simulation import Simulation
 
 class BiGaussian(MatchingRoutine):
     def __init__(
         self,
         sigma_dt: float,
-        sigma_dE: StopIteration[float] = None,
-        reinsertion: bool=False,
-        seed: int=0,
+        sigma_dE: Optional[float]= None,
+        reinsertion: bool = False,
+        seed: int = 0,
     ):
         super().__init__()
         self._sigma_dt = sigma_dt
@@ -51,7 +51,6 @@ class BiGaussian(MatchingRoutine):
         if eta0 < 0:
             phi_rf -= np.pi
 
-
         # Generate coordinates. For reproducibility, a separate random number stream is used for dt and dE
         rng_dt = np.random.default_rng(self._seed)
         rng_dE = np.random.default_rng(self._seed + 1)
@@ -71,7 +70,9 @@ class BiGaussian(MatchingRoutine):
         # Re-insert if necessary
         if self._reinsertion:
             while True:
-                sel = is_in_separatrix(ring, rf_station, beam, beam.dt, beam.dE) == False
+                sel = (
+                    is_in_separatrix(ring, rf_station, beam, beam.dt, beam.dE) == False
+                )
 
                 n_new = np.sum(sel)
                 if n_new == 0:
@@ -84,6 +85,6 @@ class BiGaussian(MatchingRoutine):
                     + (phi_s - phi_rf) / omega_rf
                 )
 
-                beam.dE[sel] = sigma_dE * rng_dE.normal(
-                    size=n_new
-                ).astype(dtype=backend.float, order="C")
+                beam.dE[sel] = sigma_dE * rng_dE.normal(size=n_new).astype(
+                    dtype=backend.float, order="C"
+                )

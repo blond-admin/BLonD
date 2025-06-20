@@ -49,6 +49,7 @@ class Beta(TurnDependent):
 class Velocity(TurnDependent):
     def by_turn(self, turn_i: int) -> backend.float:
         from scipy.constants import speed_of_light as c0
+
         return self._simulation.beta.by_turn(turn_i=turn_i) * c0
 
 

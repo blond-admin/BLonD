@@ -26,12 +26,15 @@ class ConstantProgramSingleHarmonic(RfProgramSingleHarmonic):
         pass
 
 
-
 class ConstantProgramMultiHarmonic(RfProgramMultiHarmonic):
     def __init__(self, phases: Iterable[float], effective_voltages: Iterable[float]):
         super().__init__()
-        self._phases: NumpyArray | CupyArray = backend.array(phases, dtype=backend.float)
-        self._effective_voltages: NumpyArray | CupyArray = backend.array(effective_voltages, dtype=backend.float)
+        self._phases: NumpyArray | CupyArray = backend.array(
+            phases, dtype=backend.float
+        )
+        self._effective_voltages: NumpyArray | CupyArray = backend.array(
+            effective_voltages, dtype=backend.float
+        )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         pass
@@ -39,7 +42,7 @@ class ConstantProgramMultiHarmonic(RfProgramMultiHarmonic):
     def get_phases(self, turn_i: int) -> NumpyArray | CupyArray:
         return self._phases
 
-    def get_effective_voltages(self, turn_i: int)-> NumpyArray | CupyArray:
+    def get_effective_voltages(self, turn_i: int) -> NumpyArray | CupyArray:
         return self._effective_voltages
 
 

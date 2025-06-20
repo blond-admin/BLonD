@@ -11,6 +11,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from ..beam.particle_types import ParticleType
 
+
 class Beam(BeamBaseClass):
     def __init__(
         self,
@@ -26,7 +27,12 @@ class Beam(BeamBaseClass):
             is_counter_rotating=is_counter_rotating,
         )
 
-    def setup_beam(self, dt: NumpyArray | CupyArray, dE: NumpyArray | CupyArray, flags: NumpyArray | CupyArray):
+    def setup_beam(
+        self,
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        flags: NumpyArray | CupyArray,
+    ):
         self._dE = dE.astype(backend.float)
         self._dt = dt.astype(backend.float)
         self._flags = flags.astype(backend.int)

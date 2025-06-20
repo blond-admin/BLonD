@@ -19,9 +19,11 @@ from ..profiles import (
 from ...core.base import DynamicParameter
 from ...core.beam.base import BeamBaseClass
 from ...core.simulation.simulation import Simulation
+
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
     from cupy.typing import NDArray as CupyArray
+
 
 class InductiveImpedanceSolver(WakeFieldSolver):
     def __init__(self):

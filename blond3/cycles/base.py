@@ -6,16 +6,20 @@ from typing import Optional as LateInit, TYPE_CHECKING
 from ..core.backend import backend
 from ..core.base import Preparable
 from ..core.simulation.simulation import Simulation
-from ..physics.cavities import CavityBaseClass, MultiHarmonicCavity, SingleHarmonicCavity
+from ..physics.cavities import (
+    CavityBaseClass,
+    MultiHarmonicCavity,
+    SingleHarmonicCavity,
+)
 
 if TYPE_CHECKING:
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
+
 class ProgrammedCycle(Preparable, ABC):
     def __init__(self):
         super().__init__()
-
 
 
 class EnergyCycle(ProgrammedCycle):
@@ -36,7 +40,9 @@ class EnergyCycle(ProgrammedCycle):
             )
         )
 
-    def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int) -> None:
+    def on_run_simulation(
+        self, simulation: Simulation, n_turns: int, turn_i_init: int
+    ) -> None:
         pass
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -46,19 +52,20 @@ class EnergyCycle(ProgrammedCycle):
 class RfParameterCycle(ProgrammedCycle, ABC):
     def __init__(self):
         super().__init__()
-        self._simulation : LateInit[Simulation] = None
+        self._simulation: LateInit[Simulation] = None
         self._owner: SingleHarmonicCavity | MultiHarmonicCavity | None = None
 
     def set_owner(self, cavity: CavityBaseClass):
         assert self._owner is None
         self._owner = cavity
 
-
     def on_init_simulation(self, simulation: Simulation) -> None:
         assert self._owner is not None
         self._simulation = simulation
 
-    def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int) -> None:
+    def on_run_simulation(
+        self, simulation: Simulation, n_turns: int, turn_i_init: int
+    ) -> None:
         pass
 
 
@@ -66,7 +73,10 @@ class RfProgramSingleHarmonic(RfParameterCycle):
     _owner: SingleHarmonicCavity
 
     def get_frequency(self, turn_i: int) -> backend.float:
-        freq: backend.float = self._owner.harmonic * self._simulation.revolution_frequency.by_turn(turn_i=turn_i)
+        freq: backend.float = (
+            self._owner.harmonic
+            * self._simulation.revolution_frequency.by_turn(turn_i=turn_i)
+        )
         return freq
 
     def get_omega(self, turn_i: int) -> backend.float:
@@ -83,17 +93,20 @@ class RfProgramSingleHarmonic(RfParameterCycle):
 
 class RfProgramMultiHarmonic(RfParameterCycle):
     _owner = MultiHarmonicCavity
+
     def get_frequencies(self, turn_i: int) -> NumpyArray | CupyArray:
-        freqs = self._owner.harmonics * self._simulation.revolution_frequency.by_turn(turn_i=turn_i)
+        freqs = self._owner.harmonics * self._simulation.revolution_frequency.by_turn(
+            turn_i=turn_i
+        )
         return freqs
 
-    def get_omegas(self, turn_i: int) ->  NumpyArray | CupyArray:
+    def get_omegas(self, turn_i: int) -> NumpyArray | CupyArray:
         return backend.twopi * self.get_frequencies(turn_i=turn_i)
 
     @abstractmethod
-    def get_phases(self, turn_i: int) ->  NumpyArray | CupyArray:
+    def get_phases(self, turn_i: int) -> NumpyArray | CupyArray:
         pass
 
     @abstractmethod
-    def get_effective_voltages(self, turn_i: int) ->  NumpyArray | CupyArray:
+    def get_effective_voltages(self, turn_i: int) -> NumpyArray | CupyArray:
         pass

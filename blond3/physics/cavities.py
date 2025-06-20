@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from abc import ABC
 from typing import (
-    Optional, Iterable, TYPE_CHECKING,
+    Optional,
+    Iterable,
+    TYPE_CHECKING,
 )
 from typing import Optional as LateInit
 
@@ -11,11 +13,16 @@ from ..core.backend import backend
 from ..core.base import BeamPhysicsRelevant, DynamicParameter
 from ..core.beam.base import BeamBaseClass
 from ..core.simulation.simulation import Simulation
-from ..cycles.base import RfParameterCycle, RfProgramSingleHarmonic, RfProgramMultiHarmonic
+from ..cycles.base import (
+    RfParameterCycle,
+    RfProgramSingleHarmonic,
+    RfProgramMultiHarmonic,
+)
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
     from cupy.typing import NDArray as CupyArray
+
 
 class CavityBaseClass(BeamPhysicsRelevant, ABC):
     def __init__(
@@ -44,7 +51,7 @@ class CavityBaseClass(BeamPhysicsRelevant, ABC):
 
 
 class SingleHarmonicCavity(CavityBaseClass):
-    _rf_program: Optional[RfProgramSingleHarmonic] # make type hint more specific
+    _rf_program: Optional[RfProgramSingleHarmonic]  # make type hint more specific
 
     def __init__(
         self,
@@ -76,7 +83,7 @@ class SingleHarmonicCavity(CavityBaseClass):
             beam.write_partial_dE(),
             self._rf_program.get_phase(turn_i=self._turn_i.value),
             self._rf_program.get_effective_voltage(turn_i=self._turn_i.value),
-            self._rf_program.get_frequency(turn_i=self._turn_i.value)
+            self._rf_program.get_frequency(turn_i=self._turn_i.value),
         )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -85,7 +92,7 @@ class SingleHarmonicCavity(CavityBaseClass):
 
 
 class MultiHarmonicCavity(CavityBaseClass):
-    _rf_program: Optional[RfProgramMultiHarmonic] # make type hint more specific
+    _rf_program: Optional[RfProgramMultiHarmonic]  # make type hint more specific
 
     def __init__(
         self,
@@ -97,7 +104,9 @@ class MultiHarmonicCavity(CavityBaseClass):
         super().__init__(
             rf_program=rf_program, group=group, local_wakefield=local_wakefield
         )
-        self._harmonics: NumpyArray | CupyArray = backend.array(harmonics, dtype=backend.float)
+        self._harmonics: NumpyArray | CupyArray = backend.array(
+            harmonics, dtype=backend.float
+        )
 
     @property
     def harmonics(self) -> NumpyArray | CupyArray:
@@ -106,6 +115,7 @@ class MultiHarmonicCavity(CavityBaseClass):
     @property
     def rf_program(self):
         return self._rf_program
+
     def track(self, beam: BeamBaseClass):
         super().track(beam=beam)
         backend.kick_multi_harmonic(

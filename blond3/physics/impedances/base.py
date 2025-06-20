@@ -106,4 +106,3 @@ class WakeField(Impedance):
         backend.kick_induced(
             beam.read_partial_dt(), beam.read_partial_dE(), induced_voltage
         )
-

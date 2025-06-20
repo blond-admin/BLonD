@@ -29,7 +29,6 @@ class Ring(Preparable):
     def circumference(self):
         return self._circumference
 
-
     def add_element(
         self,
         element: BeamPhysicsRelevant,

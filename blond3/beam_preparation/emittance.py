@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .base import MatchingRoutine
-from .. import Simulation
+from ..core.simulation.simulation import Simulation
 
 
 class EmittanceMatcher(MatchingRoutine):

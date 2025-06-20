@@ -8,7 +8,12 @@ import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
 from .readers import ImpedanceReader
-from ..impedances.base import AnalyticWakeFieldSource, FreqDomain, TimeDomain, DiscreteWakeFieldSource
+from ..impedances.base import (
+    AnalyticWakeFieldSource,
+    FreqDomain,
+    TimeDomain,
+    DiscreteWakeFieldSource,
+)
 
 
 class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain):
