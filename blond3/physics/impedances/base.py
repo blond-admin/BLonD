@@ -5,7 +5,7 @@ from typing import Optional as LateInit, Tuple, Optional
 from typing import TYPE_CHECKING
 
 from ..profiles import ProfileBaseClass
-from ...core.backend import backend
+from ...core.backends.backend import backend
 from ...core.base import BeamPhysicsRelevant
 from ...core.beam.base import BeamBaseClass
 from ...core.simulation.simulation import Simulation

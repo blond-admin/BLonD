@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from ..backend import backend
+from ...core.backends.backend import backend
 from ..base import Preparable
 from ..helpers import int_from_float_with_warning
 

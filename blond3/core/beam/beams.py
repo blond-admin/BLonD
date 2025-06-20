@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Optional as LateInit, TYPE_CHECKING
 
 from .base import BeamBaseClass
-from ..backend import backend
+from ..backends.backend import backend
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray

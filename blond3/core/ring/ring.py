@@ -5,7 +5,7 @@ from typing import (
     Iterable,
 )
 
-from ..backend import backend
+from ...core.backends.backend import backend
 from ..base import (
     BeamPhysicsRelevantElements,
     BeamPhysicsRelevant,

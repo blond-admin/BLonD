@@ -6,7 +6,7 @@ import numpy as np
 from typing import Optional
 
 from .base import MatchingRoutine
-from ..core.backend import backend
+from ..core.backends.backend import backend
 from ..core.beam.base import BeamBaseClass
 from ..physics.cavities import SingleHarmonicCavity
 
@@ -42,7 +42,7 @@ class BiGaussian(MatchingRoutine):
         counter = simulation.turn_i.value  # todo might need to be set
         rf_station.rf_program.get_phase(turn_i=counter)
         rf_station.rf_program.get_effective_voltage(turn_i=counter)
-        omega_rf = rf_station.omega_rf[0, counter]
+        omega_rf = rf_station.rf_program.get_omega(turn_i=counter)
         phi_s = rf_station.phi_s[counter]
         phi_rf = rf_station.phi_rf[0, counter]
         eta0 = rf_station.eta_0[counter]

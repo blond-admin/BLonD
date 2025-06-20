@@ -9,7 +9,7 @@ from typing import (
 from typing import Optional as LateInit
 
 from .impedances.base import WakeField
-from ..core.backend import backend
+from ..core.backends.backend import backend
 from ..core.base import BeamPhysicsRelevant, DynamicParameter
 from ..core.beam.base import BeamBaseClass
 from ..core.simulation.simulation import Simulation
@@ -65,17 +65,6 @@ class SingleHarmonicCavity(CavityBaseClass):
         )
         self._harmonic = backend.float(harmonic)
 
-    @property
-    def rf_program(self):
-        if self._rf_program is not None:
-            return self._rf_program
-        else:
-            raise Exception()
-
-    @property
-    def harmonic(self):
-        return self._harmonic
-
     def track(self, beam: BeamBaseClass):
         super().track(beam=beam)
         backend.kick_single_harmonic(
@@ -86,9 +75,23 @@ class SingleHarmonicCavity(CavityBaseClass):
             self._rf_program.get_frequency(turn_i=self._turn_i.value),
         )
 
+    @property
+    def rf_program(self):
+        if self._rf_program is not None:
+            return self._rf_program
+        else:
+            raise Exception()
+
     def on_init_simulation(self, simulation: Simulation) -> None:
         super().on_init_simulation(simulation=simulation)
-        pass
+
+    def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int) -> None:
+        super().on_run_simulation(simulation=simulation,n_turns=n_turns, turn_i_init=turn_i_init)
+
+    @property
+    def harmonic(self):
+        return self._harmonic
+
 
 
 class MultiHarmonicCavity(CavityBaseClass):
@@ -108,6 +111,12 @@ class MultiHarmonicCavity(CavityBaseClass):
             harmonics, dtype=backend.float
         )
 
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        super().on_init_simulation(simulation=simulation)
+
+    def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int) -> None:
+        super().on_run_simulation(simulation=simulation,n_turns=n_turns, turn_i_init=turn_i_init)
+
     @property
     def harmonics(self) -> NumpyArray | CupyArray:
         return self._harmonics
@@ -123,8 +132,7 @@ class MultiHarmonicCavity(CavityBaseClass):
             beam.write_partial_dE(),
             self._rf_program.get_phases(turn_i=self._turn_i.value),
             self._rf_program.get_effective_voltages(turn_i=self._turn_i.value),
+            self._rf_program.get_frequencies(turn_i=self._turn_i.value),
+
         )
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        super().on_init_simulation(simulation=simulation)
-        pass

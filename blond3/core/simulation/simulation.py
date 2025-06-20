@@ -12,7 +12,7 @@ from typing import (
 from numpy.typing import NDArray as NumpyArray
 from tqdm import tqdm
 
-from ..backend import backend
+from ...core.backends.backend import backend
 from ..base import BeamPhysicsRelevant, Preparable
 from ..base import DynamicParameter
 from ..beam.base import BeamBaseClass

@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC
 from functools import cached_property
 
-from ..core.backend import backend
+from ..core.backends.backend import backend
 from ..core.base import BeamPhysicsRelevant
 from ..core.beam.base import BeamBaseClass
 from ..core.simulation.simulation import Simulation

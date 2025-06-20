@@ -5,7 +5,7 @@ from typing import (
 )
 from typing import Optional as LateInit
 
-from ..core.backend import backend
+from ..core.backends.backend import backend
 from ..core.base import BeamPhysicsRelevant
 from ..core.beam.base import BeamBaseClass
 from ..core.simulation.simulation import Simulation
