@@ -17,7 +17,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 class WakeFieldSolver:
     @abstractmethod
-    def on_wakefield_on_init_simulation(
+    def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:
         pass
@@ -53,6 +53,10 @@ class Impedance(BeamPhysicsRelevant):
     def __init__(self, group: int = 0, profile: LateInit[ProfileBaseClass] = None):
         super().__init__(group=group)
         self._profile = profile
+
+    @property
+    def profile(self):
+        return self._profile
 
     @abstractmethod
     def calc_induced_voltage(self) -> NumpyArray | CupyArray:
@@ -90,7 +94,7 @@ class WakeField(Impedance):
     def on_init_simulation(self, simulation: Simulation) -> None:
         super().on_init_simulation(simulation=simulation)
         assert len(self.sources) > 0, "Provide for at least one `WakeFieldSource`"
-        self.solver.on_wakefield_on_init_simulation(
+        self.solver.on_wakefield_init_simulation(
             simulation=simulation, parent_wakefield=self
         )
 
@@ -103,6 +107,3 @@ class WakeField(Impedance):
             beam.read_partial_dt(), beam.read_partial_dE(), induced_voltage
         )
 
-    @property
-    def profile(self):
-        return self._profile

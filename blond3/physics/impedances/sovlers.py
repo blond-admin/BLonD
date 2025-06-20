@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import math
 import warnings
-from typing import Optional as LateInit
+from typing import Optional as LateInit, TYPE_CHECKING
 from typing import (
     Tuple,
 )
 
 import numpy as np
-from numpy.typing import NDArray as NumpyArray
 
 from .base import WakeFieldSolver, WakeField, FreqDomain
 from .sources import InductiveImpedance
@@ -20,7 +19,9 @@ from ..profiles import (
 from ...core.base import DynamicParameter
 from ...core.beam.base import BeamBaseClass
 from ...core.simulation.simulation import Simulation
-
+if TYPE_CHECKING:
+    from numpy.typing import NDArray as NumpyArray
+    from cupy.typing import NDArray as CupyArray
 
 class InductiveImpedanceSolver(WakeFieldSolver):
     def __init__(self):
@@ -29,7 +30,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         self._Z: LateInit[NumpyArray] = None
         self._T_rev_dynamic: LateInit[DynamicParameter] = None
 
-    def on_wakefield_on_init_simulation(
+    def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ):
         self._parent_wakefield = parent_wakefield
@@ -78,7 +79,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
                 f"periodicity is {t_rev_new:.2e} s, a deviation of {deviation} %."
             )
 
-    def on_wakefield_on_init_simulation(
+    def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ):
         simulation.ring.t_rev.on_change(self._warning_callback)

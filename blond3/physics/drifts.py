@@ -12,11 +12,11 @@ from ..core.simulation.simulation import Simulation
 class DriftBaseClass(BeamPhysicsRelevant, ABC):
     def __init__(self, share_of_circumference: float, group: int = 0):
         super().__init__(group=group)
-        self.__share_of_circumference = backend.float(share_of_circumference)
+        self._share_of_circumference = backend.float(share_of_circumference)
 
     @property
     def share_of_circumference(self):
-        return self.__share_of_circumference
+        return self._share_of_circumference
 
     def track(self, beam: BeamBaseClass):
         pass
