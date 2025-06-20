@@ -39,7 +39,7 @@ class BeamBaseClass(Preparable, ABC):
             n_macroparticles, warning_stacklevel=2
         )
         self._is_distributed = is_distributed
-        self.__particles = particle_type
+        self.particle_type = particle_type
         self._dE = None
         self._dt = None
         self._flags = None

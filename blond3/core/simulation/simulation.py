@@ -12,7 +12,7 @@ from typing import (
 from numpy.typing import NDArray as NumpyArray
 from tqdm import tqdm
 
-from ...core.backends.backend import backend
+from blond.impedances.impedance import TotalInducedVoltage
 from ..base import BeamPhysicsRelevant, Preparable
 from ..base import DynamicParameter
 from ..beam.base import BeamBaseClass
@@ -20,8 +20,10 @@ from ..helpers import find_instances_with_method
 from ..ring.helpers import get_elements, get_init_order
 from ..ring.ring import Ring
 from ...beam_preparation.base import MatchingRoutine
+from ...core.backends.backend import backend
 from ...cycles.base import EnergyCycle
 from ...handle_results.observables import Observables
+from ...physics.drifts import DriftBaseClass
 
 
 class TurnDependent(ABC):
@@ -67,8 +69,9 @@ class Simulation(Preparable):
     ):
         super().__init__()
         self._ring: Ring = ring
-        assert self.beams != (), f"{self.beams=}"
-        assert len(self._beams) <= 2, "Maximum two beams allowed"
+        assert beams != (), f"{beams=}"
+        assert len(beams) <= 2, "Maximum two beams allowed"
+
         self._beams: Tuple[BeamBaseClass, ...] = beams
         self._energy_cycle: EnergyCycle = energy_cycle
 
@@ -241,6 +244,28 @@ class Simulation(Preparable):
         # reset counters to uninitialized again
         self.turn_i.value = None
         self.group_i.value = None
+
+    def get_legacy_map(self):
+        elements = self.ring.elements.elements
+        ring_length = self.ring.circumference
+        bending_radius = self.ring.bending_radius
+        drift = self.ring.elements.get_element(DriftBaseClass)
+        alpha_0 = drift.momentum_compaction_factor
+        synchronous_data = self.energy_cycle.beam_energy_by_turn
+        particle = self.beams[0].particle_type
+        #  BLonD legacy Imports
+        from blond.beam.beam import Beam
+        from blond.beam.profile import Profile
+        from blond.input_parameters.rf_parameters import RFStation
+        from blond.input_parameters.ring import Ring
+        from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
+        ring = Ring(ring_length=ring_length, alpha_0=alpha_0, synchronous_data=synchronous_data, particle=particle, bending_radius=bending_radius, n_sections=,alpha_1=, alpha_2=, ring_options=)
+        beam = Beam(ring=ring,n_macroparticles=self.beams[0]._n_macroparticles, intensity=self.beams[0]._n_particles)
+        rf_station = RFStation(ring=, harmonic=, voltage=, phi_rf_d=,n_rf=, section_index=, omega_rf=, phi_noise=, phi_modulation=, rf_station_options=)
+        profile = Profile(beam=,cut_options=, fit_options=, filter_options=)
+        ring_rf_tracker = RingAndRFTracker(rf_station=rf_station, beam=beam,solver=, beam_feedback=,noise_feedback=, cavity_feedback=, periodicity=, interpolation=,profile=,total_induced_voltage=)
+        total_induced_voltage = TotalInducedVoltage(beam=beam, profile=profile, induced_voltage_list=)
+        full_ring = FullRingAndRF(ring_and_rf_section=ring_rf_tracker)
 
     def _run_simulation_counterrotating_beam(
         self,
