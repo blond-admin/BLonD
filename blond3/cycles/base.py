@@ -3,7 +3,6 @@ from __future__ import annotations
 from abc import abstractmethod, ABC
 from typing import Optional as LateInit, TYPE_CHECKING
 
-
 from ..core.backend import backend
 from ..core.base import Preparable
 from ..core.simulation.simulation import Simulation
