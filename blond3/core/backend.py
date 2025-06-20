@@ -10,6 +10,8 @@ class BackendBaseClass(ABC):
         self.float: np.float32 | np.float64 = float_
         self.int: np.int32 | np.int64 = int_
 
+
+        self.twopi = self.float(2 * np.pi)
         # Callables
         self.array = None
         self.gradient = None

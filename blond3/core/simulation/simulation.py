@@ -73,12 +73,28 @@ class Simulation(Preparable):
         self.turn_i = DynamicParameter(None)
         self.group_i = DynamicParameter(None)
 
-        self.gamma = Gamma(self)
-        self.beta = Beta(self)
-        self.velocity = Velocity(self)
-        self.revolution_frequency = RevolutionFrequency(self)
+        self._gamma = Gamma(self)
+        self._beta = Beta(self)
+        self._velocity = Velocity(self)
+        self._revolution_frequency = RevolutionFrequency(self)
 
         self._exec_on_init_simulation()
+
+    @property
+    def gamma(self):
+        return self._gamma
+
+    @property
+    def beta(self):
+        return self._beta
+
+    @property
+    def velocity(self):
+        return self._velocity
+
+    @property
+    def revolution_frequency(self):
+        return self._revolution_frequency
 
     def on_init_simulation(self, simulation: Simulation):
         pass

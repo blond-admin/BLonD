@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from typing import Optional as LateInit
+from typing import Optional as LateInit, Iterable
 
 from numpy.typing import NDArray as NumpyArray
 
-from .base import RfParameterCycle
+from .base import RfProgramSingleHarmonic, RfProgramMultiHarmonic
 from .noise_generators.base import NoiseGenerator
 from ..core.backend import backend
 from ..core.simulation.simulation import Simulation
 
 
-class ConstantProgram(RfParameterCycle):
+class ConstantProgramSingleHarmonic(RfProgramSingleHarmonic):
     def __init__(self, phase: float, effective_voltage: float):
         super().__init__()
         self._phase = backend.float(phase)
@@ -26,7 +26,24 @@ class ConstantProgram(RfParameterCycle):
         pass
 
 
-class RFNoiseProgram(RfParameterCycle):
+
+class ConstantProgramMultiHarmonic(RfProgramMultiHarmonic):
+    def __init__(self, phases: Iterable[float], effective_voltages: Iterable[float]):
+        super().__init__()
+        self._phases: NumpyArray | CupyArray = backend.array(phases, dtype=backend.float)
+        self._effective_voltages: NumpyArray | CupyArray = backend.array(effective_voltages, dtype=backend.float)
+
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        pass
+
+    def get_phases(self, turn_i: int) -> NumpyArray | CupyArray:
+        return self._phases
+
+    def get_effective_voltages(self, turn_i: int)-> NumpyArray | CupyArray:
+        return self._effective_voltages
+
+
+class RFNoiseProgram(ConstantProgramSingleHarmonic):
     def __init__(
         self,
         phase: float,
@@ -47,8 +64,8 @@ class RFNoiseProgram(RfParameterCycle):
             n_turns=n_turns
         ).astype(backend.float)
 
-    def get_phase(self, turn_i: int):
+    def get_phase(self, turn_i: int) -> backend.float:
         return self._phase + self._phase_noise[turn_i]
 
-    def get_effective_voltage(self, turn_i: int):
+    def get_effective_voltage(self, turn_i: int) -> backend.float:
         return self._effective_voltage
