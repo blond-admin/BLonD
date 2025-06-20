@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod, abstractstaticmethod
-from typing import TYPE_CHECKING
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Type
 
 import numpy as np
 
@@ -10,26 +10,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
     from cupy.typing import NDArray as CupyArray
 
-class BackendBaseClass(ABC):
-    def __init__(self, float_: np.float32 | np.float64, int_: np.int32 | np.int64):
-        self.float: np.float32 | np.float64 = float_
-        self.int: np.int32 | np.int64 = int_
 
-        self.twopi = self.float(2 * np.pi)
-
-        from .python.callables import PythonSpecials
-        self.specials = PythonSpecials()
-
-        # Callables
-        self.array = None
-        self.gradient = None
-
-    def change_backend(self, new_backend: BackendBaseClass):
-        self.__dict__ = new_backend.__dict__
-        self.__class__ = new_backend.__class__
-    @abstractmethod
-    def set_specials(self, mode):
-        pass
 class Specials(ABC):
     @staticmethod
     @abstractmethod
@@ -62,6 +43,31 @@ class Specials(ABC):
         pass
 
 
+class BackendBaseClass(ABC):
+    def __init__(self, float_: np.float32 | np.float64, int_: np.int32 | np.int64):
+        self.float: np.float32 | np.float64 = float_
+        self.int: np.int32 | np.int64 = int_
+
+        self.twopi = self.float(2 * np.pi)
+
+        from .python.callables import PythonSpecials
+        self.specials = PythonSpecials()
+
+        # Callables
+        self.array = None
+        self.gradient = None
+
+    def change_backend(self, new_backend: Type[Numpy32Bit, Numpy64Bit, Cupy32Bit, Cupy64Bit]):
+        _new_backend = new_backend()
+        self.__dict__ = _new_backend.__dict__
+        self.__class__ = _new_backend.__class__
+
+    @abstractmethod
+    def set_specials(self, mode):
+        pass
+
+
+
 
 class NumpyBackend(BackendBaseClass):
     def __init__(self, float_: np.float32 | np.float64, int_: np.int32 | np.int64):
@@ -89,6 +95,35 @@ class Numpy32Bit(NumpyBackend):
 
 
 class Numpy64Bit(NumpyBackend):
+    def __init__(self):
+        super().__init__(np.float64, np.int64)
+
+
+
+
+class CupyBackend(BackendBaseClass):
+    def __init__(self, float_: np.float32 | np.float64, int_: np.int32 | np.int64):
+        super().__init__(float_, int_)
+        self.array = np.array
+        self.gradient = np.gradient
+
+        from .cuda.callables import CudaSpecials
+        self.specials = CudaSpecials()
+
+    def set_specials(self, mode):
+        if mode == "cuda":
+            from .cuda.callables import CudaSpecials
+            self.specials = CudaSpecials()
+        else:
+            raise ValueError(mode)
+
+
+class Cupy32Bit(CupyBackend):
+    def __init__(self):
+        super().__init__(np.float32, np.int32)
+
+
+class Cupy64Bit(CupyBackend):
     def __init__(self):
         super().__init__(np.float64, np.int64)
 
