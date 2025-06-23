@@ -29,6 +29,7 @@ from blond3 import (
     DriftSimple,
     BoxLosses,
 )
+from blond3.examples.EX_02_Acceleration import energy_cycle
 from blond3.physics.losses import SeparatrixLosses
 from blond3.physics.profiles import DynamicProfileConstNBins
 
@@ -56,7 +57,6 @@ dt_plt = 200  # Time steps between plots
 
 ring = Ring(circumference=C)
 beam = Beam(n_particles=N_b, n_macroparticles=N_p, particle_type=proton)
-ring.add_beam(beam)
 one_turn_execution_order = (
     DriftSimple(transition_gamma=gamma_t, share_of_circumference=0.3, group=0),
     SingleHarmonicCavity(
@@ -75,8 +75,7 @@ one_turn_execution_order = (
     DynamicProfileConstNBins(n_bins=100),
 )
 ring.add_elements(one_turn_execution_order, reorder=False)
-ring.set_energy_cycle(EnergyCycle.from_linspace(p_s, p_s, N_t))
-sim = Simulation(ring)
+sim = Simulation(ring=ring, beams=(beam,), energy_cycle=energy_cycle)
 sim.prepare_beam(
     preparation_routine=BiGaussian(rms_dt=tau_0 / 4, reinsertion=True, seed=1)
 )

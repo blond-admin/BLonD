@@ -1,19 +1,18 @@
 from __future__ import annotations
 
+from abc import abstractmethod, ABC
 from functools import cached_property
-from typing import (
-    Iterable,
-    Tuple,
-)
 from typing import (
     Optional,
 )
-from typing import Optional as LateInit
+from typing import (
+    Tuple,
+)
 
-import numpy as np
 from numpy.typing import NDArray as NumpyArray
 from tqdm import tqdm
 
+from blond.impedances.impedance import TotalInducedVoltage
 from ..base import BeamPhysicsRelevant, Preparable
 from ..base import DynamicParameter
 from ..beam.base import BeamBaseClass
@@ -21,8 +20,44 @@ from ..helpers import find_instances_with_method
 from ..ring.helpers import get_elements, get_init_order
 from ..ring.ring import Ring
 from ...beam_preparation.base import MatchingRoutine
+from ...core.backends.backend import backend
 from ...cycles.base import EnergyCycle
 from ...handle_results.observables import Observables
+from ...physics.drifts import DriftBaseClass
+
+
+class TurnDependent(ABC):
+    def __init__(self, simulation: Simulation):
+        self._simulation = simulation
+
+    @abstractmethod
+    def by_turn(self, turn_i: int) -> backend.float:
+        pass
+
+
+class Gamma(TurnDependent):
+    def by_turn(self, turn_i: int) -> backend.float:
+        beam_energy = self._simulation._energy_cycle.beam_energy_by_turn[turn_i]
+        beam_res_energy = self._simulation._beams[0].rest_mass
+        return  # TODO
+
+
+class Beta(TurnDependent):
+    def by_turn(self, turn_i: int) -> backend.float:
+        gamma = self._simulation.gamma.by_turn(turn_i=turn_i)
+        return  # TODO
+
+
+class Velocity(TurnDependent):
+    def by_turn(self, turn_i: int) -> backend.float:
+        from scipy.constants import speed_of_light as c0
+
+        return self._simulation.beta.by_turn(turn_i=turn_i) * c0
+
+
+class RevolutionFrequency(TurnDependent):
+    def by_turn(self, turn_i: int):
+        pass
 
 
 class Simulation(Preparable):
@@ -34,16 +69,39 @@ class Simulation(Preparable):
     ):
         super().__init__()
         self._ring: Ring = ring
-        assert self.beams != (), f"{self.beams=}"
-        assert len(self._beams) <= 2, "Maximum two beams allowed"
+        assert beams != (), f"{beams=}"
+        assert len(beams) <= 2, "Maximum two beams allowed"
+
         self._beams: Tuple[BeamBaseClass, ...] = beams
         self._energy_cycle: EnergyCycle = energy_cycle
-        self._exec_late_init()
 
         self.turn_i = DynamicParameter(None)
         self.group_i = DynamicParameter(None)
 
-    def late_init(self, simulation: Simulation):
+        self._gamma = Gamma(self)
+        self._beta = Beta(self)
+        self._velocity = Velocity(self)
+        self._revolution_frequency = RevolutionFrequency(self)
+
+        self._exec_on_init_simulation()
+
+    @property
+    def gamma(self):
+        return self._gamma
+
+    @property
+    def beta(self):
+        return self._beta
+
+    @property
+    def velocity(self):
+        return self._velocity
+
+    @property
+    def revolution_frequency(self):
+        return self._revolution_frequency
+
+    def on_init_simulation(self, simulation: Simulation):
         pass
 
     def _exec_all_in_tree(self, method: str, **kwargs):
@@ -59,10 +117,10 @@ class Simulation(Preparable):
             for element in instances:
                 if not type(element) == cls:
                     continue
-                element.__dict__["late_init"](**kwargs)
+                element.__dict__[f"{method}"](**kwargs)
 
-    def _exec_late_init(self):
-        self._exec_all_in_tree("late_init", simulation=self)
+    def _exec_on_init_simulation(self):
+        self._exec_all_in_tree("on_init_simulation", simulation=self)
 
     def _exec_on_run_simulation(self, n_turns: int, turn_i_init: int):
         self._exec_all_in_tree(
@@ -82,9 +140,7 @@ class Simulation(Preparable):
         beams = get_elements(locals_list, BeamBaseClass)
 
         _energy_cycles = get_elements(locals_list, Ring)
-        assert len(_energy_cycles) == 1, (
-            f"Found {len(_energy_cycles)} " f"energy cycles"
-        )
+        assert len(_energy_cycles) == 1, f"Found {len(_energy_cycles)} energy cycles"
         energy_cycle = _energy_cycles[0]
 
         elements = get_elements(locals_list, BeamPhysicsRelevant)
@@ -129,7 +185,7 @@ class Simulation(Preparable):
         self,
         preparation_routine: MatchingRoutine,
     ):
-        preparation_routine.prepare_beam(simulation=self)
+        preparation_routine.on_prepare_beam(simulation=self)
 
     def run_simulation(
         self,
@@ -185,6 +241,28 @@ class Simulation(Preparable):
         # reset counters to uninitialized again
         self.turn_i.value = None
         self.group_i.value = None
+
+    def get_legacy_map(self):
+        elements = self.ring.elements.elements
+        ring_length = self.ring.circumference
+        bending_radius = self.ring.bending_radius
+        drift = self.ring.elements.get_element(DriftBaseClass)
+        alpha_0 = drift.momentum_compaction_factor
+        synchronous_data = self.energy_cycle.beam_energy_by_turn
+        particle = self.beams[0].particle_type
+        #  BLonD legacy Imports
+        from blond.beam.beam import Beam
+        from blond.beam.profile import Profile
+        from blond.input_parameters.rf_parameters import RFStation
+        from blond.input_parameters.ring import Ring
+        from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
+        ring = Ring(ring_length=ring_length, alpha_0=alpha_0, synchronous_data=synchronous_data, particle=particle, bending_radius=bending_radius, n_sections=,alpha_1=, alpha_2=, ring_options=)
+        beam = Beam(ring=ring,n_macroparticles=self.beams[0]._n_macroparticles, intensity=self.beams[0]._n_particles)
+        rf_station = RFStation(ring=, harmonic=, voltage=, phi_rf_d=,n_rf=, section_index=, omega_rf=, phi_noise=, phi_modulation=, rf_station_options=)
+        profile = Profile(beam=,cut_options=, fit_options=, filter_options=)
+        ring_rf_tracker = RingAndRFTracker(rf_station=rf_station, beam=beam,solver=, beam_feedback=,noise_feedback=, cavity_feedback=, periodicity=, interpolation=,profile=,total_induced_voltage=)
+        total_induced_voltage = TotalInducedVoltage(beam=beam, profile=profile, induced_voltage_list=)
+        full_ring = FullRingAndRF(ring_and_rf_section=ring_rf_tracker)
 
     def _run_simulation_counterrotating_beam(
         self,

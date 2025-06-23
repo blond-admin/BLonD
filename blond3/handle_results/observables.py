@@ -6,13 +6,11 @@ from typing import Optional as LateInit
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
-
 from .array_recorders import DenseArrayRecorder
 from ..core.base import MainLoopRelevant
 from ..core.simulation.simulation import Simulation
 from ..physics.cavities import SingleHarmonicCavity
-from ..physics.profiles import ProfileBaseClass, DynamicProfileConstNBins, \
-    StaticProfile
+from ..physics.profiles import ProfileBaseClass, DynamicProfileConstNBins, StaticProfile
 
 
 class Observables(MainLoopRelevant):
@@ -32,10 +30,12 @@ class Observables(MainLoopRelevant):
     def update(self, simulation: Simulation) -> None:
         pass
 
-    def late_init(self, simulation: Simulation, **kwargs) -> None:
+    def on_init_simulation(self, simulation: Simulation) -> None:
         pass
 
-    def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int) -> None:
+    def on_run_simulation(
+        self, simulation: Simulation, n_turns: int, turn_i_init: int
+    ) -> None:
         self._n_turns = n_turns
         self._turn_i_init = turn_i_init
         self._turns_array = np.arange(turn_i_init, turn_i_init + n_turns)

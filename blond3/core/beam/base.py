@@ -4,13 +4,16 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from ..backend import backend
+from ...core.backends.backend import backend
 from ..base import Preparable
 from ..helpers import int_from_float_with_warning
 
 if TYPE_CHECKING:  # pragma: no cover
     from .particle_types import ParticleType
     from ..simulation.simulation import Simulation
+
+    from numpy.typing import NDArray as NumpyArray
+    from cupy.typing import NDArray as CupyArray
 
 
 class BeamFlags(int, Enum):
@@ -36,11 +39,20 @@ class BeamBaseClass(Preparable, ABC):
             n_macroparticles, warning_stacklevel=2
         )
         self._is_distributed = is_distributed
-        self.__particles = particle_type
+        self.particle_type = particle_type
         self._dE = None
         self._dt = None
         self._flags = None
         self._is_counter_rotating = is_counter_rotating
+
+    @abstractmethod
+    def setup_beam(
+        self,
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        flags: NumpyArray | CupyArray,
+    ):
+        pass
 
     @property
     def is_distributed(self):
@@ -51,7 +63,7 @@ class BeamBaseClass(Preparable, ABC):
         return self._is_counter_rotating
 
     @abstractmethod
-    def late_init(self, simulation: Simulation, **kwargs) -> None:
+    def on_init_simulation(self, simulation: Simulation) -> None:
         pass
 
     @abstractmethod

@@ -3,15 +3,25 @@ from __future__ import annotations
 from abc import ABC
 from typing import (
     Optional,
+    Iterable,
+    TYPE_CHECKING,
 )
 from typing import Optional as LateInit
 
 from .impedances.base import WakeField
-from blond3.core.backend import backend
-from ..core.base import BeamPhysicsRelevant
+from ..core.backends.backend import backend
+from ..core.base import BeamPhysicsRelevant, DynamicParameter
 from ..core.beam.base import BeamBaseClass
 from ..core.simulation.simulation import Simulation
-from ..cycles.base import RfParameterCycle
+from ..cycles.base import (
+    RfParameterCycle,
+    RfProgramSingleHarmonic,
+    RfProgramMultiHarmonic,
+)
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray as NumpyArray
+    from cupy.typing import NDArray as CupyArray
 
 
 class CavityBaseClass(BeamPhysicsRelevant, ABC):
@@ -22,17 +32,18 @@ class CavityBaseClass(BeamPhysicsRelevant, ABC):
         local_wakefield: Optional[WakeField] = None,
     ):
         super().__init__(group=group)
+        rf_program.set_owner(cavity=self)
         self._rf_program: RfParameterCycle = rf_program
         self._local_wakefield = local_wakefield
-        self._turn_i_dynamic: LateInit[None]
+        self._turn_i: LateInit[DynamicParameter] = None
+
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        assert self._rf_program is not None
+        self._turn_i = simulation.turn_i
 
     @property
     def rf_program(self):
         return self._rf_program
-
-    def late_init(self, simulation: Simulation, **kwargs) -> None:
-        self._turn_i_dynamic = simulation.turn_i
-        assert self._rf_program is not None
 
     def track(self, beam: BeamBaseClass):
         if self._local_wakefield is not None:
@@ -40,42 +51,88 @@ class CavityBaseClass(BeamPhysicsRelevant, ABC):
 
 
 class SingleHarmonicCavity(CavityBaseClass):
+    _rf_program: Optional[RfProgramSingleHarmonic]  # make type hint more specific
+
     def __init__(
         self,
         harmonic: int | float,
-        rf_program: Optional[RfParameterCycle] = None,
+        rf_program: Optional[RfProgramSingleHarmonic] = None,
         group: int = 0,
         local_wakefield: Optional[WakeField] = None,
     ):
         super().__init__(
             rf_program=rf_program, group=group, local_wakefield=local_wakefield
         )
-        self._harmonic = harmonic
-
-    @property
-    def harmonic(self):
-        return self._harmonic
-
+        self._harmonic = backend.float(harmonic)
 
     def track(self, beam: BeamBaseClass):
         super().track(beam=beam)
         backend.kick_single_harmonic(
             beam.read_partial_dt(),
             beam.write_partial_dE(),
-            self._rf_program.get_phase(turn_i=self._turn_i_dynamic.value),
-            self._rf_program.get_effective_voltage(turn_i=self._turn_i_dynamic.value),
+            self._rf_program.get_phase(turn_i=self._turn_i.value),
+            self._rf_program.get_effective_voltage(turn_i=self._turn_i.value),
+            self._rf_program.get_frequency(turn_i=self._turn_i.value),
         )
 
-    def late_init(self, simulation: Simulation, **kwargs) -> None:
-        super().late_init(simulation=simulation)
-        pass
+    @property
+    def rf_program(self):
+        if self._rf_program is not None:
+            return self._rf_program
+        else:
+            raise Exception()
+
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        super().on_init_simulation(simulation=simulation)
+
+    def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int) -> None:
+        super().on_run_simulation(simulation=simulation,n_turns=n_turns, turn_i_init=turn_i_init)
+
+    @property
+    def harmonic(self):
+        return self._harmonic
+
 
 
 class MultiHarmonicCavity(CavityBaseClass):
+    _rf_program: Optional[RfProgramMultiHarmonic]  # make type hint more specific
+
+    def __init__(
+        self,
+        harmonics: Iterable[float],
+        rf_program: Optional[RfProgramMultiHarmonic] = None,
+        group: int = 0,
+        local_wakefield: Optional[WakeField] = None,
+    ):
+        super().__init__(
+            rf_program=rf_program, group=group, local_wakefield=local_wakefield
+        )
+        self._harmonics: NumpyArray | CupyArray = backend.array(
+            harmonics, dtype=backend.float
+        )
+
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        super().on_init_simulation(simulation=simulation)
+
+    def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int) -> None:
+        super().on_run_simulation(simulation=simulation,n_turns=n_turns, turn_i_init=turn_i_init)
+
+    @property
+    def harmonics(self) -> NumpyArray | CupyArray:
+        return self._harmonics
+
+    @property
+    def rf_program(self):
+        return self._rf_program
+
     def track(self, beam: BeamBaseClass):
-        pass
+        super().track(beam=beam)
+        backend.kick_multi_harmonic(
+            beam.read_partial_dt(),
+            beam.write_partial_dE(),
+            self._rf_program.get_phases(turn_i=self._turn_i.value),
+            self._rf_program.get_effective_voltages(turn_i=self._turn_i.value),
+            self._rf_program.get_frequencies(turn_i=self._turn_i.value),
 
+        )
 
-    def late_init(self, simulation: Simulation, **kwargs) -> None:
-        super().late_init(simulation=simulation)
-        pass

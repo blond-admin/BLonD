@@ -23,7 +23,7 @@ class Preparable(ABC):
         super().__init__()
 
     @abstractmethod
-    def late_init(self, simulation: Simulation, **kwargs) -> None:
+    def on_init_simulation(self, simulation: Simulation) -> None:
         pass
 
     @abstractmethod

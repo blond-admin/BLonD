@@ -1,5 +1,13 @@
-from blond3 import SingleHarmonicCavity, StaticProfile, DriftSimple, \
-    EnergyCycle, Beam, proton, Ring, Simulation
+from blond3 import (
+    SingleHarmonicCavity,
+    StaticProfile,
+    DriftSimple,
+    EnergyCycle,
+    Beam,
+    proton,
+    Ring,
+    Simulation,
+)
 from blond3.beam_preparation.emittance import EmittanceMatcher
 from blond3.physics.cavities import MultiHarmonicCavity
 from blond3.physics.drifts import DriftXSuite

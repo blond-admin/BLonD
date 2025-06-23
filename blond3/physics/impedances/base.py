@@ -4,9 +4,9 @@ from abc import ABC, abstractmethod
 from typing import Optional as LateInit, Tuple, Optional
 from typing import TYPE_CHECKING
 
-from blond3.core.backend import backend
 from ..profiles import ProfileBaseClass
-from ...core.base import Preparable, BeamPhysicsRelevant
+from ...core.backends.backend import backend
+from ...core.base import BeamPhysicsRelevant
 from ...core.beam.base import BeamBaseClass
 from ...core.simulation.simulation import Simulation
 
@@ -16,9 +16,10 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class WakeFieldSolver:
-
     @abstractmethod
-    def on_wakefield_late_init(self, simulation: Simulation, parent_wakefield: WakeField) -> None:
+    def on_wakefield_init_simulation(
+        self, simulation: Simulation, parent_wakefield: WakeField
+    ) -> None:
         pass
 
     @abstractmethod
@@ -53,11 +54,15 @@ class Impedance(BeamPhysicsRelevant):
         super().__init__(group=group)
         self._profile = profile
 
+    @property
+    def profile(self):
+        return self._profile
+
     @abstractmethod
     def calc_induced_voltage(self) -> NumpyArray | CupyArray:
         pass
 
-    def late_init(self, simulation: Simulation, **kwargs) -> None:
+    def on_init_simulation(self, simulation: Simulation) -> None:
         if self._profile is None:
             profiles = simulation.ring.elements.get_elements(
                 ProfileBaseClass, group=self.group
@@ -86,20 +91,18 @@ class WakeField(Impedance):
         self.solver = solver
         self.sources = sources
 
-    def late_init(self, simulation: Simulation, **kwargs) -> None:
-        super().late_init(simulation=simulation, **kwargs)
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        super().on_init_simulation(simulation=simulation)
         assert len(self.sources) > 0, "Provide for at least one `WakeFieldSource`"
-        self.solver.on_wakefield_late_init(simulation=simulation, parent_wakefield=self)
+        self.solver.on_wakefield_init_simulation(
+            simulation=simulation, parent_wakefield=self
+        )
 
     def calc_induced_voltage(self) -> NumpyArray | CupyArray:
         return self.solver.calc_induced_voltage()
 
     def track(self, beam: BeamBaseClass) -> None:
-        induced_voltage = self._calc_induced_voltage()
+        induced_voltage = self.calc_induced_voltage()
         backend.kick_induced(
             beam.read_partial_dt(), beam.read_partial_dE(), induced_voltage
         )
-
-    @property
-    def profile(self):
-        return self._profile

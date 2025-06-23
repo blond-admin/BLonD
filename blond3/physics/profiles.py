@@ -9,7 +9,7 @@ import numpy as np
 from cupy.typing import NDArray as CupyArray
 from numpy.typing import NDArray as NumpyArray
 
-from ..core.backend import backend
+from ..core.backends.backend import backend
 from ..core.base import BeamPhysicsRelevant
 from ..core.beam.base import BeamBaseClass
 from ..core.helpers import int_from_float_with_warning
@@ -63,7 +63,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
             )
         self.invalidate_cache()
 
-    def late_init(self, simulation: Simulation, **kwargs) -> None:
+    def on_init_simulation(self, simulation: Simulation) -> None:
         assert self._hist_x is not None
         assert self._hist_y is not None
         self.invalidate_cache()
@@ -137,9 +137,9 @@ class DynamicProfile(ProfileBaseClass):
     def __init__(self):
         super().__init__()
 
-    def late_init(self, simulation: Simulation, **kwargs) -> None:
+    def on_init_simulation(self, simulation: Simulation) -> None:
         self.update_attributes(beam=simulation.ring.beams[0])
-        super().late_init(simulation=simulation)
+        super().on_init_simulation(simulation=simulation)
 
     @abstractmethod
     def update_attributes(self, beam: BeamBaseClass) -> None:

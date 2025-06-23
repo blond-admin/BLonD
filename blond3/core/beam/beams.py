@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from typing import Optional as LateInit, TYPE_CHECKING
 
-from numpy.typing import NDArray as NumpyArray
-
 from .base import BeamBaseClass
+from ..backends.backend import backend
 
 if TYPE_CHECKING:  # pragma: no cover
+    from cupy.typing import NDArray as CupyArray
+    from numpy.typing import NDArray as NumpyArray
+
     from ..beam.particle_types import ParticleType
 
 
@@ -24,6 +26,16 @@ class Beam(BeamBaseClass):
             particle_type=particle_type,
             is_counter_rotating=is_counter_rotating,
         )
+
+    def setup_beam(
+        self,
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        flags: NumpyArray | CupyArray,
+    ):
+        self._dE = dE.astype(backend.float)
+        self._dt = dt.astype(backend.float)
+        self._flags = flags.astype(backend.int)
 
 
 class WeightenedBeam(BeamBaseClass):

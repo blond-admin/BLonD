@@ -14,12 +14,15 @@ def int_from_float_with_warning(value: float | int, warning_stacklevel: int) -> 
                 # the `stacklevel` is adjusted
                 stacklevel=warning_stacklevel + 1,
             )
+        return return_value
+    else:
+        raise TypeError(type(value))
 
 
 from typing import Any
 
 
-def find_instances_with_method(root: Any, methodname: str):
+def find_instances_with_method(root: Any, method_name: str):
     """Find all instances within root that have a callable `methodname`"""
     found = set()
     seen = set()
@@ -30,7 +33,7 @@ def find_instances_with_method(root: Any, methodname: str):
         seen.add(id(obj))
 
         # Check if object has the desired method
-        if hasattr(obj, methodname) and callable(getattr(obj, methodname)):
+        if hasattr(obj, method_name) and callable(getattr(obj, method_name)):
             found.add(obj)
 
         # Recurse into object attributes or container elements
@@ -41,7 +44,7 @@ def find_instances_with_method(root: Any, methodname: str):
         elif isinstance(obj, (list, tuple, set)):
             for item in obj:
                 walk(item)
-        elif hasattr(obj, "__dict__"): # checks if is python class
+        elif hasattr(obj, "__dict__"):  # checks if is python class
             for attr_name in dir(obj):
                 # Skip built-in attributes
                 if attr_name.startswith("__") and attr_name.endswith("__"):

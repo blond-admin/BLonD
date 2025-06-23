@@ -6,11 +6,11 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
 
+
 class NoiseGenerator(ABC):
     def __init__(self):
         super().__init__()
 
     @abstractmethod
-    def get_noise(self, n_turns: int)-> NumpyArray:
+    def get_noise(self, n_turns: int) -> NumpyArray:
         pass
-

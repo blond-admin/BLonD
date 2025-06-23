@@ -5,7 +5,7 @@ from typing import (
 )
 from typing import Optional as LateInit
 
-from blond3.core.backend import backend
+from ..core.backends.backend import backend
 from ..core.base import BeamPhysicsRelevant
 from ..core.beam.base import BeamBaseClass
 from ..core.simulation.simulation import Simulation
@@ -14,8 +14,6 @@ from ..core.simulation.simulation import Simulation
 class Losses(BeamPhysicsRelevant):
     def __init__(self):
         super().__init__()
-
-
 
 
 class BoxLosses(Losses):
@@ -38,7 +36,7 @@ class BoxLosses(Losses):
             beam.write_partial_flags(), self.t_min, self.t_max, self.e_min, self.e_max
         )
 
-    def late_init(self, simulation: Simulation, **kwargs) -> None:
+    def on_init_simulation(self, simulation: Simulation) -> None:
         pass
 
 
@@ -47,9 +45,8 @@ class SeparatrixLosses(Losses):
         super().__init__()
         self._simulation: LateInit[Simulation] = None
 
-    def late_init(self, simulation: Simulation, **kwargs) -> None:
+    def on_init_simulation(self, simulation: Simulation) -> None:
         self._simulation = simulation
 
     def track(self, beam: BeamBaseClass):
         self._simulation.get_separatrix()  # TODO
-
