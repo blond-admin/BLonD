@@ -110,7 +110,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
             "cut_left",
             "cut_right",
             "bin_edges",
-            "n_bins"
+            "n_bins",
         ):
             self.__dict__.pop(attribute, None)
 

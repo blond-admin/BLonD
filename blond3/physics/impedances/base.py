@@ -50,7 +50,9 @@ class DiscreteWakeFieldSource(WakeFieldSource):
 
 
 class Impedance(BeamPhysicsRelevant):
-    def __init__(self, section_index: int = 0, profile: LateInit[ProfileBaseClass] = None):
+    def __init__(
+        self, section_index: int = 0, profile: LateInit[ProfileBaseClass] = None
+    ):
         super().__init__(section_index=section_index)
         self._profile = profile
 

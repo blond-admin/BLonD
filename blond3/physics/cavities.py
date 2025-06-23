@@ -15,8 +15,6 @@ from .._core.simulation.simulation import Simulation
 from ..cycles.rf_parameter_cycle import RfStationParams
 
 
-
-
 class CavityBaseClass(BeamPhysicsRelevant, ABC):
     def __init__(
         self,

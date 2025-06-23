@@ -59,7 +59,6 @@ class BeamPhysicsRelevant(MainLoopRelevant):
         pass
 
 
-
 class DynamicParameter:  # TODO add code generation for this method with type-hints
     def __init__(self, value_init):
         self._value = value_init

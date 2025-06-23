@@ -20,7 +20,9 @@ if TYPE_CHECKING:  # pragma: no cover
 class DriftBaseClass(BeamPhysicsRelevant, ABC):
     def __init__(self, share_of_circumference: float, section_index: int = 0):
         super().__init__(section_index=section_index)
-        self._share_of_circumference: backend.float = backend.float(share_of_circumference)
+        self._share_of_circumference: backend.float = backend.float(
+            share_of_circumference
+        )
 
     @property  # as readonly attributes
     def share_of_circumference(self) -> backend.float:

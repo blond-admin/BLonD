@@ -56,8 +56,9 @@ def _get_dE_from_dt(simulation: Simulation, dt_amplitude: float) -> float:
         phi_rf -= np.pi
 
     # Calculate dE_amplitude from dt_amplitude using single-harmonic Hamiltonian
-    voltage = (simulation.beams[0].particle_type.charge *
-               rf_station.rf_program.get_effective_voltage(counter))
+    voltage = simulation.beams[
+        0
+    ].particle_type.charge * rf_station.rf_program.get_effective_voltage(counter)
     eta0 = drift.eta_0[counter]
 
     phi_b = omega_rf * dt_amplitude + phi_s

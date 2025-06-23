@@ -16,6 +16,7 @@ from ..physics.drifts import DriftBaseClass
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
 
+
 class EnergyCycle(ProgrammedCycle):
     def __init__(self, synchronous_data: NumpyArray, synchronous_data_type="momentum"):
         super().__init__()
@@ -96,4 +97,3 @@ class EnergyCycle(ProgrammedCycle):
     @property  # as readonly attributes
     def omega_rev(self) -> NumpyArray:
         return self._ring.omega_rev  # TODO correct dtype
-

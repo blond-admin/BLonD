@@ -76,8 +76,10 @@ class Specials(ABC):
 
 
 class BackendBaseClass(ABC):
-    def __init__(self, float_: Union[np.float32 , np.float64], int_: np.int32 | np.int64):
-        self.float: Union[np.float32 , np.float64] = float_
+    def __init__(
+        self, float_: Union[np.float32, np.float64], int_: np.int32 | np.int64
+    ):
+        self.float: Union[np.float32, np.float64] = float_
         self.int: np.int32 | np.int64 = int_
 
         self.twopi = self.float(2 * np.pi)
@@ -103,7 +105,9 @@ class BackendBaseClass(ABC):
 
 
 class NumpyBackend(BackendBaseClass):
-    def __init__(self, float_: Union[np.float32 , np.float64], int_: np.int32 | np.int64):
+    def __init__(
+        self, float_: Union[np.float32, np.float64], int_: np.int32 | np.int64
+    ):
         super().__init__(float_, int_)
         self.array = np.array
         self.gradient = np.gradient
@@ -136,7 +140,9 @@ class Numpy64Bit(NumpyBackend):
 
 
 class CupyBackend(BackendBaseClass):
-    def __init__(self, float_: Union[np.float32 , np.float64], int_: np.int32 | np.int64):
+    def __init__(
+        self, float_: Union[np.float32, np.float64], int_: np.int32 | np.int64
+    ):
         super().__init__(float_, int_)
         self.array = np.array
         self.gradient = np.gradient

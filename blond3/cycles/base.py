@@ -38,4 +38,3 @@ class RfParameterCycle(ProgrammedCycle, ABC):
         self, simulation: Simulation, n_turns: int, turn_i_init: int
     ) -> None:
         pass
-

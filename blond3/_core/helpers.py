@@ -36,13 +36,15 @@ def safe_index(x: Union[T, NumpyArray[T]], idx: int) -> T:
     else:
         return x  # scalar: ignore index
 
-def float_or_array_typesafe(something: float | Iterable, dtype:T) -> T | NumpyArray[T]:
+
+def float_or_array_typesafe(something: float | Iterable, dtype: T) -> T | NumpyArray[T]:
     """Apply dtype for iterable or number."""
     if isinstance(something, AbstractIterable):
         something = np.array(something, dtype=dtype)
     else:
         something = dtype(something)
     return something
+
 
 def find_instances_with_method(root: Any, method_name: str):
     """Find all instances within root that have a callable `methodname`"""

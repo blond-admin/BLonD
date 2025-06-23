@@ -12,6 +12,7 @@ from ..ring.helpers import get_elements
 
 T = TypeVar("T")
 
+
 class BeamPhysicsRelevantElements:
     def __init__(self):
         self.elements: Tuple[BeamPhysicsRelevant, ...] = ()

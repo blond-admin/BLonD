@@ -18,8 +18,7 @@ from blond3 import (
 ring = Ring(circumference=26658.883)
 
 cavity1 = SingleHarmonicCavity(
-     rf_program=RfStationParams(harmonic=35640,voltage=6e6,
-    phi_rf=0)
+    rf_program=RfStationParams(harmonic=35640, voltage=6e6, phi_rf=0)
 )
 
 
