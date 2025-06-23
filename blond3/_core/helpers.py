@@ -1,14 +1,11 @@
 import warnings
+from collections.abc import Iterable as AbstractIterable
 from typing import Any, Union, TypeVar, Iterable, TYPE_CHECKING
 
 import numpy as np
-from collections.abc import Iterable as AbstractIterable
-
-
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
-    from cupy.typing import NDArray as CupyArray
 
 
 def int_from_float_with_warning(value: float | int, warning_stacklevel: int) -> int:
@@ -39,7 +36,7 @@ def safe_index(x: Union[T, NumpyArray[T]], idx: int) -> T:
     else:
         return x  # scalar: ignore index
 
-def typesafe_float_or_array(something: float | Iterable, dtype:T) -> T | NumpyArray[T]:
+def float_or_array_typesafe(something: float | Iterable, dtype:T) -> T | NumpyArray[T]:
     """Apply dtype for iterable or number."""
     if isinstance(something, AbstractIterable):
         something = np.array(something, dtype=dtype)

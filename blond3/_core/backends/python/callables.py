@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -10,6 +11,10 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class PythonSpecials(Specials):
+    @staticmethod
+    def loss_box(self, a, b, c, d) -> None:
+        raise NotImplementedError
+
     @staticmethod
     def kick_multi_harmonic(
         dt: NumpyArray,

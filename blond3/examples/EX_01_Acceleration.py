@@ -10,7 +10,7 @@ from blond3 import (
     DriftSimple,
     BiGaussian,
     EnergyCycle,
-    ConstantProgram,
+    RfStationParams,
     CavityPhaseObservation,
     BunchObservation,
 )
@@ -18,11 +18,12 @@ from blond3 import (
 ring = Ring(circumference=26658.883)
 
 cavity1 = SingleHarmonicCavity(
-    harmonic=35640, rf_program=ConstantProgram(effective_voltage=6e6, phase=0)
+     rf_program=RfStationParams(harmonic=35640,voltage=6e6,
+    phi_rf=0)
 )
 
 
-energy_cycle = EnergyCycle(beam_energy_by_turn=np.linspace(450e9, 460.005e9, 2000))
+energy_cycle = EnergyCycle(synchronous_data=np.linspace(450e9, 460.005e9, 2000))
 
 drift1 = DriftSimple(
     transition_gamma=55.759505,
@@ -33,7 +34,7 @@ beam1 = Beam(n_particles=1e9, n_macroparticles=1001, particle_type=proton)
 
 sim = Simulation.from_locals(locals())
 sim.on_prepare_beam(
-    preparation_routine=BiGaussian(rms_dt=0.4e-9 / 4, reinsertion=True, seed=1)
+    preparation_routine=BiGaussian(sigma_dt=0.4e-9 / 4, reinsertion=True, seed=1)
 )
 
 phase_observation = CavityPhaseObservation(each_turn_i=1, cavity=cavity1)

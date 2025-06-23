@@ -226,6 +226,7 @@ class RingAndRFTracker:
         is False
 
     """
+    rf_params: RFStation
 
     @handle_legacy_kwargs
     def __init__(self,
@@ -395,7 +396,6 @@ class RingAndRFTracker:
 
         """
         turn = self.counter[0]
-
         # Add phase noise directly to the cavity RF phase
         if self.rf_params.phi_noise is not None:
             if self.noiseFB is not None:

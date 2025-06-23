@@ -9,7 +9,7 @@ import numpy as np
 from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant
 from .._core.beam.base import BeamBaseClass
-from .._core.helpers import typesafe_float_or_array
+from .._core.helpers import float_or_array_typesafe
 from .._core.simulation.simulation import Simulation
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -44,7 +44,7 @@ class DriftSimple(DriftBaseClass):
             share_of_circumference=share_of_circumference, section_index=section_index
         )
         self._transition_gamma: Union[backend.float, NumpyArray[backend.float]] = (
-            typesafe_float_or_array(transition_gamma, backend.float)
+            float_or_array_typesafe(transition_gamma, backend.float)
         )
 
         self._simulation: LateInit[Simulation] = None

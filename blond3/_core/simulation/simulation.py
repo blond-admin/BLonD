@@ -20,7 +20,7 @@ from ..helpers import find_instances_with_method
 from ..ring.helpers import get_elements, get_init_order
 from ..ring.ring import Ring
 from ...beam_preparation.base import MatchingRoutine
-from ...cycles.base import EnergyCycle
+from ...cycles.energy_cycle import EnergyCycle
 from ...handle_results.observables import Observables
 from ...physics.cavities import (
     CavityBaseClass,
