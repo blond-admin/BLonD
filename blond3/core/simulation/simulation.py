@@ -9,6 +9,7 @@ from typing import (
     Tuple,
 )
 
+import numpy as np
 from numpy.typing import NDArray as NumpyArray
 from tqdm import tqdm
 
@@ -26,40 +27,6 @@ from ...handle_results.observables import Observables
 from ...physics.drifts import DriftBaseClass
 
 
-class TurnDependent(ABC):
-    def __init__(self, simulation: Simulation):
-        self._simulation = simulation
-
-    @abstractmethod
-    def by_turn(self, turn_i: int) -> backend.float:
-        pass
-
-
-class Gamma(TurnDependent):
-    def by_turn(self, turn_i: int) -> backend.float:
-        beam_energy = self._simulation._energy_cycle.beam_energy_by_turn[turn_i]
-        beam_res_energy = self._simulation._beams[0].rest_mass
-        return  # TODO
-
-
-class Beta(TurnDependent):
-    def by_turn(self, turn_i: int) -> backend.float:
-        gamma = self._simulation.gamma.by_turn(turn_i=turn_i)
-        return  # TODO
-
-
-class Velocity(TurnDependent):
-    def by_turn(self, turn_i: int) -> backend.float:
-        from scipy.constants import speed_of_light as c0
-
-        return self._simulation.beta.by_turn(turn_i=turn_i) * c0
-
-
-class RevolutionFrequency(TurnDependent):
-    def by_turn(self, turn_i: int):
-        pass
-
-
 class Simulation(Preparable):
     def __init__(
         self,
@@ -73,33 +40,15 @@ class Simulation(Preparable):
         assert len(beams) <= 2, "Maximum two beams allowed"
 
         self._beams: Tuple[BeamBaseClass, ...] = beams
+
+        if isinstance(energy_cycle, np.ndarray):
+            energy_cycle = EnergyCycle(energy_cycle)
         self._energy_cycle: EnergyCycle = energy_cycle
 
         self.turn_i = DynamicParameter(None)
         self.group_i = DynamicParameter(None)
 
-        self._gamma = Gamma(self)
-        self._beta = Beta(self)
-        self._velocity = Velocity(self)
-        self._revolution_frequency = RevolutionFrequency(self)
-
         self._exec_on_init_simulation()
-
-    @property
-    def gamma(self):
-        return self._gamma
-
-    @property
-    def beta(self):
-        return self._beta
-
-    @property
-    def velocity(self):
-        return self._velocity
-
-    @property
-    def revolution_frequency(self):
-        return self._revolution_frequency
 
     def on_init_simulation(self, simulation: Simulation):
         pass
@@ -248,7 +197,8 @@ class Simulation(Preparable):
         bending_radius = self.ring.bending_radius
         drift = self.ring.elements.get_element(DriftBaseClass)
         alpha_0 = drift.momentum_compaction_factor
-        synchronous_data = self.energy_cycle.beam_energy_by_turn
+        synchronous_data = self.energy_cycle._synchronous_data
+        synchronous_data_type = self.energy_cycle._synchronous_data_type
         particle = self.beams[0].particle_type
         #  BLonD legacy Imports
         from blond.beam.beam import Beam
@@ -256,7 +206,9 @@ class Simulation(Preparable):
         from blond.input_parameters.rf_parameters import RFStation
         from blond.input_parameters.ring import Ring
         from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
-        ring = Ring(ring_length=ring_length, alpha_0=alpha_0, synchronous_data=synchronous_data, particle=particle, bending_radius=bending_radius, n_sections=,alpha_1=, alpha_2=, ring_options=)
+        ring = Ring(ring_length=ring_length, alpha_0=alpha_0,
+                    synchronous_data=synchronous_data,
+                    synchronous_data_type=synchronous_data_type, particle=particle, bending_radius=bending_radius, n_sections=,alpha_1=, alpha_2=, ring_options=)
         beam = Beam(ring=ring,n_macroparticles=self.beams[0]._n_macroparticles, intensity=self.beams[0]._n_particles)
         rf_station = RFStation(ring=, harmonic=, voltage=, phi_rf_d=,n_rf=, section_index=, omega_rf=, phi_noise=, phi_modulation=, rf_station_options=)
         profile = Profile(beam=,cut_options=, fit_options=, filter_options=)

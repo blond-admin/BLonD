@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import warnings
 from abc import abstractmethod, ABC
+from functools import cached_property
 from typing import Optional as LateInit, TYPE_CHECKING
+
+import numpy as np
 
 from ..core.backends.backend import backend
 from ..core.base import Preparable
@@ -23,19 +27,58 @@ class ProgrammedCycle(Preparable, ABC):
 
 
 class EnergyCycle(ProgrammedCycle):
-    def __init__(self, beam_energy_by_turn: NumpyArray):
+    def __init__(self, synchronous_data: NumpyArray, synchronous_data_type="momentum"):
         super().__init__()
-        self._beam_energy_by_turn = beam_energy_by_turn.astype(backend.float)
-        self._beam_energy_by_turn.flags.writeable = False
+        self._synchronous_data = synchronous_data
+        self._synchronous_data_type = synchronous_data_type
+        from blond.input_parameters.ring import Ring as Blond2Ring
+
+        self._ring: LateInit[Blond2Ring] = None
+
+    @cached_property
+    def n_turns(self):
+        return len(self._synchronous_data) - 1
 
     @property
-    def beam_energy_by_turn(self):
-        return self._beam_energy_by_turn
+    def beta(self) -> NumpyArray:
+        return self._ring.beta # TODO correct dtype
+
+    @property
+    def gamma(self) -> NumpyArray:
+        return self._ring.gamma # TODO correct dtype
+
+    @property
+    def energy(self) -> NumpyArray:
+        return self._ring.energy # TODO correct dtype
+
+    @property
+    def kin_energy(self) -> NumpyArray:
+        return self._ring.kin_energy # TODO correct dtype
+
+    @property
+    def delta_E(self) -> NumpyArray:
+        return self._ring.delta_E # TODO correct dtype
+
+    @property
+    def t_rev(self) -> NumpyArray:
+        return self._ring.t_rev # TODO correct dtype
+
+    @property
+    def cycle_time(self) -> NumpyArray:
+        return self._ring.cycle_time # TODO correct dtype
+
+    @property
+    def f_rev(self) -> NumpyArray:
+        return self._ring.f_rev # TODO correct dtype
+
+    @property
+    def omega_rev(self) -> NumpyArray:
+        return self._ring.omega_rev # TODO correct dtype
 
     @staticmethod
     def from_linspace(start, stop, turns, endpoint: bool = True):
         return EnergyCycle(
-            beam_energy_by_turn=backend.linspace(
+            synchronous_data=backend.linspace(
                 start, stop, turns, endpoint=endpoint, dtype=backend.float
             )
         )
@@ -46,7 +89,17 @@ class EnergyCycle(ProgrammedCycle):
         pass
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        pass
+        from blond.input_parameters.ring import Ring as Blond2Ring
+
+        self._ring = Blond2Ring(
+            ring_length=simulation.ring.circumference,
+            alpha_0=np.nan,
+            particle=simulation.beams[0].particle_type,
+            n_turns=len(self._synchronous_data),
+            synchronous_data_type=self._synchronous_data_type,
+            bending_radius=simulation.ring.bending_radius,
+            n_sections=len(simulation.ring.elements.get_elements(CavityBaseClass)),
+        )
 
 
 class RfParameterCycle(ProgrammedCycle, ABC):
