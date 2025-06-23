@@ -6,9 +6,11 @@ from .base import RfProgramSingleHarmonic, RfProgramMultiHarmonic
 from .noise_generators.base import NoiseGenerator
 from ..core.backends.backend import backend
 from ..core.simulation.simulation import Simulation
+
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
     from cupy.typing import NDArray as CupyArray
+
 
 class ConstantProgramSingleHarmonic(RfProgramSingleHarmonic):
     def __init__(self, phase: float, effective_voltage: float):
@@ -27,7 +29,11 @@ class ConstantProgramSingleHarmonic(RfProgramSingleHarmonic):
 
 
 class ConstantProgramMultiHarmonic(RfProgramMultiHarmonic):
-    def __init__(self, phase_per_harmonic: Iterable[float], effective_voltage_per_harmonic: Iterable[float]):
+    def __init__(
+        self,
+        phase_per_harmonic: Iterable[float],
+        effective_voltage_per_harmonic: Iterable[float],
+    ):
         super().__init__()
         self._phase_per_harmonic: NumpyArray | CupyArray = backend.array(
             phase_per_harmonic, dtype=backend.float
@@ -70,7 +76,7 @@ class RFNoiseProgram(ConstantProgramSingleHarmonic):
         ).astype(backend.float)
 
     def get_phase(self, turn_i: int) -> backend.float:
-        return self._phase + self._phase_noise[turn_i-self._offset]
+        return self._phase + self._phase_noise[turn_i - self._offset]
 
     def get_effective_voltage(self, turn_i: int) -> backend.float:
         return self._effective_voltage

@@ -143,7 +143,10 @@ class Simulation(Preparable):
         observe: Tuple[Observables, ...] = tuple(),
         show_progressbar: bool = True,
     ) -> None:
-        self._exec_on_run_simulation(n_turns=n_turns, turn_i_init=turn_i_init, )
+        self._exec_on_run_simulation(
+            n_turns=n_turns,
+            turn_i_init=turn_i_init,
+        )
         if len(self._beams) == 1:
             self._run_simulation_single_beam(
                 n_turns=n_turns,
@@ -206,14 +209,54 @@ class Simulation(Preparable):
         from blond.input_parameters.rf_parameters import RFStation
         from blond.input_parameters.ring import Ring
         from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
-        ring = Ring(ring_length=ring_length, alpha_0=alpha_0,
-                    synchronous_data=synchronous_data,
-                    synchronous_data_type=synchronous_data_type, particle=particle, bending_radius=bending_radius, n_sections=,alpha_1=, alpha_2=, ring_options=)
-        beam = Beam(ring=ring,n_macroparticles=self.beams[0]._n_macroparticles, intensity=self.beams[0]._n_particles)
-        rf_station = RFStation(ring=, harmonic=, voltage=, phi_rf_d=,n_rf=, section_index=, omega_rf=, phi_noise=, phi_modulation=, rf_station_options=)
-        profile = Profile(beam=,cut_options=, fit_options=, filter_options=)
-        ring_rf_tracker = RingAndRFTracker(rf_station=rf_station, beam=beam,solver=, beam_feedback=,noise_feedback=, cavity_feedback=, periodicity=, interpolation=,profile=,total_induced_voltage=)
-        total_induced_voltage = TotalInducedVoltage(beam=beam, profile=profile, induced_voltage_list=)
+
+        ring = Ring(
+            ring_length=ring_length,
+            alpha_0=alpha_0,
+            synchronous_data=synchronous_data,
+            synchronous_data_type=synchronous_data_type,
+            particle=particle,
+            bending_radius=bending_radius,
+            n_sections=None,
+            alpha_1=None,
+            alpha_2=None,
+            ring_options=None,
+        )
+        beam = Beam(
+            ring=ring,
+            n_macroparticles=self.beams[0]._n_macroparticles,
+            intensity=self.beams[0]._n_particles,
+        )
+        rf_station = RFStation(
+            ring=None,
+            harmonic=None,
+            voltage=None,
+            phi_rf_d=None,
+            n_rf=None,
+            section_index=None,
+            omega_rf=None,
+            phi_noise=None,
+            phi_modulation=None,
+            rf_station_options=None,
+        )
+        profile = Profile(
+            beam=None, cut_options=None, fit_options=None, filter_options=None
+        )
+        ring_rf_tracker = RingAndRFTracker(
+            rf_station=rf_station,
+            beam=beam,
+            solver=None,
+            beam_feedback=None,
+            noise_feedback=None,
+            cavity_feedback=None,
+            periodicity=None,
+            interpolation=None,
+            profile=None,
+            total_induced_voltage=None,
+        )
+        total_induced_voltage = TotalInducedVoltage(
+            beam=beam, profile=profile, induced_voltage_list=None
+        )
         full_ring = FullRingAndRF(ring_and_rf_section=ring_rf_tracker)
 
     def _run_simulation_counterrotating_beam(

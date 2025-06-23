@@ -41,39 +41,39 @@ class EnergyCycle(ProgrammedCycle):
 
     @property
     def beta(self) -> NumpyArray:
-        return self._ring.beta # TODO correct dtype
+        return self._ring.beta  # TODO correct dtype
 
     @property
     def gamma(self) -> NumpyArray:
-        return self._ring.gamma # TODO correct dtype
+        return self._ring.gamma  # TODO correct dtype
 
     @property
     def energy(self) -> NumpyArray:
-        return self._ring.energy # TODO correct dtype
+        return self._ring.energy  # TODO correct dtype
 
     @property
     def kin_energy(self) -> NumpyArray:
-        return self._ring.kin_energy # TODO correct dtype
+        return self._ring.kin_energy  # TODO correct dtype
 
     @property
     def delta_E(self) -> NumpyArray:
-        return self._ring.delta_E # TODO correct dtype
+        return self._ring.delta_E  # TODO correct dtype
 
     @property
     def t_rev(self) -> NumpyArray:
-        return self._ring.t_rev # TODO correct dtype
+        return self._ring.t_rev  # TODO correct dtype
 
     @property
     def cycle_time(self) -> NumpyArray:
-        return self._ring.cycle_time # TODO correct dtype
+        return self._ring.cycle_time  # TODO correct dtype
 
     @property
     def f_rev(self) -> NumpyArray:
-        return self._ring.f_rev # TODO correct dtype
+        return self._ring.f_rev  # TODO correct dtype
 
     @property
     def omega_rev(self) -> NumpyArray:
-        return self._ring.omega_rev # TODO correct dtype
+        return self._ring.omega_rev  # TODO correct dtype
 
     @staticmethod
     def from_linspace(start, stop, turns, endpoint: bool = True):

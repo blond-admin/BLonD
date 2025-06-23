@@ -13,11 +13,12 @@ from ..physics.cavities import SingleHarmonicCavity
 if TYPE_CHECKING:  # pragma: no cover
     from ..core.simulation.simulation import Simulation
 
+
 class BiGaussian(MatchingRoutine):
     def __init__(
         self,
         sigma_dt: float,
-        sigma_dE: Optional[float]= None,
+        sigma_dE: Optional[float] = None,
         reinsertion: bool = False,
         seed: int = 0,
     ):

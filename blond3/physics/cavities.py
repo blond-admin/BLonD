@@ -85,13 +85,16 @@ class SingleHarmonicCavity(CavityBaseClass):
     def on_init_simulation(self, simulation: Simulation) -> None:
         super().on_init_simulation(simulation=simulation)
 
-    def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int) -> None:
-        super().on_run_simulation(simulation=simulation,n_turns=n_turns, turn_i_init=turn_i_init)
+    def on_run_simulation(
+        self, simulation: Simulation, n_turns: int, turn_i_init: int
+    ) -> None:
+        super().on_run_simulation(
+            simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
+        )
 
     @property
     def harmonic(self):
         return self._harmonic
-
 
 
 class MultiHarmonicCavity(CavityBaseClass):
@@ -114,8 +117,12 @@ class MultiHarmonicCavity(CavityBaseClass):
     def on_init_simulation(self, simulation: Simulation) -> None:
         super().on_init_simulation(simulation=simulation)
 
-    def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int) -> None:
-        super().on_run_simulation(simulation=simulation,n_turns=n_turns, turn_i_init=turn_i_init)
+    def on_run_simulation(
+        self, simulation: Simulation, n_turns: int, turn_i_init: int
+    ) -> None:
+        super().on_run_simulation(
+            simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
+        )
 
     @property
     def harmonics(self) -> NumpyArray | CupyArray:
@@ -133,6 +140,4 @@ class MultiHarmonicCavity(CavityBaseClass):
             self._rf_program.get_phases(turn_i=self._turn_i.value),
             self._rf_program.get_effective_voltages(turn_i=self._turn_i.value),
             self._rf_program.get_frequencies(turn_i=self._turn_i.value),
-
         )
-
