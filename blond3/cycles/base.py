@@ -7,14 +7,15 @@ from typing import Optional as LateInit, TYPE_CHECKING
 
 import numpy as np
 
-from ..core.backends.backend import backend
-from ..core.base import Preparable
-from ..core.simulation.simulation import Simulation
+from .._core.backends.backend import backend
+from .._core.base import Preparable
+from .._core.simulation.simulation import Simulation
 from ..physics.cavities import (
     CavityBaseClass,
     MultiHarmonicCavity,
     SingleHarmonicCavity,
 )
+from ..physics.drifts import DriftBaseClass
 
 if TYPE_CHECKING:
     from cupy.typing import NDArray as CupyArray
@@ -35,51 +36,11 @@ class EnergyCycle(ProgrammedCycle):
 
         self._ring: LateInit[Blond2Ring] = None
 
-    @cached_property
-    def n_turns(self):
-        return len(self._synchronous_data) - 1
-
-    @property
-    def beta(self) -> NumpyArray:
-        return self._ring.beta  # TODO correct dtype
-
-    @property
-    def gamma(self) -> NumpyArray:
-        return self._ring.gamma  # TODO correct dtype
-
-    @property
-    def energy(self) -> NumpyArray:
-        return self._ring.energy  # TODO correct dtype
-
-    @property
-    def kin_energy(self) -> NumpyArray:
-        return self._ring.kin_energy  # TODO correct dtype
-
-    @property
-    def delta_E(self) -> NumpyArray:
-        return self._ring.delta_E  # TODO correct dtype
-
-    @property
-    def t_rev(self) -> NumpyArray:
-        return self._ring.t_rev  # TODO correct dtype
-
-    @property
-    def cycle_time(self) -> NumpyArray:
-        return self._ring.cycle_time  # TODO correct dtype
-
-    @property
-    def f_rev(self) -> NumpyArray:
-        return self._ring.f_rev  # TODO correct dtype
-
-    @property
-    def omega_rev(self) -> NumpyArray:
-        return self._ring.omega_rev  # TODO correct dtype
-
     @staticmethod
     def from_linspace(start, stop, turns, endpoint: bool = True):
         return EnergyCycle(
             synchronous_data=backend.linspace(
-                start, stop, turns, endpoint=endpoint, dtype=backend.float
+                start, stop, turns + 1, endpoint=endpoint, dtype=backend.float
             )
         )
 
@@ -90,16 +51,61 @@ class EnergyCycle(ProgrammedCycle):
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         from blond.input_parameters.ring import Ring as Blond2Ring
-
+        drifts = simulation.ring.elements.get_element(DriftBaseClass)
+        cavities = simulation.ring.elements.get_elements(CavityBaseClass)
+        assert len(drifts) == len(cavities)
         self._ring = Blond2Ring(
-            ring_length=simulation.ring.circumference,
+            ring_length=[
+                (e.share_of_circumference * simulation.ring.circumference)
+                for e in drifts
+            ],
+            n_sections=len(cavities),
             alpha_0=np.nan,
             particle=simulation.beams[0].particle_type,
-            n_turns=len(self._synchronous_data),
+            n_turns=self.n_turns,
             synchronous_data_type=self._synchronous_data_type,
             bending_radius=simulation.ring.bending_radius,
-            n_sections=len(simulation.ring.elements.get_elements(CavityBaseClass)),
         )
+
+    @cached_property
+    def n_turns(self):
+        return len(self._synchronous_data) - 1
+
+    @property  # as readonly attributes
+    def beta(self) -> NumpyArray:
+        return self._ring.beta  # TODO correct dtype
+
+    @property  # as readonly attributes
+    def gamma(self) -> NumpyArray:
+        return self._ring.gamma  # TODO correct dtype
+
+    @property  # as readonly attributes
+    def energy(self) -> NumpyArray:
+        return self._ring.energy  # TODO correct dtype
+
+    @property  # as readonly attributes
+    def kin_energy(self) -> NumpyArray:
+        return self._ring.kin_energy  # TODO correct dtype
+
+    @property  # as readonly attributes
+    def delta_E(self) -> NumpyArray:
+        return self._ring.delta_E  # TODO correct dtype
+
+    @property  # as readonly attributes
+    def t_rev(self) -> NumpyArray:
+        return self._ring.t_rev  # TODO correct dtype
+
+    @property  # as readonly attributes
+    def cycle_time(self) -> NumpyArray:
+        return self._ring.cycle_time  # TODO correct dtype
+
+    @property  # as readonly attributes
+    def f_rev(self) -> NumpyArray:
+        return self._ring.f_rev  # TODO correct dtype
+
+    @property  # as readonly attributes
+    def omega_rev(self) -> NumpyArray:
+        return self._ring.omega_rev  # TODO correct dtype
 
 
 class RfParameterCycle(ProgrammedCycle, ABC):

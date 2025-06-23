@@ -258,7 +258,7 @@ class RFStation:
         self.length_ratio = float(self.section_length / self.ring_circumference)
         self.t_rev = ring.t_rev
         self.momentum = ring.momentum[self.section_index]
-        self.beta = ring.beta[self.section_index]
+        self.beta = ring.beta[self.section_index, :]
         self.gamma = ring.gamma[self.section_index]
         self.energy = ring.energy[self.section_index]
         self.delta_E = ring.delta_E[self.section_index]
