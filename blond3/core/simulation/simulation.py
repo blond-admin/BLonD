@@ -33,13 +33,12 @@ class Simulation(Preparable):
         energy_cycle: NumpyArray | EnergyCycle,
     ):
         super().__init__()
-        ring.late_init(simulation=self)
         self._ring: Ring = ring
         assert self.beams != (), f"{self.beams=}"
         assert len(self._beams) <= 2, "Maximum two beams allowed"
         self._beams: Tuple[BeamBaseClass, ...] = beams
         self._energy_cycle: EnergyCycle = energy_cycle
-        self.exec_late_init()
+        self._exec_late_init()
 
         self.turn_i = DynamicParameter(None)
         self.group_i = DynamicParameter(None)
@@ -47,7 +46,7 @@ class Simulation(Preparable):
     def late_init(self, simulation: Simulation):
         pass
 
-    def exec_all_in_tree(self, method: str, **kwargs):
+    def _exec_all_in_tree(self, method: str, **kwargs):
         instances = find_instances_with_method(self, f"{method}")
         ordered_classes = get_init_order(instances, f"{method}.requires")
 
@@ -62,11 +61,11 @@ class Simulation(Preparable):
                     continue
                 element.__dict__["late_init"](**kwargs)
 
-    def exec_late_init(self):
-        self.exec_all_in_tree("late_init", simulation=self)
+    def _exec_late_init(self):
+        self._exec_all_in_tree("late_init", simulation=self)
 
-    def exec_on_run_simulation(self, n_turns: int, turn_i_init: int):
-        self.exec_all_in_tree(
+    def _exec_on_run_simulation(self, n_turns: int, turn_i_init: int):
+        self._exec_all_in_tree(
             "on_run_simulation",
             simulation=self,
             n_turns=n_turns,
@@ -139,7 +138,7 @@ class Simulation(Preparable):
         observe: Tuple[Observables, ...] = tuple(),
         show_progressbar: bool = True,
     ) -> None:
-        self.exec_on_run_simulation(n_turns=n_turns, turn_i_init=turn_i_init,)
+        self._exec_on_run_simulation(n_turns=n_turns, turn_i_init=turn_i_init, )
         if len(self._beams) == 1:
             self._run_simulation_single_beam(
                 n_turns=n_turns,
