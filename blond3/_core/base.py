@@ -45,17 +45,17 @@ class MainLoopRelevant(Preparable):
 class BeamPhysicsRelevant(MainLoopRelevant):
     n_instances = 0
 
-    def __init__(self, group: int = 0, name: Optional[str] = None):
+    def __init__(self, section_index: int = 0, name: Optional[str] = None):
         super().__init__()
-        self._group = group
+        self._section_index = section_index
         if name is None:
             name = f"Unnamed-{type(self)}-{type(self).n_instances:3d}"
         self.name = name
         type(self).n_instances += 1
 
-    @property
-    def group(self):
-        return self._group
+    @property  # as readonly attributes
+    def section_index(self) -> int:
+        return self._section_index
 
     @abstractmethod
     def track(self, beam: BeamBaseClass) -> None:
@@ -69,7 +69,7 @@ class BeamPhysicsRelevantElements(ABC):
     def add_element(self, element: BeamPhysicsRelevant):
         self.elements = (*self.elements, element)
 
-    @property
+    @property  # as readonly attributes
     def n_elements(self):
         return len(self.elements)
 
@@ -78,7 +78,7 @@ class BeamPhysicsRelevantElements(ABC):
     ) -> Tuple[T, ...]:
         elements = get_elements(self.elements, class_)
         if group is not None:
-            elements = tuple(filter(lambda x: x.group == group, elements))
+            elements = tuple(filter(lambda x: x.section_index == group, elements))
         return elements
 
     def get_element(self, class_: Type[T], group: Optional[int] = None) -> T:
@@ -88,6 +88,9 @@ class BeamPhysicsRelevantElements(ABC):
 
     def reorder(self):
         pass
+
+    def count(self, class_: Type[T]):
+        return len(self.get_elements(class_=class_))
 
     def print_order(self):
         for element in self.elements:

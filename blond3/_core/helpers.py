@@ -1,4 +1,14 @@
 import warnings
+from typing import Any, Union, TypeVar, Iterable, TYPE_CHECKING
+
+import numpy as np
+from collections.abc import Iterable as AbstractIterable
+
+
+
+if TYPE_CHECKING:  # pragma: no cover
+    from numpy.typing import NDArray as NumpyArray
+    from cupy.typing import NDArray as CupyArray
 
 
 def int_from_float_with_warning(value: float | int, warning_stacklevel: int) -> int:
@@ -19,8 +29,23 @@ def int_from_float_with_warning(value: float | int, warning_stacklevel: int) -> 
         raise TypeError(type(value))
 
 
-from typing import Any
+T = TypeVar("T")
 
+
+def safe_index(x: Union[T, NumpyArray[T]], idx: int) -> T:
+    """Access index, even if x is a float or int."""
+    if isinstance(x, np.ndarray):
+        return x[idx]
+    else:
+        return x  # scalar: ignore index
+
+def typesafe_float_or_array(something: float | Iterable, dtype:T) -> T | NumpyArray[T]:
+    """Apply dtype for iterable or number."""
+    if isinstance(something, AbstractIterable):
+        something = np.array(something, dtype=dtype)
+    else:
+        something = dtype(something)
+    return something
 
 def find_instances_with_method(root: Any, method_name: str):
     """Find all instances within root that have a callable `methodname`"""

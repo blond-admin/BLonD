@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from ...core.backends.backend import backend
+from ..._core.backends.backend import backend
 from ..base import Preparable
 from ..helpers import int_from_float_with_warning
 
@@ -32,10 +32,10 @@ class BeamBaseClass(Preparable, ABC):
     ):
         super().__init__()
 
-        self.__n_particles__init = int_from_float_with_warning(
+        self._n_particles__init = int_from_float_with_warning(
             n_particles, warning_stacklevel=2
         )
-        self.__n_macroparticles__init = int_from_float_with_warning(
+        self._n_macroparticles__init = int_from_float_with_warning(
             n_macroparticles, warning_stacklevel=2
         )
         self._is_distributed = is_distributed
@@ -54,11 +54,11 @@ class BeamBaseClass(Preparable, ABC):
     ):
         pass
 
-    @property
+    @property  # as readonly attributes
     def is_distributed(self):
         return self._is_distributed
 
-    @property
+    @property  # as readonly attributes
     def is_counter_rotating(self):
         return self._is_counter_rotating
 
@@ -67,27 +67,27 @@ class BeamBaseClass(Preparable, ABC):
         pass
 
     @abstractmethod
-    @property
+    @property  # as readonly attributes
     def dt_min(self) -> backend.float:
         pass
 
     @abstractmethod
-    @property
+    @property  # as readonly attributes
     def dt_max(self) -> backend.float:
         pass
 
     @abstractmethod
-    @property
+    @property  # as readonly attributes
     def dE_min(self) -> backend.float:
         pass
 
     @abstractmethod
-    @property
+    @property  # as readonly attributes
     def dE_min(self) -> backend.float:
         pass
 
     @abstractmethod
-    @property
+    @property  # as readonly attributes
     def common_array_size(self) -> int:
         pass
 

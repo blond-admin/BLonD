@@ -3,9 +3,12 @@ from __future__ import annotations
 import copy
 from typing import (
     Iterable,
+    Optional,
 )
 
-from ...core.backends.backend import backend
+import numpy as np
+
+from ..._core.backends.backend import backend
 from ..base import (
     BeamPhysicsRelevantElements,
     BeamPhysicsRelevant,
@@ -16,16 +19,28 @@ from ...physics.drifts import DriftBaseClass
 
 
 class Ring(Preparable):
-    def __init__(self, circumference):
+    _bending_radius: np.float32 | np.float64
+    _circumference: np.float32 | np.float64
+
+    def __init__(self, circumference: float, bending_radius: Optional[float] = None):
+        if bending_radius is not None:
+            bending_radius = circumference / (2 * np.pi)
+
         super().__init__()
-        self._circumference = backend.float(circumference)
         self._elements = BeamPhysicsRelevantElements()
 
-    @property
-    def elements(self):
+        self._circumference = backend.float(circumference)
+        self._bending_radius = backend.float(bending_radius)
+
+    @property  # as readonly attributes
+    def bending_radius(self):
+        return self._bending_radius
+
+    @property  # as readonly attributes
+    def elements(self) -> BeamPhysicsRelevantElements:
         return self._elements
 
-    @property
+    @property  # as readonly attributes
     def circumference(self):
         return self._circumference
 
