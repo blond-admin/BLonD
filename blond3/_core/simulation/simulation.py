@@ -204,7 +204,6 @@ class Simulation(Preparable):
         self.section_i.value = None
 
     def get_legacy_map(self):
-        elements = self.ring.elements.elements
         ring_length = self.ring.circumference
         bending_radius = self.ring.bending_radius
         drift = self.ring.elements.get_element(DriftBaseClass)
@@ -232,7 +231,7 @@ class Simulation(Preparable):
             ring_options=None,
         )
         beam_blond2 = Beam(
-            ring=ring,
+            ring=ring_blond2,
             n_macroparticles=self.beams[0]._n_macroparticles__init,
             intensity=self.beams[0]._n_particles__init,
         )

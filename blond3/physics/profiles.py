@@ -164,7 +164,7 @@ class DynamicProfileConstCutoff(DynamicProfile):
         cut_left = beam.dt_min()  # TODO caching of attribute acess
         cut_right = beam.dt_max()  # TODO caching of attribute acess
         n_bins = int(math.ceil((cut_right - cut_left) / self.timestep))
-        self.hist_x, self.hist_y = ProfileBaseClass.get_arrays(
+        self._hist_x, self._hist_y = ProfileBaseClass.get_arrays(
             cut_left=cut_left, cut_right=cut_right, n_bins=n_bins
         )
 
@@ -177,6 +177,6 @@ class DynamicProfileConstNBins(ProfileBaseClass):
     def update_attributes(self, beam: BeamBaseClass):
         cut_left = beam.dt_min()  # TODO caching of attribute acess
         cut_right = beam.dt_max()  # TODO caching of attribute acess
-        self.hist_x, self.hist_y = ProfileBaseClass.get_arrays(
+        self._hist_x, self._hist_y = ProfileBaseClass.get_arrays(
             cut_left=cut_left, cut_right=cut_right, n_bins=self.n_bins
         )

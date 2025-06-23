@@ -8,9 +8,9 @@ from typing import (
 
 import numpy as np
 
-from ..._core.backends.backend import backend
+from .beam_physics_relevant_elements import BeamPhysicsRelevantElements
+from ..backends.backend import backend
 from ..base import (
-    BeamPhysicsRelevantElements,
     BeamPhysicsRelevant,
     Preparable,
 )
