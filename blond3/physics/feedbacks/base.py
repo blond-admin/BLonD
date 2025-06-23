@@ -6,15 +6,15 @@ from typing import (
 
 from ..cavities import MultiHarmonicCavity, SingleHarmonicCavity
 from ..profiles import ProfileBaseClass
-from ...core.base import BeamPhysicsRelevant
-from ...core.beam.base import BeamBaseClass
-from ...core.ring.helpers import requires
-from ...core.simulation.simulation import Simulation
+from ..._core.base import BeamPhysicsRelevant
+from ..._core.beam.base import BeamBaseClass
+from ..._core.ring.helpers import requires
+from ..._core.simulation.simulation import Simulation
 
 
 class Feedback(BeamPhysicsRelevant):
-    def __init__(self, group: int = 0):
-        super().__init__(group=group)
+    def __init__(self, section_index: int = 0):
+        super().__init__(section_index=section_index)
 
 
 class LocalFeedback(Feedback):
@@ -22,9 +22,9 @@ class LocalFeedback(Feedback):
         self,
         profile: ProfileBaseClass,
         cavity: SingleHarmonicCavity | MultiHarmonicCavity,
-        group: int = 0,
+        section_index: int = 0,
     ):
-        super().__init__(group=group)
+        super().__init__(section_index=section_index)
         self.cavity = cavity
         self.profile = profile
 
@@ -39,8 +39,8 @@ RfFeedback = LocalFeedback  # just an alias name
 
 
 class GlobalFeedback(Feedback):
-    def __init__(self, profile: ProfileBaseClass, group: int = 0):
-        super().__init__(group=group)
+    def __init__(self, profile: ProfileBaseClass, section_index: int = 0):
+        super().__init__(section_index=section_index)
         self.profile = profile
 
     def track(self, beam: BeamBaseClass):
@@ -61,8 +61,8 @@ class GroupedFeedback(Feedback):
         self,
         profile: ProfileBaseClass,
         cavities: List[SingleHarmonicCavity | MultiHarmonicCavity],
-        group: int = 0,
+        section_index: int = 0,
     ):
-        super().__init__(group=group)
+        super().__init__(section_index=section_index)
         self.profile = profile
         self.cavities = cavities

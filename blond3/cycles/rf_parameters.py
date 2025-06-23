@@ -4,8 +4,8 @@ from typing import Optional as LateInit, Iterable, TYPE_CHECKING
 
 from .base import RfProgramSingleHarmonic, RfProgramMultiHarmonic
 from .noise_generators.base import NoiseGenerator
-from ..core.backends.backend import backend
-from ..core.simulation.simulation import Simulation
+from .._core.backends.backend import backend
+from .._core.simulation.simulation import Simulation
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray

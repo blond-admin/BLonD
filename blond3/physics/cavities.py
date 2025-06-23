@@ -9,10 +9,10 @@ from typing import (
 from typing import Optional as LateInit
 
 from .impedances.base import WakeField
-from ..core.backends.backend import backend
-from ..core.base import BeamPhysicsRelevant, DynamicParameter
-from ..core.beam.base import BeamBaseClass
-from ..core.simulation.simulation import Simulation
+from .._core.backends.backend import backend
+from .._core.base import BeamPhysicsRelevant, DynamicParameter
+from .._core.beam.base import BeamBaseClass
+from .._core.simulation.simulation import Simulation
 from ..cycles.base import (
     RfParameterCycle,
     RfProgramSingleHarmonic,
@@ -28,10 +28,10 @@ class CavityBaseClass(BeamPhysicsRelevant, ABC):
     def __init__(
         self,
         rf_program: Optional[RfParameterCycle] = None,
-        group: int = 0,
+        section_index: int = 0,
         local_wakefield: Optional[WakeField] = None,
     ):
-        super().__init__(group=group)
+        super().__init__(section_index=section_index)
         rf_program.set_owner(cavity=self)
         self._rf_program: RfParameterCycle = rf_program
         self._local_wakefield = local_wakefield
@@ -41,7 +41,7 @@ class CavityBaseClass(BeamPhysicsRelevant, ABC):
         assert self._rf_program is not None
         self._turn_i = simulation.turn_i
 
-    @property
+    @property  # as readonly attributes
     def rf_program(self):
         return self._rf_program
 
@@ -55,13 +55,13 @@ class SingleHarmonicCavity(CavityBaseClass):
 
     def __init__(
         self,
-        harmonic: int | float,
+        harmonic: int | float | NumpyArray, # TODO
         rf_program: Optional[RfProgramSingleHarmonic] = None,
-        group: int = 0,
+        section_index: int = 0,
         local_wakefield: Optional[WakeField] = None,
     ):
         super().__init__(
-            rf_program=rf_program, group=group, local_wakefield=local_wakefield
+            rf_program=rf_program, section_index=section_index, local_wakefield=local_wakefield
         )
         self._harmonic = backend.float(harmonic)
 
@@ -75,8 +75,8 @@ class SingleHarmonicCavity(CavityBaseClass):
             self._rf_program.get_frequency(turn_i=self._turn_i.value),
         )
 
-    @property
-    def rf_program(self):
+    @property  # as readonly attributes
+    def rf_program(self) -> RfParameterCycle:
         if self._rf_program is not None:
             return self._rf_program
         else:
@@ -92,8 +92,8 @@ class SingleHarmonicCavity(CavityBaseClass):
             simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
         )
 
-    @property
-    def harmonic(self):
+    @property  # as readonly attributes
+    def harmonic(self) -> backend.float | NumpyArray[backend.float]:
         return self._harmonic
 
 
@@ -104,11 +104,11 @@ class MultiHarmonicCavity(CavityBaseClass):
         self,
         harmonics: Iterable[float],
         rf_program: Optional[RfProgramMultiHarmonic] = None,
-        group: int = 0,
+        section_index: int = 0,
         local_wakefield: Optional[WakeField] = None,
     ):
         super().__init__(
-            rf_program=rf_program, group=group, local_wakefield=local_wakefield
+            rf_program=rf_program, section_index=section_index, local_wakefield=local_wakefield
         )
         self._harmonics: NumpyArray | CupyArray = backend.array(
             harmonics, dtype=backend.float
@@ -124,11 +124,11 @@ class MultiHarmonicCavity(CavityBaseClass):
             simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
         )
 
-    @property
+    @property  # as readonly attributes
     def harmonics(self) -> NumpyArray | CupyArray:
         return self._harmonics
 
-    @property
+    @property  # as readonly attributes
     def rf_program(self):
         return self._rf_program
 

@@ -4,8 +4,8 @@ from ...profiles import ProfileBaseClass
 
 
 class LhcBeamFeedBack(GlobalFeedback):
-    def __init__(self, profile: ProfileBaseClass, group: int = 0):
-        super().__init__(profile=profile, group=group)
+    def __init__(self, profile: ProfileBaseClass, section_index: int = 0):
+        super().__init__(profile=profile, section_index=section_index)
 
 
 class LhcRfFeedback(LocalFeedback):
@@ -13,6 +13,6 @@ class LhcRfFeedback(LocalFeedback):
         self,
         profile: ProfileBaseClass,
         cavity: SingleHarmonicCavity | MultiHarmonicCavity,
-        group: int = 0,
+        section_index: int = 0,
     ):
-        super().__init__(profile=profile, cavity=cavity, group=group)
+        super().__init__(profile=profile, cavity=cavity, section_index=section_index)

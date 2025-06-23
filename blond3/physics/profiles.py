@@ -9,11 +9,11 @@ import numpy as np
 from cupy.typing import NDArray as CupyArray
 from numpy.typing import NDArray as NumpyArray
 
-from ..core.backends.backend import backend
-from ..core.base import BeamPhysicsRelevant
-from ..core.beam.base import BeamBaseClass
-from ..core.helpers import int_from_float_with_warning
-from ..core.simulation.simulation import Simulation
+from .._core.backends.backend import backend
+from .._core.base import BeamPhysicsRelevant
+from .._core.beam.base import BeamBaseClass
+from .._core.helpers import int_from_float_with_warning
+from .._core.simulation.simulation import Simulation
 
 
 class ProfileBaseClass(BeamPhysicsRelevant):
@@ -24,13 +24,17 @@ class ProfileBaseClass(BeamPhysicsRelevant):
 
         self._beam_spectrum_buffer = {}
 
-    @property
+    @property  # as readonly attributes
     def hist_x(self):
         return self._hist_x
 
-    @property
+    @property  # as readonly attributes
     def hist_y(self):
         return self._hist_y
+
+    @cached_property  # as readonly attributes
+    def n_bins(self):
+        return len(self._hist_x)
 
     @cached_property
     def diff_hist_y(self):
@@ -78,7 +82,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         hist_y = backend.zeros(n_bins, dtype=backend.float)
         return hist_x, hist_y
 
-    @property
+    @property  # as readonly attributes
     def cutoff_frequency(self):
         return backend.float(1 / (2 * self.hist_step))
 
@@ -106,6 +110,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
             "cut_left",
             "cut_right",
             "bin_edges",
+            "n_bins"
         ):
             self.__dict__.pop(attribute, None)
 

@@ -5,10 +5,10 @@ from typing import Optional as LateInit, Tuple, Optional
 from typing import TYPE_CHECKING
 
 from ..profiles import ProfileBaseClass
-from ...core.backends.backend import backend
-from ...core.base import BeamPhysicsRelevant
-from ...core.beam.base import BeamBaseClass
-from ...core.simulation.simulation import Simulation
+from ..._core.backends.backend import backend
+from ..._core.base import BeamPhysicsRelevant
+from ..._core.beam.base import BeamBaseClass
+from ..._core.simulation.simulation import Simulation
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
@@ -50,11 +50,11 @@ class DiscreteWakeFieldSource(WakeFieldSource):
 
 
 class Impedance(BeamPhysicsRelevant):
-    def __init__(self, group: int = 0, profile: LateInit[ProfileBaseClass] = None):
-        super().__init__(group=group)
+    def __init__(self, section_index: int = 0, profile: LateInit[ProfileBaseClass] = None):
+        super().__init__(section_index=section_index)
         self._profile = profile
 
-    @property
+    @property  # as readonly attributes
     def profile(self):
         return self._profile
 
@@ -65,11 +65,11 @@ class Impedance(BeamPhysicsRelevant):
     def on_init_simulation(self, simulation: Simulation) -> None:
         if self._profile is None:
             profiles = simulation.ring.elements.get_elements(
-                ProfileBaseClass, group=self.group
+                ProfileBaseClass, group=self.section_index
             )
             assert len(profiles) == 1, (
                 f"Found {len(profiles)} profiles in "
-                f"{self.group=}, but can only handle one. Set the attribute "
+                f"{self.section_index=}, but can only handle one. Set the attribute "
                 f"`your_impedance.profile` in advance or remove the second "
                 f"profile from this group."
             )
@@ -83,10 +83,10 @@ class WakeField(Impedance):
         self,
         sources: Tuple[WakeFieldSource, ...],
         solver: Optional[WakeFieldSolver],
-        group: int = 0,
+        section_index: int = 0,
         profile: LateInit[ProfileBaseClass] = None,
     ):
-        super().__init__(group=group, profile=profile)
+        super().__init__(section_index=section_index, profile=profile)
 
         self.solver = solver
         self.sources = sources

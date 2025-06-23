@@ -7,8 +7,8 @@ import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
 from .array_recorders import DenseArrayRecorder
-from ..core.base import MainLoopRelevant
-from ..core.simulation.simulation import Simulation
+from .._core.base import MainLoopRelevant
+from .._core.simulation.simulation import Simulation
 from ..physics.cavities import SingleHarmonicCavity
 from ..physics.profiles import ProfileBaseClass, DynamicProfileConstNBins, StaticProfile
 
@@ -22,7 +22,7 @@ class Observables(MainLoopRelevant):
         self._turn_i_init: LateInit[int] = None
         self._turns_array: LateInit[NumpyArray] = None
 
-    @property
+    @property  # as readonly attributes
     def turns_array(self):
         return self._turns_array
 
@@ -84,7 +84,7 @@ class ProfileObservation(Observables):
     def update(self, simulation: Simulation):
         self._hist_ys.write(self._profile._hist_y)
 
-    @property
+    @property  # as readonly attributes
     def hist_ys(self):
         return self._hist_ys.get_valid_entries()
 
@@ -112,15 +112,15 @@ class BunchObservation(Observables):
         self._dEs.write(simulation.ring.beams[0]._dE)
         self._flags.write(simulation.ring.beams[0]._flags)
 
-    @property
+    @property  # as readonly attributes
     def dts(self):
         return self._dts.get_valid_entries()
 
-    @property
+    @property  # as readonly attributes
     def dEs(self):
         return self._dEs.get_valid_entries()
 
-    @property
+    @property  # as readonly attributes
     def flags(self):
         return self._flags.get_valid_entries()
 
@@ -141,6 +141,6 @@ class CavityPhaseObservation(Observables):
     def update(self, simulation: Simulation):
         self._phases.write(self._cavity._rf_program.get_phase(simulation.turn_i.value))
 
-    @property
+    @property  # as readonly attributes
     def phases(self):
         return self._phases.get_valid_entries()

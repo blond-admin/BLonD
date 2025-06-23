@@ -5,10 +5,10 @@ from typing import (
 )
 from typing import Optional as LateInit
 
-from ..core.backends.backend import backend
-from ..core.base import BeamPhysicsRelevant
-from ..core.beam.base import BeamBaseClass
-from ..core.simulation.simulation import Simulation
+from .._core.backends.backend import backend
+from .._core.base import BeamPhysicsRelevant
+from .._core.beam.base import BeamBaseClass
+from .._core.simulation.simulation import Simulation
 
 
 class Losses(BeamPhysicsRelevant):

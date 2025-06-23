@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
-    from ..core.simulation.simulation import Simulation
+    from .._core.simulation.simulation import Simulation
 
 
 class BeamPreparationRoutine(ABC):

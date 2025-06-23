@@ -58,17 +58,17 @@ dt_plt = 200  # Time steps between plots
 ring = Ring(circumference=C)
 beam = Beam(n_particles=N_b, n_macroparticles=N_p, particle_type=proton)
 one_turn_execution_order = (
-    DriftSimple(transition_gamma=gamma_t, share_of_circumference=0.3, group=0),
+    DriftSimple(transition_gamma=gamma_t, share_of_circumference=0.3, section_index=0),
     SingleHarmonicCavity(
         harmonic=h,
         rf_program=ConstantProgram(phase=dphi, effective_voltage=V1),
-        group=0,
+        section_index=0,
     ),
-    DriftSimple(transition_gamma=gamma_t, share_of_circumference=0.7, group=1),
+    DriftSimple(transition_gamma=gamma_t, share_of_circumference=0.7, section_index=1),
     SingleHarmonicCavity(
         harmonic=h,
         rf_program=ConstantProgram(phase=dphi, effective_voltage=V2),
-        group=1,
+        section_index=1,
     ),
     BoxLosses(t_min=0, t_max=2.5e-9),
     SeparatrixLosses(),

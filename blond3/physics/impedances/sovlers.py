@@ -16,9 +16,9 @@ from ..profiles import (
     DynamicProfileConstCutoff,
     DynamicProfileConstNBins,
 )
-from ...core.base import DynamicParameter
-from ...core.beam.base import BeamBaseClass
-from ...core.simulation.simulation import Simulation
+from ..._core.base import DynamicParameter
+from ..._core.beam.base import BeamBaseClass
+from ..._core.simulation.simulation import Simulation
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray

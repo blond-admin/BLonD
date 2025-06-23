@@ -2,23 +2,31 @@ from __future__ import annotations
 
 from abc import ABC
 from functools import cached_property
+from typing import Optional as LateInit, TYPE_CHECKING, Union
 
-from ..core.backends.backend import backend
-from ..core.base import BeamPhysicsRelevant
-from ..core.beam.base import BeamBaseClass
-from ..core.simulation.simulation import Simulation
+import numpy as np
+
+from .._core.backends.backend import backend
+from .._core.base import BeamPhysicsRelevant
+from .._core.beam.base import BeamBaseClass
+from .._core.helpers import typesafe_float_or_array
+from .._core.simulation.simulation import Simulation
+
+if TYPE_CHECKING:  # pragma: no cover
+    from typing import Iterable
+    from numpy.typing import NDArray as NumpyArray
 
 
 class DriftBaseClass(BeamPhysicsRelevant, ABC):
-    def __init__(self, share_of_circumference: float, group: int = 0):
-        super().__init__(group=group)
-        self._share_of_circumference = backend.float(share_of_circumference)
+    def __init__(self, share_of_circumference: float, section_index: int = 0):
+        super().__init__(section_index=section_index)
+        self._share_of_circumference: backend.float = backend.float(share_of_circumference)
 
-    @property
-    def share_of_circumference(self):
+    @property  # as readonly attributes
+    def share_of_circumference(self) -> backend.float:
         return self._share_of_circumference
 
-    def track(self, beam: BeamBaseClass):
+    def track(self, beam: BeamBaseClass) -> None:
         pass
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -28,28 +36,60 @@ class DriftBaseClass(BeamPhysicsRelevant, ABC):
 class DriftSimple(DriftBaseClass):
     def __init__(
         self,
-        transition_gamma: float,
+        transition_gamma: float | Iterable,
         share_of_circumference: float = 1.0,
-        group: int = 0,
+        section_index: int = 0,
     ):
-        super().__init__(share_of_circumference=share_of_circumference, group=group)
-        self._transition_gamma = backend.float(transition_gamma)
+        super().__init__(
+            share_of_circumference=share_of_circumference, section_index=section_index
+        )
+        self._transition_gamma: Union[backend.float, NumpyArray[backend.float]] = (
+            typesafe_float_or_array(transition_gamma, backend.float)
+        )
+
+        self._simulation: LateInit[Simulation] = None
+        self._eta_0: LateInit[NumpyArray] = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        pass
+        self._eta_0 = np.ascontiguousarray(
+            self.alpha_0
+            - simulation.energy_cycle.gamma[self.section_index, :] ** (-2.0),
+            dtype=backend.float,
+        )
+        self._simulation = simulation
 
-    @property
-    def transition_gamma(self):
+    @property  # as readonly attributes # as readonly attributes
+    def eta_0(self) -> NumpyArray:
+        assert self._eta_0 is not None
+        return self._eta_0
+
+    @property  # as readonly attributes # as readonly attributes
+    def transition_gamma(self) -> backend.float | NumpyArray:
         return self._transition_gamma
 
     def track(self, beam: BeamBaseClass):
+        current_turn_i = self._simulation.turn_i.value
+
         backend.drift_simple(
-            beam.write_partial_dt(), beam.read_partial_dE(), self._transition_gamma
+            dt=beam.write_partial_dt(),
+            dE=beam.read_partial_dE(),
+            t_rev=self._simulation.energy_cycle.t_rev[current_turn_i],
+            length_ratio=self._share_of_circumference,
+            eta_0=self._eta_0[current_turn_i],
+            beta=self._simulation.energy_cycle.beta[self.section_index, current_turn_i],
+            energy=self._simulation.energy_cycle.energy[
+                self.section_index, current_turn_i
+            ],
         )
 
     @cached_property
-    def momentum_compaction_factor(self):
+    def momentum_compaction_factor(self) -> backend.float | NumpyArray:
         return 1 / self._transition_gamma**2
+
+    # alias of momentum_compaction_factor
+    @property  # as readonly attributes
+    def alpha_0(self) -> backend.float | NumpyArray:
+        return self.momentum_compaction_factor
 
     def invalidate_cache(self):
         self.__dict__.pop("momentum_compaction_factor", None)
