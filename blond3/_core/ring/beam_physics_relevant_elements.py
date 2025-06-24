@@ -1,16 +1,19 @@
 from __future__ import annotations
 
-from typing import (
-    Optional,
-    Tuple,
-    Type,
-    TypeVar,
-)
+from typing import TYPE_CHECKING
 
-from ..base import BeamPhysicsRelevant
 from ..ring.helpers import get_elements
 
-T = TypeVar("T")
+if TYPE_CHECKING:  # pragma: no cover
+    from typing import (
+        Optional,
+        Tuple,
+        Type,
+        TypeVar,
+    )
+    from ..base import BeamPhysicsRelevant
+
+    T = TypeVar("T")
 
 
 class BeamPhysicsRelevantElements:

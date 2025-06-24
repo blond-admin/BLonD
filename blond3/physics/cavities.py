@@ -1,18 +1,21 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import (
-    Optional,
-    TYPE_CHECKING,
-)
-from typing import Optional as LateInit
+from typing import TYPE_CHECKING
 
-from .impedances.base import WakeField
 from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant, DynamicParameter
-from .._core.beam.base import BeamBaseClass
-from .._core.simulation.simulation import Simulation
-from ..cycles.rf_parameter_cycle import RfStationParams
+
+if TYPE_CHECKING:  # pragma: no cover
+    from typing import Optional as LateInit
+    from typing import (
+        Optional,
+    )
+
+    from .impedances.base import WakeField
+    from .._core.beam.base import BeamBaseClass
+    from .._core.simulation.simulation import Simulation
+    from ..cycles.rf_parameter_cycle import RfStationParams
 
 
 class CavityBaseClass(BeamPhysicsRelevant, ABC):
@@ -34,12 +37,17 @@ class CavityBaseClass(BeamPhysicsRelevant, ABC):
         assert self._rf_program is not None
         self._turn_i = simulation.turn_i
 
+    def on_run_simulation(
+        self, simulation: Simulation, n_turns: int, turn_i_init: int
+    ) -> None:
+        pass
+
     @property  # as readonly attributes
     def n_rf(self):
         return self._n_rf
 
     @property  # as readonly attributes
-    def rf_program(self):
+    def rf_program(self) -> RfStationParams:
         return self._rf_program
 
     def track(self, beam: BeamBaseClass):

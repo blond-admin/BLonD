@@ -1,18 +1,21 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Optional as LateInit, Tuple, Optional
 from typing import TYPE_CHECKING
 
-from ..profiles import ProfileBaseClass
 from ..._core.backends.backend import backend
 from ..._core.base import BeamPhysicsRelevant
-from ..._core.beam.base import BeamBaseClass
-from ..._core.simulation.simulation import Simulation
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Optional as LateInit, Tuple, Optional
+
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
+
+    from ..profiles import ProfileBaseClass
+    from ..._core.simulation.simulation import Simulation
+    from ..._core.beam.base import BeamBaseClass
+
 
 
 class WakeFieldSolver:
@@ -65,6 +68,8 @@ class Impedance(BeamPhysicsRelevant):
         pass
 
     def on_init_simulation(self, simulation: Simulation) -> None:
+        from ..profiles import ProfileBaseClass # prevent cyclic import
+
         if self._profile is None:
             profiles = simulation.ring.elements.get_elements(
                 ProfileBaseClass, group=self.section_index

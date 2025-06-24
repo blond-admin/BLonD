@@ -22,7 +22,6 @@ from blond3 import (
     proton,
     Ring,
     Simulation,
-    EnergyCycle,
     ConstantProgram,
     ProfileObservation,
     SingleHarmonicCavity,

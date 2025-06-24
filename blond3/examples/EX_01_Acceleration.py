@@ -33,9 +33,10 @@ beam1 = Beam(n_particles=1e9, n_macroparticles=1001, particle_type=proton)
 
 sim = Simulation.from_locals(locals())
 sim.on_prepare_beam(
-    preparation_routine=BiGaussian(sigma_dt=0.4e-9 / 4, reinsertion=True, seed=1)
+    preparation_routine=BiGaussian(sigma_dt=0.4e-9 / 4, reinsertion=False, seed=1)
 )
-
+sim.beams[0].plot_hist2d()
+plt.show()
 phase_observation = CavityPhaseObservation(each_turn_i=1, cavity=cavity1)
 bunch_observation = BunchObservation(each_turn_i=10)
 

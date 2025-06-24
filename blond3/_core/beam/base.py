@@ -4,9 +4,9 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from ..._core.backends.backend import backend
 from ..base import Preparable
 from ..helpers import int_from_float_with_warning
+from ..._core.backends.backend import backend
 
 if TYPE_CHECKING:  # pragma: no cover
     from .particle_types import ParticleType
@@ -50,7 +50,7 @@ class BeamBaseClass(Preparable, ABC):
         self,
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
-        flags: NumpyArray | CupyArray,
+        flags: NumpyArray | CupyArray = None,
     ):
         pass
 
@@ -67,27 +67,31 @@ class BeamBaseClass(Preparable, ABC):
         pass
 
     @abstractmethod
-    @property  # as readonly attributes
+    def plot_hist2d(self):
+        pass
+
+    @property
+    @abstractmethod  # as readonly attributes
     def dt_min(self) -> backend.float:
         pass
 
-    @abstractmethod
-    @property  # as readonly attributes
+    @property
+    @abstractmethod  # as readonly attributes
     def dt_max(self) -> backend.float:
         pass
 
-    @abstractmethod
-    @property  # as readonly attributes
+    @property
+    @abstractmethod  # as readonly attributes
     def dE_min(self) -> backend.float:
         pass
 
-    @abstractmethod
-    @property  # as readonly attributes
+    @property
+    @abstractmethod  # as readonly attributes
     def dE_min(self) -> backend.float:
         pass
 
-    @abstractmethod
-    @property  # as readonly attributes
+    @property
+    @abstractmethod  # as readonly attributes
     def common_array_size(self) -> int:
         pass
 

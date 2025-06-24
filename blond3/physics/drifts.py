@@ -8,13 +8,16 @@ import numpy as np
 
 from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant
-from .._core.beam.base import BeamBaseClass
 from .._core.helpers import float_or_array_typesafe
-from .._core.simulation.simulation import Simulation
+from .._core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Iterable
     from numpy.typing import NDArray as NumpyArray
+
+    from .._core.simulation.simulation import Simulation
+    from .._core.beam.base import BeamBaseClass
+    from .. import EnergyCycle
 
 
 class DriftBaseClass(BeamPhysicsRelevant, ABC):
@@ -34,8 +37,14 @@ class DriftBaseClass(BeamPhysicsRelevant, ABC):
     def on_init_simulation(self, simulation: Simulation) -> None:
         pass
 
+    def on_run_simulation(
+        self, simulation: Simulation, n_turns: int, turn_i_init: int
+    ) -> None:
+        pass
+
 
 class DriftSimple(DriftBaseClass):
+
     def __init__(
         self,
         transition_gamma: float | Iterable,
@@ -52,10 +61,12 @@ class DriftSimple(DriftBaseClass):
         self._simulation: LateInit[Simulation] = None
         self._eta_0: LateInit[NumpyArray] = None
 
+    @requires(["EnergyCycle"])
     def on_init_simulation(self, simulation: Simulation) -> None:
+        cycle: EnergyCycle = simulation.energy_cycle
         self._eta_0 = np.ascontiguousarray(
             self.alpha_0
-            - simulation.energy_cycle.gamma[self.section_index, :] ** (-2.0),
+            - cycle.gamma[self.section_index, :] ** (-2.0),
             dtype=backend.float,
         )
         self._simulation = simulation

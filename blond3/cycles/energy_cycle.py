@@ -1,23 +1,28 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import Optional as LateInit, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from .base import ProgrammedCycle
 from .._core.backends.backend import backend
-from .._core.simulation.simulation import Simulation
+from .._core.ring.helpers import requires
 from ..physics.cavities import (
     CavityBaseClass,
 )
 from ..physics.drifts import DriftBaseClass
 
 if TYPE_CHECKING:
+    from typing import Optional as LateInit
+
     from numpy.typing import NDArray as NumpyArray
+    from .._core.simulation.simulation import Simulation
 
 
 class EnergyCycle(ProgrammedCycle):
+    from .. import Ring
+
     def __init__(self, synchronous_data: NumpyArray, synchronous_data_type="momentum"):
         super().__init__()
         self._synchronous_data = synchronous_data
@@ -39,10 +44,11 @@ class EnergyCycle(ProgrammedCycle):
     ) -> None:
         pass
 
+    @requires(["Ring"])
     def on_init_simulation(self, simulation: Simulation) -> None:
         from blond.input_parameters.ring import Ring as Blond2Ring
 
-        drifts = simulation.ring.elements.get_element(DriftBaseClass)
+        drifts = simulation.ring.elements.get_elements(DriftBaseClass)
         cavities = simulation.ring.elements.get_elements(CavityBaseClass)
         assert len(drifts) == len(cavities)
         self._ring = Blond2Ring(
@@ -50,6 +56,7 @@ class EnergyCycle(ProgrammedCycle):
                 (e.share_of_circumference * simulation.ring.circumference)
                 for e in drifts
             ],
+            synchronous_data=self._synchronous_data,
             n_sections=len(cavities),
             alpha_0=np.nan,
             particle=simulation.beams[0].particle_type,

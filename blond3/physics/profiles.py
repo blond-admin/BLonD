@@ -3,17 +3,22 @@ from __future__ import annotations
 import math
 from abc import abstractmethod
 from functools import cached_property
-from typing import Optional as LateInit
+from typing import TYPE_CHECKING
 
 import numpy as np
-from cupy.typing import NDArray as CupyArray
-from numpy.typing import NDArray as NumpyArray
 
 from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant
-from .._core.beam.base import BeamBaseClass
 from .._core.helpers import int_from_float_with_warning
-from .._core.simulation.simulation import Simulation
+
+if TYPE_CHECKING:
+    from typing import Optional as LateInit
+
+    from cupy.typing import NDArray as CupyArray
+    from numpy.typing import NDArray as NumpyArray
+
+    from .._core.simulation.simulation import Simulation
+    from .._core.beam.base import BeamBaseClass
 
 
 class ProfileBaseClass(BeamPhysicsRelevant):

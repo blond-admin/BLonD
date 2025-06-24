@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
 from typing import Optional as LateInit
+from typing import TYPE_CHECKING, Optional
+
 import numpy as np
 
 from .base import RfParameterCycle
 from .._core.backends.backend import backend
+from .._core.ring.helpers import requires
 from .._core.simulation.simulation import Simulation
 
 if TYPE_CHECKING:
@@ -65,7 +67,9 @@ class RfStationParams(RfParameterCycle):
         self.phi_noise: Optional[NumpyArray[backend.float]] = None
         self.phi_modulation: Optional[NumpyArray] = None
 
+    @requires(["EnergyCycle"])
     def on_init_simulation(self, simulation: Simulation) -> None:
+        print("on_init_simulation rfstation")
         super().on_init_simulation(simulation=simulation)
         from blond.input_parameters.rf_parameters import RFStationOptions
 
@@ -75,7 +79,6 @@ class RfStationParams(RfParameterCycle):
         n_rf = self._owner.n_rf
         t_start = 0.0  # TODO expose parameter if required, else legacy
 
-        super().__init__()
         # Reshape input rf programs
         # Reshape design harmonic
         harmonic = rf_station_options.reshape_data(

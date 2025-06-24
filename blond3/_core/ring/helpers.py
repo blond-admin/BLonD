@@ -4,17 +4,20 @@ import inspect
 from collections import defaultdict, deque
 from typing import TYPE_CHECKING
 
+
 if TYPE_CHECKING:
     from typing import Iterable, Any, List, Tuple, Type, TypeVar
 
     T = TypeVar("T")
 
 
-def requires(argument: List):
+def requires(argument: List[str]):
     def decorator(function):
         def wrapper(*args, **kwargs):
             return function(*args, **kwargs)
 
+        # allow strings to prevent cyclic imports
+        assert all([isinstance(a, str) for a in argument])
         wrapper.requires = argument
         return wrapper
 
@@ -47,7 +50,7 @@ def build_dependency_graph(
 
     # Iterate through the types (classes) of all given instances
     for cls in [type(o) for o in instances]:
-        all_classes.add(cls)  # Register the class
+        all_classes.add(cls.__name__)  # Register the class
         # Traverse the class's MRO (method resolution order) to get parent classes as well
         # For each dependency declared in 'on_init_simulation_dependencies'
         dependencies = set()
@@ -56,9 +59,10 @@ def build_dependency_graph(
             for dep_ in deps:
                 dependencies.add(dep_)
         for dep in dependencies:
-            graph[dep].append(cls)  # Add edge: dep -> cls
-            in_degree[cls] += 1  # Increment in-degree count for the class
+            graph[dep].append(cls.__name__)  # Add edge: dep -> cls
+            in_degree[cls.__name__] += 1  # Increment in-degree count for the class
             all_classes.add(dep)  # Ensure the dependency class is also tracked
+        pass
     return graph, in_degree, all_classes
 
 

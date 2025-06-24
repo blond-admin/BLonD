@@ -1,18 +1,20 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import (
-    Optional,
-    TypeVar,
-    List,
-    Callable,
-    Any,
-)
+from typing import TYPE_CHECKING
 
-from .beam.base import BeamBaseClass
-from .simulation.simulation import Simulation
+if TYPE_CHECKING:
+    from .beam.base import BeamBaseClass
+    from .simulation.simulation import Simulation
+    from typing import (
+        Optional,
+        TypeVar,
+        List,
+        Callable,
+        Any,
+    )
 
-T = TypeVar("T")
+    T = TypeVar("T")
 
 
 class Preparable(ABC):

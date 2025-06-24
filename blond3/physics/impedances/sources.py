@@ -30,8 +30,8 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
 
 
 class ImpedanceTable(DiscreteWakeFieldSource):
-    @abstractmethod
     @staticmethod
+    @abstractmethod
     def from_file(filepath: PathLike, reader: ImpedanceReader) -> ImpedanceTable:
         pass
 

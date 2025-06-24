@@ -4,15 +4,14 @@ from abc import ABC
 from typing import Optional as LateInit, TYPE_CHECKING
 
 from .._core.base import Preparable
-from .._core.simulation.simulation import Simulation
-from ..physics.cavities import (
-    CavityBaseClass,
-    MultiHarmonicCavity,
-    SingleHarmonicCavity,
-)
 
 if TYPE_CHECKING:
-    pass
+    from .._core.simulation.simulation import Simulation
+    from ..physics.cavities import (
+        CavityBaseClass,
+        MultiHarmonicCavity,
+        SingleHarmonicCavity,
+    )
 
 
 class ProgrammedCycle(Preparable, ABC):

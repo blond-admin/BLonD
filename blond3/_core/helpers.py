@@ -1,11 +1,16 @@
+from __future__ import annotations
+
 import warnings
 from collections.abc import Iterable as AbstractIterable
-from typing import Any, Union, TypeVar, Iterable, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Any, Union, TypeVar, Iterable
     from numpy.typing import NDArray as NumpyArray
+
+    T = TypeVar("T")
 
 
 def int_from_float_with_warning(value: float | int, warning_stacklevel: int) -> int:
@@ -24,9 +29,6 @@ def int_from_float_with_warning(value: float | int, warning_stacklevel: int) -> 
         return return_value
     else:
         raise TypeError(type(value))
-
-
-T = TypeVar("T")
 
 
 def safe_index(x: Union[T, NumpyArray[T]], idx: int) -> T:

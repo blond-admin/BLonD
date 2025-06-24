@@ -3,15 +3,18 @@ from __future__ import annotations
 import os.path
 import warnings
 from abc import ABC, abstractmethod
-from os import PathLike
-from typing import (
-    Tuple,
-    Optional,
-    Literal,
-)
+from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.typing import NDArray as NumpyArray, DTypeLike
+
+if TYPE_CHECKING:
+    from typing import (
+        Tuple,
+        Optional,
+        Literal,
+    )
+    from os import PathLike
 
 
 class ArrayRecorder(ABC):
@@ -27,10 +30,11 @@ class ArrayRecorder(ABC):
     def to_disk(self) -> None:
         pass
 
-    @abstractmethod
     @staticmethod
+    @abstractmethod
     def from_disk(filepath: str | PathLike) -> ArrayRecorder:
         pass
+
 
 
 class DenseArrayRecorder(ArrayRecorder):

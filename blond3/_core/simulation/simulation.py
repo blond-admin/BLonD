@@ -1,34 +1,30 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import (
-    Optional,
-)
-from typing import (
-    Tuple,
-)
+from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy.typing import NDArray as NumpyArray
 from tqdm import tqdm
 
-from blond.impedances.impedance import TotalInducedVoltage
 from ..base import BeamPhysicsRelevant, Preparable
 from ..base import DynamicParameter
-from ..beam.base import BeamBaseClass
 from ..helpers import find_instances_with_method
 from ..ring.helpers import get_elements, get_init_order
-from ..ring.ring import Ring
-from ...beam_preparation.base import MatchingRoutine
 from ...cycles.energy_cycle import EnergyCycle
-from ...handle_results.observables import Observables
-from ...physics.cavities import (
-    CavityBaseClass,
-    SingleHarmonicCavity,
-    MultiHarmonicCavity,
-)
 from ...physics.drifts import DriftBaseClass
 from ...physics.profiles import ProfileBaseClass
+
+if TYPE_CHECKING:  # pragma: no cover
+    from typing import (
+        Optional,
+        Tuple,
+    )
+    from numpy.typing import NDArray as NumpyArray
+    from ..beam.base import BeamBaseClass
+    from ...beam_preparation.base import MatchingRoutine
+
+    from ..ring.ring import Ring
+    from ...handle_results.observables import Observables
 
 
 class Simulation(Preparable):
@@ -54,28 +50,44 @@ class Simulation(Preparable):
 
         self._exec_on_init_simulation()
 
-    def on_init_simulation(self, simulation: Simulation):
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        pass
+
+    def on_run_simulation(
+        self, simulation: Simulation, n_turns: int, turn_i_init: int
+    ) -> None:
         pass
 
     def _exec_all_in_tree(self, method: str, **kwargs):
         instances = find_instances_with_method(self, f"{method}")
+        for instance in instances:
+            print(type(instance), instance)
+        print()
         ordered_classes = get_init_order(instances, f"{method}.requires")
+        for class_ in ordered_classes:
+            print(class_)
 
         classes_check = set()
         for ins in instances:
             classes_check.add(type(ins))
         assert len(classes_check) == len(ordered_classes), "BUG"
+        ordered_classes.pop(ordered_classes.index("ABCMeta"))
 
         for cls in ordered_classes:
             for element in instances:
-                if not type(element) == cls:
+                if not type(element).__name__ == cls:
                     continue
-                element.__dict__[f"{method}"](**kwargs)
+                print(element, kwargs)
+                getattr(element, method)(**kwargs)
 
     def _exec_on_init_simulation(self):
+        print("_exec_on_init_simulation")
+
         self._exec_all_in_tree("on_init_simulation", simulation=self)
 
     def _exec_on_run_simulation(self, n_turns: int, turn_i_init: int):
+        print("_exec_on_run_simulation")
+
         self._exec_all_in_tree(
             "on_run_simulation",
             simulation=self,
@@ -85,6 +97,9 @@ class Simulation(Preparable):
 
     @staticmethod
     def from_locals(locals: dict):
+        from ..beam.base import BeamBaseClass  # prevent cyclic import
+        from ..ring.ring import Ring  # prevent cyclic import
+
         locals_list = locals.values()
         _rings = get_elements(locals_list, Ring)
         assert len(_rings) == 1, f"Found {len(_rings)} rings"
@@ -92,7 +107,7 @@ class Simulation(Preparable):
 
         beams = get_elements(locals_list, BeamBaseClass)
 
-        _energy_cycles = get_elements(locals_list, Ring)
+        _energy_cycles = get_elements(locals_list, EnergyCycle)
         assert len(_energy_cycles) == 1, f"Found {len(_energy_cycles)} energy cycles"
         energy_cycle = _energy_cycles[0]
 
@@ -111,7 +126,7 @@ class Simulation(Preparable):
         return self._beams
 
     @property  # as readonly attributes
-    def energy_cycle(self):
+    def energy_cycle(self) -> EnergyCycle:
         return self._energy_cycle
 
     @cached_property
@@ -139,10 +154,9 @@ class Simulation(Preparable):
         self.__dict__.pop("get_potential_well", None)
         self.__dict__.pop("get_hash", None)
 
-    def prepare_beam(
-        self,
-        preparation_routine: MatchingRoutine,
-    ):
+    def on_prepare_beam(self, preparation_routine: MatchingRoutine, turn_i: int = 0):
+        print("on_prepare_beam")
+        self.turn_i.value = turn_i
         preparation_routine.on_prepare_beam(simulation=self)
 
     def run_simulation(
@@ -204,6 +218,12 @@ class Simulation(Preparable):
         self.section_i.value = None
 
     def get_legacy_map(self):
+        from ...physics.cavities import (  # prevent cyclic import
+            CavityBaseClass,
+            SingleHarmonicCavity,
+            MultiHarmonicCavity,
+        )
+
         ring_length = self.ring.circumference
         bending_radius = self.ring.bending_radius
         drift = self.ring.elements.get_element(DriftBaseClass)
@@ -217,6 +237,7 @@ class Simulation(Preparable):
         from blond.input_parameters.rf_parameters import RFStation
         from blond.input_parameters.ring import Ring
         from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
+        from blond.impedances.impedance import TotalInducedVoltage
 
         ring_blond2 = Ring(
             ring_length=ring_length,
@@ -301,6 +322,7 @@ class Simulation(Preparable):
         self,
         n_turns: int,
         turn_i_init: int = 0,
-        observe=Tuple[Observables, ...],
+        observe: Tuple[Observables, ...] = tuple(),
     ) -> SimulationResults:
+        raise FileNotFoundError()
         return

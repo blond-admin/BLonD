@@ -16,6 +16,8 @@ No intensity effects
 
 import os
 
+from blond3.cycles.rf_parameters import RFNoiseProgram
+
 from blond3 import (
     Beam,
     proton,
@@ -28,7 +30,6 @@ from blond3 import (
     BoxLosses,
 )
 from blond3.cycles.noise_generators.vari_noise import VariNoise
-from blond3.cycles.rf_parameters import RFNoiseProgram
 from blond3.physics.losses import SeparatrixLosses
 from blond3.physics.profiles import DynamicProfileConstNBins
 

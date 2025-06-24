@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import Optional as LateInit, TYPE_CHECKING
 
+import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.pyplot import viridis
 
 from .base import BeamBaseClass, BeamFlags
 from ..backends.backend import backend
@@ -13,6 +15,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from ..beam.particle_types import ParticleType
+
+    from ... import Simulation
 
 
 class Beam(BeamBaseClass):
@@ -29,6 +33,9 @@ class Beam(BeamBaseClass):
             particle_type=particle_type,
             is_counter_rotating=is_counter_rotating,
         )
+
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        pass
 
     def setup_beam(
         self,
@@ -47,6 +54,42 @@ class Beam(BeamBaseClass):
         self._dt = dt.astype(backend.float)
         self._flags = flags.astype(backend.int)
 
+
+    def on_run_simulation(self, simulation: Simulation, n_turns: int,
+                          turn_i_init: int) -> None:
+        pass
+
+    @property
+    def dt_min(self) -> backend.float:
+        pass
+
+    @property
+    def dt_max(self) -> backend.float:
+        pass
+
+    @property
+    def dE_min(self) -> backend.float:
+        pass
+
+    @property
+    def common_array_size(self) -> int:
+        pass
+
+    def invalidate_cache_dE(self) -> None:
+        pass
+
+    def invalidate_cache_dt(self) -> None:
+        pass
+
+    def invalidate_cache(self) -> None:
+        pass
+
+    def plot_hist2d(self, **kwargs):
+        if "cmap" not in kwargs.keys():
+            kwargs["cmap"] = "viridis"
+        if "bins" not in kwargs.keys():
+            kwargs["bins"] = 256
+        plt.hist2d(self._dt, self._dE, **kwargs)
 
 class WeightenedBeam(Beam):
     def __init__(

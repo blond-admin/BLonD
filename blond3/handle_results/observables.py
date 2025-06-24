@@ -1,16 +1,20 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Optional as LateInit
+from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
 from .array_recorders import DenseArrayRecorder
 from .._core.base import MainLoopRelevant
-from .._core.simulation.simulation import Simulation
 from ..physics.cavities import SingleHarmonicCavity
 from ..physics.profiles import ProfileBaseClass, DynamicProfileConstNBins, StaticProfile
+
+if TYPE_CHECKING:
+    from typing import Optional as LateInit
+
+    from .._core.simulation.simulation import Simulation
 
 
 class Observables(MainLoopRelevant):
@@ -21,6 +25,7 @@ class Observables(MainLoopRelevant):
         self._n_turns: LateInit[int] = None
         self._turn_i_init: LateInit[int] = None
         self._turns_array: LateInit[NumpyArray] = None
+        self._hash: LateInit[str] = None
 
     @property  # as readonly attributes
     def turns_array(self):
@@ -31,7 +36,7 @@ class Observables(MainLoopRelevant):
         pass
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        pass
+        self._hash = simulation.get_hash()
 
     def on_run_simulation(
         self, simulation: Simulation, n_turns: int, turn_i_init: int
@@ -124,6 +129,18 @@ class BunchObservation(Observables):
     def flags(self):
         return self._flags.get_valid_entries()
 
+    def to_disk(self) -> None:
+        key = self._hash
+        np.save(f"BunchObservation_{key}_dEs.npy", self._dEs)
+        np.save(f"BunchObservation_{key}_dts.npy", self._dts)
+        np.save(f"BunchObservation_{key}_flags.npy", self._flags)
+
+    def from_disk(self) -> None:
+        key = self._hash
+        self._dEs = np.load(f"BunchObservation_{key}_dEs.npy")
+        self._dts = np.load(f"BunchObservation_{key}_dts.npy")
+        self._flags = np.load(f"BunchObservation_{key}_flags.npy")
+
 
 class CavityPhaseObservation(Observables):
     def __init__(self, each_turn_i: int, cavity: SingleHarmonicCavity):
@@ -144,3 +161,12 @@ class CavityPhaseObservation(Observables):
     @property  # as readonly attributes
     def phases(self):
         return self._phases.get_valid_entries()
+
+
+    def to_disk(self) -> None:
+        key = self._hash
+        np.save(f"CavityPhaseObservation_{key}_phases.npy", self._phases)
+
+    def from_disk(self) -> None:
+        key = self._hash
+        self._phases = np.load(f"CavityPhaseObservation_{key}_phases.npy")

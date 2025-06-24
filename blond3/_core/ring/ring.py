@@ -1,10 +1,7 @@
 from __future__ import annotations
 
 import copy
-from typing import (
-    Iterable,
-    Optional,
-)
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -14,12 +11,18 @@ from ..base import (
     BeamPhysicsRelevant,
     Preparable,
 )
-from ..simulation.simulation import Simulation
-from ...physics.drifts import DriftBaseClass
 
+if TYPE_CHECKING:
+    from typing import (
+        Iterable,
+        Optional,
+    )
+
+    from ..simulation.simulation import Simulation
 
 class Ring(Preparable):
     _bending_radius: np.float32 | np.float64
+
     _circumference: np.float32 | np.float64
 
     def __init__(self, circumference: float, bending_radius: Optional[float] = None):
@@ -31,6 +34,11 @@ class Ring(Preparable):
 
         self._circumference = backend.float(circumference)
         self._bending_radius = backend.float(bending_radius)
+
+    def on_run_simulation(
+        self, simulation: Simulation, n_turns: int, turn_i_init: int
+    ) -> None:
+        pass
 
     @property  # as readonly attributes
     def bending_radius(self):
@@ -68,6 +76,8 @@ class Ring(Preparable):
             self.elements.reorder()
 
     def on_init_simulation(self, simulation: Simulation) -> None:
+        from ...physics.drifts import DriftBaseClass # prevent cyclic import
+
         all_drifts = self.elements.get_elements(DriftBaseClass)
         sum_share_of_circumference = sum(
             [drift.share_of_circumference for drift in all_drifts]
