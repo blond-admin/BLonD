@@ -135,7 +135,7 @@ class NumpyBackend(BackendBaseClass):
             from .cpp.callables import CppSpecials
 
             self.specials = CppSpecials()
-        elif mode == "cpp":
+        elif mode == "numba":
             from .numba.callables import NumbaSpecials
 
             self.specials = NumbaSpecials()

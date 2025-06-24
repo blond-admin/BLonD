@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:
     from .beam.base import BeamBaseClass
@@ -48,7 +48,8 @@ class BeamPhysicsRelevant(MainLoopRelevant):
         super().__init__()
         self._section_index = section_index
         if name is None:
-            name = f"Unnamed-{type(self)}-{type(self).n_instances:3d}"
+            name = (f"Unnamed-{type(self).__name__}-"
+                    f"{type(self).n_instances:03d}")
         self.name = name
         type(self).n_instances += 1
 
@@ -84,3 +85,9 @@ class DynamicParameter:  # TODO add code generation for this method with type-hi
         if new_val != self._value:
             self._notify(new_val)
         self._value = new_val
+
+
+class HasPropertyCache(object):
+    def invalidate_cache(self, props: Tuple[str, ...]):
+        for prop in props:
+            self.__dict__.pop(prop, None)

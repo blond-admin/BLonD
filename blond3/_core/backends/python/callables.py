@@ -7,6 +7,7 @@ from cupy.typing import NDArray as CupyArray
 
 from ..backend import Specials
 
+
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 

@@ -7,6 +7,7 @@ import numpy as np
 
 from .base import ProgrammedCycle
 from .._core.backends.backend import backend
+from .._core.base import HasPropertyCache
 from .._core.ring.helpers import requires
 from ..physics.cavities import (
     CavityBaseClass,
@@ -20,7 +21,7 @@ if TYPE_CHECKING:
     from .._core.simulation.simulation import Simulation
 
 
-class EnergyCycle(ProgrammedCycle):
+class EnergyCycle(ProgrammedCycle, HasPropertyCache):
     from .. import Ring
 
     def __init__(self, synchronous_data: NumpyArray, synchronous_data_type="momentum"):
@@ -42,7 +43,7 @@ class EnergyCycle(ProgrammedCycle):
     def on_run_simulation(
         self, simulation: Simulation, n_turns: int, turn_i_init: int
     ) -> None:
-        pass
+        self.invalidate_cache()
 
     @requires(["Ring"])
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -64,43 +65,60 @@ class EnergyCycle(ProgrammedCycle):
             synchronous_data_type=self._synchronous_data_type,
             bending_radius=simulation.ring.bending_radius,
         )
+        self.invalidate_cache()
 
     @cached_property
     def n_turns(self):
         return len(self._synchronous_data) - 1
 
-    @property  # as readonly attributes
+    @cached_property  # as readonly attributes
     def beta(self) -> NumpyArray:
-        return self._ring.beta  # TODO correct dtype
+        return self._ring.beta.astype(backend.float)
 
-    @property  # as readonly attributes
+    @cached_property  # as readonly attributes
     def gamma(self) -> NumpyArray:
-        return self._ring.gamma  # TODO correct dtype
+        return self._ring.gamma.astype(backend.float)
 
-    @property  # as readonly attributes
+    @cached_property  # as readonly attributes
     def energy(self) -> NumpyArray:
-        return self._ring.energy  # TODO correct dtype
+        return self._ring.energy.astype(backend.float)
 
-    @property  # as readonly attributes
+    @cached_property  # as readonly attributes
     def kin_energy(self) -> NumpyArray:
-        return self._ring.kin_energy  # TODO correct dtype
+        return self._ring.kin_energy.astype(backend.float)
 
-    @property  # as readonly attributes
+    @cached_property  # as readonly attributes
     def delta_E(self) -> NumpyArray:
-        return self._ring.delta_E  # TODO correct dtype
+        return self._ring.delta_E.astype(backend.float)
 
-    @property  # as readonly attributes
+    @cached_property  # as readonly attributes
     def t_rev(self) -> NumpyArray:
-        return self._ring.t_rev  # TODO correct dtype
+        return self._ring.t_rev.astype(backend.float)
 
-    @property  # as readonly attributes
+    @cached_property  # as readonly attributes
     def cycle_time(self) -> NumpyArray:
-        return self._ring.cycle_time  # TODO correct dtype
+        return self._ring.cycle_time.astype(backend.float)
 
-    @property  # as readonly attributes
+    @cached_property  # as readonly attributes
     def f_rev(self) -> NumpyArray:
-        return self._ring.f_rev  # TODO correct dtype
+        return self._ring.f_rev.astype(backend.float)
 
-    @property  # as readonly attributes
+    @cached_property  # as readonly attributes
     def omega_rev(self) -> NumpyArray:
-        return self._ring.omega_rev  # TODO correct dtype
+        return self._ring.omega_rev.astype(backend.float)
+
+    props = (
+        "n_turns",
+        "beta",
+        "gamma",
+        "energy",
+        "kin_energy",
+        "delta_E",
+        "t_rev",
+        "cycle_time",
+        "f_rev",
+        "omega_rev",
+    )
+
+    def invalidate_cache(self):
+        super().invalidate_cache(EnergyCycle.props)

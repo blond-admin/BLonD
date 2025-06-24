@@ -75,7 +75,6 @@ class RfStationParams(RfParameterCycle):
 
     @requires(["EnergyCycle"])
     def on_init_simulation(self, simulation: Simulation) -> None:
-        print("on_init_simulation rfstation")
         super().on_init_simulation(simulation=simulation)
         from blond.input_parameters.rf_parameters import RFStationOptions
 

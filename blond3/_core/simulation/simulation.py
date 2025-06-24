@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from tqdm import tqdm
 
-from ..base import BeamPhysicsRelevant, Preparable
+from ..base import BeamPhysicsRelevant, Preparable, HasPropertyCache
 from ..base import DynamicParameter
 from ..helpers import find_instances_with_method, int_from_float_with_warning
 from ..ring.helpers import get_elements, get_init_order
@@ -26,7 +26,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from ...handle_results.observables import Observables
 
 
-class Simulation(Preparable):
+class Simulation(Preparable, HasPropertyCache):
     def __init__(
         self,
         ring: Ring,
@@ -59,12 +59,7 @@ class Simulation(Preparable):
 
     def _exec_all_in_tree(self, method: str, **kwargs):
         instances = find_instances_with_method(self, f"{method}")
-        for instance in instances:
-            print(type(instance), instance)
-        print()
         ordered_classes = get_init_order(instances, f"{method}.requires")
-        for class_ in ordered_classes:
-            print(class_)
 
         classes_check = set()
         for ins in instances:
@@ -76,11 +71,9 @@ class Simulation(Preparable):
             for element in instances:
                 if not type(element).__name__ == cls:
                     continue
-                print(element, kwargs)
                 getattr(element, method)(**kwargs)
 
     def _exec_on_init_simulation(self):
-        print("_exec_on_init_simulation")
 
         self._exec_all_in_tree("on_init_simulation", simulation=self)
 
@@ -143,18 +136,23 @@ class Simulation(Preparable):
     def print_one_turn_execution_order(self) -> None:
         self._ring.elements.print_order()
 
+    cached_properties = (
+        "get_separatrix",
+        "get_potential_well",
+        "get_hash",
+    )
+
     def invalidate_cache(
         self,
         # turn i needed to be
         # compatible with subscription
         turn_i: int,
     ) -> None:
-        self.__dict__.pop("get_separatrix", None)
-        self.__dict__.pop("get_potential_well", None)
-        self.__dict__.pop("get_hash", None)
+        super().invalidate_cache(Simulation.cached_properties)
 
-    def on_prepare_beam(self, preparation_routine: MatchingRoutine, turn_i: int = 0) -> None:
-        print("on_prepare_beam")
+    def on_prepare_beam(
+        self, preparation_routine: MatchingRoutine, turn_i: int = 0
+    ) -> None:
         self.turn_i.value = turn_i
         preparation_routine.on_prepare_beam(simulation=self)
 
@@ -171,6 +169,7 @@ class Simulation(Preparable):
             n_turns=n_turns,
             turn_i_init=turn_i_init,
         )
+        del self.observe
         if len(self._beams) == 1:
             self._run_simulation_single_beam(
                 n_turns=n_turns,
