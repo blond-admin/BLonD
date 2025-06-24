@@ -12,7 +12,6 @@ from ..physics.cavities import SingleHarmonicCavity
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional
 
-
     from .._core.simulation.simulation import Simulation
     from .._core.beam.base import BeamBaseClass
     from .. import RfStationParams
@@ -45,12 +44,12 @@ def _get_dE_from_dt(simulation: Simulation, dt_amplitude: float) -> float:
 
     counter = simulation.turn_i.value  # todo might need to be set
 
-    harmonic = rf_station_program.harmonic[0,counter]
+    harmonic = rf_station_program.harmonic[0, counter]
     energy = simulation.energy_cycle.energy[0, counter]
     beta = simulation.energy_cycle.beta[0, counter]
     omega_rf = rf_station_program.omega_rf[0, counter]
     phi_rf = rf_station_program.phi_rf[0, counter]
-    phi_s = np.deg2rad(30+180) # TODO rf_station.phi_s[counter]
+    phi_s = np.deg2rad(30 + 180)  # TODO rf_station.phi_s[counter]
     eta0 = drift.eta_0[counter]
 
     # RF wave is shifted by Pi below transition
@@ -58,9 +57,10 @@ def _get_dE_from_dt(simulation: Simulation, dt_amplitude: float) -> float:
         phi_rf -= np.pi
 
     # Calculate dE_amplitude from dt_amplitude using single-harmonic Hamiltonian
-    voltage = simulation.beams[
-        0
-    ].particle_type.charge * rf_station_program.voltage[0,counter]
+    voltage = (
+        simulation.beams[0].particle_type.charge
+        * rf_station_program.voltage[0, counter]
+    )
     eta0 = drift.eta_0[counter]
 
     phi_b = omega_rf * dt_amplitude + phi_s
@@ -99,17 +99,19 @@ class BiGaussian(MatchingRoutine):
         drift: DriftSimple = simulation.ring.elements.get_element(DriftSimple)
 
         if self._sigma_dE is None:
-            sigma_dE = _get_dE_from_dt(simulation=simulation, dt_amplitude=self._sigma_dt)
+            sigma_dE = _get_dE_from_dt(
+                simulation=simulation, dt_amplitude=self._sigma_dt
+            )
             # IMPORT
         else:
             sigma_dE = self._sigma_dE
         counter = simulation.turn_i.value  # todo might need to be set
 
-        omega_rf = rf_station.rf_program.omega_rf[0,counter]
-        phi_rf = rf_station.rf_program.phi_rf[0,counter]
-        phi_s = np.deg2rad(30+180) # TODO rf_station.phi_s[counter]  # TODO
+        omega_rf = rf_station.rf_program.omega_rf[0, counter]
+        phi_rf = rf_station.rf_program.phi_rf[0, counter]
+        phi_s = np.deg2rad(30 + 180)  # TODO rf_station.phi_s[counter]  # TODO
         # call to
-            # legacy
+        # legacy
         eta0 = drift.eta_0[counter]
 
         # RF wave is shifted by Pi below transition
@@ -128,17 +130,14 @@ class BiGaussian(MatchingRoutine):
             )
             + (phi_s - phi_rf) / omega_rf
         )
-        dE = sigma_dE * rng_dE.normal(
-            size=beam._n_macroparticles__init).astype(
+        dE = sigma_dE * rng_dE.normal(size=beam._n_macroparticles__init).astype(
             dtype=backend.float, order="C"
         )
 
         # Re-insert if necessary
         if self._reinsertion:
             while True:
-                sel = (
-                    is_in_separatrix(ring, rf_station, beam, dt, dE) == False
-                )
+                sel = is_in_separatrix(ring, rf_station, beam, dt, dE) == False
 
                 n_new = np.sum(sel)
                 if n_new == 0:
@@ -154,4 +153,4 @@ class BiGaussian(MatchingRoutine):
                 dE[sel] = sigma_dE * rng_dE.normal(size=n_new).astype(
                     dtype=backend.float, order="C"
                 )
-        beam.setup_beam(dt=dt,dE=dE)
+        beam.setup_beam(dt=dt, dE=dE)

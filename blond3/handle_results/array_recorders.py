@@ -36,7 +36,6 @@ class ArrayRecorder(ABC):
         pass
 
 
-
 class DenseArrayRecorder(ArrayRecorder):
     def __init__(
         self,

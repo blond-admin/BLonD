@@ -17,7 +17,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from ..._core.beam.base import BeamBaseClass
 
 
-
 class WakeFieldSolver:
     @abstractmethod
     def on_wakefield_init_simulation(
@@ -68,7 +67,7 @@ class Impedance(BeamPhysicsRelevant):
         pass
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        from ..profiles import ProfileBaseClass # prevent cyclic import
+        from ..profiles import ProfileBaseClass  # prevent cyclic import
 
         if self._profile is None:
             profiles = simulation.ring.elements.get_elements(

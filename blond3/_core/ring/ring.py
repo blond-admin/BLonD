@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
     from ..simulation.simulation import Simulation
 
+
 class Ring(Preparable):
     _bending_radius: np.float32 | np.float64
 
@@ -76,7 +77,7 @@ class Ring(Preparable):
             self.elements.reorder()
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        from ...physics.drifts import DriftBaseClass # prevent cyclic import
+        from ...physics.drifts import DriftBaseClass  # prevent cyclic import
 
         all_drifts = self.elements.get_elements(DriftBaseClass)
         sum_share_of_circumference = sum(

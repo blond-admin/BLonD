@@ -44,7 +44,6 @@ class DriftBaseClass(BeamPhysicsRelevant, ABC):
 
 
 class DriftSimple(DriftBaseClass):
-
     def __init__(
         self,
         transition_gamma: float | Iterable,
@@ -65,8 +64,7 @@ class DriftSimple(DriftBaseClass):
     def on_init_simulation(self, simulation: Simulation) -> None:
         cycle: EnergyCycle = simulation.energy_cycle
         self._eta_0 = np.ascontiguousarray(
-            self.alpha_0
-            - cycle.gamma[self.section_index, :] ** (-2.0),
+            self.alpha_0 - cycle.gamma[self.section_index, :] ** (-2.0),
             dtype=backend.float,
         )
         self._simulation = simulation

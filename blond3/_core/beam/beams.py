@@ -53,9 +53,9 @@ class Beam(BeamBaseClass):
         self._dt = dt.astype(backend.float)
         self._flags = flags.astype(backend.int)
 
-
-    def on_run_simulation(self, simulation: Simulation, n_turns: int,
-                          turn_i_init: int) -> None:
+    def on_run_simulation(
+        self, simulation: Simulation, n_turns: int, turn_i_init: int
+    ) -> None:
         pass
 
     @property
@@ -89,6 +89,7 @@ class Beam(BeamBaseClass):
         if "bins" not in kwargs.keys():
             kwargs["bins"] = 256
         plt.hist2d(self._dt, self._dE, **kwargs)
+
 
 class WeightenedBeam(Beam):
     def __init__(

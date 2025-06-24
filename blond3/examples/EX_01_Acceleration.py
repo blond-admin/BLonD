@@ -40,8 +40,9 @@ sim.print_one_turn_execution_order()
 
 
 sim.on_prepare_beam(
-    preparation_routine=BiGaussian(sigma_dt=0.4e-9 / 4, sigma_dE=1e9/4,
-                                   reinsertion=False, seed=1)
+    preparation_routine=BiGaussian(
+        sigma_dt=0.4e-9 / 4, sigma_dE=1e9 / 4, reinsertion=False, seed=1
+    )
 )
 
 # sim.beams[0].plot_hist2d()
@@ -59,14 +60,18 @@ def my_callback(simulation: Simulation):
         simulation.beams[0].read_partial_dt(), simulation.beams[0].read_partial_dE()
     )
     plt.draw()
-    plt.pause(.1)
+    plt.pause(0.1)
     plt.clf()
 
 
 try:
-    sim.load_results(turn_i_init=0, n_turns=N_TURNS, observe=[
-        phase_observation])
+    sim.load_results(turn_i_init=0, n_turns=N_TURNS, observe=[phase_observation])
 except FileNotFoundError as exc:
-    sim.run_simulation(turn_i_init=0, n_turns=N_TURNS, observe=[phase_observation], callback=my_callback)
+    sim.run_simulation(
+        turn_i_init=0,
+        n_turns=N_TURNS,
+        observe=[phase_observation],
+        callback=my_callback,
+    )
 plt.plot(phase_observation.phases)
 plt.show()

@@ -51,14 +51,18 @@ class BeamPhysicsRelevantElements:
         print(sep)
         print("Execution order")
         print("---------------")
-        print(f"{'element.name':40s} {'type':20s} "
-              f"{('section_index'):13s} {'filtered_dict'}")
+        print(
+            f"{'element.name':40s} {'type':20s} "
+            f"{('section_index'):13s} {'filtered_dict'}"
+        )
         for element in self.elements:
             filtered_dict = {
                 k: v
                 for k, v in element.__dict__.items()
                 if (not k.startswith("_")) and (k != "name")
             }
-            print(f"{element.name:40s} {(type(element).__name__):20s} "
-                  f"{str(element.section_index):13s} {filtered_dict}")
+            print(
+                f"{element.name:40s} {(type(element).__name__):20s} "
+                f"{str(element.section_index):13s} {filtered_dict}"
+            )
         print(sep)

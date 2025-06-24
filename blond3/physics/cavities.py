@@ -32,7 +32,7 @@ class CavityBaseClass(BeamPhysicsRelevant, ABC):
         self._local_wakefield = local_wakefield
         self._turn_i: LateInit[DynamicParameter] = None
         self._n_rf = n_rf
-        self._energy_cycle : LateInit[EnergyCycle] = None
+        self._energy_cycle: LateInit[EnergyCycle] = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         assert self._rf_program is not None
@@ -82,8 +82,10 @@ class SingleHarmonicCavity(CavityBaseClass):
             voltage=self._rf_program.voltage[0, self._turn_i.value],
             omega_rf=self._rf_program.omega_rf[0, self._turn_i.value],
             phi_rf=self._rf_program.phi_rf[0, self._turn_i.value],
-            charge=backend.float(beam.particle_type.charge), #  FIXME
-            acceleration_kick=-self._energy_cycle.delta_E[self.section_index, self._turn_i.value],
+            charge=backend.float(beam.particle_type.charge),  #  FIXME
+            acceleration_kick=-self._energy_cycle.delta_E[
+                self.section_index, self._turn_i.value
+            ],
         )
 
 

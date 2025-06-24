@@ -83,4 +83,3 @@ def find_instances_with_method(root: Any, method_name: str):
 
     walk(root)
     return found
-
