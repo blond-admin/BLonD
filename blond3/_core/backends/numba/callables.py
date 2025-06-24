@@ -1,16 +1,17 @@
+from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numba
 import numpy as np
 from numba import njit, prange
-from cupy.typing import NDArray as CupyArray
-from numpy._typing import NDArray as NumpyArray
+
 
 from ..backend import backend
 from ..backend import Specials
 
 if TYPE_CHECKING:  # pragma: no cover
-    pass
+    from cupy.typing import NDArray as CupyArray
+    from numpy._typing import NDArray as NumpyArray
 
 from ..python.callables import PythonSpecials
 

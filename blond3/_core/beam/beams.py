@@ -4,7 +4,6 @@ from typing import Optional as LateInit, TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.pyplot import viridis
 
 from .base import BeamBaseClass, BeamFlags
 from ..backends.backend import backend

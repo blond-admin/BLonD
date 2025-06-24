@@ -3,13 +3,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
-from cupy.typing import NDArray as CupyArray
 
 from ..backend import Specials
 
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
+    from cupy.typing import NDArray as CupyArray
 
 
 class PythonSpecials(Specials):
