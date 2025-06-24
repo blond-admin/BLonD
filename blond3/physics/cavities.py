@@ -79,9 +79,9 @@ class SingleHarmonicCavity(CavityBaseClass):
         backend.specials.kick_single_harmonic(
             dt=beam.read_partial_dt(),
             dE=beam.write_partial_dE(),
-            voltage=self._rf_program.phi_rf[0, self._turn_i.value],
-            omega_rf=self._rf_program.voltage[0, self._turn_i.value],
-            phi_rf=self._rf_program.omega_rf[0, self._turn_i.value],
+            voltage=self._rf_program.voltage[0, self._turn_i.value],
+            omega_rf=self._rf_program.omega_rf[0, self._turn_i.value],
+            phi_rf=self._rf_program.phi_rf[0, self._turn_i.value],
             charge=backend.float(beam.particle_type.charge), #  FIXME
             acceleration_kick=-self._energy_cycle.delta_E[self.section_index, self._turn_i.value],
         )

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 import numpy as np
 from tqdm import tqdm
@@ -74,7 +74,6 @@ class Simulation(Preparable, HasPropertyCache):
                 getattr(element, method)(**kwargs)
 
     def _exec_on_init_simulation(self):
-
         self._exec_all_in_tree("on_init_simulation", simulation=self)
 
     def _exec_on_run_simulation(self, n_turns: int, turn_i_init: int):
@@ -162,6 +161,7 @@ class Simulation(Preparable, HasPropertyCache):
         turn_i_init: int = 0,
         observe: Tuple[Observables, ...] = tuple(),
         show_progressbar: bool = True,
+        callback: Callable[[Simulation], None] = None,
     ) -> None:
         n_turns = int_from_float_with_warning(n_turns, warning_stacklevel=2)
         assert turn_i_init + n_turns <= self.energy_cycle.n_turns
@@ -177,6 +177,7 @@ class Simulation(Preparable, HasPropertyCache):
                 turn_i_init=turn_i_init,
                 observe=observe,
                 show_progressbar=show_progressbar,
+                callback=callback,
             )
         elif len(self._beams) == 2:
             assert (
@@ -191,6 +192,7 @@ class Simulation(Preparable, HasPropertyCache):
                 turn_i_init=turn_i_init,
                 observe=observe,
                 show_progressbar=show_progressbar,
+                callback=callback,
             )
 
     def _run_simulation_single_beam(
@@ -199,6 +201,7 @@ class Simulation(Preparable, HasPropertyCache):
         turn_i_init: int = 0,
         observe: Tuple[Observables, ...] = tuple(),
         show_progressbar: bool = True,
+        callback: Callable[[Simulation], None] = None,
     ) -> None:
         iterator = range(turn_i_init, turn_i_init + n_turns)
         if show_progressbar:
@@ -213,6 +216,8 @@ class Simulation(Preparable, HasPropertyCache):
             for observable in observe:
                 if observable.is_active_this_turn(turn_i=self.turn_i.value):
                     observable.update(simulation=self)
+            if callback is not None:
+                callback(self)
 
         # reset counters to uninitialized again
         self.turn_i.value = None
@@ -324,6 +329,7 @@ class Simulation(Preparable, HasPropertyCache):
         n_turns: int,
         turn_i_init: int = 0,
         observe: Tuple[Observables, ...] = tuple(),
+        callback: Callable[[Simulation], None] = None,
     ) -> SimulationResults:
         raise FileNotFoundError()
         return

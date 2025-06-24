@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Type, Union
+from typing import TYPE_CHECKING, Type, Union, Literal
 
 import numpy as np
 
@@ -15,7 +15,6 @@ class Specials(ABC):
     @abstractmethod
     def loss_box(self, a, b, c, d) -> None:  # TODO
         pass
-
 
     @staticmethod
     @abstractmethod
@@ -126,7 +125,14 @@ class NumpyBackend(BackendBaseClass):
         self.array = np.array
         self.gradient = np.gradient
 
-    def set_specials(self, mode):
+    def set_specials(
+        self,
+        mode: Literal[
+            "python",
+            "cpp",
+            "numba",
+        ],
+    ):
         if mode == "python":
             from .python.callables import PythonSpecials
 
