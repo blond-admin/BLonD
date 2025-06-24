@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from ..base import BeamPhysicsRelevant, Preparable
 from ..base import DynamicParameter
-from ..helpers import find_instances_with_method
+from ..helpers import find_instances_with_method, int_from_float_with_warning
 from ..ring.helpers import get_elements, get_init_order
 from ...cycles.energy_cycle import EnergyCycle
 from ...physics.drifts import DriftBaseClass
@@ -21,9 +21,8 @@ if TYPE_CHECKING:  # pragma: no cover
     )
     from numpy.typing import NDArray as NumpyArray
     from ..beam.base import BeamBaseClass
-    from ...beam_preparation.base import MatchingRoutine
-
     from ..ring.ring import Ring
+    from ...beam_preparation.base import MatchingRoutine
     from ...handle_results.observables import Observables
 
 
@@ -96,7 +95,7 @@ class Simulation(Preparable):
         )
 
     @staticmethod
-    def from_locals(locals: dict):
+    def from_locals(locals: dict) -> Simulation:
         from ..beam.base import BeamBaseClass  # prevent cyclic import
         from ..ring.ring import Ring  # prevent cyclic import
 
@@ -118,11 +117,11 @@ class Simulation(Preparable):
         return sim
 
     @property  # as readonly attributes
-    def ring(self):
+    def ring(self) -> Ring:
         return self._ring
 
     @property  # as readonly attributes
-    def beams(self):
+    def beams(self) -> Tuple[BeamBaseClass, ...]:
         return self._beams
 
     @property  # as readonly attributes
@@ -141,7 +140,7 @@ class Simulation(Preparable):
     def get_hash(self):
         return None
 
-    def print_one_turn_execution_order(self):
+    def print_one_turn_execution_order(self) -> None:
         self._ring.elements.print_order()
 
     def invalidate_cache(
@@ -149,12 +148,12 @@ class Simulation(Preparable):
         # turn i needed to be
         # compatible with subscription
         turn_i: int,
-    ):
+    ) -> None:
         self.__dict__.pop("get_separatrix", None)
         self.__dict__.pop("get_potential_well", None)
         self.__dict__.pop("get_hash", None)
 
-    def on_prepare_beam(self, preparation_routine: MatchingRoutine, turn_i: int = 0):
+    def on_prepare_beam(self, preparation_routine: MatchingRoutine, turn_i: int = 0) -> None:
         print("on_prepare_beam")
         self.turn_i.value = turn_i
         preparation_routine.on_prepare_beam(simulation=self)
@@ -166,6 +165,8 @@ class Simulation(Preparable):
         observe: Tuple[Observables, ...] = tuple(),
         show_progressbar: bool = True,
     ) -> None:
+        n_turns = int_from_float_with_warning(n_turns, warning_stacklevel=2)
+        self.observe = observe
         self._exec_on_run_simulation(
             n_turns=n_turns,
             turn_i_init=turn_i_init,

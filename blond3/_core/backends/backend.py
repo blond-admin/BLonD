@@ -16,6 +16,20 @@ class Specials(ABC):
     def loss_box(self, a, b, c, d) -> None:  # TODO
         pass
 
+
+    @staticmethod
+    @abstractmethod
+    def kick_single_harmonic(
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        voltage: float,
+        omega_rf: float,
+        phi_rf: float,
+        charge: float,
+        acceleration_kick: float,
+    ):
+        pass
+
     @staticmethod
     @abstractmethod
     def kick_multi_harmonic(
@@ -171,4 +185,4 @@ class Cupy64Bit(CupyBackend):
 
 
 default = Numpy32Bit()  # use .change_backend(...) to change it anywhere
-backend = default
+backend: Numpy32Bit = default

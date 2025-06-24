@@ -73,7 +73,7 @@ class Beam(BeamBaseClass):
 
     @property
     def common_array_size(self) -> int:
-        pass
+        return len(self._dt)
 
     def invalidate_cache_dE(self) -> None:
         pass

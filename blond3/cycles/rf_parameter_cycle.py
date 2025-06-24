@@ -67,6 +67,12 @@ class RfStationParams(RfParameterCycle):
         self.phi_noise: Optional[NumpyArray[backend.float]] = None
         self.phi_modulation: Optional[NumpyArray] = None
 
+        self.noise_feedback = None  # TODO it is not clear if they should be
+        # here
+        self.beam_feedback = None  # TODO it is not clear if they should be here
+        self.cavity_feedback = None  # TODO it is not clear if they should be
+        # here
+
     @requires(["EnergyCycle"])
     def on_init_simulation(self, simulation: Simulation) -> None:
         print("on_init_simulation rfstation")
@@ -205,8 +211,8 @@ class RfStationParams(RfParameterCycle):
         turn = self._simulation.turn_i.value
         # Add phase noise directly to the cavity RF phase
         if self.phi_noise is not None:
-            if self.noiseFB is not None:
-                self.phi_rf[:, turn] += self.noiseFB.x * self.phi_noise[:, turn]
+            if self.noise_feedback is not None:
+                self.phi_rf[:, turn] += self.noise_feedback.x * self.phi_noise[:, turn]
             else:
                 self.phi_rf[:, turn] += self.phi_noise[:, turn]
 

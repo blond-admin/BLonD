@@ -83,7 +83,7 @@ class DriftSimple(DriftBaseClass):
     def track(self, beam: BeamBaseClass):
         current_turn_i = self._simulation.turn_i.value
 
-        backend.drift_simple(
+        backend.specials.drift_simple(
             dt=beam.write_partial_dt(),
             dE=beam.read_partial_dE(),
             t_rev=self._simulation.energy_cycle.t_rev[current_turn_i],

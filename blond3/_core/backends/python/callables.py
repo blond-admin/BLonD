@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
+from cupy.typing import NDArray as CupyArray
 
 from ..backend import Specials
 
@@ -14,6 +15,20 @@ class PythonSpecials(Specials):
     @staticmethod
     def loss_box(self, a, b, c, d) -> None:
         raise NotImplementedError
+
+    @staticmethod
+    def kick_single_harmonic(
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        voltage: float,
+        omega_rf: float,
+        phi_rf: float,
+        charge: float,
+        acceleration_kick: float,
+    ):
+        voltage_kick = charge * voltage
+
+        dE[:] += voltage_kick * np.sin(omega_rf * dt + phi_rf) + acceleration_kick
 
     @staticmethod
     def kick_multi_harmonic(

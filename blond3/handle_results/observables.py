@@ -106,16 +106,16 @@ class BunchObservation(Observables):
             simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
         )
         n_entries = n_turns // self.each_turn_i
-        n_particles = simulation.ring.beams[0].common_array_size
-        shape = (n_particles, n_entries)
+        n_particles = simulation.beams[0].common_array_size
+        shape = (n_entries, n_particles)
         self._dts = DenseArrayRecorder(f"{simulation.get_hash}_dts", shape)
         self._dEs = DenseArrayRecorder(f"{simulation.get_hash}_dEs", shape)
         self._flags = DenseArrayRecorder(f"{simulation.get_hash}_flags", shape)
 
     def update(self, simulation: Simulation):
-        self._dts.write(simulation.ring.beams[0]._dt)
-        self._dEs.write(simulation.ring.beams[0]._dE)
-        self._flags.write(simulation.ring.beams[0]._flags)
+        self._dts.write(simulation.beams[0]._dt)
+        self._dEs.write(simulation.beams[0]._dE)
+        self._flags.write(simulation.beams[0]._flags)
 
     @property  # as readonly attributes
     def dts(self):
@@ -153,15 +153,17 @@ class CavityPhaseObservation(Observables):
             simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
         )
         n_entries = n_turns // self.each_turn_i
-        self._phases = DenseArrayRecorder(f"{simulation.get_hash}_phases", n_entries)
+        n_harmonics = self._cavity.rf_program.phi_rf.shape[0]
+        self._phases = DenseArrayRecorder(
+            f"{simulation.get_hash}_phases", (n_entries, n_harmonics)
+        )
 
     def update(self, simulation: Simulation):
-        self._phases.write(self._cavity._rf_program.get_phase(simulation.turn_i.value))
+        self._phases.write(self._cavity._rf_program.phi_rf[:, simulation.turn_i.value])
 
     @property  # as readonly attributes
     def phases(self):
         return self._phases.get_valid_entries()
-
 
     def to_disk(self) -> None:
         key = self._hash
