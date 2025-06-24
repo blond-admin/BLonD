@@ -164,6 +164,7 @@ class Simulation(Preparable, HasPropertyCache):
         show_progressbar: bool = True,
     ) -> None:
         n_turns = int_from_float_with_warning(n_turns, warning_stacklevel=2)
+        assert turn_i_init + n_turns <= self.energy_cycle.n_turns
         self.observe = observe
         self._exec_on_run_simulation(
             n_turns=n_turns,

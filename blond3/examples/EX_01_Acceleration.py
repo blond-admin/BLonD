@@ -25,7 +25,7 @@ cavity1 = SingleHarmonicCavity(
     rf_program=RfStationParams(harmonic=35640, voltage=6e6, phi_rf=0)
 )
 
-N_TURNS = int(1e3)
+N_TURNS = int(1e6)
 energy_cycle = EnergyCycle(synchronous_data=np.linspace(450e9, 1.5e12,
                                                         N_TURNS + 1))
 
