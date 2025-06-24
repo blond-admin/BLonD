@@ -13,7 +13,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from ..simulation.simulation import Simulation
 
     from numpy.typing import NDArray as NumpyArray
-    from cupy.typing import NDArray as CupyArrayprint(
+    from cupy.typing import NDArray as CupyArray
 
 
 class BeamFlags(int, Enum):
