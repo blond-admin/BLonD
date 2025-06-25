@@ -45,7 +45,7 @@ cavity1 = SingleHarmonicCavity(
     ),
 )
 energy_cycle = EnergyCycle.from_linspace(450.0e9, 450.0e9, 200)
-beam = Beam(n_macroparticles=1001, n_particles=1.0e9, particle_type=proton)
+beam = Beam(n_particles=1.0e9, particle_type=proton)
 profile = DynamicProfileConstNBins(n_bins=100)
 losses = BoxLosses(t_min=0, t_max=2.5e-9)
 losses2 = SeparatrixLosses()

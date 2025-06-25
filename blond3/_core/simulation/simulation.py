@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from functools import cached_property
 from typing import TYPE_CHECKING, Callable
 
@@ -22,9 +23,10 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
     from ..beam.base import BeamBaseClass
     from ..ring.ring import Ring
-    from ...beam_preparation.base import MatchingRoutine
+    from ...beam_preparation.base import BeamPreparationRoutine
     from ...handle_results.observables import Observables
 
+logger = logging.getLogger(__name__)
 
 class Simulation(Preparable, HasPropertyCache):
     def __init__(
@@ -49,6 +51,31 @@ class Simulation(Preparable, HasPropertyCache):
 
         self._exec_on_init_simulation()
 
+    def profiling(self, turn_i_init: int, profile_start_turn_i: int, n_turns: int):
+        import cProfile, pstats, io
+        from pstats import SortKey
+
+        pr = cProfile.Profile()
+
+        def my_callback(simulation: Simulation):
+
+            if simulation.turn_i.value == profile_start_turn_i:
+                pr.enable()
+        end_turn = profile_start_turn_i + n_turns
+        self.run_simulation(
+            n_turns=end_turn - turn_i_init,
+            turn_i_init=turn_i_init,
+            show_progressbar=False,
+            callback=my_callback,
+        )
+
+        pr.disable()
+        s = io.StringIO()
+        sortby = SortKey.CUMULATIVE
+        ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+        ps.print_stats()
+        print(s.getvalue())
+
     def on_init_simulation(self, simulation: Simulation) -> None:
         pass
 
@@ -58,7 +85,9 @@ class Simulation(Preparable, HasPropertyCache):
         pass
 
     def _exec_all_in_tree(self, method: str, **kwargs):
+        logger.debug(f"Calling all {method}({kwargs}) in {self}")
         instances = find_instances_with_method(self, f"{method}")
+        logger.debug(f"Found {instances} to be initialized")
         ordered_classes = get_init_order(instances, f"{method}.requires")
 
         classes_check = set()
@@ -66,11 +95,13 @@ class Simulation(Preparable, HasPropertyCache):
             classes_check.add(type(ins))
         assert len(classes_check) == len(ordered_classes), "BUG"
         ordered_classes.pop(ordered_classes.index("ABCMeta"))
+        logger.info(f"Execution order for `{method}` is {ordered_classes}")
 
         for cls in ordered_classes:
             for element in instances:
                 if not type(element).__name__ == cls:
                     continue
+                logger.info(f"Running `{method}` of {element}")
                 getattr(element, method)(**kwargs)
 
     def _exec_on_init_simulation(self):
@@ -88,10 +119,12 @@ class Simulation(Preparable, HasPropertyCache):
 
     @staticmethod
     def from_locals(locals: dict) -> Simulation:
+
         from ..beam.base import BeamBaseClass  # prevent cyclic import
         from ..ring.ring import Ring  # prevent cyclic import
 
         locals_list = locals.values()
+        logger.debug(f"Found {locals.keys()}")
         _rings = get_elements(locals_list, Ring)
         assert len(_rings) == 1, f"Found {len(_rings)} rings"
         ring = _rings[0]
@@ -105,7 +138,12 @@ class Simulation(Preparable, HasPropertyCache):
         elements = get_elements(locals_list, BeamPhysicsRelevant)
         ring.add_elements(elements=elements, reorder=True)
 
+        logger.debug(f"{ring=}")
+        logger.debug(f"{beams=}")
+        logger.debug(f"{elements=}")
+
         sim = Simulation(ring=ring, beams=beams, energy_cycle=energy_cycle)
+        logger.info(sim.ring.elements.get_order_info())
         return sim
 
     @property  # as readonly attributes
@@ -150,8 +188,9 @@ class Simulation(Preparable, HasPropertyCache):
         super().invalidate_cache(Simulation.cached_properties)
 
     def on_prepare_beam(
-        self, preparation_routine: MatchingRoutine, turn_i: int = 0
+        self, preparation_routine: BeamPreparationRoutine, turn_i: int = 0
     ) -> None:
+        logger.info("Running `on_prepare_beam`")
         self.turn_i.value = turn_i
         preparation_routine.on_prepare_beam(simulation=self)
 
@@ -163,6 +202,7 @@ class Simulation(Preparable, HasPropertyCache):
         show_progressbar: bool = True,
         callback: Callable[[Simulation], None] = None,
     ) -> None:
+        logger.info(f"Running `run_simulation` with {locals()}")
         n_turns = int_from_float_with_warning(n_turns, warning_stacklevel=2)
         assert turn_i_init + n_turns <= self.energy_cycle.n_turns
         self.observe = observe
@@ -203,6 +243,7 @@ class Simulation(Preparable, HasPropertyCache):
         show_progressbar: bool = True,
         callback: Callable[[Simulation], None] = None,
     ) -> None:
+        logger.info("Starting simulation mainloop..")
         iterator = range(turn_i_init, turn_i_init + n_turns)
         if show_progressbar:
             iterator = tqdm(iterator)  # Add TQDM display to iteration

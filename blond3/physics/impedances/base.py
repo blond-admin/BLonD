@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 from ..._core.backends.backend import backend
 from ..._core.base import BeamPhysicsRelevant
+from ..._core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional as LateInit, Tuple, Optional
@@ -39,7 +41,7 @@ class TimeDomain(ABC):
 
 class FreqDomain(ABC):
     @abstractmethod
-    def get_freq_y(self, freq_x: NumpyArray) -> NumpyArray:
+    def get_freq_y(self, freq_x: NumpyArray, sim: Simulation) -> NumpyArray:
         pass
 
 
@@ -59,13 +61,17 @@ class Impedance(BeamPhysicsRelevant):
         self._profile = profile
 
     @property  # as readonly attributes
-    def profile(self):
+    def profile(self) -> ProfileBaseClass:
         return self._profile
 
     @abstractmethod
     def calc_induced_voltage(self) -> NumpyArray | CupyArray:
         pass
 
+    def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int):
+        pass
+
+    @requires(["Ring"])
     def on_init_simulation(self, simulation: Simulation) -> None:
         from ..profiles import ProfileBaseClass  # prevent cyclic import
 
@@ -97,6 +103,7 @@ class WakeField(Impedance):
         self.solver = solver
         self.sources = sources
 
+    @requires(["EnergyCycle"])
     def on_init_simulation(self, simulation: Simulation) -> None:
         super().on_init_simulation(simulation=simulation)
         assert len(self.sources) > 0, "Provide for at least one `WakeFieldSource`"
@@ -109,6 +116,8 @@ class WakeField(Impedance):
 
     def track(self, beam: BeamBaseClass) -> None:
         induced_voltage = self.calc_induced_voltage()
-        backend.kick_induced(
-            beam.read_partial_dt(), beam.read_partial_dE(), induced_voltage
-        )
+        warnings.warn("kick_induced") # TODO
+        if False:
+            backend.kick_induced(
+                beam.read_partial_dt(), beam.read_partial_dE(), induced_voltage
+            )

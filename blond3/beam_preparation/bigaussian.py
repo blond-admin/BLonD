@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from os import PathLike
 from typing import TYPE_CHECKING
 
 import numpy as np
 
-from .base import MatchingRoutine
+from .base import MatchingRoutine, BeamPreparationRoutine
 from .._core.backends.backend import backend
 from ..physics.drifts import DriftSimple
 from ..physics.cavities import SingleHarmonicCavity
@@ -78,12 +79,14 @@ def _get_dE_from_dt(simulation: Simulation, dt_amplitude: float) -> float:
 class BiGaussian(MatchingRoutine):
     def __init__(
         self,
+        n_macroparticles: int,
         sigma_dt: float,
         sigma_dE: Optional[float] = None,
         reinsertion: bool = False,
         seed: int = 0,
     ):
         super().__init__()
+        self.n_macroparticles = n_macroparticles
         self._sigma_dt = sigma_dt
         self._sigma_dE = sigma_dE
         self._reinsertion = reinsertion
@@ -125,12 +128,12 @@ class BiGaussian(MatchingRoutine):
 
         dt = (
             self._sigma_dt
-            * rng_dt.normal(size=beam._n_macroparticles__init).astype(
+            * rng_dt.normal(size=self.n_macroparticles).astype(
                 dtype=backend.float, order="C", copy=False
             )
             + (phi_s - phi_rf) / omega_rf
         )
-        dE = sigma_dE * rng_dE.normal(size=beam._n_macroparticles__init).astype(
+        dE = sigma_dE * rng_dE.normal(size=self.n_macroparticles).astype(
             dtype=backend.float, order="C"
         )
 

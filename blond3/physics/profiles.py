@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from abc import abstractmethod
-from functools import cached_property
+from functools import cached_property, lru_cache
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -28,6 +28,15 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         self._hist_y: LateInit[NumpyArray | CupyArray] = None
 
         self._beam_spectrum_buffer = {}
+
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        assert self._hist_x is not None
+        assert self._hist_y is not None
+        self.invalidate_cache()
+
+    def on_run_simulation(self, simulation: Simulation, n_turns: int,
+                          turn_i_init: int) -> None:
+        pass
 
     @property  # as readonly attributes
     def hist_x(self):
@@ -67,14 +76,11 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         if beam.is_distributed:
             raise NotImplementedError("Impleemt hisogram on distributed array")
         else:
-            backend.histogram(
-                beam.read_partial_dt(), self.cut_left, self.cut_right, self._hist_y
+            n, bin_edges = backend.histogram(
+                beam.read_partial_dt(), range=(self.cut_left, self.cut_right),
+                bins=len(self._hist_y)
             )
-        self.invalidate_cache()
-
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        assert self._hist_x is not None
-        assert self._hist_y is not None
+            self._hist_y[:] = n[:] # todo faster implementation, fix backend
         self.invalidate_cache()
 
     @staticmethod
@@ -98,14 +104,13 @@ class ProfileBaseClass(BeamPhysicsRelevant):
     def gauss_fit_params(self):
         return self._calc_gauss()
 
-    @cached_property
     def beam_spectrum(self, n_fft: int):
-        if n_fft in self._beam_spectrum_buffer.keys():
-            self._beam_spectrum_buffer = np.fft.irfft(self._hist_y, n_fft)
+        if n_fft not in self._beam_spectrum_buffer.keys():
+            self._beam_spectrum_buffer[n_fft] = np.fft.irfft(self._hist_y, n_fft)
         else:
             np.fft.irfft(self._hist_y, n_fft, out=self._beam_spectrum_buffer[n_fft])
 
-        return self._beam_spectrum_buffer
+        return self._beam_spectrum_buffer[n_fft]
 
     def invalidate_cache(self):
         for attribute in (
@@ -123,7 +128,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
 class StaticProfile(ProfileBaseClass):
     def __init__(self, cut_left: float, cut_right: float, n_bins: int):
         super().__init__()
-        self.hist_x, self.hist_y = ProfileBaseClass.get_arrays(
+        self._hist_x, self._hist_y = ProfileBaseClass.get_arrays(
             cut_left=cut_left, cut_right=cut_right, n_bins=n_bins
         )
 

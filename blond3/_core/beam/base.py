@@ -25,7 +25,6 @@ class BeamBaseClass(Preparable, ABC):
     def __init__(
         self,
         n_particles: int | float,
-        n_macroparticles: int | float,
         particle_type: ParticleType,
         is_counter_rotating: bool = False,
         is_distributed=False,
@@ -34,9 +33,6 @@ class BeamBaseClass(Preparable, ABC):
 
         self._n_particles__init = int_from_float_with_warning(
             n_particles, warning_stacklevel=2
-        )
-        self._n_macroparticles__init = int_from_float_with_warning(
-            n_macroparticles, warning_stacklevel=2
         )
         self._is_distributed = is_distributed
         self.particle_type = particle_type
@@ -62,7 +58,15 @@ class BeamBaseClass(Preparable, ABC):
     def is_counter_rotating(self):
         return self._is_counter_rotating
 
-    @abstractmethod
+    def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int):
+        msg = (
+            "Beam was not initialized. Did you forget to call "
+            "simulation.on_prepare_beam(...)?"
+        )
+        assert self._dt is not None, msg
+        assert self._dE is not None, msg
+        assert self._flags is not None, msg
+
     def on_init_simulation(self, simulation: Simulation) -> None:
         pass
 
@@ -107,6 +111,9 @@ class BeamBaseClass(Preparable, ABC):
     def invalidate_cache(self) -> None:
         self.invalidate_cache_dE()
         self.invalidate_cache_dt()
+
+    def n_macroparticles_partial(self):
+        return len(self._dE)
 
     def read_partial_dt(self):
         """Returns dt-array on current node (distributed computing ready)

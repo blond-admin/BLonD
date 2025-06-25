@@ -47,13 +47,16 @@ class BeamPhysicsRelevantElements:
         return len(self.get_elements(class_=class_))
 
     def print_order(self):
-        sep = 78 * "-"
-        print(sep)
-        print("Execution order")
-        print("---------------")
-        print(
+        print(self.get_order_info())
+    def get_order_info(self):
+        sep = 78 * "-" + "\n"
+        content = ""
+        content += (sep)
+        content += ("Execution order\n")
+        content += ("---------------\n")
+        content += (
             f"{'element.name':40s} {'type':20s} "
-            f"{('section_index'):13s} {'filtered_dict'}"
+            f"{('section_index'):13s} {'filtered_dict'}\n"
         )
         for element in self.elements:
             filtered_dict = {
@@ -61,8 +64,9 @@ class BeamPhysicsRelevantElements:
                 for k, v in element.__dict__.items()
                 if (not k.startswith("_")) and (k != "name")
             }
-            print(
+            content += (
                 f"{element.name:40s} {(type(element).__name__):20s} "
-                f"{str(element.section_index):13s} {filtered_dict}"
+                f"{str(element.section_index):13s} {filtered_dict}\n"
             )
-        print(sep)
+        content += (sep)
+        return content

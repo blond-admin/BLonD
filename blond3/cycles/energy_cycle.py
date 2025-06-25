@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable, TypeVar, Tuple
 
 import numpy as np
+from numpy.typing import ArrayLike
 
 from .base import ProgrammedCycle
 from .._core.backends.backend import backend
@@ -22,8 +23,6 @@ if TYPE_CHECKING:
 
 
 class EnergyCycle(ProgrammedCycle, HasPropertyCache):
-    from .. import Ring
-
     def __init__(self, synchronous_data: NumpyArray, synchronous_data_type="momentum"):
         super().__init__()
         self._synchronous_data = synchronous_data
@@ -35,15 +34,10 @@ class EnergyCycle(ProgrammedCycle, HasPropertyCache):
     @staticmethod
     def from_linspace(start, stop, turns, endpoint: bool = True):
         return EnergyCycle(
-            synchronous_data=backend.linspace(
+            synchronous_data=np.linspace(
                 start, stop, turns + 1, endpoint=endpoint, dtype=backend.float
             )
         )
-
-    def on_run_simulation(
-        self, simulation: Simulation, n_turns: int, turn_i_init: int
-    ) -> None:
-        self.invalidate_cache()
 
     @requires(["Ring"])
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -58,13 +52,18 @@ class EnergyCycle(ProgrammedCycle, HasPropertyCache):
                 for e in drifts
             ],
             synchronous_data=self._synchronous_data,
+            synchronous_data_type=self._synchronous_data_type,
             n_sections=len(cavities),
             alpha_0=np.nan,
             particle=simulation.beams[0].particle_type,
             n_turns=self.n_turns,
-            synchronous_data_type=self._synchronous_data_type,
             bending_radius=simulation.ring.bending_radius,
         )
+        self.invalidate_cache()
+
+    def on_run_simulation(
+        self, simulation: Simulation, n_turns: int, turn_i_init: int
+    ) -> None:
         self.invalidate_cache()
 
     @cached_property
@@ -122,3 +121,63 @@ class EnergyCycle(ProgrammedCycle, HasPropertyCache):
 
     def invalidate_cache(self):
         super().invalidate_cache(EnergyCycle.props)
+
+
+from scipy.constants import speed_of_light as c0
+
+T = TypeVar("T")
+
+
+def beta_by_momentum(momentum: T, mass: float) -> T:
+    return np.sqrt(1 / (1 + (mass / momentum) ** 2))
+
+
+def derive_time(
+    n_turns: int,
+    section_lengths: ArrayLike[float],
+    t0: float,
+    program_time: NumpyArray,
+    program_momentum: NumpyArray,
+    mass: float,
+    interpolate=np.interp,
+) -> Tuple[NumpyArray, NumpyArray]:
+    """Derive time at different sections for n_turns, given momentum(time)"""
+    times = np.empty((len(section_lengths), n_turns + 1))
+
+    t = t0
+    momentum = float(
+        interpolate(
+            x=t,
+            xp=program_time[:],
+            fp=program_momentum[:],
+            left=float(program_momentum[0]),
+            right=float(program_momentum[-1]),
+        )
+    )
+    beta = beta_by_momentum(momentum, mass)
+
+    all_sections = slice(0, len(section_lengths))
+    turn_i = 0
+    times[all_sections, turn_i] = t
+    del all_sections
+
+    # mini simulation based on the knowledge of which momentum is wanted
+    # at which moment in time.
+    # From this, one can use x=v*t linear motion
+    for turn_i in range(1, n_turns + 1):
+        for section_i, drift_length in enumerate(section_lengths):
+            dt = drift_length / beta
+            t += dt
+            momentum = float(
+                interpolate(
+                    x=t,
+                    xp=program_time[:],
+                    fp=program_momentum[:],
+                    left=float(program_momentum[0]),
+                    right=float(program_momentum[-1]),
+                )
+            )
+            beta = beta_by_momentum(momentum, mass)
+            times[section_i, turn_i] = t
+
+    return times

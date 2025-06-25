@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+import math
 from typing import TYPE_CHECKING
 
 import numba
@@ -66,7 +68,7 @@ class NumbaSpecials(Specials):
         pass
 
     @staticmethod
-    @njit(sig_kick_single_harmonic, parallel=True)
+    @njit(sig_kick_single_harmonic, parallel=True, fastmath=True)
     def kick_single_harmonic(
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
@@ -83,7 +85,7 @@ class NumbaSpecials(Specials):
             )
 
     @staticmethod
-    @njit(sig_drift_simple, parallel=True)
+    @njit(sig_drift_simple, parallel=True, fastmath=True)
     def drift_simple(
         dt: NumpyArray,
         dE: NumpyArray,

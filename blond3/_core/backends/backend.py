@@ -90,10 +90,12 @@ class Specials(ABC):
 
 class BackendBaseClass(ABC):
     def __init__(
-        self, float_: Union[np.float32, np.float64], int_: np.int32 | np.int64
+        self, float_: Union[np.float32, np.float64], int_: np.int32 | np.int64,
+            complex_:Union[np.complex128, np.complex64],
     ):
         self.float: Union[np.float32, np.float64] = float_
         self.int: np.int32 | np.int64 = int_
+        self.complex: np.complex128 | np.complex64 = complex_
 
         self.twopi = self.float(2 * np.pi)
 
@@ -104,6 +106,9 @@ class BackendBaseClass(ABC):
         # Callables
         self.array = None
         self.gradient = None
+        self.linspace = None
+        self.histogram = None
+        self.zeros = None
 
     def change_backend(
         self, new_backend: Type[Numpy32Bit, Numpy64Bit, Cupy32Bit, Cupy64Bit]
@@ -119,11 +124,16 @@ class BackendBaseClass(ABC):
 
 class NumpyBackend(BackendBaseClass):
     def __init__(
-        self, float_: Union[np.float32, np.float64], int_: np.int32 | np.int64
+        self, float_: Union[np.float32, np.float64], int_: np.int32 | np.int64,
+            complex_: Union[np.complex128, np.complex64],
+
     ):
-        super().__init__(float_, int_)
+        super().__init__(float_, int_,complex_)
         self.array = np.array
         self.gradient = np.gradient
+        self.linspace = np.linspace
+        self.histogram = np.histogram
+        self.zeros = np.zeros
 
     def set_specials(
         self,
@@ -151,12 +161,12 @@ class NumpyBackend(BackendBaseClass):
 
 class Numpy32Bit(NumpyBackend):
     def __init__(self):
-        super().__init__(np.float32, np.int32)
+        super().__init__(np.float32, np.int32, np.complex64)
 
 
 class Numpy64Bit(NumpyBackend):
     def __init__(self):
-        super().__init__(np.float64, np.int64)
+        super().__init__(np.float64, np.int64, np.complex128)
 
 
 class CupyBackend(BackendBaseClass):

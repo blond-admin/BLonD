@@ -37,7 +37,6 @@ class Main:
 
         my_beam = Beam(
             n_particles=1e6,
-            n_macroparticles=1e6,
             particle_type=proton,
         )
 
@@ -53,7 +52,8 @@ class Main:
         # Here everything might be interconnected
         simulation = Simulation(ring=my_accelerator)
         # Already minor simulation of single turn
-        simulation.prepare_beam(preparation_routine=EmittanceMatcher(some_emittance=10))
+        simulation.prepare_beam(preparation_routine=EmittanceMatcher(some_emittance=10       ,     n_macroparticles=1e6,
+))
         return simulation
 
     @staticmethod

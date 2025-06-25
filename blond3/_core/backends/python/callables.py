@@ -29,7 +29,7 @@ class PythonSpecials(Specials):
     ):
         voltage_kick = charge * voltage
 
-        dE[:] += voltage_kick * np.sin(omega_rf * dt + phi_rf) + acceleration_kick
+        dE[:] += voltage_kick * np.sin(omega_rf * dt[:] + phi_rf) + acceleration_kick
 
     @staticmethod
     def kick_multi_harmonic(

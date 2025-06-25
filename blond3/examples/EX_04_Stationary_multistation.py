@@ -55,7 +55,7 @@ dt_plt = 200  # Time steps between plots
 
 
 ring = Ring(circumference=C)
-beam = Beam(n_particles=N_b, n_macroparticles=N_p, particle_type=proton)
+beam = Beam(n_particles=N_b, particle_type=proton)
 one_turn_execution_order = (
     DriftSimple(transition_gamma=gamma_t, share_of_circumference=0.3, section_index=0),
     SingleHarmonicCavity(
@@ -76,7 +76,7 @@ one_turn_execution_order = (
 ring.add_elements(one_turn_execution_order, reorder=False)
 sim = Simulation(ring=ring, beams=(beam,), energy_cycle=energy_cycle)
 sim.prepare_beam(
-    preparation_routine=BiGaussian(rms_dt=tau_0 / 4, reinsertion=True, seed=1)
+    preparation_routine=BiGaussian(rms_dt=tau_0 / 4, reinsertion=True, seed=1, n_macroparticles=N_p)
 )
 profile_observable = ProfileObservation(each_turn_i=10)
 sim.run_simulation(observe=(profile_observable,))

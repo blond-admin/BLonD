@@ -22,19 +22,17 @@ class Beam(BeamBaseClass):
     def __init__(
         self,
         n_particles: int | float,
-        n_macroparticles: int | float,
         particle_type: ParticleType,
         is_counter_rotating: bool = False,
     ):
         super().__init__(
             n_particles=n_particles,
-            n_macroparticles=n_macroparticles,
             particle_type=particle_type,
             is_counter_rotating=is_counter_rotating,
         )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        pass
+        super().on_init_simulation(simulation=simulation)
 
     def setup_beam(
         self,
@@ -95,10 +93,9 @@ class WeightenedBeam(Beam):
     def __init__(
         self,
         n_particles: int | float,
-        n_macroparticles: int | float,
         particle_type: ParticleType,
     ):
-        super().__init__(n_particles, n_macroparticles, particle_type)
+        super().__init__(n_particles, particle_type)
         self._weights: LateInit[NumpyArray] = None
 
     def setup_beam(

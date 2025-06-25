@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from abc import ABC
 from functools import cached_property
-from typing import Optional as LateInit, TYPE_CHECKING, Union
+from typing import Optional as LateInit, TYPE_CHECKING
 
 import numpy as np
 
+from .cavities import CavityBaseClass
 from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant
-from .._core.helpers import float_or_array_typesafe
 from .._core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -53,9 +53,7 @@ class DriftSimple(DriftBaseClass):
         super().__init__(
             share_of_circumference=share_of_circumference, section_index=section_index
         )
-        self._transition_gamma: Union[backend.float, NumpyArray[backend.float]] = (
-            float_or_array_typesafe(transition_gamma, backend.float)
-        )
+        self.__transition_gamma = transition_gamma
 
         self._simulation: LateInit[Simulation] = None
         self._eta_0: LateInit[NumpyArray] = None
@@ -63,6 +61,16 @@ class DriftSimple(DriftBaseClass):
     @requires(["EnergyCycle"])
     def on_init_simulation(self, simulation: Simulation) -> None:
         cycle: EnergyCycle = simulation.energy_cycle
+        from blond.input_parameters.ring_options import RingOptions
+
+        ring_options = RingOptions()
+        self._transition_gamma = ring_options.reshape_data(
+            input_data=self.__transition_gamma,
+            n_turns=cycle.n_turns,
+            n_sections=simulation.ring.elements.count(CavityBaseClass),
+            interp_time=cycle.cycle_time,
+        )[self.section_index, :]
+
         self._eta_0 = np.ascontiguousarray(
             self.alpha_0 - cycle.gamma[self.section_index, :] ** (-2.0),
             dtype=backend.float,

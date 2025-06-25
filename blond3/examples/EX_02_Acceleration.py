@@ -26,9 +26,9 @@ from blond3 import (
     SingleHarmonicCavity,
     DriftSimple,
     EnergyCycle,
-    ConstantProgram,
+    RfStationParams,
     WakeField,
-    StaticProfile,
+    StaticProfile, BiGaussian,
 )
 from blond3.physics.impedances.readers import (
     ExampleImpedanceReader1,
@@ -42,6 +42,8 @@ from blond3.physics.impedances.sovlers import (
     PeriodicFreqSolver,
     InductiveImpedanceSolver,
 )
+import logging
+logging.basicConfig(level=logging.INFO)
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 
@@ -50,34 +52,33 @@ tot_beam_energy = E_0 + 1.4e9  # [eV]
 sync_momentum = np.sqrt(tot_beam_energy**2 - E_0**2)  # [eV / c]
 
 ring = Ring(circumference=(2 * np.pi * 25))
-energy_cycle = EnergyCycle(beam_energy_by_turn=sync_momentum * np.ones(3))
+energy_cycle = EnergyCycle(sync_momentum * np.ones(3))
 cavity1 = SingleHarmonicCavity(
-    harmonic=1,
-    rf_program=ConstantProgram(effective_voltage=8e3, phase=np.pi),
+    rf_program=RfStationParams(harmonic=1,voltage=8e3, phi_rf=np.pi),
 )
 drift = DriftSimple(
     transition_gamma=4.4,
     share_of_circumference=1.0,
 )
 
-beam1 = Beam(n_particles=1e11, n_macroparticles=1001, particle_type=proton)
+beam1 = Beam(n_particles=1e11, particle_type=proton)
 profile1 = StaticProfile(
     cut_left=-5.72984173562e-7, cut_right=5.72984173562e-7, n_bins=10000
 )
 wakefield1 = WakeField(
     sources=(
         ImpedanceTableFreq.from_file(
-            this_directory + "../input_files/EX_02_Ekicker_1.4GeV.txt",
+            this_directory + "/resources/EX_02_Ekicker_1.4GeV.txt",
             ExampleImpedanceReader1(),
         ),
         ImpedanceTableFreq.from_file(
-            this_directory + "../input_files/EX_02_Finemet.txt",
+            this_directory + "/resources/EX_02_Finemet.txt",
             ExampleImpedanceReader2(),
         ),
         InductiveImpedance(34.6669349520904 / 10e9),
         InductiveImpedance(34.6669349520904 / 10e9),
     ),
-    solver=PeriodicFreqSolver(t_periodicity=12.0),
+    solver=PeriodicFreqSolver(t_periodicity=5.7e-7),
 )
 wakefield2 = WakeField(
     sources=(InductiveImpedance(34.6669349520904 / 10e9),),
@@ -85,4 +86,5 @@ wakefield2 = WakeField(
 )
 
 sim = Simulation.from_locals(locals())
+sim.on_prepare_beam(BiGaussian(180e-9 / 4, reinsertion=False, seed=1, n_macroparticles=1001))
 sim.run_simulation(n_turns=2)

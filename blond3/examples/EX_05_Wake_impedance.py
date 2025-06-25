@@ -100,7 +100,7 @@ for wake_solver in (
         rf_program=ConstantProgram(effective_voltage=voltage_program, phase=phi_offset),
     )
     beam = Beam(
-        n_particles=n_particles, n_macroparticles=n_macroparticles, particle_type=proton
+        n_particles=n_particles, particle_type=proton
     )
     drift = DriftSimple(
         transition_gamma=gamma_transition,
@@ -112,7 +112,7 @@ for wake_solver in (
     profile = StaticProfile.from_rad(0, 2 * np.pi, 2**8, ring.get_t_rev(turn_i=0))
     ring.add_elements((drift, cavity1, wakefield), reorder=True)
     sim = Simulation(ring=ring)
-    sim.prepare_beam(BiGaussian(tau_0 / 4, seed=1))
+    sim.prepare_beam(BiGaussian(tau_0 / 4, seed=1, n_macroparticles=n_macroparticles))
     bunch_observable = BunchObservation(each_turn_i=10)
     sim.run_simulation(observe=(bunch_observable,))
 
