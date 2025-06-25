@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from functools import cached_property
-from typing import Optional as LateInit, TYPE_CHECKING
+from typing import Optional as LateInit, TYPE_CHECKING, Tuple
 
 import numpy as np
 
@@ -46,9 +46,11 @@ class DriftBaseClass(BeamPhysicsRelevant, ABC):
 class DriftSimple(DriftBaseClass):
     def __init__(
         self,
-        transition_gamma: float | Iterable,
+        transition_gamma: float | Iterable | Tuple[NumpyArray, NumpyArray],
         share_of_circumference: float = 1.0,
         section_index: int = 0,
+            **kwargs  # to allow fusing
+
     ):
         super().__init__(
             share_of_circumference=share_of_circumference, section_index=section_index
@@ -58,7 +60,7 @@ class DriftSimple(DriftBaseClass):
         self._simulation: LateInit[Simulation] = None
         self._eta_0: LateInit[NumpyArray] = None
 
-    @requires(["EnergyCycle"])
+    @requires(["EnergyCycleBase"])
     def on_init_simulation(self, simulation: Simulation) -> None:
         cycle: EnergyCycle = simulation.energy_cycle
         from blond.input_parameters.ring_options import RingOptions
@@ -67,9 +69,9 @@ class DriftSimple(DriftBaseClass):
         self._transition_gamma = ring_options.reshape_data(
             input_data=self.__transition_gamma,
             n_turns=cycle.n_turns,
-            n_sections=simulation.ring.elements.count(CavityBaseClass),
-            interp_time=cycle.cycle_time,
-        )[self.section_index, :]
+            n_sections=1,
+            interp_time=cycle.cycle_time[self.section_index,:],
+        )[0, :]
 
         self._eta_0 = np.ascontiguousarray(
             self.alpha_0 - cycle.gamma[self.section_index, :] ** (-2.0),

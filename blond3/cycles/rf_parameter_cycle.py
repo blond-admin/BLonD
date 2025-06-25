@@ -73,13 +73,14 @@ class RfStationParams(RfParameterCycle):
         self.cavity_feedback = None  # TODO it is not clear if they should be
         # here
 
-    @requires(["EnergyCycle"])
+    @requires(["EnergyCycleBase"])
     def on_init_simulation(self, simulation: Simulation) -> None:
         super().on_init_simulation(simulation=simulation)
         from blond.input_parameters.rf_parameters import RFStationOptions
 
         rf_station_options = RFStationOptions()
-        cycle_time = self._simulation.energy_cycle.cycle_time
+        cycle_time = self._simulation.energy_cycle.cycle_time[
+            self._owner.section_index, :]
         n_turns = self._simulation.energy_cycle.n_turns
         n_rf = self._owner.n_rf
         t_start = 0.0  # TODO expose parameter if required, else legacy
@@ -164,7 +165,7 @@ class RfStationParams(RfParameterCycle):
                     system = system[0]
 
                 pMod.calc_modulation()
-                pMod.calc_delta_omega((ring.cycle_time, self.omega_rf_design[system]))
+                pMod.calc_delta_omega((ring.cycle_time[system], self.omega_rf_design[system]))
                 dPhiInput, dOmegaInput = pMod.extend_to_n_rf(self.harmonic[:, 0])
                 dPhi += rf_station_options.reshape_data(
                     dPhiInput,

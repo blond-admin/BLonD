@@ -16,6 +16,7 @@ No intensity effects
 
 import os
 
+import numpy as np
 from blond3.cycles.rf_parameters import RFNoiseProgram
 
 from blond3 import (
@@ -25,7 +26,7 @@ from blond3 import (
     Simulation,
     SingleHarmonicCavity,
     DriftSimple,
-    EnergyCycle,
+    EnergyCyclePerTurn,
     BiGaussian,
     BoxLosses,
 )
@@ -44,7 +45,7 @@ cavity1 = SingleHarmonicCavity(
         phase_noise_generator=VariNoise(),
     ),
 )
-energy_cycle = EnergyCycle.from_linspace(450.0e9, 450.0e9, 200)
+energy_cycle = EnergyCyclePerTurn(np.linspace(450.0e9, 450.0e9, 200))
 beam = Beam(n_particles=1.0e9, particle_type=proton)
 profile = DynamicProfileConstNBins(n_bins=100)
 losses = BoxLosses(t_min=0, t_max=2.5e-9)

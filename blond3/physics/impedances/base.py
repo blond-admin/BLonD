@@ -77,7 +77,7 @@ class Impedance(BeamPhysicsRelevant):
 
         if self._profile is None:
             profiles = simulation.ring.elements.get_elements(
-                ProfileBaseClass, group=self.section_index
+                ProfileBaseClass, section_i=self.section_index
             )
             assert len(profiles) == 1, (
                 f"Found {len(profiles)} profiles in "
@@ -103,7 +103,7 @@ class WakeField(Impedance):
         self.solver = solver
         self.sources = sources
 
-    @requires(["EnergyCycle"])
+    @requires(["EnergyCycleBase"])
     def on_init_simulation(self, simulation: Simulation) -> None:
         super().on_init_simulation(simulation=simulation)
         assert len(self.sources) > 0, "Provide for at least one `WakeFieldSource`"

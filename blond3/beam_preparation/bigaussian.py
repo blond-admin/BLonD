@@ -7,6 +7,7 @@ import numpy as np
 
 from .base import MatchingRoutine, BeamPreparationRoutine
 from .._core.backends.backend import backend
+from .._core.helpers import int_from_float_with_warning
 from ..physics.drifts import DriftSimple
 from ..physics.cavities import SingleHarmonicCavity
 
@@ -86,7 +87,8 @@ class BiGaussian(MatchingRoutine):
         seed: int = 0,
     ):
         super().__init__()
-        self.n_macroparticles = n_macroparticles
+        self.n_macroparticles = int_from_float_with_warning(
+            n_macroparticles, warning_stacklevel=2)
         self._sigma_dt = sigma_dt
         self._sigma_dE = sigma_dE
         self._reinsertion = reinsertion

@@ -48,7 +48,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
 
     def calc_induced_voltage(self) -> NumpyArray | CupyArray:
         diff = self._parent_wakefield.profile.diff_hist_y
-        return diff * self._Z * self._T_rev_dynamic[self._turn_i.value]
+        return diff * self._Z * np.sum(self._T_rev_dynamic[:, self._turn_i.value])
 
 
 class PeriodicFreqSolver(WakeFieldSolver):
@@ -62,27 +62,27 @@ class PeriodicFreqSolver(WakeFieldSolver):
         self._n_freq: LateInit[int] = None
         self._freq_x: LateInit[NumpyArray] = None
         self._freq_y: LateInit[NumpyArray] = None
-        self._simulation : LateInit[Simulation] = None
+        self._simulation: LateInit[Simulation] = None
 
     def _update_internal_data(self):
         self._n_time = int(
             math.ceil(self._t_periodicity / self._parent_wakefield.profile.hist_step)
         )
-        self._freq_x = np.fft.rfftfreq(self._n_time,
-                                       d=self._parent_wakefield.profile.hist_step).astype(backend.float)
+        self._freq_x = np.fft.rfftfreq(
+            self._n_time, d=self._parent_wakefield.profile.hist_step
+        ).astype(backend.float)
         self._n_freq = len(self._freq_x)
         self._freq_y = np.zeros_like(self._freq_x, dtype=backend.complex)
         for source in self._parent_wakefield.sources:
             if isinstance(source, FreqDomain):
-                freq_y = source.get_freq_y(freq_x=self._freq_x,
-                                      sim=self._simulation)
+                freq_y = source.get_freq_y(freq_x=self._freq_x, sim=self._simulation)
                 assert not np.any(np.isnan(freq_y)), f"{type(source).__name__}"
                 self._freq_y += freq_y
             else:
                 raise Exception("Can only accept impedance that support `FreqDomain`")
         pass
 
-    def _warning_callback(self, t_rev_new: float): # TODO activate this again
+    def _warning_callback(self, t_rev_new: float):  # TODO activate this again
         tolerance = 0.1 / 100
         deviation = abs(1 - t_rev_new / self._t_periodicity)
         if deviation > tolerance:
@@ -119,9 +119,9 @@ class PeriodicFreqSolver(WakeFieldSolver):
             self._update_internal_data()  # might cause performance issues :(
 
         induced_voltage = np.fft.irfft(
-            self._freq_y * self._parent_wakefield.profile.beam_spectrum(
-                n_fft=self._n_freq
-        ))
+            self._freq_y
+            * self._parent_wakefield.profile.beam_spectrum(n_fft=self._n_freq)
+        )
         return induced_voltage
 
 

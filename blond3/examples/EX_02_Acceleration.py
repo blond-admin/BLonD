@@ -25,7 +25,7 @@ from blond3 import (
     Simulation,
     SingleHarmonicCavity,
     DriftSimple,
-    EnergyCycle,
+    ConstantEnergyCycle,
     RfStationParams,
     WakeField,
     StaticProfile, BiGaussian,
@@ -52,7 +52,7 @@ tot_beam_energy = E_0 + 1.4e9  # [eV]
 sync_momentum = np.sqrt(tot_beam_energy**2 - E_0**2)  # [eV / c]
 
 ring = Ring(circumference=(2 * np.pi * 25))
-energy_cycle = EnergyCycle(sync_momentum * np.ones(3))
+energy_cycle = ConstantEnergyCycle(sync_momentum, max_turns=10)
 cavity1 = SingleHarmonicCavity(
     rf_program=RfStationParams(harmonic=1,voltage=8e3, phi_rf=np.pi),
 )

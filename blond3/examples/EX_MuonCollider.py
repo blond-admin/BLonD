@@ -7,11 +7,11 @@ from blond3 import (
     proton,
     Ring,
     Simulation,
-    EnergyCycle,
     SingleHarmonicCavity,
     DriftSimple,
     WakeField,
     RfStationParams,
+    EnergyCyclePerTurn,
 )
 from blond3.beam_preparation.base import BeamPreparationRoutine
 from blond3.physics.impedances.sources import Resonators
@@ -44,7 +44,7 @@ class LeonardsCounterrrotBeam(BeamPreparationRoutine):
 
 
 ring = Ring(circumference=26_658.883)
-energy_cycle = EnergyCycle.from_linspace(450e9, 460.005e9, 2000)
+energy_cycle = EnergyCyclePerTurn(np.linspace(450e9, 460.005e9, 2000))
 
 
 n_cavities = 7

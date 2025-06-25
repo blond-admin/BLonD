@@ -1,6 +1,7 @@
 from blond3 import (
     SingleHarmonicCavity,
     StaticProfile,
+
     DriftSimple,
     EnergyCycle,
     Beam,

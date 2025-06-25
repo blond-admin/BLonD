@@ -98,6 +98,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         rf_program: RfStationParams,
         section_index: int = 0,
         local_wakefield: Optional[WakeField] = None,
+            **kwargs # to allow fusing
     ):
         super().__init__(
             n_rf=n_harmonics,

@@ -3,6 +3,7 @@ import sys
 import numpy as np
 from matplotlib import pyplot as plt
 from blond3._core.backends.backend import backend, Numpy32Bit
+from blond3.cycles.energy_cycle import EnergyCyclePerTurn
 
 backend.change_backend(Numpy32Bit)
 backend.set_specials("numba")
@@ -15,12 +16,12 @@ from blond3 import (
     SingleHarmonicCavity,
     DriftSimple,
     BiGaussian,
-    EnergyCycle,
     RfStationParams,
     CavityPhaseObservation,
     BunchObservation,
 )
-
+import logging
+logging.basicConfig(level=logging.INFO)
 ring = Ring(circumference=26658.883)
 
 cavity1 = SingleHarmonicCavity(
@@ -28,7 +29,7 @@ cavity1 = SingleHarmonicCavity(
 )
 
 N_TURNS = int(1e6)
-energy_cycle = EnergyCycle(synchronous_data=np.linspace(450e9, 450e9, N_TURNS + 1))
+energy_cycle = EnergyCyclePerTurn(values_per_turn=np.linspace(450e9, 450e9, N_TURNS + 1))
 
 drift1 = DriftSimple(
     transition_gamma=55.759505,

@@ -29,14 +29,15 @@ from blond3 import (
     proton,
     Ring,
     Simulation,
-    EnergyCycle,
-    ConstantProgram,
+    EnergyCyclePerTurn,
+    RfStationParams,
     SingleHarmonicCavity,
     DriftSimple,
     BunchObservation,
     WakeField,
     StaticProfile,
 )
+from blond3.examples.EX_01_Acceleration import energy_cycle
 from blond3.physics.impedances.sources import Resonators
 from blond3.physics.impedances.sovlers import (
     SingleTurnWakeSolverTimeDomain,
@@ -94,14 +95,15 @@ for wake_solver in (
     AnalyticSingleTurnResonatorSolver,
 ):
     ring = Ring(circumference=C)
-    ring.set_energy_cycle(EnergyCycle.from_linspace(sync_momentum, sync_momentum, 2))
+    energy_cycle = EnergyCyclePerTurn(np.linspace(sync_momentum, sync_momentum, 2))
     cavity1 = SingleHarmonicCavity(
-        harmonic=harmonic_number,
-        rf_program=ConstantProgram(effective_voltage=voltage_program, phase=phi_offset),
+        rf_program=RfStationParams(
+            harmonic=harmonic_number,
+            voltage=voltage_program,
+            phi_rf=phi_offset,
+        ),
     )
-    beam = Beam(
-        n_particles=n_particles, particle_type=proton
-    )
+    beam = Beam(n_particles=n_particles, particle_type=proton)
     drift = DriftSimple(
         transition_gamma=gamma_transition,
         share_of_circumference=1.0,
@@ -109,10 +111,12 @@ for wake_solver in (
     wakefield = WakeField(
         sources=(Resonators(R_shunt, f_res, Q_factor),), solver=wake_solver
     )
-    profile = StaticProfile.from_rad(0, 2 * np.pi, 2**8, ring.get_t_rev(turn_i=0))
+    profile = StaticProfile.from_rad(0, 2 * np.pi, 2**8, sim.energy_cycle.t_rev[0, 0])
     ring.add_elements((drift, cavity1, wakefield), reorder=True)
     sim = Simulation(ring=ring)
-    sim.prepare_beam(BiGaussian(tau_0 / 4, seed=1, n_macroparticles=n_macroparticles))
+    sim.on_prepare_beam(
+        BiGaussian(sigma_dt=tau_0 / 4, seed=1, n_macroparticles=n_macroparticles)
+    )
     bunch_observable = BunchObservation(each_turn_i=10)
     sim.run_simulation(observe=(bunch_observable,))
 

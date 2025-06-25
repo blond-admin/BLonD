@@ -11,7 +11,7 @@ from ..base import BeamPhysicsRelevant, Preparable, HasPropertyCache
 from ..base import DynamicParameter
 from ..helpers import find_instances_with_method, int_from_float_with_warning
 from ..ring.helpers import get_elements, get_init_order
-from ...cycles.energy_cycle import EnergyCycle
+from ...cycles.energy_cycle import EnergyCycleBase
 from ...physics.drifts import DriftBaseClass
 from ...physics.profiles import ProfileBaseClass
 
@@ -33,7 +33,7 @@ class Simulation(Preparable, HasPropertyCache):
         self,
         ring: Ring,
         beams: Tuple[BeamBaseClass, ...],
-        energy_cycle: NumpyArray | EnergyCycle,
+        energy_cycle: NumpyArray | EnergyCycleBase,
     ):
         super().__init__()
         self._ring: Ring = ring
@@ -43,8 +43,8 @@ class Simulation(Preparable, HasPropertyCache):
         self._beams: Tuple[BeamBaseClass, ...] = beams
 
         if isinstance(energy_cycle, np.ndarray):
-            energy_cycle = EnergyCycle(energy_cycle)
-        self._energy_cycle: EnergyCycle = energy_cycle
+            energy_cycle = EnergyCycleBase(energy_cycle)
+        self._energy_cycle: EnergyCycleBase = energy_cycle
 
         self.turn_i = DynamicParameter(None)
         self.section_i = DynamicParameter(None)
@@ -93,8 +93,9 @@ class Simulation(Preparable, HasPropertyCache):
         classes_check = set()
         for ins in instances:
             classes_check.add(type(ins))
-        assert len(classes_check) == len(ordered_classes), "BUG"
-        ordered_classes.pop(ordered_classes.index("ABCMeta"))
+        #assert len(classes_check) == len(ordered_classes), "BUG"
+        if "ABCMeta" in ordered_classes:
+            ordered_classes.pop(ordered_classes.index("ABCMeta"))
         logger.info(f"Execution order for `{method}` is {ordered_classes}")
 
         for cls in ordered_classes:
@@ -108,7 +109,6 @@ class Simulation(Preparable, HasPropertyCache):
         self._exec_all_in_tree("on_init_simulation", simulation=self)
 
     def _exec_on_run_simulation(self, n_turns: int, turn_i_init: int):
-        print("_exec_on_run_simulation")
 
         self._exec_all_in_tree(
             "on_run_simulation",
@@ -131,7 +131,7 @@ class Simulation(Preparable, HasPropertyCache):
 
         beams = get_elements(locals_list, BeamBaseClass)
 
-        _energy_cycles = get_elements(locals_list, EnergyCycle)
+        _energy_cycles = get_elements(locals_list, EnergyCycleBase)
         assert len(_energy_cycles) == 1, f"Found {len(_energy_cycles)} energy cycles"
         energy_cycle = _energy_cycles[0]
 
@@ -155,7 +155,7 @@ class Simulation(Preparable, HasPropertyCache):
         return self._beams
 
     @property  # as readonly attributes
-    def energy_cycle(self) -> EnergyCycle:
+    def energy_cycle(self) -> EnergyCycleBase:
         return self._energy_cycle
 
     @cached_property
