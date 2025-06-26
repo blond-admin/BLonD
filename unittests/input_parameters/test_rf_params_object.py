@@ -244,18 +244,18 @@ class testRFParamClass(unittest.TestCase):
         time_arr = numpy.linspace(0, self.ring.t_rev[0]/mainh,
                                   1000)
 
-        vwave = rf_params.compute_voltage_waveform(time_arr)
+        computed_time, computed_voltage = rf_params.compute_voltage_waveform(time_arr)
 
-        numpy.testing.assert_array_equal(vwave[0], time_arr)
+        numpy.testing.assert_array_equal(computed_time, time_arr)
 
-        exp = numpy.zeros_like(time_arr)
-        for i in range(2):
-            v = rf_params.voltage[i, 0]
-            p = rf_params.phi_rf_d[i, 0]
-            o = rf_params.omega_rf_d[i, 0]
-            exp += v * numpy.sin(o * time_arr[:] + p)
+        expected_voltage = numpy.zeros_like(time_arr)
+        for i in range(rf_params.n_rf):
+            voltage = rf_params.voltage[i, 0]
+            phase = rf_params.phi_rf_d[i, 0]
+            omega = rf_params.omega_rf_d[i, 0]
+            expected_voltage += voltage * numpy.sin(omega * time_arr[:] + phase)
 
-        numpy.testing.assert_array_almost_equal(vwave[1], exp)
+        numpy.testing.assert_array_almost_equal(computed_voltage, expected_voltage)
 
 
 if __name__ == '__main__':
