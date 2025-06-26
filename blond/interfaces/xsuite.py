@@ -44,25 +44,25 @@ def blond_to_xsuite_transform(
     Parameters
     ----------
     dt : float or NDArray
-        The deviation in time from the reference clock in BLonD.
+        The deviation in time [s] from the reference clock in BLonD.
     de : float or NDArray
-        The deviation in energy from the synchronous particle.
+        The deviation in energy [eV] from the synchronous particle.
     beta0 : float
-        Synchronous beta.
+        Synchronous beta [-].
     energy0 : float
-        Synchronous energy.
+        Synchronous energy [eV].
     omega_rf : float
-        The rf angular frequency.
+        The rf angular frequency [rad/s].
     phi_s : float
-        Synchronous phase in radians equivalent to Xsuite's :math:`\phi_\text{rf}`
+        Synchronous phase [rad] in radians equivalent to Xsuite's :math:`\phi_\text{rf}`
         (below transition energy input should be :math:`\phi_s - \phi_\text{rf}`). The default value is 0.
 
     Returns
     -------
     zeta : numpy-arrays (or single variable)
-        The xsuite longitudinal coordinate.
+        The xsuite longitudinal coordinate [m].
     ptau : numpy-arrays (or single variable)
-        The xsuite longitudinal momentum.
+        The xsuite longitudinal momentum [-].
     """
 
     ptau = de / (beta0 * energy0)
@@ -86,25 +86,25 @@ def xsuite_to_blond_transform(zeta: Union[float, np.ndarray], ptau: Union[float,
     Parameters
     ----------
     zeta : float or numpy-array
-        The zeta coordinate as defined in Xsuite.
+        The zeta coordinate [m] as defined in Xsuite.
     ptau : float or numpy-array
-        The ptau coordinate as defined in Xsuite.
+        The ptau coordinate [-] as defined in Xsuite.
     beta0 : float
-        The synchronous beta.
+        The synchronous beta [-].
     energy0 : float
-        The synchronous energy in eV.
+        The synchronous energy [eV].
     omega_rf : float
-        The rf angular frequency.
+        The rf angular frequency [rad/s].
     phi_s : float
-        The synchronous phase in radians equivalent to Xsuite's :math:`\phi_\text{rf}`
+        The synchronous phase [rad] in radians equivalent to Xsuite's :math:`\phi_\text{rf}`
         (below transition energy input should be :math:`\phi_s - \phi_\text{rf}`)
 
     Returns
     -------
     dt : numpy-arrays (or single variable)
-        The BLonD longitudinal coordinate.
+        The BLonD longitudinal coordinate [s].
     dE : numpy-arrays (or single variable)
-        The BLonD longitudinal energy coordinate.
+        The BLonD longitudinal energy coordinate [eV].
     """
 
     dE = ptau * beta0 * energy0
@@ -144,7 +144,7 @@ class BlondElement:
         Option to convert :math:`\zeta` in xsuite to :math:`\Delta t` in BLonD.
         This is not usually needed since BLonD only does the kick, i.e. only acts on :math:`\Delta E`.
     _dt_shift : float
-        The reference frame shift from BLonD to xsuite based on synchronous phase.
+        The reference frame shift [s] from BLonD to xsuite based on synchronous phase.
     orbit_shift : xtrack.ZetaShift class
         Class taking into account deviations from the design orbit, e.g. due to
         RF frequency shifts caused by global RF feedbacks.
@@ -179,7 +179,7 @@ class BlondElement:
         Parameters
         ----------
         particles : xtrack.Particles
-            Particles class from xtrack
+            Particles class from xtrack.
         """
 
         # Compute the shift to BLonD coordinates
@@ -204,7 +204,7 @@ class BlondElement:
         Parameters
         ----------
         particles : xtrack.Particles
-            Particles class from xtrack
+            Particles class from xtrack.
         """
         self.trackable.induced_voltage_sum()
 
@@ -215,7 +215,7 @@ class BlondElement:
         Parameters
         ----------
         particles : xtrack.Particles
-            Particles class from xtrack
+            Particles class from xtrack.
         """
         self.trackable.track()
 
@@ -227,7 +227,7 @@ class BlondElement:
         Parameters
         ----------
         particles : xtrack.Particles
-            Particles class from xtrack
+            Particles class from xtrack.
 
         Attributes
         ----------
@@ -252,7 +252,7 @@ class BlondElement:
         Parameters
         ----------
         particles : xtrack.Particles
-            Particles class from xtrack
+            Particles class from xtrack.
 
         Attributes
         ----------
@@ -284,7 +284,7 @@ class BlondElement:
         Attributes
         ----------
         _dt_shift : float
-            The reference frame shift from BLonD to xsuite based on synchronous phase.
+            The reference frame shift [s] from BLonD to xsuite based on synchronous phase.
         '''
         # Get turn counter from the RingAndRFTracker
         counter = self.trackable.rf_params.counter[0]
@@ -335,12 +335,12 @@ class EnergyUpdate:
     Parameters
     ----------
     momentum : list or numpy-array
-        Momentum program from BLonD in units of eV.
+        Momentum program [eV/c] from BLonD.
 
     Attributes
     ----------
     momentum : list or numpy-array
-        Momentum program from BLonD in units of eV.
+        Momentum program [eV/c] from BLonD.
     xsuite_energy_update : xtrack.ReferenceEnergyIncrease class
         Class to update the momentum in xsuite.
     """
@@ -361,7 +361,7 @@ class EnergyUpdate:
         Parameters
         ----------
         particles : xtrack.Particles
-            Particles class from xtrack
+            Particles class from xtrack.
 
         Attributes
         ----------
@@ -393,9 +393,9 @@ class EnergyFrequencyUpdate:
     Parameters
     ----------
     momentum : numpy-array
-        The momentum program from BLonD in eV.
+        The momentum program [eV/c] from BLonD.
     f_rf : numpy-array
-        The frequency program from BLonD in Hz.
+        The frequency program [Hz] from BLonD.
     line : xtrack.Line
         Line class from xtrack.
     cavity_name : string
@@ -404,9 +404,9 @@ class EnergyFrequencyUpdate:
     Attributes
     ----------
     momentum : numpy-array
-        The momentum program from BLonD in eV.
+        The momentum program [eV/c] from BLonD.
     f_rf : numpy-array
-        The frequency program from BLonD in Hz.
+        The frequency program [Hz] from BLonD.
     line : xtrack.Line class
         Line class from xtrack.
     cavity_name : string
@@ -502,9 +502,9 @@ class BlondObserver(BlondElement):
     profile : blond.beam.profile.Profile class
         BLonD Profile class used for tracking.
     xsuite_ref_energy : numpy-array
-        Array filled with the reference energy from xsuite.
+        Array filled with the reference energy [eV] from xsuite.
     xsuite_trev : numpy-array
-        Array filled with the revolution period from xsuite.
+        Array filled with the revolution period [s] from xsuite.
     '''
 
     def __init__(
@@ -539,15 +539,15 @@ class BlondObserver(BlondElement):
         Attributes
         ----------
         _dt_shift : float
-            The reference frame shift from BLonD to xsuite based on synchronous phase.
+            The reference frame shift [s] from BLonD to xsuite based on synchronous phase.
         beam : blond.beam.beam.Beam
             BLonD Beam class used for tracking.
         trackable : BLonD trackable object
             BLonD object to be tracked, e.g. the RingAndRFTracker.
         xsuite_ref_energy : numpy-array
-            Array filled with the reference energy from xsuite.
+            Array filled with the reference energy [eV] from xsuite.
         xsuite_trev : numpy-array
-            Array filled with the revolution period from xsuite.
+            Array filled with the revolution period [s] from xsuite.
         '''
         # Compute the shift to BLonD coordinates
         self._get_time_shift()
