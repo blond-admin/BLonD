@@ -36,7 +36,10 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
         assert self._momentum is not None, f"{self._momentum=}"
         assert len(self._momentum.shape) == 2, f"{self._momentum.shape=}"
         self._particle = simulation.beams[0].particle_type
-        self._section_lengths = simulation.ring.elements.get_section_circumference_shares()  # TODO
+        self._section_lengths = (
+            simulation.ring.circumference
+            * simulation.ring.elements.get_section_circumference_shares()
+        )
         self.invalidate_cache()
 
     def on_run_simulation(
@@ -85,7 +88,7 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
     @cached_property  # as readonly attributes
     def t_rev(self) -> NumpyArray:
         return np.dot(
-            self._section_lengths, 1 / (self.beta * c0)
+            self._section_lengths, 1 / (self.beta[:, :] * c0)
         )  # todo check matching shapes?!
 
     @cached_property  # as readonly attributes
@@ -125,7 +128,7 @@ class ConstantEnergyCycle(EnergyCycleBase):
         value: float,
         max_turns: int,
         in_unit: SynchronousDataTypes = "momentum",
-        bending_radius: Optional[float]=None,
+        bending_radius: Optional[float] = None,
     ):
         super().__init__()
         self._value = value
@@ -149,7 +152,7 @@ class ConstantEnergyCycle(EnergyCycleBase):
         )
         n_turns = self._n_turns
 
-        n_cavities = simulation.ring.elements.count(CavityBaseClass)
+        n_cavities = simulation.ring.n_cavities
 
         shape = (n_cavities, n_turns + 1)  # TODO
         self._momentum = momentum * np.ones(shape)
@@ -161,7 +164,7 @@ class EnergyCyclePerTurn(EnergyCycleBase):
         self,
         values_per_turn: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
-        bending_radius: Optional[float]=None,
+        bending_radius: Optional[float] = None,
     ):
         super().__init__()
         self._values_per_turn = values_per_turn[:]
@@ -183,7 +186,7 @@ class EnergyCyclePerTurn(EnergyCycleBase):
                 self._bending_radius if self._in_unit == "bending field" else None
             ),
         )
-        n_cavities = simulation.ring.elements.count(CavityBaseClass)
+        n_cavities = simulation.ring.n_cavities
         n_turns = self._n_turns
 
         shape = (n_cavities, n_turns + 1)
@@ -194,13 +197,12 @@ class EnergyCyclePerTurn(EnergyCycleBase):
         stair_like /= np.sum(stair_like)
         assert np.sum(stair_like) == 1
         result[:, 0] = float(momentum_per_turn[0])
-        for turn_i in range(1, n_turns + 1):
-            base = momentum_per_turn[turn_i - 1]
-            step = momentum_per_turn[turn_i] - momentum_per_turn[turn_i - 1]
-            result[:, turn_i] = base + stair_like * step
+        for cav_i in range(n_cavities):
+            base = momentum_per_turn[:-1]
+            step = np.diff(momentum_per_turn)
+            result[cav_i, 1:] = base + stair_like[cav_i] * step
         self._momentum = result
         super().on_init_simulation(simulation=simulation)
-
 
 
 class EnergyCyclePerTurnAllCavities(EnergyCycleBase):
@@ -208,7 +210,7 @@ class EnergyCyclePerTurnAllCavities(EnergyCycleBase):
         self,
         values_per_cavity_per_turn: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
-        bending_radius: Optional[float]=None,
+        bending_radius: Optional[float] = None,
     ):
         super().__init__()
         self._values_per_cavity_per_turn = values_per_cavity_per_turn[:, :]
@@ -230,11 +232,11 @@ class EnergyCyclePerTurnAllCavities(EnergyCycleBase):
                 self._bending_radius if self._in_unit == "bending field" else None
             ),
         )
-        n_cavities = simulation.ring.elements.count(CavityBaseClass)
+        n_cavities = simulation.ring.n_cavities
 
-        assert len(n_cavities) == momentum_per_cavity_per_turn.shape[0], (
-            f"{len(n_cavities)=}, but {momentum_per_cavity_per_turn.shape=}"
-        )
+        assert (
+            len(n_cavities) == momentum_per_cavity_per_turn.shape[0]
+        ), f"{len(n_cavities)=}, but {momentum_per_cavity_per_turn.shape=}"
         self._momentum = momentum_per_cavity_per_turn
         super().on_init_simulation(simulation=simulation)
 
@@ -247,7 +249,7 @@ class EnergyCycleByTime(EnergyCycleBase):
         base_time: NumpyArray,
         base_values: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
-        bending_radius: Optional[float]=None,
+        bending_radius: Optional[float] = None,
         interpolator=np.interp,
     ):
         super().__init__()
@@ -274,7 +276,7 @@ class EnergyCycleByTime(EnergyCycleBase):
             ),
         )
         n_turns = self._n_turns
-        n_cavities = simulation.ring.elements.count(CavityBaseClass)
+        n_cavities = simulation.ring.n_cavities
 
         at_time = derive_time(
             n_turns=n_turns,
@@ -293,7 +295,6 @@ class EnergyCycleByTime(EnergyCycleBase):
             )
         self._momentum = momentum
         super().on_init_simulation(simulation=simulation)
-
 
 
 from scipy.constants import speed_of_light as c0
@@ -393,8 +394,8 @@ def derive_time(
     times[all_sections, turn_i] = t
     del all_sections
 
-    # mini simulation based on the knowledge of which momentum is wanted
-    # at which moment in time.
+    # mini simulation based on the knowledge of which
+    # momentum is wanted at which moment in time.
     # From this, one can use x=v*t linear motion
     for turn_i in range(1, n_turns + 1):
         for section_i, drift_length in enumerate(section_lengths):

@@ -12,10 +12,10 @@ if TYPE_CHECKING:  # pragma: no cover
         Optional,
     )
     from .impedances.base import WakeField
-    from .. import EnergyCycle
     from .._core.beam.base import BeamBaseClass
     from .._core.simulation.simulation import Simulation
     from ..cycles.rf_parameter_cycle import RfStationParams
+    from ..cycles.energy_cycle import EnergyCycleBase
 
 
 class CavityBaseClass(BeamPhysicsRelevant, ABC):
@@ -32,7 +32,7 @@ class CavityBaseClass(BeamPhysicsRelevant, ABC):
         self._local_wakefield = local_wakefield
         self._turn_i: LateInit[DynamicParameter] = None
         self._n_rf = n_rf
-        self._energy_cycle: LateInit[EnergyCycle] = None
+        self._energy_cycle: LateInit[EnergyCycleBase] = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         assert self._rf_program is not None

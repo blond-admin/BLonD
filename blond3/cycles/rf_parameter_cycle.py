@@ -73,7 +73,9 @@ class RfStationParams(RfParameterCycle):
         self.cavity_feedback = None  # TODO it is not clear if they should be
         # here
 
-    @requires(["EnergyCycleBase"])
+    @requires(["EnergyCycleBase", # for .energy_cycle
+               "BeamPhysicsRelevantElements", # for .section_index,
+               ])
     def on_init_simulation(self, simulation: Simulation) -> None:
         super().on_init_simulation(simulation=simulation)
         from blond.input_parameters.rf_parameters import RFStationOptions

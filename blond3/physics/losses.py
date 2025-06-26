@@ -11,12 +11,12 @@ from .._core.beam.base import BeamBaseClass
 from .._core.simulation.simulation import Simulation
 
 
-class Losses(BeamPhysicsRelevant):
+class LossesBaseClass(BeamPhysicsRelevant):
     def __init__(self):
         super().__init__()
 
 
-class BoxLosses(Losses):
+class BoxLosses(LossesBaseClass):
     def __init__(
         self,
         t_min: Optional[backend.float] = None,
@@ -40,7 +40,7 @@ class BoxLosses(Losses):
         pass
 
 
-class SeparatrixLosses(Losses):
+class SeparatrixLosses(LossesBaseClass):
     def __init__(self):
         super().__init__()
         self._simulation: LateInit[Simulation] = None

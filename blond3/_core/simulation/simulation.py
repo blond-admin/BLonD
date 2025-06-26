@@ -11,7 +11,7 @@ from ..base import BeamPhysicsRelevant, Preparable, HasPropertyCache
 from ..base import DynamicParameter
 from ..helpers import find_instances_with_method, int_from_float_with_warning
 from ..ring.helpers import get_elements, get_init_order
-from ...cycles.energy_cycle import EnergyCycleBase
+from ...cycles.energy_cycle import EnergyCyclePerTurn
 from ...physics.drifts import DriftBaseClass
 from ...physics.profiles import ProfileBaseClass
 
@@ -33,7 +33,7 @@ class Simulation(Preparable, HasPropertyCache):
         self,
         ring: Ring,
         beams: Tuple[BeamBaseClass, ...],
-        energy_cycle: NumpyArray | EnergyCycleBase,
+        energy_cycle: NumpyArray | EnergyCyclePerTurn,
     ):
         super().__init__()
         self._ring: Ring = ring
@@ -43,8 +43,8 @@ class Simulation(Preparable, HasPropertyCache):
         self._beams: Tuple[BeamBaseClass, ...] = beams
 
         if isinstance(energy_cycle, np.ndarray):
-            energy_cycle = EnergyCycleBase(energy_cycle)
-        self._energy_cycle: EnergyCycleBase = energy_cycle
+            energy_cycle = EnergyCyclePerTurn(energy_cycle)
+        self._energy_cycle: EnergyCyclePerTurn = energy_cycle
 
         self.turn_i = DynamicParameter(None)
         self.section_i = DynamicParameter(None)
@@ -131,7 +131,7 @@ class Simulation(Preparable, HasPropertyCache):
 
         beams = get_elements(locals_list, BeamBaseClass)
 
-        _energy_cycles = get_elements(locals_list, EnergyCycleBase)
+        _energy_cycles = get_elements(locals_list, EnergyCyclePerTurn)
         assert len(_energy_cycles) == 1, f"Found {len(_energy_cycles)} energy cycles"
         energy_cycle = _energy_cycles[0]
 
@@ -155,7 +155,7 @@ class Simulation(Preparable, HasPropertyCache):
         return self._beams
 
     @property  # as readonly attributes
-    def energy_cycle(self) -> EnergyCycleBase:
+    def energy_cycle(self) -> EnergyCyclePerTurn:
         return self._energy_cycle
 
     @cached_property
@@ -293,7 +293,7 @@ class Simulation(Preparable, HasPropertyCache):
             synchronous_data_type=synchronous_data_type,
             particle=particle,
             bending_radius=bending_radius,
-            n_sections=self.ring.elements.count(CavityBaseClass),
+            n_sections=self.ring.elements.n_cavities,
             alpha_1=getattr(drift, "alpha_1", None),
             alpha_2=getattr(drift, "alpha_2", None),
             ring_options=None,

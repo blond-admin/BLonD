@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 from ..ring.helpers import get_elements
+from ..base import Preparable
+from ... import Simulation
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import (
@@ -19,20 +22,49 @@ if TYPE_CHECKING:  # pragma: no cover
     T = TypeVar("T")
 
 
-class BeamPhysicsRelevantElements:
+class BeamPhysicsRelevantElements(Preparable):
     def __init__(self):
+        super().__init__()
         self.elements: Tuple[BeamPhysicsRelevant, ...] = ()
 
-    def get_sections(self) -> Tuple[int, ...]:
-        res = set()
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        self._check_section_indexing()
+
+    def _check_section_indexing(self):
+        from ...physics.cavities import CavityBaseClass
+
+        elem_section_indices = [e.section_index for e in self.elements]
+        assert min(elem_section_indices) == 0, "section_index=0 must be set"
+        assert np.diff(elem_section_indices) >= 0, (
+            f"Section indices must be "
+            f"increasing, but got"
+            f" {elem_section_indices}"
+        )
+        cavities = self.get_elements(CavityBaseClass)
+        cav_section_indices = [c.section_index for c in cavities]
+        all_different = len(cav_section_indices) == len(set(cav_section_indices))
+        if not all_different:
+            raise ValueError(
+                f"Each cavity must be in a different section, "
+                f"but got "
+                f"{[(cav.name, cav.section_index) for cav in cavities]}"
+            )
+
+    def on_run_simulation(
+        self, simulation: Simulation, n_turns: int, turn_i_init: int
+    ) -> None:
+        pass
+
+    def get_sections_indices(self) -> Tuple[int, ...]:
+        unique_section_indices = set()
         for e in self.elements:
-            res.add(e.section_index)
-        return tuple(sorted(res))
+            unique_section_indices.add(e.section_index)
+        return tuple(sorted(unique_section_indices))
 
     def get_section_circumference_shares(self) -> NumpyArray:
         from ...physics.drifts import DriftBaseClass
 
-        sections = self.get_sections()
+        sections = self.get_sections_indices()
         result = np.empty(len(sections))
         for section_i in sections:
             drifts = self.get_elements(DriftBaseClass, section_i=section_i)
@@ -44,6 +76,10 @@ class BeamPhysicsRelevantElements:
 
     def add_element(self, element: BeamPhysicsRelevant):
         self.elements = (*self.elements, element)
+
+    @property  # as readonly attributes
+    def n_sections(self):
+        return len(np.unique([e.section_index for e in self.elements]))
 
     @property  # as readonly attributes
     def n_elements(self):
@@ -63,10 +99,52 @@ class BeamPhysicsRelevantElements:
         return elements[0]
 
     def reorder(self):
-        pass
+        from ...physics.cavities import CavityBaseClass
 
-    def count(self, class_: Type[T]):
-        return len(self.get_elements(class_=class_))
+        self._check_section_indexing()
+
+        for section_i in range(self.n_sections):
+            self.reorder_section(section_i)
+
+    def reorder_section(self, section_index: int):
+        from ...physics.drifts import DriftBaseClass
+        from ...physics.profiles import ProfileBaseClass
+        from ...physics.cavities import CavityBaseClass
+        from ...physics.losses import LossesBaseClass
+        from ...physics.impedances.base import ImpedanceBaseClass
+        from ...physics.feedbacks.base import FeedbackBaseClass
+
+        natural_order = (
+            LossesBaseClass,
+            ProfileBaseClass,
+            FeedbackBaseClass,
+            ImpedanceBaseClass,
+            CavityBaseClass,
+            DriftBaseClass,
+        )
+        assert (
+            self.count(CavityBaseClass, section_i=section_index) == 1
+        ), "Only one cavity per section allowed"
+        elements_in_section = [
+            e for e in self.elements if e.section_index == section_index
+        ]
+
+        # reorder elements based on natural order
+        # account for the fact that elements could be instanced of two base
+        # classes. In this case the first match in natural order is chosen.
+        _seen = set()
+        ordered_elements = []
+
+        for cls in natural_order:
+            for e in elements_in_section:
+                if e not in _seen and isinstance(e, cls):
+                    ordered_elements.append(e)
+                    _seen.add(e)
+
+        self.elements = tuple(ordered_elements)
+
+    def count(self, class_: Type[T], section_i: Optional[int] = None):
+        return len(self.get_elements(class_=class_, section_i=section_i))
 
     def print_order(self):
         print(self.get_order_info())

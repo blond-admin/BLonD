@@ -60,7 +60,9 @@ class DriftSimple(DriftBaseClass):
         self._simulation: LateInit[Simulation] = None
         self._eta_0: LateInit[NumpyArray] = None
 
-    @requires(["EnergyCycleBase"])
+    @requires(["EnergyCycleBase", #  for cycle
+               "BeamPhysicsRelevantElements", # for .section_index,
+     ])
     def on_init_simulation(self, simulation: Simulation) -> None:
         cycle: EnergyCycle = simulation.energy_cycle
         from blond.input_parameters.ring_options import RingOptions

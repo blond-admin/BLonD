@@ -53,7 +53,7 @@ class DiscreteWakeFieldSource(WakeFieldSource):
     pass
 
 
-class Impedance(BeamPhysicsRelevant):
+class ImpedanceBaseClass(BeamPhysicsRelevant):
     def __init__(
         self, section_index: int = 0, profile: LateInit[ProfileBaseClass] = None
     ):
@@ -71,7 +71,11 @@ class Impedance(BeamPhysicsRelevant):
     def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int):
         pass
 
-    @requires(["Ring"])
+    @requires(
+        [
+            "BeamPhysicsRelevantElements",  # for .section_index,
+        ]
+    )
     def on_init_simulation(self, simulation: Simulation) -> None:
         from ..profiles import ProfileBaseClass  # prevent cyclic import
 
@@ -90,7 +94,7 @@ class Impedance(BeamPhysicsRelevant):
             pass
 
 
-class WakeField(Impedance):
+class WakeField(ImpedanceBaseClass):
     def __init__(
         self,
         sources: Tuple[WakeFieldSource, ...],
@@ -116,7 +120,7 @@ class WakeField(Impedance):
 
     def track(self, beam: BeamBaseClass) -> None:
         induced_voltage = self.calc_induced_voltage()
-        warnings.warn("kick_induced") # TODO
+        warnings.warn("kick_induced")  # TODO
         if False:
             backend.kick_induced(
                 beam.read_partial_dt(), beam.read_partial_dE(), induced_voltage
