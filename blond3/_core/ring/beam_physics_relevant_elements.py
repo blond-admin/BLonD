@@ -7,6 +7,7 @@ import numpy as np
 from ..base import Preparable
 from ..ring.helpers import get_elements
 from ... import Simulation
+from ...physics.drifts import DriftBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import (
@@ -31,6 +32,7 @@ class BeamPhysicsRelevantElements(Preparable):
 
     def _check_section_indexing(self):
         from ...physics.cavities import CavityBaseClass
+        from ...physics.drifts import DriftBaseClass
 
         elem_section_indices = [e.section_index for e in self.elements]
         assert min(elem_section_indices) == 0, "section_index=0 must be set"
@@ -48,6 +50,14 @@ class BeamPhysicsRelevantElements(Preparable):
                 f"but got "
                 f"{[(cav.name, cav.section_index) for cav in cavities]}"
             )
+
+        for section_index in np.sort(np.unique(elem_section_indices)):
+            cavities = self.get_elements(CavityBaseClass, section_i=section_index)
+            drifts = self.get_elements(DriftBaseClass, section_i=section_index)
+            if len(cavities) == 0:
+                raise RuntimeError(f"Missing cavity in section" f" {section_index}")
+            if len(drifts) == 0:
+                raise RuntimeError(f"Missing cavity in section" f" {section_index}")
 
     def on_run_simulation(
         self, simulation: Simulation, n_turns: int, turn_i_init: int
@@ -98,7 +108,6 @@ class BeamPhysicsRelevantElements(Preparable):
         return elements[0]
 
     def reorder(self):
-
         self._check_section_indexing()
 
         for section_i in range(self.n_sections):
@@ -159,9 +168,10 @@ class BeamPhysicsRelevantElements(Preparable):
         )
         for element in self.elements:
             filtered_dict = {
-                k: v
+                k: pprint(v)
                 for k, v in element.__dict__.items()
-                if (not k.startswith("_")) and (k != "name")
+                if (not k.startswith("_"))
+                and (k != "name")
             }
             content += (
                 f"{element.name:40s} {(type(element).__name__):20s} "
@@ -169,3 +179,9 @@ class BeamPhysicsRelevantElements(Preparable):
             )
         content += sep
         return content
+
+def pprint(v):
+    if isinstance(v, np.ndarray):
+        return f"array(min={v.min()}, max={v.max()}, shape={v.shape})"
+    else:
+        return v

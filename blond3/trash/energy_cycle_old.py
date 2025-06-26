@@ -344,7 +344,7 @@ class EnergyCycle(EnergyCycleBase):
 
     @cached_property
     def n_turns(self):
-        return len(self._synchronous_data) - 1  # TODO wrong
+        return len(self._synchronous_data) # TODO wrong
 
     @cached_property  # as readonly attributes
     def beta(self) -> NumpyArray:

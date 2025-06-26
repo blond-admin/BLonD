@@ -9,10 +9,11 @@ from typing import (
 )
 
 import numpy as np
-from numpy.typing import ArrayLike
 
 from .base import ProgrammedCycle
 from .._core.base import HasPropertyCache
+from ..physics.cavities import CavityBaseClass
+from ..physics.drifts import DriftBaseClass
 
 if TYPE_CHECKING:
     from typing import Optional as LateInit
@@ -46,7 +47,7 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
 
     @cached_property
     def n_turns(self):
-        return self._momentum.shape[1] - 1
+        return self._momentum.shape[1]
 
     @cached_property  # as readonly attributes
     def beta(self) -> NumpyArray:
@@ -151,7 +152,7 @@ class ConstantEnergyCycle(EnergyCycleBase):
 
         n_cavities = simulation.ring.n_cavities
 
-        shape = (n_cavities, n_turns + 1)  # TODO
+        shape = (n_cavities, n_turns)
         self._momentum = momentum * np.ones(shape)
         super().on_init_simulation(simulation=simulation)
 
@@ -165,7 +166,7 @@ class EnergyCyclePerTurn(EnergyCycleBase):
     ):
         super().__init__()
         self._values_per_turn = values_per_turn[:]
-        self._n_turns = self._values_per_turn.shape[0] - 1
+        self._n_turns = self._values_per_turn.shape[0]
         self._in_unit = in_unit
         if self._in_unit == "bending field":
             assert bending_radius is not None
@@ -184,21 +185,21 @@ class EnergyCyclePerTurn(EnergyCycleBase):
             ),
         )
         n_cavities = simulation.ring.n_cavities
+        assert n_cavities > 0
         n_turns = self._n_turns
 
-        shape = (n_cavities, n_turns + 1)
-        result = np.empty(shape)
+        shape = (n_cavities, n_turns)
+        _momentum = np.empty(shape)
         # assume that each cavity gives an
         # even part of the kick
-        stair_like = np.arange(1, n_cavities + 1, dtype=float)
-        stair_like /= np.sum(stair_like)
-        assert np.sum(stair_like) == 1
-        result[:, 0] = float(momentum_per_turn[0])
+        stair_like = np.linspace(1/n_cavities,1,n_cavities,endpoint=True)
+        base = momentum_per_turn[:]
+        step = np.concatenate(([0], np.diff(momentum_per_turn)))
         for cav_i in range(n_cavities):
-            base = momentum_per_turn[:-1]
-            step = np.diff(momentum_per_turn)
-            result[cav_i, 1:] = base + stair_like[cav_i] * step
-        self._momentum = result
+            _momentum[cav_i, :] = base + stair_like[cav_i] * step
+        assert _momentum[0, 0] == float(momentum_per_turn[0])
+
+        self._momentum = _momentum
         super().on_init_simulation(simulation=simulation)
 
 
@@ -211,7 +212,7 @@ class EnergyCyclePerTurnAllCavities(EnergyCycleBase):
     ):
         super().__init__()
         self._values_per_cavity_per_turn = values_per_cavity_per_turn[:, :]
-        self._n_turns = self._values_per_cavity_per_turn.shape[1] - 1
+        self._n_turns = self._values_per_cavity_per_turn.shape[1]
         self._in_unit = in_unit
         if self._in_unit == "bending field":
             assert bending_radius is not None
@@ -277,18 +278,17 @@ class EnergyCycleByTime(EnergyCycleBase):
 
         at_time = derive_time(
             n_turns=n_turns,
-            section_lengths=simulation.ring.elements.get_section_circumference_shares(),  # TODO,
             t0=self._t0,
+            simulation=simulation,
             program_time=self._base_time,
             program_momentum=base_momentum,
-            mass=simulation.beams[0].particle_type.mass,
             interpolate=self._interpolator,
         )
-        momentum = np.empty((n_cavities, n_turns + 1))
-        momentum[:, 0] = np.interp(at_time[0, 0], self._base_time, base_momentum)
-        for turn_i in range(1, n_turns + 1):
-            momentum[:, turn_i] = np.interp(
-                at_time[:, turn_i], self._base_time, base_momentum
+        assert at_time[0] == self._t0
+        momentum = np.empty((n_cavities, n_turns))
+        for cavity_i in range(n_cavities):
+            momentum[cavity_i, :] = np.interp(
+                at_time[cavity_i, :], self._base_time, base_momentum
             )
         self._momentum = momentum
         super().on_init_simulation(simulation=simulation)
@@ -363,17 +363,17 @@ def beta_by_momentum(momentum: T, mass: float) -> T:
 
 
 def derive_time(
+    simulation: Simulation,
     n_turns: int,
-    section_lengths: ArrayLike[float],
     t0: float,
     program_time: NumpyArray,
     program_momentum: NumpyArray,
-    mass: float,
     interpolate=np.interp,
 ) -> NumpyArray:
     """Derive time at different sections for n_turns, given momentum(time)"""
-    times = np.empty((len(section_lengths), n_turns + 1))
 
+    times = np.empty((simulation.ring.n_cavities, n_turns))
+    mass = simulation.beams[0].particle_type.mass
     t = t0
     momentum = float(
         interpolate(
@@ -386,28 +386,42 @@ def derive_time(
     )
     beta = beta_by_momentum(momentum, mass)
 
-    all_sections = slice(0, len(section_lengths))
-    turn_i = 0
-    times[all_sections, turn_i] = t
-    del all_sections
+    # generate execution order from reading attributes from ring
+    # this is only ugly for performance.
+
+    # elements are converted to int/float if cavity/drift
+    fast_execution_order = []
+    cavity_i = 0
+    for elem in simulation.ring.elements.elements:
+        if isinstance(elem, DriftBaseClass):
+            drift_length = elem.share_of_circumference * simulation.ring.circumference
+            fast_execution_order.append(float(drift_length))
+        if isinstance(elem, CavityBaseClass):
+            fast_execution_order.append(int(cavity_i))
+            cavity_i += 1
+    fast_execution_order = tuple(fast_execution_order)
 
     # mini simulation based on the knowledge of which
     # momentum is wanted at which moment in time.
     # From this, one can use x=v*t linear motion
-    for turn_i in range(1, n_turns + 1):
-        for section_i, drift_length in enumerate(section_lengths):
-            dt = drift_length / beta
-            t += dt
-            momentum = float(
-                interpolate(
-                    x=t,
-                    xp=program_time[:],
-                    fp=program_momentum[:],
-                    left=float(program_momentum[0]),
-                    right=float(program_momentum[-1]),
+    for turn_i in range(n_turns):
+        for element in fast_execution_order:
+            if isinstance(element, float):
+                drift_length = element
+                dt = drift_length / beta
+                t += dt
+            if isinstance(element, int):
+                momentum = float(
+                    interpolate(
+                        x=t,
+                        xp=program_time[:],
+                        fp=program_momentum[:],
+                        left=float(program_momentum[0]),
+                        right=float(program_momentum[-1]),
+                    )
                 )
-            )
-            beta = beta_by_momentum(momentum, mass)
-            times[section_i, turn_i] = t
+                beta = beta_by_momentum(momentum, mass)
+                cavity_i = element
+                times[cavity_i, turn_i] = t
 
     return times

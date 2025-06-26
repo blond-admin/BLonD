@@ -79,7 +79,7 @@ def _get_dE_from_dt(simulation: Simulation, dt_amplitude: float) -> float:
 class BiGaussian(MatchingRoutine):
     def __init__(
         self,
-        n_macroparticles: int,
+        n_macroparticles: int | float,
         sigma_dt: float,
         sigma_dE: Optional[float] = None,
         reinsertion: bool = False,

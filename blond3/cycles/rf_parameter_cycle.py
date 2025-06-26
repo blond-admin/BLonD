@@ -73,16 +73,20 @@ class RfStationParams(RfParameterCycle):
         self.cavity_feedback = None  # TODO it is not clear if they should be
         # here
 
-    @requires(["EnergyCycleBase", # for .energy_cycle
-               "BeamPhysicsRelevantElements", # for .section_index,
-               ])
+    @requires(
+        [
+            "EnergyCycleBase",  # for .energy_cycle
+            "BeamPhysicsRelevantElements",  # for .section_index,
+        ]
+    )
     def on_init_simulation(self, simulation: Simulation) -> None:
         super().on_init_simulation(simulation=simulation)
         from blond.input_parameters.rf_parameters import RFStationOptions
 
         rf_station_options = RFStationOptions()
         cycle_time = self._simulation.energy_cycle.cycle_time[
-            self._owner.section_index, :]
+            self._owner.section_index, :
+        ]
         n_turns = self._simulation.energy_cycle.n_turns
         n_rf = self._owner.n_rf
         t_start = 0.0  # TODO expose parameter if required, else legacy
@@ -91,7 +95,7 @@ class RfStationParams(RfParameterCycle):
         # Reshape design harmonic
         harmonic = rf_station_options.reshape_data(
             self._init_params.harmonic,
-            n_turns,
+            n_turns - 1,  # FIXME use correct reshaping
             n_rf,
             cycle_time,
             t_start,
@@ -99,8 +103,8 @@ class RfStationParams(RfParameterCycle):
         self.harmonic = harmonic.astype(backend.float, order="C", copy=False)
 
         # Reshape design voltage
-        voltage = rf_station_options.reshape_data(
-            self._init_params.voltage, n_turns, n_rf, cycle_time, t_start
+        voltage = rf_station_options.reshape_data(  # FIXME use correct reshaping
+            self._init_params.voltage, n_turns - 1, n_rf, cycle_time, t_start
         )
         self.voltage = voltage.astype(
             backend.float,
@@ -110,12 +114,14 @@ class RfStationParams(RfParameterCycle):
         )
 
         # Reshape design phase
-        self.phi_rf_design = rf_station_options.reshape_data(
-            self._init_params.phi_rf,
-            n_turns,
-            n_rf,
-            cycle_time,
-            t_start,
+        self.phi_rf_design = (
+            rf_station_options.reshape_data(  # FIXME use correct reshaping
+                self._init_params.phi_rf,
+                n_turns - 1,
+                n_rf,
+                cycle_time,
+                t_start,
+            )
         )
 
         # Calculating design rf angular frequency
@@ -124,9 +130,9 @@ class RfStationParams(RfParameterCycle):
                 2.0 * np.pi * self._simulation.energy_cycle.f_rev * self.harmonic
             )
         else:
-            omega_rf_d = rf_station_options.reshape_data(
+            omega_rf_d = rf_station_options.reshape_data(  # FIXME use correct reshaping
                 self._init_params.omega_rf,
-                n_turns,
+                n_turns - 1,
                 n_rf,
                 cycle_time,
                 t_start,
@@ -135,9 +141,9 @@ class RfStationParams(RfParameterCycle):
 
         # Reshape phase noise
         if self._init_params.phi_noise is not None:
-            phi_noise = rf_station_options.reshape_data(
+            phi_noise = rf_station_options.reshape_data(  # FIXME use correct reshaping
                 self._init_params.phi_noise,
-                n_turns,
+                n_turns - 1,
                 n_rf,
                 cycle_time,
                 t_start,
@@ -167,21 +173,25 @@ class RfStationParams(RfParameterCycle):
                     system = system[0]
 
                 pMod.calc_modulation()
-                pMod.calc_delta_omega((ring.cycle_time[system], self.omega_rf_design[system]))
+                pMod.calc_delta_omega(
+                    (ring.cycle_time[system], self.omega_rf_design[system])
+                )
                 dPhiInput, dOmegaInput = pMod.extend_to_n_rf(self.harmonic[:, 0])
-                dPhi += rf_station_options.reshape_data(
+                dPhi += rf_station_options.reshape_data(  # FIXME use correct reshaping
                     dPhiInput,
-                    n_turns,
+                    n_turns - 1,
                     n_rf,
                     cycle_time,
                     t_start,
                 )
-                dOmega += rf_station_options.reshape_data(
-                    dOmegaInput,
-                    n_turns,
-                    n_rf,
-                    cycle_time,
-                    t_start,
+                dOmega += (
+                    rf_station_options.reshape_data(  # FIXME use correct reshaping
+                        dOmegaInput,
+                        n_turns - 1,
+                        n_rf,
+                        cycle_time,
+                        t_start,
+                    )
                 )
 
             self.phi_modulation = (dPhi, dOmega)
@@ -232,13 +242,13 @@ class RfStationParams(RfParameterCycle):
         self.dphi_rf += (
             2.0
             * np.pi
-            * self.harmonic[:, turn + 1]
-            * (self.omega_rf[:, turn + 1] - self.omega_rf_design[:, turn + 1])
-            / self.omega_rf_design[:, turn + 1]
+            * self.harmonic[:, turn]
+            * (self.omega_rf[:, turn] - self.omega_rf_design[:, turn])
+            / self.omega_rf_design[:, turn]
         )
 
         # Total phase offset
-        self.phi_rf[:, turn + 1] += self.dphi_rf
+        self.phi_rf[:, turn] += self.dphi_rf
 
         # Correction from cavity loop
         if self.cavity_feedback is not None:

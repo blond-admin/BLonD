@@ -67,9 +67,9 @@ class DriftSimple(DriftBaseClass):
         from blond.input_parameters.ring_options import RingOptions
 
         ring_options = RingOptions()
-        self._transition_gamma = ring_options.reshape_data(
+        self._transition_gamma = ring_options.reshape_data(# FIXME use correct reshaping
             input_data=self.__transition_gamma,
-            n_turns=cycle.n_turns,
+            n_turns=cycle.n_turns-1,
             n_sections=1,
             interp_time=cycle.cycle_time[self.section_index,:],
         )[0, :]

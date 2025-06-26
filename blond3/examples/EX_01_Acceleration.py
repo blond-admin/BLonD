@@ -19,6 +19,7 @@ from blond3 import (
     CavityPhaseObservation,
 )
 import logging
+
 logging.basicConfig(level=logging.INFO)
 ring = Ring(circumference=26658.883)
 
@@ -26,8 +27,8 @@ cavity1 = SingleHarmonicCavity(
     rf_program=RfStationParams(harmonic=35640, voltage=6e6, phi_rf=0)
 )
 
-N_TURNS = int(1e6)
-energy_cycle = EnergyCyclePerTurn(values_per_turn=np.linspace(450e9, 450e9, N_TURNS + 1))
+N_TURNS = int(1e3)
+energy_cycle = EnergyCyclePerTurn(values_per_turn=np.linspace(450e9, 450e9, N_TURNS))
 
 drift1 = DriftSimple(
     transition_gamma=55.759505,
@@ -42,7 +43,11 @@ sim.print_one_turn_execution_order()
 
 sim.on_prepare_beam(
     preparation_routine=BiGaussian(
-        sigma_dt=0.4e-9 / 4, sigma_dE=1e9 / 4, reinsertion=False, seed=1, n_macroparticles=1e6,
+        sigma_dt=0.4e-9 / 4,
+        sigma_dE=1e9 / 4,
+        reinsertion=False,
+        seed=1,
+        n_macroparticles=1e3,
     )
 )
 
@@ -64,8 +69,9 @@ def my_callback(simulation: Simulation):
     plt.pause(0.1)
     plt.clf()
 
-#sim.profiling(turn_i_init=0, profile_start_turn_i=10, n_turns=10000)
-#sys.exit(0)
+
+# sim.profiling(turn_i_init=0, profile_start_turn_i=10, n_turns=10000)
+# sys.exit(0)
 try:
     sim.load_results(turn_i_init=0, n_turns=N_TURNS, observe=[phase_observation])
 except FileNotFoundError as exc:
@@ -73,7 +79,7 @@ except FileNotFoundError as exc:
         turn_i_init=0,
         n_turns=N_TURNS,
         observe=[phase_observation],
-        #callback=my_callback,
+        # callback=my_callback,
     )
 plt.plot(phase_observation.phases)
 plt.show()
