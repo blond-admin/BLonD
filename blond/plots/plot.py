@@ -66,7 +66,7 @@ class Plot:
                  ymin: float, ymax: float, xunit: str = 's', sampling: int = 1,
                  show_plots: bool = False, separatrix_plot: bool = False,
                  histograms_plot: bool = True, profile: Optional[Profile] = None,
-                 h5file: Optional[hp.File] = None, output_frequency: int = 1,
+                 h5file: Optional[str] = None, output_frequency: int = 1,
                  phase_loop: Optional[BeamFeedback] = None,
                  lhc_noise_fb: Optional[LHCNoiseFB] = None,
                  format_options: Optional[dict] = None):

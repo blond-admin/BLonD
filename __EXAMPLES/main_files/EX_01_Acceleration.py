@@ -78,7 +78,6 @@ long_tracker = RingAndRFTracker(rf, beam)
 
 
 bigaussian(ring, rf, beam, tau_0 / 4, reinsertion=True, seed=1)
-# parabolic(ring, rf, beam, tau_0, seed=1)
 
 
 # Need slices for the Gaussian fit

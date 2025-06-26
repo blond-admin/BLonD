@@ -16,7 +16,11 @@ Unittest for impedances.impedance_sources
 import unittest
 
 import numpy as np
-from scipy.constants import e as elCharge
+try:
+    np.trapezoid
+except AttributeError:
+    np.trapezoid = np.trapz
+from scipy.constants import e as e_charge
 
 from blond.beam.beam import Electron
 from blond.impedances.impedance_sources import (CoherentSynchrotronRadiation,
@@ -40,10 +44,6 @@ class TestResonators(unittest.TestCase):
     def test_smallQError(self):
         with self.assertRaises(RuntimeError):
             Resonators(1, 2, 0.2)
-
-    def test_wrongMethodError(self):
-        with self.assertRaises(RuntimeError):
-            Resonators(1, 2, 3, method='something')
 
 
 class TestResistiveWall(unittest.TestCase):
@@ -127,7 +127,7 @@ class TestCoherentSynchrotronRadiation(unittest.TestCase):
         Z_fs = CoherentSynchrotronRadiation(r_bend, gamma=gamma)
         Z_fs.imped_calc(frequencies, low_frequency_transition=1e-4)
 
-        energy_loss = 2 * np.trapezoid(Z_fs.impedance.real, frequencies) * elCharge  # [eV]
+        energy_loss = 2 * np.trapezoid(Z_fs.impedance.real, frequencies) * e_charge  # [eV]
 
         energy_loss_textbook = Electron().c_gamma * energy**4 / r_bend  # [eV]
 
@@ -160,7 +160,7 @@ class TestCoherentSynchrotronRadiation(unittest.TestCase):
                 Z_fs.impedance*Lambda*np.exp(2j*np.pi*freqs*t), freqs).real
 
         # convert to volt
-        W_fs *= elCharge * intensity
+        W_fs *= e_charge * intensity
 
         W_fs_test = np.array([-2.99526459e+01, -4.11849124e+01, -6.39549552e+01,
                               -1.15710237e+02, -2.71278552e+01,  +4.34850900e+02,

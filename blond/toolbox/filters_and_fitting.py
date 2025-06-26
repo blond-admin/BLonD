@@ -20,6 +20,10 @@ from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
+try:
+    np.trapezoid
+except AttributeError:
+    np.trapezoid = np.trapz
 from scipy.optimize import curve_fit
 from scipy.signal import cheb2ord, cheby2, filtfilt, freqz
 
@@ -30,12 +34,7 @@ if TYPE_CHECKING:
 
     from numpy.typing import NDArray as NumpyArray
 
-    try:
-        from cupy.typing import NDArray as CupyArray
-    except ImportError:
-        NDArray = NumpyArray
-    else:
-        NDArray = NumpyArray | CupyArray
+    from cupy.typing import NDArray as CupyArray
 
     from ..utils.types import FilterExtraOptionsType
 
@@ -119,7 +118,8 @@ def beam_profile_filter_chebyshev(y_array: NumpyArray,
         return y_array
 
 @handle_legacy_kwargs
-def gaussian_fit(y_array: NDArray, x_array: NDArray,
+def gaussian_fit(y_array: NumpyArray | CupyArray,
+                 x_array: NumpyArray | CupyArray,
                  p0: list[float]) -> NumpyArray:
     """
     Gaussian fit of the profile, in order to get the bunch length and
@@ -192,14 +192,14 @@ def fwhm(y_array: NumpyArray, x_array: NumpyArray,
     return bp_fwhm, bl_fwhm
 
 @handle_legacy_kwargs
-def fwhm_multibunch(y_array: NDArray,
-                    x_array: NDArray,
+def fwhm_multibunch(y_array: NumpyArray | CupyArray,
+                    x_array: NumpyArray | CupyArray,
                     n_bunches: int,
                     bunch_spacing_buckets: int,
                     bucket_size_tau: float,
                     bucket_tolerance: float = 0.40,
                     shift: float = 0
-                    ) -> tuple[NDArray, NDArray]:
+                    ) -> tuple[NumpyArray | CupyArray, NumpyArray | CupyArray]:
     """
     Computation of the bunch length and position from the FWHM
     assuming Gaussian line density for multibunch case.
@@ -227,8 +227,8 @@ def fwhm_multibunch(y_array: NDArray,
     return bp_fwhm, bl_fwhm
 
 @handle_legacy_kwargs
-def rms_multibunch(y_array: NDArray,
-                   x_array: NDArray,
+def rms_multibunch(y_array: NumpyArray | CupyArray,
+                   x_array: NumpyArray | CupyArray,
                    n_bunches: int,
                    bunch_spacing_buckets: int,
                    bucket_size_tau: float,

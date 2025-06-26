@@ -81,8 +81,8 @@ class CutOptions:
 
     Examples
     --------
-    >>> from input_parameters.ring import Ring
-    >>> from input_parameters.rf_parameters import RFStation
+    >>> from blond.input_parameters.ring import Ring
+    >>> from blond.input_parameters.rf_parameters import RFStation
     >>> self.ring = Ring(n_turns = 1, ring_length = 100,
     >>> alpha = 0.00001, momentum = 1e9)
     >>> self.rf_params = RFStation(ring=self.ring, n_rf=1, harmonic=[4620],
@@ -409,13 +409,13 @@ class Profile:
 
     beam : Beam
         Beam from which the profile has to be calculated
-    cut_options : Optional[CutOptions]
+    cut_options : CutOptions, Optional
         Options for profile cutting (see above)
-    fit_options : Optional[FitOptions]
+    fit_options : FitOptions, Optional
         Options to get profile position and length (see above)
-    filter_options : Optional[FilterOptions]
+    filter_options : FilterOptions, Optional
         Options to set a filter (see above)
-    other_slices_options : Optional[OtherSlicesOptions]
+    other_slices_options : OtherSlicesOptions, Optional
         All remaining options, like smooth histogram and direct
         slicing (see above)
 

@@ -32,6 +32,10 @@ if Version(scipy.__version__) >= Version("1.14"):
     from scipy.integrate import cumulative_trapezoid as cumtrapz
 else:
     from scipy.integrate import cumtrapz
+try:
+    np.trapezoid
+except AttributeError:
+    np.trapezoid = np.trapz
 
 from .profile import CutOptions, Profile
 from ..trackers.utilities import is_in_separatrix, minmax_location, potential_well_cut
@@ -597,7 +601,7 @@ def matched_from_distribution_function(beam: Beam, full_ring_and_rf: FullRingAnd
                                            <= potential_well_low_res[j]])
                          / eom_factor_dE)
             dE_trajectory[pot_well_high_res > potential_well_low_res[j]] = 0
-            # todo fix trapz naming
+
             J_array_dE0[j] = (1 / np.pi
                               * np.trapezoid(dE_trajectory,
                                              dx=time_potential_high_res[1]
@@ -683,7 +687,7 @@ def matched_from_distribution_function(beam: Beam, full_ring_and_rf: FullRingAnd
             induced_voltage = induced_voltage_object.induced_voltage
 
             # Calculating the induced potential
-            induced_potential_low_res = -(eom_factor_potential 
+            induced_potential_low_res = -(eom_factor_potential
                                           * cumtrapz(induced_voltage,
                                                      dx=time_resolution_low,
                                                      initial=0))

@@ -3,11 +3,12 @@ import platform
 import subprocess
 import sys
 import unittest
+from typing import List
 
 this_directory = pathlib.Path(__file__).parent.resolve()
 
 
-def execute_command(commands):
+def execute_command(commands: List[str]):
     if platform.system() == 'Windows':
         # For Windows, we use PowerShell to run the commands
         command = f"powershell -Command \"{'; '.join(commands)}\""
@@ -24,8 +25,10 @@ def execute_command(commands):
         shell=True
     )
 
-    # This will raise a CalledProcessError if the command failed (returns non-zero returncode).
-    # If you actually want a specific string returned when failing, using assert as you did before also works fine.
+    # This will raise a CalledProcessError if the
+    # command failed (returns non-zero returncode).
+    # If you actually want a specific string returned when failing,
+    # using assert as you did before also works fine.
     result.check_returncode()
 
 
@@ -33,6 +36,8 @@ venv_tmp = "venv_tmp"
 
 
 class TestInstallation(unittest.TestCase):
+    def test_execute_command(self):
+        execute_command(["echo 'hello world'"])
     def test_installation_in_venv(self):
         """Integration test: run pip install in a temporary directory and ensure it works."""
 
