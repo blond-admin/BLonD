@@ -22,7 +22,8 @@ import os
 import matplotlib as mpl
 import numpy as np
 
-from blond.impedances.induced_voltage_analytical import analytical_gaussian_resonator
+from blond.impedances.induced_voltage_analytical import \
+    analytical_gaussian_resonator
 from blond3 import (
     BiGaussian,
     Beam,
@@ -37,7 +38,6 @@ from blond3 import (
     WakeField,
     StaticProfile,
 )
-from blond3.examples.EX_01_Acceleration import energy_cycle
 from blond3.physics.impedances.sources import Resonators
 from blond3.physics.impedances.sovlers import (
     SingleTurnWakeSolverTimeDomain,

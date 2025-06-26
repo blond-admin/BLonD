@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ..ring.helpers import get_elements
 from ..base import Preparable
+from ..ring.helpers import get_elements
 from ... import Simulation
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -99,7 +98,6 @@ class BeamPhysicsRelevantElements(Preparable):
         return elements[0]
 
     def reorder(self):
-        from ...physics.cavities import CavityBaseClass
 
         self._check_section_indexing()
 

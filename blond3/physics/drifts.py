@@ -6,7 +6,6 @@ from typing import Optional as LateInit, TYPE_CHECKING, Tuple
 
 import numpy as np
 
-from .cavities import CavityBaseClass
 from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant
 from .._core.ring.helpers import requires

@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-from os import PathLike
 from typing import TYPE_CHECKING
 
 import numpy as np
 
-from .base import MatchingRoutine, BeamPreparationRoutine
+from .base import MatchingRoutine
 from .._core.backends.backend import backend
 from .._core.helpers import int_from_float_with_warning
-from ..physics.drifts import DriftSimple
 from ..physics.cavities import SingleHarmonicCavity
+from ..physics.drifts import DriftSimple
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional

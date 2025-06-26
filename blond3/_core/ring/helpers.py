@@ -4,7 +4,6 @@ import inspect
 from collections import defaultdict, deque
 from typing import TYPE_CHECKING
 
-
 if TYPE_CHECKING:
     from typing import Iterable, Any, List, Tuple, Type, TypeVar
 

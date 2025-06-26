@@ -1,7 +1,6 @@
-import sys
-
 import numpy as np
 from matplotlib import pyplot as plt
+
 from blond3._core.backends.backend import backend, Numpy32Bit
 from blond3.cycles.energy_cycle import EnergyCyclePerTurn
 
@@ -18,7 +17,6 @@ from blond3 import (
     BiGaussian,
     RfStationParams,
     CavityPhaseObservation,
-    BunchObservation,
 )
 import logging
 logging.basicConfig(level=logging.INFO)

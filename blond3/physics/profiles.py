@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from abc import abstractmethod
-from functools import cached_property, lru_cache
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 import numpy as np

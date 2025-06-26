@@ -1,21 +1,17 @@
 from __future__ import annotations
 
-import math
 from typing import TYPE_CHECKING
 
 import numba
 import numpy as np
 from numba import njit, prange
 
-
-from ..backend import backend
 from ..backend import Specials
+from ..backend import backend
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
     from numpy._typing import NDArray as NumpyArray
-
-from ..python.callables import PythonSpecials
 
 if backend.float == np.float32:
     nb_f = numba.float32

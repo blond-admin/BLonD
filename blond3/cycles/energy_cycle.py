@@ -13,9 +13,6 @@ from numpy.typing import ArrayLike
 
 from .base import ProgrammedCycle
 from .._core.base import HasPropertyCache
-from ..physics.cavities import (
-    CavityBaseClass,
-)
 
 if TYPE_CHECKING:
     from typing import Optional as LateInit

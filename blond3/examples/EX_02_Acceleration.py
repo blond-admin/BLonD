@@ -13,6 +13,7 @@ Example script to take into account intensity effects from impedance tables
 :Authors: **Danilo Quartullo**
 """
 
+import logging
 import os
 
 import numpy as np
@@ -42,7 +43,7 @@ from blond3.physics.impedances.sovlers import (
     PeriodicFreqSolver,
     InductiveImpedanceSolver,
 )
-import logging
+
 logging.basicConfig(level=logging.INFO)
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"

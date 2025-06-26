@@ -5,16 +5,12 @@ from functools import cached_property
 from typing import (
     TYPE_CHECKING,
     Iterable,
-    TypeVar,
     Tuple,
     Optional,
-    Literal,
     Callable,
-    Annotated,
 )
 
 import numpy as np
-from numpy._typing import NDArray
 from numpy.typing import ArrayLike
 
 from .base import ProgrammedCycle
