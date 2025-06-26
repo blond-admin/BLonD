@@ -464,6 +464,8 @@ class RFStation:
             2D numpy array of [time, voltage].
         """
 
+        # TODO:  Some equivalent including local feedbacks needed
+
         turn_number = self.counter[0] if turn_number is None else turn_number
 
         waveform = np.array([time_array, np.zeros_like(time_array)])
