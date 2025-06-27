@@ -162,7 +162,7 @@ class BlondElement:
             trackable: Trackable,
             beam: Beam,
             update_zeta: bool = False
-        ) -> None:
+        ):
         self.trackable = trackable
         self.beam = beam
         self.update_zeta = update_zeta
@@ -179,7 +179,7 @@ class BlondElement:
         else:
             self.track = getattr(self, "obs_track")
 
-    def rf_track(self, particles: Particles) -> None:
+    def rf_track(self, particles: Particles):
         r"""
         Tracking method which is called if the trackable BLonD class is the RingAndRFTracker.
 
@@ -204,7 +204,7 @@ class BlondElement:
         # Update the zeta shift due to potential frequency shifts in the RF
         self._orbit_shift(particles)
 
-    def ind_track(self, particles: Particles) -> None:
+    def ind_track(self, particles: Particles):
         r"""
         Tracking method which is called if the trackable BLonD class is the TotalInducedVoltage.
 
@@ -215,7 +215,7 @@ class BlondElement:
         """
         self.trackable.induced_voltage_sum()
 
-    def obs_track(self, particles: Particles) -> None:
+    def obs_track(self, particles: Particles):
         r"""
         Tracking method which is called if the trackable BLonD class is not the RingAndRFTracker or TotalInducedVoltage.
 
@@ -226,7 +226,7 @@ class BlondElement:
         """
         self.trackable.track()
 
-    def xsuite_part_to_blond_beam(self, particles: Particles) -> None:
+    def xsuite_part_to_blond_beam(self, particles: Particles):
         r"""
         Coordinate transformation from Xsuite to BLonD.
         It uses the initial particle coordinates and beam properties in stored in the Particles class from xtrack.
@@ -250,7 +250,7 @@ class BlondElement:
         # Check what particles are still alive
         self.beam.id[:] = np.int_(particles.state > 0)
 
-    def blond_beam_to_xsuite_part(self, particles: Particles, update_zeta: bool = False) -> None:
+    def blond_beam_to_xsuite_part(self, particles: Particles, update_zeta: bool = False):
         r"""
         Coordinate transformation from BLonD to Xsuite.
         It uses the particle coordinates stored in Beam class of BLonD
@@ -284,7 +284,7 @@ class BlondElement:
         # If the particle is lost its state is set to -500 by convention
         particles.state[mask_lost] = -500
 
-    def _get_time_shift(self) -> None:
+    def _get_time_shift(self):
         r'''
         Computes the time-shift between the Xsuite and BLonD coordinate systems.
 
@@ -300,7 +300,7 @@ class BlondElement:
         self._dt_shift = ((self.trackable.rf_params.phi_s[counter] - self.trackable.rf_params.phi_rf[0, counter])
                           / self.trackable.rf_params.omega_rf[0, counter])
 
-    def _orbit_shift(self, particles: Particles) -> None:
+    def _orbit_shift(self, particles: Particles):
         r'''
         Computes the radial steering due to rf periods which are not an integer multiple of the revolution period.
         This is for example needed when tracking with global LLRF feedback loops.
@@ -351,7 +351,7 @@ class EnergyUpdate:
     xsuite_energy_update : xtrack.ReferenceEnergyIncrease class
         Class to update the momentum in xsuite.
     """
-    def __init__(self, momentum: NDArray) -> None:
+    def __init__(self, momentum: NDArray):
         # Load momentum program
         self.momentum = momentum
 
@@ -361,7 +361,7 @@ class EnergyUpdate:
         # Enter the initial momentum update in the ReferenceEnergyIncrease class in xsuite
         self.xsuite_energy_update = ReferenceEnergyIncrease(Delta_p0c=init_p0c)
 
-    def track(self, particles: Particles) -> None:
+    def track(self, particles: Particles):
         r'''
         Track method for the class to update the synchronous energy.
 
@@ -428,7 +428,7 @@ class EnergyFrequencyUpdate:
             f_rf: NDArray,
             line: Line,
             cavity_name: str
-        ) -> None:
+        ):
         # Load the parameters
         self.momentum = momentum
         self.f_rf = f_rf
@@ -441,7 +441,7 @@ class EnergyFrequencyUpdate:
         # Enter the initial momentum update in the ReferenceEnergyIncrease class in xsuite
         self.xsuite_energy_update = ReferenceEnergyIncrease(Delta_p0c=init_p0c)
 
-    def track(self, particles: Particles) -> None:
+    def track(self, particles: Particles):
         r'''
         Track-method from for the class. This method updates the synchronous momentum and the rf frequency.
 
@@ -521,7 +521,7 @@ class BlondObserver(BlondElement):
             blond_cavity: bool,
             update_zeta: bool = False,
             profile: Profile = None
-        ) -> None:
+        ):
         # Initialize the parent class
         super().__init__(trackable, beam, update_zeta)
 
@@ -534,7 +534,7 @@ class BlondObserver(BlondElement):
         self.xsuite_ref_energy = np.zeros(self.trackable.rf_params.n_turns + 1)
         self.xsuite_trev = np.zeros(self.trackable.rf_params.n_turns + 1)
 
-    def obs_track(self, particles: Particles) -> None:
+    def obs_track(self, particles: Particles):
         r'''
         observation tracker which performs the coordinate transformations.
 
