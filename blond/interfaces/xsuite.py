@@ -14,16 +14,18 @@ from blond.trackers.tracker import RingAndRFTracker
 from blond.impedances.impedance import TotalInducedVoltage
 
 if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
     from xtrack import Particles
     from xtrack import Line
     from blond.beam.beam import Beam
     from blond.beam.profile import Profile
-    from typing import Any, Union
+    from blond.utils.types import Trackable
 
 
 def blond_to_xsuite_transform(
-        dt: Union[float, np.ndarray],
-        de: Union[float, np.ndarray],
+        dt: float | NDArray,
+        de: float | NDArray,
         beta0: float,
         energy0: float,
         omega_rf: float,
@@ -70,8 +72,13 @@ def blond_to_xsuite_transform(
     return zeta, ptau
 
 
-def xsuite_to_blond_transform(zeta: Union[float, np.ndarray], ptau: Union[float, np.ndarray],
-                              beta0: float, energy0: float, omega_rf: float, phi_s: float = 0):
+def xsuite_to_blond_transform(
+        zeta: float | NDArray,
+        ptau: float | NDArray,
+        beta0: float,
+        energy0: float,
+        omega_rf: float,
+        phi_s: float = 0):
     r"""
     Coordinate transformation from Xsuite to BLonD. The coordinates are transformed as
 
@@ -152,7 +159,7 @@ class BlondElement:
 
     def __init__(
             self,
-            trackable: Any,
+            trackable: Trackable,
             beam: Beam,
             update_zeta: bool = False
         ) -> None:
@@ -334,17 +341,17 @@ class EnergyUpdate:
 
     Parameters
     ----------
-    momentum : list or numpy-array
+    momentum : numpy-array
         Momentum program [eV/c] from BLonD.
 
     Attributes
     ----------
-    momentum : list or numpy-array
+    momentum : numpy-array
         Momentum program [eV/c] from BLonD.
     xsuite_energy_update : xtrack.ReferenceEnergyIncrease class
         Class to update the momentum in xsuite.
     """
-    def __init__(self, momentum: Union[list, np.ndarray]) -> None:
+    def __init__(self, momentum: NDArray) -> None:
         # Load momentum program
         self.momentum = momentum
 
@@ -417,8 +424,8 @@ class EnergyFrequencyUpdate:
 
     def __init__(
             self,
-            momentum: np.ndarray,
-            f_rf: np.ndarray,
+            momentum: NDArray,
+            f_rf: NDArray,
             line: Line,
             cavity_name: str
         ) -> None:
@@ -509,7 +516,7 @@ class BlondObserver(BlondElement):
 
     def __init__(
             self,
-            trackable: Any,
+            trackable: Trackable,
             beam: Beam,
             blond_cavity: bool,
             update_zeta: bool = False,
