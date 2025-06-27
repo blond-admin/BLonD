@@ -14,6 +14,8 @@ from blond.trackers.tracker import RingAndRFTracker
 from blond.impedances.impedance import TotalInducedVoltage
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from numpy.typing import NDArray
 
     from xtrack import Particles
@@ -341,7 +343,7 @@ class EnergyUpdate:
 
     Parameters
     ----------
-    momentum : numpy-array
+    momentum : sequence
         Momentum program [eV/c] from BLonD.
 
     Attributes
@@ -351,7 +353,7 @@ class EnergyUpdate:
     xsuite_energy_update : xtrack.ReferenceEnergyIncrease class
         Class to update the momentum in xsuite.
     """
-    def __init__(self, momentum: NDArray):
+    def __init__(self, momentum: Sequence):
         # Load momentum program
         self.momentum = momentum
 
@@ -399,9 +401,9 @@ class EnergyFrequencyUpdate:
 
     Parameters
     ----------
-    momentum : numpy-array
+    momentum : sequence
         The momentum program [eV/c] from BLonD.
-    f_rf : numpy-array
+    f_rf : sequence
         The frequency program [Hz] from BLonD.
     line : xtrack.Line
         Line class from xtrack.
@@ -410,9 +412,9 @@ class EnergyFrequencyUpdate:
 
     Attributes
     ----------
-    momentum : numpy-array
+    momentum : sequence
         The momentum program [eV/c] from BLonD.
-    f_rf : numpy-array
+    f_rf : sequence
         The frequency program [Hz] from BLonD.
     line : xtrack.Line class
         Line class from xtrack.
@@ -424,8 +426,8 @@ class EnergyFrequencyUpdate:
 
     def __init__(
             self,
-            momentum: NDArray,
-            f_rf: NDArray,
+            momentum: Sequence,
+            f_rf: Sequence,
             line: Line,
             cavity_name: str
         ):
