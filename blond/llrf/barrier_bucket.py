@@ -39,11 +39,17 @@ class BarrierGenerator:
     Parameters
     ----------
         t_center : (float | Iterable[Iterable[float]])
-            The center time of the barrier in seconds
+            The center time of the barrier in seconds, either constant
+            or time varying.  If time varying, the format should be
+            [time, amplitude].
         t_width : (float | Iterable[Iterable[float]])
-            The width the barrier in seconds
+            The width the barrier in seconds, either constant
+            or time varying.  If time varying, the format should be
+            [time, amplitude].
         peak : (float | Iterable[Iterable[float]])
-            The peak amplitude of the barrier in V
+            The peak amplitude of the barrier in V, either constant
+            or time varying.  If time varying, the format should be
+            [time, amplitude].
     """
 
     def __init__(self, t_center: float | Iterable[Iterable[float]],
