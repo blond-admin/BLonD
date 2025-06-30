@@ -250,7 +250,7 @@ class BlondElement:
         self.beam.dt[:] = -particles.zeta / particles.beta0 / clight + self._dt_shift
 
         # Check what particles are still alive
-        self.beam.id[:] = np.int_(particles.state > 0)
+        self.beam.id[:] *= np.int_(particles.state > 0)
 
     def blond_beam_to_xsuite_part(self, particles: Particles, update_zeta: bool = False):
         r"""
