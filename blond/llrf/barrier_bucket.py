@@ -75,7 +75,7 @@ class BarrierGenerator:
         Returns:
             CupyArray|NumpyArray: The array of the barrier waveform
         """
-
+        # TODO:  Allow function type (sin, square, ...) as input
 
         cent = dc.interp_if_array(time, self._input_t_center)
         width = dc.interp_if_array(time, self._input_t_width)
