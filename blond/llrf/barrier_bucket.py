@@ -60,7 +60,8 @@ class BarrierGenerator:
         self._input_t_width = t_width
         self._input_peak = peak
 
-    def waveform_at_time(self, time: float, bin_centers: Iterable[float]) -> NumpyArray | CupyArray:
+    def waveform_at_time(self, time: float, bin_centers: Iterable[float])\
+                                                     -> NumpyArray | CupyArray:
         """
         Construct the ideal barrier waveform at the specified time on
         the given bin_centers
@@ -85,9 +86,9 @@ class BarrierGenerator:
 
     def for_rf_station(self, times: Iterable[float], t_rev: Iterable[float],
                        harmonics: Iterable[int], m: int = 1)\
-                                                    -> tuple[list[int],
-                                                             list[NumpyArray],
-                                                             list[NumpyArray]]:
+                                                   -> tuple[list[int],
+                                                            list[NumpyArray],
+                                                            list[NumpyArray]]:
         """
         Converts the barrier definition into a form that can be input to
         the RFStation object.  The barrier will be constructed at all
@@ -236,7 +237,8 @@ def waveform_to_harmonics(waveform: NumpyArray | CupyArray,
 
     return harm_amps, harm_phases
 
-def sinc_filtering(harmonic_amplitudes: Iterable[float], m: int=1) -> NDArray:
+def sinc_filtering(harmonic_amplitudes: Iterable[float], m: int=1)\
+                                                                 -> NumpyArray:
     """
     Filters the fourier components with a sinc function window as
     described in PhD thesis:
