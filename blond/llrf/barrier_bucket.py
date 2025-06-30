@@ -18,8 +18,8 @@ from ..utils import bmath as bm
 from ..utils import data_check as dc
 
 
-if TYPE_CHECKING:
-    from typing import Iterable
+if TYPE_CHECKING: # pragma: no cover
+    from typing import Iterable, Optional
 
     from numpy.typing import NDArray as NumpyArray
     if _CUPY_AVAILABLE:
