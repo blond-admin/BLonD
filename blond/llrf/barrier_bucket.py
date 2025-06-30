@@ -203,8 +203,8 @@ def compute_sin_barrier(center: float, width: float, amplitude: float,
 
 
 def waveform_to_harmonics(waveform: NumpyArray | CupyArray,
-                          harmonics: Iterable[int]) -> tuple[tuple[float, ...],
-                                                             tuple[float, ...]]:
+                          harmonics: Optional[Iterable[int]] = None)\
+                                -> tuple[tuple[float, ...], tuple[float, ...]]:
     """
     Converts an arbitrary waveform to a fourier series in amplitude and
     phase.  Waveform is assumed to be 1 revolution period in length.
@@ -216,8 +216,9 @@ def waveform_to_harmonics(waveform: NumpyArray | CupyArray,
     Args:
         waveform (NumpyArray | CupyArray):
             Voltage waveform covering a single revolution period.
-        harmonics (Iterable[int]):
+        harmonics (Optional[Iterable[int]]):
             The RF harmonics to be used for the final fourier series.
+            If None, all harmonics are used.
 
     Returns:
         tuple[tuple[float, ...]]:
@@ -225,9 +226,10 @@ def waveform_to_harmonics(waveform: NumpyArray | CupyArray,
             Element 0 is the amplitudes, element 1 is the phases.
     """
 
-    wave_fft = np.fft.rfft(waveform)
+    harm_series = np.fft.rfft(waveform)
 
-    harm_series = np.array([wave_fft[h] for h in harmonics])
+    if harmonics is not None:
+        harm_series = np.array([harm_series[h] for h in harmonics])
 
     harm_amps = np.abs(harm_series)/(len(waveform)/2)
     harm_phases = np.arctan2(harm_series.real, harm_series.imag) + np.pi
