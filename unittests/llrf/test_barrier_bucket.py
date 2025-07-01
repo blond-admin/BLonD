@@ -107,8 +107,8 @@ class TestBarrierBucketFunctions(unittest.TestCase):
         amps, _ = bbuck.waveform_to_harmonics(barrier, np.arange(1, 13))
         amps = bbuck.sinc_filtering(amps, m = 1)
 
-        amps_exp = [19.9, 38.0, 51.3, 57.5, 55.8, 47.2, 33.7, 18.2, 3.6, -7.9,
-                    -15.0, -17.5]
+        amps_exp = [19.4, 35.3, 45.1, 47.4, 42.3, 31.6, 17.7, 3.6, -8.2, -16.0,
+                    -19.3, -18.4]
 
         for a, a_exp in zip(amps, amps_exp):
             self.assertAlmostEqual(a, a_exp, places = 1)
@@ -217,6 +217,11 @@ class TestBarrierBucketGenerator(unittest.TestCase):
         barrier = bbuck.compute_sin_barrier(cent, width, ampl, bin_cents)
         amps_exp, phases_exp = bbuck.waveform_to_harmonics(barrier,
                                                            harmonics)
+
+        g_comp = bbuck._gain_compensation(bin_cents, barrier, harms, amps_exp,
+                                          phases_exp, t_rev[0])
+
+        amps_exp /= g_comp
 
         for i, (a, p) in enumerate(zip(amps, phases)):
             self.assertEqual(a[1, 0], amps_exp[i])
