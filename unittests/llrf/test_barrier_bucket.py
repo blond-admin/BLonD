@@ -1,6 +1,7 @@
 # General imports
 import unittest
 import numpy as np
+import numpy.testing as nptest
 
 # BLonD imports
 import blond.llrf.barrier_bucket as bbuck
@@ -112,6 +113,38 @@ class TestBarrierBucketFunctions(unittest.TestCase):
         for a, a_exp in zip(amps, amps_exp):
             self.assertAlmostEqual(a, a_exp, places = 1)
 
+
+    def test_waveform_harmonics(self):
+
+        harms = [1, 2, 3, 4, 5, 6, 7]
+        set_amps = [4E3, 0, 3E3, 0, 2E3, 0, 1E3]
+        set_phases = [0, 0, np.pi, 0, 0, 0, np.pi]
+
+        t_rev = 1E-6
+        centers = np.linspace(0, t_rev, 5000)
+        waveform = np.zeros_like(centers)
+
+        for h, a, p in zip(harms, set_amps, set_phases):
+            waveform += a * np.sin(2*np.pi*h*centers / t_rev + p)
+
+        comp_amps, comp_phases = bbuck.waveform_to_harmonics(waveform,
+                                                             range(1, 8))
+
+        for i in range(len(harms)):
+            self.assertAlmostEqual(comp_amps[i], set_amps[i], delta = 1E1)
+
+            if set_amps[i] > 0:
+                # Use sin/cos comparison to avoid issues with 0 != 2pi
+                self.assertAlmostEqual(np.cos(comp_phases[i]),
+                                       np.cos(set_phases[i]), places = 1)
+                self.assertAlmostEqual(np.sin(comp_phases[i]),
+                                       np.sin(set_phases[i]), places = 1)
+
+        comp_wave = bbuck.harmonics_to_waveform(centers, harms,
+                                                set_amps, set_phases,
+                                                t_rev)
+
+        nptest.assert_array_almost_equal(waveform, comp_wave, decimal = 2)
 
 
 class TestBarrierBucketGenerator(unittest.TestCase):
