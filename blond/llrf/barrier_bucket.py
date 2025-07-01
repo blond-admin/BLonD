@@ -202,6 +202,20 @@ def compute_sin_barrier(center: float, width: float, amplitude: float,
 
     return barrier_waveform
 
+def harmonics_to_waveform(bin_centers: Iterable[float],
+                          harmonic_numbers: Iterable[int],
+                          harmonic_amplitudes: Iterable[float],
+                          harmonic_phases: Iterable[float],
+                          t_rev: Optional[float] = None) -> NumpyArray:
+
+    if t_rev is None:
+        t_rev = bin_centers[-1] - bin_centers[0]
+
+    waveform = np.zeros_like(bin_centers)
+    for h, a, p in zip(harmonic_numbers, harmonic_amplitudes, harmonic_phases):
+        waveform += a * np.sin(h*2*np.pi * bin_centers/t_rev + p)
+
+    return waveform
 
 def waveform_to_harmonics(waveform: NumpyArray | CupyArray,
                           harmonics: Optional[Iterable[int]] = None)\
