@@ -26,6 +26,8 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
     from typing import Any, Iterable, TypeVar
 
+    T = TypeVar("T")
+
 
 
 def check_input(variable: Any, msg: str, *args) -> tuple[bool, Any]:
