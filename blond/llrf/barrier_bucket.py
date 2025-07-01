@@ -278,6 +278,6 @@ def sinc_filtering(harmonic_amplitudes: Iterable[float], m: int=1)\
 
     for i, a in enumerate(harmonic_amplitudes):
 
-        filtered_amplitudes[i] = a * np.sinc((i*np.pi) / (2 * (n_harm+1)))**m
+        filtered_amplitudes[i] = a * np.sinc(((i+1)*np.pi) / (2*(n_harm+1)))**m
 
     return filtered_amplitudes
