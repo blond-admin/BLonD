@@ -147,6 +147,32 @@ class TestBarrierBucketFunctions(unittest.TestCase):
         nptest.assert_array_almost_equal(waveform, comp_wave, decimal = 2)
 
 
+    def test_negative_barrier(self):
+
+        cent = 500E-9
+        width = 100E-9
+        ampl = 1E3
+
+        centers = np.linspace(0, 1000E-9, 5000)
+
+        pbarrier = bbuck.compute_sin_barrier(cent, width, ampl, centers)
+        nbarrier = bbuck.compute_sin_barrier(cent, width, -ampl, centers)
+
+        nptest.assert_array_equal(pbarrier, -nbarrier)
+
+        pamps, pphases = bbuck.waveform_to_harmonics(pbarrier, range(1, 26))
+        namps, nphases = bbuck.waveform_to_harmonics(nbarrier, range(1, 26))
+
+        nptest.assert_array_equal(pamps, namps)
+
+        precreated = bbuck.harmonics_to_waveform(centers, range(1, 26),
+                                                 pamps, pphases)
+        nrecreated = bbuck.harmonics_to_waveform(centers, range(1, 26),
+                                                 namps, nphases)
+
+        nptest.assert_array_almost_equal(precreated, -nrecreated)
+
+
 class TestBarrierBucketGenerator(unittest.TestCase):
 
     def test_fixed_barrier(self):
