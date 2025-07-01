@@ -144,6 +144,11 @@ class BarrierGenerator:
             amps, phis = waveform_to_harmonics(barrier, harmonics)
             amps = sinc_filtering(amps, m)
 
+            g_comp = _gain_compensation(bin_cents, barrier,
+                                        harmonics, amps, phis)
+
+            amps /= g_comp
+
             for j in range(len(harmonics)):
                 voltages[j][1, i] = amps[j]
                 phases[j][1, i] = phis[j]
@@ -281,3 +286,17 @@ def sinc_filtering(harmonic_amplitudes: Iterable[float], m: int=1)\
         filtered_amplitudes[i] = a * np.sinc(((i+1)*np.pi) / (2*(n_harm+1)))**m
 
     return filtered_amplitudes
+
+def _gain_compensation(barrier_time: NumpyArray, barrier_waveform: NumpyArray,
+                       harmonics: NumpyArray, harmonic_amplitudes: NumpyArray,
+                       harmonic_phases: NumpyArray,
+                       t_rev: Optional[float] = None) -> NumpyArray:
+
+    reconstructed = harmonics_to_waveform(barrier_time, harmonics,
+                                          harmonic_amplitudes, harmonic_phases,
+                                          t_rev)
+
+    ratio_max = np.max(reconstructed) / np.max(barrier_waveform)
+    ratio_min = np.abs(np.min(reconstructed) / np.min(barrier_waveform))
+
+    return ratio_max if ratio_max > ratio_min else ratio_min
