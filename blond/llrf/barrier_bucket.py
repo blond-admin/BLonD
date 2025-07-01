@@ -107,7 +107,7 @@ class BarrierGenerator:
                                Defaults to 1.
 
         Raises:
-            ValueError: Raised if len(times) != (len(t_rev)
+            ValueError: Raised if len(times) != len(t_rev)
 
         Returns:
             tuple[list[int], list[NumpyArray], list[NumpyArray]]:
