@@ -135,6 +135,8 @@ class Ring:
         - \frac{3\beta_{s,k,n}^2\alpha_{0,k,n}}{2\gamma_{s,k,n}^2}` [1]
     momentum : float matrix [n_sections, n_turns+1]
         Synchronous relativistic momentum on the design orbit :math:`p_{s,k,n}`
+        With more than one section, it is expected that column 0 holds the
+        initial momentum for all rows.
     beta : float matrix [n_sections, n_turns+1]
         Synchronous relativistic beta program for each segment of the
         ring :math:`\beta_{s,k}^n = \frac{1}{\sqrt{1
@@ -296,13 +298,23 @@ class Ring:
             np.sqrt(self.momentum**2 + self.particle.mass**2)
             - self.particle.mass
         )
-        self.delta_E: NumpyArray = np.diff(self.energy, axis=1)
         self.t_rev: NumpyArray = np.dot(self.ring_length, 1 / (self.beta * c))
         self.cycle_time: NumpyArray = np.cumsum(
             self.t_rev
         )  # Always starts with zero
         self.f_rev: NumpyArray = 1 / self.t_rev
         self.omega_rev: NumpyArray = 2 * np.pi * self.f_rev
+
+        # TODO:  Revisit and improve multi-section interpolation
+        if self.n_sections == 1:
+            self.delta_E: NumpyArray = np.diff(self.energy, axis=1)
+        else:
+            # when there is more than 1 RF station, self.energy has shape (n_sections, n_turns+1)
+            # where all turns have the same initial energy, the injection energy in column 0
+            # Order="F" for column flattening
+            self.delta_E = np.diff(self.energy.flatten(order="F"))[n_sections - 1:].reshape((n_sections, n_turns))
+            # skipping of first n_section elements due to the same initial energy in the arrays,
+            # one less is required due to the length reduction of diff
 
         # Momentum compaction, checks, and derived slippage factors
         if ring_options.t_start is None:

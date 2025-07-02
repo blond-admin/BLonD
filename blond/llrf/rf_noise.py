@@ -374,6 +374,7 @@ class LHCNoiseFB:
         no_delay: bool = False,
         seed: int | None = 1313,
     ) -> None:
+
         self.LHC_frev = round(f_rev)  # LHC revolution frequency in Hz
 
         #: | *Import RfStation*
