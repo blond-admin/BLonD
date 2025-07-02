@@ -237,6 +237,7 @@ class RingAndRFTracker:
                  cavity_feedback: Optional[CavityFeedback] = None,
                  periodicity: bool = False,
                  interpolation: bool = False,
+                 with_xsuite: bool = False,
                  profile: Optional[Profile] = None,
                  total_induced_voltage: Optional[TotalInducedVoltage] = None):
 
@@ -248,6 +249,7 @@ class RingAndRFTracker:
         self.rf_params = rf_station
         self.counter = rf_station.counter
         self.acceleration_kick = - rf_station.delta_E
+        self.with_xsuite = with_xsuite
 
         # Other imports
         self.beam = beam
@@ -344,12 +346,14 @@ class RingAndRFTracker:
             \\delta = \\frac{\\Delta E}{\\beta_s^2 E_s} \quad \\text{(simple, legacy)}
 
         """
-        bm.drift(beam_dt, beam_dE, self.solver, self.rf_params.t_rev[index],
-                 self.rf_params.length_ratio, self.rf_params.alpha_order,
-                 self.rf_params.eta_0[index], self.rf_params.eta_1[index],
-                 self.rf_params.eta_2[index], self.rf_params.alpha_0[index],
-                 self.rf_params.alpha_1[index], self.rf_params.alpha_2[index],
-                 self.rf_params.beta[index], self.rf_params.energy[index])
+
+        if not self.with_xsuite:
+            bm.drift(beam_dt, beam_dE, self.solver, self.rf_params.t_rev[index],
+                     self.rf_params.length_ratio, self.rf_params.alpha_order,
+                     self.rf_params.eta_0[index], self.rf_params.eta_1[index],
+                     self.rf_params.eta_2[index], self.rf_params.alpha_0[index],
+                     self.rf_params.alpha_1[index], self.rf_params.alpha_2[index],
+                     self.rf_params.beta[index], self.rf_params.energy[index])
 
     def rf_voltage_calculation(self):
         """Function calculating the total, discretised RF voltage seen by the
