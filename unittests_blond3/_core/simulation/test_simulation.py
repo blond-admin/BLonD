@@ -26,7 +26,7 @@ class TestSimulation(unittest.TestCase):
 
         N_TURNS = int(1e3)
         energy_cycle = EnergyCyclePerTurn(
-            values_per_turn=np.linspace(450e9, 450e9, N_TURNS)
+            values_after_turn=np.linspace(450e9, 450e9, N_TURNS)
         )
 
         drift1 = DriftSimple(

@@ -66,7 +66,7 @@ def _get_dE_from_dt(simulation: Simulation, dt_amplitude: float) -> float:
     counter = simulation.turn_i.value  # todo might need to be set
 
     harmonic = rf_station_program.harmonic[0, counter]
-    energy = simulation.energy_cycle.energy[0, counter]
+    energy = simulation.energy_cycle.total_energy[0, counter]
     beta = simulation.energy_cycle.beta[0, counter]
     omega_rf = rf_station_program.omega_rf[0, counter]
     phi_rf = rf_station_program.phi_rf[0, counter]

@@ -427,7 +427,7 @@ class RFStation:
             return self.eta_0[counter]
         else:
             eta = 0
-            delta = dE / (beam.beta ** 2 * beam.energy)
+            delta = dE / (beam.beta ** 2 * beam.total_energy)
             for i in range(self.alpha_order + 1):
                 eta_i = getattr(self, 'eta_' + str(i))[counter]
                 eta += eta_i * (delta ** i)

@@ -9,7 +9,7 @@ class ExampleSimulation01:
         from blond3.cycles.energy_cycle import EnergyCyclePerTurn
 
         backend.change_backend(Numpy32Bit)
-        backend.set_specials("numba")
+        # backend.set_specials("numba")
 
         from blond3 import (
             Beam,
@@ -29,9 +29,10 @@ class ExampleSimulation01:
             rf_program=RfStationParams(harmonic=35640, voltage=6e6, phi_rf=0)
         )
 
-        N_TURNS = int(1e3)
+        N_TURNS = int(10)
         energy_cycle = EnergyCyclePerTurn(
-            values_per_turn=np.linspace(450e9, 450e9, N_TURNS)
+            value_init=450e9,
+            values_after_turn=np.linspace(450e9, 450e9, N_TURNS)
         )
 
         drift1 = DriftSimple(
@@ -49,7 +50,7 @@ class ExampleSimulation01:
                 sigma_dE=1e9 / 4,
                 reinsertion=False,
                 seed=1,
-                n_macroparticles=1e3,
+                n_macroparticles=10,
             )
         )
 
@@ -70,5 +71,54 @@ class ExampleSimulation01:
             plt.draw()
             plt.pause(0.1)
             plt.clf()
+
+        self.simulation = simulation
+
+
+class SimulationTwoRfStations:
+    def __init__(self):
+        import numpy as np
+
+        from blond3.cycles.energy_cycle import EnergyCyclePerTurn
+
+        from blond3 import (
+            Beam,
+            proton,
+            Ring,
+            Simulation,
+            SingleHarmonicCavity,
+            DriftSimple,
+            RfStationParams,
+        )
+
+        ring = Ring(circumference=26658.883)
+
+        cavity1 = SingleHarmonicCavity(
+            rf_program=RfStationParams(harmonic=35640, voltage=6e6, phi_rf=0),
+            section_index=0,
+
+        )
+        cavity2 = SingleHarmonicCavity(
+            rf_program=RfStationParams(harmonic=35640, voltage=6e6, phi_rf=0),
+            section_index=1,
+        )
+
+        N_TURNS = int(10)
+        energy_cycle = EnergyCyclePerTurn(
+            value_init=450e9,
+            values_after_turn=np.linspace(450e9, 450e9, N_TURNS)
+        )
+
+        drift1 = DriftSimple(
+            transition_gamma=55.759505, share_of_circumference=0.5,
+            section_index=0
+        )
+        drift2 = DriftSimple(
+            transition_gamma=55.759505, share_of_circumference=0.5,
+            section_index=1
+        )
+        beam1 = Beam(n_particles=1e9, particle_type=proton)
+
+        simulation = Simulation.from_locals(locals())
 
         self.simulation = simulation

@@ -99,7 +99,7 @@ class DriftSimple(DriftBaseClass):
             length_ratio=self._share_of_circumference,
             eta_0=self._eta_0[current_turn_i],
             beta=self._simulation.energy_cycle.beta[self.section_index, current_turn_i],
-            energy=self._simulation.energy_cycle.energy[
+            energy=self._simulation.energy_cycle.total_energy[
                 self.section_index, current_turn_i
             ],
         )

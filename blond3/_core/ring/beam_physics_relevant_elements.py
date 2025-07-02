@@ -109,10 +109,10 @@ class BeamPhysicsRelevantElements(Preparable):
         return elements[0]
 
     def reorder(self):
-        self._check_section_indexing()
-
         for section_i in range(self.n_sections):
             self.reorder_section(section_i)
+
+        self._check_section_indexing()
 
     def reorder_section(self, section_index: int):
         assert isinstance(section_index, int)
@@ -153,7 +153,7 @@ class BeamPhysicsRelevantElements(Preparable):
                     ordered_elements.append(e)
                     _seen.add(e)
 
-        self.elements = tuple(ordered_elements + elements_not_in_section)
+        self.elements = tuple(elements_not_in_section + ordered_elements)
 
     def count(self, class_: Type[T], section_i: Optional[int] = None):
         return len(self.get_elements(class_=class_, section_i=section_i))

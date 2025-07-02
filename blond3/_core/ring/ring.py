@@ -77,6 +77,13 @@ class Ring(Preparable):
     def circumference(self):
         return self._circumference
 
+    @property
+    def section_lengths(self):
+        return (
+            self.circumference
+            * self.elements.get_section_circumference_shares()
+        )
+
     def add_element(
         self,
         element: BeamPhysicsRelevant,

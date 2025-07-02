@@ -28,7 +28,8 @@ cavity1 = SingleHarmonicCavity(
 )
 
 N_TURNS = int(1e3)
-energy_cycle = EnergyCyclePerTurn(values_per_turn=np.linspace(450e9, 450e9, N_TURNS))
+energy_cycle = EnergyCyclePerTurn(
+    values_after_turn=np.linspace(450e9, 450e9, N_TURNS))
 
 drift1 = DriftSimple(
     transition_gamma=55.759505,
@@ -82,4 +83,4 @@ except FileNotFoundError as exc:
         # callback=my_callback,
     )
 plt.plot(phase_observation.phases)
-plt.show()
+#plt.show()
