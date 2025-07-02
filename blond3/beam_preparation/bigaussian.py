@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -18,18 +19,37 @@ if TYPE_CHECKING:  # pragma: no cover
     from .. import RfStationParams
 
 
+def _get_dE_from_dt_core(
+    beta: float,
+    dt_amplitude: float,
+    energy: float,
+    eta0: float,
+    harmonic: float,
+    omega_rf: float,
+    particle_charge: float,
+    phi_rf: float,
+    phi_s: float,
+    voltage: float,
+) -> float:
+    # RF wave is shifted by Pi below transition
+    if eta0 < 0:
+        phi_rf -= np.pi
+    # Calculate dE_amplitude from dt_amplitude using single-harmonic Hamiltonian
+    voltage = particle_charge * voltage
+    phi_b = omega_rf * dt_amplitude + phi_s
+    dE_amplitude = np.sqrt(
+        voltage
+        * energy
+        * beta**2
+        * (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) * np.sin(phi_s))
+        / (np.pi * harmonic * np.fabs(eta0))
+    )
+    return dE_amplitude
+
+
 def _get_dE_from_dt(simulation: Simulation, dt_amplitude: float) -> float:
     r"""A routine to evaluate the dE amplitude from dt following a single
     RF Hamiltonian.
-
-    Parameters
-    ----------
-    ring : class
-        A Ring type class
-    rf_station : class
-        An RFStation type class
-    dt_amplitude : float
-        Full amplitude of the particle oscillation in [s]
 
     Returns
     -------
@@ -50,30 +70,25 @@ def _get_dE_from_dt(simulation: Simulation, dt_amplitude: float) -> float:
     beta = simulation.energy_cycle.beta[0, counter]
     omega_rf = rf_station_program.omega_rf[0, counter]
     phi_rf = rf_station_program.phi_rf[0, counter]
-    phi_s = np.deg2rad(30 + 180)  # TODO rf_station.phi_s[counter]
+    warnings.warn("assuming wrongly phi_s = phi_rf for development, "
+                  "to be resolved")
+    phi_s = phi_rf  # TODO rf_station.phi_s[counter]
     eta0 = drift.eta_0[counter]
+    particle_charge = simulation.beams[0].particle_type.charge
+    voltage = rf_station_program.voltage[0, counter]
 
-    # RF wave is shifted by Pi below transition
-    if eta0 < 0:
-        phi_rf -= np.pi
-
-    # Calculate dE_amplitude from dt_amplitude using single-harmonic Hamiltonian
-    voltage = (
-        simulation.beams[0].particle_type.charge
-        * rf_station_program.voltage[0, counter]
+    return _get_dE_from_dt_core(
+        beta=float(beta),
+        dt_amplitude=dt_amplitude,
+        energy=float(energy),
+        eta0=eta0,
+        harmonic=float(harmonic),
+        omega_rf=float(omega_rf),
+        particle_charge=particle_charge,
+        phi_rf=float(phi_rf),
+        phi_s=float(phi_s),
+        voltage=float(voltage),
     )
-    eta0 = drift.eta_0[counter]
-
-    phi_b = omega_rf * dt_amplitude + phi_s
-    dE_amplitude = np.sqrt(
-        voltage
-        * energy
-        * beta**2
-        * (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) * np.sin(phi_s))
-        / (np.pi * harmonic * np.fabs(eta0))
-    )
-
-    return dE_amplitude
 
 
 class BiGaussian(MatchingRoutine):
@@ -87,7 +102,8 @@ class BiGaussian(MatchingRoutine):
     ):
         super().__init__()
         self.n_macroparticles = int_from_float_with_warning(
-            n_macroparticles, warning_stacklevel=2)
+            n_macroparticles, warning_stacklevel=2
+        )
         self._sigma_dt = sigma_dt
         self._sigma_dE = sigma_dE
         self._reinsertion = reinsertion

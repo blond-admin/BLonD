@@ -16,6 +16,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from .._core.simulation.simulation import Simulation
     from ..cycles.rf_parameter_cycle import RfStationParams
     from ..cycles.energy_cycle import EnergyCycleBase
+    from .feedbacks.base import LocalFeedback
 
 
 class CavityBaseClass(BeamPhysicsRelevant, ABC):
@@ -25,11 +26,16 @@ class CavityBaseClass(BeamPhysicsRelevant, ABC):
         rf_program: RfStationParams,
         section_index: int = 0,
         local_wakefield: Optional[WakeField] = None,
+        cavity_feedback: Optional[LocalFeedback] = None,
     ):
         super().__init__(section_index=section_index)
         rf_program.set_owner(cavity=self)
+        if cavity_feedback is not None:
+            cavity_feedback.set_owner(cavity=self)
         self._rf_program: RfStationParams = rf_program
         self._local_wakefield = local_wakefield
+        self._cavity_feedback = cavity_feedback
+
         self._turn_i: LateInit[DynamicParameter] = None
         self._n_rf = n_rf
         self._energy_cycle: LateInit[EnergyCycleBase] = None
@@ -53,6 +59,8 @@ class CavityBaseClass(BeamPhysicsRelevant, ABC):
         return self._rf_program
 
     def track(self, beam: BeamBaseClass):
+        if self._cavity_feedback is not None:
+            self._cavity_feedback.track(beam=beam)
         self.rf_program.track()
         if self._local_wakefield is not None:
             self._local_wakefield.track(beam=beam)
@@ -98,7 +106,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         rf_program: RfStationParams,
         section_index: int = 0,
         local_wakefield: Optional[WakeField] = None,
-            **kwargs # to allow fusing
+        **kwargs,  # to allow fusing
     ):
         super().__init__(
             n_rf=n_harmonics,

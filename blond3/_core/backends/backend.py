@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import importlib
+import sys
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Type, Union, Literal
 
@@ -90,8 +92,10 @@ class Specials(ABC):
 
 class BackendBaseClass(ABC):
     def __init__(
-        self, float_: Union[np.float32, np.float64], int_: np.int32 | np.int64,
-            complex_:Union[np.complex128, np.complex64],
+        self,
+        float_: Union[np.float32, np.float64],
+        int_: np.int32 | np.int64,
+        complex_: Union[np.complex128, np.complex64],
     ):
         self.float: Union[np.float32, np.float64] = float_
         self.int: np.int32 | np.int64 = int_
@@ -121,14 +125,20 @@ class BackendBaseClass(ABC):
     def set_specials(self, mode):
         pass
 
+def fresh_import(module_path, obj_name):
+    if module_path in sys.modules:
+        del sys.modules[module_path]
+    module = importlib.import_module(module_path)
+    return getattr(module, obj_name)
 
 class NumpyBackend(BackendBaseClass):
     def __init__(
-        self, float_: Union[np.float32, np.float64], int_: np.int32 | np.int64,
-            complex_: Union[np.complex128, np.complex64],
-
+        self,
+        float_: Union[np.float32, np.float64],
+        int_: np.int32 | np.int64,
+        complex_: Union[np.complex128, np.complex64],
     ):
-        super().__init__(float_, int_,complex_)
+        super().__init__(float_, int_, complex_)
         self.array = np.array
         self.gradient = np.gradient
         self.linspace = np.linspace
@@ -152,8 +162,11 @@ class NumpyBackend(BackendBaseClass):
 
             self.specials = CppSpecials()
         elif mode == "numba":
-            from .numba.callables import NumbaSpecials
-
+            # like
+            #from .numba.callables import NumbaSpecials
+            # but reimport, so that dtypes are in line with the current backend
+            NumbaSpecials = fresh_import("blond3._core.backends.numba.callables",
+                                         "NumbaSpecials")
             self.specials = NumbaSpecials()
         else:
             raise ValueError(mode)
@@ -171,9 +184,12 @@ class Numpy64Bit(NumpyBackend):
 
 class CupyBackend(BackendBaseClass):
     def __init__(
-        self, float_: Union[np.float32, np.float64], int_: np.int32 | np.int64
+        self,
+        float_: Union[np.float32, np.float64],
+        int_: np.int32 | np.int64,
+        complex_: Union[np.complex128, np.complex64],
     ):
-        super().__init__(float_, int_)
+        super().__init__(float_, int_, complex_)
         self.array = np.array
         self.gradient = np.gradient
 
@@ -181,7 +197,7 @@ class CupyBackend(BackendBaseClass):
 
         self.specials = CudaSpecials()
 
-    def set_specials(self, mode):
+    def set_specials(self, mode: Literal["cuda"]):
         if mode == "cuda":
             from .cuda.callables import CudaSpecials
 
@@ -192,12 +208,12 @@ class CupyBackend(BackendBaseClass):
 
 class Cupy32Bit(CupyBackend):
     def __init__(self):
-        super().__init__(np.float32, np.int32)
+        super().__init__(np.float32, np.int32, np.complex64)
 
 
 class Cupy64Bit(CupyBackend):
     def __init__(self):
-        super().__init__(np.float64, np.int64)
+        super().__init__(np.float64, np.int64, np.complex128)
 
 
 default = Numpy32Bit()  # use .change_backend(...) to change it anywhere

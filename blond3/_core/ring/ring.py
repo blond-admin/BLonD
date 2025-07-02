@@ -29,7 +29,7 @@ class Ring(Preparable):
     def __init__(self, circumference: float, bending_radius: Optional[float] = None):
         from .beam_physics_relevant_elements import BeamPhysicsRelevantElements
 
-        if bending_radius is not None:
+        if bending_radius is None:
             bending_radius = circumference / (2 * np.pi)
 
         super().__init__()
@@ -49,7 +49,9 @@ class Ring(Preparable):
             f"{sum_share_of_circumference=}, but should be 1. It seems the "
             f"drifts are not correctly configured."
         )
-        assert len(self.elements.get_sections_indices()) == self.n_cavities
+        assert len(self.elements.get_sections_indices()) == self.n_cavities,\
+            (f"{len(self.elements.get_sections_indices())=}, "
+             f"but {self.n_cavities=}")
         # todo assert some kind of order inside the sections
 
     def on_run_simulation(

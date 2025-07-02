@@ -12,8 +12,7 @@ from ..base import DynamicParameter
 from ..helpers import find_instances_with_method, int_from_float_with_warning
 from ..ring.helpers import get_elements, get_init_order
 from ...cycles.energy_cycle import EnergyCycleBase, EnergyCyclePerTurn
-from ...physics.drifts import DriftBaseClass
-from ...physics.profiles import ProfileBaseClass
+
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import (
@@ -27,6 +26,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from ...handle_results.observables import Observables
 
 logger = logging.getLogger(__name__)
+
 
 class Simulation(Preparable, HasPropertyCache):
     def __init__(
@@ -51,17 +51,17 @@ class Simulation(Preparable, HasPropertyCache):
 
         self._exec_on_init_simulation()
 
-    def profiling(self, turn_i_init: int, profile_start_turn_i: int, n_turns: int):
+    def profiling(self, turn_i_init: int, profile_start_turn_i: int, profile_n_turns: int):
         import cProfile, pstats, io
         from pstats import SortKey
 
         pr = cProfile.Profile()
 
         def my_callback(simulation: Simulation):
-
             if simulation.turn_i.value == profile_start_turn_i:
                 pr.enable()
-        end_turn = profile_start_turn_i + n_turns
+
+        end_turn = profile_start_turn_i + profile_n_turns
         self.run_simulation(
             n_turns=end_turn - turn_i_init,
             turn_i_init=turn_i_init,
@@ -75,6 +75,34 @@ class Simulation(Preparable, HasPropertyCache):
         ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
         ps.print_stats()
         print(s.getvalue())
+
+    def get_potential_well_analytic(self):
+        raise NotImplementedError # TODO
+
+    def get_potential_well_empiric(self):
+        raise NotImplementedError # TODO
+
+        from ... import WakeField
+        from ...physics.cavities import CavityBaseClass
+        from ...physics.drifts import DriftBaseClass
+        from ...physics.profiles import ProfileBaseClass
+
+        from blond3._core.beam.beams import ProbeBunch
+
+        profile = self.ring.elements.get_element(ProfileBaseClass)
+        x = profile.hist_x
+
+        bunch = ProbeBunch(dt=x.copy(), particle_type=self.beams[0].particle_type)
+        for element in self.ring.elements.elements:
+            if (
+                isinstance(element, DriftBaseClass)
+                or isinstance(element, CavityBaseClass)
+                or isinstance(element, WakeField)
+            ):
+                element.track(bunch)
+        potential_well = np.trapezoid(bunch.read_partial_dE(), x)
+        potential_well -= potential_well.min()
+        return potential_well
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         pass
@@ -93,7 +121,7 @@ class Simulation(Preparable, HasPropertyCache):
         classes_check = set()
         for ins in instances:
             classes_check.add(type(ins))
-        #assert len(classes_check) == len(ordered_classes), "BUG"
+        # assert len(classes_check) == len(ordered_classes), "BUG"
         if "ABCMeta" in ordered_classes:
             ordered_classes.pop(ordered_classes.index("ABCMeta"))
         logger.info(f"Execution order for `{method}` is {ordered_classes}")
@@ -109,7 +137,6 @@ class Simulation(Preparable, HasPropertyCache):
         self._exec_all_in_tree("on_init_simulation", simulation=self)
 
     def _exec_on_run_simulation(self, n_turns: int, turn_i_init: int):
-
         self._exec_all_in_tree(
             "on_run_simulation",
             simulation=self,
@@ -119,7 +146,6 @@ class Simulation(Preparable, HasPropertyCache):
 
     @staticmethod
     def from_locals(locals: dict) -> Simulation:
-
         from ..beam.base import BeamBaseClass  # prevent cyclic import
         from ..ring.ring import Ring  # prevent cyclic import
 
@@ -179,13 +205,13 @@ class Simulation(Preparable, HasPropertyCache):
         "get_hash",
     )
 
-    def invalidate_cache(
+    def _invalidate_cache(
         self,
         # turn i needed to be
         # compatible with subscription
         turn_i: int,
     ) -> None:
-        super().invalidate_cache(Simulation.cached_properties)
+        super()._invalidate_cache(Simulation.cached_properties)
 
     def on_prepare_beam(
         self, preparation_routine: BeamPreparationRoutine, turn_i: int = 0
@@ -250,7 +276,7 @@ class Simulation(Preparable, HasPropertyCache):
         iterator = range(turn_i_init, turn_i_init + n_turns)
         if show_progressbar:
             iterator = tqdm(iterator)  # Add TQDM display to iteration
-        self.turn_i.on_change(self.invalidate_cache)
+        self.turn_i.on_change(self._invalidate_cache)
         for turn_i in iterator:
             self.turn_i.value = turn_i
             for element in self._ring.elements.elements:

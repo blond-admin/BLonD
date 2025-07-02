@@ -38,12 +38,12 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
             simulation.ring.circumference
             * simulation.ring.elements.get_section_circumference_shares()
         )
-        self.invalidate_cache()
+        self._invalidate_cache()
 
     def on_run_simulation(
         self, simulation: Simulation, n_turns: int, turn_i_init: int
     ) -> None:
-        self.invalidate_cache()
+        self._invalidate_cache()
 
     @cached_property
     def n_turns(self):
@@ -103,7 +103,7 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
     def omega_rev(self) -> NumpyArray:
         return 2 * np.pi * self.f_rev  # todo
 
-    props = (
+    cached_props = (
         "n_turns",
         "beta",
         "gamma",
@@ -116,8 +116,8 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
         "omega_rev",
     )
 
-    def invalidate_cache(self):
-        super().invalidate_cache(EnergyCycleBase.props)
+    def _invalidate_cache(self):
+        super()._invalidate_cache(EnergyCycleBase.cached_props)
 
 
 class ConstantEnergyCycle(EnergyCycleBase):

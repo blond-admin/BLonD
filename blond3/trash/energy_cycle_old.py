@@ -208,7 +208,7 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
     def on_run_simulation(
         self, simulation: Simulation, n_turns: int, turn_i_init: int
     ) -> None:
-        self.invalidate_cache()
+        self._invalidate_cache()
 
     @cached_property
     @abstractmethod  # as readonly attributes
@@ -273,8 +273,8 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
         "omega_rev",
     )
 
-    def invalidate_cache(self):
-        super().invalidate_cache(EnergyCycle.props)
+    def _invalidate_cache(self):
+        super()._invalidate_cache(EnergyCycle.props)
 
 
 class EnergyCycle(EnergyCycleBase):
@@ -321,7 +321,7 @@ class EnergyCycle(EnergyCycleBase):
             n_turns=self.n_turns,
             bending_radius=simulation.ring.bending_radius,
         )
-        self.invalidate_cache()
+        self._invalidate_cache()
         _data = _ReshapeHandler.reshape_any(
             input_data=self._adapter._synchronous_data,
             n_turns=len(self._adapter._synchronous_data),
@@ -335,12 +335,12 @@ class EnergyCycle(EnergyCycleBase):
             convert_from=self._adapter._synchronous_data_type,
             bending_radius=self._adapter._bending_radius,
         )
-        self.invalidate_cache()
+        self._invalidate_cache()
 
     def on_run_simulation(
         self, simulation: Simulation, n_turns: int, turn_i_init: int
     ) -> None:
-        self.invalidate_cache()
+        self._invalidate_cache()
 
     @cached_property
     def n_turns(self):
@@ -447,5 +447,5 @@ class InterpolatedEnergyCycle(EnergyCycle):
             interp_time=interp_time,
         )
         # todo steal equations from blond
-        self.invalidate_cache()
+        self._invalidate_cache()
 

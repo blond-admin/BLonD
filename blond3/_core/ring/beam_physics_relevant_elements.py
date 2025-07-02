@@ -36,7 +36,7 @@ class BeamPhysicsRelevantElements(Preparable):
 
         elem_section_indices = [e.section_index for e in self.elements]
         assert min(elem_section_indices) == 0, "section_index=0 must be set"
-        assert np.diff(elem_section_indices) >= 0, (
+        assert np.all(np.diff(elem_section_indices) >= 0), (
             f"Section indices must be "
             f"increasing, but got"
             f" {elem_section_indices}"
@@ -57,7 +57,7 @@ class BeamPhysicsRelevantElements(Preparable):
             if len(cavities) == 0:
                 raise RuntimeError(f"Missing cavity in section" f" {section_index}")
             if len(drifts) == 0:
-                raise RuntimeError(f"Missing cavity in section" f" {section_index}")
+                raise RuntimeError(f"Missing drift in section" f"" f" {section_index}")
 
     def on_run_simulation(
         self, simulation: Simulation, n_turns: int, turn_i_init: int
@@ -84,6 +84,7 @@ class BeamPhysicsRelevantElements(Preparable):
         return result
 
     def add_element(self, element: BeamPhysicsRelevant):
+        assert isinstance(element.section_index, int)
         self.elements = (*self.elements, element)
 
     @property  # as readonly attributes
@@ -102,8 +103,8 @@ class BeamPhysicsRelevantElements(Preparable):
             elements = tuple(filter(lambda x: x.section_index == section_i, elements))
         return elements
 
-    def get_element(self, class_: Type[T], group: Optional[int] = None) -> T:
-        elements = self.get_elements(class_=class_, section_i=group)
+    def get_element(self, class_: Type[T], section_i: Optional[int] = None) -> T:
+        elements = self.get_elements(class_=class_, section_i=section_i)
         assert len(elements) == 1, f"{len(elements)=}"
         return elements[0]
 
@@ -114,6 +115,7 @@ class BeamPhysicsRelevantElements(Preparable):
             self.reorder_section(section_i)
 
     def reorder_section(self, section_index: int):
+        assert isinstance(section_index, int)
         from ...physics.drifts import DriftBaseClass
         from ...physics.profiles import ProfileBaseClass
         from ...physics.cavities import CavityBaseClass
@@ -129,13 +131,16 @@ class BeamPhysicsRelevantElements(Preparable):
             CavityBaseClass,
             DriftBaseClass,
         )
-        assert (
-            self.count(CavityBaseClass, section_i=section_index) == 1
-        ), "Only one cavity per section allowed"
+        assert self.count(CavityBaseClass, section_i=section_index) == 1, (
+            f"Only one cavity per section allowed, but got "
+            f"{self.count(CavityBaseClass, section_i=section_index)}"
+        )
         elements_in_section = [
             e for e in self.elements if e.section_index == section_index
         ]
-
+        elements_not_in_section = [
+            e for e in self.elements if e.section_index != section_index
+        ]
         # reorder elements based on natural order
         # account for the fact that elements could be instanced of two base
         # classes. In this case the first match in natural order is chosen.
@@ -148,7 +153,7 @@ class BeamPhysicsRelevantElements(Preparable):
                     ordered_elements.append(e)
                     _seen.add(e)
 
-        self.elements = tuple(ordered_elements)
+        self.elements = tuple(ordered_elements + elements_not_in_section)
 
     def count(self, class_: Type[T], section_i: Optional[int] = None):
         return len(self.get_elements(class_=class_, section_i=section_i))
@@ -170,8 +175,7 @@ class BeamPhysicsRelevantElements(Preparable):
             filtered_dict = {
                 k: pprint(v)
                 for k, v in element.__dict__.items()
-                if (not k.startswith("_"))
-                and (k != "name")
+                if (not k.startswith("_")) and (k != "name")
             }
             content += (
                 f"{element.name:40s} {(type(element).__name__):20s} "
@@ -179,6 +183,7 @@ class BeamPhysicsRelevantElements(Preparable):
             )
         content += sep
         return content
+
 
 def pprint(v):
     if isinstance(v, np.ndarray):

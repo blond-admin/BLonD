@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import Enum
+from functools import cached_property
 from typing import TYPE_CHECKING
 
-from ..base import Preparable
+from ..base import Preparable, HasPropertyCache
 from ..helpers import int_from_float_with_warning
 from ..._core.backends.backend import backend
 
@@ -21,7 +22,7 @@ class BeamFlags(int, Enum):
     ACTIVE = 1
 
 
-class BeamBaseClass(Preparable, ABC):
+class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     def __init__(
         self,
         n_particles: int | float,
@@ -74,43 +75,56 @@ class BeamBaseClass(Preparable, ABC):
     def plot_hist2d(self):
         pass
 
-    @property
+    @cached_property
+
     @abstractmethod  # as readonly attributes
     def dt_min(self) -> backend.float:
         pass
 
-    @property
+    @cached_property
     @abstractmethod  # as readonly attributes
     def dt_max(self) -> backend.float:
         pass
 
-    @property
+    @cached_property
     @abstractmethod  # as readonly attributes
     def dE_min(self) -> backend.float:
         pass
 
-    @property
+    @cached_property
     @abstractmethod  # as readonly attributes
-    def dE_min(self) -> backend.float:
+    def dE_max(self) -> backend.float:
         pass
 
-    @property
+    @cached_property
     @abstractmethod  # as readonly attributes
     def common_array_size(self) -> int:
         pass
 
-    @abstractmethod
+    cached_props = (
+        "dE_min",
+        "dE_max",
+        "dt_min",
+        "dt_max",
+        "common_array_size",
+    )
+
     def invalidate_cache_dE(self) -> None:
-        pass
+        super()._invalidate_cache(
+            (
+                "dE_min",
+                "dE_max",
+            )
+        )
 
-    @abstractmethod
     def invalidate_cache_dt(self) -> None:
-        pass
+        super()._invalidate_cache((
+                "dt_min",
+                "dt_max",
+            ))
 
-    @abstractmethod
     def invalidate_cache(self) -> None:
-        self.invalidate_cache_dE()
-        self.invalidate_cache_dt()
+        self._invalidate_cache(BeamBaseClass.cached_props)
 
     def n_macroparticles_partial(self):
         return len(self._dE)

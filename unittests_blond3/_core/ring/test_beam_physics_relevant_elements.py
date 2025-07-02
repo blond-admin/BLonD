@@ -1,0 +1,168 @@
+import unittest
+from unittest.mock import Mock
+
+import numpy as np
+
+from blond3 import Simulation
+from blond3._core.base import BeamPhysicsRelevant
+from blond3._core.ring.beam_physics_relevant_elements import (
+    pprint,
+    BeamPhysicsRelevantElements,
+)
+from blond3.physics.cavities import CavityBaseClass
+from blond3.physics.drifts import DriftBaseClass
+
+
+class TestFunctions(unittest.TestCase):
+    def test_pprint_executes(self):
+        pprint(v=np.array(10))
+
+
+class TestBeamPhysicsRelevantElements(unittest.TestCase):
+    def setUp(self):
+        self.beam_physics_relevant_elements = BeamPhysicsRelevantElements()
+        element1 = Mock(spec=DriftBaseClass)
+        element1.share_of_circumference = 0.5
+        element1.section_index = 0
+        element1.name = "element1"
+        self.beam_physics_relevant_elements.add_element(element1)
+
+        element2 = Mock(spec=CavityBaseClass)
+        element2.section_index = 0
+        element2.name = "element2"
+        self.beam_physics_relevant_elements.add_element(element2)
+
+        element3 = Mock(spec=DriftBaseClass)
+        element3.share_of_circumference = 0.5
+        element3.section_index = 1
+        element3.name = "element3"
+        self.beam_physics_relevant_elements.add_element(element3)
+
+        element4 = Mock(spec=CavityBaseClass)
+        element4.section_index = 1
+        element4.name = "element4"
+        self.beam_physics_relevant_elements.add_element(element4)
+
+    def test___init__(self):
+        pass  # calls __init__ in  self.setUp
+
+    def test__check_section_indexing(self):
+        self.beam_physics_relevant_elements._check_section_indexing()
+
+    def test_add_element(self):
+        element = Mock(spec=BeamPhysicsRelevant)
+        element.section_index = 0
+
+        self.beam_physics_relevant_elements.add_element(element=element)
+        assert self.beam_physics_relevant_elements.elements[-1] is element
+
+    def test_count(self):
+        assert (
+            self.beam_physics_relevant_elements.count(
+                class_=DriftBaseClass, section_i=0
+            )
+            == 1
+        )
+        assert (
+            self.beam_physics_relevant_elements.count(
+                class_=CavityBaseClass, section_i=0
+            )
+            == 1
+        )
+        assert (
+            self.beam_physics_relevant_elements.count(
+                class_=BeamPhysicsRelevant, section_i=0
+            )
+            == 2
+        )
+        assert (
+            self.beam_physics_relevant_elements.count(
+                class_=CavityBaseClass, section_i=1
+            )
+            == 1
+        )
+        assert (
+            self.beam_physics_relevant_elements.count(
+                class_=BeamPhysicsRelevant, section_i=None
+            )
+            == 4
+        )
+
+    def test_get_element(self):
+        self.beam_physics_relevant_elements.get_element(
+            class_=DriftBaseClass, section_i=0
+        )
+        with self.assertRaises(AssertionError):
+            self.beam_physics_relevant_elements.get_element(
+                class_=DriftBaseClass, section_i=None
+            )
+
+    def test_get_elements(self):
+        elements = self.beam_physics_relevant_elements.get_elements(
+            class_=DriftBaseClass, section_i=None
+        )
+        assert len(elements) == 2
+
+    def test_get_order_info(self):
+        self.beam_physics_relevant_elements.get_order_info()
+
+    def test_get_section_circumference_shares(self):
+        shares = self.beam_physics_relevant_elements.get_section_circumference_shares()
+        self.assertEqual(shares[0], 0.5)
+        self.assertEqual(shares[1], 0.5)
+
+    def test_get_sections_indices(self):
+        indices = self.beam_physics_relevant_elements.get_sections_indices()
+        self.assertEqual(indices, (0, 1))
+
+    def test_n_elements(self):
+        self.assertEqual(4, self.beam_physics_relevant_elements.n_elements)
+
+    def test_n_sections(self):
+        self.assertEqual(2, self.beam_physics_relevant_elements.n_sections)
+
+    def test_on_init_simulation(self):
+        simulation = Mock(spec=Simulation)
+
+        self.beam_physics_relevant_elements.on_init_simulation(simulation=simulation)
+
+    def test_on_run_simulation(self):
+        simulation = Mock(spec=Simulation)
+
+        self.beam_physics_relevant_elements.on_run_simulation(
+            simulation=simulation, n_turns=10, turn_i_init=0
+        )
+
+    def test_print_order(self):
+        self.beam_physics_relevant_elements.print_order()
+
+    def test_reorder(self):
+        self.beam_physics_relevant_elements.reorder()
+        expected = (
+            "CavityBaseClass",
+            "DriftBaseClass",
+            "CavityBaseClass",
+            "DriftBaseClass",
+        )
+        actual = tuple(
+            [e._spec_class.__name__ for e in self.beam_physics_relevant_elements.elements]
+        )
+        self.assertEqual(expected, actual)
+
+    def test_reorder_section(self):
+        # TODO: implement test for `reorder_section`
+        self.beam_physics_relevant_elements.reorder_section(section_index=0)
+        expected = (
+            "CavityBaseClass",
+            "DriftBaseClass",
+            "DriftBaseClass",
+            "CavityBaseClass",
+        )
+        actual = tuple(
+            [e._spec_class.__name__ for e in
+             self.beam_physics_relevant_elements.elements]
+        )
+        self.assertEqual(expected, actual)
+
+if __name__ == "__main__":
+    unittest.main()

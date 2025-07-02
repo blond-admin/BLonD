@@ -233,25 +233,28 @@ class RfStationParams(RfParameterCycle):
             self.phi_rf[:, turn] += self.phi_modulation[0][:, turn]
             self.omega_rf[:, turn] += self.phi_modulation[1][:, turn]
 
-        # Determine phase loop correction on RF phase and frequency
-        if self.beam_feedback is not None and turn >= self.beam_feedback.delay:
-            self.beam_feedback.track()
-
-        # Update the RF phase of all systems for the next turn
-        # Accumulated phase offset due to beam phase loop or frequency offset
-        self.dphi_rf += (
-            2.0
-            * np.pi
-            * self.harmonic[:, turn]
-            * (self.omega_rf[:, turn] - self.omega_rf_design[:, turn])
-            / self.omega_rf_design[:, turn]
-        )
-
-        # Total phase offset
-        self.phi_rf[:, turn] += self.dphi_rf
 
         # Correction from cavity loop
         if self.cavity_feedback is not None:
             for feedback in self.cavity_feedback:
                 if feedback is not None:
                     feedback.track()
+
+        # Determine phase loop correction on RF phase and frequency
+        if self.beam_feedback is not None and turn >= self.beam_feedback.delay:
+            self.beam_feedback.track()
+
+        if turn < self.harmonic.shape[1] - 1:
+            # Update the RF phase of all systems for the next turn
+            # Accumulated phase offset due to beam phase loop or frequency offset
+            self.dphi_rf += (
+                2.0
+                * np.pi
+                * self.harmonic[:, turn + 1]
+                * (self.omega_rf[:, turn + 1] - self.omega_rf_design[:, turn + 1])
+                / self.omega_rf_design[:, turn + 1]
+            )
+
+            # Total phase offset
+            self.phi_rf[:, turn + 1] += self.dphi_rf
+

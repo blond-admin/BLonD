@@ -15,9 +15,15 @@ if TYPE_CHECKING:  # pragma: no cover
 
 if backend.float == np.float32:
     nb_f = numba.float32
+    nb_i = numba.int32
+    nb_c = numba.complex64
+
 
 elif backend.float == np.float64:
-    nb_f = numba.float32
+    nb_f = numba.float64
+    nb_i = numba.int64
+    nb_c = numba.complex128
+
 else:
     raise Exception(backend.float)
 
@@ -32,6 +38,12 @@ sig_singleharmonic_acceleration_kick = nb_f
 sig_t_rev = nb_f
 sig_length_ratio = nb_f
 sig_eta_0 = nb_f
+sig_eta_1 = nb_f
+sig_eta_2 = nb_f
+sig_alpha_0 = nb_f
+sig_alpha_1 = nb_f
+sig_alpha_2 = nb_f
+sig_alpha_order = nb_i
 sig_beta = nb_f
 sig_energy = nb_f
 
@@ -53,6 +65,30 @@ sig_drift_simple = (
     sig_t_rev,
     sig_length_ratio,
     sig_eta_0,
+    sig_beta,
+    sig_energy,
+)
+sig_drift_legacy = (
+    sig_dt,
+    sig_dE,
+    sig_t_rev,
+    sig_length_ratio,
+    sig_alpha_order,
+    sig_eta_0,
+    sig_eta_1,
+    sig_eta_2,
+    sig_beta,
+    sig_energy,
+)
+
+sig_drift_exact = (
+    sig_dt,
+    sig_dE,
+    sig_t_rev,
+    sig_length_ratio,
+    sig_alpha_0,
+    sig_alpha_1,
+    sig_alpha_2,
     sig_beta,
     sig_energy,
 )
@@ -117,21 +153,44 @@ class NumbaSpecials(Specials):
         pass
 
     @staticmethod
+    @njit(sig_drift_legacy, parallel=True, fastmath=False)
     def drift_legacy(
         dt: NumpyArray,
         dE: NumpyArray,
         t_rev: float,
         length_ratio: float,
-        alpha_order,
+        alpha_order: int,
         eta_0: float,
         eta_1: float,
         eta_2: float,
         beta: float,
         energy: float,
     ):
-        pass
+        T = t_rev * length_ratio
+        coeff = 1.0 / (beta * beta * energy)
+        eta0 = eta_0 * coeff
+        eta1 = eta_1 * coeff * coeff
+        eta2 = eta_2 * coeff * coeff * coeff
+        for i in prange(len(dt)):
+            dEi = dE[i]
+            if alpha_order == 0:
+                dt[i] += T * (1.0 / (1.0 - eta0 * dEi) - 1.0)
+            elif alpha_order == 1:
+                dt[i] += T * (1.0 / (1.0 - eta0 * dEi - eta1 * dEi * dEi) - 1.0)
+            else:
+                dt[i] += T * (
+                    1.0
+                    / (
+                            1.0
+                            - eta0 * dEi
+                            - eta1 * dEi * dEi
+                            - eta2 * dEi * dEi * dEi
+                    )
+                    - 1.0
+                )
 
     @staticmethod
+    @njit(sig_drift_exact, parallel=True, fastmath=True)
     def drift_exact(
         dt: NumpyArray,
         dE: NumpyArray,
@@ -143,4 +202,26 @@ class NumbaSpecials(Specials):
         beta: float,
         energy: float,
     ):
-        pass
+        T = t_rev * length_ratio
+        invbetasq = 1 / (beta * beta)
+        invenesq = 1 / (energy * energy)
+        # double beam_delta;
+        for i in prange(len(dt)):
+            beam_delta = (
+                np.sqrt(
+                    1.0 + invbetasq * (dE[i] * dE[i] * invenesq + 2.0 * dE[i] / energy)
+                )
+                - 1.0
+            )
+
+            dt[i] += T * (
+                (
+                    1.0
+                    + alpha_0 * beam_delta
+                    + alpha_1 * (beam_delta * beam_delta)
+                    + alpha_2 * (beam_delta * beam_delta * beam_delta)
+                )
+                * (1.0 + dE[i] / energy)
+                / (1.0 + beam_delta)
+                - 1.0
+            )

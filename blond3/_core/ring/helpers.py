@@ -32,7 +32,12 @@ def get_init_order(instances: Iterable[Any], dependency_attribute: str):
         instances, dependency_attribute
     )
     sorted_classes = topological_sort(graph, in_degree, all_classes)
-    return sorted_classes
+    sorted_classes_filtered = []
+    for cls in sorted_classes:
+        if any([cls == type(i).__name__ for i in instances]):
+            sorted_classes_filtered.append(cls)
+
+    return sorted_classes_filtered
 
 
 def build_dependency_graph(

@@ -87,6 +87,10 @@ class DynamicParameter:  # TODO add code generation for this method with type-hi
 
 
 class HasPropertyCache(object):
-    def invalidate_cache(self, props: Tuple[str, ...]):
+    def _invalidate_cache(self, props: Tuple[str, ...]):
         for prop in props:
             self.__dict__.pop(prop, None)
+
+    @abstractmethod
+    def invalidate_cache(self):
+        pass
