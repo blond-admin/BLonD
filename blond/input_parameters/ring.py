@@ -312,7 +312,9 @@ class Ring:
             # when there is more than 1 RF station, self.energy has shape (n_sections, n_turns+1)
             # where all turns have the same initial energy, the injection energy in column 0
             # Order="F" for column flattening
-            self.delta_E = np.diff(self.energy.flatten(order="F"))[n_sections - 1:].reshape((n_sections, n_turns))
+            self.delta_E = np.diff(self.energy.flatten(order="F"))[
+                n_sections - 1 :
+            ].reshape((n_sections, n_turns))
             # skipping of first n_section elements due to the same initial energy in the arrays,
             # one less is required due to the length reduction of diff
 

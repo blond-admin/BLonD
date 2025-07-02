@@ -1115,27 +1115,35 @@ class InducedVoltageResonator(_InducedVoltage):
         profile: Profile,
         resonators: Resonators,
         frequency_resolution: Optional[float] = None,
-                 wake_length: Optional[float] = None,
-                 multi_turn_wake: bool = False,
-                 mtw_mode: Optional[MtwModeTypes] = 'time',
-                 rf_station: Optional[RFStation] = None,
-                 use_regular_fft: bool = True,
-                 time_decay_factor: Optional[float] = 0.01,
-                 time_array: Optional[float] = None,
+        wake_length: Optional[float] = None,
+        multi_turn_wake: bool = False,
+        mtw_mode: Optional[MtwModeTypes] = "time",
+        rf_station: Optional[RFStation] = None,
+        use_regular_fft: bool = True,
+        time_decay_factor: Optional[float] = 0.01,
+        time_array: Optional[float] = None,
     ):
         # Test if one or more quality factors is smaller than 0.5.
         if sum(resonators.Q < 0.5) > 0:
             # ResonatorError
             raise RuntimeError("All quality factors Q must be larger than 0.5")
         if mtw_mode != "time":
-            warnings.warn("InducedVoltageResonator only allows for 'time' mtw_mode, 'freq' will be ignored")
+            warnings.warn(
+                "InducedVoltageResonator only allows for 'time' mtw_mode, 'freq' will be ignored"
+            )
         if wake_length is not None:
-            warnings.warn("InducedVoltageResonator ignores the setting of wake_length")
+            warnings.warn(
+                "InducedVoltageResonator ignores the setting of wake_length"
+            )
         if frequency_resolution is not None:
-            warnings.warn("InducedVoltageResonator ignores the setting of frequency_resolution")
+            warnings.warn(
+                "InducedVoltageResonator ignores the setting of frequency_resolution"
+            )
         if not use_regular_fft:
-            warnings.warn("use_regular_fft is not supported and will be ignored by InducedVoltageResonator",
-                          UserWarning)
+            warnings.warn(
+                "use_regular_fft is not supported and will be ignored by InducedVoltageResonator",
+                UserWarning,
+            )
 
         # Copy of the Beam object in order to access the beam info.
         self.beam = beam
@@ -1148,28 +1156,42 @@ class InducedVoltageResonator(_InducedVoltage):
 
         if multi_turn_wake:
             if time_array is not None:
-                warnings.warn("InducedVoltageResonator ignores time_array when multi_turn_wake=True")
+                warnings.warn(
+                    "InducedVoltageResonator ignores time_array when multi_turn_wake=True"
+                )
 
             # take the maximum of the resonators
             decay_time = 2 * np.max(resonators.Q / resonators.omega_R)
-            decay_turns = np.ceil(np.log(time_decay_factor) / np.log(e)
-                                  * decay_time / np.min(rf_station.t_rev))
+            decay_turns = np.ceil(
+                np.log(time_decay_factor)
+                / np.log(e)
+                * decay_time
+                / np.min(rf_station.t_rev)
+            )
 
             n_turns_calculation = min(int(decay_turns), rf_station.n_turns)
             potential_min_cav = rf_station.phi_s[0] / rf_station.omega_rf[0, 0]
-            min_index = np.abs(profile.bin_centers[0]
-                               - potential_min_cav).argmin()
+            min_index = np.abs(
+                profile.bin_centers[0] - potential_min_cav
+            ).argmin()
 
             self.time_array = np.array([])
 
             for turn_ind in range(n_turns_calculation):
-                self.time_array = np.append(self.time_array,
-                                            rf_station.t_rev[turn_ind]*turn_ind
-                                            + np.linspace(profile.bin_centers[0],
-                                            profile.bin_centers[-1]
-                                            + 2*(profile.bin_centers[min_index]
-                                                 - profile.bin_centers[0]),
-                                            profile.n_slices + 2*min_index))
+                self.time_array = np.append(
+                    self.time_array,
+                    rf_station.t_rev[turn_ind] * turn_ind
+                    + np.linspace(
+                        profile.bin_centers[0],
+                        profile.bin_centers[-1]
+                        + 2
+                        * (
+                            profile.bin_centers[min_index]
+                            - profile.bin_centers[0]
+                        ),
+                        profile.n_slices + 2 * min_index,
+                    ),
+                )
             self.atLineDensityTimes = False
 
         else:
@@ -1182,7 +1204,6 @@ class InducedVoltageResonator(_InducedVoltage):
             else:
                 self.time_array = time_array
                 self.atLineDensityTimes = False
-
 
         self.array_length = len(self.profile.bin_centers)
         self.n_time = len(self.time_array)
@@ -1222,17 +1243,22 @@ class InducedVoltageResonator(_InducedVoltage):
         )
 
         self.induced_voltage = np.zeros(
-            self.n_time, dtype=bm.precision.real_t, order='C')
+            self.n_time, dtype=bm.precision.real_t, order="C"
+        )
 
         wake_length = len(self.time_array) * self.profile.bin_size
 
         # Call the __init__ method of the parent class [calls process()]
-        super().__init__(beam=beam, profile=profile,
-                         frequency_resolution=None,
-                         wake_length=wake_length,
-                         multi_turn_wake=multi_turn_wake,
-                         rf_station=rf_station, mtw_mode='time',
-                         use_regular_fft=True)
+        super().__init__(
+            beam=beam,
+            profile=profile,
+            frequency_resolution=None,
+            wake_length=wake_length,
+            multi_turn_wake=multi_turn_wake,
+            rf_station=rf_station,
+            mtw_mode="time",
+            use_regular_fft=True,
+        )
 
     def process(self):
         r"""
@@ -1254,7 +1280,8 @@ class InducedVoltageResonator(_InducedVoltage):
             order="C",
         )
         self.induced_voltage = np.zeros(
-            self.n_time, dtype=bm.precision.real_t, order='C')
+            self.n_time, dtype=bm.precision.real_t, order="C"
+        )
 
     def induced_voltage_1turn(self, beam_spectrum_dict: Dict[Any, Any] = {}):
         r"""
@@ -1295,15 +1322,17 @@ class InducedVoltageResonator(_InducedVoltage):
         Implementation by F. Batsch.
         """
         # Shift the entries in array by 1 t_rev and set to 0
-        self.mtw_memory = np.append(self.mtw_memory, np.zeros(self.array_length))
+        self.mtw_memory = np.append(
+            self.mtw_memory, np.zeros(self.array_length)
+        )
         # Remove one turn length of memory
-        self.mtw_memory = self.mtw_memory[self.array_length:]
+        self.mtw_memory = self.mtw_memory[self.array_length :]
         # Induced voltage of the current turn
         self.induced_voltage_1turn(beam_spectrum_dict)
         # Add induced voltage of the current turn, up to array length n_time, to the previous turn
-        self.mtw_memory[:int(self.n_time)] += self.induced_voltage
+        self.mtw_memory[: int(self.n_time)] += self.induced_voltage
         # Save the total induced voltage up to array length n_time
-        self.induced_voltage = self.mtw_memory[:self.n_time]
+        self.induced_voltage = self.mtw_memory[: self.n_time]
 
     def to_gpu(self, recursive: bool = True):
         """
@@ -1334,6 +1363,7 @@ class InducedVoltageResonator(_InducedVoltage):
             return
 
         import cupy as cp
+
         # todo for mtw
         self.induced_voltage = cp.asnumpy(self.induced_voltage)
         if self.mtw_memory is not None:

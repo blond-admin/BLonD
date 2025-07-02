@@ -251,12 +251,12 @@ class Test:
         induced_voltage_python, deltaT_python = (
             resonator_induced_voltage_1_turn_python(**kwargs_py)
         )
-        assert np.allclose(deltaT_python, deltaT_numba), (
-            "Problem with calculation of deltaT"
-        )
-        assert np.allclose(induced_voltage_python, induced_voltage_numba), (
-            "Problem with calculation of induced_voltage"
-        )
+        assert np.allclose(
+            deltaT_python, deltaT_numba
+        ), "Problem with calculation of deltaT"
+        assert np.allclose(
+            induced_voltage_python, induced_voltage_numba
+        ), "Problem with calculation of induced_voltage"
 
     @pytest.mark.parametrize(
         "n_particles,n_rf,n_iter",

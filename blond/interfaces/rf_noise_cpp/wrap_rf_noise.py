@@ -245,23 +245,23 @@ def rf_noise(
 
     # make sure everything is as expected
     # compare lengths
-    assert len(frequency_high) == len(phase_array), (
-        f"{len(frequency_high)=}, {len(phase_array)=}"
-    )
-    assert len(frequency_high) == len(frequency_low), (
-        f"{len(frequency_high)=}, {len(frequency_low)=}"
-    )
+    assert len(frequency_high) == len(
+        phase_array
+    ), f"{len(frequency_high)=}, {len(phase_array)=}"
+    assert len(frequency_high) == len(
+        frequency_low
+    ), f"{len(frequency_high)=}, {len(frequency_low)=}"
     assert len(gain_x) == len(gain_y), f"{len(gain_x)=}, {len(gain_y)=}"
     # check ranges
-    assert np.all(frequency_low < frequency_high), (
-        "All 'fLow' must be smaller 'fHigh'"
-    )
-    assert np.min(gain_x) >= 0.0, (
-        f"'xs' must be within 0.0 and 1.0, but got {np.min(gain_x)=}"
-    )
-    assert np.max(gain_x) <= 1.0, (
-        f"'xs' must be within 0.0 and 1.0, but got {np.max(gain_x)=}"
-    )
+    assert np.all(
+        frequency_low < frequency_high
+    ), "All 'fLow' must be smaller 'fHigh'"
+    assert (
+        np.min(gain_x) >= 0.0
+    ), f"'xs' must be within 0.0 and 1.0, but got {np.min(gain_x)=}"
+    assert (
+        np.max(gain_x) <= 1.0
+    ), f"'xs' must be within 0.0 and 1.0, but got {np.max(gain_x)=}"
 
     # Prepare pointers to the numpy arrays
     f_high_ptr = frequency_high.ctypes.data_as(ctypes.POINTER(ctypes.c_double))

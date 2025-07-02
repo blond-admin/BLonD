@@ -32,6 +32,7 @@ def test():
             trackers,  # NOQA
             utils,  # NOQA
         )
+
         # This should report the backend that is used
         from .utils import bmath
 

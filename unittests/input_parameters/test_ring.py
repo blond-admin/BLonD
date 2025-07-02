@@ -272,12 +272,24 @@ class TestGeneralParameters(unittest.TestCase):
         # the shape of momentum should be (n_sections, n_turns+1)
         mom_gain = 1e10
         mom_program = np.zeros(self.num_sections * (self.n_turns + 1))
-        mom_program[self.num_sections - 1:] = np.arange(1, self.num_sections * self.n_turns + 2)
-        mom_program = mom_program.reshape(self.n_turns + 1, self.num_sections).transpose() * mom_gain
-        ring = Ring(ring_length=section_lengths, alpha_0=self.alpha_0,
-                    synchronous_data=mom_program, particle=self.particle,
-                    n_turns=self.n_turns, n_sections=self.num_sections,
-                    synchronous_data_type='momentum')
+        mom_program[self.num_sections - 1 :] = np.arange(
+            1, self.num_sections * self.n_turns + 2
+        )
+        mom_program = (
+            mom_program.reshape(
+                self.n_turns + 1, self.num_sections
+            ).transpose()
+            * mom_gain
+        )
+        ring = Ring(
+            ring_length=section_lengths,
+            alpha_0=self.alpha_0,
+            synchronous_data=mom_program,
+            particle=self.particle,
+            n_turns=self.n_turns,
+            n_sections=self.num_sections,
+            synchronous_data_type="momentum",
+        )
         delta_E_values = ring.delta_E.flatten()
         np.testing.assert_allclose(delta_E_values, mom_gain)
 
@@ -286,10 +298,15 @@ class TestGeneralParameters(unittest.TestCase):
         num_sections = 1
         mom_gain = 1e10
         mom_program = np.arange(1, num_sections * self.n_turns + 2) * mom_gain
-        ring = Ring(ring_length=self.C[0], alpha_0=self.alpha_0[0],
-                    synchronous_data=mom_program, particle=self.particle,
-                    n_turns=self.n_turns, n_sections=num_sections,
-                    synchronous_data_type='momentum')
+        ring = Ring(
+            ring_length=self.C[0],
+            alpha_0=self.alpha_0[0],
+            synchronous_data=mom_program,
+            particle=self.particle,
+            n_turns=self.n_turns,
+            n_sections=num_sections,
+            synchronous_data_type="momentum",
+        )
         delta_E_values = ring.delta_E.flatten()
         np.testing.assert_allclose(delta_E_values, mom_gain)
 

@@ -118,7 +118,7 @@ def c_complex(scalar: complex):
 # By default, use double precision
 precision = PrecisionClass("double")
 
-from .bmath_backends import BlondMathBackend # NOQA, precision must be defined first
+from .bmath_backends import BlondMathBackend  # NOQA, precision must be defined first
 
 bmath = BlondMathBackend()  # this line controls static type hints of bmath
 bmath.use_cpu()  # this line changes the backend to the most suitable one
