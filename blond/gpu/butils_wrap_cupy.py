@@ -159,7 +159,7 @@ def drift(
 
     if not isinstance(t_rev, precision.real_t):
         try:
-            t_rev = precision.real_t(t_rev.get())
+            t_rev = precision.real_t(t_rev.get()) # relevant for cupy
         except:
             t_rev = precision.real_t(t_rev)
 
@@ -295,7 +295,7 @@ def slice_beam(dt: NumpyArray, profile: NumpyArray, cut_left: float, cut_right: 
                 np.uint32(n_slices),
                 np.uint32(dt.size),
                 np.int32(GPU_DEV.attributes["MaxSharedMemoryPerBlock"] / 4),
-            ),
+                         ),
             grid=GPU_DEV.grid_size,
             block=GPU_DEV.block_size,
             shared_mem=GPU_DEV.attributes["MaxSharedMemoryPerBlock"],

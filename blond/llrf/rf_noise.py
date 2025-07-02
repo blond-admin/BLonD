@@ -294,7 +294,7 @@ class LHCNoiseFB:
                  factor: float = 0.93, update_frequency: int = 11245,
                  variable_gain: bool = True, bunch_pattern: Optional[ArrayLike] = None,
                  old_FESA_class: bool = False, no_delay: bool = False,
-                 seed: int | None = 1313) -> None:
+                 seed: int | None = 1313):
 
         self.LHC_frev = round(f_rev)  # LHC revolution frequency in Hz
 

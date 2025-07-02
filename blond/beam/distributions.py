@@ -687,7 +687,7 @@ def matched_from_distribution_function(beam: Beam, full_ring_and_rf: FullRingAnd
             induced_voltage = induced_voltage_object.induced_voltage
 
             # Calculating the induced potential
-            induced_potential_low_res = -(eom_factor_potential 
+            induced_potential_low_res = -(eom_factor_potential
                                           * cumtrapz(induced_voltage,
                                                      dx=time_resolution_low,
                                                      initial=0))
