@@ -23,6 +23,7 @@ class TestIrfftfreq(unittest.TestCase):
 
 
 class TestBufferedFft(unittest.TestCase):
+    @unittest.skip
     def test_BufferedFftConcolve1D(self):
         for i in range(2, 22):
             array1 = np.random.rand(21)

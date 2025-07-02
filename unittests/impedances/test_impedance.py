@@ -246,7 +246,6 @@ class TestInducedVoltageResonator(unittest.TestCase):
 
 
 
-if __name__ == "__main__":
 class TestInducedVoltageResonatorMultiTurnWake(unittest.TestCase):
 
     def setUp(self):
