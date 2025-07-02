@@ -11,7 +11,7 @@ from .._core.ring.helpers import requires
 from .._core.simulation.simulation import Simulation
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray as NumpyArray
+    from numpy.typing import NDArray as NumpyArray, ArrayLike
 
 
 class _Blon2LikeInit(object):
@@ -33,6 +33,7 @@ class _Blon2LikeInit(object):
 
 
 class RfStationParams(RfParameterCycle):
+    _late_init_requires = ("cycle_time", "f_rev")
     def __init__(
         self,
         harmonic: int | float | NumpyArray,
@@ -73,21 +74,15 @@ class RfStationParams(RfParameterCycle):
         self.cavity_feedback = None  # TODO it is not clear if they should be
         # here
 
-    @requires(
-        [
-            "EnergyCycleBase",  # for .energy_cycle
-            "BeamPhysicsRelevantElements",  # for .section_index,
-        ]
-    )
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        super().on_init_simulation(simulation=simulation)
+
+    def on_init_simulation(self, cycle_time: ArrayLike[float],
+                           f_rev: ArrayLike[float]) -> None:
+        # super().on_init_simulation(simulation=simulation)
         from blond.input_parameters.rf_parameters import RFStationOptions
 
         rf_station_options = RFStationOptions()
-        cycle_time = self._simulation.energy_cycle.cycle_time[
-            self._owner.section_index, :
-        ]
-        n_turns = self._simulation.energy_cycle.n_turns
+
+        n_turns = len(cycle_time)
         n_rf = self._owner.n_rf
         t_start = 0.0  # TODO expose parameter if required, else legacy
 
@@ -127,7 +122,7 @@ class RfStationParams(RfParameterCycle):
         # Calculating design rf angular frequency
         if self._init_params.omega_rf is None:
             omega_rf_d = (
-                2.0 * np.pi * self._simulation.energy_cycle.f_rev * self.harmonic
+                2.0 * np.pi * f_rev * self.harmonic
             )
         else:
             omega_rf_d = rf_station_options.reshape_data(  # FIXME use correct reshaping
@@ -166,15 +161,15 @@ class RfStationParams(RfParameterCycle):
                 if len(system) == 0:
                     raise ValueError("No matching harmonic in phi_modulation")
                 elif len(system) > 1:
-                    raise RuntimeError("""Phase modulation not yet 
-                                               implemented with multiple systems 
+                    raise RuntimeError("""Phase modulation not yet
+                                               implemented with multiple systems
                                                at the same harmonic.""")
                 else:
                     system = system[0]
 
                 pMod.calc_modulation()
                 pMod.calc_delta_omega(
-                    (ring.cycle_time[system], self.omega_rf_design[system])
+                    (cycle_time[system], self.omega_rf_design[system])
                 )
                 dPhiInput, dOmegaInput = pMod.extend_to_n_rf(self.harmonic[:, 0])
                 dPhi += rf_station_options.reshape_data(  # FIXME use correct reshaping

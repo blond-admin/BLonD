@@ -18,11 +18,13 @@ from ..physics.drifts import DriftBaseClass
 if TYPE_CHECKING:
     from typing import Optional as LateInit
 
-    from numpy.typing import NDArray as NumpyArray
+    from numpy.typing import NDArray as NumpyArray, ArrayLike
     from .._core.simulation.simulation import Simulation
+    from .._core.beam.particle_types import ParticleType
 
 
 class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
+    _late_init_requires = ("particle", "section_lengths")
     def __init__(
         self,
     ):
@@ -30,14 +32,12 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
         self._momentum: LateInit[NumpyArray] = None
         self._section_lengths: LateInit[NumpyArray] = None
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, particle: ParticleType,
+                           section_lengths: ArrayLike[float]) -> None:
         assert self._momentum is not None, f"{self._momentum=}"
         assert len(self._momentum.shape) == 2, f"{self._momentum.shape=}"
-        self._particle = simulation.beams[0].particle_type
-        self._section_lengths = (
-            simulation.ring.circumference
-            * simulation.ring.elements.get_section_circumference_shares()
-        )
+        self._particle = particle
+        self._section_lengths = np.array(section_lengths)
         self._invalidate_cache()
 
     def on_run_simulation(

@@ -112,6 +112,20 @@ class Simulation(Preparable, HasPropertyCache):
     ) -> None:
         pass
 
+
+    def do_late_init(self):
+
+        late_init_vars = {"particle": self.beams[0].particle_type,
+                          "section_lengths": self.ring.circumference
+                    * self.ring.elements.get_section_circumference_shares(),
+                          "f_rev": self.energy_cycle.f_rev}
+
+        for element in self.ring.elements:
+            required = element._late_init_requires
+            kwargs = {k: late_init_vars[k] for k in required}
+            element.on_init_simulation(**kwargs)
+
+
     def _exec_all_in_tree(self, method: str, **kwargs):
         logger.debug(f"Calling all {method}({kwargs}) in {self}")
         instances = find_instances_with_method(self, f"{method}")
