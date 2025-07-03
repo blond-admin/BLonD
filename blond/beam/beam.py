@@ -258,9 +258,10 @@ class Beam:
         self.mean_dE: float = 0.
         self.sigma_dt: float = 0.
         self.sigma_dE: float = 0.
-        self._update_particles(n_macroparticles=int(n_macroparticles),
-                               intensity=float(intensity))
-        self.ratio: float = self.intensity / self.n_macroparticles
+
+        self._set_beam_info(n_macroparticles=int(n_macroparticles),
+                            intensity=float(intensity))
+
         self.id: NumpyArray | cp.array = np.arange(1, self.n_macroparticles + 1, dtype=int)
         self.epsn_rms_l: float = 0.
         self.n_macroparticles_eliminated = 0
@@ -419,7 +420,7 @@ class Beam:
 
     @ratio.setter
     def ratio(self, value: float):
-        self._update_particles(ratio=value)
+        self._set_beam_info(ratio=value)
 
     @property
     def intensity(self) -> float:
@@ -427,7 +428,7 @@ class Beam:
 
     @intensity.setter
     def intensity(self, value: float):
-        self._update_particles(intensity=value)
+        self._set_beam_info(intensity=value)
 
     @property
     def n_macroparticles(self) -> int:
@@ -435,9 +436,9 @@ class Beam:
 
     @n_macroparticles.setter
     def n_macroparticles(self, value: int):
-        self._update_particles(n_macroparticles=value)
+        self._set_beam_info(n_macroparticles=value)
 
-    def _update_particles(self, *, n_macroparticles: Optional[int] = None,
+    def _set_beam_info(self, *, n_macroparticles: Optional[int] = None,
                           intensity: Optional[float] = None,
                           ratio: Optional[float] = None):
 
@@ -627,7 +628,7 @@ class Beam:
                                                      self.n_macroparticles
                                                      + n_new + 1, dtype=int)))
 
-        self._update_particles(n_macroparticles=self._n_macroparticles + n_new,
+        self._set_beam_info(n_macroparticles=self._n_macroparticles + n_new,
                                ratio=self.ratio)
 
         self.dt = bm.concatenate((self.dt, newdt))
@@ -670,7 +671,7 @@ class Beam:
 
         self.id = bm.concatenate((self.id, newids))
 
-        self._update_particles(n_macroparticles=self.n_macroparticles
+        self._set_beam_info(n_macroparticles=self.n_macroparticles
                                                 + other_beam.n_macroparticles,
                                ratio=self.ratio)
 
