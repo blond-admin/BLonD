@@ -17,12 +17,21 @@ and the beam coordinates in phase space.**
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
+
+try:
+    import cupy as cp
+
+except ImportError as _cupy_import_error:
+    _cupy_available = False
+
 
 import numpy as np
 import scipy
 from packaging.version import Version
 
+from blond.utils import precision
+from blond.utils.custom_warnings import PerformanceWarning
 from ..llrf.cavity_feedback import CavityFeedback
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
@@ -35,15 +44,16 @@ else:
 if TYPE_CHECKING:
     from typing import Optional, Literal
 
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray as NumpyArray
+    from cupy.typing import NDArray as CupyArray
 
     from ..impedances.impedance import TotalInducedVoltage
     from ..llrf.beam_feedback import BeamFeedback
     from ..beam.profile import Profile
-    from ..beam.beam_abstract import BeamBaseClass
+    from ..beam.beam import Beam
     from ..input_parameters.rf_parameters import RFStation
-    from ..utils.types import DeviceType, SolverTypes
-    from cupy.typing import NDArray as CupyArray
+    from ..utils.types import DeviceType
+
     MainHarmonicOptionType = Literal['lowest_freq', 'highest_voltage'] | float
 
 
@@ -54,16 +64,16 @@ class FullRingAndRF:
     """
 
     @handle_legacy_kwargs
-    def __init__(self, ring_and_rf_section: list[RingAndRFTracker]) -> None:
+    def __init__(self, ring_and_rf_section: list[RingAndRFTracker]):
 
         #: *List of the total RingAndRFSection objects*
         self.ring_and_rf_section = ring_and_rf_section
 
         #: *Total potential well in [V]*
-        self.potential_well: NDArray | CupyArray | None = None
+        self.potential_well: NumpyArray | CupyArray | None = None
 
         #: *Total potential well theta coordinates in [rad]*
-        self.potential_well_coordinates: NDArray | CupyArray | None = None
+        self.potential_well_coordinates: NumpyArray | CupyArray | None = None
         self.total_voltage: NumpyArray | CupyArray | None = None
 
         #: *Ring circumference in [m]*
@@ -78,19 +88,19 @@ class FullRingAndRF:
     @property
     def RingAndRFSection_list(self):
         warnings.warn("RingAndRFSection_list is deprecated, use ring_and_rf_section",
-             DeprecationWarning)
+             DeprecationWarning, stacklevel=2)
         return self.ring_and_rf_section
 
     @RingAndRFSection_list.setter
     def RingAndRFSection_list(self, val):
         warnings.warn("RingAndRFSection_list is deprecated, use ring_and_rf_section",
-             DeprecationWarning)
+             DeprecationWarning, stacklevel=2)
         self.ring_and_rf_section = val
 
     def potential_well_generation(self, turn: int = 0, n_points: int = int(1e5),
                                   main_harmonic_option: MainHarmonicOptionType = 'lowest_freq',
                                   dt_margin_percent: float = 0.,
-                                  time_array: NDArray = None) -> None:
+                                  time_array: NumpyArray = None):
         """Method to generate the potential well out of the RF systems. The
         assumption made is that all the RF voltages are averaged over one turn.
         The potential well is then approximated over one turn, which is not the
@@ -136,8 +146,6 @@ class FullRingAndRF:
                                    + " harmonic to compute the potential well"
                                    + " does not match the RF parameters...")
             main_omega_rf = np.min(omega_rf[omega_rf == main_harmonic_option])
-        else:
-            raise RuntimeError("Didnt match any case to set 'main_omega_rf'.")
 
         slippage_factor = self.ring_and_rf_section[0].rf_params.eta_0[turn]
 
@@ -168,7 +176,7 @@ class FullRingAndRF:
         self.potential_well_coordinates = time_array
         self.potential_well = potential_well
 
-    def track(self) -> None:
+    def track(self):
         """Function to loop over all the RingAndRFSection.track methods
         """
 
@@ -177,20 +185,34 @@ class FullRingAndRF:
 
     def to_gpu(self, recursive: bool = True):
         """Function to loop over all the RingAndRFSection.track methods"""
-        import cupy as cp
+        if not _cupy_available:
+            raise _cupy_import_error
+
+        if self._device == 'GPU':
+            return
+
         self.potential_well_coordinates = cp.array(self.potential_well_coordinates)
         self.potential_well = cp.array(self.potential_well)
         self.total_voltage = cp.array(self.total_voltage)
+
         if recursive:
             for ring_and_rf_section in self.ring_and_rf_section:
                 ring_and_rf_section.to_gpu(recursive=recursive)
-        self._device: DeviceType = 'CPU'
+
+        self._device: DeviceType = 'GPU'
 
     def to_cpu(self, recursive: bool = True):
         """Function to loop over all the RingAndRFSection.track methods"""
-        self.potential_well_coordinates = self.potential_well_coordinates.get()
-        self.potential_well = self.potential_well.get()
-        self.total_voltage = self.total_voltage.get()
+        if not _cupy_available:
+            raise _cupy_import_error
+
+        if self._device == 'CPU':
+            return
+
+        self.potential_well_coordinates = cp.asnumpy(self.potential_well_coordinates)
+        self.potential_well = cp.asnumpy(self.potential_well)
+        self.total_voltage = cp.asnumpy(self.total_voltage)
+
         if recursive:
             for ring_and_rf_section in self.ring_and_rf_section:
                 ring_and_rf_section.to_cpu(recursive=recursive)
@@ -254,15 +276,15 @@ class RingAndRFTracker:
     @handle_legacy_kwargs
     def __init__(self,
                  rf_station: RFStation,
-                 beam: BeamBaseClass,
-                 solver: SolverTypes = 'simple',
+                 beam: Beam,
+                 solver: Literal['simple', 'exact', 'legacy'] = 'simple',
                  beam_feedback: Optional[BeamFeedback] = None,
                  noise_feedback: None = None,  # FIXME type hint, NoiseFeedback class doesnt exist
                  cavity_feedback: Optional[CavityFeedback] = None,
                  periodicity: bool = False,
                  interpolation: bool = False,
                  profile: Optional[Profile] = None,
-                 total_induced_voltage: Optional[TotalInducedVoltage] = None) -> None:
+                 total_induced_voltage: Optional[TotalInducedVoltage] = None):
 
         # Set up logging
         # self.logger = logging.getLogger(__class__.__name__)
@@ -322,7 +344,7 @@ class RingAndRFTracker:
         if (self.cavityFB is not None) and (not hasattr(self.cavityFB, '__iter__')):
             self.cavityFB = [self.cavityFB]
 
-    def kick(self, beam_dt: NDArray, beam_dE: NDArray, index: int) -> None:
+    def kick(self, beam_dt: NumpyArray, beam_dE: NumpyArray, index: int):
         r"""Function updating the particle energy due to the RF kick in a given
         RF station. The kicks are summed over the different harmonic RF systems
         in the station. The cavity phase can be shifted by the user via
@@ -335,14 +357,13 @@ class RingAndRFTracker:
             \Delta E^{n+1} = \Delta E^n + \sum_{k=0}^{n_{\mathsf{rf}}-1}{e V_k^n \\sin{\\left(\omega_{\mathsf{rf,k}}^n \\Delta t^n + \phi_{\mathsf{rf,k}}^n \\right)}} - (E_s^{n+1} - E_s^n)
 
         """
-        raise NotImplementedError("Use beam.kick(rf_station, "
-                                  "acceleration_kicks, turn_i) instead")
+
         bm.kick(beam_dt, beam_dE, self.rf_params.voltage[:, index],
                 self.rf_params.omega_rf[:, index], self.rf_params.phi_rf[:, index],
                 self.rf_params.particle.charge, self.rf_params.n_rf,
                 self.acceleration_kick[index])
 
-    def drift(self, beam_dt: NDArray, beam_dE: NDArray, index: int) -> None:
+    def drift(self, beam_dt: NumpyArray, beam_dE: NumpyArray, index: int):
         r"""Function updating the particle arrival time to the RF station
         (drift). If only the zeroth order slippage factor is given, 'simple'
         and 'exact' solvers are available. The 'simple' solver is somewhat
@@ -369,8 +390,6 @@ class RingAndRFTracker:
             \\delta = \\frac{\\Delta E}{\\beta_s^2 E_s} \quad \\text{(simple, legacy)}
 
         """
-        raise NotImplementedError("Use beam.drift(rf_station, solver, "
-                                  "turn_i) instead !")
         bm.drift(beam_dt, beam_dE, self.solver, self.rf_params.t_rev[index],
                  self.rf_params.length_ratio, self.rf_params.alpha_order,
                  self.rf_params.eta_0[index], self.rf_params.eta_1[index],
@@ -378,7 +397,7 @@ class RingAndRFTracker:
                  self.rf_params.alpha_1[index], self.rf_params.alpha_2[index],
                  self.rf_params.beta[index], self.rf_params.energy[index])
 
-    def rf_voltage_calculation(self) -> None:
+    def rf_voltage_calculation(self):
         """Function calculating the total, discretised RF voltage seen by the
         beam at a given turn. Requires a Profile object.
 
@@ -414,7 +433,7 @@ class RingAndRFTracker:
             self.rf_voltage = bm.rf_volt_comp(voltages, omega_rf, phi_rf,
                                               self.profile.bin_centers)
 
-    def track(self) -> None:
+    def track(self):
         """Tracking method for the section. Applies first the kick, then the
         drift. Calls also RF/beam feedbacks if applicable. Updates the counter
         of the corresponding RFStation class and the energy-related variables
@@ -461,11 +480,10 @@ class RingAndRFTracker:
                     feedback.track()
 
         if self.periodicity:
-            self.beam.kickdrift_considering_periodicity(
-                acceleration_kicks=self.acceleration_kick,
-                rf_station=self.rf_params,
-                turn_i=turn
-            )
+            if hasattr(self, '_device') and self._device == 'GPU':
+                self._kickdrift_considering_periodicity_gpu(turn)
+            else:
+                self._kickdrift_considering_periodicity(turn)
 
         else:
 
@@ -478,20 +496,16 @@ class RingAndRFTracker:
                     else:
                         self.total_voltage = self.rf_voltage
 
-                    self.beam.linear_interp_kick(
-                        voltage=self.total_voltage,
-                        bin_centers=self.profile.bin_centers,
-                        charge=self.beam.particle.charge,
-                        acceleration_kick=self.acceleration_kick[turn]
-                    )
+                    bm.linear_interp_kick(dt=self.beam.dt, dE=self.beam.dE,
+                                          voltage=self.total_voltage,
+                                          bin_centers=self.profile.bin_centers,
+                                          charge=self.beam.particle.charge,
+                                          acceleration_kick=self.acceleration_kick[turn])
 
                 else:
-                    self.beam.kick(rf_station=self.rf_params,
-                                   acceleration_kicks=self.acceleration_kick,
-                                   turn_i=turn)
+                    self.kick(self.beam.dt, self.beam.dE, turn)
 
-            self.beam.drift(rf_station=self.rf_params, solver=self.solver,
-                            turn_i=turn + 1)
+            self.drift(self.beam.dt, self.beam.dE, turn + 1)
 
         # Updating the beam synchronous momentum etc.
         self.beam.beta = self.rf_params.beta[turn + 1]
@@ -510,10 +524,6 @@ class RingAndRFTracker:
         turn
             Current turn
         """
-        raise NotImplementedError("Use instead "
-                                  "beam.kickdrift_considering_periodicity("
-                                  "acceleration_kicks, rf_station, solver, "
-                                  "turn_i) " )
         # Distinguish the particles inside the frame from the particles on
         # the right-hand side of the frame.
         self.indices_right_outside = \
@@ -560,6 +570,51 @@ class RingAndRFTracker:
             self.beam.dt[self.indices_left_outside] = left_outsiders_dt
             self.beam.dE[self.indices_left_outside] = left_outsiders_dE
 
+    def _kickdrift_considering_periodicity_gpu(self, turn: int):
+        """Kick&drift considering t_rev for continuity
+
+        Notes
+        -----
+        Same as self._kickdrift_considering_periodicity, but for GPU
+
+        Parameters
+        ----------
+        turn
+            Current turn
+        """
+        if self.solver != 'simple':
+            warnings.warn("If you require faster tracking with 'periodicity=True' on the GPU:"
+                          " Switch solver to 'simple' or rewrite"
+                          " 'kickdrift_considering_periodicity' to consider different drift equation!", PerformanceWarning)
+            self._kickdrift_considering_periodicity(turn=turn)
+
+        # parameters to calculate coeff of drift
+        T0 = self.rf_params.t_rev[turn + 1]
+        length_ratio = self.rf_params.length_ratio
+        eta_zero = self.rf_params.eta_0[turn + 1]
+        beta = self.rf_params.beta[turn + 1]
+        energy = self.rf_params.energy[turn + 1]
+
+        n_rf = self.rf_params.voltage.shape[0]
+        from blond.gpu import GPU_DEV
+
+        kickdrift_considering_periodicity = GPU_DEV.mod.get_function("kickdrift_considering_periodicity")
+        kickdrift_considering_periodicity(
+            args=(
+                self.beam.dt,
+                self.beam.dE,
+                precision.real_t(self.rf_params.t_rev[turn + 1]),
+                n_rf,
+                self.rf_params.voltage[:, turn],
+                self.rf_params.omega_rf[:, turn],
+                self.rf_params.phi_rf[:, turn],
+                precision.real_t(self.rf_params.particle.charge),
+                precision.real_t(self.acceleration_kick[turn]),
+                precision.real_t(T0 * length_ratio * eta_zero / (beta * beta * energy)),  # turn+1
+                len(self.beam.dt)
+            ),
+            block=GPU_DEV.block_size, grid=GPU_DEV.grid_size
+        )
 
     def to_gpu(self, recursive=True):
         """
