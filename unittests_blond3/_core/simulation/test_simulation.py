@@ -18,7 +18,9 @@ from blond3.handle_results.observables import Observables, BunchObservation
 
 class TestSimulation(unittest.TestCase):
     def setUp(self):
-        ring = Ring(circumference=26658.883)
+        ring = Ring(circumference=26658.883,
+        transition_gamma = 55.759505,
+        )
 
         cavity1 = SingleHarmonicCavity(
             rf_program=RfStationParams(harmonic=35640, voltage=6e6, phi_rf=0)
@@ -26,16 +28,17 @@ class TestSimulation(unittest.TestCase):
 
         N_TURNS = int(1e3)
         energy_cycle = EnergyCyclePerTurn(
+            value_init=450e9,
             values_after_turn=np.linspace(450e9, 450e9, N_TURNS)
         )
 
         drift1 = DriftSimple(
-            transition_gamma=55.759505,
             share_of_circumference=1.0,
         )
         beam1 = Beam(n_particles=1e9, particle_type=proton)
         beam1.setup_beam(dt=np.linspace(1, 10, 10), dE=np.linspace(11, 20, 10))
         self.simulation = Simulation.from_locals(locals())
+
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp

@@ -2,14 +2,17 @@ from __future__ import annotations
 
 from typing import (
     List,
+    TYPE_CHECKING,
 )
 
-from ..cavities import MultiHarmonicCavity, SingleHarmonicCavity
 from ..profiles import ProfileBaseClass
 from ..._core.base import BeamPhysicsRelevant
 from ..._core.beam.base import BeamBaseClass
 from ..._core.ring.helpers import requires
 from ..._core.simulation.simulation import Simulation
+
+if TYPE_CHECKING:
+    from ..cavities import MultiHarmonicCavity, SingleHarmonicCavity, CavityBaseClass
 
 
 class FeedbackBaseClass(BeamPhysicsRelevant):
@@ -21,12 +24,15 @@ class LocalFeedback(FeedbackBaseClass):
     def __init__(
         self,
         profile: ProfileBaseClass,
-        cavity: SingleHarmonicCavity | MultiHarmonicCavity,
         section_index: int = 0,
     ):
         super().__init__(section_index=section_index)
-        self.cavity = cavity
+        self._owner: SingleHarmonicCavity | MultiHarmonicCavity | None = None
         self.profile = profile
+
+    def set_owner(self, cavity: CavityBaseClass):
+        assert self._owner is None
+        self._owner = cavity
 
     def track(self, beam: BeamBaseClass):
         pass

@@ -24,20 +24,21 @@ class CavityBaseClass(BeamPhysicsRelevant, ABC):
         self,
         n_rf: int,
         rf_program: RfStationParams,
-        section_index: int = 0,
-        local_wakefield: Optional[WakeField] = None,
-        cavity_feedback: Optional[LocalFeedback] = None,
+        section_index: int,
+        local_wakefield: Optional[WakeField],
+        cavity_feedback: Optional[LocalFeedback],
     ):
         super().__init__(section_index=section_index)
         rf_program.set_owner(cavity=self)
         if cavity_feedback is not None:
             cavity_feedback.set_owner(cavity=self)
+
+        self._n_rf = n_rf
         self._rf_program: RfStationParams = rf_program
         self._local_wakefield = local_wakefield
         self._cavity_feedback = cavity_feedback
 
         self._turn_i: LateInit[DynamicParameter] = None
-        self._n_rf = n_rf
         self._energy_cycle: LateInit[EnergyCycleBase] = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -71,15 +72,17 @@ class SingleHarmonicCavity(CavityBaseClass):
 
     def __init__(
         self,
-        rf_program: RfStationParams = None,
+        rf_program: RfStationParams,
         section_index: int = 0,
         local_wakefield: Optional[WakeField] = None,
+        cavity_feedback: Optional[LocalFeedback] = None,
     ):
         super().__init__(
             n_rf=1,
             rf_program=rf_program,
             section_index=section_index,
             local_wakefield=local_wakefield,
+            cavity_feedback=cavity_feedback,
         )
 
     def track(self, beam: BeamBaseClass):
@@ -106,13 +109,14 @@ class MultiHarmonicCavity(CavityBaseClass):
         rf_program: RfStationParams,
         section_index: int = 0,
         local_wakefield: Optional[WakeField] = None,
-        **kwargs,  # to allow fusing
+        cavity_feedback: Optional[LocalFeedback] = None,
     ):
         super().__init__(
             n_rf=n_harmonics,
             rf_program=rf_program,
             section_index=section_index,
             local_wakefield=local_wakefield,
+            cavity_feedback=cavity_feedback
         )
 
     def track(self, beam: BeamBaseClass):

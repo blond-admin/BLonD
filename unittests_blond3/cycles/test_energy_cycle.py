@@ -195,7 +195,9 @@ class TestFunctions(unittest.TestCase):
 class TestConstantEnergyCycle(unittest.TestCase):
     def setUp(self):
         self.constant_energy_cycle = ConstantEnergyCycle(
-            value=11, max_turns=11, in_unit="momentum",
+            value=11,
+            max_turns=11,
+            in_unit="momentum",
         )
 
     def test___init__(self):
@@ -206,17 +208,35 @@ class TestConstantEnergyCycle(unittest.TestCase):
         self.assertEqual(self.constant_energy_cycle.momentum.min(), 11)
         self.assertEqual(self.constant_energy_cycle.momentum.max(), 11)
 
+    def test_headless(self):
+        cec = ConstantEnergyCycle.headless(
+            section_lengths=np.array([0.1, 0.3]),
+            value=1,
+            max_turns=12,
+            in_unit="momentum",
+            bending_radius=None,
+            mass=1,
+            charge=2,
+        )
+        cec.t_section[0]
+
+
+class EnergyCycleBaseHelper(EnergyCycleBase):
+    @staticmethod
+    def headless(*args, **kwargs):
+        pass
+
 
 class TestEnergyCycleBase(unittest.TestCase):
     def setUp(self):
-        self.energy_cycle_base = EnergyCycleBase()
-
+        self.energy_cycle_base = EnergyCycleBaseHelper()
+        self.energy_cycle_base._momentum_init = 1e9
         self.energy_cycle_base._momentum = np.array(
             [[1e9, 2e9, 3e9], [4e9, 5e9, 6e9]]
         ).T
         # eV/c]
         self.energy_cycle_base._section_lengths = np.array([100, 200, 300])  # [m]
-        self.energy_cycle_base._particle = proton
+        self.energy_cycle_base._mass = proton.mass
 
     def test___init__(self):
         self.assertIsInstance(self.energy_cycle_base, EnergyCycleBase)
@@ -224,8 +244,7 @@ class TestEnergyCycleBase(unittest.TestCase):
     def test_beta(self):
         beta = self.energy_cycle_base.beta
         expected = self.energy_cycle_base._momentum / np.sqrt(
-            self.energy_cycle_base._momentum**2
-            + self.energy_cycle_base._particle.mass**2
+            self.energy_cycle_base._momentum**2 + self.energy_cycle_base._mass**2
         )
         assert_allclose(beta, expected, rtol=1e-8)
 
@@ -237,16 +256,13 @@ class TestEnergyCycleBase(unittest.TestCase):
     def test_energy(self):
         energy = self.energy_cycle_base.total_energy
         expected = np.sqrt(
-            self.energy_cycle_base._momentum**2
-            + self.energy_cycle_base._particle.mass**2
+            self.energy_cycle_base._momentum**2 + self.energy_cycle_base._mass**2
         )
         assert_allclose(energy, expected, rtol=1e-8)
 
     def test_kin_energy(self):
         kin_energy = self.energy_cycle_base.kin_energy
-        expected = (
-            self.energy_cycle_base.total_energy - self.energy_cycle_base._particle.mass
-        )
+        expected = self.energy_cycle_base.total_energy - self.energy_cycle_base._mass
         assert_allclose(kin_energy, expected, rtol=1e-8)
 
     def test_delta_E(self):
@@ -293,12 +309,18 @@ class TestEnergyCycleBase(unittest.TestCase):
     def test_invalidate_cache(self):
         # This is a placeholder; add actual cache-clearing verification if applicable
         try:
-            self.energy_cycle_base._invalidate_cache()
+            self.energy_cycle_base.invalidate_cache()
         except Exception as e:
             self.fail(f"_invalidate_cache() raised an exception: {e}")
 
     def test_on_init_simulation(self):
-        self.energy_cycle_base.on_init_simulation(simulation=simulation_ex1)
+        self.energy_cycle_base.on_init_simulation(
+            simulation=simulation_ex1,
+            momentum_init=11,
+            momentum=np.ones(
+                (1, 10),
+            ),
+        )
 
     def test_on_run_simulation(self):
         self.energy_cycle_base.on_run_simulation(
@@ -320,6 +342,18 @@ class TestEnergyCycleByTime(unittest.TestCase):
 
     def test_on_init_simulation(self):
         self.energy_cycle_by_time.on_init_simulation(simulation=simulation_ex1)
+
+    def test_headless(self):
+        ebt = EnergyCycleByTime.headless(
+            fast_execution_order=[0, 0.1, 1, 0.3],
+            t0=131,
+            max_turns=124,
+            base_time=np.linspace(0, 10),
+            base_values=np.linspace(0, 10),
+            mass=1,
+            charge=2,
+        )
+        ebt.t_section[0]
 
 
 class TestEnergyCyclePerTurn(unittest.TestCase):
@@ -347,12 +381,23 @@ class TestEnergyCyclePerTurn(unittest.TestCase):
             self.energy_cycle_per_turn._momentum[cavity_i, :], self.momentum[1:]
         )
 
+    def test_headless(self):
+        evpt = EnergyCyclePerTurn.headless(
+            mass=1,
+            charge=1,
+            value_init=0,
+            values_after_turn=np.ones(10),
+            section_lengths=np.array([0.5, 1]),
+        )
+        evpt.t_section[0]
+
 
 class TestEnergyCyclePerTurnAllCavities(unittest.TestCase):
     def setUp(self):
         self.momentum = np.ones((1, 10))
         self.energy_cycle_per_turn_all_cavities = EnergyCyclePerTurnAllCavities(
-            values_after_cavity_per_turn=self.momentum
+            values_after_cavity_per_turn=self.momentum,
+            value_init=1,
         )
 
     def test___init__(self):
@@ -362,7 +407,8 @@ class TestEnergyCyclePerTurnAllCavities(unittest.TestCase):
         # simulation has only one cavity, but give program for 10 cavities
         with self.assertRaises(AssertionError):
             self.energy_cycle_per_turn_all_cavities = EnergyCyclePerTurnAllCavities(
-                values_after_cavity_per_turn=np.ones((10, 10))
+                values_after_cavity_per_turn=np.ones((10, 10)),
+                value_init=10,
             )
             self.energy_cycle_per_turn_all_cavities.on_init_simulation(
                 simulation=simulation_ex1
@@ -370,9 +416,23 @@ class TestEnergyCyclePerTurnAllCavities(unittest.TestCase):
 
     def test_on_init_simulation(self):
         self.energy_cycle_per_turn_all_cavities.on_init_simulation(
-            simulation=simulation_ex1
+            simulation=simulation_ex1,
+            momentum_init=11,
+            momentum=np.ones(
+                (1, 10),
+            ),
         )
         assert_allclose(self.energy_cycle_per_turn_all_cavities.momentum, self.momentum)
+
+    def test_headless(self):
+        ecptac = EnergyCyclePerTurnAllCavities.headless(
+            value_init=10,
+            values_after_cavity_per_turn=np.ones((2, 20)),
+            mass=1,
+            charge=1,
+            section_lengths=np.array([0.1, 0.3]),
+        )
+        ecptac.t_section[0]
 
 
 if __name__ == "__main__":

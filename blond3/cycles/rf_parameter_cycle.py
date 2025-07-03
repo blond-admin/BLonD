@@ -8,10 +8,12 @@ import numpy as np
 from .base import RfParameterCycle
 from .._core.backends.backend import backend
 from .._core.ring.helpers import requires
-from .._core.simulation.simulation import Simulation
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
+    from numpy.typing import ArrayLike
+
+    from .._core.simulation.simulation import Simulation
 
 
 class _Blon2LikeInit(object):
@@ -35,11 +37,11 @@ class _Blon2LikeInit(object):
 class RfStationParams(RfParameterCycle):
     def __init__(
         self,
-        harmonic: int | float | NumpyArray,
-        voltage: float | NumpyArray,
-        phi_rf: float | NumpyArray,
-        omega_rf: Optional[float | NumpyArray] = None,
-        phi_noise: Optional[NumpyArray] = None,
+        harmonic: int | float | ArrayLike,
+        voltage: float | ArrayLike,
+        phi_rf: float | ArrayLike,
+        omega_rf: Optional[float | ArrayLike] = None,
+        phi_noise: Optional[ArrayLike] = None,
         phi_modulation: Optional[object] = None,  # TODO required??
     ):
         super().__init__()
@@ -83,16 +85,17 @@ class RfStationParams(RfParameterCycle):
         super().on_init_simulation(simulation=simulation)
         from blond.input_parameters.rf_parameters import RFStationOptions
 
-        rf_station_options = RFStationOptions()
         cycle_time = self._simulation.energy_cycle.cycle_time[
             self._owner.section_index, :
         ]
         n_turns = self._simulation.energy_cycle.n_turns
         n_rf = self._owner.n_rf
-        t_start = 0.0  # TODO expose parameter if required, else legacy
+        t_start = cycle_time[0]
+        rf_station_options = RFStationOptions()
 
         # Reshape input rf programs
         # Reshape design harmonic
+        print(self._init_params.harmonic)
         harmonic = rf_station_options.reshape_data(
             self._init_params.harmonic,
             n_turns - 1,  # FIXME use correct reshaping

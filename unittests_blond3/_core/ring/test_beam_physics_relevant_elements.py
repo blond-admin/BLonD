@@ -145,13 +145,17 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
             "DriftBaseClass",
         )
         actual = tuple(
-            [e._spec_class.__name__ for e in self.beam_physics_relevant_elements.elements]
+            [
+                e._spec_class.__name__
+                for e in self.beam_physics_relevant_elements.elements
+            ]
         )
         self.assertEqual(expected, actual)
 
     def test_reorder_section(self):
         # TODO: implement test for `reorder_section`
         self.beam_physics_relevant_elements.reorder_section(section_index=0)
+        # self.beam_physics_relevant_elements.reorder_section(section_index=1)
         expected = (
             "CavityBaseClass",
             "DriftBaseClass",
@@ -159,10 +163,37 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
             "CavityBaseClass",
         )
         actual = tuple(
-            [e._spec_class.__name__ for e in
-             self.beam_physics_relevant_elements.elements]
+            [
+                e._spec_class.__name__
+                for e in self.beam_physics_relevant_elements.elements
+            ]
         )
+        section = tuple(
+            [e.section_index for e in self.beam_physics_relevant_elements.elements]
+        )
+        self.assertEqual((0, 0, 1, 1), section)
         self.assertEqual(expected, actual)
 
+    def test_reorder_sections(self):
+        # TODO: implement test for `reorder_section`
+        self.beam_physics_relevant_elements.reorder_section(section_index=0)
+        self.beam_physics_relevant_elements.reorder_section(section_index=1)
+        expected = (
+            "CavityBaseClass",
+            "DriftBaseClass",
+            "CavityBaseClass",
+            "DriftBaseClass",
+        )
+        actual = tuple(
+            [
+                e._spec_class.__name__
+                for e in self.beam_physics_relevant_elements.elements
+            ]
+        )
+        section = tuple(
+            [e.section_index for e in self.beam_physics_relevant_elements.elements]
+        )
+        self.assertEqual((0, 0, 1, 1), section)
+        self.assertEqual(expected, actual)
 if __name__ == "__main__":
     unittest.main()

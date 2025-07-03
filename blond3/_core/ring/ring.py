@@ -12,13 +12,12 @@ from ..base import (
 )
 
 if TYPE_CHECKING:
-    from typing import (
-        Iterable,
-        Optional,
-    )
+    from typing import Iterable, Optional, Optional as LateInit, Tuple
+    from numpy.typing import NDArray as NumpyArray
     from .beam_physics_relevant_elements import BeamPhysicsRelevantElements
 
     from ..simulation.simulation import Simulation
+    from ...cycles.energy_cycle import EnergyCycleBase
 
 
 class Ring(Preparable):
@@ -26,7 +25,12 @@ class Ring(Preparable):
 
     _circumference: np.float32 | np.float64
 
-    def __init__(self, circumference: float, bending_radius: Optional[float] = None):
+    def __init__(
+        self,
+        circumference: float,
+        transition_gamma: float | Iterable | Tuple[NumpyArray, NumpyArray],
+        bending_radius: Optional[float] = None,
+    ):
         from .beam_physics_relevant_elements import BeamPhysicsRelevantElements
 
         if bending_radius is None:
@@ -38,8 +42,13 @@ class Ring(Preparable):
         self._circumference = backend.float(circumference)
         self._bending_radius = backend.float(bending_radius)
 
+        self._transition_gamma_init = transition_gamma
+
+
+
     def on_init_simulation(self, simulation: Simulation) -> None:
         from ...physics.drifts import DriftBaseClass  # prevent cyclic import
+        from blond.input_parameters.ring_options import RingOptions # TODO blond3
 
         all_drifts = self.elements.get_elements(DriftBaseClass)
         sum_share_of_circumference = sum(
@@ -49,10 +58,11 @@ class Ring(Preparable):
             f"{sum_share_of_circumference=}, but should be 1. It seems the "
             f"drifts are not correctly configured."
         )
-        assert len(self.elements.get_sections_indices()) == self.n_cavities,\
-            (f"{len(self.elements.get_sections_indices())=}, "
-             f"but {self.n_cavities=}")
+        assert len(self.elements.get_sections_indices()) == self.n_cavities, (
+            f"{len(self.elements.get_sections_indices())=}, " f"but {self.n_cavities=}"
+        )
         # todo assert some kind of order inside the sections
+
 
     def on_run_simulation(
         self, simulation: Simulation, n_turns: int, turn_i_init: int
@@ -64,6 +74,10 @@ class Ring(Preparable):
         from ...physics.cavities import CavityBaseClass
 
         return self.elements.count(CavityBaseClass)
+
+    @property  # as readonly attributes
+    def transition_gamma_init(self):
+        return self._transition_gamma_init
 
     @property  # as readonly attributes
     def bending_radius(self):
@@ -79,10 +93,7 @@ class Ring(Preparable):
 
     @property
     def section_lengths(self):
-        return (
-            self.circumference
-            * self.elements.get_section_circumference_shares()
-        )
+        return self.circumference * self.elements.get_section_circumference_shares()
 
     def add_element(
         self,

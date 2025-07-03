@@ -138,8 +138,11 @@ class BeamPhysicsRelevantElements(Preparable):
         elements_in_section = [
             e for e in self.elements if e.section_index == section_index
         ]
-        elements_not_in_section = [
-            e for e in self.elements if e.section_index != section_index
+        elements_before_section = [
+            e for e in self.elements if e.section_index < section_index
+        ]
+        elements_after_section = [
+            e for e in self.elements if e.section_index > section_index
         ]
         # reorder elements based on natural order
         # account for the fact that elements could be instanced of two base
@@ -153,7 +156,9 @@ class BeamPhysicsRelevantElements(Preparable):
                     ordered_elements.append(e)
                     _seen.add(e)
 
-        self.elements = tuple(elements_not_in_section + ordered_elements)
+        self.elements = tuple(
+            elements_before_section + ordered_elements + elements_after_section
+        )
 
     def count(self, class_: Type[T], section_i: Optional[int] = None):
         return len(self.get_elements(class_=class_, section_i=section_i))

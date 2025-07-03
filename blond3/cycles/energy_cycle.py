@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from abc import abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING
+from unittest.mock import Mock, patch
 
 import numpy as np
 from scipy.constants import speed_of_light as c0
@@ -18,12 +20,13 @@ if TYPE_CHECKING:
         Optional,
         Literal,
         Union,
+        List,
+        Tuple,
     )
 
     from numpy.typing import NDArray as NumpyArray
 
     from .._core.simulation.simulation import Simulation
-    from .._core.beam.particle_types import ParticleType
 
     FloatOrArray = Union[float, NumpyArray]
 
@@ -115,14 +118,18 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
         self,
     ):
         super().__init__()
+        self._momentum_init: LateInit[float] = None
         self._momentum: LateInit[NumpyArray] = None
         self._section_lengths: LateInit[NumpyArray] = None
-        self._particle: LateInit[ParticleType] = None
+        self._mass: LateInit[float] = None
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
+        self._momentum_init = kwargs["momentum_init"]
+        self._momentum = kwargs["momentum"]
+
         assert self._momentum is not None, f"{self._momentum=}"
         assert len(self._momentum.shape) == 2, f"{self._momentum.shape=}"
-        self._particle = simulation.beams[0].particle_type
+        self._mass = simulation.beams[0].particle_type.mass
         self._section_lengths = simulation.ring.section_lengths
         self.invalidate_cache()
 
@@ -130,6 +137,11 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
         self, simulation: Simulation, n_turns: int, turn_i_init: int
     ) -> None:
         self.invalidate_cache()
+
+    @staticmethod
+    @abstractmethod
+    def headless(*args, **kwargs):
+        pass
 
     @property
     def momentum(self):
@@ -141,27 +153,27 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
 
     @cached_property  # as readonly attributes
     def beta(self) -> NumpyArray:
-        return calc_beta(mass=self._particle.mass, momentum=self._momentum[:, :])
+        return calc_beta(mass=self._mass, momentum=self._momentum[:, :])
 
     @cached_property  # as readonly attributes
     def gamma(self) -> NumpyArray:
-        return calc_gamma(mass=self._particle.mass, momentum=self._momentum[:, :])
+        return calc_gamma(mass=self._mass, momentum=self._momentum[:, :])
 
     @cached_property  # as readonly attributes
     def total_energy(self) -> NumpyArray:
-        return calc_total_energy(
-            mass=self._particle.mass, momentum=self._momentum[:, :]
-        )
+        return calc_total_energy(mass=self._mass, momentum=self._momentum[:, :])
 
     @cached_property  # as readonly attributes
     def kin_energy(self) -> NumpyArray:
-        return calc_energy_kin(mass=self._particle.mass, momentum=self._momentum[:, :])
+        return calc_energy_kin(mass=self._mass, momentum=self._momentum[:, :])
 
     @cached_property  # as readonly attributes
     def delta_E(self) -> NumpyArray:
         shape2d = self.total_energy.shape
-        flat_diff = np.diff(self.total_energy.flatten("K"))  # loses one entry
-        diff1d = np.concatenate(([0], flat_diff))  # add back one entry
+        energy1d = self.total_energy.flatten("K")
+        energy_init = calc_total_energy(mass=self._mass, momentum=self._momentum_init)
+        energy1d = np.concatenate(([energy_init], energy1d))
+        diff1d = np.diff(energy1d)  # loses one entry
         diff2d = diff1d.reshape(shape2d, order="F")
         return diff2d
 
@@ -211,35 +223,63 @@ class ConstantEnergyCycle(EnergyCycleBase):
         value: float,
         max_turns: int,
         in_unit: SynchronousDataTypes = "momentum",
-        bending_radius: Optional[float] = None,
     ):
         super().__init__()
         self._value = value
         self._n_turns = int(max_turns)
         self._in_unit = in_unit
-        if self._in_unit == "bending field":
-            assert bending_radius is not None
-            self._bending_radius = bending_radius
-        else:
-            self._bending_radius = None
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
         momentum = _to_momentum(
             data=self._value,
             mass=simulation.beams[0].particle_type.mass,
             charge=simulation.beams[0].particle_type.charge,
             convert_from=self._in_unit,
             bending_radius=(
-                self._bending_radius if self._in_unit == "bending field" else None
+                simulation.ring.bending_radius
+                if self._in_unit == "bending " "field"
+                else None
             ),
         )
-        n_turns = self._n_turns
+        _momentum = momentum * np.ones((simulation.ring.n_cavities, self._n_turns))
 
-        n_cavities = simulation.ring.n_cavities
+        super().on_init_simulation(
+            simulation=simulation,
+            momentum_init=_momentum[0],  # because its constant
+            momentum=_momentum,
+        )
 
-        shape = (n_cavities, n_turns)
-        self._momentum = momentum * np.ones(shape)
-        super().on_init_simulation(simulation=simulation)
+    @staticmethod
+    def headless(
+        section_lengths: NumpyArray,
+        value: float,
+        mass: float,
+        charge: float,
+        max_turns: int,
+        in_unit: SynchronousDataTypes = "momentum",
+        bending_radius: Optional[float] = None,
+    ):
+        ret = ConstantEnergyCycle(
+            value=value,
+            max_turns=max_turns,
+            in_unit=in_unit,
+        )
+        from .._core.beam.base import BeamBaseClass
+        from .._core.beam.particle_types import ParticleType
+        from .._core.simulation.simulation import Simulation
+
+        simulation = Mock(Simulation)
+        simulation.ring.bending_radius = bending_radius
+        beam = Mock(BeamBaseClass)
+        beam.particle_type = Mock(ParticleType)
+
+        beam.particle_type.mass = mass
+        beam.particle_type.charge = charge
+        simulation.ring.n_cavities = len(section_lengths)
+        simulation.beams = (beam,)
+        simulation.ring.section_lengths = section_lengths
+        ret.on_init_simulation(simulation=simulation)
+        return ret
 
 
 class EnergyCyclePerTurn(EnergyCycleBase):
@@ -248,42 +288,42 @@ class EnergyCyclePerTurn(EnergyCycleBase):
         value_init: float,
         values_after_turn: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
-        bending_radius: Optional[float] = None,
     ):
         super().__init__()
         self._value_init = value_init
         self._values_after_turn = values_after_turn[:]
         self._n_turns = self._values_after_turn.shape[0]
         self._in_unit = in_unit
-        if self._in_unit == "bending field":
-            assert bending_radius is not None
-            self._bending_radius = bending_radius
-        else:
-            self._bending_radius = None
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
+        mass = simulation.beams[0].particle_type.mass
+        charge = simulation.beams[0].particle_type.charge
+        n_cavities = simulation.ring.n_cavities
+
         momentum_init = _to_momentum(
             data=self._value_init,
-            mass=simulation.beams[0].particle_type.mass,
-            charge=simulation.beams[0].particle_type.charge,
+            mass=mass,
+            charge=charge,
             convert_from=self._in_unit,
             bending_radius=(
-                self._bending_radius if self._in_unit == "bending field" else None
+                simulation.ring.bending_radius
+                if self._in_unit == "bending field"
+                else None
             ),
         )
         momentum_per_turn = _to_momentum(
             data=self._values_after_turn,
-            mass=simulation.beams[0].particle_type.mass,
-            charge=simulation.beams[0].particle_type.charge,
+            mass=mass,
+            charge=charge,
             convert_from=self._in_unit,
             bending_radius=(
-                self._bending_radius if self._in_unit == "bending field" else None
+                simulation.ring.bending_radius
+                if self._in_unit == "bending field"
+                else None
             ),
         )
-        n_cavities = simulation.ring.n_cavities
         assert n_cavities > 0
         n_turns = self._n_turns
-
         shape = (n_cavities, n_turns)
         _momentum = np.empty(shape)
         # assume that each cavity gives an
@@ -294,44 +334,138 @@ class EnergyCyclePerTurn(EnergyCycleBase):
         for cav_i in range(n_cavities):
             _momentum[cav_i, :] = base[:-1] + stair_like[cav_i] * step
 
-        self._momentum = _momentum
-        super().on_init_simulation(simulation=simulation)
+        super().on_init_simulation(
+            simulation=simulation, momentum_init=momentum_init, momentum=_momentum
+        )
+
+    @staticmethod
+    def headless(
+        value_init: float,
+        mass: float,
+        section_lengths: NumpyArray,
+        charge: float,
+        values_after_turn: NumpyArray,
+        in_unit: SynchronousDataTypes = "momentum",
+        bending_radius: Optional[float] = None,
+    ):
+        ret = EnergyCyclePerTurn(
+            value_init=value_init,
+            values_after_turn=values_after_turn,
+            in_unit=in_unit,
+        )
+
+        from .._core.simulation.simulation import Simulation
+        from .._core.beam.base import BeamBaseClass
+        from .._core.beam.particle_types import ParticleType
+
+        simulation = Mock(Simulation)
+        beam = Mock(BeamBaseClass)
+        beam.particle_type = Mock(ParticleType)
+        simulation.beams = (beam,)
+        simulation.ring.section_lengths = section_lengths
+
+        simulation.ring.bending_radius = bending_radius
+        beam.particle_type.mass = mass
+        beam.particle_type.charge = charge
+        simulation.ring.n_cavities = len(section_lengths)
+        ret.on_init_simulation(simulation=simulation)
+        ret.on_run_simulation(
+            simulation=simulation,
+            n_turns=len(values_after_turn),
+            turn_i_init=0,
+        )
+
+        return ret
 
 
 class EnergyCyclePerTurnAllCavities(EnergyCycleBase):
     def __init__(
         self,
+        value_init: float,
+        values_after_cavity_per_turn: NumpyArray,
+        in_unit: SynchronousDataTypes = "momentum",
+    ):
+        super().__init__()
+        self._value_init = value_init
+        self._values_after_cavity_per_turn = values_after_cavity_per_turn[:, :]
+        self._n_turns = self._values_after_cavity_per_turn.shape[1]
+        self._in_unit = in_unit
+
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
+        mass = simulation.beams[0].particle_type.mass
+        charge = simulation.beams[0].particle_type.charge
+        n_cavities = simulation.ring.n_cavities
+        momentum_init = _to_momentum(
+            data=self._value_init,
+            mass=mass,
+            charge=charge,
+            convert_from=self._in_unit,
+            bending_radius=(
+                simulation.ring.bending_radius
+                if self._in_unit == "bending field"
+                else None
+            ),
+        )
+        momentum_after_cavity_per_turn = _to_momentum(
+            data=self._values_after_cavity_per_turn[:, :],
+            mass=mass,
+            charge=charge,
+            convert_from=self._in_unit,
+            bending_radius=(
+                simulation.ring.bending_radius
+                if self._in_unit == "bending field"
+                else None
+            ),
+        )
+        assert (
+            n_cavities == momentum_after_cavity_per_turn.shape[0]
+        ), f"{n_cavities=}, but {momentum_after_cavity_per_turn.shape=}"
+
+        super().on_init_simulation(
+            simulation=simulation,
+            momentum_init=momentum_init,
+            momentum=momentum_after_cavity_per_turn,
+        )
+
+    @staticmethod
+    def headless(
+        section_lengths: NumpyArray,
+        mass: float,
+        charge: float,
+        value_init: float,
         values_after_cavity_per_turn: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
         bending_radius: Optional[float] = None,
     ):
-        super().__init__()
-        self._values_after_cavity_per_turn = values_after_cavity_per_turn[:, :]
-        self._n_turns = self._values_after_cavity_per_turn.shape[1]
-        self._in_unit = in_unit
-        if self._in_unit == "bending field":
-            assert bending_radius is not None
-            self._bending_radius = bending_radius
-        else:
-            self._bending_radius = None
-
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        values_after_cavity_per_turn = _to_momentum(
-            data=self._values_after_cavity_per_turn[:, :],
-            mass=simulation.beams[0].particle_type.mass,
-            charge=simulation.beams[0].particle_type.charge,
-            convert_from=self._in_unit,
-            bending_radius=(
-                self._bending_radius if self._in_unit == "bending field" else None
-            ),
+        assert len(section_lengths) == values_after_cavity_per_turn.shape[0]
+        ret = EnergyCyclePerTurnAllCavities(
+            value_init=value_init,
+            values_after_cavity_per_turn=values_after_cavity_per_turn,
+            in_unit=in_unit,
         )
-        n_cavities = simulation.ring.n_cavities
+        from .._core.simulation.simulation import Simulation
+        from .._core.beam.base import BeamBaseClass
+        from .._core.beam.particle_types import ParticleType
 
-        assert (
-            n_cavities == values_after_cavity_per_turn.shape[0]
-        ), f"{n_cavities=}, but {values_after_cavity_per_turn.shape=}"
-        self._momentum = values_after_cavity_per_turn
-        super().on_init_simulation(simulation=simulation)
+        simulation = Mock(Simulation)
+        beam = Mock(BeamBaseClass)
+        beam.particle_type = Mock(ParticleType)
+        simulation.beams = (beam,)
+
+        simulation.ring.section_lengths = section_lengths
+        simulation.ring.bending_radius = bending_radius
+        beam.particle_type.mass = mass
+        beam.particle_type.charge = charge
+        simulation.ring.n_cavities = len(section_lengths)
+
+        ret.on_init_simulation(simulation=simulation)
+        ret.on_run_simulation(
+            simulation=simulation,
+            n_turns=values_after_cavity_per_turn.shape[1],
+            turn_i_init=0,
+        )
+
+        return ret
 
 
 class EnergyCycleByTime(EnergyCycleBase):
@@ -342,7 +476,6 @@ class EnergyCycleByTime(EnergyCycleBase):
         base_time: NumpyArray,
         base_values: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
-        bending_radius: Optional[float] = None,
         interpolator=np.interp,
     ):
         super().__init__()
@@ -352,41 +485,95 @@ class EnergyCycleByTime(EnergyCycleBase):
         self._base_time = base_time[:]
         self._base_values = base_values[:]
         self._in_unit = in_unit
-        if self._in_unit == "bending field":
-            assert bending_radius is not None
-            self._bending_radius = bending_radius
-        else:
-            self._bending_radius = None
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
+    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
+        mass = simulation.beams[0].particle_type.mass
+        charge = simulation.beams[0].particle_type.charge
+        n_cavities = simulation.ring.n_cavities
+        fast_execution_order = derive_execution_order(simulation)
+        n_turns = self._n_turns
+
         base_momentum = _to_momentum(
             data=self._base_values,
-            mass=simulation.beams[0].particle_type.mass,
-            charge=simulation.beams[0].particle_type.charge,
+            mass=mass,
+            charge=charge,
             convert_from=self._in_unit,
             bending_radius=(
-                self._bending_radius if self._in_unit == "bending field" else None
+                simulation.ring.bending_radius
+                if self._in_unit == "bending field"
+                else None
             ),
         )
-        n_turns = self._n_turns
-        n_cavities = simulation.ring.n_cavities
-
-        at_time = derive_time_glue(
-            n_turns=n_turns,
-            t0=self._t0,
-            simulation=simulation,
-            program_time=self._base_time,
-            program_momentum=base_momentum,
+        at_time = derive_time(
+            fast_execution_order=fast_execution_order,
             interpolate=self._interpolator,
+            mass=mass,
+            n_sections=n_cavities,
+            n_turns=n_turns,
+            program_momentum=base_momentum,
+            program_time=self._base_time,
+            t0=self._t0,
         )
-        assert at_time[0, 0] == self._t0
         momentum = np.empty((n_cavities, n_turns))
         for cavity_i in range(n_cavities):
-            momentum[cavity_i, :] = np.interp(
+            momentum[cavity_i, :] = self._interpolator(
                 at_time[cavity_i, :], self._base_time, base_momentum
             )
-        self._momentum = momentum
-        super().on_init_simulation(simulation=simulation)
+        _momentum_init = self._interpolator(self._t0, self._base_time, base_momentum)
+        super().on_init_simulation(
+            simulation=simulation,
+            momentum_init=_momentum_init,
+            momentum=momentum,
+        )
+
+    @staticmethod
+    def headless(
+        fast_execution_order: List | Tuple,
+        mass: float,
+        charge: float,
+        t0: float,
+        max_turns: int,
+        base_time: NumpyArray,
+        base_values: NumpyArray,
+        in_unit: SynchronousDataTypes = "momentum",
+        bending_radius: Optional[float] = None,
+        interpolator=np.interp,
+    ):
+        from .._core.simulation.simulation import Simulation
+        from .._core.beam.base import BeamBaseClass
+        from .._core.beam.particle_types import ParticleType
+
+        simulation = Mock(Simulation)
+        beam = Mock(BeamBaseClass)
+        beam.particle_type = Mock(ParticleType)
+        simulation.beams = (beam,)
+
+        simulation.ring.section_lengths = [
+            f for f in fast_execution_order if isinstance(f, float)
+        ]
+        simulation.ring.n_cavities = sum(
+            [1 for i in fast_execution_order if isinstance(i, int)]
+        )
+        beam.particle_type.mass = mass
+        beam.particle_type.charge = charge
+        simulation.ring.bending_radius = bending_radius
+
+        ret = EnergyCycleByTime(
+            t0=t0,
+            max_turns=max_turns,
+            base_time=base_time,
+            base_values=base_values,
+            in_unit=in_unit,
+            interpolator=interpolator,
+        )
+
+        with patch("blond3.cycles.energy_cycle.derive_execution_order") as mock_d:
+            mock_d.return_value = fast_execution_order
+
+            ret.on_init_simulation(simulation=simulation)
+        ret.on_run_simulation(simulation=simulation, n_turns=max_turns, turn_i_init=0)
+
+        return ret
 
 
 def _to_momentum(
@@ -444,40 +631,9 @@ def beta_by_momentum(momentum: T, mass: float) -> T:
     return np.sqrt(1 / (1 + (mass / momentum) ** 2))
 
 
-def derive_time_glue(
-    simulation: Simulation,
-    n_turns: int,
-    t0: float,
-    program_time: NumpyArray,
-    program_momentum: NumpyArray,
-    interpolate=np.interp,
-) -> NumpyArray:
-    """Derive time at different sections for n_turns, given momentum(time)
-
-    Parameters
-    ----------
-    simulation
-    n_turns
-        Number of turns to derive
-    t0
-        Initial time to start deriving the times
-        Initial momentum is derived from this too.
-    program_time
-        Array of time (vs momentum)
-        The input time [s]
-    program_momentum
-        Array of momentum (vs time)
-        The input synchronous data [eV/c]
-    interpolate
-        Interpolation method to get values
-        in between given `program_time`
-    """
-
-    n_sections = simulation.ring.n_cavities
-    mass = simulation.beams[0].particle_type.mass
+def derive_execution_order(simulation):
     # generate execution order from reading attributes from ring
     # this is only ugly for performance.
-
     # elements are converted to int/float if cavity/drift
     fast_execution_order = []
     cavity_i = 0
@@ -489,17 +645,7 @@ def derive_time_glue(
             fast_execution_order.append(int(cavity_i))
             cavity_i += 1
     fast_execution_order = tuple(fast_execution_order)
-
-    return derive_time(
-        fast_execution_order=fast_execution_order,
-        interpolate=interpolate,
-        mass=mass,
-        n_sections=n_sections,
-        n_turns=n_turns,
-        program_momentum=program_momentum,
-        program_time=program_time,
-        t0=t0,
-    )
+    return fast_execution_order
 
 
 def derive_time(
