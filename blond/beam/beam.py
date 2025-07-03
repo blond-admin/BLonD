@@ -413,6 +413,25 @@ class Beam:
 
         return self.n_macroparticles - self.n_macroparticles_alive
 
+    @property
+    def ratio(self) -> float:
+        return self._ratio
+
+    @ratio.setter
+    def ratio(self, value: float):
+        self._ratio = value
+        self._intensity = self._ratio * self.n_macroparticles
+
+    @property
+    def intensity(self) -> float:
+        return self._intensity
+
+    @intensity.setter
+    def intensity(self, value: float):
+        self._intensity = value
+        self._ratio = self._intensity / self.n_macroparticles
+
+
     def eliminate_lost_particles(self):
         """Eliminate lost particles from the beam coordinate arrays
         """
@@ -570,6 +589,8 @@ class Beam:
                                   ))
         self.n_macroparticles += n_new
 
+        self.ratio = self.ratio
+
         self.dt = bm.concatenate((self.dt, newdt))
         self.dE = bm.concatenate((self.dE, newdE))
 
@@ -601,14 +622,11 @@ class Beam:
         self.dt = bm.concatenate((self.dt, other_beam.dt))
         self.dE = bm.concatenate((self.dE, other_beam.dE))
 
-        counter = itl.count(self.n_macroparticles + 1)
-        newids = bm.zeros(other_beam.n_macroparticles)
-
-        for i in range(other_beam.n_macroparticles):
-            if other_beam.id[i]:
-                newids[i] = next(counter)
-            else:
-                next(counter)
+        counter = bm.arange(self.n_macroparticles + 1,
+                            self.n_macroparticles + 1
+                            + other_beam.n_macroparticles,
+                            dtype=int)
+        newids = counter*other_beam.id
 
         self.id = bm.concatenate((self.id, newids))
         self.n_macroparticles += other_beam.n_macroparticles
