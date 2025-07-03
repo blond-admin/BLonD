@@ -24,7 +24,7 @@ import numpy as np
 from . import beam
 
 if TYPE_CHECKING:
-    from typing import Dict, List, Self
+    from typing import Dict, List, Self, Union, Iterable
 
     from .beam import Beam
 
@@ -46,7 +46,7 @@ class MultiTurnInjection:
     def __init__(self, beam: Beam):
 
         self.beam = beam
-        self._injections: Dict[int, Beam] = {}
+        self._injections: Dict[int, Union[Beam, Iterable[float]]] = {}
 
     def __next__(self):
         """
@@ -83,7 +83,8 @@ class MultiTurnInjection:
         """
         self._counter = counter
 
-    def add_injection(self, beam: Beam, injection_turn: int = None):
+    def add_injection(self, beam: Union[Beam, Iterable[float]],
+                      injection_turn: int = None):
         """
         Specify a Beam object to be used for an injection.  If no
         injection_turn is specified, it will be set to the the number
@@ -91,21 +92,49 @@ class MultiTurnInjection:
 
         Parameters
         ----------
-        beam : Beam
-            An instance of the Beam class to be added for this injection
+        beam : Union[Beam, Iterable[float]]
+            Either:
+                An instance of the Beam class to be added for this
+                injection
+            Or:
+                A [2, n] array of particle coordinates that define the
+                (dt, dE) of the injected beam
         injection_turn : int, optional
             The turn number on which the beam will be injected.
             The default is None.
             If None, the value will be set to the number of already
             defined injections + 1
+        
+        Raises
+        ------
+        ValueError:
+            If a Beam object is provided with a different ratio of
+            particles per macroparticle to self.beam, a ValueError
+            will be raised.
+
+            If an array is provided, it must be of shape (2, n), if not
+            a ValueError will be raised.
         """
+
+        if isinstance(beam, beam.Beam):
+            self._check_beam_injection(beam)
+        else:
+            self._check_array_injection(beam)
+
+        if injection_turn is None:
+            injection_turn = len(self._injections) + 1
+
+        self._injections[injection_turn] = np.array(beam)
+    
+
+    def _check_beam_injection(self, beam: Beam):
 
         if beam.ratio != self.beam.ratio:
             raise ValueError("The particles per macroparticle ratio must be "
                              + "the same for all injections.")
 
-        if injection_turn is None:
-            injection_turn = len(self._injections) + 1
+    def _check_array_injection(self, beam: Iterable[float]):
 
-        self._injections[injection_turn] = beam
-    
+        beam = np.array(beam)
+        if beam.shape[0] != 2 or len(beam.shape) != 2:
+            raise ValueError("Injection array must be of shape (2, n)")
