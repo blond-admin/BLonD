@@ -19,6 +19,13 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING, Union
 
+try:
+    import cupy as cp
+
+except ImportError as _cupy_import_error:
+    _cupy_available = False
+
+
 import numpy as np
 import scipy
 from packaging.version import Version
@@ -178,7 +185,8 @@ class FullRingAndRF:
 
     def to_gpu(self, recursive: bool = True):
         """Function to loop over all the RingAndRFSection.track methods"""
-        import cupy as cp
+        if not _cupy_available:
+            raise _cupy_import_error
 
         if self._device == 'GPU':
             return
@@ -191,13 +199,14 @@ class FullRingAndRF:
             for ring_and_rf_section in self.ring_and_rf_section:
                 ring_and_rf_section.to_gpu(recursive=recursive)
 
-        self._device: DeviceType = 'CPU'
+        self._device: DeviceType = 'GPU'
 
     def to_cpu(self, recursive: bool = True):
         """Function to loop over all the RingAndRFSection.track methods"""
-        import cupy as cp
+        if not _cupy_available:
+            raise _cupy_import_error
 
-        if self._device == 'GPU':
+        if self._device == 'CPU':
             return
 
         self.potential_well_coordinates = cp.asnumpy(self.potential_well_coordinates)
