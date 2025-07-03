@@ -16,6 +16,7 @@ statistics
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 import itertools as itl
 from typing import TYPE_CHECKING, Optional
 import warnings
@@ -38,6 +39,11 @@ if TYPE_CHECKING:
     from ..utils.types import DeviceType
 
 m_mu = physical_constants['muon mass'][0]
+if TYPE_CHECKING:
+    from typing import List, Iterable, Tuple, Self, Union
+
+    from ..input_parameters.ring import Ring
+    from ..input_parameters.rf_parameters import RFStation
 
 
 class Particle:
@@ -52,7 +58,7 @@ class Particle:
     user_charge : float
         Particle charge in units of the elementary charge
     user_decay_rate : float
-        Particle decay rate in units of 1/s 
+        Particle decay rate in units of 1/s
 
     Attributes
     ----------
@@ -267,6 +273,23 @@ class Beam:
         self._mpi_sumsq_dE: NumpyArray | float = 0.
         # For handling arrays on CPU/GPU
         self._device = 'CPU'
+
+    def __iadd__(self, other: Union[Self, Iterable[float]]) -> Self:
+        '''
+        Initialisation of in place addition calls add_beam(other) if other
+        is a blond beam object, calls add_particles(other) otherwise
+
+        Parameters
+        ----------
+        other : blond beam object or (2, n) array
+        '''
+
+        if isinstance(other, type(self)):
+            self.add_beam(other)
+            return self
+
+        self.add_particles(other)
+        return self
 
     @property
     def Particle(self):
