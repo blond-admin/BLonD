@@ -30,6 +30,7 @@ from ..utils import exceptions as blond_exceptions
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
+    from typing import Iterable, Self, Optional
 
     from numpy.typing import NDArray as NumpyArray
     import cupy as cp
@@ -39,11 +40,6 @@ if TYPE_CHECKING:
     from ..utils.types import DeviceType
 
 m_mu = physical_constants['muon mass'][0]
-if TYPE_CHECKING:
-    from typing import Iterable, Self, Optional
-
-    from ..input_parameters.ring import Ring
-    from ..input_parameters.rf_parameters import RFStation
 
 
 class Particle:
