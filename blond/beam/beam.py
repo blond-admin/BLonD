@@ -272,21 +272,20 @@ class Beam:
         self._device = 'CPU'
 
     def __iadd__(self, other: Self | Iterable[float]) -> Self:
-        '''
+        """
         Initialisation of in place addition calls add_beam(other) if other
         is a blond beam object, calls add_particles(other) otherwise
 
         Parameters
         ----------
         other : blond beam object or (2, n) array
-        '''
+        """
 
         if isinstance(other, type(self)):
             self.add_beam(other)
         else:
             self.add_particles(other)
         return self
-
 
     @property
     def Particle(self):
@@ -674,23 +673,6 @@ class Beam:
         self._set_beam_info(n_macroparticles=self.n_macroparticles
                                                 + other_beam.n_macroparticles,
                                ratio=self.ratio)
-
-    def __iadd__(self, other: Beam | NumpyArray | list[list[float]]) -> Beam:
-        """
-        Initialisation of in place addition calls add_beam(other) if other
-        is a blond beam object, calls add_particles(other) otherwise
-
-        Parameters
-        ----------
-        other : blond beam object or (2, n) array
-        """
-
-        if isinstance(other, type(self)):
-            self.add_beam(other)
-            return self
-        else:
-            self.add_particles(other)  # might raise exception on wrong type
-            return self
 
     def split(self, random: bool = False, fast: bool = False):
         """
