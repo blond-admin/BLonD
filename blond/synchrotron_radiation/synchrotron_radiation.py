@@ -40,17 +40,17 @@ class SynchrotronRadiation:
     radiation damping and quantum excitation.
     For multiple RF section, instantiate one object per RF section and
     call the track() method after tracking each section.
-
-    TO DO list:
-    - multi-turn radiation integrals handling (momentum compaction
-    factor variation, input of SR integrals TBT,
-    update of the integrals during tracking, ...),
-    - inclusion of damping wigglers,
-    - handling of lost particles during tracking,
-    - multiple RF sections
     '''
 
-    def __init__(self, ring: Ring, rfstation: RFStation, beam: Beam,
+    # TO DO list:
+    # - multi-turn radiation integrals handling (momentum compaction
+    # factor variation, input of SR integrals TBT,
+    # update of the integrals during tracking, ...),
+    # - inclusion of damping wigglers,
+    # - handling of lost particles during tracking,
+    # - multiple RF sections
+
+    def __init__(self, ring: Ring, rf_station: RFStation, beam: Beam,
                  bending_radius: Optional[float] = None,
                  radiation_integrals : Optional[NDArray | list] = None,
                  n_kicks:Optional[int] =1, quantum_excitation: Optional[
@@ -68,13 +68,13 @@ class SynchrotronRadiation:
         ----------
         ring : Ring
             A Ring-type class representing the accelerator lattice.
-        rfstation : RFStation
+        rf_station : RFStation
             An RFStation class containing RF parameters for the
             simulation.
         beam : Beam
             A Beam class instance representing the particle bunch or
             beam.
-        bending_radius : float, optional
+        bending_radius [m]: float, optional
             Bending radius used to compute the radiation integrals under
              the assumption of an isomagnetic ring.
         radiation_integrals : array_like, optional
@@ -102,7 +102,7 @@ class SynchrotronRadiation:
         None
             """
         self.ring = ring
-        self.rf_params = rfstation
+        self.rf_params = rf_station
         self.beam = beam
         self.track = None
         self.beam_position_to_compensate_SR = None
@@ -173,6 +173,11 @@ class SynchrotronRadiation:
         """
         Function to handle the synchrotron radiation integrals from an
         input array or a bending radius input.
+        For more about synchrotron radiation damping and integral
+        definition, please refer to (non-exhaustive list):
+        A. Wolski, CAS Advanced Accelerator Physics, 19-29 August 2013
+        H. Wiedemann, Particle Accelerator Physics, Chapter Equilibrium
+        Particle Distribution, p. 384, Third Edition, Springer, 2007
         """
         if radiation_integrals is None:
             if bending_radius is None:
