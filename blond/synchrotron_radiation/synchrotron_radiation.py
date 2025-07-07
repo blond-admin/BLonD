@@ -146,8 +146,8 @@ class SynchrotronRadiation:
 
     def tracker_choice(self, python, quantum_excitation, seed):
         """
-        Select the right method for the tracker according to the selected
-        settings
+        Select the right method for the tracker according to the
+        selected settings
         """
         if python:
             if quantum_excitation:
