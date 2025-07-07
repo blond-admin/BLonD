@@ -277,6 +277,9 @@ class Simulation(Preparable, HasPropertyCache):
         if show_progressbar:
             iterator = tqdm(iterator)  # Add TQDM display to iteration
         self.turn_i.on_change(self._invalidate_cache)
+        self.turn_i.value = 0
+        for observable in observe:
+            observable.update(simulation=self)
         for turn_i in iterator:
             self.turn_i.value = turn_i
             for element in self._ring.elements.elements:

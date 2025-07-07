@@ -9,8 +9,7 @@ from numpy.typing import NDArray as NumpyArray
 from .array_recorders import DenseArrayRecorder
 from .._core.base import MainLoopRelevant
 from ..physics.cavities import SingleHarmonicCavity
-from ..physics.profiles import ProfileBaseClass, DynamicProfileConstNBins, \
-    StaticProfile
+from ..physics.profiles import ProfileBaseClass, DynamicProfileConstNBins, StaticProfile
 
 if TYPE_CHECKING:
     from typing import Optional as LateInit
@@ -65,7 +64,7 @@ class ProfileObservation(Observables):
         super().on_run_simulation(
             simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
         )
-        n_entries = n_turns // self.each_turn_i
+        n_entries = n_turns // self.each_turn_i + 1
 
         if self._profile is None:
             profiles = simulation.ring.elements.get_elements(ProfileBaseClass)
@@ -106,7 +105,7 @@ class BunchObservation(Observables):
         super().on_run_simulation(
             simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
         )
-        n_entries = n_turns // self.each_turn_i
+        n_entries = n_turns // self.each_turn_i + 1
         n_particles = simulation.beams[0].common_array_size
         shape = (n_entries, n_particles)
         self._dts = DenseArrayRecorder(f"{simulation.get_hash}_dts", shape)
@@ -148,28 +147,57 @@ class CavityPhaseObservation(Observables):
         super().__init__(each_turn_i=each_turn_i)
         self._cavity = cavity
         self._phases: LateInit[DenseArrayRecorder] = None
+        self._omegas: LateInit[DenseArrayRecorder] = None
+        self._voltages: LateInit[DenseArrayRecorder] = None
 
     def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int):
         super().on_run_simulation(
             simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
         )
-        n_entries = n_turns // self.each_turn_i
+        n_entries = n_turns // self.each_turn_i + 1
         n_harmonics = self._cavity.rf_program.phi_rf.shape[0]
         self._phases = DenseArrayRecorder(
-            f"{simulation.get_hash}_phases", (n_entries, n_harmonics)
+            f"{simulation.get_hash}_phases",
+            (n_entries, n_harmonics),
+        )
+        self._omegas = DenseArrayRecorder(
+            f"{simulation.get_hash}_phases",
+            (n_entries, n_harmonics),
+        )
+        self._voltages = DenseArrayRecorder(
+            f"{simulation.get_hash}_phases",
+            (n_entries, n_harmonics),
         )
 
     def update(self, simulation: Simulation):
-        self._phases.write(self._cavity._rf_program.phi_rf[:, simulation.turn_i.value])
+        self._phases.write(
+            self._cavity._rf_program.phi_rf[:, simulation.turn_i.value],
+        )
+        self._omegas.write(
+            self._cavity._rf_program.omega_rf[:, simulation.turn_i.value],
+        )
+        self._voltages.write(
+            self._cavity._rf_program.voltage[:, simulation.turn_i.value],
+        )
 
     @property  # as readonly attributes
     def phases(self):
         return self._phases.get_valid_entries()
 
+    @property  # as readonly attributes
+    def omegas(self):
+        return self._omegas.get_valid_entries()
+
+    @property  # as readonly attributes
+    def voltages(self):
+        return self._voltages.get_valid_entries()
+
     def to_disk(self) -> None:
-        key = self._hash
-        np.save(f"CavityPhaseObservation_{key}_phases.npy", self._phases)
+        self._phases.to_disk()
+        self._omegas.to_disk()
+        self._voltages.to_disk()
 
     def from_disk(self) -> None:
-        key = self._hash
-        self._phases = np.load(f"CavityPhaseObservation_{key}_phases.npy")
+        self._phases = DenseArrayRecorder.from_disk(self._phases.filepath)
+        self._omegas = DenseArrayRecorder.from_disk(self._omegas.filepath)
+        self._voltages = DenseArrayRecorder.from_disk(self._voltages.filepath)
