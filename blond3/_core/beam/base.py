@@ -5,9 +5,13 @@ from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING
 
+import numpy as np
+from scipy.constants import speed_of_light as c0
+
 from ..base import Preparable, HasPropertyCache
 from ..helpers import int_from_float_with_warning
 from ..._core.backends.backend import backend
+from ..._core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
     from .particle_types import ParticleType
@@ -42,6 +46,25 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         self._flags = None
         self._is_counter_rotating = is_counter_rotating
 
+        self.reference_time = 0
+        self.reference_total_energy = 0
+
+    @property
+    def reference_gamma(self) -> float:
+        # in eV and eV/c²
+        val = self.reference_total_energy * self.particle_type.mass_inv
+        return val
+
+    @property
+    def reference_beta(self) -> float:
+        gamma = self.reference_gamma
+        val = np.sqrt(1.0 - 1.0 / (gamma * gamma))
+        return val
+
+    @property
+    def reference_velocity(self) -> float:
+        return self.reference_beta * c0
+
     @abstractmethod
     def setup_beam(
         self,
@@ -59,7 +82,13 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     def is_counter_rotating(self):
         return self._is_counter_rotating
 
+    @requires(["EnergyCycleBase"])
     def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int):
+        super().on_run_simulation(
+            simulation=simulation,
+            n_turns=n_turns,
+            turn_i_init=turn_i_init,
+        )
         msg = (
             "Beam was not initialized. Did you forget to call "
             "simulation.on_prepare_beam(...)?"
@@ -67,16 +96,20 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         assert self._dt is not None, msg
         assert self._dE is not None, msg
         assert self._flags is not None, msg
+        index = turn_i_init - 1
+        if index < 0:
+            self.reference_total_energy = simulation.energy_cycle.total_energy_init
+        else:
+            self.reference_total_energy = simulation.energy_cycle.total_energy[index]
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        pass
+        super().on_init_simulation(simulation=simulation)
 
     @abstractmethod
     def plot_hist2d(self):
         pass
 
     @cached_property
-
     @abstractmethod  # as readonly attributes
     def dt_min(self) -> backend.float:
         pass
@@ -118,10 +151,12 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         )
 
     def invalidate_cache_dt(self) -> None:
-        super()._invalidate_cache((
+        super()._invalidate_cache(
+            (
                 "dt_min",
                 "dt_max",
-            ))
+            )
+        )
 
     def invalidate_cache(self) -> None:
         self._invalidate_cache(BeamBaseClass.cached_props)

@@ -57,11 +57,13 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
 
         self._simulation: LateInit[Simulation] = None
         self._transition_gamma: LateInit[NumpyArray] = None
+        self._length: LateInit[float] = None
 
     @staticmethod
     def headless(
         transition_gamma: float | Iterable | Tuple[NumpyArray, NumpyArray],
         gamma: NumpyArray,
+        circumference: float,
         share_of_circumference: float,
         section_index: int = 0,
         cycle_time: Optional[NumpyArray] = None,
@@ -83,6 +85,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         simulation.energy_cycle.n_turns = n_turns
         simulation.energy_cycle.gamma = gamma
         simulation.ring.transition_gamma_init = transition_gamma
+        simulation.ring.circumference = circumference
         d.on_init_simulation(simulation=simulation)
         d.on_run_simulation(simulation=simulation, turn_i_init=0, n_turns=1)
         return d
@@ -107,25 +110,29 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             )[0, :]
         )
         self._simulation = simulation
+        self._length = self.share_of_circumference * simulation.ring.circumference
 
     @property  # as readonly attributes # as readonly attributes
     def transition_gamma(self) -> backend.float | NumpyArray:
         return self._transition_gamma
 
-    def track(self, beam: BeamBaseClass):
-        current_turn_i = self._simulation.turn_i.value
+    @property  # as readonly attributes # as readonly attributes
+    def length(self) -> backend.float | NumpyArray:
+        return self._length
 
+    def track(self, beam: BeamBaseClass):
+        dt = self.length / beam.reference_velocity
+        gamma = beam.reference_gamma
+        eta_0 = self.alpha_0[self._simulation.turn_i.value] - (1 / (gamma * gamma))
         backend.specials.drift_simple(
             dt=beam.write_partial_dt(),
             dE=beam.read_partial_dE(),
-            t_rev=self._simulation.energy_cycle.t_rev[current_turn_i],
-            length_ratio=self._share_of_circumference,
-            eta_0=self.eta_0[current_turn_i],
-            beta=self._simulation.energy_cycle.beta[self.section_index, current_turn_i],
-            energy=self._simulation.energy_cycle.total_energy[
-                self.section_index, current_turn_i
-            ],
+            T=dt,
+            eta_0=eta_0,
+            beta=beam.reference_beta,
+            energy=beam.reference_total_energy,
         )
+        beam.reference_time += dt
 
     @cached_property  # as readonly attributes # as readonly attributes
     def eta_0(self) -> NumpyArray:
@@ -137,7 +144,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
 
     @cached_property
     def momentum_compaction_factor(self) -> backend.float | NumpyArray:
-        return 1 / self._transition_gamma**2
+        return 1 / (self._transition_gamma * self._transition_gamma)
 
     cached_props = (
         "momentum_compaction_factor",

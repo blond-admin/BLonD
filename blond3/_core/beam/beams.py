@@ -58,7 +58,9 @@ class Beam(BeamBaseClass):
     def on_run_simulation(
         self, simulation: Simulation, n_turns: int, turn_i_init: int
     ) -> None:
-        pass
+        super().on_run_simulation(
+            simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
+        )
 
     @cached_property
     def dt_min(self) -> backend.float:
@@ -79,8 +81,6 @@ class Beam(BeamBaseClass):
     @cached_property
     def common_array_size(self) -> int:
         return len(self._dt)
-
-
 
     def plot_hist2d(self, **kwargs):
         if "cmap" not in kwargs.keys():
@@ -113,7 +113,7 @@ class WeightenedBeam(Beam):
         n_particles: int | float,
         particle_type: ParticleType,
     ):
-        raise NotImplementedError # todo
+        raise NotImplementedError  # todo
         super().__init__(n_particles, particle_type)
         self._weights: LateInit[NumpyArray] = None
 

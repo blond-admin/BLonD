@@ -87,6 +87,8 @@ class SingleHarmonicCavity(CavityBaseClass):
 
     def track(self, beam: BeamBaseClass):
         super().track(beam=beam)
+        reference_energy_change = self._energy_cycle.delta_E[
+            self.section_index, self._turn_i.value]
         backend.specials.kick_single_harmonic(
             dt=beam.read_partial_dt(),
             dE=beam.write_partial_dE(),
@@ -94,11 +96,9 @@ class SingleHarmonicCavity(CavityBaseClass):
             omega_rf=self._rf_program.omega_rf[0, self._turn_i.value],
             phi_rf=self._rf_program.phi_rf[0, self._turn_i.value],
             charge=backend.float(beam.particle_type.charge),  #  FIXME
-            acceleration_kick=-self._energy_cycle.delta_E[
-                self.section_index, self._turn_i.value
-            ],
+            acceleration_kick=-reference_energy_change, # Mind the minus!
         )
-
+        beam.reference_total_energy += reference_energy_change
 
 class MultiHarmonicCavity(CavityBaseClass):
     _rf_program: RfStationParams  # make type hint more specific
@@ -121,10 +121,17 @@ class MultiHarmonicCavity(CavityBaseClass):
 
     def track(self, beam: BeamBaseClass):
         super().track(beam=beam)
-        backend.kick_multi_harmonic(
-            beam.read_partial_dt(),
-            beam.write_partial_dE(),
-            self._rf_program.phi_rf[:, self._turn_i.value],
-            self._rf_program.voltage[:, self._turn_i.value],
-            self._rf_program.omega_rf[:, self._turn_i.value],
+        reference_energy_change = self._energy_cycle.delta_E[
+            self.section_index, self._turn_i.value]
+        backend.specials.kick_multi_harmonic(
+            dt= beam.read_partial_dt(),
+        dE= beam.write_partial_dE(),
+            voltage=self._rf_program.voltage[:, self._turn_i.value],
+        phi_rf= self._rf_program.phi_rf[:, self._turn_i.value],
+        omega_rf= self._rf_program.omega_rf[:, self._turn_i.value],
+            charge=backend.float(beam.particle_type.charge),  # FIXME
+            n_rf= self.n_rf,
+            acceleration_kick=-reference_energy_change,  # Mind the minus!
         )
+        beam.reference_total_energy += reference_energy_change
+

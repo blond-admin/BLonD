@@ -50,8 +50,7 @@ class Specials(ABC):
     def drift_simple(
         dt: NumpyArray,
         dE: NumpyArray,
-        t_rev: float,
-        length_ratio: float,
+        T: float,
         eta_0: float,
         beta: float,
         energy: float,
@@ -125,11 +124,13 @@ class BackendBaseClass(ABC):
     def set_specials(self, mode):
         pass
 
+
 def fresh_import(module_path, obj_name):
     if module_path in sys.modules:
         del sys.modules[module_path]
     module = importlib.import_module(module_path)
     return getattr(module, obj_name)
+
 
 class NumpyBackend(BackendBaseClass):
     def __init__(
@@ -151,6 +152,7 @@ class NumpyBackend(BackendBaseClass):
             "python",
             "cpp",
             "numba",
+            "fortran",
         ],
     ):
         if mode == "python":
@@ -163,11 +165,18 @@ class NumpyBackend(BackendBaseClass):
             self.specials = CppSpecials()
         elif mode == "numba":
             # like
-            #from .numba.callables import NumbaSpecials
+            # from .numba.callables import NumbaSpecials
             # but reimport, so that dtypes are in line with the current backend
-            NumbaSpecials = fresh_import("blond3._core.backends.numba.callables",
-                                         "NumbaSpecials")
+            NumbaSpecials = fresh_import(
+                "blond3._core.backends.numba.callables",
+                "NumbaSpecials",
+            )
             self.specials = NumbaSpecials()
+        elif mode == "fortran":
+            from blond3._core.backends.fortran.callables import FortranSpecials
+
+            assert self.float == np.float64
+            self.specials = FortranSpecials
         else:
             raise ValueError(mode)
 

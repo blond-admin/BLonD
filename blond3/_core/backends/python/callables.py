@@ -56,8 +56,7 @@ class PythonSpecials(Specials):
     def drift_simple(
         dt: NumpyArray,
         dE: NumpyArray,
-        t_rev: float,
-        length_ratio: float,
+        T: float,
         eta_0: float,
         beta: float,
         energy: float,
@@ -68,8 +67,6 @@ class PythonSpecials(Specials):
 
         # solver_decoded = solver.decode(encoding='utf_8')
 
-        T = t_rev * length_ratio
-
         coeff = eta_0 / (beta * beta * energy)
         dt += T * coeff * dE
 
@@ -77,8 +74,7 @@ class PythonSpecials(Specials):
     def drift_legacy(
         dt: NumpyArray,
         dE: NumpyArray,
-        t_rev: float,
-        length_ratio: float,
+        T: float,
         alpha_order,
         eta_0: float,
         eta_1: float,
@@ -92,7 +88,6 @@ class PythonSpecials(Specials):
 
         # solver_decoded = solver.decode(encoding='utf_8')
 
-        T = t_rev * length_ratio
         coeff = 1.0 / (beta * beta * energy)
         eta0 = eta_0 * coeff
         eta1 = eta_1 * coeff * coeff
@@ -111,8 +106,7 @@ class PythonSpecials(Specials):
     def drift_exact(
         dt: NumpyArray,
         dE: NumpyArray,
-        t_rev: float,
-        length_ratio: float,
+        T: float,
         alpha_0: float,
         alpha_1: float,
         alpha_2: float,
@@ -125,7 +119,6 @@ class PythonSpecials(Specials):
 
         # solver_decoded = solver.decode(encoding='utf_8')
 
-        T = t_rev * length_ratio
         invbetasq = 1 / (beta * beta)
         invenesq = 1 / (energy * energy)
         # double beam_delta;

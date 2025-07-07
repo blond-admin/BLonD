@@ -15,7 +15,7 @@ from .handle_results.observables import (
     BunchObservation,
     ProfileObservation,
 )
-from .physics.cavities import SingleHarmonicCavity
+from .physics.cavities import SingleHarmonicCavity, MultiHarmonicCavity
 from .physics.drifts import DriftSimple
 from .physics.impedances.base import WakeField
 from .physics.losses import BoxLosses

@@ -64,7 +64,7 @@ class ProfileObservation(Observables):
         super().on_run_simulation(
             simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
         )
-        n_entries = n_turns // self.each_turn_i + 1
+        n_entries = n_turns // self.each_turn_i + 2
 
         if self._profile is None:
             profiles = simulation.ring.elements.get_elements(ProfileBaseClass)
@@ -105,7 +105,7 @@ class BunchObservation(Observables):
         super().on_run_simulation(
             simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
         )
-        n_entries = n_turns // self.each_turn_i + 1
+        n_entries = n_turns // self.each_turn_i + 2
         n_particles = simulation.beams[0].common_array_size
         shape = (n_entries, n_particles)
         self._dts = DenseArrayRecorder(f"{simulation.get_hash}_dts", shape)
@@ -154,7 +154,7 @@ class CavityPhaseObservation(Observables):
         super().on_run_simulation(
             simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
         )
-        n_entries = n_turns // self.each_turn_i + 1
+        n_entries = n_turns // self.each_turn_i + 2
         n_harmonics = self._cavity.rf_program.phi_rf.shape[0]
         self._phases = DenseArrayRecorder(
             f"{simulation.get_hash}_phases",

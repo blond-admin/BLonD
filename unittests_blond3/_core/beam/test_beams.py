@@ -98,6 +98,7 @@ class TestBeam(unittest.TestCase):
 
     def test_on_run_simulation(self):
         simulation = Mock(spec=Simulation)
+        simulation.energy_cycle.total_energy = np.linspace(1, 3, 3)
         self.beam.on_run_simulation(simulation=simulation, n_turns=10, turn_i_init=1)
 
     def test_plot_hist2d_executes(self):

@@ -1,0 +1,432 @@
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000    7.289    7.289 /home/slauber/PycharmProjects/BLonD/blond3/_core/simulation/simulation.py:223(run_simulation)
+        1    0.078    0.078    7.287    7.287 /home/slauber/PycharmProjects/BLonD/blond3/_core/simulation/simulation.py:267(_run_simulation_single_beam)
+     7069    0.080    0.000    3.756    0.001 /home/slauber/PycharmProjects/BLonD/blond3/physics/cavities.py:88(track)
+     7069    3.273    0.000    3.427    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/backends/cpp/callables.py:172(kick_single_harmonic)
+     7069    0.068    0.000    3.345    0.000 /home/slauber/PycharmProjects/BLonD/blond3/physics/drifts.py:123(track)
+     7069    3.053    0.000    3.167    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/backends/cpp/callables.py:216(drift_simple)
+     7069    0.016    0.000    0.215    0.000 /home/slauber/PycharmProjects/BLonD/blond3/physics/cavities.py:62(track)
+     7069    0.196    0.000    0.197    0.000 /home/slauber/PycharmProjects/BLonD/blond3/cycles/rf_parameter_cycle.py:219(track)
+    28276    0.084    0.000    0.190    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/backends/cpp/callables.py:159(_getPointer)
+    28276    0.022    0.000    0.075    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib64/python3.11/site-packages/numpy/_core/_internal.py:279(data_as)
+    14140    0.060    0.000    0.069    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/beam/base.py:56(reference_beta)
+     7070    0.010    0.000    0.063    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/beam/base.py:61(reference_velocity)
+     7072    0.010    0.000    0.055    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/base.py:82(value)
+    28276    0.054    0.000    0.054    0.000 /usr/lib64/python3.11/ctypes/__init__.py:511(cast)
+    14138    0.046    0.000    0.049    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/backends/cpp/callables.py:163(_getLen)
+     7070    0.012    0.000    0.045    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/base.py:73(_notify)
+    21209    0.031    0.000    0.041    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/base.py:90(_invalidate_cache)
+     7070    0.015    0.000    0.032    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/simulation/simulation.py:208(_invalidate_cache)
+    28276    0.030    0.000    0.030    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib64/python3.11/site-packages/numpy/_core/_internal.py:262(__init__)
+     7070    0.014    0.000    0.030    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:1160(__iter__)
+    63621    0.029    0.000    0.029    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/backends/cpp/callables.py:103(c_real)
+     7069    0.006    0.000    0.028    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/beam/base.py:180(write_partial_dE)
+     7069    0.008    0.000    0.022    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/beam/base.py:131(invalidate_cache_dE)
+     7069    0.006    0.000    0.022    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/beam/base.py:162(write_partial_dt)
+     7069    0.006    0.000    0.016    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/beam/base.py:139(invalidate_cache_dt)
+       70    0.001    0.000    0.015    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:1198(update)
+       71    0.000    0.000    0.014    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:1325(refresh)
+       72    0.000    0.000    0.013    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:1464(display)
+    21210    0.011    0.000    0.011    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/beam/base.py:51(reference_gamma)
+    49504    0.009    0.000    0.009    0.000 {method 'pop' of 'dict' objects}
+    56554    0.009    0.000    0.009    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/base.py:78(value)
+    21215    0.008    0.000    0.008    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/base.py:55(section_index)
+       72    0.001    0.000    0.008    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:1150(__str__)
+       72    0.003    0.000    0.006    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:464(format_meter)
+    14138    0.006    0.000    0.006    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/base.py:40(is_active_this_turn)
+       72    0.000    0.000    0.005    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:457(print_status)
+     7072    0.004    0.000    0.004    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/ring/ring.py:86(elements)
+    14248    0.003    0.000    0.003    0.000 {built-in method builtins.len}
+     7071    0.003    0.000    0.003    0.000 /home/slauber/PycharmProjects/BLonD/blond3/physics/drifts.py:155(alpha_0)
+       72    0.000    0.000    0.003    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/utils.py:378(disp_len)
+        1    0.000    0.000    0.003    0.003 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:663(__new__)
+      8/3    0.000    0.000    0.003    0.001 <frozen importlib._bootstrap>:1165(_find_and_load)
+       72    0.000    0.000    0.003    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/utils.py:374(_text_width)
+      8/3    0.000    0.000    0.002    0.001 <frozen importlib._bootstrap>:1120(_find_and_load_unlocked)
+        1    0.000    0.000    0.002    0.002 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:760(get_lock)
+        1    0.000    0.000    0.002    0.002 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:90(__init__)
+        1    0.000    0.000    0.002    0.002 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:116(create_mp_lock)
+       73    0.001    0.000    0.002    0.000 {built-in method builtins.sum}
+     7070    0.002    0.000    0.002    0.000 /home/slauber/PycharmProjects/BLonD/blond3/physics/drifts.py:119(length)
+     7070    0.002    0.000    0.002    0.000 /home/slauber/PycharmProjects/BLonD/blond3/physics/cavities.py:58(rf_program)
+      8/3    0.000    0.000    0.002    0.001 <frozen importlib._bootstrap>:666(_load_unlocked)
+        1    0.000    0.000    0.002    0.002 /home/slauber/PycharmProjects/BLonD/blond3/_core/simulation/simulation.py:139(_exec_on_run_simulation)
+        1    0.000    0.000    0.002    0.002 /home/slauber/PycharmProjects/BLonD/blond3/_core/simulation/simulation.py:115(_exec_all_in_tree)
+      6/2    0.000    0.000    0.002    0.001 <frozen importlib._bootstrap_external>:934(exec_module)
+     23/7    0.000    0.000    0.002    0.000 <frozen importlib._bootstrap>:233(_call_with_frames_removed)
+     7069    0.002    0.000    0.002    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/beam/base.py:171(read_partial_dE)
+     3802    0.001    0.000    0.002    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/utils.py:375(<genexpr>)
+        1    0.000    0.000    0.002    0.002 /home/slauber/PycharmProjects/BLonD/blond3/_core/helpers.py:51(find_instances_with_method)
+    233/1    0.001    0.000    0.002    0.002 /home/slauber/PycharmProjects/BLonD/blond3/_core/helpers.py:56(walk)
+      6/2    0.000    0.000    0.002    0.001 {built-in method builtins.exec}
+     7069    0.001    0.000    0.001    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/beam/base.py:153(read_partial_dt)
+      9/5    0.000    0.000    0.001    0.000 <frozen importlib._bootstrap>:1207(_handle_fromlist)
+      5/2    0.000    0.000    0.001    0.001 {built-in method builtins.__import__}
+       72    0.000    0.000    0.001    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:451(fp_write)
+        1    0.000    0.000    0.001    0.001 /usr/lib64/python3.11/multiprocessing/__init__.py:1(<module>)
+      152    0.001    0.000    0.001    0.000 {method 'format' of 'str' objects}
+      146    0.000    0.000    0.001    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/utils.py:194(inner)
+        1    0.000    0.000    0.001    0.001 /usr/lib64/python3.11/multiprocessing/context.py:70(RLock)
+      144    0.001    0.000    0.001    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/utils.py:273(_is_ascii)
+        1    0.000    0.000    0.001    0.001 /usr/lib64/python3.11/multiprocessing/context.py:1(<module>)
+       74    0.001    0.000    0.001    0.000 {method 'write' of '_io.TextIOWrapper' objects}
+      143    0.001    0.000    0.001    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:400(format_interval)
+       72    0.001    0.000    0.001    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:1446(format_dict)
+        8    0.000    0.000    0.001    0.000 <frozen importlib._bootstrap>:1054(_find_spec)
+        1    0.000    0.000    0.001    0.001 /usr/lib64/python3.11/multiprocessing/synchronize.py:1(<module>)
+      397    0.000    0.000    0.001    0.000 {built-in method builtins.getattr}
+      421    0.001    0.000    0.001    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:231(__call__)
+        6    0.000    0.000    0.001    0.000 <frozen importlib._bootstrap_external>:1007(get_code)
+        8    0.000    0.000    0.001    0.000 <frozen importlib._bootstrap_external>:1500(find_spec)
+       75    0.000    0.000    0.001    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:102(acquire)
+        8    0.000    0.000    0.001    0.000 <frozen importlib._bootstrap_external>:1468(_get_spec)
+     3730    0.001    0.000    0.001    0.000 {built-in method unicodedata.east_asian_width}
+        1    0.000    0.000    0.001    0.001 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:952(__init__)
+       28    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1608(find_spec)
+       72    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:186(__format__)
+        6    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/functools.py:981(__get__)
+        6    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:727(_compile_bytecode)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/utils.py:333(_screen_shape_linux)
+        6    0.000    0.000    0.000    0.000 {built-in method marshal.loads}
+       71    0.000    0.000    0.000    0.000 {built-in method now}
+        8    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:566(module_from_spec)
+       31    0.000    0.000    0.000    0.000 {built-in method builtins.__build_class__}
+       75    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:106(release)
+      530    0.000    0.000    0.000    0.000 {built-in method time.time}
+       46    0.000    0.000    0.000    0.000 {built-in method builtins.dir}
+       72    0.000    0.000    0.000    0.000 {method 'sub' of 're.Pattern' objects}
+       72    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:153(__init__)
+        2    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:1265(close)
+      139    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:126(_path_join)
+     1512    0.000    0.000    0.000    0.000 {built-in method builtins.ord}
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/_monitor.py:30(__init__)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1232(create_module)
+        2    0.000    0.000    0.000    0.000 {built-in method _imp.create_dynamic}
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/ring/helpers.py:30(get_init_order)
+     1561    0.000    0.000    0.000    0.000 {method 'startswith' of 'str' objects}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/process.py:1(<module>)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/physics/drifts.py:137(eta_0)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/threading.py:945(start)
+       76    0.000    0.000    0.000    0.000 {method 'acquire' of '_thread.RLock' objects}
+        2    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/cycles/energy_cycle.py:170(delta_E)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/ring/helpers.py:43(build_dependency_graph)
+     1278    0.000    0.000    0.000    0.000 {method 'endswith' of 'str' objects}
+        8    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:493(_init_module_attrs)
+        6    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1128(get_data)
+      478    0.000    0.000    0.000    0.000 {built-in method builtins.hasattr}
+       75    0.000    0.000    0.000    0.000 {method 'acquire' of '_multiprocessing.SemLock' objects}
+       47    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:140(_path_stat)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/synchronize.py:193(__init__)
+       12    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:437(cache_from_source)
+       47    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/ring/helpers.py:73(get_dependencies)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/synchronize.py:50(__init__)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/threading.py:611(wait)
+       47    0.000    0.000    0.000    0.000 {built-in method posix.stat}
+       74    0.000    0.000    0.000    0.000 {method 'flush' of '_io.TextIOWrapper' objects}
+      139    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:128(<listcomp>)
+       84    0.000    0.000    0.000    0.000 {built-in method builtins.max}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/threading.py:295(wait)
+      565    0.000    0.000    0.000    0.000 {built-in method builtins.isinstance}
+      358    0.000    0.000    0.000    0.000 {built-in method builtins.divmod}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/reduction.py:1(<module>)
+       73    0.000    0.000    0.000    0.000 {method 'update' of 'dict' objects}
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1240(exec_module)
+        8    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:169(__enter__)
+        2    0.000    0.000    0.000    0.000 {built-in method _imp.exec_dynamic}
+       14    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:392(cached)
+        6    0.000    0.000    0.000    0.000 {built-in method io.open_code}
+        8    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:567(_get_cached)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/util.py:1(<module>)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:686(_decr_instances)
+       72    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/utils.py:112(__format__)
+        8    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1603(_get_spec)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/threading.py:280(_release_save)
+       18    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:179(_get_module_lock)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/synchronize.py:121(_make_name)
+       18    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:100(acquire)
+       72    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/utils.py:108(__init__)
+        2    0.000    0.000    0.000    0.000 {built-in method builtins.next}
+       10    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:216(_lock_unlock_module)
+       11    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:159(_path_isfile)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/tempfile.py:154(__next__)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/ring/beam_physics_relevant_elements.py:90(n_sections)
+       72    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:167(colour)
+       75    0.000    0.000    0.000    0.000 {method 'release' of '_multiprocessing.SemLock' objects}
+       12    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:150(_path_is_mode_type)
+        3    0.000    0.000    0.000    0.000 {method 'flatten' of 'numpy.ndarray' objects}
+        1    0.000    0.000    0.000    0.000 {built-in method _thread.start_new_thread}
+       31    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1425(_path_importer_cache)
+        2    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib64/python3.11/site-packages/numpy/lib/_function_base_impl.py:1369(diff)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/cycles/energy_cycle.py:158(gamma)
+        8    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:778(spec_from_file_location)
+        4    0.000    0.000    0.000    0.000 {method 'acquire' of '_thread.lock' objects}
+      290    0.000    0.000    0.000    0.000 {method 'rstrip' of 'str' objects}
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/cycles/energy_cycle.py:59(calc_gamma)
+        3    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/cycles/energy_cycle.py:78(calc_total_energy)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/cycles/energy_cycle.py:166(kin_energy)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/ring/ring.py:94(section_lengths)
+       12    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:132(_path_split)
+      377    0.000    0.000    0.000    0.000 {built-in method builtins.id}
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/cycles/energy_cycle.py:97(calc_energy_kin)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib64/python3.11/site-packages/numpy/lib/_arraysetops_impl.py:145(unique)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:679(_get_free_pos)
+       76    0.000    0.000    0.000    0.000 {method 'release' of '_thread.RLock' objects}
+       18    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:125(release)
+        3    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/_weakrefset.py:63(__iter__)
+       72    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:163(colour)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1412(_path_hooks)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/ring/beam_physics_relevant_elements.py:73(get_section_circumference_shares)
+      171    0.000    0.000    0.000    0.000 {method 'add' of 'set' objects}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/tempfile.py:143(rng)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/physics/drifts.py:145(momentum_compaction_factor)
+       74    0.000    0.000    0.000    0.000 {built-in method builtins.abs}
+      146    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:244(_verbose_message)
+        6    0.000    0.000    0.000    0.000 {method 'read' of '_io.BufferedReader' objects}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/threading.py:856(__init__)
+        8    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:173(__exit__)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/ring/ring.py:72(n_cavities)
+        2    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/ctypes/__init__.py:386(__getattr__)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1659(_fill_cache)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib64/python3.11/site-packages/numpy/lib/_arraysetops_impl.py:339(_unique1d)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/random.py:119(__init__)
+       38    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/__init__.py:23(<genexpr>)
+        4    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:110(__enter__)
+      152    0.000    0.000    0.000    0.000 {method 'join' of 'str' objects}
+        8    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/_distutils_hack/__init__.py:89(find_spec)
+        1    0.000    0.000    0.000    0.000 <frozen abc>:105(__new__)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/__init__.py:22(<listcomp>)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/random.py:128(seed)
+        6    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:642(_classify_pyc)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/_weakrefset.py:110(remove)
+        1    0.000    0.000    0.000    0.000 {built-in method posix.listdir}
+        2    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/ring/beam_physics_relevant_elements.py:98(get_elements)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/cycles/energy_cycle.py:136(on_run_simulation)
+       19    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:405(parent)
+        4    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:113(__exit__)
+        6    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1147(path_stats)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/cycles/energy_cycle.py:216(invalidate_cache)
+        2    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/ctypes/__init__.py:393(__getitem__)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:682(<setcomp>)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1700(path_hook_for_FileFinder)
+        6    0.000    0.000    0.000    0.000 {method '__exit__' of '_io._IOBase' objects}
+        2    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/_weakrefset.py:27(__exit__)
+       18    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:84(_unpack_uint32)
+        2    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:1286(fp_write)
+       40    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:1030(__exit__)
+        6    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:675(_validate_timestamp_pyc)
+        3    0.000    0.000    0.000    0.000 {method 'remove' of 'set' objects}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/random.py:480(choices)
+       70    0.000    0.000    0.000    0.000 {method 'rpartition' of 'str' objects}
+        2    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/ring/helpers.py:26(get_elements)
+        2    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/threading.py:562(__init__)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/ring/helpers.py:94(topological_sort)
+       40    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:1026(__enter__)
+        1    0.000    0.000    0.000    0.000 {built-in method fcntl.ioctl}
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/ring/beam_physics_relevant_elements.py:163(count)
+        1    0.000    0.000    0.000    0.000 {function Random.seed at 0x7f0b584614e0}
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/utils.py:213(__init__)
+        8    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:920(find_spec)
+        8    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:71(__init__)
+        8    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:198(cb)
+       11    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/logging/__init__.py:1479(info)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/process.py:71(BaseProcess)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/util.py:174(register_after_fork)
+       47    0.000    0.000    0.000    0.000 {method 'split' of 'str' objects}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/context.py:30(BaseContext)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/utils.py:347(<listcomp>)
+       24    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:134(<genexpr>)
+        3    0.000    0.000    0.000    0.000 {built-in method __new__ of type object at 0x7f0b667646c0}
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/utils.py:266(_supports_unicode)
+       47    0.000    0.000    0.000    0.000 {method 'count' of 'str' objects}
+        2    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/_weakrefset.py:53(_commit_removals)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1563(__init__)
+        4    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/ring/helpers.py:27(<lambda>)
+        1    0.000    0.000    0.000    0.000 <frozen posixpath>:397(abspath)
+        2    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/threading.py:243(__init__)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/weakref.py:104(__init__)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/random.py:493(<listcomp>)
+        8    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/ring/helpers.py:37(<listcomp>)
+       66    0.000    0.000    0.000    0.000 {built-in method _imp.acquire_lock}
+        8    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:748(find_spec)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:438(status_printer)
+        6    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:599(_check_name_wrapper)
+        1    0.000    0.000    0.000    0.000 {built-in method _abc._abc_init}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/weakref.py:164(__setitem__)
+       66    0.000    0.000    0.000    0.000 {built-in method _imp.release_lock}
+        1    0.000    0.000    0.000    0.000 <frozen os>:674(__getitem__)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/ring/beam_physics_relevant_elements.py:67(get_sections_indices)
+        1    0.000    0.000    0.000    0.000 <frozen zipimport>:64(__init__)
+        1    0.000    0.000    0.000    0.000 {built-in method builtins.print}
+        9    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:180(_path_isabs)
+        2    0.000    0.000    0.000    0.000 {method 'reshape' of 'numpy.ndarray' objects}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/process.py:399(__init__)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/utils.py:125(__eq__)
+       39    0.000    0.000    0.000    0.000 {method 'get' of 'dict' objects}
+        4    0.000    0.000    0.000    0.000 <frozen abc>:117(__instancecheck__)
+        8    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:357(__init__)
+       37    0.000    0.000    0.000    0.000 {method '__exit__' of '_thread.lock' objects}
+       13    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/logging/__init__.py:1734(isEnabledFor)
+        2    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/_weakrefset.py:85(add)
+       19    0.000    0.000    0.000    0.000 {built-in method _thread.allocate_lock}
+        1    0.000    0.000    0.000    0.000 {built-in method fromtimestamp}
+        6    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:48(_new_module)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/functools.py:393(__get__)
+        8    0.000    0.000    0.000    0.000 {built-in method _imp.find_frozen}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/reduction.py:33(ForkingPickler)
+       37    0.000    0.000    0.000    0.000 {built-in method _thread.get_ident}
+        7    0.000    0.000    0.000    0.000 {method 'pop' of 'list' objects}
+        1    0.000    0.000    0.000    0.000 {method 'sort' of 'numpy.ndarray' objects}
+       18    0.000    0.000    0.000    0.000 {built-in method from_bytes}
+        3    0.000    0.000    0.000    0.000 {method 'extend' of 'list' objects}
+        1    0.000    0.000    0.000    0.000 {built-in method numpy.ascontiguousarray}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/util.py:185(Finalize)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/synchronize.py:46(SemLock)
+        4    0.000    0.000    0.000    0.000 {built-in method builtins.locals}
+        1    0.000    0.000    0.000    0.000 <frozen posixpath>:60(isabs)
+        8    0.000    0.000    0.000    0.000 {built-in method _imp.is_builtin}
+        8    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/_virtualenv.py:53(find_spec)
+        2    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/_weakrefset.py:21(__enter__)
+        7    0.000    0.000    0.000    0.000 {built-in method builtins.setattr}
+       24    0.000    0.000    0.000    0.000 {method 'append' of 'list' objects}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/weakref.py:289(update)
+        4    0.000    0.000    0.000    0.000 {built-in method numpy.asanyarray}
+        4    0.000    0.000    0.000    0.000 {built-in method _abc._abc_instancecheck}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/synchronize.py:370(Barrier)
+        2    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/logging/__init__.py:1467(debug)
+        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:164(_path_isdir)
+       28    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:71(_relax_case)
+       12    0.000    0.000    0.000    0.000 {method 'rfind' of 'str' objects}
+        8    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:165(__init__)
+        1    0.000    0.000    0.000    0.000 <frozen os>:756(encode)
+        2    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/utils.py:187(disable_on_exception)
+        6    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1098(__init__)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/ring/helpers.py:99(<listcomp>)
+        2    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/utils.py:222(__eq__)
+        2    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:1153(_comparable)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/utils.py:156(__init__)
+       23    0.000    0.000    0.000    0.000 {built-in method posix.fspath}
+        2    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:1157(__hash__)
+        1    0.000    0.000    0.000    0.000 <frozen posixpath>:389(normpath)
+        6    0.000    0.000    0.000    0.000 {method 'setter' of 'property' objects}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/synchronize.py:328(Event)
+        1    0.000    0.000    0.000    0.000 {built-in method posix.urandom}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/reduction.py:251(AbstractReducer)
+        2    0.000    0.000    0.000    0.000 {built-in method numpy.empty}
+        3    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/utils.py:152(wrapper_setattr)
+        1    0.000    0.000    0.000    0.000 {built-in method posix.getcwd}
+        1    0.000    0.000    0.000    0.000 {built-in method posix.sysconf}
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/ring/helpers.py:56(<listcomp>)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/helpers.py:16(int_from_float_with_warning)
+        8    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/inspect.py:729(getmro)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/_weakrefset.py:37(__init__)
+        7    0.000    0.000    0.000    0.000 {method '__exit__' of '_thread.RLock' objects}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/weakref.py:347(__new__)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/threading.py:271(__enter__)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/threading.py:286(_is_owned)
+        2    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/utils.py:139(__getattr__)
+        2    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/_weakrefset.py:17(__init__)
+        1    0.000    0.000    0.000    0.000 {built-in method builtins.sorted}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/threading.py:811(_newname)
+        5    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/reduction.py:43(register)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/synchronize.py:130(Semaphore)
+        8    0.000    0.000    0.000    0.000 {method 'random' of '_random.Random' objects}
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/ring/beam_physics_relevant_elements.py:92(<listcomp>)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/threading.py:1324(_make_invoke_excepthook)
+        6    0.000    0.000    0.000    0.000 {built-in method _imp._fix_co_filename}
+        8    0.000    0.000    0.000    0.000 {built-in method builtins.any}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/context.py:220(Process)
+        1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/threading.py:1221(daemon)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/weakref.py:352(__init__)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/synchronize.py:217(Condition)
+        3    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:226(__init__)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/process.py:364(_ParentProcess)
+        1    0.000    0.000    0.000    0.000 {built-in method posix.getpid}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/context.py:283(SpawnProcess)
+        8    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1569(<genexpr>)
+        2    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/ring/ring.py:90(circumference)
+        2    0.000    0.000    0.000    0.000 {built-in method numpy.lib.array_utils.normalize_axis_index}
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:1147(__del__)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/threading.py:1453(current_thread)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/base.py:69(on_change)
+        8    0.000    0.000    0.000    0.000 {built-in method math.floor}
+        8    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:413(has_location)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/context.py:230(DefaultContext)
+        8    0.000    0.000    0.000    0.000 {built-in method builtins.callable}
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib64/python3.11/site-packages/numpy/lib/_arraysetops_impl.py:132(_unpack_tuple)
+        3    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/simulation/simulation.py:183(energy_cycle)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/ring/beam_physics_relevant_elements.py:81(<listcomp>)
+        2    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1221(__init__)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/utils.py:252(_is_utf)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/threading.py:283(_acquire_restore)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/context.py:203(reducer)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/context.py:276(ForkProcess)
+        8    0.000    0.000    0.000    0.000 {method 'popleft' of 'collections.deque' objects}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/threading.py:274(__exit__)
+        6    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:1123(get_filename)
+        2    0.000    0.000    0.000    0.000 {method 'encode' of 'str' objects}
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/ring/beam_physics_relevant_elements.py:94(n_elements)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/synchronize.py:90(_make_methods)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/context.py:295(ForkServerProcess)
+        1    0.000    0.000    0.000    0.000 {built-in method posix._path_normpath}
+        2    0.000    0.000    0.000    0.000 {built-in method atexit.register}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/threading.py:1206(daemon)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/util.py:371(ForkAwareThreadLock)
+        1    0.000    0.000    0.000    0.000 <frozen posixpath>:41(_get_sep)
+        6    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap_external>:931(create_module)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:98(<listcomp>)
+        1    0.000    0.000    0.000    0.000 {method 'difference' of 'set' objects}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/context.py:237(get_context)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/ring/beam_physics_relevant_elements.py:103(<lambda>)
+        3    0.000    0.000    0.000    0.000 {method 'items' of 'dict' objects}
+        2    0.000    0.000    0.000    0.000 {built-in method _weakref.proxy}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/util.py:108(_platform_supports_abstract_sockets)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/reduction.py:211(_C)
+        2    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib64/python3.11/site-packages/numpy/_core/multiarray.py:180(concatenate)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/context.py:233(__init__)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/utils.py:282(_screen_shape_wrapper)
+        2    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib64/python3.11/site-packages/numpy/lib/_function_base_impl.py:1365(_diff_dispatcher)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/synchronize.py:149(BoundedSemaphore)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/simulation/simulation.py:175(ring)
+        1    0.000    0.000    0.000    0.000 {built-in method builtins.min}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/synchronize.py:166(Lock)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/process.py:349(AuthenticationString)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/physics/cavities.py:54(n_rf)
+        2    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/physics/drifts.py:32(share_of_circumference)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/context.py:310(ForkServerContext)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/synchronize.py:191(RLock)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/util.py:388(ForkAwareLocal)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/process.py:397(_MainProcess)
+        3    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/_distutils_hack/__init__.py:96(<lambda>)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/ring/ring.py:82(bending_radius)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/context.py:14(ProcessError)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/context.py:302(ForkContext)
+        1    0.000    0.000    0.000    0.000 {method '__enter__' of '_thread.lock' objects}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/context.py:306(SpawnContext)
+        2    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/threading.py:575(is_set)
+        2    0.000    0.000    0.000    0.000 {built-in method builtins.globals}
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/context.py:197(get_start_method)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/util.py:48(debug)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/ring/ring.py:67(on_run_simulation)
+        1    0.000    0.000    0.000    0.000 {method 'release' of '_thread.lock' objects}
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/beam/base.py:78(is_counter_rotating)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/context.py:17(BufferTooShort)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib64/python3.11/site-packages/numpy/lib/_arraysetops_impl.py:140(_unique_dispatcher)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/blond3_test/.venv/lib/python3.11/site-packages/tqdm/std.py:1301(<lambda>)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/cycles/energy_cycle.py:146(momentum)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/context.py:20(TimeoutError)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/context.py:23(AuthenticationError)
+        1    0.000    0.000    0.000    0.000 {method 'append' of 'collections.deque' objects}
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/simulation/simulation.py:179(beams)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/simulation/simulation.py:110(on_run_simulation)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/physics/drifts.py:42(on_run_simulation)
+        1    0.000    0.000    0.000    0.000 /usr/lib64/python3.11/multiprocessing/process.py:37(current_process)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/cycles/base.py:36(on_run_simulation)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/ring/ring.py:78(transition_gamma_init)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/physics/cavities.py:49(on_run_simulation)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/physics/drifts.py:115(transition_gamma)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/beam/base.py:74(is_distributed)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/ring/beam_physics_relevant_elements.py:62(on_run_simulation)
+        1    0.000    0.000    0.000    0.000 /home/slauber/PycharmProjects/BLonD/blond3/_core/beam/beams.py:58(on_run_simulation)
+

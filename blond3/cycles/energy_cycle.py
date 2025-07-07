@@ -171,11 +171,17 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
     def delta_E(self) -> NumpyArray:
         shape2d = self.total_energy.shape
         energy1d = self.total_energy.flatten("K")
-        energy_init = calc_total_energy(mass=self._mass, momentum=self._momentum_init)
+        energy_init = self.total_energy_init
         energy1d = np.concatenate(([energy_init], energy1d))
         diff1d = np.diff(energy1d)  # loses one entry
         diff2d = diff1d.reshape(shape2d, order="F")
         return diff2d
+
+    @cached_property  # as readonly attributes
+    def total_energy_init(self):
+        energy_init = calc_total_energy(mass=self._mass,
+                                        momentum=self._momentum_init)
+        return energy_init
 
     @cached_property  # as readonly attributes
     def t_section(self) -> NumpyArray:
@@ -201,6 +207,7 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
     #    return 2 * np.pi * self.f_rev  # todo
 
     cached_props = (
+        "total_energy_init",
         "n_turns",
         "beta",
         "gamma",

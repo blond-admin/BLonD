@@ -32,10 +32,17 @@ sig_dE = nb_f[:]
 sig_singleharmonic_voltage = nb_f
 sig_singleharmonic_omega_rf = nb_f
 sig_singleharmonic_phi_rf = nb_f
-sig_singleharmonic_charge = nb_f
-sig_singleharmonic_acceleration_kick = nb_f
+sig_charge = nb_f
+sig_acceleration_kick = nb_f
+sig_voltage_multi_harmonic = nb_f[:]
+sig_omega_rf_multi_harmonic = nb_f[:]
+sig_phi_rf_multi_harmonic = nb_f[:]
+sig_n_rf_multi_harmonic = nb_i
+
+
 
 sig_t_rev = nb_f
+sig_T = nb_f
 sig_length_ratio = nb_f
 sig_eta_0 = nb_f
 sig_eta_1 = nb_f
@@ -54,16 +61,26 @@ sig_kick_single_harmonic = (
     sig_singleharmonic_voltage,
     sig_singleharmonic_omega_rf,
     sig_singleharmonic_phi_rf,
-    sig_singleharmonic_charge,
-    sig_singleharmonic_acceleration_kick,
+    sig_charge,
+    sig_acceleration_kick,
 )
 
+
+sig_kick_multi_harmonic = (
+sig_dt,
+sig_dE,
+sig_voltage_multi_harmonic,
+sig_omega_rf_multi_harmonic,
+sig_phi_rf_multi_harmonic,
+sig_charge,
+sig_n_rf_multi_harmonic,
+sig_acceleration_kick,
+)
 
 sig_drift_simple = (
     sig_dt,
     sig_dE,
-    sig_t_rev,
-    sig_length_ratio,
+    sig_T,
     sig_eta_0,
     sig_beta,
     sig_energy,
@@ -121,8 +138,7 @@ class NumbaSpecials(Specials):
     def drift_simple(
         dt: NumpyArray,
         dE: NumpyArray,
-        t_rev: float,
-        length_ratio: float,
+        T: float,
         eta_0: float,
         beta: float,
         energy: float,
@@ -133,13 +149,13 @@ class NumbaSpecials(Specials):
 
         # solver_decoded = solver.decode(encoding='utf_8')
 
-        T = t_rev * length_ratio
 
         coeff = T * eta_0 / (beta * beta * energy)
         for i in prange(len(dt)):
             dt[i] += coeff * dE[i]
 
     @staticmethod
+    @njit(sig_kick_multi_harmonic, parallel=True, fastmath=False)
     def kick_multi_harmonic(
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
@@ -150,7 +166,13 @@ class NumbaSpecials(Specials):
         n_rf: int,
         acceleration_kick: float,
     ):
-        pass
+        voltage_kick = charge * voltage
+        for i in prange(len(dt)):
+            dti = dt[i]
+            de_sum = 0.0
+            for j in range(n_rf):
+                de_sum += voltage_kick[j] * np.sin(omega_rf[j] * dti + phi_rf[j])
+            dE[i] += de_sum + acceleration_kick
 
     @staticmethod
     @njit(sig_drift_legacy, parallel=True, fastmath=False)
