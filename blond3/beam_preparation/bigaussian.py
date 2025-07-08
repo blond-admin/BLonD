@@ -69,7 +69,7 @@ def _get_dE_from_dt(simulation: Simulation, dt_amplitude: float) -> float:
     energy = beam.reference_total_energy
     beta = beam.reference_beta
     omega_rf = rf_station.calc_omega(
-        beam_velocity=beam.reference_velocity,
+        beam_beta=beam.reference_beta,
         ring_circumference=simulation.ring.circumference,
     )
     phi_rf = rf_station.phi_rf
@@ -132,7 +132,7 @@ class BiGaussian(MatchingRoutine):
             sigma_dE = self._sigma_dE
 
         omega_rf = rf_station.calc_omega(
-            beam_velocity=beam.reference_velocity,
+            beam_beta=beam.reference_beta,
             ring_circumference=simulation.ring.circumference,
         )
         phi_rf = rf_station.phi_rf

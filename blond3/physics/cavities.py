@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from abc import ABC
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import numpy as np
-
+from scipy.constants import speed_of_light as c0
 from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
 
@@ -44,6 +45,31 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         self._energy_cycle: LateInit[EnergyCycleBase] = None
         self._ring: LateInit[Ring] = None
 
+    @staticmethod
+    def headless(
+        n_rf: int,
+        section_index: int,
+        local_wakefield: Optional[WakeField],
+        cavity_feedback: Optional[LocalFeedback],
+    ):
+        cav = CavityBaseClass(
+            n_rf=n_rf,
+            section_index=section_index,
+            local_wakefield=local_wakefield,
+            cavity_feedback=cavity_feedback,
+        )
+        from .._core.simulation.simulation import Simulation
+
+        simulation = Mock(Simulation)
+        simulation.turn_i = Mock(DynamicParameter)
+        simulation.turn_i.value = 0
+        cav.on_init_simulation(simulation=simulation)
+        cav.on_run_simulation(
+            simulation=simulation, n_turns=1, turn_i_init=simulation.turn_i.value
+        )
+
+        return cav
+
     def on_init_simulation(self, simulation: Simulation) -> None:
         self._turn_i = simulation.turn_i
         self._energy_cycle = simulation.energy_cycle
@@ -70,7 +96,6 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
 
 
 class SingleHarmonicCavity(CavityBaseClass):
-
     def __init__(
         self,
         section_index: int = 0,
@@ -89,8 +114,8 @@ class SingleHarmonicCavity(CavityBaseClass):
         self.total_energy_target: float | None = None
         self._omegas = None
 
-    def calc_omega(self, beam_velocity: float, ring_circumference: float):
-        return self.harmonic * (2.0 * np.pi * beam_velocity / ring_circumference)
+    def calc_omega(self, beam_beta: float, ring_circumference: float):
+        return self.harmonic * 2.0 * np.pi * c0 * beam_beta / ring_circumference
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         super().on_init_simulation(simulation=simulation)
@@ -117,11 +142,10 @@ class SingleHarmonicCavity(CavityBaseClass):
             - beam.reference_total_energy
         )
         omega_rf = self.calc_omega(
-            beam_velocity=beam.reference_velocity,
+            beam_beta=beam.reference_beta,
             ring_circumference=self._ring.circumference,
         )
         self._omegas = omega_rf
-
         backend.specials.kick_single_harmonic(
             dt=beam.read_partial_dt(),
             dE=beam.write_partial_dE(),
@@ -133,9 +157,53 @@ class SingleHarmonicCavity(CavityBaseClass):
         )
         beam.reference_total_energy += reference_energy_change
 
+    @staticmethod
+    def headless(
+        section_index: int,
+        voltage: float,
+        phi_rf: float,
+        harmonic: float,
+        circumference: float,
+        total_energy: float,
+        local_wakefield: Optional[WakeField] = None,
+        cavity_feedback: Optional[LocalFeedback] = None,
+    ):
+        from .._core.simulation.simulation import Simulation
+        from .._core.ring.ring import Ring
+        from ..cycles.energy_cycle import EnergyCycleBase
+
+        mhc = SingleHarmonicCavity(
+            section_index=section_index,
+            local_wakefield=local_wakefield,
+            cavity_feedback=cavity_feedback,
+        )
+
+        mhc.voltage = backend.float(voltage)
+        mhc.phi_rf = backend.float(phi_rf)
+        mhc.harmonic = backend.float(harmonic)
+
+        ring = Mock(Ring)
+        ring.circumference = backend.float(circumference)
+
+        energy_cycle = Mock(EnergyCycleBase)
+        energy_cycle.total_energy = total_energy * np.ones(
+            (section_index + 1, 1), dtype=backend.float
+        )
+
+        simulation = Mock(Simulation)
+        simulation.ring = ring
+        simulation.energy_cycle = energy_cycle
+        simulation.turn_i = Mock(DynamicParameter)
+        simulation.turn_i.value = 0
+
+        mhc.on_init_simulation(simulation=simulation)
+        mhc.on_run_simulation(
+            simulation=simulation, n_turns=1, turn_i_init=simulation.turn_i.value
+        )
+        return mhc
+
 
 class MultiHarmonicCavity(CavityBaseClass):
-
     def __init__(
         self,
         n_harmonics: int,
@@ -171,6 +239,50 @@ class MultiHarmonicCavity(CavityBaseClass):
                 f"You need to define `harmonic` for '{self.name}' via "
                 f"`.harmonic=...` or `.schedule(attribute='harmonic', value=...)`"
             )
+
+    @staticmethod
+    def headless(
+        section_index: int,
+        voltage: NumpyArray,
+        phi_rf: NumpyArray,
+        harmonic: NumpyArray,
+        circumference: float,
+        total_energy: float,
+        local_wakefield: Optional[WakeField] = None,
+        cavity_feedback: Optional[LocalFeedback] = None,
+    ):
+        from .._core.simulation.simulation import Simulation
+        from .._core.ring.ring import Ring
+        from ..cycles.energy_cycle import EnergyCycleBase
+
+        mhc = MultiHarmonicCavity(
+            n_harmonics=len(voltage),
+            section_index=section_index,
+            local_wakefield=local_wakefield,
+            cavity_feedback=cavity_feedback,
+        )
+
+        mhc.voltage = voltage
+        mhc.phi_rf = phi_rf
+        mhc.harmonic = harmonic
+
+        ring = Mock(Ring)
+        ring.circumference = circumference
+
+        energy_cycle = Mock(EnergyCycleBase)
+        energy_cycle.total_energy = total_energy * np.ones((section_index + 1, 1))
+
+        simulation = Mock(Simulation)
+        simulation.ring = ring
+        simulation.energy_cycle = energy_cycle
+        simulation.turn_i = Mock(DynamicParameter)
+        simulation.turn_i.value = 0
+
+        mhc.on_init_simulation(simulation=simulation)
+        mhc.on_run_simulation(
+            simulation=simulation, n_turns=1, turn_i_init=simulation.turn_i.value
+        )
+        return mhc
 
     def track(self, beam: BeamBaseClass):
         super().track(beam=beam)

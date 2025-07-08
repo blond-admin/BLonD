@@ -29,6 +29,9 @@ class TestBackendBaseClass(unittest.TestCase):
     def test_set_specials(self):
         self.backend_base_class.set_specials(mode="numba")
 
+    def tearDown(self):
+        self.backend_base_class.set_specials(mode="numba")
+
 
 @unittest.skip
 class TestCupy32Bit(unittest.TestCase):
@@ -257,6 +260,9 @@ class TestSpecials(unittest.TestCase):
                 else:
                     np.testing.assert_allclose(result, result_python, rtol=self.rtol)
 
+    def tearDown(self):
+        backend.change_backend(Numpy32Bit)
+        backend.set_specials("numba")
 
 if __name__ == "__main__":
     unittest.main()
