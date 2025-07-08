@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING, Tuple, Literal
+
+import numpy as np
+
+from .backends.backend import backend
 
 if TYPE_CHECKING:
     from .beam.base import BeamBaseClass
@@ -13,6 +17,7 @@ if TYPE_CHECKING:
         Callable,
         Any,
     )
+    from numpy.typing import NDArray as NumpyArray
 
     T = TypeVar("T")
 
@@ -37,8 +42,31 @@ class MainLoopRelevant(Preparable):
         super().__init__()
         self.each_turn_i = 1
 
+        self.schedules = {}
+
     def is_active_this_turn(self, turn_i: int):
         return turn_i % self.each_turn_i == 0
+
+
+class Schedulable:
+    def __init__(self):
+        super().__init__()
+        self.schedules: dict[str, _Scheduled] = {}
+
+    def schedule(
+        self,
+        attribute: str,
+        value: float | int | NumpyArray | Tuple[NumpyArray, NumpyArray],
+        mode: Literal["per-turn", "constant"] | None = None,
+    ):
+        self.schedules[attribute] = get_scheduler(value, mode=mode)
+
+    def apply_schedules(self, turn_i: int, reference_time: float):
+        for attribute, schedule in self.schedules.items():
+            self.__setattr__(
+                attribute,
+                schedule.get_scheduled(turn_i=turn_i, reference_time=reference_time),
+            )
 
 
 class BeamPhysicsRelevant(MainLoopRelevant):
@@ -59,6 +87,61 @@ class BeamPhysicsRelevant(MainLoopRelevant):
     @abstractmethod
     def track(self, beam: BeamBaseClass) -> None:
         pass
+
+
+class _Scheduled:
+    @abstractmethod
+    def get_scheduled(self, turn_i: int, reference_time: float):
+        pass
+
+
+class ScheduledConstant(_Scheduled):
+    def __init__(self, value: float | int | NumpyArray):
+        super().__init__()
+        if isinstance(value, np.ndarray):
+            self.value = value.astype(backend.float)
+        else:
+            self.value = backend.float(value)
+
+    def get_scheduled(
+        self, turn_i: int, reference_time: float
+    ) -> float | int | NumpyArray:
+        return self.value
+
+
+class ScheduledArray(_Scheduled):
+    def __init__(self, values: NumpyArray):
+        super().__init__()
+        self.values = values.astype(backend.float)
+
+    def get_scheduled(self, turn_i: int, reference_time: float) -> NumpyArray:
+        return self.values[turn_i]
+
+
+class ScheduledInterpolation(_Scheduled):
+    def __init__(self, times: NumpyArray, values: NumpyArray):
+        super().__init__()
+        self.times = times
+        self.values = values # TODO values.astype(backend.float)
+
+    def get_scheduled(self, turn_i: int, reference_time: float):
+        return np.interp(reference_time, self.times, self.values)
+
+
+def get_scheduler(
+    value: float | int | NumpyArray | Tuple[NumpyArray, NumpyArray],
+    mode: Literal["per-turn", "constant"] | None = None,
+):
+    if isinstance(value, int) or isinstance(value, float):
+        return ScheduledConstant(value=value)
+    elif isinstance(value, np.ndarray):
+        assert mode is not None
+        if mode == "per-turn":
+            return ScheduledArray(values=value)
+        elif mode == "constant":
+            return ScheduledConstant(value=value)
+    elif isinstance(value, np.ndarray):
+        return ScheduledInterpolation(times=value[0], values=value[1])
 
 
 class DynamicParameter:  # TODO add code generation for this method with type-hints

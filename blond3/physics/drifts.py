@@ -8,7 +8,7 @@ from unittest.mock import Mock
 import numpy as np
 
 from .._core.backends.backend import backend
-from .._core.base import BeamPhysicsRelevant, HasPropertyCache
+from .._core.base import BeamPhysicsRelevant, HasPropertyCache, Schedulable
 from .._core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -23,7 +23,11 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class DriftBaseClass(BeamPhysicsRelevant, ABC):
-    def __init__(self, share_of_circumference: float, section_index: int = 0):
+    def __init__(
+        self,
+        share_of_circumference: float,
+        section_index: int = 0,
+    ):
         super().__init__(section_index=section_index)
         self._share_of_circumference: backend.float = backend.float(
             share_of_circumference
@@ -45,85 +49,78 @@ class DriftBaseClass(BeamPhysicsRelevant, ABC):
         pass
 
 
-class DriftSimple(DriftBaseClass, HasPropertyCache):
+class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
     def __init__(
         self,
         share_of_circumference: float = 1.0,
         section_index: int = 0,
     ):
         super().__init__(
-            share_of_circumference=share_of_circumference, section_index=section_index
+            share_of_circumference=share_of_circumference,
+            section_index=section_index,
         )
 
+        self._transition_gamma: float | None = None
+        self._momentum_compaction_factor: float | None = None
+        self.length: float | None = None
+
         self._simulation: LateInit[Simulation] = None
-        self._transition_gamma: LateInit[NumpyArray] = None
-        self._length: LateInit[float] = None
+
+    @property  # read only, set by `transition_gamma`
+    def momentum_compaction_factor(self):
+        return self._momentum_compaction_factor
+
+    @property
+    def transition_gamma(self):
+        return self._transition_gamma
+
+    @transition_gamma.setter
+    def transition_gamma(self, transition_gamma):
+        transition_gamma = backend.float(transition_gamma)
+        self._momentum_compaction_factor = 1 / (transition_gamma * transition_gamma)
+        self._transition_gamma = transition_gamma
 
     @staticmethod
     def headless(
         transition_gamma: float | Iterable | Tuple[NumpyArray, NumpyArray],
-        gamma: NumpyArray,
         circumference: float,
         share_of_circumference: float,
         section_index: int = 0,
-        cycle_time: Optional[NumpyArray] = None,
     ):
-        n_turns = gamma.shape[1]
-        if cycle_time is None:
-            cycle_time = np.empty((section_index + 1, n_turns))
-        assert gamma.shape == cycle_time.shape, (
-            f"Need shape (section_index " f"+ 1, n_turns), i.e. {cycle_time.shape}"
-        )
         d = DriftSimple(
             share_of_circumference=share_of_circumference,
             section_index=section_index,
         )
+        d.transition_gamma = transition_gamma
         from .._core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
-        simulation.energy_cycle.cycle_time = cycle_time
-        simulation.energy_cycle.n_turns = n_turns
-        simulation.energy_cycle.gamma = gamma
-        simulation.ring.transition_gamma_init = transition_gamma
         simulation.ring.circumference = circumference
         d.on_init_simulation(simulation=simulation)
         d.on_run_simulation(simulation=simulation, turn_i_init=0, n_turns=1)
         return d
 
-    @requires(
-        [
-            "EnergyCycleBase",  #  for energy_cycle
-            "BeamPhysicsRelevantElements",  # for .section_index,
-        ]
-    )
     def on_init_simulation(self, simulation: Simulation) -> None:
-        energy_cycle: EnergyCycleBase = simulation.energy_cycle
-        from blond.input_parameters.ring_options import RingOptions
-
-        ring_options = RingOptions()
-        self._transition_gamma = (
-            ring_options.reshape_data(  # FIXME use correct reshaping
-                input_data=simulation.ring.transition_gamma_init,
-                n_turns=energy_cycle.n_turns - 1,
-                n_sections=1,
-                interp_time=energy_cycle.cycle_time[self.section_index, :],
-            )[0, :]
-        )
+        super().on_init_simulation(simulation=simulation)
         self._simulation = simulation
-        self._length = self.share_of_circumference * simulation.ring.circumference
-
-    @property  # as readonly attributes # as readonly attributes
-    def transition_gamma(self) -> backend.float | NumpyArray:
-        return self._transition_gamma
-
-    @property  # as readonly attributes # as readonly attributes
-    def length(self) -> backend.float | NumpyArray:
-        return self._length
+        self.length = self.share_of_circumference * simulation.ring.circumference
+        if (
+            self.transition_gamma is None
+        ) and "transition_gamma" not in self.schedules.keys():
+            raise ValueError(
+                "You need to define `transition_gamma` via `.transition_gamma=...` "
+                "or `.schedule(attribute='transition_gamma', value=...)`"
+            )
 
     def track(self, beam: BeamBaseClass):
-        dt = self.length / beam.reference_velocity
+        super().track(beam=beam)
+        self.apply_schedules(
+            turn_i=self._simulation.turn_i.value,
+            reference_time=beam.reference_time,
+        )
+        dt = backend.float(self.length / beam.reference_velocity)
         gamma = beam.reference_gamma
-        eta_0 = self.alpha_0[self._simulation.turn_i.value] - (1 / (gamma * gamma))
+        eta_0 = self.alpha_0 - (1 / (gamma * gamma))
         backend.specials.drift_simple(
             dt=beam.write_partial_dt(),
             dE=beam.read_partial_dE(),
@@ -134,30 +131,17 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         )
         beam.reference_time += dt
 
-    @cached_property  # as readonly attributes # as readonly attributes
-    def eta_0(self) -> NumpyArray:
-        return np.ascontiguousarray(
-            self.alpha_0
-            - self._simulation.energy_cycle.gamma[self.section_index, :] ** (-2.0),
-            dtype=backend.float,
-        )
-
-    @cached_property
-    def momentum_compaction_factor(self) -> backend.float | NumpyArray:
-        return 1 / (self._transition_gamma * self._transition_gamma)
-
-    cached_props = (
-        "momentum_compaction_factor",
-        "eta_0",
-    )
+    def eta_0(self, gamma: float) -> backend.float:
+        return backend.float(self.alpha_0 - (1 / (gamma * gamma)))
 
     # alias of momentum_compaction_factor
     @property  # as readonly attributes
-    def alpha_0(self) -> backend.float | NumpyArray:
+    def alpha_0(self) -> backend.float:
         return self.momentum_compaction_factor
 
     def invalidate_cache(self):
-        super()._invalidate_cache(DriftSimple.cached_props)
+        # super()._invalidate_cache(DriftSimple.cached_props)
+        pass
 
 
 class DriftSpecial(DriftBaseClass):

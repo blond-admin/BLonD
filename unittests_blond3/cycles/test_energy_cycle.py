@@ -218,7 +218,7 @@ class TestConstantEnergyCycle(unittest.TestCase):
             mass=1,
             charge=2,
         )
-        cec.t_section[0]
+        self.assertEqual(cec.total_energy.shape, (2, 12))
 
 
 class EnergyCycleBaseHelper(EnergyCycleBase):
@@ -241,17 +241,6 @@ class TestEnergyCycleBase(unittest.TestCase):
     def test___init__(self):
         self.assertIsInstance(self.energy_cycle_base, EnergyCycleBase)
 
-    def test_beta(self):
-        beta = self.energy_cycle_base.beta
-        expected = self.energy_cycle_base._momentum / np.sqrt(
-            self.energy_cycle_base._momentum**2 + self.energy_cycle_base._mass**2
-        )
-        assert_allclose(beta, expected, rtol=1e-8)
-
-    def test_gamma(self):
-        gamma = self.energy_cycle_base.gamma
-        expected = 1 / np.sqrt(1 - self.energy_cycle_base.beta**2)
-        assert_allclose(gamma, expected, rtol=1e-8)
 
     def test_energy(self):
         energy = self.energy_cycle_base.total_energy
@@ -260,51 +249,6 @@ class TestEnergyCycleBase(unittest.TestCase):
         )
         assert_allclose(energy, expected, rtol=1e-8)
 
-    def test_kin_energy(self):
-        kin_energy = self.energy_cycle_base.kin_energy
-        expected = self.energy_cycle_base.total_energy - self.energy_cycle_base._mass
-        assert_allclose(kin_energy, expected, rtol=1e-8)
-
-    def test_delta_E(self):
-        delta_e = self.energy_cycle_base.delta_E
-        energy = self.energy_cycle_base.kin_energy
-        expected = np.diff(energy.flatten("K"))
-        assert_allclose(delta_e.flatten("K")[1:], expected, rtol=1e-8)
-
-    def test_t_section(self):
-        beta = self.energy_cycle_base.beta[:, 0]
-        lengths = self.energy_cycle_base._section_lengths
-        expected_time = lengths / (beta * c0)
-        actual_time = self.energy_cycle_base.t_section
-        assert actual_time.shape == (3, 2), f"{actual_time.shape=}"
-        assert_allclose(actual_time[:, 0], expected_time, rtol=1e-8)
-
-    def test_t_rev(self):
-        for turn_i in range(2):
-            beta = self.energy_cycle_base.beta[:, turn_i]
-            lengths = self.energy_cycle_base._section_lengths
-            c = 299_792_458  # m/s
-            expected_time = np.sum(lengths / (beta * c))
-            actual_time = self.energy_cycle_base.t_rev[turn_i]
-            self.assertEqual(actual_time, expected_time)
-
-    def test_cycle_time(self):
-        beta = self.energy_cycle_base.beta[:, 0]
-        lengths = self.energy_cycle_base._section_lengths
-        c = 299_792_458  # m/s
-        expected_time = np.cumsum(lengths / (beta * c))
-        actual_time = self.energy_cycle_base.cycle_time[:, 0]
-        assert_allclose(actual_time, expected_time, rtol=1e-8)
-
-    # @unittest.skip
-    # def test_omega_rev(self):
-    #    # TODO: implement test for `omega_rev`
-    #    self.energy_cycle_base.omega_rev()
-
-    def test_f_rev(self):
-        expected_freq = 1 / self.energy_cycle_base.t_rev
-        actual_freq = self.energy_cycle_base.f_rev
-        assert_allclose(actual_freq, expected_freq, rtol=1e-8)
 
     def test_invalidate_cache(self):
         # This is a placeholder; add actual cache-clearing verification if applicable
@@ -353,7 +297,7 @@ class TestEnergyCycleByTime(unittest.TestCase):
             mass=1,
             charge=2,
         )
-        ebt.t_section[0]
+        self.assertEqual(ebt.total_energy.shape, (2, 124))
 
 
 class TestEnergyCyclePerTurn(unittest.TestCase):
@@ -389,7 +333,7 @@ class TestEnergyCyclePerTurn(unittest.TestCase):
             values_after_turn=np.ones(10),
             section_lengths=np.array([0.5, 1]),
         )
-        evpt.t_section[0]
+        self.assertEqual(evpt.total_energy.shape, (2, 10))
 
 
 class TestEnergyCyclePerTurnAllCavities(unittest.TestCase):
@@ -432,7 +376,7 @@ class TestEnergyCyclePerTurnAllCavities(unittest.TestCase):
             charge=1,
             section_lengths=np.array([0.1, 0.3]),
         )
-        ecptac.t_section[0]
+        self.assertEqual(ecptac.total_energy.shape, (2, 20))
 
 
 if __name__ == "__main__":

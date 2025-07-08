@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from abc import ABC, abstractmethod
 from enum import Enum
 from functools import cached_property
@@ -46,8 +47,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         self._flags = None
         self._is_counter_rotating = is_counter_rotating
 
-        self.reference_time = 0
-        self.reference_total_energy = 0
+        self.reference_time = 0  # todo cached properties
+        self.reference_total_energy = 0  # todo cached properties
 
     @property
     def reference_gamma(self) -> float:
@@ -98,12 +99,26 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         assert self._flags is not None, msg
         index = turn_i_init - 1
         if index < 0:
-            self.reference_total_energy = simulation.energy_cycle.total_energy_init
+            new_reference_total_energy = simulation.energy_cycle.total_energy_init
         else:
-            self.reference_total_energy = simulation.energy_cycle.total_energy[index]
+            new_reference_total_energy = backend.float(
+                simulation.energy_cycle.total_energy[index, 0]
+            )
+        if self.reference_total_energy != new_reference_total_energy:
+            msg = (
+                f"`Bunch` was prepared for "
+                f"total_energy = {self.reference_total_energy} eV, "
+                f"but simulation at {turn_i_init=} is "
+                f"{simulation.energy_cycle.total_energy_init} eV"
+                f"overwriting energy according to simulation."
+            )
+            warnings.warn(msg)
+        self.reference_total_energy = new_reference_total_energy
 
+    @requires(["EnergyCycleBase"])
     def on_init_simulation(self, simulation: Simulation) -> None:
         super().on_init_simulation(simulation=simulation)
+        self.reference_total_energy = simulation.energy_cycle.total_energy_init
 
     @abstractmethod
     def plot_hist2d(self):

@@ -22,12 +22,13 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 ring = Ring(circumference=26658.883,
-            transition_gamma=55.759505,
             )
 
 cavity1 = SingleHarmonicCavity(
-    rf_program=RfStationParams(harmonic=35640, voltage=6e6, phi_rf=0)
 )
+cavity1.harmonic = 35640
+cavity1.voltage = 6e6
+cavity1.phi_rf = 0
 
 N_TURNS = int(1e3)
 energy_cycle = EnergyCyclePerTurn(
@@ -37,6 +38,7 @@ energy_cycle = EnergyCyclePerTurn(
 drift1 = DriftSimple(
     share_of_circumference=1.0,
 )
+drift1.transition_gamma =55.759505
 beam1 = Beam(n_particles=1e9, particle_type=proton)
 
 

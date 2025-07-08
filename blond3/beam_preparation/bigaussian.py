@@ -4,6 +4,7 @@ import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
+from scipy.constants import speed_of_light as c0
 
 from .base import MatchingRoutine
 from .._core.backends.backend import backend
@@ -16,7 +17,6 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from .._core.simulation.simulation import Simulation
     from .._core.beam.base import BeamBaseClass
-    from .. import RfStationParams
 
 
 def _get_dE_from_dt_core(
@@ -61,21 +61,24 @@ def _get_dE_from_dt(simulation: Simulation, dt_amplitude: float) -> float:
     rf_station: SingleHarmonicCavity = simulation.ring.elements.get_element(
         SingleHarmonicCavity
     )
-    rf_station_program: RfStationParams = rf_station.rf_program
+    beam: BeamBaseClass = simulation.beams[0]
 
     counter = simulation.turn_i.value  # todo might need to be set
-
-    harmonic = rf_station_program.harmonic[0, counter]
-    energy = simulation.energy_cycle.total_energy[0, counter]
-    beta = simulation.energy_cycle.beta[0, counter]
-    omega_rf = rf_station_program.omega_rf[0, counter]
-    phi_rf = rf_station_program.phi_rf[0, counter]
-    warnings.warn("assuming wrongly phi_s = phi_rf for development, "
-                  "to be resolved")
+    drift.apply_schedules(turn_i=counter, reference_time=beam.reference_time)
+    rf_station.apply_schedules(turn_i=counter, reference_time=beam.reference_time)
+    harmonic = rf_station.harmonic
+    energy = beam.reference_total_energy
+    beta = beam.reference_beta
+    omega_rf = rf_station.calc_omega(
+        beam_velocity=beam.reference_velocity,
+        ring_circumference=simulation.ring.circumference,
+    )
+    phi_rf = rf_station.phi_rf
+    warnings.warn("assuming wrongly phi_s = phi_rf for development, " "to be resolved")
     phi_s = phi_rf  # TODO rf_station.phi_s[counter]
-    eta0 = drift.eta_0[counter]
-    particle_charge = simulation.beams[0].particle_type.charge
-    voltage = rf_station_program.voltage[0, counter]
+    eta0 = drift.eta_0(gamma=beam.reference_gamma)
+    particle_charge = beam.particle_type.charge
+    voltage = rf_station.voltage
 
     return _get_dE_from_dt_core(
         beta=float(beta),
@@ -116,7 +119,10 @@ class BiGaussian(MatchingRoutine):
         rf_station: SingleHarmonicCavity = simulation.ring.elements.get_element(
             SingleHarmonicCavity
         )
+        rf_station.apply_schedules(turn_i=0, reference_time=0)
+        beam = simulation.beams[0]
         drift: DriftSimple = simulation.ring.elements.get_element(DriftSimple)
+        drift.apply_schedules(turn_i=0, reference_time=0)
 
         if self._sigma_dE is None:
             sigma_dE = _get_dE_from_dt(
@@ -125,14 +131,15 @@ class BiGaussian(MatchingRoutine):
             # IMPORT
         else:
             sigma_dE = self._sigma_dE
-        counter = simulation.turn_i.value  # todo might need to be set
 
-        omega_rf = rf_station.rf_program.omega_rf[0, counter]
-        phi_rf = rf_station.rf_program.phi_rf[0, counter]
+        omega_rf = rf_station.calc_omega(
+            beam_velocity=beam.reference_velocity,
+            ring_circumference=simulation.ring.circumference,
+        )
+        phi_rf = rf_station.phi_rf
         phi_s = np.deg2rad(30 + 180)  # TODO rf_station.phi_s[counter]  # TODO
-        # call to
-        # legacy
-        eta0 = drift.eta_0[counter]
+        # call to legacy
+        eta0 = drift.eta_0(gamma=beam.reference_gamma)
 
         # RF wave is shifted by Pi below transition
         if eta0 < 0:

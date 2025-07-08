@@ -28,7 +28,6 @@ class Ring(Preparable):
     def __init__(
         self,
         circumference: float,
-        transition_gamma: float | Iterable | Tuple[NumpyArray, NumpyArray],
         bending_radius: Optional[float] = None,
     ):
         from .beam_physics_relevant_elements import BeamPhysicsRelevantElements
@@ -41,8 +40,6 @@ class Ring(Preparable):
 
         self._circumference = backend.float(circumference)
         self._bending_radius = backend.float(bending_radius)
-
-        self._transition_gamma_init = transition_gamma
 
 
 
@@ -74,10 +71,6 @@ class Ring(Preparable):
         from ...physics.cavities import CavityBaseClass
 
         return self.elements.count(CavityBaseClass)
-
-    @property  # as readonly attributes
-    def transition_gamma_init(self):
-        return self._transition_gamma_init
 
     @property  # as readonly attributes
     def bending_radius(self):

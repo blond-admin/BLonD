@@ -14,7 +14,6 @@ class TestCavityBaseClass(unittest.TestCase):
     def setUp(self):
         self.cavity_base_class = CavityBaseClass(
             n_rf=10,
-            rf_program=Mock(RfStationParams),
             section_index=0,
             local_wakefield=Mock(WakeField),
             cavity_feedback=Mock(LocalFeedback),
@@ -41,8 +40,7 @@ class TestCavityBaseClass(unittest.TestCase):
             turn_i_init=1,
         )
 
-    def test_rf_program(self):
-        self.assertTrue(self.cavity_base_class.rf_program is not None)
+
 
     @unittest.skip
     def test_track(self):
@@ -54,7 +52,6 @@ class TestMultiHarmonicCavity(unittest.TestCase):
     def setUp(self):
         self.multi_harmonic_cavity = MultiHarmonicCavity(
             n_harmonics=15,
-            rf_program=Mock(RfStationParams),
             section_index=0,
             local_wakefield=Mock(WakeField),
             cavity_feedback=Mock(LocalFeedback),
@@ -72,7 +69,6 @@ class TestMultiHarmonicCavity(unittest.TestCase):
 class TestSingleHarmonicCavity(unittest.TestCase):
     def setUp(self):
         self.single_harmonic_cavity = SingleHarmonicCavity(
-            rf_program=Mock(RfStationParams),
             section_index=0,
             local_wakefield=Mock(WakeField),
             cavity_feedback=Mock(LocalFeedback),

@@ -14,6 +14,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def int_from_float_with_warning(value: float | int, warning_stacklevel: int) -> int:
+    """Make int from float, warn if there are fractional digits"""
     if isinstance(value, int):
         return value
     elif isinstance(value, float):

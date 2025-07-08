@@ -12,23 +12,23 @@ from blond3.physics.drifts import DriftBaseClass
 class TestRing(unittest.TestCase):
     def setUp(self):
         # TODO: implement test for `__init__`
-        self.ring = Ring(circumference=23, transition_gamma=1.2, bending_radius=None)
+        self.ring = Ring(circumference=23, bending_radius=None)
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
     def test_circumference(self):
-        ring = Ring(10.0,transition_gamma=12)
+        ring = Ring(10.0)
         self.assertTrue(np.isclose(ring._circumference, 10.0))
         self.assertTrue(np.isclose(ring.circumference, 10.0))
 
     def test_bending_radius(self):
-        ring = Ring(10.0, transition_gamma=1.2, bending_radius=2.0)
+        ring = Ring(10.0, bending_radius=2.0)
         self.assertEqual(ring._bending_radius, 2.0)
         self.assertEqual(ring.bending_radius, 2.0)
 
     def test_bending_radius_calculated_if_none(self):
-        ring = Ring(2 * np.pi,transition_gamma=12)  # Should produce radius 1.0
+        ring = Ring(2 * np.pi)  # Should produce radius 1.0
         expected_radius = 1.0
         self.assertTrue(np.isclose(ring._bending_radius, expected_radius))
 

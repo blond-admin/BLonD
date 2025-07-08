@@ -108,7 +108,7 @@ class FortranSpecials(Specials):
         kick_module.kick_multi_harmonic(
             dt=dt,
             de=dE,
-            n_rf=len(voltage),
+            n_rf=n_rf,
             charge=charge,
             voltage=voltage[:],
             omega_rf=omega_rf[:],

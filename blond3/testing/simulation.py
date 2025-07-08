@@ -25,12 +25,13 @@ class ExampleSimulation01:
 
         ring = Ring(
             circumference=26658.883,
-            transition_gamma=55.759505,
         )
 
-        cavity1 = SingleHarmonicCavity(
-            rf_program=RfStationParams(harmonic=35640, voltage=6e6, phi_rf=0)
-        )
+        cavity1 = SingleHarmonicCavity( )
+        cavity1.harmonic = 35640
+        cavity1.voltage = 6e6
+        cavity1.phi_rf = 0
+
 
         N_TURNS = int(10)
         energy_cycle = EnergyCyclePerTurn(
@@ -40,6 +41,8 @@ class ExampleSimulation01:
         drift1 = DriftSimple(
             share_of_circumference=1.0,
         )
+        drift1.transition_gamma = 55.759505,
+
         beam1 = Beam(n_particles=1e9, particle_type=proton)
 
         simulation = Simulation.from_locals(locals())
@@ -92,16 +95,22 @@ class SimulationTwoRfStations:
             RfStationParams,
         )
 
-        ring = Ring(circumference=26658.883, transition_gamma=55.759505)
+        ring = Ring(circumference=26658.883)
 
         cavity1 = SingleHarmonicCavity(
-            rf_program=RfStationParams(harmonic=35640, voltage=6e6, phi_rf=0),
             section_index=0,
         )
+        cavity1.harmonic=35640
+        cavity1.voltage=6e6
+        cavity1.phi_rf=0
+
         cavity2 = SingleHarmonicCavity(
-            rf_program=RfStationParams(harmonic=35640, voltage=6e6, phi_rf=0),
             section_index=1,
         )
+        cavity2.harmonic=35640
+        cavity2.voltage=6e6
+        cavity2.phi_rf=0
+
 
         N_TURNS = int(10)
         energy_cycle = EnergyCyclePerTurn(
@@ -109,7 +118,9 @@ class SimulationTwoRfStations:
         )
 
         drift1 = DriftSimple(share_of_circumference=0.5, section_index=0)
+        drift1.transition_gamma=55.759505
         drift2 = DriftSimple(share_of_circumference=0.5, section_index=1)
+        drift2.transition_gamma=55.759505
         beam1 = Beam(n_particles=1e9, particle_type=proton)
 
         simulation = Simulation.from_locals(locals())

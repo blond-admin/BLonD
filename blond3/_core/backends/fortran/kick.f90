@@ -17,7 +17,6 @@ subroutine kick_single_harmonic(dt, dE, voltage, omega_rf, phi_rf, charge, accel
     !$omp end parallel do
 end subroutine kick_single_harmonic
 
-
 subroutine kick_multi_harmonic(dt, dE, n_rf, charge, voltage, omega_RF, phi_RF, n_macroparticles, acc_kick)
     use omp_lib
     implicit none
@@ -34,17 +33,61 @@ subroutine kick_multi_harmonic(dt, dE, n_rf, charge, voltage, omega_RF, phi_RF, 
     integer :: i, j
     real(kind=8) :: dE_sum, dti
 
-    !$omp parallel do private(i, j, dE_sum, dti) shared(dt, dE, voltage, omega_RF, phi_RF, charge, acc_kick)
-    do i = 1, n_macroparticles
-        dti = dt(i)
-        dE_sum = 0.0d0
+    select case (n_rf)
 
-        do j = 1, n_rf
-            dE_sum = dE_sum + voltage(j) * sin(omega_RF(j) * dti + phi_RF(j))
+    case (1)
+        !$omp parallel do private(i, dti, dE_sum) shared(dt, dE, voltage, omega_RF, phi_RF, charge, acc_kick)
+        do i = 1, n_macroparticles
+            dti = dt(i)
+            dE(i) = dE(i) + charge * voltage(1) * sin(omega_RF(1) * dt(i) + phi_RF(1)) + acc_kick
         end do
+        !$omp end parallel do
 
-        dE(i) = dE(i) + charge * dE_sum + acc_kick
-    end do
-    !$omp end parallel do
+    case (2)
+        !$omp parallel do private(i, dti, dE_sum) shared(dt, dE, voltage, omega_RF, phi_RF, charge, acc_kick)
+        do i = 1, n_macroparticles
+            dti = dt(i)
+            dE_sum = voltage(1) * sin(omega_RF(1) * dti + phi_RF(1)) + &
+                     voltage(2) * sin(omega_RF(2) * dti + phi_RF(2))
+            dE(i) = dE(i) + charge * dE_sum + acc_kick
+        end do
+        !$omp end parallel do
+
+    case (3)
+        !$omp parallel do private(i, dti, dE_sum) shared(dt, dE, voltage, omega_RF, phi_RF, charge, acc_kick)
+        do i = 1, n_macroparticles
+            dti = dt(i)
+            dE_sum = voltage(1) * sin(omega_RF(1) * dti + phi_RF(1)) + &
+                     voltage(2) * sin(omega_RF(2) * dti + phi_RF(2)) + &
+                     voltage(3) * sin(omega_RF(3) * dti + phi_RF(3))
+            dE(i) = dE(i) + charge * dE_sum + acc_kick
+        end do
+        !$omp end parallel do
+
+    case (4)
+        !$omp parallel do private(i, dti, dE_sum) shared(dt, dE, voltage, omega_RF, phi_RF, charge, acc_kick)
+        do i = 1, n_macroparticles
+            dti = dt(i)
+            dE_sum = voltage(1) * sin(omega_RF(1) * dti + phi_RF(1)) + &
+                     voltage(2) * sin(omega_RF(2) * dti + phi_RF(2)) + &
+                     voltage(3) * sin(omega_RF(3) * dti + phi_RF(3)) + &
+                     voltage(4) * sin(omega_RF(4) * dti + phi_RF(4))
+            dE(i) = dE(i) + charge * dE_sum + acc_kick
+        end do
+        !$omp end parallel do
+
+    case default
+        !$omp parallel do private(i, dti, dE_sum) shared(dt, dE, voltage, omega_RF, phi_RF, charge, acc_kick, n_rf)
+        do i = 1, n_macroparticles
+            dti = dt(i)
+            dE_sum = 0.0d0
+            do j = 1, n_rf
+                dE_sum = dE_sum + voltage(j) * sin(omega_RF(j) * dti + phi_RF(j))
+            end do
+            dE(i) = dE(i) + charge * dE_sum + acc_kick
+        end do
+        !$omp end parallel do
+
+    end select
 
 end subroutine kick_multi_harmonic

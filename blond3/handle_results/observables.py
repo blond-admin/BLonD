@@ -155,7 +155,7 @@ class CavityPhaseObservation(Observables):
             simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
         )
         n_entries = n_turns // self.each_turn_i + 2
-        n_harmonics = self._cavity.rf_program.phi_rf.shape[0]
+        n_harmonics = self._cavity.n_rf
         self._phases = DenseArrayRecorder(
             f"{simulation.get_hash}_phases",
             (n_entries, n_harmonics),
@@ -171,13 +171,13 @@ class CavityPhaseObservation(Observables):
 
     def update(self, simulation: Simulation):
         self._phases.write(
-            self._cavity._rf_program.phi_rf[:, simulation.turn_i.value],
+            self._cavity.phi_rf,
         )
         self._omegas.write(
-            self._cavity._rf_program.omega_rf[:, simulation.turn_i.value],
+            self._cavity._omegas,
         )
         self._voltages.write(
-            self._cavity._rf_program.voltage[:, simulation.turn_i.value],
+            self._cavity.voltage,
         )
 
     @property  # as readonly attributes

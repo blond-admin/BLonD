@@ -42,7 +42,7 @@ class Beam(BeamBaseClass):
         dE: NumpyArray | CupyArray,
         flags: Optional[NumpyArray | CupyArray] = None,
     ):
-        assert len(dt) == len(dE)
+        assert len(dt) == len(dE), f"{len(dt)} != {len(dE)}"
         n_particles = len(dt)
         if flags is None:
             flags = BeamFlags.ACTIVE.value * np.ones(n_particles, dtype=backend.int)

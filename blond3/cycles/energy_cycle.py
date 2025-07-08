@@ -152,30 +152,8 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
         return self._momentum.shape[1]
 
     @cached_property  # as readonly attributes
-    def beta(self) -> NumpyArray:
-        return calc_beta(mass=self._mass, momentum=self._momentum[:, :])
-
-    @cached_property  # as readonly attributes
-    def gamma(self) -> NumpyArray:
-        return calc_gamma(mass=self._mass, momentum=self._momentum[:, :])
-
-    @cached_property  # as readonly attributes
     def total_energy(self) -> NumpyArray:
         return calc_total_energy(mass=self._mass, momentum=self._momentum[:, :])
-
-    @cached_property  # as readonly attributes
-    def kin_energy(self) -> NumpyArray:
-        return calc_energy_kin(mass=self._mass, momentum=self._momentum[:, :])
-
-    @cached_property  # as readonly attributes
-    def delta_E(self) -> NumpyArray:
-        shape2d = self.total_energy.shape
-        energy1d = self.total_energy.flatten("K")
-        energy_init = self.total_energy_init
-        energy1d = np.concatenate(([energy_init], energy1d))
-        diff1d = np.diff(energy1d)  # loses one entry
-        diff2d = diff1d.reshape(shape2d, order="F")
-        return diff2d
 
     @cached_property  # as readonly attributes
     def total_energy_init(self):
@@ -183,24 +161,8 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
                                         momentum=self._momentum_init)
         return energy_init
 
-    @cached_property  # as readonly attributes
-    def t_section(self) -> NumpyArray:
-        return (self._section_lengths[:] / (self.beta[:, :].T * c0)).T
 
-    @cached_property  # as readonly attributes
-    def t_rev(self) -> NumpyArray:
-        return np.dot(self._section_lengths[:], 1 / (self.beta[:, :] * c0))
 
-    @cached_property  # as readonly attributes
-    def cycle_time(self) -> NumpyArray:
-        shape2d = self.t_section.shape
-        c_time = np.cumsum(self.t_section.flatten("K")).reshape(shape2d, order="F")
-        c_time = c_time.astype(float, order="C")
-        return c_time
-
-    @cached_property  # as readonly attributes
-    def f_rev(self) -> NumpyArray:
-        return 1 / self.t_rev  # TODO
 
     # @cached_property  # as readonly attributes
     # def omega_rev(self) -> NumpyArray:
