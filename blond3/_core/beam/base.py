@@ -84,6 +84,11 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         return self._is_counter_rotating
 
     @requires(["EnergyCycleBase"])
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        super().on_init_simulation(simulation=simulation)
+        self.reference_total_energy = simulation.energy_cycle.total_energy_init
+
+    @requires(["EnergyCycleBase"])
     def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int):
         super().on_run_simulation(
             simulation=simulation,
@@ -114,11 +119,6 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             )
             warnings.warn(msg)
         self.reference_total_energy = new_reference_total_energy
-
-    @requires(["EnergyCycleBase"])
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        super().on_init_simulation(simulation=simulation)
-        self.reference_total_energy = simulation.energy_cycle.total_energy_init
 
     @abstractmethod
     def plot_hist2d(self):

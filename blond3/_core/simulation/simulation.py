@@ -51,7 +51,9 @@ class Simulation(Preparable, HasPropertyCache):
 
         self._exec_on_init_simulation()
 
-    def profiling(self, turn_i_init: int, profile_start_turn_i: int, profile_n_turns: int):
+    def profiling(
+        self, turn_i_init: int, profile_start_turn_i: int, profile_n_turns: int
+    ):
         import cProfile, pstats, io
         from pstats import SortKey
 
@@ -77,10 +79,10 @@ class Simulation(Preparable, HasPropertyCache):
         print(s.getvalue())
 
     def get_potential_well_analytic(self):
-        raise NotImplementedError # TODO
+        raise NotImplementedError  # TODO
 
     def get_potential_well_empiric(self):
-        raise NotImplementedError # TODO
+        raise NotImplementedError  # TODO
 
         from ... import WakeField
         from ...physics.cavities import CavityBaseClass

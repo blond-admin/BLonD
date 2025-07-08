@@ -118,8 +118,6 @@ def c_complex(scalar: complex):
 precision = PrecisionClass("double")
 
 
-
-
 def load_libblond(precision: str = "single"):
     """Locates and initializes the blond compiled library
     @param precision: The floating point precision of the calculations. Can be 'single' or 'double'.
@@ -131,17 +129,13 @@ def load_libblond(precision: str = "single"):
         if libblond_path:
             libblond_path = os.path.abspath(libblond_path)
         else:
-            libblond_path = os.path.join(
-                basepath, f"libblond_{precision}.so"
-            )
+            libblond_path = os.path.join(basepath, f"libblond_{precision}.so")
         _LIBBLOND = ct.CDLL(libblond_path)
     elif "win" in sys.platform:
         if libblond_path:
             libblond_path = os.path.abspath(libblond_path)
         else:
-            libblond_path = os.path.join(
-                basepath, f"libblond_{precision}.dll"
-            )
+            libblond_path = os.path.join(basepath, f"libblond_{precision}.dll")
         if hasattr(os, "add_dll_directory"):
             os.add_dll_directory(os.path.dirname(libblond_path))
             _LIBBLOND = ct.CDLL(libblond_path, winmode=0)
@@ -152,6 +146,7 @@ def load_libblond(precision: str = "single"):
         sys.exit()
 
     return _LIBBLOND
+
 
 _LIBBLOND = load_libblond(precision="double")
 

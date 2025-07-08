@@ -1,7 +1,6 @@
 from blond3 import (
     SingleHarmonicCavity,
     StaticProfile,
-
     DriftSimple,
     EnergyCycle,
     Beam,
@@ -53,8 +52,12 @@ class Main:
         # Here everything might be interconnected
         simulation = Simulation(ring=my_accelerator)
         # Already minor simulation of single turn
-        simulation.prepare_beam(preparation_routine=EmittanceMatcher(some_emittance=10       ,     n_macroparticles=1e6,
-))
+        simulation.prepare_beam(
+            preparation_routine=EmittanceMatcher(
+                some_emittance=10,
+                n_macroparticles=1e6,
+            )
+        )
         return simulation
 
     @staticmethod

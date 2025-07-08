@@ -5,5 +5,5 @@ from .base import NoiseGenerator
 
 class VariNoise(NoiseGenerator):
     def get_noise(self, n_turns: int):
-        raise NotImplementedError()  #TODO
+        raise NotImplementedError()  # TODO
         pass

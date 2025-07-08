@@ -23,8 +23,13 @@ from ..._core.backends.backend import backend
 class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain):
     def get_freq_y(self, freq_x: NumpyArray, sim: Simulation) -> NumpyArray:
         imp = np.zeros(len(freq_x), dtype=backend.complex)
-        imp[:] = 1j * self.Z_over_n * sim.energy_cycle.f_rev[
-            0 if sim.turn_i.value is None else sim.turn_i.value]
+        imp[:] = (
+            1j
+            * self.Z_over_n
+            * sim.energy_cycle.f_rev[
+                0 if sim.turn_i.value is None else sim.turn_i.value
+            ]
+        )
         return imp
 
     def __init__(self, Z_over_n: float):
@@ -43,12 +48,16 @@ class ImpedanceTable(DiscreteWakeFieldSource):
 
 
 class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
-    def __init__(self,freq_x: NumpyArray,
-    freq_y: NumpyArray,):
+    def __init__(
+        self,
+        freq_x: NumpyArray,
+        freq_y: NumpyArray,
+    ):
         self.freq_x = freq_x
         self.freq_y = freq_y
-        self.__at_freq_x: Optional[NumpyArray] = field(default=None,
-                                                       init=False, repr=False)
+        self.__at_freq_x: Optional[NumpyArray] = field(
+            default=None, init=False, repr=False
+        )
 
     def get_freq_y(self, freq_x: NumpyArray, sim: Simulation) -> NumpyArray:
         if self.__at_freq_x is not None:
@@ -60,8 +69,9 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
 
     @cached_property
     def _get_freq_y(self):
-        return np.interp(self.__at_freq_x, self.freq_x, self.freq_y, left=0, right=0).astype(
-            backend.complex)
+        return np.interp(
+            self.__at_freq_x, self.freq_x, self.freq_y, left=0, right=0
+        ).astype(backend.complex)
 
     @staticmethod
     def from_file(filepath: PathLike, reader: ImpedanceReader) -> ImpedanceTableFreq:

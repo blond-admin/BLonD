@@ -157,29 +157,17 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
 
     @cached_property  # as readonly attributes
     def total_energy_init(self):
-        energy_init = calc_total_energy(mass=self._mass,
-                                        momentum=self._momentum_init)
+        energy_init = calc_total_energy(mass=self._mass, momentum=self._momentum_init)
         return energy_init
-
-
-
 
     # @cached_property  # as readonly attributes
     # def omega_rev(self) -> NumpyArray:
     #    return 2 * np.pi * self.f_rev  # todo
 
     cached_props = (
-        "total_energy_init",
         "n_turns",
-        "beta",
-        "gamma",
-        "energy",
-        "kin_energy",
-        "delta_E",
-        "t_rev",
-        "cycle_time",
-        "f_rev",
-        "omega_rev",
+        "total_energy",
+        "total_energy_init",
     )
 
     def invalidate_cache(self):

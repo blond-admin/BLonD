@@ -21,7 +21,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from .. import Ring
     from .._core.beam.base import BeamBaseClass
     from .._core.simulation.simulation import Simulation
-    from ..cycles.rf_parameter_cycle import RfStationParams
     from ..cycles.energy_cycle import EnergyCycleBase
 
 
@@ -71,7 +70,6 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
 
 
 class SingleHarmonicCavity(CavityBaseClass):
-    _rf_program: RfStationParams  # make type hint more specific
 
     def __init__(
         self,
@@ -137,7 +135,6 @@ class SingleHarmonicCavity(CavityBaseClass):
 
 
 class MultiHarmonicCavity(CavityBaseClass):
-    _rf_program: RfStationParams  # make type hint more specific
 
     def __init__(
         self,

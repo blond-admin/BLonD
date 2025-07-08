@@ -344,7 +344,7 @@ class EnergyCycle(EnergyCycleBase):
 
     @cached_property
     def n_turns(self):
-        return len(self._synchronous_data) # TODO wrong
+        return len(self._synchronous_data)  # TODO wrong
 
     @cached_property  # as readonly attributes
     def beta(self) -> NumpyArray:
@@ -448,4 +448,3 @@ class InterpolatedEnergyCycle(EnergyCycle):
         )
         # todo steal equations from blond
         self._invalidate_cache()
-

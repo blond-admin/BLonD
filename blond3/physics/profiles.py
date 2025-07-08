@@ -34,8 +34,9 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         assert self._hist_y is not None
         self.invalidate_cache()
 
-    def on_run_simulation(self, simulation: Simulation, n_turns: int,
-                          turn_i_init: int) -> None:
+    def on_run_simulation(
+        self, simulation: Simulation, n_turns: int, turn_i_init: int
+    ) -> None:
         pass
 
     @property  # as readonly attributes
@@ -77,10 +78,11 @@ class ProfileBaseClass(BeamPhysicsRelevant):
             raise NotImplementedError("Impleemt hisogram on distributed array")
         else:
             n, bin_edges = backend.histogram(
-                beam.read_partial_dt(), range=(self.cut_left, self.cut_right),
-                bins=len(self._hist_y)
+                beam.read_partial_dt(),
+                range=(self.cut_left, self.cut_right),
+                bins=len(self._hist_y),
             )
-            self._hist_y[:] = n[:] # todo faster implementation, fix backend
+            self._hist_y[:] = n[:]  # todo faster implementation, fix backend
         self.invalidate_cache()
 
     @staticmethod

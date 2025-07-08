@@ -22,8 +22,7 @@ import os
 import matplotlib as mpl
 import numpy as np
 
-from blond.impedances.induced_voltage_analytical import \
-    analytical_gaussian_resonator
+from blond.impedances.induced_voltage_analytical import analytical_gaussian_resonator
 from blond3 import (
     BiGaussian,
     Beam,

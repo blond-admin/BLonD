@@ -29,7 +29,8 @@ from blond3 import (
     ConstantEnergyCycle,
     RfStationParams,
     WakeField,
-    StaticProfile, BiGaussian,
+    StaticProfile,
+    BiGaussian,
 )
 from blond3.physics.impedances.readers import (
     ExampleImpedanceReader1,
@@ -55,7 +56,7 @@ sync_momentum = np.sqrt(tot_beam_energy**2 - E_0**2)  # [eV / c]
 ring = Ring(circumference=(2 * np.pi * 25))
 energy_cycle = ConstantEnergyCycle(sync_momentum, max_turns=10)
 cavity1 = SingleHarmonicCavity(
-    rf_program=RfStationParams(harmonic=1,voltage=8e3, phi_rf=np.pi),
+    rf_program=RfStationParams(harmonic=1, voltage=8e3, phi_rf=np.pi),
 )
 drift = DriftSimple(
     transition_gamma=4.4,
@@ -87,5 +88,7 @@ wakefield2 = WakeField(
 )
 
 sim = Simulation.from_locals(locals())
-sim.on_prepare_beam(BiGaussian(180e-9 / 4, reinsertion=False, seed=1, n_macroparticles=1001))
+sim.on_prepare_beam(
+    BiGaussian(180e-9 / 4, reinsertion=False, seed=1, n_macroparticles=1001)
+)
 sim.run_simulation(n_turns=2)

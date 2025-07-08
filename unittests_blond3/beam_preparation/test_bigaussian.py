@@ -1,7 +1,8 @@
 import unittest
 
 from blond3 import BiGaussian
-from blond3.beam_preparation.bigaussian import _get_dE_from_dt_core, _get_dE_from_dt
+from blond3.beam_preparation.bigaussian import _get_dE_from_dt_core, \
+    _get_dE_from_dt
 from blond3.testing.simulation import ExampleSimulation01
 
 

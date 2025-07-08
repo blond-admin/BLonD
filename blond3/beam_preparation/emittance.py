@@ -6,7 +6,7 @@ from .._core.simulation.simulation import Simulation
 
 class EmittanceMatcher(MatchingRoutine):
     def __init__(self, some_emittance: float):
-        raise NotImplementedError("To be developed") # TODO
+        raise NotImplementedError("To be developed")  # TODO
         super().__init__()
         self.some_emittance = some_emittance
 

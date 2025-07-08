@@ -41,11 +41,9 @@ class Ring(Preparable):
         self._circumference = backend.float(circumference)
         self._bending_radius = backend.float(bending_radius)
 
-
-
     def on_init_simulation(self, simulation: Simulation) -> None:
         from ...physics.drifts import DriftBaseClass  # prevent cyclic import
-        from blond.input_parameters.ring_options import RingOptions # TODO blond3
+        from blond.input_parameters.ring_options import RingOptions  # TODO blond3
 
         all_drifts = self.elements.get_elements(DriftBaseClass)
         sum_share_of_circumference = sum(
@@ -59,7 +57,6 @@ class Ring(Preparable):
             f"{len(self.elements.get_sections_indices())=}, " f"but {self.n_cavities=}"
         )
         # todo assert some kind of order inside the sections
-
 
     def on_run_simulation(
         self, simulation: Simulation, n_turns: int, turn_i_init: int

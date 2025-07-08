@@ -19,7 +19,6 @@ class ExampleSimulation01:
             SingleHarmonicCavity,
             DriftSimple,
             BiGaussian,
-            RfStationParams,
             CavityPhaseObservation,
         )
 
@@ -27,11 +26,10 @@ class ExampleSimulation01:
             circumference=26658.883,
         )
 
-        cavity1 = SingleHarmonicCavity( )
+        cavity1 = SingleHarmonicCavity()
         cavity1.harmonic = 35640
         cavity1.voltage = 6e6
         cavity1.phi_rf = 0
-
 
         N_TURNS = int(10)
         energy_cycle = EnergyCyclePerTurn(
@@ -41,7 +39,7 @@ class ExampleSimulation01:
         drift1 = DriftSimple(
             share_of_circumference=1.0,
         )
-        drift1.transition_gamma = 55.759505,
+        drift1.transition_gamma = (55.759505,)
 
         beam1 = Beam(n_particles=1e9, particle_type=proton)
 
@@ -92,7 +90,6 @@ class SimulationTwoRfStations:
             Simulation,
             SingleHarmonicCavity,
             DriftSimple,
-            RfStationParams,
         )
 
         ring = Ring(circumference=26658.883)
@@ -100,17 +97,16 @@ class SimulationTwoRfStations:
         cavity1 = SingleHarmonicCavity(
             section_index=0,
         )
-        cavity1.harmonic=35640
-        cavity1.voltage=6e6
-        cavity1.phi_rf=0
+        cavity1.harmonic = 35640
+        cavity1.voltage = 6e6
+        cavity1.phi_rf = 0
 
         cavity2 = SingleHarmonicCavity(
             section_index=1,
         )
-        cavity2.harmonic=35640
-        cavity2.voltage=6e6
-        cavity2.phi_rf=0
-
+        cavity2.harmonic = 35640
+        cavity2.voltage = 6e6
+        cavity2.phi_rf = 0
 
         N_TURNS = int(10)
         energy_cycle = EnergyCyclePerTurn(
@@ -118,9 +114,9 @@ class SimulationTwoRfStations:
         )
 
         drift1 = DriftSimple(share_of_circumference=0.5, section_index=0)
-        drift1.transition_gamma=55.759505
+        drift1.transition_gamma = 55.759505
         drift2 = DriftSimple(share_of_circumference=0.5, section_index=1)
-        drift2.transition_gamma=55.759505
+        drift2.transition_gamma = 55.759505
         beam1 = Beam(n_particles=1e9, particle_type=proton)
 
         simulation = Simulation.from_locals(locals())

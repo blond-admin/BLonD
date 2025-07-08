@@ -9,7 +9,6 @@ from .cycles.energy_cycle import (
     EnergyCyclePerTurnAllCavities,
     ConstantEnergyCycle,
 )
-from .cycles.rf_parameter_cycle import RfStationParams
 from .handle_results.observables import (
     CavityPhaseObservation,
     BunchObservation,

@@ -40,7 +40,6 @@ sig_phi_rf_multi_harmonic = nb_f[:]
 sig_n_rf_multi_harmonic = nb_i
 
 
-
 sig_t_rev = nb_f
 sig_T = nb_f
 sig_length_ratio = nb_f
@@ -67,14 +66,14 @@ sig_kick_single_harmonic = (
 
 
 sig_kick_multi_harmonic = (
-sig_dt,
-sig_dE,
-sig_voltage_multi_harmonic,
-sig_omega_rf_multi_harmonic,
-sig_phi_rf_multi_harmonic,
-sig_charge,
-sig_n_rf_multi_harmonic,
-sig_acceleration_kick,
+    sig_dt,
+    sig_dE,
+    sig_voltage_multi_harmonic,
+    sig_omega_rf_multi_harmonic,
+    sig_phi_rf_multi_harmonic,
+    sig_charge,
+    sig_n_rf_multi_harmonic,
+    sig_acceleration_kick,
 )
 
 sig_drift_simple = (
@@ -149,7 +148,6 @@ class NumbaSpecials(Specials):
 
         # solver_decoded = solver.decode(encoding='utf_8')
 
-
         coeff = T * eta_0 / (beta * beta * energy)
         for i in prange(len(dt)):
             dt[i] += coeff * dE[i]
@@ -201,13 +199,7 @@ class NumbaSpecials(Specials):
                 dt[i] += T * (1.0 / (1.0 - eta0 * dEi - eta1 * dEi * dEi) - 1.0)
             else:
                 dt[i] += T * (
-                    1.0
-                    / (
-                            1.0
-                            - eta0 * dEi
-                            - eta1 * dEi * dEi
-                            - eta2 * dEi * dEi * dEi
-                    )
+                    1.0 / (1.0 - eta0 * dEi - eta1 * dEi * dEi - eta2 * dEi * dEi * dEi)
                     - 1.0
                 )
 

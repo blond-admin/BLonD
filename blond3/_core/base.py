@@ -122,7 +122,7 @@ class ScheduledInterpolation(_Scheduled):
     def __init__(self, times: NumpyArray, values: NumpyArray):
         super().__init__()
         self.times = times
-        self.values = values # TODO values.astype(backend.float)
+        self.values = values  # TODO values.astype(backend.float)
 
     def get_scheduled(self, turn_i: int, reference_time: float):
         return np.interp(reference_time, self.times, self.values)

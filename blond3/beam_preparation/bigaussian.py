@@ -116,12 +116,12 @@ class BiGaussian(MatchingRoutine):
         self,
         simulation: Simulation,
     ) -> None:
+        beam = simulation.beams[0]
         rf_station: SingleHarmonicCavity = simulation.ring.elements.get_element(
             SingleHarmonicCavity
         )
-        rf_station.apply_schedules(turn_i=0, reference_time=0)
-        beam = simulation.beams[0]
         drift: DriftSimple = simulation.ring.elements.get_element(DriftSimple)
+        rf_station.apply_schedules(turn_i=0, reference_time=0)
         drift.apply_schedules(turn_i=0, reference_time=0)
 
         if self._sigma_dE is None:

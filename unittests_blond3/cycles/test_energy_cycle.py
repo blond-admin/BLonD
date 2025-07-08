@@ -21,7 +21,8 @@ from blond3.cycles.energy_cycle import (
     calc_total_energy,
     calc_energy_kin,
 )
-from blond3.testing.simulation import ExampleSimulation01, SimulationTwoRfStations
+from blond3.testing.simulation import ExampleSimulation01, \
+    SimulationTwoRfStations
 
 simulation_ex1 = ExampleSimulation01().simulation
 

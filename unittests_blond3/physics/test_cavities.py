@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import Mock
 
-from blond3 import RfStationParams, WakeField, Simulation
+from blond3 import WakeField, Simulation
 from blond3.physics.cavities import (
     CavityBaseClass,
     MultiHarmonicCavity,

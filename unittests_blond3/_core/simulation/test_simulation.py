@@ -8,7 +8,6 @@ from blond3 import (
     Ring,
     Beam,
     SingleHarmonicCavity,
-    RfStationParams,
     DriftSimple,
     proton,
 )
