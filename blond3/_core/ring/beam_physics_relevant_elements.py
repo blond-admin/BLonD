@@ -7,7 +7,6 @@ import numpy as np
 from ..base import Preparable
 from ..ring.helpers import get_elements
 from ... import Simulation
-from ...physics.drifts import DriftBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import (

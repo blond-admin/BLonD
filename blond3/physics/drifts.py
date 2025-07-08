@@ -1,15 +1,11 @@
 from __future__ import annotations
 
 from abc import ABC
-from functools import cached_property
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 from unittest.mock import Mock
-
-import numpy as np
 
 from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant, HasPropertyCache, Schedulable
-from .._core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional as LateInit, Tuple
@@ -19,7 +15,6 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from .._core.simulation.simulation import Simulation
     from .._core.beam.base import BeamBaseClass
-    from ..cycles.energy_cycle import EnergyCycleBase
 
 
 class DriftBaseClass(BeamPhysicsRelevant, ABC):

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import importlib.util
-import sys
-from pathlib import Path
-from typing import TYPE_CHECKING
-import os
 import inspect
+import os
+import sys
+from typing import TYPE_CHECKING
+
 import numpy as np
 
 from blond3._core.backends.backend import Specials

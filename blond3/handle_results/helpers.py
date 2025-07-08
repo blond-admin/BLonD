@@ -1,7 +1,6 @@
-from datetime import datetime
-import os
 import inspect
-import numpy as np
+import os
+from datetime import datetime
 
 
 def filesafe_datetime() -> str:

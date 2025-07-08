@@ -13,7 +13,6 @@ from ..helpers import find_instances_with_method, int_from_float_with_warning
 from ..ring.helpers import get_elements, get_init_order
 from ...cycles.energy_cycle import EnergyCycleBase, EnergyCyclePerTurn
 
-
 if TYPE_CHECKING:  # pragma: no cover
     from typing import (
         Optional,

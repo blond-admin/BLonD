@@ -8,7 +8,6 @@ import numpy as np
 
 from .base import BeamBaseClass, BeamFlags
 from ..backends.backend import backend
-from ..base import HasPropertyCache
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional

@@ -4,7 +4,6 @@ import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
-from scipy.constants import speed_of_light as c0
 
 from .base import MatchingRoutine
 from .._core.backends.backend import backend

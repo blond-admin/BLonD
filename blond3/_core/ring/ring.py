@@ -12,12 +12,10 @@ from ..base import (
 )
 
 if TYPE_CHECKING:
-    from typing import Iterable, Optional, Optional as LateInit, Tuple
-    from numpy.typing import NDArray as NumpyArray
+    from typing import Iterable, Optional
     from .beam_physics_relevant_elements import BeamPhysicsRelevantElements
 
     from ..simulation.simulation import Simulation
-    from ...cycles.energy_cycle import EnergyCycleBase
 
 
 class Ring(Preparable):
@@ -43,7 +41,6 @@ class Ring(Preparable):
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         from ...physics.drifts import DriftBaseClass  # prevent cyclic import
-        from blond.input_parameters.ring_options import RingOptions  # TODO blond3
 
         all_drifts = self.elements.get_elements(DriftBaseClass)
         sum_share_of_circumference = sum(
