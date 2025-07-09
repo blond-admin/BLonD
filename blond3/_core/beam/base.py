@@ -37,7 +37,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     ):
         super().__init__()
 
-        self._n_particles__init = int_from_float_with_warning(
+        self.n_particles = int_from_float_with_warning(
             n_particles, warning_stacklevel=2
         )
         self._is_distributed = is_distributed
@@ -48,7 +48,14 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         self._is_counter_rotating = is_counter_rotating
 
         self.reference_time = 0  # todo cached properties
-        self.reference_total_energy = 0  # todo cached properties
+        self._reference_total_energy = 0  # todo cached properties
+    @property
+    def reference_total_energy(self) -> float:
+        return self._reference_total_energy
+    @reference_total_energy.setter
+    def reference_total_energy(self, reference_total_energy) -> float:
+        # in eV and eV/c²
+        self._reference_total_energy = reference_total_energy
 
     @property
     def reference_gamma(self) -> float:

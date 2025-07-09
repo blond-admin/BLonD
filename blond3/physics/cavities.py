@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import numpy as np
 from scipy.constants import speed_of_light as c0
+
 from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
 
@@ -23,6 +24,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from .._core.beam.base import BeamBaseClass
     from .._core.simulation.simulation import Simulation
     from ..cycles.energy_cycle import EnergyCycleBase
+
+TWOPIC0 = 2.0 * np.pi * c0
 
 
 class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
@@ -94,6 +97,10 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         if self._local_wakefield is not None:
             self._local_wakefield.track(beam=beam)
 
+    @abstractmethod
+    def calc_omega(self, beam_beta: float, ring_circumference: float):
+        pass
+
 
 class SingleHarmonicCavity(CavityBaseClass):
     def __init__(
@@ -115,7 +122,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         self._omegas = None
 
     def calc_omega(self, beam_beta: float, ring_circumference: float):
-        return self.harmonic * 2.0 * np.pi * c0 * beam_beta / ring_circumference
+        return TWOPIC0 * self.harmonic * beam_beta / ring_circumference
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         super().on_init_simulation(simulation=simulation)
@@ -141,17 +148,16 @@ class SingleHarmonicCavity(CavityBaseClass):
             self._energy_cycle.total_energy[self.section_index, self._turn_i.value]
             - beam.reference_total_energy
         )
-        omega_rf = self.calc_omega(
+        self._omegas = self.calc_omega(
             beam_beta=beam.reference_beta,
             ring_circumference=self._ring.circumference,
         )
-        self._omegas = omega_rf
         backend.specials.kick_single_harmonic(
             dt=beam.read_partial_dt(),
             dE=beam.write_partial_dE(),
             voltage=self.voltage,
             phi_rf=self.phi_rf,
-            omega_rf=omega_rf,
+            omega_rf=self._omegas,
             charge=backend.float(beam.particle_type.charge),  #  FIXME
             acceleration_kick=-reference_energy_change,  # Mind the minus!
         )
@@ -284,6 +290,9 @@ class MultiHarmonicCavity(CavityBaseClass):
         )
         return mhc
 
+    def calc_omega(self, beam_beta: float, ring_circumference: float):
+        return self.harmonic * (TWOPIC0 * beam_beta / ring_circumference)
+
     def track(self, beam: BeamBaseClass):
         super().track(beam=beam)
         reference_energy_change = (
@@ -291,8 +300,9 @@ class MultiHarmonicCavity(CavityBaseClass):
             - beam.reference_total_energy
         )
 
-        omega_rf = self.harmonic * (
-            2.0 * np.pi * beam.reference_velocity / self._ring.circumference
+        omega_rf = self.calc_omega(
+            beam_beta=beam.reference_beta,
+            ring_circumference=self._ring.circumference,
         )
         self._omegas = omega_rf
 

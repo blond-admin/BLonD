@@ -53,7 +53,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
 
     @cached_property
     def diff_hist_y(self):
-        return backend.gradient(self._hist_y, self.hist_step)
+        return backend.gradient(self._hist_y, self.hist_step,edge_order=2)
 
     @cached_property
     def hist_step(self):
@@ -108,9 +108,9 @@ class ProfileBaseClass(BeamPhysicsRelevant):
 
     def beam_spectrum(self, n_fft: int):
         if n_fft not in self._beam_spectrum_buffer.keys():
-            self._beam_spectrum_buffer[n_fft] = np.fft.irfft(self._hist_y, n_fft)
+            self._beam_spectrum_buffer[n_fft] = np.fft.rfft(self._hist_y, n_fft)
         else:
-            np.fft.irfft(self._hist_y, n_fft, out=self._beam_spectrum_buffer[n_fft])
+            np.fft.rfft(self._hist_y, n_fft, out=self._beam_spectrum_buffer[n_fft])
 
         return self._beam_spectrum_buffer[n_fft]
 

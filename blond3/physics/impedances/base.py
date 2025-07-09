@@ -27,7 +27,7 @@ class WakeFieldSolver:
         pass
 
     @abstractmethod
-    def calc_induced_voltage(self) -> NumpyArray | CupyArray:
+    def calc_induced_voltage(self, beam: BeamBaseClass) -> NumpyArray | CupyArray:
         pass
 
 
@@ -36,12 +36,14 @@ class WakeFieldSource(ABC):
 
 
 class TimeDomain(ABC):
-    pass
+    @abstractmethod
+    def get_wake(self, time: NumpyArray, sim: Simulation) -> NumpyArray:
+        pass
 
 
 class FreqDomain(ABC):
     @abstractmethod
-    def get_freq_y(self, freq_x: NumpyArray, sim: Simulation) -> NumpyArray:
+    def get_impedance(self, freq_x: NumpyArray, sim: Simulation) -> NumpyArray:
         pass
 
 
@@ -65,7 +67,7 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         return self._profile
 
     @abstractmethod
-    def calc_induced_voltage(self) -> NumpyArray | CupyArray:
+    def calc_induced_voltage(self, beam: BeamBaseClass) -> NumpyArray | CupyArray:
         pass
 
     def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int):
@@ -107,7 +109,6 @@ class WakeField(ImpedanceBaseClass):
         self.solver = solver
         self.sources = sources
 
-    @requires(["EnergyCycleBase"])
     def on_init_simulation(self, simulation: Simulation) -> None:
         super().on_init_simulation(simulation=simulation)
         assert len(self.sources) > 0, "Provide for at least one `WakeFieldSource`"
@@ -115,11 +116,11 @@ class WakeField(ImpedanceBaseClass):
             simulation=simulation, parent_wakefield=self
         )
 
-    def calc_induced_voltage(self) -> NumpyArray | CupyArray:
-        return self.solver.calc_induced_voltage()
+    def calc_induced_voltage(self, beam: BeamBaseClass) -> NumpyArray | CupyArray:
+        return self.solver.calc_induced_voltage(beam=beam)
 
     def track(self, beam: BeamBaseClass) -> None:
-        induced_voltage = self.calc_induced_voltage()
+        induced_voltage = self.calc_induced_voltage(beam=beam)
         warnings.warn("kick_induced")  # TODO
         if False:
             backend.kick_induced(

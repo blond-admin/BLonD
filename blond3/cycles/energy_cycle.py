@@ -202,7 +202,7 @@ class ConstantEnergyCycle(EnergyCycleBase):
 
         super().on_init_simulation(
             simulation=simulation,
-            momentum_init=_momentum[0],  # because its constant
+            momentum_init=_momentum[0, 0],  # because its constant
             momentum=_momentum,
         )
 
