@@ -15,15 +15,17 @@ from blond3 import (
 from blond3.physics.impedances.sources import Resonators
 from blond3.physics.impedances.sovlers import PeriodicFreqSolver, TimeDomainSolver
 
-for i, solver in enumerate( (
-    PeriodicFreqSolver(t_periodicity=10, allow_next_fast_len=True),
-    TimeDomainSolver(),
-)):
+for i, solver in enumerate(
+    (
+        PeriodicFreqSolver(t_periodicity=10, allow_next_fast_len=True),
+        TimeDomainSolver(),
+    )
+):
     ring = Ring(circumference=6911.56)
     profile = StaticProfile(
         0,
-        10*96,
-        256 *96,
+        10 * 96,
+        256 * 96,
     )
     cavity1 = SingleHarmonicCavity()
     cavity1.voltage = 0
@@ -61,6 +63,6 @@ for i, solver in enumerate( (
     induced_voltage = wake.calc_induced_voltage(beam=beam)
     plt.figure(1)
     plt.plot(induced_voltage, "--", label=str(type(solver)))
-    #plt.plot(np.convolve(profile.hist_y, wake_))
+    # plt.plot(np.convolve(profile.hist_y, wake_))
     plt.legend()
 plt.show()

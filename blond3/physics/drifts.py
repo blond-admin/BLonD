@@ -83,6 +83,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         section_index: int = 0,
     ):
         from .._core.base import DynamicParameter
+
         d = DriftSimple(
             share_of_circumference=share_of_circumference,
             section_index=section_index,
@@ -101,7 +102,9 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
     def on_init_simulation(self, simulation: Simulation) -> None:
         super().on_init_simulation(simulation=simulation)
         self._simulation = simulation
-        self.length = backend.float(self.share_of_circumference * simulation.ring.circumference)
+        self.length = backend.float(
+            self.share_of_circumference * simulation.ring.circumference
+        )
         if (
             self.transition_gamma is None
         ) and "transition_gamma" not in self.schedules.keys():

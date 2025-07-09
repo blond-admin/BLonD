@@ -49,16 +49,17 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
             Complex impedance array.
         """
 
-        T = simulation.ring.circumference / simulation.beams[0].reference_velocity # FIXME consider update of this value!
+        T = (
+            simulation.ring.circumference / simulation.beams[0].reference_velocity
+        )  # FIXME consider update of this value!
 
         df = freq_x[1] - freq_x[0]  # frequency spacing
         n = 2 * (len(freq_x) - 1)  # original signal length (for irfft)
         dx = 1 / (n * df)
         h = dx
         k = 2 * np.pi * freq_x
-        assert (
-            np.isclose(np.fft.rfftfreq(n, d=dx)[1] - np.fft.rfftfreq(n,
-                                                                     d=dx)[0] , df)
+        assert np.isclose(
+            np.fft.rfftfreq(n, d=dx)[1] - np.fft.rfftfreq(n, d=dx)[0], df
         ), "Contact dev"  # TODO remove after testing
 
         # central finite difference (f(x+h) - g(x-h)) / 2h
@@ -67,10 +68,13 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
 
         return derivative / (2 * np.pi) * self.Z_over_n * T
 
-    def get_wake_impedance(self, time: NumpyArray, simulation: Simulation) -> NumpyArray:
-        freq = np.fft.rfftfreq(len(time), d=time[1]-time[0])
+    def get_wake_impedance(
+        self, time: NumpyArray, simulation: Simulation
+    ) -> NumpyArray:
+        freq = np.fft.rfftfreq(len(time), d=time[1] - time[0])
         return self.get_impedance(freq_x=freq, simulation=simulation) / (
-            time[1] - time[0])
+            time[1] - time[0]
+        )
 
 
 class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
@@ -88,7 +92,9 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         if np.sum(self._quality_factors < 0.5) > 0:
             raise RuntimeError("All quality factors Q must be greater or equal 0.5")
 
-    def get_wake_impedance(self, time: NumpyArray, simulation: Simulation) -> NumpyArray:
+    def get_wake_impedance(
+        self, time: NumpyArray, simulation: Simulation
+    ) -> NumpyArray:
         wake = np.zeros(len(time), dtype=backend.float, order="C")
         n_centers = len(self._center_frequencies)
         omega = 2 * np.pi * self._center_frequencies

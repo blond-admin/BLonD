@@ -37,7 +37,9 @@ class WakeFieldSource(ABC):
 
 class TimeDomain(ABC):
     @abstractmethod
-    def get_wake_impedance(self, time: NumpyArray, simulation: Simulation) -> NumpyArray:
+    def get_wake_impedance(
+        self, time: NumpyArray, simulation: Simulation
+    ) -> NumpyArray:
         pass
 
 

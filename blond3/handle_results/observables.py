@@ -9,8 +9,7 @@ from numpy.typing import NDArray as NumpyArray
 from .array_recorders import DenseArrayRecorder
 from .._core.base import MainLoopRelevant
 from ..physics.cavities import SingleHarmonicCavity
-from ..physics.profiles import ProfileBaseClass, DynamicProfileConstNBins, \
-    StaticProfile
+from ..physics.profiles import ProfileBaseClass, DynamicProfileConstNBins, StaticProfile
 
 if TYPE_CHECKING:
     from typing import Optional as LateInit

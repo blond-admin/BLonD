@@ -49,9 +49,11 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
         self.reference_time = 0  # todo cached properties
         self._reference_total_energy = 0  # todo cached properties
+
     @property
     def reference_total_energy(self) -> float:
         return self._reference_total_energy
+
     @reference_total_energy.setter
     def reference_total_energy(self, reference_total_energy) -> float:
         # in eV and eV/c²

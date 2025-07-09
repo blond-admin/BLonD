@@ -176,6 +176,9 @@ class PeriodicFreqSolver(WakeFieldSolver):
 
 class TimeDomainSolver(WakeFieldSolver):
     def __init__(self):
+        """
+        Solver to calculate induced voltage using fftconvolve(wake,profile)
+        """
         super().__init__()
         self.update_on_calc: bool = False
 

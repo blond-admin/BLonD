@@ -53,7 +53,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
 
     @cached_property
     def diff_hist_y(self):
-        return backend.gradient(self._hist_y, self.hist_step,edge_order=2)
+        return backend.gradient(self._hist_y, self.hist_step, edge_order=2)
 
     @cached_property
     def hist_step(self):
