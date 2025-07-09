@@ -1,23 +1,28 @@
 # Copyright 2016 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities
-# granted to it by virtue of its status as an Intergovernmental Organization or
-# submit itself to any jurisdiction.
+# In applying this licence, CERN does not waive the privileges and
+# immunities granted to it by virtue of its status as an
+# Intergovernmental Organization or submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""
-**Class to compute synchrotron radiation damping and quantum excitation**
+'''
+*Class to compute synchrotron radiation damping and quantum excitation*
 
-:Authors: **Juan F. Esteban Mueller**
-"""
+:Authors: **Juan F. Esteban Mueller, L. Valle**
+'''
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
+from __future__ import division, print_function
+import warnings
+from builtins import range
 
 import numpy as np
-
+from typing import TYPE_CHECKING, Optional
+from numpy.typing import NDArray
+from ..utils.exceptions import MissingParameterError
+from ..beam.beam import Beam
+from ..input_parameters.ring import Ring
+from ..input_parameters.rf_parameters import RFStation
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
 
@@ -31,63 +36,119 @@ if TYPE_CHECKING:
 
 
 class SynchrotronRadiation:
-    """ Class to compute synchrotron radiation effects, including radiation
-        damping and quantum excitation.
-        For multiple RF section, instance one object per RF section a call
-        the track() method after tracking each section.
-    """
+    ''' Class to compute synchrotron radiation effects, including
+    radiation damping and quantum excitation.
+    For multiple RF section, instantiate one object per RF section and
+    call the track() method after tracking each section.
+    '''
 
-    @handle_legacy_kwargs
-    def __init__(self,
-                 ring: Ring,
-                 rf_parameters: RFStation,
-                 beam: Beam,
-                 bending_radius: float,
-                 n_kicks: int = 1,
-                 quantum_excitation: bool = True,
-                 python: bool = False,
-                 seed: Optional[int] = None,
-                 shift_beam: bool = True
-                 ):
+    # TO DO list:
+    # - multi-turn radiation integrals handling (momentum compaction
+    # factor variation, input of SR integrals TBT,
+    # update of the integrals during tracking, ...),
+    # - inclusion of damping wigglers,
+    # - handling of lost particles during tracking,
+    # - multiple RF sections
 
+    def __init__(self, ring: Ring, rf_station: RFStation, beam: Beam,
+                 bending_radius: Optional[float] = None,
+                 radiation_integrals : Optional[NDArray | list] = None,
+                 n_kicks:Optional[int] =1, quantum_excitation: Optional[
+                bool]=True,
+                 python: Optional[bool]=True, seed: Optional[int]=None,
+                 shift_beam:Optional[bool]=False):
+        """
+        Synchrotron radiation tracker
+        Calculates the energy losses per turn and longitudinal damping
+        time according to the ring energy program, and implements the
+        effect of synchrotron radiation damping and quantum excitation
+        (if enabled) on the beam coordinates.
+
+        Parameters
+        ----------
+        ring : Ring
+            A Ring-type class representing the accelerator lattice.
+        rf_station : RFStation
+            An RFStation class containing RF parameters for the
+            simulation.
+        beam : Beam
+            A Beam class instance representing the particle bunch or
+            beam.
+        bending_radius [m]: float, optional
+            Bending radius used to compute the radiation integrals under
+             the assumption of an isomagnetic ring.
+        radiation_integrals : array_like, optional
+            Radiation integrals used to calculate damping times and
+            quantum excitation.
+            Expected to be a list or NDArray with at least 5 elements.
+        n_kicks : int, optional
+            Number of discrete kicks to apply synchrotron radiation and
+            quantum excitation effects. Default is 1.
+        quantum_excitation : bool, optional
+            If True (default), enables the quantum excitation effect
+            during the simulation.
+        python : bool, optional
+            If True (default), uses Python implementations of the
+            tracking functions.
+        seed : int, optional
+            Seed for random number generation when tracking in C.
+        shift_beam : bool, optional
+            If True, shifts the beam in phase to account for energy loss
+             due to synchrotron radiation.
+            (Temporary workaround until bunch generation is updated.)
+
+        Returns
+        -------
+        None
+            """
         self.ring = ring
-        self.rf_params = rf_parameters
+        self.rf_params = rf_station
         self.beam = beam
-        self.rho = bending_radius
+        self.track = None
+        self.beam_position_to_compensate_SR = None
+        self.beam_phase_to_compensate_SR = None
+
         self.n_kicks = n_kicks  # To apply SR in several kicks
         np.random.seed(seed=seed)
 
         # Calculate static parameters
-        self.c_gamma = self.ring.particle.c_gamma
-        self.c_q = self.ring.particle.c_q
-
-        self.I2 = 2.0 * np.pi / self.rho  # Assuming isomagnetic machine
-        self.I3 = 2.0 * np.pi / self.rho ** 2.0
-        self.I4 = (self.ring.ring_circumference * self.ring.alpha_0[0, 0]
-                   / self.rho**2.0)
-        self.jz = 2.0 + self.I4 / self.I2
-
-        # Calculate synchrotron radiation parameters
-        self.calculate_SR_params()
-
-        # Initialize the random number array if quantum excitation is included
+        self.c_gamma = self.ring.Particle.c_gamma
+        self.c_q = self.ring.Particle.c_q
+        # Initialize the random number array if quantum excitation
         if quantum_excitation:
             self.random_array = np.zeros(self.beam.n_macroparticles)
+        # Computes the radiation integrals and initializes the SR
+        # parameters
+        self.assign_radiation_integrals(radiation_integrals, bending_radius)
+        self.calculate_SR_params()
+        self.shift_beam_function(shift_beam=shift_beam)
+        self.tracker_choice(python=python,
+                            quantum_excitation=quantum_excitation, seed=seed)
 
-        # Displace the beam in phase to account for the energy loss due to
-        # synchrotron radiation (temporary until bunch generation is updated)
-        if (shift_beam) and (self.rf_params.section_index == 0):
-            self.beam_phase_to_compensate_SR = np.abs(np.arcsin(
-                                    self.U0 / (self.ring.particle.charge
-                                            * self.rf_params.voltage[0][0])))
-            self.beam_position_to_compensate_SR = (self.beam_phase_to_compensate_SR
-                                                   * self.rf_params.t_rf[0, 0]
-                                                   / (2.0 * np.pi))
+    def shift_beam_function(self, shift_beam):
+        """
+        Displace the beam in phase to account for the energy loss due
+        to synchrotron radiation (temporary until bunch generation is
+        updated)
+        shift_beam: bool
+        """
+        #
+        if shift_beam and (self.rf_params.section_index == 0):
+            self.beam_phase_to_compensate_SR =\
+                np.abs(np.arcsin(self.U0 /
+                                 (self.ring.Particle.charge *
+                                  self.rf_params.voltage[0][0])))
+            self.beam_position_to_compensate_SR = (
+                    self.beam_phase_to_compensate_SR
+                * self.rf_params.t_rf[0, 0] / (2.0 * np.pi))
 
             self.beam.dt -= self.beam_position_to_compensate_SR
 
-        # Select the right method for the tracker according to the selected
-        # settings
+    def tracker_choice(self, python, quantum_excitation, seed):
+        """
+        Select the right method for the tracker according to the
+        selected settings
+        """
         if python:
             if quantum_excitation:
                 self.track = self.track_full_python
@@ -107,6 +168,55 @@ class SynchrotronRadiation:
             "track_full_C": self.track_full_C,
         }
         self.track_mode: str | None = None
+
+    def assign_radiation_integrals(self, radiation_integrals, bending_radius):
+        """
+        Function to handle the synchrotron radiation integrals from an
+        input array or a bending radius input.
+        For more about synchrotron radiation damping and integral
+        definition, please refer to (non-exhaustive list):
+        A. Wolski, CAS Advanced Accelerator Physics, 19-29 August 2013
+        H. Wiedemann, Particle Accelerator Physics, Chapter Equilibrium
+        Particle Distribution, p. 384, Third Edition, Springer, 2007
+        """
+        if radiation_integrals is None:
+            if bending_radius is None:
+                if hasattr(self.ring, 'I2'):
+                    self.I2 = self.ring.I2
+                    self.I3 = self.ring.I3
+                    self.I4 = self.ring.I4
+                    self.jz = 2.0 + self.I4 / self.I2
+                else :
+                    raise MissingParameterError("Synchrotron radiation damping "
+                                                "and quantum excitation require"
+                                                " either the bending radius "+
+                                            "for an isomagnetic ring, or the "
+                                            "first five synchrotron radiation "
+                                            "integrals.")
+            else :
+                self.rho = bending_radius
+                self.I2 = 2.0 * np.pi / self.rho
+                self.I3 = 2.0 * np.pi / self.rho ** 2.0
+                self.I4 = (self.ring.ring_circumference *
+                           self.ring.alpha_0[0, 0] / self.rho ** 2.0)
+                self.jz = 2.0 + self.I4 / self.I2
+        else :
+            if not isinstance(radiation_integrals,(np.ndarray, list)):
+                raise TypeError(f"Expected a list or a NDArray as an input. "
+                                f"Received type(radiation_integrals)="
+                                f"{type(radiation_integrals)}.")
+            else :
+                integrals = np.array(radiation_integrals)
+                if len(integrals) < 5:
+                    raise ValueError(f"Length of radiation integrals must be "
+                                     f"> 5, but is {len(integrals)}")
+                if bending_radius is not None:
+                    warnings.warn('Synchrotron radiation integrals prevail. '
+                                  '\'bending radius\' is ignored.')
+                self.I2 = integrals[1]
+                self.I3 = integrals[2]
+                self.I4 = integrals[3]
+                self.jz = 2.0 + self.I4 / self.I2
 
     # Method to compute the SR parameters
     def calculate_SR_params(self):
@@ -142,21 +252,19 @@ class SynchrotronRadiation:
             print('Energy loss per turn = {0:1.4f} GeV/turn'.format(
                 self.U0 * 1e-9 * self.ring.ring_circumference
                 / self.rf_params.section_length))
-            print('Damping time = {0:1.4f} turns'.format(self.tau_z
-                                                         * self.rf_params.section_length
-                                                         / self.ring.ring_circumference))
+            print('Damping time = '
+                  '{0:1.4f} turns'.format(self.tau_z *
+                                          self.rf_params.section_length
+                                          / self.ring.ring_circumference))
         print(f'Equilibrium energy spread = {self.sigma_dE * 100:1.4f}%'
-              + f' ({self.sigma_dE * self.ring.energy[0, i_turn] * 1e-6:1.4f}) MeV')
+              + f'({self.sigma_dE*self.ring.energy[0, i_turn]*1e-6:1.4f}) MeV')
         print('------------------------------------------------')
 
-    def track(self):
-        if self.track_mode is None:
-            raise NameError("'execution_model' is None, but should be "
-                            + f"one of {self.track_models.keys()}")
-        self.track_models[self.track_mode]()
-
-    # Track particles with SR only (without quantum excitation)
     def track_SR_python(self):
+        """
+        Adds the effect of synchrotron radiation damping on the beam
+        coordinates. Quantum excitation ignored.
+        """
         i_turn = self.rf_params.counter[0]
         # Recalculate SR parameters if energy changes
         if (i_turn != 0 and self.ring.energy[0, i_turn] !=
@@ -166,8 +274,11 @@ class SynchrotronRadiation:
             self.beam.dE += -(2.0 / self.tau_z / self.n_kicks * self.beam.dE
                               + self.U0 / self.n_kicks)
 
-    # Track particles with SR and quantum excitation
     def track_full_python(self):
+        """
+        Adds the effect of synchrotron radiation damping and quantum
+        excitation on the beam coordinates.
+        """
         i_turn = self.rf_params.counter[0]
         # Recalculate SR parameters if energy changes
         if (i_turn != 0 and self.ring.energy[0, i_turn] !=
@@ -175,14 +286,22 @@ class SynchrotronRadiation:
             self.calculate_SR_params()
         for i in range(self.n_kicks):
             self.beam.dE += -(2.0 / self.tau_z / self.n_kicks * self.beam.dE
-                              + self.U0 / self.n_kicks - 2.0 * self.sigma_dE
-                              / np.sqrt(self.tau_z * self.n_kicks)
-                              * self.ring.energy[0, i_turn]
-                              * np.random.randn(self.beam.n_macroparticles))
+                              # synchrotron radiation damping
+                             + self.U0 / self.n_kicks
+                              # energy lost due to synchrotron radiation
+                              - 2.0 * self.sigma_dE /
+                              np.sqrt(self.tau_z * self.n_kicks)
+                              * self.beam.energy * np.random.normal
+                              (size=self.beam.n_macroparticles))
+                            # quantum excitation kick
 
     # Track particles with SR only (without quantum excitation)
     # C implementation
     def track_SR_C(self):
+        """
+        Adds the effect of synchrotron radiation damping on the beam
+        coordinates. Quantum excitation ignored.
+        """
         i_turn = self.rf_params.counter[0]
         # Recalculate SR parameters if energy changes
         if (i_turn != 0 and self.ring.energy[0, i_turn]
@@ -194,6 +313,10 @@ class SynchrotronRadiation:
 
     # Track particles with SR and quantum excitation. C implementation
     def track_full_C(self):
+        """
+        Adds the effect of synchrotron radiation damping and quantum
+        excitation on the beam coordinates.
+        """
         i_turn = self.rf_params.counter[0]
         # Recalculate SR parameters if energy changes
         if (i_turn != 0 and self.ring.energy[0, i_turn] !=
