@@ -187,6 +187,8 @@ Q_factor = np.array(
     ]
 )
 
+DEV_PLOT = True
+
 
 class Blond2:
     def __init__(self):
@@ -245,7 +247,6 @@ class Blond2:
             tot_vol.induced_voltage_sum()
             self.induced_voltage = tot_vol.induced_voltage
 
-            DEV_PLOT = False
             if DEV_PLOT:
                 plt.figure(1)
                 plt.plot(tot_vol.induced_voltage)
@@ -290,7 +291,6 @@ class Blond3:
         sim = Simulation(ring=ring, beams=(beam,), energy_cycle=energy_cycle)
 
         induced_voltage = wake.calc_induced_voltage(beam=beam)
-        DEV_PLOT = False
         if DEV_PLOT:
             plt.figure(1)
             plt.plot(induced_voltage, "--", color="r")
@@ -309,3 +309,5 @@ class TestBothBlonds(unittest.TestCase):
             self.blond3.blond2.induced_voltage, self.blond3.induced_voltage,
             rtol=1e-6
         )
+        if DEV_PLOT:
+            plt.show()

@@ -6,6 +6,7 @@ from functools import cached_property
 from os import PathLike
 from typing import Optional
 
+import matplotlib.pyplot as plt
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
@@ -31,7 +32,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         """
         self.Z_over_n = Z_over_n
 
-    def get_impedance(self, freq_x: NumpyArray, sim: Simulation) -> NumpyArray:
+    def get_impedance(self, freq_x: NumpyArray, simulation: Simulation) -> NumpyArray:
         """
         Return the impedance in the frequency domain.
 
@@ -39,7 +40,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         ----------
         freq_x : array-like
             Frequency components (harmonics).
-        sim : Simulation
+        simulation : Simulation
             Simulation object containing turn index and RF info.
 
         Returns
@@ -48,7 +49,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
             Complex impedance array.
         """
 
-        T = sim.ring.circumference / sim.beams[0].reference_velocity
+        T = simulation.ring.circumference / simulation.beams[0].reference_velocity # FIXME consider update of this value!
 
         df = freq_x[1] - freq_x[0]  # frequency spacing
         n = 2 * (len(freq_x) - 1)  # original signal length (for irfft)
@@ -56,7 +57,8 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         h = dx
         k = 2 * np.pi * freq_x
         assert (
-            np.fft.rfftfreq(n, d=dx)[1] - np.fft.rfftfreq(n, d=dx)[0] == df
+            np.isclose(np.fft.rfftfreq(n, d=dx)[1] - np.fft.rfftfreq(n,
+                                                                     d=dx)[0] , df)
         ), "Contact dev"  # TODO remove after testing
 
         # central finite difference (f(x+h) - g(x-h)) / 2h
@@ -65,8 +67,10 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
 
         return derivative / (2 * np.pi) * self.Z_over_n * T
 
-    def get_wake(self, time: NumpyArray, sim: Simulation) -> NumpyArray:
-        return  # TODO
+    def get_wake_impedance(self, time: NumpyArray, simulation: Simulation) -> NumpyArray:
+        freq = np.fft.rfftfreq(len(time), d=time[1]-time[0])
+        return self.get_impedance(freq_x=freq, simulation=simulation) / (
+            time[1] - time[0])
 
 
 class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
@@ -84,7 +88,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         if np.sum(self._quality_factors < 0.5) > 0:
             raise RuntimeError("All quality factors Q must be greater or equal 0.5")
 
-    def get_wake(self, time: NumpyArray, sim: Simulation) -> NumpyArray:
+    def get_wake_impedance(self, time: NumpyArray, simulation: Simulation) -> NumpyArray:
         wake = np.zeros(len(time), dtype=backend.float, order="C")
         n_centers = len(self._center_frequencies)
         omega = 2 * np.pi * self._center_frequencies
@@ -100,9 +104,10 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
                     - alpha / omega_bar * np.sin(omega_bar * time)
                 )
             )
-        return wake
 
-    def get_impedance(self, freq_x: NumpyArray, sim: Simulation) -> NumpyArray:
+        return np.fft.rfft(wake)
+
+    def get_impedance(self, freq_x: NumpyArray, simulation: Simulation) -> NumpyArray:
         impedance = np.zeros(len(freq_x), dtype=complex)
 
         n_centers = len(self._center_frequencies)
@@ -140,7 +145,7 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
             default=None, init=False, repr=False
         )
 
-    def get_impedance(self, freq_x: NumpyArray, sim: Simulation) -> NumpyArray:
+    def get_impedance(self, freq_x: NumpyArray, simulation: Simulation) -> NumpyArray:
         if self.__at_freq_x is not None:
             if np.any(freq_x != self.__at_freq_x):
                 # reset cache if new array

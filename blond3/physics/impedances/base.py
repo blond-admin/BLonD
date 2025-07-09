@@ -37,13 +37,13 @@ class WakeFieldSource(ABC):
 
 class TimeDomain(ABC):
     @abstractmethod
-    def get_wake(self, time: NumpyArray, sim: Simulation) -> NumpyArray:
+    def get_wake_impedance(self, time: NumpyArray, simulation: Simulation) -> NumpyArray:
         pass
 
 
 class FreqDomain(ABC):
     @abstractmethod
-    def get_impedance(self, freq_x: NumpyArray, sim: Simulation) -> NumpyArray:
+    def get_impedance(self, freq_x: NumpyArray, simulation: Simulation) -> NumpyArray:
         pass
 
 
@@ -109,6 +109,7 @@ class WakeField(ImpedanceBaseClass):
         self.solver = solver
         self.sources = sources
 
+    @requires(["EnergyCycleBase", "BeamBaseClass"])  # because
     def on_init_simulation(self, simulation: Simulation) -> None:
         super().on_init_simulation(simulation=simulation)
         assert len(self.sources) > 0, "Provide for at least one `WakeFieldSource`"
