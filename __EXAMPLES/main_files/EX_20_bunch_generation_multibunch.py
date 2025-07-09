@@ -95,7 +95,8 @@ bucket_length = 2.0 * np.pi / RF_sct_par.omega_rf[0, 0]
 
 number_slices = 3000
 slice_beam = Profile(beam, CutOptions(cut_left=0,
-                                      cut_right=21 * bucket_length, n_slices=number_slices))
+                                      cut_right=31 * bucket_length,
+                                      n_slices=number_slices))
 
 # LOAD IMPEDANCE TABLES -------------------------------------------------------
 
@@ -119,10 +120,10 @@ total_ind_volt = TotalInducedVoltage(beam, slice_beam, [ind_volt_freq])
 
 # BEAM GENERATION -------------------------------------------------------------
 
-n_bunches = 3
+n_bunches = 4
 bunch_spacing_buckets = 10
-intensity_list = [1e11, 1e11, 1e11]
-minimum_n_macroparticles = [5e5, 5e5, 5e5]
+intensity_list = [1e11, 1e11, 1e11, 1e11]
+minimum_n_macroparticles = [5e5, 5e5, 5e5, 5e5]
 distribution_options_list = {'bunch_length': 1e-9,
                              'type': 'parabolic_amplitude',
                              'density_variable': 'Hamiltonian'}
