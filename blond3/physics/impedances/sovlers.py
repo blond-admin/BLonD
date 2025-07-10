@@ -103,7 +103,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
     allow_next_fast_len
         Allow to slightly change `t_periodicity` for
         faster execution of fft via `scipy.fft.next_fast_len`
-    update_on_calc
+    expect_profile_change
         If true, reloads internal data on each
         `calc_induced_voltage` for proper updating with
         dynamic parameters
@@ -112,7 +112,8 @@ class PeriodicFreqSolver(WakeFieldSolver):
     def __init__(self, t_periodicity: float, allow_next_fast_len: bool = False):
         super().__init__()
         self.allow_next_fast_len = allow_next_fast_len
-        self.update_on_calc: bool = False
+        self.expect_profile_change: bool = False
+        self.expect_impedance_change = False
 
         self._t_periodicity = t_periodicity
         self._parent_wakefield: LateInit[WakeField] = None
@@ -121,45 +122,6 @@ class PeriodicFreqSolver(WakeFieldSolver):
         self._freq_x: LateInit[NumpyArray] = None
         self._freq_y: LateInit[NumpyArray] = None
         self._simulation: LateInit[Simulation] = None
-
-    @property
-    def t_periodicity(self) -> float:
-        """Periodicity that is assumed for fast fourier transform in  [s]"""
-        return self._t_periodicity
-
-    @t_periodicity.setter
-    def t_periodicity(self, t_periodicity: float):
-        self._t_periodicity = t_periodicity
-        self._update_internal_data()
-
-    def _update_internal_data(self):
-        """Rebuild internal data model"""
-        self._n_time = int(
-            math.ceil(self._t_periodicity / self._parent_wakefield.profile.hist_step)
-        )
-        if self.allow_next_fast_len:
-            self._n_time = next_fast_len(
-                self._n_time,
-                real=True,
-            )
-
-        self._freq_x = np.fft.rfftfreq(
-            self._n_time, d=self._parent_wakefield.profile.hist_step
-        ).astype(backend.float)
-        self._n_freq = len(self._freq_x)
-        self._freq_y = np.zeros_like(self._freq_x, dtype=backend.complex)
-        for source in self._parent_wakefield.sources:
-            if isinstance(source, FreqDomain):
-                freq_y = source.get_impedance(
-                    freq_x=self._freq_x, simulation=self._simulation
-                )
-                assert not np.any(np.isnan(freq_y)), f"{type(source).__name__}"
-                self._freq_y += freq_y
-            else:
-                raise Exception("Can only accept impedance that support `FreqDomain`")
-        # Factor relating Fourier transform and DFT
-        self._freq_y /= self._parent_wakefield.profile.hist_step
-        pass
 
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
@@ -182,8 +144,10 @@ class PeriodicFreqSolver(WakeFieldSolver):
             ) or isinstance(parent_wakefield.profile, DynamicProfileConstNBins)
             self._parent_wakefield = parent_wakefield
             self._update_internal_data()
+            self._update_impedance_sources()
+
             if is_dynamic:
-                if self.update_on_calc is False:
+                if self.expect_profile_change is False:
                     warnings.warn(
                         f"Because you are using"
                         f" a `{type(parent_wakefield.profile)}`,"
@@ -192,7 +156,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
                         f" Set True by yourself to deactivate this warning.",
                         stacklevel=2,
                     )
-                    self.update_on_calc = True
+                    self.expect_profile_change = True
             elif is_static:
                 pass
             else:
@@ -201,6 +165,56 @@ class PeriodicFreqSolver(WakeFieldSolver):
                 )
         else:
             raise Exception(f"{parent_wakefield.profile=}")
+
+        for source in self._parent_wakefield.sources:
+            if source.is_dynamic:
+                self.expect_impedance_change = True
+                break
+
+    @property
+    def t_periodicity(self) -> float:
+        """Periodicity that is assumed for fast fourier transform in  [s]"""
+        return self._t_periodicity
+
+    @t_periodicity.setter
+    def t_periodicity(self, t_periodicity: float):
+        self._t_periodicity = t_periodicity
+        self._update_internal_data()
+        self._update_impedance_sources()
+
+    def _update_internal_data(self):
+        """Rebuild internal data model"""
+        self._n_time = int(
+            math.ceil(self._t_periodicity / self._parent_wakefield.profile.hist_step)
+        )
+        if self.allow_next_fast_len:
+            self._n_time = next_fast_len(
+                self._n_time,
+                real=True,
+            )
+
+        self._freq_x = np.fft.rfftfreq(
+            self._n_time, d=self._parent_wakefield.profile.hist_step
+        ).astype(backend.float)
+        self._n_freq = len(self._freq_x)
+        pass
+
+    def _update_impedance_sources(self):
+        if (self._freq_y is None) or (self._freq_x.shape != self._freq_y.shape):
+            self._freq_y = np.zeros_like(self._freq_x, dtype=backend.complex)
+        else:
+            self._freq_y[:] = 0 + 0j
+        for source in self._parent_wakefield.sources:
+            if isinstance(source, FreqDomain):
+                freq_y = source.get_impedance(
+                    freq_x=self._freq_x, simulation=self._simulation
+                )
+                assert not np.any(np.isnan(freq_y)), f"{type(source).__name__}"
+                self._freq_y += freq_y
+            else:
+                raise Exception("Can only accept impedance that support `FreqDomain`")
+        # Factor relating Fourier transform and DFT
+        self._freq_y /= self._parent_wakefield.profile.hist_step
 
     def calc_induced_voltage(self, beam: BeamBaseClass) -> NumpyArray | CupyArray:
         """
@@ -216,8 +230,11 @@ class PeriodicFreqSolver(WakeFieldSolver):
         induced_voltage
             Induced voltage in [V]
         """
-        if self.update_on_calc:
+        if self.expect_profile_change:
             self._update_internal_data()  # might cause performance issues :(
+            self._update_impedance_sources()
+        elif self.expect_impedance_change:
+            self._update_impedance_sources()
 
         _factor = (-1 * beam.particle_type.charge * e) * (
             # TODO this might be a problem with MPI
@@ -239,19 +256,66 @@ class TimeDomainSolver(WakeFieldSolver):
         Solver to calculate induced voltage using fftconvolve(wake,profile)
         """
         super().__init__()
-        self.update_on_calc: bool = False
+        self.expect_impedance_change = False
 
         self._parent_wakefield: LateInit[WakeField] = None
         self._wake_imp_y: LateInit[NumpyArray] = None
         self._simulation: LateInit[Simulation] = None
 
-    def _update_internal_data(self):
+    @requires(["EnergyCycleBase"])  # because InductiveImpedance.get_
+    def on_wakefield_init_simulation(
+        self, simulation: Simulation, parent_wakefield: WakeField
+    ):
+        """Lateinit method when WakeField is late-initialized
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+        parent_wakefield
+            Wakefield that this solver affiliated to
+        """
+        self._simulation = simulation
+        if parent_wakefield.profile is not None:
+            is_dynamic = isinstance(
+                parent_wakefield.profile, DynamicProfileConstCutoff
+            ) or isinstance(parent_wakefield.profile, DynamicProfileConstNBins)
+            self._parent_wakefield = parent_wakefield
+            self._update_impedance_sources()
+
+            if is_dynamic and self.expect_impedance_change is False:
+                warnings.warn(
+                    f"Because you are using"
+                    f" a `{type(parent_wakefield.profile)}`,"
+                    f" the variable `update_on_calc` is set to"
+                    f" True, which might impact performance."
+                    f" Set True by yourself to deactivate this warning.",
+                    stacklevel=2,
+                )
+                self.expect_impedance_change = True
+            elif isinstance(parent_wakefield.profile, StaticProfile):
+                pass
+            else:
+                raise NotImplementedError(
+                    f"Unrecognized type(profile) = {type(parent_wakefield.profile)}"
+                )
+        else:
+            raise Exception(f"{parent_wakefield.profile=}")
+        for source in self._parent_wakefield.sources:
+            if source.is_dynamic:
+                self.expect_impedance_change = True
+                break
+
+    def _update_impedance_sources(self):
         """Rebuild internal data model"""
         _wake_x = self._parent_wakefield.profile.hist_x
+        if (self._wake_imp_y is None) or (_wake_x.shape != self._wake_imp_y.shape):
+            self._wake_imp_y = np.zeros(
+                len(np.fft.rfftfreq(len(_wake_x))), dtype=backend.complex
+            )
+        else:
+            self._wake_imp_y[:] = 0 + 0j
 
-        self._wake_imp_y = np.zeros(
-            len(np.fft.rfftfreq(len(_wake_x))), dtype=backend.complex
-        )
         for source in self._parent_wakefield.sources:
             if isinstance(source, TimeDomain):
                 wake_imp_y_tmp = source.get_wake_impedance(
@@ -276,8 +340,8 @@ class TimeDomainSolver(WakeFieldSolver):
         induced_voltage
             Induced voltage in [V]
         """
-        if self.update_on_calc:
-            self._update_internal_data()  # might cause performance issues :(
+        if self.expect_impedance_change:
+            self._update_impedance_sources()
 
         _factor = (-1 * beam.particle_type.charge * e) * (
             # TODO this might be a problem with MPI
@@ -293,45 +357,6 @@ class TimeDomainSolver(WakeFieldSolver):
         # The profile and corresponding induced voltage is only a part of
         # the full periodicity and must be thus truncated
         return induced_voltage
-
-    @requires(["EnergyCycleBase"])  # because InductiveImpedance.get_
-    def on_wakefield_init_simulation(
-        self, simulation: Simulation, parent_wakefield: WakeField
-    ):
-        """Lateinit method when WakeField is late-initialized
-
-        Parameters
-        ----------
-        simulation
-            Simulation context manager
-        parent_wakefield
-            Wakefield that this solver affiliated to
-        """
-        self._simulation = simulation
-        if parent_wakefield.profile is not None:
-            is_dynamic = isinstance(
-                parent_wakefield.profile, DynamicProfileConstCutoff
-            ) or isinstance(parent_wakefield.profile, DynamicProfileConstNBins)
-            self._parent_wakefield = parent_wakefield
-            self._update_internal_data()
-            if is_dynamic and self.update_on_calc is False:
-                warnings.warn(
-                    f"Because you are using"
-                    f" a `{type(parent_wakefield.profile)}`,"
-                    f" the variable `update_on_calc` is set to"
-                    f" True, which might impact performance."
-                    f" Set True by yourself to deactivate this warning.",
-                    stacklevel=2,
-                )
-                self.update_on_calc = True
-            elif isinstance(parent_wakefield.profile, StaticProfile):
-                pass
-            else:
-                raise NotImplementedError(
-                    f"Unrecognized type(profile) = {type(parent_wakefield.profile)}"
-                )
-        else:
-            raise Exception(f"{parent_wakefield.profile=}")
 
 
 class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):

@@ -6,7 +6,6 @@ from functools import cached_property
 from os import PathLike
 from typing import Optional
 
-import matplotlib.pyplot as plt
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
@@ -21,6 +20,10 @@ from ... import Simulation
 from ..._core.backends.backend import backend
 
 
+def get_hash(array1d: NumpyArray) -> int:
+    return hash((array1d[0], array1d[1], array1d[-1], len(array1d)))
+
+
 class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
     def __init__(self, Z_over_n: float):
         """
@@ -30,11 +33,32 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
             Constant imaginary Z/n = (Z * f /f0) impedance in [Ω].
             Can be a scalar or a turn-indexed array.
         """
+        super().__init__(is_dynamic=True)
         self.Z_over_n = Z_over_n
+
+        self._cache_derivative = None
+        self._cache_derivative_hash = None
+
+        self._cache_wake_impedance = None
+        self._cache_wake_impedance_hash = None
 
     def get_impedance(self, freq_x: NumpyArray, simulation: Simulation) -> NumpyArray:
         """
         Return the impedance in the frequency domain.
+
+        Notes
+        -----
+        In algebraic math, multiplying in frequency domain with -1j Z f
+        will correspond to the derivative in time domain.
+        Unfortunately, with a truncated discrete signal and FFTs,
+        this behaviour can not be reproduced by only multiplication with
+        this term.
+        Instead, multiplication by 1j * np.sin(k * h) / h must be done to
+        achieve the same result (as np.gradient).
+
+        np.gradient(x) in time domain
+        ifft(derivative_kernel * fft(x)) in frequency domain
+
 
         Parameters
         ----------
@@ -48,9 +72,19 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         imp : array-like
             Complex impedance array.
         """
-        T = (
-            simulation.ring.circumference / simulation.beams[0].reference_velocity
-        )  # FIXME consider update of this value!
+        T = simulation.ring.circumference / simulation.beams[0].reference_velocity
+        z_over_n = self.Z_over_n
+        derivative_kernel = self._get_derivative_impedance(freq_x)
+        return derivative_kernel[:] / (2 * np.pi) * z_over_n * T
+
+    def _get_derivative_impedance(self, freq_x: NumpyArray) -> NumpyArray:
+        """Get the equivalent of np.gradient(x) in frequency domain ifft(
+        derivative*fft(x))"""
+
+        # Recalculate only of `freq_x` is changed
+        hash_ = get_hash(freq_x)
+        if hash_ is self._cache_derivative_hash:
+            return self._cache_derivative
 
         df = freq_x[1] - freq_x[0]  # frequency spacing
         n = 2 * (len(freq_x) - 1)  # original signal length (for irfft)
@@ -60,20 +94,31 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         assert np.isclose(
             np.fft.rfftfreq(n, d=dx)[1] - np.fft.rfftfreq(n, d=dx)[0], df
         ), "Contact dev"  # TODO remove after testing
-
         # central finite difference (f(x+h) - g(x-h)) / 2h
         # expressed in frequency domain
         derivative = 1j * np.sin(k * h) / h
 
-        return derivative / (2 * np.pi) * self.Z_over_n * T
+        self._cache_derivative_hash = hash_
+        self._cache_derivative = derivative
+
+        return derivative
 
     def get_wake_impedance(
         self, time: NumpyArray, simulation: Simulation
     ) -> NumpyArray:
+        # Recalculate only of `time` is changed
+
+        hash_ = get_hash(time)
+        if hash_ is self._cache_wake_impedance_hash:
+            return self._cache_wake_impedance
         freq = np.fft.rfftfreq(len(time), d=time[1] - time[0])
-        return self.get_impedance(freq_x=freq, simulation=simulation) / (
+        wake_impedance = self.get_impedance(freq_x=freq, simulation=simulation) / (
             time[1] - time[0]
         )
+        self._cache_wake_impedance_hash = hash_
+        self._cache_wake_impedance = wake_impedance
+
+        return wake_impedance
 
 
 class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
@@ -83,6 +128,8 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         center_frequencies: NumpyArray,
         quality_factors: NumpyArray,
     ):
+        super().__init__(is_dynamic=False)
+
         self._shunt_impedances = shunt_impedances
         self._center_frequencies = center_frequencies
         self._quality_factors = quality_factors
@@ -91,9 +138,20 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         if np.sum(self._quality_factors < 0.5) > 0:
             raise RuntimeError("All quality factors Q must be greater or equal 0.5")
 
+        self._cache_wake_impedance = None
+        self._cache_wake_impedance_hash = None
+
+        self._cache_impedance = None
+        self._cache_impedance_hash = None
+
     def get_wake_impedance(
         self, time: NumpyArray, simulation: Simulation
     ) -> NumpyArray:
+        # Recalculate only of `time` is changed
+        hash = get_hash(time)
+        if hash is self._cache_wake_impedance_hash:
+            return self._cache_wake_impedance
+
         wake = np.zeros(len(time), dtype=backend.float, order="C")
         n_centers = len(self._center_frequencies)
         omega = 2 * np.pi * self._center_frequencies
@@ -109,12 +167,20 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
                     - alpha / omega_bar * np.sin(omega_bar * time)
                 )
             )
+        wake_impedance = np.fft.rfft(wake)
 
-        return np.fft.rfft(wake)
+        self._cache_wake_impedance_hash = hash
+        self._cache_wake_impedance = wake_impedance
+        return wake_impedance
 
     def get_impedance(self, freq_x: NumpyArray, simulation: Simulation) -> NumpyArray:
-        impedance = np.zeros(len(freq_x), dtype=complex)
+        # Recalculate only of `freq_x` is changed
 
+        hash_ = get_hash(freq_x)
+        if hash_ is self._cache_impedance_hash:
+            return self._cache_impedance
+
+        impedance = np.zeros(len(freq_x), dtype=complex)
         n_centers = len(self._center_frequencies)
 
         for i in range(n_centers):
@@ -128,6 +194,8 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
                     )
                 )
             )
+        self._cache_impedance_hash = hash_
+        self._cache_impedance = impedance
         return impedance
 
 
@@ -144,25 +212,27 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
         freq_x: NumpyArray,
         freq_y: NumpyArray,
     ):
-        self.freq_x = freq_x
-        self.freq_y = freq_y
-        self.__at_freq_x: Optional[NumpyArray] = field(
-            default=None, init=False, repr=False
-        )
+        super().__init__(is_dynamic=False)
+
+        self._freq_x = freq_x
+        self._freq_y = freq_y
+
+        self._cache_impedance = None
+        self._cache_impedance_hash = None
 
     def get_impedance(self, freq_x: NumpyArray, simulation: Simulation) -> NumpyArray:
-        if self.__at_freq_x is not None:
-            if np.any(freq_x != self.__at_freq_x):
-                # reset cache if new array
-                self.__at_freq_x = freq_x
-                self.__dict__.pop("_get_impedance", None)
-        return self._get_impedance
-
-    @cached_property
-    def _get_impedance(self):
-        return np.interp(
-            self.__at_freq_x, self.freq_x, self.freq_y, left=0, right=0
+        # Recalculate only of `freq_x` is changed
+        hash_ = get_hash(freq_x)
+        if hash_ is self._cache_impedance_hash:
+            return self._cache_impedance
+        impedance = np.interp(
+            freq_x, self._freq_x, self._freq_y, left=0, right=0
         ).astype(backend.complex)
+
+        self._cache_impedance_hash = hash_
+        self._cache_impedance = impedance
+
+        return impedance
 
     @staticmethod
     def from_file(filepath: PathLike, reader: ImpedanceReader) -> ImpedanceTableFreq:
@@ -172,10 +242,18 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
         return ImpedanceTableFreq(freq_x=x_array, freq_y=y_array)
 
 
-@dataclass(frozen=True)
 class ImpedanceTableTime(ImpedanceTable, TimeDomain):
-    wake_x: NumpyArray
-    wake_y: NumpyArray
+    def __init__(
+        self,
+        wake_x: NumpyArray,
+        wake_y: NumpyArray,
+    ):
+        super().__init__(is_dynamic=False)
+        self._wake_x = wake_x
+        self._wake_y = wake_y
+
+        self._cache_wake_impedance = None
+        self._cache_wake_impedance_hash = None
 
     @staticmethod
     def from_file(
@@ -183,3 +261,16 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
     ) -> ImpedanceTableTime:
         x_array, y_array = reader.load_file(filepath=filepath)
         return ImpedanceTableTime(wake_x=x_array, wake_y=y_array)
+
+    def get_wake_impedance(
+        self, time: NumpyArray, simulation: Simulation
+    ) -> NumpyArray:
+        hash_ = get_hash(time)
+        if hash_ is self._cache_wake_impedance_hash:
+            return self._cache_wake_impedance
+
+        wake = np.interp(time, self._wake_x, self._wake_y)
+        wake_impedance = np.fft.rfft(wake)
+        self._cache_wake_impedance_hash = hash_
+        self._cache_wake_impedance = wake_impedance
+        return wake_impedance

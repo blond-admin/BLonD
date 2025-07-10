@@ -32,7 +32,8 @@ class WakeFieldSolver:
 
 
 class WakeFieldSource(ABC):
-    pass
+    def __init__(self, is_dynamic:bool):
+        self.is_dynamic = is_dynamic
 
 
 class TimeDomain(ABC):
