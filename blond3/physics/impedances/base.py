@@ -32,7 +32,7 @@ class WakeFieldSolver:
 
 
 class WakeFieldSource(ABC):
-    def __init__(self, is_dynamic:bool):
+    def __init__(self, is_dynamic: bool):
         self.is_dynamic = is_dynamic
 
 

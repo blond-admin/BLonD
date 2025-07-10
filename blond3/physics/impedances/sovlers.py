@@ -34,7 +34,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         """Wakefield solver specialized for InductiveImpedance"""
         super().__init__()
         self._beam: LateInit[BeamBaseClass] = None
-        self._Z_over_n: LateInit[NumpyArray] = None
+        self._Z_over_n: LateInit[float] = None
         self._turn_i: LateInit[DynamicParameter] = None
         self._parent_wakefield: LateInit[WakeField] = None
         self._simulation: LateInit[Simulation] = None
