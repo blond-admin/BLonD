@@ -231,10 +231,13 @@ class Simulation(Preparable, HasPropertyCache):
     ) -> None:
         logger.info(f"Running `run_simulation` with {locals()}")
         n_turns = int_from_float_with_warning(n_turns, warning_stacklevel=2)
-        assert (turn_i_init + n_turns) <= self.energy_cycle.n_turns, (
-            f"Max turn number is {self.energy_cycle.n_turns}, but trying to "
-            f"simulate {(turn_i_init + n_turns)} turns"
-        )
+
+        max_turns = self.energy_cycle.n_turns
+        if max_turns is not None:
+            assert (turn_i_init + n_turns) <= max_turns, (
+                f"Max turn number is {max_turns}, but trying to "
+                f"simulate {(turn_i_init + n_turns)} turns"
+            )
         self.observe = observe
         self._exec_on_run_simulation(
             n_turns=n_turns,

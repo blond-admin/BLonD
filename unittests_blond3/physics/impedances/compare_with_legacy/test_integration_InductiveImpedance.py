@@ -111,7 +111,7 @@ class Blond3:
             ring=ring,
             beams=(beam,),
             energy_cycle=ConstantEnergyCycle(
-                np.sqrt((E_0 + 1.4e9) ** 2 - E_0**2), max_turns=10
+                np.sqrt((E_0 + 1.4e9) ** 2 - E_0**2)
             ),
         )
         self.induced_voltage = wake.calc_induced_voltage(beam)
@@ -128,7 +128,7 @@ class TestBothBlonds(unittest.TestCase):
     def setUp(self):
         backend.change_backend(Numpy64Bit)
         self.blond3 = Blond3()
-        plt.show()
+        #plt.show()
 
     def test___init__(self):
         np.testing.assert_allclose(

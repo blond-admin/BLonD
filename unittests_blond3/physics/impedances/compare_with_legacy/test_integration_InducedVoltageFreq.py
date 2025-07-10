@@ -187,7 +187,7 @@ Q_factor = np.array(
     ]
 )
 
-DEV_PLOT = True
+DEV_PLOT = False
 
 
 class Blond2:
@@ -287,7 +287,7 @@ class Blond3:
             profile=profile,
         )
         ring.add_elements((profile, cavity1, drift, wake))
-        energy_cycle = ConstantEnergyCycle(25.92e9, 10)
+        energy_cycle = ConstantEnergyCycle(25.92e9)
         sim = Simulation(ring=ring, beams=(beam,), energy_cycle=energy_cycle)
 
         induced_voltage = wake.calc_induced_voltage(beam=beam)

@@ -35,23 +35,44 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         is_counter_rotating: bool = False,
         is_distributed=False,
     ):
+        """Base class to make beam classes
+
+        Parameters
+        ----------
+        n_particles
+            Actual/real number of particles
+            a.k.a. beam intensity
+        particle_type
+            Type of particles, e.g. protons
+        is_counter_rotating
+            If this is a normal or counter-rotating beam
+        is_distributed
+            Developer option to allow distributed computing
+        """
         super().__init__()
 
         self.n_particles = int_from_float_with_warning(
             n_particles, warning_stacklevel=2
         )
         self._is_distributed = is_distributed
-        self.particle_type = particle_type
-        self._dE = None
-        self._dt = None
-        self._flags = None
+        self._particle_type = particle_type
         self._is_counter_rotating = is_counter_rotating
+
+        self._dE = None  # should be initialized later using `setup_beam`
+        self._dt = None  # should be initialized later using `setup_beam`
+        self._flags = None  # should be initialized later using `setup_beam`
 
         self.reference_time = 0  # todo cached properties
         self._reference_total_energy = 0  # todo cached properties
 
     @property
+    def particle_type(self) -> ParticleType:
+        """Type of particles, e.g. protons"""
+        return self._particle_type
+
+    @property
     def reference_total_energy(self) -> float:
+        """Total beam energy [eV]"""
         return self._reference_total_energy
 
     @reference_total_energy.setter
@@ -61,18 +82,22 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     @property
     def reference_gamma(self) -> float:
+        """Beam reference gamma a.k.a. Lorentz factor []"""
         # in eV and eV/c²
         val = self.reference_total_energy * self.particle_type.mass_inv
         return val
 
     @property
     def reference_beta(self) -> float:
+        """Beam reference fraction of speed of light (v/c0) []"""
+
         gamma = self.reference_gamma
         val = np.sqrt(1.0 - 1.0 / (gamma * gamma))
         return val
 
     @property
     def reference_velocity(self) -> float:
+        """Beam reference speed [m/s]"""
         return self.reference_beta * c0
 
     @abstractmethod
@@ -82,23 +107,52 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         dE: NumpyArray | CupyArray,
         flags: NumpyArray | CupyArray = None,
     ):
+        """Sets beam array attributes for simulation
+
+        Parameters
+        ----------
+        dt
+            Macro-particle time coordinates [s]
+        dE
+            Macro-particle energy coordinates [eV]
+        flags
+            Macro-particle flags
+        """
         pass
 
     @property  # as readonly attributes
     def is_distributed(self):
+        """Developer option to allow distributed computing"""
         return self._is_distributed
 
     @property  # as readonly attributes
     def is_counter_rotating(self):
+        """If this is a normal or counter-rotating beam"""
         return self._is_counter_rotating
 
     @requires(["EnergyCycleBase"])
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager"""
         super().on_init_simulation(simulation=simulation)
         self.reference_total_energy = simulation.energy_cycle.total_energy_init
 
     @requires(["EnergyCycleBase"])
-    def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int):
+    def on_run_simulation(
+        self, simulation: Simulation, n_turns: int, turn_i_init: int
+    ) -> None:
+        """Lateinit method when `simulation.run_simulation` is called
+
+        simulation
+            Simulation context manager
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
+
         super().on_run_simulation(
             simulation=simulation,
             n_turns=n_turns,
@@ -116,7 +170,11 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             new_reference_total_energy = simulation.energy_cycle.total_energy_init
         else:
             new_reference_total_energy = backend.float(
-                simulation.energy_cycle.total_energy[index, 0]
+                simulation.energy_cycle.get_target_total_energy(
+                    turn_i=index,
+                    section_i=0,
+                    reference_time=self.reference_time,
+                )
             )
         if self.reference_total_energy != new_reference_total_energy:
             msg = (
@@ -131,31 +189,39 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     @abstractmethod
     def plot_hist2d(self):
+        """Plot 2D histogram of beam coordinates"""
         pass
 
     @cached_property
     @abstractmethod  # as readonly attributes
     def dt_min(self) -> backend.float:
+        """Minimum dt coordinate in [s]"""
+
         pass
 
     @cached_property
     @abstractmethod  # as readonly attributes
     def dt_max(self) -> backend.float:
+        """Maximum dt coordinate in [s]"""
+
         pass
 
     @cached_property
     @abstractmethod  # as readonly attributes
     def dE_min(self) -> backend.float:
+        """Minimum dE coordinate in [eV]"""
         pass
 
     @cached_property
     @abstractmethod  # as readonly attributes
     def dE_max(self) -> backend.float:
+        """Maximum dE coordinate in [eV]"""
         pass
 
     @cached_property
     @abstractmethod  # as readonly attributes
     def common_array_size(self) -> int:
+        """Size of the beam, considering distributed beams"""
         pass
 
     cached_props = (
@@ -167,6 +233,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     )
 
     def invalidate_cache_dE(self) -> None:
+        """Reset cache of `cached_property` attributes"""
         super()._invalidate_cache(
             (
                 "dE_min",
@@ -175,6 +242,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         )
 
     def invalidate_cache_dt(self) -> None:
+        """Reset cache of `cached_property` attributes"""
         super()._invalidate_cache(
             (
                 "dt_min",
@@ -183,9 +251,17 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         )
 
     def invalidate_cache(self) -> None:
+        """Reset cache of `cached_property` attributes"""
         self._invalidate_cache(BeamBaseClass.cached_props)
 
     def n_macroparticles_partial(self):
+        """Size of the beam, ignoring that beam might be distributed
+
+        Note
+        ----
+        Depends on `is_distributed`
+
+        """
         return len(self._dE)
 
     def read_partial_dt(self):
@@ -202,7 +278,9 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
         Note
         ----
-        Depends on"""
+        Depends on `is_distributed`
+
+        """
         self.invalidate_cache_dt()
         return self._dt
 

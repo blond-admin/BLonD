@@ -48,7 +48,6 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         imp : array-like
             Complex impedance array.
         """
-
         T = (
             simulation.ring.circumference / simulation.beams[0].reference_velocity
         )  # FIXME consider update of this value!

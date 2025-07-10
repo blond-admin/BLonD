@@ -9,6 +9,7 @@ from ..backends.backend import backend
 from ..base import (
     BeamPhysicsRelevant,
     Preparable,
+    Schedulable,
 )
 
 if TYPE_CHECKING:
@@ -18,16 +19,24 @@ if TYPE_CHECKING:
     from ..simulation.simulation import Simulation
 
 
-class Ring(Preparable):
+class Ring(Preparable, Schedulable):
     _bending_radius: np.float32 | np.float64
-
     _circumference: np.float32 | np.float64
 
     def __init__(
         self,
         circumference: float,
         bending_radius: Optional[float] = None,
-    ):
+    ) -> None:
+        """Ring a.k.a. synchrotron
+
+        Parameters
+        ----------
+        circumference
+            Synchrotron circumference in [m]
+        bending_radius
+            Optional bending radius in [m]
+        """
         from .beam_physics_relevant_elements import BeamPhysicsRelevantElements
 
         if bending_radius is None:
@@ -40,6 +49,11 @@ class Ring(Preparable):
         self._bending_radius = backend.float(bending_radius)
 
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """
+        Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager"""
         from ...physics.drifts import DriftBaseClass  # prevent cyclic import
 
         all_drifts = self.elements.get_elements(DriftBaseClass)
@@ -58,20 +72,34 @@ class Ring(Preparable):
     def on_run_simulation(
         self, simulation: Simulation, n_turns: int, turn_i_init: int
     ) -> None:
+        """
+        Lateinit method when `simulation.run_simulation` is called
+
+        simulation
+            Simulation context manager
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
         pass
 
     @property
     def n_cavities(self):
+        """Total number of cavities in this synchrotron"""
         from ...physics.cavities import CavityBaseClass
 
         return self.elements.count(CavityBaseClass)
 
     @property  # as readonly attributes
     def bending_radius(self):
+        """Bending radius in [m]"""
         return self._bending_radius
 
     @property  # as readonly attributes
     def elements(self) -> BeamPhysicsRelevantElements:
+        """Bending radius in [m]"""
+
         return self._elements
 
     @property  # as readonly attributes

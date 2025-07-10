@@ -3,9 +3,11 @@ from unittest.mock import Mock
 
 import numpy as np
 from matplotlib import pyplot as plt
+from scipy.constants import speed_of_light as c0
 
-from blond3.physics.impedances.sources import InductiveImpedance, Resonators
+from blond3._core.beam.base import BeamBaseClass
 from blond3._core.simulation.simulation import Simulation
+from blond3.physics.impedances.sources import InductiveImpedance, Resonators
 
 
 class TestImpedanceTable(unittest.TestCase):
@@ -59,10 +61,14 @@ class TestInductiveImpedance(unittest.TestCase):
 
     def test_get_freq_y(self):
         simulation = Mock(Simulation)
+        simulation.ring.circumference = 27e3
+        beam = Mock(BeamBaseClass)
+        beam.reference_velocity = 0.8 / c0
+        simulation.beams = (beam,)
         freq_x = np.linspace(0, 1e9, 30)
         freq_y = self.inductive_impedance.get_impedance(
             freq_x=freq_x,
-            sim=simulation,
+            simulation=simulation,
         )
         DEV_DEBBUG = False
         if DEV_DEBBUG:
@@ -86,10 +92,10 @@ class TestResonators(unittest.TestCase):
         simulation = Mock(Simulation)
         time = np.linspace(-1e-9, 1e-9, 30)
 
-        wake = self.resonators.get_wake(time=time, sim=simulation)
+        wake_impedance = self.resonators.get_wake_impedance(time=time, simulation=simulation)
         DEV_DEBBUG = False
         if DEV_DEBBUG:
-            plt.plot(time, wake)
+            plt.plot(time, wake_impedance)
             plt.show()
         # TODO PIN VALUE!
 
@@ -98,9 +104,9 @@ class TestResonators(unittest.TestCase):
         freq_x = np.linspace(0, 1e9, 30)
         freq_y = self.resonators.get_impedance(
             freq_x=freq_x,
-            sim=simulation,
+            simulation=simulation,
         )
-        DEV_DEBBUG = True
+        DEV_DEBBUG = False
         if DEV_DEBBUG:
             plt.plot(freq_x, np.abs(freq_y))
             plt.show()

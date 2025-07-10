@@ -54,14 +54,14 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         section_index: int,
         local_wakefield: Optional[WakeField],
         cavity_feedback: Optional[LocalFeedback],
-    ):
+    ) -> CavityBaseClass:
         cav = CavityBaseClass(
             n_rf=n_rf,
             section_index=section_index,
             local_wakefield=local_wakefield,
             cavity_feedback=cavity_feedback,
         )
-        from .._core.simulation.simulation import Simulation
+        from .._core.simulation.simulation import Simulation  # prevent cyclic import
 
         simulation = Mock(Simulation)
         simulation.turn_i = Mock(DynamicParameter)
@@ -97,9 +97,8 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         if self._local_wakefield is not None:
             self._local_wakefield.track(beam=beam)
 
-    @abstractmethod
     def calc_omega(self, beam_beta: float, ring_circumference: float):
-        pass
+        return self.harmonic * (TWOPIC0 * beam_beta / ring_circumference)
 
 
 class SingleHarmonicCavity(CavityBaseClass):
@@ -118,11 +117,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         self.voltage: float | None = None
         self.phi_rf: float | None = None
         self.harmonic: float | None = None
-        self.total_energy_target: float | None = None
         self._omegas = None
-
-    def calc_omega(self, beam_beta: float, ring_circumference: float):
-        return TWOPIC0 * self.harmonic * beam_beta / ring_circumference
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         super().on_init_simulation(simulation=simulation)
@@ -144,10 +139,12 @@ class SingleHarmonicCavity(CavityBaseClass):
 
     def track(self, beam: BeamBaseClass):
         super().track(beam=beam)
-        reference_energy_change = (
-            self._energy_cycle.total_energy[self.section_index, self._turn_i.value]
-            - beam.reference_total_energy
+        target_total_energy = self._energy_cycle.get_target_total_energy(
+            turn_i=self._turn_i.value,
+            section_i=self.section_index,
+            reference_time=beam.reference_time,
         )
+        reference_energy_change = target_total_energy - beam.reference_total_energy
         self._omegas = self.calc_omega(
             beam_beta=beam.reference_beta,
             ring_circumference=self._ring.circumference,
@@ -173,10 +170,10 @@ class SingleHarmonicCavity(CavityBaseClass):
         total_energy: float,
         local_wakefield: Optional[WakeField] = None,
         cavity_feedback: Optional[LocalFeedback] = None,
-    ):
+    ) -> SingleHarmonicCavity:
         from .._core.simulation.simulation import Simulation
         from .._core.ring.ring import Ring
-        from ..cycles.energy_cycle import EnergyCycleBase
+        from ..cycles.energy_cycle import ConstantEnergyCycle
 
         mhc = SingleHarmonicCavity(
             section_index=section_index,
@@ -191,10 +188,8 @@ class SingleHarmonicCavity(CavityBaseClass):
         ring = Mock(Ring)
         ring.circumference = backend.float(circumference)
 
-        energy_cycle = Mock(EnergyCycleBase)
-        energy_cycle.total_energy = total_energy * np.ones(
-            (section_index + 1, 1), dtype=backend.float
-        )
+        energy_cycle = Mock(ConstantEnergyCycle)
+        energy_cycle.get_target_total_energy.return_value = total_energy
 
         simulation = Mock(Simulation)
         simulation.ring = ring
@@ -256,10 +251,11 @@ class MultiHarmonicCavity(CavityBaseClass):
         total_energy: float,
         local_wakefield: Optional[WakeField] = None,
         cavity_feedback: Optional[LocalFeedback] = None,
-    ):
+    ) -> MultiHarmonicCavity:
         from .._core.simulation.simulation import Simulation
         from .._core.ring.ring import Ring
         from ..cycles.energy_cycle import EnergyCycleBase
+        from ..cycles.energy_cycle import ConstantEnergyCycle
 
         mhc = MultiHarmonicCavity(
             n_harmonics=len(voltage),
@@ -275,8 +271,8 @@ class MultiHarmonicCavity(CavityBaseClass):
         ring = Mock(Ring)
         ring.circumference = circumference
 
-        energy_cycle = Mock(EnergyCycleBase)
-        energy_cycle.total_energy = total_energy * np.ones((section_index + 1, 1))
+        energy_cycle = Mock(ConstantEnergyCycle)
+        energy_cycle.get_target_total_energy.return_value = total_energy
 
         simulation = Mock(Simulation)
         simulation.ring = ring
@@ -290,15 +286,14 @@ class MultiHarmonicCavity(CavityBaseClass):
         )
         return mhc
 
-    def calc_omega(self, beam_beta: float, ring_circumference: float):
-        return self.harmonic * (TWOPIC0 * beam_beta / ring_circumference)
-
     def track(self, beam: BeamBaseClass):
         super().track(beam=beam)
-        reference_energy_change = (
-            self._energy_cycle.total_energy[self.section_index, self._turn_i.value]
-            - beam.reference_total_energy
+        target_total_energy = self._energy_cycle.get_target_total_energy(
+            turn_i=self._turn_i.value,
+            section_i=self.section_index,
+            reference_time=beam.reference_time,
         )
+        reference_energy_change = target_total_energy - beam.reference_total_energy
 
         omega_rf = self.calc_omega(
             beam_beta=beam.reference_beta,

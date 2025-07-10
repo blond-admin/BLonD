@@ -81,7 +81,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         circumference: float,
         share_of_circumference: float,
         section_index: int = 0,
-    ):
+    ) -> DriftSimple:
         from .._core.base import DynamicParameter
 
         d = DriftSimple(

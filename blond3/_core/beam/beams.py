@@ -26,6 +26,18 @@ class Beam(BeamBaseClass):
         particle_type: ParticleType,
         is_counter_rotating: bool = False,
     ):
+        """Base class to make beam classes
+
+        Parameters
+        ----------
+        n_particles
+            Actual/real number of particles
+            a.k.a. beam intensity
+        particle_type
+            Type of particles, e.g. protons
+        is_counter_rotating
+            If this is a normal or counter-rotating beam
+        """
         super().__init__(
             n_particles=n_particles,
             particle_type=particle_type,
@@ -33,6 +45,11 @@ class Beam(BeamBaseClass):
         )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
         super().on_init_simulation(simulation=simulation)
 
     def setup_beam(
@@ -41,6 +58,17 @@ class Beam(BeamBaseClass):
         dE: NumpyArray | CupyArray,
         flags: Optional[NumpyArray | CupyArray] = None,
     ):
+        """Sets beam array attributes for simulation
+
+        Parameters
+        ----------
+        dt
+            Macro-particle time coordinates [s]
+        dE
+            Macro-particle energy coordinates [eV]
+        flags
+            Macro-particle flags
+        """
         assert len(dt) == len(dE), f"{len(dt)} != {len(dE)}"
         n_particles = len(dt)
         if flags is None:
@@ -57,31 +85,51 @@ class Beam(BeamBaseClass):
     def on_run_simulation(
         self, simulation: Simulation, n_turns: int, turn_i_init: int
     ) -> None:
+        """Lateinit method when `simulation.run_simulation` is called
+
+        simulation
+            Simulation context manager
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
         super().on_run_simulation(
             simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
         )
 
     @cached_property
     def dt_min(self) -> backend.float:
+        """Minimum dt coordinate in [s]"""
+
         return self._dt.min()
 
     @cached_property
     def dt_max(self) -> backend.float:
+        """Maximum dt coordinate in [s]"""
+
         return self._dt.max()
 
     @cached_property
     def dE_min(self) -> backend.float:
+        """Minimum dE coordinate in [eV]"""
+
         return self._dE.min()
 
     @cached_property
     def dE_max(self) -> backend.float:
+        """Maximum dE coordinate in [eV]"""
+
         return self._dE.max()
 
     @cached_property
     def common_array_size(self) -> int:
+        """Size of the beam, considering distributed beams"""
+
         return len(self._dt)
 
     def plot_hist2d(self, **kwargs):
+        """Plot 2D histogram of beam coordinates"""
         if "cmap" not in kwargs.keys():
             kwargs["cmap"] = "viridis"
         if "bins" not in kwargs.keys():
@@ -96,6 +144,18 @@ class ProbeBunch(Beam):
         dt: Optional[NumpyArray] = None,
         dE: Optional[NumpyArray] = None,
     ):
+        """
+        Test Bunch without intensity effects
+
+        Parameters
+        ----------
+        particle_type
+            Type of particles, e.g. protons
+        dt
+            Macro-particle time coordinates [s]
+        dE
+            Macro-particle energy coordinates [eV]
+        """
         super().__init__(n_particles=0, particle_type=particle_type)
         if dt is not None:
             dE = np.zeros_like(dt)

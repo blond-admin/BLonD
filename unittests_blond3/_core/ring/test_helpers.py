@@ -1,12 +1,12 @@
 import unittest
 
 from blond3._core.ring.helpers import (
-    build_dependency_graph,
+    _build_dependency_graph,
     get_dependencies,
     get_elements,
     get_init_order,
     requires,
-    topological_sort,
+    _topological_sort,
 )
 
 
@@ -54,7 +54,7 @@ class TestFunctions(unittest.TestCase):
     def test_build_dependency_graph_executes(self):
         a = A()
         b = B()
-        graph, in_degree, all_classes = build_dependency_graph(
+        graph, in_degree, all_classes = _build_dependency_graph(
             instances=(a, b), dependency_attribute="common.requires"
         )
 
@@ -104,7 +104,7 @@ class TestFunctions(unittest.TestCase):
     @unittest.skip
     def test_topological_sort(self):
         # TODO: implement test for `topological_sort`
-        topological_sort(graph=None, in_degree=None, all_classes=None)
+        _topological_sort(graph=None, in_degree=None, all_classes=None)
     @unittest.skip
     def test_get_dependencies(self):
         # TODO: implement test for `get_dependencies`

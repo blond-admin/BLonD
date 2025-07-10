@@ -117,7 +117,7 @@ class TestBeamBaseClass(unittest.TestCase):
 
     def test_on_run_simulation(self):
         simulation = Mock(spec=Simulation)
-        simulation.energy_cycle.total_energy = np.linspace(1, 3, 3)[np.newaxis, :]
+        simulation.energy_cycle.get_target_total_energy.return_value = 11
         self.beam_base_class.on_run_simulation(
             simulation=simulation, n_turns=1, turn_i_init=1
         )

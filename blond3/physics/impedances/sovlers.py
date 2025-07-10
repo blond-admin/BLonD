@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 
 class InductiveImpedanceSolver(WakeFieldSolver):
     def __init__(self):
+        """Wakefield solver specialized for InductiveImpedance"""
         super().__init__()
         self._beam: LateInit[BeamBaseClass] = None
         self._Z_over_n: LateInit[NumpyArray] = None
@@ -41,6 +42,15 @@ class InductiveImpedanceSolver(WakeFieldSolver):
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ):
+        """Lateinit method when WakeField is late-initialized
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+        parent_wakefield
+            Wakefield that this solver affiliated to
+        """
         self._parent_wakefield = parent_wakefield
         assert all(
             [isinstance(o, InductiveImpedance) for o in parent_wakefield.sources]
@@ -51,6 +61,19 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         self._simulation = simulation
 
     def calc_induced_voltage(self, beam: BeamBaseClass) -> NumpyArray | CupyArray:
+        """
+        Calculates the induced voltage based on the beam profile and beam parameters
+
+        Parameters
+        ----------
+        beam
+            Simulation object of a particle beam
+
+        Returns
+        -------
+        induced_voltage
+            Induced voltage in [V]
+        """
         ratio = beam.n_particles / beam.n_macroparticles_partial()
         factor = -(
             (beam.particle_type.charge * e)
@@ -64,6 +87,28 @@ class InductiveImpedanceSolver(WakeFieldSolver):
 
 
 class PeriodicFreqSolver(WakeFieldSolver):
+    """Wakefield solver specialized for InductiveImpedance
+
+    Parameters
+    ----------
+    t_periodicity
+        Periodicity that is assumed for fast fourier transform
+        in [s]
+    allow_next_fast_len
+        Allow to slightly change `t_periodicity` for
+        faster execution of fft via `scipy.fft.next_fast_len`
+
+    Attributes
+    ----------
+    allow_next_fast_len
+        Allow to slightly change `t_periodicity` for
+        faster execution of fft via `scipy.fft.next_fast_len`
+    update_on_calc
+        If true, reloads internal data on each
+        `calc_induced_voltage` for proper updating with
+        dynamic parameters
+    """
+
     def __init__(self, t_periodicity: float, allow_next_fast_len: bool = False):
         super().__init__()
         self.allow_next_fast_len = allow_next_fast_len
@@ -79,6 +124,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
 
     @property
     def t_periodicity(self) -> float:
+        """Periodicity that is assumed for fast fourier transform in  [s]"""
         return self._t_periodicity
 
     @t_periodicity.setter
@@ -87,6 +133,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         self._update_internal_data()
 
     def _update_internal_data(self):
+        """Rebuild internal data model"""
         self._n_time = int(
             math.ceil(self._t_periodicity / self._parent_wakefield.profile.hist_step)
         )
@@ -114,20 +161,19 @@ class PeriodicFreqSolver(WakeFieldSolver):
         self._freq_y /= self._parent_wakefield.profile.hist_step
         pass
 
-    def _warning_callback(self, t_rev_new: float):  # TODO activate this again
-        tolerance = 0.1 / 100
-        deviation = abs(1 - t_rev_new / self._t_periodicity)
-        if deviation > tolerance:
-            warnings.warn(
-                f"The PeriodicFreqSolver was configured for "
-                f"{self._t_periodicity=:.2e} s, but the actual Ring "
-                f"periodicity is {t_rev_new:.2e} s, a deviation of {deviation} %."
-            )
-
-    # InductiveImpedance.get_
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ):
+        """Lateinit method when WakeField is late-initialized
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+        parent_wakefield
+            Wakefield that this solver affiliated to
+        """
+
         self._simulation = simulation
         if parent_wakefield.profile is not None:
             is_static = isinstance(parent_wakefield.profile, StaticProfile)
@@ -157,6 +203,19 @@ class PeriodicFreqSolver(WakeFieldSolver):
             raise Exception(f"{parent_wakefield.profile=}")
 
     def calc_induced_voltage(self, beam: BeamBaseClass) -> NumpyArray | CupyArray:
+        """
+        Calculates the induced voltage based on the beam profile and beam parameters
+
+        Parameters
+        ----------
+        beam
+            Simulation object of a particle beam
+
+        Returns
+        -------
+        induced_voltage
+            Induced voltage in [V]
+        """
         if self.update_on_calc:
             self._update_internal_data()  # might cause performance issues :(
 
@@ -187,6 +246,7 @@ class TimeDomainSolver(WakeFieldSolver):
         self._simulation: LateInit[Simulation] = None
 
     def _update_internal_data(self):
+        """Rebuild internal data model"""
         _wake_x = self._parent_wakefield.profile.hist_x
 
         self._wake_imp_y = np.zeros(
@@ -203,6 +263,19 @@ class TimeDomainSolver(WakeFieldSolver):
                 raise Exception("Can only accept impedance that support `TimeDomain`")
 
     def calc_induced_voltage(self, beam: BeamBaseClass) -> NumpyArray | CupyArray:
+        """
+        Calculates the induced voltage based on the beam profile and beam parameters
+
+        Parameters
+        ----------
+        beam
+            Simulation object of a particle beam
+
+        Returns
+        -------
+        induced_voltage
+            Induced voltage in [V]
+        """
         if self.update_on_calc:
             self._update_internal_data()  # might cause performance issues :(
 
@@ -225,6 +298,15 @@ class TimeDomainSolver(WakeFieldSolver):
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ):
+        """Lateinit method when WakeField is late-initialized
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+        parent_wakefield
+            Wakefield that this solver affiliated to
+        """
         self._simulation = simulation
         if parent_wakefield.profile is not None:
             is_dynamic = isinstance(

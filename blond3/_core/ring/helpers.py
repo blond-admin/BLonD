@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 from collections import defaultdict, deque
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from typing import Iterable, Any, List, Tuple, Type, TypeVar
@@ -11,6 +11,15 @@ if TYPE_CHECKING:
 
 
 def requires(argument: List[str]):
+    """Decorator to manage execution order of decorated functions
+
+    Parameters
+    ----------
+    argument
+        List of class names that are required before executing
+        the decorated function
+    """
+
     def decorator(function):
         def wrapper(*args, **kwargs):
             return function(*args, **kwargs)
@@ -24,14 +33,51 @@ def requires(argument: List[str]):
 
 
 def get_elements(elements: Iterable, class_: Type[T]) -> Tuple[T, ...]:
+    """
+    Find all elements of a certain type
+
+    Parameters
+    ----------
+    elements
+        List of instances that might match isinstance(element, class_)
+    class_
+        Return only elements that are instance of this class
+
+    Returns
+    -------
+    filtered_elements
+        List of filtered elements that match class_
+
+    """
     return tuple(filter(lambda x: isinstance(x, class_), elements))
 
 
-def get_init_order(instances: Iterable[Any], dependency_attribute: str):
-    graph, in_degree, all_classes = build_dependency_graph(
+def get_init_order(instances: Iterable[Any], dependency_attribute: str) -> list[Any]:
+    """
+    Get order to be initialized elements
+
+    Notes
+    -----
+    To be used in combination with `@requires(["ClassName1", "ClassName2"])`
+
+    Parameters
+    ----------
+    instances
+        Instances to be sorted
+    dependency_attribute
+        Attribute that is used for sorting
+        e.g. "on_init_simulation.requires"
+
+    Returns
+    -------
+    sorted_classes_filtered
+        Sorted `instances`
+
+    """
+    graph, in_degree, all_classes = _build_dependency_graph(
         instances, dependency_attribute
     )
-    sorted_classes = topological_sort(graph, in_degree, all_classes)
+    sorted_classes = _topological_sort(graph, in_degree, all_classes)
     sorted_classes_filtered = []
     for cls in sorted_classes:
         if any([cls == type(i).__name__ for i in instances]):
@@ -40,11 +86,19 @@ def get_init_order(instances: Iterable[Any], dependency_attribute: str):
     return sorted_classes_filtered
 
 
-def build_dependency_graph(
+def _build_dependency_graph(
     instances: Iterable[Any], dependency_attribute: str
 ) -> (defaultdict[Any, list], defaultdict[Any, int], set):
-    """Function to build a dependency graph based on
-    'on_init_simulation_dependencies' defined in classes"""
+    """Function to build a dependency graph
+
+    Parameters
+    ----------
+    instances
+        Instances to be sorted
+    dependency_attribute
+        Attribute that is used for sorting
+        e.g. "on_init_simulation.requires"
+    """
 
     graph = defaultdict(list)  # Directed graph: dependency -> list of dependent classes
     in_degree = defaultdict(
@@ -71,6 +125,22 @@ def build_dependency_graph(
 
 
 def get_dependencies(cls_: type, dependency_attribute: str):
+    """
+    Investigate on which classes this class depends
+
+    Parameters
+    ----------
+    cls_
+        Investigated class
+    dependency_attribute
+        Attribute that is used for sorting
+        e.g. "on_init_simulation.requires"
+
+
+    Returns
+    -------
+
+    """
     if "." in dependency_attribute:
         if dependency_attribute.count(".") != 1:
             raise NotImplementedError(f"Only one . allowed in {dependency_attribute=}")
@@ -91,7 +161,7 @@ def get_dependencies(cls_: type, dependency_attribute: str):
     return attr
 
 
-def topological_sort(
+def _topological_sort(
     graph: defaultdict[Any, list], in_degree: defaultdict[Any, int], all_classes: set
 ) -> list[Any]:
     """Function to perform topological sort on the dependency graph"""

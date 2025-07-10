@@ -14,6 +14,7 @@ if TYPE_CHECKING:  # pragma: no cover
         Tuple,
         Type,
         TypeVar,
+        Any,
     )
     from ..base import BeamPhysicsRelevant
     from numpy.typing import NDArray as NumpyArray
@@ -22,14 +23,22 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class BeamPhysicsRelevantElements(Preparable):
+    """Container object to manage all beam interactions in `Ring`"""
+
     def __init__(self):
         super().__init__()
         self.elements: Tuple[BeamPhysicsRelevant, ...] = ()
 
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """
+        Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager"""
         self._check_section_indexing()
 
     def _check_section_indexing(self):
+        """Verify that indices have been set correctly"""
         from ...physics.cavities import CavityBaseClass
         from ...physics.drifts import DriftBaseClass
 
@@ -61,15 +70,34 @@ class BeamPhysicsRelevantElements(Preparable):
     def on_run_simulation(
         self, simulation: Simulation, n_turns: int, turn_i_init: int
     ) -> None:
+        """
+        Lateinit method when `simulation.run_simulation` is called
+
+        simulation
+            Simulation context manager
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
+
         pass
 
     def get_sections_indices(self) -> Tuple[int, ...]:
+        """Get all unique section indices"""
         unique_section_indices = set()
         for e in self.elements:
             unique_section_indices.add(e.section_index)
         return tuple(sorted(unique_section_indices))
 
     def get_section_circumference_shares(self) -> NumpyArray:
+        """
+        Get `share_of_circumference` per section
+
+        Notes
+        -----
+        This is different from per-drift listing
+        """
         from ...physics.drifts import DriftBaseClass
 
         sections = self.get_sections_indices()
@@ -83,37 +111,112 @@ class BeamPhysicsRelevantElements(Preparable):
         return result
 
     def add_element(self, element: BeamPhysicsRelevant):
+        """
+        Prepend a beam physics-relevant element to the container.
+
+        This method appends the given element to the
+        internal sequence of elements, maintaining insertion order.
+        The element must have a valid integer `section_index`.
+
+        Parameters
+        ----------
+        element
+            An object representing a beamline component or any element
+            relevant to beam physics. Must have a valid  `section_index`
+            attribute of type `int`.
+
+        Raises
+        ------
+        AssertionError
+            If `element.section_index` is not an integer.
+        """
         assert isinstance(element.section_index, int)
         self.elements = (*self.elements, element)
 
     @property  # as readonly attributes
     def n_sections(self):
+        """Number of sections that are mentioned by elements"""
         return len(np.unique([e.section_index for e in self.elements]))
 
     @property  # as readonly attributes
     def n_elements(self):
+        """Number of elements contained in this class"""
         return len(self.elements)
 
     def get_elements(
         self, class_: Type[T], section_i: Optional[int] = None
     ) -> Tuple[T, ...]:
+        """
+        Get all elements of specified type (potentially filtered by section)
+
+        Parameters
+        ----------
+        class_
+            Type of class to filter for
+        section_i
+            Optional filter to get instances only in one section
+        """
         elements = get_elements(self.elements, class_)
         if section_i is not None:
             elements = tuple(filter(lambda x: x.section_index == section_i, elements))
         return elements
 
     def get_element(self, class_: Type[T], section_i: Optional[int] = None) -> T:
-        elements = self.get_elements(class_=class_, section_i=section_i)
+        """
+        Retrieve a single element of the specified type, optionally filtered by section.
+
+        This method returns exactly one element of the given type. If
+        `section_i` is provided, only elements in that section are
+        considered.
+
+        Notes
+        -----
+        An assertion error is raised if the number of matching
+        elements is not exactly one.
+
+        Parameters
+        ----------
+        class_
+            The class type to filter elements by.
+        section_i
+            Optional section index to restrict the search to a specific section.
+
+        Returns
+        -------
+        signle_element
+            The single element of the specified type (and section, if provided).
+
+        Raises
+        ------
+        AssertionError
+            If the number of matching elements is not exactly one.
+        """
+        elements = self.get_elements(
+            class_=class_,
+            section_i=section_i,
+        )
         assert len(elements) == 1, f"{len(elements)=}"
         return elements[0]
 
     def reorder(self):
-        for section_i in range(self.n_sections):
-            self.reorder_section(section_i)
+        """Reorder each section by `natural_order`"""
+        for section_index in range(self.n_sections):
+            self.reorder_section(
+                section_index=section_index,
+            )
 
         self._check_section_indexing()
 
     def reorder_section(self, section_index: int):
+        """
+        Reorder section by `natural_order`
+
+        Parameters
+        ----------
+        section_index
+            Section index to restrict the ordering to a specific section.
+        """
+
         assert isinstance(section_index, int)
         from ...physics.drifts import DriftBaseClass
         from ...physics.profiles import ProfileBaseClass
@@ -160,12 +263,30 @@ class BeamPhysicsRelevantElements(Preparable):
         )
 
     def count(self, class_: Type[T], section_i: Optional[int] = None):
+        """
+        Count instances in this class that match class-type
+
+        Parameters
+        ----------
+        class_
+            The class type to filter elements by.
+        section_i
+            Optional section index to restrict the search to a specific section.
+
+        """
         return len(self.get_elements(class_=class_, section_i=section_i))
 
     def print_order(self):
+        """Print current execution order"""
         print(self.get_order_info())
 
     def get_order_info(self):
+        """Generate execution order string
+
+        Notes
+        -----
+        Intended for logging and printing
+        """
         sep = 78 * "-" + "\n"
         content = ""
         content += sep
@@ -189,7 +310,8 @@ class BeamPhysicsRelevantElements(Preparable):
         return content
 
 
-def pprint(v):
+def pprint(v: NumpyArray | Any):
+    """Pretty print an array"""
     if isinstance(v, np.ndarray):
         return f"array(min={v.min()}, max={v.max()}, shape={v.shape})"
     else:

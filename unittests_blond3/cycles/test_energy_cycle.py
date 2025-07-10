@@ -15,14 +15,12 @@ from blond3.cycles.energy_cycle import (
     _to_momentum,
     beta_by_momentum,
     EnergyCycleBase,
-    derive_time,
     calc_beta,
     calc_gamma,
     calc_total_energy,
     calc_energy_kin,
 )
-from blond3.testing.simulation import ExampleSimulation01, \
-    SimulationTwoRfStations
+from blond3.testing.simulation import ExampleSimulation01, SimulationTwoRfStations
 
 simulation_ex1 = ExampleSimulation01().simulation
 
@@ -124,80 +122,11 @@ class TestFunctions(unittest.TestCase):
     def test_derive_time_glue(self):
         pass
 
-    def test_derive_time(self):
-        c = c0  # total circumference in meters
-        # using 299 792 458 m, so one turn must take more than 1s
-
-        # Structure: drift [m], rf 0, drift [fraction], rf 1, drift [fraction], rf 2
-        fast_execution_order = [1 * c, int(0), 1 * c, int(1), 2 * c, int(2)]
-        # expecting flight time about 1s, 1s, 2s...
-
-        mass = proton.mass  # ~938e6 eV/c²
-        n_turns = 2
-        n_sections = 3  # same as number of RF stations
-
-        # momentum and time program as a function of time
-        program_time = np.array([0.0, 1e-6, 2e-6, 5e9])
-        program_momentum = np.array([1e9, 2e9, 3e9, 4e9])
-
-        times = derive_time(
-            fast_execution_order=fast_execution_order,
-            interpolate=np.interp,
-            mass=mass,
-            n_sections=n_sections,
-            n_turns=n_turns,
-            program_momentum=program_momentum,
-            program_time=program_time,
-            t0=0.0,
-        )
-
-        # Allow small numerical tolerance
-        np.testing.assert_allclose(
-            times[:, 0],
-            np.array([1.371260191867345, 2.419027899042942, 4.514563313394136]),
-            rtol=1e-8,
-        )
-
-    def test_derive_time_const_momentum(self):
-        c = c0  # total circumference in meters
-        # using 299 792 458 m, so one turn must take more than 1s
-
-        # Structure: drift [m], rf 0, drift [fraction], rf 1, drift [fraction], rf 2
-        fast_execution_order = [1 * c, int(0), 1 * c, int(1), 1 * c, int(2)]
-        # expecting flight time about 1s, 1s, 2s...
-
-        mass = proton.mass  # ~938e6 eV/c²
-        n_turns = 2
-        n_sections = 3  # same as number of RF stations
-
-        # momentum and time program as a function of time
-        program_time = np.array([0.0, 1e-6, 2e-6, 5e9])
-        program_momentum = np.array([1e9, 1e9, 1e9, 1e9])  # CONSTANT
-
-        times = derive_time(
-            fast_execution_order=fast_execution_order,
-            interpolate=np.interp,
-            mass=mass,
-            n_sections=n_sections,
-            n_turns=n_turns,
-            program_momentum=program_momentum,
-            program_time=program_time,
-            t0=0.0,
-        )
-
-        # Allow small numerical tolerance
-        np.testing.assert_allclose(
-            np.diff(times[:, 0]),
-            np.array([1.371260191867345, 1.371260191867345]),
-            rtol=1e-8,
-        )
-
 
 class TestConstantEnergyCycle(unittest.TestCase):
     def setUp(self):
         self.constant_energy_cycle = ConstantEnergyCycle(
             value=11,
-            max_turns=11,
             in_unit="momentum",
         )
 
@@ -206,23 +135,28 @@ class TestConstantEnergyCycle(unittest.TestCase):
 
     def test_on_init_simulation(self):
         self.constant_energy_cycle.on_init_simulation(simulation=simulation_ex1)
-        self.assertEqual(self.constant_energy_cycle.momentum.min(), 11)
-        self.assertEqual(self.constant_energy_cycle.momentum.max(), 11)
+        self.assertEqual(self.constant_energy_cycle._momentum, 11)
 
     def test_headless(self):
         cec = ConstantEnergyCycle.headless(
-            section_lengths=np.array([0.1, 0.3]),
             value=1,
-            max_turns=12,
             in_unit="momentum",
             bending_radius=None,
             mass=1,
             charge=2,
         )
-        self.assertEqual(cec.total_energy.shape, (2, 12))
+        self.assertEqual(
+            cec.get_target_total_energy(0, 0, 0),
+            cec.get_target_total_energy(111, 111, 111),
+        )
 
 
 class EnergyCycleBaseHelper(EnergyCycleBase):
+    def get_target_total_energy(
+        self, turn_i: int, section_i: int, reference_time: float
+    ):
+        pass
+
     @staticmethod
     def headless(*args, **kwargs):
         pass
@@ -242,14 +176,12 @@ class TestEnergyCycleBase(unittest.TestCase):
     def test___init__(self):
         self.assertIsInstance(self.energy_cycle_base, EnergyCycleBase)
 
-
     def test_energy(self):
-        energy = self.energy_cycle_base.total_energy
+        energy = self.energy_cycle_base.total_energy_init
         expected = np.sqrt(
-            self.energy_cycle_base._momentum**2 + self.energy_cycle_base._mass**2
+            self.energy_cycle_base._momentum_init**2 + self.energy_cycle_base._mass**2
         )
         assert_allclose(energy, expected, rtol=1e-8)
-
 
     def test_invalidate_cache(self):
         # This is a placeholder; add actual cache-clearing verification if applicable
@@ -262,9 +194,7 @@ class TestEnergyCycleBase(unittest.TestCase):
         self.energy_cycle_base.on_init_simulation(
             simulation=simulation_ex1,
             momentum_init=11,
-            momentum=np.ones(
-                (1, 10),
-            ),
+            n_turns=10,
         )
 
     def test_on_run_simulation(self):
@@ -277,7 +207,6 @@ class TestEnergyCycleByTime(unittest.TestCase):
     def setUp(self):
         self.energy_cycle_by_time = EnergyCycleByTime(
             t0=1.0,
-            max_turns=10,
             base_time=np.linspace(1, 12, 12),
             base_values=np.linspace(1e9, 5e9, 12),
         )
@@ -290,15 +219,14 @@ class TestEnergyCycleByTime(unittest.TestCase):
 
     def test_headless(self):
         ebt = EnergyCycleByTime.headless(
-            fast_execution_order=[0, 0.1, 1, 0.3],
             t0=131,
-            max_turns=124,
-            base_time=np.linspace(0, 10),
-            base_values=np.linspace(0, 10),
+            base_time=np.linspace(0, 10, endpoint=True),
+            base_values=np.linspace(0, 10, endpoint=True),
             mass=1,
             charge=2,
+            in_unit="total energy",
         )
-        self.assertEqual(ebt.total_energy.shape, (2, 124))
+        self.assertEqual(ebt.total_energy_init, 10)
 
 
 class TestEnergyCyclePerTurn(unittest.TestCase):
@@ -334,7 +262,7 @@ class TestEnergyCyclePerTurn(unittest.TestCase):
             values_after_turn=np.ones(10),
             section_lengths=np.array([0.5, 1]),
         )
-        self.assertEqual(evpt.total_energy.shape, (2, 10))
+        self.assertEqual(evpt._momentum.shape, (2, 10))
 
 
 class TestEnergyCyclePerTurnAllCavities(unittest.TestCase):
@@ -367,7 +295,10 @@ class TestEnergyCyclePerTurnAllCavities(unittest.TestCase):
                 (1, 10),
             ),
         )
-        assert_allclose(self.energy_cycle_per_turn_all_cavities.momentum, self.momentum)
+        assert_allclose(
+            self.energy_cycle_per_turn_all_cavities._momentum_after_cavity_per_turn,
+            self.momentum,
+        )
 
     def test_headless(self):
         ecptac = EnergyCyclePerTurnAllCavities.headless(
@@ -377,7 +308,7 @@ class TestEnergyCyclePerTurnAllCavities(unittest.TestCase):
             charge=1,
             section_lengths=np.array([0.1, 0.3]),
         )
-        self.assertEqual(ecptac.total_energy.shape, (2, 20))
+        self.assertEqual(ecptac._momentum_after_cavity_per_turn.shape, (2, 20))
 
 
 if __name__ == "__main__":

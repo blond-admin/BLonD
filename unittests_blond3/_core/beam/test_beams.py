@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import Mock
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from blond3 import Beam, proton, Simulation
@@ -98,11 +99,12 @@ class TestBeam(unittest.TestCase):
 
     def test_on_run_simulation(self):
         simulation = Mock(spec=Simulation)
-        simulation.energy_cycle.total_energy = np.linspace(1, 3, 3)[np.newaxis, :]
+        simulation.energy_cycle.get_target_total_energy.return_value = 11
         self.beam.on_run_simulation(simulation=simulation, n_turns=10, turn_i_init=1)
 
     def test_plot_hist2d_executes(self):
         self.beam.plot_hist2d()
+        plt.gcf().clf()
 
     def test_setup_beam(self):
         with self.assertRaises(AssertionError):
