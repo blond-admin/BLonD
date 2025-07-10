@@ -40,40 +40,40 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         pass
 
     @property  # as readonly attributes
-    def hist_x(self):
+    def hist_x(self) -> NumpyArray | CupyArray:
         return self._hist_x
 
     @property  # as readonly attributes
-    def hist_y(self):
+    def hist_y(self) -> NumpyArray | CupyArray:
         return self._hist_y
 
     @cached_property  # as readonly attributes
-    def n_bins(self):
+    def n_bins(self) -> int:
         return len(self._hist_x)
 
     @cached_property
-    def diff_hist_y(self):
+    def diff_hist_y(self) -> NumpyArray | CupyArray:
         return backend.gradient(self._hist_y, self.hist_step, edge_order=2)
 
     @cached_property
-    def hist_step(self):
+    def hist_step(self) -> float:
         return backend.float(self._hist_x[1] - self._hist_x[0])
 
     @cached_property
-    def cut_left(self):
+    def cut_left(self) -> float:
         return backend.float(self._hist_x[0] - self.hist_step / 2.0)
 
     @cached_property
-    def cut_right(self):
+    def cut_right(self) -> float:
         return backend.float(self._hist_x[-1] + self.hist_step / 2.0)
 
     @cached_property
-    def bin_edges(self):
+    def bin_edges(self) -> NumpyArray | CupyArray:
         return backend.linspace(
             self.cut_left, self.cut_right, len(self._hist_x) + 1, backend.float
         )
 
-    def track(self, beam: BeamBaseClass):
+    def track(self, beam: BeamBaseClass) -> None:
         if beam.is_distributed:
             raise NotImplementedError("Impleemt hisogram on distributed array")
         else:

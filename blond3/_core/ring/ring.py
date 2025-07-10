@@ -104,10 +104,12 @@ class Ring(Preparable, Schedulable):
 
     @property  # as readonly attributes
     def circumference(self):
+        """Synchrotron circumference in [m]"""
         return self._circumference
 
     @property
     def section_lengths(self):
+        """Length of each section in [m]"""
         return self.circumference * self.elements.get_section_circumference_shares()
 
     def add_element(
@@ -117,6 +119,33 @@ class Ring(Preparable, Schedulable):
         deepcopy: bool = False,
         section_index: Optional[int] = None,
     ):
+        """
+        Prepend a beam physics-relevant element to the container.
+
+        This method appends the given element to the
+        internal sequence of elements, maintaining insertion order if
+        reorder is False.
+        The element must have a valid integer `section_index`.
+
+        Parameters
+        ----------
+        element
+            An object representing a beamline component or any element
+            relevant to beam physics. Must have a valid  `section_index`
+            attribute of type `int`.
+        reorder
+            Reorder each section by `natural_order`
+        deepcopy
+            Takes a copy of the given element
+        section_index
+            Add element to section
+            (overwrites section index of element)
+
+        Raises
+        ------
+        AssertionError
+            If `element.section_index` is not an integer.
+        """
         if deepcopy:
             element = copy.deepcopy(element)
         if section_index is not None:
@@ -133,7 +162,32 @@ class Ring(Preparable, Schedulable):
         deepcopy: bool = False,
         section_index: Optional[int] = None,
     ):
-        for element in elements:
+        """
+        Prepend beam physics-relevant elements to the container.
+
+        This method prepends the given elements to the
+        internal sequence of elements, maintaining
+        insertion order if `reorder` is False.
+
+        Parameters
+        ----------
+        elements
+            Objects representing beamline components or other elements
+            relevant to beam physics.
+        reorder
+            Reorder each section by `natural_order`
+        deepcopy
+            Takes copies of the given elements
+        section_index
+            Add elements to section
+            (overwrites section index of elements)
+
+        Raises
+        ------
+        AssertionError
+            If `element.section_index` is not an integer.
+        """
+        for element in elements[::-1]: # reversed, because add_element prepends
             self.add_element(
                 element=element,
                 deepcopy=deepcopy,

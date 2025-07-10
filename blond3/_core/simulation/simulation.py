@@ -28,11 +28,33 @@ logger = logging.getLogger(__name__)
 
 
 class Simulation(Preparable, HasPropertyCache):
+    """Context manager to perform beam physics simulations of synchrotron
+
+        Parameters
+        ----------
+        ring
+            Ring a.k.a. synchrotron
+        beams
+            Base class to host particle coordinates and timing information
+        energy_cycle
+            Container object to handle the scheduled energy gain
+            per turn or by time
+
+        Attributes
+        ----------
+        turn_i
+            Counter of the current turn during simulation,
+            which can also handle subscriptions/callbacks
+        section_i
+            Counter of the current section during simulation,
+            which can also handle subscriptions/callbacks
+        """
+
     def __init__(
-        self,
-        ring: Ring,
-        beams: Tuple[BeamBaseClass, ...],
-        energy_cycle: NumpyArray | EnergyCycleBase,
+            self,
+            ring: Ring,
+            beams: Tuple[BeamBaseClass, ...],
+            energy_cycle: NumpyArray | EnergyCycleBase,
     ):
         super().__init__()
         self._ring: Ring = ring
@@ -51,7 +73,7 @@ class Simulation(Preparable, HasPropertyCache):
         self._exec_on_init_simulation()
 
     def profiling(
-        self, turn_i_init: int, profile_start_turn_i: int, profile_n_turns: int
+            self, turn_i_init: int, profile_start_turn_i: int, profile_n_turns: int
     ):
         import cProfile, pstats, io
         from pstats import SortKey
@@ -77,6 +99,9 @@ class Simulation(Preparable, HasPropertyCache):
         ps.print_stats()
         print(s.getvalue())
 
+    def invalidate_cache(self):
+        pass # TODO
+
     def get_potential_well_analytic(self):
         raise NotImplementedError  # TODO
 
@@ -96,9 +121,9 @@ class Simulation(Preparable, HasPropertyCache):
         bunch = ProbeBunch(dt=x.copy(), particle_type=self.beams[0].particle_type)
         for element in self.ring.elements.elements:
             if (
-                isinstance(element, DriftBaseClass)
-                or isinstance(element, CavityBaseClass)
-                or isinstance(element, WakeField)
+                    isinstance(element, DriftBaseClass)
+                    or isinstance(element, CavityBaseClass)
+                    or isinstance(element, WakeField)
             ):
                 element.track(bunch)
         potential_well = np.trapezoid(bunch.read_partial_dE(), x)
@@ -109,7 +134,7 @@ class Simulation(Preparable, HasPropertyCache):
         pass
 
     def on_run_simulation(
-        self, simulation: Simulation, n_turns: int, turn_i_init: int
+            self, simulation: Simulation, n_turns: int, turn_i_init: int
     ) -> None:
         pass
 
@@ -207,27 +232,27 @@ class Simulation(Preparable, HasPropertyCache):
     )
 
     def _invalidate_cache(
-        self,
-        # turn i needed to be
-        # compatible with subscription
-        turn_i: int,
+            self,
+            # turn i needed to be
+            # compatible with subscription
+            turn_i: int,
     ) -> None:
         super()._invalidate_cache(Simulation.cached_properties)
 
     def on_prepare_beam(
-        self, preparation_routine: BeamPreparationRoutine, turn_i: int = 0
+            self, preparation_routine: BeamPreparationRoutine, turn_i: int = 0
     ) -> None:
         logger.info("Running `on_prepare_beam`")
         self.turn_i.value = turn_i
         preparation_routine.on_prepare_beam(simulation=self)
 
     def run_simulation(
-        self,
-        n_turns: Optional[int] = None,
-        turn_i_init: int = 0,
-        observe: Tuple[Observables, ...] = tuple(),
-        show_progressbar: bool = True,
-        callback: Callable[[Simulation], None] = None,
+            self,
+            n_turns: Optional[int] = None,
+            turn_i_init: int = 0,
+            observe: Tuple[Observables, ...] = tuple(),
+            show_progressbar: bool = True,
+            callback: Callable[[Simulation], None] = None,
     ) -> None:
         logger.info(f"Running `run_simulation` with {locals()}")
         n_turns = int_from_float_with_warning(n_turns, warning_stacklevel=2)
@@ -254,12 +279,12 @@ class Simulation(Preparable, HasPropertyCache):
             )
         elif len(self._beams) == 2:
             assert (
-                self._beams[0].is_counter_rotating,
-                self._beams[1].is_counter_rotating,
-            ) == (
-                False,
-                True,
-            ), "First beam must be normal, second beam must be counter-rotating"
+                       self._beams[0].is_counter_rotating,
+                       self._beams[1].is_counter_rotating,
+                   ) == (
+                       False,
+                       True,
+                   ), "First beam must be normal, second beam must be counter-rotating"
             self._run_simulation_counterrotating_beam(
                 n_turns=n_turns,
                 turn_i_init=turn_i_init,
@@ -269,12 +294,12 @@ class Simulation(Preparable, HasPropertyCache):
             )
 
     def _run_simulation_single_beam(
-        self,
-        n_turns: int,
-        turn_i_init: int = 0,
-        observe: Tuple[Observables, ...] = tuple(),
-        show_progressbar: bool = True,
-        callback: Callable[[Simulation], None] = None,
+            self,
+            n_turns: int,
+            turn_i_init: int = 0,
+            observe: Tuple[Observables, ...] = tuple(),
+            show_progressbar: bool = True,
+            callback: Callable[[Simulation], None] = None,
     ) -> None:
         logger.info("Starting simulation mainloop..")
         iterator = range(turn_i_init, turn_i_init + n_turns)
@@ -393,20 +418,20 @@ class Simulation(Preparable, HasPropertyCache):
         ]
 
     def _run_simulation_counterrotating_beam(
-        self,
-        n_turns: int,
-        turn_i_init: int = 0,
-        observe: Tuple[Observables, ...] = tuple(),
-        show_progressbar: bool = True,
+            self,
+            n_turns: int,
+            turn_i_init: int = 0,
+            observe: Tuple[Observables, ...] = tuple(),
+            show_progressbar: bool = True,
     ) -> None:
         pass  # todo
 
     def load_results(
-        self,
-        n_turns: int,
-        turn_i_init: int = 0,
-        observe: Tuple[Observables, ...] = tuple(),
-        callback: Callable[[Simulation], None] = None,
+            self,
+            n_turns: int,
+            turn_i_init: int = 0,
+            observe: Tuple[Observables, ...] = tuple(),
+            callback: Callable[[Simulation], None] = None,
     ) -> SimulationResults:
         raise FileNotFoundError()
         return

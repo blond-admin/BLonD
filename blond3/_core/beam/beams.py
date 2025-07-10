@@ -26,7 +26,7 @@ class Beam(BeamBaseClass):
         particle_type: ParticleType,
         is_counter_rotating: bool = False,
     ):
-        """Base class to make beam classes
+        """Base class to host particle coordinates and timing information
 
         Parameters
         ----------
