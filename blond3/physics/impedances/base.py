@@ -125,8 +125,11 @@ class WakeField(ImpedanceBaseClass):
 
     def track(self, beam: BeamBaseClass) -> None:
         induced_voltage = self.calc_induced_voltage(beam=beam)
-        warnings.warn("kick_induced")  # TODO
-        if False:
-            backend.kick_induced(
-                beam.read_partial_dt(), beam.read_partial_dE(), induced_voltage
-            )
+        backend.specials.kick_induced_voltage(
+            dt=beam.read_partial_dt(),
+            dE=beam.write_partial_dE(),
+            voltage=induced_voltage,
+            bin_centers=self.profile.hist_x,  # base for induced voltage
+            charge=beam.particle_type.charge,
+            acceleration_kick=0.0, # TODO was this ever required??
+        )
