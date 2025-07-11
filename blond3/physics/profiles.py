@@ -30,13 +30,30 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         self._beam_spectrum_buffer = {}
 
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
         assert self._hist_x is not None
         assert self._hist_y is not None
         self.invalidate_cache()
 
     def on_run_simulation(
-        self, simulation: Simulation, n_turns: int, turn_i_init: int
+        self,
+        simulation: Simulation,
+        n_turns: int,
+        turn_i_init: int,
     ) -> None:
+        """Lateinit method when `simulation.run_simulation` is called
+
+        simulation
+            Simulation context manager
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
         pass
 
     @property  # as readonly attributes
@@ -155,6 +172,11 @@ class DynamicProfile(ProfileBaseClass):
         super().__init__()
 
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
         self.update_attributes(beam=simulation.ring.beams[0])
         super().on_init_simulation(simulation=simulation)
 

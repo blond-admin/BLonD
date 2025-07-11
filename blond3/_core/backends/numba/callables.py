@@ -181,9 +181,7 @@ class NumbaSpecials(Specials):
             dti = dt[i]
             de_sum = 0.0
             for j in range(n_rf):
-                de_sum += (
-                    charge * voltage[j] * np.sin(omega_rf[j] * dti + phi_rf[j])
-                )
+                de_sum += charge * voltage[j] * np.sin(omega_rf[j] * dti + phi_rf[j])
             dE[i] += de_sum + acceleration_kick
 
     @staticmethod

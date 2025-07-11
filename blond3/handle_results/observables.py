@@ -36,11 +36,25 @@ class Observables(MainLoopRelevant):
         pass
 
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
         self._hash = simulation.get_hash()
 
     def on_run_simulation(
         self, simulation: Simulation, n_turns: int, turn_i_init: int
     ) -> None:
+        """Lateinit method when `simulation.run_simulation` is called
+
+        simulation
+            Simulation context manager
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
         self._n_turns = n_turns
         self._turn_i_init = turn_i_init
         self._turns_array = np.arange(turn_i_init, turn_i_init + n_turns)
@@ -60,7 +74,21 @@ class ProfileObservation(Observables):
         self._profile = profile
         self._hist_ys: LateInit[DenseArrayRecorder] = None
 
-    def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int):
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        n_turns: int,
+        turn_i_init: int,
+    ):
+        """Lateinit method when `simulation.run_simulation` is called
+
+        simulation
+            Simulation context manager
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
         super().on_run_simulation(
             simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
         )
@@ -101,7 +129,21 @@ class BunchObservation(Observables):
         self._dEs: LateInit[DenseArrayRecorder] = None
         self._flags: LateInit[DenseArrayRecorder] = None
 
-    def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int):
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        n_turns: int,
+        turn_i_init: int,
+    ):
+        """Lateinit method when `simulation.run_simulation` is called
+
+        simulation
+            Simulation context manager
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
         super().on_run_simulation(
             simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
         )
@@ -150,7 +192,21 @@ class CavityPhaseObservation(Observables):
         self._omegas: LateInit[DenseArrayRecorder] = None
         self._voltages: LateInit[DenseArrayRecorder] = None
 
-    def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int):
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        n_turns: int,
+        turn_i_init: int,
+    ):
+        """Lateinit method when `simulation.run_simulation` is called
+
+        simulation
+            Simulation context manager
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
         super().on_run_simulation(
             simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
         )

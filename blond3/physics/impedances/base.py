@@ -73,7 +73,21 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
     def calc_induced_voltage(self, beam: BeamBaseClass) -> NumpyArray | CupyArray:
         pass
 
-    def on_run_simulation(self, simulation: Simulation, n_turns: int, turn_i_init: int):
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        n_turns: int,
+        turn_i_init: int,
+    ):
+        """Lateinit method when `simulation.run_simulation` is called
+
+        simulation
+            Simulation context manager
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
         pass
 
     @requires(
@@ -82,6 +96,11 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         ]
     )
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
         from ..profiles import ProfileBaseClass  # prevent cyclic import
 
         if self._profile is None:
@@ -114,6 +133,11 @@ class WakeField(ImpedanceBaseClass):
 
     @requires(["EnergyCycleBase", "BeamBaseClass"])  # because
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
         super().on_init_simulation(simulation=simulation)
         assert len(self.sources) > 0, "Provide for at least one `WakeFieldSource`"
         self.solver.on_wakefield_init_simulation(
@@ -131,5 +155,5 @@ class WakeField(ImpedanceBaseClass):
             voltage=induced_voltage,
             bin_centers=self.profile.hist_x,  # base for induced voltage
             charge=beam.particle_type.charge,
-            acceleration_kick=0.0, # TODO was this ever required??
+            acceleration_kick=0.0,  # TODO was this ever required??
         )

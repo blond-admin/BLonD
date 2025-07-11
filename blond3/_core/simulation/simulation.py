@@ -30,31 +30,31 @@ logger = logging.getLogger(__name__)
 class Simulation(Preparable, HasPropertyCache):
     """Context manager to perform beam physics simulations of synchrotron
 
-        Parameters
-        ----------
-        ring
-            Ring a.k.a. synchrotron
-        beams
-            Base class to host particle coordinates and timing information
-        energy_cycle
-            Container object to handle the scheduled energy gain
-            per turn or by time
+    Parameters
+    ----------
+    ring
+        Ring a.k.a. synchrotron
+    beams
+        Base class to host particle coordinates and timing information
+    energy_cycle
+        Container object to handle the scheduled energy gain
+        per turn or by time
 
-        Attributes
-        ----------
-        turn_i
-            Counter of the current turn during simulation,
-            which can also handle subscriptions/callbacks
-        section_i
-            Counter of the current section during simulation,
-            which can also handle subscriptions/callbacks
-        """
+    Attributes
+    ----------
+    turn_i
+        Counter of the current turn during simulation,
+        which can also handle subscriptions/callbacks
+    section_i
+        Counter of the current section during simulation,
+        which can also handle subscriptions/callbacks
+    """
 
     def __init__(
-            self,
-            ring: Ring,
-            beams: Tuple[BeamBaseClass, ...],
-            energy_cycle: NumpyArray | EnergyCycleBase,
+        self,
+        ring: Ring,
+        beams: Tuple[BeamBaseClass, ...],
+        energy_cycle: NumpyArray | EnergyCycleBase,
     ):
         super().__init__()
         self._ring: Ring = ring
@@ -73,8 +73,22 @@ class Simulation(Preparable, HasPropertyCache):
         self._exec_on_init_simulation()
 
     def profiling(
-            self, turn_i_init: int, profile_start_turn_i: int, profile_n_turns: int
+        self, turn_i_init: int, profile_start_turn_i: int, profile_n_turns: int
     ):
+        """Executes the python profiler
+
+        Parameters
+        ----------
+        turn_i_init
+            Initial turn to start simulation
+        profile_start_turn_i
+            First turn to start profiling.
+            Can be later than turn_i_init.
+        profile_n_turns
+            Total number of turns that are consideref for profiling
+        """
+        assert profile_start_turn_i >= turn_i_init
+
         import cProfile, pstats, io
         from pstats import SortKey
 
@@ -100,7 +114,10 @@ class Simulation(Preparable, HasPropertyCache):
         print(s.getvalue())
 
     def invalidate_cache(self):
-        pass # TODO
+        """
+        Invalidates cached attributes
+        """
+        pass  # TODO
 
     def get_potential_well_analytic(self):
         raise NotImplementedError  # TODO
@@ -121,9 +138,9 @@ class Simulation(Preparable, HasPropertyCache):
         bunch = ProbeBunch(dt=x.copy(), particle_type=self.beams[0].particle_type)
         for element in self.ring.elements.elements:
             if (
-                    isinstance(element, DriftBaseClass)
-                    or isinstance(element, CavityBaseClass)
-                    or isinstance(element, WakeField)
+                isinstance(element, DriftBaseClass)
+                or isinstance(element, CavityBaseClass)
+                or isinstance(element, WakeField)
             ):
                 element.track(bunch)
         potential_well = np.trapezoid(bunch.read_partial_dE(), x)
@@ -131,14 +148,40 @@ class Simulation(Preparable, HasPropertyCache):
         return potential_well
 
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
         pass
 
     def on_run_simulation(
-            self, simulation: Simulation, n_turns: int, turn_i_init: int
+        self,
+        simulation: Simulation,
+        n_turns: int,
+        turn_i_init: int,
     ) -> None:
+        """Lateinit method when `simulation.run_simulation` is called
+
+        simulation
+            Simulation context manager
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
         pass
 
     def _exec_all_in_tree(self, method: str, **kwargs):
+        """Execute all methods that are somewhere in the attribute hierarchy of `Simulation`
+
+        Parameters
+        ----------
+        method
+            Method name to execute everywhere
+        kwargs
+            Extra keyword arguments
+        """
         logger.debug(f"Calling all {method}({kwargs}) in {self}")
         instances = find_instances_with_method(self, f"{method}")
         logger.debug(f"Found {instances} to be initialized")
@@ -160,9 +203,19 @@ class Simulation(Preparable, HasPropertyCache):
                 getattr(element, method)(**kwargs)
 
     def _exec_on_init_simulation(self):
+        """Execute all `on_init_simulation` in the attribute hierarchy of `Simulation`"""
         self._exec_all_in_tree("on_init_simulation", simulation=self)
 
     def _exec_on_run_simulation(self, n_turns: int, turn_i_init: int):
+        """Execute all `on_run_simulation` in the attribute hierarchy of `Simulation`
+
+        Parameters
+        ----------
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
         self._exec_all_in_tree(
             "on_run_simulation",
             simulation=self,
@@ -172,6 +225,13 @@ class Simulation(Preparable, HasPropertyCache):
 
     @staticmethod
     def from_locals(locals: dict) -> Simulation:
+        """Automatically instance simulation from all locals of where its called
+
+        Parameters
+        ----------
+        locals
+            Just hand `locals()` over
+        """
         from ..beam.base import BeamBaseClass  # prevent cyclic import
         from ..ring.ring import Ring  # prevent cyclic import
 
@@ -200,31 +260,39 @@ class Simulation(Preparable, HasPropertyCache):
 
     @property  # as readonly attributes
     def ring(self) -> Ring:
+        """Ring a.k.a. synchrotron"""
         return self._ring
 
     @property  # as readonly attributes
     def beams(self) -> Tuple[BeamBaseClass, ...]:
+        """Base class to host particle coordinates and timing information"""
         return self._beams
 
     @property  # as readonly attributes
     def energy_cycle(self) -> EnergyCycleBase:
+        """Programmed energy program of the synchrotron"""
         return self._energy_cycle
 
     @cached_property
     def get_separatrix(self):
+        raise NotImplementedError
         return None
 
     @cached_property
     def get_potential_well(self):
+        raise NotImplementedError
         return None
 
     @cached_property
     def get_hash(self):
+        raise NotImplementedError
         return None
 
     def print_one_turn_execution_order(self) -> None:
+        """Prints the execution order of the main simulation loop"""
         self._ring.elements.print_order()
 
+    #  properties that have the @cached_property decorator
     cached_properties = (
         "get_separatrix",
         "get_potential_well",
@@ -232,28 +300,60 @@ class Simulation(Preparable, HasPropertyCache):
     )
 
     def _invalidate_cache(
-            self,
-            # turn i needed to be
-            # compatible with subscription
-            turn_i: int,
+        self,
+        # turn i needed to be
+        # compatible with subscription
+        turn_i: int,
     ) -> None:
+        """Reset cache of `cached_property` attributes"""
         super()._invalidate_cache(Simulation.cached_properties)
 
     def on_prepare_beam(
-            self, preparation_routine: BeamPreparationRoutine, turn_i: int = 0
+        self, preparation_routine: BeamPreparationRoutine, turn_i: int = 0
     ) -> None:
+        """Run the routine to prepare the beam
+
+        Parameters
+        ----------
+        preparation_routine
+            Algorithm to prepare the beam dt and dE coorinates
+        turn_i
+            Turn to prepare the beam for
+
+        """
         logger.info("Running `on_prepare_beam`")
         self.turn_i.value = turn_i
         preparation_routine.on_prepare_beam(simulation=self)
 
     def run_simulation(
-            self,
-            n_turns: Optional[int] = None,
-            turn_i_init: int = 0,
-            observe: Tuple[Observables, ...] = tuple(),
-            show_progressbar: bool = True,
-            callback: Callable[[Simulation], None] = None,
+        self,
+        n_turns: Optional[int] = None,
+        turn_i_init: int = 0,
+        observe: Tuple[Observables, ...] = tuple(),
+        show_progressbar: bool = True,
+        callback: Optional[Callable[[Simulation], None]] = None,
     ) -> None:
+        """
+        Execute the beam dynamics simulation
+
+
+        Parameters
+        ----------
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to start with simulation
+        observe
+            List of observables to protocol of whats happening inside
+            the simulation
+        show_progressbar
+            If True, will show a progress bar indicating how many turns have
+            been completed and other metrics
+        callback
+            User defined function `def myfunction(simulation: Simulation): ...`
+            that is called each turn.
+
+        """
         logger.info(f"Running `run_simulation` with {locals()}")
         n_turns = int_from_float_with_warning(n_turns, warning_stacklevel=2)
 
@@ -279,12 +379,12 @@ class Simulation(Preparable, HasPropertyCache):
             )
         elif len(self._beams) == 2:
             assert (
-                       self._beams[0].is_counter_rotating,
-                       self._beams[1].is_counter_rotating,
-                   ) == (
-                       False,
-                       True,
-                   ), "First beam must be normal, second beam must be counter-rotating"
+                self._beams[0].is_counter_rotating,
+                self._beams[1].is_counter_rotating,
+            ) == (
+                False,
+                True,
+            ), "First beam must be normal, second beam must be counter-rotating"
             self._run_simulation_counterrotating_beam(
                 n_turns=n_turns,
                 turn_i_init=turn_i_init,
@@ -294,14 +394,35 @@ class Simulation(Preparable, HasPropertyCache):
             )
 
     def _run_simulation_single_beam(
-            self,
-            n_turns: int,
-            turn_i_init: int = 0,
-            observe: Tuple[Observables, ...] = tuple(),
-            show_progressbar: bool = True,
-            callback: Callable[[Simulation], None] = None,
+        self,
+        n_turns: int,
+        turn_i_init: int = 0,
+        observe: Tuple[Observables, ...] = tuple(),
+        show_progressbar: bool = True,
+        callback: Optional[Callable[[Simulation], None]] = None,
     ) -> None:
-        logger.info("Starting simulation mainloop..")
+        """
+        Execute the beam dynamics simulation for only one beam
+
+
+        Parameters
+        ----------
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to start with simulation
+        observe
+            List of observables to protocol of whats happening inside
+            the simulation
+        show_progressbar
+            If True, will show a progress bar indicating how many turns have
+            been completed and other metrics
+        callback
+            User defined function `def myfunction(simulation: Simulation): ...`
+            that is called each turn.
+
+        """
+        logger.info("Starting simulation mainloop...")
         iterator = range(turn_i_init, turn_i_init + n_turns)
         if show_progressbar:
             iterator = tqdm(iterator)  # Add TQDM display to iteration
@@ -326,6 +447,7 @@ class Simulation(Preparable, HasPropertyCache):
         self.section_i.value = None
 
     def get_legacy_map(self):
+        raise NotImplementedError
         from ...physics.cavities import (  # prevent cyclic import
             CavityBaseClass,
             SingleHarmonicCavity,
@@ -418,20 +540,44 @@ class Simulation(Preparable, HasPropertyCache):
         ]
 
     def _run_simulation_counterrotating_beam(
-            self,
-            n_turns: int,
-            turn_i_init: int = 0,
-            observe: Tuple[Observables, ...] = tuple(),
-            show_progressbar: bool = True,
+        self,
+        n_turns: int,
+        turn_i_init: int = 0,
+        observe: Tuple[Observables, ...] = tuple(),
+        show_progressbar: bool = True,
+        callback: Optional[Callable[[Simulation], None]] = None,
+
     ) -> None:
+        """
+        Execute the beam dynamics simulation for only one beam
+
+
+        Parameters
+        ----------
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to start with simulation
+        observe
+            List of observables to protocol of whats happening inside
+            the simulation
+        show_progressbar
+            If True, will show a progress bar indicating how many turns have
+            been completed and other metrics
+        callback
+            User defined function `def myfunction(simulation: Simulation): ...`
+            that is called each turn.
+
+        """
+        raise  NotImplementedError()
         pass  # todo
 
     def load_results(
-            self,
-            n_turns: int,
-            turn_i_init: int = 0,
-            observe: Tuple[Observables, ...] = tuple(),
-            callback: Callable[[Simulation], None] = None,
+        self,
+        n_turns: int,
+        turn_i_init: int = 0,
+        observe: Tuple[Observables, ...] = tuple(),
+        callback: Callable[[Simulation], None] = None,
     ) -> SimulationResults:
         raise FileNotFoundError()
         return

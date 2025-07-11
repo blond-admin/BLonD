@@ -28,27 +28,46 @@ class Preparable(ABC):
 
     @abstractmethod
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
         pass
 
     @abstractmethod
     def on_run_simulation(
         self, simulation: Simulation, n_turns: int, turn_i_init: int
     ) -> None:
+        """Lateinit method when `simulation.run_simulation` is called
+
+        simulation
+            Simulation context manager
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
         pass
 
 
 class MainLoopRelevant(Preparable):
-    def __init__(self):
+    """Base class for objects that are relevant for the simulation main loop"""
+
+    def __init__(self) -> None:
         super().__init__()
         self.each_turn_i = 1
 
         self.schedules = {}
 
-    def is_active_this_turn(self, turn_i: int):
+    def is_active_this_turn(self, turn_i: int) -> bool:
+        """Whether the element is active or not"""
         return turn_i % self.each_turn_i == 0
 
 
 class Schedulable:
+    """Base class for objects with schedule parameters"""
+
     def __init__(self):
         super().__init__()
         self.schedules: dict[str, _Scheduled] = {}
@@ -59,9 +78,32 @@ class Schedulable:
         value: float | int | NumpyArray | Tuple[NumpyArray, NumpyArray],
         mode: Literal["per-turn", "constant"] | None = None,
     ):
+        """
+        Schedule a parameter to be changed during simulation
+
+        Notes
+        -----
+        Can be constant, per turn or interpolated in time
+
+
+        Parameters
+        ----------
+        attribute
+        value
+        mode
+        """
         self.schedules[attribute] = get_scheduler(value, mode=mode)
 
     def apply_schedules(self, turn_i: int, reference_time: float):
+        """Set value of schedule to the target parameter for current turn/time
+
+        Parameters
+        ----------
+        turn_i
+            Currently turn index
+        reference_time
+            Current time in [s]
+        """
         for attribute, schedule in self.schedules.items():
             self.__setattr__(
                 attribute,
@@ -70,6 +112,22 @@ class Schedulable:
 
 
 class BeamPhysicsRelevant(MainLoopRelevant):
+    """
+    Main loop element with relevance for beam physics
+
+    Parameters
+    ----------
+    section_index
+        Section index to group elements into sections
+    name
+        User given name of the element
+
+    Attributes
+    ----------
+    name
+        User given name of the element
+    """
+
     n_instances = 0
 
     def __init__(self, section_index: int = 0, name: Optional[str] = None):
@@ -82,21 +140,39 @@ class BeamPhysicsRelevant(MainLoopRelevant):
 
     @property  # as readonly attributes
     def section_index(self) -> int:
+        """Section index to group elements into sections"""
         return self._section_index
 
     @abstractmethod
     def track(self, beam: BeamBaseClass) -> None:
+        """Main simulation routine to be called in the mainloop"""
         pass
 
 
 class _Scheduled:
     @abstractmethod
     def get_scheduled(self, turn_i: int, reference_time: float):
+        """Get the value of the schedule for the current turn/time
+
+        Parameters
+        ----------
+        turn_i
+            Currently turn index
+        reference_time
+            Current time in [s]
+        """
         pass
 
 
 class ScheduledConstant(_Scheduled):
     def __init__(self, value: float | int | NumpyArray):
+        """Schedule a value that never changes
+
+        Parameters
+        ----------
+        value
+            A constant value
+        """
         super().__init__()
         if isinstance(value, np.ndarray):
             self.value = value.astype(backend.float)
@@ -104,27 +180,75 @@ class ScheduledConstant(_Scheduled):
             self.value = backend.float(value)
 
     def get_scheduled(
-        self, turn_i: int, reference_time: float
+        self,
+        turn_i: int,
+        reference_time: float,
     ) -> float | int | NumpyArray:
+        """Get the constant value
+
+        Parameters
+        ----------
+        turn_i
+            Currently turn index
+        reference_time
+            Current time in [s]
+        """
         return self.value
 
 
 class ScheduledArray(_Scheduled):
     def __init__(self, values: NumpyArray):
+        """Schedule values that change per turn
+
+        Parameters
+        ----------
+        values
+            Values per turn
+            (indexing is done via self.values[turn_i])
+        """
         super().__init__()
         self.values = values.astype(backend.float)
 
-    def get_scheduled(self, turn_i: int, reference_time: float) -> NumpyArray:
+    def get_scheduled(
+        self,
+        turn_i: int,
+        reference_time: float,
+    ) -> NumpyArray:
+        """Get the value of the schedule for the current turn
+
+        Parameters
+        ----------
+        turn_i
+            Currently turn index
+        reference_time
+            Current time in [s]
+        """
+
         return self.values[turn_i]
 
 
 class ScheduledInterpolation(_Scheduled):
     def __init__(self, times: NumpyArray, values: NumpyArray):
+        """Schedule values that change along time"""
+
         super().__init__()
         self.times = times
         self.values = values  # TODO values.astype(backend.float)
 
-    def get_scheduled(self, turn_i: int, reference_time: float):
+    def get_scheduled(
+        self,
+        turn_i: int,
+        reference_time: float,
+    ):
+        """Get the value of the schedule for the current time
+
+        Parameters
+        ----------
+        turn_i
+            Currently turn index
+        reference_time
+            Current time in [s]
+        """
         return np.interp(reference_time, self.times, self.values)
 
 
@@ -132,6 +256,16 @@ def get_scheduler(
     value: float | int | NumpyArray | Tuple[NumpyArray, NumpyArray],
     mode: Literal["per-turn", "constant"] | None = None,
 ):
+    """Auto-select the correct class of the schedulers
+
+    Parameters
+    ----------
+    value
+        Can be constant, per turn or interpolated in time
+    mode
+        Required when arrays are handed over
+        "per-turn" or "constant"
+    """
     if isinstance(value, int) or isinstance(value, float):
         return ScheduledConstant(value=value)
     elif isinstance(value, np.ndarray):
@@ -146,15 +280,28 @@ def get_scheduler(
 
 class DynamicParameter:  # TODO add code generation for this method with type-hints
     def __init__(self, value_init):
+        """Changeable parameter tact can be subscribed on_change
+
+        Parameters
+        ----------
+        value_init
+            Initial parameter that is set as parameter.value
+        """
         self._value = value_init
         self._observers: List[Callable[[Any], None]] = []
 
     def on_change(self, callback: Callable[[Any], None]):
-        """Subscribe to changes on a specific parameter."""
+        """Subscribe to changes on a specific parameter.
+
+        Parameters
+        ----------
+        callback
+            User defined callback `def my_callback(new_value): ...`
+        """
         self._observers.append(callback)
 
     def _notify(self, value):
-        """Notify all observers about a parameter change."""
+        """Execute all callbacks of subscribed observers"""
         for callback in self._observers:
             callback(value)
 
@@ -170,10 +317,14 @@ class DynamicParameter:  # TODO add code generation for this method with type-hi
 
 
 class HasPropertyCache(object):
+    """Helper objet to use @cached_property() for class methods"""
+
     def _invalidate_cache(self, props: Tuple[str, ...]):
+        """Delete the stored values of functions with @cached_property"""
         for prop in props:
             self.__dict__.pop(prop, None)
 
     @abstractmethod
     def invalidate_cache(self):
+        """Delete the stored values of functions with @cached_property"""
         pass

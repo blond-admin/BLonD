@@ -14,7 +14,15 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def int_from_float_with_warning(value: float | int, warning_stacklevel: int) -> int:
-    """Make int from float, warn if there are fractional digits"""
+    """Make int from float, warn if there are fractional digits
+
+    Parameters
+    ----------
+    value
+        Some float value, potentially with fractional values
+    warning_stacklevel
+        `warnings.warn` parameter
+    """
     if isinstance(value, int):
         return value
     elif isinstance(value, float):
@@ -32,25 +40,18 @@ def int_from_float_with_warning(value: float | int, warning_stacklevel: int) -> 
         raise TypeError(type(value))
 
 
-def safe_index(x: Union[T, NumpyArray[T]], idx: int) -> T:
-    """Access index, even if x is a float or int."""
-    if isinstance(x, np.ndarray):
-        return x[idx]
-    else:
-        return x  # scalar: ignore index
-
-
-def float_or_array_typesafe(something: float | Iterable, dtype: T) -> T | NumpyArray[T]:
-    """Apply dtype for iterable or number."""
-    if isinstance(something, AbstractIterable):
-        something = np.array(something, dtype=dtype)
-    else:
-        something = dtype(something)
-    return something
-
-
 def find_instances_with_method(root: Any, method_name: str):
-    """Find all instances within root that have a callable `methodname`"""
+    """Find all instances within root that have a callable `methodname`
+
+    Parameters
+    ----------
+    root
+        Base instance to be inspected.
+        All attributes are recursively scanned
+        for classes with a method `methodname`
+    method_name
+        Name of the method to be searched for
+    """
     found = set()
     seen = set()
 

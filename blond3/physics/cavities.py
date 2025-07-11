@@ -74,13 +74,30 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         return cav
 
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
         self._turn_i = simulation.turn_i
         self._energy_cycle = simulation.energy_cycle
         self._ring = simulation.ring
 
     def on_run_simulation(
-        self, simulation: Simulation, n_turns: int, turn_i_init: int
+        self,
+        simulation: Simulation,
+        n_turns: int,
+        turn_i_init: int,
     ) -> None:
+        """Lateinit method when `simulation.run_simulation` is called
+
+        simulation
+            Simulation context manager
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
         pass
 
     @property  # as readonly attributes
@@ -120,6 +137,11 @@ class SingleHarmonicCavity(CavityBaseClass):
         self._omegas = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
         super().on_init_simulation(simulation=simulation)
         if (self.voltage is None) and "voltage" not in self.schedules.keys():
             raise ValueError(
@@ -224,6 +246,11 @@ class MultiHarmonicCavity(CavityBaseClass):
         self._omegas: NumpyArray | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
         super().on_init_simulation(simulation=simulation)
         if (self.voltage is None) and "voltage" not in self.schedules.keys():
             raise ValueError(

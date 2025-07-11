@@ -107,10 +107,11 @@ for wake_solver in (
         transition_gamma=gamma_transition,
         share_of_circumference=1.0,
     )
-    wakefield = WakeField(
-        sources=(Resonators(R_shunt, f_res, Q_factor),), solver=wake_solver
-    )
     profile = StaticProfile.from_rad(0, 2 * np.pi, 2**8, sim.energy_cycle.t_rev[0, 0])
+    wakefield = WakeField(
+        sources=(Resonators(R_shunt, f_res, Q_factor),), solver=wake_solver,
+        profile=profile
+    )
     ring.add_elements((drift, cavity1, wakefield), reorder=True)
     sim = Simulation(ring=ring)
     sim.on_prepare_beam(

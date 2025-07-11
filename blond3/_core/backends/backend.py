@@ -63,7 +63,7 @@ class Specials(ABC):
         dt: NumpyArray,
         dE: NumpyArray,
         T: float,
-        alpha_order:int,
+        alpha_order: int,
         eta_0: float,
         eta_1: float,
         eta_2: float,

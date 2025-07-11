@@ -172,9 +172,11 @@ class PythonSpecials(Specials):
         fbin = np.floor((dt - bin_centers[0]) * inv_bin_width).astype(np.int32)
 
         helper1 = charge * (voltage[1:] - voltage[:-1]) * inv_bin_width
-        helper2 = (charge * voltage[:-1] - bin_centers[:-1] * helper1) + acceleration_kick
+        helper2 = (
+            charge * voltage[:-1] - bin_centers[:-1] * helper1
+        ) + acceleration_kick
 
         for i in range(len(dt)):
             # fbin = int(np.floor((dt[i]-bin_centers[0])*inv_bin_width))
             if (fbin[i] >= 0) and (fbin[i] < n_slices - 1):
-                dE[i] += (dt[i] * helper1[fbin[i]] + helper2[fbin[i]])
+                dE[i] += dt[i] * helper1[fbin[i]] + helper2[fbin[i]]

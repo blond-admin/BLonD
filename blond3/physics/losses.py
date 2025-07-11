@@ -37,6 +37,11 @@ class BoxLosses(LossesBaseClass):
         )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
         pass
 
 
@@ -46,6 +51,11 @@ class SeparatrixLosses(LossesBaseClass):
         self._simulation: LateInit[Simulation] = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
         self._simulation = simulation
 
     def track(self, beam: BeamBaseClass):

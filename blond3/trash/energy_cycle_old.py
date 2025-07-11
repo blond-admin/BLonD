@@ -206,8 +206,20 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
         )
 
     def on_run_simulation(
-        self, simulation: Simulation, n_turns: int, turn_i_init: int
+        self,
+        simulation: Simulation,
+        n_turns: int,
+        turn_i_init: int,
     ) -> None:
+        """Lateinit method when `simulation.run_simulation` is called
+
+        simulation
+            Simulation context manager
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
         self._invalidate_cache()
 
     @cached_property
@@ -303,6 +315,11 @@ class EnergyCycle(EnergyCycleBase):
 
     @requires(["Ring"])
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
         from blond.input_parameters.ring import Ring as Blond2Ring
 
         drifts = simulation.ring.elements.get_elements(DriftBaseClass)
@@ -338,8 +355,20 @@ class EnergyCycle(EnergyCycleBase):
         self._invalidate_cache()
 
     def on_run_simulation(
-        self, simulation: Simulation, n_turns: int, turn_i_init: int
+        self,
+        simulation: Simulation,
+        n_turns: int,
+        turn_i_init: int,
     ) -> None:
+        """Lateinit method when `simulation.run_simulation` is called
+
+        simulation
+            Simulation context manager
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
         self._invalidate_cache()
 
     @cached_property
@@ -409,6 +438,11 @@ class InterpolatedEnergyCycle(EnergyCycle):
 
     @requires(["Ring"])
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
         from blond.input_parameters.ring import Ring as Blond2Ring
 
         drifts = simulation.ring.elements.get_elements(DriftBaseClass)

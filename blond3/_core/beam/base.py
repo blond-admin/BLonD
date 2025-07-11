@@ -135,7 +135,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """Lateinit method when `simulation.__init__` is called
 
         simulation
-            Simulation context manager"""
+            Simulation context manager
+        """
         super().on_init_simulation(simulation=simulation)
         self.reference_total_energy = simulation.energy_cycle.total_energy_init
 

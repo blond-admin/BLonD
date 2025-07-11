@@ -114,6 +114,8 @@ def calc_energy_kin(mass: float, momentum: FloatOrArray) -> FloatOrArray:
 
 
 class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
+    """Programmed energy program of the synchrotron"""
+
     def __init__(
         self,
     ):
@@ -123,6 +125,11 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
         self._n_turns: None | int = None
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
         self._momentum_init = kwargs["momentum_init"]
         self._n_turns = kwargs["n_turns"]
         self._mass = simulation.beams[0].particle_type.mass
@@ -131,6 +138,15 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
     def on_run_simulation(
         self, simulation: Simulation, n_turns: int, turn_i_init: int
     ) -> None:
+        """Lateinit method when `simulation.run_simulation` is called
+
+        simulation
+            Simulation context manager
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
         self.invalidate_cache()
 
     @property
@@ -176,6 +192,11 @@ class ConstantEnergyCycle(EnergyCycleBase):
         self._total_energy: LateInit[float] = None
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
         self._momentum = _to_momentum(
             data=self._value,
             mass=simulation.beams[0].particle_type.mass,
@@ -253,6 +274,11 @@ class EnergyCyclePerTurn(EnergyCycleBase):
         self._momentum: LateInit[NumpyArray] = None
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
         mass = simulation.beams[0].particle_type.mass
         charge = simulation.beams[0].particle_type.charge
         n_cavities = simulation.ring.n_cavities
@@ -366,6 +392,11 @@ class EnergyCyclePerTurnAllCavities(EnergyCycleBase):
         self._momentum_after_cavity_per_turn: LateInit[NumpyArray] = None
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
         mass = simulation.beams[0].particle_type.mass
         charge = simulation.beams[0].particle_type.charge
         momentum_init = _to_momentum(
@@ -474,6 +505,11 @@ class EnergyCycleByTime(EnergyCycleBase):
         self._base_momentum: LateInit[NumpyArray] = None
 
     def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
         mass = simulation.beams[0].particle_type.mass
         charge = simulation.beams[0].particle_type.charge
 

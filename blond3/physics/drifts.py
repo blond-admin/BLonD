@@ -36,11 +36,28 @@ class DriftBaseClass(BeamPhysicsRelevant, ABC):
         pass
 
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
         pass
 
     def on_run_simulation(
-        self, simulation: Simulation, n_turns: int, turn_i_init: int
+        self,
+        simulation: Simulation,
+        n_turns: int,
+        turn_i_init: int,
     ) -> None:
+        """Lateinit method when `simulation.run_simulation` is called
+
+        simulation
+            Simulation context manager
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
         pass
 
 
@@ -100,6 +117,11 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         return d
 
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
         super().on_init_simulation(simulation=simulation)
         self._simulation = simulation
         self.length = backend.float(
@@ -150,6 +172,11 @@ class DriftSpecial(DriftBaseClass):
         pass
 
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
         super().on_init_simulation(simulation=simulation)
 
     pass
@@ -160,6 +187,11 @@ class DriftXSuite(DriftBaseClass):
         pass
 
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
         super().on_init_simulation(simulation=simulation)
 
     pass
