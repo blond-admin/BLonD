@@ -53,6 +53,9 @@ sig_alpha_order = nb_i
 sig_beta = nb_f
 sig_energy = nb_f
 
+sig_voltage = nb_f[:]
+sig_bin_centers = nb_f[:]
+
 # function signatures
 sig_kick_single_harmonic = (
     sig_dt,
@@ -110,6 +113,16 @@ sig_drift_exact = (
 )
 
 
+sig_kick_induced_voltage = (
+    sig_dt,
+    sig_dE,
+    sig_voltage,
+    sig_bin_centers,
+    sig_charge,
+    sig_acceleration_kick,
+)
+
+
 class NumbaSpecials(Specials):
     @staticmethod
     def loss_box(self, a, b, c, d) -> None:
@@ -164,12 +177,13 @@ class NumbaSpecials(Specials):
         n_rf: int,
         acceleration_kick: float,
     ):
-        voltage_kick = charge * voltage
         for i in prange(len(dt)):
             dti = dt[i]
             de_sum = 0.0
             for j in range(n_rf):
-                de_sum += voltage_kick[j] * np.sin(omega_rf[j] * dti + phi_rf[j])
+                de_sum += (
+                    charge * voltage[j] * np.sin(omega_rf[j] * dti + phi_rf[j])
+                )
             dE[i] += de_sum + acceleration_kick
 
     @staticmethod
@@ -239,3 +253,35 @@ class NumbaSpecials(Specials):
                 / (1.0 + beam_delta)
                 - 1.0
             )
+
+    @staticmethod
+    @njit(sig_kick_induced_voltage, parallel=True, fastmath=True)
+    def kick_induced_voltage(
+        dt: NumpyArray,
+        dE: NumpyArray,
+        voltage: NumpyArray,
+        bin_centers: NumpyArray,
+        charge: float,
+        acceleration_kick: float,
+    ):
+        dx = (bin_centers[-1] - bin_centers[0]) / (len(bin_centers) - 1)
+        inv_dx = 1 / dx
+        x_min = bin_centers[0]
+        x_max = bin_centers[-1]
+        for i in prange(len(dE)):
+            x = dt[i]
+
+            if x <= x_min:
+                continue
+            elif x >= x_max:
+                continue
+            else:
+                idx = int((x - x_min) * inv_dx)
+                x0 = x_min + idx * dx
+                # x1 = x0 + dx
+                y0 = voltage[idx]
+                y1 = voltage[idx + 1]
+
+                # Linear interpolation
+                v = y0 + (y1 - y0) * inv_dx * (x - x0)
+                dE[i] += charge * v + acceleration_kick

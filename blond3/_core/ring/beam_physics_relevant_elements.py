@@ -112,7 +112,7 @@ class BeamPhysicsRelevantElements(Preparable):
 
     def add_element(self, element: BeamPhysicsRelevant):
         """
-        Prepend a beam physics-relevant element to the container.
+        Append a beam physics-relevant element to the container.
 
         This method appends the given element to the
         internal sequence of elements, maintaining insertion order.

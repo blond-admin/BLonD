@@ -26,7 +26,6 @@ def find_kick_module_so(file: str):
 
 def add_backend(module_name):
     module_path = find_kick_module_so(module_name)
-    print(module_path)
     # Load it explicitly
     spec = importlib.util.spec_from_file_location(module_name, str(module_path))
     loaded_module = importlib.util.module_from_spec(spec)
@@ -41,6 +40,10 @@ drift_module = add_backend(
 )
 kick_module = add_backend(
     module_name="kick_module",
+)
+
+kick_induced_module = add_backend(
+    module_name="kick_induced_module",
 )
 
 
@@ -185,3 +188,23 @@ class FortranSpecials(Specials):
                 / (1.0 + beam_delta)
                 - 1.0
             )
+
+    @staticmethod
+    def kick_induced_voltage(
+        dt: NumpyArray,
+        dE: NumpyArray,
+        voltage: NumpyArray,
+        bin_centers: NumpyArray,
+        charge: float,
+        acceleration_kick: float,
+    ):
+        kick_induced_module.linear_interp_kick(
+            beam_dt=dt,
+            beam_de=dE,
+            voltage_array=voltage,
+            bin_centers=bin_centers,
+            charge=charge,
+            n_slices=len(bin_centers),
+            n_macroparticles=len(dt),
+            acc_kick=acceleration_kick,
+        )

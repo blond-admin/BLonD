@@ -62,9 +62,8 @@ class Specials(ABC):
     def drift_legacy(
         dt: NumpyArray,
         dE: NumpyArray,
-        t_rev: float,
-        length_ratio: float,
-        alpha_order,
+        T: float,
+        alpha_order:int,
         eta_0: float,
         eta_1: float,
         eta_2: float,
@@ -78,13 +77,24 @@ class Specials(ABC):
     def drift_exact(
         dt: NumpyArray,
         dE: NumpyArray,
-        t_rev: float,
-        length_ratio: float,
+        T: float,
         alpha_0: float,
         alpha_1: float,
         alpha_2: float,
         beta: float,
         energy: float,
+    ):
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def kick_induced_voltage(
+        dt: NumpyArray,
+        dE: NumpyArray,
+        voltage: NumpyArray,
+        bin_centers: NumpyArray,
+        charge: float,
+        acceleration_kick: float,
     ):
         pass
 

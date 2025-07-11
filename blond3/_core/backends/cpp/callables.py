@@ -161,6 +161,26 @@ def _getLen(x: NumpyArray) -> ct.c_int:
 
 class CppSpecials(Specials):
     @staticmethod
+    def kick_induced_voltage(
+        dt: NumpyArray,
+        dE: NumpyArray,
+        voltage: NumpyArray,
+        bin_centers: NumpyArray,
+        charge: float,
+        acceleration_kick: float,
+    ):
+        _LIBBLOND.linear_interp_kick(
+            dt.ctypes.data_as(ct.c_void_p),
+            dE.ctypes.data_as(ct.c_void_p),
+            voltage.ctypes.data_as(ct.c_void_p),
+            bin_centers.ctypes.data_as(ct.c_void_p),
+            c_real(charge),
+            ct.c_int(len(bin_centers)),
+            ct.c_int(len(dt)),
+            c_real(acceleration_kick),
+        )
+
+    @staticmethod
     def loss_box(self, a, b, c, d) -> None:
         pass
 

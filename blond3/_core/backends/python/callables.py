@@ -75,7 +75,7 @@ class PythonSpecials(Specials):
         dt: NumpyArray,
         dE: NumpyArray,
         T: float,
-        alpha_order,
+        alpha_order: int,
         eta_0: float,
         eta_1: float,
         eta_2: float,
@@ -138,3 +138,43 @@ class PythonSpecials(Specials):
             / (1.0 + beam_delta)
             - 1.0
         )
+
+    @staticmethod
+    def kick_induced_voltage(
+        dt: NumpyArray,
+        dE: NumpyArray,
+        voltage: NumpyArray,
+        bin_centers: NumpyArray,
+        charge: float,
+        acceleration_kick: float,
+    ):
+        """Interpolated kick method.
+
+        Parameters
+        ----------
+        dt
+            Macro-particle time coordinates [s]
+        dE
+            Macro-particle energy coordinates [eV]
+        voltage
+            Array of voltages along `bin_centers` in [V]
+        bin_centers
+            Positions of `voltage` in [s]
+        charge
+            Particle charge, as number of elementary charges `e` []
+        acceleration_kick
+            # TODO
+
+        """
+        n_slices = len(bin_centers)
+        inv_bin_width = (n_slices - 1) / (bin_centers[-1] - bin_centers[0])
+
+        fbin = np.floor((dt - bin_centers[0]) * inv_bin_width).astype(np.int32)
+
+        helper1 = charge * (voltage[1:] - voltage[:-1]) * inv_bin_width
+        helper2 = (charge * voltage[:-1] - bin_centers[:-1] * helper1) + acceleration_kick
+
+        for i in range(len(dt)):
+            # fbin = int(np.floor((dt[i]-bin_centers[0])*inv_bin_width))
+            if (fbin[i] >= 0) and (fbin[i] < n_slices - 1):
+                dE[i] += (dt[i] * helper1[fbin[i]] + helper2[fbin[i]])

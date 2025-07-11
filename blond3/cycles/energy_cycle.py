@@ -562,7 +562,7 @@ def _to_momentum(
     mass
         The mass of the particles in [eV/c**2]
     charge
-        The charge of the particles in units of [e]
+        Total charge, i.e. number of elementary charges `e`
     convert_from
         What units `data` given in:
         - 'momentum' [eV/c], (no conversion is done)

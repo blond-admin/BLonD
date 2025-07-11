@@ -91,7 +91,7 @@ class TestSpecials(unittest.TestCase):
             "cpp",
             "numba",
             # "cuda", # todo implement
-            "fortran"
+            "fortran",
         )
 
     def _setUp(self, dtype, special_mode):
@@ -134,7 +134,7 @@ class TestSpecials(unittest.TestCase):
 
         self.voltages = backend.linspace(1e6, 5e6, 3, dtype=backend.float)
         self.omegas = backend.linspace(200e6, 400e6, 3, dtype=backend.float)
-        self.phis = backend.linspace(0, 2*np.pi, 3, dtype=backend.float)
+        self.phis = backend.linspace(0, 2 * np.pi, 3, dtype=backend.float)
 
         self.charge = backend.float(1)
         self.acceleration_kick = backend.float(-1)
@@ -147,6 +147,7 @@ class TestSpecials(unittest.TestCase):
 
     def test___init__(self):
         pass
+
     @unittest.skip
     def test_drift_exact(self):
         for dtype in (np.float32, np.float64):
@@ -168,6 +169,7 @@ class TestSpecials(unittest.TestCase):
                     result_python = result
                 else:
                     np.testing.assert_allclose(result, result_python, rtol=self.rtol)
+
     @unittest.skip
     def test_drift_legacy(self):
         for dtype in (np.float32, np.float64):
@@ -192,7 +194,7 @@ class TestSpecials(unittest.TestCase):
                     np.testing.assert_allclose(result, result_python, rtol=self.rtol)
 
     def test_drift_simple(self):
-        for dtype in (np.float64,): #  (np.float32, np.float64):
+        for dtype in (np.float64,):  #  (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 self._setUp(dtype=dtype, special_mode=special)
                 backend.specials.drift_simple(
@@ -210,7 +212,7 @@ class TestSpecials(unittest.TestCase):
                     np.testing.assert_allclose(result, result_python, rtol=self.rtol)
 
     def test_kick_multi_harmonic(self):
-        for dtype in (np.float64,): #  (np.float32, np.float64):
+        for dtype in (np.float64,):  #  (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 self._setUp(dtype=dtype, special_mode=special)
                 backend.specials.kick_multi_harmonic(
@@ -230,7 +232,7 @@ class TestSpecials(unittest.TestCase):
                     np.testing.assert_allclose(result, result_python, rtol=self.rtol)
 
     def test_kick_single_harmonic(self):
-        for dtype in (np.float64,): # (np.float32, np.float64):
+        for dtype in (np.float64,):  # (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 self._setUp(dtype=dtype, special_mode=special)
                 backend.specials.kick_single_harmonic(
@@ -241,6 +243,30 @@ class TestSpecials(unittest.TestCase):
                     phi_rf=self.phi_rf_single_harmonic,
                     charge=self.charge,
                     acceleration_kick=self.acceleration_kick,
+                )
+                result = self.dE
+                if i == 0:
+                    result_python = result
+                else:
+                    np.testing.assert_allclose(result, result_python, rtol=self.rtol)
+
+    def test_kick_induced_voltage(self):
+        for dtype in (np.float64,):  # (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                self._setUp(dtype=dtype, special_mode=special)
+                dt = np.linspace(-5, 5, 20, dtype=backend.float)
+                dE = np.zeros_like(dt, dtype=backend.float)
+                bin_centers = np.linspace(-4, 4, 20, dtype=backend.float)
+                voltage = bin_centers**2
+                charge = 10
+                acceleration_kick = 0.5
+                backend.specials.kick_induced_voltage(
+                    dt=dt,
+                    dE=dE,
+                    voltage=voltage,
+                    bin_centers=bin_centers,
+                    charge=charge,
+                    acceleration_kick=acceleration_kick,
                 )
                 result = self.dE
                 if i == 0:
@@ -263,6 +289,7 @@ class TestSpecials(unittest.TestCase):
     def tearDown(self):
         backend.change_backend(Numpy32Bit)
         backend.set_specials("numba")
+
 
 if __name__ == "__main__":
     unittest.main()

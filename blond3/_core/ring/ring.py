@@ -120,7 +120,7 @@ class Ring(Preparable, Schedulable):
         section_index: Optional[int] = None,
     ):
         """
-        Prepend a beam physics-relevant element to the container.
+        Append a beam physics-relevant element to the container.
 
         This method appends the given element to the
         internal sequence of elements, maintaining insertion order if
@@ -163,9 +163,9 @@ class Ring(Preparable, Schedulable):
         section_index: Optional[int] = None,
     ):
         """
-        Prepend beam physics-relevant elements to the container.
+        Append beam physics-relevant elements to the container.
 
-        This method prepends the given elements to the
+        This method appends the given elements to the
         internal sequence of elements, maintaining
         insertion order if `reorder` is False.
 
@@ -187,7 +187,7 @@ class Ring(Preparable, Schedulable):
         AssertionError
             If `element.section_index` is not an integer.
         """
-        for element in elements[::-1]: # reversed, because add_element prepends
+        for element in elements:
             self.add_element(
                 element=element,
                 deepcopy=deepcopy,
