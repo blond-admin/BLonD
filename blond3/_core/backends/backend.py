@@ -98,6 +98,11 @@ class Specials(ABC):
     ):
         pass
 
+    @staticmethod
+    @abstractmethod
+    def histogram(array_read: NumpyArray, array_write: NumpyArray,
+                  start:float, stop:float):
+        return
 
 class BackendBaseClass(ABC):
     def __init__(

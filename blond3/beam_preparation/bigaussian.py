@@ -102,6 +102,21 @@ class BiGaussian(MatchingRoutine):
         reinsertion: bool = False,
         seed: int = 0,
     ):
+        """Beam matching routine to generate a 2D Gaussian particle distribution
+
+        Parameters
+        ----------
+        n_macroparticles
+            Number of macroparticles to be generated
+        sigma_dt
+            Normal distribution length in [s]
+        sigma_dE
+            Normal distribution height in [eV]
+        reinsertion
+            If True, only particles within the separatrix are generated
+        seed
+            Random seed parameter
+        """
         super().__init__()
         self.n_macroparticles = int_from_float_with_warning(
             n_macroparticles, warning_stacklevel=2
@@ -115,6 +130,13 @@ class BiGaussian(MatchingRoutine):
         self,
         simulation: Simulation,
     ) -> None:
+        """Populates the `Beam` object with macro-particles
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+        """
         beam = simulation.beams[0]
         rf_station: SingleHarmonicCavity = simulation.ring.elements.get_element(
             SingleHarmonicCavity

@@ -40,7 +40,7 @@ from blond3.physics.impedances.sources import (
     ImpedanceTableFreq,
     InductiveImpedance,
 )
-from blond3.physics.impedances.sovlers import (
+from blond3.physics.impedances.solvers import (
     PeriodicFreqSolver,
     InductiveImpedanceSolver,
 )

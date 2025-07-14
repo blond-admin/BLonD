@@ -145,7 +145,8 @@ class WakeField(ImpedanceBaseClass):
         )
 
     def calc_induced_voltage(self, beam: BeamBaseClass) -> NumpyArray | CupyArray:
-        return self.solver.calc_induced_voltage(beam=beam)
+        self.induced_voltage = self.solver.calc_induced_voltage(beam=beam)
+        return self.induced_voltage
 
     def track(self, beam: BeamBaseClass) -> None:
         induced_voltage = self.calc_induced_voltage(beam=beam)

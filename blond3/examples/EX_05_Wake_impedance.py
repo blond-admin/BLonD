@@ -38,7 +38,7 @@ from blond3 import (
     StaticProfile,
 )
 from blond3.physics.impedances.sources import Resonators
-from blond3.physics.impedances.sovlers import (
+from blond3.physics.impedances.solvers import (
     SingleTurnWakeSolverTimeDomain,
     PeriodicFreqSolver,
     AnalyticSingleTurnResonatorSolver,

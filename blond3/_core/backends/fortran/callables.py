@@ -47,12 +47,29 @@ kick_induced_module = add_backend(
 )
 
 
+histogram_module = add_backend(
+    module_name="histogram_module",
+)
+
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
     from numpy._typing import NDArray as NumpyArray
 
 
 class FortranSpecials(Specials):
+    @staticmethod
+    def histogram(
+        array_read: NumpyArray, array_write: NumpyArray, start: float, stop: float
+    ):
+        histogram_module.histogram(
+            array_read,
+            array_out=array_write,
+            n_macroparticles=len(array_read),
+            n_slices=len(array_write),
+            cut_left=start,
+            cut_right=stop,
+        )
+
     @staticmethod
     def loss_box(self, a, b, c, d) -> None:
         pass

@@ -11,4 +11,11 @@ class EmittanceMatcher(MatchingRoutine):
         self.some_emittance = some_emittance
 
     def on_prepare_beam(self, simulation: Simulation) -> None:
+        """Populates the `Beam` object with macro-particles
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+        """
         pass

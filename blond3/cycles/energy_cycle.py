@@ -3,15 +3,13 @@ from __future__ import annotations
 from abc import abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import numpy as np
 from scipy.constants import speed_of_light as c0
 
 from .base import ProgrammedCycle
 from .._core.base import HasPropertyCache
-from ..physics.cavities import CavityBaseClass
-from ..physics.drifts import DriftBaseClass
 
 if TYPE_CHECKING:
     from typing import (
@@ -20,8 +18,6 @@ if TYPE_CHECKING:
         Optional,
         Literal,
         Union,
-        List,
-        Tuple,
     )
 
     from numpy.typing import NDArray as NumpyArray
@@ -151,6 +147,7 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
 
     @property
     def n_turns(self):
+        """Number of turns that are defined by this cycle"""
         return self._n_turns
 
     @abstractmethod
@@ -160,6 +157,25 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
         section_i: int,
         reference_time: float,
     ):
+        """
+        Calculate the total energy [eV] that is foreseen by the energy cycle
+
+        Parameters
+        ----------
+        turn_i
+            Currently turn index
+            (Eventually needed for array accessing)
+        section_i
+            Currently section index
+            (Eventually needed for array accessing)
+        reference_time
+            Current reference time
+            (Eventually needed for interpolation)
+
+        Returns
+        -------
+
+        """
         pass
 
     @staticmethod
@@ -598,7 +614,7 @@ def _to_momentum(
     mass
         The mass of the particles in [eV/c**2]
     charge
-        Total charge, i.e. number of elementary charges `e`
+        Particle charge, i.e. number of elementary charges `e`
     convert_from
         What units `data` given in:
         - 'momentum' [eV/c], (no conversion is done)

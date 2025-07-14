@@ -345,6 +345,7 @@ class RingAndRFTracker:
             \\delta = \\frac{\\Delta E}{\\beta_s^2 E_s} \quad \\text{(simple, legacy)}
 
         """
+
         bm.drift(beam_dt, beam_dE, self.solver, self.rf_params.t_rev[index],
                  self.rf_params.length_ratio, self.rf_params.alpha_order,
                  self.rf_params.eta_0[index], self.rf_params.eta_1[index],

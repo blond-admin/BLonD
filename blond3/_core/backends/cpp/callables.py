@@ -161,6 +161,18 @@ def _getLen(x: NumpyArray) -> ct.c_int:
 
 class CppSpecials(Specials):
     @staticmethod
+    def histogram(array_read: NumpyArray, array_write: NumpyArray,
+                  start: float, stop: float):
+        _LIBBLOND.histogram(
+            array_read.ctypes.data_as(ct.c_void_p),
+            array_write.ctypes.data_as(ct.c_void_p),
+            c_real(start),
+            c_real(stop),
+            ct.c_int(len(array_write)),
+            ct.c_int(len(array_read)),
+        )
+
+    @staticmethod
     def kick_induced_voltage(
         dt: NumpyArray,
         dE: NumpyArray,

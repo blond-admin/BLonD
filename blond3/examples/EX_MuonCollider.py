@@ -15,7 +15,7 @@ from blond3 import (
 )
 from blond3.beam_preparation.base import BeamPreparationRoutine
 from blond3.physics.impedances.sources import Resonators
-from blond3.physics.impedances.sovlers import MutliTurnResonatorSolver
+from blond3.physics.impedances.solvers import MutliTurnResonatorSolver
 
 
 class LeonardsCounterrrotBeam(BeamPreparationRoutine):

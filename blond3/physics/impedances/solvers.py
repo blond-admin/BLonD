@@ -123,6 +123,8 @@ class PeriodicFreqSolver(WakeFieldSolver):
         self._freq_y: LateInit[NumpyArray] = None
         self._simulation: LateInit[Simulation] = None
 
+        self._induced_voltage_buffer = {}
+
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ):
@@ -240,14 +242,29 @@ class PeriodicFreqSolver(WakeFieldSolver):
             # TODO this might be a problem with MPI
             beam.n_particles / beam.n_macroparticles_partial()
         )
-        induced_voltage = _factor * np.fft.irfft(
-            self._freq_y
-            * self._parent_wakefield.profile.beam_spectrum(n_fft=self._n_time),
-        )
+
+        key = len(self._freq_y) # todo
+        if key in self._induced_voltage_buffer:
+            # use `out` variable of fft to avoid array creation
+            out = self._induced_voltage_buffer[key]
+            np.fft.irfft(
+                self._freq_y
+                * self._parent_wakefield.profile.beam_spectrum(
+                    n_fft=self._n_time),
+                out=out
+            )
+            out *= _factor
+            self._induced_voltage_buffer[key] = out
+        else:
+            # create array and safe it to buffer
+            self._induced_voltage_buffer[key] = _factor * np.fft.irfft(
+                self._freq_y
+                * self._parent_wakefield.profile.beam_spectrum(n_fft=self._n_time),
+            )
         # calculation in frequency domain must be with full periodicity.
         # The profile and corresponding induced voltage is only a part of
         # the full periodicity and must be thus truncated
-        return induced_voltage[: self._parent_wakefield.profile.n_bins]
+        return self._induced_voltage_buffer[key][: self._parent_wakefield.profile.n_bins]
 
 
 class TimeDomainSolver(WakeFieldSolver):

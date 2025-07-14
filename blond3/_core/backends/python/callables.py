@@ -13,6 +13,12 @@ if TYPE_CHECKING:  # pragma: no cover
 
 class PythonSpecials(Specials):
     @staticmethod
+    def histogram(
+        array_read: NumpyArray, array_write: NumpyArray, start: float, stop: float
+    ):
+        array_write[:], _ = np.histogram(array_read, range=(start, stop))
+
+    @staticmethod
     def loss_box(self, a, b, c, d) -> None:
         raise NotImplementedError
 

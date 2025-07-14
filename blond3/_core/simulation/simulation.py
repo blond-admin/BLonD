@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from functools import cached_property
+from pstats import SortKey
 from typing import TYPE_CHECKING, Callable
 
 import numpy as np
@@ -73,7 +74,10 @@ class Simulation(Preparable, HasPropertyCache):
         self._exec_on_init_simulation()
 
     def profiling(
-        self, turn_i_init: int, profile_start_turn_i: int, profile_n_turns: int
+        self, turn_i_init: int, profile_start_turn_i: int, profile_n_turns:
+            int,
+            sortby: SortKey =SortKey.CUMULATIVE
+
     ):
         """Executes the python profiler
 
@@ -86,11 +90,12 @@ class Simulation(Preparable, HasPropertyCache):
             Can be later than turn_i_init.
         profile_n_turns
             Total number of turns that are consideref for profiling
+        sortby
+            Order to sort the runtime table
         """
         assert profile_start_turn_i >= turn_i_init
 
         import cProfile, pstats, io
-        from pstats import SortKey
 
         pr = cProfile.Profile()
 
@@ -108,7 +113,6 @@ class Simulation(Preparable, HasPropertyCache):
 
         pr.disable()
         s = io.StringIO()
-        sortby = SortKey.CUMULATIVE
         ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
         ps.print_stats()
         print(s.getvalue())

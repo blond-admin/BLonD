@@ -19,9 +19,12 @@
 #include "openmp.h"
 
 
-extern "C" void histogram(const real_t *__restrict__ input,
-                          real_t *__restrict__ output, const real_t cut_left,
-                          const real_t cut_right, const int n_slices,
+extern "C" void histogram(
+                          const real_t *__restrict__ input,
+                          real_t *__restrict__ output,
+                          const real_t cut_left,
+                          const real_t cut_right,
+                          const int n_slices,
                           const int n_macroparticles)
 {
     // Number of Iterations of the inner loop

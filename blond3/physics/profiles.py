@@ -94,12 +94,12 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         if beam.is_distributed:
             raise NotImplementedError("Impleemt hisogram on distributed array")
         else:
-            n, bin_edges = backend.histogram(
-                beam.read_partial_dt(),
-                range=(self.cut_left, self.cut_right),
-                bins=len(self._hist_y),
+            backend.specials.histogram(
+                array_read=beam.read_partial_dt(),
+                array_write=self._hist_y,
+                start=self.cut_left,
+                stop=self.cut_right,
             )
-            self._hist_y[:] = n[:]  # todo faster implementation, fix backend
         self.invalidate_cache()
 
     @staticmethod
@@ -125,7 +125,10 @@ class ProfileBaseClass(BeamPhysicsRelevant):
 
     def beam_spectrum(self, n_fft: int):
         if n_fft not in self._beam_spectrum_buffer.keys():
-            self._beam_spectrum_buffer[n_fft] = np.fft.rfft(self._hist_y, n_fft)
+            self._beam_spectrum_buffer[n_fft] = np.fft.rfft(
+                self._hist_y,
+                n_fft,
+            )
         else:
             np.fft.rfft(self._hist_y, n_fft, out=self._beam_spectrum_buffer[n_fft])
 
