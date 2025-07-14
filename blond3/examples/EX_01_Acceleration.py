@@ -2,6 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from blond3._core.backends.backend import backend, Numpy32Bit
+from blond3.beam_preparation.empiric_matcher import EmpiricMatcher
 from blond3.cycles.energy_cycle import EnergyCyclePerTurn
 
 backend.change_backend(Numpy32Bit)
@@ -45,7 +46,7 @@ sim = Simulation.from_locals(locals())
 sim.print_one_turn_execution_order()
 
 
-sim.on_prepare_beam(
+sim.prepare_beam(
     preparation_routine=BiGaussian(
         sigma_dt=0.4e-9 / 4,
         sigma_dE=1e9 / 4,
@@ -54,15 +55,25 @@ sim.on_prepare_beam(
         n_macroparticles=1e3,
     )
 )
+de = 777538700.0 * 2
+dt = 1.8306269e-09
+sim.prepare_beam(
+    EmpiricMatcher(
+        grid_base_dt=np.linspace(0, 1.5*dt, 100),
+        grid_base_dE=np.linspace(-de, de, 100),
+        n_macroparticles=1e6,
+        seed=0,
+    ),
+)
 
-# sim.beams[0].plot_hist2d()
-# plt.show()
+plt.hist2d(beam1.read_partial_dt(), beam1.read_partial_dE(),bins=200)
+plt.show()
 phase_observation = CavityPhaseObservation(each_turn_i=1, cavity=cavity1)
 
 
 # bunch_observation = BunchObservation(each_turn_i=10, batch_size=) # todo
 # batches
-def my_callback(simulation: Simulation):
+def custom_action(simulation: Simulation):
     if simulation.turn_i.value % 10 != 0:
         return
 
@@ -83,7 +94,7 @@ except FileNotFoundError as exc:
         turn_i_init=0,
         n_turns=N_TURNS,
         observe=[phase_observation],
-        # callback=my_callback,
+        # callback=custom_action,
     )
 plt.plot(phase_observation.phases)
 # plt.show()

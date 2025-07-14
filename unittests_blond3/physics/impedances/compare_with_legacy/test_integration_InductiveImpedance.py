@@ -17,7 +17,7 @@ from blond3 import (
 )
 from blond3._core.backends.backend import backend, Numpy64Bit
 from blond3.physics.impedances.sources import InductiveImpedance
-from blond3.physics.impedances.sovlers import (
+from blond3.physics.impedances.solvers import (
     PeriodicFreqSolver,
 )
 

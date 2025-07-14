@@ -57,6 +57,8 @@ class Beam(BeamBaseClass):
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         flags: Optional[NumpyArray | CupyArray] = None,
+        reference_time: Optional[float] = None,
+        reference_total_energy: Optional[float] = None,
     ):
         """Sets beam array attributes for simulation
 
@@ -68,6 +70,10 @@ class Beam(BeamBaseClass):
             Macro-particle energy coordinates [eV]
         flags
             Macro-particle flags
+        reference_time
+            Time of the reference frame (global time), in [s]
+        reference_total_energy
+            Time of the reference frame (global total energy), in [eV]
         """
         assert len(dt) == len(dE), f"{len(dt)} != {len(dE)}"
         n_particles = len(dt)
@@ -80,6 +86,10 @@ class Beam(BeamBaseClass):
         self._dE = dE.astype(backend.float)
         self._dt = dt.astype(backend.float)
         self._flags = flags.astype(backend.int)
+        if reference_time:
+            self.reference_time = reference_time
+        if reference_total_energy:
+            self.reference_total_energy = reference_total_energy
         self.invalidate_cache()
 
     def on_run_simulation(
@@ -137,12 +147,14 @@ class Beam(BeamBaseClass):
         plt.hist2d(self._dt, self._dE, **kwargs)
 
 
-class ProbeBunch(Beam):
+class ProbeBeam(Beam):
     def __init__(
         self,
         particle_type: ParticleType,
         dt: Optional[NumpyArray] = None,
         dE: Optional[NumpyArray] = None,
+        reference_time: Optional[float] = None,
+        reference_total_energy: Optional[float] = None,
     ):
         """
         Test Bunch without intensity effects
@@ -156,14 +168,22 @@ class ProbeBunch(Beam):
         dE
             Macro-particle energy coordinates [eV]
         """
-        super().__init__(n_particles=0, particle_type=particle_type)
+        super().__init__(
+            n_particles=0,
+            particle_type=particle_type,
+        )
         if dt is not None:
             dE = np.zeros_like(dt)
         if dE is not None:
             dt = np.zeros_like(dE)
         if (dE is None) and (dt is None):
             raise ValueError("dE or dt must be given!")
-        self.setup_beam(dt=dt, dE=dE)
+        self.setup_beam(
+            dt=dt,
+            dE=dE,
+            reference_time=reference_time,
+            reference_total_energy=reference_total_energy,
+        )
 
 
 class WeightenedBeam(Beam):
@@ -182,7 +202,24 @@ class WeightenedBeam(Beam):
         dE: NumpyArray | CupyArray,
         flags: Optional[NumpyArray | CupyArray] = None,
         weights: NumpyArray | CupyArray = None,
+        reference_time: Optional[float] = None,
+        reference_total_energy: Optional[float] = None,
     ):
+        """Sets beam array attributes for simulation
+
+        Parameters
+        ----------
+        dt
+            Macro-particle time coordinates [s]
+        dE
+            Macro-particle energy coordinates [eV]
+        flags
+            Macro-particle flags
+        reference_time
+            Time of the reference frame (global time), in [s]
+        reference_total_energy
+            Time of the reference frame (global total energy), in [eV]
+        """
         assert weights is not None
         assert len(dt) == len(weights)
         super().setup_beam(dt=dt, dE=dE, flags=flags)

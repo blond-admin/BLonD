@@ -46,7 +46,11 @@ class TimeDomain(ABC):
 
 class FreqDomain(ABC):
     @abstractmethod
-    def get_impedance(self, freq_x: NumpyArray, simulation: Simulation,) -> NumpyArray:
+    def get_impedance(
+        self,
+        freq_x: NumpyArray,
+        simulation: Simulation,
+    ) -> NumpyArray:
         pass
 
 
@@ -140,6 +144,7 @@ class WakeField(ImpedanceBaseClass):
     solver
         Solver to calculate the induced voltage from the sources
     """
+
     def __init__(
         self,
         sources: Tuple[WakeFieldSource, ...],
@@ -177,7 +182,7 @@ class WakeField(ImpedanceBaseClass):
             raise Exception("Use `calc_induced_voltage` first!")
         return self._induced_voltage
 
-    @requires(["EnergyCycleBase", "BeamBaseClass"])  # because
+    @requires(["EnergyCycleBase", "BeamBaseClass", "Beam"])  # because
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
         Lateinit method when `simulation.__init__` is called
@@ -204,7 +209,9 @@ class WakeField(ImpedanceBaseClass):
         induced_voltage
         """
         self._induced_voltage = self.solver.calc_induced_voltage(beam=beam)
-        return self.induced_voltage
+        return self.induced_voltage[
+            : self.profile.n_bins
+        ]
 
     def track(self, beam: BeamBaseClass) -> None:
         """

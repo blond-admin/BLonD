@@ -13,7 +13,7 @@ from blond3 import (
     WakeField,
 )
 from blond3.physics.impedances.sources import Resonators
-from blond3.physics.impedances.sovlers import PeriodicFreqSolver, TimeDomainSolver
+from blond3.physics.impedances.solvers import PeriodicFreqSolver, TimeDomainSolver
 
 for i, solver in enumerate(
     (

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -20,7 +20,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from .impedances.base import WakeField
     from .feedbacks.base import LocalFeedback
-    from .. import Ring
+    from .. import Ring, Beam
     from .._core.beam.base import BeamBaseClass
     from .._core.simulation.simulation import Simulation
     from ..cycles.energy_cycle import EnergyCycleBase
@@ -156,6 +156,20 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         if self._local_wakefield is not None:
             self._local_wakefield.track(beam=beam)
 
+    @abstractmethod
+    def voltage_waveform_tmp(self, ts: NumpyArray):
+        """
+        Calculate voltage of cavity for current turn
+
+        Parameters
+        ----------
+        ts
+            Time array, in [s]
+            to calculate voltage
+        """
+        pass
+
+    @abstractmethod
     def calc_omega(self, beam_beta: float, ring_circumference: float):
         """
         Calculate angular frequency of cavity in [Hz]
@@ -172,7 +186,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         omega
             Angular frequency (2 PI f) of cavity in [Hz]
         """
-        return self.harmonic * TWOPIC0 * beam_beta / ring_circumference
+        pass
 
 
 class SingleHarmonicCavity(CavityBaseClass):
@@ -197,13 +211,13 @@ class SingleHarmonicCavity(CavityBaseClass):
     harmonic
         Cavity's design harmonic []
     """
+
     def __init__(
         self,
         section_index: int = 0,
         local_wakefield: Optional[WakeField] = None,
         cavity_feedback: Optional[LocalFeedback] = None,
     ):
-
         super().__init__(
             n_rf=1,
             section_index=section_index,
@@ -213,7 +227,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         self.voltage: float | None = None
         self.phi_rf: float | None = None
         self.harmonic: float | None = None
-        self._omegas = None
+        self._omega = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called
@@ -253,7 +267,7 @@ class SingleHarmonicCavity(CavityBaseClass):
             reference_time=beam.reference_time,
         )
         reference_energy_change = target_total_energy - beam.reference_total_energy
-        self._omegas = self.calc_omega(
+        self._omega = self.calc_omega(
             beam_beta=beam.reference_beta,
             ring_circumference=self._ring.circumference,
         )
@@ -262,11 +276,50 @@ class SingleHarmonicCavity(CavityBaseClass):
             dE=beam.write_partial_dE(),
             voltage=self.voltage,
             phi_rf=self.phi_rf,
-            omega_rf=self._omegas,
+            omega_rf=self._omega,
             charge=backend.float(beam.particle_type.charge),  #  FIXME
             acceleration_kick=-reference_energy_change,  # Mind the minus!
         )
         beam.reference_total_energy += reference_energy_change
+
+    def calc_omega(self, beam_beta: float, ring_circumference: float):
+        """
+        Calculate angular frequency of cavity in [Hz]
+
+        Parameters
+        ----------
+        beam_beta
+            Beam reference fraction of speed of light (v/c0)
+
+        ring_circumference
+            Synchrotron circumference in [m]
+        Returns
+        -------
+        omega
+            Angular frequency (2 PI f) of cavity in [Hz]
+        """
+        return self.harmonic * TWOPIC0 * beam_beta / ring_circumference
+
+    def voltage_waveform_tmp(self, ts: NumpyArray):
+        """
+        Calculate voltage of cavity for current turn
+
+        Note
+        ----
+        This function is intended for small ts arrays
+        and not executed in parallel.
+
+        Parameters
+        ----------
+        ts
+            Time array, in [s]
+            to calculate voltage
+        """
+
+        voltage = self.voltage
+        phi_rf = self.phi_rf
+        omega_rf = self._omega
+        return voltage * np.sin(omega_rf * ts + phi_rf)
 
     @staticmethod
     def headless(
@@ -362,6 +415,7 @@ class MultiHarmonicCavity(CavityBaseClass):
     harmonic
         Cavity's design harmonics (per harmonic) []
     """
+
     def __init__(
         self,
         n_harmonics: int,
@@ -369,7 +423,6 @@ class MultiHarmonicCavity(CavityBaseClass):
         local_wakefield: Optional[WakeField] = None,
         cavity_feedback: Optional[LocalFeedback] = None,
     ):
-
         super().__init__(
             n_rf=n_harmonics,
             section_index=section_index,
@@ -379,7 +432,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         self.voltage: NumpyArray | None = None
         self.phi_rf: NumpyArray | None = None
         self.harmonic: NumpyArray | None = None
-        self._omegas: NumpyArray | None = None
+        self._omega: NumpyArray | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called
@@ -403,6 +456,43 @@ class MultiHarmonicCavity(CavityBaseClass):
                 f"You need to define `harmonic` for '{self.name}' via "
                 f"`.harmonic=...` or `.schedule(attribute='harmonic', value=...)`"
             )
+
+    def calc_omega(self, beam_beta: float, ring_circumference: float):
+        """
+        Calculate angular frequency of cavity in [Hz]
+
+        Parameters
+        ----------
+        beam_beta
+            Beam reference fraction of speed of light (v/c0)
+
+        ring_circumference
+            Synchrotron circumference in [m]
+        Returns
+        -------
+        omega
+            Angular frequency (2 PI f) of cavity in [Hz]
+        """
+        return self.harmonic * TWOPIC0 * beam_beta / ring_circumference
+
+    def voltage_waveform_tmp(self, ts: NumpyArray):
+        """
+        Calculate voltage of cavity for current turn
+
+        Note
+        ----
+        This function is intended for small ts arrays
+        and not executed in parallel.
+
+        Parameters
+        ----------
+        ts
+            Time array, in [s]
+            to calculate voltage
+        """
+        voltage = self.voltage[0] * np.sin(self._omega[0] * ts + self.phi_rf[0])
+        for i in range(1, len(self.voltage)):
+            voltage += self.voltage[i] * np.sin(self._omega[i] * ts + self.phi_rf[i])
 
     @staticmethod
     def headless(
@@ -494,7 +584,7 @@ class MultiHarmonicCavity(CavityBaseClass):
             beam_beta=beam.reference_beta,
             ring_circumference=self._ring.circumference,
         )
-        self._omegas = omega_rf
+        self._omega = omega_rf
 
         backend.specials.kick_multi_harmonic(
             dt=beam.read_partial_dt(),

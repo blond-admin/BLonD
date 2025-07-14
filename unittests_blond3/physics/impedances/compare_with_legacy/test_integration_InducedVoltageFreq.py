@@ -16,7 +16,7 @@ from blond3 import (
 )
 from blond3._core.backends.backend import backend, Numpy64Bit
 from blond3.physics.impedances.sources import Resonators
-from blond3.physics.impedances.sovlers import PeriodicFreqSolver
+from blond3.physics.impedances.solvers import PeriodicFreqSolver
 
 R_shunt = np.array(
     [

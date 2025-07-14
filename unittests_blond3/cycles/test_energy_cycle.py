@@ -259,8 +259,8 @@ class TestEnergyCyclePerTurn(unittest.TestCase):
             mass=1,
             charge=1,
             value_init=0,
+            n_cavities=2,
             values_after_turn=np.ones(10),
-            section_lengths=np.array([0.5, 1]),
         )
         self.assertEqual(evpt._momentum.shape, (2, 10))
 
@@ -306,7 +306,6 @@ class TestEnergyCyclePerTurnAllCavities(unittest.TestCase):
             values_after_cavity_per_turn=np.ones((2, 20)),
             mass=1,
             charge=1,
-            section_lengths=np.array([0.1, 0.3]),
         )
         self.assertEqual(ecptac._momentum_after_cavity_per_turn.shape, (2, 20))
 

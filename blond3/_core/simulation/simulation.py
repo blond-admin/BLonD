@@ -13,6 +13,8 @@ from ..base import DynamicParameter
 from ..helpers import find_instances_with_method, int_from_float_with_warning
 from ..ring.helpers import get_elements, get_init_order
 from ...cycles.energy_cycle import EnergyCycleBase, EnergyCyclePerTurn
+from ...physics.cavities import CavityBaseClass
+from ...physics.profiles import ProfileBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import (
@@ -74,10 +76,11 @@ class Simulation(Preparable, HasPropertyCache):
         self._exec_on_init_simulation()
 
     def profiling(
-        self, turn_i_init: int, profile_start_turn_i: int, profile_n_turns:
-            int,
-            sortby: SortKey =SortKey.CUMULATIVE
-
+        self,
+        turn_i_init: int,
+        profile_start_turn_i: int,
+        profile_n_turns: int,
+        sortby: SortKey = SortKey.CUMULATIVE,
     ):
         """Executes the python profiler
 
@@ -99,7 +102,8 @@ class Simulation(Preparable, HasPropertyCache):
 
         pr = cProfile.Profile()
 
-        def my_callback(simulation: Simulation):
+        # trigger profiling later than turn 0
+        def start_profiling(simulation: Simulation):
             if simulation.turn_i.value == profile_start_turn_i:
                 pr.enable()
 
@@ -108,7 +112,7 @@ class Simulation(Preparable, HasPropertyCache):
             n_turns=end_turn - turn_i_init,
             turn_i_init=turn_i_init,
             show_progressbar=False,
-            callback=my_callback,
+            callback=start_profiling,
         )
 
         pr.disable()
@@ -122,31 +126,32 @@ class Simulation(Preparable, HasPropertyCache):
 
         pass  # TODO
 
-    def get_potential_well_analytic(self):
-        raise NotImplementedError  # TODO
+    def calc_cavity_voltage_sum(self, ts: NumpyArray) -> NumpyArray:
+        """
+        Sum of all cavity voltages, ignoring drifts between cavities
 
-    def get_potential_well_empiric(self):
-        raise NotImplementedError  # TODO
+        Parameters
+        ----------
+        ts
+            Time array, in [s]
+            to calculate voltage
+        """
+        cavities = self.ring.elements.get_elements(CavityBaseClass)
+        total_voltage = 0.0  # will be an array later
+        for cavity in cavities:
+            total_voltage += cavity.voltage_waveform_tmp(ts=ts)
+        return total_voltage[:]
 
-        from ... import WakeField
-        from ...physics.cavities import CavityBaseClass
-        from ...physics.drifts import DriftBaseClass
-        from ...physics.profiles import ProfileBaseClass
+    def get_potential_well_empiric(self, ts: NumpyArray) -> NumpyArray:
+        from ..._core.beam.beams import ProbeBeam
 
-        from blond3._core.beam.beams import ProbeBunch
-
-        profile = self.ring.elements.get_element(ProfileBaseClass)
-        x = profile.hist_x
-
-        bunch = ProbeBunch(dt=x.copy(), particle_type=self.beams[0].particle_type)
+        bunch = ProbeBeam(
+            dt=ts,
+            particle_type=self.beams[0].particle_type,
+        )
         for element in self.ring.elements.elements:
-            if (
-                isinstance(element, DriftBaseClass)
-                or isinstance(element, CavityBaseClass)
-                or isinstance(element, WakeField)
-            ):
-                element.track(bunch)
-        potential_well = np.trapezoid(bunch.read_partial_dE(), x)
+            element.track(beam=bunch)
+        potential_well = np.trapezoid(bunch.read_partial_dE())
         potential_well -= potential_well.min()
         return potential_well
 
@@ -311,7 +316,7 @@ class Simulation(Preparable, HasPropertyCache):
         """Reset cache of `cached_property` attributes"""
         super()._invalidate_cache(Simulation.cached_properties)
 
-    def on_prepare_beam(
+    def prepare_beam(
         self, preparation_routine: BeamPreparationRoutine, turn_i: int = 0
     ) -> None:
         """Run the routine to prepare the beam
@@ -326,7 +331,7 @@ class Simulation(Preparable, HasPropertyCache):
         """
         logger.info("Running `on_prepare_beam`")
         self.turn_i.value = turn_i
-        preparation_routine.on_prepare_beam(simulation=self)
+        preparation_routine.prepare_beam(simulation=self)
 
     def run_simulation(
         self,
@@ -366,7 +371,7 @@ class Simulation(Preparable, HasPropertyCache):
                 f"Max turn number is {max_turns}, but trying to "
                 f"simulate {(turn_i_init + n_turns)} turns"
             )
-        self.observe = observe
+        self.observe = observe # to find `on_run_simulation` within `simulation`
         self._exec_on_run_simulation(
             n_turns=n_turns,
             turn_i_init=turn_i_init,
@@ -549,7 +554,6 @@ class Simulation(Preparable, HasPropertyCache):
         observe: Tuple[Observables, ...] = tuple(),
         show_progressbar: bool = True,
         callback: Optional[Callable[[Simulation], None]] = None,
-
     ) -> None:
         """
         Execute the beam dynamics simulation for only one beam
@@ -572,7 +576,7 @@ class Simulation(Preparable, HasPropertyCache):
             that is called each turn.
 
         """
-        raise  NotImplementedError()
+        raise NotImplementedError()
         pass  # todo
 
     def load_results(

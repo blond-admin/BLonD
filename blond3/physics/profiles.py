@@ -333,7 +333,12 @@ class DynamicProfile(ProfileBaseClass):
 
 
 class DynamicProfileConstCutoff(DynamicProfile):
-    def __init__(self, timestep: float, section_index: int = 0, name: Optional[str] = None):
+    def __init__(
+        self,
+        timestep: float,
+        section_index: int = 0,
+        name: Optional[str] = None,
+    ):
         """
         Profile that changes its width, keeping a constant cutoff frequency
 
@@ -348,7 +353,8 @@ class DynamicProfileConstCutoff(DynamicProfile):
         """
         super().__init__(
             section_index=section_index,
-            name=name,)
+            name=name,
+        )
         self.timestep = timestep
 
     def update_attributes(self, beam: BeamBaseClass):
@@ -376,7 +382,8 @@ class DynamicProfileConstNBins(ProfileBaseClass):
         """
         super().__init__(
             section_index=section_index,
-            name=name,)
+            name=name,
+        )
         self.n_bins = int_from_float_with_warning(n_bins, warning_stacklevel=2)
 
     def update_attributes(self, beam: BeamBaseClass):

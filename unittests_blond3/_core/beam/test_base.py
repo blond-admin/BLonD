@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import unittest
+from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import numpy as np
@@ -9,6 +12,9 @@ from blond3 import proton, Simulation
 from blond3._core.backends.backend import backend
 from blond3._core.beam.base import BeamBaseClass
 from blond3._core.beam.particle_types import ParticleType
+
+if TYPE_CHECKING:
+    from typing import Optional
 
 
 class BeamBaseClassTester(BeamBaseClass):
@@ -34,7 +40,24 @@ class BeamBaseClassTester(BeamBaseClass):
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         flags: NumpyArray | CupyArray = None,
+        reference_time: Optional[float] = None,
+        reference_total_energy: Optional[float] = None,
     ):
+        """Sets beam array attributes for simulation
+
+        Parameters
+        ----------
+        dt
+            Macro-particle time coordinates [s]
+        dE
+            Macro-particle energy coordinates [eV]
+        flags
+            Macro-particle flags
+        reference_time
+            Time of the reference frame (global time), in [s]
+        reference_total_energy
+            Time of the reference frame (global total energy), in [eV]
+        """
         pass
 
     def plot_hist2d(self):

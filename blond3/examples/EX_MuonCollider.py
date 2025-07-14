@@ -32,7 +32,7 @@ class LeonardsCounterrrotBeam(BeamPreparationRoutine):
         self.dt_cr = np.loadtxt(filename_dt_cr)
         self.dE_cr = np.loadtxt(filename_dE_cr)
 
-    def on_prepare_beam(self, simulation: Simulation) -> None:
+    def prepare_beam(self, simulation: Simulation) -> None:
         simulation.beams[0].setup_beam(
             dt=self.dt,
             dE=self.dE,
@@ -82,7 +82,7 @@ beam2 = Beam(
     is_counter_rotating=True,
 )
 sim = Simulation(ring=ring, beams=(beam1, beam2), energy_cycle=energy_cycle)
-sim.on_prepare_beam(
+sim.prepare_beam(
     preparation_routine=LeonardsCounterrrotBeam(
         "coordinates1.npy", "coordinates2.npy", "coordinates3.npy", "coordinates4.npy"
     )

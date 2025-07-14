@@ -15,6 +15,7 @@ from ..._core.backends.backend import backend
 from ..._core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Optional
     from .particle_types import ParticleType
     from ..simulation.simulation import Simulation
 
@@ -65,81 +66,6 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         self.reference_time = 0  # todo cached properties
         self._reference_total_energy = 0  # todo cached properties
 
-    @property
-    def particle_type(self) -> ParticleType:
-        """Type of particles, e.g. protons"""
-        return self._particle_type
-
-    @property
-    def reference_total_energy(self) -> float:
-        """Total beam energy [eV]"""
-        return self._reference_total_energy
-
-    @reference_total_energy.setter
-    def reference_total_energy(self, reference_total_energy) -> float:
-        # in eV and eV/c²
-        self._reference_total_energy = reference_total_energy
-
-    @property
-    def reference_gamma(self) -> float:
-        """Beam reference gamma a.k.a. Lorentz factor []"""
-        # in eV and eV/c²
-        val = self.reference_total_energy * self.particle_type.mass_inv
-        return val
-
-    @property
-    def reference_beta(self) -> float:
-        """Beam reference fraction of speed of light (v/c0) []"""
-
-        gamma = self.reference_gamma
-        val = np.sqrt(1.0 - 1.0 / (gamma * gamma))
-        return val
-
-    @property
-    def reference_velocity(self) -> float:
-        """Beam reference speed [m/s]"""
-        return self.reference_beta * c0
-
-    @abstractmethod
-    def setup_beam(
-        self,
-        dt: NumpyArray | CupyArray,
-        dE: NumpyArray | CupyArray,
-        flags: NumpyArray | CupyArray = None,
-    ):
-        """Sets beam array attributes for simulation
-
-        Parameters
-        ----------
-        dt
-            Macro-particle time coordinates [s]
-        dE
-            Macro-particle energy coordinates [eV]
-        flags
-            Macro-particle flags
-        """
-        pass
-
-    @property  # as readonly attributes
-    def is_distributed(self):
-        """Developer option to allow distributed computing"""
-        return self._is_distributed
-
-    @property  # as readonly attributes
-    def is_counter_rotating(self):
-        """If this is a normal or counter-rotating beam"""
-        return self._is_counter_rotating
-
-    @requires(["EnergyCycleBase"])
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
-
-        simulation
-            Simulation context manager
-        """
-        super().on_init_simulation(simulation=simulation)
-        self.reference_total_energy = simulation.energy_cycle.total_energy_init
-
     @requires(["EnergyCycleBase"])
     def on_run_simulation(
         self, simulation: Simulation, n_turns: int, turn_i_init: int
@@ -187,6 +113,88 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             )
             warnings.warn(msg)
         self.reference_total_energy = new_reference_total_energy
+        self.reference_time = 0.0
+
+    @property
+    def particle_type(self) -> ParticleType:
+        """Type of particles, e.g. protons"""
+        return self._particle_type
+
+    @property
+    def reference_total_energy(self) -> float:
+        """Total beam energy [eV]"""
+        return self._reference_total_energy
+
+    @reference_total_energy.setter
+    def reference_total_energy(self, reference_total_energy) -> float:
+        """Total beam energy [eV]"""
+        self._reference_total_energy = reference_total_energy
+
+    @property
+    def reference_gamma(self) -> float:
+        """Beam reference gamma a.k.a. Lorentz factor []"""
+        # reference_total_energy in eV and mass_inv in [c²/eV]
+        val = self.reference_total_energy * self.particle_type.mass_inv
+        return val
+
+    @property
+    def reference_beta(self) -> float:
+        """Beam reference fraction of speed of light (v/c0) []"""
+
+        gamma = self.reference_gamma
+        val = np.sqrt(1.0 - 1.0 / (gamma * gamma))
+        return val
+
+    @property
+    def reference_velocity(self) -> float:
+        """Beam reference speed [m/s]"""
+        return self.reference_beta * c0
+
+    @abstractmethod
+    def setup_beam(
+        self,
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        flags: NumpyArray | CupyArray = None,
+        reference_time: Optional[float] = None,
+        reference_total_energy: Optional[float] = None,
+    ):
+        """Sets beam array attributes for simulation
+
+        Parameters
+        ----------
+        dt
+            Macro-particle time coordinates [s]
+        dE
+            Macro-particle energy coordinates [eV]
+        flags
+            Macro-particle flags
+        reference_time
+            Time of the reference frame (global time), in [s]
+        reference_total_energy
+            Time of the reference frame (global total energy), in [eV]
+        """
+        pass
+
+    @property  # as readonly attributes
+    def is_distributed(self):
+        """Developer option to allow distributed computing"""
+        return self._is_distributed
+
+    @property  # as readonly attributes
+    def is_counter_rotating(self):
+        """If this is a normal or counter-rotating beam"""
+        return self._is_counter_rotating
+
+    @requires(["EnergyCycleBase"])
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
+        super().on_init_simulation(simulation=simulation)
+        self.reference_total_energy = simulation.energy_cycle.total_energy_init
 
     @abstractmethod
     def plot_hist2d(self):

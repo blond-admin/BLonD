@@ -47,7 +47,7 @@ class TestBiGaussian(unittest.TestCase):
 
     @unittest.skip("Implement phi_s in RF first") # TODO
     def test_on_prepare_beam(self):
-        self.bi_gaussian.on_prepare_beam(simulation=ExampleSimulation01().simulation)
+        self.bi_gaussian.prepare_beam(simulation=ExampleSimulation01().simulation)
 
 
 if __name__ == "__main__":

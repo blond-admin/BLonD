@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 from blond3 import WakeField, Simulation
 from blond3._core.beam.base import BeamBaseClass
 from blond3.physics.impedances.sources import Resonators
-from blond3.physics.impedances.sovlers import (
+from blond3.physics.impedances.solvers import (
     PeriodicFreqSolver,
     InductiveImpedance,
     InductiveImpedanceSolver,

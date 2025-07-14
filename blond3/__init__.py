@@ -12,7 +12,7 @@ from .cycles.energy_cycle import (
 from .handle_results.observables import (
     CavityPhaseObservation,
     BunchObservation,
-    ProfileObservation,
+    StaticProfileObservation,
 )
 from .physics.cavities import SingleHarmonicCavity, MultiHarmonicCavity
 from .physics.drifts import DriftSimple

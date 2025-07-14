@@ -85,6 +85,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
     length
         Length of drift in [m]
     """
+
     def __init__(
         self,
         share_of_circumference: float = 1.0,

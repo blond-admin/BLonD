@@ -14,8 +14,6 @@ if TYPE_CHECKING:
     from .. import WakeField
     from ..physics.cavities import SingleHarmonicCavity
     from ..physics.profiles import (
-        ProfileBaseClass,
-        DynamicProfileConstNBins,
         StaticProfile,
     )
 
@@ -291,7 +289,7 @@ class CavityPhaseObservation(Observables):
             self._cavity.phi_rf,
         )
         self._omegas.write(
-            self._cavity._omegas,
+            self._cavity._omega,
         )
         self._voltages.write(
             self._cavity.voltage,
@@ -458,9 +456,7 @@ class WakeFieldObservation(Observables):
                 self._wakefield.induced_voltage,
             )
         except AttributeError:
-            self._induced_voltage.write(
-                np.zeros(self._wakefield._profile.n_bins)
-            )
+            self._induced_voltage.write(np.zeros(self._wakefield._profile.n_bins))
 
     @property  # as readonly attributes
     def induced_voltage(self):
@@ -484,4 +480,6 @@ class WakeFieldObservation(Observables):
         """
         Load data from disk
         """
-        self._induced_voltage = DenseArrayRecorder.from_disk(self._hist_y.filepath)
+        self._induced_voltage = DenseArrayRecorder.from_disk(
+            self._induced_voltage.filepath
+        )

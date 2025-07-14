@@ -46,7 +46,7 @@ class ExampleSimulation01:
         simulation = Simulation.from_locals(locals())
         simulation.print_one_turn_execution_order()
 
-        simulation.on_prepare_beam(
+        simulation.prepare_beam(
             preparation_routine=BiGaussian(
                 sigma_dt=0.4e-9 / 4,
                 sigma_dE=1e9 / 4,

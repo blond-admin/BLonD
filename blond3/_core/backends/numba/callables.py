@@ -121,9 +121,43 @@ sig_kick_induced_voltage = (
     sig_charge,
     sig_acceleration_kick,
 )
+sig_array_read = nb_f[:]
+sig_array_write = nb_f[:]
+sig_start = nb_f
+sig_stop = nb_f
+sig_histogram = (
+    sig_array_read,
+    sig_array_write,
+    sig_start,
+    sig_stop,
+)
 
 
 class NumbaSpecials(Specials):
+    @staticmethod
+    @njit(sig_histogram, parallel=True, fastmath=True)
+    def histogram(
+        array_read: NumpyArray, array_write: NumpyArray, start: float, stop: float
+    ):
+        width = stop - start
+        n_bins = len(array_write)
+        bin_step = width / n_bins
+        inv_bin_step = 1 / bin_step
+        array_tmp = np.zeros(n_bins)
+        for i in prange(len(array_read)):
+            if array_read[i] == stop:
+                array_tmp[-1] += 1
+                continue
+            idx = int((array_read[i] - start) * inv_bin_step)
+            if idx < 0:
+                continue
+            elif idx >= n_bins:
+                continue
+            else:
+                array_tmp[idx] += 1
+
+        array_write[:] = array_tmp[:]
+
     @staticmethod
     def loss_box(self, a, b, c, d) -> None:
         pass

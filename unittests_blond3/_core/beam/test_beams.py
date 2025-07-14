@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from blond3 import Beam, proton, Simulation
-from blond3._core.beam.beams import ProbeBunch
+from blond3._core.beam.beams import ProbeBeam
 
 
 class TestBeam(unittest.TestCase):
@@ -115,17 +115,17 @@ class TestBeam(unittest.TestCase):
 
 class TestProbeBunch(unittest.TestCase):
     def setUp(self):
-        self.probe_bunch = ProbeBunch(particle_type=proton, dt=np.ones(10))
+        self.probe_bunch = ProbeBeam(particle_type=proton, dt=np.ones(10))
 
     def test___init__1(self):
-        self.probe_bunch = ProbeBunch(particle_type=proton, dt=np.ones(10))
+        self.probe_bunch = ProbeBeam(particle_type=proton, dt=np.ones(10))
 
     def test___init__2(self):
-        self.probe_bunch = ProbeBunch(particle_type=proton, dE=np.ones(10))
+        self.probe_bunch = ProbeBeam(particle_type=proton, dE=np.ones(10))
 
     def test___init__3(self):
         with self.assertRaises(ValueError):
-            self.probe_bunch = ProbeBunch(particle_type=proton)
+            self.probe_bunch = ProbeBeam(particle_type=proton)
 
 
 class TestWeightenedBeam(unittest.TestCase):

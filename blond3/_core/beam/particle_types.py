@@ -58,6 +58,7 @@ proton = ParticleType(
     charge=1,
 )
 
+cl_csa = proton.classical_particle_radius
 
 electron = ParticleType(
     mass=m_e * c**2 / e,

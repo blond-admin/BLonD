@@ -15,4 +15,4 @@ class TestEmittanceMatcher(unittest.TestCase):
     @unittest.skip
     def test_on_prepare_beam(self):
         # TODO: implement test for `on_prepare_beam`
-        self.emittance_matcher.on_prepare_beam(simulation=None)
+        self.emittance_matcher.prepare_beam(simulation=None)

@@ -8,6 +8,8 @@ import numpy as np
 from .backends.backend import backend
 
 if TYPE_CHECKING:
+    from os import PathLike
+
     from .beam.base import BeamBaseClass
     from .simulation.simulation import Simulation
     from typing import (
@@ -106,10 +108,51 @@ class Schedulable:
         Parameters
         ----------
         attribute
+            Attribute that shall be changed by scheduler
         value
+            Values to be set during schedule
         mode
+            Required when arrays are handed over
+            "per-turn" or "constant"
         """
+        assert hasattr(self, attribute), (
+            f"Attribute {attribute} doesnt exist, choose from" f" {vars(self)}"
+        )
+
         self.schedules[attribute] = get_scheduler(value, mode=mode)
+
+    def schedule_from_file(
+        self,
+        attribute: str,
+        filename: str | PathLike,
+        mode: Literal["per-turn", "constant"] | None = None,
+        **kwargs_loadtxt,
+    ):
+        """
+        Schedule a parameter to be changed during simulation
+
+        Notes
+        -----
+        Can be constant, per turn or interpolated in time
+
+
+        Parameters
+        ----------
+        attribute
+            Attribute that shall be changed by scheduler
+        filename
+            Filename to read the parameters from
+        mode
+            Required when arrays are handed over
+            "per-turn" or "constant"
+        kwargs_loadtxt
+            Additional keyword arguments to be passed to `numpy.loadtxt`
+        """
+        assert hasattr(self, attribute), (
+            f"Attribute {attribute} doesnt exist, choose from" f" {vars(self)}"
+        )
+        values = np.loadtxt(filename, **kwargs_loadtxt)
+        self.schedules[attribute] = get_scheduler(values, mode=mode)
 
     def apply_schedules(self, turn_i: int, reference_time: float):
         """Set value of schedule to the target parameter for current turn/time

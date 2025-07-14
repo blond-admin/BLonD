@@ -126,7 +126,7 @@ class BiGaussian(MatchingRoutine):
         self._reinsertion = reinsertion
         self._seed = seed
 
-    def on_prepare_beam(
+    def prepare_beam(
         self,
         simulation: Simulation,
     ) -> None:

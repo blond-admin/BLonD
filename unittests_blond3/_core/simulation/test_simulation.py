@@ -132,7 +132,7 @@ class TestSimulation(unittest.TestCase):
     @unittest.skip
     def test_on_prepare_beam(self):
         # TODO: implement test for `on_prepare_beam`
-        self.simulation.on_prepare_beam(preparation_routine=None, turn_i=None)
+        self.simulation.prepare_beam(preparation_routine=None, turn_i=None)
 
     def test_on_run_simulation(self):
         self.simulation.on_run_simulation(

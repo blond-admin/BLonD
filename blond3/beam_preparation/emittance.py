@@ -10,7 +10,7 @@ class EmittanceMatcher(MatchingRoutine):
         super().__init__()
         self.some_emittance = some_emittance
 
-    def on_prepare_beam(self, simulation: Simulation) -> None:
+    def prepare_beam(self, simulation: Simulation) -> None:
         """Populates the `Beam` object with macro-particles
 
         Parameters
