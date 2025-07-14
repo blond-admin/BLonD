@@ -252,7 +252,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         )
 
     def invalidate_cache(self) -> None:
-        """Reset cache of `cached_property` attributes"""
+        """Delete the stored values of functions with @cached_property"""
         self._invalidate_cache(BeamBaseClass.cached_props)
 
     def n_macroparticles_partial(self):

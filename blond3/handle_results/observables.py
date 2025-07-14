@@ -24,6 +24,16 @@ if TYPE_CHECKING:
 
 class Observables(MainLoopRelevant):
     def __init__(self, each_turn_i: int):
+        """
+        Base class to observe attributes during simulation
+
+        Parameters
+        ----------
+        each_turn_i
+            Value to control that the element is
+            callable each n-th turn.
+
+        """
         super().__init__()
         self.each_turn_i = each_turn_i
 
@@ -34,10 +44,22 @@ class Observables(MainLoopRelevant):
 
     @property  # as readonly attributes
     def turns_array(self):
+        """
+        Helper method to get x-axis array with turn-number
+        """
         return self._turns_array
 
     @abstractmethod
     def update(self, simulation: Simulation) -> None:
+        """
+        Update memory with new values
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+
+        """
         pass
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -66,69 +88,30 @@ class Observables(MainLoopRelevant):
 
     @abstractmethod
     def to_disk(self) -> None:
+        """
+        Save data to disk
+        """
         pass
 
     @abstractmethod
     def from_disk(self) -> None:
-        pass
-
-
-class ProfileObservation(Observables):
-    def __init__(self, each_turn_i: int, profile: LateInit[ProfileBaseClass] = None):
-        super().__init__(each_turn_i=each_turn_i)
-        self._profile = profile
-        self._hist_ys: LateInit[DenseArrayRecorder] = None
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        n_turns: int,
-        turn_i_init: int,
-    ):
-        """Lateinit method when `simulation.run_simulation` is called
-
-        simulation
-            Simulation context manager
-        n_turns
-            Number of turns to simulate
-        turn_i_init
-            Initial turn to execute simulation
         """
-        super().on_run_simulation(
-            simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
-        )
-        n_entries = n_turns // self.each_turn_i + 2
-
-        if self._profile is None:
-            profiles = simulation.ring.elements.get_elements(ProfileBaseClass)
-            if len(profiles) == 0:
-                raise Exception("Please define a profile for your simulation!")
-            elif len(profiles) > 1:
-                raise Exception(
-                    f"There are {len(profiles)} that can be observed."
-                    f" Select one profile when initializing `ProfileObservation`."
-                )
-            profile = profiles[0]
-            assert isinstance(profile, DynamicProfileConstNBins) or isinstance(
-                profile, StaticProfile
-            ), f"Only `DynamicProfileConstNBins` or `StaticProfile` allowed"
-            self._profile = profile
-        n_bins = len(self._profile._hist_y)
-
-        self._hist_ys = DenseArrayRecorder(
-            f"{simulation.get_hash}_hist_ys", (n_bins, n_entries)
-        )
-
-    def update(self, simulation: Simulation):
-        self._hist_ys.write(self._profile._hist_y)
-
-    @property  # as readonly attributes
-    def hist_ys(self):
-        return self._hist_ys.get_valid_entries()
+        Load data from disk
+        """
+        pass
 
 
 class BunchObservation(Observables):
     def __init__(self, each_turn_i: int):
+        """
+        Observe the bunch coordinates during simulation execution
+
+        Parameters
+        ----------
+        each_turn_i
+            Value to control that the element is
+            callable each n-th turn.
+        """
         super().__init__(each_turn_i=each_turn_i)
         self._dts: LateInit[DenseArrayRecorder] = None
         self._dEs: LateInit[DenseArrayRecorder] = None
@@ -181,6 +164,16 @@ class BunchObservation(Observables):
         )
 
     def update(self, simulation: Simulation):
+        """
+        Update memory with new values
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+
+        """
+        # TODO allow several bunches
         self._reference_time.write(simulation.beams[0].reference_time)
         self._reference_total_energy.write(simulation.beams[0].reference_total_energy)
         self._dts.write(simulation.beams[0]._dt)
@@ -234,6 +227,17 @@ class BunchObservation(Observables):
 
 class CavityPhaseObservation(Observables):
     def __init__(self, each_turn_i: int, cavity: SingleHarmonicCavity):
+        """
+        Observe the cavity rf parameters during simulation execution
+
+        Parameters
+        ----------
+        each_turn_i
+            Value to control that the element is
+            callable each n-th turn.
+        cavity
+            Class that implements beam-rf interactions in a synchrotron
+        """
         super().__init__(each_turn_i=each_turn_i)
         self._cavity = cavity
         self._phases: LateInit[DenseArrayRecorder] = None
@@ -274,6 +278,15 @@ class CavityPhaseObservation(Observables):
         )
 
     def update(self, simulation: Simulation):
+        """
+        Update memory with new values
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+
+        """
         self._phases.write(
             self._cavity.phi_rf,
         )
@@ -297,11 +310,17 @@ class CavityPhaseObservation(Observables):
         return self._voltages.get_valid_entries()
 
     def to_disk(self) -> None:
+        """
+        Save data to disk
+        """
         self._phases.to_disk()
         self._omegas.to_disk()
         self._voltages.to_disk()
 
     def from_disk(self) -> None:
+        """
+        Load data from disk
+        """
         self._phases = DenseArrayRecorder.from_disk(self._phases.filepath)
         self._omegas = DenseArrayRecorder.from_disk(self._omegas.filepath)
         self._voltages = DenseArrayRecorder.from_disk(self._voltages.filepath)
@@ -309,6 +328,18 @@ class CavityPhaseObservation(Observables):
 
 class StaticProfileObservation(Observables):
     def __init__(self, each_turn_i: int, profile: StaticProfile):
+        """
+        Observation of a static beam profile
+
+        Parameters
+        ----------
+        each_turn_i
+            Value to control that the element is
+            callable each n-th turn.
+        profile
+            Class for the calculation of beam profile
+            that doesn't change its parameters
+        """
         super().__init__(each_turn_i=each_turn_i)
         self._profile = profile
         self._hist_y: LateInit[DenseArrayRecorder] = None
@@ -339,23 +370,50 @@ class StaticProfileObservation(Observables):
         )
 
     def update(self, simulation: Simulation):
+        """
+        Update memory with new values
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+
+        """
         self._hist_y.write(
             self._profile._hist_y,
         )
 
     @property  # as readonly attributes
     def hist_y(self):
+        """Histogram amplitude"""
         return self._hist_y.get_valid_entries()
 
     def to_disk(self) -> None:
+        """
+        Save data to disk
+        """
         self._hist_y.to_disk()
 
     def from_disk(self) -> None:
+        """
+        Load data from disk
+        """
         self._hist_y = DenseArrayRecorder.from_disk(self._hist_y.filepath)
 
 
 class WakeFieldObservation(Observables):
     def __init__(self, each_turn_i: int, wakefield: WakeField):
+        """
+        Observe the calculation of wake-fields
+
+        Parameters
+        ----------
+        each_turn_i
+            Value to control that the element is
+            callable each n-th turn.
+        wakefield
+            Manager class to calculate wake-fields
+        """
         super().__init__(each_turn_i=each_turn_i)
         self._wakefield = wakefield
         self._induced_voltage: LateInit[DenseArrayRecorder] = None
@@ -386,6 +444,15 @@ class WakeFieldObservation(Observables):
         )
 
     def update(self, simulation: Simulation):
+        """
+        Update memory with new values
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+
+        """
         try:
             self._induced_voltage.write(
                 self._wakefield.induced_voltage,
@@ -397,10 +464,24 @@ class WakeFieldObservation(Observables):
 
     @property  # as readonly attributes
     def induced_voltage(self):
+        """
+        Induced voltage in [V] from given beam profile and sources
+
+        Returns
+        -------
+        induced_voltage
+
+        """
         return self._induced_voltage.get_valid_entries()
 
     def to_disk(self) -> None:
+        """
+        Save data to disk
+        """
         self._induced_voltage.to_disk()
 
     def from_disk(self) -> None:
+        """
+        Load data from disk
+        """
         self._induced_voltage = DenseArrayRecorder.from_disk(self._hist_y.filepath)

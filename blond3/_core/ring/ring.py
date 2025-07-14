@@ -120,7 +120,7 @@ class Ring(Preparable, Schedulable):
         section_index: Optional[int] = None,
     ):
         """
-        Append a beam physics-relevant element to the container.
+        Append a beam physics-relevant element to the ring.
 
         This method appends the given element to the
         internal sequence of elements, maintaining insertion order if
@@ -163,7 +163,7 @@ class Ring(Preparable, Schedulable):
         section_index: Optional[int] = None,
     ):
         """
-        Append beam physics-relevant elements to the container.
+        Append beam physics-relevant elements to the ring.
 
         This method appends the given elements to the
         internal sequence of elements, maintaining

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -36,6 +36,20 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         local_wakefield: Optional[WakeField],
         cavity_feedback: Optional[LocalFeedback],
     ):
+        """
+        Base class to implement beam-rf interactions in synchrotrons
+
+        Parameters
+        ----------
+        n_rf
+            Number of different rf waves for interaction
+        section_index
+            Section index to group elements into sections
+        local_wakefield
+            Optional wakefield to interact with beam
+        cavity_feedback
+            Optional cavity feedback to change cavity parameters
+        """
         super().__init__(section_index=section_index)
         if cavity_feedback is not None:
             cavity_feedback.set_owner(cavity=self)
@@ -55,6 +69,25 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         local_wakefield: Optional[WakeField],
         cavity_feedback: Optional[LocalFeedback],
     ) -> CavityBaseClass:
+        """
+        Initialize object without simulation context
+
+        Parameters
+        ----------
+        n_rf
+            Number of different rf waves for interaction
+        section_index
+            Section index to group elements into sections
+        local_wakefield
+            Optional wakefield to interact with beam
+        cavity_feedback
+            Optional cavity feedback to change cavity parameters
+
+        Returns
+        -------
+        cavity_base_class
+
+        """
         cav = CavityBaseClass(
             n_rf=n_rf,
             section_index=section_index,
@@ -102,9 +135,18 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
 
     @property  # as readonly attributes
     def n_rf(self):
+        """Number of different rf waves for interaction"""
         return self._n_rf
 
-    def track(self, beam: BeamBaseClass):
+    def track(self, beam: BeamBaseClass) -> None:
+        """Main simulation routine to be called in the mainloop
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element
+        """
+
         self.apply_schedules(
             turn_i=self._turn_i.value,
             reference_time=beam.reference_time,
@@ -115,16 +157,53 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             self._local_wakefield.track(beam=beam)
 
     def calc_omega(self, beam_beta: float, ring_circumference: float):
-        return self.harmonic * (TWOPIC0 * beam_beta / ring_circumference)
+        """
+        Calculate angular frequency of cavity in [Hz]
+
+        Parameters
+        ----------
+        beam_beta
+            Beam reference fraction of speed of light (v/c0)
+
+        ring_circumference
+            Synchrotron circumference in [m]
+        Returns
+        -------
+        omega
+            Angular frequency (2 PI f) of cavity in [Hz]
+        """
+        return self.harmonic * TWOPIC0 * beam_beta / ring_circumference
 
 
 class SingleHarmonicCavity(CavityBaseClass):
+    """
+    Cavity with only one RF wave for beam interaction
+
+    Parameters
+    ----------
+    section_index
+        Section index to group elements into sections
+    local_wakefield
+        Optional wakefield to interact with beam
+    cavity_feedback
+        Optional cavity feedback to change cavity parameters
+
+    Attributes
+    ----------
+    voltage
+        Cavity's effective voltage in [V]
+    phi_rf
+        Cavity's design phase in [deg]
+    harmonic
+        Cavity's design harmonic []
+    """
     def __init__(
         self,
         section_index: int = 0,
         local_wakefield: Optional[WakeField] = None,
         cavity_feedback: Optional[LocalFeedback] = None,
     ):
+
         super().__init__(
             n_rf=1,
             section_index=section_index,
@@ -159,7 +238,14 @@ class SingleHarmonicCavity(CavityBaseClass):
                 "or `.schedule(attribute='harmonic', value=...)`"
             )
 
-    def track(self, beam: BeamBaseClass):
+    def track(self, beam: BeamBaseClass) -> None:
+        """Main simulation routine to be called in the mainloop
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element
+        """
         super().track(beam=beam)
         target_total_energy = self._energy_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,
@@ -193,6 +279,32 @@ class SingleHarmonicCavity(CavityBaseClass):
         local_wakefield: Optional[WakeField] = None,
         cavity_feedback: Optional[LocalFeedback] = None,
     ) -> SingleHarmonicCavity:
+        """
+        Initialize object without simulation context
+
+        Parameters
+        ----------
+        section_index
+            Section index to group elements into sections
+        voltage
+            Cavity's effective voltage in [V]
+        phi_rf
+            Cavity's design phase in [deg]
+        harmonic
+            Cavity's design harmonic []
+        circumference
+            Synchrotron circumference in [m]
+        total_energy
+            Target total energy in [eV]
+        local_wakefield
+            Optional wakefield to interact with beam
+        cavity_feedback
+            Optional cavity feedback to change cavity parameters
+
+        Returns
+        -------
+        single_harmonic_cavity
+        """
         from .._core.simulation.simulation import Simulation
         from .._core.ring.ring import Ring
         from ..cycles.energy_cycle import ConstantEnergyCycle
@@ -227,6 +339,29 @@ class SingleHarmonicCavity(CavityBaseClass):
 
 
 class MultiHarmonicCavity(CavityBaseClass):
+    """
+    Cavity with several RF wave for beam interaction
+
+    Parameters
+    ----------
+    n_harmonics
+        Number of different RF waves for interaction
+    section_index
+        Section index to group elements into sections
+    local_wakefield
+        Optional wakefield to interact with beam
+    cavity_feedback
+        Optional cavity feedback to change cavity parameters
+
+    Attributes
+    ----------
+    voltage
+        Cavity's effective voltages (per harmonic) in [V]
+    phi_rf
+        Cavity's design phases (per harmonic) in [deg]
+    harmonic
+        Cavity's design harmonics (per harmonic) []
+    """
     def __init__(
         self,
         n_harmonics: int,
@@ -234,6 +369,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         local_wakefield: Optional[WakeField] = None,
         cavity_feedback: Optional[LocalFeedback] = None,
     ):
+
         super().__init__(
             n_rf=n_harmonics,
             section_index=section_index,
@@ -279,9 +415,34 @@ class MultiHarmonicCavity(CavityBaseClass):
         local_wakefield: Optional[WakeField] = None,
         cavity_feedback: Optional[LocalFeedback] = None,
     ) -> MultiHarmonicCavity:
+        """
+        Initialize object without simulation context
+
+        Parameters
+        ----------
+        section_index
+            Section index to group elements into sections
+        voltage
+            Cavity's effective voltages (per harmonic) in [V]
+        phi_rf
+            Cavity's design phases (per harmonic) in [deg]
+        harmonic
+            Cavity's design harmonics (per harmonic) []
+        circumference
+            Synchrotron circumference in [m]
+        total_energy
+            Target total energy in [eV]
+        local_wakefield
+            Optional wakefield to interact with beam
+        cavity_feedback
+            Optional cavity feedback to change cavity parameters
+
+        Returns
+        -------
+        multi_harmonic_cavity
+        """
         from .._core.simulation.simulation import Simulation
         from .._core.ring.ring import Ring
-        from ..cycles.energy_cycle import EnergyCycleBase
         from ..cycles.energy_cycle import ConstantEnergyCycle
 
         mhc = MultiHarmonicCavity(
@@ -313,7 +474,14 @@ class MultiHarmonicCavity(CavityBaseClass):
         )
         return mhc
 
-    def track(self, beam: BeamBaseClass):
+    def track(self, beam: BeamBaseClass) -> None:
+        """Main simulation routine to be called in the mainloop
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element
+        """
         super().track(beam=beam)
         target_total_energy = self._energy_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,

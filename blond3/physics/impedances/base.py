@@ -46,7 +46,7 @@ class TimeDomain(ABC):
 
 class FreqDomain(ABC):
     @abstractmethod
-    def get_impedance(self, freq_x: NumpyArray, simulation: Simulation) -> NumpyArray:
+    def get_impedance(self, freq_x: NumpyArray, simulation: Simulation,) -> NumpyArray:
         pass
 
 
@@ -119,6 +119,27 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
 
 
 class WakeField(ImpedanceBaseClass):
+    """
+    Manager class to calculate wake-fields
+
+    Parameters
+    ----------
+    sources
+        List of sources that cause wake-fields
+    solver
+        Solver to calculate the induced voltage from the sources
+    section_index
+        Section index to group elements into sections
+    profile
+        Object for calculation of beam profiles
+
+    Attributes
+    ----------
+    sources
+        List of sources that cause wake-fields
+    solver
+        Solver to calculate the induced voltage from the sources
+    """
     def __init__(
         self,
         sources: Tuple[WakeFieldSource, ...],
@@ -126,14 +147,40 @@ class WakeField(ImpedanceBaseClass):
         section_index: int = 0,
         profile: LateInit[ProfileBaseClass] = None,
     ):
+        """
+        Manager class to calculate wake-fields
+
+        Parameters
+        ----------
+        sources
+            List of sources that cause wake-fields
+        solver
+            Solver to calculate the induced voltage from the sources
+        section_index
+            Section index to group elements into sections
+        profile
+            Object for calculation of beam profiles
+
+        """
         super().__init__(section_index=section_index, profile=profile)
 
         self.solver = solver
         self.sources = sources
+        self._induced_voltage = None
+
+    @property
+    def induced_voltage(self):
+        """
+        Induced voltage in [V] from given beam profile and sources
+        """
+        if self._induced_voltage is None:
+            raise Exception("Use `calc_induced_voltage` first!")
+        return self._induced_voltage
 
     @requires(["EnergyCycleBase", "BeamBaseClass"])  # because
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """
+        Lateinit method when `simulation.__init__` is called
 
         simulation
             Simulation context manager
@@ -145,10 +192,29 @@ class WakeField(ImpedanceBaseClass):
         )
 
     def calc_induced_voltage(self, beam: BeamBaseClass) -> NumpyArray | CupyArray:
-        self.induced_voltage = self.solver.calc_induced_voltage(beam=beam)
+        """
+
+        Parameters
+        ----------
+        beam
+            Simulation object of a particle beam
+
+        Returns
+        -------
+        induced_voltage
+        """
+        self._induced_voltage = self.solver.calc_induced_voltage(beam=beam)
         return self.induced_voltage
 
     def track(self, beam: BeamBaseClass) -> None:
+        """
+        Calculate induced voltage and apply this voltage to the beam
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element
+        """
         induced_voltage = self.calc_induced_voltage(beam=beam)
         backend.specials.kick_induced_voltage(
             dt=beam.read_partial_dt(),

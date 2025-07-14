@@ -52,13 +52,22 @@ class Preparable(ABC):
 
 
 class MainLoopRelevant(Preparable):
-    """Base class for objects that are relevant for the simulation main loop"""
+    """
+    Base class for objects that are relevant for the simulation main loop
+
+    Attributes
+    ----------
+    each_turn_i
+        Value to control that the element is
+        callable each n-th turn.
+
+
+
+    """
 
     def __init__(self) -> None:
         super().__init__()
         self.each_turn_i = 1
-
-        self.schedules = {}
 
     def is_active_this_turn(self, turn_i: int) -> bool:
         """Whether the element is active or not"""
@@ -66,7 +75,15 @@ class MainLoopRelevant(Preparable):
 
 
 class Schedulable:
-    """Base class for objects with schedule parameters"""
+    """
+    Base class for objects with schedule parameters
+
+    Attributes
+    ----------
+    schedules
+        Dictionary to update a certain attribute by some value
+        via `apply_schedules`
+    """
 
     def __init__(self):
         super().__init__()
@@ -145,7 +162,13 @@ class BeamPhysicsRelevant(MainLoopRelevant):
 
     @abstractmethod
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop"""
+        """Main simulation routine to be called in the mainloop
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element
+        """
         pass
 
 

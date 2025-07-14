@@ -31,7 +31,14 @@ class BoxLosses(LossesBaseClass):
         self.e_min = backend.float(e_min)
         self.e_max = backend.float(e_max)
 
-    def track(self, beam: BeamBaseClass):
+    def track(self, beam: BeamBaseClass) -> None:
+        """Main simulation routine to be called in the mainloop
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element
+        """
         backend.loss_box(
             beam.write_partial_flags(), self.t_min, self.t_max, self.e_min, self.e_max
         )
@@ -58,5 +65,12 @@ class SeparatrixLosses(LossesBaseClass):
         """
         self._simulation = simulation
 
-    def track(self, beam: BeamBaseClass):
+    def track(self, beam: BeamBaseClass) -> None:
+        """Main simulation routine to be called in the mainloop
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element
+        """
         self._simulation.get_separatrix()  # TODO

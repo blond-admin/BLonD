@@ -34,7 +34,14 @@ class LocalFeedback(FeedbackBaseClass):
         assert self._owner is None
         self._owner = cavity
 
-    def track(self, beam: BeamBaseClass):
+    def track(self, beam: BeamBaseClass) -> None:
+        """Main simulation routine to be called in the mainloop
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element
+        """
         pass
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -54,7 +61,14 @@ class GlobalFeedback(FeedbackBaseClass):
         super().__init__(section_index=section_index)
         self.profile = profile
 
-    def track(self, beam: BeamBaseClass):
+    def track(self, beam: BeamBaseClass) -> None:
+        """Main simulation routine to be called in the mainloop
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element
+        """
         pass
 
     # Use `requires` to automatically sort execution order of

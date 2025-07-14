@@ -33,6 +33,13 @@ class DriftBaseClass(BeamPhysicsRelevant, ABC):
         return self._share_of_circumference
 
     def track(self, beam: BeamBaseClass) -> None:
+        """Main simulation routine to be called in the mainloop
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element
+        """
         pass
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -62,11 +69,40 @@ class DriftBaseClass(BeamPhysicsRelevant, ABC):
 
 
 class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
+    """
+    Base class to implement beam drifts in synchrotrons
+
+    Parameters
+    ----------
+    share_of_circumference
+        Share of circumference.
+        E.g. 100% share -> share_of_circumference=1.0
+    section_index
+        Section index to group elements into sections
+
+    Attributes
+    ----------
+    length
+        Length of drift in [m]
+    """
     def __init__(
         self,
         share_of_circumference: float = 1.0,
         section_index: int = 0,
     ):
+        """
+        Base class to implement beam drifts in synchrotrons
+
+        Parameters
+        ----------
+        share_of_circumference
+            Share of circumference.
+            E.g. 100% share -> share_of_circumference=1.0
+        section_index
+            Section index to group elements into sections
+
+        """
+
         super().__init__(
             share_of_circumference=share_of_circumference,
             section_index=section_index,
@@ -80,14 +116,17 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
 
     @property  # read only, set by `transition_gamma`
     def momentum_compaction_factor(self):
+        """Momentum compaction factor"""
         return self._momentum_compaction_factor
 
     @property
     def transition_gamma(self):
+        """Gamma of transition crossing"""
         return self._transition_gamma
 
     @transition_gamma.setter
     def transition_gamma(self, transition_gamma):
+        """Gamma of transition crossing"""
         transition_gamma = backend.float(transition_gamma)
         self._momentum_compaction_factor = 1 / (transition_gamma * transition_gamma)
         self._transition_gamma = transition_gamma
@@ -99,6 +138,26 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         share_of_circumference: float,
         section_index: int = 0,
     ) -> DriftSimple:
+        """
+        Initialize object without simulation context
+
+
+        Parameters
+        ----------
+        transition_gamma
+            Gamma of transition crossing
+        circumference
+            Synchrotron circumference in [m]
+        share_of_circumference
+            Share of circumference.
+            E.g. 100% share -> share_of_circumference=1.0
+        section_index
+            Section index to group elements into sections
+
+        Returns
+        -------
+        drift_simple
+        """
         from .._core.base import DynamicParameter
 
         d = DriftSimple(
@@ -135,7 +194,14 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
                 "or `.schedule(attribute='transition_gamma', value=...)`"
             )
 
-    def track(self, beam: BeamBaseClass):
+    def track(self, beam: BeamBaseClass) -> None:
+        """Main simulation routine to be called in the mainloop
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element
+        """
         super().track(beam=beam)
         self.apply_schedules(
             turn_i=self._simulation.turn_i.value,
@@ -160,15 +226,24 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
     # alias of momentum_compaction_factor
     @property  # as readonly attributes
     def alpha_0(self) -> backend.float:
+        """Momentum compaction factor"""
         return self.momentum_compaction_factor
 
     def invalidate_cache(self):
+        """Delete the stored values of functions with @cached_property"""
         # super()._invalidate_cache(DriftSimple.cached_props)
         pass
 
 
 class DriftSpecial(DriftBaseClass):
-    def track(self, beam: BeamBaseClass):
+    def track(self, beam: BeamBaseClass) -> None:
+        """Main simulation routine to be called in the mainloop
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element
+        """
         pass
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -183,7 +258,14 @@ class DriftSpecial(DriftBaseClass):
 
 
 class DriftXSuite(DriftBaseClass):
-    def track(self, beam: BeamBaseClass):
+    def track(self, beam: BeamBaseClass) -> None:
+        """Main simulation routine to be called in the mainloop
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element
+        """
         pass
 
     def on_init_simulation(self, simulation: Simulation) -> None:

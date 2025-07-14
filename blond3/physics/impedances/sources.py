@@ -24,6 +24,9 @@ def get_hash(array1d: NumpyArray) -> int:
 class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
     def __init__(self, Z_over_n: float):
         """
+        Inductive impedance, i.e. only complex component in frequency domain
+
+
         Parameters
         ----------
         Z_over_n : float or array-like
@@ -39,7 +42,11 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         self._cache_wake_impedance = None
         self._cache_wake_impedance_hash = None
 
-    def get_impedance(self, freq_x: NumpyArray, simulation: Simulation) -> NumpyArray:
+    def get_impedance(
+        self,
+        freq_x: NumpyArray,
+        simulation: Simulation,
+    ) -> NumpyArray:
         """
         Return the impedance in the frequency domain.
 
@@ -59,14 +66,14 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
 
         Parameters
         ----------
-        freq_x : array-like
-            Frequency components (harmonics).
+        freq_x
+            Frequency axis, in [Hz].
         simulation : Simulation
             Simulation object containing turn index and RF info.
 
         Returns
         -------
-        imp : array-like
+        impedance
             Complex impedance array.
         """
         T = simulation.ring.circumference / simulation.beams[0].reference_velocity
@@ -103,6 +110,22 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
     def get_wake_impedance(
         self, time: NumpyArray, simulation: Simulation
     ) -> NumpyArray:
+        """
+        Get impedance equivalent to the partial wake in time domain
+
+
+        Parameters
+        ----------
+        time
+            Time array to get wake, in [s]
+        simulation
+            Simulation context manager
+
+        Returns
+        -------
+        wake_impedance
+
+        """
         # Recalculate only of `time` is changed
 
         hash_ = get_hash(time)
@@ -125,8 +148,30 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         center_frequencies: NumpyArray,
         quality_factors: NumpyArray,
     ):
-        super().__init__(is_dynamic=False)
+        """
+        Multiple resonances of RLC circuits for impedance calculations.
 
+        Parameters
+        ----------
+        shunt_impedances : array-like
+            Shunt impedances of the resonant circuits, in [Ω].
+        center_frequencies : array-like
+            Center frequencies of the resonances, in [Hz].
+        quality_factors : array-like
+            Quality factors (Q) of the resonances, dimensionless.
+
+        Notes
+        -----
+        Ensure that all input arrays have the same length, with each entry
+        corresponding to a separate resonance.
+        """
+        super().__init__(is_dynamic=False)
+        assert len(shunt_impedances) == len(
+            center_frequencies
+        ), f"{len(shunt_impedances)} != {len(center_frequencies)}"
+        assert len(shunt_impedances) == len(
+            quality_factors
+        ), f"{len(shunt_impedances)} != {len(quality_factors)}"
         self._shunt_impedances = shunt_impedances
         self._center_frequencies = center_frequencies
         self._quality_factors = quality_factors
@@ -144,6 +189,23 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
     def get_wake_impedance(
         self, time: NumpyArray, simulation: Simulation
     ) -> NumpyArray:
+        """
+        Get impedance equivalent to the partial single-particle-wake in
+        time domain
+
+
+        Parameters
+        ----------
+        time
+            Time array to get wake, in [s]
+        simulation
+            Simulation context manager
+
+        Returns
+        -------
+        wake_impedance
+
+        """
         # Recalculate only of `time` is changed
         hash = get_hash(time)
         if hash is self._cache_wake_impedance_hash:
@@ -170,7 +232,26 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         self._cache_wake_impedance = wake_impedance
         return wake_impedance
 
-    def get_impedance(self, freq_x: NumpyArray, simulation: Simulation) -> NumpyArray:
+    def get_impedance(
+        self,
+        freq_x: NumpyArray,
+        simulation: Simulation,
+    ) -> NumpyArray:
+        """
+        Return the impedance in the frequency domain.
+
+        Parameters
+        ----------
+        freq_x
+            Frequency axis, in [Hz].
+        simulation : Simulation
+            Simulation context manager
+
+        Returns
+        -------
+        impedance
+            Complex impedance array.
+        """
         # Recalculate only of `freq_x` is changed
 
         hash_ = get_hash(freq_x)
@@ -197,6 +278,10 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
 
 
 class ImpedanceTable(DiscreteWakeFieldSource):
+    """
+    Base class to manage impedance tables
+    """
+
     @staticmethod
     @abstractmethod
     def from_file(filepath: PathLike, reader: ImpedanceReader) -> ImpedanceTable:
@@ -209,6 +294,16 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
         freq_x: NumpyArray,
         freq_y: NumpyArray,
     ):
+        """
+        Impedance table in frequency domain
+
+        Parameters
+        ----------
+        freq_x
+            Frequency axis, in [Hz].
+        freq_y
+            Complex amplitudes in frequency domain
+        """
         super().__init__(is_dynamic=False)
 
         self._freq_x = freq_x
@@ -217,7 +312,26 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
         self._cache_impedance = None
         self._cache_impedance_hash = None
 
-    def get_impedance(self, freq_x: NumpyArray, simulation: Simulation) -> NumpyArray:
+    def get_impedance(
+        self,
+        freq_x: NumpyArray,
+        simulation: Simulation,
+    ) -> NumpyArray:
+        """
+        Return the impedance in the frequency domain.
+
+        Parameters
+        ----------
+        freq_x
+            Frequency axis, in [Hz].
+        simulation : Simulation
+            Simulation context manager
+
+        Returns
+        -------
+        impedance
+            Complex impedance array.
+        """
         # Recalculate only of `freq_x` is changed
         hash_ = get_hash(freq_x)
         if hash_ is self._cache_impedance_hash:
@@ -233,6 +347,21 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
 
     @staticmethod
     def from_file(filepath: PathLike, reader: ImpedanceReader) -> ImpedanceTableFreq:
+        """
+        Instance table from a file on the disk
+
+        Parameters
+        ----------
+        filepath
+            path of the file to lead
+        reader
+            `ImpedanceReader` to interpret what's written in the file
+
+        Returns
+        -------
+        impedance_table_freq
+
+        """
         x_array, y_array = reader.load_file(filepath=filepath)
         assert not np.any(np.isnan(x_array))
         assert not np.any(np.isnan(y_array))
@@ -245,6 +374,16 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         wake_x: NumpyArray,
         wake_y: NumpyArray,
     ):
+        """
+        Impedance table in frequency domain
+
+        Parameters
+        ----------
+        wake_x
+            Wake time axis, in [s]
+        wake_y
+            Wake amplitude, in [V]
+        """
         super().__init__(is_dynamic=False)
         self._wake_x = wake_x
         self._wake_y = wake_y
@@ -256,12 +395,44 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
     def from_file(
         filepath: PathLike | str, reader: ImpedanceReader
     ) -> ImpedanceTableTime:
+        """
+        Instance table from a file on the disk
+
+        Parameters
+        ----------
+        filepath
+            path of the file to lead
+        reader
+            `ImpedanceReader` to interpret what's written in the file
+
+        Returns
+        -------
+        impedance_table_time
+
+        """
         x_array, y_array = reader.load_file(filepath=filepath)
         return ImpedanceTableTime(wake_x=x_array, wake_y=y_array)
 
     def get_wake_impedance(
         self, time: NumpyArray, simulation: Simulation
     ) -> NumpyArray:
+        """
+        Get impedance equivalent to the partial single-particle-wake in
+        time domain
+
+
+        Parameters
+        ----------
+        time
+            Time array to get wake, in [s]
+        simulation
+            Simulation context manager
+
+        Returns
+        -------
+        wake_impedance
+
+        """
         hash_ = get_hash(time)
         if hash_ is self._cache_wake_impedance_hash:
             return self._cache_wake_impedance

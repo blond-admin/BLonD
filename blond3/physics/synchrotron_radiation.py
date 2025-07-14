@@ -28,4 +28,11 @@ class SynchrotronRadiation(BeamPhysicsRelevant):
         pass
 
     def track(self, beam: BeamBaseClass) -> None:
+        """Main simulation routine to be called in the mainloop
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element
+        """
         pass

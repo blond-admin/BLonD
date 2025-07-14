@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 
 class Simulation(Preparable, HasPropertyCache):
-    """Context manager to perform beam physics simulations of synchrotron
+    """Context manager to perform beam physics simulations of synchrotrons
 
     Parameters
     ----------
@@ -118,9 +118,8 @@ class Simulation(Preparable, HasPropertyCache):
         print(s.getvalue())
 
     def invalidate_cache(self):
-        """
-        Invalidates cached attributes
-        """
+        """Delete the stored values of functions with @cached_property"""
+
         pass  # TODO
 
     def get_potential_well_analytic(self):

@@ -181,16 +181,19 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
     @staticmethod
     @abstractmethod
     def headless(*args, **kwargs):
+        """Initialize object without simulation context"""
         pass
 
     @cached_property  # as readonly attributes
     def total_energy_init(self):
+        """Total relativistic energy in [eV]"""
         energy_init = calc_total_energy(mass=self._mass, momentum=self._momentum_init)
         return energy_init
 
     cached_props = ("total_energy_init",)
 
     def invalidate_cache(self):
+        """Delete the stored values of functions with @cached_property"""
         super()._invalidate_cache(EnergyCycleBase.cached_props)
 
 
@@ -200,6 +203,19 @@ class ConstantEnergyCycle(EnergyCycleBase):
         value: float,
         in_unit: SynchronousDataTypes = "momentum",
     ):
+        """
+        Energy cycle for a non-changing energy
+
+        Parameters
+        ----------
+        value
+            Constant value of unit `in_unit`
+        in_unit
+            - 'momentum' [eV/c], (no conversion is done)
+            - 'total energy' [eV],
+            - 'kinetic energy' [eV], or
+            - 'bending field' [T]
+        """
         super().__init__()
         self._value = value
         self._in_unit = in_unit
@@ -238,6 +254,25 @@ class ConstantEnergyCycle(EnergyCycleBase):
         section_i: int,
         reference_time: float,
     ):
+        """
+        Calculate the total energy [eV] that is foreseen by the energy cycle
+
+        Parameters
+        ----------
+        turn_i
+            Currently turn index
+            (Eventually needed for array accessing)
+        section_i
+            Currently section index
+            (Eventually needed for array accessing)
+        reference_time
+            Current reference time
+            (Eventually needed for interpolation)
+
+        Returns
+        -------
+
+        """
         # constant because ConstantEnergyCycle
         return self._total_energy
 
@@ -249,6 +284,31 @@ class ConstantEnergyCycle(EnergyCycleBase):
         in_unit: SynchronousDataTypes = "momentum",
         bending_radius: Optional[float] = None,
     ) -> ConstantEnergyCycle:
+        """
+        Initialize object without simulation context
+
+        Parameters
+        ----------
+        value
+            Constant value of unit `in_unit`
+        mass : float
+            Particle mass in [eV/c²]
+        charge
+            Particle charge, i.e. number of elementary charges `e`
+            Example: For an electron `charge=1`
+        in_unit
+            - 'momentum' [eV/c], (no conversion is done)
+            - 'total energy' [eV],
+            - 'kinetic energy' [eV], or
+            - 'bending field' [T]
+        bending_radius
+            Bending radius in [m]
+
+        Returns
+        -------
+            constant_energy_cycle
+
+        """
         ret = ConstantEnergyCycle(
             value=value,
             in_unit=in_unit,
@@ -276,6 +336,21 @@ class EnergyCyclePerTurn(EnergyCycleBase):
         values_after_turn: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
     ):
+        """
+        Energy cycle per turn. Assumes each cavity has the same increment of energy.
+
+        Parameters
+        ----------
+        value_init
+            Initial value at start of simulation in of unit `in_unit`
+        values_after_turn
+            Value after turn in synchrotron in of unit `in_unit`
+        in_unit
+            - 'momentum' [eV/c], (no conversion is done)
+            - 'total energy' [eV],
+            - 'kinetic energy' [eV], or
+            - 'bending field' [T]
+        """
         super().__init__()
         self._value_init = value_init
 
@@ -347,6 +422,25 @@ class EnergyCyclePerTurn(EnergyCycleBase):
         section_i: int,
         reference_time: float,
     ):
+        """
+        Calculate the total energy [eV] that is foreseen by the energy cycle
+
+        Parameters
+        ----------
+        turn_i
+            Currently turn index
+            (Eventually needed for array accessing)
+        section_i
+            Currently section index
+            (Eventually needed for array accessing)
+        reference_time
+            Current reference time
+            (Eventually needed for interpolation)
+
+        Returns
+        -------
+
+        """
         return calc_total_energy(
             mass=self._mass,
             momentum=self._momentum[section_i, turn_i],
@@ -356,12 +450,41 @@ class EnergyCyclePerTurn(EnergyCycleBase):
     def headless(
         value_init: float,
         mass: float,
-        section_lengths: NumpyArray,
         charge: float,
         values_after_turn: NumpyArray,
+        n_cavities: int,
         in_unit: SynchronousDataTypes = "momentum",
         bending_radius: Optional[float] = None,
     ) -> EnergyCyclePerTurn:
+        """
+        Initialize object without simulation context
+
+        Parameters
+        ----------
+        value_init
+            Initial value at start of simulation in of unit `in_unit`
+        mass
+            Particle mass in [eV/c²]
+        charge
+            Particle charge, i.e. number of elementary charges `e`
+            Example: For an electron `charge=1`
+        values_after_turn
+            Value after turn in Synchrotron in of unit `in_unit`
+        n_cavities
+            Number of cavities
+        in_unit
+            - 'momentum' [eV/c], (no conversion is done)
+            - 'total energy' [eV],
+            - 'kinetic energy' [eV], or
+            - 'bending field' [T]
+        bending_radius
+            Bending radius in [m]
+
+        Returns
+        -------
+        energy_cycle_per_turn
+
+        """
         ret = EnergyCyclePerTurn(
             value_init=value_init,
             values_after_turn=values_after_turn,
@@ -376,12 +499,11 @@ class EnergyCyclePerTurn(EnergyCycleBase):
         beam = Mock(BeamBaseClass)
         beam.particle_type = Mock(ParticleType)
         simulation.beams = (beam,)
-        simulation.ring.section_lengths = section_lengths
 
         simulation.ring.bending_radius = bending_radius
         beam.particle_type.mass = mass
         beam.particle_type.charge = charge
-        simulation.ring.n_cavities = len(section_lengths)
+        simulation.ring.n_cavities = n_cavities
         ret.on_init_simulation(simulation=simulation)
         ret.on_run_simulation(
             simulation=simulation,
@@ -399,6 +521,22 @@ class EnergyCyclePerTurnAllCavities(EnergyCycleBase):
         values_after_cavity_per_turn: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
     ):
+        """
+        Energy program per turn, defined for each cavity
+
+        Parameters
+        ----------
+        value_init
+            Initial value at start of simulation in of unit `in_unit`
+        values_after_cavity_per_turn
+            Value after each cavity and each turn in Synchrotron
+             in of unit `in_unit`
+        in_unit
+            - 'momentum' [eV/c], (no conversion is done)
+            - 'total energy' [eV],
+            - 'kinetic energy' [eV], or
+            - 'bending field' [T]
+        """
         super().__init__()
         self._value_init = value_init
         self._values_after_cavity_per_turn = values_after_cavity_per_turn[:, :]
@@ -456,6 +594,25 @@ class EnergyCyclePerTurnAllCavities(EnergyCycleBase):
         section_i: int,
         reference_time: float,
     ):
+        """
+        Calculate the total energy [eV] that is foreseen by the energy cycle
+
+        Parameters
+        ----------
+        turn_i
+            Currently turn index
+            (Eventually needed for array accessing)
+        section_i
+            Currently section index
+            (Eventually needed for array accessing)
+        reference_time
+            Current reference time
+            (Eventually needed for interpolation)
+
+        Returns
+        -------
+
+        """
         return calc_total_energy(
             mass=self._mass,
             momentum=self._momentum_after_cavity_per_turn[section_i, turn_i],
@@ -463,7 +620,6 @@ class EnergyCyclePerTurnAllCavities(EnergyCycleBase):
 
     @staticmethod
     def headless(
-        section_lengths: NumpyArray,
         mass: float,
         charge: float,
         value_init: float,
@@ -471,7 +627,33 @@ class EnergyCyclePerTurnAllCavities(EnergyCycleBase):
         in_unit: SynchronousDataTypes = "momentum",
         bending_radius: Optional[float] = None,
     ) -> EnergyCyclePerTurnAllCavities:
-        assert len(section_lengths) == values_after_cavity_per_turn.shape[0]
+        """
+        Initialize object without simulation context
+
+        Parameters
+        ----------
+        mass
+            Particle mass in [eV/c²]
+        charge
+            Particle charge, i.e. number of elementary charges `e`
+            Example: For an electron `charge=1`
+        value_init
+            Initial value at start of simulation in of unit `in_unit`
+        values_after_cavity_per_turn
+            Value after each cavity and each turn in Synchrotron
+             in of unit `in_unit`
+        in_unit
+            - 'momentum' [eV/c], (no conversion is done)
+            - 'total energy' [eV],
+            - 'kinetic energy' [eV], or
+            - 'bending field' [T]
+        bending_radius
+            Bending radius in [m]
+
+        Returns
+        -------
+
+        """
         ret = EnergyCyclePerTurnAllCavities(
             value_init=value_init,
             values_after_cavity_per_turn=values_after_cavity_per_turn,
@@ -486,11 +668,10 @@ class EnergyCyclePerTurnAllCavities(EnergyCycleBase):
         beam.particle_type = Mock(ParticleType)
         simulation.beams = (beam,)
 
-        simulation.ring.section_lengths = section_lengths
         simulation.ring.bending_radius = bending_radius
         beam.particle_type.mass = mass
         beam.particle_type.charge = charge
-        simulation.ring.n_cavities = len(section_lengths)
+        simulation.ring.n_cavities = values_after_cavity_per_turn.shape[0]
 
         ret.on_init_simulation(simulation=simulation)
         ret.on_run_simulation(
@@ -511,6 +692,26 @@ class EnergyCycleByTime(EnergyCycleBase):
         in_unit: SynchronousDataTypes = "momentum",
         interpolator=np.interp,
     ):
+        """
+        Energy cycle defined as Energy vs. Time, interpolated just in time
+
+        Parameters
+        ----------
+        t0
+            Initial time in [s]
+        base_time
+            Values of time [s]
+        base_values
+            Values at time in synchrotron in of unit `in_unit`
+        in_unit
+            - 'momentum' [eV/c], (no conversion is done)
+            - 'total energy' [eV],
+            - 'kinetic energy' [eV], or
+            - 'bending field' [T]
+        interpolator
+            Interpolation routine to get time in between the base values
+            Default: `numpy.interp`
+        """
         super().__init__()
         self._t0 = t0
         self._interpolator = interpolator
@@ -554,6 +755,25 @@ class EnergyCycleByTime(EnergyCycleBase):
         section_i: int,
         reference_time: float,
     ):
+        """
+        Calculate the total energy [eV] that is foreseen by the energy cycle
+
+        Parameters
+        ----------
+        turn_i
+            Currently turn index
+            (Eventually needed for array accessing)
+        section_i
+            Currently section index
+            (Eventually needed for array accessing)
+        reference_time
+            Current reference time
+            (Eventually needed for interpolation)
+
+        Returns
+        -------
+
+        """
         momentum = self._interpolator(self._t0, self._base_time, self._base_momentum)
         return calc_total_energy(
             mass=self._mass,
@@ -571,6 +791,38 @@ class EnergyCycleByTime(EnergyCycleBase):
         bending_radius: Optional[float] = None,
         interpolator=np.interp,
     ) -> EnergyCycleByTime:
+        """
+        Initialize object without simulation context
+
+
+        Parameters
+        ----------
+        mass
+            Particle mass in [eV/c²]
+        charge
+            Particle charge, i.e. number of elementary charges `e`
+            Example: For an electron `charge=1`
+        t0
+            Initial time in [s]
+        base_time
+            Values of time [s]
+        base_values
+            Values at time in synchrotron in of unit `in_unit`
+        in_unit
+            - 'momentum' [eV/c], (no conversion is done)
+            - 'total energy' [eV],
+            - 'kinetic energy' [eV], or
+            - 'bending field' [T]
+        bending_radius
+            Bending radius in [m]
+        interpolator
+            Interpolation routine to get time in between the base values
+            Default: `numpy.interp`
+
+        Returns
+        -------
+        Energy_cycle_by_time
+        """
         from .._core.simulation.simulation import Simulation
         from .._core.beam.base import BeamBaseClass
         from .._core.beam.particle_types import ParticleType
@@ -615,6 +867,7 @@ def _to_momentum(
         The mass of the particles in [eV/c**2]
     charge
         Particle charge, i.e. number of elementary charges `e`
+        Example: For an electron `charge=1`
     convert_from
         What units `data` given in:
         - 'momentum' [eV/c], (no conversion is done)
@@ -628,7 +881,6 @@ def _to_momentum(
     -------
     momentum : float array
         The data in units of momentum [eV/c]
-
     """
 
     if convert_from == "momentum":

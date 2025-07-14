@@ -87,7 +87,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
 
 
 class PeriodicFreqSolver(WakeFieldSolver):
-    """Wakefield solver specialized for InductiveImpedance
+    """General wakefield solver to calculate wake-fields via frequency domain
 
     Parameters
     ----------
@@ -110,6 +110,18 @@ class PeriodicFreqSolver(WakeFieldSolver):
     """
 
     def __init__(self, t_periodicity: float, allow_next_fast_len: bool = False):
+        """General wakefield solver to calculate wake-fields via frequency domain
+
+        Parameters
+        ----------
+        t_periodicity
+            Periodicity that is assumed for fast fourier transform
+            in [s]
+        allow_next_fast_len
+            Allow to slightly change `t_periodicity` for
+            faster execution of fft via `scipy.fft.next_fast_len`
+        """
+
         super().__init__()
         self.allow_next_fast_len = allow_next_fast_len
         self.expect_profile_change: bool = False
@@ -320,7 +332,15 @@ class TimeDomainSolver(WakeFieldSolver):
             raise Exception(f"{parent_wakefield.profile=}")
         for source in self._parent_wakefield.sources:
             if source.is_dynamic:
-                self.expect_impedance_change = True
+                if self.expect_impedance_change is False:
+                    warnings.warn(
+                        f"Because `{source}` is dynamic,"
+                        f" the variable `expect_impedance_change` is set to"
+                        f" True, which might impact performance."
+                        f" Set True by yourself to deactivate this warning.",
+                        stacklevel=2,
+                    )
+                    self.expect_impedance_change = True
                 break
 
     def _update_impedance_sources(self):
