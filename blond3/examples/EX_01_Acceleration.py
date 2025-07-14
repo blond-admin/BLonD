@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 
 from blond3._core.backends.backend import backend, Numpy32Bit
 from blond3.cycles.energy_cycle import EnergyCyclePerTurn
-
+import pickle
 backend.change_backend(Numpy32Bit)
 backend.set_specials("numba")
 
@@ -20,40 +20,58 @@ from blond3 import (
 import logging
 
 logging.basicConfig(level=logging.INFO)
-ring = Ring(
-    circumference=26658.883,
-)
-
-cavity1 = SingleHarmonicCavity()
-cavity1.harmonic = 35640
-cavity1.voltage = 6e6
-cavity1.phi_rf = 0
-
-N_TURNS = int(1e3)
-energy_cycle = EnergyCyclePerTurn(
-    value_init=450e9, values_after_turn=np.linspace(450e9, 450e9, N_TURNS)
-)
-
-drift1 = DriftSimple(
-    share_of_circumference=1.0,
-)
-drift1.transition_gamma = 55.759505
-beam1 = Beam(n_particles=1e9, particle_type=proton)
-
-
-sim = Simulation.from_locals(locals())
-sim.print_one_turn_execution_order()
-
-
-sim.on_prepare_beam(
-    preparation_routine=BiGaussian(
-        sigma_dt=0.4e-9 / 4,
-        sigma_dE=1e9 / 4,
-        reinsertion=False,
-        seed=1,
-        n_macroparticles=1e3,
+try:
+    __dict__.update(pickle.load("my_loclals"))
+except FileNotFoundError:
+    ring = Ring(
+        circumference=26658.883,
     )
-)
+
+    cavity1 = SingleHarmonicCavity()
+    cavity1.harmonic = 35640
+    cavity1.voltage = 6e6
+    cavity1.phi_rf = 0
+
+    N_TURNS = int(1e3)
+    energy_cycle = EnergyCyclePerTurn(
+        value_init=450e9, values_after_turn=np.linspace(450e9, 450e9, N_TURNS)
+    )
+
+    drift1 = DriftSimple(
+        share_of_circumference=1.0,
+    )
+    drift1.transition_gamma = 55.759505
+    sr1,sr2,sr3 =sr_global.get_children()
+
+    ring.add_elements((
+        drift1,
+         sr1,
+        cavity1,
+
+        drift2,
+        sr2,
+        cavity2,
+
+        drift3,
+         sr3,
+        cavity3,
+
+    ))
+    beam1 = Beam(n_particles=1e9, particle_type=proton)
+
+    sim = Simulation.from_locals(locals())
+    sim.print_one_turn_execution_order()
+
+    sim.on_prepare_beam(
+        preparation_routine=BiGaussian(
+            sigma_dt=0.4e-9 / 4,
+            sigma_dE=1e9 / 4,
+            reinsertion=False,
+            seed=1,
+            n_macroparticles=1e3,
+        )
+    )
+    pickle.save("my_loclals", locals())
 
 # sim.beams[0].plot_hist2d()
 # plt.show()
@@ -67,7 +85,8 @@ def my_callback(simulation: Simulation):
         return
 
     plt.scatter(
-        simulation.beams[0].read_partial_dt(), simulation.beams[0].read_partial_dE()
+        simulation.beams[0].read_partial_dt(),
+        simulation.beams[0].read_partial_dE()
     )
     plt.draw()
     plt.pause(0.1)
@@ -77,7 +96,8 @@ def my_callback(simulation: Simulation):
 # sim.profiling(turn_i_init=0, profile_start_turn_i=10, n_turns=10000)
 # sys.exit(0)
 try:
-    sim.load_results(turn_i_init=0, n_turns=N_TURNS, observe=[phase_observation])
+    sim.load_results(turn_i_init=0, n_turns=N_TURNS,
+                     observe=[phase_observation])
 except FileNotFoundError as exc:
     sim.run_simulation(
         turn_i_init=0,
