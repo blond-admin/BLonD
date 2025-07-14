@@ -121,10 +121,13 @@ class WigglerMagnet(BeamPhysicsRelevant):
         # particle. To be checked with theory
 
         U0_wiggler = (beam.particle_type.c_gamma() * self._DI_wE[1]
-                      / (2.0 * np.pi)) * beam._dE** 4.0
-
+                      / (2.0 * np.pi)) * beam._dE** 4.0 # in eV per turn
+        jz = 2 + self._DI_wE[3]/self._DI_wE[1] # longitudinal damping number
+        tau_z = 2.0 / jz * beam._dE
+                      / U0_wiggler # longitudinal damping time in turns #
+        # check validity
         beam._dE += - U0_wiggler # energy lost through the damping wiggler
-
+                    - 2.0 / tau_z  * self.beam.dE
 
 
 
