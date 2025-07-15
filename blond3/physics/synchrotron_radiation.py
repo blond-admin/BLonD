@@ -127,7 +127,11 @@ class WigglerMagnet(BeamPhysicsRelevant):
                       / U0_wiggler # longitudinal damping time in turns #
         # check validity
         beam._dE += - U0_wiggler # energy lost through the damping wiggler
-                    - 2.0 / tau_z  * self.beam.dE
+                    - 2.0 / tau_z  * beam._dE
+                    - 2.0 * self.sigma_dE /
+                              np.sqrt(self.tau_z * self.n_kicks)
+                              * self.beam.energy * np.random.normal
+                              (size=self.beam.n_macroparticles))
 
 
 
