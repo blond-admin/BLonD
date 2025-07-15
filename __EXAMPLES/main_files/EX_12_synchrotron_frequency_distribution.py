@@ -106,7 +106,8 @@ matched_from_distribution_function(beam, full_tracker, emittance=emittance,
                                    main_harmonic_option='lowest_freq', seed=1256)
 
 slice_beam.track()
-
+beam.statistics()
+print(np.pi * beam.sigma_dt * beam.sigma_dE)
 [sync_freq_distribution_left, sync_freq_distribution_right], \
     [emittance_array_left, emittance_array_right], \
     [delta_time_left, delta_time_right], \
