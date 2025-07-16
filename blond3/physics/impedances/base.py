@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 from ..._core.backends.backend import backend
-from ..._core.base import IntensityEffect
+from ..._core.base import BeamPhysicsRelevant
 from ..._core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -100,7 +100,7 @@ class DiscreteWakeFieldSource(WakeFieldSource):
     pass
 
 
-class ImpedanceBaseClass(IntensityEffect):
+class ImpedanceBaseClass(BeamPhysicsRelevant):
     def __init__(
         self, section_index: int = 0, profile: LateInit[ProfileBaseClass] = None
     ):

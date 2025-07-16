@@ -70,15 +70,24 @@ class EmpiricMatcher(MatchingRoutine):
         grid_base_dE: NumpyArray,
         n_macroparticles: int | float,
         seed: int = 0,
+        maxiter=10,
     ):
         self.grid_base_dt = grid_base_dt
         self.grid_base_dE = grid_base_dE
 
         self.n_macroparticles = int_from_float_with_warning(
-            n_macroparticles, warning_stacklevel=2
+            n_macroparticles,
+            warning_stacklevel=2,
         )
 
-        self.seed = seed
+        self.seed = int_from_float_with_warning(
+            seed,
+            warning_stacklevel=2,
+        )
+        self.maxiter = int_from_float_with_warning(
+            maxiter,
+            warning_stacklevel=2,
+        )
 
     def prepare_beam(
         self,
@@ -103,7 +112,7 @@ class EmpiricMatcher(MatchingRoutine):
             # reference_total_energy=users_beam.reference_total_energy,
             # flags=None # TODO
         )
-        simulation.intensity_effect_manager.active = False
+        simulation.intensity_effect_manager.set_wakefields(False)
         simulation.run_simulation(
             beams=(beam_gridded,),
             n_turns=1,
@@ -123,8 +132,6 @@ class EmpiricMatcher(MatchingRoutine):
         plt.matshow(hamilton_2D)
         plt.colorbar()
         plt.show()
-        print(np.min(hamilton_2D))
-        print(np.max(hamilton_2D))
         populate_beam(
             beam=users_beam,
             time_grid=time_grid,
@@ -133,9 +140,9 @@ class EmpiricMatcher(MatchingRoutine):
             n_macroparticles=self.n_macroparticles,
             seed=self.seed,
         )
-        for i in range(maxiter):
-            simulation.intensity_effect_manager.active = True
-            simulation.intensity_effect_manager.frozen = False
+        simulation.intensity_effect_manager.set_wakefields(active=True)
+        for i in range(self.maxiter):
+            simulation.intensity_effect_manager.set_profiles(active=True)
             simulation.run_simulation(
                 beams=(users_beam,),
                 n_turns=1,
@@ -145,7 +152,7 @@ class EmpiricMatcher(MatchingRoutine):
                 callback=None,
             )
             # apply the same intensity effects of users_beam to beam_gridded
-            simulation.intensity_effect_manager.frozen = True
+            simulation.intensity_effect_manager.set_profiles(active=False)
             simulation.run_simulation(
                 beams=(beam_gridded,),
                 n_turns=1,
@@ -170,3 +177,5 @@ class EmpiricMatcher(MatchingRoutine):
                 n_macroparticles=self.n_macroparticles,
                 seed=self.seed,
             )
+        simulation.intensity_effect_manager.set_wakefields(active=True)
+        simulation.intensity_effect_manager.set_profiles(active=True)

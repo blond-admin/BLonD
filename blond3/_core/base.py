@@ -77,10 +77,14 @@ class MainLoopRelevant(Preparable):
     def __init__(self) -> None:
         super().__init__()
         self.each_turn_i = 1
+        self.active = True
 
     def is_active_this_turn(self, turn_i: int) -> bool:
         """Whether the element is active or not"""
-        return turn_i % self.each_turn_i == 0
+        if self.active:
+            return turn_i % self.each_turn_i == 0
+        else:
+            return False
 
 
 class Schedulable:
@@ -221,15 +225,6 @@ class BeamPhysicsRelevant(MainLoopRelevant):
         """
         pass
 
-
-class IntensityEffect(BeamPhysicsRelevant):
-    def __init__(self, section_index: int = 0, name: Optional[str] = None):
-        super().__init__(
-            section_index=section_index,
-            name=name,
-        )
-        self.active = True
-        self.frozen = False
 
 
 class _Scheduled:

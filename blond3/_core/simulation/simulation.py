@@ -264,9 +264,9 @@ class Simulation(Preparable, HasPropertyCache):
 
         beams = get_elements(locals_list, BeamBaseClass)
 
-        _energy_cycles = get_elements(locals_list, MagneticCycleBase)
-        assert len(_energy_cycles) == 1, f"Found {len(_energy_cycles)} energy cycles"
-        energy_cycle = _energy_cycles[0]
+        _magnetic_cycle = get_elements(locals_list, MagneticCycleBase)
+        assert len(_magnetic_cycle) == 1, f"Found {len(_magnetic_cycle)} energy cycles"
+        magnetic_cycle = _magnetic_cycle[0]
 
         elements = get_elements(locals_list, BeamPhysicsRelevant)
         ring.add_elements(elements=elements, reorder=True)
@@ -275,7 +275,7 @@ class Simulation(Preparable, HasPropertyCache):
         logger.debug(f"{beams=}")
         logger.debug(f"{elements=}")
 
-        sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
+        sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
         logger.info(sim.ring.elements.get_order_info())
         return sim
 
