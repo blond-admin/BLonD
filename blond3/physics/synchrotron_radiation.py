@@ -245,6 +245,8 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant):
                               * self.beam.energy * np.random.normal
                               (size=self.beam.n_macroparticles))
 
+
+
 class WigglerMagnet(SynchrotronRadiationBaseClass):
     """Damping wiggler magnet class"""
 
