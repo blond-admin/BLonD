@@ -201,7 +201,7 @@ class BeamPhysicsRelevant(MainLoopRelevant):
         super().__init__()
         self._section_index = section_index
         if name is None:
-            name = f"Unnamed-{type(self).__name__}-" f"{type(self).n_instances:03d}"
+            name = f"Unnamed-{type(self).__name__}-{type(self).n_instances:03d}"
         self.name = name
         type(self).n_instances += 1
 
