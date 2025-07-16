@@ -46,9 +46,7 @@ class Beam(BeamBaseClass):
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called
-
-        simulation
-            Simulation context manager
+        Simulation context manager
         """
         super().on_init_simulation(simulation=simulation)
 
@@ -101,8 +99,6 @@ class Beam(BeamBaseClass):
         **kwargs,
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
-
-        simulation
             Simulation context manager
         beam
             Simulation beam object
