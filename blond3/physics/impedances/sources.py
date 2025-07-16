@@ -17,7 +17,7 @@ from ..impedances.base import (
 from ... import Simulation
 from ..._core.backends.backend import backend
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from ..._core.beam.base import BeamBaseClass
 
 

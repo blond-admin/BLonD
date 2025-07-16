@@ -21,7 +21,7 @@ from ..physics.cavities import (
 )
 from ..physics.drifts import DriftBaseClass
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional as LateInit
 
     from numpy.typing import NDArray as NumpyArray

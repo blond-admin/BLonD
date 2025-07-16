@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 from ..._core.backends.backend import backend
-from ..._core.base import BeamPhysicsRelevant
+from ..._core.base import IntensityEffect
 from ..._core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -101,7 +100,7 @@ class DiscreteWakeFieldSource(WakeFieldSource):
     pass
 
 
-class ImpedanceBaseClass(BeamPhysicsRelevant):
+class ImpedanceBaseClass(IntensityEffect):
     def __init__(
         self, section_index: int = 0, profile: LateInit[ProfileBaseClass] = None
     ):
@@ -222,7 +221,7 @@ class WakeField(ImpedanceBaseClass):
         Induced voltage in [V] from given beam profile and sources
         """
         if self._induced_voltage is None:
-            raise Exception("Use `calc_induced_voltage` first!")
+            raise AttributeError("Use `calc_induced_voltage` first!")
         return self._induced_voltage
 
     @requires(["EnergyCycleBase", "BeamBaseClass", "Beam"])  # because

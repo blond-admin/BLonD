@@ -14,7 +14,7 @@ from .._core.beam.base import BeamBaseClass
 from .._core.beam.particle_types import ParticleType, proton
 from ..acc_math.analytic.simple_math import calc_total_energy
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional as LateInit, TypeVar, Optional, Literal, Union, Dict
 
     from numpy.typing import NDArray as NumpyArray

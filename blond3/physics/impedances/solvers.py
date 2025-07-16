@@ -24,7 +24,7 @@ from ..._core.beam.base import BeamBaseClass
 from ..._core.ring.helpers import requires
 from ..._core.simulation.simulation import Simulation
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
     from cupy.typing import NDArray as CupyArray
 

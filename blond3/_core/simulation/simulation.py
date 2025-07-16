@@ -39,8 +39,6 @@ class Simulation(Preparable, HasPropertyCache):
     ----------
     ring
         Ring a.k.a. synchrotron
-    beams
-        Base class to host particle coordinates and timing information
     magnetic_cycle
         Container object to handle the scheduled energy gain
         per turn or by time
@@ -60,6 +58,8 @@ class Simulation(Preparable, HasPropertyCache):
         ring: Ring,
         magnetic_cycle: NumpyArray | MagneticCycleBase,
     ):
+        from .intensity_effect_manager import IntensityEffectManager
+
         super().__init__()
         self._ring: Ring = ring
 
@@ -69,6 +69,7 @@ class Simulation(Preparable, HasPropertyCache):
 
         self.turn_i = DynamicParameter(None)
         self.section_i = DynamicParameter(None)
+        self.intensity_effect_manager = IntensityEffectManager(simulation=self)
 
         self._exec_on_init_simulation()
 

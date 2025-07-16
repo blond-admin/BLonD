@@ -12,7 +12,7 @@ from numpy.typing import NDArray as NumpyArray, DTypeLike
 
 from .helpers import callers_relative_path
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import (
         Tuple,
         Optional,

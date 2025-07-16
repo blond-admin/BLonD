@@ -9,7 +9,7 @@ from numpy.typing import NDArray as NumpyArray
 from .array_recorders import DenseArrayRecorder
 from .._core.base import MainLoopRelevant
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional as LateInit
     from .. import WakeField
     from ..physics.cavities import SingleHarmonicCavity

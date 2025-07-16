@@ -7,7 +7,7 @@ import numpy as np
 
 from .backends.backend import backend
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from os import PathLike
 
     from .beam.base import BeamBaseClass
@@ -220,6 +220,16 @@ class BeamPhysicsRelevant(MainLoopRelevant):
             Beam class to interact with this element
         """
         pass
+
+
+class IntensityEffect(BeamPhysicsRelevant):
+    def __init__(self, section_index: int = 0, name: Optional[str] = None):
+        super().__init__(
+            section_index=section_index,
+            name=name,
+        )
+        self.active = True
+        self.frozen = False
 
 
 class _Scheduled:

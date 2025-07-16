@@ -9,7 +9,7 @@ import numpy as np
 
 from blond3._core.backends.backend import Specials
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
     from cupy.typing import NDArray as CupyArray
 

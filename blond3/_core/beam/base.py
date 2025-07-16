@@ -102,20 +102,19 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         assert self._flags is not None, msg
         new_reference_total_energy = simulation.magnetic_cycle.get_total_energy_init(
             turn_i_init=turn_i_init,
-            t_init=None,
+            t_init=self.reference_time,
             particle_type=self.particle_type,
         )
         if self.reference_total_energy != new_reference_total_energy:
             msg = (
-                f"`Bunch` was prepared for "
-                f"total_energy = {self.reference_total_energy} eV, "
-                f"but simulation at {turn_i_init=} is "
-                f"{new_reference_total_energy} eV"
-                f"overwriting energy according to simulation."
+                f"`Bunch` was prepared for"
+                f" total_energy = {self.reference_total_energy} eV,"
+                f" but simulation at {turn_i_init=} is"
+                f" {new_reference_total_energy} eV."
+                f" The energy is overwritten according to simulation."
             )
             warnings.warn(msg)
         self.reference_total_energy = new_reference_total_energy
-        self.reference_time = 0.0
 
     @property
     def particle_type(self) -> ParticleType:

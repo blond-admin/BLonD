@@ -11,7 +11,7 @@ from blond3._core.helpers import int_from_float_with_warning
 from blond3.acc_math.empiric.hammiltonian import calc_hamiltonian, separatrixes
 from blond3.beam_preparation.base import MatchingRoutine
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from blond3._core.beam.base import BeamBaseClass
     from numpy.typing import NDArray as NumpyArray
 
@@ -103,7 +103,7 @@ class EmpiricMatcher(MatchingRoutine):
             # reference_total_energy=users_beam.reference_total_energy,
             # flags=None # TODO
         )
-        simulation.intesity_effects.active = False
+        simulation.intensity_effect_manager.active = False
         simulation.run_simulation(
             beams=(beam_gridded,),
             n_turns=1,
@@ -134,8 +134,8 @@ class EmpiricMatcher(MatchingRoutine):
             seed=self.seed,
         )
         for i in range(maxiter):
-            simulation.intesity_effects.active = True
-            simulation.intesity_effects.frozen = False
+            simulation.intensity_effect_manager.active = True
+            simulation.intensity_effect_manager.frozen = False
             simulation.run_simulation(
                 beams=(users_beam,),
                 n_turns=1,
@@ -145,7 +145,7 @@ class EmpiricMatcher(MatchingRoutine):
                 callback=None,
             )
             # apply the same intensity effects of users_beam to beam_gridded
-            simulation.intesity_effects.frozen = True
+            simulation.intensity_effect_manager.frozen = True
             simulation.run_simulation(
                 beams=(beam_gridded,),
                 n_turns=1,

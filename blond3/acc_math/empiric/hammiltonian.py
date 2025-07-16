@@ -8,7 +8,7 @@ import numpy as np
 from scipy.integrate import cumulative_trapezoid as cumtrapz
 from scipy.signal import find_peaks
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 

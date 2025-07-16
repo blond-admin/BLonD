@@ -13,7 +13,7 @@ from ..base import (
 )
 from ..beam.base import BeamBaseClass
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Iterable, Optional
     from .beam_physics_relevant_elements import BeamPhysicsRelevantElements
 
