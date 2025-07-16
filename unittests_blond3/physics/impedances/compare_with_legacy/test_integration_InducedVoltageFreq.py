@@ -8,7 +8,7 @@ from blond3 import (
     Ring,
     Simulation,
     proton,
-    ConstantEnergyCycle,
+    ConstantMagneticCycle,
     StaticProfile,
     SingleHarmonicCavity,
     DriftSimple,
@@ -287,8 +287,11 @@ class Blond3:
             profile=profile,
         )
         ring.add_elements((profile, cavity1, drift, wake))
-        energy_cycle = ConstantEnergyCycle(25.92e9)
-        sim = Simulation(ring=ring, beams=(beam,), energy_cycle=energy_cycle)
+        magnetic_cycle = ConstantMagneticCycle(
+            value=25.92e9,
+            reference_particle=proton,
+        )
+        sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
 
         induced_voltage = wake.calc_induced_voltage(beam=beam)
         if DEV_PLOT:
@@ -306,8 +309,7 @@ class TestBothBlonds(unittest.TestCase):
 
     def test___init__(self):
         np.testing.assert_allclose(
-            self.blond3.blond2.induced_voltage, self.blond3.induced_voltage,
-            rtol=1e-6
+            self.blond3.blond2.induced_voltage, self.blond3.induced_voltage, rtol=1e-6
         )
         if DEV_PLOT:
             plt.show()

@@ -11,6 +11,7 @@ from ..base import (
     Preparable,
     Schedulable,
 )
+from ..beam.base import BeamBaseClass
 
 if TYPE_CHECKING:
     from typing import Iterable, Optional
@@ -36,6 +37,7 @@ class Ring(Preparable, Schedulable):
             Synchrotron circumference in [m]
         bending_radius
             Optional bending radius in [m]
+            If not specified, ring will be assumed perfectly round.
         """
         from .beam_physics_relevant_elements import BeamPhysicsRelevantElements
 
@@ -70,13 +72,19 @@ class Ring(Preparable, Schedulable):
         # todo assert some kind of order inside the sections
 
     def on_run_simulation(
-        self, simulation: Simulation, n_turns: int, turn_i_init: int
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs,
     ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called
+        """Lateinit method when `simulation.run_simulation` is called
 
         simulation
             Simulation context manager
+        beam
+            Simulation beam object
         n_turns
             Number of turns to simulate
         turn_i_init

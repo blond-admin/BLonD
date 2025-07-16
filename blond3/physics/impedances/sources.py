@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from os import PathLike
+from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
@@ -15,6 +16,9 @@ from ..impedances.base import (
 )
 from ... import Simulation
 from ..._core.backends.backend import backend
+
+if TYPE_CHECKING:
+    from ..._core.beam.base import BeamBaseClass
 
 
 def get_hash(array1d: NumpyArray) -> int:
@@ -46,6 +50,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         self,
         freq_x: NumpyArray,
         simulation: Simulation,
+        beam: BeamBaseClass,
     ) -> NumpyArray:
         """
         Return the impedance in the frequency domain.
@@ -70,13 +75,15 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
             Frequency axis, in [Hz].
         simulation : Simulation
             Simulation object containing turn index and RF info.
+        beam
+            Simulation beam object
 
         Returns
         -------
         impedance
             Complex impedance array.
         """
-        T = simulation.ring.circumference / simulation.beams[0].reference_velocity
+        T = simulation.ring.circumference / beam.reference_velocity
         z_over_n = self.Z_over_n
         derivative_kernel = self._get_derivative_impedance(freq_x)
         return derivative_kernel[:] / (2 * np.pi) * z_over_n * T
@@ -108,7 +115,10 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         return derivative
 
     def get_wake_impedance(
-        self, time: NumpyArray, simulation: Simulation
+        self,
+        time: NumpyArray,
+        simulation: Simulation,
+        beam: BeamBaseClass,
     ) -> NumpyArray:
         """
         Get impedance equivalent to the partial wake in time domain
@@ -118,8 +128,10 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         ----------
         time
             Time array to get wake, in [s]
-        simulation
-            Simulation context manager
+        simulation : Simulation
+            Simulation object containing turn index and RF info.
+        beam
+            Simulation beam object
 
         Returns
         -------
@@ -132,9 +144,9 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         if hash_ is self._cache_wake_impedance_hash:
             return self._cache_wake_impedance
         freq = np.fft.rfftfreq(len(time), d=time[1] - time[0])
-        wake_impedance = self.get_impedance(freq_x=freq, simulation=simulation) / (
-            time[1] - time[0]
-        )
+        wake_impedance = self.get_impedance(
+            freq_x=freq, simulation=simulation, beam=beam
+        ) / (time[1] - time[0])
         self._cache_wake_impedance_hash = hash_
         self._cache_wake_impedance = wake_impedance
 
@@ -187,7 +199,10 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         self._cache_impedance_hash = None
 
     def get_wake_impedance(
-        self, time: NumpyArray, simulation: Simulation
+        self,
+        time: NumpyArray,
+        simulation: Simulation,
+        beam: BeamBaseClass,
     ) -> NumpyArray:
         """
         Get impedance equivalent to the partial single-particle-wake in
@@ -198,8 +213,10 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         ----------
         time
             Time array to get wake, in [s]
-        simulation
-            Simulation context manager
+        simulation : Simulation
+            Simulation object containing turn index and RF info.
+        beam
+            Simulation beam object
 
         Returns
         -------
@@ -236,6 +253,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         self,
         freq_x: NumpyArray,
         simulation: Simulation,
+        beam: BeamBaseClass,
     ) -> NumpyArray:
         """
         Return the impedance in the frequency domain.
@@ -245,7 +263,9 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         freq_x
             Frequency axis, in [Hz].
         simulation : Simulation
-            Simulation context manager
+            Simulation object containing turn index and RF info.
+        beam
+            Simulation beam object
 
         Returns
         -------
@@ -316,6 +336,7 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
         self,
         freq_x: NumpyArray,
         simulation: Simulation,
+        beam: BeamBaseClass,
     ) -> NumpyArray:
         """
         Return the impedance in the frequency domain.
@@ -325,7 +346,9 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
         freq_x
             Frequency axis, in [Hz].
         simulation : Simulation
-            Simulation context manager
+            Simulation object containing turn index and RF info.
+        beam
+            Simulation beam object
 
         Returns
         -------
@@ -414,7 +437,10 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         return ImpedanceTableTime(wake_x=x_array, wake_y=y_array)
 
     def get_wake_impedance(
-        self, time: NumpyArray, simulation: Simulation
+        self,
+        time: NumpyArray,
+        simulation: Simulation,
+        beam: BeamBaseClass,
     ) -> NumpyArray:
         """
         Get impedance equivalent to the partial single-particle-wake in
@@ -425,8 +451,10 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         ----------
         time
             Time array to get wake, in [s]
-        simulation
-            Simulation context manager
+        simulation : Simulation
+            Simulation object containing turn index and RF info.
+        beam
+            Simulation beam object
 
         Returns
         -------

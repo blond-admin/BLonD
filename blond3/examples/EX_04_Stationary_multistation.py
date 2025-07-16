@@ -74,7 +74,7 @@ one_turn_execution_order = (
     DynamicProfileConstNBins(n_bins=100),
 )
 ring.add_elements(one_turn_execution_order, reorder=False)
-sim = Simulation(ring=ring, beams=(beam,), energy_cycle=energy_cycle)
+sim = Simulation(ring=ring, beams=(beam,), magnetic_cycle=energy_cycle)
 sim.prepare_beam(
     preparation_routine=BiGaussian(
         sigma_dt=tau_0 / 4, reinsertion=True, seed=1, n_macroparticles=N_p

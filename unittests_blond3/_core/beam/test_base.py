@@ -140,9 +140,10 @@ class TestBeamBaseClass(unittest.TestCase):
 
     def test_on_run_simulation(self):
         simulation = Mock(spec=Simulation)
-        simulation.energy_cycle.get_target_total_energy.return_value = 11
+        beam = Mock(spec=BeamBaseClass)
+        simulation.magnetic_cycle.get_target_total_energy.return_value = 11
         self.beam_base_class.on_run_simulation(
-            simulation=simulation, n_turns=1, turn_i_init=1
+            simulation=simulation, n_turns=1, turn_i_init=1,beam=beam,
         )
 
     def test_read_partial_dE(self):

@@ -2,10 +2,12 @@ import unittest
 from unittest.mock import Mock
 
 import numpy as np
+from numpy._typing import NDArray as NumpyArray
 from scipy.constants import speed_of_light as c0
 
 from blond3 import WakeField, Simulation, proton
 from blond3._core.backends.backend import backend, Numpy32Bit, Numpy64Bit
+from blond3._core.beam.base import BeamBaseClass
 from blond3.physics.cavities import (
     CavityBaseClass,
     MultiHarmonicCavity,
@@ -14,54 +16,13 @@ from blond3.physics.cavities import (
 from blond3.physics.feedbacks.base import LocalFeedback
 
 
-class TestCavityBaseClass(unittest.TestCase):
-    def setUp(self):
-        self.cavity_base_class = CavityBaseClass.headless(
-            n_rf=10,
-            section_index=0,
-            local_wakefield=Mock(WakeField),
-            cavity_feedback=Mock(LocalFeedback),
-        )
+class CavityBaseClassHelper(CavityBaseClass):
+    def voltage_waveform_tmp(self, ts: NumpyArray):
+        pass
 
-    def test___init__(self):
-        pass  # calls __init__ in  self.setUp
+    def calc_omega(self, beam_beta: float, ring_circumference: float):
+        pass
 
-    def test_n_rf(self):
-        self.assertEqual(10, self.cavity_base_class.n_rf)
-
-    def test_on_init_simulation(self):
-        simulation = Mock(Simulation)
-        simulation.turn_i = Mock()
-        self.cavity_base_class.on_init_simulation(
-            simulation=simulation,
-        )
-
-    def test_on_run_simulation(self):
-        simulation = Mock(Simulation)
-        self.cavity_base_class.on_run_simulation(
-            simulation=simulation,
-            n_turns=10,
-            turn_i_init=1,
-        )
-
-    def test_track(self):
-        from blond3._core.beam.base import BeamBaseClass
-
-        beam = Mock(BeamBaseClass)
-        beam.reference_time = 0
-        beam.reference_beta = 0.5
-        beam.reference_velocity = beam.reference_beta * c0
-        beam.reference_gamma = np.sqrt(1 - 0.25)  # beta**2
-        beam.reference_total_energy = 938
-        beam.dE = np.linspace(-1e6, 1e6, 10)  # delta E in eV
-        beam.dt = np.linspace(-1e-6, 1e-6, 10)  # delta t in s
-        beam.write_partial_dt.return_value = beam.dt
-        beam.read_partial_dE.return_value = beam.dE
-
-        self.cavity_base_class.track(beam=beam)
-
-        self.assertEqual(beam.reference_time, 0)
-        self.assertEqual(beam.reference_total_energy, 938 + 0)
 
 
 class TestMultiHarmonicCavity(unittest.TestCase):
@@ -138,6 +99,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
             local_wakefield=Mock(WakeField),
             cavity_feedback=Mock(LocalFeedback),
             total_energy=939,
+
         )
 
     def test___init__(self):

@@ -71,6 +71,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
             0, 1, 6
         )
         self.periodic_freq_solver._parent_wakefield.profile.hist_step = 1
+        self.periodic_freq_solver._parent_wakefield.profile.n_bins = int(8)
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
@@ -91,7 +92,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         )
         self.periodic_freq_solver._parent_wakefield.sources = (self.resonators,)
         self.periodic_freq_solver._parent_wakefield.profile.hist_step = 0.5e-9
-        self.periodic_freq_solver._parent_wakefield.profile.n_bins = 64
+        self.periodic_freq_solver._parent_wakefield.profile.n_bins = 20
         self.periodic_freq_solver.t_periodicity = 1e-8
         self.periodic_freq_solver._update_internal_data()
         beam = Mock(BeamBaseClass)
@@ -110,6 +111,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         simulation = Mock(Simulation)
         parent_wakefield = Mock(WakeField)
         profile = Mock(StaticProfile)
+        profile.n_bins = 10
         parent_wakefield.profile = profile
         parent_wakefield.profile.hist_step = 1
         resonators = Mock(Resonators)

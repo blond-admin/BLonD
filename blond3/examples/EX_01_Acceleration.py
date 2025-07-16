@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 
 from blond3._core.backends.backend import backend, Numpy32Bit
 from blond3.beam_preparation.empiric_matcher import EmpiricMatcher
-from blond3.cycles.energy_cycle import EnergyCyclePerTurn
+from blond3.cycles.magnetic_cycle import MagneticCyclePerTurn
 
 backend.change_backend(Numpy32Bit)
 backend.set_specials("numba")
@@ -31,8 +31,10 @@ cavity1.voltage = 6e6
 cavity1.phi_rf = 0
 
 N_TURNS = int(1e3)
-energy_cycle = EnergyCyclePerTurn(
-    value_init=450e9, values_after_turn=np.linspace(450e9, 450e9, N_TURNS)
+energy_cycle = MagneticCyclePerTurn(
+    value_init=450e9,
+    values_after_turn=np.linspace(450e9, 450e9, N_TURNS),
+    reference_particle=proton,
 )
 
 drift1 = DriftSimple(
@@ -53,21 +55,24 @@ sim.prepare_beam(
         reinsertion=False,
         seed=1,
         n_macroparticles=1e3,
-    )
+    ),
+    beam=beam1,
 )
 de = 777538700.0 * 2
 dt = 1.8306269e-09
-sim.prepare_beam(
-    EmpiricMatcher(
-        grid_base_dt=np.linspace(0, 1.5*dt, 100),
+"""sim.prepare_beam(
+    preparation_routine=EmpiricMatcher(
+        grid_base_dt=np.linspace(0, 1.5 * dt, 100),
         grid_base_dE=np.linspace(-de, de, 100),
         n_macroparticles=1e6,
         seed=0,
     ),
+    beam=beam1,
 )
-
-plt.hist2d(beam1.read_partial_dt(), beam1.read_partial_dE(),bins=200)
+plt.hist2d(beam1.read_partial_dt(), beam1.read_partial_dE(), bins=200)
 plt.show()
+"""
+
 phase_observation = CavityPhaseObservation(each_turn_i=1, cavity=cavity1)
 
 
@@ -91,6 +96,7 @@ try:
     sim.load_results(turn_i_init=0, n_turns=N_TURNS, observe=[phase_observation])
 except FileNotFoundError as exc:
     sim.run_simulation(
+        beams=(beam1,),
         turn_i_init=0,
         n_turns=N_TURNS,
         observe=[phase_observation],

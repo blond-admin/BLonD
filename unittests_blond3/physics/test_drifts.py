@@ -5,6 +5,7 @@ import numpy as np
 
 from blond3 import Simulation
 from blond3._core.backends.backend import backend
+from blond3._core.beam.base import BeamBaseClass
 from blond3.physics.drifts import DriftBaseClass, DriftSimple
 from scipy.constants import speed_of_light as c0
 
@@ -25,7 +26,8 @@ class TestDriftBaseClass(unittest.TestCase):
     def test_on_run_simulation(self):
         simulation = Mock(Simulation)
         self.drift_base_class.on_run_simulation(
-            simulation=simulation, n_turns=11, turn_i_init=1
+            simulation=simulation, n_turns=11, turn_i_init=1,
+            beam=Mock(BeamBaseClass),
         )
 
     def test_share_of_circumference(self):
@@ -79,7 +81,6 @@ class TestDriftSimple(unittest.TestCase):
         self.drift_simple.on_init_simulation(simulation=simulation)
 
     def test_track(self):
-        from blond3._core.beam.base import BeamBaseClass
 
         beam = Mock(BeamBaseClass)
         beam.reference_time = backend.float(0)

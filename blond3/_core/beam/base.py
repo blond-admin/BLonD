@@ -68,12 +68,19 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     @requires(["EnergyCycleBase"])
     def on_run_simulation(
-        self, simulation: Simulation, n_turns: int, turn_i_init: int
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs,
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
         simulation
             Simulation context manager
+        beam
+            Simulation beam object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -81,6 +88,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """
 
         super().on_run_simulation(
+            beam=beam,
             simulation=simulation,
             n_turns=n_turns,
             turn_i_init=turn_i_init,
@@ -92,23 +100,17 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         assert self._dt is not None, msg
         assert self._dE is not None, msg
         assert self._flags is not None, msg
-        index = turn_i_init - 1
-        if index < 0:
-            new_reference_total_energy = simulation.energy_cycle.total_energy_init
-        else:
-            new_reference_total_energy = backend.float(
-                simulation.energy_cycle.get_target_total_energy(
-                    turn_i=index,
-                    section_i=0,
-                    reference_time=self.reference_time,
-                )
-            )
+        new_reference_total_energy = simulation.magnetic_cycle.get_total_energy_init(
+            turn_i_init=turn_i_init,
+            t_init=None,
+            particle_type=self.particle_type,
+        )
         if self.reference_total_energy != new_reference_total_energy:
             msg = (
                 f"`Bunch` was prepared for "
                 f"total_energy = {self.reference_total_energy} eV, "
                 f"but simulation at {turn_i_init=} is "
-                f"{simulation.energy_cycle.total_energy_init} eV"
+                f"{new_reference_total_energy} eV"
                 f"overwriting energy according to simulation."
             )
             warnings.warn(msg)
@@ -194,7 +196,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             Simulation context manager
         """
         super().on_init_simulation(simulation=simulation)
-        self.reference_total_energy = simulation.energy_cycle.total_energy_init
+        self.reference_total_energy = simulation.magnetic_cycle.total_energy_init
 
     @abstractmethod
     def plot_hist2d(self):

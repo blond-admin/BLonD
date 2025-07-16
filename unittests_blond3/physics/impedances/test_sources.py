@@ -64,11 +64,11 @@ class TestInductiveImpedance(unittest.TestCase):
         simulation.ring.circumference = 27e3
         beam = Mock(BeamBaseClass)
         beam.reference_velocity = 0.8 / c0
-        simulation.beams = (beam,)
         freq_x = np.linspace(0, 1e9, 30)
         freq_y = self.inductive_impedance.get_impedance(
             freq_x=freq_x,
             simulation=simulation,
+            beam=beam,
         )
         DEV_DEBBUG = False
         if DEV_DEBBUG:
@@ -90,9 +90,15 @@ class TestResonators(unittest.TestCase):
 
     def test_get_wake(self):
         simulation = Mock(Simulation)
+        beam = Mock(BeamBaseClass)
+
         time = np.linspace(-1e-9, 1e-9, 30)
 
-        wake_impedance = self.resonators.get_wake_impedance(time=time, simulation=simulation)
+        wake_impedance = self.resonators.get_wake_impedance(
+            time=time,
+            simulation=simulation,
+            beam=beam,
+        )
         DEV_DEBBUG = False
         if DEV_DEBBUG:
             plt.plot(time, wake_impedance)
@@ -101,10 +107,10 @@ class TestResonators(unittest.TestCase):
 
     def test_get_impedance(self):
         simulation = Mock(Simulation)
+        beam = Mock(BeamBaseClass)
         freq_x = np.linspace(0, 1e9, 30)
         freq_y = self.resonators.get_impedance(
-            freq_x=freq_x,
-            simulation=simulation,
+            freq_x=freq_x, simulation=simulation, beam=beam
         )
         DEV_DEBBUG = False
         if DEV_DEBBUG:

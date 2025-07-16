@@ -58,6 +58,11 @@ proton = ParticleType(
     charge=1,
 )
 
+uranium_29 = ParticleType(
+    mass=238 * m_p * c**2 / e,  # approximate mass-energy in eV
+    charge=29,
+)
+
 cl_csa = proton.classical_particle_radius
 
 electron = ParticleType(

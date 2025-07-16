@@ -133,7 +133,10 @@ class PeriodicFreqSolver(WakeFieldSolver):
         self._n_freq: LateInit[int] = None
         self._freq_x: LateInit[NumpyArray] = None
         self._freq_y: LateInit[NumpyArray] = None
+
         self._simulation: LateInit[Simulation] = None
+
+        self._freq_y_needs_update = True  # at least one update
 
         self._induced_voltage_buffer = {}
 
@@ -158,7 +161,6 @@ class PeriodicFreqSolver(WakeFieldSolver):
             ) or isinstance(parent_wakefield.profile, DynamicProfileConstNBins)
             self._parent_wakefield = parent_wakefield
             self._update_internal_data()
-            self._update_impedance_sources()
 
             if is_dynamic:
                 if self.expect_profile_change is False:
@@ -202,7 +204,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
     def t_periodicity(self, t_periodicity: float):
         self._t_periodicity = t_periodicity
         self._update_internal_data()
-        self._update_impedance_sources()
+        self._freq_y_needs_update = True
 
     def _update_internal_data(self):
         """Rebuild internal data model"""
@@ -211,7 +213,8 @@ class PeriodicFreqSolver(WakeFieldSolver):
         )
         assert self._n_time >= self._parent_wakefield.profile.n_bins, (
             f"Increase `t_periodicity` so that it is at least"
-            f" as long as the beam profile!"
+            f" as long as the beam profile or decrease the profile size."
+            f" {self._n_time=}, but {self._parent_wakefield.profile.n_bins=}."
         )
         if self.allow_next_fast_len:
             self._n_time = next_fast_len(
@@ -223,9 +226,22 @@ class PeriodicFreqSolver(WakeFieldSolver):
             self._n_time, d=self._parent_wakefield.profile.hist_step
         ).astype(backend.float)
         self._n_freq = len(self._freq_x)
-        pass
 
-    def _update_impedance_sources(self):
+        self._freq_y_needs_update = True
+
+    def _update_impedance_sources(self, beam: BeamBaseClass) -> None:
+        """
+        Updates `_freq_y` array if `self._freq_y_needs_update=True`
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element
+        """
+        # be lazy
+        if not self._freq_y_needs_update:
+            return
+
         if (self._freq_y is None) or (self._freq_x.shape != self._freq_y.shape):
             self._freq_y = np.zeros_like(self._freq_x, dtype=backend.complex)
         else:
@@ -235,7 +251,9 @@ class PeriodicFreqSolver(WakeFieldSolver):
         ) in self._parent_wakefield.sources:  # todo update only dynamic sources
             if isinstance(source, FreqDomain):
                 freq_y = source.get_impedance(
-                    freq_x=self._freq_x, simulation=self._simulation
+                    freq_x=self._freq_x,
+                    simulation=self._simulation,
+                    beam=beam,  # FIXME
                 )
                 assert not np.any(np.isnan(freq_y)), f"{type(source).__name__}"
                 self._freq_y += freq_y
@@ -243,6 +261,8 @@ class PeriodicFreqSolver(WakeFieldSolver):
                 raise Exception("Can only accept impedance that support `FreqDomain`")
         # Factor relating Fourier transform and DFT
         self._freq_y /= self._parent_wakefield.profile.hist_step
+
+        self._freq_y_needs_update = False  # after update, set lazy flag
 
     def calc_induced_voltage(self, beam: BeamBaseClass) -> NumpyArray | CupyArray:
         """
@@ -259,10 +279,13 @@ class PeriodicFreqSolver(WakeFieldSolver):
             Induced voltage in [V]
         """
         if self.expect_profile_change:
+            # always trigger update
             self._update_internal_data()  # might cause performance issues :(
-            self._update_impedance_sources()
         elif self.expect_impedance_change:
-            self._update_impedance_sources()
+            # always trigger update
+            self._freq_y_needs_update = True
+
+        self._update_impedance_sources(beam=beam)
 
         _factor = (-1 * beam.particle_type.charge * e) * (
             # TODO this might be a problem with MPI
@@ -306,6 +329,8 @@ class TimeDomainSolver(WakeFieldSolver):
         self._wake_imp_y: LateInit[NumpyArray] = None
         self._simulation: LateInit[Simulation] = None
 
+        self._wake_imp_y_needs_update = True  # update at least once
+
     @requires(["EnergyCycleBase"])  # because InductiveImpedance.get_
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
@@ -325,7 +350,7 @@ class TimeDomainSolver(WakeFieldSolver):
                 parent_wakefield.profile, DynamicProfileConstCutoff
             ) or isinstance(parent_wakefield.profile, DynamicProfileConstNBins)
             self._parent_wakefield = parent_wakefield
-            self._update_impedance_sources()
+            self._wake_imp_y_needs_update = True
 
             if is_dynamic and self.expect_impedance_change is False:
                 warnings.warn(
@@ -358,8 +383,18 @@ class TimeDomainSolver(WakeFieldSolver):
                     self.expect_impedance_change = True
                 break
 
-    def _update_impedance_sources(self):
-        """Rebuild internal data model"""
+    def _update_impedance_sources(self, beam: BeamBaseClass) -> None:
+        """
+        Updates `_wake_imp_y` array if `self.__wake_imp_y_needs_update=True`
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element
+
+        """
+        if not self._wake_imp_y_needs_update:
+            return
         _wake_x = self._parent_wakefield.profile.hist_x
         if (self._wake_imp_y is None) or (_wake_x.shape != self._wake_imp_y.shape):
             self._wake_imp_y = np.zeros(
@@ -371,12 +406,16 @@ class TimeDomainSolver(WakeFieldSolver):
         for source in self._parent_wakefield.sources:
             if isinstance(source, TimeDomain):
                 wake_imp_y_tmp = source.get_wake_impedance(
-                    time=_wake_x, simulation=self._simulation
+                    time=_wake_x,
+                    simulation=self._simulation,
+                    beam=beam,
                 )
                 assert not np.any(np.isnan(wake_imp_y_tmp)), f"{type(source).__name__}"
                 self._wake_imp_y += wake_imp_y_tmp
             else:
                 raise Exception("Can only accept impedance that support `TimeDomain`")
+
+        self._wake_imp_y_needs_update = False
 
     def calc_induced_voltage(self, beam: BeamBaseClass) -> NumpyArray | CupyArray:
         """
@@ -393,7 +432,8 @@ class TimeDomainSolver(WakeFieldSolver):
             Induced voltage in [V]
         """
         if self.expect_impedance_change:
-            self._update_impedance_sources()
+            self._wake_imp_y_needs_update = True
+        self._update_impedance_sources(beam=beam)
 
         _factor = (-1 * beam.particle_type.charge * e) * (
             # TODO this might be a problem with MPI

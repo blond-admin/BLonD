@@ -93,19 +93,29 @@ class Beam(BeamBaseClass):
         self.invalidate_cache()
 
     def on_run_simulation(
-        self, simulation: Simulation, n_turns: int, turn_i_init: int
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs,
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
         simulation
             Simulation context manager
+        beam
+            Simulation beam object
         n_turns
             Number of turns to simulate
         turn_i_init
             Initial turn to execute simulation
         """
         super().on_run_simulation(
-            simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
+            simulation=simulation,
+            beam=beam,
+            n_turns=n_turns,
+            turn_i_init=turn_i_init,
         )
 
     @cached_property

@@ -26,7 +26,7 @@ from blond3 import (
     Simulation,
     SingleHarmonicCavity,
     DriftSimple,
-    ConstantEnergyCycle,
+    ConstantMagneticCycle,
     WakeField,
     StaticProfile,
     BiGaussian,
@@ -53,7 +53,10 @@ tot_beam_energy = E_0 + 1.4e9  # [eV]
 sync_momentum = np.sqrt(tot_beam_energy**2 - E_0**2)  # [eV / c]
 
 ring = Ring(circumference=(2 * np.pi * 25))
-energy_cycle = ConstantEnergyCycle(sync_momentum)
+energy_cycle = ConstantMagneticCycle(
+    sync_momentum,
+    reference_particle=proton,
+)
 cavity1 = SingleHarmonicCavity()
 cavity1.harmonic = 1
 cavity1.voltage = 8e3
@@ -80,7 +83,7 @@ wakefield1 = WakeField(
         InductiveImpedance(34.6669349520904 / 10e9),
         InductiveImpedance(34.6669349520904 / 10e9),
     ),
-    solver=PeriodicFreqSolver(t_periodicity=1/2e5),
+    solver=PeriodicFreqSolver(t_periodicity=1 / 2e5),
 )
 wakefield2 = WakeField(
     sources=(InductiveImpedance(34.6669349520904 / 10e9),),

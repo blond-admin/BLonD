@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from blond3 import Beam, proton, Simulation
+from blond3._core.beam.base import BeamBaseClass
 from blond3._core.beam.beams import ProbeBeam
 
 
@@ -99,8 +100,15 @@ class TestBeam(unittest.TestCase):
 
     def test_on_run_simulation(self):
         simulation = Mock(spec=Simulation)
-        simulation.energy_cycle.get_target_total_energy.return_value = 11
-        self.beam.on_run_simulation(simulation=simulation, n_turns=10, turn_i_init=1)
+        simulation.magnetic_cycle.get_target_total_energy.return_value = 11
+        beam = Mock(spec=BeamBaseClass)
+
+        self.beam.on_run_simulation(
+            simulation=simulation,
+            n_turns=10,
+            turn_i_init=1,
+            beam=beam,
+        )
 
     def test_plot_hist2d_executes(self):
         self.beam.plot_hist2d()

@@ -1,28 +1,60 @@
+from __future__ import annotations
+
 import unittest
+from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import numpy as np
 from numpy.testing import assert_allclose
 from scipy.constants import speed_of_light as c0
-
 from blond3 import (
-    EnergyCycleByTime,
-    EnergyCyclePerTurn,
-    EnergyCyclePerTurnAllCavities,
-    ConstantEnergyCycle,
+    MagneticCycleByTime,
+    MagneticCyclePerTurn,
+    MagneticCyclePerTurnAllCavities,
+    ConstantMagneticCycle,
     proton,
 )
-from blond3.cycles.energy_cycle import (
-    _to_momentum,
-    beta_by_momentum,
-    EnergyCycleBase,
+from blond3._core.beam.base import BeamBaseClass
+from blond3._core.beam.particle_types import ParticleType, uranium_29
+from blond3.acc_math.analytic.simple_math import (
     calc_beta,
     calc_gamma,
     calc_total_energy,
     calc_energy_kin,
+    beta_by_momentum,
+)
+from blond3.cycles.magnetic_cycle import (
+    MagneticCycleBase,
+    _to_magnetic_rigidity,
+    magnetic_rigidity_to_momentum,
 )
 from blond3.testing.simulation import ExampleSimulation01, SimulationTwoRfStations
 
+if TYPE_CHECKING:
+    from typing import Optional
+
+    from numpy.typing import NDArray as NumpyArray
+    from blond3.cycles.magnetic_cycle import SynchronousDataTypes
 simulation_ex1 = ExampleSimulation01().simulation
+
+
+def _to_momentum(
+    data: int | float | NumpyArray,
+    mass: float,
+    charge: float,
+    convert_from: SynchronousDataTypes = "momentum",
+    bending_radius: Optional[float] = None,
+) -> NumpyArray:
+    magnetic_rigidity = _to_magnetic_rigidity(
+        data=data,
+        mass=mass,
+        charge=charge,
+        convert_from=convert_from,
+        bending_radius=bending_radius,
+    )
+    return magnetic_rigidity_to_momentum(
+        magnetic_rigidity=magnetic_rigidity, charge=charge
+    )
 
 
 class TestRelativisticFunctions(unittest.TestCase):
@@ -125,35 +157,46 @@ class TestFunctions(unittest.TestCase):
 
 class TestConstantEnergyCycle(unittest.TestCase):
     def setUp(self):
-        self.constant_energy_cycle = ConstantEnergyCycle(
-            value=11,
-            in_unit="momentum",
+        self.constant_magnetic_cycle = ConstantMagneticCycle(
+            value=2000e6,
+            in_unit="total energy",
+            reference_particle=proton,
         )
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
     def test_on_init_simulation(self):
-        self.constant_energy_cycle.on_init_simulation(simulation=simulation_ex1)
-        self.assertEqual(self.constant_energy_cycle._momentum, 11)
+        self.constant_magnetic_cycle.on_init_simulation(simulation=simulation_ex1)
+        self.assertEqual(
+            2000e6,
+            self.constant_magnetic_cycle.get_total_energy_init(
+                turn_i_init=0,
+                t_init=0,
+                particle_type=proton,
+            ),
+        )
 
     def test_headless(self):
-        cec = ConstantEnergyCycle.headless(
+        cec = ConstantMagneticCycle.headless(
             value=1,
             in_unit="momentum",
             bending_radius=None,
-            mass=1,
-            charge=2,
+            particle_type=proton,
         )
         self.assertEqual(
-            cec.get_target_total_energy(0, 0, 0),
-            cec.get_target_total_energy(111, 111, 111),
+            cec.get_target_total_energy(0, 0, 0, proton),
+            cec.get_target_total_energy(111, 111, 111, proton),
         )
 
 
-class EnergyCycleBaseHelper(EnergyCycleBase):
+class MagneticCycleBaseHelper(MagneticCycleBase):
     def get_target_total_energy(
-        self, turn_i: int, section_i: int, reference_time: float
+        self,
+        turn_i: int,
+        section_i: int,
+        reference_time: float,
+        particle_type: ParticleType,
     ):
         pass
 
@@ -164,113 +207,122 @@ class EnergyCycleBaseHelper(EnergyCycleBase):
 
 class TestEnergyCycleBase(unittest.TestCase):
     def setUp(self):
-        self.energy_cycle_base = EnergyCycleBaseHelper()
-        self.energy_cycle_base._momentum_init = 1e9
-        self.energy_cycle_base._momentum = np.array(
-            [[1e9, 2e9, 3e9], [4e9, 5e9, 6e9]]
-        ).T
-        # eV/c]
-        self.energy_cycle_base._section_lengths = np.array([100, 200, 300])  # [m]
-        self.energy_cycle_base._mass = proton.mass
+        self.magnetic_cycle_base = MagneticCycleBaseHelper(reference_particle=proton)
+        self.momentum_init = 16
+
+        self.magnetic_cycle_base._magnetic_rigidity_before_turn_0 = (
+            self.momentum_init / (proton.charge * c0)
+        )
 
     def test___init__(self):
-        self.assertIsInstance(self.energy_cycle_base, EnergyCycleBase)
+        self.assertIsInstance(self.magnetic_cycle_base, MagneticCycleBase)
 
     def test_energy(self):
-        energy = self.energy_cycle_base.total_energy_init
-        expected = np.sqrt(
-            self.energy_cycle_base._momentum_init**2 + self.energy_cycle_base._mass**2
-        )
+        energy = self.magnetic_cycle_base.get_total_energy_init(0, 0, proton)
+        expected = np.sqrt(self.momentum_init**2 + proton.mass**2)
         assert_allclose(energy, expected, rtol=1e-8)
 
     def test_invalidate_cache(self):
         # This is a placeholder; add actual cache-clearing verification if applicable
         try:
-            self.energy_cycle_base.invalidate_cache()
+            self.magnetic_cycle_base.invalidate_cache()
         except Exception as e:
             self.fail(f"_invalidate_cache() raised an exception: {e}")
 
     def test_on_init_simulation(self):
-        self.energy_cycle_base.on_init_simulation(
+        self.magnetic_cycle_base.on_init_simulation(
             simulation=simulation_ex1,
-            momentum_init=11,
-            n_turns=10,
+            magnetic_rigidity_init=11,
+            n_turns_max=10,
         )
 
     def test_on_run_simulation(self):
-        self.energy_cycle_base.on_run_simulation(
-            simulation=simulation_ex1, n_turns=1, turn_i_init=10
+        self.magnetic_cycle_base.on_run_simulation(
+            simulation=simulation_ex1,
+            n_turns=1,
+            turn_i_init=10,
+            beam=Mock(BeamBaseClass),
         )
 
 
 class TestEnergyCycleByTime(unittest.TestCase):
     def setUp(self):
-        self.energy_cycle_by_time = EnergyCycleByTime(
-            t0=1.0,
+        self.magnetic_cycle_by_time = MagneticCycleByTime(
             base_time=np.linspace(1, 12, 12),
             base_values=np.linspace(1e9, 5e9, 12),
+            reference_particle=proton,
         )
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
     def test_on_init_simulation(self):
-        self.energy_cycle_by_time.on_init_simulation(simulation=simulation_ex1)
+        self.magnetic_cycle_by_time.on_init_simulation(simulation=simulation_ex1)
 
     def test_headless(self):
-        ebt = EnergyCycleByTime.headless(
-            t0=131,
-            base_time=np.linspace(0, 10, endpoint=True),
-            base_values=np.linspace(0, 10, endpoint=True),
-            mass=1,
-            charge=2,
+        ebt = MagneticCycleByTime.headless(
+            base_time=np.linspace(1e12, 1e12, endpoint=True),
+            base_values=np.linspace(1e12, 1e12, endpoint=True),
+            reference_particle=uranium_29,
             in_unit="total energy",
         )
-        self.assertEqual(ebt.total_energy_init, 10)
+        self.assertEqual(
+            ebt.get_total_energy_init(0, 0, particle_type=uranium_29), 1e12
+        )
 
 
 class TestEnergyCyclePerTurn(unittest.TestCase):
     def setUp(self):
         self.momentum = np.linspace(1, 10, 11)
-        self.energy_cycle_per_turn = EnergyCyclePerTurn(
-            value_init=float(self.momentum[0]), values_after_turn=self.momentum[1:]
+        self.magnetic_cycle_per_turn = MagneticCyclePerTurn(
+            value_init=float(self.momentum[0]),
+            values_after_turn=self.momentum[1:],
+            reference_particle=uranium_29,
         )
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
     def test_on_init_simulation(self):
-        self.energy_cycle_per_turn.on_init_simulation(simulation=simulation_ex1)
+        self.magnetic_cycle_per_turn.on_init_simulation(simulation=simulation_ex1)
         turn_i = 0
         assert_allclose(
-            self.energy_cycle_per_turn._momentum[turn_i, :], self.momentum[1:]
+            magnetic_rigidity_to_momentum(
+                self.magnetic_cycle_per_turn._magnetic_rigidity[turn_i, :],
+                uranium_29.charge,
+            ),
+            self.momentum[1:],
         )
 
     def test_two_rf(self):
         simulation = SimulationTwoRfStations().simulation
-        self.energy_cycle_per_turn.on_init_simulation(simulation=simulation)
+        self.magnetic_cycle_per_turn.on_init_simulation(simulation=simulation)
         cavity_i = 1
         assert_allclose(
-            self.energy_cycle_per_turn._momentum[cavity_i, :], self.momentum[1:]
+            magnetic_rigidity_to_momentum(
+                self.magnetic_cycle_per_turn._magnetic_rigidity[cavity_i, :],
+                uranium_29.charge,
+            ),
+            self.momentum[1:],
         )
 
     def test_headless(self):
-        evpt = EnergyCyclePerTurn.headless(
-            mass=1,
-            charge=1,
+        evpt = MagneticCyclePerTurn.headless(
+            reference_particle=uranium_29,
             value_init=0,
             n_cavities=2,
             values_after_turn=np.ones(10),
         )
-        self.assertEqual(evpt._momentum.shape, (2, 10))
+        self.assertEqual(evpt._magnetic_rigidity.shape, (2, 10))
 
 
 class TestEnergyCyclePerTurnAllCavities(unittest.TestCase):
     def setUp(self):
         self.momentum = np.ones((1, 10))
-        self.energy_cycle_per_turn_all_cavities = EnergyCyclePerTurnAllCavities(
+        self.magnetic_cycle_per_turn_all_cavities = MagneticCyclePerTurnAllCavities(
             values_after_cavity_per_turn=self.momentum,
             value_init=1,
+            reference_particle=uranium_29,
         )
 
     def test___init__(self):
@@ -279,16 +331,17 @@ class TestEnergyCyclePerTurnAllCavities(unittest.TestCase):
     def test_wrong_cavity_count(self):
         # simulation has only one cavity, but give program for 10 cavities
         with self.assertRaises(AssertionError):
-            self.energy_cycle_per_turn_all_cavities = EnergyCyclePerTurnAllCavities(
+            self.magnetic_cycle_per_turn_all_cavities = MagneticCyclePerTurnAllCavities(
                 values_after_cavity_per_turn=np.ones((10, 10)),
                 value_init=10,
+                reference_particle=uranium_29,
             )
-            self.energy_cycle_per_turn_all_cavities.on_init_simulation(
+            self.magnetic_cycle_per_turn_all_cavities.on_init_simulation(
                 simulation=simulation_ex1
             )
 
     def test_on_init_simulation(self):
-        self.energy_cycle_per_turn_all_cavities.on_init_simulation(
+        self.magnetic_cycle_per_turn_all_cavities.on_init_simulation(
             simulation=simulation_ex1,
             momentum_init=11,
             momentum=np.ones(
@@ -296,18 +349,25 @@ class TestEnergyCyclePerTurnAllCavities(unittest.TestCase):
             ),
         )
         assert_allclose(
-            self.energy_cycle_per_turn_all_cavities._momentum_after_cavity_per_turn,
             self.momentum,
+            magnetic_rigidity_to_momentum(
+                self.magnetic_cycle_per_turn_all_cavities._magnetic_rigidity_after_cavity_per_turn,
+                uranium_29.charge,
+            ),
         )
 
     def test_headless(self):
-        ecptac = EnergyCyclePerTurnAllCavities.headless(
+        ecptac = MagneticCyclePerTurnAllCavities.headless(
             value_init=10,
             values_after_cavity_per_turn=np.ones((2, 20)),
-            mass=1,
-            charge=1,
+            reference_particle=uranium_29,
         )
-        self.assertEqual(ecptac._momentum_after_cavity_per_turn.shape, (2, 20))
+        self.assertEqual(
+            (2, 20),
+            magnetic_rigidity_to_momentum(
+                ecptac._magnetic_rigidity_after_cavity_per_turn, proton.charge
+            ).shape,
+        )
 
 
 if __name__ == "__main__":

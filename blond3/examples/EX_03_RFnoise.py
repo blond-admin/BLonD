@@ -26,7 +26,7 @@ from blond3 import (
     Simulation,
     SingleHarmonicCavity,
     DriftSimple,
-    EnergyCyclePerTurn,
+    MagneticCyclePerTurn,
     BiGaussian,
     BoxLosses,
 )
@@ -45,7 +45,11 @@ cavity1 = SingleHarmonicCavity(
         phase_noise_generator=VariNoise(),
     ),
 )
-energy_cycle = EnergyCyclePerTurn(np.linspace(450.0e9, 450.0e9, 200))
+energy_cycle = MagneticCyclePerTurn(
+    value_init=450.0e9,
+    values_after_turn=np.linspace(450.0e9, 450.0e9, 200),
+    reference_particle=proton,
+)
 beam = Beam(n_particles=1.0e9, particle_type=proton)
 profile = DynamicProfileConstNBins(n_bins=100)
 losses = BoxLosses(t_min=0, t_max=2.5e-9)

@@ -6,10 +6,10 @@ class ExampleSimulation01:
         import numpy as np
 
         from blond3._core.backends.backend import backend, Numpy32Bit
-        from blond3.cycles.energy_cycle import EnergyCyclePerTurn
+        from blond3.cycles.magnetic_cycle import MagneticCyclePerTurn
 
         backend.change_backend(Numpy32Bit)
-        # backend.set_specials("numba")
+        backend.set_specials("numba")
 
         from blond3 import (
             Beam,
@@ -32,8 +32,11 @@ class ExampleSimulation01:
         cavity1.phi_rf = 0
 
         N_TURNS = int(10)
-        energy_cycle = EnergyCyclePerTurn(
-            value_init=450e9, values_after_turn=np.linspace(450e9, 450e9, N_TURNS)
+        energy_cycle = MagneticCyclePerTurn(
+            value_init=450e9,
+            values_after_turn=np.linspace(450e9, 450e9, N_TURNS),
+            reference_particle=proton,
+            in_unit="momentum",
         )
 
         drift1 = DriftSimple(
@@ -47,13 +50,15 @@ class ExampleSimulation01:
         simulation.print_one_turn_execution_order()
 
         simulation.prepare_beam(
+            beam=beam1,
             preparation_routine=BiGaussian(
                 sigma_dt=0.4e-9 / 4,
                 sigma_dE=1e9 / 4,
                 reinsertion=False,
                 seed=1,
                 n_macroparticles=10,
-            )
+            ),
+            turn_i=10,
         )
 
         # sim.beams[0].plot_hist2d()
@@ -81,7 +86,7 @@ class SimulationTwoRfStations:
     def __init__(self):
         import numpy as np
 
-        from blond3.cycles.energy_cycle import EnergyCyclePerTurn
+        from blond3.cycles.magnetic_cycle import MagneticCyclePerTurn
 
         from blond3 import (
             Beam,
@@ -109,8 +114,10 @@ class SimulationTwoRfStations:
         cavity2.phi_rf = 0
 
         N_TURNS = int(10)
-        energy_cycle = EnergyCyclePerTurn(
-            value_init=450e9, values_after_turn=np.linspace(450e9, 450e9, N_TURNS)
+        energy_cycle = MagneticCyclePerTurn(
+            value_init=450e9,
+            values_after_turn=np.linspace(450e9, 450e9, N_TURNS),
+            reference_particle=proton,
         )
 
         drift1 = DriftSimple(share_of_circumference=0.5, section_index=0)

@@ -11,8 +11,9 @@ from blond3 import (
     DriftSimple,
     WakeField,
     RfStationParams,
-    EnergyCyclePerTurn,
+    MagneticCyclePerTurn,
 )
+from blond3._core.beam.base import BeamBaseClass
 from blond3.beam_preparation.base import BeamPreparationRoutine
 from blond3.physics.impedances.sources import Resonators
 from blond3.physics.impedances.solvers import MutliTurnResonatorSolver
@@ -32,19 +33,23 @@ class LeonardsCounterrrotBeam(BeamPreparationRoutine):
         self.dt_cr = np.loadtxt(filename_dt_cr)
         self.dE_cr = np.loadtxt(filename_dE_cr)
 
-    def prepare_beam(self, simulation: Simulation) -> None:
-        simulation.beams[0].setup_beam(
+    def prepare_beam(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+    ) -> None:
+        beam.setup_beam(
             dt=self.dt,
             dE=self.dE,
         )
-        simulation.beams[1].setup_beam(
+        beam.setup_beam(
             dt=self.dt_cr,
             dE=self.dE_cr,
         )
 
 
 ring = Ring(circumference=26_658.883)
-energy_cycle = EnergyCyclePerTurn(np.linspace(450e9, 460.005e9, 2000))
+energy_cycle = MagneticCyclePerTurn(np.linspace(450e9, 460.005e9, 2000))
 
 
 n_cavities = 7
@@ -81,7 +86,7 @@ beam2 = Beam(
     particle_type=proton,
     is_counter_rotating=True,
 )
-sim = Simulation(ring=ring, beams=(beam1, beam2), energy_cycle=energy_cycle)
+sim = Simulation(ring=ring, beams=(beam1, beam2), magnetic_cycle=energy_cycle)
 sim.prepare_beam(
     preparation_routine=LeonardsCounterrrotBeam(
         "coordinates1.npy", "coordinates2.npy", "coordinates3.npy", "coordinates4.npy"

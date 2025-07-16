@@ -13,7 +13,6 @@ from typing import (
 import numpy as np
 from numpy.typing import ArrayLike
 
-from .base import ProgrammedCycle
 from .._core.backends.backend import backend
 from .._core.base import HasPropertyCache
 from .._core.ring.helpers import requires
@@ -27,6 +26,8 @@ if TYPE_CHECKING:
 
     from numpy.typing import NDArray as NumpyArray
     from .._core.simulation.simulation import Simulation
+
+    from .._core.beam.base import BeamBaseClass
 
 
 class _ReshapeHandler:
@@ -208,13 +209,17 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
     def on_run_simulation(
         self,
         simulation: Simulation,
+        beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
+        **kwargs,
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
         simulation
             Simulation context manager
+        beam
+            Simulation beam object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -357,13 +362,17 @@ class EnergyCycle(EnergyCycleBase):
     def on_run_simulation(
         self,
         simulation: Simulation,
+        beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
+        **kwargs,
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
         simulation
             Simulation context manager
+        beam
+            Simulation beam object
         n_turns
             Number of turns to simulate
         turn_i_init

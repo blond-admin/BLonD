@@ -6,7 +6,7 @@ from blond3 import (
     Ring,
     Simulation,
     proton,
-    ConstantEnergyCycle,
+    ConstantMagneticCycle,
     StaticProfile,
     SingleHarmonicCavity,
     DriftSimple,
@@ -54,8 +54,8 @@ for i, solver in enumerate(
         profile=profile,
     )
     ring.add_elements((profile, cavity1, drift, wake))
-    energy_cycle = ConstantEnergyCycle(25.92e9, 10)
-    sim = Simulation(ring=ring, beams=(beam,), energy_cycle=energy_cycle)
+    magnetic_cycle = ConstantMagneticCycle(25.92e9, 10)
+    sim = Simulation(ring=ring, beams=(beam,), magnetic_cycle=magnetic_cycle)
     wake_ = np.fft.irfft(resonators.get_wake_impedance(profile.hist_x, simulation=sim))
     plt.figure(0)
     plt.subplot(2, 1, 2)

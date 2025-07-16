@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from ..base import Preparable
+from ..beam.base import BeamBaseClass
 from ..ring.helpers import get_elements
 from ... import Simulation
 
@@ -68,13 +69,19 @@ class BeamPhysicsRelevantElements(Preparable):
                 raise RuntimeError(f"Missing drift in section" f"" f" {section_index}")
 
     def on_run_simulation(
-        self, simulation: Simulation, n_turns: int, turn_i_init: int
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs,
     ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called
+        """Lateinit method when `simulation.run_simulation` is called
 
         simulation
             Simulation context manager
+        beam
+            Simulation beam object
         n_turns
             Number of turns to simulate
         turn_i_init

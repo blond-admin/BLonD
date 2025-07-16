@@ -13,7 +13,7 @@ from blond3 import (
     StaticProfile,
     WakeField,
     Simulation,
-    ConstantEnergyCycle,
+    ConstantMagneticCycle,
 )
 from blond3._core.backends.backend import backend, Numpy64Bit
 from blond3.physics.impedances.sources import InductiveImpedance
@@ -102,18 +102,26 @@ class Blond3:
         )
         ring.add_elements((drift, cavity, profile, wake), reorder=True)
         beam = Beam(n_particles=1e11, particle_type=proton)
-        beam.setup_beam(dt=blond2.beam.dt, dE=blond2.beam.dE)
-        profile.track(beam)
-        profile.invalidate_cache()
+
         E_0 = m_p * c**2 / e  # [eV]
 
         sim = Simulation(
             ring=ring,
-            beams=(beam,),
-            energy_cycle=ConstantEnergyCycle(
-                np.sqrt((E_0 + 1.4e9) ** 2 - E_0**2)
+            magnetic_cycle=ConstantMagneticCycle(
+                value=np.sqrt((E_0 + 1.4e9) ** 2 - E_0**2),
+                reference_particle=proton,
             ),
         )
+        beam.setup_beam(
+            dt=blond2.beam.dt,
+            dE=blond2.beam.dE,
+            reference_total_energy=sim.magnetic_cycle.get_total_energy_init(
+                turn_i_init=0, t_init=0, particle_type=beam.particle_type
+            ),
+        )
+        profile.track(beam)
+        profile.invalidate_cache()
+
         self.induced_voltage = wake.calc_induced_voltage(beam)
         DEV_PLOT = False
         if DEV_PLOT:
@@ -128,7 +136,7 @@ class TestBothBlonds(unittest.TestCase):
     def setUp(self):
         backend.change_backend(Numpy64Bit)
         self.blond3 = Blond3()
-        #plt.show()
+        # plt.show()
 
     def test___init__(self):
         np.testing.assert_allclose(

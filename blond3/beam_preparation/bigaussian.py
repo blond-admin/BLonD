@@ -46,7 +46,11 @@ def _get_dE_from_dt_core(
     return dE_amplitude
 
 
-def _get_dE_from_dt(simulation: Simulation, dt_amplitude: float) -> float:
+def _get_dE_from_dt(
+    simulation: Simulation,
+    beam: BeamBaseClass,
+    dt_amplitude: float,
+) -> float:
     r"""A routine to evaluate the dE amplitude from dt following a single
     RF Hamiltonian.
 
@@ -60,7 +64,6 @@ def _get_dE_from_dt(simulation: Simulation, dt_amplitude: float) -> float:
     rf_station: SingleHarmonicCavity = simulation.ring.elements.get_element(
         SingleHarmonicCavity
     )
-    beam: BeamBaseClass = simulation.beams[0]
 
     counter = simulation.turn_i.value  # todo might need to be set
     drift.apply_schedules(turn_i=counter, reference_time=beam.reference_time)
@@ -129,6 +132,7 @@ class BiGaussian(MatchingRoutine):
     def prepare_beam(
         self,
         simulation: Simulation,
+        beam: BeamBaseClass,
     ) -> None:
         """Populates the `Beam` object with macro-particles
 
@@ -137,17 +141,29 @@ class BiGaussian(MatchingRoutine):
         simulation
             Simulation context manager
         """
-        beam = simulation.beams[0]
+        super().prepare_beam(
+            simulation=simulation,
+            beam=beam,
+        )
+
         rf_station: SingleHarmonicCavity = simulation.ring.elements.get_element(
             SingleHarmonicCavity
         )
         drift: DriftSimple = simulation.ring.elements.get_element(DriftSimple)
-        rf_station.apply_schedules(turn_i=0, reference_time=0)
-        drift.apply_schedules(turn_i=0, reference_time=0)
+        rf_station.apply_schedules(
+            turn_i=0,
+            reference_time=0,
+        )
+        drift.apply_schedules(
+            turn_i=0,
+            reference_time=0,
+        )
 
         if self._sigma_dE is None:
             sigma_dE = _get_dE_from_dt(
-                simulation=simulation, dt_amplitude=self._sigma_dt
+                beam=beam,
+                simulation=simulation,
+                dt_amplitude=self._sigma_dt,
             )
             # IMPORT
         else:
@@ -169,7 +185,6 @@ class BiGaussian(MatchingRoutine):
         # Generate coordinates. For reproducibility, a separate random number stream is used for dt and dE
         rng_dt = np.random.default_rng(self._seed)
         rng_dE = np.random.default_rng(self._seed + 1)
-        beam: BeamBaseClass = simulation._beams[0]
 
         dt = (
             self._sigma_dt

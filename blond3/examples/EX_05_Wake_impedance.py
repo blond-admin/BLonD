@@ -29,7 +29,7 @@ from blond3 import (
     proton,
     Ring,
     Simulation,
-    EnergyCyclePerTurn,
+    MagneticCyclePerTurn,
     RfStationParams,
     SingleHarmonicCavity,
     DriftSimple,
@@ -94,7 +94,7 @@ for wake_solver in (
     AnalyticSingleTurnResonatorSolver,
 ):
     ring = Ring(circumference=C)
-    energy_cycle = EnergyCyclePerTurn(np.linspace(sync_momentum, sync_momentum, 2))
+    energy_cycle = MagneticCyclePerTurn(np.linspace(sync_momentum, sync_momentum, 2))
     cavity1 = SingleHarmonicCavity(
         rf_program=RfStationParams(
             harmonic=harmonic_number,
@@ -107,7 +107,7 @@ for wake_solver in (
         transition_gamma=gamma_transition,
         share_of_circumference=1.0,
     )
-    profile = StaticProfile.from_rad(0, 2 * np.pi, 2**8, sim.energy_cycle.t_rev[0, 0])
+    profile = StaticProfile.from_rad(0, 2 * np.pi, 2**8, sim.magnetic_cycle.t_rev[0, 0])
     wakefield = WakeField(
         sources=(Resonators(R_shunt, f_res, Q_factor),),
         solver=wake_solver,

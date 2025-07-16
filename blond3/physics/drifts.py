@@ -53,13 +53,17 @@ class DriftBaseClass(BeamPhysicsRelevant, ABC):
     def on_run_simulation(
         self,
         simulation: Simulation,
+        beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
+        **kwargs,
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
         simulation
             Simulation context manager
+        beam
+            Simulation beam object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -167,13 +171,19 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         )
         d.transition_gamma = backend.float(transition_gamma)
         from .._core.simulation.simulation import Simulation
+        from .._core.beam.base import BeamBaseClass
 
         simulation = Mock(Simulation)
         simulation.ring.circumference = backend.float(circumference)
         simulation.turn_i = Mock(DynamicParameter)
         simulation.turn_i.value = 0
         d.on_init_simulation(simulation=simulation)
-        d.on_run_simulation(simulation=simulation, turn_i_init=0, n_turns=1)
+        d.on_run_simulation(
+            simulation=simulation,
+            turn_i_init=0,
+            n_turns=1,
+            beam=Mock(BeamBaseClass),
+        )
         return d
 
     def on_init_simulation(self, simulation: Simulation) -> None:

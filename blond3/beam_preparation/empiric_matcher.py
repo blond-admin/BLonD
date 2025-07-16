@@ -80,23 +80,32 @@ class EmpiricMatcher(MatchingRoutine):
 
         self.seed = seed
 
-    def prepare_beam(self, simulation: Simulation) -> None:
+    def prepare_beam(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+    ) -> None:
+        super().prepare_beam(
+            simulation=simulation,
+            beam=beam,
+        )
+
         time_grid, deltaE_grid = np.meshgrid(self.grid_base_dt, self.grid_base_dE)
         shape_2d = time_grid.shape
         dt_flat_init = time_grid.flatten()
         dE_flat_init = deltaE_grid.flatten()
-        users_beam = simulation.beams[0]
+        users_beam = beam
         beam_gridded = deepcopy(users_beam)
         beam_gridded.setup_beam(
             dt=dt_flat_init.copy(),
             dE=dE_flat_init.copy(),
             reference_time=users_beam.reference_time,
-            reference_total_energy=users_beam.reference_total_energy,
+            # reference_total_energy=users_beam.reference_total_energy,
             # flags=None # TODO
         )
         simulation.intesity_effects.active = False
         simulation.run_simulation(
-            beam=beam_gridded,
+            beams=(beam_gridded,),
             n_turns=1,
             turn_i_init=0,
             observe=tuple(),
@@ -128,7 +137,7 @@ class EmpiricMatcher(MatchingRoutine):
             simulation.intesity_effects.active = True
             simulation.intesity_effects.frozen = False
             simulation.run_simulation(
-                beam=users_beam,
+                beams=(users_beam,),
                 n_turns=1,
                 turn_i_init=0,
                 observe=tuple(),
@@ -138,7 +147,7 @@ class EmpiricMatcher(MatchingRoutine):
             # apply the same intensity effects of users_beam to beam_gridded
             simulation.intesity_effects.frozen = True
             simulation.run_simulation(
-                beam=beam_gridded,
+                beams=(beam_gridded,),
                 n_turns=1,
                 turn_i_init=0,
                 observe=tuple(),

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from functools import cached_property
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -9,16 +8,14 @@ import numpy as np
 from scipy.constants import speed_of_light as c0
 
 from .base import ProgrammedCycle
+from .._core.backends.backend import backend
 from .._core.base import HasPropertyCache
+from .._core.beam.base import BeamBaseClass
+from .._core.beam.particle_types import ParticleType, proton
+from ..acc_math.analytic.simple_math import calc_total_energy
 
 if TYPE_CHECKING:
-    from typing import (
-        Optional as LateInit,
-        TypeVar,
-        Optional,
-        Literal,
-        Union,
-    )
+    from typing import Optional as LateInit, TypeVar, Optional, Literal, Union, Dict
 
     from numpy.typing import NDArray as NumpyArray
 
@@ -33,122 +30,75 @@ if TYPE_CHECKING:
     ]
 
 
-def calc_beta(mass: float, momentum: FloatOrArray) -> FloatOrArray:
-    """
-    Relativistic beta factor (v = beta * c0)
+class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
+    """Programmed magnetic cycle of the synchrotron
 
     Parameters
     ----------
-    mass : float
-        Particle mass in [eV/c²]
-    momentum : float or NDArray
-        Particle momentum in [eV/c]
-
-    Returns
-    -------
-    beta : float or NDArray
-        Relativistic beta factor (unitless), such that v = beta * c
+    reference_particle
+        Type of particles, e.g. protons
     """
-    return np.sqrt(1 / (1 + (mass / momentum) ** 2))
-
-
-def calc_gamma(mass: float, momentum: FloatOrArray) -> FloatOrArray:
-    """
-    Relativistic gamma factor (Lorentz factor)
-
-    Parameters
-    ----------
-    mass : float
-        Particle mass in [eV/c²]
-    momentum : float or NDArray
-        Particle momentum in [eV/c]
-
-    Returns
-    -------
-    gamma : float or NDArray
-        Lorentz factor (unitless)
-    """
-    return np.sqrt(1 + (momentum / mass) ** 2)
-
-
-def calc_total_energy(mass: float, momentum: FloatOrArray) -> FloatOrArray:
-    """
-    Total relativistic energy of the particle
-
-    Parameters
-    ----------
-    mass : float
-        Particle mass in [eV/c²]
-    momentum : float or NDArray
-        Particle momentum in [eV/c]
-
-    Returns
-    -------
-    energy : float or NDArray
-        Total relativistic energy in [eV]
-    """
-    return np.sqrt(momentum**2 + mass**2)
-
-
-def calc_energy_kin(mass: float, momentum: FloatOrArray) -> FloatOrArray:
-    """
-    Relativistic kinetic energy of the particle
-
-    Parameters
-    ----------
-    mass : float
-        Particle mass in [eV/c²]
-    momentum : float or NDArray
-        Particle momentum in [eV/c]
-
-    Returns
-    -------
-    kinetic_energy : float or NDArray
-        Kinetic energy in [eV], defined as total energy - rest energy
-    """
-    return calc_total_energy(mass, momentum) - mass
-
-
-class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
-    """Programmed energy program of the synchrotron"""
 
     def __init__(
         self,
+        reference_particle: ParticleType,
     ):
         super().__init__()
-        self._momentum_init: LateInit[float] = None
-        self._mass: LateInit[float] = None
-        self._n_turns: None | int = None
+        assert isinstance(
+            reference_particle, ParticleType
+        ), f"{type(reference_particle)}"
+        self._reference_particle: ParticleType = reference_particle
 
-    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
+        self._magnetic_rigidity_before_turn_0: LateInit[float] = None
+        self._n_turns_max: None | int = None
+
+    def on_init_simulation(
+        self,
+        simulation: Simulation,
+        **kwargs,
+    ) -> None:
         """Lateinit method when `simulation.__init__` is called
 
         simulation
             Simulation context manager
         """
-        self._momentum_init = kwargs["momentum_init"]
-        self._n_turns = kwargs["n_turns"]
-        self._mass = simulation.beams[0].particle_type.mass
+        super().on_init_simulation(simulation=simulation)
+        self._magnetic_rigidity_before_turn_0 = kwargs["magnetic_rigidity_init"]
+        self._n_turns_max = kwargs["n_turns_max"]
+
         self.invalidate_cache()
 
     def on_run_simulation(
-        self, simulation: Simulation, n_turns: int, turn_i_init: int
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs,
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
         simulation
             Simulation context manager
+        beam
+            Simulation beam object
         n_turns
             Number of turns to simulate
         turn_i_init
             Initial turn to execute simulation
         """
+        super().on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=n_turns,
+            turn_i_init=turn_i_init,
+        )
         self.invalidate_cache()
 
     @property
-    def n_turns(self):
+    def n_turns(self) -> None | int:
         """Number of turns that are defined by this cycle"""
-        return self._n_turns
+        return self._n_turns_max
 
     @abstractmethod
     def get_target_total_energy(
@@ -156,9 +106,10 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
         turn_i: int,
         section_i: int,
         reference_time: float,
+        particle_type: ParticleType,
     ):
         """
-        Calculate the total energy [eV] that is foreseen by the energy cycle
+        Calculate the total energy [eV] that is foreseen by the magnetic cycle
 
         Parameters
         ----------
@@ -171,6 +122,8 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
         reference_time
             Current reference time
             (Eventually needed for interpolation)
+        particle_type
+            Type of particles, e.g. protons
 
         Returns
         -------
@@ -178,36 +131,58 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
         """
         pass
 
+    def get_total_energy_init(
+        self,
+        turn_i_init: int,
+        t_init: float,
+        particle_type: ParticleType,
+    ) -> backend.float:
+        index = turn_i_init - 1
+        if index < 0:
+            total_energy_init = calc_total_energy(
+                mass=particle_type.mass,
+                momentum=magnetic_rigidity_to_momentum(
+                    magnetic_rigidity=self._magnetic_rigidity_before_turn_0,
+                    charge=particle_type.charge,
+                ),
+            )
+            new_reference_total_energy = total_energy_init
+        else:
+            new_reference_total_energy = self.get_target_total_energy(
+                turn_i=index,
+                section_i=-1,
+                reference_time=t_init,
+                particle_type=particle_type,
+            )
+        return new_reference_total_energy
+
     @staticmethod
     @abstractmethod
     def headless(*args, **kwargs):
         """Initialize object without simulation context"""
         pass
 
-    @cached_property  # as readonly attributes
-    def total_energy_init(self):
-        """Total relativistic energy in [eV]"""
-        energy_init = calc_total_energy(mass=self._mass, momentum=self._momentum_init)
-        return energy_init
-
-    cached_props = ("total_energy_init",)
+    cached_props = ()
 
     def invalidate_cache(self):
         """Delete the stored values of functions with @cached_property"""
-        super()._invalidate_cache(EnergyCycleBase.cached_props)
+        super()._invalidate_cache(MagneticCycleBase.cached_props)
 
 
-class ConstantEnergyCycle(EnergyCycleBase):
+class ConstantMagneticCycle(MagneticCycleBase):
     def __init__(
         self,
+        reference_particle: ParticleType,
         value: float,
         in_unit: SynchronousDataTypes = "momentum",
     ):
         """
-        Energy cycle for a non-changing energy
+        Magnetic cycle for a non-changing magnetic field
 
         Parameters
         ----------
+        reference_particle
+            Type of particles, e.g. protons
         value
             Constant value of unit `in_unit`
         in_unit
@@ -216,23 +191,29 @@ class ConstantEnergyCycle(EnergyCycleBase):
             - 'kinetic energy' [eV], or
             - 'bending field' [T]
         """
-        super().__init__()
+        super().__init__(
+            reference_particle=reference_particle,
+        )
         self._value = value
         self._in_unit = in_unit
 
-        self._momentum: LateInit[float] = None
-        self._total_energy: LateInit[float] = None
+        self._magnetic_rigidity: LateInit[float] = None
+        self._total_energy_cache: LateInit[Dict[int, float]] = {}
 
-    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
+    def on_init_simulation(
+        self,
+        simulation: Simulation,
+        **kwargs,
+    ) -> None:
         """Lateinit method when `simulation.__init__` is called
 
         simulation
             Simulation context manager
         """
-        self._momentum = _to_momentum(
+        self._magnetic_rigidity = _to_magnetic_rigidity(
             data=self._value,
-            mass=simulation.beams[0].particle_type.mass,
-            charge=simulation.beams[0].particle_type.charge,
+            mass=self._reference_particle.mass,
+            charge=self._reference_particle.charge,
             convert_from=self._in_unit,
             bending_radius=(
                 simulation.ring.bending_radius
@@ -243,19 +224,19 @@ class ConstantEnergyCycle(EnergyCycleBase):
 
         super().on_init_simulation(
             simulation=simulation,
-            momentum_init=self._momentum,
-            n_turns=None,
+            n_turns_max=None,
+            magnetic_rigidity_init=self._magnetic_rigidity,
         )
-        self._total_energy = calc_total_energy(mass=self._mass, momentum=self._momentum)
 
     def get_target_total_energy(
         self,
         turn_i: int,
         section_i: int,
         reference_time: float,
+        particle_type: ParticleType,
     ):
         """
-        Calculate the total energy [eV] that is foreseen by the energy cycle
+        Calculate the total energy [eV] that is foreseen by the magnetic cycle
 
         Parameters
         ----------
@@ -268,22 +249,33 @@ class ConstantEnergyCycle(EnergyCycleBase):
         reference_time
             Current reference time
             (Eventually needed for interpolation)
+        particle_type
+            Type of particles, e.g. protons
 
         Returns
         -------
 
         """
-        # constant because ConstantEnergyCycle
-        return self._total_energy
+
+        # constant because ConstantMagneticCycle
+        key = hash(particle_type)
+        if key not in self._total_energy_cache:
+            self._total_energy_cache[key] = calc_total_energy(
+                mass=particle_type.mass,
+                momentum=magnetic_rigidity_to_momentum(
+                    magnetic_rigidity=self._magnetic_rigidity,
+                    charge=particle_type.charge,
+                ),
+            )
+        return self._total_energy_cache[key]
 
     @staticmethod
     def headless(
         value: float,
-        mass: float,
-        charge: float,
+        particle_type: ParticleType,
         in_unit: SynchronousDataTypes = "momentum",
         bending_radius: Optional[float] = None,
-    ) -> ConstantEnergyCycle:
+    ) -> ConstantMagneticCycle:
         """
         Initialize object without simulation context
 
@@ -291,11 +283,8 @@ class ConstantEnergyCycle(EnergyCycleBase):
         ----------
         value
             Constant value of unit `in_unit`
-        mass : float
-            Particle mass in [eV/c²]
-        charge
-            Particle charge, i.e. number of elementary charges `e`
-            Example: For an electron `charge=1`
+        particle_type
+            Type of particles, e.g. protons
         in_unit
             - 'momentum' [eV/c], (no conversion is done)
             - 'total energy' [eV],
@@ -306,41 +295,40 @@ class ConstantEnergyCycle(EnergyCycleBase):
 
         Returns
         -------
-            constant_energy_cycle
+            constant_magnetic_cycle
 
         """
-        ret = ConstantEnergyCycle(
+        ret = ConstantMagneticCycle(
             value=value,
             in_unit=in_unit,
+            reference_particle=proton,
         )
         from .._core.beam.base import BeamBaseClass
-        from .._core.beam.particle_types import ParticleType
         from .._core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
         simulation.ring.bending_radius = bending_radius
-        beam = Mock(BeamBaseClass)
-        beam.particle_type = Mock(ParticleType)
 
-        beam.particle_type.mass = mass
-        beam.particle_type.charge = charge
-        simulation.beams = (beam,)
         ret.on_init_simulation(simulation=simulation)
         return ret
 
 
-class EnergyCyclePerTurn(EnergyCycleBase):
+class MagneticCyclePerTurn(MagneticCycleBase):
     def __init__(
         self,
+        reference_particle: ParticleType,
         value_init: float,
         values_after_turn: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
     ):
         """
-        Energy cycle per turn. Assumes each cavity has the same increment of energy.
+        Magnetic cycle per turn. Assumes each cavity has the same increment
+        of beam energy.
 
         Parameters
         ----------
+        reference_particle
+            Type of particles, e.g. protons
         value_init
             Initial value at start of simulation in of unit `in_unit`
         values_after_turn
@@ -351,7 +339,9 @@ class EnergyCyclePerTurn(EnergyCycleBase):
             - 'kinetic energy' [eV], or
             - 'bending field' [T]
         """
-        super().__init__()
+        super().__init__(
+            reference_particle=reference_particle,
+        )
         self._value_init = value_init
 
         assert (
@@ -359,25 +349,33 @@ class EnergyCyclePerTurn(EnergyCycleBase):
         ), f"Expected 1D array, but got {values_after_turn.shape}"
 
         self._values_after_turn = values_after_turn[:]
-        self._n_turns = self._values_after_turn.shape[0]
         self._in_unit = in_unit
 
-        self._momentum: LateInit[NumpyArray] = None
+        self._magnetic_rigidity: LateInit[NumpyArray] = None
+        self._momentum_cached: Dict[int, NumpyArray] = {}
 
-    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
+    def on_init_simulation(
+        self,
+        simulation: Simulation,
+        **kwargs,
+    ) -> None:
         """Lateinit method when `simulation.__init__` is called
 
         simulation
             Simulation context manager
         """
-        mass = simulation.beams[0].particle_type.mass
-        charge = simulation.beams[0].particle_type.charge
-        n_cavities = simulation.ring.n_cavities
+        """Lateinit method when `simulation.run` is called
 
-        momentum_init = _to_momentum(
+        simulation
+            Simulation context manager
+        """
+        n_cavities = simulation.ring.n_cavities
+        n_turns_max = self._values_after_turn.shape[0]
+
+        magnetic_rigidity_init = _to_magnetic_rigidity(
             data=self._value_init,
-            mass=mass,
-            charge=charge,
+            mass=self._reference_particle.mass,
+            charge=self._reference_particle.charge,
             convert_from=self._in_unit,
             bending_radius=(
                 simulation.ring.bending_radius
@@ -385,10 +383,10 @@ class EnergyCyclePerTurn(EnergyCycleBase):
                 else None
             ),
         )
-        momentum_per_turn = _to_momentum(
+        magnetic_rigidity_per_turn = _to_magnetic_rigidity(
             data=self._values_after_turn,
-            mass=mass,
-            charge=charge,
+            mass=self._reference_particle.mass,
+            charge=self._reference_particle.charge,
             convert_from=self._in_unit,
             bending_radius=(
                 simulation.ring.bending_radius
@@ -397,33 +395,32 @@ class EnergyCyclePerTurn(EnergyCycleBase):
             ),
         )
         assert n_cavities > 0
-        n_turns = self._n_turns
-        shape = (n_cavities, n_turns)
-        _momentum = np.empty(shape)
+        shape = (n_cavities, n_turns_max)
+        _magnetic_rigidity = np.empty(shape)
         # assume that each cavity gives an
         # even part of the kick
         stair_like = np.linspace(1 / n_cavities, 1, n_cavities, endpoint=True)
-        base = np.concatenate(([momentum_init], momentum_per_turn))
+        base = np.concatenate(([magnetic_rigidity_init], magnetic_rigidity_per_turn))
         step = np.diff(base)
         for cav_i in range(n_cavities):
-            _momentum[cav_i, :] = base[:-1] + stair_like[cav_i] * step
+            _magnetic_rigidity[cav_i, :] = base[:-1] + stair_like[cav_i] * step
 
         super().on_init_simulation(
             simulation=simulation,
-            momentum_init=momentum_init,
-            momentum=_momentum,
-            n_turns=n_turns,
+            n_turns_max=n_turns_max,
+            magnetic_rigidity_init=magnetic_rigidity_init,
         )
-        self._momentum = _momentum
+        self._magnetic_rigidity = _magnetic_rigidity
 
     def get_target_total_energy(
         self,
         turn_i: int,
         section_i: int,
         reference_time: float,
+        particle_type: ParticleType,
     ):
         """
-        Calculate the total energy [eV] that is foreseen by the energy cycle
+        Calculate the total energy [eV] that is foreseen by the magnetic cycle
 
         Parameters
         ----------
@@ -436,38 +433,42 @@ class EnergyCyclePerTurn(EnergyCycleBase):
         reference_time
             Current reference time
             (Eventually needed for interpolation)
+        particle_type
+            Type of particles, e.g. protons
 
         Returns
         -------
 
         """
+        key = hash(particle_type)
+        if key not in self._momentum_cached:
+            self._momentum_cached[key] = magnetic_rigidity_to_momentum(
+                magnetic_rigidity=self._magnetic_rigidity[:, :],
+                charge=particle_type.charge,
+            )
         return calc_total_energy(
-            mass=self._mass,
-            momentum=self._momentum[section_i, turn_i],
+            mass=particle_type.mass,
+            momentum=self._momentum_cached[key][section_i, turn_i],
         )
 
     @staticmethod
     def headless(
+        reference_particle: ParticleType,
         value_init: float,
-        mass: float,
-        charge: float,
         values_after_turn: NumpyArray,
         n_cavities: int,
         in_unit: SynchronousDataTypes = "momentum",
         bending_radius: Optional[float] = None,
-    ) -> EnergyCyclePerTurn:
+    ) -> MagneticCyclePerTurn:
         """
         Initialize object without simulation context
 
         Parameters
         ----------
+        reference_particle
+            Type of particles, e.g. protons
         value_init
             Initial value at start of simulation in of unit `in_unit`
-        mass
-            Particle mass in [eV/c²]
-        charge
-            Particle charge, i.e. number of elementary charges `e`
-            Example: For an electron `charge=1`
         values_after_turn
             Value after turn in Synchrotron in of unit `in_unit`
         n_cavities
@@ -482,13 +483,14 @@ class EnergyCyclePerTurn(EnergyCycleBase):
 
         Returns
         -------
-        energy_cycle_per_turn
+        magnetic_cycle_per_turn
 
         """
-        ret = EnergyCyclePerTurn(
+        ret = MagneticCyclePerTurn(
             value_init=value_init,
             values_after_turn=values_after_turn,
             in_unit=in_unit,
+            reference_particle=reference_particle,
         )
 
         from .._core.simulation.simulation import Simulation
@@ -498,34 +500,36 @@ class EnergyCyclePerTurn(EnergyCycleBase):
         simulation = Mock(Simulation)
         beam = Mock(BeamBaseClass)
         beam.particle_type = Mock(ParticleType)
-        simulation.beams = (beam,)
 
         simulation.ring.bending_radius = bending_radius
-        beam.particle_type.mass = mass
-        beam.particle_type.charge = charge
+        beam.particle_type = reference_particle
         simulation.ring.n_cavities = n_cavities
         ret.on_init_simulation(simulation=simulation)
         ret.on_run_simulation(
             simulation=simulation,
             n_turns=len(values_after_turn),
             turn_i_init=0,
+            beam=beam,
         )
 
         return ret
 
 
-class EnergyCyclePerTurnAllCavities(EnergyCycleBase):
+class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
     def __init__(
         self,
+        reference_particle: ParticleType,
         value_init: float,
         values_after_cavity_per_turn: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
     ):
         """
-        Energy program per turn, defined for each cavity
+        Magnetic program per turn, defined for each cavity
 
         Parameters
         ----------
+        reference_particle
+            Type of particles, e.g. protons
         value_init
             Initial value at start of simulation in of unit `in_unit`
         values_after_cavity_per_turn
@@ -537,26 +541,31 @@ class EnergyCyclePerTurnAllCavities(EnergyCycleBase):
             - 'kinetic energy' [eV], or
             - 'bending field' [T]
         """
-        super().__init__()
+        super().__init__(
+            reference_particle=reference_particle,
+        )
         self._value_init = value_init
         self._values_after_cavity_per_turn = values_after_cavity_per_turn[:, :]
-        self._n_turns = self._values_after_cavity_per_turn.shape[1]
+        self._n_turns_max = self._values_after_cavity_per_turn.shape[1]
         self._in_unit = in_unit
 
-        self._momentum_after_cavity_per_turn: LateInit[NumpyArray] = None
+        self._magnetic_rigidity_after_cavity_per_turn: LateInit[NumpyArray] = None
+        self._momentum_cached: Dict[int, NumpyArray] = {}
 
-    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
+    def on_init_simulation(
+        self,
+        simulation: Simulation,
+        **kwargs,
+    ) -> None:
         """Lateinit method when `simulation.__init__` is called
 
         simulation
             Simulation context manager
         """
-        mass = simulation.beams[0].particle_type.mass
-        charge = simulation.beams[0].particle_type.charge
-        momentum_init = _to_momentum(
+        magnetic_rigidity_init = _to_magnetic_rigidity(
             data=self._value_init,
-            mass=mass,
-            charge=charge,
+            mass=self._reference_particle.mass,
+            charge=self._reference_particle.charge,
             convert_from=self._in_unit,
             bending_radius=(
                 simulation.ring.bending_radius
@@ -564,10 +573,10 @@ class EnergyCyclePerTurnAllCavities(EnergyCycleBase):
                 else None
             ),
         )
-        momentum_after_cavity_per_turn = _to_momentum(
+        magnetic_rigidity_after_cavity_per_turn = _to_magnetic_rigidity(
             data=self._values_after_cavity_per_turn[:, :],
-            mass=mass,
-            charge=charge,
+            mass=self._reference_particle.mass,
+            charge=self._reference_particle.charge,
             convert_from=self._in_unit,
             bending_radius=(
                 simulation.ring.bending_radius
@@ -576,26 +585,29 @@ class EnergyCyclePerTurnAllCavities(EnergyCycleBase):
             ),
         )
         n_cavities = simulation.ring.n_cavities
-        n_turns = momentum_after_cavity_per_turn.shape[1]
+        n_turns_max = magnetic_rigidity_after_cavity_per_turn.shape[1]
         assert (
-            n_cavities == momentum_after_cavity_per_turn.shape[0]
-        ), f"{n_cavities=}, but {momentum_after_cavity_per_turn.shape=}"
+            n_cavities == magnetic_rigidity_after_cavity_per_turn.shape[0]
+        ), f"{n_cavities=}, but {magnetic_rigidity_after_cavity_per_turn.shape=}"
 
         super().on_init_simulation(
             simulation=simulation,
-            momentum_init=momentum_init,
-            n_turns=n_turns,
+            n_turns_max=n_turns_max,
+            magnetic_rigidity_init=magnetic_rigidity_init,
         )
-        self._momentum_after_cavity_per_turn = momentum_after_cavity_per_turn
+        self._magnetic_rigidity_after_cavity_per_turn = (
+            magnetic_rigidity_after_cavity_per_turn
+        )
 
     def get_target_total_energy(
         self,
         turn_i: int,
         section_i: int,
         reference_time: float,
+        particle_type: ParticleType,
     ):
         """
-        Calculate the total energy [eV] that is foreseen by the energy cycle
+        Calculate the total energy [eV] that is foreseen by the magnetic cycle
 
         Parameters
         ----------
@@ -608,35 +620,40 @@ class EnergyCyclePerTurnAllCavities(EnergyCycleBase):
         reference_time
             Current reference time
             (Eventually needed for interpolation)
+        particle_type
+            Type of particles, e.g. protons
 
         Returns
         -------
 
         """
+
+        key = hash(particle_type)
+        if key not in self._momentum_cached:
+            self._momentum_cached[key] = magnetic_rigidity_to_momentum(
+                magnetic_rigidity=self._magnetic_rigidity_after_cavity_per_turn[:, :],
+                charge=particle_type.charge,
+            )
         return calc_total_energy(
-            mass=self._mass,
-            momentum=self._momentum_after_cavity_per_turn[section_i, turn_i],
+            mass=particle_type.mass,
+            momentum=self._momentum_cached[key][section_i, turn_i],
         )
 
     @staticmethod
     def headless(
-        mass: float,
-        charge: float,
+        reference_particle: ParticleType,
         value_init: float,
         values_after_cavity_per_turn: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
         bending_radius: Optional[float] = None,
-    ) -> EnergyCyclePerTurnAllCavities:
+    ) -> MagneticCyclePerTurnAllCavities:
         """
         Initialize object without simulation context
 
         Parameters
         ----------
-        mass
-            Particle mass in [eV/c²]
-        charge
-            Particle charge, i.e. number of elementary charges `e`
-            Example: For an electron `charge=1`
+        reference_particle
+            Type of particles, e.g. protons
         value_init
             Initial value at start of simulation in of unit `in_unit`
         values_after_cavity_per_turn
@@ -654,10 +671,11 @@ class EnergyCyclePerTurnAllCavities(EnergyCycleBase):
         -------
 
         """
-        ret = EnergyCyclePerTurnAllCavities(
+        ret = MagneticCyclePerTurnAllCavities(
             value_init=value_init,
             values_after_cavity_per_turn=values_after_cavity_per_turn,
             in_unit=in_unit,
+            reference_particle=reference_particle,
         )
         from .._core.simulation.simulation import Simulation
         from .._core.beam.base import BeamBaseClass
@@ -666,39 +684,38 @@ class EnergyCyclePerTurnAllCavities(EnergyCycleBase):
         simulation = Mock(Simulation)
         beam = Mock(BeamBaseClass)
         beam.particle_type = Mock(ParticleType)
-        simulation.beams = (beam,)
 
         simulation.ring.bending_radius = bending_radius
-        beam.particle_type.mass = mass
-        beam.particle_type.charge = charge
+        beam.particle_type = reference_particle
         simulation.ring.n_cavities = values_after_cavity_per_turn.shape[0]
 
         ret.on_init_simulation(simulation=simulation)
         ret.on_run_simulation(
             simulation=simulation,
+            beam=beam,
             n_turns=values_after_cavity_per_turn.shape[1],
             turn_i_init=0,
         )
-
         return ret
 
 
-class EnergyCycleByTime(EnergyCycleBase):
+class MagneticCycleByTime(MagneticCycleBase):
     def __init__(
         self,
-        t0: float,
+        reference_particle: ParticleType,
         base_time: NumpyArray,
         base_values: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
         interpolator=np.interp,
     ):
         """
-        Energy cycle defined as Energy vs. Time, interpolated just in time
+        Magnetic cycle defined as B vs. Time, interpolated just in
+        time
 
         Parameters
         ----------
-        t0
-            Initial time in [s]
+        reference_particle
+            Type of particles, e.g. protons
         base_time
             Values of time [s]
         base_values
@@ -712,28 +729,30 @@ class EnergyCycleByTime(EnergyCycleBase):
             Interpolation routine to get time in between the base values
             Default: `numpy.interp`
         """
-        super().__init__()
-        self._t0 = t0
+        super().__init__(
+            reference_particle=reference_particle,
+        )
         self._interpolator = interpolator
         self._base_time = base_time[:]
         self._base_values = base_values[:]
         self._in_unit = in_unit
 
-        self._base_momentum: LateInit[NumpyArray] = None
+        self._base_magnetic_rigidity: LateInit[NumpyArray] = None
 
-    def on_init_simulation(self, simulation: Simulation, **kwargs) -> None:
+    def on_init_simulation(
+        self,
+        simulation: Simulation,
+        **kwargs,
+    ) -> None:
         """Lateinit method when `simulation.__init__` is called
 
         simulation
             Simulation context manager
         """
-        mass = simulation.beams[0].particle_type.mass
-        charge = simulation.beams[0].particle_type.charge
-
-        base_momentum = _to_momentum(
+        base_magnetic_rigidity = _to_magnetic_rigidity(
             data=self._base_values,
-            mass=mass,
-            charge=charge,
+            mass=self._reference_particle.mass,
+            charge=self._reference_particle.charge,
             convert_from=self._in_unit,
             bending_radius=(
                 simulation.ring.bending_radius
@@ -741,12 +760,15 @@ class EnergyCycleByTime(EnergyCycleBase):
                 else None
             ),
         )
-        self._base_momentum = base_momentum
-        _momentum_init = self._interpolator(self._t0, self._base_time, base_momentum)
+        self._base_magnetic_rigidity = base_magnetic_rigidity
+
+        magnetic_rigidity_init = base_magnetic_rigidity[0]
+
         super().on_init_simulation(
             simulation=simulation,
-            momentum_init=_momentum_init,
-            n_turns=None,
+            n_turns_max=None,
+            magnetic_rigidity_init=magnetic_rigidity_init,
+            **kwargs,
         )
 
     def get_target_total_energy(
@@ -754,9 +776,10 @@ class EnergyCycleByTime(EnergyCycleBase):
         turn_i: int,
         section_i: int,
         reference_time: float,
+        particle_type: ParticleType,
     ):
         """
-        Calculate the total energy [eV] that is foreseen by the energy cycle
+        Calculate the total energy [eV] that is foreseen by the magnetic cycle
 
         Parameters
         ----------
@@ -769,41 +792,44 @@ class EnergyCycleByTime(EnergyCycleBase):
         reference_time
             Current reference time
             (Eventually needed for interpolation)
+        particle_type
+            Type of particles, e.g. protons
 
         Returns
         -------
 
         """
-        momentum = self._interpolator(self._t0, self._base_time, self._base_momentum)
+        magnetic_rigidity = self._interpolator(
+            reference_time,
+            self._base_time,
+            self._base_magnetic_rigidity,
+        )
         return calc_total_energy(
-            mass=self._mass,
-            momentum=momentum,
+            mass=particle_type.mass,
+            momentum=magnetic_rigidity_to_momentum(
+                magnetic_rigidity=magnetic_rigidity,
+                charge=particle_type.charge,
+            ),
         )
 
     @staticmethod
     def headless(
-        mass: float,
-        charge: float,
-        t0: float,
+        reference_particle: ParticleType,
         base_time: NumpyArray,
         base_values: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
         bending_radius: Optional[float] = None,
         interpolator=np.interp,
-    ) -> EnergyCycleByTime:
+    ) -> MagneticCycleByTime:
         """
         Initialize object without simulation context
 
 
         Parameters
         ----------
-        mass
-            Particle mass in [eV/c²]
-        charge
-            Particle charge, i.e. number of elementary charges `e`
+        reference_particle
+            Type of particles, e.g. protons
             Example: For an electron `charge=1`
-        t0
-            Initial time in [s]
         base_time
             Values of time [s]
         base_values
@@ -821,7 +847,7 @@ class EnergyCycleByTime(EnergyCycleBase):
 
         Returns
         -------
-        Energy_cycle_by_time
+        Magnetic_cycle_by_time
         """
         from .._core.simulation.simulation import Simulation
         from .._core.beam.base import BeamBaseClass
@@ -830,27 +856,30 @@ class EnergyCycleByTime(EnergyCycleBase):
         simulation = Mock(Simulation)
         beam = Mock(BeamBaseClass)
         beam.particle_type = Mock(ParticleType)
-        simulation.beams = (beam,)
 
-        beam.particle_type.mass = mass
-        beam.particle_type.charge = charge
+        beam.particle_type = reference_particle
         simulation.ring.bending_radius = bending_radius
 
-        ret = EnergyCycleByTime(
-            t0=t0,
+        ret = MagneticCycleByTime(
             base_time=base_time,
             base_values=base_values,
             in_unit=in_unit,
             interpolator=interpolator,
+            reference_particle=reference_particle,
         )
 
         ret.on_init_simulation(simulation=simulation)
-        ret.on_run_simulation(simulation=simulation, n_turns=1, turn_i_init=0)
+        ret.on_run_simulation(
+            simulation=simulation,
+            n_turns=1,
+            turn_i_init=0,
+            beam=beam,
+        )
 
         return ret
 
 
-def _to_momentum(
+def _to_magnetic_rigidity(
     data: int | float | NumpyArray,
     mass: float,
     charge: float,
@@ -886,6 +915,10 @@ def _to_momentum(
     if convert_from == "momentum":
         momentum = data
     elif convert_from == "total energy":
+        assert np.all(data > mass), (
+            f"The total energy is smaller than the rest mass: {np.min(data)} eV"
+            f", but must be bigger than {mass:e} eV."
+        )
         momentum = np.sqrt(data**2 - mass**2)
     elif convert_from == "kinetic energy":
         momentum = np.sqrt((data + mass) ** 2 - mass**2)
@@ -894,12 +927,12 @@ def _to_momentum(
             raise ValueError(
                 "The 'bending_radius' parameter must be provided and cannot be None."
             )
-        momentum = data * bending_radius * charge * c0
+        momentum = data * bending_radius * np.abs(charge) * c0
     else:
         raise ValueError(f"Unrecognized option {convert_from=}")
+    magnetic_rigidity = momentum / (np.abs(charge) * c0)
+    return magnetic_rigidity
 
-    return momentum
 
-
-def beta_by_momentum(momentum: T, mass: float) -> T:
-    return np.sqrt(1 / (1 + (mass / momentum) ** 2))
+def magnetic_rigidity_to_momentum(magnetic_rigidity, charge: float):
+    return magnetic_rigidity * np.abs(charge) * c0

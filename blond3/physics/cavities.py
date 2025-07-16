@@ -20,12 +20,12 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from .impedances.base import WakeField
     from .feedbacks.base import LocalFeedback
-    from .. import Ring, Beam
+    from .. import Ring
     from .._core.beam.base import BeamBaseClass
     from .._core.simulation.simulation import Simulation
-    from ..cycles.energy_cycle import EnergyCycleBase
+    from ..cycles.magnetic_cycle import MagneticCycleBase
 
-TWOPIC0 = 2.0 * np.pi * c0
+TWOPI_C0 = 2.0 * np.pi * c0
 
 
 class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
@@ -35,6 +35,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         section_index: int,
         local_wakefield: Optional[WakeField],
         cavity_feedback: Optional[LocalFeedback],
+        name: Optional[str] = None,
     ):
         """
         Base class to implement beam-rf interactions in synchrotrons
@@ -50,7 +51,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         cavity_feedback
             Optional cavity feedback to change cavity parameters
         """
-        super().__init__(section_index=section_index)
+        super().__init__(section_index=section_index, name=name)
         if cavity_feedback is not None:
             cavity_feedback.set_owner(cavity=self)
 
@@ -59,52 +60,8 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         self._cavity_feedback = cavity_feedback
 
         self._turn_i: LateInit[DynamicParameter] = None
-        self._energy_cycle: LateInit[EnergyCycleBase] = None
+        self._energy_cycle: LateInit[MagneticCycleBase] = None
         self._ring: LateInit[Ring] = None
-
-    @staticmethod
-    def headless(
-        n_rf: int,
-        section_index: int,
-        local_wakefield: Optional[WakeField],
-        cavity_feedback: Optional[LocalFeedback],
-    ) -> CavityBaseClass:
-        """
-        Initialize object without simulation context
-
-        Parameters
-        ----------
-        n_rf
-            Number of different rf waves for interaction
-        section_index
-            Section index to group elements into sections
-        local_wakefield
-            Optional wakefield to interact with beam
-        cavity_feedback
-            Optional cavity feedback to change cavity parameters
-
-        Returns
-        -------
-        cavity_base_class
-
-        """
-        cav = CavityBaseClass(
-            n_rf=n_rf,
-            section_index=section_index,
-            local_wakefield=local_wakefield,
-            cavity_feedback=cavity_feedback,
-        )
-        from .._core.simulation.simulation import Simulation  # prevent cyclic import
-
-        simulation = Mock(Simulation)
-        simulation.turn_i = Mock(DynamicParameter)
-        simulation.turn_i.value = 0
-        cav.on_init_simulation(simulation=simulation)
-        cav.on_run_simulation(
-            simulation=simulation, n_turns=1, turn_i_init=simulation.turn_i.value
-        )
-
-        return cav
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called
@@ -113,19 +70,23 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             Simulation context manager
         """
         self._turn_i = simulation.turn_i
-        self._energy_cycle = simulation.energy_cycle
+        self._energy_cycle = simulation.magnetic_cycle
         self._ring = simulation.ring
 
     def on_run_simulation(
         self,
         simulation: Simulation,
+        beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
+        **kwargs,
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
         simulation
             Simulation context manager
+        beam
+            Simulation beam object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -217,12 +178,14 @@ class SingleHarmonicCavity(CavityBaseClass):
         section_index: int = 0,
         local_wakefield: Optional[WakeField] = None,
         cavity_feedback: Optional[LocalFeedback] = None,
+        name: Optional[str] = None,
     ):
         super().__init__(
             n_rf=1,
             section_index=section_index,
             local_wakefield=local_wakefield,
             cavity_feedback=cavity_feedback,
+            name=name,
         )
         self.voltage: float | None = None
         self.phi_rf: float | None = None
@@ -265,6 +228,7 @@ class SingleHarmonicCavity(CavityBaseClass):
             turn_i=self._turn_i.value,
             section_i=self.section_index,
             reference_time=beam.reference_time,
+            particle_type=beam.particle_type,
         )
         reference_energy_change = target_total_energy - beam.reference_total_energy
         self._omega = self.calc_omega(
@@ -298,7 +262,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         omega
             Angular frequency (2 PI f) of cavity in [Hz]
         """
-        return self.harmonic * TWOPIC0 * beam_beta / ring_circumference
+        return self.harmonic * TWOPI_C0 * beam_beta / ring_circumference
 
     def voltage_waveform_tmp(self, ts: NumpyArray):
         """
@@ -360,7 +324,8 @@ class SingleHarmonicCavity(CavityBaseClass):
         """
         from .._core.simulation.simulation import Simulation
         from .._core.ring.ring import Ring
-        from ..cycles.energy_cycle import ConstantEnergyCycle
+        from ..cycles.magnetic_cycle import ConstantMagneticCycle
+        from .._core.beam.base import BeamBaseClass
 
         mhc = SingleHarmonicCavity(
             section_index=section_index,
@@ -375,18 +340,21 @@ class SingleHarmonicCavity(CavityBaseClass):
         ring = Mock(Ring)
         ring.circumference = backend.float(circumference)
 
-        energy_cycle = Mock(ConstantEnergyCycle)
+        energy_cycle = Mock(ConstantMagneticCycle)
         energy_cycle.get_target_total_energy.return_value = total_energy
 
         simulation = Mock(Simulation)
         simulation.ring = ring
-        simulation.energy_cycle = energy_cycle
+        simulation.magnetic_cycle = energy_cycle
         simulation.turn_i = Mock(DynamicParameter)
         simulation.turn_i.value = 0
 
         mhc.on_init_simulation(simulation=simulation)
         mhc.on_run_simulation(
-            simulation=simulation, n_turns=1, turn_i_init=simulation.turn_i.value
+            simulation=simulation,
+            n_turns=1,
+            turn_i_init=simulation.turn_i.value,
+            beam=Mock(BeamBaseClass),
         )
         return mhc
 
@@ -422,12 +390,14 @@ class MultiHarmonicCavity(CavityBaseClass):
         section_index: int = 0,
         local_wakefield: Optional[WakeField] = None,
         cavity_feedback: Optional[LocalFeedback] = None,
+        name: Optional[str] = None,
     ):
         super().__init__(
             n_rf=n_harmonics,
             section_index=section_index,
             local_wakefield=local_wakefield,
             cavity_feedback=cavity_feedback,
+            name=name,
         )
         self.voltage: NumpyArray | None = None
         self.phi_rf: NumpyArray | None = None
@@ -473,7 +443,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         omega
             Angular frequency (2 PI f) of cavity in [Hz]
         """
-        return self.harmonic * TWOPIC0 * beam_beta / ring_circumference
+        return self.harmonic * TWOPI_C0 * beam_beta / ring_circumference
 
     def voltage_waveform_tmp(self, ts: NumpyArray):
         """
@@ -533,7 +503,8 @@ class MultiHarmonicCavity(CavityBaseClass):
         """
         from .._core.simulation.simulation import Simulation
         from .._core.ring.ring import Ring
-        from ..cycles.energy_cycle import ConstantEnergyCycle
+        from ..cycles.magnetic_cycle import ConstantMagneticCycle
+        from .._core.beam.base import BeamBaseClass
 
         mhc = MultiHarmonicCavity(
             n_harmonics=len(voltage),
@@ -549,18 +520,21 @@ class MultiHarmonicCavity(CavityBaseClass):
         ring = Mock(Ring)
         ring.circumference = circumference
 
-        energy_cycle = Mock(ConstantEnergyCycle)
+        energy_cycle = Mock(ConstantMagneticCycle)
         energy_cycle.get_target_total_energy.return_value = total_energy
 
         simulation = Mock(Simulation)
         simulation.ring = ring
-        simulation.energy_cycle = energy_cycle
+        simulation.magnetic_cycle = energy_cycle
         simulation.turn_i = Mock(DynamicParameter)
         simulation.turn_i.value = 0
 
         mhc.on_init_simulation(simulation=simulation)
         mhc.on_run_simulation(
-            simulation=simulation, n_turns=1, turn_i_init=simulation.turn_i.value
+            simulation=simulation,
+            n_turns=1,
+            turn_i_init=simulation.turn_i.value,
+            beam=Mock(BeamBaseClass),
         )
         return mhc
 
@@ -577,6 +551,7 @@ class MultiHarmonicCavity(CavityBaseClass):
             turn_i=self._turn_i.value,
             section_i=self.section_index,
             reference_time=beam.reference_time,
+            particle_type=beam.particle_type,
         )
         reference_energy_change = target_total_energy - beam.reference_total_energy
 

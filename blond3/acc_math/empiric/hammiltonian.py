@@ -11,13 +11,15 @@ from scipy.signal import find_peaks
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
 
+
 def separatrixes(hamilton_2D: NumpyArray):
     y_loc = hamilton_2D[hamilton_2D.shape[0] // 2, :]
 
     peaks, _ = find_peaks(y_loc)
 
-    h_levels =  np.array([y_loc[peak] for peak in peaks])
+    h_levels = np.array([y_loc[peak] for peak in peaks])
     return h_levels
+
 
 def calc_hamiltonian(
     p_turn0: NumpyArray,
@@ -50,8 +52,7 @@ def calc_hamiltonian(
     hamilton_2D
         2D Hamiltonian
     """
-    warnings.warn("Using wrong hamiltonian calculation, solver needs to be "
-                  "rewritten!")
+    warnings.warn("Using wrong hamiltonian calculation, solver needs to be rewritten!")
 
     scale_x = np.max(np.abs(x_turn0))
     scale_y = np.max(np.abs(p_turn0))
@@ -85,7 +86,8 @@ def calc_hamiltonian(
             plt.figure(10)
             plt.clf()
             plt.matshow(
-                np.gradient(hamilton_2D, pi, axis=0, edge_order=2) - dH_dp_grid, fignum=0
+                np.gradient(hamilton_2D, pi, axis=0, edge_order=2) - dH_dp_grid,
+                fignum=0,
             )
             plt.colorbar()
         err1 = np.gradient(hamilton_2D, pi, axis=0, edge_order=2) - dH_dp_grid
@@ -94,7 +96,8 @@ def calc_hamiltonian(
             plt.figure(11)
             plt.clf()
             plt.matshow(
-                np.gradient(hamilton_2D, xi, axis=1, edge_order=2) - dH_dx_grid, fignum=0
+                np.gradient(hamilton_2D, xi, axis=1, edge_order=2) - dH_dx_grid,
+                fignum=0,
             )
             plt.colorbar()
         err2 = np.gradient(hamilton_2D, xi, axis=1, edge_order=2) - dH_dx_grid

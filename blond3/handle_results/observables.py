@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from ..physics.profiles import (
         StaticProfile,
     )
+    from .._core.beam.base import BeamBaseClass
 
     from .._core.simulation.simulation import Simulation
 
@@ -48,7 +49,11 @@ class Observables(MainLoopRelevant):
         return self._turns_array
 
     @abstractmethod
-    def update(self, simulation: Simulation) -> None:
+    def update(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+    ) -> None:
         """
         Update memory with new values
 
@@ -56,6 +61,8 @@ class Observables(MainLoopRelevant):
         ----------
         simulation
             Simulation context manager
+        beam
+            Simulation beam object
 
         """
         pass
@@ -69,12 +76,19 @@ class Observables(MainLoopRelevant):
         self._hash = simulation.get_hash()
 
     def on_run_simulation(
-        self, simulation: Simulation, n_turns: int, turn_i_init: int
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs,
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
         simulation
             Simulation context manager
+        beam
+            Simulation beam object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -120,23 +134,30 @@ class BunchObservation(Observables):
     def on_run_simulation(
         self,
         simulation: Simulation,
+        beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-    ):
+        **kwargs,
+    ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
         simulation
             Simulation context manager
+        beam
+            Simulation beam object
         n_turns
             Number of turns to simulate
         turn_i_init
             Initial turn to execute simulation
         """
         super().on_run_simulation(
-            simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
+            simulation=simulation,
+            n_turns=n_turns,
+            turn_i_init=turn_i_init,
+            beam=beam,
         )
         n_entries = n_turns // self.each_turn_i + 2
-        n_particles = simulation.beams[0].common_array_size
+        n_particles = beam.common_array_size
         shape = (n_entries, n_particles)
 
         self._dts = DenseArrayRecorder(
@@ -161,7 +182,11 @@ class BunchObservation(Observables):
             (n_entries,),
         )
 
-    def update(self, simulation: Simulation):
+    def update(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+    ) -> None:
         """
         Update memory with new values
 
@@ -169,14 +194,16 @@ class BunchObservation(Observables):
         ----------
         simulation
             Simulation context manager
+        beam
+            Simulation beam object
 
         """
         # TODO allow several bunches
-        self._reference_time.write(simulation.beams[0].reference_time)
-        self._reference_total_energy.write(simulation.beams[0].reference_total_energy)
-        self._dts.write(simulation.beams[0]._dt)
-        self._dEs.write(simulation.beams[0]._dE)
-        self._flags.write(simulation.beams[0]._flags)
+        self._reference_time.write(beam.reference_time)
+        self._reference_total_energy.write(beam.reference_total_energy)
+        self._dts.write(beam._dt)
+        self._dEs.write(beam._dE)
+        self._flags.write(beam._flags)
 
     @property  # as readonly attributes
     def reference_time(self):
@@ -245,20 +272,27 @@ class CavityPhaseObservation(Observables):
     def on_run_simulation(
         self,
         simulation: Simulation,
+        beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-    ):
+        **kwargs,
+    ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
         simulation
             Simulation context manager
+        beam
+            Simulation beam object
         n_turns
             Number of turns to simulate
         turn_i_init
             Initial turn to execute simulation
         """
         super().on_run_simulation(
-            simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
+            simulation=simulation,
+            n_turns=n_turns,
+            turn_i_init=turn_i_init,
+            beam=beam,
         )
         n_entries = n_turns // self.each_turn_i + 2
         n_harmonics = self._cavity.n_rf
@@ -275,7 +309,11 @@ class CavityPhaseObservation(Observables):
             (n_entries, n_harmonics),
         )
 
-    def update(self, simulation: Simulation):
+    def update(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+    ) -> None:
         """
         Update memory with new values
 
@@ -283,6 +321,8 @@ class CavityPhaseObservation(Observables):
         ----------
         simulation
             Simulation context manager
+        beam
+            Simulation beam object
 
         """
         self._phases.write(
@@ -345,20 +385,27 @@ class StaticProfileObservation(Observables):
     def on_run_simulation(
         self,
         simulation: Simulation,
+        beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-    ):
+        **kwargs,
+    ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
         simulation
             Simulation context manager
+        beam
+            Simulation beam object
         n_turns
             Number of turns to simulate
         turn_i_init
             Initial turn to execute simulation
         """
         super().on_run_simulation(
-            simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
+            simulation=simulation,
+            n_turns=n_turns,
+            turn_i_init=turn_i_init,
+            beam=beam,
         )
         n_entries = n_turns // self.each_turn_i + 2
         n_bins = self._profile.n_bins
@@ -367,7 +414,11 @@ class StaticProfileObservation(Observables):
             (n_entries, n_bins),
         )
 
-    def update(self, simulation: Simulation):
+    def update(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+    ) -> None:
         """
         Update memory with new values
 
@@ -375,6 +426,8 @@ class StaticProfileObservation(Observables):
         ----------
         simulation
             Simulation context manager
+        beam
+            Simulation beam object
 
         """
         self._hist_y.write(
@@ -419,20 +472,27 @@ class WakeFieldObservation(Observables):
     def on_run_simulation(
         self,
         simulation: Simulation,
+        beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-    ):
+        **kwargs,
+    ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
         simulation
             Simulation context manager
+        beam
+            Simulation beam object
         n_turns
             Number of turns to simulate
         turn_i_init
             Initial turn to execute simulation
         """
         super().on_run_simulation(
-            simulation=simulation, n_turns=n_turns, turn_i_init=turn_i_init
+            simulation=simulation,
+            n_turns=n_turns,
+            turn_i_init=turn_i_init,
+            beam=beam,
         )
         n_entries = n_turns // self.each_turn_i + 2
         n_bins = self._wakefield._profile.n_bins
@@ -441,7 +501,11 @@ class WakeFieldObservation(Observables):
             (n_entries, n_bins),
         )
 
-    def update(self, simulation: Simulation):
+    def update(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+    ) -> None:
         """
         Update memory with new values
 
@@ -449,6 +513,8 @@ class WakeFieldObservation(Observables):
         ----------
         simulation
             Simulation context manager
+        beam
+            Simulation beam object
 
         """
         try:

@@ -7,7 +7,7 @@ from blond3 import (
     Ring,
     Simulation,
     proton,
-    ConstantEnergyCycle,
+    ConstantMagneticCycle,
     StaticProfile,
     SingleHarmonicCavity,
     DriftSimple,
@@ -56,8 +56,8 @@ for solver in (solver1, solver2):
     sim = Simulation(
         ring=ring,
         beams=(beam,),
-        energy_cycle=ConstantEnergyCycle(
-            np.sqrt((E_0 + 1.4e9) ** 2 - E_0**2), max_turns=10
+        magnetic_cycle=ConstantMagneticCycle(
+            value=np.sqrt((E_0 + 1.4e9) ** 2 - E_0**2), reference_particle=proton,
         ),
     )
     induced_voltage = wake.calc_induced_voltage(beam)

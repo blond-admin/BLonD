@@ -3,11 +3,11 @@ from ._core.beam.particle_types import proton
 from ._core.ring.ring import Ring
 from ._core.simulation.simulation import Simulation
 from .beam_preparation.bigaussian import BiGaussian
-from .cycles.energy_cycle import (
-    EnergyCyclePerTurn,
-    EnergyCycleByTime,
-    EnergyCyclePerTurnAllCavities,
-    ConstantEnergyCycle,
+from .cycles.magnetic_cycle import (
+    MagneticCyclePerTurn,
+    MagneticCycleByTime,
+    MagneticCyclePerTurnAllCavities,
+    ConstantMagneticCycle,
 )
 from .handle_results.observables import (
     CavityPhaseObservation,

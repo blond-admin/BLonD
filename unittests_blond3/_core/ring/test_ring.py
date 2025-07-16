@@ -5,6 +5,7 @@ import numpy as np
 
 from blond3 import Ring, Simulation
 from blond3._core.base import BeamPhysicsRelevant
+from blond3._core.beam.base import BeamBaseClass
 from blond3.physics.cavities import CavityBaseClass
 from blond3.physics.drifts import DriftBaseClass
 
@@ -143,7 +144,10 @@ class TestRing(unittest.TestCase):
 
     def test_on_run_simulation(self):
         simulation = Mock(spec=Simulation)
-        self.ring.on_run_simulation(simulation=simulation, n_turns=10, turn_i_init=5)
+        beam = Mock(spec=BeamBaseClass)
+
+        self.ring.on_run_simulation(simulation=simulation, n_turns=10,
+                                    turn_i_init=5,beam=beam,)
 
 
 if __name__ == "__main__":

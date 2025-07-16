@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from .base import MatchingRoutine
+from .._core.beam.base import BeamBaseClass
 from .._core.simulation.simulation import Simulation
 
 
@@ -10,7 +11,11 @@ class EmittanceMatcher(MatchingRoutine):
         super().__init__()
         self.some_emittance = some_emittance
 
-    def prepare_beam(self, simulation: Simulation) -> None:
+    def prepare_beam(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+    ) -> None:
         """Populates the `Beam` object with macro-particles
 
         Parameters
@@ -18,4 +23,7 @@ class EmittanceMatcher(MatchingRoutine):
         simulation
             Simulation context manager
         """
-        pass
+        super().prepare_beam(
+            simulation=simulation,
+            beam=beam,
+        )
