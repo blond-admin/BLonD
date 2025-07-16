@@ -19,3 +19,4 @@ from .physics.drifts import DriftSimple
 from .physics.impedances.base import WakeField
 from .physics.losses import BoxLosses
 from .physics.profiles import StaticProfile
+from .physics.synchrotron_radiation import SynchrotronRadiationMaster, WigglerMagnet
