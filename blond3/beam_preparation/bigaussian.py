@@ -8,10 +8,11 @@ import numpy as np
 from .base import MatchingRoutine
 from .._core.backends.backend import backend
 from .._core.helpers import int_from_float_with_warning
-from ..acc_math.analytic.hammilton import is_in_separatrix, calc_phi_s_single_harmonic
+from ..physics.cavities import SingleHarmonicCavity
+from ..physics.drifts import DriftSimple
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional
+    from typing import Optional, Type
 
     from .._core.simulation.simulation import Simulation
     from .._core.beam.base import BeamBaseClass
@@ -47,7 +48,7 @@ def _get_dE_from_dt_core(
 
 def _get_dE_from_dt(
     simulation: Simulation,
-    beam: BeamBaseClass,
+    beam: Type[BeamBaseClass],
     dt_amplitude: float,
 ) -> float:
     r"""A routine to evaluate the dE amplitude from dt following a single
@@ -59,54 +60,27 @@ def _get_dE_from_dt(
         Full amplitude of the particle oscillation, in [eV]
 
     """
-    from .. import MultiHarmonicCavity
-    from ..physics.cavities import SingleHarmonicCavity
-    from ..physics.drifts import DriftSimple
-
     drift: DriftSimple = simulation.ring.elements.get_element(DriftSimple)
-    above_transition = beam.reference_gamma > drift.transition_gamma
-
-    try:
-        rf_station: SingleHarmonicCavity = simulation.ring.elements.get_element(
-            SingleHarmonicCavity
-        )
-        main_harmonic_idx = None
-    except AssertionError:
-        rf_station: MultiHarmonicCavity = simulation.ring.elements.get_element(
-            MultiHarmonicCavity
-        )
-        main_harmonic_idx = rf_station.main_harmonic_idx
+    rf_station: SingleHarmonicCavity = simulation.ring.elements.get_element(
+        SingleHarmonicCavity
+    )
 
     counter = simulation.turn_i.value  # todo might need to be set
     drift.apply_schedules(turn_i=counter, reference_time=beam.reference_time)
     rf_station.apply_schedules(turn_i=counter, reference_time=beam.reference_time)
+    harmonic = rf_station.harmonic
     energy = beam.reference_total_energy
     beta = beam.reference_beta
-    harmonic = rf_station.harmonic
     omega_rf = rf_station.calc_omega(
         beam_beta=beam.reference_beta,
-        ring_circumference=simulation.ring.circumference,
+        closed_orbit_length=simulation.ring.closed_orbit_length,
     )
     phi_rf = rf_station.phi_rf
-    voltage = rf_station.voltage
-    if main_harmonic_idx is not None:
-        harmonic = harmonic[main_harmonic_idx]
-        omega_rf = omega_rf[main_harmonic_idx]
-        phi_rf = phi_rf[main_harmonic_idx]
-        voltage = voltage[main_harmonic_idx]
-
-    phi_s = calc_phi_s_single_harmonic(
-        charge=beam.particle_type.charge,
-        voltage=voltage,
-        phase=phi_rf,
-        energy_gain=simulation.magnetic_cycle.get_target_total_energy(
-            1, 0, 0, particle_type=beam.particle_type
-        )
-        - beam.reference_total_energy,
-        above_transition=above_transition,
-    )
+    warnings.warn("assuming wrongly phi_s = phi_rf for development, to be resolved")
+    phi_s = phi_rf  # TODO rf_station.phi_s[counter]
     eta0 = drift.eta_0(gamma=beam.reference_gamma)
     particle_charge = beam.particle_type.charge
+    voltage = rf_station.voltage
 
     return _get_dE_from_dt_core(
         beta=float(beta),
@@ -158,7 +132,7 @@ class BiGaussian(MatchingRoutine):
     def prepare_beam(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
     ) -> None:
         """Populates the `Beam` object with macro-particles
 
@@ -167,30 +141,15 @@ class BiGaussian(MatchingRoutine):
         simulation
             Simulation context manager
         """
-
-        from .. import MultiHarmonicCavity
-        from ..physics.cavities import SingleHarmonicCavity
-        from ..physics.drifts import DriftSimple
-
         super().prepare_beam(
             simulation=simulation,
             beam=beam,
         )
-        try:
-            rf_station: SingleHarmonicCavity = simulation.ring.elements.get_element(
-                SingleHarmonicCavity
-            )
-            main_harmonic = None
-        except AssertionError:
-            rf_station: MultiHarmonicCavity = simulation.ring.elements.get_element(
-                MultiHarmonicCavity
-            )
-            main_harmonic = rf_station.main_harmonic_idx
-        drift: DriftSimple = simulation.ring.elements.get_element(DriftSimple)
-        above_transition = (
-            beam.reference_gamma > simulation.ring.average_transition_gamma
-        )
 
+        rf_station: SingleHarmonicCavity = simulation.ring.elements.get_element(
+            SingleHarmonicCavity
+        )
+        drift: DriftSimple = simulation.ring.elements.get_element(DriftSimple)
         rf_station.apply_schedules(
             turn_i=0,
             reference_time=0,
@@ -207,33 +166,15 @@ class BiGaussian(MatchingRoutine):
                 dt_amplitude=self._sigma_dt,
             )
             # IMPORT
-            assert not np.isnan(sigma_dE), "BUG, fix phi_s"
         else:
             sigma_dE = self._sigma_dE
 
         omega_rf = rf_station.calc_omega(
             beam_beta=beam.reference_beta,
-            ring_circumference=simulation.ring.circumference,
+            closed_orbit_length=simulation.ring.closed_orbit_length,
         )
-        phi_rf = rf_station.phi_rf + rf_station.delta_phi_rf
-        harmonic = rf_station.harmonic
-        voltage = rf_station.voltage
-
-        if main_harmonic is not None:
-            omega_rf = omega_rf[main_harmonic]
-            phi_rf = phi_rf[main_harmonic]
-            harmonic = harmonic[main_harmonic]
-            voltage = voltage[main_harmonic]
-        phi_s = calc_phi_s_single_harmonic(
-            charge=beam.particle_type.charge,
-            voltage=voltage,
-            phase=phi_rf,
-            energy_gain=simulation.magnetic_cycle.get_target_total_energy(
-                0, 0, 0, particle_type=beam.particle_type
-            )
-            - beam.reference_total_energy,
-            above_transition=above_transition,
-        )
+        phi_rf = rf_station.phi_rf
+        phi_s = np.deg2rad(30 + 180)  # TODO rf_station.phi_s[counter]  # TODO
         # call to legacy
         eta0 = drift.eta_0(gamma=beam.reference_gamma)
 
@@ -259,27 +200,11 @@ class BiGaussian(MatchingRoutine):
         # Re-insert if necessary
         if self._reinsertion:
             while True:
-                sel = (
-                    is_in_separatrix(
-                        charge=beam.particle_type.charge,
-                        harmonic=harmonic,
-                        voltage=voltage,
-                        omega_rf=omega_rf,
-                        phi_rf_d=phi_rf,
-                        phi_s=phi_s,
-                        etas=[eta0],
-                        beta=beam.reference_beta,
-                        total_energy=beam.reference_total_energy,
-                        ring_circumference=simulation.ring.circumference,
-                        dt=dt,
-                        dE=dE,
-                    )
-                    == False
-                )
+                sel = is_in_separatrix(ring, rf_station, beam, dt, dE) == False
 
                 n_new = np.sum(sel)
                 if n_new == 0:
-                    break
+                    return
                 dt[sel] = (
                     self._sigma_dt
                     * rng_dt.normal(size=n_new).astype(
