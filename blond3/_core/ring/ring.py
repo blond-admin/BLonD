@@ -67,7 +67,7 @@ class Ring(Preparable, Schedulable):
             f"drifts are not correctly configured."
         )
         assert len(self.elements.get_sections_indices()) == self.n_cavities, (
-            f"{len(self.elements.get_sections_indices())=}, " f"but {self.n_cavities=}"
+            f"{len(self.elements.get_sections_indices())=}, but {self.n_cavities=}"
         )
         # todo assert some kind of order inside the sections
 
