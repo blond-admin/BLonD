@@ -16,144 +16,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from .._core.beam.base import BeamBaseClass
 
 
-class WigglerMagnet(BeamPhysicsRelevant):
-    """Damping wiggler magnet class"""
-
-    def __init__(
-        self,
-        wiggler_type: Optional[str] = "sinusoidal",
-        number: Optional[int] = 1,
-        peak_field: Optional[float] = 1.0,
-        pole_length: Optional[float] = 0.095,
-        number_poles: Optional[int] = 43,
-    ):
-        super().__init__(
-
-        )
-        self.type = wiggler_type,
-        self.number = number,
-        self.peak_field = peak_field,
-        self.pole_length = pole_length,
-        self.number_poles = number_poles,
-
-        self._simulation: LateInit[Simulation] = None
-        self._contribution_to_synchrotron_radiation_integrals_without_energy: \
-            LateInit[NumpyArray | CupyArray] = np.zeros((1, 5))
-        self._contribution_to_synchrotron_radiation_integrals_with_energy: \
-            LateInit[NumpyArray | CupyArray] = np.zeros((1, 5))
-    @property
-    def length_wiggler(self):
-        if self.type == "wiggler_type":
-            return self.pole_length * self.number_poles
-
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        self._simulation = simulation
-
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        n_turns: int,
-        turn_i_init: int,
-    ) -> None:
-        self.calculate_contribution_to_synchrotron_radiation_integrals(self)
-        pass
-
-    def calculate_contribution_to_synchrotron_radiation_integrals(self):
-        """
-        Function to initialize the energy-free fraction of the damping
-        wiggler radiation integrals.
-        :return:
-        """
-        self._DI_woE = np.array(
-            [
-                (
-                    -self.number
-                    * self.length_wiggler
-                    * (e * self.peak_field) ** 2
-                    * self.length_wiggler
-                    / (2 * np.pi)
-                ),
-                1
-                / 2
-                * self.number
-                * self.length_wiggler
-                * (e * self.peak_field) ** 2,
-                4
-                / (3 * np.pi)
-                * self.number
-                * self.length_wiggler
-                * (e * self.peak_field) ** 3,
-                0,
-                self.number
-                * self.pole_length**2
-                * self.length_wiggler
-                / (15 * np.pi**3)
-                * (e * self.peak_field) ** 5,
-            ]
-        )
-
-    def update_synchrotron_radiation_integrals(self, beam: BeamBaseClass):
-        """
-        Function to update the synchrotron radiation integrals change from
-        the damping wiggler
-        :param beam:
-        :return:
-        """
-        E = beam._dE # check if alright
-        energy_contribution_wiggler_integrals = np.array([
-            1/ (E * e / c)**2,
-            1/ (E * e / c)**2,
-            1/ (E * e / c)**3,
-            1/ (E * e / c)**3,
-            1/ (E * e / c)**5
-        ])
-        self._contribution_to_synchrotron_radiation_integrals_with_energy = (
-            np.multiply(self._contribution_to_synchrotron_radiation_integrals_without_energy,
-                                  energy_contribution_wiggler_integrals))
-        pass
-
-    def update_beam_energy(self, beam: BeamBaseClass):
-        """
-        Function to update the beam particles energy after the passage
-        through the damping wiggler(s).
-        :param beam:
-        :return:
-        """
-        # Ideally: the energy losses should be computed per particle,
-        # and not per beam, to closely match the effect of SR onto each
-        # particle. To be checked with theory
-        particles_total_energy = beam.reference_total_energy + beam.read_partial_dE()
-        _DI_wE = self._contribution_to_synchrotron_radiation_integrals_with_energy
-        U0_wiggler = (beam.particle_type.sands_radiation_constant *
-                      self._contribution_to_synchrotron_radiation_integrals_with_energy[1]
-                      / (2.0 * np.pi)) * (particles_total_energy)**4.0
-        # in
-        # eV per
-        # turn
-
-        jz = 2 + _DI_wE[3]/_DI_wE[1] # longitudinal damping number
-        tau_z = 2.0 / jz * beam._dE / U0_wiggler # longitudinal damping time
-        # in turns #
-
-
-        sigma_dE0 = np.sqrt(beam.particle_type.quantum_radiation_constant *
-                            (beam.reference_total_energy/m_e)**2.0
-                                * self.I3 / (self.jz * self.I2))
-
-        # check validity
-        beam.write_partial_dE += (- U0_wiggler - 2.0 / tau_z  * beam._dE - 2.0 *
-                      self.sigma_dE /
-                              np.sqrt(self.tau_z * self.n_kicks)
-                              * self.beam.energy * np.random.normal
-                              (size=self.beam.n_macroparticles))
-
-    def track(self, beam: BeamBaseClass) -> None:
-        for beam in self._simulation.beams:
-            self.update_synchrotron_radiation_integrals(beam = beam)
-            self.update_beam_energy(beam)
-        pass
-
 class SynchrotronRadiation(BeamPhysicsRelevant, section_i=None):
     def __init__(
         self,
@@ -328,5 +190,165 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant):
 
         # for element in elements_list:
 
+class SynchrotronRadiationBaseClass(BeamPhysicsRelevant):
+    def __init__(
+        self,
+        name: Optional[str] = None,
+        section_index: Optional[int] = None,
+    ):
+        super().__init__(name = name,
+                         section_index=section_index
+        )
+
+        self.synchrotron_radiation_integrals_section: LateInit[NumpyArray | CupyArray] = None
+        self.energy_lost_due_to_synchrotron_radiation_section: float = None
+        self.damping_partition_number_section: float = None
+        self.damping_time_section: float = None
+        self.natural_energy_spread_section: float = None
+    def update_beam_energy(self, beam: BeamBaseClass):
+        """
+        Function to update the beam particles energy to include synchrotron
+        energy loss, radiation damping and quantum excitation.
+        The energy lost due to synchrotron radiation is calculated per
+        particle.
+        :param beam:
+        :return:
+        """
+
+        # Ideally: the energy losses should be computed per particle,
+        # and not per beam, to closely match the effect of SR onto each
+        # particle. To be checked with theory #fixme
+
+        _DI_wE = self.synchrotron_radiation_integrals_section
+        Cgamma = beam.particle_type.sands_radiation_constant
+        Cq = beam.particle_type.quantum_radiation_constant
+        beam_energy = beam.reference_total_energy
+        particles_total_energy = (beam_energy
+                                  + beam.read_partial_dE())
+        self.energy_lost_due_to_synchrotron_radiation_section = (Cgamma * _DI_wE[1] / (
+                2.0 * np.pi) * particles_total_energy**4.0)
+
+        self.damping_partition_number_section = 2 + _DI_wE[3]/_DI_wE[1] # longitudinal damping number
+        self.damping_time_section = (2.0 / self.damping_partition_number_section
+                                     * beam.read_partial_dE() /
+                                     self.energy_lost_due_to_synchrotron_radiation_section)
 
 
+        self.natural_energy_spread_section = np.sqrt( Cq *
+                            (beam.reference_total_energy/m_e)**2.0
+                                * self.I3 / (self.jz * self.I2))
+
+        # check validity
+        beam.write_partial_dE += (- U0_wiggler - 2.0 / tau_z  * beam._dE - 2.0 *
+                      self.sigma_dE /
+                              np.sqrt(self.tau_z * self.n_kicks)
+                              * self.beam.energy * np.random.normal
+                              (size=self.beam.n_macroparticles))
+
+class WigglerMagnet(SynchrotronRadiationBaseClass):
+    """Damping wiggler magnet class"""
+
+    def __init__(
+        self,
+        name: Optional[str] = None,
+        section_index: Optional[int] = None,
+        wiggler_type: Optional[str] = "sinusoidal",
+        number: Optional[int] = 1,
+        peak_field: Optional[float] = 1.0,
+        pole_length: Optional[float] = 0.095,
+        number_poles: Optional[int] = 43,
+    ):
+        super().__init__(name=name,
+                         section_index=section_index
+                         )
+
+        self.type = wiggler_type,
+        self.number = number,
+        self.peak_field = peak_field,
+        self.pole_length = pole_length,
+        self.number_poles = number_poles,
+
+        self._simulation: LateInit[Simulation] = None
+        self._contribution_to_synchrotron_radiation_integrals_without_energy: \
+            LateInit[NumpyArray | CupyArray] = np.zeros((1, 5))
+        self._contribution_to_synchrotron_radiation_integrals_with_energy: \
+            LateInit[NumpyArray | CupyArray] = np.zeros((1, 5))
+    @property
+    def length_wiggler(self):
+        if self.type == "wiggler_type":
+            return self.pole_length * self.number_poles
+
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        self._simulation = simulation
+
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        n_turns: int,
+        turn_i_init: int,
+    ) -> None:
+        self.calculate_contribution_to_synchrotron_radiation_integrals(self)
+        pass
+
+    def calculate_contribution_to_synchrotron_radiation_integrals(self):
+        """
+        Function to initialize the energy-free fraction of the damping
+        wiggler radiation integrals.
+        :return:
+        """
+        self._DI_woE = np.array(
+            [
+                (
+                    -self.number
+                    * self.length_wiggler
+                    * (e * self.peak_field) ** 2
+                    * self.length_wiggler
+                    / (2 * np.pi)
+                ),
+                1
+                / 2
+                * self.number
+                * self.length_wiggler
+                * (e * self.peak_field) ** 2,
+                4
+                / (3 * np.pi)
+                * self.number
+                * self.length_wiggler
+                * (e * self.peak_field) ** 3,
+                0,
+                self.number
+                * self.pole_length**2
+                * self.length_wiggler
+                / (15 * np.pi**3)
+                * (e * self.peak_field) ** 5,
+            ]
+        )
+
+    def update_synchrotron_radiation_integrals(self, beam: BeamBaseClass):
+        """
+        Function to update the synchrotron radiation integrals change from
+        the damping wiggler
+        :param beam:
+        :return:
+        """
+        E = beam._dE # check if alright
+        energy_contribution_wiggler_integrals = np.array([
+            1/ (E * e / c)**2,
+            1/ (E * e / c)**2,
+            1/ (E * e / c)**3,
+            1/ (E * e / c)**3,
+            1/ (E * e / c)**5
+        ])
+        self._contribution_to_synchrotron_radiation_integrals_with_energy = (
+            np.multiply(self._contribution_to_synchrotron_radiation_integrals_without_energy,
+                                  energy_contribution_wiggler_integrals))
+        pass
+
+
+
+    def track(self, beam: BeamBaseClass) -> None:
+        for beam in self._simulation.beams:
+            self.update_synchrotron_radiation_integrals(beam = beam)
+            self.update_beam_energy(beam)
+        pass
