@@ -277,18 +277,19 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         return np.array([jx, jy, jz])
 
     def calculate_damping_times(self):
+        damping_partition_numbers = self.calculate_partition_numbers()
         tau_x = [
-            (2 * beam.reference_total_energy / self.damping_partition_numbers[0])
+            (2 * beam.reference_total_energy / damping_partition_numbers[0])
             / self.energy_loss_per_turn
             for beam in self._simulation.beams
         ]
         tau_y = [
-            (2 * beam.reference_total_energy / self.damping_partition_numbers[1])
+            (2 * beam.reference_total_energy / damping_partition_numbers[1])
             / self.energy_loss_per_turn
             for beam in self._simulation.beams
         ]
         tau_z = [
-            (2 * beam.reference_total_energy / self.damping_partition_numbers[2])
+            (2 * beam.reference_total_energy / damping_partition_numbers[2])
             / self.energy_loss_per_turn
             for beam in self._simulation.beams
         ]
