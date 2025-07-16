@@ -55,34 +55,12 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
     @cached_property
     def energy_loss_per_turn(self) -> NumpyArray:
         return self._energy_loss_per_turn
-
     @cached_property
     def damping_times(self) -> NumpyArray:
         return self._damping_times
-
     @cached_property
     def damping_times_in_seconds(self)-> NumpyArray:
         return self._damping_times_in_seconds
-    def calculate_damping_times_in_seconds(self):
-        tau_x_s = [
-            (2 * beam.reference_total_energy / self.damping_partition_numbers[0])
-            / self.energy_loss_per_turn
-            / beam.revolution_frequency
-            for beam in self._simulation.beams
-        ]
-        tau_y_s = [
-            (2 * beam.reference_total_energy / self.damping_partition_numbers[1])
-            / self.energy_loss_per_turn
-            / beam.revolution_frequency
-            for beam in self._simulation.beams
-        ]
-        tau_z_s = [
-            (2 * beam.reference_total_energy / self.damping_partition_numbers[2])
-            / self.energy_loss_per_turn
-            / beam.revolution_frequency
-            for beam in self._simulation.beams
-        ]
-        return np.array([tau_x_s, tau_y_s, tau_z_s])
 
     def generate_children(
         self, element_type="drift", location: Optional[str] = "after"
@@ -122,9 +100,6 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         self._turn_i = simulation.turn_i
         self._energy_cycle = simulation.energy_cycle
         self._ring = simulation.ring
-
-
-
     def on_run_simulation(
         self,
         simulation: Simulation,
@@ -153,37 +128,9 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
     def init_synchrotron_radiation_integrals_ring(self):
         pass
 
-    def calculate_energy_loss_per_turn(self):
-        """
-        Function to calculate the energy lost due to synchrotron radiation
-        for all beams, within one turn
-        """
-        energy_loss_per_turn = [
-            (
-                beam.particle_type.sands_radiation_constant
-                * beam.reference_total_energy
-                * 4
-                * self.synchrotron_radiation_integrals[1]
-                / self._simulation.ring.circumference
-            )
-            for beam in self._simulation.beams
-        ]
-        return energy_loss_per_turn
 
-    def calculate_partition_numbers(self):
-        """Damping partition numbers"""
-        jx = (
-            1
-            - self.synchrotron_radiation_integrals[3]
-            / self.synchrotron_radiation_integrals[1]
-        )
-        jy = 1
-        jz = (
-            2
-            + self.synchrotron_radiation_integrals[3]
-            / self.synchrotron_radiation_integrals[1]
-        )
-        return np.array([jx, jy, jz])
+
+
 
     def calculate_damping_times(self):
         damping_partition_numbers = self.calculate_partition_numbers()
