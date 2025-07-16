@@ -162,10 +162,7 @@ def _getLen(x: NumpyArray) -> ct.c_int:
 class CppSpecials(Specials):
     @staticmethod
     def histogram(
-        array_read: NumpyArray,
-        array_write: NumpyArray,
-        start: float,
-        stop: float,
+        array_read: NumpyArray, array_write: NumpyArray, start: float, stop: float
     ):
         _LIBBLOND.histogram(
             array_read.ctypes.data_as(ct.c_void_p),
