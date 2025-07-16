@@ -4,6 +4,7 @@ from matplotlib import pyplot as plt
 from blond3._core.backends.backend import backend, Numpy32Bit
 from blond3.cycles.energy_cycle import EnergyCyclePerTurn
 import pickle
+
 backend.change_backend(Numpy32Bit)
 backend.set_specials("numba")
 
@@ -41,22 +42,21 @@ except FileNotFoundError:
         share_of_circumference=1.0,
     )
     drift1.transition_gamma = 55.759505
-    sr1,sr2,sr3 =sr_global.get_children()
+    sr1, sr2, sr3 = sr_global.get_children()
 
-    ring.add_elements((
-        drift1,
-         sr1,
-        cavity1,
-
-        drift2,
-        sr2,
-        cavity2,
-
-        drift3,
-         sr3,
-        cavity3,
-
-    ))
+    ring.add_elements(
+        (
+            drift1,
+            sr1,
+            cavity1,
+            drift2,
+            sr2,
+            cavity2,
+            drift3,
+            sr3,
+            cavity3,
+        )
+    )
     beam1 = Beam(n_particles=1e9, particle_type=proton)
 
     sim = Simulation.from_locals(locals())
@@ -85,8 +85,7 @@ def my_callback(simulation: Simulation):
         return
 
     plt.scatter(
-        simulation.beams[0].read_partial_dt(),
-        simulation.beams[0].read_partial_dE()
+        simulation.beams[0].read_partial_dt(), simulation.beams[0].read_partial_dE()
     )
     plt.draw()
     plt.pause(0.1)
@@ -96,8 +95,7 @@ def my_callback(simulation: Simulation):
 # sim.profiling(turn_i_init=0, profile_start_turn_i=10, n_turns=10000)
 # sys.exit(0)
 try:
-    sim.load_results(turn_i_init=0, n_turns=N_TURNS,
-                     observe=[phase_observation])
+    sim.load_results(turn_i_init=0, n_turns=N_TURNS, observe=[phase_observation])
 except FileNotFoundError as exc:
     sim.run_simulation(
         turn_i_init=0,

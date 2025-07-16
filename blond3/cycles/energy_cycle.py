@@ -220,7 +220,7 @@ class ConstantEnergyCycle(EnergyCycleBase):
             convert_from=self._in_unit,
             bending_radius=(
                 simulation.ring.bending_radius
-                if self._in_unit == "bending " "field"
+                if self._in_unit == "bending field"
                 else None
             ),
         )
@@ -279,9 +279,9 @@ class EnergyCyclePerTurn(EnergyCycleBase):
         super().__init__()
         self._value_init = value_init
 
-        assert (
-            len(values_after_turn.shape) == 1
-        ), f"Expected 1D array, but got {values_after_turn.shape}"
+        assert len(values_after_turn.shape) == 1, (
+            f"Expected 1D array, but got {values_after_turn.shape}"
+        )
 
         self._values_after_turn = values_after_turn[:]
         self._n_turns = self._values_after_turn.shape[0]
@@ -439,9 +439,9 @@ class EnergyCyclePerTurnAllCavities(EnergyCycleBase):
         )
         n_cavities = simulation.ring.n_cavities
         n_turns = momentum_after_cavity_per_turn.shape[1]
-        assert (
-            n_cavities == momentum_after_cavity_per_turn.shape[0]
-        ), f"{n_cavities=}, but {momentum_after_cavity_per_turn.shape=}"
+        assert n_cavities == momentum_after_cavity_per_turn.shape[0], (
+            f"{n_cavities=}, but {momentum_after_cavity_per_turn.shape=}"
+        )
 
         super().on_init_simulation(
             simulation=simulation,

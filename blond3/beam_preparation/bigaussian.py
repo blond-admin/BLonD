@@ -73,7 +73,7 @@ def _get_dE_from_dt(simulation: Simulation, dt_amplitude: float) -> float:
         ring_circumference=simulation.ring.circumference,
     )
     phi_rf = rf_station.phi_rf
-    warnings.warn("assuming wrongly phi_s = phi_rf for development, " "to be resolved")
+    warnings.warn("assuming wrongly phi_s = phi_rf for development, to be resolved")
     phi_s = phi_rf  # TODO rf_station.phi_s[counter]
     eta0 = drift.eta_0(gamma=beam.reference_gamma)
     particle_charge = beam.particle_type.charge

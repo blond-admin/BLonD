@@ -391,9 +391,7 @@ class WakeFieldObservation(Observables):
                 self._wakefield.induced_voltage,
             )
         except AttributeError:
-            self._induced_voltage.write(
-                np.zeros(self._wakefield._profile.n_bins)
-            )
+            self._induced_voltage.write(np.zeros(self._wakefield._profile.n_bins))
 
     @property  # as readonly attributes
     def induced_voltage(self):

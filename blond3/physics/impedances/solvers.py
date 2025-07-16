@@ -243,15 +243,14 @@ class PeriodicFreqSolver(WakeFieldSolver):
             beam.n_particles / beam.n_macroparticles_partial()
         )
 
-        key = len(self._freq_y) # todo
+        key = len(self._freq_y)  # todo
         if key in self._induced_voltage_buffer:
             # use `out` variable of fft to avoid array creation
             out = self._induced_voltage_buffer[key]
             np.fft.irfft(
                 self._freq_y
-                * self._parent_wakefield.profile.beam_spectrum(
-                    n_fft=self._n_time),
-                out=out
+                * self._parent_wakefield.profile.beam_spectrum(n_fft=self._n_time),
+                out=out,
             )
             out *= _factor
             self._induced_voltage_buffer[key] = out
@@ -264,7 +263,9 @@ class PeriodicFreqSolver(WakeFieldSolver):
         # calculation in frequency domain must be with full periodicity.
         # The profile and corresponding induced voltage is only a part of
         # the full periodicity and must be thus truncated
-        return self._induced_voltage_buffer[key][: self._parent_wakefield.profile.n_bins]
+        return self._induced_voltage_buffer[key][
+            : self._parent_wakefield.profile.n_bins
+        ]
 
 
 class TimeDomainSolver(WakeFieldSolver):

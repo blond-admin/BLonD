@@ -74,10 +74,11 @@ class Simulation(Preparable, HasPropertyCache):
         self._exec_on_init_simulation()
 
     def profiling(
-        self, turn_i_init: int, profile_start_turn_i: int, profile_n_turns:
-            int,
-            sortby: SortKey =SortKey.CUMULATIVE
-
+        self,
+        turn_i_init: int,
+        profile_start_turn_i: int,
+        profile_n_turns: int,
+        sortby: SortKey = SortKey.CUMULATIVE,
     ):
         """Executes the python profiler
 
@@ -550,7 +551,6 @@ class Simulation(Preparable, HasPropertyCache):
         observe: Tuple[Observables, ...] = tuple(),
         show_progressbar: bool = True,
         callback: Optional[Callable[[Simulation], None]] = None,
-
     ) -> None:
         """
         Execute the beam dynamics simulation for only one beam
@@ -573,7 +573,7 @@ class Simulation(Preparable, HasPropertyCache):
             that is called each turn.
 
         """
-        raise  NotImplementedError()
+        raise NotImplementedError()
         pass  # todo
 
     def load_results(

@@ -11,5 +11,6 @@ if TYPE_CHECKING:
 
 class ProgrammedCycle(Preparable, ABC):
     """Programmed cycle of parameters"""
+
     def __init__(self):
         super().__init__()

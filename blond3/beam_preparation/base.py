@@ -9,6 +9,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 class BeamPreparationRoutine(ABC):
     """Base class to write beam preparation routines"""
+
     @abstractmethod
     def on_prepare_beam(
         self,
