@@ -24,7 +24,6 @@ class CavityBaseClassHelper(CavityBaseClass):
         pass
 
 
-
 class TestMultiHarmonicCavity(unittest.TestCase):
     def setUp(self):
         self.multi_harmonic_cavity = MultiHarmonicCavity.headless(
@@ -99,7 +98,6 @@ class TestSingleHarmonicCavity(unittest.TestCase):
             local_wakefield=Mock(WakeField),
             cavity_feedback=Mock(LocalFeedback),
             total_energy=939,
-
         )
 
     def test___init__(self):

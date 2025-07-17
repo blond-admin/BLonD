@@ -57,7 +57,8 @@ for solver in (solver1, solver2):
         ring=ring,
         beams=(beam,),
         magnetic_cycle=ConstantMagneticCycle(
-            value=np.sqrt((E_0 + 1.4e9) ** 2 - E_0**2), reference_particle=proton,
+            value=np.sqrt((E_0 + 1.4e9) ** 2 - E_0**2),
+            reference_particle=proton,
         ),
     )
     induced_voltage = wake.calc_induced_voltage(beam)

@@ -12,9 +12,7 @@ from scipy.constants import speed_of_light as c0
 
 class TestDriftBaseClass(unittest.TestCase):
     def setUp(self):
-        self.drift_base_class = DriftBaseClass(
-            effective_length=123, section_index=0
-        )
+        self.drift_base_class = DriftBaseClass(effective_length=123, section_index=0)
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
@@ -26,7 +24,9 @@ class TestDriftBaseClass(unittest.TestCase):
     def test_on_run_simulation(self):
         simulation = Mock(Simulation)
         self.drift_base_class.on_run_simulation(
-            simulation=simulation, n_turns=11, turn_i_init=1,
+            simulation=simulation,
+            n_turns=11,
+            turn_i_init=1,
             beam=Mock(BeamBaseClass),
         )
 
@@ -40,13 +40,13 @@ class TestDriftSimple(unittest.TestCase):
         self.gamma = 2.5
         self.drift_simple = DriftSimple.headless(
             transition_gamma=20.0,  # highly relativistic
-            effective_length=0.25*25,
+            effective_length=0.25 * 25,
             section_index=0,
         )
 
     def test___init__(self):
         np.testing.assert_array_equal(self.drift_simple.transition_gamma, 20.0)
-        self.assertEqual(self.drift_simple.effective_length, 0.25*25)
+        self.assertEqual(self.drift_simple.effective_length, 0.25 * 25)
 
     def test_transition_gamma(self):
         np.testing.assert_array_equal(self.drift_simple.transition_gamma, 20.0)
@@ -81,7 +81,6 @@ class TestDriftSimple(unittest.TestCase):
         self.drift_simple.on_init_simulation(simulation=simulation)
 
     def test_track(self):
-
         beam = Mock(BeamBaseClass)
         beam.reference_time = backend.float(0)
         beam.reference_beta = backend.float(0.5)
@@ -119,11 +118,13 @@ class TestDriftSimple(unittest.TestCase):
         )
         self.assertEqual(
             beam.reference_time,
-            self.drift_simple.effective_length / (0.5 * c0),  # drifted by length of drift
+            self.drift_simple.effective_length
+            / (0.5 * c0),  # drifted by length of drift
         )
 
     def tearDown(self):
         backend.change_backend(Numpy32Bit)
+
 
 class TestDriftSpecial(unittest.TestCase):
     @unittest.skip

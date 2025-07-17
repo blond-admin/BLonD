@@ -1,8 +1,8 @@
+# pragma: no cover
 import numpy as np
 from matplotlib import pyplot as plt
 
 from blond3._core.backends.backend import backend, Numpy32Bit
-from blond3.beam_preparation.empiric_matcher import EmpiricMatcher
 from blond3.cycles.magnetic_cycle import MagneticCyclePerTurn
 
 backend.change_backend(Numpy32Bit)

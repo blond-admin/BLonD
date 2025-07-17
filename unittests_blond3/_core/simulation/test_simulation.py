@@ -18,8 +18,7 @@ from blond3.handle_results.observables import Observables, BunchObservation
 
 class TestSimulation(unittest.TestCase):
     def setUp(self):
-        ring = Ring(
-        )
+        ring = Ring()
 
         cavity1 = SingleHarmonicCavity()
         cavity1.harmonic = 35640
@@ -39,9 +38,12 @@ class TestSimulation(unittest.TestCase):
         drift1.transition_gamma = 55.759505
 
         beam1 = Beam(n_particles=1e9, particle_type=proton)
-        beam1.setup_beam(dt=np.linspace(1, 10, 10), dE=np.linspace(11, 20,
-                                                                   10),
-                         reference_time=0, reference_total_energy=1)
+        beam1.setup_beam(
+            dt=np.linspace(1, 10, 10),
+            dE=np.linspace(11, 20, 10),
+            reference_time=0,
+            reference_total_energy=1,
+        )
         self.simulation = Simulation.from_locals(locals())
         self.beam = beam1
 
@@ -52,7 +54,6 @@ class TestSimulation(unittest.TestCase):
         self.simulation._exec_on_init_simulation()
 
     def test__exec_on_run_simulation(self):
-
         self.simulation._exec_on_run_simulation(
             n_turns=10,
             turn_i_init=1,
@@ -68,7 +69,6 @@ class TestSimulation(unittest.TestCase):
 
     def test__run_simulation_single_beam(self):
         observe = Mock(spec=Observables)
-
 
         def my_callback(simulation: Simulation) -> None:
             return
@@ -155,8 +155,10 @@ class TestSimulation(unittest.TestCase):
 
     def test_profiling(self):
         self.simulation.profiling(
-            turn_i_init=0, profile_start_turn_i=10, profile_n_turns=20,
-            beams=(self.beam,)
+            turn_i_init=0,
+            profile_start_turn_i=10,
+            profile_n_turns=20,
+            beams=(self.beam,),
         )
 
     def test_ring(self):
@@ -176,7 +178,7 @@ class TestSimulation(unittest.TestCase):
             observe=(observe,),
             show_progressbar=True,
             callback=mock_func,
-            beams=(self.beam,)
+            beams=(self.beam,),
         )
         mock_func.assert_called()
 

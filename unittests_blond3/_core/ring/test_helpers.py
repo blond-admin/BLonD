@@ -58,7 +58,6 @@ class TestFunctions(unittest.TestCase):
             instances=(a, b), dependency_attribute="common.requires"
         )
 
-
     def test_get_elements(self):
         a = A()
         elements_selected = get_elements(elements=(a, B(), C()), class_=A)
@@ -105,10 +104,12 @@ class TestFunctions(unittest.TestCase):
     def test_topological_sort(self):
         # TODO: implement test for `topological_sort`
         _topological_sort(graph=None, in_degree=None, all_classes=None)
+
     @unittest.skip
     def test_get_dependencies(self):
         # TODO: implement test for `get_dependencies`
         get_dependencies(cls_=None, dependency_attribute=None)
+
 
 if __name__ == "__main__":
     unittest.main()

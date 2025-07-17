@@ -1,3 +1,5 @@
+# pragma: no cover
+
 from os import PathLike
 
 import numpy as np

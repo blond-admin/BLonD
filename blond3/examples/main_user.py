@@ -1,3 +1,4 @@
+# pragma: no cover
 from blond3 import (
     SingleHarmonicCavity,
     StaticProfile,

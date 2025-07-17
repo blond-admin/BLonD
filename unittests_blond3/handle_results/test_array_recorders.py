@@ -42,7 +42,6 @@ class TestDenseArrayRecorder(unittest.TestCase):
             filepath=self.dense_array_recorder.filepath
         )
 
-
         np.testing.assert_array_equal(
             self.dense_array_recorder._memory,
             reloaded._memory,

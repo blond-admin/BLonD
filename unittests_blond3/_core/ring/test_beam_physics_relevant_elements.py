@@ -58,8 +58,6 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         self.beam_physics_relevant_elements.add_element(element=element)
         assert self.beam_physics_relevant_elements.elements[2] is element
 
-
-
     def test_add_element2(self):
         element = Mock(spec=BeamPhysicsRelevant)
         element.section_index = 1
@@ -119,7 +117,9 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         self.beam_physics_relevant_elements.get_order_info()
 
     def test_get_section_circumference_effective_lengths(self):
-        effective_length = self.beam_physics_relevant_elements.get_sections_effective_length()
+        effective_length = (
+            self.beam_physics_relevant_elements.get_sections_effective_length()
+        )
         self.assertEqual(effective_length[0], 0.5)
         self.assertEqual(effective_length[1], 0.5)
 
@@ -143,7 +143,7 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         beam = Mock(spec=BeamBaseClass)
 
         self.beam_physics_relevant_elements.on_run_simulation(
-            simulation=simulation, n_turns=10, turn_i_init=0,beam=beam
+            simulation=simulation, n_turns=10, turn_i_init=0, beam=beam
         )
 
     def test_print_order(self):
@@ -208,5 +208,7 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         )
         self.assertEqual((0, 0, 1, 1), section)
         self.assertEqual(expected, actual)
+
+
 if __name__ == "__main__":
     unittest.main()

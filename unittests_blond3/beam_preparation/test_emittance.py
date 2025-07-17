@@ -8,9 +8,10 @@ class TestEmittanceMatcher(unittest.TestCase):
     def setUp(self):
         # TODO: implement test for `__init__`
         self.emittance_matcher = EmittanceMatcher(some_emittance=None)
+
     @unittest.skip
     def test___init__(self):
-        pass # calls __init__ in  self.setUp
+        pass  # calls __init__ in  self.setUp
 
     @unittest.skip
     def test_on_prepare_beam(self):
