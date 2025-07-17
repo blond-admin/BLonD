@@ -25,6 +25,15 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
     """Master class for handling synchrotron radiation along the ring.
     To be described better #fixme
     """
+    def __str__(self):
+        is_iso = ""
+        if self.is_isomagnetic:
+            is_iso = "isomagnetic"
+        return (f"Synchrotron radiation master class set up for the " +
+                is_iso + f" ring {self._simulation.ring.name}. Simulation "
+                         f"{self._simulation.name} currently set for turn "
+                         f"{self._turn_i}.")
+
     def __init__(
         self,
         section_index: int = 0,
@@ -44,12 +53,13 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         self._damping_times_in_seconds: LateInit[NumpyArray | CupyArray] = None
         self._natural_energy_spread: LateInit[NumpyArray | CupyArray] = None
 
-        self._turn_i: LateInit[DynamicParameter] = None
+        self._turn_i: LateInit[DynamicParameter] = 0
         self._energy_cycle: LateInit[EnergyCycleBase] = None
         self._ring: LateInit[Ring] = None
 
         self.generated_children: bool = False
 
+        self.__str__()
     @cached_property
     def energy_loss_per_turn(self) -> NumpyArray:
         return self._energy_loss_per_turn
@@ -61,11 +71,22 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         return self._damping_times_in_seconds
 
     def generate_children(
-        self, element_type="drift", location: Optional[str] = "after"
+        self, section_list = None, element_list = None, location:Optional[str] = "after"
     ):
-        """Function to generate and insert synchrotron radiation trackers
-        along the ring, either before or after the element type specified."""
+        """
+        Function to generate and insert synchrotron radiation elements in
+        the ring. By default, the elements are inserted at the end of each section.
+        A section list can be provided to limit the study to the preferred
+        section.
+        An element list can be provided along with a location preference to
+        insert the synchrotron radiation elements at the requested
+        location.#fixme
 
+        :param section_list:
+        :param element_list:
+        :param location:
+        :return:
+        """
         if self.generated_children:
             raise Warning(
                 "Synchrotron radiation subclasses have already been "
@@ -76,15 +97,8 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
             drifts_list = self._simulation.ring.elements.get_elements(
                 DriftBaseClass)
             number_of_sections = drifts_list[-1].section_index
-            if element_type == "drift":
-                from drifts import DriftBaseClass
-                elements_list = drifts_list
-            elif element_type == "cavity":
-                from cavities import CavityBaseClass
-                elements_list = self._simulation.ring.elements.get_elements(CavityBaseClass)
-            else:
-                elements_list = np.arange(number_of_sections)
-                s_list = self._simulation.ring.section_lengths #
+
+            s_list = self._simulation.ring.section_lengths #
                 # Access section information required
             self.generated_children = True
 
@@ -160,6 +174,8 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
     """Base class to handle the synchrotron radiation energy loss and damping,
     and quantum excitation effect along a section of the ring.
     """
+    def __str__(self):
+        return f"Sychrotron radiation section element."
     def __init__(
         self,
         name: Optional[str] = None,
