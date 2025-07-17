@@ -11,7 +11,7 @@ from .._core.base import BeamPhysicsRelevant, Schedulable, DynamicParameter
 from .._core.beam.base import BeamBaseClass
 from typing import TYPE_CHECKING
 
-from ..cycles.energy_cycle import EnergyCycleBase
+from ..cycles.magnetic_cycle import MagneticCycleBase
 
 if TYPE_CHECKING:
     from typing import Optional, Optional as LateInit
@@ -54,7 +54,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         self._natural_energy_spread: LateInit[NumpyArray | CupyArray] = None
 
         self._turn_i: LateInit[DynamicParameter] = 0
-        self._energy_cycle: LateInit[EnergyCycleBase] = None
+        self._energy_cycle: LateInit[MagneticCycleBase] = None
         self._ring: LateInit[Ring] = None
 
         self.generated_children: bool = False
