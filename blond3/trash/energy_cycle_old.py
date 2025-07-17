@@ -22,7 +22,7 @@ from ..physics.cavities import (
 from ..physics.drifts import DriftBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional as LateInit
+    from typing import Optional as LateInit, Type
 
     from numpy.typing import NDArray as NumpyArray
     from .._core.simulation.simulation import Simulation
@@ -209,7 +209,7 @@ class EnergyCycleBase(ProgrammedCycle, HasPropertyCache):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
         n_turns: int,
         turn_i_init: int,
         **kwargs,
@@ -332,7 +332,7 @@ class EnergyCycle(EnergyCycleBase):
         assert len(drifts) == len(cavities)
         self._ring = Blond2Ring(
             ring_length=[
-                (e.share_of_circumference * simulation.ring.circumference)
+                (e.share_of_circumference * simulation.ring.effective_circumference)
                 for e in drifts
             ],
             synchronous_data=self._adapter._synchronous_data,
@@ -362,7 +362,7 @@ class EnergyCycle(EnergyCycleBase):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
         n_turns: int,
         turn_i_init: int,
         **kwargs,
@@ -459,7 +459,7 @@ class InterpolatedEnergyCycle(EnergyCycle):
         assert len(drifts) == len(cavities)
         self._ring = Blond2Ring(
             ring_length=[
-                (e.share_of_circumference * simulation.ring.circumference)
+                (e.share_of_circumference * simulation.ring.effective_circumference)
                 for e in drifts
             ],
             synchronous_data=self._adapter._synchronous_data,
@@ -473,7 +473,7 @@ class InterpolatedEnergyCycle(EnergyCycle):
         interp_time = self._adapter.derive_interp_time(
             n_turns=self.n_turns,  # TODO
             section_lengths=[
-                (e.share_of_circumference * simulation.ring.circumference)
+                (e.share_of_circumference * simulation.ring.effective_circumference)
                 for e in drifts
             ],
             t0=self._t0,  # TODO

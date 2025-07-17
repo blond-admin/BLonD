@@ -12,7 +12,7 @@ from ..physics.cavities import SingleHarmonicCavity
 from ..physics.drifts import DriftSimple
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional
+    from typing import Optional, Type
 
     from .._core.simulation.simulation import Simulation
     from .._core.beam.base import BeamBaseClass
@@ -48,7 +48,7 @@ def _get_dE_from_dt_core(
 
 def _get_dE_from_dt(
     simulation: Simulation,
-    beam: BeamBaseClass,
+    beam: Type[BeamBaseClass],
     dt_amplitude: float,
 ) -> float:
     r"""A routine to evaluate the dE amplitude from dt following a single
@@ -73,7 +73,7 @@ def _get_dE_from_dt(
     beta = beam.reference_beta
     omega_rf = rf_station.calc_omega(
         beam_beta=beam.reference_beta,
-        ring_circumference=simulation.ring.circumference,
+        ring_circumference=simulation.ring.effective_circumference,
     )
     phi_rf = rf_station.phi_rf
     warnings.warn("assuming wrongly phi_s = phi_rf for development, " "to be resolved")
@@ -132,7 +132,7 @@ class BiGaussian(MatchingRoutine):
     def prepare_beam(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
     ) -> None:
         """Populates the `Beam` object with macro-particles
 
@@ -171,7 +171,7 @@ class BiGaussian(MatchingRoutine):
 
         omega_rf = rf_station.calc_omega(
             beam_beta=beam.reference_beta,
-            ring_circumference=simulation.ring.circumference,
+            ring_circumference=simulation.ring.effective_circumference,
         )
         phi_rf = rf_station.phi_rf
         phi_s = np.deg2rad(30 + 180)  # TODO rf_station.phi_s[counter]  # TODO

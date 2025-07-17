@@ -79,8 +79,9 @@ class Blond3:
     def __init__(self):
         blond2 = Blond2()
         self.blond2 = blond2
-        ring = Ring(circumference=2 * np.pi * 25.0)
-        drift = DriftSimple()
+        circumference = 2 * np.pi * 25.0
+        ring = Ring()
+        drift = DriftSimple(effective_length=circumference)
         drift.transition_gamma = 4.4
         cavity = SingleHarmonicCavity()
         cavity.harmonic = 1

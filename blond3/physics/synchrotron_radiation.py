@@ -4,7 +4,7 @@ from blond3._core.beam.base import BeamBaseClass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional, Optional as LateInit
+    from typing import Optional, Optional as LateInit, Type
 
 
 class SynchrotronRadiation(BeamPhysicsRelevant):
@@ -22,7 +22,7 @@ class SynchrotronRadiation(BeamPhysicsRelevant):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
         n_turns: int,
         turn_i_init: int,
         **kwargs,

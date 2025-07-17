@@ -22,9 +22,7 @@ class ExampleSimulation01:
             CavityPhaseObservation,
         )
 
-        ring = Ring(
-            circumference=26658.883,
-        )
+        ring = Ring()
 
         cavity1 = SingleHarmonicCavity()
         cavity1.harmonic = 35640
@@ -40,7 +38,7 @@ class ExampleSimulation01:
         )
 
         drift1 = DriftSimple(
-            share_of_circumference=1.0,
+            effective_length=26658.883,
         )
         drift1.transition_gamma = (55.759505,)
 
@@ -97,7 +95,8 @@ class SimulationTwoRfStations:
             DriftSimple,
         )
 
-        ring = Ring(circumference=26658.883)
+        circumference = 26658.883
+        ring = Ring()
 
         cavity1 = SingleHarmonicCavity(
             section_index=0,
@@ -116,15 +115,28 @@ class SimulationTwoRfStations:
         N_TURNS = int(10)
         energy_cycle = MagneticCyclePerTurn(
             value_init=450e9,
-            values_after_turn=np.linspace(450e9, 450e9, N_TURNS),
+            values_after_turn=np.linspace(
+                450e9,
+                450e9,
+                N_TURNS,
+            ),
             reference_particle=proton,
         )
 
-        drift1 = DriftSimple(share_of_circumference=0.5, section_index=0)
+        drift1 = DriftSimple(
+            effective_length=0.5 * circumference,
+            section_index=0,
+        )
         drift1.transition_gamma = 55.759505
-        drift2 = DriftSimple(share_of_circumference=0.5, section_index=1)
+        drift2 = DriftSimple(
+            effective_length=0.5 * circumference,
+            section_index=1,
+        )
         drift2.transition_gamma = 55.759505
-        beam1 = Beam(n_particles=1e9, particle_type=proton)
+        beam1 = Beam(
+            n_particles=1e9,
+            particle_type=proton,
+        )
 
         simulation = Simulation.from_locals(locals())
 

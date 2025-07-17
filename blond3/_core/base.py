@@ -18,6 +18,7 @@ if TYPE_CHECKING:  # pragma: no cover
         List,
         Callable,
         Any,
+        Type,
     )
     from numpy.typing import NDArray as NumpyArray
 
@@ -41,7 +42,7 @@ class Preparable(ABC):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
         n_turns: int,
         turn_i_init: int,
         **kwargs,
@@ -224,7 +225,6 @@ class BeamPhysicsRelevant(MainLoopRelevant):
             Beam class to interact with this element
         """
         pass
-
 
 
 class _Scheduled:

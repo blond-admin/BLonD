@@ -12,7 +12,12 @@ from ..._core.ring.helpers import requires
 from ..._core.simulation.simulation import Simulation
 
 if TYPE_CHECKING:  # pragma: no cover
-    from ..cavities import MultiHarmonicCavity, SingleHarmonicCavity, CavityBaseClass
+    from ..cavities import (
+        MultiHarmonicCavity,
+        SingleHarmonicCavity,
+        CavityBaseClass,
+        Type,
+    )
 
 
 class FeedbackBaseClass(BeamPhysicsRelevant):
@@ -30,7 +35,7 @@ class LocalFeedback(FeedbackBaseClass):
         self._owner: SingleHarmonicCavity | MultiHarmonicCavity | None = None
         self.profile = profile
 
-    def set_owner(self, cavity: CavityBaseClass):
+    def set_owner(self, cavity: Type[CavityBaseClass]):
         assert self._owner is None
         self._owner = cavity
 

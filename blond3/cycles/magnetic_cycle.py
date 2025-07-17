@@ -15,7 +15,15 @@ from .._core.beam.particle_types import ParticleType, proton
 from ..acc_math.analytic.simple_math import calc_total_energy
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional as LateInit, TypeVar, Optional, Literal, Union, Dict
+    from typing import (
+        Optional as LateInit,
+        TypeVar,
+        Optional,
+        Literal,
+        Union,
+        Dict,
+        Type,
+    )
 
     from numpy.typing import NDArray as NumpyArray
 
@@ -71,7 +79,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
         n_turns: int,
         turn_i_init: int,
         **kwargs,

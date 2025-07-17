@@ -16,6 +16,7 @@ if TYPE_CHECKING:  # pragma: no cover
         Type,
         TypeVar,
         Any,
+        List,
     )
     from ..base import BeamPhysicsRelevant
     from numpy.typing import NDArray as NumpyArray
@@ -28,7 +29,7 @@ class BeamPhysicsRelevantElements(Preparable):
 
     def __init__(self):
         super().__init__()
-        self.elements: Tuple[BeamPhysicsRelevant, ...] = ()
+        self.elements: List[BeamPhysicsRelevant] = []
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
@@ -71,7 +72,7 @@ class BeamPhysicsRelevantElements(Preparable):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
         n_turns: int,
         turn_i_init: int,
         **kwargs,
@@ -97,7 +98,7 @@ class BeamPhysicsRelevantElements(Preparable):
             unique_section_indices.add(e.section_index)
         return tuple(sorted(unique_section_indices))
 
-    def get_section_circumference_shares(self) -> NumpyArray:
+    def get_sections_effective_length(self) -> NumpyArray:
         """
         Get `share_of_circumference` per section
 
@@ -112,12 +113,12 @@ class BeamPhysicsRelevantElements(Preparable):
         for section_i in sections:
             drifts = self.get_elements(DriftBaseClass, section_i=section_i)
             if len(drifts) > 0:
-                result[section_i] = sum([d.share_of_circumference for d in drifts])
+                result[section_i] = sum([d.effective_length for d in drifts])
             else:
                 result[section_i] = 0
         return result
 
-    def add_element(self, element: BeamPhysicsRelevant):
+    def add_element(self, element: BeamPhysicsRelevant) -> None:
         """
         Append a beam physics-relevant element to the container.
 
@@ -138,15 +139,24 @@ class BeamPhysicsRelevantElements(Preparable):
             If `element.section_index` is not an integer.
         """
         assert isinstance(element.section_index, int)
-        self.elements = (*self.elements, element)
+
+        insert_at = None
+        for i, elem in enumerate(self.elements):
+            if elem.section_index == element.section_index:
+                insert_at = i
+
+        if insert_at is not None:
+            self.elements.insert(insert_at + 1, element)
+        else:
+            self.elements.append(element)
 
     @property  # as readonly attributes
-    def n_sections(self):
+    def n_sections(self) -> int:
         """Number of sections that are mentioned by elements"""
         return len(np.unique([e.section_index for e in self.elements]))
 
     @property  # as readonly attributes
-    def n_elements(self):
+    def n_elements(self) -> int:
         """Number of elements contained in this class"""
         return len(self.elements)
 
@@ -265,7 +275,7 @@ class BeamPhysicsRelevantElements(Preparable):
                     ordered_elements.append(e)
                     _seen.add(e)
 
-        self.elements = tuple(
+        self.elements = list(
             elements_before_section + ordered_elements + elements_after_section
         )
 

@@ -8,7 +8,7 @@ from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant, HasPropertyCache, Schedulable
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional as LateInit, Tuple
+    from typing import Optional as LateInit, Tuple, Type
 
     from typing import Iterable
     from numpy.typing import NDArray as NumpyArray
@@ -20,17 +20,24 @@ if TYPE_CHECKING:  # pragma: no cover
 class DriftBaseClass(BeamPhysicsRelevant, ABC):
     def __init__(
         self,
-        share_of_circumference: float,
+        effective_length: float,
         section_index: int = 0,
     ):
-        super().__init__(section_index=section_index)
-        self._share_of_circumference: backend.float = backend.float(
-            share_of_circumference
-        )
+        """
+        Base class of a drift
 
-    @property  # as readonly attributes
-    def share_of_circumference(self) -> backend.float:
-        return self._share_of_circumference
+        Parameters
+        ----------
+        effective_length
+            Length of drift in [m].
+            Length / Velocity => Time to pass the element
+        section_index
+            Section index to group elements into sections
+
+        """
+        super().__init__(section_index=section_index)
+
+        self.effective_length = effective_length
 
     def track(self, beam: BeamBaseClass) -> None:
         """Main simulation routine to be called in the mainloop
@@ -53,7 +60,7 @@ class DriftBaseClass(BeamPhysicsRelevant, ABC):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
         n_turns: int,
         turn_i_init: int,
         **kwargs,
@@ -78,21 +85,16 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
 
     Parameters
     ----------
-    share_of_circumference
-        Share of circumference.
-        E.g. 100% share -> share_of_circumference=1.0
+    effective_length
+        Length of drift in [m]
     section_index
         Section index to group elements into sections
 
-    Attributes
-    ----------
-    length
-        Length of drift in [m]
     """
 
     def __init__(
         self,
-        share_of_circumference: float = 1.0,
+        effective_length: float,
         section_index: int = 0,
     ):
         """
@@ -100,22 +102,21 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
 
         Parameters
         ----------
-        share_of_circumference
-            Share of circumference.
-            E.g. 100% share -> share_of_circumference=1.0
+        effective_length
+            Length of drift in [m].
+            Length / Velocity => Time to pass the element
         section_index
             Section index to group elements into sections
 
         """
 
         super().__init__(
-            share_of_circumference=share_of_circumference,
+            effective_length=effective_length,
             section_index=section_index,
         )
 
         self._transition_gamma: float | None = None
         self._momentum_compaction_factor: float | None = None
-        self.length: float | None = None
 
         self._simulation: LateInit[Simulation] = None
 
@@ -139,8 +140,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
     @staticmethod
     def headless(
         transition_gamma: float | Iterable | Tuple[NumpyArray, NumpyArray],
-        circumference: float,
-        share_of_circumference: float,
+        effective_length: float,
         section_index: int = 0,
     ) -> DriftSimple:
         """
@@ -151,11 +151,9 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         ----------
         transition_gamma
             Gamma of transition crossing
-        circumference
-            Synchrotron circumference in [m]
-        share_of_circumference
-            Share of circumference.
-            E.g. 100% share -> share_of_circumference=1.0
+        effective_length
+            Length of drift in [m].
+            Length / Velocity => Time to pass the element
         section_index
             Section index to group elements into sections
 
@@ -166,7 +164,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         from .._core.base import DynamicParameter
 
         d = DriftSimple(
-            share_of_circumference=share_of_circumference,
+            effective_length=effective_length,
             section_index=section_index,
         )
         d.transition_gamma = backend.float(transition_gamma)
@@ -174,7 +172,6 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         from .._core.beam.base import BeamBaseClass
 
         simulation = Mock(Simulation)
-        simulation.ring.circumference = backend.float(circumference)
         simulation.turn_i = Mock(DynamicParameter)
         simulation.turn_i.value = 0
         d.on_init_simulation(simulation=simulation)
@@ -194,9 +191,6 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         """
         super().on_init_simulation(simulation=simulation)
         self._simulation = simulation
-        self.length = backend.float(
-            self.share_of_circumference * simulation.ring.circumference
-        )
         if (
             self.transition_gamma is None
         ) and "transition_gamma" not in self.schedules.keys():
@@ -218,7 +212,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
             turn_i=self._simulation.turn_i.value,
             reference_time=beam.reference_time,
         )
-        dt = backend.float(self.length / beam.reference_velocity)
+        dt = backend.float(self.effective_length / beam.reference_velocity)
         gamma = beam.reference_gamma
         eta_0 = self.alpha_0 - (1 / (gamma * gamma))
         backend.specials.drift_simple(

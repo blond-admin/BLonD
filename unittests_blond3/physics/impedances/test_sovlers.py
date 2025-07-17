@@ -30,7 +30,7 @@ class TestInductiveImpedanceSolver(unittest.TestCase):
         _parent_wakefield.profile.hist_step = 1
         self.inductive_impedance_solver._parent_wakefield = _parent_wakefield
         simulation = Mock(Simulation)
-        simulation.ring.circumference = 123
+        simulation.ring.effective_circumference = 123
         self.inductive_impedance_solver._simulation = simulation
         _parent_wakefield.profile.diff_hist_y = np.linspace(1, 3)
 

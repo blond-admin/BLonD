@@ -10,13 +10,17 @@ from blond3 import (
     SingleHarmonicCavity,
     DriftSimple,
     WakeField,
-    RfStationParams,
     MagneticCyclePerTurn,
 )
 from blond3._core.beam.base import BeamBaseClass
 from blond3.beam_preparation.base import BeamPreparationRoutine
 from blond3.physics.impedances.sources import Resonators
 from blond3.physics.impedances.solvers import MutliTurnResonatorSolver
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Type
 
 
 class LeonardsCounterrrotBeam(BeamPreparationRoutine):
@@ -36,7 +40,7 @@ class LeonardsCounterrrotBeam(BeamPreparationRoutine):
     def prepare_beam(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
     ) -> None:
         beam.setup_beam(
             dt=self.dt,

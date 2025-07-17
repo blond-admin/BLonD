@@ -17,10 +17,7 @@ from ...physics.cavities import CavityBaseClass
 from ...physics.profiles import ProfileBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import (
-        Optional,
-        Tuple,
-    )
+    from typing import Optional, Tuple, Type
     from numpy.typing import NDArray as NumpyArray
 
     from ..beam.particle_types import ParticleType
@@ -169,7 +166,7 @@ class Simulation(Preparable, HasPropertyCache):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
         n_turns: int,
         turn_i_init: int,
         **kwargs,
@@ -223,7 +220,7 @@ class Simulation(Preparable, HasPropertyCache):
 
     def _exec_on_run_simulation(
         self,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
         n_turns: int,
         turn_i_init: int,
     ):
@@ -326,7 +323,7 @@ class Simulation(Preparable, HasPropertyCache):
 
     def prepare_beam(
         self,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
         preparation_routine: BeamPreparationRoutine,
         turn_i: int = 0,
     ) -> None:
@@ -426,7 +423,7 @@ class Simulation(Preparable, HasPropertyCache):
 
     def _run_simulation_single_beam(
         self,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
         n_turns: int,
         turn_i_init: int = 0,
         observe: Tuple[Observables, ...] = tuple(),
@@ -492,7 +489,7 @@ class Simulation(Preparable, HasPropertyCache):
             MultiHarmonicCavity,
         )
 
-        ring_length = self.ring.circumference
+        ring_length = self.ring.effective_circumference
         bending_radius = self.ring.bending_radius
         drift = self.ring.elements.get_element(DriftBaseClass)
         alpha_0 = drift.alpha_0

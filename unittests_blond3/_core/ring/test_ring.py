@@ -13,25 +13,14 @@ from blond3.physics.drifts import DriftBaseClass
 class TestRing(unittest.TestCase):
     def setUp(self):
         # TODO: implement test for `__init__`
-        self.ring = Ring(circumference=23, bending_radius=None)
+        self.ring = Ring()
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
     def test_circumference(self):
-        ring = Ring(10.0)
-        self.assertTrue(np.isclose(ring._circumference, 10.0))
-        self.assertTrue(np.isclose(ring.circumference, 10.0))
-
-    def test_bending_radius(self):
-        ring = Ring(10.0, bending_radius=2.0)
-        self.assertEqual(ring._bending_radius, 2.0)
-        self.assertEqual(ring.bending_radius, 2.0)
-
-    def test_bending_radius_calculated_if_none(self):
-        ring = Ring(2 * np.pi)  # Should produce radius 1.0
-        expected_radius = 1.0
-        self.assertTrue(np.isclose(ring._bending_radius, expected_radius))
+        ring = Ring()
+        self.assertTrue(np.isclose(ring.effective_circumference, 0.0))
 
     def test_add_element_fails_no_section_index(self):
         with self.assertRaises(AssertionError):
@@ -95,7 +84,7 @@ class TestRing(unittest.TestCase):
             deepcopy=False,
             section_index=None,
         )
-        assert self.ring.elements.elements == (cavity, drift)
+        assert self.ring.elements.elements == [cavity, drift]
 
     def test_add_elements(self):
         element1 = Mock(spec=BeamPhysicsRelevant)
@@ -146,8 +135,53 @@ class TestRing(unittest.TestCase):
         simulation = Mock(spec=Simulation)
         beam = Mock(spec=BeamBaseClass)
 
-        self.ring.on_run_simulation(simulation=simulation, n_turns=10,
-                                    turn_i_init=5,beam=beam,)
+        self.ring.on_run_simulation(
+            simulation=simulation,
+            n_turns=10,
+            turn_i_init=5,
+            beam=beam,
+        )
+
+    def test_effective_circumference(self):
+        drift = Mock(spec=DriftBaseClass)
+        drift.effective_length = 123
+        cavity = Mock(spec=CavityBaseClass)
+        drift.section_index = 0
+        cavity.section_index = 0
+        self.ring.add_elements((drift, cavity))
+        self.assertEqual(123, self.ring.effective_circumference)
+
+    def test_effective_circumference2(self):
+        drift = Mock(spec=DriftBaseClass)
+        drift.effective_length = 123
+        drift2 = Mock(spec=DriftBaseClass)
+        drift2.effective_length = 123
+        cavity = Mock(spec=CavityBaseClass)
+        drift.section_index = 0
+        drift2.section_index = 0
+        cavity.section_index = 0
+        self.ring.add_elements((drift, drift2, cavity))
+        self.assertEqual(2 * 123, self.ring.effective_circumference)
+
+    def test_assert_circumference(self):
+        with self.assertRaises(AssertionError):
+            drift = Mock(spec=DriftBaseClass)
+            drift.effective_length = 123
+            drift2 = Mock(spec=DriftBaseClass)
+            drift2.effective_length = 123
+            cavity = Mock(spec=CavityBaseClass)
+            drift.section_index = 0
+            drift2.section_index = 0
+            cavity.section_index = 0
+            self.ring.add_elements((drift, drift2, cavity))
+            self.ring.assert_circumference(12)  # fails
+        self.ring.assert_circumference(2 * 123)  # works
+
+    def test_add_drifts(self):
+        self.ring.add_drifts(12, 3, 129)
+        self.assertEqual(3 * 12, self.ring.elements.n_elements)
+        self.assertEqual(3, self.ring.elements.n_sections)
+        self.ring.assert_circumference(129)  # works
 
 
 if __name__ == "__main__":

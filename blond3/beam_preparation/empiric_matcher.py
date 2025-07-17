@@ -12,12 +12,13 @@ from blond3.acc_math.empiric.hammiltonian import calc_hamiltonian, separatrixes
 from blond3.beam_preparation.base import MatchingRoutine
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Type
     from blond3._core.beam.base import BeamBaseClass
     from numpy.typing import NDArray as NumpyArray
 
 
 def populate_beam(
-    beam: BeamBaseClass,
+    beam: Type[BeamBaseClass],
     time_grid: NumpyArray,
     deltaE_grid: NumpyArray,
     density_grid: NumpyArray,
@@ -90,7 +91,7 @@ def _normalize_as_density(hamilton_2D: NumpyArray):
     h_levels = separatrixes(hamilton_2D=hamilton_2D)
     h_max = np.max(h_levels)
 
-    density = hamilton_2D.copy() # TODO better inplace for memory?
+    density = hamilton_2D.copy()  # TODO better inplace for memory?
 
     density[density > h_max] = h_max
     density[density > h_max] -= h_max
@@ -152,7 +153,7 @@ class EmpiricMatcher(MatchingRoutine):
     def prepare_beam(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
     ) -> None:
         """
         Carries out the empiric matching
@@ -173,6 +174,8 @@ class EmpiricMatcher(MatchingRoutine):
             simulation=simulation,
             beam=beam,
         )
+        reference_time = deepcopy(beam.reference_time)
+        reference_total_energy = deepcopy(beam.reference_total_energy)
 
         time_grid, deltaE_grid = np.meshgrid(self._grid_base_dt, self._grid_base_dE)
         shape_2d = time_grid.shape
@@ -183,8 +186,8 @@ class EmpiricMatcher(MatchingRoutine):
         beam_gridded.setup_beam(
             dt=dt_flat_init.copy(),
             dE=dE_flat_init.copy(),
-            reference_time=users_beam.reference_time,
-            # reference_total_energy=users_beam.reference_total_energy,
+            reference_time=reference_time,
+            reference_total_energy=reference_total_energy,
             # flags=None # TODO
         )
         simulation.intensity_effect_manager.set_wakefields(False)
@@ -207,6 +210,8 @@ class EmpiricMatcher(MatchingRoutine):
         plt.matshow(hamilton_2D)
         plt.colorbar()
         plt.show()
+        users_beam.reference_total_energy = reference_total_energy
+        users_beam.reference_time = reference_time
         populate_beam(
             beam=users_beam,
             time_grid=time_grid,
@@ -215,6 +220,7 @@ class EmpiricMatcher(MatchingRoutine):
             n_macroparticles=self._n_macroparticles,
             seed=self._seed,
         )
+
         simulation.intensity_effect_manager.set_wakefields(active=True)
         for i in range(self._maxiter):
             simulation.intensity_effect_manager.set_profiles(active=True)
@@ -228,6 +234,13 @@ class EmpiricMatcher(MatchingRoutine):
             )
             # apply the same intensity effects of users_beam to beam_gridded
             simulation.intensity_effect_manager.set_profiles(active=False)
+            beam_gridded.setup_beam(
+                dt=dt_flat_init.copy(),
+                dE=dE_flat_init.copy(),
+                reference_time=users_beam.reference_time,
+                # reference_total_energy=users_beam.reference_total_energy,
+                # flags=None # TODO
+            )
             simulation.run_simulation(
                 beams=(beam_gridded,),
                 n_turns=1,
@@ -244,6 +257,8 @@ class EmpiricMatcher(MatchingRoutine):
                 maxiter=10,
             )
             hamilton_2D = _normalize_as_density(hamilton_2D)
+            users_beam.reference_total_energy = reference_total_energy
+            users_beam.reference_time = reference_time
             populate_beam(
                 beam=users_beam,
                 time_grid=time_grid,
@@ -252,5 +267,6 @@ class EmpiricMatcher(MatchingRoutine):
                 n_macroparticles=self._n_macroparticles,
                 seed=self._seed,
             )
+
         simulation.intensity_effect_manager.set_wakefields(active=True)
         simulation.intensity_effect_manager.set_profiles(active=True)

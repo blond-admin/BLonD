@@ -12,9 +12,7 @@ from .._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional as LateInit
-    from typing import (
-        Optional,
-    )
+    from typing import Optional, Type
 
     from numpy.typing import NDArray as NumpyArray
 
@@ -76,7 +74,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
         n_turns: int,
         turn_i_init: int,
         **kwargs,
@@ -233,7 +231,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         reference_energy_change = target_total_energy - beam.reference_total_energy
         self._omega = self.calc_omega(
             beam_beta=beam.reference_beta,
-            ring_circumference=self._ring.circumference,
+            ring_circumference=self._ring.effective_circumference,
         )
         backend.specials.kick_single_harmonic(
             dt=beam.read_partial_dt(),
@@ -338,7 +336,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         mhc.harmonic = backend.float(harmonic)
 
         ring = Mock(Ring)
-        ring.circumference = backend.float(circumference)
+        ring.effective_circumference = backend.float(circumference)
 
         energy_cycle = Mock(ConstantMagneticCycle)
         energy_cycle.get_target_total_energy.return_value = total_energy
@@ -518,7 +516,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         mhc.harmonic = harmonic
 
         ring = Mock(Ring)
-        ring.circumference = circumference
+        ring.effective_circumference = circumference
 
         energy_cycle = Mock(ConstantMagneticCycle)
         energy_cycle.get_target_total_energy.return_value = total_energy
@@ -557,7 +555,7 @@ class MultiHarmonicCavity(CavityBaseClass):
 
         omega_rf = self.calc_omega(
             beam_beta=beam.reference_beta,
-            ring_circumference=self._ring.circumference,
+            ring_circumference=self._ring.effective_circumference,
         )
         self._omega = omega_rf
 

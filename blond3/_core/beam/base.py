@@ -15,7 +15,7 @@ from ..._core.backends.backend import backend
 from ..._core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional
+    from typing import Optional, Type
     from .particle_types import ParticleType
     from ..simulation.simulation import Simulation
 
@@ -70,7 +70,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
         n_turns: int,
         turn_i_init: int,
         **kwargs,

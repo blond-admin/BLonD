@@ -12,7 +12,7 @@ from .._core.base import BeamPhysicsRelevant
 from .._core.helpers import int_from_float_with_warning
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional as LateInit, Optional
+    from typing import Optional as LateInit, Optional, Type
 
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
@@ -57,7 +57,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
         n_turns: int,
         turn_i_init: int,
         **kwargs,

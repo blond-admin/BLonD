@@ -18,6 +18,7 @@ from ... import Simulation
 from ..._core.backends.backend import backend
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Type
     from ..._core.beam.base import BeamBaseClass
 
 
@@ -50,7 +51,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         self,
         freq_x: NumpyArray,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
     ) -> NumpyArray:
         """
         Return the impedance in the frequency domain.
@@ -83,7 +84,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         impedance
             Complex impedance array.
         """
-        T = simulation.ring.circumference / beam.reference_velocity
+        T = simulation.ring.effective_circumference / beam.reference_velocity
         z_over_n = self.Z_over_n
         derivative_kernel = self._get_derivative_impedance(freq_x)
         return derivative_kernel[:] / (2 * np.pi) * z_over_n * T
@@ -118,7 +119,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         self,
         time: NumpyArray,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
     ) -> NumpyArray:
         """
         Get impedance equivalent to the partial wake in time domain
@@ -202,7 +203,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         self,
         time: NumpyArray,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
     ) -> NumpyArray:
         """
         Get impedance equivalent to the partial single-particle-wake in
@@ -253,7 +254,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         self,
         freq_x: NumpyArray,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
     ) -> NumpyArray:
         """
         Return the impedance in the frequency domain.
@@ -336,7 +337,7 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
         self,
         freq_x: NumpyArray,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
     ) -> NumpyArray:
         """
         Return the impedance in the frequency domain.
@@ -440,7 +441,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         self,
         time: NumpyArray,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
     ) -> NumpyArray:
         """
         Get impedance equivalent to the partial single-particle-wake in

@@ -8,7 +8,7 @@ from ..._core.base import BeamPhysicsRelevant
 from ..._core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional as LateInit, Tuple, Optional
+    from typing import Optional as LateInit, Tuple, Optional, Type
 
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
@@ -41,7 +41,7 @@ class TimeDomain(ABC):
         self,
         time: NumpyArray,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
     ) -> NumpyArray:
         """
         Get impedance equivalent to the partial wake in time domain
@@ -70,7 +70,7 @@ class FreqDomain(ABC):
         self,
         freq_x: NumpyArray,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
     ) -> NumpyArray:
         """
         Return the impedance in the frequency domain.
@@ -118,7 +118,7 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
         n_turns: int,
         turn_i_init: int,
         **kwargs,

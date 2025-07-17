@@ -21,9 +21,7 @@ from blond3 import (
 import logging
 
 logging.basicConfig(level=logging.INFO)
-ring = Ring(
-    circumference=26658.883,
-)
+ring = Ring()
 
 cavity1 = SingleHarmonicCavity()
 cavity1.harmonic = 35640
@@ -38,7 +36,7 @@ energy_cycle = MagneticCyclePerTurn(
 )
 
 drift1 = DriftSimple(
-    share_of_circumference=1.0,
+    effective_length=26658.883,
 )
 drift1.transition_gamma = 55.759505
 beam1 = Beam(n_particles=1e9, particle_type=proton)

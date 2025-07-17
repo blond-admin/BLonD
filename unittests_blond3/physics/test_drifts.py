@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 import numpy as np
 
 from blond3 import Simulation
-from blond3._core.backends.backend import backend
+from blond3._core.backends.backend import backend, Numpy64Bit, Numpy32Bit
 from blond3._core.beam.base import BeamBaseClass
 from blond3.physics.drifts import DriftBaseClass, DriftSimple
 from scipy.constants import speed_of_light as c0
@@ -13,7 +13,7 @@ from scipy.constants import speed_of_light as c0
 class TestDriftBaseClass(unittest.TestCase):
     def setUp(self):
         self.drift_base_class = DriftBaseClass(
-            share_of_circumference=123, section_index=0
+            effective_length=123, section_index=0
         )
 
     def test___init__(self):
@@ -30,23 +30,23 @@ class TestDriftBaseClass(unittest.TestCase):
             beam=Mock(BeamBaseClass),
         )
 
-    def test_share_of_circumference(self):
-        self.assertEqual(123, self.drift_base_class.share_of_circumference)
+    def test_effective_length(self):
+        self.assertEqual(123, self.drift_base_class.effective_length)
 
 
 class TestDriftSimple(unittest.TestCase):
     def setUp(self):
+        backend.change_backend(Numpy64Bit)
         self.gamma = 2.5
         self.drift_simple = DriftSimple.headless(
             transition_gamma=20.0,  # highly relativistic
-            share_of_circumference=0.25,
+            effective_length=0.25*25,
             section_index=0,
-            circumference=25,
         )
 
     def test___init__(self):
         np.testing.assert_array_equal(self.drift_simple.transition_gamma, 20.0)
-        self.assertEqual(self.drift_simple.share_of_circumference, 0.25)
+        self.assertEqual(self.drift_simple.effective_length, 0.25*25)
 
     def test_transition_gamma(self):
         np.testing.assert_array_equal(self.drift_simple.transition_gamma, 20.0)
@@ -77,7 +77,7 @@ class TestDriftSimple(unittest.TestCase):
         from blond3._core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
-        simulation.ring.circumference = 10
+        simulation.ring.effective_circumference = 10
         self.drift_simple.on_init_simulation(simulation=simulation)
 
     def test_track(self):
@@ -119,9 +119,11 @@ class TestDriftSimple(unittest.TestCase):
         )
         self.assertEqual(
             beam.reference_time,
-            self.drift_simple.length / (0.5 * c0),  # drifted by length of drift
+            self.drift_simple.effective_length / (0.5 * c0),  # drifted by length of drift
         )
 
+    def tearDown(self):
+        backend.change_backend(Numpy32Bit)
 
 class TestDriftSpecial(unittest.TestCase):
     @unittest.skip

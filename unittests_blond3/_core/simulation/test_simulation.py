@@ -19,7 +19,6 @@ from blond3.handle_results.observables import Observables, BunchObservation
 class TestSimulation(unittest.TestCase):
     def setUp(self):
         ring = Ring(
-            circumference=26658.883,
         )
 
         cavity1 = SingleHarmonicCavity()
@@ -35,7 +34,7 @@ class TestSimulation(unittest.TestCase):
         )
 
         drift1 = DriftSimple(
-            share_of_circumference=1.0,
+            effective_length=26658.883,
         )
         drift1.transition_gamma = 55.759505
 

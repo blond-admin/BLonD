@@ -10,7 +10,7 @@ from .base import BeamBaseClass, BeamFlags
 from ..backends.backend import backend
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional
+    from typing import Optional, Type
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
@@ -95,7 +95,7 @@ class Beam(BeamBaseClass):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
         n_turns: int,
         turn_i_init: int,
         **kwargs,

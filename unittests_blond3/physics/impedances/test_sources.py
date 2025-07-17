@@ -61,7 +61,7 @@ class TestInductiveImpedance(unittest.TestCase):
 
     def test_get_freq_y(self):
         simulation = Mock(Simulation)
-        simulation.ring.circumference = 27e3
+        simulation.ring.effective_circumference = 27e3
         beam = Mock(BeamBaseClass)
         beam.reference_velocity = 0.8 / c0
         freq_x = np.linspace(0, 1e9, 30)

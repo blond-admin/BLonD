@@ -5,50 +5,34 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ..backends.backend import backend
 from ..base import (
     BeamPhysicsRelevant,
     Preparable,
     Schedulable,
 )
-from ..beam.base import BeamBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Iterable, Optional
+    from typing import (
+        Iterable,
+        Optional,
+        Type,
+    )
     from .beam_physics_relevant_elements import BeamPhysicsRelevantElements
+    from ...physics.drifts import DriftBaseClass
+    from ..beam.base import BeamBaseClass
 
     from ..simulation.simulation import Simulation
 
 
 class Ring(Preparable, Schedulable):
-    _bending_radius: np.float32 | np.float64
-    _circumference: np.float32 | np.float64
-
     def __init__(
         self,
-        circumference: float,
-        bending_radius: Optional[float] = None,
     ) -> None:
-        """Ring a.k.a. synchrotron
-
-        Parameters
-        ----------
-        circumference
-            Synchrotron circumference in [m]
-        bending_radius
-            Optional bending radius in [m]
-            If not specified, ring will be assumed perfectly round.
-        """
+        """Ring a.k.a. synchrotron"""
         from .beam_physics_relevant_elements import BeamPhysicsRelevantElements
-
-        if bending_radius is None:
-            bending_radius = circumference / (2 * np.pi)
 
         super().__init__()
         self._elements = BeamPhysicsRelevantElements()
-
-        self._circumference = backend.float(circumference)
-        self._bending_radius = backend.float(bending_radius)
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
@@ -56,16 +40,7 @@ class Ring(Preparable, Schedulable):
 
         simulation
             Simulation context manager"""
-        from ...physics.drifts import DriftBaseClass  # prevent cyclic import
 
-        all_drifts = self.elements.get_elements(DriftBaseClass)
-        sum_share_of_circumference = sum(
-            [drift.share_of_circumference for drift in all_drifts]
-        )
-        assert sum_share_of_circumference == 1, (
-            f"{sum_share_of_circumference=}, but should be 1. It seems the "
-            f"drifts are not correctly configured."
-        )
         assert len(self.elements.get_sections_indices()) == self.n_cavities, (
             f"{len(self.elements.get_sections_indices())=}, " f"but {self.n_cavities=}"
         )
@@ -74,7 +49,7 @@ class Ring(Preparable, Schedulable):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: Type[BeamBaseClass],
         n_turns: int,
         turn_i_init: int,
         **kwargs,
@@ -100,25 +75,75 @@ class Ring(Preparable, Schedulable):
         return self.elements.count(CavityBaseClass)
 
     @property  # as readonly attributes
-    def bending_radius(self):
-        """Bending radius in [m]"""
-        return self._bending_radius
-
-    @property  # as readonly attributes
     def elements(self) -> BeamPhysicsRelevantElements:
         """Bending radius in [m]"""
 
         return self._elements
 
     @property  # as readonly attributes
-    def circumference(self):
+    def effective_circumference(self):
         """Synchrotron circumference in [m]"""
-        return self._circumference
+        from ...physics.drifts import DriftBaseClass
+
+        all_drifts = self.elements.get_elements(DriftBaseClass)
+        effective_length = sum([drift.effective_length for drift in all_drifts])
+        return effective_length
 
     @property
     def section_lengths(self):
         """Length of each section in [m]"""
-        return self.circumference * self.elements.get_section_circumference_shares()
+        return self.elements.get_sections_effective_length()
+
+    def assert_circumference(
+        self,
+        circumference: float,
+        atol: float = 1e-6,
+    ) -> None:
+        """
+        Checks that the sum of all drifts is equal to the circumference
+
+        Parameters
+        ----------
+        circumference
+            The circumference that should be inside the simulation, in [m]
+        atol
+            The tolerance of the check, in [m]
+
+        Raises
+        ------
+        AssertionError
+            If circumference != effective_circumference
+
+        """
+        assert np.isclose(
+            self.effective_circumference,
+            circumference,
+            atol=atol,
+        ), f"{self.effective_circumference=}m, but should be {circumference}m."
+
+    def add_drifts(
+        self,
+        n_drifts_per_section: int,
+        n_sections: int,
+        total_effective_length: float,
+        driftclass: Type[DriftBaseClass] | None = None,
+        **kwargs_drift,
+    ):
+        if driftclass is None:
+            from ... import DriftSimple  # prevent cyclic import
+
+            driftclass = DriftSimple
+
+        n_drifts = n_drifts_per_section * n_sections
+        length_per_drift = total_effective_length / n_drifts
+        for section_i in range(n_sections):
+            for drift_i in range(n_drifts_per_section):
+                drift = driftclass(
+                    effective_length=length_per_drift,
+                    section_index=section_i,
+                    **kwargs_drift,
+                )
+                self.elements.add_element(drift)
 
     def add_element(
         self,
