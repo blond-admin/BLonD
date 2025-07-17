@@ -7,11 +7,11 @@ import numpy as np
 from scipy.constants import e, c, m_e
 
 from blond3 import Simulation
-from blond3._core.base import BeamPhysicsRelevant, Schedulable, DynamicParameter
-from blond3._core.beam.base import BeamBaseClass
+from .._core.base import BeamPhysicsRelevant, Schedulable, DynamicParameter
+from .._core.beam.base import BeamBaseClass
 from typing import TYPE_CHECKING
 
-from cycles.energy_cycle import EnergyCycleBase
+from ..cycles.energy_cycle import EnergyCycleBase
 
 if TYPE_CHECKING:
     from typing import Optional, Optional as LateInit
@@ -25,7 +25,6 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
     """Master class for handling synchrotron radiation along the ring.
     To be described better #fixme
     """
-
     def __init__(
         self,
         section_index: int = 0,
@@ -36,7 +35,6 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
             section_index=section_index,
             name=name,
         )
-
         self._energy_loss_per_turn = None
         self.is_isomagnetic: Optional[bool] = False
         self.get_synchrotron_radiation_info_turn_by_turn: Optional[bool] = True
@@ -75,14 +73,15 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
             )
         else:
             from drifts import DriftBaseClass
-            drifts_list = self._simulation.ring.get_elements(DriftBaseClass)
+            drifts_list = self._simulation.ring.elements.get_elements(
+                DriftBaseClass)
             number_of_sections = drifts_list[-1].section_index
             if element_type == "drift":
                 from drifts import DriftBaseClass
                 elements_list = drifts_list
             elif element_type == "cavity":
                 from cavities import CavityBaseClass
-                elements_list = self._simulation.ring.get_elements(CavityBaseClass)
+                elements_list = self._simulation.ring.elements.get_elements(CavityBaseClass)
             else:
                 elements_list = np.arange(number_of_sections)
                 s_list = self._simulation.ring.section_lengths #
