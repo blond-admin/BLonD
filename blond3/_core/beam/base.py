@@ -205,27 +205,27 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     @cached_property
     @abstractmethod  # as readonly attributes
     def dt_min(self) -> backend.float:
-        """Minimum dt coordinate in [s]"""
+        """Minimum dt coordinate, in [s]"""
 
         pass
 
     @cached_property
     @abstractmethod  # as readonly attributes
     def dt_max(self) -> backend.float:
-        """Maximum dt coordinate in [s]"""
+        """Maximum dt coordinate, in [s]"""
 
         pass
 
     @cached_property
     @abstractmethod  # as readonly attributes
     def dE_min(self) -> backend.float:
-        """Minimum dE coordinate in [eV]"""
+        """Minimum dE coordinate, in [eV]"""
         pass
 
     @cached_property
     @abstractmethod  # as readonly attributes
     def dE_max(self) -> backend.float:
-        """Maximum dE coordinate in [eV]"""
+        """Maximum dE coordinate, in [eV]"""
         pass
 
     @cached_property

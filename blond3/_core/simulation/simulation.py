@@ -489,7 +489,7 @@ class Simulation(Preparable, HasPropertyCache):
             MultiHarmonicCavity,
         )
 
-        ring_length = self.ring.effective_circumference
+        ring_length = self.ring.closed_orbit_length
         bending_radius = self.ring.bending_radius
         drift = self.ring.elements.get_element(DriftBaseClass)
         alpha_0 = drift.alpha_0

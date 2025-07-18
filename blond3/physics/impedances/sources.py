@@ -35,7 +35,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         Parameters
         ----------
         Z_over_n : float or array-like
-            Constant imaginary Z/n = (Z * f /f0) impedance in [Ω].
+            Constant imaginary Z/n = (Z * f /f0) impedance, in [Ω].
             Can be a scalar or a turn-indexed array.
         """
         super().__init__(is_dynamic=True)
@@ -84,7 +84,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         impedance
             Complex impedance array.
         """
-        T = simulation.ring.effective_circumference / beam.reference_velocity
+        T = simulation.ring.closed_orbit_length / beam.reference_velocity
         z_over_n = self.Z_over_n
         derivative_kernel = self._get_derivative_impedance(freq_x)
         return derivative_kernel[:] / (2 * np.pi) * z_over_n * T

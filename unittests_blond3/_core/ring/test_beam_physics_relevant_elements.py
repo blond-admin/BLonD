@@ -23,7 +23,7 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
     def setUp(self):
         self.beam_physics_relevant_elements = BeamPhysicsRelevantElements()
         element1 = Mock(spec=DriftBaseClass)
-        element1.effective_length = 0.5
+        element1.orbit_length = 0.5
         element1.section_index = 0
         element1.name = "element1"
         self.beam_physics_relevant_elements.add_element(element1)
@@ -34,7 +34,7 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         self.beam_physics_relevant_elements.add_element(element2)
 
         element3 = Mock(spec=DriftBaseClass)
-        element3.effective_length = 0.5
+        element3.orbit_length = 0.5
         element3.section_index = 1
         element3.name = "element3"
         self.beam_physics_relevant_elements.add_element(element3)
@@ -116,12 +116,12 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
     def test_get_order_info(self):
         self.beam_physics_relevant_elements.get_order_info()
 
-    def test_get_section_circumference_effective_lengths(self):
-        effective_length = (
-            self.beam_physics_relevant_elements.get_sections_effective_length()
+    def test_get_section_circumference_orbit_lengths(self):
+        orbit_length = (
+            self.beam_physics_relevant_elements.get_sections_orbit_length()
         )
-        self.assertEqual(effective_length[0], 0.5)
-        self.assertEqual(effective_length[1], 0.5)
+        self.assertEqual(orbit_length[0], 0.5)
+        self.assertEqual(orbit_length[1], 0.5)
 
     def test_get_sections_indices(self):
         indices = self.beam_physics_relevant_elements.get_sections_indices()

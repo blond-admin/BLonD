@@ -96,9 +96,10 @@ def _normalize_as_density(hamilton_2D: NumpyArray):
     density[density > h_max] = h_max
     density[density > h_max] -= h_max
     density = -(density**2)
-    density -= np.max(density)
-    density *= -1
+    density -= np.min(density)
+    #density *= -1
     density /= np.sum(density)
+
     return density
 
 
@@ -109,7 +110,9 @@ class EmpiricMatcher(MatchingRoutine):
         grid_base_dE: NumpyArray,
         n_macroparticles: int | float,
         seed: int = 0,
-        maxiter=10,
+        maxiter_intensity_effects=10,
+        maxiter_hammiltonian=20,
+        atol_hammiltonian=1e-4,
     ):
         """
         Matching routine based on the particle movement within one turn
@@ -129,7 +132,7 @@ class EmpiricMatcher(MatchingRoutine):
         seed
             Random seed, to make function with same seed
             always return the same value
-        maxiter
+        maxiter_intensity_effects
             Maximum number of iterations to refine the matched beam
             for intensity effects
         """
@@ -145,10 +148,12 @@ class EmpiricMatcher(MatchingRoutine):
             seed,
             warning_stacklevel=2,
         )
-        self._maxiter = int_from_float_with_warning(
-            maxiter,
+        self._maxiter_intensity_effects = int_from_float_with_warning(
+            maxiter_intensity_effects,
             warning_stacklevel=2,
         )
+        self._maxiter_hammiltonian = maxiter_hammiltonian
+        self._atol_hammiltonian = atol_hammiltonian
 
     def prepare_beam(
         self,
@@ -204,12 +209,10 @@ class EmpiricMatcher(MatchingRoutine):
             beam_gridded._dE.reshape(shape_2d),
             time_grid,
             beam_gridded._dt.reshape(shape_2d),
-            maxiter=10,
+            maxiter=self._maxiter_hammiltonian,
+            atol=self._atol_hammiltonian,
         )
         hamilton_2D = _normalize_as_density(hamilton_2D)
-        plt.matshow(hamilton_2D)
-        plt.colorbar()
-        plt.show()
         users_beam.reference_total_energy = reference_total_energy
         users_beam.reference_time = reference_time
         populate_beam(
@@ -220,9 +223,11 @@ class EmpiricMatcher(MatchingRoutine):
             n_macroparticles=self._n_macroparticles,
             seed=self._seed,
         )
+        plt.hist2d(users_beam._dt, users_beam._dE, bins=100)
+        plt.show()
 
         simulation.intensity_effect_manager.set_wakefields(active=True)
-        for i in range(self._maxiter):
+        for i in range(self._maxiter_intensity_effects):
             simulation.intensity_effect_manager.set_profiles(active=True)
             simulation.run_simulation(
                 beams=(users_beam,),
@@ -254,7 +259,8 @@ class EmpiricMatcher(MatchingRoutine):
                 beam_gridded._dE.reshape(shape_2d),
                 time_grid,
                 beam_gridded._dt.reshape(shape_2d),
-                maxiter=10,
+                maxiter=self._maxiter_hammiltonian,
+                atol=self._atol_hammiltonian,
             )
             hamilton_2D = _normalize_as_density(hamilton_2D)
             users_beam.reference_total_energy = reference_total_energy
@@ -267,6 +273,8 @@ class EmpiricMatcher(MatchingRoutine):
                 n_macroparticles=self._n_macroparticles,
                 seed=self._seed,
             )
+            plt.hist2d(users_beam._dt, users_beam._dE, bins=100)
+            plt.show()
 
         simulation.intensity_effect_manager.set_wakefields(active=True)
         simulation.intensity_effect_manager.set_profiles(active=True)

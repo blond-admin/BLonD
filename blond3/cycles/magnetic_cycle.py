@@ -299,7 +299,7 @@ class ConstantMagneticCycle(MagneticCycleBase):
             - 'kinetic energy' [eV], or
             - 'bending field' [T]
         bending_radius
-            Bending radius in [m]
+            Bending radius, in [m]
 
         Returns
         -------
@@ -487,7 +487,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
             - 'kinetic energy' [eV], or
             - 'bending field' [T]
         bending_radius
-            Bending radius in [m]
+            Bending radius, in [m]
 
         Returns
         -------
@@ -673,7 +673,7 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
             - 'kinetic energy' [eV], or
             - 'bending field' [T]
         bending_radius
-            Bending radius in [m]
+            Bending radius, in [m]
 
         Returns
         -------
@@ -848,7 +848,7 @@ class MagneticCycleByTime(MagneticCycleBase):
             - 'kinetic energy' [eV], or
             - 'bending field' [T]
         bending_radius
-            Bending radius in [m]
+            Bending radius, in [m]
         interpolator
             Interpolation routine to get time in between the base values
             Default: `numpy.interp`

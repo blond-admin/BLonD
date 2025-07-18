@@ -527,7 +527,7 @@ class WakeFieldObservation(Observables):
     @property  # as readonly attributes
     def induced_voltage(self):
         """
-        Induced voltage in [V] from given beam profile and sources
+        Induced voltage, in [V] from given beam profile and sources
 
         Returns
         -------

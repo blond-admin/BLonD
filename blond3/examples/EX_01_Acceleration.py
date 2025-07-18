@@ -3,6 +3,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from blond3._core.backends.backend import backend, Numpy32Bit
+from blond3.beam_preparation.empiric_matcher import EmpiricMatcher
 from blond3.cycles.magnetic_cycle import MagneticCyclePerTurn
 
 backend.change_backend(Numpy32Bit)
@@ -17,6 +18,7 @@ from blond3 import (
     DriftSimple,
     BiGaussian,
     CavityPhaseObservation,
+    BunchObservation,
 )
 import logging
 
@@ -36,7 +38,7 @@ energy_cycle = MagneticCyclePerTurn(
 )
 
 drift1 = DriftSimple(
-    effective_length=26658.883,
+    orbit_length=26658.883,
 )
 drift1.transition_gamma = 55.759505
 beam1 = Beam(n_particles=1e9, particle_type=proton)
@@ -58,20 +60,22 @@ sim.prepare_beam(
 )
 de = 777538700.0 * 2
 dt = 1.8306269e-09
-"""sim.prepare_beam(
+sim.prepare_beam(
     preparation_routine=EmpiricMatcher(
-        grid_base_dt=np.linspace(0, 1.5 * dt, 100),
+        grid_base_dt=np.linspace(0, 2.5e-9, 100),
         grid_base_dE=np.linspace(-de, de, 100),
         n_macroparticles=1e6,
         seed=0,
+        maxiter_intensity_effects=0,
     ),
     beam=beam1,
 )
 plt.hist2d(beam1.read_partial_dt(), beam1.read_partial_dE(), bins=200)
 plt.show()
-"""
+
 
 phase_observation = CavityPhaseObservation(each_turn_i=1, cavity=cavity1)
+bunch_observation = BunchObservation(each_turn_i=1)
 
 
 # bunch_observation = BunchObservation(each_turn_i=10, batch_size=) # todo
@@ -97,8 +101,17 @@ except FileNotFoundError as exc:
         beams=(beam1,),
         turn_i_init=0,
         n_turns=N_TURNS,
-        observe=[phase_observation],
+        observe=[phase_observation, bunch_observation],
         # callback=custom_action,
     )
 plt.plot(phase_observation.phases)
-# plt.show()
+plt.figure()
+for i in range(N_TURNS):
+    plt.clf()
+    plt.hist2d(bunch_observation.dts[i, :], bunch_observation.dEs[i, :],
+               bins=256, range=[[0,
+            2.5e-9], [-4e8, 4e8]])
+    plt.draw()
+    plt.pause(0.1)
+
+plt.show()

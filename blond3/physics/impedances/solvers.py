@@ -72,14 +72,14 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         Returns
         -------
         induced_voltage
-            Induced voltage in [V]
+            Induced voltage, in [V]
         """
         ratio = beam.n_particles / beam.n_macroparticles_partial()
         factor = -(
             (beam.particle_type.charge * e)
             / (2 * np.pi)
             * ratio
-            * (self._simulation.ring.effective_circumference / beam.reference_velocity)
+            * (self._simulation.ring.closed_orbit_length / beam.reference_velocity)
             / self._parent_wakefield.profile.hist_step
         )
         diff = self._parent_wakefield.profile.diff_hist_y
@@ -92,8 +92,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
     Parameters
     ----------
     t_periodicity
-        Periodicity that is assumed for fast fourier transform
-        in [s]
+        Periodicity that is assumed for fast fourier transform, in [s]
     allow_next_fast_len
         Allow to slightly change `t_periodicity` for
         faster execution of fft via `scipy.fft.next_fast_len`
@@ -115,8 +114,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         Parameters
         ----------
         t_periodicity
-            Periodicity that is assumed for fast fourier transform
-            in [s]
+            Periodicity that is assumed for fast fourier transform, in [s]
         allow_next_fast_len
             Allow to slightly change `t_periodicity` for
             faster execution of fft via `scipy.fft.next_fast_len`
@@ -276,7 +274,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         Returns
         -------
         induced_voltage
-            Induced voltage in [V]
+            Induced voltage, in [V]
         """
         if self.expect_profile_change:
             # always trigger update
@@ -429,7 +427,7 @@ class TimeDomainSolver(WakeFieldSolver):
         Returns
         -------
         induced_voltage
-            Induced voltage in [V]
+            Induced voltage, in [V]
         """
         if self.expect_impedance_change:
             self._wake_imp_y_needs_update = True

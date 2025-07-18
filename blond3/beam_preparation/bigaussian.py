@@ -57,7 +57,7 @@ def _get_dE_from_dt(
     Returns
     -------
     dE_amplitude : float
-        Full amplitude of the particle oscillation in [eV]
+        Full amplitude of the particle oscillation, in [eV]
 
     """
     drift: DriftSimple = simulation.ring.elements.get_element(DriftSimple)
@@ -73,7 +73,7 @@ def _get_dE_from_dt(
     beta = beam.reference_beta
     omega_rf = rf_station.calc_omega(
         beam_beta=beam.reference_beta,
-        ring_circumference=simulation.ring.effective_circumference,
+        closed_orbit_length=simulation.ring.closed_orbit_length,
     )
     phi_rf = rf_station.phi_rf
     warnings.warn("assuming wrongly phi_s = phi_rf for development, " "to be resolved")
@@ -112,9 +112,9 @@ class BiGaussian(MatchingRoutine):
         n_macroparticles
             Number of macroparticles to be generated
         sigma_dt
-            Normal distribution length in [s]
+            Normal distribution length, in [s]
         sigma_dE
-            Normal distribution height in [eV]
+            Normal distribution height, in [eV]
         reinsertion
             If True, only particles within the separatrix are generated
         seed
@@ -171,7 +171,7 @@ class BiGaussian(MatchingRoutine):
 
         omega_rf = rf_station.calc_omega(
             beam_beta=beam.reference_beta,
-            ring_circumference=simulation.ring.effective_circumference,
+            closed_orbit_length=simulation.ring.closed_orbit_length,
         )
         phi_rf = rf_station.phi_rf
         phi_s = np.deg2rad(30 + 180)  # TODO rf_station.phi_s[counter]  # TODO

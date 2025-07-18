@@ -33,7 +33,7 @@ class TestSimulation(unittest.TestCase):
         )
 
         drift1 = DriftSimple(
-            effective_length=26658.883,
+            orbit_length=26658.883,
         )
         drift1.transition_gamma = 55.759505
 

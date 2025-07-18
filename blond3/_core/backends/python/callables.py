@@ -165,9 +165,9 @@ class PythonSpecials(Specials):
         dE
             Macro-particle energy coordinates [eV]
         voltage
-            Array of voltages along `bin_centers` in [V]
+            Array of voltages along `bin_centers`, in [V]
         bin_centers
-            Positions of `voltage` in [s]
+            Positions of `voltage`, in [s]
         charge
             Particle charge, as number of elementary charges `e` []
         acceleration_kick

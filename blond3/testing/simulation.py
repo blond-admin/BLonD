@@ -38,7 +38,7 @@ class ExampleSimulation01:
         )
 
         drift1 = DriftSimple(
-            effective_length=26658.883,
+            orbit_length=26658.883,
         )
         drift1.transition_gamma = (55.759505,)
 
@@ -124,12 +124,12 @@ class SimulationTwoRfStations:
         )
 
         drift1 = DriftSimple(
-            effective_length=0.5 * circumference,
+            orbit_length=0.5 * circumference,
             section_index=0,
         )
         drift1.transition_gamma = 55.759505
         drift2 = DriftSimple(
-            effective_length=0.5 * circumference,
+            orbit_length=0.5 * circumference,
             section_index=1,
         )
         drift2.transition_gamma = 55.759505

@@ -63,8 +63,6 @@ uranium_29 = ParticleType(
     charge=29,
 )
 
-cl_csa = proton.classical_particle_radius
-
 electron = ParticleType(
     mass=m_e * c**2 / e,
     charge=-1,

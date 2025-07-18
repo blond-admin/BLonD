@@ -38,17 +38,17 @@ energy_cycle = MagneticCyclePerTurn(
 )
 
 drift1 = DriftSimple(
-    effective_length=circumference / 3,
+    orbit_length=circumference / 3,
     section_index=0,
 )
 
 drift2 = DriftSimple(
-    effective_length=circumference / 3,
+    orbit_length=circumference / 3,
     section_index=1,
 )
 
 drift3 = DriftSimple(
-    effective_length=circumference / 3,
+    orbit_length=circumference / 3,
     section_index=1,
 )
 drift1.transition_gamma = 55.759505

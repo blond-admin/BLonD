@@ -77,7 +77,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
 
     @property  # as readonly attributes
     def hist_x(self) -> NumpyArray | CupyArray:
-        """x-axis of histogram in [s], i.e. `bin_centers`"""
+        """x-axis of histogram, in [s], i.e. `bin_centers`"""
         return self._hist_x
 
     @property  # as readonly attributes
@@ -154,7 +154,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         Returns
         -------
         hist_x
-            x-axis of histogram in [s], i.e. `bin_centers`
+            x-axis of histogram, in [s], i.e. `bin_centers`
         hist_y
             y-axis of histogram
         """
@@ -168,7 +168,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
 
     @property  # as readonly attributes
     def cutoff_frequency(self):
-        """Cutoff frequency if the profile is fourier transformed in [Hz]"""
+        """Cutoff frequency if the profile is fourier transformed, in [Hz]"""
         return backend.float(1 / (2 * self.hist_step))
 
     def _calc_gauss(self):
@@ -221,9 +221,9 @@ class StaticProfile(ProfileBaseClass):
         Parameters
         ----------
         cut_left
-            Left outer edge of the histogram in [s]
+            Left outer edge of the histogram, in [s]
         cut_right
-            Right outer edge of the histogram in [s]
+            Right outer edge of the histogram, in [s]
         n_bins
             Number of bins in the histogram
         section_index
@@ -251,7 +251,7 @@ class StaticProfile(ProfileBaseClass):
         cut_right
             Right outer edge of the histogram
         cutoff_frequency
-            Cutoff frequency if the profile is fourier transformed in [Hz]
+            Cutoff frequency if the profile is fourier transformed, in [Hz]
 
         Returns
         -------
@@ -273,13 +273,13 @@ class StaticProfile(ProfileBaseClass):
         Parameters
         ----------
         cut_left_rad
-            Left outer edge of the histogram in [rad]
+            Left outer edge of the histogram, in [rad]
         cut_right_rad
-            Right outer edge of the histogram in [rad]
+            Right outer edge of the histogram, in [rad]
         n_bins
             Number of bins in the histogram
         t_period
-            Period according to radian in [s]
+            Period according to radian, in [s]
 
         Returns
         -------
@@ -349,7 +349,7 @@ class DynamicProfileConstCutoff(DynamicProfile):
         Parameters
         ----------
         timestep
-            Time step in [s] to keep the cutoff constant
+            Time step, in [s] to keep the cutoff constant
         section_index
             Section index to group elements into sections
         name

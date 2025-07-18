@@ -20,7 +20,7 @@ if TYPE_CHECKING:  # pragma: no cover
 class DriftBaseClass(BeamPhysicsRelevant, ABC):
     def __init__(
         self,
-        effective_length: float,
+        orbit_length: float,
         section_index: int = 0,
     ):
         """
@@ -28,8 +28,8 @@ class DriftBaseClass(BeamPhysicsRelevant, ABC):
 
         Parameters
         ----------
-        effective_length
-            Length of drift in [m].
+        orbit_length
+            Length of drift, in [m].
             Length / Velocity => Time to pass the element
         section_index
             Section index to group elements into sections
@@ -37,7 +37,7 @@ class DriftBaseClass(BeamPhysicsRelevant, ABC):
         """
         super().__init__(section_index=section_index)
 
-        self.effective_length = effective_length
+        self.orbit_length = orbit_length
 
     def track(self, beam: BeamBaseClass) -> None:
         """Main simulation routine to be called in the mainloop
@@ -85,8 +85,8 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
 
     Parameters
     ----------
-    effective_length
-        Length of drift in [m]
+    orbit_length
+        Length of drift, in [m]
     section_index
         Section index to group elements into sections
 
@@ -94,7 +94,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
 
     def __init__(
         self,
-        effective_length: float,
+        orbit_length: float,
         section_index: int = 0,
     ):
         """
@@ -102,8 +102,8 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
 
         Parameters
         ----------
-        effective_length
-            Length of drift in [m].
+        orbit_length
+            Length of drift, in [m].
             Length / Velocity => Time to pass the element
         section_index
             Section index to group elements into sections
@@ -111,7 +111,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         """
 
         super().__init__(
-            effective_length=effective_length,
+            orbit_length=orbit_length,
             section_index=section_index,
         )
 
@@ -140,7 +140,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
     @staticmethod
     def headless(
         transition_gamma: float | Iterable | Tuple[NumpyArray, NumpyArray],
-        effective_length: float,
+        orbit_length: float,
         section_index: int = 0,
     ) -> DriftSimple:
         """
@@ -151,8 +151,8 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         ----------
         transition_gamma
             Gamma of transition crossing
-        effective_length
-            Length of drift in [m].
+        orbit_length
+            Length of drift, in [m].
             Length / Velocity => Time to pass the element
         section_index
             Section index to group elements into sections
@@ -164,7 +164,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         from .._core.base import DynamicParameter
 
         d = DriftSimple(
-            effective_length=effective_length,
+            orbit_length=orbit_length,
             section_index=section_index,
         )
         d.transition_gamma = backend.float(transition_gamma)
@@ -212,7 +212,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
             turn_i=self._simulation.turn_i.value,
             reference_time=beam.reference_time,
         )
-        dt = backend.float(self.effective_length / beam.reference_velocity)
+        dt = backend.float(self.orbit_length / beam.reference_velocity)
         gamma = beam.reference_gamma
         eta_0 = self.alpha_0 - (1 / (gamma * gamma))
         backend.specials.drift_simple(

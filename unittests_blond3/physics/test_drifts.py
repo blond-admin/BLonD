@@ -12,7 +12,7 @@ from scipy.constants import speed_of_light as c0
 
 class TestDriftBaseClass(unittest.TestCase):
     def setUp(self):
-        self.drift_base_class = DriftBaseClass(effective_length=123, section_index=0)
+        self.drift_base_class = DriftBaseClass(orbit_length=123, section_index=0)
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
@@ -30,8 +30,8 @@ class TestDriftBaseClass(unittest.TestCase):
             beam=Mock(BeamBaseClass),
         )
 
-    def test_effective_length(self):
-        self.assertEqual(123, self.drift_base_class.effective_length)
+    def test_orbit_length(self):
+        self.assertEqual(123, self.drift_base_class.orbit_length)
 
 
 class TestDriftSimple(unittest.TestCase):
@@ -40,13 +40,13 @@ class TestDriftSimple(unittest.TestCase):
         self.gamma = 2.5
         self.drift_simple = DriftSimple.headless(
             transition_gamma=20.0,  # highly relativistic
-            effective_length=0.25 * 25,
+            orbit_length=0.25 * 25,
             section_index=0,
         )
 
     def test___init__(self):
         np.testing.assert_array_equal(self.drift_simple.transition_gamma, 20.0)
-        self.assertEqual(self.drift_simple.effective_length, 0.25 * 25)
+        self.assertEqual(self.drift_simple.orbit_length, 0.25 * 25)
 
     def test_transition_gamma(self):
         np.testing.assert_array_equal(self.drift_simple.transition_gamma, 20.0)
@@ -77,7 +77,7 @@ class TestDriftSimple(unittest.TestCase):
         from blond3._core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
-        simulation.ring.effective_circumference = 10
+        simulation.ring.closed_orbit_length = 10
         self.drift_simple.on_init_simulation(simulation=simulation)
 
     def test_track(self):
@@ -118,7 +118,7 @@ class TestDriftSimple(unittest.TestCase):
         )
         self.assertEqual(
             beam.reference_time,
-            self.drift_simple.effective_length
+            self.drift_simple.orbit_length
             / (0.5 * c0),  # drifted by length of drift
         )
 

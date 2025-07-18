@@ -5,30 +5,24 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-
 if TYPE_CHECKING:  # pragma: no cover
     from typing import (
-        Union,
         TypeVar,
     )
 
     T = TypeVar("T")
 
-    from numpy.typing import NDArray as NumpyArray
 
-    FloatOrArray = Union[float, NumpyArray]
-
-
-def calc_beta(mass: float, momentum: FloatOrArray) -> FloatOrArray:
+def calc_beta(mass: float, momentum: T) -> T:
     """
     Relativistic beta factor (v = beta * c0)
 
     Parameters
     ----------
     mass : float
-        Particle mass in [eV/c²]
+        Particle mass, in [eV/c²]
     momentum : float or NDArray
-        Particle momentum in [eV/c]
+        Particle momentum, in [eV/c]
 
     Returns
     -------
@@ -38,16 +32,16 @@ def calc_beta(mass: float, momentum: FloatOrArray) -> FloatOrArray:
     return np.sqrt(1 / (1 + (mass / momentum) ** 2))
 
 
-def calc_gamma(mass: float, momentum: FloatOrArray) -> FloatOrArray:
+def calc_gamma(mass: float, momentum: T) -> T:
     """
     Relativistic gamma factor (Lorentz factor)
 
     Parameters
     ----------
     mass : float
-        Particle mass in [eV/c²]
+        Particle mass, in [eV/c²]
     momentum : float or NDArray
-        Particle momentum in [eV/c]
+        Particle momentum, in [eV/c]
 
     Returns
     -------
@@ -58,40 +52,40 @@ def calc_gamma(mass: float, momentum: FloatOrArray) -> FloatOrArray:
     return np.sqrt(1 + (my_fraction * my_fraction))
 
 
-def calc_total_energy(mass: float, momentum: FloatOrArray) -> FloatOrArray:
+def calc_total_energy(mass: float, momentum: T) -> T:
     """
     Total relativistic energy of the particle
 
     Parameters
     ----------
     mass : float
-        Particle mass in [eV/c²]
+        Particle mass, in [eV/c²]
     momentum : float or NDArray
-        Particle momentum in [eV/c]
+        Particle momentum, in [eV/c]
 
     Returns
     -------
     energy : float or NDArray
-        Total relativistic energy in [eV]
+        Total relativistic energy, in [eV]
     """
     return np.sqrt(momentum * momentum + mass * mass)
 
 
-def calc_energy_kin(mass: float, momentum: FloatOrArray) -> FloatOrArray:
+def calc_energy_kin(mass: float, momentum: T) -> T:
     """
     Relativistic kinetic energy of the particle
 
     Parameters
     ----------
     mass : float
-        Particle mass in [eV/c²]
+        Particle mass, in [eV/c²]
     momentum : float or NDArray
-        Particle momentum in [eV/c]
+        Particle momentum, in [eV/c]
 
     Returns
     -------
     kinetic_energy : float or NDArray
-        Kinetic energy in [eV], defined as total energy - rest energy
+        Kinetic energy, in [eV], defined as total energy - rest energy
     """
     return calc_total_energy(mass, momentum) - mass
 

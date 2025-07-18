@@ -20,7 +20,7 @@ class TestRing(unittest.TestCase):
 
     def test_circumference(self):
         ring = Ring()
-        self.assertTrue(np.isclose(ring.effective_circumference, 0.0))
+        self.assertTrue(np.isclose(ring.closed_orbit_length, 0.0))
 
     def test_add_element_fails_no_section_index(self):
         with self.assertRaises(AssertionError):
@@ -144,31 +144,31 @@ class TestRing(unittest.TestCase):
 
     def test_effective_circumference(self):
         drift = Mock(spec=DriftBaseClass)
-        drift.effective_length = 123
+        drift.orbit_length = 123
         cavity = Mock(spec=CavityBaseClass)
         drift.section_index = 0
         cavity.section_index = 0
         self.ring.add_elements((drift, cavity))
-        self.assertEqual(123, self.ring.effective_circumference)
+        self.assertEqual(123, self.ring.closed_orbit_length)
 
     def test_effective_circumference2(self):
         drift = Mock(spec=DriftBaseClass)
-        drift.effective_length = 123
+        drift.orbit_length = 123
         drift2 = Mock(spec=DriftBaseClass)
-        drift2.effective_length = 123
+        drift2.orbit_length = 123
         cavity = Mock(spec=CavityBaseClass)
         drift.section_index = 0
         drift2.section_index = 0
         cavity.section_index = 0
         self.ring.add_elements((drift, drift2, cavity))
-        self.assertEqual(2 * 123, self.ring.effective_circumference)
+        self.assertEqual(2 * 123, self.ring.closed_orbit_length)
 
     def test_assert_circumference(self):
         with self.assertRaises(AssertionError):
             drift = Mock(spec=DriftBaseClass)
-            drift.effective_length = 123
+            drift.orbit_length = 123
             drift2 = Mock(spec=DriftBaseClass)
-            drift2.effective_length = 123
+            drift2.orbit_length = 123
             cavity = Mock(spec=CavityBaseClass)
             drift.section_index = 0
             drift2.section_index = 0

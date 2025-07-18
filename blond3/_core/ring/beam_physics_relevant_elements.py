@@ -98,7 +98,7 @@ class BeamPhysicsRelevantElements(Preparable):
             unique_section_indices.add(e.section_index)
         return tuple(sorted(unique_section_indices))
 
-    def get_sections_effective_length(self) -> NumpyArray:
+    def get_sections_orbit_length(self) -> NumpyArray:
         """
         Get `share_of_circumference` per section
 
@@ -113,7 +113,7 @@ class BeamPhysicsRelevantElements(Preparable):
         for section_i in sections:
             drifts = self.get_elements(DriftBaseClass, section_i=section_i)
             if len(drifts) > 0:
-                result[section_i] = sum([d.effective_length for d in drifts])
+                result[section_i] = sum([d.orbit_length for d in drifts])
             else:
                 result[section_i] = 0
         return result

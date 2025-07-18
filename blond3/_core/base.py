@@ -174,7 +174,7 @@ class Schedulable:
         turn_i
             Currently turn index
         reference_time
-            Current time in [s]
+            Current time, in [s]
         """
         for attribute, schedule in self.schedules.items():
             self.__setattr__(
@@ -237,7 +237,7 @@ class _Scheduled:
         turn_i
             Currently turn index
         reference_time
-            Current time in [s]
+            Current time, in [s]
         """
         pass
 
@@ -269,7 +269,7 @@ class ScheduledConstant(_Scheduled):
         turn_i
             Currently turn index
         reference_time
-            Current time in [s]
+            Current time, in [s]
         """
         return self.value
 
@@ -299,7 +299,7 @@ class ScheduledArray(_Scheduled):
         turn_i
             Currently turn index
         reference_time
-            Current time in [s]
+            Current time, in [s]
         """
 
         return self.values[turn_i]
@@ -325,7 +325,7 @@ class ScheduledInterpolation(_Scheduled):
         turn_i
             Currently turn index
         reference_time
-            Current time in [s]
+            Current time, in [s]
         """
         return np.interp(reference_time, self.times, self.values)
 

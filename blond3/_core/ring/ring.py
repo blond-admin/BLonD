@@ -76,23 +76,23 @@ class Ring(Preparable, Schedulable):
 
     @property  # as readonly attributes
     def elements(self) -> BeamPhysicsRelevantElements:
-        """Bending radius in [m]"""
+        """Bending radius, in [m]"""
 
         return self._elements
 
     @property  # as readonly attributes
-    def effective_circumference(self):
-        """Synchrotron circumference in [m]"""
+    def closed_orbit_length(self):
+        """Length of the closed orbit, in [m]"""
         from ...physics.drifts import DriftBaseClass
 
         all_drifts = self.elements.get_elements(DriftBaseClass)
-        effective_length = sum([drift.effective_length for drift in all_drifts])
-        return effective_length
+        orbit_length = sum([drift.orbit_length for drift in all_drifts])
+        return orbit_length
 
     @property
     def section_lengths(self):
-        """Length of each section in [m]"""
-        return self.elements.get_sections_effective_length()
+        """Length of each section, in [m]"""
+        return self.elements.get_sections_orbit_length()
 
     def assert_circumference(
         self,
@@ -116,30 +116,50 @@ class Ring(Preparable, Schedulable):
 
         """
         assert np.isclose(
-            self.effective_circumference,
+            self.closed_orbit_length,
             circumference,
             atol=atol,
-        ), f"{self.effective_circumference=}m, but should be {circumference}m."
+        ), f"{self.closed_orbit_length=}m, but should be {circumference}m."
 
     def add_drifts(
         self,
         n_drifts_per_section: int,
         n_sections: int,
-        total_effective_length: float,
+        total_orbit_length: float,
         driftclass: Type[DriftBaseClass] | None = None,
         **kwargs_drift,
-    ):
+    )-> None:
+        """
+        Add several drifts to the different sections
+
+
+        Parameters
+        ----------
+        n_drifts_per_section
+            Number of drifts per section
+        n_sections
+            Total number of sections to populate with drifts
+        total_orbit_length
+            The total length, i.e. the sum of all drift lengths, in [m].
+            Each drift will have the same fraction of the total length.
+        driftclass
+            Drift class to be used.
+        kwargs_drift
+            Additional parameters to initialize the `driftclass`.
+            Optional, only if `driftclass` supports it.
+
+        """
         if driftclass is None:
             from ... import DriftSimple  # prevent cyclic import
 
             driftclass = DriftSimple
 
         n_drifts = n_drifts_per_section * n_sections
-        length_per_drift = total_effective_length / n_drifts
+        length_per_drift = total_orbit_length / n_drifts
         for section_i in range(n_sections):
             for drift_i in range(n_drifts_per_section):
                 drift = driftclass(
-                    effective_length=length_per_drift,
+                    orbit_length=length_per_drift,
                     section_index=section_i,
                     **kwargs_drift,
                 )

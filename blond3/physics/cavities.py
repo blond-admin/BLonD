@@ -32,7 +32,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         n_rf: int,
         section_index: int,
         local_wakefield: Optional[WakeField],
-        cavity_feedback: Optional[LocalFeedback],
+        cavity_feedback: Optional[Type[LocalFeedback]],
         name: Optional[str] = None,
     ):
         """
@@ -49,9 +49,15 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         cavity_feedback
             Optional cavity feedback to change cavity parameters
         """
+        from .feedbacks.base import LocalFeedback  # prevent cyclic import
+
         super().__init__(section_index=section_index, name=name)
-        if cavity_feedback is not None:
-            cavity_feedback.set_owner(cavity=self)
+        if cavity_feedback is None:
+            pass
+        elif isinstance(cavity_feedback, LocalFeedback):
+            cavity_feedback.set_parent_cavity(cavity=self)
+        else:
+            raise ValueError(cavity_feedback)
 
         self._n_rf = n_rf
         self._local_wakefield = local_wakefield
@@ -129,21 +135,24 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         pass
 
     @abstractmethod
-    def calc_omega(self, beam_beta: float, ring_circumference: float):
+    def calc_omega(
+        self,
+        beam_beta: float,
+        closed_orbit_length: float,
+    ):
         """
-        Calculate angular frequency of cavity in [Hz]
+        Calculate angular frequency of cavity, in [Hz]
 
         Parameters
         ----------
         beam_beta
             Beam reference fraction of speed of light (v/c0)
-
-        ring_circumference
-            Synchrotron circumference in [m]
+        closed_orbit_length
+            Length of the closed orbit, in [m]
         Returns
         -------
         omega
-            Angular frequency (2 PI f) of cavity in [Hz]
+            Angular frequency (2 PI f) of cavity, in [Hz]
         """
         pass
 
@@ -164,9 +173,9 @@ class SingleHarmonicCavity(CavityBaseClass):
     Attributes
     ----------
     voltage
-        Cavity's effective voltage in [V]
+        Cavity's effective voltage, in [V]
     phi_rf
-        Cavity's design phase in [deg]
+        Cavity's design phase, in [deg]
     harmonic
         Cavity's design harmonic []
     """
@@ -175,7 +184,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         self,
         section_index: int = 0,
         local_wakefield: Optional[WakeField] = None,
-        cavity_feedback: Optional[LocalFeedback] = None,
+        cavity_feedback: Optional[Type[LocalFeedback]] = None,
         name: Optional[str] = None,
     ):
         super().__init__(
@@ -221,7 +230,16 @@ class SingleHarmonicCavity(CavityBaseClass):
         beam
             Beam class to interact with this element
         """
+
+        # order matters. set _omega correctly
+        # for feedbacks etc. in super()
+        self._omega = self.calc_omega(
+            beam_beta=beam.reference_beta,
+            closed_orbit_length=self._ring.closed_orbit_length,
+        )
+
         super().track(beam=beam)
+
         target_total_energy = self._energy_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,
             section_i=self.section_index,
@@ -229,10 +247,6 @@ class SingleHarmonicCavity(CavityBaseClass):
             particle_type=beam.particle_type,
         )
         reference_energy_change = target_total_energy - beam.reference_total_energy
-        self._omega = self.calc_omega(
-            beam_beta=beam.reference_beta,
-            ring_circumference=self._ring.effective_circumference,
-        )
         backend.specials.kick_single_harmonic(
             dt=beam.read_partial_dt(),
             dE=beam.write_partial_dE(),
@@ -244,23 +258,26 @@ class SingleHarmonicCavity(CavityBaseClass):
         )
         beam.reference_total_energy += reference_energy_change
 
-    def calc_omega(self, beam_beta: float, ring_circumference: float):
+    def calc_omega(
+        self,
+        beam_beta: float,
+        closed_orbit_length: float,
+    ) -> float:
         """
-        Calculate angular frequency of cavity in [Hz]
+        Calculate angular frequency of cavity, in [Hz]
 
         Parameters
         ----------
         beam_beta
             Beam reference fraction of speed of light (v/c0)
-
-        ring_circumference
-            Synchrotron circumference in [m]
+        closed_orbit_length
+            Length of the closed orbit, in [m]
         Returns
         -------
         omega
-            Angular frequency (2 PI f) of cavity in [Hz]
+            Angular frequency (2 PI f) of cavity, in [Hz]
         """
-        return self.harmonic * TWOPI_C0 * beam_beta / ring_circumference
+        return self.harmonic * TWOPI_C0 * beam_beta / closed_orbit_length
 
     def voltage_waveform_tmp(self, ts: NumpyArray):
         """
@@ -292,7 +309,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         circumference: float,
         total_energy: float,
         local_wakefield: Optional[WakeField] = None,
-        cavity_feedback: Optional[LocalFeedback] = None,
+        cavity_feedback: Optional[Type[LocalFeedback]] = None,
     ) -> SingleHarmonicCavity:
         """
         Initialize object without simulation context
@@ -387,7 +404,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         n_harmonics: int,
         section_index: int = 0,
         local_wakefield: Optional[WakeField] = None,
-        cavity_feedback: Optional[LocalFeedback] = None,
+        cavity_feedback: Optional[Type[LocalFeedback]] = None,
         name: Optional[str] = None,
     ):
         super().__init__(
@@ -397,10 +414,10 @@ class MultiHarmonicCavity(CavityBaseClass):
             cavity_feedback=cavity_feedback,
             name=name,
         )
-        self.voltage: NumpyArray | None = None
-        self.phi_rf: NumpyArray | None = None
-        self.harmonic: NumpyArray | None = None
-        self._omega: NumpyArray | None = None
+        self.voltage: Optional[NumpyArray] = None
+        self.phi_rf: Optional[NumpyArray] = None
+        self.harmonic: Optional[NumpyArray] = None
+        self._omega: Optional[NumpyArray] = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called
@@ -425,7 +442,11 @@ class MultiHarmonicCavity(CavityBaseClass):
                 f"`.harmonic=...` or `.schedule(attribute='harmonic', value=...)`"
             )
 
-    def calc_omega(self, beam_beta: float, ring_circumference: float):
+    def calc_omega(
+        self,
+        beam_beta: float,
+        closed_orbit_length: float,
+    ) -> NumpyArray:
         """
         Calculate angular frequency of cavity in [Hz]
 
@@ -434,14 +455,15 @@ class MultiHarmonicCavity(CavityBaseClass):
         beam_beta
             Beam reference fraction of speed of light (v/c0)
 
-        ring_circumference
-            Synchrotron circumference in [m]
+        closed_orbit_length
+            Length of the closed orbit, in [m]
+
         Returns
         -------
         omega
             Angular frequency (2 PI f) of cavity in [Hz]
         """
-        return self.harmonic * TWOPI_C0 * beam_beta / ring_circumference
+        return self.harmonic * TWOPI_C0 * beam_beta / closed_orbit_length
 
     def voltage_waveform_tmp(self, ts: NumpyArray):
         """
@@ -458,6 +480,7 @@ class MultiHarmonicCavity(CavityBaseClass):
             Time array, in [s]
             to calculate voltage
         """
+        raise NotImplementedError
         voltage = self.voltage[0] * np.sin(self._omega[0] * ts + self.phi_rf[0])
         for i in range(1, len(self.voltage)):
             voltage += self.voltage[i] * np.sin(self._omega[i] * ts + self.phi_rf[i])
@@ -471,7 +494,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         circumference: float,
         total_energy: float,
         local_wakefield: Optional[WakeField] = None,
-        cavity_feedback: Optional[LocalFeedback] = None,
+        cavity_feedback: Optional[Type[LocalFeedback]] = None,
     ) -> MultiHarmonicCavity:
         """
         Initialize object without simulation context
@@ -555,7 +578,7 @@ class MultiHarmonicCavity(CavityBaseClass):
 
         omega_rf = self.calc_omega(
             beam_beta=beam.reference_beta,
-            ring_circumference=self._ring.effective_circumference,
+            closed_orbit_length=self._ring.closed_orbit_length,
         )
         self._omega = omega_rf
 
