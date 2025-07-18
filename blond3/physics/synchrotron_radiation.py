@@ -276,9 +276,10 @@ class _SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         self._turn_i = simulation.turn_i
         self._simulation = simulation
 
-    def track(self, beam: BeamBaseClass) -> None:
+    def track(self) -> None:
         self._turn_i = self._simulation.turn_i
-        self._update_beam_energy(beam)
+        for beam in self._simulation.beams:
+            self._update_beam_energy(beam)
         pass
 
 
@@ -471,4 +472,4 @@ class WigglerMagnet(_SynchrotronRadiationBaseClass):
     def track(self, beam: BeamBaseClass) -> None:
         for beam in self._simulation.beams:
             self.update_synchrotron_radiation_integrals(beam=beam)
-            self.update_beam_energy(beam)
+            self._update_beam_energy(beam)
