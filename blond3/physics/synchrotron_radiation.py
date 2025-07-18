@@ -263,12 +263,10 @@ class SynchrotronRadiationDrift(_SynchrotronRadiationBaseClass):
             section_index=section_index,
             name=name,
         )
-
     @property
     def energy_lost_due_to_synchrotron_radiation_drift(self):
         """Energy lost by passing through the section"""
         return self._energy_lost_due_to_synchrotron_radiation
-
     @property
     def synchrotron_radiation_integrals_drift(self):
         return self._synchrotron_radiation_integrals
