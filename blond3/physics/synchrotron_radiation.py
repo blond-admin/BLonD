@@ -5,16 +5,15 @@ from functools import cached_property
 
 import numpy as np
 from numpy.matlib import empty
-from scipy.constants import e, c, m_e
+from scipy.constants import e, c
 
-from _core.beam.particle_types import ParticleType
-from acc_math.analytic.synchrotron_radiation_maths import \
-    calculate_partition_numbers, calculate_damping_times_in_turn, \
-    calculate_natural_energy_spread, calculate_energy_loss_per_turn, \
-    gather_longitudinal_synchrotron_radiation_parameters
-from blond3 import Simulation
+from acc_math.analytic.synchrotron_radiation_maths import (
+    gather_longitudinal_synchrotron_radiation_parameters,
+    calculate_energy_loss_per_turn,
+    calculate_damping_times_in_turn,
+    calculate_natural_energy_spread,
+)
 from .._core.base import BeamPhysicsRelevant, Schedulable, DynamicParameter
-from .._core.beam.base import BeamBaseClass
 from typing import TYPE_CHECKING
 
 from ..cycles.magnetic_cycle import MagneticCycleBase
@@ -85,8 +84,10 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         return self._damping_times_in_seconds
 
     def generate_children(
-        self, section_list:Optional[list]=None, element_list:Optional[list]=None, location:
-            Optional[str] = "after"
+        self,
+        section_list: Optional[list] = None,
+        element_list: Optional[list] = None,
+        location: Optional[str] = "after",
     ):
         """
         Function to generate and insert synchrotron radiation elements in
@@ -109,32 +110,34 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
             )
         else:
             i = 0
-            if section_list is not None :
+            if section_list is not None:
                 for section in section_list:
                     i += 1
                     SRClass_child = SynchrotronRadiationSection(
-                        section_index= section.section_index, name =
-                        f'SynchrotronRadiationTracker_{i}')
-                    self._simulation.ring.add_element(SRClass_child,
-                                                      section_index =
-                                                      section.section_index,
-                                                      reorder = True)
+                        section_index=section.section_index,
+                        name=f"SynchrotronRadiationTracker_{i}",
+                    )
+                    self._simulation.ring.add_element(
+                        SRClass_child, section_index=section.section_index, reorder=True
+                    )
                     self.generated_children.append(SRClass_child)
             elif element_list is not None:
                 for element in element_list:
                     i += 1
-                    SRClass_child = SynchrotronRadiationSection(
-                        section_index=element.section_index, name=
-                        f'SynchrotronRadiationTracker_{i}')
-                    self._simulation.ring.insert_element(SRClass_child,
-                                                      section_index =
-                                                      element.section_index,
-                                                      element = element,
-                                                      location = location)
+                    SRClass_child = SynchrotronRadiationDrift(
+                        section_index=element.section_index,
+                        name=f"SynchrotronRadiationTracker_{i}",
+                    )
+                    # self._simulation.ring.insert_element( #fixme
+                    #     SRClass_child,
+                    #     section_index=element.section_index,
+                    #     element=element,
+                    #     location=location,
+                    # )
                     self.generated_children.append(SRClass_child)
-        return print(f'{len(self.generated_children)} synchrotron radiation '
-                     f'trackers '
-                     f'generated')
+        return print(
+            f"{len(self.generated_children)} synchrotron radiation trackers generated"
+        )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         self._simulation = simulation
@@ -156,16 +159,28 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
             self._natural_energy_spread = np.empty(n_turns)
         pass
 
-    def track(self) -> None:
+    def track(self, beam: BeamBaseClass) -> None:
         self.update_synchrotron_radiation_integrals()
         # Updates the SRI to be implemented in all children classes
 
         # Get the turn-by-turn data if requested, from the synchrotron
         # radiation integrals
         if self.get_synchrotron_radiation_info_turn_by_turn:
-            self.calculate_energy_loss_per_turn()
-            self.calculate_damping_times()
-            self.calculate_natural_energy_spread()
+            self._energy_loss_per_turn[self._turn_i] = calculate_energy_loss_per_turn(
+                energy=beam.reference_total_energy,
+                synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+                particle_type=beam.particle_type,
+            )
+            self._damping_times[self._turn_i, :] = calculate_damping_times_in_turn(
+                energy=beam.reference_total_energy,
+                synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+                energy_loss_per_turn=self._energy_loss_per_turn[self._turn_i],
+            )
+            self._natural_energy_spread[self._turn_i] = calculate_natural_energy_spread(
+                energy=beam.reference_total_energy,
+                synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+                particle_type=beam.particle_type,
+            )
         else:
             pass
 
@@ -173,7 +188,13 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         pass
 
     def update_synchrotron_radiation_integrals(self):
+        """
+        Function to update the synchrotron radiation integrals of the
+        generated children, if decided to store everything in the master for faster tracking.
+        :return:
+        """
         pass
+
 
 class _SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
     """Base class to handle the synchrotron radiation energy loss and damping,
@@ -192,26 +213,38 @@ class _SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
 
         self._simulation: LateInit[Simulation] = None
         self._energy_lost_due_to_synchrotron_radiation = None
-        self._synchrotron_radiation_integrals: LateInit[
-            NumpyArray | CupyArray
-        ] = None
+        self._synchrotron_radiation_integrals: LateInit[NumpyArray | CupyArray] = None
         self._damping_partition_number: float = None
-        self._damping_time: float = None
-        self._natural_energy_spread: float = None
+        self._damping_time: NumpyArray = None
+        self._natural_energy_spread: NumpyArray = None
         self._turn_i: LateInit[DynamicParameter] = 0
 
-    def _calculate_kick(self,beam: BeamBaseClass):
+    def _calculate_kick(self, beam: BeamBaseClass):
+        """
+        Function to calculate the energy kick induced by the energy lost by
+        synchrotron radiation, its damping effect and the quantum excitation.
+        Function used to update the beam partial energy dE.
+        :param beam: BeamBaseClass object.
+        :return:
+        """
         energy = beam.reference_total_energy + beam.read_partial_dE()
-        U0, tauz, sigma0 = gather_longitudinal_synchrotron_radiation_parameters(
-            particle = beam.particle_type, energy = energy
-           )
+        U0, tau_z, sigma0 = gather_longitudinal_synchrotron_radiation_parameters(
+            particle_type=beam.particle_type, energy=energy
+        )
 
         self._natural_energy_spread[self._turn_i] = np.average(sigma0)
         self._energy_lost_due_to_synchrotron_radiation[self._turn_i] = np.average(U0)
-        self._damping_time[self._turn_i] = np.average(tauz)
+        self._damping_time[self._turn_i] = np.average(tau_z)
 
-        return (- U0 - 2./tauz * energy -2. * sigma0 / np.sqrt(tauz) *
-                energy * np.random.normal(size = len(energy)))
+        return (
+            -U0
+            - 2.0 / tau_z * energy
+            - 2.0
+            * sigma0
+            / np.sqrt(tau_z)
+            * energy
+            * np.random.normal(size=len(energy))
+        )
 
     def _update_beam_energy(self, beam: BeamBaseClass):
         """
@@ -219,15 +252,12 @@ class _SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         through the _SynchrotronRadiationBaseClass element in the ring.
         :param beam: BeamBaseClass object
         """
-        DI_wE = self._synchrotron_radiation_integrals
         particles_total_energy = beam.reference_total_energy + beam.read_partial_dE()
-
-        energy_change = self._calculate_kick(beam = beam)
-
+        energy_change = self._calculate_kick(beam=beam)
         new_beam_center_energy = np.average(particles_total_energy + energy_change)
-
-        beam.write_partial_dE = (particles_total_energy + energy_change -
-                                   new_beam_center_energy)
+        beam.write_partial_dE = (
+            particles_total_energy + energy_change - new_beam_center_energy
+        )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         pass
@@ -243,7 +273,6 @@ class _SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         turn_i_init: int,
         **kwargs,
     ) -> None:
-
         self._turn_i = simulation.turn_i
         self._simulation = simulation
 
@@ -251,6 +280,7 @@ class _SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         self._turn_i = self._simulation.turn_i
         self._update_beam_energy(beam)
         pass
+
 
 class SynchrotronRadiationDrift(_SynchrotronRadiationBaseClass):
     def __init__(
@@ -263,13 +293,17 @@ class SynchrotronRadiationDrift(_SynchrotronRadiationBaseClass):
             section_index=section_index,
             name=name,
         )
+
     @property
     def energy_lost_due_to_synchrotron_radiation_drift(self):
-        """Energy lost by passing through the section"""
+        """Energy lost by passing through the drift"""
         return self._energy_lost_due_to_synchrotron_radiation
+
     @property
     def synchrotron_radiation_integrals_drift(self):
+        """Synchrotron radiation integrals of the drift"""
         return self._synchrotron_radiation_integrals
+
 
 class SynchrotronRadiationSection(_SynchrotronRadiationBaseClass):
     def __init__(
@@ -282,6 +316,7 @@ class SynchrotronRadiationSection(_SynchrotronRadiationBaseClass):
             section_index=section_index,
             name=name,
         )
+
     @property
     def energy_lost_due_to_synchrotron_radiation_section(self):
         """Energy lost by passing through the section"""
@@ -289,18 +324,19 @@ class SynchrotronRadiationSection(_SynchrotronRadiationBaseClass):
 
     @property
     def synchrotron_radiation_integrals_section(self):
+        """Synchrotron radiation integrals of the section"""
         return self._synchrotron_radiation_integrals
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         pass
         self._turn_i = simulation.turn_i
         lengths_sections = self._simulation.ring.section_lengths()
-        share_synchrotron_radiation_integrals = lengths_sections[
-            self.section_index]/self._simulation.ring.circumference
+        share_synchrotron_radiation_integrals = (
+            lengths_sections[self.section_index] / self._simulation.ring.circumference
+        )
 
         # self._synchrotron_radiation_integrals = (
         #     share_synchrotron_radiation_integrals)
-
 
 
 class WigglerMagnet(_SynchrotronRadiationBaseClass):
@@ -308,6 +344,7 @@ class WigglerMagnet(_SynchrotronRadiationBaseClass):
     Synchrotron Radiation subclass to simulate the effect of one or a
     series of identical damping wigglers on the simulated beams.
     """
+
     def __init__(
         self,
         name: Optional[str] = None,
@@ -320,11 +357,11 @@ class WigglerMagnet(_SynchrotronRadiationBaseClass):
     ):
         super().__init__(name=name, section_index=section_index)
 
-        self.type = (wiggler_type,)
-        self.number = (number,)
-        self.peak_field = (peak_field,)
-        self.pole_length = (pole_length,)
-        self.number_poles = (number_poles,)
+        self._type = (wiggler_type,)
+        self._number = (number,)
+        self._peak_field = (peak_field,)
+        self._pole_length = (pole_length,)
+        self._number_poles = (number_poles,)
 
         self._simulation: LateInit[Simulation] = None
         self._contribution_to_synchrotron_radiation_integrals_without_energy: LateInit[
@@ -335,9 +372,35 @@ class WigglerMagnet(_SynchrotronRadiationBaseClass):
         ] = np.zeros((1, 5))
 
     @property
+    def number_of_wigglers(self):
+        return self._number
+
+    @property
     def length_wiggler(self):
         if self.type == "wiggler_type":
             return self.pole_length * self.number_poles
+
+    @property
+    def number_of_poles(self):
+        return self._number_poles
+
+    @property
+    def peak_magnetic_field(self):
+        return self._peak_field
+
+    @property
+    def pole_length(self):
+        return self._pole_length
+
+    def __str__(self):
+        return (
+            f"{self.number_of_wigglers} damping wigglers of {self.peak_magnetic_field} T "
+            f"and composed of {self.number_of_poles} poles of {
+                self.pole_length
+            } m each have been added to "
+            f"the "
+            f"simulation. \n"
+        )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         self._simulation = simulation
