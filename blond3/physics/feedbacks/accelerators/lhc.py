@@ -16,3 +16,6 @@ class LhcRfFeedback(LocalFeedback):
         section_index: int = 0,
     ):
         super().__init__(profile=profile, cavity=cavity, section_index=section_index)
+
+
+

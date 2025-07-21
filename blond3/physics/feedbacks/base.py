@@ -12,6 +12,7 @@ from ..._core.ring.helpers import requires
 from ..._core.simulation.simulation import Simulation
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Optional
     from ..cavities import (
         MultiHarmonicCavity,
         SingleHarmonicCavity,
@@ -21,8 +22,12 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class FeedbackBaseClass(BeamPhysicsRelevant):
-    def __init__(self, section_index: int = 0):
-        super().__init__(section_index=section_index)
+    def __init__(
+        self,
+        section_index: int = 0,
+        name: Optional[str] = None,
+    ):
+        super().__init__(section_index=section_index, name=name)
 
 
 class LocalFeedback(FeedbackBaseClass):
@@ -30,14 +35,18 @@ class LocalFeedback(FeedbackBaseClass):
         self,
         profile: ProfileBaseClass,
         section_index: int = 0,
+        name: Optional[str] = None,
     ):
-        super().__init__(section_index=section_index)
-        self._owner: SingleHarmonicCavity | MultiHarmonicCavity | None = None
+        super().__init__(
+            section_index=section_index,
+            name=name,
+        )
+        self._parent_cavity: SingleHarmonicCavity | MultiHarmonicCavity | None = None
         self.profile = profile
 
-    def set_owner(self, cavity: Type[CavityBaseClass]):
-        assert self._owner is None
-        self._owner = cavity
+    def set_parent_cavity(self, cavity: CavityBaseClass):
+        assert self._parent_cavity is None, "This feedback has already one " "owner!"
+        self._parent_cavity = cavity
 
     def track(self, beam: BeamBaseClass) -> None:
         """Main simulation routine to be called in the mainloop
