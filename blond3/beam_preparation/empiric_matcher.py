@@ -18,7 +18,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def populate_beam(
-    beam: Type[BeamBaseClass],
+    beam: BeamBaseClass,
     time_grid: NumpyArray,
     deltaE_grid: NumpyArray,
     density_grid: NumpyArray,
@@ -65,11 +65,11 @@ def populate_beam(
     # Randomize particles inside each grid cell (uniform distribution)
     dt = (
         time_grid.flatten()[indexes]
-        + (np.random.rand(n_macroparticles) - 0.5) * time_step
+        + np.random.triangular(left=-1, mode=0, right=1, size=n_macroparticles) * time_step
     )
     dE = (
         deltaE_grid.flatten()[indexes]
-        + (np.random.rand(n_macroparticles) - 0.5) * deltaE_step
+        + np.random.triangular(left=-1, mode=0, right=1, size=n_macroparticles) * deltaE_step
     )
     beam.setup_beam(dt=dt, dE=dE)
 
@@ -158,7 +158,7 @@ class EmpiricMatcher(MatchingRoutine):
     def prepare_beam(
         self,
         simulation: Simulation,
-        beam: Type[BeamBaseClass],
+        beam: BeamBaseClass,
     ) -> None:
         """
         Carries out the empiric matching

@@ -18,7 +18,7 @@ class EmittanceMatcher(MatchingRoutine):
     def prepare_beam(
         self,
         simulation: Simulation,
-        beam: Type[BeamBaseClass],
+        beam: BeamBaseClass,
     ) -> None:
         """Populates the `Beam` object with macro-particles
 

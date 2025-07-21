@@ -42,7 +42,7 @@ class LeonardsCounterrrotBeam(BeamPreparationRoutine):
     def prepare_beam(
         self,
         simulation: Simulation,
-        beam: Type[BeamBaseClass],
+        beam: BeamBaseClass,
     ) -> None:
         beam.setup_beam(
             dt=self.dt,

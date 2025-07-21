@@ -48,7 +48,7 @@ def _get_dE_from_dt_core(
 
 def _get_dE_from_dt(
     simulation: Simulation,
-    beam: Type[BeamBaseClass],
+    beam: BeamBaseClass,
     dt_amplitude: float,
 ) -> float:
     r"""A routine to evaluate the dE amplitude from dt following a single
@@ -132,7 +132,7 @@ class BiGaussian(MatchingRoutine):
     def prepare_beam(
         self,
         simulation: Simulation,
-        beam: Type[BeamBaseClass],
+        beam: BeamBaseClass,
     ) -> None:
         """Populates the `Beam` object with macro-particles
 

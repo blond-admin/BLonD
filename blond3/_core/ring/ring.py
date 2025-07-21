@@ -49,7 +49,7 @@ class Ring(Preparable, Schedulable):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: Type[BeamBaseClass],
+        beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
         **kwargs,
@@ -126,7 +126,7 @@ class Ring(Preparable, Schedulable):
         n_drifts_per_section: int,
         n_sections: int,
         total_orbit_length: float,
-        driftclass: Type[DriftBaseClass] | None = None,
+        driftclass: DriftBaseClass | None = None,
         **kwargs_drift,
     )-> None:
         """

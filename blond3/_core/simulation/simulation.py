@@ -166,7 +166,7 @@ class Simulation(Preparable, HasPropertyCache):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: Type[BeamBaseClass],
+        beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
         **kwargs,
@@ -220,7 +220,7 @@ class Simulation(Preparable, HasPropertyCache):
 
     def _exec_on_run_simulation(
         self,
-        beam: Type[BeamBaseClass],
+        beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
     ):
@@ -323,7 +323,7 @@ class Simulation(Preparable, HasPropertyCache):
 
     def prepare_beam(
         self,
-        beam: Type[BeamBaseClass],
+        beam: BeamBaseClass,
         preparation_routine: BeamPreparationRoutine,
         turn_i: int = 0,
     ) -> None:
@@ -423,7 +423,7 @@ class Simulation(Preparable, HasPropertyCache):
 
     def _run_simulation_single_beam(
         self,
-        beam: Type[BeamBaseClass],
+        beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int = 0,
         observe: Tuple[Observables, ...] = tuple(),

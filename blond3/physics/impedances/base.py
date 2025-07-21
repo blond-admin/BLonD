@@ -41,7 +41,7 @@ class TimeDomain(ABC):
         self,
         time: NumpyArray,
         simulation: Simulation,
-        beam: Type[BeamBaseClass],
+        beam: BeamBaseClass,
     ) -> NumpyArray:
         """
         Get impedance equivalent to the partial wake in time domain
@@ -70,7 +70,7 @@ class FreqDomain(ABC):
         self,
         freq_x: NumpyArray,
         simulation: Simulation,
-        beam: Type[BeamBaseClass],
+        beam: BeamBaseClass,
     ) -> NumpyArray:
         """
         Return the impedance in the frequency domain.
@@ -118,7 +118,7 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: Type[BeamBaseClass],
+        beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
         **kwargs,

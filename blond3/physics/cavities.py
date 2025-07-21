@@ -32,7 +32,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         n_rf: int,
         section_index: int,
         local_wakefield: Optional[WakeField],
-        cavity_feedback: Optional[Type[LocalFeedback]],
+        cavity_feedback: Optional[LocalFeedback],
         name: Optional[str] = None,
     ):
         """
@@ -80,7 +80,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: Type[BeamBaseClass],
+        beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
         **kwargs,
@@ -184,7 +184,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         self,
         section_index: int = 0,
         local_wakefield: Optional[WakeField] = None,
-        cavity_feedback: Optional[Type[LocalFeedback]] = None,
+        cavity_feedback: Optional[LocalFeedback] = None,
         name: Optional[str] = None,
     ):
         super().__init__(
@@ -309,7 +309,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         circumference: float,
         total_energy: float,
         local_wakefield: Optional[WakeField] = None,
-        cavity_feedback: Optional[Type[LocalFeedback]] = None,
+        cavity_feedback: Optional[LocalFeedback] = None,
     ) -> SingleHarmonicCavity:
         """
         Initialize object without simulation context
@@ -404,7 +404,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         n_harmonics: int,
         section_index: int = 0,
         local_wakefield: Optional[WakeField] = None,
-        cavity_feedback: Optional[Type[LocalFeedback]] = None,
+        cavity_feedback: Optional[LocalFeedback] = None,
         name: Optional[str] = None,
     ):
         super().__init__(
@@ -494,7 +494,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         circumference: float,
         total_energy: float,
         local_wakefield: Optional[WakeField] = None,
-        cavity_feedback: Optional[Type[LocalFeedback]] = None,
+        cavity_feedback: Optional[LocalFeedback] = None,
     ) -> MultiHarmonicCavity:
         """
         Initialize object without simulation context

@@ -95,7 +95,7 @@ class Beam(BeamBaseClass):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: Type[BeamBaseClass],
+        beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
         **kwargs,

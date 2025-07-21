@@ -52,7 +52,7 @@ class Observables(MainLoopRelevant):
     def update(
         self,
         simulation: Simulation,
-        beam: Type[BeamBaseClass],
+        beam: BeamBaseClass,
     ) -> None:
         """
         Update memory with new values
@@ -78,7 +78,7 @@ class Observables(MainLoopRelevant):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: Type[BeamBaseClass],
+        beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
         **kwargs,
@@ -134,7 +134,7 @@ class BunchObservation(Observables):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: Type[BeamBaseClass],
+        beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
         **kwargs,
@@ -185,7 +185,7 @@ class BunchObservation(Observables):
     def update(
         self,
         simulation: Simulation,
-        beam: Type[BeamBaseClass],
+        beam: BeamBaseClass,
     ) -> None:
         """
         Update memory with new values
@@ -272,7 +272,7 @@ class CavityPhaseObservation(Observables):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: Type[BeamBaseClass],
+        beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
         **kwargs,
@@ -312,7 +312,7 @@ class CavityPhaseObservation(Observables):
     def update(
         self,
         simulation: Simulation,
-        beam: Type[BeamBaseClass],
+        beam: BeamBaseClass,
     ) -> None:
         """
         Update memory with new values
@@ -385,7 +385,7 @@ class StaticProfileObservation(Observables):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: Type[BeamBaseClass],
+        beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
         **kwargs,
@@ -417,7 +417,7 @@ class StaticProfileObservation(Observables):
     def update(
         self,
         simulation: Simulation,
-        beam: Type[BeamBaseClass],
+        beam: BeamBaseClass,
     ) -> None:
         """
         Update memory with new values
@@ -472,7 +472,7 @@ class WakeFieldObservation(Observables):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: Type[BeamBaseClass],
+        beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
         **kwargs,
@@ -504,7 +504,7 @@ class WakeFieldObservation(Observables):
     def update(
         self,
         simulation: Simulation,
-        beam: Type[BeamBaseClass],
+        beam: BeamBaseClass,
     ) -> None:
         """
         Update memory with new values
