@@ -65,11 +65,13 @@ def populate_beam(
     # Randomize particles inside each grid cell (uniform distribution)
     dt = (
         time_grid.flatten()[indexes]
-        + np.random.triangular(left=-1, mode=0, right=1, size=n_macroparticles) * time_step
+        + np.random.triangular(left=-1, mode=0, right=1, size=n_macroparticles)
+        * time_step
     )
     dE = (
         deltaE_grid.flatten()[indexes]
-        + np.random.triangular(left=-1, mode=0, right=1, size=n_macroparticles) * deltaE_step
+        + np.random.triangular(left=-1, mode=0, right=1, size=n_macroparticles)
+        * deltaE_step
     )
     beam.setup_beam(dt=dt, dE=dE)
 
@@ -97,7 +99,7 @@ def _normalize_as_density(hamilton_2D: NumpyArray):
     density[density > h_max] -= h_max
     density = -(density**2)
     density -= np.min(density)
-    #density *= -1
+    # density *= -1
     density /= np.sum(density)
 
     return density

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 from unittest.mock import Mock
 
 from .._core.backends.backend import backend
@@ -89,13 +89,15 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         Length of drift, in [m]
     section_index
         Section index to group elements into sections
-
+    transition_gamma
+        Gamma of transition crossing
     """
 
     def __init__(
         self,
         orbit_length: float,
         section_index: int = 0,
+        transition_gamma: Optional[float] = None,
     ):
         """
         Base class to implement beam drifts in synchrotrons
@@ -107,6 +109,8 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
             Length / Velocity => Time to pass the element
         section_index
             Section index to group elements into sections
+        transition_gamma
+            Gamma of transition crossing
 
         """
 
@@ -119,6 +123,9 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         self._momentum_compaction_factor: float | None = None
 
         self._simulation: LateInit[Simulation] = None
+
+        if transition_gamma is not None:
+            self.transition_gamma = transition_gamma  # use setter method
 
     @property  # read only, set by `transition_gamma`
     def momentum_compaction_factor(self):

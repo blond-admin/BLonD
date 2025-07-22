@@ -31,6 +31,7 @@ cavity1.voltage = 6e6
 cavity1.phi_rf = 0
 
 N_TURNS = int(1e3)
+
 energy_cycle = MagneticCyclePerTurn(
     value_init=450e9,
     values_after_turn=np.linspace(450e9, 450e9, N_TURNS),
@@ -41,7 +42,10 @@ drift1 = DriftSimple(
     orbit_length=26658.883,
 )
 drift1.transition_gamma = 55.759505
-beam1 = Beam(n_particles=1e9, particle_type=proton)
+beam1 = Beam(
+    n_particles=1e9,
+    particle_type=proton,
+)
 
 
 sim = Simulation.from_locals(locals())
@@ -49,6 +53,7 @@ sim.print_one_turn_execution_order()
 
 
 sim.prepare_beam(
+    beam=beam1,
     preparation_routine=BiGaussian(
         sigma_dt=0.4e-9 / 4,
         sigma_dE=1e9 / 4,
@@ -56,25 +61,23 @@ sim.prepare_beam(
         seed=1,
         n_macroparticles=1e3,
     ),
-    beam=beam1,
 )
-de = 777538700.0 * 2
-dt = 1.8306269e-09
+
 sim.prepare_beam(
+    beam=beam1,
     preparation_routine=EmpiricMatcher(
         grid_base_dt=np.linspace(0, 2.5e-9, 100),
-        grid_base_dE=np.linspace(-de, de, 100),
+        grid_base_dE=np.linspace(-(777538700.0 * 2), 777538700.0 * 2, 100),
         n_macroparticles=1e6,
         seed=0,
         maxiter_intensity_effects=0,
     ),
-    beam=beam1,
 )
-plt.hist2d(beam1.read_partial_dt(), beam1.read_partial_dE(), bins=200)
-plt.show()
 
-
-phase_observation = CavityPhaseObservation(each_turn_i=1, cavity=cavity1)
+phase_observation = CavityPhaseObservation(
+    each_turn_i=1,
+    cavity=cavity1,
+)
 bunch_observation = BunchObservation(each_turn_i=1)
 
 
@@ -95,7 +98,11 @@ def custom_action(simulation: Simulation):
 # sim.profiling(turn_i_init=0, profile_start_turn_i=10, n_turns=10000)
 # sys.exit(0)
 try:
-    sim.load_results(turn_i_init=0, n_turns=N_TURNS, observe=[phase_observation])
+    sim.load_results(
+        turn_i_init=0,
+        n_turns=N_TURNS,
+        observe=[phase_observation],
+    )
 except FileNotFoundError as exc:
     sim.run_simulation(
         beams=(beam1,),
@@ -108,9 +115,12 @@ plt.plot(phase_observation.phases)
 plt.figure()
 for i in range(N_TURNS):
     plt.clf()
-    plt.hist2d(bunch_observation.dts[i, :], bunch_observation.dEs[i, :],
-               bins=256, range=[[0,
-            2.5e-9], [-4e8, 4e8]])
+    plt.hist2d(
+        bunch_observation.dts[i, :],
+        bunch_observation.dEs[i, :],
+        bins=256,
+        range=[[0, 2.5e-9], [-4e8, 4e8]],
+    )
     plt.draw()
     plt.pause(0.1)
 

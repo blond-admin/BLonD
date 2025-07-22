@@ -127,7 +127,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
             Beam class to interact with this element
         """
         if beam.is_distributed:
-            raise NotImplementedError("Impleemt hisogram on distributed array")
+            raise NotImplementedError("Implement histogram on distributed array")
         else:
             backend.specials.histogram(
                 array_read=beam.read_partial_dt(),
@@ -236,8 +236,9 @@ class StaticProfile(ProfileBaseClass):
             name=name,
         )
         self._hist_x, self._hist_y = ProfileBaseClass.get_arrays(
-            cut_left=cut_left, cut_right=cut_right, n_bins=n_bins
+            cut_left=float(cut_left), cut_right=float(cut_right), n_bins=int(n_bins)
         )
+        assert len(self._hist_x.shape) == 1
 
     @staticmethod
     def from_cutoff(cut_left: float, cut_right: float, cutoff_frequency: float):

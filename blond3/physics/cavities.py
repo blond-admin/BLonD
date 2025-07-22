@@ -382,6 +382,9 @@ class MultiHarmonicCavity(CavityBaseClass):
     ----------
     n_harmonics
         Number of different RF waves for interaction
+    main_harmonic_idx
+        Index of the cavity's main harmonic
+        Used to calculate attributes that rely on only one harmonic
     section_index
         Section index to group elements into sections
     local_wakefield
@@ -402,11 +405,16 @@ class MultiHarmonicCavity(CavityBaseClass):
     def __init__(
         self,
         n_harmonics: int,
+        main_harmonic_idx: int,
         section_index: int = 0,
         local_wakefield: Optional[WakeField] = None,
         cavity_feedback: Optional[LocalFeedback] = None,
         name: Optional[str] = None,
     ):
+        assert (
+            main_harmonic_idx < n_harmonics
+        ), f"{n_harmonics=}, but {main_harmonic_idx=}."
+
         super().__init__(
             n_rf=n_harmonics,
             section_index=section_index,
@@ -414,6 +422,9 @@ class MultiHarmonicCavity(CavityBaseClass):
             cavity_feedback=cavity_feedback,
             name=name,
         )
+
+        self.main_harmonic_idx = main_harmonic_idx
+
         self.voltage: Optional[NumpyArray] = None
         self.phi_rf: Optional[NumpyArray] = None
         self.harmonic: Optional[NumpyArray] = None

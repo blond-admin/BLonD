@@ -17,7 +17,7 @@ from ...physics.cavities import CavityBaseClass
 from ...physics.profiles import ProfileBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional, Tuple, Type
+    from typing import Optional, Tuple
     from numpy.typing import NDArray as NumpyArray
 
     from ..beam.particle_types import ParticleType
@@ -325,19 +325,20 @@ class Simulation(Preparable, HasPropertyCache):
         self,
         beam: BeamBaseClass,
         preparation_routine: BeamPreparationRoutine,
-        turn_i: int = 0,
+        turn_i: int = 0
     ) -> None:
         """Run the routine to prepare the beam
 
         Parameters
         ----------
+        beam
+            Simulation beam object
         preparation_routine
             Algorithm to prepare the beam dt and dE coorinates
         turn_i
             Turn to prepare the beam for
 
         """
-
         logger.info("Running `on_prepare_beam`")
         self.turn_i.value = turn_i
         preparation_routine.prepare_beam(simulation=self, beam=beam)

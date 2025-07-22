@@ -18,7 +18,7 @@ def separatrixes(hamilton_2D: NumpyArray):
     peaks, _ = find_peaks(y_loc)
 
     h_levels = np.array([y_loc[peak] for peak in peaks])
-    if len(h_levels) == 0: # fallback options if y_loc has no peaks
+    if len(h_levels) == 0:  # fallback options if y_loc has no peaks
         h_levels = [np.max(y_loc)]
     return h_levels
 

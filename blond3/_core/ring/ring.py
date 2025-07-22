@@ -126,9 +126,9 @@ class Ring(Preparable, Schedulable):
         n_drifts_per_section: int,
         n_sections: int,
         total_orbit_length: float,
-        driftclass: DriftBaseClass | None = None,
+        driftclass: Type[DriftBaseClass] | None = None,
         **kwargs_drift,
-    )-> None:
+    ) -> None:
         """
         Add several drifts to the different sections
 
