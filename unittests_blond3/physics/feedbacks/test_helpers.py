@@ -697,7 +697,7 @@ class TestRfBeamCurrent(unittest.TestCase):
             ),
         )
         beam2 = Beam(bunches * N_b, particle_type=self.beam.particle_type)
-        beam2.ratio = N_b / N_m# FIXME
+        beam2.ratio = N_b / N_m  # FIXME
         beam2.setup_beam(
             dt=np.zeros(bunches * N_m),
             dE=np.zeros(bunches * N_m),

@@ -54,6 +54,7 @@ class TestLHCOpenDrive(unittest.TestCase):
             n_particles=N_b,
             particle_type=proton,
         )
+        beam.ratio = N_b / N_p
         # self.profile = Profile(beam)
         self.profile = StaticProfile(0, 1, 8)  # TODO kwargs should matter
         sim = Simulation(
@@ -72,7 +73,7 @@ class TestLHCOpenDrive(unittest.TestCase):
         omega = self.rf.calc_omega(beam_beta=beam.reference_beta,
                                    closed_orbit_length=ring.closed_orbit_length)
         rf._omega = omega # TODO FIXME REMOVE
-        self.f_c = float(omega)
+        self.f_c = float(omega)/(2*np.pi)
 
     def test_setup(self):
         pass  # see if setUp() works
