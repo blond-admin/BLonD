@@ -1,12 +1,5 @@
 from ._core.beam.beams import Beam
-from ._core.beam.particle_types import (
-    proton,
-    uranium_29,
-    electron,
-    positron,
-    mu_plus,
-    mu_minus,
-)
+from ._core.beam.particle_types import proton, electron, positron
 from ._core.ring.ring import Ring
 from ._core.simulation.simulation import Simulation
 from .beam_preparation.bigaussian import BiGaussian
