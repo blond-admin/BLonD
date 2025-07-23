@@ -45,7 +45,7 @@ class LocalFeedback(FeedbackBaseClass):
         self.profile = profile
 
     def set_parent_cavity(self, cavity: CavityBaseClass):
-        assert self._parent_cavity is None, "This feedback has already one " "owner!"
+        assert self._parent_cavity is None, "This feedback has already one owner!"
         self._parent_cavity = cavity
 
     def track(self, beam: BeamBaseClass) -> None:

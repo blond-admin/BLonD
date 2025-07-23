@@ -411,9 +411,9 @@ class MultiHarmonicCavity(CavityBaseClass):
         cavity_feedback: Optional[LocalFeedback] = None,
         name: Optional[str] = None,
     ):
-        assert (
-            main_harmonic_idx < n_harmonics
-        ), f"{n_harmonics=}, but {main_harmonic_idx=}."
+        assert main_harmonic_idx < n_harmonics, (
+            f"{n_harmonics=}, but {main_harmonic_idx=}."
+        )
 
         super().__init__(
             n_rf=n_harmonics,

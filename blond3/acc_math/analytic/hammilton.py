@@ -209,8 +209,11 @@ def single_rf_sin_hamiltonian(
 
 
 def calc_phi_s_single_harmonic(
-    charge: float, voltage: float, phase:float,
-    energy_gain: float, above_transition: bool
+    charge: float,
+    voltage: float,
+    phase: float,
+    energy_gain: float,
+    above_transition: bool,
 ) -> float:
     phi = np.arcsin(energy_gain / (voltage * charge))
     if not above_transition:

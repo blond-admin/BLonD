@@ -92,7 +92,7 @@ def _get_dE_from_dt(
         omega_rf = omega_rf[main_harmonic_idx]
         phi_rf = phi_rf[main_harmonic_idx]
         voltage = voltage[main_harmonic_idx]
-    warnings.warn("assuming wrongly phi_s = phi_rf for development, " "to be resolved")
+    warnings.warn("assuming wrongly phi_s = phi_rf for development, to be resolved")
     phi_s = calc_phi_s_single_harmonic(
         charge=beam.particle_type.charge,
         voltage=voltage,
@@ -101,7 +101,7 @@ def _get_dE_from_dt(
             1, 0, 0, particle_type=beam.particle_type
         )
         - beam.reference_total_energy,
-        above_transition=False, # FIXME
+        above_transition=False,  # FIXME
     )
     eta0 = drift.eta_0(gamma=beam.reference_gamma)
     particle_charge = beam.particle_type.charge

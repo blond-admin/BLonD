@@ -179,12 +179,12 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         corresponding to a separate resonance.
         """
         super().__init__(is_dynamic=False)
-        assert len(shunt_impedances) == len(
-            center_frequencies
-        ), f"{len(shunt_impedances)} != {len(center_frequencies)}"
-        assert len(shunt_impedances) == len(
-            quality_factors
-        ), f"{len(shunt_impedances)} != {len(quality_factors)}"
+        assert len(shunt_impedances) == len(center_frequencies), (
+            f"{len(shunt_impedances)} != {len(center_frequencies)}"
+        )
+        assert len(shunt_impedances) == len(quality_factors), (
+            f"{len(shunt_impedances)} != {len(quality_factors)}"
+        )
         self._shunt_impedances = shunt_impedances
         self._center_frequencies = center_frequencies
         self._quality_factors = quality_factors

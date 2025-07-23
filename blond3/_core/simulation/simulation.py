@@ -325,7 +325,7 @@ class Simulation(Preparable, HasPropertyCache):
         self,
         beam: BeamBaseClass,
         preparation_routine: BeamPreparationRoutine,
-        turn_i: int = 0
+        turn_i: int = 0,
     ) -> None:
         """Run the routine to prepare the beam
 

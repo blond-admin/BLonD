@@ -9,8 +9,7 @@ from matplotlib import pyplot as plt
 from numpy._typing import NDArray as NumpyArray
 from scipy.signal import fftconvolve
 
-from .sps_helpers import get_power_gen_i, moving_average, comb_filter, \
-    modulator
+from .sps_helpers import get_power_gen_i, moving_average, comb_filter, modulator
 from ..cavity_feedback import BirksCavityFeedback
 from ..helpers import cartesian_to_polar
 from ....physics.cavities import MultiHarmonicCavity
@@ -167,7 +166,7 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
         self.V_part = float(V_part)
         if self.V_part * (1 - self.V_part) < 0:
             raise RuntimeError(
-                "ERROR in SPSOneTurnFeedback: V_part" " should be in range (0,1)!"
+                "ERROR in SPSOneTurnFeedback: V_part should be in range (0,1)!"
             )
 
         # Gain settings
@@ -198,11 +197,10 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
         else:
             raise RuntimeError(
-                "ERROR in SPSOneTurnFeedback: argument" " n_sections has invalid value!"
+                "ERROR in SPSOneTurnFeedback: argument n_sections has invalid value!"
             )
         self.logger.debug(
-            "SPS OTFB cavities: %d, sections: %d, voltage"
-            " partition %.2f, gain: %.2e",
+            "SPS OTFB cavities: %d, sections: %d, voltage partition %.2f, gain: %.2e",
             self.n_cavities,
             n_sections,
             self.V_part,
@@ -872,7 +870,7 @@ class SPSCavityFeedback:
         if turns < 1:
             # FeedbackError
             raise RuntimeError(
-                "ERROR in SPSCavityFeedback: 'turns' has to" " be a positive integer!"
+                "ERROR in SPSCavityFeedback: 'turns' has to be a positive integer!"
             )
         self.track_init(debug=commissioning_1.debug)
 

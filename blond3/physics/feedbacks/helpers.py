@@ -131,7 +131,7 @@ def rf_beam_current(
     # Convert from dimensionless to Coulomb/Ampères
     # Take into account macro-particle charge with real-to-macro-particle ratio
     charges = (
-        beam.ratio # FIXME add to beam
+        beam.ratio  # FIXME add to beam
         * beam.particle_type.charge
         * e
         * np.copy(profile.hist_y)
