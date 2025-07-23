@@ -36,13 +36,13 @@ def is_in_separatrix(
     voltage
         RF voltage of the cavity, in [V]
     omega_rf
-        Angular frequency of the RF system, in [Hz]
+        Angular frequency of the RF system, in [rad/s]
     phi_rf_d
         Design phase, in [rad]
     phi_s
         Stable phase, in [rad]
     etas
-        Drift in arc parameter eta for one turn in synchrotron
+        Drift in arc parameter eta for one turn in synchrotron # TODO unit
     beta
         Beam reference fraction of speed of light (v/c0)
     total_energy
@@ -50,9 +50,9 @@ def is_in_separatrix(
     ring_circumference
         One turn length of the beam, in [m]
     dt
-        Macro-particle time coordinates [s]
+        Macro-particle time coordinates, in [s]
     dE
-        Macro-particle energy coordinates [eV]
+        Macro-particle energy coordinates, in [eV]
 
     Returns
     -------
@@ -159,7 +159,7 @@ def single_rf_sin_hamiltonian(
     voltage
         RF voltage of the cavity, in [V]
     omega_rf
-        Angular frequency of the RF system, in [Hz]
+        Angular frequency of the RF system, in [rad/s]
     phi_rf_d
         Design phase, in [rad]
     phi_s
@@ -173,9 +173,9 @@ def single_rf_sin_hamiltonian(
     ring_circumference
         One turn length of the beam, in [m]
     dt
-        Macro-particle time coordinates [s]
+        Macro-particle time coordinates, in [s]
     dE
-        Macro-particle energy coordinates [eV]
+        Macro-particle energy coordinates, in [eV]
 
     Returns
     -------

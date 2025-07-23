@@ -65,9 +65,9 @@ class Beam(BeamBaseClass):
         Parameters
         ----------
         dt
-            Macro-particle time coordinates [s]
+            Macro-particle time coordinates, in [s]
         dE
-            Macro-particle energy coordinates [eV]
+            Macro-particle energy coordinates, in [eV]
         flags
             Macro-particle flags
         reference_time
@@ -174,9 +174,9 @@ class ProbeBeam(Beam):
         particle_type
             Type of particles, e.g. protons
         dt
-            Macro-particle time coordinates [s]
+            Macro-particle time coordinates, in [s]
         dE
-            Macro-particle energy coordinates [eV]
+            Macro-particle energy coordinates, in [eV]
         """
         super().__init__(
             n_particles=0,
@@ -220,9 +220,9 @@ class WeightenedBeam(Beam):
         Parameters
         ----------
         dt
-            Macro-particle time coordinates [s]
+            Macro-particle time coordinates, in [s]
         dE
-            Macro-particle energy coordinates [eV]
+            Macro-particle energy coordinates, in [eV]
         flags
             Macro-particle flags
         reference_time

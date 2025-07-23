@@ -141,7 +141,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         closed_orbit_length: float,
     ):
         """
-        Calculate angular frequency of cavity, in [Hz]
+        Calculate angular frequency of cavity, in [rad/s]
 
         Parameters
         ----------
@@ -152,7 +152,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         Returns
         -------
         omega
-            Angular frequency (2 PI f) of cavity, in [Hz]
+            Angular frequency (2 PI f) of cavity, in [rad/s]
         """
         pass
 
@@ -264,7 +264,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         closed_orbit_length: float,
     ) -> float:
         """
-        Calculate angular frequency of cavity, in [Hz]
+        Calculate angular frequency of cavity, in [rad/s]
 
         Parameters
         ----------
@@ -275,7 +275,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         Returns
         -------
         omega
-            Angular frequency (2 PI f) of cavity, in [Hz]
+            Angular frequency (2 PI f) of cavity, in [rad/s]
         """
         return self.harmonic * TWOPI_C0 * beam_beta / closed_orbit_length
 
@@ -459,7 +459,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         closed_orbit_length: float,
     ) -> NumpyArray:
         """
-        Calculate angular frequency of cavity in [Hz]
+        Calculate angular frequency of cavity in [rad/s]
 
         Parameters
         ----------
@@ -472,7 +472,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         Returns
         -------
         omega
-            Angular frequency (2 PI f) of cavity in [Hz]
+            Angular frequency (2 PI f) of cavity in [rad/s]
         """
         return self.harmonic * TWOPI_C0 * beam_beta / closed_orbit_length
 

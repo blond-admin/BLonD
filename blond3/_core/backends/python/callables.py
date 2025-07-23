@@ -161,9 +161,9 @@ class PythonSpecials(Specials):
         Parameters
         ----------
         dt
-            Macro-particle time coordinates [s]
+            Macro-particle time coordinates, in [s]
         dE
-            Macro-particle energy coordinates [eV]
+            Macro-particle energy coordinates, in [eV]
         voltage
             Array of voltages along `bin_centers`, in [V]
         bin_centers
