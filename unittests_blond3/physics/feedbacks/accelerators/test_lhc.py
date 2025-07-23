@@ -34,7 +34,7 @@ class TestLHCOpenDrive(unittest.TestCase):
 
         # Initialise necessary classes
         # ring = Ring(C, alpha, p_s, particle=Proton(), n_turns=1)
-        ring = Ring()
+        ring = Ring(circumference=C)
         # self.rf = RFStation(ring, [h], [V], [dphi])
         rf = MultiHarmonicCavity(n_harmonics=1, main_harmonic_idx=0)
         rf.harmonic = np.array([h])
@@ -45,7 +45,6 @@ class TestLHCOpenDrive(unittest.TestCase):
         ring.add_drifts(
             n_drifts_per_section=1,
             n_sections=1,
-            total_orbit_length=C,
             driftclass=DriftSimple,
             transition_gamma=gamma_t,
         )
@@ -71,7 +70,7 @@ class TestLHCOpenDrive(unittest.TestCase):
         # Test in open loop, on tune
         self.RFFB = LHCCavityLoopCommissioning(open_drive=True)
         omega = self.rf.calc_omega(beam_beta=beam.reference_beta,
-                                   closed_orbit_length=ring.closed_orbit_length)
+                                   ring_circumference=ring.circumference)
         rf._omega = omega # TODO FIXME REMOVE
         self.f_c = float(omega)/(2*np.pi)
 

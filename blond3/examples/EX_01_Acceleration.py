@@ -23,7 +23,7 @@ from blond3 import (
 import logging
 
 logging.basicConfig(level=logging.INFO)
-ring = Ring()
+ring = Ring(26658.883)
 
 cavity1 = SingleHarmonicCavity()
 cavity1.harmonic = 35640
@@ -50,29 +50,29 @@ beam1 = Beam(
 
 sim = Simulation.from_locals(locals())
 sim.print_one_turn_execution_order()
-
-
-sim.prepare_beam(
-    beam=beam1,
-    preparation_routine=BiGaussian(
-        sigma_dt=0.4e-9 / 4,
-        sigma_dE=1e9 / 4,
-        reinsertion=False,
-        seed=1,
-        n_macroparticles=1e3,
-    ),
-)
-
-sim.prepare_beam(
-    beam=beam1,
-    preparation_routine=EmpiricMatcher(
-        grid_base_dt=np.linspace(0, 2.5e-9, 100),
-        grid_base_dE=np.linspace(-(777538700.0 * 2), 777538700.0 * 2, 100),
-        n_macroparticles=1e6,
-        seed=0,
-        maxiter_intensity_effects=0,
-    ),
-)
+BIGAUS = True
+if BIGAUS:
+    sim.prepare_beam(
+        beam=beam1,
+        preparation_routine=BiGaussian(
+            sigma_dt=0.4e-9 / 4,
+            sigma_dE=1e9 / 4,
+            reinsertion=False,
+            seed=1,
+            n_macroparticles=1e3,
+        ),
+    )
+else:
+    sim.prepare_beam(
+        beam=beam1,
+        preparation_routine=EmpiricMatcher(
+            grid_base_dt=np.linspace(0, 2.5e-9, 100),
+            grid_base_dE=np.linspace(-(777538700.0 * 2), 777538700.0 * 2, 100),
+            n_macroparticles=1e6,
+            seed=0,
+            maxiter_intensity_effects=0,
+        ),
+    )
 
 phase_observation = CavityPhaseObservation(
     each_turn_i=1,
@@ -111,17 +111,19 @@ except FileNotFoundError as exc:
         observe=[phase_observation, bunch_observation],
         # callback=custom_action,
     )
-plt.plot(phase_observation.phases)
-plt.figure()
-for i in range(N_TURNS):
-    plt.clf()
-    plt.hist2d(
-        bunch_observation.dts[i, :],
-        bunch_observation.dEs[i, :],
-        bins=256,
-        range=[[0, 2.5e-9], [-4e8, 4e8]],
-    )
-    plt.draw()
-    plt.pause(0.1)
+ANIMATE = False
+if ANIMATE:
+    plt.plot(phase_observation.phases)
+    plt.figure()
+    for i in range(N_TURNS):
+        plt.clf()
+        plt.hist2d(
+            bunch_observation.dts[i, :],
+            bunch_observation.dEs[i, :],
+            bins=256,
+            range=[[0, 2.5e-9], [-4e8, 4e8]],
+        )
+        plt.draw()
+        plt.pause(0.1)
 
-plt.show()
+    plt.show()

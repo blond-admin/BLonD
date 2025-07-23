@@ -79,7 +79,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
             (beam.particle_type.charge * e)
             / (2 * np.pi)
             * ratio
-            * (self._simulation.ring.closed_orbit_length / beam.reference_velocity)
+            * (self._simulation.ring.circumference / beam.reference_velocity)
             / self._parent_wakefield.profile.hist_step
         )
         diff = self._parent_wakefield.profile.diff_hist_y

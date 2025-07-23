@@ -83,7 +83,7 @@ def _get_dE_from_dt(
     harmonic = rf_station.harmonic
     omega_rf = rf_station.calc_omega(
         beam_beta=beam.reference_beta,
-        closed_orbit_length=simulation.ring.closed_orbit_length,
+        ring_circumference=simulation.ring.circumference,
     )
     phi_rf = rf_station.phi_rf
     voltage = rf_station.voltage
@@ -207,7 +207,7 @@ class BiGaussian(MatchingRoutine):
 
         omega_rf = rf_station.calc_omega(
             beam_beta=beam.reference_beta,
-            closed_orbit_length=simulation.ring.closed_orbit_length,
+            ring_circumference=simulation.ring.circumference,
         )
         phi_rf = rf_station.phi_rf
         harmonic = rf_station.harmonic
@@ -264,7 +264,7 @@ class BiGaussian(MatchingRoutine):
                         etas=[eta0],
                         beta=beam.reference_beta,
                         total_energy=beam.reference_total_energy,
-                        ring_circumference=simulation.ring.closed_orbit_length,
+                        ring_circumference=simulation.ring.circumference,
                         dt=dt,
                         dE=dE,
                     )

@@ -13,13 +13,14 @@ from blond3.physics.drifts import DriftBaseClass
 class TestRing(unittest.TestCase):
     def setUp(self):
         # TODO: implement test for `__init__`
-        self.ring = Ring()
+        self.ring = Ring(10.0)
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
     def test_circumference(self):
-        ring = Ring()
+        ring = Ring(10.0)
+        self.assertTrue(np.isclose(ring.circumference, 10.0))
         self.assertTrue(np.isclose(ring.closed_orbit_length, 0.0))
 
     def test_add_element_fails_no_section_index(self):
@@ -165,6 +166,7 @@ class TestRing(unittest.TestCase):
 
     def test_assert_circumference(self):
         with self.assertRaises(AssertionError):
+            self.ring._circumference = 12
             drift = Mock(spec=DriftBaseClass)
             drift.orbit_length = 123
             drift2 = Mock(spec=DriftBaseClass)
@@ -174,14 +176,16 @@ class TestRing(unittest.TestCase):
             drift2.section_index = 0
             cavity.section_index = 0
             self.ring.add_elements((drift, drift2, cavity))
-            self.ring.assert_circumference(12)  # fails
-        self.ring.assert_circumference(2 * 123)  # works
+            self.ring.assert_circumference()  # fails
+        self.ring._circumference = 2 * 123
+        self.ring.assert_circumference()  # works
 
-    def test_add_drifts(self):
-        self.ring.add_drifts(12, 3, 129)
+    def test_add_drifts2(self):
+        self.ring._circumference = 129
+        self.ring.add_drifts(12, 3)
         self.assertEqual(3 * 12, self.ring.elements.n_elements)
         self.assertEqual(3, self.ring.elements.n_sections)
-        self.ring.assert_circumference(129)  # works
+        self.ring.assert_circumference()  # works
 
 
 if __name__ == "__main__":

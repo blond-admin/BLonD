@@ -69,7 +69,7 @@ class TestRfBeamCurrent(unittest.TestCase):
             value=p_s,
             in_unit="momentum",
         )
-        self.ring = Ring()
+        self.ring = Ring(circumference=C)
         # self.rf = RFStation(self.ring, 4620, 4.5e6, 0)
         self.rf = MultiHarmonicCavity(
             n_harmonics=1,
@@ -108,7 +108,7 @@ class TestRfBeamCurrent(unittest.TestCase):
             particle_type=proton,
         )
         self.omega_rf = self.rf.calc_omega(
-            self.beam.reference_beta, self.ring.closed_orbit_length
+            self.beam.reference_beta, self.ring.circumference
         )
 
     def test_setup(self):
@@ -183,7 +183,7 @@ class TestRfBeamCurrent(unittest.TestCase):
         t_rev = float(
             (2 * np.pi * self.rf.harmonic)
             / self.rf.calc_omega(
-                self.beam.reference_beta, self.ring.closed_orbit_length
+                self.beam.reference_beta, self.ring.circumference
             )
         )
         rf_current = rf_beam_current(
@@ -430,7 +430,7 @@ class TestRfBeamCurrent(unittest.TestCase):
         t_rev = float(
             (2 * np.pi * self.rf.harmonic)
             / self.rf.calc_omega(
-                self.beam.reference_beta, self.ring.closed_orbit_length
+                self.beam.reference_beta, self.ring.circumference
             )
         )
         self.profile.track(self.beam)
@@ -677,7 +677,7 @@ class TestRfBeamCurrent(unittest.TestCase):
         t_rev = float(
             (2 * np.pi * self.rf.harmonic)
             / self.rf.calc_omega(
-                self.beam.reference_beta, self.ring.closed_orbit_length
+                self.beam.reference_beta, self.ring.circumference
             )
         )
         t_rf = t_rev / self.rf.harmonic

@@ -23,7 +23,9 @@ class TestPhiS(unittest.TestCase):
             )
             t_s = phi_s / (omega)
             plt.axvline(t_s)
-        plt.show()
+        # plt.show()
+            self.assertAlmostEqual(charge * voltage * np.sin(omega * t_s + phi),energy_gain)
+        # todo add assertion
 
 
 if __name__ == "__main__":

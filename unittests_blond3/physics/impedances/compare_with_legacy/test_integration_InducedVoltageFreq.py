@@ -259,7 +259,7 @@ class Blond3:
         blond2 = Blond2()
         self.blond2 = blond2
         circumference = 6911.56
-        ring = Ring()
+        ring = Ring(circumference=circumference)
         profile = StaticProfile(
             blond2.profile.cut_left,
             blond2.profile.cut_right,

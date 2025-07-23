@@ -27,12 +27,26 @@ if TYPE_CHECKING:  # pragma: no cover
 class Ring(Preparable, Schedulable):
     def __init__(
         self,
+        circumference: float,
     ) -> None:
-        """Ring a.k.a. synchrotron"""
+        """
+        Ring a.k.a. synchrotron
+
+        Parameters
+        ----------
+        circumference
+            Constant synchrotron reference circumference, in [m].
+            The orbit length might change during simulation,
+            but the circumference is used to determine the RF frequency.
+            Changes of orbit length thus lead to delays, but do not alter
+            the derived frequency program.
+        """
         from .beam_physics_relevant_elements import BeamPhysicsRelevantElements
 
         super().__init__()
         self._elements = BeamPhysicsRelevantElements()
+        assert circumference > 0, f"`circumference` must be bigger 0, but is {circumference}"
+        self._circumference = circumference
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
@@ -68,7 +82,21 @@ class Ring(Preparable, Schedulable):
         pass
 
     @property
-    def n_cavities(self):
+    def circumference(self) -> float:
+        """
+        Constant synchrotron reference circumference, in [m].
+
+        Notes
+        -----
+        The orbit length might change during simulation,
+        but the circumference is used to determine the RF frequency.
+        Changes of orbit length thus lead to delays, but do not alter
+        the derived frequency program.
+        """
+        return self._circumference
+
+    @property
+    def n_cavities(self) -> int:
         """Total number of cavities in this synchrotron"""
         from ...physics.cavities import CavityBaseClass
 
@@ -81,12 +109,12 @@ class Ring(Preparable, Schedulable):
         return self._elements
 
     @property  # as readonly attributes
-    def closed_orbit_length(self):
+    def closed_orbit_length(self) -> float:
         """Length of the closed orbit, in [m]"""
         from ...physics.drifts import DriftBaseClass
 
         all_drifts = self.elements.get_elements(DriftBaseClass)
-        orbit_length = sum([drift.orbit_length for drift in all_drifts])
+        orbit_length = float(sum([drift.orbit_length for drift in all_drifts]))
         return orbit_length
 
     @property
@@ -96,7 +124,6 @@ class Ring(Preparable, Schedulable):
 
     def assert_circumference(
         self,
-        circumference: float,
         atol: float = 1e-6,
     ) -> None:
         """
@@ -104,8 +131,6 @@ class Ring(Preparable, Schedulable):
 
         Parameters
         ----------
-        circumference
-            The circumference that should be inside the simulation, in [m]
         atol
             The tolerance of the check, in [m]
 
@@ -117,15 +142,14 @@ class Ring(Preparable, Schedulable):
         """
         assert np.isclose(
             self.closed_orbit_length,
-            circumference,
+            self.circumference,
             atol=atol,
-        ), f"{self.closed_orbit_length=}m, but should be {circumference}m."
+        ), f"{self.closed_orbit_length=}m, but should be {self.circumference}m."
 
     def add_drifts(
         self,
         n_drifts_per_section: int,
         n_sections: int,
-        total_orbit_length: float,
         driftclass: Type[DriftBaseClass] | None = None,
         **kwargs_drift,
     ) -> None:
@@ -155,7 +179,7 @@ class Ring(Preparable, Schedulable):
             driftclass = DriftSimple
 
         n_drifts = n_drifts_per_section * n_sections
-        length_per_drift = total_orbit_length / n_drifts
+        length_per_drift = self.circumference / n_drifts
         for section_i in range(n_sections):
             for drift_i in range(n_drifts_per_section):
                 drift = driftclass(

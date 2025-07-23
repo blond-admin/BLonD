@@ -22,7 +22,7 @@ class ExampleSimulation01:
             CavityPhaseObservation,
         )
 
-        ring = Ring()
+        ring = Ring(circumference=26658.883)
 
         cavity1 = SingleHarmonicCavity()
         cavity1.harmonic = 35640
@@ -96,7 +96,7 @@ class SimulationTwoRfStations:
         )
 
         circumference = 26658.883
-        ring = Ring()
+        ring = Ring(circumference=circumference)
 
         cavity1 = SingleHarmonicCavity(
             section_index=0,

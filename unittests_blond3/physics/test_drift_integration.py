@@ -19,7 +19,7 @@ import logging
 circumference = 26658.883
 
 logging.basicConfig(level=logging.INFO)
-ring = Ring()
+ring = Ring(circumference=circumference)
 
 cavity1 = SingleHarmonicCavity(section_index=0)
 cavity1.harmonic = 35640
@@ -58,4 +58,4 @@ beam1 = Beam(n_particles=1e9, particle_type=proton)
 
 
 sim = Simulation.from_locals(locals())
-sim.ring.assert_circumference(circumference=26658.883)
+sim.ring.assert_circumference()

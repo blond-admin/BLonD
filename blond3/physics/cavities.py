@@ -235,7 +235,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         # for feedbacks etc. in super()
         self._omega = self.calc_omega(
             beam_beta=beam.reference_beta,
-            closed_orbit_length=self._ring.closed_orbit_length,
+            ring_circumference=self._ring.circumference,
         )
 
         super().track(beam=beam)
@@ -261,7 +261,7 @@ class SingleHarmonicCavity(CavityBaseClass):
     def calc_omega(
         self,
         beam_beta: float,
-        closed_orbit_length: float,
+        ring_circumference: float,
     ) -> float:
         """
         Calculate angular frequency of cavity, in [rad/s]
@@ -270,14 +270,14 @@ class SingleHarmonicCavity(CavityBaseClass):
         ----------
         beam_beta
             Beam reference fraction of speed of light (v/c0)
-        closed_orbit_length
-            Length of the closed orbit, in [m]
+        ring_circumference
+            Reference synchrotron circumference, in [m].
         Returns
         -------
         omega
             Angular frequency (2 PI f) of cavity, in [rad/s]
         """
-        return self.harmonic * TWOPI_C0 * beam_beta / closed_orbit_length
+        return self.harmonic * TWOPI_C0 * beam_beta / ring_circumference
 
     def voltage_waveform_tmp(self, ts: NumpyArray):
         """
@@ -456,7 +456,7 @@ class MultiHarmonicCavity(CavityBaseClass):
     def calc_omega(
         self,
         beam_beta: float,
-        closed_orbit_length: float,
+        ring_circumference: float,
     ) -> NumpyArray:
         """
         Calculate angular frequency of cavity in [rad/s]
@@ -466,15 +466,15 @@ class MultiHarmonicCavity(CavityBaseClass):
         beam_beta
             Beam reference fraction of speed of light (v/c0)
 
-        closed_orbit_length
-            Length of the closed orbit, in [m]
+        ring_circumference
+            Reference synchrotron circumference, in [m].
 
         Returns
         -------
         omega
             Angular frequency (2 PI f) of cavity in [rad/s]
         """
-        return self.harmonic * TWOPI_C0 * beam_beta / closed_orbit_length
+        return self.harmonic * TWOPI_C0 * beam_beta / ring_circumference
 
     def voltage_waveform_tmp(self, ts: NumpyArray):
         """
@@ -589,7 +589,7 @@ class MultiHarmonicCavity(CavityBaseClass):
 
         omega_rf = self.calc_omega(
             beam_beta=beam.reference_beta,
-            closed_orbit_length=self._ring.closed_orbit_length,
+            ring_circumference=self._ring.circumference,
         )
         self._omega = omega_rf
 

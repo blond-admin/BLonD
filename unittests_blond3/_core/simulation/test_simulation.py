@@ -18,7 +18,7 @@ from blond3.handle_results.observables import Observables, BunchObservation
 
 class TestSimulation(unittest.TestCase):
     def setUp(self):
-        ring = Ring()
+        ring = Ring(circumference=26658.883)
 
         cavity1 = SingleHarmonicCavity()
         cavity1.harmonic = 35640

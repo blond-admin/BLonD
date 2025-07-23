@@ -77,7 +77,7 @@ class TestDriftSimple(unittest.TestCase):
         from blond3._core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
-        simulation.ring.closed_orbit_length = 10
+        simulation.ring.circumference = 10
         self.drift_simple.on_init_simulation(simulation=simulation)
 
     def test_track(self):

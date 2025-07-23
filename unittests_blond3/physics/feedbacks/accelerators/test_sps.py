@@ -14,7 +14,7 @@ from blond3.physics.feedbacks.accelerators.sps import SPSCavityFeedback, \
 class TestSPSCavityFeedback(unittest.TestCase):
     def setUp(self):
         backend.change_backend(Numpy64Bit)
-        backend.set_specials("fortran")
+        #backend.set_specials("fortran")
         C = 2 * np.pi * 1100.009  # Ring circumference [m]
         # Gamma at transition
         p_s = 25.92e9  # Synchronous momentum at injection [eV]
@@ -30,7 +30,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
         N_t = 1  # Number of turns to track
 
         # self.ring = Ring(C, alpha, p_s, particle=Proton(), n_turns=N_t)
-        ring = Ring()
+        ring = Ring(circumference=C)
         self.ring = ring
         rf = MultiHarmonicCavity(
             n_harmonics=1,
@@ -43,7 +43,6 @@ class TestSPSCavityFeedback(unittest.TestCase):
         self.ring.add_drifts(
             n_drifts_per_section=1,
             n_sections=1,
-            total_orbit_length=C,
             driftclass=DriftSimple,
             transition_gamma=18.0,
         )
@@ -79,7 +78,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
         n_shift = 1550  # how many rf-buckets to shift beam
         omega_rf = float(rf.calc_omega(
             beam_beta=self.beam.reference_beta,
-            closed_orbit_length=ring.closed_orbit_length,
+            ring_circumference=ring.circumference,
         ))
         t_rf = (2 * np.pi) / omega_rf
         self.beam._dt += n_shift * t_rf

@@ -84,7 +84,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         impedance
             Complex impedance array.
         """
-        T = simulation.ring.closed_orbit_length / beam.reference_velocity
+        T = simulation.ring.circumference / beam.reference_velocity
         z_over_n = self.Z_over_n
         derivative_kernel = self._get_derivative_impedance(freq_x)
         return derivative_kernel[:] / (2 * np.pi) * z_over_n * T
