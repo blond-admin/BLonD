@@ -22,7 +22,6 @@ if TYPE_CHECKING:  # pragma: no cover
         Literal,
         Union,
         Dict,
-        Type,
     )
 
     from numpy.typing import NDArray as NumpyArray
@@ -183,6 +182,7 @@ class ConstantMagneticCycle(MagneticCycleBase):
         reference_particle: ParticleType,
         value: float,
         in_unit: SynchronousDataTypes = "momentum",
+        bending_radius: Optional[float] = None,
     ):
         """
         Magnetic cycle for a non-changing magnetic field
@@ -198,12 +198,15 @@ class ConstantMagneticCycle(MagneticCycleBase):
             - 'total energy' [eV],
             - 'kinetic energy' [eV], or
             - 'bending field' [T]
+        bending_radius
+            To 'bending field' associated bending radius, in [m]
         """
         super().__init__(
             reference_particle=reference_particle,
         )
         self._value = value
         self._in_unit = in_unit
+        self._bending_radius = bending_radius
 
         self._magnetic_rigidity: LateInit[float] = None
         self._total_energy_cache: LateInit[Dict[int, float]] = {}
@@ -224,9 +227,7 @@ class ConstantMagneticCycle(MagneticCycleBase):
             charge=self._reference_particle.charge,
             convert_from=self._in_unit,
             bending_radius=(
-                simulation.ring.bending_radius
-                if self._in_unit == "bending field"
-                else None
+                self._bending_radius if self._in_unit == "bending field" else None
             ),
         )
 
@@ -303,7 +304,7 @@ class ConstantMagneticCycle(MagneticCycleBase):
 
         Returns
         -------
-            constant_magnetic_cycle
+        constant_magnetic_cycle
 
         """
         ret = ConstantMagneticCycle(
@@ -311,7 +312,6 @@ class ConstantMagneticCycle(MagneticCycleBase):
             in_unit=in_unit,
             reference_particle=proton,
         )
-        from .._core.beam.base import BeamBaseClass
         from .._core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
@@ -328,6 +328,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         value_init: float,
         values_after_turn: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
+        bending_radius: Optional[float] = None,
     ):
         """
         Magnetic cycle per turn. Assumes each cavity has the same increment
@@ -346,6 +347,8 @@ class MagneticCyclePerTurn(MagneticCycleBase):
             - 'total energy' [eV],
             - 'kinetic energy' [eV], or
             - 'bending field' [T]
+        bending_radius
+            To 'bending field' associated bending radius, in [m]
         """
         super().__init__(
             reference_particle=reference_particle,
@@ -358,6 +361,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
 
         self._values_after_turn = values_after_turn[:]
         self._in_unit = in_unit
+        self._bending_radius = bending_radius
 
         self._magnetic_rigidity: LateInit[NumpyArray] = None
         self._momentum_cached: Dict[int, NumpyArray] = {}
@@ -386,7 +390,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
             charge=self._reference_particle.charge,
             convert_from=self._in_unit,
             bending_radius=(
-                simulation.ring.bending_radius
+                self._bending_radius
                 if self._in_unit == "bending field"
                 else None
             ),
@@ -397,7 +401,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
             charge=self._reference_particle.charge,
             convert_from=self._in_unit,
             bending_radius=(
-                simulation.ring.bending_radius
+                self._bending_radius
                 if self._in_unit == "bending field"
                 else None
             ),
@@ -530,6 +534,7 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
         value_init: float,
         values_after_cavity_per_turn: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
+        bending_radius: Optional[float] = None,
     ):
         """
         Magnetic program per turn, defined for each cavity
@@ -548,6 +553,8 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
             - 'total energy' [eV],
             - 'kinetic energy' [eV], or
             - 'bending field' [T]
+        bending_radius
+            To 'bending field' associated bending radius, in [m]
         """
         super().__init__(
             reference_particle=reference_particle,
@@ -556,6 +563,7 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
         self._values_after_cavity_per_turn = values_after_cavity_per_turn[:, :]
         self._n_turns_max = self._values_after_cavity_per_turn.shape[1]
         self._in_unit = in_unit
+        self._bending_radius = bending_radius
 
         self._magnetic_rigidity_after_cavity_per_turn: LateInit[NumpyArray] = None
         self._momentum_cached: Dict[int, NumpyArray] = {}
@@ -576,7 +584,7 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
             charge=self._reference_particle.charge,
             convert_from=self._in_unit,
             bending_radius=(
-                simulation.ring.bending_radius
+                self._bending_radius
                 if self._in_unit == "bending field"
                 else None
             ),
@@ -587,7 +595,7 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
             charge=self._reference_particle.charge,
             convert_from=self._in_unit,
             bending_radius=(
-                simulation.ring.bending_radius
+                self._bending_radius
                 if self._in_unit == "bending field"
                 else None
             ),
@@ -714,6 +722,7 @@ class MagneticCycleByTime(MagneticCycleBase):
         base_time: NumpyArray,
         base_values: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
+        bending_radius: Optional[float] = None,
         interpolator=np.interp,
     ):
         """
@@ -733,6 +742,8 @@ class MagneticCycleByTime(MagneticCycleBase):
             - 'total energy' [eV],
             - 'kinetic energy' [eV], or
             - 'bending field' [T]
+        bending_radius
+            To 'bending field' associated bending radius, in [m]
         interpolator
             Interpolation routine to get time in between the base values
             Default: `numpy.interp`
@@ -744,6 +755,7 @@ class MagneticCycleByTime(MagneticCycleBase):
         self._base_time = base_time[:]
         self._base_values = base_values[:]
         self._in_unit = in_unit
+        self._bending_radius = bending_radius
 
         self._base_magnetic_rigidity: LateInit[NumpyArray] = None
 
@@ -763,7 +775,7 @@ class MagneticCycleByTime(MagneticCycleBase):
             charge=self._reference_particle.charge,
             convert_from=self._in_unit,
             bending_radius=(
-                simulation.ring.bending_radius
+                self._bending_radius
                 if self._in_unit == "bending field"
                 else None
             ),
