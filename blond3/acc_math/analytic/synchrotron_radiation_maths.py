@@ -8,6 +8,136 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
 
 
+def calculate_partition_numbers(
+    synchrotron_radiation_integrals: NumpyArray,
+    which_plane: str = None,
+):
+    """
+    Function to compute the damping partition numbers in horizontal,
+    longitudinal or all planes.
+    :param synchrotron_radiation_integrals: synchrotron radiation integrals
+    :param which_plane: str input to request the relevant damping partition
+    number. If none is provided, all three numbers are returned.
+    :return:
+    """
+    if (which_plane == "horizontal") or (which_plane == "h"):
+        return (
+            1 - synchrotron_radiation_integrals[3] / synchrotron_radiation_integrals[1]
+        )
+    elif (which_plane == "longitudinal") or (which_plane == "z"):
+        return (
+            2 + synchrotron_radiation_integrals[3] / synchrotron_radiation_integrals[1]
+        )
+    else:
+        jx = 1 - synchrotron_radiation_integrals[3] / synchrotron_radiation_integrals[1]
+        jy = 1
+        jz = 2 + synchrotron_radiation_integrals[3] / synchrotron_radiation_integrals[1]
+        return np.array([jx, jy, jz])
+
+
+def calculate_damping_times_in_turn(
+    energy: float | NumpyArray,
+    synchrotron_radiation_integrals: NumpyArray,
+    energy_loss_per_turn: float,
+    which_plane: str = None,
+):
+    """
+    Function to calculate the transverse and longitudinal damping times in
+    seconds.
+    :param which_plane:
+    :param energy: expected beam energy [eV]
+    :param synchrotron_radiation_integrals:
+    :param energy_loss_per_turn: in eV per turn
+    :return:
+    """
+    if which_plane is not None:
+        damping_partition_numbers = calculate_partition_numbers(
+            synchrotron_radiation_integrals, which_plane=which_plane
+        )
+        return 2 * energy / damping_partition_numbers / energy_loss_per_turn
+    else:
+        damping_partition_numbers = calculate_partition_numbers(
+            synchrotron_radiation_integrals
+        )
+        tau_x_s = (2 * energy / damping_partition_numbers[0]) / energy_loss_per_turn
+        tau_y_s = (2 * energy / damping_partition_numbers[1]) / energy_loss_per_turn
+        tau_z_s = (2 * energy / damping_partition_numbers[2]) / energy_loss_per_turn
+        return np.array([tau_x_s, tau_y_s, tau_z_s])
+
+
+def calculate_damping_times_in_second(
+    energy: float | NumpyArray,
+    synchrotron_radiation_integrals: NumpyArray,
+    energy_loss_per_turn: float,
+    revolution_frequency: float,
+    which_plane: str = None,
+):
+    """
+    Function to calculate the transverse and longitudinal damping times in
+    second.
+    :param which_plane:
+    :param energy: expected beam energy [eV]
+    :param synchrotron_radiation_integrals:
+    :param energy_loss_per_turn: in eV per turn
+    :param revolution_frequency: expected revolution frequency in Hz
+    :return:
+    """
+    if which_plane is not None:
+        damping_partition_numbers = calculate_partition_numbers(
+            synchrotron_radiation_integrals, which_plane=which_plane
+        )
+        return (
+            2
+            * energy
+            / damping_partition_numbers
+            / energy_loss_per_turn
+            / revolution_frequency
+        )
+    else:
+        damping_partition_numbers = calculate_partition_numbers(
+            synchrotron_radiation_integrals
+        )
+        tau_x_s = (
+            (2 * energy / damping_partition_numbers[0])
+            / energy_loss_per_turn
+            / revolution_frequency
+        )
+        tau_y_s = (
+            (2 * energy / damping_partition_numbers[1])
+            / energy_loss_per_turn
+            / revolution_frequency
+        )
+        tau_z_s = (
+            (2 * energy / damping_partition_numbers[2])
+            / energy_loss_per_turn
+            / revolution_frequency
+        )
+
+        return np.array([tau_x_s, tau_y_s, tau_z_s])
+
+
+def calculate_energy_loss_per_turn(
+    energy: float | NumpyArray,
+    synchrotron_radiation_integrals: NumpyArray,
+    particle_type: ParticleType = electron,
+):
+    """
+    Function to calculate the expected energy loss per turn due to synchrotron
+    radiation
+    :param particle_type: ParticleType class object
+    :param energy: energy in eV
+    :param synchrotron_radiation_integrals: NumpyArray
+    :return:
+    """
+    energy_loss_per_turn = (
+        particle_type.quantum_radiation_constant
+        * energy**4
+        * synchrotron_radiation_integrals[1]
+        / (2 * np.pi)
+    )
+    return energy_loss_per_turn
+
+
 def calculate_natural_horizontal_emittance(
     energy: float | NumpyArray,
     synchrotron_radiation_integrals: NumpyArray,
@@ -21,7 +151,7 @@ def calculate_natural_horizontal_emittance(
     """
     jx = calculate_partition_numbers(synchrotron_radiation_integrals, which_plane="h")
     return (
-        particle_type.quantum_radiation_constant()
+        particle_type.quantum_radiation_constant
         * (energy / particle_type.mass) ** 2.0
         * synchrotron_radiation_integrals[4]
         / jx
@@ -42,7 +172,7 @@ def calculate_natural_energy_spread(
     """
     jz = calculate_partition_numbers(synchrotron_radiation_integrals, which_plane="z")
     return np.sqrt(
-        particle_type.quantum_radiation_constant()()
+        particle_type.quantum_radiation_constant
         * (energy / particle_type.mass) ** 2.0
         * synchrotron_radiation_integrals[2]
         / (jz * synchrotron_radiation_integrals[1])
@@ -79,136 +209,6 @@ def calculate_natural_bunch_length(
         / angular_synchrotron_frequency
         * natural_energy_spread
     )
-
-
-def calculate_partition_numbers(
-    synchrotron_radiation_integrals: NumpyArray,
-    which_plane: str = ("z" or "h" or "horizontal" or "longitudinal"),
-):
-    """
-    Function to compute the damping partition numbers in horizontal,
-    longitudinal or all planes.
-    :param synchrotron_radiation_integrals: synchrotron radiation integrals
-    :param which_plane: str input to request the relevant damping partition
-    number. If none is provided, all three numbers are returned.
-    :return:
-    """
-    if (which_plane == "horizontal") or (which_plane == "h"):
-        return (
-            1 - synchrotron_radiation_integrals[3] / synchrotron_radiation_integrals[1]
-        )
-    elif (which_plane == "longitudinal") or (which_plane == "z"):
-        return (
-            2 + synchrotron_radiation_integrals[3] / synchrotron_radiation_integrals[1]
-        )
-    else:
-        jx = 1 - synchrotron_radiation_integrals[3] / synchrotron_radiation_integrals[1]
-        jy = 1
-        jz = 2 + synchrotron_radiation_integrals[3] / synchrotron_radiation_integrals[1]
-        return np.array([jx, jy, jz])
-
-
-def calculate_energy_loss_per_turn(
-    energy: float | NumpyArray,
-    synchrotron_radiation_integrals: NumpyArray,
-    particle_type: ParticleType = electron,
-):
-    """
-    Function to calculate the expected energy loss per turn due to synchrotron
-    radiation
-    :param particle_type: ParticleType class object
-    :param energy: energy in eV
-    :param synchrotron_radiation_integrals: NumpyArray
-    :return:
-    """
-    energy_loss_per_turn = (
-        particle_type.quantum_radiation_constant()
-        * energy**4
-        * synchrotron_radiation_integrals[1]
-        / (2 * np.pi)
-    )
-    return energy_loss_per_turn
-
-
-def calculate_damping_times_in_second(
-    energy: float | NumpyArray,
-    synchrotron_radiation_integrals: NumpyArray,
-    energy_loss_per_turn: float,
-    revolution_frequency: float,
-    which_plane: str = ("z" or "h" or "horizontal" or "longitudinal"),
-):
-    """
-    Function to calculate the transverse and longitudinal damping times in
-    second.
-    :param which_plane:
-    :param energy: expected beam energy [eV]
-    :param synchrotron_radiation_integrals:
-    :param energy_loss_per_turn: in eV per turn
-    :param revolution_frequency: expected revolution frequency in Hz
-    :return:
-    """
-    if which_plane is not None:
-        damping_partition_numbers = calculate_partition_numbers(
-            synchrotron_radiation_integrals, which_plane=which_plane
-        )
-        return (
-            2
-            * energy
-            / damping_partition_numbers[0]
-            / energy_loss_per_turn
-            / revolution_frequency
-        )
-    else:
-        damping_partition_numbers = calculate_partition_numbers(
-            synchrotron_radiation_integrals
-        )
-        tau_x_s = (
-            (2 * energy / damping_partition_numbers[0])
-            / energy_loss_per_turn
-            / revolution_frequency
-        )
-        tau_y_s = (
-            (2 * energy / damping_partition_numbers[1])
-            / energy_loss_per_turn
-            / revolution_frequency
-        )
-        tau_z_s = (
-            (2 * energy / damping_partition_numbers[2])
-            / energy_loss_per_turn
-            / revolution_frequency
-        )
-
-        return np.array([tau_x_s, tau_y_s, tau_z_s])
-
-
-def calculate_damping_times_in_turn(
-    energy: float | NumpyArray,
-    synchrotron_radiation_integrals: NumpyArray,
-    energy_loss_per_turn: float,
-    which_plane: str = None,
-):
-    """
-    Function to calculate the transverse and longitudinal damping times in
-    seconds.
-    :param which_plane:
-    :param energy: expected beam energy [eV]
-    :param synchrotron_radiation_integrals:
-    :param energy_loss_per_turn: in eV per turn
-    :return:
-    """
-    if which_plane is not None:
-        damping_partition_numbers = calculate_partition_numbers(
-            synchrotron_radiation_integrals, which_plane=which_plane
-        )
-        return 2 * energy / damping_partition_numbers[0] / energy_loss_per_turn
-    else:
-        damping_partition_numbers = calculate_partition_numbers(
-            synchrotron_radiation_integrals
-        )
-        tau_x_s = (2 * energy / damping_partition_numbers[0]) / energy_loss_per_turn
-        tau_y_s = (2 * energy / damping_partition_numbers[1]) / energy_loss_per_turn
-        tau_z_s = (2 * energy / damping_partition_numbers[2]) / energy_loss_per_turn
-        return np.array([tau_x_s, tau_y_s, tau_z_s])
 
 
 def gather_longitudinal_synchrotron_radiation_parameters(
