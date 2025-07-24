@@ -7,31 +7,38 @@ import numpy as np
 from numpy.matlib import empty
 from scipy.constants import e, c
 
-from acc_math.analytic.synchrotron_radiation_maths import (
+from _core.ring.beam_physics_relevant_elements import \
+    BeamPhysicsRelevantElements
+from ..acc_math.analytic.synchrotron_radiation_maths import (
     gather_longitudinal_synchrotron_radiation_parameters,
     calculate_energy_loss_per_turn,
     calculate_damping_times_in_turn,
     calculate_natural_energy_spread,
 )
+from blond.utils.exceptions import InputDataError, MissingParameterError
 from .._core.base import BeamPhysicsRelevant, Schedulable, DynamicParameter
 from typing import TYPE_CHECKING
 
 from ..cycles.magnetic_cycle import MagneticCycleBase
 
 if TYPE_CHECKING:
-    from typing import Optional, Optional as LateInit
+    from typing import (
+        Optional,
+        Optional as LateInit,
+    )
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
     from .._core.simulation.simulation import Simulation
     from .._core.beam.base import BeamBaseClass
     from .. import Ring
+    from ..physics.drifts import DriftBaseClass
+    from ..physics.cavities import CavityBaseClass
 
 
 class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
     """Master class for handling synchrotron radiation along the ring.
     To be described better #fixme
     """
-
     def __str__(self):
         is_iso = ""
         if self.is_isomagnetic:
@@ -85,9 +92,10 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
 
     def generate_children(
         self,
-        section_list: Optional[list] = None,
-        element_list: Optional[list] = None,
-        location: Optional[str] = "after",
+        section_list: Optional[list[int]] = None,
+        element_list: Optional[list[DriftBaseClass | CavityBaseClass ]] =
+        None,
+        location: Optional[str] = ('before' or 'after'),
     ):
         """
         Function to generate and insert synchrotron radiation elements in
@@ -96,11 +104,11 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         section.
         An element list can be provided along with a location preference to
         insert the synchrotron radiation elements at the requested
-        location.#fixme
+        location.
 
         :param section_list:
         :param element_list:
-        :param location:
+        :param location: 'before' or 'after
         :return:
         """
         if not empty(self.generated_children):
@@ -111,33 +119,40 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         else:
             i = 0
             if section_list is not None:
-                for section in section_list:
+                for section_index in section_list:
                     i += 1
                     SRClass_child = SynchrotronRadiationSection(
-                        section_index=section.section_index,
+                        section_index=section_index,
                         name=f"SynchrotronRadiationTracker_{i}",
                     )
                     self._simulation.ring.add_element(
-                        SRClass_child, section_index=section.section_index, reorder=True
+                        SRClass_child, section_index=section_index, reorder=True
                     )
                     self.generated_children.append(SRClass_child)
             elif element_list is not None:
+                insert_at = 0
+                if location == 'after':
+                    insert_at = 1
                 for element in element_list:
                     i += 1
                     SRClass_child = SynchrotronRadiationDrift(
                         section_index=element.section_index,
                         name=f"SynchrotronRadiationTracker_{i}",
                     )
-                    # self._simulation.ring.insert_element( #fixme
-                    #     SRClass_child,
-                    #     section_index=element.section_index,
-                    #     element=element,
-                    #     location=location,
-                    # )
+                    self._simulation.ring.insert_element(element = SRClass_child,
+                         insert_at =
+                         self._simulation.ring.elements.elements.index(
+                             element) + insert_at,
+                         deepcopy = True,
+                    )
                     self.generated_children.append(SRClass_child)
-        return print(
-            f"{len(self.generated_children)} synchrotron radiation trackers generated"
-        )
+            else:
+                raise MissingParameterError('Expected a list of sections or '
+                                            'a list of elements and none '
+                                            'were provided.')
+
+        return print(f"{len(self.generated_children)} synchrotron radiation "
+                     f"trackers generated")
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         self._simulation = simulation
