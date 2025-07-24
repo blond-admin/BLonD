@@ -6,9 +6,6 @@ from functools import cached_property
 import numpy as np
 from numpy.matlib import empty
 from scipy.constants import e, c
-
-from _core.ring.beam_physics_relevant_elements import \
-    BeamPhysicsRelevantElements
 from ..acc_math.analytic.synchrotron_radiation_maths import (
     gather_longitudinal_synchrotron_radiation_parameters,
     calculate_energy_loss_per_turn,
