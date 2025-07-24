@@ -101,10 +101,7 @@ class Specials(ABC):
     @staticmethod
     @abstractmethod
     def histogram(
-        array_read: NumpyArray,
-        array_write: NumpyArray,
-        start: float,
-        stop: float,
+        array_read: NumpyArray, array_write: NumpyArray, start: float, stop: float
     ):
         return
 
