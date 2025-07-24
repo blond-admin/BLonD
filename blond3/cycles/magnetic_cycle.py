@@ -390,9 +390,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
             charge=self._reference_particle.charge,
             convert_from=self._in_unit,
             bending_radius=(
-                self._bending_radius
-                if self._in_unit == "bending field"
-                else None
+                self._bending_radius if self._in_unit == "bending field" else None
             ),
         )
         magnetic_rigidity_per_turn = _to_magnetic_rigidity(
@@ -401,9 +399,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
             charge=self._reference_particle.charge,
             convert_from=self._in_unit,
             bending_radius=(
-                self._bending_radius
-                if self._in_unit == "bending field"
-                else None
+                self._bending_radius if self._in_unit == "bending field" else None
             ),
         )
         assert n_cavities > 0
@@ -584,9 +580,7 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
             charge=self._reference_particle.charge,
             convert_from=self._in_unit,
             bending_radius=(
-                self._bending_radius
-                if self._in_unit == "bending field"
-                else None
+                self._bending_radius if self._in_unit == "bending field" else None
             ),
         )
         magnetic_rigidity_after_cavity_per_turn = _to_magnetic_rigidity(
@@ -595,9 +589,7 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
             charge=self._reference_particle.charge,
             convert_from=self._in_unit,
             bending_radius=(
-                self._bending_radius
-                if self._in_unit == "bending field"
-                else None
+                self._bending_radius if self._in_unit == "bending field" else None
             ),
         )
         n_cavities = simulation.ring.n_cavities
@@ -775,9 +767,7 @@ class MagneticCycleByTime(MagneticCycleBase):
             charge=self._reference_particle.charge,
             convert_from=self._in_unit,
             bending_radius=(
-                self._bending_radius
-                if self._in_unit == "bending field"
-                else None
+                self._bending_radius if self._in_unit == "bending field" else None
             ),
         )
         self._base_magnetic_rigidity = base_magnetic_rigidity

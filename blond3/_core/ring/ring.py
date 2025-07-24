@@ -45,7 +45,9 @@ class Ring(Preparable, Schedulable):
 
         super().__init__()
         self._elements = BeamPhysicsRelevantElements()
-        assert circumference > 0, f"`circumference` must be bigger 0, but is {circumference}"
+        assert circumference > 0, (
+            f"`circumference` must be bigger 0, but is {circumference}"
+        )
         self._circumference = circumference
 
     def on_init_simulation(self, simulation: Simulation) -> None:

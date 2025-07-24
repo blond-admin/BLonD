@@ -113,7 +113,12 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
         commissioning: Optional[SPSCavityLoopCommissioning] = None,
         harmonic_index: int = 0,
     ):
-        from .sps_impulse_response import SPS3Section200MHzTWC, SPS4Section200MHzTWC, SPS5Section200MHzTWC # NOQA
+        from .sps_impulse_response import (
+            SPS3Section200MHzTWC,
+            SPS4Section200MHzTWC,
+            SPS5Section200MHzTWC,
+        )  # NOQA
+
         self.V_set: LateInit[NumpyArray] = None
         self.n_delay: LateInit[int] = None
 
