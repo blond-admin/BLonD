@@ -17,6 +17,7 @@ if TYPE_CHECKING:  # pragma: no cover
         Optional,
         Type,
     )
+    from numpy.typing import NDArray as NumpyArray
     from .beam_physics_relevant_elements import BeamPhysicsRelevantElements
     from ...physics.drifts import DriftBaseClass
     from ..beam.base import BeamBaseClass
@@ -275,3 +276,65 @@ class Ring(Preparable, Schedulable):
 
         if reorder:
             self.elements.reorder()
+
+    def insert_element(self,
+                       element: Iterable[BeamPhysicsRelevant],
+                       location: int | list,
+                       deepcopy: bool = False,
+                       ):
+        """
+        Insert a single beam physics-relevant element at the specified
+        locations in the ring.
+
+        Parameters
+        ----------
+        element
+            An object representing a beamline component or any element
+            relevant to beam physics. Must have a valid  `section_index`
+            attribute of type `int`.
+        location
+            Single location or list of locations.
+        deepcopy
+            Takes copies of the given element
+
+        Raises
+        ------
+        AssertionError
+            If `element.section_index` is not an integer.
+        """
+
+        for k in location.sort(reverse=True):
+            if deepcopy:
+                element = copy.deepcopy(element)
+            self.elements.insert(k+1,element)
+
+    def insert_elements(self,
+                        elements: Iterable[BeamPhysicsRelevant],
+                        location: int,
+                        deepcopy: bool = False,
+                        ):
+        """
+        Insert the beam physics-relevant elements at the specified location
+        in the ring.
+        Parameters
+        ----------
+        elements
+            A list of objects representing a beamline component or any element
+            relevant to beam physics. Must have a valid `section_index`
+            attribute of type `int`.
+        location
+            Single location or list of locations.
+        deepcopy
+            Takes copies of the element listed
+
+        Raises
+        ------
+        AssertionError
+            If `element.section_index` is not an integer.
+        """
+        for element in elements:
+            self.insert_element(
+                element=element,
+                location = location,
+                deepcopy=deepcopy,
+            )
