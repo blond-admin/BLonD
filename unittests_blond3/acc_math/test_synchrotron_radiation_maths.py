@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 from scipy.constants import c
 from _core.beam.particle_types import ParticleType
-from acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
+from acc_math.analytic.synchrotron_radiation_maths import (
     calculate_energy_loss_per_turn,
     calculate_partition_numbers,
     calculate_damping_times_in_second,
@@ -11,6 +11,7 @@ from acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import 
     calculate_natural_energy_spread,
     calculate_natural_bunch_length,
 )
+from blond3 import electron
 
 
 class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
@@ -22,9 +23,9 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
             [
                 1,
                 2 * np.pi / self.particle_type.quantum_radiation_constant,
-                np.pi / self.particle_type.quantum_radiation_constant ** 2,
+                np.pi / (self.particle_type.quantum_radiation_constant) ** 2,
                 0,
-                2 * np.pi / self.particle_type.quantum_radiation_constant ** 2,
+                2 * np.pi / (self.particle_type.quantum_radiation_constant) ** 2,
             ]
         )
         self.revolution_frequency = 1
@@ -46,7 +47,7 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
         )
         self.assertEqual(1.0, jy)
         self.assertEqual(1.0, jx, jx_1)
-        self.assertEqual(2.0, jz, jz_1)
+        self.assertEqual(1.0, jz, jz_1)
 
     def test_calculate_damping_times_in_turn(self):
         damping_times_in_turn = calculate_damping_times_in_turn(
@@ -64,7 +65,7 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
             energy=self.beam_energy,
             synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
             energy_loss_per_turn=self.energy_lost_per_turn,
-            which_plane="longitudinal",
+            which_plane="horizontal",
         )
         self.assertEqual(2, damping_times_in_turn[1])
         self.assertEqual(2, damping_times_in_turn[0], taux_1)
@@ -171,7 +172,7 @@ class TestSynchrotronRadiationMaths_array_inputs(unittest.TestCase):
         )
         self.assertEqual(1.0, jy)
         self.assertEqual(1.0, jx, jx_1)
-        self.assertEqual(2.0, jz, jz_1)
+        self.assertEqual(1.0, jz, jz_1)
 
     def test_calculate_damping_times_in_turn(self):
         damping_times_in_turn = calculate_damping_times_in_turn(
