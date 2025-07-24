@@ -73,8 +73,6 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
 
         self.generated_children: list = []
 
-        self.__str__()
-
     @cached_property
     def energy_loss_per_turn(self) -> NumpyArray:
         return self._energy_loss_per_turn
@@ -158,6 +156,8 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         self._turn_i = simulation.turn_i
         self._energy_cycle = simulation.energy_cycle
         self._ring = simulation.ring
+
+        self.__str__()
 
     def on_run_simulation(
         self,
