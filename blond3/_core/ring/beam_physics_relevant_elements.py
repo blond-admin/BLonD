@@ -215,6 +215,27 @@ class BeamPhysicsRelevantElements(Preparable):
                                                insert_at= insert_at)
         self.elements.insert(insert_at, element)
 
+    def insert(self, element: BeamPhysicsRelevant, insert_at: int) -> None:
+        """
+        Insert a beam physics-relevant element to the container at the
+        specified index.
+        Parameters
+        ----------
+        element
+            An object representing a beamline component or any element
+            relevant to beam physics. Must have a valid  `section_index`
+            attribute of type `int`.
+        insert_at:
+            Location of the element to be inserted.
+
+        Raises
+        ------
+        AssertionError
+            If `element.section_index` is not an integer.
+        """
+        assert isinstance(element.section_index, int)
+
+        self.elements.insert(insert_at, element)
     @property  # as readonly attributes
     def n_sections(self) -> int:
         """Number of sections that are mentioned by elements"""
