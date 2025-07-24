@@ -275,3 +275,71 @@ class Ring(Preparable, Schedulable):
 
         if reorder:
             self.elements.reorder()
+
+    def insert_element(self,
+                       element: Iterable[BeamPhysicsRelevant],
+                       insert_at: int | list,
+                       deepcopy: bool = False,
+                       ):
+        """
+        Insert a single beam physics-relevant element at the specified
+        locations in the ring.
+
+        Parameters
+        ----------
+        element
+            An object representing a beamline component or any element
+            relevant to beam physics. Must have a valid  `section_index`
+            attribute of type `int`.
+        insert_at
+            Single location or list of locations.
+        deepcopy
+            Takes copies of the given element
+
+        Raises
+        ------
+        AssertionError
+            If `element.section_index` is not an integer.
+        """
+        if type(insert_at) == int:
+            if deepcopy:
+                element = copy.deepcopy(element)
+            self.elements.insert(element = element, insert_at = insert_at)
+        else:
+            for k in insert_at:
+                if deepcopy:
+                    element = copy.deepcopy(element)
+                self.elements.insert(element = element, insert_at = k)
+
+    def insert_elements(self,
+                        elements: list[Iterable[BeamPhysicsRelevant]],
+                        insert_at: int,
+                        deepcopy: bool = False,
+                        ):
+
+        """
+        Insert the beam physics-relevant elements at the specified location
+        in the ring.
+        Parameters
+        ----------
+        elements
+            A list of objects representing a beamline component or any element
+            relevant to beam physics. Must have a valid `section_index`
+            attribute of type `int`.
+        insert_at
+            Single location or list of locations.
+        deepcopy
+            Takes copies of the element listed
+
+        Raises
+        ------
+        AssertionError
+            If `element.section_index` is not an integer.
+        """
+        elements.reverse()
+        for element in elements:
+            self.insert_element(
+                element=element,
+                insert_at=insert_at,
+                deepcopy=deepcopy,
+            )
