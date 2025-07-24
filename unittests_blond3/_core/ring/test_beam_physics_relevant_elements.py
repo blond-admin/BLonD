@@ -69,8 +69,6 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
     def test_insert_element(self):
         element = Mock(spec=BeamPhysicsRelevant)
         element.section_index = 0
-        # asert that element is inserted at the end of section 0,
-        # which has already 2 elements
         self.beam_physics_relevant_elements.insert(element=element,
                                                    insert_at=0)
         assert self.beam_physics_relevant_elements.elements[0] is element
