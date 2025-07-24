@@ -169,6 +169,7 @@ class BeamPhysicsRelevantElements(Preparable):
         assert isinstance(element.section_index, int)
 
         self.elements.insert(insert_at, element)
+
     @property  # as readonly attributes
     def n_sections(self) -> int:
         """Number of sections that are mentioned by elements"""

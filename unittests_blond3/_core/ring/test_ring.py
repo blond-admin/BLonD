@@ -103,7 +103,7 @@ class TestRing(unittest.TestCase):
         assert self.ring.elements.elements[0] is element1
         assert self.ring.elements.elements[1] is element2
 
-    def test_insert_element(self):
+
         element1 = Mock(spec=BeamPhysicsRelevant)
         element2 = Mock(spec=BeamPhysicsRelevant)
         element1.section_index = 0
@@ -120,7 +120,7 @@ class TestRing(unittest.TestCase):
         location = 1
         self.ring.insert_element(
             element=element3,
-            insert_at = location,
+            insert_at=location,
             deepcopy=False,
         )
         assert self.ring.elements.elements[1] is element3
@@ -139,10 +139,10 @@ class TestRing(unittest.TestCase):
         )
         element3 = Mock(spec=BeamPhysicsRelevant)
         element3.section_index = 0
-        location = [0,2]
+        location = [0, 2]
         self.ring.insert_element(
             element=element3,
-            insert_at = location,
+            insert_at=location,
             deepcopy=False,
         )
         assert self.ring.elements.elements[0] is element3
@@ -167,7 +167,7 @@ class TestRing(unittest.TestCase):
         location = 1
         self.ring.insert_elements(
             elements=[element3, element4],
-            insert_at = location,
+            insert_at=location,
             deepcopy=False,
         )
         assert self.ring.elements.elements[1] is element3
