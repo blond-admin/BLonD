@@ -47,7 +47,7 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
         )
         self.assertEqual(1.0, jy)
         self.assertEqual(1.0, jx, jx_1)
-        self.assertEqual(1.0, jz, jz_1)
+        self.assertEqual(2.0, jz, jz_1)
 
     def test_calculate_damping_times_in_turn(self):
         damping_times_in_turn = calculate_damping_times_in_turn(
