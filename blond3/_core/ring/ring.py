@@ -295,11 +295,12 @@ class Ring(Preparable, Schedulable):
         if reorder:
             self.elements.reorder()
 
-    def insert_element(self,
-                       element: Iterable[BeamPhysicsRelevant],
-                       insert_at: int | list,
-                       deepcopy: bool = False,
-                       ):
+    def insert_element(
+        self,
+        element: Iterable[BeamPhysicsRelevant],
+        insert_at: int | list,
+        deepcopy: bool = False,
+    ):
         """
         Insert a single beam physics-relevant element at the specified
         locations in the ring.
@@ -323,19 +324,19 @@ class Ring(Preparable, Schedulable):
         if type(insert_at) == int:
             if deepcopy:
                 element = copy.deepcopy(element)
-            self.elements.insert(element = element, insert_at = insert_at)
+            self.elements.insert(element=element, insert_at=insert_at)
         else:
             for k in insert_at:
                 if deepcopy:
                     element = copy.deepcopy(element)
-                self.elements.insert(element = element, insert_at = k)
+                self.elements.insert(element=element, insert_at=k)
 
-    def insert_elements(self,
-                        elements: list[Iterable[BeamPhysicsRelevant]],
-                        insert_at: int,
-                        deepcopy: bool = False,
-                        ):
-
+    def insert_elements(
+        self,
+        elements: list[Iterable[BeamPhysicsRelevant]],
+        insert_at: int,
+        deepcopy: bool = False,
+    ):
         """
         Insert the beam physics-relevant elements at the specified location
         in the ring.
