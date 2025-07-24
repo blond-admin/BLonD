@@ -66,6 +66,15 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         self.beam_physics_relevant_elements.add_element(element=element)
         assert self.beam_physics_relevant_elements.elements[-1] is element
 
+    def test_insert_element(self):
+        element = Mock(spec=BeamPhysicsRelevant)
+        element.section_index = 0
+        # asert that element is inserted at the end of section 0,
+        # which has already 2 elements
+        self.beam_physics_relevant_elements.insert(element=element,
+                                                   insert_at=0)
+        assert self.beam_physics_relevant_elements.elements[0] is element
+
     def test_count(self):
         assert (
             self.beam_physics_relevant_elements.count(
@@ -117,9 +126,7 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         self.beam_physics_relevant_elements.get_order_info()
 
     def test_get_section_circumference_orbit_lengths(self):
-        orbit_length = (
-            self.beam_physics_relevant_elements.get_sections_orbit_length()
-        )
+        orbit_length = self.beam_physics_relevant_elements.get_sections_orbit_length()
         self.assertEqual(orbit_length[0], 0.5)
         self.assertEqual(orbit_length[1], 0.5)
 
