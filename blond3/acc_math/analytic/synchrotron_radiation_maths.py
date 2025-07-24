@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 def calculate_partition_numbers(
     synchrotron_radiation_integrals: NumpyArray,
-    which_plane: str = None,
+    which_plane: str | None = None,
 ):
     """
     Function to compute the damping partition numbers in horizontal,
@@ -39,7 +39,7 @@ def calculate_damping_times_in_turn(
     energy: float | NumpyArray,
     synchrotron_radiation_integrals: NumpyArray,
     energy_loss_per_turn: float,
-    which_plane: str = None,
+    which_plane: str | None = None,
 ):
     """
     Function to calculate the transverse and longitudinal damping times in
@@ -70,7 +70,7 @@ def calculate_damping_times_in_second(
     synchrotron_radiation_integrals: NumpyArray,
     energy_loss_per_turn: float,
     revolution_frequency: float,
-    which_plane: str = None,
+    which_plane: str | None = None,
 ):
     """
     Function to calculate the transverse and longitudinal damping times in
