@@ -178,7 +178,7 @@ class TestRing(unittest.TestCase):
         location = [1,2,5]
         with self.assertRaises(AssertionError,
                                msg=f'The element must be inserted within ['
-                                 f'0:{len(self.ring.elements.elements)+1}] indexes.'):
+                                 f'0:{len(self.ring.elements.elements)}] indexes.'):
             self.ring.insert_element(
                 element=element4,
                 insert_at=location,
@@ -244,6 +244,28 @@ class TestRing(unittest.TestCase):
         )
         assert self.ring.elements.elements[1] is element3
         assert self.ring.elements.elements[2] is element4
+
+    def test_insert_element(self):
+        element1 = Mock(spec=BeamPhysicsRelevant)
+        element2 = Mock(spec=BeamPhysicsRelevant)
+        element1.section_index = 0
+        element2.section_index = 0
+
+        self.ring.add_elements(
+            elements=[element1, element2],
+            reorder=False,
+            deepcopy=False,
+            section_index=None,
+        )
+        element3 = Mock(spec=BeamPhysicsRelevant)
+        element3.section_index = 0
+        location = 1
+        self.ring.insert_element(
+            element=element3,
+            insert_at = location,
+            deepcopy=False,
+        )
+        assert self.ring.elements.elements[1] is element3
 
     def test_elements(self):
         element1 = Mock(spec=BeamPhysicsRelevant)
