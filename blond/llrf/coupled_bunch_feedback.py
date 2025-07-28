@@ -78,13 +78,13 @@ class CoupledBunchFeedback:
 
         for i, b in enumerate(self._bunch_data):
 
-            correction = _linear_correction(time, b)
+            correction = _linear_correction(self.profile.bin_centers, b)
 
             self._fft_matrix[i] = (npfft.rfft(b-correction, self._n_fft)
                                    * 2/self.n_samples)
 
 
-def _linear_correction(data: ArrayLike[float]) -> NDArray:
+def _linear_correction(time: ArrayLike[float], data: ArrayLike[float]) -> NDArray:
     """Function to compute the linear slope correction.
 
     Args:
@@ -96,7 +96,6 @@ def _linear_correction(data: ArrayLike[float]) -> NDArray:
     """
 
     mean = np.mean(data, axis=0)
-    time = np.arange(len(mean))
     fit_lin = curve_fit(_linear, time, mean,
                         p0=[(mean[-1]-mean[0])/(time[-1]-time[0]), 0])[0]
 
