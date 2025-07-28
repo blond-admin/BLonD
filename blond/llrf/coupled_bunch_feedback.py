@@ -121,6 +121,69 @@ class CoupledBunchFeedback:
             self._mode_phases[i] = phase
 
 
+
+def calc_amp_freq_phase(data_freq: NDArray, data_fft: NDArray,
+                        inds_range: list[int], samp_time: float,
+                        ref_time: float, offset_no_interp: float)\
+                                                 -> tuple[float, float, float]:
+    """Function to calculate the amplitude, frequency and phase from
+       the FFT of the oscillations.
+
+    Args:
+        data_freq (NDArray): The frequencies of the oscillations
+        data_fft (NDArray): The fft of the oscillations
+        inds_range (list[int]): The indices of interest
+        samp_time (float): The initial time of the acquisition
+        ref_time (float): The offset time to apply
+        offset_interp (float): The phase offset to use when interpolating.
+        offset_no_interp (float): The phase offset to use when not
+                                  interpolating.
+        interp (bool, optional): Flag to set if interpolation is used.
+                                 Defaults to True.
+
+    Returns:
+        tuple[float, float, float]: The amplitude, frequency and phase
+                                    of the maximum oscillation
+    """
+
+    amp = np.max(np.abs(data_fft[inds_range]))
+
+    fft_amp_pos = np.where(np.abs(data_fft[inds_range]) == amp)[0][0]
+
+    data_freq, phase = freq_phase(data_freq, data_fft,
+                                  inds_range, fft_amp_pos,
+                                  samp_time, ref_time,
+                                  offset_no_interp)
+
+    return amp, data_freq, phase
+
+def freq_phase(data_freq: NDArray, data_fft: NDArray, inds_range: list[int],
+               init_pos: int, samp_time: float, ref_time: float = 0,
+               offset: float = 0) -> tuple[float, float]:
+    """Calculate the oscillation frequency and phase without interpolation.
+
+    Args:
+        data_freq (NDArray): The frequencies of the FFT
+        data_fft (NDArray): The FFT of the oscillations
+        inds_range (list[int]): The indexes of interest
+        init_pos (int): The approximate peak location
+        samp_time (float): The initial time of the acquisition
+        ref_time (float): The offset time to apply
+                          Defaults to 0.
+        offset (float, optional): Phase offset to apply.
+                                  Defaults to 0.
+
+    Returns:
+        tuple[float, float]: tuple of frequency and phase
+    """
+
+    freq = data_freq[inds_range][init_pos]
+    phase = (np.angle(data_fft[inds_range][init_pos]
+                     * np.exp(1j*2*np.pi * freq * (ref_time-samp_time)))
+             + offset)
+
+    return freq, phase
+
 def _linear_correction(time: ArrayLike[float], data: ArrayLike[float]) -> NDArray:
     """Function to compute the linear slope correction.
 
