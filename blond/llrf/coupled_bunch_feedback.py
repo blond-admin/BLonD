@@ -142,17 +142,16 @@ def _linear(t: float | NDArray,*p: tuple[float, float]) -> float | NDArray:
     a, b = p
     return a*t+b
 
+def _dipole_measure(profile: Profile, queue: NDArray) -> int:
+    return _populate_queue(profile.bunchPosition, queue)
 
-def _dipole_measure(profile: Profile, queue: NDArray):
+def _quadrupole_measure(profile: Profile, queue: NDArray) -> int:
+    return _populate_queue(profile.bunchLength, queue)
 
-    positions = profile.bunchPosition
-    for i, q in enumerate(queue):
-        q[:-1] = q[1:]
-        q[-1] = positions[i]
+def _populate_queue(measure: NDArray, queue: NDArray) -> int:
 
-def _quadrupole_measure(profile: Profile, queue: NDArray):
+    queue[:, :-1] = queue[:, 1:]
+    for i in range(len(measure)):
+        queue[i, -1] = measure[i]
 
-    lengths = profile.bunchLength
-    for i, q in enumerate(queue):
-        q[:-1] = q[1:]
-        q[-1] = lengths[i]
+    return i
