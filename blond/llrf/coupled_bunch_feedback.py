@@ -57,13 +57,21 @@ class CoupledBunchFeedback:
 
         self._sample_turns = np.arange(n_samples)
         self._n_fft = n_samples if n_fft is None else n_fft
+
+        self._fft_freqs = npfft.rfftfreq(self._n_fft, self.profile.bin_size)
+
         self._max_n = (np.max(mode_numbers) if max_n_bunch is None
                                             else max_n_bunch)
 
         self._bunch_data = np.zeros([self._max_n, n_samples])
 
-        self._fft_matrix = np.zeros([self._max_n, n_samples],
+        self._fft_matrix = np.zeros([self._max_n,
+                                     np.ceil(self._n_fft/2, dtype=int)],
                                     dtype=complex)
+
+        self._mode_amplitudes = np.zeros(self._max_n)
+        self._mode_frequencies = np.zeros(self._max_n)
+        self._mode_phases = np.zeros(self._max_n)
 
         match mode:
             case CBFBModes.DIPOLAR:
@@ -75,6 +83,19 @@ class CoupledBunchFeedback:
     def track(self):
 
         self._measure(self.profile, self._bunch_data)
+        self._motion_fft()
+        self._motion_analysis()
+
+        for mode in range(self._max_n):
+            freq_CBFB = (self._mode_frequencies[mode] + mode*self._max_n)
+            phase_CBFB = self._mode_phases[mode]
+
+            fb_volt = self.gains[mode] * self._mode_amplitudes[mode]
+
+            fb_wave = fb_volt * np.sin(2*np.pi*freq_CBFB + phase_CBFB
+                                       + self.phases[mode])
+
+    def _motion_fft(self):
 
         for i, b in enumerate(self._bunch_data):
 
@@ -82,6 +103,22 @@ class CoupledBunchFeedback:
 
             self._fft_matrix[i] = (npfft.rfft(b-correction, self._n_fft)
                                    * 2/self.n_samples)
+
+    def _motion_analysis(self):
+
+        for i in range(self._max_n):
+
+            abs_fft = np.abs(self._fft_matrix[i])
+            amp = np.max(abs_fft)
+            pos = np.where(abs_fft == amp)[0][0]
+
+            freq = self._fft_freqs[pos]
+            phase = (np.angle(self._fft_matrix[i][pos]
+                              * np.exp(1j*2*np.pi*freq*self._sample_turns)))
+
+            self._mode_amplitudes[i] = amp
+            self._mode_frequencies[i] = freq
+            self._mode_phases[i] = phase
 
 
 def _linear_correction(time: ArrayLike[float], data: ArrayLike[float]) -> NDArray:
