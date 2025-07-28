@@ -60,9 +60,7 @@ class CoupledBunchFeedback:
         self._max_n = (np.max(mode_numbers) if max_n_bunch is None
                                             else max_n_bunch)
 
-        self._bunch_data: list[deque[float]] = []
-        for _ in range(self._max_n):
-            self._bunch_data.append(coll.deque([0.]*n_samples))
+        self._bunch_data = np.zeros([self._max_n, n_samples])
 
         self._fft_matrix = np.zeros([self._max_n, n_samples],
                                     dtype=complex)
@@ -79,11 +77,10 @@ class CoupledBunchFeedback:
         self._measure(self.profile, self._bunch_data)
 
         for i, b in enumerate(self._bunch_data):
-            data = np.array(b)
-            correction = _linear_correction(data)
-            data -= correction
 
-            self._fft_matrix[i] = (npfft.rfft(data, self._n_fft)
+            correction = _linear_correction(time, b)
+
+            self._fft_matrix[i] = (npfft.rfft(b-correction, self._n_fft)
                                    * 2/self.n_samples)
 
 
@@ -110,16 +107,16 @@ def _linear(t: float | NDArray,*p: tuple[float, float]) -> float | NDArray:
     return a*t+b
 
 
-def _dipole_measure(profile: Profile, queue: list[deque[float]]):
+def _dipole_measure(profile: Profile, queue: NDArray):
 
     positions = profile.bunchPosition
     for i, q in enumerate(queue):
-        q.popleft()
-        q.append(positions[i])
+        q[:-1] = q[1:]
+        q[-1] = positions[i]
 
-def _quadrupole_measure(profile: Profile, queue: list[deque[float]]):
+def _quadrupole_measure(profile: Profile, queue: NDArray):
 
     lengths = profile.bunchLength
     for i, q in enumerate(queue):
-        q.popleft()
-        q.append(lengths[i])
+        q[:-1] = q[1:]
+        q[-1] = lengths[i]
