@@ -108,6 +108,18 @@ class Specials(ABC):
     ):
         return
 
+    @staticmethod
+    @abstractmethod
+    def beam_phase(
+        hist_x: NumpyArray,
+        hist_y: NumpyArray,
+        alpha: float,
+        omega_rf: float,
+        phi_rf: float,
+        bin_size: float,
+    ) -> float:
+        pass
+
 
 class BackendBaseClass(ABC):
     def __init__(

@@ -21,6 +21,8 @@ from blond3.physics.impedances.solvers import (
     PeriodicFreqSolver,
 )
 
+DEV_PLOT = True
+
 
 class Blond2:
     def __init__(self):
@@ -69,8 +71,11 @@ class Blond2:
         inductive_impedance = InductiveImpedance(beam, profile, [100] * 1, rf_station)
         inductive_impedance.induced_voltage_generation()
         self.induced_voltage = inductive_impedance.induced_voltage
-        DEV_PLOT = False
         if DEV_PLOT:
+            plt.figure(0)
+            plt.plot(self.profile.bin_centers, self.profile.n_macroparticles)
+            plt.figure(1)
+
             plt.plot(self.induced_voltage, label="blond2")
             plt.legend()
 
@@ -124,7 +129,6 @@ class Blond3:
         profile.invalidate_cache()
 
         self.induced_voltage = wake.calc_induced_voltage(beam)
-        DEV_PLOT = False
         if DEV_PLOT:
             plt.figure(0)
             plt.plot(profile.hist_x, profile.hist_y, ".-")
@@ -137,9 +141,11 @@ class TestBothBlonds(unittest.TestCase):
     def setUp(self):
         backend.change_backend(Numpy64Bit)
         self.blond3 = Blond3()
-        # plt.show()
+        if DEV_PLOT:
 
-    def test___init__(self):
+            plt.show()
+
+    def test_induced_voltage(self):
         np.testing.assert_allclose(
             self.blond3.blond2.induced_voltage + 1,
             self.blond3.induced_voltage + 1,

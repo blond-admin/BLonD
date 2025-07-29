@@ -137,6 +137,17 @@ sig_histogram = (
 
 class NumbaSpecials(Specials):
     @staticmethod
+    def beam_phase(
+        hist_x: NumpyArray,
+        hist_y: NumpyArray,
+        alpha: float,
+        omega_rf: float,
+        phi_rf: float,
+        bin_size: float,
+    ) -> float:
+        raise NotImplementedError()  # TODO
+
+    @staticmethod
     @njit(sig_histogram, parallel=True, fastmath=True)
     def histogram(
         array_read: NumpyArray, array_write: NumpyArray, start: float, stop: float

@@ -59,8 +59,6 @@ class ExampleSimulation01:
             turn_i=10,
         )
 
-        # sim.beams[0].plot_hist2d()
-        # plt.show()
         phase_observation = CavityPhaseObservation(each_turn_i=1, cavity=cavity1)
 
         # bunch_observation = BunchObservation(each_turn_i=10, batch_size=) # todo

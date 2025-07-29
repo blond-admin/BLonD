@@ -8,16 +8,16 @@ from numpy import random as rnd
 from numpy._typing import NDArray as NumpyArray
 from scipy.interpolate import interp1d
 
-from blond3 import StaticProfile
-from ..base import LocalFeedback, GlobalFeedback
-from ..cavity_feedback import BirksCavityFeedback
-from .lhc_helpers import (
+from blond3 import StaticProfile, Simulation
+from blond3.physics.cavities import SingleHarmonicCavity, MultiHarmonicCavity
+from blond3.physics.feedbacks.base import LocalFeedback, GlobalFeedback
+from blond3.physics.feedbacks.cavity_feedback import BirksCavityFeedback
+from blond3.physics.profiles import ProfileBaseClass
+from .helpers import (
     smooth_step,
     cavity_response_sparse_matrix,
     fir_filter_lhc_otfb_coeff,
 )
-from ...cavities import SingleHarmonicCavity, MultiHarmonicCavity
-from ...profiles import ProfileBaseClass
 
 
 class LhcBeamFeedBack(GlobalFeedback):
@@ -125,12 +125,12 @@ class LHCCavityLoopCommissioning:
         self.seed2 = seed2
 
         # Multiply with zeros if open == True
-        self.open_drive = 0 if open_drive else 1
-        self.open_drive_inv = 0 if self.open_drive else 1
-        self.open_loop = 0 if open_loop else 1
-        self.open_otfb = 0 if open_otfb else 1
-        self.open_rffb = 0 if open_rffb else 1
-        self.open_tuner = 0 if open_tuner else 1
+        self.open_drive = False if open_drive else True
+        self.open_drive_inv = False if self.open_drive else True
+        self.open_loop = False if open_loop else True
+        self.open_otfb = False if open_otfb else True
+        self.open_rffb = False if open_rffb else True
+        self.open_tuner = False if open_tuner else True
 
         self.clamping = clamping
 
@@ -309,6 +309,9 @@ class LHCCavityLoop(BirksCavityFeedback):
         self.V_EXC_IN: LateInit = None
         self.V_EXC_OUT: LateInit = None
         # self.xxx: LateInit = None
+
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        pass
 
     def circuit_track(self, no_beam: bool = False):
         r"""Track the feedback model"""

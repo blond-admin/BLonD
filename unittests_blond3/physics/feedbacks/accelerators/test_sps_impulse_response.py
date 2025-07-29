@@ -18,9 +18,9 @@ import unittest
 import numpy as np
 from scipy.constants import c
 
-from blond3.physics.feedbacks.accelerators.sps_impulse_response import \
+from blond3.physics.feedbacks.accelerators.sps.impulse_response import \
     rectangle, triangle, SPS4Section200MHzTWC
-from blond3.physics.feedbacks.accelerators.sps_impulse_response import TravellingWaveCavity
+
 
 class TestRectangle(unittest.TestCase):
     def test_1(self):

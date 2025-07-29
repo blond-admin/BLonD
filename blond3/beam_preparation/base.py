@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 from .._core.beam.base import BeamBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Type
     from .._core.simulation.simulation import Simulation
 
 
@@ -31,6 +30,7 @@ class BeamPreparationRoutine(ABC):
             particle_type=beam.particle_type,
         )
         beam.reference_time = 0  # FIXME
+        print(beam.reference_gamma)
 
 
 class MatchingRoutine(BeamPreparationRoutine, ABC):

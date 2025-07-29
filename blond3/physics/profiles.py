@@ -12,7 +12,7 @@ from .._core.base import BeamPhysicsRelevant
 from .._core.helpers import int_from_float_with_warning
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional as LateInit, Optional, Type
+    from typing import Optional as LateInit, Optional
 
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray

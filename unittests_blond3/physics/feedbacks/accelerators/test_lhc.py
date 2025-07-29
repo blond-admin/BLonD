@@ -12,7 +12,7 @@ from blond3 import (
     Simulation,
     ConstantMagneticCycle, MultiHarmonicCavity,
 )
-from blond3.physics.feedbacks.accelerators.lhc import (
+from blond3.physics.feedbacks.accelerators.lhc.cavity_feedback import (
     LHCCavityLoopCommissioning,
     LHCCavityLoop,
 )

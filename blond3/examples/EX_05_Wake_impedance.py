@@ -39,12 +39,12 @@ from blond3 import (
     WakeField,
     StaticProfile,
 )
-from blond3.physics.impedances.sources import Resonators
 from blond3.physics.impedances.solvers import (
     SingleTurnWakeSolverTimeDomain,
     PeriodicFreqSolver,
     AnalyticSingleTurnResonatorSolver,
 )
+from blond3.physics.impedances.sources import Resonators
 
 DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 # To check if executing correctly, rather than to run the full simulation

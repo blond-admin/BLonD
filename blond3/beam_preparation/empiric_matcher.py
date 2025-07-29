@@ -12,7 +12,6 @@ from blond3.acc_math.empiric.hammiltonian import calc_hamiltonian, separatrixes
 from blond3.beam_preparation.base import MatchingRoutine
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Type
     from blond3._core.beam.base import BeamBaseClass
     from numpy.typing import NDArray as NumpyArray
 

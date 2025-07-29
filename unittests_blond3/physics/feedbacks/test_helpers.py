@@ -1,6 +1,5 @@
 import unittest
 
-import matplotlib.pyplot as plt
 from scipy.constants import elementary_charge as e
 import numpy as np
 from blond3 import (
@@ -15,7 +14,7 @@ from blond3 import (
     BiGaussian,
 )
 from blond3._core.backends.backend import backend, Numpy64Bit
-from blond3.physics.feedbacks.accelerators.sps_helpers import (
+from blond3.physics.feedbacks.accelerators.sps.helpers import (
     get_power_gen_i,
     moving_average,
     comb_filter,

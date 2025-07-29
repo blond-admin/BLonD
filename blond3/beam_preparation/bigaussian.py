@@ -64,6 +64,8 @@ def _get_dE_from_dt(
     from ..physics.drifts import DriftSimple
 
     drift: DriftSimple = simulation.ring.elements.get_element(DriftSimple)
+    above_transition = beam.reference_gamma > drift.transition_gamma
+
     try:
         rf_station: SingleHarmonicCavity = simulation.ring.elements.get_element(
             SingleHarmonicCavity
@@ -101,7 +103,7 @@ def _get_dE_from_dt(
             1, 0, 0, particle_type=beam.particle_type
         )
         - beam.reference_total_energy,
-        above_transition=False,  # FIXME
+        above_transition=above_transition,
     )
     eta0 = drift.eta_0(gamma=beam.reference_gamma)
     particle_charge = beam.particle_type.charge
@@ -185,6 +187,8 @@ class BiGaussian(MatchingRoutine):
             )
             main_harmonic = rf_station.main_harmonic_idx
         drift: DriftSimple = simulation.ring.elements.get_element(DriftSimple)
+        above_transition = beam.reference_gamma > drift.transition_gamma
+
         rf_station.apply_schedules(
             turn_i=0,
             reference_time=0,
@@ -209,7 +213,7 @@ class BiGaussian(MatchingRoutine):
             beam_beta=beam.reference_beta,
             ring_circumference=simulation.ring.circumference,
         )
-        phi_rf = rf_station.phi_rf
+        phi_rf = rf_station.phi_rf + rf_station.delta_phi_rf
         harmonic = rf_station.harmonic
         voltage = rf_station.voltage
 
@@ -226,7 +230,7 @@ class BiGaussian(MatchingRoutine):
                 0, 0, 0, particle_type=beam.particle_type
             )
             - beam.reference_total_energy,
-            above_transition=False,
+            above_transition=above_transition,
         )
         # call to legacy
         eta0 = drift.eta_0(gamma=beam.reference_gamma)

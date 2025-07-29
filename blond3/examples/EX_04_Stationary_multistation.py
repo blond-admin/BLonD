@@ -17,6 +17,7 @@ No intensity effects
 """
 
 import matplotlib.pyplot as plt
+from blond3.examples.EX_02_Acceleration import energy_cycle
 
 from blond3 import (
     BiGaussian,
@@ -30,7 +31,6 @@ from blond3 import (
     DriftSimple,
     BoxLosses,
 )
-from blond3.examples.EX_02_Acceleration import energy_cycle
 from blond3.physics.losses import SeparatrixLosses
 from blond3.physics.profiles import DynamicProfileConstNBins
 

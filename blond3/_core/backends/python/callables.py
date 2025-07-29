@@ -13,6 +13,26 @@ if TYPE_CHECKING:  # pragma: no cover
 
 class PythonSpecials(Specials):
     @staticmethod
+    def beam_phase(
+        hist_x: NumpyArray,
+        hist_y: NumpyArray,
+        alpha: float,
+        omega_rf: float,
+        phi_rf: float,
+        bin_size: float,
+    ) -> float:
+        scoeff = np.trapezoid(
+            np.exp(alpha * hist_x) * np.sin(omega_rf * hist_x + phi_rf) * hist_y,
+            dx=bin_size,
+        )
+        ccoeff = np.trapezoid(
+            np.exp(alpha * hist_x) * np.cos(omega_rf * hist_x + phi_rf) * hist_y,
+            dx=bin_size,
+        )
+
+        return scoeff / ccoeff
+
+    @staticmethod
     def histogram(
         array_read: NumpyArray, array_write: NumpyArray, start: float, stop: float
     ):

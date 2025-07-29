@@ -163,24 +163,24 @@ class BirksCavityFeedback(LocalFeedback):
         # Sampling time in the model and the number of samples per turn
         self.n_periods_coarse = int(n_periods_coarse)
 
-        self.T_s = (self.n_periods_coarse * 2 * np.pi) / self._parent_cavity._omega[
+        self.T_s = (self.n_periods_coarse * 2 * np.pi) / self._parent_cavity._omega_rf[
             self.harmonic_index
         ]
         # TODO REMWORK/REMOVE
         t_rev = float(
             (2 * np.pi * self._parent_cavity.harmonic[self.harmonic_index])
-            / self._parent_cavity._omega[self.harmonic_index]
+            / self._parent_cavity._omega_rf[self.harmonic_index]
         )
         # TODO REMWORK/REMOVE
         t_rf = t_rev / float(self._parent_cavity.harmonic[self.harmonic_index])
 
         self.n_coarse = round(t_rev / self.T_s)
         self.omega_carrier = (
-            self._parent_cavity._omega[self.harmonic_index] / self.n_periods_coarse
+            self._parent_cavity._omega_rf[self.harmonic_index] / self.n_periods_coarse
         )
         # FIXME NO REDECLARATION!
 
-        self.omega_rf = float(self._parent_cavity._omega[self.harmonic_index])  #
+        self.omega_rf = float(self._parent_cavity._omega_rf[self.harmonic_index])  #
         self.dT = 0
 
         # The least amount of arrays needed to feedback to the tracker object
@@ -227,7 +227,7 @@ class BirksCavityFeedback(LocalFeedback):
         # Present time step
 
         # Present RF angular frequency
-        self.omega_rf = float(self._parent_cavity._omega[self.harmonic_index])
+        self.omega_rf = float(self._parent_cavity._omega_rf[self.harmonic_index])
         t_rev = float(  # TODO REMWORK/REMOVE
             2
             * np.pi
@@ -250,7 +250,13 @@ class BirksCavityFeedback(LocalFeedback):
         self.rf_centers_prev = np.copy(self.rf_centers)
 
         # Residual part of last turn entering the current turn due to non-integer harmonic number
-        self.dT = -self._parent_cavity.phi_rf[self.harmonic_index] / self.omega_rf
+        self.dT = (
+            -(
+                self._parent_cavity.phi_rf[self.harmonic_index]
+                + self._parent_cavity.phi_rf[self.harmonic_index]
+            )
+            / self.omega_rf
+        )
         self.rf_centers = (
             np.arange(self.n_coarse) + 0.5 / self.n_periods_coarse
         ) * self.T_s + self.dT
@@ -298,7 +304,10 @@ class BirksCavityFeedback(LocalFeedback):
         self.update_fb_variables()
 
         # Get rf beam current
-        (self.rf_beam_current(use_lowpass_filter=self.use_lowpass_filter),)
+        self.rf_beam_current(
+            beam=beam,
+            use_lowpass_filter=self.use_lowpass_filter,
+        )
 
         # Tracking circuit model of feedback
         self.circuit_track()
@@ -316,7 +325,11 @@ class BirksCavityFeedback(LocalFeedback):
             )
         )
 
-    def rf_beam_current(self, use_lowpass_filter: bool = False) -> None:
+    def rf_beam_current(
+        self,
+        beam: BeamBaseClass,
+        use_lowpass_filter: bool = False,
+    ) -> None:
         r"""Calculate RF beam current from beam profile"""
         t_rev = float(  # TODO REMWORK/REMOVE
             (2 * np.pi * self._parent_cavity.harmonic[self.harmonic_index])
@@ -325,7 +338,7 @@ class BirksCavityFeedback(LocalFeedback):
         # Beam current from profile
         self.I_BEAM_COARSE[: self.n_coarse] = self.I_BEAM_COARSE[-self.n_coarse :]
         self.I_BEAM_FINE, self.I_BEAM_COARSE[-self.n_coarse :] = rf_beam_current(
-            beam=self.beam,
+            beam=beam,
             profile=self.profile,
             omega_c=self.omega_rf,
             T_rev=t_rev,

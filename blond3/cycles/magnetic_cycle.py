@@ -33,7 +33,10 @@ if TYPE_CHECKING:  # pragma: no cover
     T = TypeVar("T")
 
     SynchronousDataTypes = Literal[
-        "momentum", "total energy", "kinetic energy", "bending field"
+        "momentum",
+        "total energy",
+        "kinetic energy",
+        "bending field",
     ]
 
 
@@ -49,14 +52,15 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
     def __init__(
         self,
         reference_particle: ParticleType,
+        magnetic_rigidity_init: float,
     ):
         super().__init__()
-        assert isinstance(reference_particle, ParticleType), (
-            f"{type(reference_particle)}"
-        )
+        assert isinstance(
+            reference_particle, ParticleType
+        ), f"{type(reference_particle)}"
         self._reference_particle: ParticleType = reference_particle
 
-        self._magnetic_rigidity_before_turn_0: LateInit[float] = None
+        self._magnetic_rigidity_before_turn_0: float = magnetic_rigidity_init
         self._n_turns_max: None | int = None
 
     def on_init_simulation(
@@ -70,7 +74,6 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
             Simulation context manager
         """
         super().on_init_simulation(simulation=simulation)
-        self._magnetic_rigidity_before_turn_0 = kwargs["magnetic_rigidity_init"]
         self._n_turns_max = kwargs["n_turns_max"]
 
         self.invalidate_cache()
@@ -163,6 +166,25 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
             )
         return new_reference_total_energy
 
+    def get_t_rev_init(
+        self,
+        circumference: float,
+        turn_i_init: int,
+        t_init: float,
+        particle_type: ParticleType,
+    ) -> backend.float:
+        reference_total_energy = self.get_total_energy_init(
+            turn_i_init=turn_i_init,
+            t_init=t_init,
+            particle_type=particle_type,
+        )
+        reference_gamma = reference_total_energy * particle_type.mass_inv
+
+        reference_beta = np.sqrt(1.0 - 1.0 / (reference_gamma * reference_gamma))
+
+        reference_velocity = reference_beta * c0
+        return circumference / reference_velocity
+
     @staticmethod
     @abstractmethod
     def headless(*args, **kwargs):
@@ -201,14 +223,21 @@ class ConstantMagneticCycle(MagneticCycleBase):
         bending_radius
             To 'bending field' associated bending radius, in [m]
         """
+        self._magnetic_rigidity: float = _to_magnetic_rigidity(
+            data=value,
+            mass=reference_particle.mass,
+            charge=reference_particle.charge,
+            convert_from=in_unit,
+            bending_radius=(bending_radius if in_unit == "bending field" else None),
+        )
         super().__init__(
             reference_particle=reference_particle,
+            magnetic_rigidity_init=self._magnetic_rigidity,
         )
         self._value = value
         self._in_unit = in_unit
         self._bending_radius = bending_radius
 
-        self._magnetic_rigidity: LateInit[float] = None
         self._total_energy_cache: LateInit[Dict[int, float]] = {}
 
     def on_init_simulation(
@@ -221,20 +250,10 @@ class ConstantMagneticCycle(MagneticCycleBase):
         simulation
             Simulation context manager
         """
-        self._magnetic_rigidity = _to_magnetic_rigidity(
-            data=self._value,
-            mass=self._reference_particle.mass,
-            charge=self._reference_particle.charge,
-            convert_from=self._in_unit,
-            bending_radius=(
-                self._bending_radius if self._in_unit == "bending field" else None
-            ),
-        )
 
         super().on_init_simulation(
             simulation=simulation,
             n_turns_max=None,
-            magnetic_rigidity_init=self._magnetic_rigidity,
         )
 
     def get_target_total_energy(
@@ -350,14 +369,22 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         bending_radius
             To 'bending field' associated bending radius, in [m]
         """
+        magnetic_rigidity_init = _to_magnetic_rigidity(
+            data=value_init,
+            mass=reference_particle.mass,
+            charge=reference_particle.charge,
+            convert_from=in_unit,
+            bending_radius=(bending_radius if in_unit == "bending field" else None),
+        )
         super().__init__(
             reference_particle=reference_particle,
+            magnetic_rigidity_init=magnetic_rigidity_init,
         )
         self._value_init = value_init
 
-        assert len(values_after_turn.shape) == 1, (
-            f"Expected 1D array, but got {values_after_turn.shape}"
-        )
+        assert (
+            len(values_after_turn.shape) == 1
+        ), f"Expected 1D array, but got {values_after_turn.shape}"
 
         self._values_after_turn = values_after_turn[:]
         self._in_unit = in_unit
@@ -384,15 +411,6 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         n_cavities = simulation.ring.n_cavities
         n_turns_max = self._values_after_turn.shape[0]
 
-        magnetic_rigidity_init = _to_magnetic_rigidity(
-            data=self._value_init,
-            mass=self._reference_particle.mass,
-            charge=self._reference_particle.charge,
-            convert_from=self._in_unit,
-            bending_radius=(
-                self._bending_radius if self._in_unit == "bending field" else None
-            ),
-        )
         magnetic_rigidity_per_turn = _to_magnetic_rigidity(
             data=self._values_after_turn,
             mass=self._reference_particle.mass,
@@ -408,7 +426,9 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         # assume that each cavity gives an
         # even part of the kick
         stair_like = np.linspace(1 / n_cavities, 1, n_cavities, endpoint=True)
-        base = np.concatenate(([magnetic_rigidity_init], magnetic_rigidity_per_turn))
+        base = np.concatenate(
+            ([self._magnetic_rigidity_before_turn_0], magnetic_rigidity_per_turn)
+        )
         step = np.diff(base)
         for cav_i in range(n_cavities):
             _magnetic_rigidity[cav_i, :] = base[:-1] + stair_like[cav_i] * step
@@ -416,7 +436,6 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         super().on_init_simulation(
             simulation=simulation,
             n_turns_max=n_turns_max,
-            magnetic_rigidity_init=magnetic_rigidity_init,
         )
         self._magnetic_rigidity = _magnetic_rigidity
 
@@ -552,8 +571,16 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
         bending_radius
             To 'bending field' associated bending radius, in [m]
         """
+        magnetic_rigidity_init = _to_magnetic_rigidity(
+            data=value_init,
+            mass=reference_particle.mass,
+            charge=reference_particle.charge,
+            convert_from=in_unit,
+            bending_radius=(bending_radius if in_unit == "bending field" else None),
+        )
         super().__init__(
             reference_particle=reference_particle,
+            magnetic_rigidity_init=magnetic_rigidity_init,
         )
         self._value_init = value_init
         self._values_after_cavity_per_turn = values_after_cavity_per_turn[:, :]
@@ -574,15 +601,7 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
         simulation
             Simulation context manager
         """
-        magnetic_rigidity_init = _to_magnetic_rigidity(
-            data=self._value_init,
-            mass=self._reference_particle.mass,
-            charge=self._reference_particle.charge,
-            convert_from=self._in_unit,
-            bending_radius=(
-                self._bending_radius if self._in_unit == "bending field" else None
-            ),
-        )
+
         magnetic_rigidity_after_cavity_per_turn = _to_magnetic_rigidity(
             data=self._values_after_cavity_per_turn[:, :],
             mass=self._reference_particle.mass,
@@ -594,14 +613,14 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
         )
         n_cavities = simulation.ring.n_cavities
         n_turns_max = magnetic_rigidity_after_cavity_per_turn.shape[1]
-        assert n_cavities == magnetic_rigidity_after_cavity_per_turn.shape[0], (
-            f"{n_cavities=}, but {magnetic_rigidity_after_cavity_per_turn.shape=}"
-        )
+        assert (
+            n_cavities == magnetic_rigidity_after_cavity_per_turn.shape[0]
+        ), f"{n_cavities=}, but {magnetic_rigidity_after_cavity_per_turn.shape=}"
 
         super().on_init_simulation(
             simulation=simulation,
             n_turns_max=n_turns_max,
-            magnetic_rigidity_init=magnetic_rigidity_init,
+            magnetic_rigidity_init=self._magnetic_rigidity_before_turn_0,
         )
         self._magnetic_rigidity_after_cavity_per_turn = (
             magnetic_rigidity_after_cavity_per_turn
@@ -740,16 +759,24 @@ class MagneticCycleByTime(MagneticCycleBase):
             Interpolation routine to get time in between the base values
             Default: `numpy.interp`
         """
+        base_magnetic_rigidity = _to_magnetic_rigidity(
+            data=base_values,
+            mass=reference_particle.mass,
+            charge=reference_particle.charge,
+            convert_from=in_unit,
+            bending_radius=(bending_radius if in_unit == "bending field" else None),
+        )
+        self._base_magnetic_rigidity: NumpyArray = base_magnetic_rigidity
+
         super().__init__(
             reference_particle=reference_particle,
+            magnetic_rigidity_init=base_magnetic_rigidity[0],
         )
         self._interpolator = interpolator
         self._base_time = base_time[:]
         self._base_values = base_values[:]
         self._in_unit = in_unit
         self._bending_radius = bending_radius
-
-        self._base_magnetic_rigidity: LateInit[NumpyArray] = None
 
     def on_init_simulation(
         self,
@@ -761,23 +788,10 @@ class MagneticCycleByTime(MagneticCycleBase):
         simulation
             Simulation context manager
         """
-        base_magnetic_rigidity = _to_magnetic_rigidity(
-            data=self._base_values,
-            mass=self._reference_particle.mass,
-            charge=self._reference_particle.charge,
-            convert_from=self._in_unit,
-            bending_radius=(
-                self._bending_radius if self._in_unit == "bending field" else None
-            ),
-        )
-        self._base_magnetic_rigidity = base_magnetic_rigidity
-
-        magnetic_rigidity_init = base_magnetic_rigidity[0]
 
         super().on_init_simulation(
             simulation=simulation,
             n_turns_max=None,
-            magnetic_rigidity_init=magnetic_rigidity_init,
             **kwargs,
         )
 
@@ -895,7 +909,7 @@ def _to_magnetic_rigidity(
     charge: float,
     convert_from: SynchronousDataTypes = "momentum",
     bending_radius: Optional[float] = None,
-) -> NumpyArray:
+) -> NumpyArray | float:
     """Unit conversion for different input data types
 
     Parameters

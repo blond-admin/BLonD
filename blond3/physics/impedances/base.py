@@ -8,7 +8,7 @@ from ..._core.base import BeamPhysicsRelevant
 from ..._core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional as LateInit, Tuple, Optional, Type
+    from typing import Optional as LateInit, Tuple, Optional
 
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray

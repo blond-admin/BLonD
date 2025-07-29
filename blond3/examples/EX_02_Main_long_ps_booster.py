@@ -37,13 +37,13 @@ from blond3.physics.impedances.readers import (
     ExampleImpedanceReader1,
     ExampleImpedanceReader2,
 )
-from blond3.physics.impedances.sources import (
-    ImpedanceTableFreq,
-    InductiveImpedance,
-)
 from blond3.physics.impedances.solvers import (
     PeriodicFreqSolver,
     InductiveImpedanceSolver,
+)
+from blond3.physics.impedances.sources import (
+    ImpedanceTableFreq,
+    InductiveImpedance,
 )
 
 logging.basicConfig(level=logging.INFO)

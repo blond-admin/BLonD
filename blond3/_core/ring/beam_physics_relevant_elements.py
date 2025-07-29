@@ -46,9 +46,9 @@ class BeamPhysicsRelevantElements(Preparable):
 
         elem_section_indices = [e.section_index for e in self.elements]
         assert min(elem_section_indices) == 0, "section_index=0 must be set"
-        assert np.all(np.diff(elem_section_indices) >= 0), (
-            f"Section indices must be increasing, but got {elem_section_indices}"
-        )
+        assert np.all(
+            np.diff(elem_section_indices) >= 0
+        ), f"Section indices must be increasing, but got {elem_section_indices}"
         cavities = self.get_elements(CavityBaseClass)
         cav_section_indices = [c.section_index for c in cavities]
         all_different = len(cav_section_indices) == len(set(cav_section_indices))

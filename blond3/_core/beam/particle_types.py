@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 import numpy as np
-from scipy.constants import m_p, c, e
 from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
 
 m_mu = physical_constants["muon mass"][0]

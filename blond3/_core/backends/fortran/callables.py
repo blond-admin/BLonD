@@ -51,12 +51,35 @@ histogram_module = add_backend(
     module_name="histogram_module",
 )
 
+beam_phase_module = add_backend(
+    module_name="beam_phase_module",
+)
+
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
     from numpy._typing import NDArray as NumpyArray
 
 
 class FortranSpecials(Specials):
+    @staticmethod
+    def beam_phase(
+        hist_x: NumpyArray,
+        hist_y: NumpyArray,
+        alpha: float,
+        omega_rf: float,
+        phi_rf: float,
+        bin_size: float,
+    ) -> float:
+        beam_phase_module.beam_phase(
+            bin_centers=hist_x,
+            profile=hist_y,
+            alpha=alpha,
+            omega_rf=omega_rf,
+            phi_rf=phi_rf,
+            bin_size=bin_size,
+            n_bins=len(hist_x),
+        )
+
     @staticmethod
     def histogram(
         array_read: NumpyArray, array_write: NumpyArray, start: float, stop: float

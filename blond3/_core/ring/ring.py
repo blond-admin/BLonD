@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -45,9 +46,9 @@ class Ring(Preparable, Schedulable):
 
         super().__init__()
         self._elements = BeamPhysicsRelevantElements()
-        assert circumference > 0, (
-            f"`circumference` must be bigger 0, but is {circumference}"
-        )
+        assert (
+            circumference > 0
+        ), f"`circumference` must be bigger 0, but is {circumference}"
         self._circumference = circumference
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -57,9 +58,9 @@ class Ring(Preparable, Schedulable):
         simulation
             Simulation context manager"""
 
-        assert len(self.elements.get_sections_indices()) == self.n_cavities, (
-            f"{len(self.elements.get_sections_indices())=}, but {self.n_cavities=}"
-        )
+        assert (
+            len(self.elements.get_sections_indices()) == self.n_cavities
+        ), f"{len(self.elements.get_sections_indices())=}, but {self.n_cavities=}"
         # todo assert some kind of order inside the sections
 
     def on_run_simulation(
@@ -96,6 +97,19 @@ class Ring(Preparable, Schedulable):
         the derived frequency program.
         """
         return self._circumference
+
+    @cached_property
+    def average_transition_gamma(self):
+        from ... import DriftSimple  # prevent cyclic import
+
+        transition_gamma_average = sum(
+            [
+                e.transition_gamma * self.circumference / e.orbit_length
+                for e in (self.elements.get_elements(DriftSimple))  # todo
+                # not only simple
+            ]
+        )
+        return transition_gamma_average
 
     @property
     def n_cavities(self) -> int:
@@ -139,7 +153,7 @@ class Ring(Preparable, Schedulable):
         Raises
         ------
         AssertionError
-            If circumference != effective_circumference
+            If circumference != circumference
 
         """
         assert np.isclose(

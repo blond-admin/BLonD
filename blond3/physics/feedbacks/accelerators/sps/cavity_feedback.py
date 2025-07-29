@@ -2,18 +2,27 @@ from __future__ import annotations
 
 import logging
 import sys
-from typing import Optional, Optional as LateInit, Any
+from typing import Optional, Optional as LateInit, Any, TYPE_CHECKING
 
 import numpy as np
 from matplotlib import pyplot as plt
 from numpy._typing import NDArray as NumpyArray
 from scipy.signal import fftconvolve
 
-from .sps_helpers import get_power_gen_i, moving_average, comb_filter, modulator
-from ..cavity_feedback import BirksCavityFeedback
-from ..helpers import cartesian_to_polar
-from ....physics.cavities import MultiHarmonicCavity
-from ....physics.profiles import StaticProfile
+from blond3 import Simulation
+from blond3.physics.cavities import MultiHarmonicCavity
+from blond3.physics.feedbacks.cavity_feedback import BirksCavityFeedback
+from blond3.physics.feedbacks.helpers import cartesian_to_polar
+from blond3.physics.profiles import StaticProfile
+from .helpers import get_power_gen_i, moving_average, comb_filter, modulator
+from blond3.physics.feedbacks.accelerators.sps.impulse_response import (  # NOQA
+    SPS3Section200MHzTWC,
+    SPS4Section200MHzTWC,
+    SPS5Section200MHzTWC,
+)  # NOQA
+
+if TYPE_CHECKING:
+    from blond3._core.beam.base import BeamBaseClass
 
 
 class SPSCavityLoopCommissioning:
@@ -113,12 +122,6 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
         commissioning: Optional[SPSCavityLoopCommissioning] = None,
         harmonic_index: int = 0,
     ):
-        from .sps_impulse_response import (
-            SPS3Section200MHzTWC,
-            SPS4Section200MHzTWC,
-            SPS5Section200MHzTWC,
-        )  # NOQA
-
         self.V_set: LateInit[NumpyArray] = None
         self.n_delay: LateInit[int] = None
 
@@ -255,7 +258,7 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
         # Initialize moving average
         self.n_mov_av = round(
-            self.TWC.tau / self._parent_cavity.t_rf[self.harmonic_index]
+            self.TWC.tau / self._parent_cavity._t_rf[self.harmonic_index]
         )
         self.DV_MOV_AVG = np.zeros(2 * self.n_coarse, dtype=complex)
         self.logger.debug("Moving average over %d points", self.n_mov_av)
@@ -297,6 +300,9 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
         self.V_ANT_START: LateInit[NumpyArray] = None
         self.V_ANT_FINE_START: LateInit[NumpyArray] = None
         self.phi_mod_0: LateInit[Any] = None
+
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        pass
 
     def circuit_track(self, no_beam: bool = False):
         r"""Tracking the SPS CL internally."""
@@ -651,7 +657,7 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
         # TODO REMWORK/REMOVE
         t_rev = float(
             (2 * np.pi * self._parent_cavity.harmonic[self.harmonic_index])
-            / self._parent_cavity._omega[self.harmonic_index]
+            / self._parent_cavity._omega_rf[self.harmonic_index]
         )
         # TODO REMWORK/REMOVE
         t_rf = t_rev / float(self._parent_cavity.harmonic[self.harmonic_index])
@@ -882,13 +888,13 @@ class SPSCavityFeedback:
 
         self.logger.info("Class initialized")
 
-    def track(self):
+    def track(self, beam: BeamBaseClass):
         r"""Main tracking method for the SPSCavityFeedback. This tracks both cavity types
         with beam."""
 
         # Track the feedbacks for the two TWC types
-        self.OTFB_1.track()
-        self.OTFB_2.track()
+        self.OTFB_1.track(beam=beam)
+        self.OTFB_2.track(beam=beam)
 
         # Sum the fine-grid antenna voltage from the TWC types
         self.V_sum = (

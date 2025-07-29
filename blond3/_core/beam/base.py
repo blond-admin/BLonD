@@ -15,7 +15,7 @@ from ..._core.backends.backend import backend
 from ..._core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional, Type
+    from typing import Optional
     from .particle_types import ParticleType
     from ..simulation.simulation import Simulation
 
@@ -115,6 +115,11 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             )
             warnings.warn(msg)
         self.reference_total_energy = new_reference_total_energy
+
+    @cached_property
+    def ratio(self) -> float:
+        """Type of particles, e.g. protons"""
+        return self.n_particles / self.common_array_size
 
     @property
     def particle_type(self) -> ParticleType:
@@ -240,6 +245,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         "dt_min",
         "dt_max",
         "common_array_size",
+        "ratio",
     )
 
     def invalidate_cache_dE(self) -> None:

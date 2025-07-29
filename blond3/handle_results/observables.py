@@ -10,7 +10,7 @@ from .array_recorders import DenseArrayRecorder
 from .._core.base import MainLoopRelevant
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional as LateInit, Type
+    from typing import Optional as LateInit
     from .. import WakeField
     from ..physics.cavities import SingleHarmonicCavity
     from ..physics.profiles import (
@@ -326,10 +326,12 @@ class CavityPhaseObservation(Observables):
 
         """
         self._phases.write(
-            self._cavity.phi_rf,
+            self._cavity.phi_rf + self._cavity.delta_phi_rf,
         )
         self._omegas.write(
-            self._cavity._omega,
+            None
+            if self._cavity._omega_rf is None
+            else (self._cavity._omega_rf + self._cavity.delta_omega_rf)
         )
         self._voltages.write(
             self._cavity.voltage,

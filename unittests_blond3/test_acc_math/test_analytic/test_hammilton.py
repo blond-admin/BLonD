@@ -42,6 +42,12 @@ class TestFunctions(unittest.TestCase):
         lower_limit = -np.pi / 2
         phis = np.linspace(-100, 100, 200)
         phis_corrected = phase_modulo_above_transition(phis)
+        plt.title("phase_modulo_above_transition")
+        plt.plot(phis, "o")
+        plt.plot(phis_corrected, "o")
+        plt.axhline(upper_limit)
+        plt.axhline(lower_limit)
+        # plt.show()
         self.assertTrue(
             np.all(phis_corrected <= upper_limit),
             msg=f"{phis_corrected.max()=}",
@@ -56,6 +62,12 @@ class TestFunctions(unittest.TestCase):
         lower_limit = -np.pi / 2
         phis = np.linspace(-100, 100, 200)
         phis_corrected = phase_modulo_below_transition(phis)
+        plt.title("phase_modulo_below_transition")
+        plt.plot(phis, "o")
+        plt.plot(phis_corrected, "o")
+        plt.axhline(upper_limit)
+        plt.axhline(lower_limit)
+        # plt.show()
         self.assertTrue(
             np.all(phis_corrected <= upper_limit),
             msg=f"{phis_corrected.max()=}",

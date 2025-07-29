@@ -32,9 +32,10 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             phi_rf=np.array([0.1 * np.pi, np.pi], dtype=backend.float),
             harmonic=np.array([1, 5], dtype=backend.float),
             circumference=456,
-            local_wakefield=Mock(WakeField),
-            cavity_feedback=Mock(LocalFeedback),
+            local_wakefield=None,
+            cavity_feedback=None,
             total_energy=939,
+            main_harmonic_idx=0,
         )
 
     def test___init__(self):
@@ -95,8 +96,8 @@ class TestSingleHarmonicCavity(unittest.TestCase):
             phi_rf=np.pi * 0.3,
             harmonic=3.5,
             circumference=456,
-            local_wakefield=Mock(WakeField),
-            cavity_feedback=Mock(LocalFeedback),
+            local_wakefield=None,
+            cavity_feedback=None,
             total_energy=939,
         )
 

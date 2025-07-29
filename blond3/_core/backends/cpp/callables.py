@@ -161,6 +161,25 @@ def _getLen(x: NumpyArray) -> ct.c_int:
 
 class CppSpecials(Specials):
     @staticmethod
+    def beam_phase(
+        hist_x: NumpyArray,
+        hist_y: NumpyArray,
+        alpha: float,
+        omega_rf: float,
+        phi_rf: float,
+        bin_size: float,
+    ) -> float:
+        return _LIBBLOND.beam_phase(
+            bin_centers=hist_x,
+            profile=hist_y,
+            alpha=alpha,
+            omega_rf=omega_rf,
+            phi_rf=phi_rf,
+            bin_size=bin_size,
+            n_bins=len(hist_x),
+        )
+
+    @staticmethod
     def histogram(
         array_read: NumpyArray,
         array_write: NumpyArray,
