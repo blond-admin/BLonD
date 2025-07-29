@@ -61,19 +61,25 @@ energy_cycle = MagneticCyclePerTurn(np.linspace(450e9, 460.005e9, 2000))
 n_cavities = 7
 one_turn_model = []
 for cavity_i in range(n_cavities):
-    one_turn_model.extend(
-        [
-            SingleHarmonicCavity(
-                rf_program=RfStationParams(
-                    voltage=6e6,
-                    phi_rf=0,
-                    harmonic=35640,
-                ),
-                local_wakefield=WakeField(
-                    sources=(Resonators(),),
-                    solver=MutliTurnResonatorSolver(),
+    cavity = SingleHarmonicCavity(
+        local_wakefield=WakeField(
+            sources=(
+                Resonators(
+                    # TODO set some useful parameter
+                    shunt_impedances=np.ones(1, dtype=float),
+                    center_frequencies=np.ones(1, dtype=float),
+                    quality_factors=np.ones(1, dtype=float),
                 ),
             ),
+            solver=MutliTurnResonatorSolver(),
+        ),
+    )
+    cavity.voltage = 6e6
+    cavity.phi_rf = 0
+    cavity.harmonic = 35640
+    one_turn_model.extend(
+        [
+            cavity,
             DriftSimple(
                 transition_gamma=55.759505,
                 share_of_circumference=1 / n_cavities,
