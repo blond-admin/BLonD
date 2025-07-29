@@ -18,11 +18,19 @@ def get_synchrotron_frequency(
 ):
     """
     Calculation of the linear synchrotron angular frequency
-    :param energy:
-    :param voltage:
-    :param synchronous_phase:
-    :param slip_factor:
-    :return:
+
+    Parameters
+    ----------
+    energy
+    voltage
+    harmonic_number
+    synchronous_phase
+    slip_factor
+    revolution_frequency
+
+    Returns
+    -------
+
     """
 
     return (

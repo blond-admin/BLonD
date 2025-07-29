@@ -1,7 +1,7 @@
 from __future__ import annotations
 import numpy as np
 from scipy.constants import c
-from ...._core.beam.particle_types import ParticleType, electron
+from _core.beam.particle_types import ParticleType, electron
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 def calculate_partition_numbers(
     synchrotron_radiation_integrals: NumpyArray,
-    which_plane: Literal["horizontal","longitudinal", "h", "z"] | None = None,
+    which_plane: Literal["horizontal","longitudinal"] | None = None,
 ):
     """
     Compute the damping partition numbers.
@@ -135,7 +135,7 @@ def calculate_energy_loss_per_turn(
     :return:
     """
     energy_loss_per_turn = (
-        particle_type.sands_radiation_constant
+        particle_type.quantum_radiation_constant
         * energy**4
         * synchrotron_radiation_integrals[1]
         / (2 * np.pi)

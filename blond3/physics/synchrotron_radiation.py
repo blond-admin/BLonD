@@ -6,13 +6,12 @@ from functools import cached_property
 import numpy as np
 from numpy.matlib import empty
 from scipy.constants import e, c
-from ..acc_math.analytic.synchrotron_radiation_maths import (
+from acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
     gather_longitudinal_synchrotron_radiation_parameters,
     calculate_energy_loss_per_turn,
     calculate_damping_times_in_turn,
     calculate_natural_energy_spread,
 )
-from blond.utils.exceptions import InputDataError, MissingParameterError
 from .._core.base import BeamPhysicsRelevant, Schedulable, DynamicParameter
 from typing import TYPE_CHECKING
 
@@ -41,9 +40,8 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         if self.is_isomagnetic:
             is_iso = "isomagnetic"
         return (
-            f"Synchrotron radiation master class set up for the "
-            + is_iso
-            + f" ring {self._simulation.ring.name}. Simulation "
+            f"Synchrotron radiation master class set up for the {is_iso}"
+            f" ring {self._simulation.ring.name}. Simulation "
             f"{self._simulation.name} currently set for turn "
             f"{self._turn_i}."
         )
@@ -52,18 +50,18 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         self,
         section_index: int = 0,
         name: Optional[str] = None,
-        is_isomagnetic: Optional[bool] = False,
+        is_isomagnetic: bool = False,
     ):
         super().__init__(
             section_index=section_index,
             name=name,
         )
         self._energy_loss_per_turn = None
-        self.is_isomagnetic: Optional[bool] = False
+        self.is_isomagnetic: Optional[bool] = False  # FIXME Optional means  bool | None, but is never none
         self.get_synchrotron_radiation_info_turn_by_turn: Optional[bool] = True
         self.synchrotron_radiation_integrals: LateInit[NumpyArray | CupyArray] = None
         self._simulation: LateInit[Simulation] = None
-        self._damping_times: LateInit[NumpyArray | CupyArray] = None
+        self._damping_times: LateInit[NumpyArray | CupyArray] = None # TODO why duplicate `_damping_times_in_seconds`, could this be property?
         self._damping_times_in_seconds: LateInit[NumpyArray | CupyArray] = None
         self._natural_energy_spread: LateInit[NumpyArray | CupyArray] = None
 
@@ -71,41 +69,27 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         self._energy_cycle: LateInit[MagneticCycleBase] = None
         self._ring: LateInit[Ring] = None
 
-        self.generated_children: list = []
+        self.generated_children: list[_SynchrotronRadiationBaseClass] = [] # TODO add typehint List[SomeClass]
 
-    @cached_property
+    @cached_property # TODO property enough?
     def energy_loss_per_turn(self) -> NumpyArray:
         return self._energy_loss_per_turn
 
-    @cached_property
+    @cached_property # TODO property enough?
     def damping_times(self) -> NumpyArray:
         return self._damping_times
 
-    @cached_property
+    @cached_property # TODO property enough?
     def damping_times_in_seconds(self) -> NumpyArray:
         return self._damping_times_in_seconds
 
     def generate_children(
         self,
-        section_list: Optional[list[int]] = None,
-        element_list: Optional[list[DriftBaseClass | CavityBaseClass ]] =
-        None,
+        element_list: Optional[list[DriftBaseClass | CavityBaseClass]
+                               | list[int]] = None,
         location: Optional[str] = ('before' or 'after'),
     ):
-        """
-        Function to generate and insert synchrotron radiation elements in
-        the ring. By default, the elements are inserted at the end of each section.
-        A section list can be provided to limit the study to the preferred
-        section.
-        An element list can be provided along with a location preference to
-        insert the synchrotron radiation elements at the requested
-        location.
 
-        :param section_list:
-        :param element_list:
-        :param location: 'before' or 'after
-        :return:
-        """
         if not empty(self.generated_children):
             raise Warning(
                 "Synchrotron radiation subclasses have already been "
@@ -113,38 +97,57 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
             )
         else:
             i = 0
-            if section_list is not None:
-                for section_index in section_list:
-                    i += 1
-                    SRClass_child = SynchrotronRadiationSection(
-                        section_index=section_index,
-                        name=f"SynchrotronRadiationTracker_{i}",
-                    )
-                    self._simulation.ring.add_element(
-                        SRClass_child, section_index=section_index, reorder=True
-                    )
-                    self.generated_children.append(SRClass_child)
-            elif element_list is not None:
-                insert_at = 0
-                if location == 'after':
-                    insert_at = 1
+
+            if element_list is not None:
+                if all([isinstance(e, DriftBaseClass | CavityBaseClass) for e in
+                        element_list]):
+                    for element in element_list:
+                        i += 1
+                        SRClass_child = SynchrotronRadiationDrift(
+                            section_index=element.section_index,
+                            name=f"SynchrotronRadiationTracker_{i}",
+                        )
+                        self._simulation.ring.insert_element(
+                            element=SRClass_child,
+                            insert_at=
+                            self._simulation.ring.elements.elements.index(
+                                element),
+                            deepcopy=True,
+                            )
+                        self.generated_children.append(SRClass_child)
+
+                elif all([isinstance(e, int) for e in
+                          element_list]):
+                    for section_index in element_list:
+                        i += 1
+                        SRClass_child = SynchrotronRadiationSection(
+                            section_index=section_index,
+                            name=f"SynchrotronRadiationTracker_{i}",
+                        )
+                        self._simulation.ring.add_element(
+                            SRClass_child, section_index=section_index,
+                            reorder=True
+                        )
+                        self.generated_children.append(SRClass_child)
+                else:
+                    raise TypeError()
+
+            else:
+                element_list = self._simulation.ring.elements.get_elements(
+                    DriftBaseClass)
                 for element in element_list:
                     i += 1
-                    SRClass_child = SynchrotronRadiationDrift(
+                    SRClass_child = SynchrotronRadiationSection(
                         section_index=element.section_index,
                         name=f"SynchrotronRadiationTracker_{i}",
                     )
-                    self._simulation.ring.insert_element(element = SRClass_child,
-                         insert_at =
-                         self._simulation.ring.elements.elements.index(
-                             element) + insert_at,
-                         deepcopy = True,
+                    self._simulation.ring.add_element(
+                        SRClass_child, section_index=element.section_index,
+                        reorder=True
                     )
                     self.generated_children.append(SRClass_child)
-            else:
-                raise MissingParameterError('Expected a list of sections or '
-                                            'a list of elements and none '
-                                            'were provided.')
+
+
 
         return print(f"{len(self.generated_children)} synchrotron radiation "
                      f"trackers generated")
@@ -157,7 +160,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         self._energy_cycle = simulation.energy_cycle
         self._ring = simulation.ring
 
-        self.__str__()
+        self.__str__() # TODO WHY
 
     def on_run_simulation(
         self,
@@ -249,7 +252,7 @@ class _SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         self._damping_time[self._turn_i] = np.average(tau_z)
 
         return (
-            -U0
+            - U0
             - 2.0 / tau_z * energy
             - 2.0
             * sigma0
@@ -264,10 +267,13 @@ class _SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         through the _SynchrotronRadiationBaseClass element in the ring.
         :param beam: BeamBaseClass object
         """
+        # TODO write C++ routine
+        beam.dE_mean()
         particles_total_energy = beam.reference_total_energy + beam.read_partial_dE()
         energy_change = self._calculate_kick(beam=beam)
-        new_beam_center_energy = np.average(particles_total_energy + energy_change)
-        beam.write_partial_dE = (
+        new_beam_center_energy = np.average(particles_total_energy[:] + energy_change[:])
+        dE = beam.write_partial_dE()
+        dE[:] = (
             particles_total_energy + energy_change - new_beam_center_energy
         )
 
@@ -300,12 +306,13 @@ class SynchrotronRadiationDrift(_SynchrotronRadiationBaseClass):
         self,
         section_index: int = 0,
         name: Optional[str] = None,
-        is_isomagnetic: Optional[bool] = False,
+        is_isomagnetic: bool = False,
     ):
         super().__init__(
             section_index=section_index,
             name=name,
         )
+        self.is_isomagnetic = is_isomagnetic
 
     @property
     def energy_lost_due_to_synchrotron_radiation_drift(self):
@@ -465,13 +472,14 @@ class WigglerMagnet(_SynchrotronRadiationBaseClass):
         :return:
         """
         E = beam.read_partial_dE() + beam.reference_total_energy
+        var = 1 / (E * e / c)
         energy_contribution_wiggler_integrals = np.array(
             [
-                1 / (E * e / c) ** 2,
-                1 / (E * e / c) ** 2,
-                1 / (E * e / c) ** 3,
-                1 / (E * e / c) ** 3,
-                1 / (E * e / c) ** 5,
+                var ** 2,
+                var ** 2,
+                var ** 3,
+                var ** 3,
+                var ** 5,
             ]
         )
         self._contribution_to_synchrotron_radiation_integrals_with_energy = np.multiply(
