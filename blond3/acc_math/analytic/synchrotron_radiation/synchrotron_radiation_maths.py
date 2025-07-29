@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 def calculate_partition_numbers(
     synchrotron_radiation_integrals: NumpyArray,
-    which_plane: Literal["horizontal","longitudinal", "h", "z"] | None = None,
+    which_plane: Literal["horizontal","longitudinal"] | None = None,
 ):
     """
     Compute the damping partition numbers.
