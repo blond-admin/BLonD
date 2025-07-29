@@ -85,8 +85,11 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         turn_i_init: int,
         **kwargs,
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called
+        """
+        Lateinit method when `simulation.run_simulation` is called
 
+        Parameters
+        ----------
         simulation
             Simulation context manager
         beam
@@ -100,7 +103,9 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
 
     @property  # as readonly attributes
     def n_rf(self):
-        """Number of different rf waves for interaction"""
+        """
+        Number of different rf waves for interaction
+        """
         return self._n_rf
 
     def track(self, beam: BeamBaseClass) -> None:
@@ -149,6 +154,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             Beam reference fraction of speed of light (v/c0)
         closed_orbit_length
             Length of the closed orbit, in [m]
+
         Returns
         -------
         omega

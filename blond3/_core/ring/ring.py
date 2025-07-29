@@ -279,7 +279,7 @@ class Ring(Preparable, Schedulable):
 
     def insert_element(self,
                        element: Iterable[BeamPhysicsRelevant],
-                       location: int | list,
+                       insert_at: int | list,
                        deepcopy: bool = False,
                        ):
         """
@@ -292,7 +292,7 @@ class Ring(Preparable, Schedulable):
             An object representing a beamline component or any element
             relevant to beam physics. Must have a valid  `section_index`
             attribute of type `int`.
-        location
+        insert_at
             Single location or list of locations.
         deepcopy
             Takes copies of the given element
@@ -303,14 +303,14 @@ class Ring(Preparable, Schedulable):
             If `element.section_index` is not an integer.
         """
 
-        for k in location.sort(reverse=True):
+        for k in insert_at.sort(reverse=True):
             if deepcopy:
                 element = copy.deepcopy(element)
             self.elements.insert(k+1,element)
 
     def insert_elements(self,
                         elements: Iterable[BeamPhysicsRelevant],
-                        location: int,
+                        insert_at: int,
                         deepcopy: bool = False,
                         ):
         """
@@ -322,7 +322,7 @@ class Ring(Preparable, Schedulable):
             A list of objects representing a beamline component or any element
             relevant to beam physics. Must have a valid `section_index`
             attribute of type `int`.
-        location
+        insert_at
             Single location or list of locations.
         deepcopy
             Takes copies of the element listed
@@ -335,6 +335,6 @@ class Ring(Preparable, Schedulable):
         for element in elements:
             self.insert_element(
                 element=element,
-                location = location,
+                insert_at = insert_at,
                 deepcopy=deepcopy,
             )
