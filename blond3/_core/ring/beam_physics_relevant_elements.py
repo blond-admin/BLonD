@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
+from numba.parfors.parfor import is_assert_equiv
+from numpy.ma.testutils import assert_array_almost_equal, assert_equal
 
 from ..base import Preparable
 from ..beam.base import BeamBaseClass
@@ -35,6 +37,8 @@ class BeamPhysicsRelevantElements(Preparable):
         """
         Lateinit method when `simulation.__init__` is called
 
+        Parameters
+        ----------
         simulation
             Simulation context manager"""
         self._check_section_indexing()
@@ -75,8 +79,11 @@ class BeamPhysicsRelevantElements(Preparable):
         turn_i_init: int,
         **kwargs,
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called
+        """
+        Lateinit method when `simulation.run_simulation` is called
 
+        Parameters
+        ----------
         simulation
             Simulation context manager
         beam
@@ -138,20 +145,44 @@ class BeamPhysicsRelevantElements(Preparable):
         """
         assert isinstance(element.section_index, int)
 
-        insert_at = None
         for i, elem in enumerate(self.elements):
             if elem.section_index == element.section_index:
                 insert_at = i
+        self.elements.append(element)
 
-        if insert_at is not None:
-            self.elements.insert(insert_at + 1, element)
-        else:
-            self.elements.append(element)
+    def _check_section_index_compatibility(self, element:
+    BeamPhysicsRelevant, insert_at: int):
+        """
+        Internal method to check the element is inserted in the defined 
+        section.
 
+        Parameters
+        ----------
+        element
+            An object representing a beamline component or any element
+            relevant to beam physics. Must have a valid  `section_index`
+            attribute of type `int`.
+        insert_at
+            Single location.
+        Raises
+        -------
+        AssertionError
+            If 'element.section_index' is inconsistent with the section of
+            insertion.
+        """
+        try :
+            assert (self.elements[insert_at - 1].section_index <=
+                    element.section_index <= self.elements[
+                        insert_at].section_index)
+        except:
+            raise AssertionError('The element section index is incompatible '
+                                 'with the requested location. Please allow '
+                                 'overwrite for automatic handling.')
     def insert(self, element: BeamPhysicsRelevant, insert_at: int) -> None:
         """
         Insert a beam physics-relevant element to the container at the
         specified index.
+
         Parameters
         ----------
         element
@@ -165,9 +196,12 @@ class BeamPhysicsRelevantElements(Preparable):
         ------
         AssertionError
             If `element.section_index` is not an integer.
+            If 'element.section_index' is inconsistent with the section of
+            insertion.
         """
         assert isinstance(element.section_index, int)
-
+        self._check_section_index_compatibility(element = element,
+                                                insert_at= insert_at)
         self.elements.insert(insert_at, element)
 
     @property  # as readonly attributes
