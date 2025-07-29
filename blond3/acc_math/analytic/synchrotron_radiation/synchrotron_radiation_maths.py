@@ -2,7 +2,7 @@ from __future__ import annotations
 import numpy as np
 from scipy.constants import c
 from _core.beam.particle_types import ParticleType, electron
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
@@ -10,15 +10,21 @@ if TYPE_CHECKING:
 
 def calculate_partition_numbers(
     synchrotron_radiation_integrals: NumpyArray,
-    which_plane: str | None = None,
+    which_plane: Literal["horizontal","longitudinal"] | None = None,
 ):
     """
-    Function to compute the damping partition numbers in horizontal,
-    longitudinal or all planes.
-    :param synchrotron_radiation_integrals: synchrotron radiation integrals
-    :param which_plane: str input to request the relevant damping partition
-    number. If none is provided, all three numbers are returned.
-    :return:
+    Compute the damping partition numbers.
+
+    Parameters
+    ----------
+    synchrotron_radiation_integrals
+        Synchrotron radiation integrals
+    which_plane
+        Plane selection for faster computation.
+
+    Returns
+    -------
+        Damping partition numbers of all or selected planes.
     """
     if (which_plane == "horizontal") or (which_plane == "h"):
         return (
@@ -42,13 +48,22 @@ def calculate_damping_times_in_turn(
     which_plane: str | None = None,
 ):
     """
-    Function to calculate the transverse and longitudinal damping times in
-    seconds.
-    :param which_plane:
-    :param energy: expected beam energy [eV]
-    :param synchrotron_radiation_integrals:
-    :param energy_loss_per_turn: in eV per turn
-    :return:
+    Calculate the damping times in turn.
+
+    Parameters
+    ----------
+    energy
+        Energy of the reference particle, in [eV]
+    synchrotron_radiation_integrals
+        Synchrotron radiation integrals
+    energy_loss_per_turn
+        Energy lost per turn, in [eV/turn]
+    which_plane
+        Plane selection for faster computation.
+
+    Returns
+    -------
+        Damping times in turn of all or selected planes.
     """
     if which_plane is not None:
         damping_partition_numbers = calculate_partition_numbers(
@@ -72,16 +87,6 @@ def calculate_damping_times_in_second(
     revolution_frequency: float,
     which_plane: str | None = None,
 ):
-    """
-    Function to calculate the transverse and longitudinal damping times in
-    second.
-    :param which_plane:
-    :param energy: expected beam energy [eV]
-    :param synchrotron_radiation_integrals:
-    :param energy_loss_per_turn: in eV per turn
-    :param revolution_frequency: expected revolution frequency in Hz
-    :return:
-    """
     if which_plane is not None:
         damping_partition_numbers = calculate_partition_numbers(
             synchrotron_radiation_integrals, which_plane=which_plane
@@ -113,7 +118,7 @@ def calculate_damping_times_in_second(
             / revolution_frequency
         )
 
-        return np.array([tau_x_s, tau_y_s, tau_z_s])
+    return np.array([tau_x_s, tau_y_s, tau_z_s])
 
 
 def calculate_energy_loss_per_turn(
