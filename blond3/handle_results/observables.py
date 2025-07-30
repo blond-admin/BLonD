@@ -48,7 +48,7 @@ class Observables(MainLoopRelevant):
         """
         return self._turns_array
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def update(
         self,
         simulation: Simulation,
@@ -98,14 +98,14 @@ class Observables(MainLoopRelevant):
         self._turn_i_init = turn_i_init
         self._turns_array = np.arange(turn_i_init, turn_i_init + n_turns)
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def to_disk(self) -> None:
         """
         Save data to disk
         """
         pass
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def from_disk(self) -> None:
         """
         Load data from disk

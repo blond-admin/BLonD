@@ -158,7 +158,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         """Number of different rf waves for interaction"""
         return self._n_rf
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def _update_beam_based_attributes(self, beam: BeamBaseClass) -> None:
         pass
 
@@ -238,7 +238,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         if self._local_wakefield is not None:
             self._local_wakefield.track(beam=beam)
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def voltage_waveform_tmp(self, ts: NumpyArray):
         """
         Calculate voltage of cavity for current turn
@@ -251,7 +251,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         """
         pass
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def calc_omega(
         self,
         beam_beta: float,
@@ -304,6 +304,9 @@ class SingleHarmonicCavity(CavityBaseClass):
         cavity_feedback: Optional[LocalFeedback] = None,
         beam_feedback: Optional[Blond2BeamFeedback] = None,
         name: Optional[str] = None,
+        voltage: Optional[float] = None,
+        phi_rf: Optional[float] = None,
+        harmonic: Optional[float] = None,
     ):
         super().__init__(
             n_rf=1,
@@ -313,9 +316,9 @@ class SingleHarmonicCavity(CavityBaseClass):
             beam_feedback=beam_feedback,
             name=name,
         )
-        self.voltage: float | None = None
-        self.phi_rf: float | None = None
-        self.harmonic: float | None = None
+        self.voltage: float | None = voltage
+        self.phi_rf: float | None = phi_rf
+        self.harmonic: float | None = harmonic
         self.delta_phi_rf: NumpyArray | None = backend.float(0)
 
     def on_init_simulation(self, simulation: Simulation) -> None:

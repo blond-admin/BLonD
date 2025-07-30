@@ -151,7 +151,7 @@ sig_beam_phase = (
 )
 
 
-class NumbaSpecials(Specials):
+class NumbaSpecials(Specials):  # pragma: no cover
     @staticmethod
     @njit(sig_beam_phase, parallel=True, fastmath=True)
     def beam_phase(

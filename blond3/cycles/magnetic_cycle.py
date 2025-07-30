@@ -110,7 +110,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         """Number of turns that are defined by this cycle"""
         return self._n_turns_max
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def get_target_total_energy(
         self,
         turn_i: int,
@@ -186,7 +186,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         return circumference / reference_velocity
 
     @staticmethod
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def headless(*args, **kwargs):
         """Initialize object without simulation context"""
         pass

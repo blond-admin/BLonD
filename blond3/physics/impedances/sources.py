@@ -305,7 +305,7 @@ class ImpedanceTable(DiscreteWakeFieldSource):
     """
 
     @staticmethod
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def from_file(filepath: PathLike, reader: ImpedanceReader) -> ImpedanceTable:
         pass
 

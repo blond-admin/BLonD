@@ -28,7 +28,7 @@ class Preparable(ABC):
     def __init__(self):
         super().__init__()
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called
 
@@ -37,7 +37,7 @@ class Preparable(ABC):
         """
         pass
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def on_run_simulation(
         self,
         simulation: Simulation,
@@ -214,7 +214,7 @@ class BeamPhysicsRelevant(MainLoopRelevant):
         """Section index to group elements into sections"""
         return self._section_index
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def track(self, beam: BeamBaseClass) -> None:
         """Main simulation routine to be called in the mainloop
 
@@ -227,7 +227,7 @@ class BeamPhysicsRelevant(MainLoopRelevant):
 
 
 class _Scheduled:
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def get_scheduled(self, turn_i: int, reference_time: float):
         """Get the value of the schedule for the current turn/time
 
@@ -401,7 +401,7 @@ class HasPropertyCache(object):
         for prop in props:
             self.__dict__.pop(prop, None)
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def invalidate_cache(self):
         """Delete the stored values of functions with @cached_property"""
         pass

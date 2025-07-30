@@ -50,7 +50,7 @@ class LocalFeedback(FeedbackBaseClass):
         assert self._parent_cavity is None, "This feedback has already one owner!"
         self._parent_cavity = cavity
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def track(self, beam: BeamBaseClass) -> None:
         """Main simulation routine to be called in the mainloop
 

@@ -148,7 +148,7 @@ class Blond2BeamFeedback(LocalFeedback):
 
         self.RFnoise = None  # FIXME remove this!
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def update_domega_rf(self, beam: BeamBaseClass) -> None:
         pass
 

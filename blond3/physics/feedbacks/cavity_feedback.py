@@ -212,7 +212,7 @@ class BirksCavityFeedback(LocalFeedback):
     ) -> None:
         pass
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def update_fb_variables(self) -> None:
         r"""
         Method to update the variables specific to the feedback.
@@ -261,7 +261,7 @@ class BirksCavityFeedback(LocalFeedback):
             np.arange(self.n_coarse) + 0.5 / self.n_periods_coarse
         ) * self.T_s + self.dT
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def circuit_track(self, no_beam: bool = False) -> None:
         r"""
         Method to track circuit of the feedback.

@@ -1,5 +1,7 @@
 import unittest
 
+import numpy as np
+
 from blond3 import BiGaussian
 from blond3.beam_preparation.bigaussian import _get_dE_from_dt_core, _get_dE_from_dt
 from blond3.testing.simulation import ExampleSimulation01
@@ -33,8 +35,8 @@ class TestFunctions(unittest.TestCase):
 
 
 class TestBiGaussian(unittest.TestCase):
-    def setUp(self):
-        self.bi_gaussian = BiGaussian(
+    def test___init__(self):
+        bi_gaussian = BiGaussian(
             n_macroparticles=10,
             sigma_dt=50e-9,
             sigma_dE=None,
@@ -42,12 +44,44 @@ class TestBiGaussian(unittest.TestCase):
             seed=0,
         )
 
-    def test___init__(self):
-        pass  # calls __init__ in  self.setUp
-
-    @unittest.skip("Implement phi_s in RF first")  # TODO
     def test_on_prepare_beam(self):
-        self.bi_gaussian.prepare_beam(simulation=ExampleSimulation01().simulation)
+        simulation_ = ExampleSimulation01()
+        bi_gaussian = BiGaussian(
+            n_macroparticles=1e4,
+            sigma_dt=50e-9,
+            sigma_dE=None,
+            reinsertion=False,
+            seed=0,
+        )
+        bi_gaussian.prepare_beam(
+            simulation=simulation_.simulation, beam=simulation_.beam1
+        )
+        self.assertAlmostEqual(np.std(simulation_.beam1.read_partial_dt()), 50e-9)
+
+    def test_on_prepare_beam2(self):
+        simulation_ = ExampleSimulation01()
+        bi_gaussian = BiGaussian(
+            n_macroparticles=1e4,
+            sigma_dt=50e-9,
+            sigma_dE=60e9,
+            reinsertion=False,
+            seed=0,
+        )
+        bi_gaussian.prepare_beam(
+            simulation=simulation_.simulation, beam=simulation_.beam1
+        )
+        self.assertAlmostEqual(
+            np.std(simulation_.beam1.read_partial_dt()) / 50e-9,
+            1,
+            places=1,  # low precision because of few
+            # particles in this testcase
+        )
+        self.assertAlmostEqual(
+            np.std(simulation_.beam1.read_partial_dE()) / 60e9,
+            1,
+            places=1,  # low precision because of
+            # few particles in this testcase
+        )
 
 
 if __name__ == "__main__":

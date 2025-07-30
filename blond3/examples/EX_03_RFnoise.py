@@ -19,7 +19,6 @@ No intensity effects
 import os
 
 import numpy as np
-from blond3.cycles.rf_parameters import RFNoiseProgram
 
 from blond3 import (
     Beam,
@@ -39,29 +38,43 @@ from blond3.physics.profiles import DynamicProfileConstNBins
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 
 ring = Ring(circumference=26658.883)
-cavity1 = SingleHarmonicCavity(
-    harmonic=35640,
-    rf_program=RFNoiseProgram(
-        effective_voltage=6e6,
-        phase=0,
-        phase_noise_generator=VariNoise(),
-    ),
+cavity1 = SingleHarmonicCavity()
+cavity1.voltage = 6e6
+cavity1.schedule(
+    attribute="phi_rf",
+    value=VariNoise().get_noise(n_turns=200),
+    mode="per-turn",
 )
+cavity1.harmonic = 35640
 energy_cycle = MagneticCyclePerTurn(
     value_init=450.0e9,
     values_after_turn=np.linspace(450.0e9, 450.0e9, 200),
     reference_particle=proton,
 )
-beam = Beam(n_particles=1.0e9, particle_type=proton)
+beam = Beam(
+    n_particles=1.0e9,
+    particle_type=proton,
+)
 profile = DynamicProfileConstNBins(n_bins=100)
 losses = BoxLosses(t_min=0, t_max=2.5e-9)
 losses2 = SeparatrixLosses()
-drift = DriftSimple(transition_gamma=55.759505, share_of_circumference=1.0)
+drift = DriftSimple(
+    transition_gamma=55.759505,
+    orbit_length=ring.circumference,
+)
 sim = Simulation.from_locals(locals())
 sim.print_one_turn_execution_order()
-sim.prepare_beam(BiGaussian(0.4e-9 / 4, reinsertion=True, seed=1))
-sim.run_simulation(200)
-################# OLD
-# Simulation setup -------------------------------------------------------------
-print("Setting up the simulation...")
-print("")
+sim.prepare_beam(
+    beam=beam,
+    preparation_routine=BiGaussian(
+        n_macroparticles=1001,
+        sigma_dt=0.4e-9 / 4,
+        sigma_dE=1e9, # potentially very mismatched
+        reinsertion=True,
+        seed=1,
+    ),
+)
+sim.run_simulation(
+    beams=(beam,),
+    n_turns=200,
+)

@@ -15,7 +15,7 @@ class ImpedanceReader(ABC):
     def __init__(self):
         super().__init__()
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def load_file(self, filepath: PathLike) -> Tuple[NumpyArray, NumpyArray]:
         return freq, amplitude  # NOQA
 

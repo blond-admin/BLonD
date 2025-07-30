@@ -225,7 +225,6 @@ class EmpiricMatcher(MatchingRoutine):
             seed=self._seed,
         )
 
-
         simulation.intensity_effect_manager.set_wakefields(active=True)
         for i in range(self._maxiter_intensity_effects):
             simulation.intensity_effect_manager.set_profiles(active=True)
