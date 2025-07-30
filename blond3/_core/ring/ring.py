@@ -458,11 +458,5 @@ class Ring(Preparable, Schedulable):
         try :
             assert_equal(element.section_index, self.elements.elements[
                                                       location].section_index)
-        except:
+        except AssertionError:
             element.section_index = self.elements.elements[location].section_index
-
-
-
-
-
-
