@@ -119,6 +119,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         time: NumpyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
+        n_fft: int,
     ) -> NumpyArray:
         """
         Get impedance equivalent to the partial wake in time domain
@@ -143,7 +144,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         hash_ = get_hash(time)
         if hash_ is self._cache_wake_impedance_hash:
             return self._cache_wake_impedance
-        freq = np.fft.rfftfreq(len(time), d=time[1] - time[0])
+        freq = np.fft.rfftfreq(n_fft, d=time[1] - time[0])
         wake_impedance = self.get_impedance(
             freq_x=freq, simulation=simulation, beam=beam
         ) / (time[1] - time[0])
@@ -203,6 +204,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         time: NumpyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
+        n_fft: int,
     ) -> NumpyArray:
         """
         Get impedance equivalent to the partial single-particle-wake in
@@ -243,7 +245,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
                     - alpha / omega_bar * np.sin(omega_bar * time)
                 )
             )
-        wake_impedance = np.fft.rfft(wake)
+        wake_impedance = np.fft.rfft(wake, n=n_fft)
 
         self._cache_wake_impedance_hash = hash
         self._cache_wake_impedance = wake_impedance
@@ -441,6 +443,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         time: NumpyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
+        n_fft: int,
     ) -> NumpyArray:
         """
         Get impedance equivalent to the partial single-particle-wake in
@@ -466,7 +469,181 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
             return self._cache_wake_impedance
 
         wake = np.interp(time, self._wake_x, self._wake_y)
-        wake_impedance = np.fft.rfft(wake)
+        wake_impedance = np.fft.rfft(wake, n=n_fft)
         self._cache_wake_impedance_hash = hash_
         self._cache_wake_impedance = wake_impedance
         return wake_impedance
+
+
+# TODO rework docstring
+class TravelingWaveCavity(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
+    r"""Impedance of travelling wave cavities.
+    Notes
+    -----
+    Impedance contribution from travelling wave cavities,
+    analytic formulas for both wake and impedance. The resonance modes (and
+    the corresponding R and a) can be inputed as a list in case of several
+    modes.
+
+    The model is the following:
+
+    .. math::
+        Z &= Z_+ + Z_- \\
+        Z_-(f) &= R \left[\left(\frac{\sin{\frac{a(f-f_r)}{2}}}{\frac{a(f-f_r)}{2}}\right)^2 - 2i \frac{a(f-f_r) - \sin{a(f-f_r)}}{\left(a(f-f_r)\right)^2}\right] \\
+        Z_+(f) &= R \left[\left(\frac{\sin{\frac{a(f+f_r)}{2}}}{\frac{a(f+f_r)}{2}}\right)^2 - 2i \frac{a(f+f_r) - \sin{a(f+f_r)}}{\left(a(f+f_r)\right)^2}\right]
+
+    .. math::
+        W(0<t<\tilde{a}) &= \frac{4R}{\tilde{a}}\left(1-\frac{t}{\tilde{a}}\right)\cos{\omega_r t} \\
+        W(0) &= \frac{2R}{\tilde{a}}
+
+    .. math::
+        a = 2 \pi \tilde{a}
+
+    Parameters
+    ----------
+    R_S
+        Shunt impepdance, in [Ω]
+    frequency_R
+        Resonant frequency, in [Hz]
+    a_factor
+        Damping time `a`, in [s]
+
+    Attributes
+    ----------
+    R_S
+        Shunt impepdance, in [Ω]
+    frequency_R
+        Resonant frequency, in [Hz]
+    a_factor
+        Damping time `a`, in [s]
+
+    Examples
+    ----------
+    >>> R_S = [1, 2, 3]
+    >>> frequency_R = [1, 2, 3]
+    >>> a_factor = [1, 2, 3]
+    >>> twc = TravelingWaveCavity(R_S, frequency_R, a_factor)
+    >>> time = np.array(1,2,3)
+    >>> twc.wake_calc(time)
+    >>> frequency = np.array(1,2,3)
+    >>> twc.imped_calc(frequency)
+    """
+
+    def __init__(
+        self,
+        R_S: float | NumpyArray,
+        frequency_R: float | NumpyArray,
+        a_factor: float | NumpyArray,
+    ):
+        if isinstance(R_S, np.ndarray):
+            assert len(R_S) == len(frequency_R), (
+                f"{len(R_S)=}, but" f" {len(frequency_R)=}."
+            )
+            assert len(R_S) == len(a_factor), f"{len(R_S)=}, but {len(a_factor)=}."
+        super().__init__(is_dynamic=False)
+
+        # Shunt impedance in :math:`\Omega`
+        self.R_S = np.array([R_S], dtype=float).flatten()
+
+        # Resonant frequency in Hz
+        self.frequency_R = np.array([frequency_R], dtype=float).flatten()
+
+        # Damping time a in s
+        self.a_factor = np.array([a_factor], dtype=float).flatten()
+
+    def wake_calc(self, time: NumpyArray):
+        r"""
+        Wake calculation method as a function of time.
+
+        Parameters
+        ----------
+        time
+            Time array to get wake, in [s]
+        """
+
+        wake = np.zeros(time.shape, dtype=backend.float, order="C")
+
+        for i in range(0, len(self.R_S)):
+            a_tilde = self.a_factor[i] / (2 * np.pi)
+            indexes = time <= a_tilde
+            wake[indexes] += (
+                (np.sign(time[indexes]) + 1)
+                * 2
+                * self.R_S[i]
+                / a_tilde
+                * (1 - time[indexes] / a_tilde)
+                * np.cos(2 * np.pi * self.frequency_R[i] * time[indexes])
+            )
+        return wake
+
+    def get_wake_impedance(
+        self,
+        time: NumpyArray,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_fft: int,
+    ) -> NumpyArray:
+        """
+        Get impedance equivalent to the partial single-particle-wake in
+        time domain
+
+
+        Parameters
+        ----------
+        time
+            Time array to get wake, in [s]
+        simulation : Simulation
+            Simulation object containing turn index and RF info.
+        beam
+            Simulation beam object
+
+        Returns
+        -------
+        wake_impedance
+
+        """
+        wake = self.wake_calc(time=time)
+        wake_impedance = np.fft.rfft(wake, n=n_fft)
+        return wake_impedance
+
+    def get_impedance(
+        self,
+        freq_x: NumpyArray,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+    ) -> NumpyArray:
+        """
+        Return the impedance in the frequency domain.
+
+        Parameters
+        ----------
+        freq_x
+            Frequency axis, in [Hz].
+        simulation : Simulation
+            Simulation object containing turn index and RF info.
+        beam
+            Simulation beam object
+
+        Returns
+        -------
+        impedance
+            Complex impedance array.
+        """
+        impedance = np.zeros(len(freq_x), dtype=backend.complex, order="C")
+
+        for i in range(0, self.R_S):
+            xs_plus = self.a_factor[i] * (freq_x - self.frequency_R[i])
+            xs_minus = self.a_factor[i] * (freq_x + self.frequency_R[i])
+
+            Zplus = self.R_S[i] * (
+                (np.sin(xs_plus / 2) / xs_plus / 2) ** 2
+                - 2j * (xs_plus - np.sin(xs_plus)) / (xs_plus * xs_plus)
+            )
+
+            Zminus = self.R_S[i] * (
+                (np.sin(xs_minus / 2) / xs_minus / 2) ** 2
+                - 2j * (xs_minus - np.sin(xs_minus)) / (xs_minus * xs_minus)
+            )
+
+            impedance += Zplus + Zminus
+        return impedance

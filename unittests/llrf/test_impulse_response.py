@@ -189,7 +189,15 @@ class TestTravelingWaveCavity(unittest.TestCase):
                          - np.angle(OTFB_4.V_SET[-OTFB_4.n_coarse]))
 
         V_ind_OTFB = np.around(V_ind_OTFB, digit_round)
-
+        from matplotlib import pyplot as plt
+        plt.subplot(2,1,1)
+        plt.plot(profile.bin_centers, profile.n_macroparticles)
+        plt.subplot(2,1,2)
+        plt.plot(V_ind_impSource, label="V_ind_impSource")
+        plt.plot(V_ind_OTFB, label="V_ind_OTFB")
+        plt.legend()
+        plt.suptitle("blond2")
+        plt.show()
         ratio_array = np.array(V_ind_impSource.tolist()) / np.array(V_ind_OTFB.tolist())
         ratio_array = ratio_array[~np.isnan(ratio_array)]
         max_ratio = np.max(ratio_array)

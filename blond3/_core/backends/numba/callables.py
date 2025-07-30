@@ -134,9 +134,26 @@ sig_histogram = (
     sig_stop,
 )
 
+sig_hist_x = nb_f[:]
+sig_hist_y = nb_f[:]
+sig_alpha = nb_f
+sig_omega_rf = nb_f
+sig_phi_rf = nb_f
+sig_bin_size = nb_f
+
+sig_beam_phase = (
+    sig_hist_x,
+    sig_hist_y,
+    sig_alpha,
+    sig_omega_rf,
+    sig_phi_rf,
+    sig_bin_size,
+)
+
 
 class NumbaSpecials(Specials):
     @staticmethod
+    @njit(sig_beam_phase, parallel=True, fastmath=True)
     def beam_phase(
         hist_x: NumpyArray,
         hist_y: NumpyArray,
@@ -145,7 +162,31 @@ class NumbaSpecials(Specials):
         phi_rf: float,
         bin_size: float,
     ) -> float:
-        raise NotImplementedError()  # TODO
+        n = len(hist_x)
+
+        f_sin = np.zeros_like(hist_x)
+        f_cos = np.zeros_like(hist_x)
+
+        for i in prange(n):
+            exp_term_i = np.exp(alpha * hist_x[i])
+            angle_i = omega_rf * hist_x[i] + phi_rf
+            sin_term = np.sin(angle_i)
+            cos_term = np.cos(angle_i)
+
+            # Prepare the function values for integration
+            val = exp_term_i * hist_y[i]
+            f_sin[i] = val * sin_term
+            f_cos[i] = val * cos_term
+
+        scoeff = 0.0
+        for i in range(n - 1):
+            scoeff += 0.5 * (f_sin[i] + f_sin[i + 1]) * bin_size
+
+        ccoeff = 0.0
+        for i in range(n - 1):
+            ccoeff += 0.5 * (f_cos[i] + f_cos[i + 1]) * bin_size
+
+        return scoeff / ccoeff
 
     @staticmethod
     @njit(sig_histogram, parallel=True, fastmath=True)

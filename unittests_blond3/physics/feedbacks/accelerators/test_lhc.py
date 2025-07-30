@@ -71,7 +71,7 @@ class TestLHCOpenDrive(unittest.TestCase):
         self.RFFB = LHCCavityLoopCommissioning(open_drive=True)
         omega = self.rf.calc_omega(beam_beta=beam.reference_beta,
                                    ring_circumference=ring.circumference)
-        rf._omega = omega # TODO FIXME REMOVE
+        rf._omega_rf = omega # TODO FIXME REMOVE
         self.f_c = float(omega)/(2*np.pi)
 
     def test_setup(self):

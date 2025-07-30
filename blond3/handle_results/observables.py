@@ -326,7 +326,9 @@ class CavityPhaseObservation(Observables):
 
         """
         self._phases.write(
-            self._cavity.phi_rf + self._cavity.delta_phi_rf,
+            None
+            if self._cavity.phi_rf is None
+            else (self._cavity.phi_rf + self._cavity.delta_phi_rf)
         )
         self._omegas.write(
             None

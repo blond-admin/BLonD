@@ -423,6 +423,7 @@ class _InducedVoltage:
                                        * beam_spectrum)
         )
 
+
         self.induced_voltage = induced_voltage[:self.n_induced_voltage].astype(
             dtype=bm.precision.real_t, order='C', copy=False)
 

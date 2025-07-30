@@ -224,8 +224,7 @@ class EmpiricMatcher(MatchingRoutine):
             n_macroparticles=self._n_macroparticles,
             seed=self._seed,
         )
-        plt.hist2d(users_beam._dt, users_beam._dE, bins=100)
-        plt.show()
+
 
         simulation.intensity_effect_manager.set_wakefields(active=True)
         for i in range(self._maxiter_intensity_effects):

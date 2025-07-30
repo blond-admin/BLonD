@@ -70,7 +70,7 @@ class FortranSpecials(Specials):
         phi_rf: float,
         bin_size: float,
     ) -> float:
-        beam_phase_module.beam_phase(
+        return beam_phase_module.beam_phase_module.beam_phase(
             bin_centers=hist_x,
             profile=hist_y,
             alpha=alpha,

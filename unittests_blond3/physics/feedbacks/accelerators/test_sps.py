@@ -1,7 +1,9 @@
 import os
 import unittest
 from copy import deepcopy
+from typing import List
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from blond3 import (
@@ -21,14 +23,87 @@ from blond3.physics.feedbacks.accelerators.sps.cavity_feedback import (
     SPSCavityLoopCommissioning,
     SPSOneTurnFeedback,
 )
+from numpy.typing import NDArray as NumpyArray
 
 this_directory = os.path.dirname(os.path.realpath(__file__))
+
+
+def rf_volt_comp(
+    voltages: NumpyArray,
+    omega_rf: NumpyArray,
+    phi_rf: NumpyArray,
+    bin_centers: NumpyArray,
+) -> NumpyArray:
+    """Compute rf voltage at each bin.
+
+    Args:
+        voltages (NumpyArray): _description_
+        omega_rf (NumpyArray): _description_
+        phi_rf (NumpyArray): _description_
+        bin_centers (NumpyArray): _description_
+
+    Returns:
+        NumpyArray: _description_
+    """
+    rf_voltage = np.zeros(len(bin_centers))
+
+    for j in range(len(voltages)):
+        rf_voltage += voltages[j] * np.sin(omega_rf[j] * bin_centers + phi_rf[j])
+
+    return rf_voltage
+
+
+def rf_voltage_calculation(
+    rf_params: MultiHarmonicCavity,
+    cavityFB: List[SPSCavityFeedback],
+    profile: StaticProfile,
+):
+    """Function calculating the total, discretised RF voltage seen by the
+    beam at a given turn. Requires a Profile object.
+
+    """
+    voltages = np.ascontiguousarray(rf_params.voltage[:])
+    omega_rf = np.ascontiguousarray(rf_params._omega_rf[:])
+    phi_rf = np.ascontiguousarray(rf_params.phi_rf[:])
+    # TODO: test with multiple harmonics, think about 800 MHz OTFB
+    if cavityFB is not None:
+        # Allocate memory for rf_voltage and reset it to zero
+        rf_voltage = np.zeros(profile.n_bins)
+
+        # Add corrections from cavity feedbacks for the different harmonics
+        for ind, feedback in enumerate(cavityFB):
+            if feedback is not None:
+                rf_voltage += (
+                    voltages[ind]
+                    * feedback.V_corr
+                    * np.sin(
+                        omega_rf[ind] * profile.hist_x + phi_rf[ind] + feedback.phi_corr
+                    )
+                )
+            else:
+                rf_voltage += rf_volt_comp(
+                    voltages[ind : ind + 1],
+                    omega_rf[ind : ind + 1],
+                    phi_rf[ind : ind + 1],
+                    profile.hist_x,
+                )
+
+        # Add RF voltage from harmonics that do not have a cavity feedback model
+        rf_voltage += rf_volt_comp(
+            voltages[len(cavityFB) :],
+            omega_rf[len(cavityFB) :],
+            phi_rf[len(cavityFB) :],
+            profile.hist_x,
+        )
+    else:
+        rf_voltage = rf_volt_comp(voltages, omega_rf, phi_rf, profile.hist_x)
+    return rf_voltage
 
 
 class TestSPSCavityFeedback(unittest.TestCase):
     def setUp(self):
         backend.change_backend(Numpy64Bit)
-        #backend.set_specials("fortran")
+        # backend.set_specials("fortran")
         C = 2 * np.pi * 1100.009  # Ring circumference [m]
         # Gamma at transition
         p_s = 25.92e9  # Synchronous momentum at injection [eV]
@@ -156,6 +231,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
             df=[0.18433333e6, 0.2275e6],
             commissioning=SPSCavityLoopCommissioning(open_ff=True, rot_iq=-1),
         )
+        self.rf = rf
         """
 
         self.OTFB_tracker = RingAndRFTracker(
@@ -289,16 +365,20 @@ class TestSPSCavityFeedback(unittest.TestCase):
         digit_round = 7
 
         # compute voltage
-        self.cavity_tracker.rf_voltage_calculation()
+        cavity_tracker_rf_voltage = rf_voltage_calculation(
+            rf_params=self.rf,
+            cavityFB=None,
+            profile=self.profile,
+        )
 
         # compute voltage after OTFB pre-tracking
-        self.OTFB_tracker.rf_voltage_calculation()
-
-        # Since there is a systematic offset between the voltages,
-        # compare the maxium of the ratio
-        max_ratio = np.max(
-            self.cavity_tracker.rf_voltage / self.OTFB_tracker.rf_voltage
+        OTFB_tracker_rf_voltage = rf_voltage_calculation(
+            rf_params=self.rf,
+            cavityFB=[self.OTFB],
+            profile=self.profile,
         )
+
+        max_ratio = np.max(cavity_tracker_rf_voltage / OTFB_tracker_rf_voltage)
 
         max_ratio_exp = 1.0691789378342162
 
@@ -312,15 +392,25 @@ class TestSPSCavityFeedback(unittest.TestCase):
     def test_beam_loading(self):
         digit_round = 7
         # Compute voltage with beam loading
-        self.cavity_tracker.rf_voltage_calculation()
+        #self.cavity_tracker.rf_voltage_calculation()
+        cavity_tracker_rf_voltage = rf_voltage_calculation(
+            rf_params=self.rf,
+            cavityFB=None,
+            profile=self.profile,
+        )
         cavity_tracker_total_voltage = (
-            self.cavity_tracker.rf_voltage
-            + self.cavity_tracker.totalInducedVoltage.induced_voltage
+            cavity_tracker_rf_voltage
+            #+ self.cavity_tracker.totalInducedVoltage.induced_voltage
         )
 
-        self.OTFB.track()
-        self.OTFB_tracker.rf_voltage_calculation()
-        OTFB_tracker_total_voltage = self.OTFB_tracker.rf_voltage
+        self.OTFB.track(beam=self.beam)
+        #self.OTFB_tracker.rf_voltage_calculation()
+        OTFB_tracker_rf_voltage = rf_voltage_calculation(
+            rf_params=self.rf,
+            cavityFB=[self.OTFB],
+            profile=self.profile,
+        )
+        OTFB_tracker_total_voltage = OTFB_tracker_rf_voltage
 
         max_ratio = np.max(cavity_tracker_total_voltage / OTFB_tracker_total_voltage)
 
@@ -966,7 +1056,7 @@ class TestSPSTransmitterGain(unittest.TestCase):
         beam_2 = deepcopy(self.beam)
         self.rf.track(beam_2)
         del beam_2
-        cavity._omega = np.array([200.222e6 * 2 * np.pi])
+        cavity._omega_rf = np.array([200.222e6 * 2 * np.pi])
 
         self.profile = StaticProfile(
             cut_left=0.0e-9,

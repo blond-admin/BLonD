@@ -8,6 +8,7 @@ from typing import (
 )
 
 import numpy as np
+from matplotlib import pyplot as plt
 from scipy.constants import elementary_charge as e
 from scipy.fft import next_fast_len
 
@@ -394,10 +395,12 @@ class TimeDomainSolver(WakeFieldSolver):
         if not self._wake_imp_y_needs_update:
             return
         _wake_x = self._parent_wakefield.profile.hist_x
+        _wake_x = _wake_x - _wake_x.min()
+        n_fft = next_fast_len(2 * (len(_wake_x) + 1))
+        n_t = len(np.fft.rfftfreq(n_fft))
+
         if (self._wake_imp_y is None) or (_wake_x.shape != self._wake_imp_y.shape):
-            self._wake_imp_y = np.zeros(
-                len(np.fft.rfftfreq(len(_wake_x))), dtype=backend.complex
-            )
+            self._wake_imp_y = np.zeros(n_t, dtype=backend.complex)
         else:
             self._wake_imp_y[:] = 0 + 0j
 
@@ -407,6 +410,7 @@ class TimeDomainSolver(WakeFieldSolver):
                     time=_wake_x,
                     simulation=self._simulation,
                     beam=beam,
+                    n_fft=n_fft,
                 )
                 assert not np.any(np.isnan(wake_imp_y_tmp)), f"{type(source).__name__}"
                 self._wake_imp_y += wake_imp_y_tmp
@@ -437,12 +441,14 @@ class TimeDomainSolver(WakeFieldSolver):
             # TODO this might be a problem with MPI
             beam.n_particles / beam.n_macroparticles_partial()
         )
+
         induced_voltage = _factor * np.fft.irfft(
             self._wake_imp_y
             * self._parent_wakefield.profile.beam_spectrum(
-                n_fft=len(self._parent_wakefield.profile.hist_x)
+                n_fft=next_fast_len(2 * len(self._parent_wakefield.profile.hist_x) + 1)
             ),
         )
+
         # calculation in frequency domain must be with full periodicity.
         # The profile and corresponding induced voltage is only a part of
         # the full periodicity and must be thus truncated

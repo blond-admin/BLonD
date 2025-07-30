@@ -1,1 +1,1 @@
-g++ -O3 -std=c++11 -shared -Wall -Wno-unknown-pragmas -D_USE_MATH_DEFINES -fopenmp -DPARALLEL -D_GLIBCXX_PARALLEL -fPIC -ffast-math -mavx2 -mfma ./kick.cpp ./drift.cpp ./linear_interp_kick.cpp ./histogram.cpp ./beam_phase.cpp ./blondmath.cpp -o libblond_double.so
+g++ -O3 -std=c++11 -shared -Wall -Wno-unknown-pragmas -D_USE_MATH_DEFINES -fopenmp -DPARALLEL -D_GLIBCXX_PARALLEL -fPIC -ffast-math -mavx2 -mfma ./kick.cpp ./drift.cpp ./linear_interp_kick.cpp ./histogram.cpp ./beam_phase.cpp -o libblond_double.so

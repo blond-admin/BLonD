@@ -218,11 +218,11 @@ class TestBeamFeedback(unittest.TestCase):
             # plt.pause(.1)
             self.section_tracker_blond2.track()
             self.profile_blond2.track()
-            plt.figure(3)
+            """plt.figure(3)
 
             plt.subplot(4, 1, 1)
 
-            plt.plot(i, self.phase_loop_blond2.phi_beam, "x", c="C1")
+            plt.plot(i, self.phase_loop_blond2.phi_beam, "x", c="C1")"""
         DEV_DEBUG = False
         if DEV_DEBUG:
             plt.figure(3)

@@ -285,14 +285,14 @@ class TestSpecials(unittest.TestCase):
                     result_python = result
                 else:
                     np.testing.assert_allclose(result, result_python, rtol=self.rtol)
-    @unittest.skip
+
     def test_beam_phase(self):
         for dtype in (np.float64,):  # (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 self._setUp(dtype=dtype, special_mode=special)
                 result = backend.specials.beam_phase(
                     hist_x=np.arange(-10, 10, 1, dtype=backend.float),
-                    hist_y=np.random.randn(20).astype(backend.float),
+                    hist_y=np.arange(-10, 10, 1, dtype=backend.float),
                     alpha=backend.float(1.5),
                     omega_rf=backend.float(2.5),
                     phi_rf=backend.float(3.5),
@@ -301,7 +301,12 @@ class TestSpecials(unittest.TestCase):
                 if i == 0:
                     result_python = result
                 else:
-                    np.testing.assert_allclose(result, result_python, rtol=self.rtol)
+                    np.testing.assert_allclose(
+                        result,
+                        result_python,
+                        rtol=self.rtol,
+                        err_msg=f"{special=} {dtype=}",
+                    )
 
     def tearDown(self):
         backend.change_backend(Numpy32Bit)
