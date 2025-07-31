@@ -69,7 +69,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         self._energy_cycle: LateInit[MagneticCycleBase] = None
         self._ring: LateInit[Ring] = None
 
-        self.generated_children: list[_SynchrotronRadiationBaseClass] = [] # TODO add typehint List[SomeClass]
+        self.generated_children: list[SynchrotronRadiationBaseClass] = [] # TODO add typehint List[SomeClass]
 
     @cached_property # TODO property enough?
     def energy_loss_per_turn(self) -> NumpyArray:
@@ -87,7 +87,6 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         self,
         element_list: Optional[list[DriftBaseClass | CavityBaseClass]
                                | list[int]] = None,
-        location: Optional[str] = ('before' or 'after'),
     ):# FIXME SRtracker BEFORE Drifts and AFTER Cavity
 
         if not empty(self.generated_children):
@@ -146,8 +145,6 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
                         reorder=True
                     )
                     self.generated_children.append(SRClass_child)
-
-
 
         return print(f"{len(self.generated_children)} synchrotron radiation "
                      f"trackers generated")
@@ -250,7 +247,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         self._damping_time[self._turn_i] = np.average(tau_z)
 
         return (
-            - U0 #FIXME
+            -
             - 2.0 / tau_z * beam.read_partial_dE()
             - 2.0
             * sigma0
@@ -305,7 +302,6 @@ class SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
             section_index=section_index,
             name=name,
         )
-        self.is_isomagnetic = is_isomagnetic
 
     @property
     def energy_lost_due_to_synchrotron_radiation_drift(self):
@@ -317,13 +313,19 @@ class SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
         """Synchrotron radiation integrals of the drift"""
         return self._synchrotron_radiation_integrals
 
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        pass
+        self._turn_i = simulation.turn_i
+        self._synchrotron_radiation_integrals = (self._ *
+                                                 self._synchrotron_radiation_integrals)
 
 class SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
+    #TODO : enforce a constraint on the number of
+    # SynchrotronRadiationSection per section
     def __init__(
         self,
         section_index: int = 0,
         name: Optional[str] = None,
-        is_isomagnetic: Optional[bool] = False,
     ):
         super().__init__(
             section_index=section_index,
@@ -347,10 +349,10 @@ class SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
         share_synchrotron_radiation_integrals = (
             lengths_sections[self.section_index] / self._simulation.ring.circumference
         )
-        self.synchrotron_radiation_integrals_section = (
+        self._synchrotron_radiation_integrals = (
             share_synchrotron_radiation_integrals) * self._synchrotron_radiation_integrals
 
-class WigglerMagnet(_SynchrotronRadiationBaseClass):
+class WigglerMagnet(SynchrotronRadiationBaseClass):
     """
     Synchrotron Radiation subclass to simulate the effect of one or a
     series of identical damping wigglers on the simulated beams.
