@@ -106,6 +106,11 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         self.invalidate_cache()
 
     @property
+    def reference_particle(self) -> ParticleType:
+        """Reference particle type for the magnetic cycle"""
+        return self._reference_particle
+
+    @property
     def n_turns(self) -> None | int:
         """Number of turns that are defined by this cycle"""
         return self._n_turns_max

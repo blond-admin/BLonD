@@ -101,6 +101,7 @@ sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
 sim.prepare_beam(
     preparation_routine=BiGaussian(
         sigma_dt=tau_0 / 4,
+        sigma_dE=1e9,  # potentially very mismatched
         reinsertion=True,
         seed=1,
         n_macroparticles=N_p,

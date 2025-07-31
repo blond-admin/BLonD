@@ -267,7 +267,7 @@ class StaticProfile(ProfileBaseClass):
     @staticmethod
     def from_rad(
         cut_left_rad: float, cut_right_rad: float, n_bins: int, t_period: float
-    ):
+    ) -> StaticProfile:
         """
         Initialization method in radian
 

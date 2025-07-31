@@ -94,7 +94,7 @@ def _get_dE_from_dt(
         omega_rf = omega_rf[main_harmonic_idx]
         phi_rf = phi_rf[main_harmonic_idx]
         voltage = voltage[main_harmonic_idx]
-    warnings.warn("assuming wrongly phi_s = phi_rf for development, to be resolved")
+
     phi_s = calc_phi_s_single_harmonic(
         charge=beam.particle_type.charge,
         voltage=voltage,
@@ -187,7 +187,7 @@ class BiGaussian(MatchingRoutine):
             )
             main_harmonic = rf_station.main_harmonic_idx
         drift: DriftSimple = simulation.ring.elements.get_element(DriftSimple)
-        above_transition = beam.reference_gamma > drift.transition_gamma
+        above_transition = beam.reference_gamma > simulation.ring.average_transition_gamma
 
         rf_station.apply_schedules(
             turn_i=0,

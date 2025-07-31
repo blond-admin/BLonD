@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 import warnings
-from typing import Optional as LateInit, TYPE_CHECKING
+from typing import Optional as LateInit, TYPE_CHECKING, Optional
 from typing import (
     Tuple,
 )
@@ -109,13 +109,19 @@ class PeriodicFreqSolver(WakeFieldSolver):
         dynamic parameters
     """
 
-    def __init__(self, t_periodicity: float, allow_next_fast_len: bool = False):
+    def __init__(
+        self, t_periodicity: Optional[float] = None, allow_next_fast_len: bool = False
+    ):
         """General wakefield solver to calculate wake-fields via frequency domain
 
         Parameters
         ----------
         t_periodicity
             Periodicity that is assumed for fast fourier transform, in [s]
+
+            If None, it will be automatically set during `on_init_simulation`
+            to the revolution time of the initial turn of the magnetic cycle
+            with respect to the reference particle.
         allow_next_fast_len
             Allow to slightly change `t_periodicity` for
             faster execution of fft via `scipy.fft.next_fast_len`
@@ -151,7 +157,14 @@ class PeriodicFreqSolver(WakeFieldSolver):
         parent_wakefield
             Wakefield that this solver affiliated to
         """
-
+        if self._t_periodicity is None:
+            self._t_periodicity = simulation.magnetic_cycle.get_t_rev_init(
+                circumference=simulation.ring.circumference,
+                turn_i_init=0,
+                t_init=0,
+                particle_type=simulation.magnetic_cycle.reference_particle,
+            )
+            print(f"Set t_periodicity={self._t_periodicity} for {self}")
         self._simulation = simulation
         if parent_wakefield.profile is not None:
             is_static = isinstance(parent_wakefield.profile, StaticProfile)

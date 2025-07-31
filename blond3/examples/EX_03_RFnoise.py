@@ -56,8 +56,8 @@ beam = Beam(
     particle_type=proton,
 )
 profile = DynamicProfileConstNBins(n_bins=100)
-losses = BoxLosses(t_min=0, t_max=2.5e-9)
-losses2 = SeparatrixLosses()
+# losses = BoxLosses(t_min=0, t_max=2.5e-9) # TODO implement
+# losses2 = SeparatrixLosses()# TODO implement
 drift = DriftSimple(
     transition_gamma=55.759505,
     orbit_length=ring.circumference,
@@ -69,7 +69,7 @@ sim.prepare_beam(
     preparation_routine=BiGaussian(
         n_macroparticles=1001,
         sigma_dt=0.4e-9 / 4,
-        sigma_dE=1e9, # potentially very mismatched
+        sigma_dE=1e9,  # potentially very mismatched
         reinsertion=True,
         seed=1,
     ),
