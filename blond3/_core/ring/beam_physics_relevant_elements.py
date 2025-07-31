@@ -171,9 +171,16 @@ class BeamPhysicsRelevantElements(Preparable):
             insertion.
         """
         try :
-            assert (self.elements[insert_at - 1].section_index <=
-                    element.section_index <= self.elements[
-                        insert_at].section_index)
+            if (insert_at != 0) and (insert_at != len(self.elements)):
+                assert (self.elements[insert_at - 1].section_index <=
+                        element.section_index <= self.elements[
+                            insert_at].section_index)
+            elif insert_at == 0:
+                assert (element.section_index ==
+                        self.elements[insert_at+1].section_index)
+            elif insert_at == len(self.elements):
+                assert (element.section_index ==
+                        self.elements[insert_at - 1].section_index)
         except:
             raise AssertionError('The element section index is incompatible '
                                  'with the requested location. Please allow '
