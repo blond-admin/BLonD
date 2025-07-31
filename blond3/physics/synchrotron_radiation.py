@@ -88,7 +88,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         element_list: Optional[list[DriftBaseClass | CavityBaseClass]
                                | list[int]] = None,
         location: Optional[str] = ('before' or 'after'),
-    ):
+    ):# FIXME SRtracker BEFORE Drifts and AFTER Cavity
 
         if not empty(self.generated_children):
             raise Warning(
@@ -211,7 +211,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         pass
 
 
-class _SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
+class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
     """Base class to handle the synchrotron radiation energy loss and damping,
     and quantum excitation effect along a section of the ring.
     """
@@ -242,23 +242,21 @@ class _SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         :param beam: BeamBaseClass object.
         :return:
         """
-        energy = beam.reference_total_energy + beam.read_partial_dE()
         U0, tau_z, sigma0 = gather_longitudinal_synchrotron_radiation_parameters(
-            particle_type=beam.particle_type, energy=energy
+            particle_type=beam.particle_type, energy=beam.reference_total_energy
         )
-
         self._natural_energy_spread[self._turn_i] = np.average(sigma0)
         self._energy_lost_due_to_synchrotron_radiation[self._turn_i] = np.average(U0)
         self._damping_time[self._turn_i] = np.average(tau_z)
 
         return (
-            - U0
-            - 2.0 / tau_z * energy
+            - U0 #FIXME
+            - 2.0 / tau_z * beam.read_partial_dE()
             - 2.0
             * sigma0
             / np.sqrt(tau_z)
-            * energy
-            * np.random.normal(size=len(energy))
+            * beam.reference_total_energy
+            * np.random.normal(size=len(beam.n_macroparticles_partial()))
         )
 
     def _update_beam_energy(self, beam: BeamBaseClass):
@@ -268,14 +266,9 @@ class _SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         :param beam: BeamBaseClass object
         """
         # TODO write C++ routine
-        beam.dE_mean()
-        particles_total_energy = beam.reference_total_energy + beam.read_partial_dE()
         energy_change = self._calculate_kick(beam=beam)
-        new_beam_center_energy = np.average(particles_total_energy[:] + energy_change[:])
         dE = beam.write_partial_dE()
-        dE[:] = (
-            particles_total_energy + energy_change - new_beam_center_energy
-        )
+        dE[:] += energy_change
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         pass
@@ -301,7 +294,7 @@ class _SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         pass
 
 
-class SynchrotronRadiationDrift(_SynchrotronRadiationBaseClass):
+class SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
     def __init__(
         self,
         section_index: int = 0,
@@ -325,7 +318,7 @@ class SynchrotronRadiationDrift(_SynchrotronRadiationBaseClass):
         return self._synchrotron_radiation_integrals
 
 
-class SynchrotronRadiationSection(_SynchrotronRadiationBaseClass):
+class SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
     def __init__(
         self,
         section_index: int = 0,
@@ -354,10 +347,8 @@ class SynchrotronRadiationSection(_SynchrotronRadiationBaseClass):
         share_synchrotron_radiation_integrals = (
             lengths_sections[self.section_index] / self._simulation.ring.circumference
         )
-
-        # self._synchrotron_radiation_integrals = (
-        #     share_synchrotron_radiation_integrals)
-
+        self.synchrotron_radiation_integrals_section = (
+            share_synchrotron_radiation_integrals) * self._synchrotron_radiation_integrals
 
 class WigglerMagnet(_SynchrotronRadiationBaseClass):
     """
