@@ -155,5 +155,3 @@ class LhcFBeamFeedback(Blond2BeamFeedback):
         self.domega_rf = -self.gain * self.dphi - self.gain2 * (
             self._parent_cavity.delta_omega_rf[0] + self.reference
         )
-
-

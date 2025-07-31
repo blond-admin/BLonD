@@ -61,7 +61,12 @@ class Ring(Preparable, Schedulable):
         assert (
             len(self.elements.get_sections_indices()) == self.n_cavities
         ), f"{len(self.elements.get_sections_indices())=}, but {self.n_cavities=}"
-        # todo assert some kind of order inside the sections
+        assert np.all(
+            0 <= np.diff([e.section_index for e in self.elements.elements])
+        ), (
+            "Section indices must be ascending, but section order:"
+            f" {[e.section_index for e in self.elements.elements]=}"
+        )
 
     def on_run_simulation(
         self,

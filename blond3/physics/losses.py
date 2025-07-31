@@ -39,8 +39,14 @@ class BoxLosses(LossesBaseClass):
         """
         pass
 
-    def on_run_simulation(self, simulation: Simulation, beam: BeamBaseClass,
-                          n_turns: int, turn_i_init: int, **kwargs) -> None:
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs,
+    ) -> None:
         pass
 
     def track(self, beam: BeamBaseClass) -> None:
@@ -69,8 +75,14 @@ class SeparatrixLosses(LossesBaseClass):
         """
         self._simulation = simulation
 
-    def on_run_simulation(self, simulation: Simulation, beam: BeamBaseClass,
-                          n_turns: int, turn_i_init: int, **kwargs) -> None:
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs,
+    ) -> None:
         pass
 
     def track(self, beam: BeamBaseClass) -> None:

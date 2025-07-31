@@ -22,8 +22,7 @@ the corresponding h5 files).
 import numpy as np
 from matplotlib import pyplot as plt
 
-from blond.impedances.induced_voltage_analytical import \
-    analytical_gaussian_resonator
+from blond.impedances.induced_voltage_analytical import analytical_gaussian_resonator
 from blond3 import (
     BiGaussian,
     Beam,
@@ -159,4 +158,4 @@ plt.plot(profile.hist_x, profile.hist_y, label=f"analytical_gaussian_resonator")
 plt.subplot(2, 1, 2)
 plt.plot(profile.hist_x, VindGauss, label="analytical_gaussian_resonator")
 plt.legend()
-plt.show()
+# plt.show()

@@ -43,7 +43,7 @@ def is_in_separatrix(
     phi_s
         Stable phase, in [rad]
     etas
-        Drift in arc parameter eta for one turn in synchrotron # TODO unit
+        Drift in arc parameter eta for one turn in synchrotron
     beta
         Beam reference fraction of speed of light (v/c0)
     total_energy

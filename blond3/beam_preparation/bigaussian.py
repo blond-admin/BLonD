@@ -187,7 +187,9 @@ class BiGaussian(MatchingRoutine):
             )
             main_harmonic = rf_station.main_harmonic_idx
         drift: DriftSimple = simulation.ring.elements.get_element(DriftSimple)
-        above_transition = beam.reference_gamma > simulation.ring.average_transition_gamma
+        above_transition = (
+            beam.reference_gamma > simulation.ring.average_transition_gamma
+        )
 
         rf_station.apply_schedules(
             turn_i=0,

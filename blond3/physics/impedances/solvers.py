@@ -409,8 +409,9 @@ class TimeDomainSolver(WakeFieldSolver):
             return
         _wake_x = self._parent_wakefield.profile.hist_x
         _wake_x = _wake_x - _wake_x.min()
-        n_fft = next_fast_len(2 * (len(_wake_x) + 1))
-        n_t = len(np.fft.rfftfreq(n_fft))
+
+        n_fft = next_fast_len(2 * len(_wake_x))
+        n_t = (n_fft // 2) + 1
 
         if (self._wake_imp_y is None) or (_wake_x.shape != self._wake_imp_y.shape):
             self._wake_imp_y = np.zeros(n_t, dtype=backend.complex)
@@ -458,7 +459,7 @@ class TimeDomainSolver(WakeFieldSolver):
         induced_voltage = _factor * np.fft.irfft(
             self._wake_imp_y
             * self._parent_wakefield.profile.beam_spectrum(
-                n_fft=next_fast_len(2 * len(self._parent_wakefield.profile.hist_x) + 1)
+                n_fft=next_fast_len(2 * len(self._parent_wakefield.profile.hist_x))
             ),
         )
 

@@ -81,8 +81,6 @@ phase_observation = CavityPhaseObservation(
 bunch_observation = BunchObservation(each_turn_i=1)
 
 
-# bunch_observation = BunchObservation(each_turn_i=10, batch_size=) # todo
-# batches
 def custom_action(simulation: Simulation):
     if simulation.turn_i.value % 10 != 0:
         return
@@ -95,8 +93,6 @@ def custom_action(simulation: Simulation):
     plt.clf()
 
 
-# sim.profiling(turn_i_init=0, profile_start_turn_i=10, n_turns=10000)
-# sys.exit(0)
 try:
     sim.load_results(
         turn_i_init=0,

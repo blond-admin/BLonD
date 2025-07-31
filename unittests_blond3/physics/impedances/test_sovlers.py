@@ -14,33 +14,173 @@ from blond3.physics.impedances.solvers import (
 )
 from blond3.physics.profiles import StaticProfile
 
+hist_y = np.array(
+    [
+        1,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        2,
+        2,
+        1,
+        2,
+        4,
+        1,
+        0,
+        3,
+        3,
+        6,
+        5,
+        8,
+        7,
+        8,
+        10,
+        10,
+        13,
+        13,
+        13,
+        11,
+        13,
+        20,
+        18,
+        24,
+        24,
+        31,
+        32,
+        33,
+        46,
+        34,
+        54,
+        60,
+        54,
+        59,
+        81,
+        70,
+        85,
+        102,
+        88,
+        105,
+        123,
+        116,
+        142,
+        140,
+        148,
+        163,
+        165,
+        187,
+        190,
+        164,
+        211,
+        187,
+        186,
+        190,
+        160,
+        188,
+        263,
+        230,
+        231,
+        196,
+        212,
+        246,
+        213,
+        230,
+        204,
+        224,
+        187,
+        238,
+        180,
+        214,
+        191,
+        215,
+        175,
+        174,
+        178,
+        177,
+        146,
+        145,
+        150,
+        138,
+        127,
+        139,
+        100,
+        87,
+        102,
+        83,
+        84,
+        80,
+        62,
+        51,
+        46,
+        55,
+        41,
+        48,
+        39,
+        37,
+        37,
+        22,
+        22,
+        18,
+        22,
+        12,
+        16,
+        13,
+        10,
+        12,
+        8,
+        6,
+        9,
+        7,
+        10,
+        4,
+        0,
+        2,
+        1,
+        0,
+        4,
+        4,
+        0,
+        2,
+        1,
+        1,
+    ]
+)
+beam = Mock(BeamBaseClass)
+beam.n_particles = 1e12
+beam.n_macroparticles_partial.return_value = 128
+beam.particle_type.charge = 1
+
+beam.reference_velocity = 123
+
 
 class TestInductiveImpedanceSolver(unittest.TestCase):
     def setUp(self):
         self.inductive_impedance_solver = InductiveImpedanceSolver()
-        beam = Mock(BeamBaseClass)
-        beam.n_particles = 1e12
-        beam.n_macroparticles_partial.return_value = 128
-        beam.particle_type.charge = 1
 
-        beam.reference_velocity = 123
         self.inductive_impedance_solver._beam = beam
         self.inductive_impedance_solver._Z_over_n = 12
         _parent_wakefield = Mock(WakeField)
-        _parent_wakefield.profile.hist_step = 1
+        static_profile = StaticProfile(-5, 5, n_bins=128)
+        static_profile._hist_y = hist_y
+        _parent_wakefield.profile = static_profile
         self.inductive_impedance_solver._parent_wakefield = _parent_wakefield
         simulation = Mock(Simulation)
         simulation.ring.circumference = 123
         self.inductive_impedance_solver._simulation = simulation
-        _parent_wakefield.profile.diff_hist_y = np.linspace(1, 3)
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
     def test_calc_induced_voltage(self):
-        self.inductive_impedance_solver.calc_induced_voltage(
+        vals = self.inductive_impedance_solver.calc_induced_voltage(
             self.inductive_impedance_solver._beam
-        )  # TODO Pin Physics case here!
+        )
+        vals /= vals.max()
+        vals_correct = -np.gradient(hist_y)
+        vals_correct /= vals_correct.max()
+        np.testing.assert_allclose(vals_correct[1:-1], vals[1:-1])
 
     def test_on_wakefield_init_simulation(self):
         simulation = Mock(Simulation)
@@ -95,10 +235,6 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         self.periodic_freq_solver._parent_wakefield.profile.n_bins = 20
         self.periodic_freq_solver.t_periodicity = 1e-8
         self.periodic_freq_solver._update_internal_data()
-        beam = Mock(BeamBaseClass)
-        beam.n_particles = int(11e3)
-        beam.n_macroparticles_partial.return_value = int(3e6)
-        beam.particle_type.charge = 1
         induced_voltage = self.periodic_freq_solver.calc_induced_voltage(
             beam=beam,
         )  # TODO Pin Physics case here!

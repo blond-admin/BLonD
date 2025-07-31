@@ -191,7 +191,9 @@ class PythonSpecials(Specials):
         charge
             Particle charge, as number of elementary charges `e` []
         acceleration_kick
-            # TODO
+            Energy, in [eV], which is added to all particles.
+            This is intended to subtract the target energy from the RF
+            energy gain in one common call.
 
         """
         n_slices = len(bin_centers)

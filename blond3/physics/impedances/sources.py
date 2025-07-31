@@ -371,7 +371,9 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
         return impedance
 
     @staticmethod
-    def from_file(filepath: PathLike, reader: ImpedanceReader) -> ImpedanceTableFreq:
+    def from_file(
+        filepath: str | PathLike, reader: ImpedanceReader
+    ) -> ImpedanceTableFreq:
         """
         Instance table from a file on the disk
 
