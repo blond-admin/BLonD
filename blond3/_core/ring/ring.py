@@ -348,7 +348,8 @@ class Ring(Preparable, Schedulable):
                     raise AssertionError(
                         'Cannot overwrite the section indexes with '
                         'deepcopy == False.')
-            self.elements.insert(element=element, insert_at=k + already_inserted)
+            self.elements.insert(element=element,
+                                 insert_at= k + already_inserted)
             locations_in_the_new_ring.append(k + already_inserted)
             already_inserted+=1
 
