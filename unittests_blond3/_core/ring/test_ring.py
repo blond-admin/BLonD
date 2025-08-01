@@ -191,7 +191,7 @@ class TestRing(unittest.TestCase):
         location = [1,2,5]
         with self.assertRaises(AssertionError,
                                msg=f'The element must be inserted within ['
-                                 f'0:{len(self.ring.elements.elements)+1}] indexes.'):
+                                 f'0:{len(self.ring.elements.elements)}] indexes.'):
             self.ring.insert_element(
                 element=element4,
                 insert_at=location,
