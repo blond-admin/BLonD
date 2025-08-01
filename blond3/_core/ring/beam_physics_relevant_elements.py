@@ -3,8 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
-from numba.parfors.parfor import is_assert_equiv
-from numpy.ma.testutils import assert_array_almost_equal, assert_equal
 
 from ..base import Preparable
 from ..beam.base import BeamBaseClass
