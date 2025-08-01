@@ -14,12 +14,12 @@ if TYPE_CHECKING:  # pragma: no cover
 
 class Specials(ABC):
     @staticmethod
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def loss_box(self, a, b, c, d) -> None:  # TODO
         pass
 
     @staticmethod
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def kick_single_harmonic(
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
@@ -32,7 +32,7 @@ class Specials(ABC):
         pass
 
     @staticmethod
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def kick_multi_harmonic(
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
@@ -46,7 +46,7 @@ class Specials(ABC):
         pass
 
     @staticmethod
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def drift_simple(
         dt: NumpyArray,
         dE: NumpyArray,
@@ -58,7 +58,7 @@ class Specials(ABC):
         pass
 
     @staticmethod
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def drift_legacy(
         dt: NumpyArray,
         dE: NumpyArray,
@@ -73,7 +73,7 @@ class Specials(ABC):
         pass
 
     @staticmethod
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def drift_exact(
         dt: NumpyArray,
         dE: NumpyArray,
@@ -87,7 +87,7 @@ class Specials(ABC):
         pass
 
     @staticmethod
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def kick_induced_voltage(
         dt: NumpyArray,
         dE: NumpyArray,
@@ -99,7 +99,7 @@ class Specials(ABC):
         pass
 
     @staticmethod
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def histogram(
         array_read: NumpyArray,
         array_write: NumpyArray,
@@ -107,6 +107,18 @@ class Specials(ABC):
         stop: float,
     ):
         return
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def beam_phase(
+        hist_x: NumpyArray,
+        hist_y: NumpyArray,
+        alpha: float,
+        omega_rf: float,
+        phi_rf: float,
+        bin_size: float,
+    ) -> float:
+        pass
 
 
 class BackendBaseClass(ABC):
@@ -140,7 +152,7 @@ class BackendBaseClass(ABC):
         self.__dict__ = _new_backend.__dict__
         self.__class__ = _new_backend.__class__
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def set_specials(self, mode):
         pass
 

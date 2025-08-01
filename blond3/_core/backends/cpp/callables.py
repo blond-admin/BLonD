@@ -159,7 +159,29 @@ def _getLen(x: NumpyArray) -> ct.c_int:
     return ct.c_int(len(x))
 
 
+_LIBBLOND.beam_phase.restype = precision.c_real_t
+
+
 class CppSpecials(Specials):
+    @staticmethod
+    def beam_phase(
+        hist_x: NumpyArray,
+        hist_y: NumpyArray,
+        alpha: float,
+        omega_rf: float,
+        phi_rf: float,
+        bin_size: float,
+    ) -> float:
+        return _LIBBLOND.beam_phase(
+            hist_x.ctypes.data_as(ct.c_void_p),  # bin_centers
+            hist_y.ctypes.data_as(ct.c_void_p),  # profile
+            c_real(alpha),  # alpha
+            c_real(omega_rf),  # omega_rf
+            c_real(phi_rf),  # phi_rf
+            c_real(bin_size),  # bin_size
+            ct.c_int(len(hist_x)),  # n_bins
+        )
+
     @staticmethod
     def histogram(
         array_read: NumpyArray,

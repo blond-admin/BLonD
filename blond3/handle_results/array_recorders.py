@@ -22,20 +22,20 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class ArrayRecorder(ABC):
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def write(self, newdata: NumpyArray) -> None:
         pass
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def get_valid_entries(self) -> NumpyArray:
         pass
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def to_disk(self) -> None:
         pass
 
     @staticmethod
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def from_disk(filepath: str | PathLike) -> ArrayRecorder:
         pass
 

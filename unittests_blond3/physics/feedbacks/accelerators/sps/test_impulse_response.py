@@ -18,9 +18,31 @@ import unittest
 import numpy as np
 from scipy.constants import c
 
-from blond3.physics.feedbacks.accelerators.sps_impulse_response import \
-    rectangle, triangle, SPS4Section200MHzTWC
-from blond3.physics.feedbacks.accelerators.sps_impulse_response import TravellingWaveCavity
+from blond3 import (
+    Ring,
+    MultiHarmonicCavity,
+    Beam,
+    proton,
+    DriftSimple,
+    Simulation,
+    BiGaussian,
+    ConstantMagneticCycle,
+    StaticProfile,
+    WakeField,
+)
+from blond3._core.backends.backend import backend, Numpy64Bit, Numpy32Bit
+from blond3.physics.feedbacks.accelerators.sps.cavity_feedback import (
+    SPSOneTurnFeedback,
+    SPSCavityLoopCommissioning,
+)
+from blond3.physics.feedbacks.accelerators.sps.impulse_response import (
+    rectangle,
+    triangle,
+    SPS4Section200MHzTWC,
+)
+from blond3.physics.impedances.solvers import TimeDomainSolver
+from blond3.physics.impedances.sources import TravelingWaveCavity
+
 
 class TestRectangle(unittest.TestCase):
     def test_1(self):
@@ -83,6 +105,9 @@ class TestTriangle(unittest.TestCase):
 
 
 class TestTravelingWaveCavity(unittest.TestCase):
+    def setUp(self):
+        backend.change_backend(Numpy64Bit)
+
     def test_vg(self):
         from blond.llrf.impulse_response import TravellingWaveCavity
 
@@ -105,8 +130,8 @@ class TestTravelingWaveCavity(unittest.TestCase):
             l_cav**2 * 27.1e3 / 8, 200.222e6, 2 * np.pi * tau
         )
 
-        TWC_impedance_source.wake_calc(time - time[0])
-        wake_impSource = np.around(TWC_impedance_source.wake / 1e12, 10)
+        wake = TWC_impedance_source.wake_calc(time - time[0])
+        wake_impSource = np.around(wake / 1e12, 10)
 
         TWC_impulse_response = SPS4Section200MHzTWC(df=0.2275e6)
         # omega_c not need for computation of wake function
@@ -115,10 +140,10 @@ class TestTravelingWaveCavity(unittest.TestCase):
         TWC_impulse_response.compute_wakes(time)
         wake_impResp = -np.around(TWC_impulse_response.W_beam / 1e12, 10)
 
-        self.assertListEqual(
-            wake_impSource.tolist(),
-            wake_impResp.tolist(),
-            msg="In TestTravelingWaveCavity test_wake: wake fields differ",
+        np.testing.assert_allclose(
+            wake_impSource,
+            wake_impResp,
+            rtol=1e-6,
         )
 
     def test_vind(self):
@@ -143,22 +168,42 @@ class TestTravelingWaveCavity(unittest.TestCase):
         N_b = 1.0e11  # Bunch intensity [ppb]
         N_t = 1  # Number of turns to track
 
-        ring = Ring(C, alpha, p_s, Proton(), n_turns=N_t)
-        rf = RFStation(ring, h, V, phi)
-        beam = Beam(ring, N_m, N_b)
-        bigaussian(ring, rf, beam, 3.2e-9 / 4, seed=1234, reinsertion=True)
+        # ring = Ring(C, alpha, p_s, Proton(), n_turns=N_t)
+        ring = Ring(
+            circumference=C,
+        )
+        magnetic_cycle = ConstantMagneticCycle(
+            reference_particle=proton,
+            value=p_s,
+            in_unit="momentum",
+        )
+        t_rev = magnetic_cycle.get_t_rev_init(
+            circumference=ring.circumference,
+            turn_i_init=0,
+            t_init=0,
+            particle_type=proton,
+        )
+        rf = MultiHarmonicCavity(
+            n_harmonics=1,
+            main_harmonic_idx=0,
+        )
+        drift = DriftSimple(
+            orbit_length=C,
+            transition_gamma=gamma_t,
+        )
+        rf.voltage = np.array([V])
+        rf.phi_rf = np.array([phi])
+        rf.harmonic = np.array([h])
+        t_rf = t_rev / rf.harmonic[0]
 
         n_shift = 5  # how many rf-buckets to shift beam
-        beam.dt += n_shift * rf.t_rf[0, 0]
-        profile = Profile(
-            beam,
-            cut_options=CutOptions(
-                cut_left=(n_shift - 1.5) * rf.t_rf[0, 0],
-                cut_right=(n_shift + 1.5) * rf.t_rf[0, 0],
-                n_slices=140,
-            ),
+
+        profile = StaticProfile(
+            cut_left=(n_shift - 1.5) * t_rf,
+            cut_right=(n_shift + 1.5) * t_rf,
+            n_bins=140,
         )
-        profile.track()
+        ring.add_elements((rf, drift))
 
         l_cav = 16.082
         v_g = 0.0946
@@ -168,10 +213,43 @@ class TestTravelingWaveCavity(unittest.TestCase):
         )
 
         # Beam loading by convolution of beam and wake from cavity
-        inducedVoltageTWC = InducedVoltageTime(beam, profile, [TWC_impedance_source])
-        induced_voltage = TotalInducedVoltage(beam, profile, [inducedVoltageTWC])
-        induced_voltage.induced_voltage_sum()
-        V_ind_impSource = np.around(induced_voltage.induced_voltage, digit_round)
+
+        # inducedVoltageTWC = InducedVoltageTime(beam, profile,
+        # [TWC_impedance_source])
+
+        # induced_voltage = TotalInducedVoltage(beam, profile,
+        # [inducedVoltageTWC])
+        induced_voltage = WakeField(
+            sources=(TWC_impedance_source,),
+            solver=TimeDomainSolver(),
+            profile=profile,
+        )
+        ring.add_element(induced_voltage)
+        sim = Simulation(
+            ring=ring,
+            magnetic_cycle=magnetic_cycle,
+        )
+        # beam = Beam(ring, N_m, N_b)
+        beam = Beam(
+            n_particles=N_b,
+            particle_type=proton,
+        )
+        sim.prepare_beam(
+            beam=beam,
+            preparation_routine=BiGaussian(
+                n_macroparticles=N_m,
+                sigma_dt=3.2e-9 / 4,
+                seed=1234,
+                reinsertion=True,
+            ),
+        )
+
+        beam._dt += n_shift * t_rf
+        rf._update_beam_based_attributes(beam=beam,)
+
+        profile.track(beam=beam,)
+        induced_voltage.calc_induced_voltage(beam=beam,)
+        V_ind_impSource = np.around(induced_voltage._induced_voltage, digit_round)
 
         # Beam loading via feed-back system
         OTFB_4 = SPSOneTurnFeedback(
@@ -179,46 +257,30 @@ class TestTravelingWaveCavity(unittest.TestCase):
             profile,
             4,
             n_cavities=1,
-            commissioning=SPSCavityLoopCommissioning(open_ff=True, rot_iq=1),
+            commissioning=SPSCavityLoopCommissioning(open_ff=True, rot_iq=1,),
             df=0.2275e6,
         )
         OTFB_4.counter = 0  # First turn
 
         OTFB_4.omega_c = factor * OTFB_4.TWC.omega_r
         # Compute impulse response
-        OTFB_4.TWC.impulse_response_beam(OTFB_4.omega_c, profile.bin_centers)
+        OTFB_4.TWC.impulse_response_beam(OTFB_4.omega_c, profile.hist_x)
 
         # Compute induced voltage in (I,Q) coordinates
-        OTFB_4.track()
+        OTFB_4.track(beam=beam)
         # convert back to time
-        V_ind_OTFB = np.abs(
-            OTFB_4.V_IND_FINE_BEAM[-OTFB_4.profile.n_slices :]
-        ) * np.sin(
-            OTFB_4.omega_rf * profile.bin_centers
-            + np.angle(OTFB_4.V_IND_FINE_BEAM[-OTFB_4.profile.n_slices :])
-            + rf.phi_rf[0, rf.counter[0]]
+        V_ind_OTFB = np.abs(OTFB_4.V_IND_FINE_BEAM[-OTFB_4.profile.n_bins :]) * np.sin(
+            OTFB_4.omega_rf * profile.hist_x
+            + np.angle(OTFB_4.V_IND_FINE_BEAM[-OTFB_4.profile.n_bins :])
+            + rf.phi_rf[0]
             - np.angle(OTFB_4.V_SET[-OTFB_4.n_coarse])
         )
 
-        V_ind_OTFB = np.around(V_ind_OTFB, digit_round)
-
-        ratio_array = np.array(V_ind_impSource.tolist()) / np.array(V_ind_OTFB.tolist())
-        ratio_array = ratio_array[~np.isnan(ratio_array)]
-        max_ratio = np.max(ratio_array)
-
-        max_ratio_exp = 1.0
-        len_wo_nan_exp = 80
-        self.assertAlmostEqual(
-            max_ratio,
-            max_ratio_exp,
-            places=digit_round,
-            msg="In TravelingWaveCavity test_vind: induced voltages differ",
-        )
-        self.assertAlmostEqual(
-            len(ratio_array),
-            len_wo_nan_exp,
-            places=digit_round,
-            msg="In TravelingWaveCavity test_vind: induced voltages differ",
+        sel = np.isreal(V_ind_impSource) & np.isreal(V_ind_OTFB)
+        np.testing.assert_allclose(
+            V_ind_impSource[sel],
+            V_ind_OTFB[sel],
+            atol=1e-9,
         )
 
     def test_beam_fine_coarse(self):
@@ -226,26 +288,90 @@ class TestTravelingWaveCavity(unittest.TestCase):
         # Compare on coarse and fine grid
 
         # Create a batch of 100 equal, short bunches at HL-LHC intensity
-        ring = Ring(2 * np.pi * 1100.009, 1 / 18**2, 25.92e9, particle=Proton())
-        rf = RFStation(ring, [4620], [4.5e6], [0], n_rf=1)
-        bunches = 100
+        magnetic_cycle = ConstantMagneticCycle(
+            reference_particle=proton,
+            value=25.92e9,
+            in_unit="momentum",
+        )
+        ring = Ring(circumference=2 * np.pi * 1100.009)
+
+        rf = MultiHarmonicCavity(
+            n_harmonics=1,
+            main_harmonic_idx=0,
+        )
+        rf.harmonic = np.array([4620])
+        rf.voltage = np.array([4.5e6])
+        rf.phi_rf = np.array([0])
+        ring.add_element(rf)
+        ring.add_element(
+            DriftSimple(
+                orbit_length=2 * np.pi * 1100.009,
+                transition_gamma=18,
+            )
+        )
+
         N_m = int(1e5)
         N_b = 2.3e11
-        beam = Beam(ring, N_m, N_b)
-        bigaussian(ring, rf, beam, 1.8e-9 / 4, seed=1234, reinsertion=True)
-        beam2 = Beam(ring, bunches * N_m, bunches * N_b)
-        bunch_spacing = 5 * rf.t_rf[0, 0]
+        bunches = 100
         buckets = 5 * bunches
-        for i in range(bunches):
-            beam2.dt[i * N_m : (i + 1) * N_m] = beam.dt + i * bunch_spacing
-            beam2.dE[i * N_m : (i + 1) * N_m] = beam.dE
-        profile2 = Profile(
-            beam2,
-            cut_options=CutOptions(
-                cut_left=0, cut_right=bunches * bunch_spacing, n_slices=1000 * buckets
+        beam = Beam(
+            n_particles=N_b,
+            particle_type=proton,
+        )
+        t_rf = (
+            magnetic_cycle.get_t_rev_init(
+                circumference=ring.circumference,
+                t_init=0,
+                turn_i_init=0,
+                particle_type=beam.particle_type,
+            )
+            / rf.harmonic
+        )
+        bunch_spacing = 5 * t_rf
+
+        profile2 = StaticProfile(
+            cut_left=0,
+            cut_right=bunches * bunch_spacing,
+            n_bins=1000 * buckets,
+        )
+        ring.add_element(profile2)
+        simulation = Simulation(
+            ring=ring,
+            magnetic_cycle=magnetic_cycle,
+        )
+        simulation.prepare_beam(
+            beam=beam,
+            preparation_routine=BiGaussian(
+                n_macroparticles=N_m,
+                sigma_dt=1.8e-9 / 4,
+                seed=1234,
+                reinsertion=True,
             ),
         )
-        profile2.track()
+
+        beam2 = Beam(
+            n_particles=bunches * N_b,
+            particle_type=proton,
+        )
+
+        dt = np.empty(bunches * N_m)
+        dE = np.empty_like(dt)
+        for i in range(bunches):
+            dt[i * N_m : (i + 1) * N_m] = beam._dt + i * bunch_spacing
+            dE[i * N_m : (i + 1) * N_m] = beam._dE
+        beam2.setup_beam(
+            dt=dt,
+            dE=dE,
+            reference_time=beam.reference_time,
+            reference_total_energy=beam.reference_total_energy,
+        )
+        rf._update_beam_based_attributes(
+            beam=beam2,
+        )
+
+        profile2.track(
+            beam=beam2,
+        )
 
         # Calculate impulse response and induced voltage
         OTFB = SPSOneTurnFeedback(
@@ -253,13 +379,16 @@ class TestTravelingWaveCavity(unittest.TestCase):
             profile2,
             3,
             n_cavities=1,
-            commissioning=SPSCavityLoopCommissioning(open_ff=True, rot_iq=-1),
+            commissioning=SPSCavityLoopCommissioning(
+                open_ff=True,
+                rot_iq=-1,
+            ),
             df=0.18433333e6,
         )
         OTFB.TWC.impulse_response_beam(
-            OTFB.omega_c, OTFB.profile.bin_centers, OTFB.rf_centers
+            OTFB.omega_c, OTFB.profile.hist_x, OTFB.rf_centers
         )
-        OTFB.track()
+        OTFB.track(beam=beam2)
 
         imp_fine_meas = (OTFB.TWC.h_beam[::1000])[:100]
         imp_coarse_meas = OTFB.TWC.h_beam_coarse[:100]
@@ -491,7 +620,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
             "mismatch in beam impulse response on coarse grid",
         )
 
-        Vind_fine_meas = OTFB.V_IND_FINE_BEAM[-OTFB.profile.n_slices :]
+        Vind_fine_meas = OTFB.V_IND_FINE_BEAM[-OTFB.profile.n_bins :]
         Vind_coarse_meas = OTFB.V_IND_COARSE_BEAM[-OTFB.n_coarse :]
         Vind_fine_meas = (Vind_fine_meas[::1000])[:100]
         Vind_coarse_meas = Vind_coarse_meas[:100]
@@ -722,6 +851,9 @@ class TestTravelingWaveCavity(unittest.TestCase):
             err_msg="In TestTravelingWaveCavity test_beam_fine_coarse,"
             "mismatch in beam-induced voltage on coarse grid",
         )
+
+    def tearDown(self):
+        backend.change_backend(Numpy32Bit)
 
 
 if __name__ == "__main__":

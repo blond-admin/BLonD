@@ -37,13 +37,13 @@ from blond3.physics.impedances.readers import (
     ExampleImpedanceReader1,
     ExampleImpedanceReader2,
 )
-from blond3.physics.impedances.sources import (
-    ImpedanceTableFreq,
-    InductiveImpedance,
-)
 from blond3.physics.impedances.solvers import (
     PeriodicFreqSolver,
     InductiveImpedanceSolver,
+)
+from blond3.physics.impedances.sources import (
+    ImpedanceTableFreq,
+    InductiveImpedance,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -56,7 +56,7 @@ sync_momentum = np.sqrt(tot_beam_energy**2 - E_0**2)  # [eV / c]
 
 ring = Ring(circumference=(2 * np.pi * 25))
 energy_cycle = ConstantMagneticCycle(
-    sync_momentum,
+    value=sync_momentum,
     reference_particle=proton,
 )
 cavity1 = SingleHarmonicCavity()
@@ -65,7 +65,7 @@ cavity1.voltage = 8e3
 cavity1.phi_rf = np.pi
 
 drift = DriftSimple(
-    share_of_circumference=1.0,
+    orbit_length=ring.circumference,
 )
 drift.transition_gamma = 4.4
 beam1 = Beam(n_particles=1e11, particle_type=proton)
@@ -94,6 +94,12 @@ wakefield2 = WakeField(
 
 sim = Simulation.from_locals(locals())
 sim.prepare_beam(
-    BiGaussian(sigma_dt=180e-9 / 4, reinsertion=False, seed=1, n_macroparticles=1001)
+    preparation_routine=BiGaussian(
+        sigma_dt=180e-9 / 4,
+        reinsertion=False,
+        seed=1,
+        n_macroparticles=1001,
+    ),
+    beam=beam1,
 )
-sim.run_simulation(n_turns=2)
+sim.run_simulation(beams=(beam1,), n_turns=2)

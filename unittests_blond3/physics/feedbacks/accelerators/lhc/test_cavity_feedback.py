@@ -10,9 +10,10 @@ from blond3 import (
     proton,
     StaticProfile,
     Simulation,
-    ConstantMagneticCycle, MultiHarmonicCavity,
+    ConstantMagneticCycle,
+    MultiHarmonicCavity,
 )
-from blond3.physics.feedbacks.accelerators.lhc import (
+from blond3.physics.feedbacks.accelerators.lhc.cavity_feedback import (
     LHCCavityLoopCommissioning,
     LHCCavityLoop,
 )
@@ -34,9 +35,14 @@ class TestLHCOpenDrive(unittest.TestCase):
 
         # Initialise necessary classes
         # ring = Ring(C, alpha, p_s, particle=Proton(), n_turns=1)
-        ring = Ring(circumference=C)
+        ring = Ring(
+            circumference=C,
+        )
         # self.rf = RFStation(ring, [h], [V], [dphi])
-        rf = MultiHarmonicCavity(n_harmonics=1, main_harmonic_idx=0)
+        rf = MultiHarmonicCavity(
+            n_harmonics=1,
+            main_harmonic_idx=0,
+        )
         rf.harmonic = np.array([h])
         rf.voltage = np.array([V])
         rf.phi_rf = np.array([dphi])
@@ -68,11 +74,15 @@ class TestLHCOpenDrive(unittest.TestCase):
             0, 0, beam.particle_type
         )
         # Test in open loop, on tune
-        self.RFFB = LHCCavityLoopCommissioning(open_drive=True)
-        omega = self.rf.calc_omega(beam_beta=beam.reference_beta,
-                                   ring_circumference=ring.circumference)
-        rf._omega = omega # TODO FIXME REMOVE
-        self.f_c = float(omega)/(2*np.pi)
+        self.RFFB = LHCCavityLoopCommissioning(
+            open_drive=True,
+        )
+        omega = self.rf.calc_omega(
+            beam_beta=beam.reference_beta,
+            ring_circumference=ring.circumference,
+        )
+        rf._omega_rf = omega  # TODO FIXME REMOVE
+        self.f_c = float(omega) / (2 * np.pi)
 
     def test_setup(self):
         pass  # see if setUp() works
@@ -121,13 +131,25 @@ class TestLHCOpenDrive(unittest.TestCase):
         CL.track_one_turn()
         # Steady-state antenna voltage [MV]
         V_ant = np.mean(np.absolute(CL.V_ANT_COARSE[-10:])) * 1e-6
-        self.assertAlmostEqual(V_ant, 1.26745787, places=7)
+        self.assertAlmostEqual(
+            V_ant,
+            1.26745787,
+            places=7,
+        )
         # Updated generator current [A]
         I_gen = np.mean(np.absolute(CL.I_GEN_COARSE[-CL.n_coarse :]))
-        self.assertAlmostEqual(I_gen, 0.2778000000, places=10)
+        self.assertAlmostEqual(
+            I_gen,
+            0.2778000000,
+            places=10,
+        )
         # Generator power [kW]
         P_gen = CL.generator_power()[-1] * 1e-3
-        self.assertAlmostEqual(P_gen, 104.1833340000, places=10)
+        self.assertAlmostEqual(
+            P_gen,
+            104.1833340000,
+            places=10,
+        )
 
     def test_3(self):
         CL = LHCCavityLoop(
@@ -147,10 +169,22 @@ class TestLHCOpenDrive(unittest.TestCase):
         CL.track_one_turn()
         # Steady-state antenna voltage [MV]
         V_ant = np.mean(np.absolute(CL.V_ANT_COARSE[-10:])) * 1e-6
-        self.assertAlmostEqual(V_ant, 0.99635982, places=7)
+        self.assertAlmostEqual(
+            V_ant,
+            0.99635982,
+            places=7,
+        )
         # Updated generator current [A]
         I_gen = np.mean(np.absolute(CL.I_GEN_COARSE[-CL.n_coarse :]))
-        self.assertAlmostEqual(I_gen, 0.2778000000, places=10)
+        self.assertAlmostEqual(
+            I_gen,
+            0.2778000000,
+            places=10,
+        )
         # Generator power [kW]
         P_gen = CL.generator_power()[-1] * 1e-3
-        self.assertAlmostEqual(P_gen, 69.4555560000, places=10)
+        self.assertAlmostEqual(
+            P_gen,
+            69.4555560000,
+            places=10,
+        )

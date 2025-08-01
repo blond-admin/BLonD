@@ -15,7 +15,7 @@ from ..._core.backends.backend import backend
 from ..._core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional, Type
+    from typing import Optional
     from .particle_types import ParticleType
     from ..simulation.simulation import Simulation
 
@@ -116,6 +116,11 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             warnings.warn(msg)
         self.reference_total_energy = new_reference_total_energy
 
+    @cached_property
+    def ratio(self) -> float:
+        """Type of particles, e.g. protons"""
+        return self.n_particles / self.common_array_size
+
     @property
     def particle_type(self) -> ParticleType:
         """Type of particles, e.g. protons"""
@@ -151,7 +156,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """Beam reference speed [m/s]"""
         return self.reference_beta * c0
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def setup_beam(
         self,
         dt: NumpyArray | CupyArray,
@@ -197,39 +202,39 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         super().on_init_simulation(simulation=simulation)
         self.reference_total_energy = simulation.magnetic_cycle.total_energy_init
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def plot_hist2d(self):
         """Plot 2D histogram of beam coordinates"""
         pass
 
     @cached_property
-    @abstractmethod  # as readonly attributes
+    @abstractmethod  # pragma: no cover  # as readonly attributes
     def dt_min(self) -> backend.float:
         """Minimum dt coordinate, in [s]"""
 
         pass
 
     @cached_property
-    @abstractmethod  # as readonly attributes
+    @abstractmethod  # pragma: no cover  # as readonly attributes
     def dt_max(self) -> backend.float:
         """Maximum dt coordinate, in [s]"""
 
         pass
 
     @cached_property
-    @abstractmethod  # as readonly attributes
+    @abstractmethod  # pragma: no cover  # as readonly attributes
     def dE_min(self) -> backend.float:
         """Minimum dE coordinate, in [eV]"""
         pass
 
     @cached_property
-    @abstractmethod  # as readonly attributes
+    @abstractmethod  # pragma: no cover  # as readonly attributes
     def dE_max(self) -> backend.float:
         """Maximum dE coordinate, in [eV]"""
         pass
 
     @cached_property
-    @abstractmethod  # as readonly attributes
+    @abstractmethod  # pragma: no cover  # as readonly attributes
     def common_array_size(self) -> int:
         """Size of the beam, considering distributed beams"""
         pass
@@ -240,6 +245,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         "dt_min",
         "dt_max",
         "common_array_size",
+        "ratio",
     )
 
     def invalidate_cache_dE(self) -> None:

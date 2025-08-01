@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -216,6 +217,6 @@ def calc_phi_s_single_harmonic(
     above_transition: bool,
 ) -> float:
     phi = np.arcsin(energy_gain / (voltage * charge))
-    if not above_transition:
+    if above_transition:
         phi = np.pi - phi
     return phi - phase

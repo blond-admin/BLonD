@@ -245,6 +245,76 @@ class TestRing(unittest.TestCase):
         assert self.ring.elements.elements[1] is element3
         assert self.ring.elements.elements[2] is element4
 
+
+        element1 = Mock(spec=BeamPhysicsRelevant)
+        element2 = Mock(spec=BeamPhysicsRelevant)
+        element1.section_index = 0
+        element2.section_index = 0
+
+        self.ring.add_elements(
+            elements=[element1, element2],
+            reorder=False,
+            deepcopy=False,
+            section_index=None,
+        )
+        element3 = Mock(spec=BeamPhysicsRelevant)
+        element3.section_index = 0
+        location = 1
+        self.ring.insert_element(
+            element=element3,
+            insert_at=location,
+            deepcopy=False,
+        )
+        assert self.ring.elements.elements[1] is element3
+
+    def test_insert_element_several_locations(self):
+        element1 = Mock(spec=BeamPhysicsRelevant)
+        element2 = Mock(spec=BeamPhysicsRelevant)
+        element1.section_index = 0
+        element2.section_index = 0
+
+        self.ring.add_elements(
+            elements=[element1, element2],
+            reorder=False,
+            deepcopy=False,
+            section_index=None,
+        )
+        element3 = Mock(spec=BeamPhysicsRelevant)
+        element3.section_index = 0
+        location = [0, 2]
+        self.ring.insert_element(
+            element=element3,
+            insert_at=location,
+            deepcopy=False,
+        )
+        assert self.ring.elements.elements[0] is element3
+        assert self.ring.elements.elements[2] is element3
+
+    def test_insert_elements(self):
+        element1 = Mock(spec=BeamPhysicsRelevant)
+        element2 = Mock(spec=BeamPhysicsRelevant)
+        element1.section_index = 0
+        element2.section_index = 0
+
+        self.ring.add_elements(
+            elements=[element1, element2],
+            reorder=False,
+            deepcopy=False,
+            section_index=None,
+        )
+        element3 = Mock(spec=BeamPhysicsRelevant)
+        element3.section_index = 0
+        element4 = Mock(spec=BeamPhysicsRelevant)
+        element4.section_index = 0
+        location = 1
+        self.ring.insert_elements(
+            elements=[element3, element4],
+            insert_at=location,
+            deepcopy=False,
+        )
+        assert self.ring.elements.elements[1] is element3
+        assert self.ring.elements.elements[2] is element4
+
     def test_elements(self):
         element1 = Mock(spec=BeamPhysicsRelevant)
         element1.section_index = 0

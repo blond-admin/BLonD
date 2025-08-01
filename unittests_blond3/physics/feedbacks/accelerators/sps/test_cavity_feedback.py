@@ -1,20 +1,109 @@
 import os
 import unittest
 from copy import deepcopy
+from typing import List
 
+import matplotlib.pyplot as plt
 import numpy as np
 
-from blond3 import Ring, MultiHarmonicCavity, DriftSimple, \
-    ConstantMagneticCycle, proton, Simulation, Beam, BiGaussian, StaticProfile
+from blond3 import (
+    Ring,
+    MultiHarmonicCavity,
+    DriftSimple,
+    ConstantMagneticCycle,
+    proton,
+    Simulation,
+    Beam,
+    BiGaussian,
+    StaticProfile,
+)
 from blond3._core.backends.backend import backend, Numpy64Bit
-from blond3.physics.feedbacks.accelerators.sps import SPSCavityFeedback, \
-    SPSCavityLoopCommissioning
+from blond3.physics.feedbacks.accelerators.sps.cavity_feedback import (
+    SPSCavityFeedback,
+    SPSCavityLoopCommissioning,
+    SPSOneTurnFeedback,
+)
+from numpy.typing import NDArray as NumpyArray
+
+this_directory = os.path.dirname(os.path.realpath(__file__))
+
+
+def rf_volt_comp(
+    voltages: NumpyArray,
+    omega_rf: NumpyArray,
+    phi_rf: NumpyArray,
+    bin_centers: NumpyArray,
+) -> NumpyArray:
+    """Compute rf voltage at each bin.
+
+    Args:
+        voltages (NumpyArray): _description_
+        omega_rf (NumpyArray): _description_
+        phi_rf (NumpyArray): _description_
+        bin_centers (NumpyArray): _description_
+
+    Returns:
+        NumpyArray: _description_
+    """
+    rf_voltage = np.zeros(len(bin_centers))
+
+    for j in range(len(voltages)):
+        rf_voltage += voltages[j] * np.sin(omega_rf[j] * bin_centers + phi_rf[j])
+
+    return rf_voltage
+
+
+def rf_voltage_calculation(
+    rf_params: MultiHarmonicCavity,
+    cavityFB: List[SPSCavityFeedback],
+    profile: StaticProfile,
+):
+    """Function calculating the total, discretised RF voltage seen by the
+    beam at a given turn. Requires a Profile object.
+
+    """
+    voltages = np.ascontiguousarray(rf_params.voltage[:])
+    omega_rf = np.ascontiguousarray(rf_params._omega_rf[:])
+    phi_rf = np.ascontiguousarray(rf_params.phi_rf[:])
+    # TODO: test with multiple harmonics, think about 800 MHz OTFB
+    if cavityFB is not None:
+        # Allocate memory for rf_voltage and reset it to zero
+        rf_voltage = np.zeros(profile.n_bins)
+
+        # Add corrections from cavity feedbacks for the different harmonics
+        for ind, feedback in enumerate(cavityFB):
+            if feedback is not None:
+                rf_voltage += (
+                    voltages[ind]
+                    * feedback.V_corr
+                    * np.sin(
+                        omega_rf[ind] * profile.hist_x + phi_rf[ind] + feedback.phi_corr
+                    )
+                )
+            else:
+                rf_voltage += rf_volt_comp(
+                    voltages[ind : ind + 1],
+                    omega_rf[ind : ind + 1],
+                    phi_rf[ind : ind + 1],
+                    profile.hist_x,
+                )
+
+        # Add RF voltage from harmonics that do not have a cavity feedback model
+        rf_voltage += rf_volt_comp(
+            voltages[len(cavityFB) :],
+            omega_rf[len(cavityFB) :],
+            phi_rf[len(cavityFB) :],
+            profile.hist_x,
+        )
+    else:
+        rf_voltage = rf_volt_comp(voltages, omega_rf, phi_rf, profile.hist_x)
+    return rf_voltage
 
 
 class TestSPSCavityFeedback(unittest.TestCase):
     def setUp(self):
         backend.change_backend(Numpy64Bit)
-        #backend.set_specials("fortran")
+        # backend.set_specials("fortran")
         C = 2 * np.pi * 1100.009  # Ring circumference [m]
         # Gamma at transition
         p_s = 25.92e9  # Synchronous momentum at injection [eV]
@@ -64,7 +153,6 @@ class TestSPSCavityFeedback(unittest.TestCase):
             particle_type=proton,
         )
 
-
         simulation.prepare_beam(
             beam=self.beam,
             preparation_routine=BiGaussian(
@@ -76,10 +164,12 @@ class TestSPSCavityFeedback(unittest.TestCase):
         )
 
         n_shift = 1550  # how many rf-buckets to shift beam
-        omega_rf = float(rf.calc_omega(
-            beam_beta=self.beam.reference_beta,
-            ring_circumference=ring.circumference,
-        ))
+        omega_rf = float(
+            rf.calc_omega(
+                beam_beta=self.beam.reference_beta,
+                ring_circumference=ring.circumference,
+            )
+        )
         t_rf = (2 * np.pi) / omega_rf
         self.beam._dt += n_shift * t_rf
 
@@ -141,6 +231,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
             df=[0.18433333e6, 0.2275e6],
             commissioning=SPSCavityLoopCommissioning(open_ff=True, rot_iq=-1),
         )
+        self.rf = rf
         """
 
         self.OTFB_tracker = RingAndRFTracker(
@@ -223,12 +314,12 @@ class TestSPSCavityFeedback(unittest.TestCase):
         atol = 0  # absolute tolerance
         # interpolate from coarse mesh to fine mesh
         V_fine_tot_3 = np.interp(
-            self.profile.bin_centers,
+            self.profile.hist_x,
             self.OTFB.OTFB_1.rf_centers,
             self.OTFB.OTFB_1.V_IND_COARSE_GEN[-self.OTFB.OTFB_1.n_coarse :],
         )
         V_fine_tot_4 = np.interp(
-            self.profile.bin_centers,
+            self.profile.hist_x,
             self.OTFB.OTFB_2.rf_centers,
             self.OTFB.OTFB_2.V_IND_COARSE_GEN[-self.OTFB.OTFB_2.n_coarse :],
         )
@@ -274,16 +365,20 @@ class TestSPSCavityFeedback(unittest.TestCase):
         digit_round = 7
 
         # compute voltage
-        self.cavity_tracker.rf_voltage_calculation()
+        cavity_tracker_rf_voltage = rf_voltage_calculation(
+            rf_params=self.rf,
+            cavityFB=None,
+            profile=self.profile,
+        )
 
         # compute voltage after OTFB pre-tracking
-        self.OTFB_tracker.rf_voltage_calculation()
-
-        # Since there is a systematic offset between the voltages,
-        # compare the maxium of the ratio
-        max_ratio = np.max(
-            self.cavity_tracker.rf_voltage / self.OTFB_tracker.rf_voltage
+        OTFB_tracker_rf_voltage = rf_voltage_calculation(
+            rf_params=self.rf,
+            cavityFB=[self.OTFB],
+            profile=self.profile,
         )
+
+        max_ratio = np.max(cavity_tracker_rf_voltage / OTFB_tracker_rf_voltage)
 
         max_ratio_exp = 1.0691789378342162
 
@@ -297,15 +392,25 @@ class TestSPSCavityFeedback(unittest.TestCase):
     def test_beam_loading(self):
         digit_round = 7
         # Compute voltage with beam loading
-        self.cavity_tracker.rf_voltage_calculation()
+        #self.cavity_tracker.rf_voltage_calculation()
+        cavity_tracker_rf_voltage = rf_voltage_calculation(
+            rf_params=self.rf,
+            cavityFB=None,
+            profile=self.profile,
+        )
         cavity_tracker_total_voltage = (
-            self.cavity_tracker.rf_voltage
-            + self.cavity_tracker.totalInducedVoltage.induced_voltage
+            cavity_tracker_rf_voltage
+            #+ self.cavity_tracker.totalInducedVoltage.induced_voltage
         )
 
-        self.OTFB.track()
-        self.OTFB_tracker.rf_voltage_calculation()
-        OTFB_tracker_total_voltage = self.OTFB_tracker.rf_voltage
+        self.OTFB.track(beam=self.beam)
+        #self.OTFB_tracker.rf_voltage_calculation()
+        OTFB_tracker_rf_voltage = rf_voltage_calculation(
+            rf_params=self.rf,
+            cavityFB=[self.OTFB],
+            profile=self.profile,
+        )
+        OTFB_tracker_total_voltage = OTFB_tracker_rf_voltage
 
         max_ratio = np.max(cavity_tracker_total_voltage / OTFB_tracker_total_voltage)
 
@@ -322,7 +427,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
         rtol = 1e-7  # relative tolerance
         atol = 0  # absolute tolerance
 
-        self.OTFB.track()
+        self.OTFB.track(self.beam)
 
         V_sum = self.OTFB.V_sum / 1e6
 
@@ -616,20 +721,47 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         # Objects -------------------------------------------------------------
 
         # Ring
-        self.ring = Ring(C, alpha, p_s, Proton(), N_t)
+        # self.ring = Ring(C, alpha, p_s, Proton(), N_t)
+        self.ring = Ring(circumference=C)
 
         # RFStation
-        self.rfstation = RFStation(self.ring, [h], [V], [phi], n_rf=1)
+        self.rfstation = MultiHarmonicCavity(n_harmonics=1, main_harmonic_idx=0)
+        self.rfstation.voltage = np.array([V])
+        self.rfstation.phi_rf = np.array([phi])
+        self.rfstation.harmonic = np.array([h])
+        self.magnetic_cycle = ConstantMagneticCycle(
+            reference_particle=proton,
+            value=p_s,
+            in_unit="momentum",
+        )
+        self.ring.add_element(self.rfstation)
+        self.ring.add_drifts(
+            n_drifts_per_section=1,
+            n_sections=1,
+            driftclass=DriftSimple,
+            transition_gamma=gamma_t,
+        )
+        sim = Simulation(ring=self.ring, magnetic_cycle=self.magnetic_cycle)
 
         # Beam
-        self.beam = Beam(self.ring, N_m, N_b)
-        self.profile = Profile(
-            self.beam,
-            cut_options=CutOptions(
-                cut_left=0.0e-9, cut_right=self.rfstation.t_rev[0], n_slices=4620
+        self.beam = Beam(n_particles=N_b, particle_type=proton)
+        self.beam.setup_beam(
+            dt=np.zeros(N_m),
+            dE=np.zeros(N_m),
+            reference_total_energy=self.magnetic_cycle.get_total_energy_init(
+                0,
+                0,
+                particle_type=proton,
             ),
         )
-        self.profile.track()
+        beam_2 = deepcopy(self.beam)
+        self.rfstation.track(beam_2)
+        del beam_2
+
+        self.profile = StaticProfile(
+            cut_left=0.0e-9, cut_right=self.rfstation._t_rev, n_bins=4620
+        )
+        self.profile.track(self.beam)
 
         # Cavity
         self.Commissioning = SPSCavityLoopCommissioning(
@@ -648,14 +780,17 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         self.OTFB.update_fb_variables()
 
         self.turn_array = np.linspace(
-            0, 2 * self.rfstation.t_rev[0], 2 * self.OTFB.n_coarse
+            0, 2 * self.rfstation._t_rev, 2 * self.OTFB.n_coarse
         )
+
+    def test_setup(self):
+        pass
 
     def test_set_point(self):
         self.OTFB.set_point()
         t_sig = np.zeros(2 * self.OTFB.n_coarse, dtype=complex)
         t_sig[-self.OTFB.n_coarse :] = (
-            (1 / 9) * 10e6 * np.exp(1j * (np.pi / 2 - self.rfstation.phi_rf[0, 0]))
+            (1 / 9) * 10e6 * np.exp(1j * (np.pi / 2 - self.rfstation.phi_rf[0]))
         )
 
         np.testing.assert_allclose(self.OTFB.V_SET, t_sig)
@@ -668,11 +803,9 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
     def test_comb(self):
         sig = np.zeros(self.OTFB.n_coarse)
         self.OTFB.DV_COMB_OUT = np.sin(
-            2 * np.pi * self.turn_array / self.rfstation.t_rev[0]
+            2 * np.pi * self.turn_array / self.rfstation._t_rev
         )
-        self.OTFB.DV_GEN = -np.sin(
-            2 * np.pi * self.turn_array / self.rfstation.t_rev[0]
-        )
+        self.OTFB.DV_GEN = -np.sin(2 * np.pi * self.turn_array / self.rfstation._t_rev)
         self.OTFB.a_comb = 0.5
 
         self.OTFB.comb()
@@ -695,7 +828,9 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
 
         self.mod_phi = np.copy(self.OTFB.dphi_mod)
         self.OTFB.mod_to_fr()
-        ref_DV_MOD_FR = np.load(os.path.join(this_directory, "ref_DV_MOD_FR.npy"))
+        ref_DV_MOD_FR = np.load(
+            os.path.join(this_directory, "resources/ref_DV_MOD_FR.npy")
+        )
 
         # Test real part
         np.testing.assert_allclose(
@@ -762,7 +897,9 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
 
         self.mod_phi = np.copy(self.OTFB.dphi_mod)
         self.OTFB.mod_to_frf()
-        ref_DV_MOD_FRF = np.load(os.path.join(this_directory, "ref_DV_MOD_FRF.npy"))
+        ref_DV_MOD_FRF = np.load(
+            os.path.join(this_directory, "resources/ref_DV_MOD_FRF.npy")
+        )
 
         # Test real part
         np.testing.assert_allclose(
@@ -850,7 +987,7 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         self.OTFB.gen_response()
 
         ref_V_IND_COARSE_GEN = np.load(
-            os.path.join(this_directory, "ref_V_IND_COARSE_GEN.npy")
+            os.path.join(this_directory, "resources/ref_V_IND_COARSE_GEN.npy")
         )
 
         # Test real part - sum of cavities
@@ -878,25 +1015,55 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
 
 class TestSPSTransmitterGain(unittest.TestCase):
     def setUp(self):
-        # Set up machine parameters
-        self.ring = Ring(
-            2 * np.pi * 1100.009, 1 / 18.0**2, 25.92e9, particle=Proton(), n_turns=1
+        self.ring = Ring(circumference=2 * np.pi * 1100.009)
+        cavity = MultiHarmonicCavity(
+            n_harmonics=1,
+            main_harmonic_idx=0,
         )
-        # Set up RF parameters
-        self.rf = RFStation(self.ring, [4620], [4.5e6], [0.0], n_rf=1)
-        self.rf.omega_rf[0, 0] = 200.222e6 * 2 * np.pi
-        # Define beam and fill it
-        self.beam = Beam(self.ring, int(1e5), 1.0e11)
-        bigaussian(
-            self.ring, self.rf, self.beam, 3.2e-9 / 4, seed=1234, reinsertion=True
+        cavity.harmonic = np.array([4620])
+        cavity.phi_rf = np.array([0])
+        cavity.voltage = np.array([4.5e6])
+        self.rf = cavity
+        drift = DriftSimple(
+            orbit_length=2 * np.pi * 1100.009,
+            transition_gamma=18.0,
         )
-        self.profile = Profile(
+
+        self.ring.add_element(cavity)
+        self.ring.add_element(drift)
+        self.magnetic_cycle = ConstantMagneticCycle(
+            reference_particle=proton,
+            value=25.92e9,
+            in_unit="momentum",
+        )
+        self.beam = Beam(
+            n_particles=1.0e11,
+            particle_type=proton,
+        )
+        sim = Simulation(
+            ring=self.ring,
+            magnetic_cycle=self.magnetic_cycle,
+        )
+        sim.prepare_beam(
             self.beam,
-            cut_options=CutOptions(
-                cut_left=0.0e-9, cut_right=self.rf.t_rev[0], n_slices=4620
+            BiGaussian(
+                n_macroparticles=int(1e5),
+                sigma_dt=3.2e-9 / 4,
+                seed=1234,
+                reinsertion=True,
             ),
         )
-        self.profile.track()
+        beam_2 = deepcopy(self.beam)
+        self.rf.track(beam_2)
+        del beam_2
+        cavity._omega_rf = np.array([200.222e6 * 2 * np.pi])
+
+        self.profile = StaticProfile(
+            cut_left=0.0e-9,
+            cut_right=self.rf._t_rev,
+            n_bins=4620,
+        )
+        self.profile.track(self.beam)
         # Commissioning options for the cavity feedback
         self.commissioning = SPSCavityLoopCommissioning(
             debug=True,
@@ -906,6 +1073,9 @@ class TestSPSTransmitterGain(unittest.TestCase):
             open_ff=True,
             rot_iq=-1,
         )
+
+    def test_setup(self):
+        pass
 
     def init_otfb(
         self, rf, profile, commissioning, no_sections, no_cavities, V_part, G_tx
@@ -936,26 +1106,58 @@ class TestSPSTransmitterGain(unittest.TestCase):
         OTFB, V, I = self.init_otfb(
             self.rf, self.profile, self.commissioning, 4, 2, 4 / 9, 1.03573985
         )
-        self.assertAlmostEqual(V, 2.00000000, places=7)
-        self.assertAlmostEqual(I, 0.78244888, places=7)
+        self.assertAlmostEqual(
+            V,
+            2.00000000,
+            places=7,
+        )
+        self.assertAlmostEqual(
+            I,
+            0.78244888,
+            places=7,
+        )
 
     def test_preLS25sec(self):
         OTFB, V, I = self.init_otfb(
             self.rf, self.profile, self.commissioning, 5, 2, 5 / 9, 1.01547845
         )
-        self.assertAlmostEqual(V, 2.50000000, places=7)
-        self.assertAlmostEqual(I, 0.76359084, places=7)
+        self.assertAlmostEqual(
+            V,
+            2.50000000,
+            places=7,
+        )
+        self.assertAlmostEqual(
+            I,
+            0.76359084,
+            places=7,
+        )
 
     def test_postLS23sec(self):
         OTFB, V, I = self.init_otfb(
             self.rf, self.profile, self.commissioning, 3, 4, 6 / 10, 1.01724955
         )
-        self.assertAlmostEqual(V, 2.70000000, places=7)
-        self.assertAlmostEqual(I, 0.69703574, places=7)
+        self.assertAlmostEqual(
+            V,
+            2.70000000,
+            places=7,
+        )
+        self.assertAlmostEqual(
+            I,
+            0.69703574,
+            places=7,
+        )
 
     def test_postLS24sec(self):
         OTFB, V, I = self.init_otfb(
             self.rf, self.profile, self.commissioning, 4, 2, 4 / 10, 1.03573985
         )
-        self.assertAlmostEqual(V, 1.80000000, places=7)
-        self.assertAlmostEqual(I, 0.70420400, places=7)
+        self.assertAlmostEqual(
+            V,
+            1.80000000,
+            places=7,
+        )
+        self.assertAlmostEqual(
+            I,
+            0.70420400,
+            places=7,
+        )

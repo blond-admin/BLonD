@@ -31,7 +31,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
         self.cavity = MultiHarmonicCavity(n_harmonics=1) # TODO as single harmonic
         self.cavity.harmonic = np.array([h])
         self.cavity.voltage = np.array([V])
-        self.cavity.phi_rf = np.array([phi])
+        self.cavity.phi_rf_effective = np.array([phi])
         self.drift = DriftSimple(orbit_length=C)
         self.drift.transition_gamma = gamma_t
 

@@ -46,7 +46,7 @@ def orig_rf_volt_comp(tracker):
                                                                  tracker.counter[0]])
         omega_rf = np.append(omega_rf, tracker.rf_params.omega_rf[rf_system,
                                                                   tracker.counter[0]])
-        phi_rf = np.append(phi_rf, tracker.rf_params.phi_rf[rf_system,
+        phi_rf = np.append(phi_rf, tracker.rf_params.phi_rf_effective[rf_system,
                                                             tracker.counter[0]])
 
     voltages = np.array(voltages, ndmin=2)

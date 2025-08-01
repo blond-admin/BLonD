@@ -8,7 +8,7 @@ from ..._core.base import BeamPhysicsRelevant
 from ..._core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional as LateInit, Tuple, Optional, Type
+    from typing import Optional as LateInit, Tuple, Optional
 
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
@@ -19,13 +19,13 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class WakeFieldSolver:
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:
         pass
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def calc_induced_voltage(self, beam: BeamBaseClass) -> NumpyArray | CupyArray:
         pass
 
@@ -36,12 +36,13 @@ class WakeFieldSource(ABC):
 
 
 class TimeDomain(ABC):
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def get_wake_impedance(
         self,
         time: NumpyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
+        n_fft: int,
     ) -> NumpyArray:
         """
         Get impedance equivalent to the partial wake in time domain
@@ -65,7 +66,7 @@ class TimeDomain(ABC):
 
 
 class FreqDomain(ABC):
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def get_impedance(
         self,
         freq_x: NumpyArray,
@@ -111,7 +112,7 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
     def profile(self) -> ProfileBaseClass:
         return self._profile
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def calc_induced_voltage(self, beam: BeamBaseClass) -> NumpyArray | CupyArray:
         pass
 
@@ -250,7 +251,9 @@ class WakeField(ImpedanceBaseClass):
         -------
         induced_voltage
         """
-        self._induced_voltage = self.solver.calc_induced_voltage(beam=beam)
+        self._induced_voltage = self.solver.calc_induced_voltage(beam=beam)[
+            : self.profile.n_bins
+        ]
         return self.induced_voltage[: self.profile.n_bins]
 
     def track(self, beam: BeamBaseClass) -> None:

@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
+from numba.parfors.parfor import is_assert_equiv
+from numpy.ma.testutils import assert_array_almost_equal, assert_equal
 
 from ..base import Preparable
 from ..beam.base import BeamBaseClass
@@ -48,9 +50,9 @@ class BeamPhysicsRelevantElements(Preparable):
 
         elem_section_indices = [e.section_index for e in self.elements]
         assert min(elem_section_indices) == 0, "section_index=0 must be set"
-        assert np.all(np.diff(elem_section_indices) >= 0), (
-            f"Section indices must be increasing, but got {elem_section_indices}"
-        )
+        assert np.all(
+            np.diff(elem_section_indices) >= 0
+        ), f"Section indices must be increasing, but got {elem_section_indices}"
         cavities = self.get_elements(CavityBaseClass)
         cav_section_indices = [c.section_index for c in cavities]
         all_different = len(cav_section_indices) == len(set(cav_section_indices))
@@ -142,7 +144,7 @@ class BeamPhysicsRelevantElements(Preparable):
             If `element.section_index` is not an integer.
         """
         assert isinstance(element.section_index, int)
-        insert_at = None
+
         for i, elem in enumerate(self.elements):
             if elem.section_index == element.section_index:
                 insert_at = i
@@ -213,6 +215,67 @@ class BeamPhysicsRelevantElements(Preparable):
         assert isinstance(element.section_index, int)
         self.check_section_index_compatibility(element = element,
                                                insert_at= insert_at)
+        self.elements.insert(insert_at, element)
+
+    def _check_section_index_compatibility(self, element:
+    BeamPhysicsRelevant, insert_at: int):
+        """
+        Internal method to check the element is inserted in the defined 
+        section.
+
+        Parameters
+        ----------
+        element
+            An object representing a beamline component or any element
+            relevant to beam physics. Must have a valid  `section_index`
+            attribute of type `int`.
+        insert_at
+            Single location.
+        Raises
+        -------
+        AssertionError
+            If 'element.section_index' is inconsistent with the section of
+            insertion.
+        """
+        try :
+            if (insert_at != 0) and (insert_at != len(self.elements)):
+                assert (self.elements[insert_at - 1].section_index <=
+                        element.section_index <= self.elements[
+                            insert_at].section_index)
+            elif insert_at == 0:
+                assert (element.section_index ==
+                        self.elements[insert_at+1].section_index)
+            elif insert_at == len(self.elements):
+                assert (element.section_index ==
+                        self.elements[insert_at - 1].section_index)
+        except:
+            raise AssertionError('The element section index is incompatible '
+                                 'with the requested location. Please allow '
+                                 'overwrite for automatic handling.')
+    def insert(self, element: BeamPhysicsRelevant, insert_at: int) -> None:
+        """
+        Insert a beam physics-relevant element to the container at the
+        specified index.
+
+        Parameters
+        ----------
+        element
+            An object representing a beamline component or any element
+            relevant to beam physics. Must have a valid  `section_index`
+            attribute of type `int`.
+        insert_at:
+            Location of the element to be inserted.
+
+        Raises
+        ------
+        AssertionError
+            If `element.section_index` is not an integer.
+            If 'element.section_index' is inconsistent with the section of
+            insertion.
+        """
+        assert isinstance(element.section_index, int)
+        self._check_section_index_compatibility(element = element,
+                                                insert_at= insert_at)
         self.elements.insert(insert_at, element)
 
     @property  # as readonly attributes

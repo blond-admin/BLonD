@@ -8,7 +8,7 @@ from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant, HasPropertyCache, Schedulable
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional as LateInit, Tuple, Type
+    from typing import Optional as LateInit, Tuple
 
     from typing import Iterable
     from numpy.typing import NDArray as NumpyArray

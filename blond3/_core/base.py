@@ -18,7 +18,6 @@ if TYPE_CHECKING:  # pragma: no cover
         List,
         Callable,
         Any,
-        Type,
     )
     from numpy.typing import NDArray as NumpyArray
 
@@ -29,7 +28,7 @@ class Preparable(ABC):
     def __init__(self):
         super().__init__()
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called
 
@@ -38,7 +37,7 @@ class Preparable(ABC):
         """
         pass
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def on_run_simulation(
         self,
         simulation: Simulation,
@@ -127,9 +126,9 @@ class Schedulable:
             Required when arrays are handed over
             "per-turn" or "constant"
         """
-        assert hasattr(self, attribute), (
-            f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
-        )
+        assert hasattr(
+            self, attribute
+        ), f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
 
         self.schedules[attribute] = get_scheduler(value, mode=mode)
 
@@ -160,9 +159,9 @@ class Schedulable:
         kwargs_loadtxt
             Additional keyword arguments to be passed to `numpy.loadtxt`
         """
-        assert hasattr(self, attribute), (
-            f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
-        )
+        assert hasattr(
+            self, attribute
+        ), f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
         values = np.loadtxt(filename, **kwargs_loadtxt)
         self.schedules[attribute] = get_scheduler(values, mode=mode)
 
@@ -215,7 +214,7 @@ class BeamPhysicsRelevant(MainLoopRelevant):
         """Section index to group elements into sections"""
         return self._section_index
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def track(self, beam: BeamBaseClass) -> None:
         """Main simulation routine to be called in the mainloop
 
@@ -228,7 +227,7 @@ class BeamPhysicsRelevant(MainLoopRelevant):
 
 
 class _Scheduled:
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def get_scheduled(self, turn_i: int, reference_time: float):
         """Get the value of the schedule for the current turn/time
 
@@ -402,7 +401,7 @@ class HasPropertyCache(object):
         for prop in props:
             self.__dict__.pop(prop, None)
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def invalidate_cache(self):
         """Delete the stored values of functions with @cached_property"""
         pass

@@ -31,6 +31,18 @@ class BoxLosses(LossesBaseClass):
         self.e_min = backend.float(e_min)
         self.e_max = backend.float(e_max)
 
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
+        pass
+
+    def on_run_simulation(self, simulation: Simulation, beam: BeamBaseClass,
+                          n_turns: int, turn_i_init: int, **kwargs) -> None:
+        pass
+
     def track(self, beam: BeamBaseClass) -> None:
         """Main simulation routine to be called in the mainloop
 
@@ -42,14 +54,6 @@ class BoxLosses(LossesBaseClass):
         backend.loss_box(
             beam.write_partial_flags(), self.t_min, self.t_max, self.e_min, self.e_max
         )
-
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
-
-        simulation
-            Simulation context manager
-        """
-        pass
 
 
 class SeparatrixLosses(LossesBaseClass):
@@ -64,6 +68,10 @@ class SeparatrixLosses(LossesBaseClass):
             Simulation context manager
         """
         self._simulation = simulation
+
+    def on_run_simulation(self, simulation: Simulation, beam: BeamBaseClass,
+                          n_turns: int, turn_i_init: int, **kwargs) -> None:
+        pass
 
     def track(self, beam: BeamBaseClass) -> None:
         """Main simulation routine to be called in the mainloop

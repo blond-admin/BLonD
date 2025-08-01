@@ -10,7 +10,7 @@ from .base import BeamBaseClass, BeamFlags
 from ..backends.backend import backend
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional, Type
+    from typing import Optional
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 

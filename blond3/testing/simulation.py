@@ -43,6 +43,7 @@ class ExampleSimulation01:
         drift1.transition_gamma = (55.759505,)
 
         beam1 = Beam(n_particles=1e9, particle_type=proton)
+        self.beam1 = beam1
 
         simulation = Simulation.from_locals(locals())
         simulation.print_one_turn_execution_order()
@@ -59,8 +60,6 @@ class ExampleSimulation01:
             turn_i=10,
         )
 
-        # sim.beams[0].plot_hist2d()
-        # plt.show()
         phase_observation = CavityPhaseObservation(each_turn_i=1, cavity=cavity1)
 
         # bunch_observation = BunchObservation(each_turn_i=10, batch_size=) # todo

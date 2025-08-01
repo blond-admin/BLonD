@@ -1,14 +1,10 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Iterable as AbstractIterable
 from typing import TYPE_CHECKING
 
-import numpy as np
-
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, Union, TypeVar, Iterable
-    from numpy.typing import NDArray as NumpyArray
+    from typing import Any, TypeVar
 
     T = TypeVar("T")
 

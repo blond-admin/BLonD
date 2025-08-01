@@ -12,7 +12,7 @@ from .._core.base import BeamPhysicsRelevant
 from .._core.helpers import int_from_float_with_warning
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional as LateInit, Optional, Type
+    from typing import Optional as LateInit, Optional
 
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
@@ -50,9 +50,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         simulation
             Simulation context manager
         """
-        assert self._hist_x is not None
-        assert self._hist_y is not None
-        self.invalidate_cache()
+        pass
 
     def on_run_simulation(
         self,
@@ -73,7 +71,9 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         turn_i_init
             Initial turn to execute simulation
         """
-        pass
+        assert self._hist_x is not None
+        assert self._hist_y is not None
+        self.invalidate_cache()
 
     @property  # as readonly attributes
     def hist_x(self) -> NumpyArray | CupyArray:
@@ -267,7 +267,7 @@ class StaticProfile(ProfileBaseClass):
     @staticmethod
     def from_rad(
         cut_left_rad: float, cut_right_rad: float, n_bins: int, t_period: float
-    ):
+    ) -> StaticProfile:
         """
         Initialization method in radian
 
@@ -317,10 +317,30 @@ class DynamicProfile(ProfileBaseClass):
         simulation
             Simulation context manager
         """
-        self.update_attributes(beam=simulation.ring.beams[0])
         super().on_init_simulation(simulation=simulation)
 
-    @abstractmethod
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs,
+    ) -> None:
+        """Lateinit method when `simulation.run_simulation` is called
+
+        simulation
+            Simulation context manager
+        beam
+            Simulation beam object
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
+        self.update_attributes(beam=beam)
+
+    @abstractmethod  # pragma: no cover
     def update_attributes(self, beam: BeamBaseClass) -> None:
         """Method to update the attributes"""
         pass
@@ -363,15 +383,15 @@ class DynamicProfileConstCutoff(DynamicProfile):
         self.timestep = timestep
 
     def update_attributes(self, beam: BeamBaseClass):
-        cut_left = beam.dt_min()  # TODO caching of attribute access
-        cut_right = beam.dt_max()  # TODO caching of attribute access
+        cut_left = beam.dt_min  # TODO caching of attribute access
+        cut_right = beam.dt_max  # TODO caching of attribute access
         n_bins = int(math.ceil((cut_right - cut_left) / self.timestep))
         self._hist_x, self._hist_y = ProfileBaseClass.get_arrays(
             cut_left=cut_left, cut_right=cut_right, n_bins=n_bins
         )
 
 
-class DynamicProfileConstNBins(ProfileBaseClass):
+class DynamicProfileConstNBins(DynamicProfile):
     def __init__(self, n_bins: int, section_index: int = 0, name: Optional[str] = None):
         """
         Profile that changes its width, keeping a constant bin number
@@ -392,8 +412,8 @@ class DynamicProfileConstNBins(ProfileBaseClass):
         self.n_bins = int_from_float_with_warning(n_bins, warning_stacklevel=2)
 
     def update_attributes(self, beam: BeamBaseClass):
-        cut_left = beam.dt_min()  # TODO caching of attribute access
-        cut_right = beam.dt_max()  # TODO caching of attribute access
+        cut_left = beam.dt_min  # TODO caching of attribute access
+        cut_right = beam.dt_max  # TODO caching of attribute access
         self._hist_x, self._hist_y = ProfileBaseClass.get_arrays(
             cut_left=cut_left, cut_right=cut_right, n_bins=self.n_bins
         )

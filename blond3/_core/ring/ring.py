@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import warnings
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -47,9 +48,9 @@ class Ring(Preparable, Schedulable):
 
         super().__init__()
         self._elements = BeamPhysicsRelevantElements()
-        assert circumference > 0, (
-            f"`circumference` must be bigger 0, but is {circumference}"
-        )
+        assert (
+            circumference > 0
+        ), f"`circumference` must be bigger 0, but is {circumference}"
         self._circumference = circumference
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -59,9 +60,9 @@ class Ring(Preparable, Schedulable):
         simulation
             Simulation context manager"""
 
-        assert len(self.elements.get_sections_indices()) == self.n_cavities, (
-            f"{len(self.elements.get_sections_indices())=}, but {self.n_cavities=}"
-        )
+        assert (
+            len(self.elements.get_sections_indices()) == self.n_cavities
+        ), f"{len(self.elements.get_sections_indices())=}, but {self.n_cavities=}"
         # todo assert some kind of order inside the sections
 
     def on_run_simulation(
@@ -101,6 +102,19 @@ class Ring(Preparable, Schedulable):
         the derived frequency program.
         """
         return self._circumference
+
+    @cached_property
+    def average_transition_gamma(self):
+        from ... import DriftSimple  # prevent cyclic import
+
+        transition_gamma_average = sum(
+            [
+                e.transition_gamma * self.circumference / e.orbit_length
+                for e in (self.elements.get_elements(DriftSimple))  # todo
+                # not only simple
+            ]
+        )
+        return transition_gamma_average
 
     @property
     def n_cavities(self) -> int:
@@ -150,7 +164,7 @@ class Ring(Preparable, Schedulable):
         Raises
         ------
         AssertionError
-            If circumference != effective_circumference
+            If circumference != circumference
 
         """
         assert np.isclose(
@@ -283,6 +297,184 @@ class Ring(Preparable, Schedulable):
         if reorder:
             self.elements.reorder()
 
+    def insert_element(
+        self,
+        element: Iterable[BeamPhysicsRelevant],
+        insert_at: int | list[int],
+        deepcopy: bool = True,
+        allow_section_index_overwrite: bool = True,
+    ):
+        """
+        Insert a single element at the specified locations in the ring.
+
+        Parameters
+        ----------
+        element
+            An object representing a beamline component or any element
+            relevant to beam physics. Must have a valid  `section_index`
+            attribute of type `int`.
+        insert_at
+            Single location or list of locations.
+        deepcopy
+            Takes copies of the given element.
+        allow_section_index_overwrite
+            Automatic handling of section indexes.
+
+        Raises
+        ------
+        AssertionError
+            If `element.section_index` is not an integer.
+            If 'element.section_index' is inconsistent with the section of
+            insertion.
+        """
+        if isinstance(insert_at, int):
+            element = self._insert_input_handler(element = element,
+                                                 insert_at = insert_at,
+                                                 deepcopy = deepcopy,
+                                                 allow_section_index_overwrite = allow_section_index_overwrite)
+            self.elements.insert(element=element, insert_at=insert_at)
+        else:
+            for k in insert_at:
+                element = self._insert_input_handler(element=element,
+                                                     insert_at=insert_at,
+                                                     deepcopy=deepcopy,
+                                                     allow_section_index_overwrite = allow_section_index_overwrite)
+                self.elements.insert(element=element, insert_at=k)
+
+    def insert_elements(
+        self,
+        elements: list[BeamPhysicsRelevant],
+        insert_at: int,
+        deepcopy: bool = True,
+        allow_section_index_overwrite: bool = True,
+    ):
+        """
+        Insert the elements at the specified location in the ring.
+
+        Parameters
+        ----------
+        elements
+            A list of objects representing a beamline component or any element
+            relevant to beam physics. Must have a valid `section_index`
+            attribute of type `int`.
+        insert_at
+            Single location.
+        deepcopy
+            Takes copies of the element listed.
+        allow_section_index_overwrite
+            Automatic handling of section indexes.
+
+        Raises
+        ------
+        AssertionError
+            If `element.section_index` is not an integer.
+            If 'element.section_index' is inconsistent with the section of
+            insertion.
+        """
+
+        # The elements are inserted one by one, from the last to the first
+        # to preserve the input insertion order.
+        elements.reverse()
+        for element in elements:
+            self.insert_element(
+                element=element,
+                insert_at=insert_at,
+                deepcopy=deepcopy,
+                allow_section_index_overwrite = allow_section_index_overwrite,
+            )
+
+    def _insert_input_handler(self, element: BeamPhysicsRelevant,
+                              insert_at: int,
+                              deepcopy: bool,
+                              allow_section_index_overwrite: bool):
+        """
+        Internal method to update the element to be inserted.
+
+        Parameters
+        ----------
+        element
+            An object representing a beamline component or any element
+            relevant to beam physics. Must have a valid  `section_index`
+            attribute of type `int`.
+        insert_at
+            Single location or list of locations.
+        deepcopy
+            Takes copies of the given element.
+
+        Returns
+        -------
+        element
+            An object representing a beamline component or any element
+            relevant to beam physics, with a compatible section index.
+
+        Raises
+        -------
+        AssertionError
+            If `element.section_index` is not an integer.
+            If 'element.section_index' is inconsistent with the section of
+            insertion.
+
+        """
+        if deepcopy:
+            element = copy.deepcopy(element)
+
+        if allow_section_index_overwrite:
+            self._ensure_section_index_compatibility(element=element,
+                                                     location=insert_at)
+        else :
+            self._check_section_index_compatibility(element=element,
+                                                    location=insert_at)
+        return element
+
+    def _check_section_index_compatibility(self, element:
+    BeamPhysicsRelevant, location: int | list[int]):
+        """
+        Internal method to check the element is inserted in the requested 
+        section.
+
+        Parameters
+        ----------
+        element
+            An object representing a beamline component or any element
+            relevant to beam physics. Must have a valid  `section_index`
+            attribute of type `int`.
+        location
+            Single location or list of locations.
+        Raises
+        -------
+        AssertionError
+            If `element.section_index` is not an integer.
+            If 'element.section_index' is inconsistent with the section of
+            insertion.
+        """
+        try :
+            assert_equal(element.section_index, all([self.elements.elements[
+                                                      k].section_index for k
+                                                 in location]))
+        except:
+            raise AssertionError('The element section index is incompatible '
+                                 'with the requested locations. Allow '
+                                 'overwrite for automatic handling.')
+
+    def _ensure_section_index_compatibility(self, element:
+    BeamPhysicsRelevant, location: int | list[int]):
+        """
+        Internal method to ensure section index compatibility.
+        
+        Parameters
+        ----------
+        element
+            An object representing a beamline component or any element
+            relevant to beam physics. Must have a valid  `section_index`
+            attribute of type `int`.
+        location
+            Single location or list of locations.
+        """
+        try :
+            assert_equal(element.section_index, self.elements.elements[
+                                                      location].section_index)
+        except AssertionError:
+            element.section_index = self.elements.elements[location].section_index
     def insert_element(
         self,
         element: Iterable[BeamPhysicsRelevant],

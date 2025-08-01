@@ -98,6 +98,7 @@ class TestResonators(unittest.TestCase):
             time=time,
             simulation=simulation,
             beam=beam,
+            n_fft=2*len(time)+1
         )
         DEV_DEBBUG = False
         if DEV_DEBBUG:

@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 from .._core.beam.base import BeamBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Type
     from .._core.simulation.simulation import Simulation
 
 

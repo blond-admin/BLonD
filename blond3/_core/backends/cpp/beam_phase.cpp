@@ -2,6 +2,23 @@
 #include "blondmath.h"
 #include "openmp.h"
 
+real_t trapz_const_delta(const real_t *__restrict__ f,
+                         const real_t deltaX,
+                         const int nsub)
+    {
+        // initialize the partial sum to be f(a)+f(b) and
+        // deltaX to be the step size using nsub subdivisions
+        real_t psum = (f[0] + f[nsub - 1]) / 2.; // f(a)+f(b);
+
+        // increment the partial sum
+        #pragma omp parallel for reduction(+ : psum)
+        for (int i = 1; i < nsub - 1; ++i)
+            psum += f[i];
+
+        // multiply the sum by the constant deltaX/2.0
+        // return approximation
+        return deltaX * psum;
+    }
 
 extern "C" real_t beam_phase(const real_t * __restrict__ bin_centers,
                              const real_t * __restrict__ profile,
