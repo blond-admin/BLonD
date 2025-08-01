@@ -306,7 +306,7 @@ class Ring(Preparable, Schedulable):
         element: Iterable[BeamPhysicsRelevant],
         insert_at: int | list[int],
         deepcopy: bool = True,
-        allow_section_index_overwrite: bool = True,
+        allow_section_index_overwrite: bool = False,
     ):
         """
         Insert a single element at the specified locations in the ring.
@@ -328,29 +328,33 @@ class Ring(Preparable, Schedulable):
         ------
         AssertionError
             If `element.section_index` is not an integer.
+            If insert_at is not within [0:len(ring.elements.elements)+1]
             If 'element.section_index' is inconsistent with the section of
             insertion.
+            If allow_section_index_overwrite is enabled without deepcopy
+
         """
+        if deepcopy:
+            element = copy.deepcopy(element)
+        elif allow_section_index_overwrite:
+            raise AssertionError('Cannot overwrite the section indexes with '
+                          'deepcopy == False.')
         if isinstance(insert_at, int):
-            element = self._insert_input_handler(element = element,
-                                                 insert_at = insert_at,
-                                                 deepcopy = deepcopy,
-                                                 allow_section_index_overwrite = allow_section_index_overwrite)
-            self.elements.insert(element=element, insert_at=insert_at)
-        else:
-            for k in insert_at:
-                element = self._insert_input_handler(element=element,
-                                                     insert_at=insert_at,
-                                                     deepcopy=deepcopy,
-                                                     allow_section_index_overwrite = allow_section_index_overwrite)
-                self.elements.insert(element=element, insert_at=k)
+            insert_at = [insert_at]
+
+        for k in insert_at:
+            if allow_section_index_overwrite:
+                element = self.force_section_index_compatibility(
+                    element=element,
+                    insert_at=k)
+            self.elements.insert(element=element, insert_at=k)
 
     def insert_elements(
         self,
         elements: list[BeamPhysicsRelevant],
         insert_at: int,
         deepcopy: bool = True,
-        allow_section_index_overwrite: bool = True,
+        allow_section_index_overwrite: bool = False,
     ):
         """
         Insert the elements at the specified location in the ring.
@@ -374,6 +378,8 @@ class Ring(Preparable, Schedulable):
             If `element.section_index` is not an integer.
             If 'element.section_index' is inconsistent with the section of
             insertion.
+            If insert_at is not within [0:len(ring.elements.elements)+1]
+            If allow_section_index_overwrite is enabled without deepcopy
         """
 
         # The elements are inserted one by one, from the last to the first
@@ -387,81 +393,8 @@ class Ring(Preparable, Schedulable):
                 allow_section_index_overwrite = allow_section_index_overwrite,
             )
 
-    def _insert_input_handler(self, element: BeamPhysicsRelevant,
-                              insert_at: int,
-                              deepcopy: bool,
-                              allow_section_index_overwrite: bool):
-        """
-        Internal method to update the element to be inserted.
-
-        Parameters
-        ----------
-        element
-            An object representing a beamline component or any element
-            relevant to beam physics. Must have a valid  `section_index`
-            attribute of type `int`.
-        insert_at
-            Single location or list of locations.
-        deepcopy
-            Takes copies of the given element.
-
-        Returns
-        -------
-        element
-            An object representing a beamline component or any element
-            relevant to beam physics, with a compatible section index.
-
-        Raises
-        -------
-        AssertionError
-            If `element.section_index` is not an integer.
-            If 'element.section_index' is inconsistent with the section of
-            insertion.
-
-        """
-        if deepcopy:
-            element = copy.deepcopy(element)
-
-        if allow_section_index_overwrite:
-            self._ensure_section_index_compatibility(element=element,
-                                                     location=insert_at)
-        else :
-            self._check_section_index_compatibility(element=element,
-                                                    location=insert_at)
-        return element
-
-    def _check_section_index_compatibility(self, element:
-    BeamPhysicsRelevant, location: int | list[int]):
-        """
-        Internal method to check the element is inserted in the requested 
-        section.
-
-        Parameters
-        ----------
-        element
-            An object representing a beamline component or any element
-            relevant to beam physics. Must have a valid  `section_index`
-            attribute of type `int`.
-        location
-            Single location or list of locations.
-        Raises
-        -------
-        AssertionError
-            If `element.section_index` is not an integer.
-            If 'element.section_index' is inconsistent with the section of
-            insertion.
-        """
-        try :
-            assert_equal(element.section_index, all([self.elements.elements[
-                                                      k].section_index for k
-                                                 in location]))
-        except:
-            raise AssertionError('The element section index is incompatible '
-                                 'with the requested locations. Allow '
-                                 'overwrite for automatic handling.')
-
-    def _ensure_section_index_compatibility(self, element:
-    BeamPhysicsRelevant, location: int | list[int]):
+    def force_section_index_compatibility(self, element:
+    BeamPhysicsRelevant, insert_at: int):
         """
         Internal method to ensure section index compatibility.
         
@@ -471,11 +404,13 @@ class Ring(Preparable, Schedulable):
             An object representing a beamline component or any element
             relevant to beam physics. Must have a valid  `section_index`
             attribute of type `int`.
-        location
-            Single location or list of locations.
+        insert_at
+            Single location.
         """
-        try :
-            assert_equal(element.section_index, self.elements.elements[
-                                                      location].section_index)
+        try:
+            self.elements.check_section_index_compatibility(element,
+                                                            insert_at)
         except AssertionError:
-            element.section_index = self.elements.elements[location].section_index
+            element._section_index = self.elements.elements[
+                insert_at].section_index
+        return element
