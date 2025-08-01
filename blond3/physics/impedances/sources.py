@@ -223,20 +223,20 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         wake_impedance
 
         """
-        # Recalculate only of `time` is changed
+        # Recalculate only if `time` is changed
         hash = get_hash(time)
         if hash is self._cache_wake_impedance_hash:
             return self._cache_wake_impedance
 
         wake = np.zeros(len(time), dtype=backend.float, order="C")
-        n_centers = len(self._center_frequencies)
+        n_centers = len(self._center_frequencies)  #TODO: precompute
         omega = 2 * np.pi * self._center_frequencies
         for i in range(n_centers):
             alpha = omega[i] / (2 * self._quality_factors[i])
-            omega_bar = np.sqrt(omega[i] ** 2 - alpha**2)
+            omega_bar = np.sqrt(omega[i] ** 2 - alpha**2)  # TODO: precompute these
 
             wake += (
-                (np.sign(time) + 1)
+                (np.sign(time) + 1)  # heaviside
                 * (self._shunt_impedances[i] * alpha * np.exp(-alpha * time))
                 * (
                     np.cos(omega_bar * time)
@@ -272,7 +272,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         impedance
             Complex impedance array.
         """
-        # Recalculate only of `freq_x` is changed
+        # Recalculate only if `freq_x` is changed
 
         hash_ = get_hash(freq_x)
         if hash_ is self._cache_impedance_hash:
