@@ -96,7 +96,13 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
                                    'overwrite for automatic handling.'):
             self.beam_physics_relevant_elements.insert(element=element,
                                                        insert_at=len(self.beam_physics_relevant_elements.elements))
-
+        element.section_index = 50
+        with self.assertRaises(AssertionError,
+                               msg=f'The element must be inserted within ['
+                                 f'0:{len(self.beam_physics_relevant_elements.elements)+1}] indexes. '):
+            self.beam_physics_relevant_elements.insert(element=element,
+                                                       insert_at=len(
+                                                           self.beam_physics_relevant_elements.elements))
     def test_count(self):
         assert (
             self.beam_physics_relevant_elements.count(
