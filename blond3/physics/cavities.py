@@ -74,7 +74,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         self._beam_feedback = beam_feedback
 
         self._turn_i: LateInit[DynamicParameter] = None
-        self._energy_cycle: LateInit[MagneticCycleBase] = None
+        self._magnetic_cycle: LateInit[MagneticCycleBase] = None
         self._ring: LateInit[Ring] = None
 
         # TODO MOVE
@@ -94,7 +94,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             Simulation context manager
         """
         self._turn_i = simulation.turn_i
-        self._energy_cycle = simulation.magnetic_cycle
+        self._magnetic_cycle = simulation.magnetic_cycle
         self._ring = simulation.ring
 
     def on_run_simulation(
@@ -368,7 +368,7 @@ class SingleHarmonicCavity(CavityBaseClass):
 
         super().track(beam=beam)
 
-        target_total_energy = self._energy_cycle.get_target_total_energy(
+        target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,
             section_i=self.section_index,
             reference_time=beam.reference_time,
@@ -741,7 +741,7 @@ class MultiHarmonicCavity(CavityBaseClass):
             Beam class to interact with this element
         """
         super().track(beam=beam)
-        target_total_energy = self._energy_cycle.get_target_total_energy(
+        target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,
             section_i=self.section_index,
             reference_time=beam.reference_time,
