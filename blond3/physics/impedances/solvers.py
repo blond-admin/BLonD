@@ -420,6 +420,8 @@ class TimeDomainSolver(WakeFieldSolver):
 
         for source in self._parent_wakefield.sources:
             if isinstance(source, TimeDomain):
+                # get the wake functions in time
+                # but store already fft(wake) for convolution later
                 wake_imp_y_tmp = source.get_wake_impedance(
                     time=_wake_x,
                     simulation=self._simulation,
@@ -455,7 +457,11 @@ class TimeDomainSolver(WakeFieldSolver):
             # TODO this might be a problem with MPI
             beam.n_particles / beam.n_macroparticles_partial()
         )
-
+        # Calculate the convolution of the wake and the beam
+        # Usually this would be np.convolve(wake, beam).
+        # This can be also done via fftconvolve.
+        # Using ifft(fft(wake) * fft(beam)).
+        # fft(wake)  is already precalculated in the memory.
         induced_voltage = _factor * np.fft.irfft(
             self._wake_imp_y
             * self._parent_wakefield.profile.beam_spectrum(
