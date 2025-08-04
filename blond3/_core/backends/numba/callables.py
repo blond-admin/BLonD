@@ -27,7 +27,7 @@ elif backend.float == np.float64:
     nb_c = numba.complex128
 
 else:
-    raise Exception(backend.float)
+    raise TypeError(backend.float)
 
 sig_dt = nb_f[:]
 sig_dE = nb_f[:]

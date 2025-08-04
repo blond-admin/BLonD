@@ -1,0 +1,2 @@
+nvcc --cubin -O3 --use_fast_math -maxrregcount 32 -arch sm_75 -o kernels_sm_75_single.cubin -I/home/slauber/PycharmProjects/BLonD/.venv/lib64/python3.12/site-packages/cupy/_core/include -DUSEFLOAT kernels.cu
+nvcc --cubin -O3 --use_fast_math -maxrregcount 32 -arch sm_75 -o kernels_sm_75_double.cubin -I/home/slauber/PycharmProjects/BLonD/.venv/lib64/python3.12/site-packages/cupy/_core/include kernels.cu

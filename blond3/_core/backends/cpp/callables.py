@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond3._core.backends.backend import Specials
+from blond3._core.backends.backend import Specials, backend
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
@@ -113,9 +113,14 @@ def c_complex(scalar: complex):
         return c_complex64(scalar)
     return c_complex128(scalar)
 
-
-# By default, use double precision
-precision = PrecisionClass("double")
+if backend.float == np.float32:
+    # By default, use double precision
+    precision = PrecisionClass("single")
+elif backend.float == np.float64:
+    # By default, use double precision
+    precision = PrecisionClass("double")
+else:
+    raise TypeError(backend.float)
 
 
 def load_libblond(precision: str = "single"):
@@ -147,8 +152,14 @@ def load_libblond(precision: str = "single"):
 
     return _LIBBLOND
 
+if backend.float == np.float32:
+    _LIBBLOND = load_libblond(precision="single")
+elif backend.float == np.float64:
+    _LIBBLOND = load_libblond(precision="double")
 
-_LIBBLOND = load_libblond(precision="double")
+else:
+    raise TypeError(backend.float)
+
 
 
 def _getPointer(x: NumpyArray) -> ct.c_void_p:

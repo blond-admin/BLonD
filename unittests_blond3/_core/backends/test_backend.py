@@ -74,7 +74,10 @@ class TestNumpy64Bit(unittest.TestCase):
 class TestNumpyBackend(unittest.TestCase):
     def setUp(self):
         self.numpy_backend = NumpyBackend(
-            float_=np.float32, int_=np.int32, complex_=np.complex64
+            float_=np.float32,
+            int_=np.int32,
+            complex_=np.complex64,
+            specials_mode="python",
         )
 
     def test___init__(self):
@@ -86,11 +89,12 @@ class TestNumpyBackend(unittest.TestCase):
 
 class TestSpecials(unittest.TestCase):
     def setUp(self):
+        self.n_voltages = 3
         self.special_modes = (
             "python",
+            "cuda",
             "cpp",
             "numba",
-            # "cuda", # todo implement
             "fortran",
         )
 
@@ -132,9 +136,11 @@ class TestSpecials(unittest.TestCase):
         self.omega_rf_single_harmonic = backend.float(2 * np.pi * 400e3)
         self.phi_rf_single_harmonic = backend.float(0.3)
 
-        self.voltages = backend.linspace(1e6, 5e6, 3, dtype=backend.float)
-        self.omegas = backend.linspace(200e6, 400e6, 3, dtype=backend.float)
-        self.phis = backend.linspace(0, 2 * np.pi, 3, dtype=backend.float)
+        self.voltages = backend.linspace(1e6, 5e6, self.n_voltages, dtype=backend.float)
+        self.omegas = backend.linspace(
+            200e6, 400e6, self.n_voltages, dtype=backend.float
+        )
+        self.phis = backend.linspace(0, 2 * np.pi, self.n_voltages, dtype=backend.float)
 
         self.charge = backend.float(1)
         self.acceleration_kick = backend.float(-1)
@@ -165,6 +171,8 @@ class TestSpecials(unittest.TestCase):
                     energy=self.energy,
                 )
                 result = self.dt
+                if special == "cuda":
+                    result = result.get()
                 if i == 0:
                     result_python = result
                 else:
@@ -187,7 +195,8 @@ class TestSpecials(unittest.TestCase):
                     energy=self.energy,
                 )
                 result = self.dt
-
+                if special == "cuda":
+                    result = result.get()
                 if i == 0:
                     result_python = result
                 else:
@@ -206,6 +215,8 @@ class TestSpecials(unittest.TestCase):
                     energy=self.energy,
                 )
                 result = self.dt
+                if special == "cuda":
+                    result = result.get()
                 if i == 0:
                     result_python = result
                 else:
@@ -213,23 +224,29 @@ class TestSpecials(unittest.TestCase):
 
     def test_kick_multi_harmonic(self):
         for dtype in (np.float64,):  #  (np.float32, np.float64):
-            for i, special in enumerate(self.special_modes):
-                self._setUp(dtype=dtype, special_mode=special)
-                backend.specials.kick_multi_harmonic(
-                    dt=self.dt,
-                    dE=self.dE,
-                    voltage=self.voltages,
-                    omega_rf=self.omegas,
-                    phi_rf=self.phis,
-                    charge=self.charge,
-                    n_rf=len(self.voltages),
-                    acceleration_kick=self.acceleration_kick,
-                )
-                result = self.dE
-                if i == 0:
-                    result_python = result
-                else:
-                    np.testing.assert_allclose(result, result_python, rtol=self.rtol)
+            for n_voltages in (1, 2, 3, 4, 5):
+                for i, special in enumerate(self.special_modes):
+                    self.n_voltages = n_voltages
+                    self._setUp(dtype=dtype, special_mode=special)
+                    backend.specials.kick_multi_harmonic(
+                        dt=self.dt,
+                        dE=self.dE,
+                        voltage=self.voltages,
+                        omega_rf=self.omegas,
+                        phi_rf=self.phis,
+                        charge=self.charge,
+                        n_rf=len(self.voltages),
+                        acceleration_kick=self.acceleration_kick,
+                    )
+                    result = self.dE
+                    if special == "cuda":
+                        result = result.get()
+                    if i == 0:
+                        result_python = result
+                    else:
+                        np.testing.assert_allclose(
+                            result, result_python, rtol=self.rtol
+                        )
 
     def test_kick_single_harmonic(self):
         for dtype in (np.float64,):  # (np.float32, np.float64):
@@ -245,6 +262,8 @@ class TestSpecials(unittest.TestCase):
                     acceleration_kick=self.acceleration_kick,
                 )
                 result = self.dE
+                if special == "cuda":
+                    result = result.get()
                 if i == 0:
                     result_python = result
                 else:
@@ -268,7 +287,9 @@ class TestSpecials(unittest.TestCase):
                     charge=charge,
                     acceleration_kick=acceleration_kick,
                 )
-                result = self.dE
+                result = dE
+                if special == "cuda":
+                    result = result.get()
                 if i == 0:
                     result_python = result
                 else:
@@ -281,6 +302,8 @@ class TestSpecials(unittest.TestCase):
             for i, special in enumerate(self.special_modes):
                 self._setUp(dtype=dtype, special_mode=special)
                 backend.specials.loss_box(a=None, b=None, c=None, d=None)
+                if special == "cuda":
+                    result = result.get()
                 if i == 0:
                     result_python = result
                 else:
@@ -291,13 +314,39 @@ class TestSpecials(unittest.TestCase):
             for i, special in enumerate(self.special_modes):
                 self._setUp(dtype=dtype, special_mode=special)
                 result = backend.specials.beam_phase(
-                    hist_x=np.arange(-10, 10, 1, dtype=backend.float),
-                    hist_y=np.arange(-10, 10, 1, dtype=backend.float),
+                    hist_x=backend.linspace(-10, 10, 21, dtype=backend.float),
+                    hist_y=backend.linspace(-10, 10, 21, dtype=backend.float),
                     alpha=backend.float(1.5),
                     omega_rf=backend.float(2.5),
                     phi_rf=backend.float(3.5),
                     bin_size=backend.float(1.0),
                 )
+                if i == 0:
+                    result_python = result
+                else:
+                    np.testing.assert_allclose(
+                        result,
+                        result_python,
+                        rtol=self.rtol,
+                        err_msg=f"{special=} {dtype=}",
+                    )
+
+    def test_histogram(self):
+        for dtype in (np.float64,):  # (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                self._setUp(dtype=dtype, special_mode=special)
+                array_write = backend.zeros(21, dtype=backend.float)
+
+                backend.specials.histogram(
+                    array_read=backend.linspace(-10, 10, 21, dtype=backend.float),
+                    array_write=array_write,
+                    start=backend.float(-12),
+                    stop=backend.float(8.0),
+                )
+                result = array_write
+
+                if special == "cuda":
+                    result = result.get()
                 if i == 0:
                     result_python = result
                 else:
