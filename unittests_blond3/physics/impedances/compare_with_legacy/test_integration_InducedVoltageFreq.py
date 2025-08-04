@@ -187,7 +187,7 @@ Q_factor = np.array(
     ]
 )
 
-DEV_PLOT = False
+DEV_PLOT = True
 
 
 class Blond2:
@@ -210,7 +210,7 @@ class Blond2:
         for solver in (
             # InducedVoltageTime,
             InducedVoltageFreq,
-            # InducedVoltageResonator,
+            InducedVoltageResonator,
         ):
             ring = Ring(6911.56, 1 / (1 / np.sqrt(0.00192)) ** 2, 25.92e9, Proton(), 10)
             rf_station = RFStation(ring, [4620], [0.9e6], [0.0], 1)
@@ -245,13 +245,17 @@ class Blond2:
             tot_vol = TotalInducedVoltage(beam, profile, [ind_volt])
 
             tot_vol.induced_voltage_sum()
-            self.induced_voltage = tot_vol.induced_voltage
+            if not hasattr(self, "induced_voltage"):
+                self.induced_voltage = []
+            self.induced_voltage.append(tot_vol.induced_voltage)
 
             if DEV_PLOT:
                 plt.figure(1)
-                plt.plot(tot_vol.induced_voltage)
-                plt.figure(2)
-                plt.plot(ind_volt.total_impedance)
+                sname = str(solver)[str(solver).rfind(".") + 1:str(solver).rfind("'")]
+                plt.plot(tot_vol.induced_voltage, label=f"solver = {sname}")
+                if not solver == InducedVoltageResonator:
+                    plt.figure(2)
+                    plt.plot(ind_volt.total_impedance, label=f"solver = {sname}")
 
 
 class Blond3:
@@ -307,9 +311,15 @@ class TestBothBlonds(unittest.TestCase):
         backend.change_backend(Numpy64Bit)
         self.blond3 = Blond3()
 
-    def test___init__(self):
-        np.testing.assert_allclose(
-            self.blond3.blond2.induced_voltage, self.blond3.induced_voltage, rtol=1e-6
-        )
         if DEV_PLOT:
+            for fig_num in plt.get_fignums():
+                fig = plt.figure(fig_num)
+                for ax in fig.axes:
+                    ax.legend()
             plt.show()
+
+    def test___init__(self):
+        for ind_ind in range(len(self.blond3.blond2.induced_voltage)):
+            np.testing.assert_allclose(
+                self.blond3.blond2.induced_voltage[ind_ind], self.blond3.induced_voltage, rtol=1e-6
+            )
