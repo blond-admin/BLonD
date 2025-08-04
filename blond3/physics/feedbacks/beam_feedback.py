@@ -26,8 +26,32 @@ from ..._core.backends.backend import backend
 
 if TYPE_CHECKING:  # pragma: no cover
     from ..profiles import ProfileBaseClass
+    from ..cavities import CavityBaseClass
     from ..._core.beam.base import BeamBaseClass
     from typing import Optional
+
+
+class GeneralBeamFeedback(LocalFeedback):
+    _parent_cavity: CavityBaseClass
+
+    def __init__(self, profile: ProfileBaseClass):
+        super().__init__(profile=profile)
+
+    @abstractmethod
+    def get_beam_attribute(self, beam: BeamBaseClass):
+        # could be mean energy, mean phase or whatever
+        pass
+
+    @abstractmethod
+    def apply_corrections(self):
+        # shift the cavity phase or so
+        pass
+
+    def track(self, beam: BeamBaseClass):
+        self.get_beam_attribute(  # could be mean energy, mean phase or whatever
+            beam=beam,
+        )
+        self.apply_corrections()
 
 
 class Blond2BeamFeedback(LocalFeedback):
