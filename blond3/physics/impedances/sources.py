@@ -187,6 +187,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         self._shunt_impedances = shunt_impedances
         self._center_frequencies = center_frequencies
         self._quality_factors = quality_factors
+        self._n_resonators = len(shunt_impedances)
 
         # Test if one or more quality factors is smaller than 0.5.
         if np.sum(self._quality_factors < 0.5) > 0:
@@ -228,26 +229,29 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         if hash is self._cache_wake_impedance_hash:
             return self._cache_wake_impedance
 
-        wake = np.zeros(len(time), dtype=backend.float, order="C")
-        n_centers = len(self._center_frequencies)  #TODO: precompute
-        omega = 2 * np.pi * self._center_frequencies
-        for i in range(n_centers):
-            alpha = omega[i] / (2 * self._quality_factors[i])
-            omega_bar = np.sqrt(omega[i] ** 2 - alpha**2)  # TODO: precompute these
-
-            wake += (
-                (np.sign(time) + 1)  # heaviside
-                * (self._shunt_impedances[i] * alpha * np.exp(-alpha * time))
-                * (
-                    np.cos(omega_bar * time)
-                    - alpha / omega_bar * np.sin(omega_bar * time)
-                )
-            )
+        wake = self.get_wake(time)
         wake_impedance = np.fft.rfft(wake)
 
         self._cache_wake_impedance_hash = hash
         self._cache_wake_impedance = wake_impedance
         return wake_impedance
+
+    def get_wake(self, time):
+        wake = np.zeros(len(time), dtype=backend.float, order="C")
+        omega = 2 * np.pi * self._center_frequencies
+        for i in range(self._n_resonators):
+            alpha = omega[i] / (2 * self._quality_factors[i])
+            omega_bar = np.sqrt(omega[i] ** 2 - alpha ** 2)  # TODO: precompute these
+
+            wake += (
+                    (np.sign(time) + 1)  # heaviside
+                    * (self._shunt_impedances[i] * alpha * np.exp(-alpha * time))
+                    * (
+                            np.cos(omega_bar * time)
+                            - alpha / omega_bar * np.sin(omega_bar * time)
+                    )
+            )
+        return wake
 
     def get_impedance(
         self,
