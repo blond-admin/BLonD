@@ -12,7 +12,7 @@ from scipy.constants import elementary_charge as e
 from scipy.fft import next_fast_len
 
 from .base import WakeFieldSolver, WakeField, FreqDomain, TimeDomain
-from .sources import InductiveImpedance
+from .sources import InductiveImpedance, Resonators
 from ..profiles import (
     StaticProfile,
     DynamicProfileConstCutoff,
@@ -334,7 +334,7 @@ class TimeDomainSolver(WakeFieldSolver):
     @requires(["EnergyCycleBase"])  # because InductiveImpedance.get_
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
-    ):
+    ) -> None:
         """Lateinit method when WakeField is late-initialized
 
         Parameters
@@ -453,8 +453,84 @@ class TimeDomainSolver(WakeFieldSolver):
 
 class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
     def __init__(self):  # TODO
-        raise NotImplementedError()
+        """
+        Solver to calculate induced voltage from convolution of resonator wake potential with bunch.
+        """
+        super().__init__()
+        self._wake_pot_y: LateInit[NumpyArray] = None
+        self._wake_pot_y_needs_update = True  # initialization
+        self.expect_wake_pot_change = False
 
+        self._simulation: LateInit[NumpyArray] = None
+        self._parent_wakefield: LateInit[NumpyArray] = None
+
+    @requires(["EnergyCycleBase"])  # because InductiveImpedance.get_
+    def on_wakefield_init_simulation(
+        self, simulation: Simulation, parent_wakefield: WakeField
+    ) -> None:
+        """Lateinit method when WakeField is late-initialized
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+        parent_wakefield
+            Wakefield that this solver affiliated to
+        """
+        self._simulation = simulation
+        if parent_wakefield.profile is None:
+            raise ValueError(f"parent wakefield needs to have a profile")
+        self._parent_wakefield = parent_wakefield
+        self._wake_pot_y_needs_update = True
+
+        is_dynamic = isinstance(parent_wakefield.profile, DynamicProfileConstCutoff
+                                ) or isinstance(parent_wakefield.profile,
+                                                DynamicProfileConstNBins)
+        if is_dynamic and self.expect_wake_pot_change is False:
+            warnings.warn(
+                f"Because you are using"
+                f" a `{type(parent_wakefield.profile)}`,"
+                f" the variable `update_on_calc` is set to"
+                f" True, which might impact performance."
+                f" Set True by yourself to deactivate this warning.",
+                stacklevel=2,
+            )
+            self.expect_wake_pot_change = True
+            raise RuntimeError("dynamic profiles are not supported")
+
+        for source in self._parent_wakefield.sources:
+            if source.is_dynamic or type(source) is not Resonators:
+                raise RuntimeError("source needs to be a resonstor and must not be dynamic")
+
+
+    def _update_impedance_sources(self, beam: BeamBaseClass) -> None:
+        """
+        Updates `_wake_imp_y` array if `self.__wake_imp_y_needs_update=True`
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element
+
+        """
+        if not self._wake_pot_y_needs_update:
+            return
+
+    def calc_induced_voltage(self, beam: BeamBaseClass) -> NumpyArray | CupyArray:
+        """
+        Calculates the induced voltage based on the beam profile and beam parameters
+
+        Parameters
+        ----------
+        beam
+            Simulation object of a particle beam
+
+        Returns
+        -------
+        induced_voltage
+            Induced voltage in [V]
+        """
+        raise NotImplementedError()
 
 class MutliTurnResonatorSolver(WakeFieldSolver):
     def __init__(self):  # TODO
