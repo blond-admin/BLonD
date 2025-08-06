@@ -503,8 +503,7 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
             if source.is_dynamic or not isinstance(source, Resonators):
                 raise RuntimeError("source needs to be a Resonator and must not be dynamic")
 
-
-    def _update_potential_sources(self, beam: BeamBaseClass) -> None:
+    def _update_potential_sources(self) -> None:
         """
         Updates `_wake_imp_y` array if `self.__wake_imp_y_needs_update=True`
 
@@ -519,7 +518,7 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
         profile_width = self._parent_wakefield.profile.cut_right - self._parent_wakefield.profile.cut_left
         self._wake_pot_time = np.arange(self._parent_wakefield.profile.cut_left - profile_width / 2,
                                      self._parent_wakefield.profile.cut_right + profile_width / 2,  # TODO: do we actually need this? --> check convolution and which values are actually needed
-                                     self._parent_wakefield.profile.bin_size)
+                                     self._parent_wakefield.profile.bin_size)  # necessary for boundary effects
         self._wake_pot_vals = np.zeros_like(self._wake_pot_time)
         for source in self._parent_wakefield.sources:  # TODO: do we ever need multiple resonstors objects in here --> probably not, resonators are defined in the Sources
             self._wake_pot_vals += source.get_wake(self._wake_pot_time)
@@ -540,7 +539,18 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
         induced_voltage
             Induced voltage in [V]
         """
-        raise NotImplementedError()
+        # if self.expect_profile_change:
+        #     self._update_internal_data()  # TODO: will we need this?
+        if self.expect_wake_pot_change:  # with dynamic profile
+            self._update_potential_sources()
+
+        _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
+                beam.n_particles / beam.n_macroparticles_partial())
+
+        return _charge_per_macroparticle * np.convolve(self._parent_wakefield.profile.n_macroparticles,
+                                                       self._wake_pot_vals,
+                                                       mode="valid")  # TODO: check which mode is necessary
+
 
 class MutliTurnResonatorSolver(WakeFieldSolver):
     def __init__(self):  # TODO
