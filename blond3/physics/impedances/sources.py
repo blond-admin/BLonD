@@ -189,6 +189,11 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         self._quality_factors = quality_factors
         self._n_resonators = len(shunt_impedances)
 
+        # secondary quantities for wake calculation
+        self._omega = 2 * np.pi * self._center_frequencies
+        self._alpha = self._omega / (2 * self._quality_factors)
+        self._omega_bar = np.sqrt(self._omega ** 2 - self._alpha ** 2)
+
         # Test if one or more quality factors is smaller than 0.5.
         if np.sum(self._quality_factors < 0.5) > 0:
             raise RuntimeError("All quality factors Q must be greater or equal 0.5")
@@ -236,21 +241,23 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         self._cache_wake_impedance = wake_impedance
         return wake_impedance
 
-    def get_wake(self, time):
-        wake = np.zeros(len(time), dtype=backend.float, order="C")
-        omega = 2 * np.pi * self._center_frequencies
-        for i in range(self._n_resonators):
-            alpha = omega[i] / (2 * self._quality_factors[i])
-            omega_bar = np.sqrt(omega[i] ** 2 - alpha ** 2)  # TODO: precompute these
+    def get_wake(self, time: NumpyArray) -> NumpyArray:
+        """
+        Computes the wake potential of all resonators in time domain for the given time and returns the summed potential.
 
+        Parameters
+        ----------
+        time : NumpyArray
+            time array at which the wake is calculated [V]
+        """
+        wake = np.zeros(len(time), dtype=backend.float, order="C")
+
+        for i in range(self._n_resonators):
             wake += (
                     (np.sign(time) + 1)  # heaviside
-                    * (self._shunt_impedances[i] * alpha * np.exp(-alpha * time))
-                    * (
-                            np.cos(omega_bar * time)
-                            - alpha / omega_bar * np.sin(omega_bar * time)
-                    )
-            )
+                    * (self._shunt_impedances[i] * self._alpha * np.exp(-self._alpha * time))
+                    * (np.cos(self._omega_bar * time) -
+                       self._alpha / self._omega_bar * np.sin(self._omega_bar * time)))
         return wake
 
     def get_impedance(
