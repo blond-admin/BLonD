@@ -254,12 +254,12 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         """
         wake = np.zeros(len(time), dtype=backend.float, order="C")
 
-        for i in range(self._n_resonators):
+        for res_ind in range(self._n_resonators):
             wake += (
                     (np.sign(time) + 1)  # heaviside
-                    * (self._shunt_impedances[i] * self._alpha * np.exp(-self._alpha * time))
-                    * (np.cos(self._omega_bar * time) -
-                       self._alpha / self._omega_bar * np.sin(self._omega_bar * time)))
+                    * (self._shunt_impedances[res_ind] * self._alpha[res_ind] * np.exp(-self._alpha[res_ind] * time))
+                    * (np.cos(self._omega_bar[res_ind] * time) -
+                       self._alpha[res_ind] / self._omega_bar[res_ind] * np.sin(self._omega_bar[res_ind] * time)))
         return wake
 
     def get_impedance(
