@@ -197,6 +197,8 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         # Test if one or more quality factors is smaller than 0.5.
         if np.sum(self._quality_factors < 0.5) > 0:
             raise RuntimeError("All quality factors Q must be greater or equal 0.5")
+        if np.sum(self._center_frequencies < 0) > 0:
+            raise RuntimeError("All center frequencies must be greater or equal 0")
 
         self._cache_wake_impedance = None
         self._cache_wake_impedance_hash = None
