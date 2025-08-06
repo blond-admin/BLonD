@@ -213,8 +213,8 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         beam: BeamBaseClass,
     ) -> NumpyArray:
         """
-        Get impedance equivalent to the partial single-particle-wake in
-        time domain
+        Get impedance computed via fft from time domain anayltical formula equivalent
+        to the partial single-particle-wake
 
 
         Parameters
@@ -231,7 +231,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         wake_impedance
 
         """
-        # Recalculate only if `time` is changed
+        # Recalculate only if `time` has changed
         hash = get_hash(time)
         if hash is self._cache_wake_impedance_hash:
             return self._cache_wake_impedance
@@ -242,6 +242,13 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         self._cache_wake_impedance_hash = hash
         self._cache_wake_impedance = wake_impedance
         return wake_impedance
+
+    def get_wake_impedance_freq(self, time):
+        """
+        Get frequency array corresponding to time used in :func:`get_wake_impedance`
+        """
+        return np.fft.rfftfreq(len(time), time[1] - time[0])
+
 
     def get_wake(self, time: NumpyArray) -> NumpyArray:
         """
