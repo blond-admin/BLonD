@@ -454,11 +454,12 @@ class TimeDomainSolver(WakeFieldSolver):
 class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
     def __init__(self):  # TODO
         """
-        Solver to calculate induced voltage from convolution of resonator wake potential with bunch.
+        Solver to calculate induced voltage from convolution of a Resonator wake potential with bunch.
         """
         super().__init__()
-        self._wake_pot_y: LateInit[NumpyArray] = None
-        self._wake_pot_y_needs_update = True  # initialization
+        self._wake_pot_vals: LateInit[NumpyArray] = None
+        self._wake_pot_time: LateInit[NumpyArray] = None
+        self._wake_pot_vals_needs_update = True  # initialization
         self.expect_wake_pot_change = False
 
         self._simulation: LateInit[NumpyArray] = None
@@ -481,7 +482,7 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
         if parent_wakefield.profile is None:
             raise ValueError(f"parent wakefield needs to have a profile")
         self._parent_wakefield = parent_wakefield
-        self._wake_pot_y_needs_update = True
+        self._wake_pot_vals_needs_update = True
 
         is_dynamic = isinstance(parent_wakefield.profile, DynamicProfileConstCutoff
                                 ) or isinstance(parent_wakefield.profile,
@@ -499,11 +500,11 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
             raise RuntimeError("dynamic profiles are not supported")
 
         for source in self._parent_wakefield.sources:
-            if source.is_dynamic or type(source) is not Resonators:
-                raise RuntimeError("source needs to be a resonstor and must not be dynamic")
+            if source.is_dynamic or not isinstance(source, Resonators):
+                raise RuntimeError("source needs to be a Resonator and must not be dynamic")
 
 
-    def _update_impedance_sources(self, beam: BeamBaseClass) -> None:
+    def _update_potential_sources(self, beam: BeamBaseClass) -> None:
         """
         Updates `_wake_imp_y` array if `self.__wake_imp_y_needs_update=True`
 
@@ -513,8 +514,17 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
             Beam class to interact with this element
 
         """
-        if not self._wake_pot_y_needs_update:
+        if not self._wake_pot_vals_needs_update:
             return
+        profile_width = self._parent_wakefield.profile.cut_right - self._parent_wakefield.profile.cut_left
+        self._wake_pot_time = np.arange(self._parent_wakefield.profile.cut_left - profile_width / 2,
+                                     self._parent_wakefield.profile.cut_right + profile_width / 2,  # TODO: do we actually need this? --> check convolution and which values are actually needed
+                                     self._parent_wakefield.profile.bin_size)
+        self._wake_pot_vals = np.zeros_like(self._wake_pot_time)
+        for source in self._parent_wakefield.sources:  # TODO: do we ever need multiple resonstors objects in here --> probably not, resonators are defined in the Sources
+            self._wake_pot_vals += source.get_wake(self._wake_pot_time)
+
+        self._wake_pot_vals_needs_update = False # avoid repeated update
 
     def calc_induced_voltage(self, beam: BeamBaseClass) -> NumpyArray | CupyArray:
         """
