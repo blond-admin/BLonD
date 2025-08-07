@@ -178,12 +178,12 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         corresponding to a separate resonance.
         """
         super().__init__(is_dynamic=False)
-        assert len(shunt_impedances) == len(
-            center_frequencies
-        ), f"{len(shunt_impedances)} != {len(center_frequencies)}"
-        assert len(shunt_impedances) == len(
-            quality_factors
-        ), f"{len(shunt_impedances)} != {len(quality_factors)}"
+        assert len(shunt_impedances) == len(center_frequencies), (
+            f"{len(shunt_impedances)} != {len(center_frequencies)}"
+        )
+        assert len(shunt_impedances) == len(quality_factors), (
+            f"{len(shunt_impedances)} != {len(quality_factors)}"
+        )
         self._shunt_impedances = shunt_impedances
         self._center_frequencies = center_frequencies
         self._quality_factors = quality_factors
@@ -192,7 +192,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         # secondary quantities for wake calculation
         self._omega = 2 * np.pi * self._center_frequencies
         self._alpha = self._omega / (2 * self._quality_factors)
-        self._omega_bar = np.sqrt(self._omega ** 2 - self._alpha ** 2)
+        self._omega_bar = np.sqrt(self._omega**2 - self._alpha**2)
 
         # Test if one or more quality factors is smaller than 0.5.
         if np.sum(self._quality_factors < 0.5) > 0:
@@ -249,7 +249,6 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         """
         return np.fft.rfftfreq(len(time), time[1] - time[0])
 
-
     def get_wake(self, time: NumpyArray) -> NumpyArray:
         """
         Computes the wake potential of all resonators in time domain for the given time and returns the summed potential.
@@ -263,10 +262,19 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
 
         for res_ind in range(self._n_resonators):
             wake += (
-                    (np.sign(time) + 1)  # heaviside
-                    * (self._shunt_impedances[res_ind] * self._alpha[res_ind] * np.exp(-self._alpha[res_ind] * time))
-                    * (np.cos(self._omega_bar[res_ind] * time) -
-                       self._alpha[res_ind] / self._omega_bar[res_ind] * np.sin(self._omega_bar[res_ind] * time)))
+                (np.sign(time) + 1)  # heaviside
+                * (
+                    self._shunt_impedances[res_ind]
+                    * self._alpha[res_ind]
+                    * np.exp(-self._alpha[res_ind] * time)
+                )
+                * (
+                    np.cos(self._omega_bar[res_ind] * time)
+                    - self._alpha[res_ind]
+                    / self._omega_bar[res_ind]
+                    * np.sin(self._omega_bar[res_ind] * time)
+                )
+            )
         return wake
 
     def get_impedance(
