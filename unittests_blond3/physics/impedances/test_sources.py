@@ -4,6 +4,7 @@ from unittest.mock import Mock
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.constants import speed_of_light as c0
+from scipy.constants import pi
 from scipy.signal import find_peaks
 
 from blond3._core.beam.base import BeamBaseClass
@@ -111,20 +112,31 @@ class TestResonators(unittest.TestCase):
                                          quality_factors=np.array([0.49]))
 
     def test_get_wake(self):
-        simulation = Mock(Simulation)
-        beam = Mock(BeamBaseClass)
+        freq, q_factor, shut_imp = self.resonators._center_frequencies[0], 1e10, self.resonators._shunt_impedances[0]
+        res = Resonators(shunt_impedances=np.array([shut_imp]),
+                         center_frequencies=np.array([freq]),
+                         quality_factors=np.array([q_factor]),)  # high Q to avoid smearing of frequency --> minimum getting
+        time = np.linspace(-1e-9, 1.5e-9, 751)
 
-        time = np.linspace(-1e-9, 1e-9, 30)
-
-        wake_potential = self.resonators.get_wake(
-            time=time,
-        )
+        wake_potential = res.get_wake(time=time)
         assert wake_potential.shape == time.shape
+
+        # check value at 0-time
+        assert np.isclose(wake_potential[np.abs(time).argmin()], 0.5 * np.max(wake_potential), rtol=1e-2)
+        # maximum point will only be true maximum with infinite points, hence high rtol
+
+        # check maximum value
+        assert np.isclose(wake_potential[wake_potential.argmax()], 2 * 2 * pi * freq * shut_imp / (2 * q_factor),
+                          rtol=1e-4)  # *2 from heaviside
+
+        # check periodicity
+        t_min = 1 / res._center_frequencies[0]
+        assert np.isclose(time[wake_potential.argmin()], t_min / 2)
+
         DEV_DEBBUG = True
         if DEV_DEBBUG:
             plt.plot(time, wake_potential)
             plt.show()
-        # TODO PIN VALUE!
 
 
     def test_get_impedance(self):
