@@ -142,7 +142,6 @@ class BackendBaseClass(ABC):
         self.twopi = self.float(2 * np.pi)
         self.specials_mode = specials_mode
         self.specials: Specials = None
-        self.set_specials(self.specials_mode)
 
         # Callables
         self.array = None
@@ -157,6 +156,7 @@ class BackendBaseClass(ABC):
         _new_backend = new_backend()
         self.__dict__ = _new_backend.__dict__
         self.__class__ = _new_backend.__class__
+        self.set_specials(self.specials_mode)
 
     @abstractmethod  # pragma: no cover
     def set_specials(self, mode):
