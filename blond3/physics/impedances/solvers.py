@@ -487,16 +487,7 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
         is_dynamic = isinstance(parent_wakefield.profile, DynamicProfileConstCutoff
                                 ) or isinstance(parent_wakefield.profile,
                                                 DynamicProfileConstNBins)
-        if is_dynamic and self.expect_wake_pot_change is False:
-            warnings.warn(
-                f"Because you are using"
-                f" a `{type(parent_wakefield.profile)}`,"
-                f" the variable `update_on_calc` is set to"
-                f" True, which might impact performance."
-                f" Set True by yourself to deactivate this warning.",
-                stacklevel=2,
-            )
-            self.expect_wake_pot_change = True
+        if is_dynamic:
             raise RuntimeError("dynamic profiles are not supported")
 
         for source in self._parent_wakefield.sources:
@@ -505,12 +496,9 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
 
     def _update_potential_sources(self) -> None:
         """
-        Updates `_wake_imp_y` array if `self.__wake_imp_y_needs_update=True`
+        Updates `_wake_pot_time`  and `_wake_pot_vals` arrays if `self._wake_pot_vals_needs_update=True`
 
-        Parameters
-        ----------
-        beam
-            Beam class to interact with this element
+        The time axis is chosen based on the profile in `_parent_wakefield.profile`
 
         """
         if not self._wake_pot_vals_needs_update:
@@ -539,9 +527,7 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
         induced_voltage
             Induced voltage in [V]
         """
-        # if self.expect_profile_change:
-        #     self._update_internal_data()  # TODO: will we need this?
-        if self.expect_wake_pot_change:  # with dynamic profile
+        if self._wake_pot_vals_needs_update:
             self._update_potential_sources()
 
         _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
