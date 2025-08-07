@@ -460,7 +460,6 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
         self._wake_pot_vals: LateInit[NumpyArray] = None
         self._wake_pot_time: LateInit[NumpyArray] = None
         self._wake_pot_vals_needs_update = True  # initialization
-        self.expect_wake_pot_change = False
 
         self._simulation: LateInit[NumpyArray] = None
         self._parent_wakefield: LateInit[NumpyArray] = None
