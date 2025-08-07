@@ -8,7 +8,7 @@ import cupy as cp
 
 
 def main():  # pragma: no cover
-    backend.change_backend(Numpy64Bit)
+    #backend.change_backend(Numpy64Bit)
     backend.change_backend(Numpy32Bit)
 
     dt = backend.linspace(-5, 5, int(1e6), dtype=backend.float)
@@ -27,14 +27,14 @@ def main():  # pragma: no cover
 
     from blond3._core.backends.numba.callables import NumbaSpecials
     from blond3._core.backends.cpp.callables import CppSpecials
-    #from blond3._core.backends.fortran.callables import FortranSpecials
+    from blond3._core.backends.fortran.callables import FortranSpecials
     from blond3._core.backends.cuda.callables import CudaSpecials
 
     functions = (
         NumbaSpecials().kick_single_harmonic,
         CppSpecials().kick_single_harmonic,
         CppSpecials().kick_single_harmonic,
-        #FortranSpecials().kick_single_harmonic,
+        FortranSpecials().kick_single_harmonic,
         CudaSpecials().kick_single_harmonic,
     )
     runtimes = {}
@@ -42,7 +42,7 @@ def main():  # pragma: no cover
         runtimes[str(kick_single_harmonic)] = 0.0
     for iter in range(1000):
         for i, kick_single_harmonic in enumerate(functions):
-            CUDA = i == 3
+            CUDA = kick_single_harmonic == CudaSpecials().kick_single_harmonic
             t0 = time.perf_counter()
             kick_single_harmonic(
                 dt=dt_cp if CUDA else dt,
@@ -63,7 +63,7 @@ def main():  # pragma: no cover
     print()
     for i, kick_single_harmonic in enumerate(functions):
         runtimes[str(kick_single_harmonic)] = 0.0
-        CUDA = i == 3
+        CUDA = kick_single_harmonic == CudaSpecials().kick_single_harmonic
         t0 = time.perf_counter()
         for iter in range(1000):
             kick_single_harmonic(

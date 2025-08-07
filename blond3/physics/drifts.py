@@ -225,10 +225,10 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         backend.specials.drift_simple(
             dt=beam.write_partial_dt(),
             dE=beam.read_partial_dE(),
-            T=dt,
-            eta_0=eta_0,
-            beta=beam.reference_beta,
-            energy=beam.reference_total_energy,
+            T=backend.float(dt),
+            eta_0=backend.float(eta_0),
+            beta=backend.float(beam.reference_beta),
+            energy=backend.float(beam.reference_total_energy),
         )
         beam.reference_time += dt
 

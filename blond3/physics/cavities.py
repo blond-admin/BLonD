@@ -133,7 +133,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             Synchronous phase for the current RF parameters, in [rad]
         """
         # TODO rewrite for efficiency
-        target_total_energy = self._energy_cycle.get_target_total_energy(
+        target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,
             section_i=self.section_index,
             reference_time=beam.reference_time,
@@ -179,12 +179,10 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         # set design omega etc for this turn
         self._update_beam_based_attributes(beam=beam)
 
-        current_turn = (
-            self._turn_i.value
-        )  # TODO incorrect for simulations that start later
+        # TODO incorrect for simulations that start later
         # Determine phase loop correction on RF phase and frequency
         if self._beam_feedback is not None and (
-            current_turn >= self._beam_feedback.delay
+            self._turn_i.value >= self._beam_feedback.delay
         ):  # TODO incorrect for simulations that start later
             # domega_rf is updated later
             # this means domega_rf is effectively from last turn
@@ -349,13 +347,13 @@ class SingleHarmonicCavity(CavityBaseClass):
             beam_beta=beam.reference_beta,
             ring_circumference=self._ring.circumference,
         )
-        self._t_rf = (2 * np.pi) / self._omega_rf
+        """self._t_rf = (2 * np.pi) / self._omega_rf
         self._t_rev = self._t_rf * self.harmonic
         try:
             self.phi_s = self.calc_phi_s_single_harmonic(beam=beam)
         except Exception as exc:
             warnings.warn(str(exc))
-            self.phi_s = np.nan
+            self.phi_s = np.nan"""
 
     def track(self, beam: BeamBaseClass) -> None:
         """Main simulation routine to be called in the mainloop

@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond3._core.backends.backend import Specials
+from blond3._core.backends.backend import Specials, backend
 
 
 def find_kick_module_so(file: str):
@@ -35,25 +35,47 @@ def add_backend(module_name):
     return loaded_module
 
 
-drift_module = add_backend(
-    module_name="drift_module",
-)
-kick_module = add_backend(
-    module_name="kick_module",
-)
+if backend.float == np.float32:
+    drift_module = add_backend(
+        module_name="drift_module_32",
+    )
+    kick_module = add_backend(
+        module_name="kick_module_32",
+    )
 
-kick_induced_module = add_backend(
-    module_name="kick_induced_module",
-)
+    kick_induced_module = add_backend(
+        module_name="kick_induced_module_32",
+    )
 
+    histogram_module = add_backend(
+        module_name="histogram_module_32",
+    )
 
-histogram_module = add_backend(
-    module_name="histogram_module",
-)
+    beam_phase_module = add_backend(
+        module_name="beam_phase_module_32",
+    )
+elif backend.float == np.float64:
+    drift_module = add_backend(
+        module_name="drift_module_64",
+    )
+    kick_module = add_backend(
+        module_name="kick_module_64",
+    )
 
-beam_phase_module = add_backend(
-    module_name="beam_phase_module",
-)
+    kick_induced_module = add_backend(
+        module_name="kick_induced_module_64",
+    )
+
+    histogram_module = add_backend(
+        module_name="histogram_module_64",
+    )
+
+    beam_phase_module = add_backend(
+        module_name="beam_phase_module_64",
+    )
+else:
+    raise TypeError(backend.float)
+
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
@@ -77,7 +99,7 @@ class FortranSpecials(Specials):
             omega_rf=omega_rf,
             phi_rf=phi_rf,
             bin_size=bin_size,
-            n_bins=len(hist_x),
+            n_bins=np.int32(len(hist_x)),
         )
 
     @staticmethod
@@ -87,8 +109,8 @@ class FortranSpecials(Specials):
         histogram_module.histogram(
             array_read,
             array_out=array_write,
-            n_macroparticles=len(array_read),
-            n_slices=len(array_write),
+            n_macroparticles=np.int32(len(array_read)),
+            n_slices=np.int32(len(array_write)),
             cut_left=start,
             cut_right=stop,
         )
@@ -107,6 +129,13 @@ class FortranSpecials(Specials):
         charge: float,
         acceleration_kick: float,
     ):
+        assert dt.dtype == backend.float
+        assert dE.dtype == backend.float
+        assert isinstance(voltage, backend.float)
+        assert isinstance(omega_rf, backend.float)
+        assert isinstance(phi_rf, backend.float)
+        assert isinstance(charge, backend.float)
+        assert isinstance(acceleration_kick, backend.float)
         kick_module.kick_single_harmonic(
             dt=dt,
             de=dE,
@@ -115,7 +144,7 @@ class FortranSpecials(Specials):
             phi_rf=phi_rf,
             charge=charge,
             acceleration_kick=acceleration_kick,
-            n=len(dt),
+            n=np.int32(len(dt)),
         )
         pass
 
@@ -133,7 +162,13 @@ class FortranSpecials(Specials):
         """
 
         drift_module.drift_simple(
-            dt=dt, de=dE, t=T, eta_0=eta_0, beta=beta, energy=energy, n=len(dt)
+            dt=dt,
+            de=dE,
+            t=T,
+            eta_0=eta_0,
+            beta=beta,
+            energy=energy,
+            n=np.int32(len(dt)),
         )
         pass
 
@@ -156,7 +191,7 @@ class FortranSpecials(Specials):
             voltage=voltage[:],
             omega_rf=omega_rf[:],
             phi_rf=phi_rf[:],
-            n_macroparticles=len(dt),
+            n_macroparticles=np.int32(len(dt)),
             acc_kick=acceleration_kick,
         )
 
@@ -244,7 +279,7 @@ class FortranSpecials(Specials):
             voltage_array=voltage,
             bin_centers=bin_centers,
             charge=charge,
-            n_slices=len(bin_centers),
-            n_macroparticles=len(dt),
+            n_slices=np.int32(len(bin_centers)),
+            n_macroparticles=np.int32(len(dt)),
             acc_kick=acceleration_kick,
         )

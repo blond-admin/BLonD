@@ -216,9 +216,10 @@ class NumpyBackend(BackendBaseClass):
             self.specials = NumbaSpecials()
             self.specials_mode = mode
         elif mode == "fortran":
-            from blond3._core.backends.fortran.callables import FortranSpecials
-
-            assert self.float == np.float64
+            FortranSpecials = fresh_import(
+                "blond3._core.backends.fortran.callables",
+                "FortranSpecials",
+            )
             self.specials = FortranSpecials
             self.specials_mode = mode
         else:

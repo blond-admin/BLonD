@@ -2,11 +2,12 @@ import time
 
 import cupy as cp
 
-from blond3._core.backends.backend import backend, Numpy64Bit
+from blond3._core.backends.backend import backend, Numpy64Bit, Numpy32Bit
+
 
 
 def main():  # pragma: no cover
-    backend.change_backend(Numpy64Bit)
+    backend.change_backend(Numpy32Bit)
 
     dt = backend.linspace(
         -5,

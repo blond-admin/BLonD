@@ -129,7 +129,8 @@ class Schedulable:
         assert hasattr(
             self, attribute
         ), f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
-
+        if isinstance(value, np.ndarray):
+            value = value.astype(backend.float)
         self.schedules[attribute] = get_scheduler(value, mode=mode)
 
     def schedule_from_file(

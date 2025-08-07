@@ -136,14 +136,14 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """Total beam energy [eV]"""
         self._reference_total_energy = reference_total_energy
 
-    @property
+    @cached_property
     def reference_gamma(self) -> float:
         """Beam reference gamma a.k.a. Lorentz factor []"""
         # reference_total_energy in eV and mass_inv in [c²/eV]
-        val = self.reference_total_energy * self.particle_type.mass_inv
+        val = self._reference_total_energy * self._particle_type.mass_inv
         return val
 
-    @property
+    @cached_property
     def reference_beta(self) -> float:
         """Beam reference fraction of speed of light (v/c0) []"""
 
@@ -151,7 +151,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         val = np.sqrt(1.0 - 1.0 / (gamma * gamma))
         return val
 
-    @property
+    @cached_property
     def reference_velocity(self) -> float:
         """Beam reference speed [m/s]"""
         return self.reference_beta * c0
@@ -246,8 +246,20 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         "dt_max",
         "common_array_size",
         "ratio",
+        "reference_gamma",
+        "reference_beta",
+        "reference_velocity",
     )
 
+    def invalidate_cache_reference(self) -> None:
+        """Reset cache of `cached_property` attributes"""
+        super()._invalidate_cache(
+            (
+                "reference_gamma",
+                "reference_beta",
+                "reference_velocity",
+            )
+        )
     def invalidate_cache_dE(self) -> None:
         """Reset cache of `cached_property` attributes"""
         super()._invalidate_cache(

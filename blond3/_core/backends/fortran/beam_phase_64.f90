@@ -13,7 +13,7 @@ contains
     real(kind=8) :: integral
     integer :: i
 
-    integral = 0.5d0 * (y(1) + y(n))
+    integral = 0.5_8 * (y(1) + y(n))
     do i = 2, n - 1
         integral = integral + y(i)
     end do
