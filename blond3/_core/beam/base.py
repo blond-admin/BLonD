@@ -134,6 +134,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     @reference_total_energy.setter
     def reference_total_energy(self, reference_total_energy) -> float:
         """Total beam energy [eV]"""
+        self.invalidate_cache_reference()
         self._reference_total_energy = reference_total_energy
 
     @cached_property
