@@ -13,6 +13,7 @@ from blond3.physics.impedances.solvers import (
     InductiveImpedanceSolver, AnalyticSingleTurnResonatorSolver,
 )
 from blond3.physics.profiles import StaticProfile, DynamicProfileConstCutoff, DynamicProfileConstNBins
+from scipy.constants import e
 
 
 class TestInductiveImpedanceSolver(unittest.TestCase):
@@ -192,6 +193,23 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         assert (updated_voltage[index_offset:len(initial_voltage) + index_offset] == initial_voltage).all()
 
     def test__update_potential_sources_result_values(self):
+        beam = Mock(BeamBaseClass)
+        beam.n_particles = int(1e2)
+        beam.particle_type.charge = 1
+        beam.n_macroparticles_partial = int(1e2)
+        self.analytical_single_turn_solver._update_potential_sources()
+        profile_width = int((self.cut_right - self.cut_left) / self.bin_size)
+        self.analytical_single_turn_solver._wake_pot_vals = np.zeros(profile_width * 2 + 1)
+        self.analytical_single_turn_solver._wake_pot_vals[profile_width - 1:profile_width + 2] = 1 / 3 / e
+        calced_voltage = self.analytical_single_turn_solver.calc_induced_voltage(beam=beam)
+
+        min_voltage = np.min(calced_voltage)  # negative due to positive charge
+        assert np.isclose(min_voltage, -1/3)
+        assert np.isclose(np.abs(calced_voltage - min_voltage).argmin(), profile_width // 2)
+        assert np.sum(calced_voltage[0:profile_width //2 - 3]) == 0
+        assert np.sum(calced_voltage[profile_width + 2:]) == 0
+
+    def test_against_CST_results(self):
         pass
 
 
