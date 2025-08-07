@@ -44,9 +44,9 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         reference_particle: ParticleType,
     ):
         super().__init__()
-        assert isinstance(
-            reference_particle, ParticleType
-        ), f"{type(reference_particle)}"
+        assert isinstance(reference_particle, ParticleType), (
+            f"{type(reference_particle)}"
+        )
         self._reference_particle: ParticleType = reference_particle
 
         self._magnetic_rigidity_before_turn_0: LateInit[float] = None
@@ -217,7 +217,7 @@ class ConstantMagneticCycle(MagneticCycleBase):
             convert_from=self._in_unit,
             bending_radius=(
                 simulation.ring.bending_radius
-                if self._in_unit == "bending " "field"
+                if self._in_unit == "bending field"
                 else None
             ),
         )
@@ -344,9 +344,9 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         )
         self._value_init = value_init
 
-        assert (
-            len(values_after_turn.shape) == 1
-        ), f"Expected 1D array, but got {values_after_turn.shape}"
+        assert len(values_after_turn.shape) == 1, (
+            f"Expected 1D array, but got {values_after_turn.shape}"
+        )
 
         self._values_after_turn = values_after_turn[:]
         self._in_unit = in_unit
@@ -586,9 +586,9 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
         )
         n_cavities = simulation.ring.n_cavities
         n_turns_max = magnetic_rigidity_after_cavity_per_turn.shape[1]
-        assert (
-            n_cavities == magnetic_rigidity_after_cavity_per_turn.shape[0]
-        ), f"{n_cavities=}, but {magnetic_rigidity_after_cavity_per_turn.shape=}"
+        assert n_cavities == magnetic_rigidity_after_cavity_per_turn.shape[0], (
+            f"{n_cavities=}, but {magnetic_rigidity_after_cavity_per_turn.shape=}"
+        )
 
         super().on_init_simulation(
             simulation=simulation,

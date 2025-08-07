@@ -123,7 +123,7 @@ class Schedulable:
             "per-turn" or "constant"
         """
         assert hasattr(self, attribute), (
-            f"Attribute {attribute} doesnt exist, choose from" f" {vars(self)}"
+            f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
         )
 
         self.schedules[attribute] = get_scheduler(value, mode=mode)
@@ -156,7 +156,7 @@ class Schedulable:
             Additional keyword arguments to be passed to `numpy.loadtxt`
         """
         assert hasattr(self, attribute), (
-            f"Attribute {attribute} doesnt exist, choose from" f" {vars(self)}"
+            f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
         )
         values = np.loadtxt(filename, **kwargs_loadtxt)
         self.schedules[attribute] = get_scheduler(values, mode=mode)
@@ -201,7 +201,7 @@ class BeamPhysicsRelevant(MainLoopRelevant):
         super().__init__()
         self._section_index = section_index
         if name is None:
-            name = f"Unnamed-{type(self).__name__}-" f"{type(self).n_instances:03d}"
+            name = f"Unnamed-{type(self).__name__}-{type(self).n_instances:03d}"
         self.name = name
         type(self).n_instances += 1
 
