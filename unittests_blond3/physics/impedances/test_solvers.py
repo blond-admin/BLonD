@@ -10,9 +10,9 @@ from blond3.physics.impedances.sources import Resonators
 from blond3.physics.impedances.solvers import (
     PeriodicFreqSolver,
     InductiveImpedance,
-    InductiveImpedanceSolver,
+    InductiveImpedanceSolver, AnalyticSingleTurnResonatorSolver,
 )
-from blond3.physics.profiles import StaticProfile
+from blond3.physics.profiles import StaticProfile, DynamicProfileConstCutoff, DynamicProfileConstNBins
 
 
 class TestInductiveImpedanceSolver(unittest.TestCase):
@@ -122,3 +122,86 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         self.periodic_freq_solver.on_wakefield_init_simulation(
             simulation=simulation, parent_wakefield=parent_wakefield
         )
+
+class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
+    def setUp(self):
+        self.resonators = Resonators(
+            shunt_impedances=np.array([1, 2, 3]),
+            center_frequencies=np.array([500e6, 750e6, 1.5e9]),
+            quality_factors=np.array([5, 5, 5]),
+        )
+        self.analytical_single_turn_solver = AnalyticSingleTurnResonatorSolver()
+
+        self.analytical_single_turn_solver._parent_wakefield = Mock(WakeField)
+        profile = np.array([0, 0, 0, 1/3, 1/3, 1/3, 0, 0, 0])
+        profile /= np.sum(profile)
+        self.analytical_single_turn_solver._parent_wakefield.profile.beam_profile.n_macroparticles_partial.return_value = profile
+        self.analytical_single_turn_solver._parent_wakefield.profile.cut_right.return_value = -1e-9
+        self.analytical_single_turn_solver._parent_wakefield.profile.cut_right.return_value = 1e-9
+        self.analytical_single_turn_solver._parent_wakefield.profile.bin_size = 1e-10
+
+        self.analytical_single_turn_solver._parent_wakefield.profile.beam_profile.return_value = np.linspace(
+            0, 1, 6
+        )
+
+    def test___init__(self):
+        pass  # calls __init__ in  self.setUp
+
+    def test__update_potential_sources(self):
+        self.periodic_freq_solver._parent_wakefield.sources = (self.resonators,)
+        self.periodic_freq_solver._update_internal_data()
+        self.assertEqual(self.periodic_freq_solver._n_time, 10)
+
+
+    def test__on_wakefield_simulation_init(self):
+        parent_wakefield = Mock(WakeField)
+        profile = Mock(StaticProfile)
+        simulation = Mock(Simulation)
+        profile.n_bins = 10
+        parent_wakefield.profile = profile
+        parent_wakefield.profile.hist_step = 1
+
+        resonators = Mock(Resonators)
+        resonators.is_dynamic = False
+        parent_wakefield.sources = (resonators,)
+        self.analytical_single_turn_solver.on_wakefield_init_simulation(
+            simulation=simulation, parent_wakefield=parent_wakefield
+        )
+
+        with self.assertRaises(RuntimeError):
+            profile_wrong = Mock(DynamicProfileConstCutoff)
+            parent_wakefield.profile = profile_wrong
+            self.analytical_single_turn_solver.on_wakefield_init_simulation(
+                simulation=simulation, parent_wakefield=parent_wakefield
+            )
+        with self.assertRaises(RuntimeError):
+            profile_wrong = Mock(DynamicProfileConstNBins)
+            parent_wakefield.profile = profile_wrong
+            self.analytical_single_turn_solver.on_wakefield_init_simulation(
+                simulation=simulation, parent_wakefield=parent_wakefield
+            )
+        parent_wakefield.profile = profile
+        with self.assertRaises(RuntimeError):
+            wrong_source = Mock(InductiveImpedance)
+            wrong_source.is_dynamic = False
+            parent_wakefield.sources = (wrong_source, resonators)
+            self.analytical_single_turn_solver.on_wakefield_init_simulation(
+                simulation=simulation, parent_wakefield=parent_wakefield
+            )
+        with self.assertRaises(RuntimeError):
+            wrong_source.is_dynamic = True
+            parent_wakefield.sources = (wrong_source, resonators)
+            self.analytical_single_turn_solver.on_wakefield_init_simulation(
+                simulation=simulation, parent_wakefield=parent_wakefield
+            )
+        with self.assertRaises(ValueError):
+            parent_wakefield.profile = None
+            parent_wakefield.sources = (resonators, )
+            self.analytical_single_turn_solver.on_wakefield_init_simulation(
+                simulation=simulation, parent_wakefield=parent_wakefield
+            )
+
+        # resonators.get_wake.return_value = np.array([1 / 3, 1 / 3, 1 / 3])
+
+    def test_calc_induced_voltage(self):
+        pass
