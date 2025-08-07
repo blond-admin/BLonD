@@ -483,15 +483,17 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
         self._parent_wakefield = parent_wakefield
         self._wake_pot_vals_needs_update = True
 
-        is_dynamic = isinstance(parent_wakefield.profile, DynamicProfileConstCutoff
-                                ) or isinstance(parent_wakefield.profile,
-                                                DynamicProfileConstNBins)
+        is_dynamic = isinstance(
+            parent_wakefield.profile, DynamicProfileConstCutoff
+        ) or isinstance(parent_wakefield.profile, DynamicProfileConstNBins)
         if is_dynamic:
             raise RuntimeError("dynamic profiles are not supported")
 
         for source in self._parent_wakefield.sources:
             if source.is_dynamic or not isinstance(source, Resonators):
-                raise RuntimeError("source needs to be a Resonator and must not be dynamic")
+                raise RuntimeError(
+                    "source needs to be a Resonator and must not be dynamic"
+                )
 
     def _update_potential_sources(self) -> None:
         """
@@ -502,15 +504,22 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
         """
         if not self._wake_pot_vals_needs_update:
             return
-        profile_width = self._parent_wakefield.profile.cut_right - self._parent_wakefield.profile.cut_left
-        self._wake_pot_time = np.arange(self._parent_wakefield.profile.cut_left - profile_width / 2,
-                                     self._parent_wakefield.profile.cut_right + profile_width / 2,  # TODO: do we actually need this? --> check convolution and which values are actually needed
-                                     self._parent_wakefield.profile.bin_size)  # necessary for boundary effects
+        profile_width = (
+            self._parent_wakefield.profile.cut_right
+            - self._parent_wakefield.profile.cut_left
+        )
+        self._wake_pot_time = np.arange(
+            self._parent_wakefield.profile.cut_left - profile_width / 2,
+            self._parent_wakefield.profile.cut_right
+            + profile_width / 2
+            + self._parent_wakefield.profile.bin_size,
+            self._parent_wakefield.profile.bin_size,
+        )  # necessary for boundary effects
         self._wake_pot_vals = np.zeros_like(self._wake_pot_time)
         for source in self._parent_wakefield.sources:  # TODO: do we ever need multiple resonstors objects in here --> probably not, resonators are defined in the Sources
             self._wake_pot_vals += source.get_wake(self._wake_pot_time)
 
-        self._wake_pot_vals_needs_update = False # avoid repeated update
+        self._wake_pot_vals_needs_update = False  # avoid repeated update
 
     def calc_induced_voltage(self, beam: BeamBaseClass) -> NumpyArray | CupyArray:
         """
@@ -530,11 +539,14 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
             self._update_potential_sources()
 
         _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
-                beam.n_particles / beam.n_macroparticles_partial())
+            beam.n_particles / beam.n_macroparticles_partial
+        )
 
-        return _charge_per_macroparticle * np.convolve(self._parent_wakefield.profile.n_macroparticles,
-                                                       self._wake_pot_vals,
-                                                       mode="valid")  # TODO: check which mode is necessary
+        return _charge_per_macroparticle * np.convolve(
+            self._wake_pot_vals,
+            self._parent_wakefield.profile.hist_y[::-1],  # inverse for time-indexing
+            mode="valid",
+        )  # Truncate based on actual requirement
 
 
 class MutliTurnResonatorSolver(WakeFieldSolver):
