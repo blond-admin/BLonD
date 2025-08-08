@@ -13,7 +13,7 @@ from blond3.physics.impedances.solvers import (
     InductiveImpedanceSolver, AnalyticSingleTurnResonatorSolver,
 )
 from blond3.physics.profiles import StaticProfile, DynamicProfileConstCutoff, DynamicProfileConstNBins
-from scipy.constants import e
+from scipy.constants import e, c
 
 
 class TestInductiveImpedanceSolver(unittest.TestCase):
@@ -210,7 +210,46 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         assert np.sum(calced_voltage[profile_width + 2:]) == 0
 
     def test_against_CST_results(self):
-        pass
+        # CST settings: open BC at z, magnetic symmetry planes, ec1 parameters from https://cds.cern.ch/record/533324, f_cutoff = 2.5GHz, WF length = 5m
+        # create bunch with sigma of 40mm --> set this as profile, convolute with potential to get wake for the first 5 meters
+        sigma_z = 40e-3
+        R_over_Q = np.array([51.76927, 13.50506])
+        q_factor = np.array([5.927339e8, 5.60969e5])
+        freq = np.array([1.30191e9, 2.45073e9])
+        R_shunt = R_over_Q * q_factor
+
+        res = Resonators(quality_factors=q_factor,
+                         shunt_impedances=R_shunt,
+                         center_frequencies=freq)
+        analy = AnalyticSingleTurnResonatorSolver()
+
+        bunch_time = np.linspace(-sigma_z * 8.54 / c , 8.54 * sigma_z / c, 2**12)
+        bunch = np.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
+
+        analy._parent_wakefield = Mock(WakeField)
+        analy._parent_wakefield.profile.cut_left = -sigma_z * 8.54 / c
+        analy._parent_wakefield.profile.cut_right = 8.54 * sigma_z / c
+        analy._parent_wakefield.profile.bin_size = bunch_time[1] - bunch_time[0]
+        analy._parent_wakefield.profile.hist_x = bunch_time
+        analy._parent_wakefield.profile.hist_y = bunch / np.sum(bunch)
+
+        analy._parent_wakefield.sources = (res,)
+
+        beam = Mock(BeamBaseClass)
+        beam.n_particles = int(1e3)
+        beam.particle_type.charge = 1 / e
+        beam.n_macroparticles_partial = int(1e3)
+        # n_particles == n_macroparticles, integrated bunch is 1 --> all normalized to 1C
+
+        analy._wake_pot_vals_needs_update = True
+
+        calced_voltage = analy.calc_induced_voltage(beam=beam)
+
+        cst_result = np.load("resources/TESLA_ec1_WF_pot.npz")
+        time_axis = cst_result["s_axis"] / c
+        pot_axis = cst_result["pot_axis"] * 1e12 # pC
+
+        assert np.allclose(np.interp(bunch_time, time_axis, pot_axis)[len(calced_voltage) // 2:], calced_voltage[len(calced_voltage) // 2:], atol=1e10)
 
 
     def test_calc_induced_voltage(self):
