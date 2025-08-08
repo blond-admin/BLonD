@@ -546,7 +546,7 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
             self._wake_pot_vals,
             self._parent_wakefield.profile.hist_y[::-1],  # inverse for time-indexing
             mode="valid",
-        )  # Truncate based on actual requirement
+        )[1:]  # output is one elemtent too long with valid
 
 
 class MutliTurnResonatorSolver(WakeFieldSolver):
