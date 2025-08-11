@@ -182,16 +182,6 @@ class CoupledBunchAnalysis:
 
         self._motion_fft(n_bunch)
 
-
-    @property
-    def frequency_limits(self) -> tuple[float, float]:
-        return self._frequency_limits
-
-    @frequency_limits.setter
-    def frequency_limits(self, limits: tuple[float, float]):
-        self._frequency_limits = limits
-
-
     def _motion_fft(self, n_bunch: int):
 
         for i in range(n_bunch):
