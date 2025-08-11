@@ -126,14 +126,15 @@ class CoupledBunchAnalysis:
     def __init__(self, mode_numbers: ArrayLike[int], n_samples: int,
                  profile: Profile, mode: CBFBModes = CBFBModes.DIPOLAR,
                  max_n_bunch: Optional[int] = None,
-                 n_fft: Optional[int] = None):
+                 n_fft: Optional[int] = None,
+                 frequency_limits: Optional[tuple[float]] = None):
 
-        self.mode_numbers = np.array(mode_numbers)
-        self.n_samples = n_samples
-        self.profile = profile
+        self._mode_numbers = np.array(mode_numbers)
+        self._n_samples = n_samples
+        self._profile = profile
 
         self._n_fft = n_samples if n_fft is None else n_fft
-        self._fft_freqs = npfft.rfftfreq(self._n_fft, self.profile.bin_size)
+        self._fft_freqs = npfft.rfftfreq(self._n_fft, self._profile.bin_size)
 
         self._max_n = (np.max(mode_numbers) if max_n_bunch is None
                                             else max_n_bunch)
@@ -154,12 +155,30 @@ class CoupledBunchAnalysis:
             case CBFBModes.QUADRUPOLAR:
                 self._measure = _quadrupole_measure
 
-        self._frequency_limits = (0., self._fft_freqs[-1])
+        if frequency_limits is None:
+            self._frequency_limits = (0., self._fft_freqs[-1])
+        else:
+            self._frequency_limits = tuple(frequency_limits)
 
+        self._fft_inds = np.where(
+                            (self._fft_freqs>=self._frequency_limits[0])
+                            *(self._fft_freqs<=self._frequency_limits[1]))[0]
+
+    @property
+    def mode_amplitudes(self):
+        return self._mode_amplitudes.copy()
+
+    @property
+    def mode_frequencies(self):
+        return self._mode_frequencies.copy()
+
+    @property
+    def mode_phases(self):
+        return self._mode_phases.copy()
 
     def track(self):
 
-        n_bunch = self._measure(self.profile, self._bunch_data)
+        n_bunch = self._measure(self._profile, self._bunch_data)
 
         self._motion_fft(n_bunch)
 
@@ -176,13 +195,30 @@ class CoupledBunchAnalysis:
     def _motion_fft(self, n_bunch: int):
 
         for i in range(n_bunch):
-            self._fft_matrix = (npfft.rfft(self._bunch_data[i], self._n_fft)
-                                * (2/self.n_samples))
+            self._fft_matrix[i] = (npfft.rfft(self._bunch_data[i], self._n_fft)
+                                * (2/self._n_samples))
 
-    def _mode_analysis(self):
+    def _mode_analysis(self, n_bunch: int):
 
-        for i in range(self._max_n):
-            ...
+        for i_mode in range(self._max_n):
+
+            samp_data_fft_tot = 0
+
+            for j_bunch in range(n_bunch):
+                phase_advance = -j_bunch * i_mode * (2*np.pi) / n_bunch
+                samp_data_fft_tot += (self._fft_matrix[j_bunch]
+                                    * np.exp(1j*phase_advance) / n_bunch)
+
+            amp, freq, phase = calc_amp_freq_phase(self._fft_freqs,
+                                                   samp_data_fft_tot,
+                                                   self._fft_inds, 0,
+                                                   0,
+                                                   offset_no_interp = np.pi/2)
+
+            self._mode_amplitudes[i_mode] = amp
+            self._mode_frequencies[i_mode] = freq
+            self._mode_phases[i_mode] = phase
+
 
 
 def calc_amp_freq_phase(data_freq: NDArray, data_fft: NDArray,
