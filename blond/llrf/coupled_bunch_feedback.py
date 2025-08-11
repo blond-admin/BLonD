@@ -48,17 +48,17 @@ class CoupledBunchFeedback:
                  max_n_bunch: Optional[int] = None,
                  n_fft: Optional[int] = None):
 
-        self.mode_numbers = np.array(mode_numbers)
-        self.phases = np.array(phases)
-        self.gains = np.array(gains)
-        self.profile = profile
-        self.mode = mode
-        self.n_samples = n_samples
+        self._mode_numbers = np.array(mode_numbers)
+        self._phases = np.array(phases)
+        self._gains = np.array(gains)
+        self._profile = profile
+        self._mode = mode
+        self._n_samples = n_samples
 
         self._sample_turns = np.arange(n_samples)
         self._n_fft = n_samples if n_fft is None else n_fft
 
-        self._fft_freqs = npfft.rfftfreq(self._n_fft, self.profile.bin_size)
+        self._fft_freqs = npfft.rfftfreq(self._n_fft, self._profile.bin_size)
 
         self._max_n = (np.max(mode_numbers) if max_n_bunch is None
                                             else max_n_bunch)
@@ -82,7 +82,7 @@ class CoupledBunchFeedback:
 
     def track(self):
 
-        self._measure(self.profile, self._bunch_data)
+        self._measure(self._profile, self._bunch_data)
         self._motion_fft()
         self._motion_analysis()
 
@@ -90,19 +90,19 @@ class CoupledBunchFeedback:
             freq_CBFB = (self._mode_frequencies[mode] + mode*self._max_n)
             phase_CBFB = self._mode_phases[mode]
 
-            fb_volt = self.gains[mode] * self._mode_amplitudes[mode]
+            fb_volt = self._gains[mode] * self._mode_amplitudes[mode]
 
             fb_wave = fb_volt * np.sin(2*np.pi*freq_CBFB + phase_CBFB
-                                       + self.phases[mode])
+                                       + self._phases[mode])
 
     def _motion_fft(self):
 
         for i, b in enumerate(self._bunch_data):
 
-            correction = _linear_correction(self.profile.bin_centers, b)
+            correction = _linear_correction(self._profile.bin_centers, b)
 
             self._fft_matrix[i] = (npfft.rfft(b-correction, self._n_fft)
-                                   * 2/self.n_samples)
+                                   * 2/self._n_samples)
 
     def _motion_analysis(self):
 
