@@ -63,6 +63,30 @@ class TestCoupledBunchAnalysis(unittest.TestCase):
         nptest.assert_array_equal(cba.mode_frequencies, np.zeros(modes[3]))
         nptest.assert_array_equal(cba.mode_phases, np.zeros(modes[3]))
 
+    def test_dip_measure(self):
+        positions = np.linspace(0.5/21, 1-0.5/21, 21)*2E-6
+        self.profile.bunchPosition = positions
+
+        modes = np.arange(21)+1
+        n_samp = 250
+        cba = b_cbfb.CoupledBunchAnalysis(modes, n_samp, self.profile,
+                                          mode = b_cbfb.CBFBModes.DIPOLAR)
+
+        nptest.assert_array_equal(cba._bunch_data, np.zeros([21, 250]))
+
+        cba._measure(self.profile, cba._bunch_data)
+
+        nptest.assert_array_equal(cba._bunch_data[:,-1], positions)
+
+    def test_quad_measure(self):
+
+        self.profile.bunchLength = np.array([10E-9]*21)
+
+        modes = np.arange(21)+1
+        n_samp = 250
+        cba = b_cbfb.CoupledBunchAnalysis(modes, n_samp, self.profile,
+                                          mode = b_cbfb.CBFBModes.QUADRUPOLAR)
+
 
 class TestSupportFuncs(unittest.TestCase):
 
