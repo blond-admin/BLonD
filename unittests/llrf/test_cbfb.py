@@ -149,13 +149,34 @@ class TestCoupledBunchAnalysis(unittest.TestCase):
         cba._motion_fft(n_bunch)
         cba._mode_analysis(n_bunch)
 
-        for i, a in enumerate(cba.mode_amplitudes):
-            print(i, a)
-
         max_at = np.where(cba.mode_amplitudes
                                  == np.max(cba.mode_amplitudes))[0][0]
         self.assertEqual(max_at, 4)
 
+    def _test_mode_analysis_full_ring(self):
+        # TODO: Solve testing with incomplete ring
+
+        mode = 4
+        n_bunch = 18
+        max_n_bunch = 21
+        freq = 2.014E-3 # 1/turn
+        phase_advance = 2*np.pi*mode/max_n_bunch
+        time = np.arange(2**14)
+
+        cba = b_cbfb.CoupledBunchAnalysis(time.shape[0], self.profile,
+                                          max_n_bunch,
+                                          mode = b_cbfb.CBFBModes.DIPOLAR)
+
+        phase = 0
+        for i in range(n_bunch):
+            signal = np.sin(2*np.pi*freq*time + phase)
+            cba._bunch_data[i, :] = signal
+            phase += phase_advance
+
+        cba._motion_fft(n_bunch)
+        max_at = np.where(cba.mode_amplitudes
+                                 == np.max(cba.mode_amplitudes))[0][0]
+        self.assertEqual(max_at, 4)
 
 
 
