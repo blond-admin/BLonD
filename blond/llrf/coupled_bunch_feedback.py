@@ -142,7 +142,7 @@ class CoupledBunchAnalysis:
         self._bunch_data = np.zeros([self._max_n, n_samples])
 
         self._fft_matrix = np.zeros([self._max_n,
-                                     np.ceil(self._n_fft/2).astype(int)],
+                                     self._fft_freqs.shape[0]],
                                      dtype=complex)
 
         self._mode_amplitudes = np.zeros(self._max_n)
