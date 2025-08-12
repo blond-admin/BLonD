@@ -110,6 +110,23 @@ class TestCoupledBunchAnalysis(unittest.TestCase):
             nptest.assert_array_equal(cba._bunch_data[:,i], lengths)
 
 
+    def test_fft(self):
+
+        freqs = [2E-3, 4E-3, 6E-3, 8E-3] # 1/turn
+        time = np.linspace(0, 10/freqs[0], 2**16)
+
+        cba = b_cbfb.CoupledBunchAnalysis([1, 2, 3, 4], time.shape[0],
+                                          self.profile,
+                                          mode = b_cbfb.CBFBModes.QUADRUPOLAR)
+
+        for i, f in enumerate(freqs):
+            oscill = np.sin(2*np.pi*f*time)
+            cba._bunch_data[i] = oscill
+
+        cba._motion_fft(4)
+
+
+
 
 
 class TestSupportFuncs(unittest.TestCase):
