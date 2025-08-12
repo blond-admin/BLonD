@@ -123,21 +123,18 @@ class CoupledBunchFeedback:
 
 class CoupledBunchAnalysis:
 
-    def __init__(self, mode_numbers: ArrayLike[int], n_samples: int,
-                 profile: Profile, mode: CBFBModes = CBFBModes.DIPOLAR,
-                 max_n_bunch: Optional[int] = None,
+    def __init__(self, n_samples: int, profile: Profile, max_n_bunch: int,
+                 mode: CBFBModes = CBFBModes.DIPOLAR,
                  n_fft: Optional[int] = None,
                  frequency_limits: Optional[tuple[float]] = None):
 
-        self._mode_numbers = np.array(mode_numbers)
         self._n_samples = n_samples
         self._profile = profile
 
         self._n_fft = n_samples if n_fft is None else n_fft
         self._fft_freqs = npfft.rfftfreq(self._n_fft)
 
-        self._max_n = (np.max(mode_numbers) if max_n_bunch is None
-                                            else max_n_bunch)
+        self._max_n = max_n_bunch
 
         self._bunch_data = np.zeros([self._max_n, n_samples])
 
