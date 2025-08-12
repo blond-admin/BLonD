@@ -64,7 +64,9 @@ class TestCoupledBunchAnalysis(unittest.TestCase):
         nptest.assert_array_equal(cba.mode_phases, np.zeros(modes[3]))
 
     def test_dip_measure(self):
+
         positions = np.linspace(0.5/21, 1-0.5/21, 21)*2E-6
+
         self.profile.bunchPosition = positions
 
         modes = np.arange(21)+1
@@ -77,6 +79,13 @@ class TestCoupledBunchAnalysis(unittest.TestCase):
         cba._measure(self.profile, cba._bunch_data)
 
         nptest.assert_array_equal(cba._bunch_data[:,-1], positions)
+
+        for _ in range(n_samp):
+            cba._measure(self.profile, cba._bunch_data)
+
+        for i in range(n_samp):
+            nptest.assert_array_equal(cba._bunch_data[:,i], positions)
+
 
     def test_quad_measure(self):
 
