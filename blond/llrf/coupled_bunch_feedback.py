@@ -134,7 +134,7 @@ class CoupledBunchAnalysis:
         self._profile = profile
 
         self._n_fft = n_samples if n_fft is None else n_fft
-        self._fft_freqs = npfft.rfftfreq(self._n_fft, self._profile.bin_size)
+        self._fft_freqs = npfft.rfftfreq(self._n_fft)
 
         self._max_n = (np.max(mode_numbers) if max_n_bunch is None
                                             else max_n_bunch)
