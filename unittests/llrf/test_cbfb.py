@@ -113,7 +113,7 @@ class TestCoupledBunchAnalysis(unittest.TestCase):
     def test_fft(self):
 
         freqs = [2E-3, 4E-3, 6E-3, 8E-3] # 1/turn
-        time = np.linspace(0, 10/freqs[0], 2**16)
+        time = np.arange(2**16)
 
         cba = b_cbfb.CoupledBunchAnalysis([1, 2, 3, 4], time.shape[0],
                                           self.profile,
@@ -124,6 +124,13 @@ class TestCoupledBunchAnalysis(unittest.TestCase):
             cba._bunch_data[i] = oscill
 
         cba._motion_fft(4)
+
+        for i, f in enumerate(freqs):
+            max_pt = np.where(np.abs(cba._fft_matrix[i])
+                              == np.max(np.abs(cba._fft_matrix[i])))[0][0]
+            self.assertAlmostEqual(f, cba._fft_freqs[max_pt], places = 4)
+
+
 
 
 
