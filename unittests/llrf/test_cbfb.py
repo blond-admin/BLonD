@@ -128,6 +128,33 @@ class TestCoupledBunchAnalysis(unittest.TestCase):
             self.assertAlmostEqual(f, cba._fft_freqs[max_pt], places = 4)
 
 
+    def test_mode_analysis_full_ring(self):
+
+        mode = 4
+        n_bunch = 21
+        freq = 2E-3 # 1/turn
+        phase_advance = 2*np.pi*mode/n_bunch
+        time = np.arange(2**10)
+
+        cba = b_cbfb.CoupledBunchAnalysis(time.shape[0], self.profile,
+                                          n_bunch,
+                                          mode = b_cbfb.CBFBModes.DIPOLAR)
+
+        phase = 0
+        for i in range(n_bunch):
+            signal = np.sin(2*np.pi*freq*time + phase)
+            cba._bunch_data[i, :] = signal
+            phase += phase_advance
+
+        cba._motion_fft(n_bunch)
+        cba._mode_analysis(n_bunch)
+
+        for i, a in enumerate(cba.mode_amplitudes):
+            print(i, a)
+
+        max_at = np.where(cba.mode_amplitudes
+                                 == np.max(cba.mode_amplitudes))[0][0]
+        self.assertEqual(max_at, 4)
 
 
 
