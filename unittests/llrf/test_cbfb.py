@@ -89,12 +89,27 @@ class TestCoupledBunchAnalysis(unittest.TestCase):
 
     def test_quad_measure(self):
 
-        self.profile.bunchLength = np.array([10E-9]*21)
+        lengths = np.array([10E-9]*21)
+        self.profile.bunchLength = lengths
 
         modes = np.arange(21)+1
         n_samp = 250
         cba = b_cbfb.CoupledBunchAnalysis(modes, n_samp, self.profile,
                                           mode = b_cbfb.CBFBModes.QUADRUPOLAR)
+
+        nptest.assert_array_equal(cba._bunch_data, np.zeros([21, 250]))
+
+        cba._measure(self.profile, cba._bunch_data)
+
+        nptest.assert_array_equal(cba._bunch_data[:,-1], lengths)
+
+        for _ in range(n_samp):
+            cba._measure(self.profile, cba._bunch_data)
+
+        for i in range(n_samp):
+            nptest.assert_array_equal(cba._bunch_data[:,i], lengths)
+
+
 
 
 class TestSupportFuncs(unittest.TestCase):
