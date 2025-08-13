@@ -23,6 +23,7 @@ from ..._core.base import DynamicParameter
 from ..._core.beam.base import BeamBaseClass
 from ..._core.ring.helpers import requires
 from ..._core.simulation.simulation import Simulation
+from collections import deque
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
@@ -548,5 +549,118 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
 
 
 class MutliTurnResonatorSolver(WakeFieldSolver):
-    def __init__(self):  # TODO
-        raise NotImplementedError()
+    """
+    Solver, which saves the profiles of past passes and sums the
+    wakefields of all previous and the current pass together
+
+    Members
+    -------
+    _wake_pot_vals and _wake_pot_time are both lists holding the wake potentials,
+    with the 0th entry being from the current pass and all previous entries,
+
+    _past_profiles and _past_profile_times time and amplitude arrays for the previous
+    profiles.
+    """
+
+    def __init__(self, decay_fraction_threshold: float = .1):  # TODO
+        """
+        Parameters
+        ----------
+        decay_fraction_threshold: float
+            until which fraction of the decay will the profile
+            still be considered for multi-pass wake calculation
+        """
+        super().__init__()
+        self._wake_pot_vals: LateInit[list[NumpyArray]] = None
+        self._wake_pot_time: LateInit[list[NumpyArray]] = None
+        self._wake_pot_vals_needs_update = True  # initialization
+
+        self._past_profiles: LateInit[list[NumpyArray]] = None
+        self._past_profile_times: LateInit[list[NumpyArray]] = None
+        self._past_charge_per_macroparticle: LateInit[NumpyArray] = None
+
+        self._maximum_storage_time: LateInit[float] = None
+        self._decay_fraction_threshold = decay_fraction_threshold
+
+        self._simulation: LateInit[NumpyArray] = None
+        self._parent_wakefield: LateInit[NumpyArray] = None
+
+    def _determine_storage_time(self):
+        """
+        sum up the contributions of all resonators and determine how long they should be stored in time
+        """
+        if self._parent_wakefield is None:
+            raise RuntimeError("parent wakefield must be present before this function can be called")
+        for source in self._parent_wakefield.sources:
+            # 7 time constants --> approx. .1%
+            time_axis = np.linspace(0, np.max(source._quality_factors / source._omega), 10000)
+            envelope = 0
+            for res_ind in range(len(source._quality_factors)):
+                envelope += source._shunt_impedances[res_ind] * source._alpha[res_ind] * np.exp(-source._alpha[res_ind] / time_axis)
+
+            storage_time = np.abs(envelope - self._decay_fraction_threshold).argmin()
+            if storage_time > self._maximum_storage_time:
+                self._maximum_storage_time = storage_time
+
+
+    def on_wakefield_init_simulation(
+            self, simulation: Simulation, parent_wakefield: WakeField
+    ) -> None:
+        """Lateinit method when WakeField is late-initialized
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+        parent_wakefield
+            Wakefield that this solver affiliated to
+        """
+        self._simulation = simulation
+        if parent_wakefield.profile is None:
+            raise ValueError(f"parent wakefield needs to have a profile")
+        self._parent_wakefield = parent_wakefield
+        self._wake_pot_vals_needs_update = True
+
+        self._past_profiles = []
+        self._past_profile_times = []
+
+        self._maximum_storage_time = 0
+
+        is_dynamic = isinstance(
+            parent_wakefield.profile, DynamicProfileConstCutoff
+        ) or isinstance(parent_wakefield.profile, DynamicProfileConstNBins)
+        if is_dynamic:
+            raise RuntimeError("dynamic profiles are not supported")
+
+        for source in self._parent_wakefield.sources:
+            if source.is_dynamic or not isinstance(source, Resonators):
+                raise RuntimeError("source needs to be a Resonator and must not be dynamic")
+
+        self._determine_storage_time()
+
+    def _update_potential_sources(self, current_time: float=0) -> None:
+        """
+        Updates `_wake_pot_time`  and `_wake_pot_vals` arrays if `self._wake_pot_vals_needs_update=True`
+
+        The time axis is chosen based on the profile in `_parent_wakefield.profile`
+
+        """
+        # TODO: kick out overstoraged profiles from lists
+
+        if not self._wake_pot_vals_needs_update:
+            return
+        profile_width = (
+                self._parent_wakefield.profile.cut_right
+                - self._parent_wakefield.profile.cut_left
+        )
+        self._wake_pot_time = np.arange(
+            self._parent_wakefield.profile.cut_left - profile_width / 2,
+            self._parent_wakefield.profile.cut_right
+            + profile_width / 2,
+            self._parent_wakefield.profile.bin_size,
+        )  # necessary for boundary effects
+        self._wake_pot_vals = np.zeros_like(self._wake_pot_time)
+        for source in self._parent_wakefield.sources:  # TODO: do we ever need multiple resonstors objects in here --> probably not, resonators are defined in the Sources
+            self._wake_pot_vals += source.get_wake(self._wake_pot_time)
+
+        self._wake_pot_vals_needs_update = False  # avoid repeated update
