@@ -46,7 +46,6 @@ class CoupledBunchFeedback:
                  gains: ArrayLike[float], n_samples: int, profile: Profile,
                  mode: CBFBModes = CBFBModes.DIPOLAR,
                  max_n_bunch: Optional[int] = None,
-                 n_fft: Optional[int] = None):
 
         self._mode_numbers = np.array(mode_numbers)
         self._phases = np.array(phases)
@@ -55,36 +54,17 @@ class CoupledBunchFeedback:
         self._mode = mode
         self._n_samples = n_samples
 
-        self._sample_turns = np.arange(n_samples)
-        self._n_fft = n_samples if n_fft is None else n_fft
 
         self._fft_freqs = npfft.rfftfreq(self._n_fft, self._profile.bin_size)
 
         self._max_n = (np.max(mode_numbers) if max_n_bunch is None
                                             else max_n_bunch)
 
-        self._bunch_data = np.zeros([self._max_n, n_samples])
 
-        self._fft_matrix = np.zeros([self._max_n,
-                                     np.ceil(self._n_fft/2, dtype=int)],
-                                    dtype=complex)
-
-        self._mode_amplitudes = np.zeros(self._max_n)
-        self._mode_frequencies = np.zeros(self._max_n)
-        self._mode_phases = np.zeros(self._max_n)
-
-        match mode:
-            case CBFBModes.DIPOLAR:
-                self._measure = _dipole_measure
-            case CBFBModes.QUADRUPOLAR:
-                self._measure = _quadrupole_measure
 
 
     def track(self):
 
-        self._measure(self._profile, self._bunch_data)
-        self._motion_fft()
-        self._motion_analysis()
 
         for mode in range(self._max_n):
             freq_CBFB = (self._mode_frequencies[mode] + mode*self._max_n)
@@ -94,31 +74,6 @@ class CoupledBunchFeedback:
 
             fb_wave = fb_volt * np.sin(2*np.pi*freq_CBFB + phase_CBFB
                                        + self._phases[mode])
-
-    def _motion_fft(self):
-
-        for i, b in enumerate(self._bunch_data):
-
-            correction = _linear_correction(self._profile.bin_centers, b)
-
-            self._fft_matrix[i] = (npfft.rfft(b-correction, self._n_fft)
-                                   * 2/self._n_samples)
-
-    def _motion_analysis(self):
-
-        for i in range(self._max_n):
-
-            abs_fft = np.abs(self._fft_matrix[i])
-            amp = np.max(abs_fft)
-            pos = np.where(abs_fft == amp)[0][0]
-
-            freq = self._fft_freqs[pos]
-            phase = (np.angle(self._fft_matrix[i][pos]
-                              * np.exp(1j*2*np.pi*freq*self._sample_turns)))
-
-            self._mode_amplitudes[i] = amp
-            self._mode_frequencies[i] = freq
-            self._mode_phases[i] = phase
 
 
 class CoupledBunchAnalysis:
