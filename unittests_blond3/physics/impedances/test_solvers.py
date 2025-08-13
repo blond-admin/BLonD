@@ -485,7 +485,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         assert np.isclose(np.sum(self.multi_pass_resonator_solver._past_profile_times[1]), 3.6)
         assert np.isclose(np.sum(self.multi_pass_resonator_solver._past_profiles[1]), 6)
 
-    def test_update_past_profile_times(self):
+    def test_update_past_profile_times_wake_times(self):
         self.multi_pass_resonator_solver._past_profile_times = deque(
             [np.array([0.1, 0.2, 0.3]), np.array([1.1, 1.2, 1.3]), np.array([2.1, 2.2, 2.3])])
         self.multi_pass_resonator_solver._wake_pot_time = deque(
@@ -504,3 +504,17 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         with self.assertRaises(AssertionError):
             self.multi_pass_resonator_solver._update_past_profile_times_wake_times(
                 current_time=self.multi_pass_resonator_solver._last_reference_time - delta_t)
+
+    def test__update_past_profile_potentials(self):
+        # test that initialization of new array works properly
+        # TODO: tomorrow first thing
+        # compare with profile bin centers --> this needs to be fixed in source, currently the spacing is correct, but it is not exactly at the positions of the bunch --> this might be leading to the skew that we see
+        pass
+
+    def test__update_potential_sources(self):
+        # not much to test here, check, that everything gets adjusted correctly according to current time, similar to update_past_profile_times, etc
+        # test array lengths
+        pass
+
+    def test_calc_induced_voltage(self):
+        pass

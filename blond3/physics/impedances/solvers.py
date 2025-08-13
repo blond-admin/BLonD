@@ -685,7 +685,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                     self._parent_wakefield.profile.cut_right
                     + profile_width / 2,
                     self._parent_wakefield.profile.bin_size,
-                ))
+                ))  # TODO: this will not be at the bin centers, where its actually needed
 
                 self._wake_pot_vals.appendleft(np.zeros_like(self._wake_pot_time))
 
