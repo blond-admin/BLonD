@@ -366,10 +366,44 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             quality_factors=np.array([10e3]),
         )
         local_solv = deepcopy(self.multi_pass_resonator_solver)
-        local_solv._parent_wakefield.sources = (single_resonator,)
         local_solv.on_wakefield_init_simulation(simulation=simulation,
                                                 parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield)
         local_solv._parent_wakefield.sources = (single_resonator,)
         local_solv._determine_storage_time()
         assert np.isclose(local_solv._maximum_storage_time,
-                          -np.log(local_solv._decay_fraction_threshold) / single_resonator._alpha[0])  # reference value for 0.1% decay
+                          -np.log(local_solv._decay_fraction_threshold) / single_resonator._alpha[0])
+
+    def test_determine_storage_time_multi_res(self):
+        # Check for mixing with multiple resonators
+        simulation = Mock(Simulation)
+        single_resonator = Resonators(
+            shunt_impedances=np.array([1, 10]),
+            center_frequencies=np.array([500e6, 500e6]),
+            quality_factors=np.array([10e3, 10e6]),
+        )  # 2nd one should be way later, but similar amplitude
+        local_solv = deepcopy(self.multi_pass_resonator_solver)
+        local_solv.on_wakefield_init_simulation(simulation=simulation,
+                                                parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield)
+        local_solv._parent_wakefield.sources = (single_resonator,)
+        local_solv._determine_storage_time()
+        assert not np.isclose(local_solv._maximum_storage_time,
+                          -np.log(local_solv._decay_fraction_threshold) / single_resonator._alpha[0])
+        assert not np.isclose(local_solv._maximum_storage_time,
+                            -np.log(local_solv._decay_fraction_threshold) / single_resonator._alpha[1])  # mixing of signals
+
+        # check if one properly overshadows the other with high R_shunt
+        single_resonator = Resonators(
+            shunt_impedances=np.array([1, 1e9]),
+            center_frequencies=np.array([500e6, 500e6]),
+            quality_factors=np.array([10e3, 10e6]),
+        )  # 2nd one should be way later
+        local_solv = deepcopy(self.multi_pass_resonator_solver)
+        local_solv.on_wakefield_init_simulation(simulation=simulation,
+                                                parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield)
+        local_solv._parent_wakefield.sources = (single_resonator,)
+        local_solv._determine_storage_time()
+        assert not np.isclose(local_solv._maximum_storage_time,
+                              -np.log(local_solv._decay_fraction_threshold) / single_resonator._alpha[0])
+        assert np.isclose(local_solv._maximum_storage_time,
+                              -np.log(local_solv._decay_fraction_threshold) / single_resonator._alpha[
+                                  1])  # no mixing due to 2nd one with way higher shunt impedance
