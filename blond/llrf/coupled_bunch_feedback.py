@@ -146,7 +146,8 @@ class CoupledBunchAnalysis:
         self._mode_frequencies = np.zeros(self._max_n)
         self._mode_phases = np.zeros(self._max_n)
 
-        match mode:
+        self._mode = mode
+        match self._mode:
             case CBFBModes.DIPOLAR:
                 self._measure = _dipole_measure
             case CBFBModes.QUADRUPOLAR:
