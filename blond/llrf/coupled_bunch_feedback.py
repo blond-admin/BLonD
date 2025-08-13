@@ -46,6 +46,7 @@ class CoupledBunchFeedback:
                  gains: ArrayLike[float], n_samples: int, profile: Profile,
                  mode: CBFBModes = CBFBModes.DIPOLAR,
                  max_n_bunch: Optional[int] = None,
+                 cba: Optional[CoupledBunchAnalysis] = None):
 
         self._mode_numbers = np.array(mode_numbers)
         self._phases = np.array(phases)
@@ -54,17 +55,23 @@ class CoupledBunchFeedback:
         self._mode = mode
         self._n_samples = n_samples
 
-
         self._fft_freqs = npfft.rfftfreq(self._n_fft, self._profile.bin_size)
 
         self._max_n = (np.max(mode_numbers) if max_n_bunch is None
                                             else max_n_bunch)
 
+        if cba is None:
+            self._cba = CoupledBunchAnalysis(self._n_samples, self._profile,
+                                             self._max_n, self._mode)
+        else:
+            self._cba = cba
 
+        if self._cba._mode != self._mode:
+            raise ValueError("Feedback mode does not match "
+                             +"CoupledBunchAnalysis mode")
 
 
     def track(self):
-
 
         for mode in range(self._max_n):
             freq_CBFB = (self._mode_frequencies[mode] + mode*self._max_n)
