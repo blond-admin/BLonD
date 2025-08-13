@@ -488,15 +488,19 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
     def test_update_past_profile_times(self):
         self.multi_pass_resonator_solver._past_profile_times = deque(
             [np.array([0.1, 0.2, 0.3]), np.array([1.1, 1.2, 1.3]), np.array([2.1, 2.2, 2.3])])
-        sum_before_shift = np.sum(self.multi_pass_resonator_solver._past_profile_times)
+        self.multi_pass_resonator_solver._wake_pot_time = deque(
+            [np.array([4.1, 4.2, 4.3]), np.array([5.1, 5.2, 5.3]), np.array([6.1, 6.2, 6.3])])
+        sum_before_shift_prof = np.sum(self.multi_pass_resonator_solver._past_profile_times)
+        sum_before_shift_wake = np.sum(self.multi_pass_resonator_solver._wake_pot_time)
         orig_ref = 1
         self.multi_pass_resonator_solver._last_reference_time = orig_ref
         delta_t = 1
-        self.multi_pass_resonator_solver._update_past_profile_times(
+        self.multi_pass_resonator_solver._update_past_profile_times_wake_times(
             current_time=self.multi_pass_resonator_solver._last_reference_time + delta_t)
-        assert np.isclose(sum_before_shift + 9, np.sum(self.multi_pass_resonator_solver._past_profile_times))
+        assert np.isclose(sum_before_shift_prof + 9, np.sum(self.multi_pass_resonator_solver._past_profile_times))
+        assert np.isclose(sum_before_shift_wake + 9, np.sum(self.multi_pass_resonator_solver._wake_pot_time))
         assert self.multi_pass_resonator_solver._last_reference_time == orig_ref + delta_t
 
         with self.assertRaises(AssertionError):
-            self.multi_pass_resonator_solver._update_past_profile_times(
+            self.multi_pass_resonator_solver._update_past_profile_times_wake_times(
                 current_time=self.multi_pass_resonator_solver._last_reference_time - delta_t)
