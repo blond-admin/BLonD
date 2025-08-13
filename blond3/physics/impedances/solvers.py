@@ -571,12 +571,13 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             still be considered for multi-pass wake calculation
         """
         super().__init__()
-        self._wake_pot_vals: LateInit[list[NumpyArray]] = None
-        self._wake_pot_time: LateInit[list[NumpyArray]] = None
+        self._wake_pot_vals: LateInit[deque[NumpyArray]] = None
+        self._wake_pot_time: LateInit[deque[NumpyArray]] = None
         self._wake_pot_vals_needs_update = True  # initialization
 
-        self._past_profiles: LateInit[list[NumpyArray]] = None
-        self._past_profile_times: LateInit[list[NumpyArray]] = None
+        self._past_profiles: LateInit[deque[NumpyArray]] = None
+        self._past_profile_times: LateInit[deque[NumpyArray]] = None
+        self._last_reference_time: LateInit[float] = None
         self._past_charge_per_macroparticle: LateInit[NumpyArray] = None
 
         self._maximum_storage_time: LateInit[float] = None
@@ -620,10 +621,11 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._parent_wakefield = parent_wakefield
         self._wake_pot_vals_needs_update = True
 
-        self._past_profiles = []
-        self._past_profile_times = []
+        self._past_profiles = deque()
+        self._past_profile_times = deque()
 
         self._maximum_storage_time = 0
+        self._last_reference_time = 0
 
         is_dynamic = isinstance(
             parent_wakefield.profile, DynamicProfileConstCutoff
@@ -637,6 +639,30 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
         self._determine_storage_time()
 
+    def _remove_fully_decayed_wake_profiles(self, indexes_to_check: int = 2) -> None:
+        """
+        Goes through _wake_pot_time from the back (oldest profile) and removes all arrays from it, which are beyond
+        self._maximum_storage_time. only the last indexes_to_check entries are checked.
+        """
+        for _ in range(indexes_to_check):
+            if np.min(self._past_profile_times[-1]) > self._maximum_storage_time:
+                self._past_profile_times.pop()
+                self._past_profiles.pop()
+                self._wake_pot_time.pop()
+                self._wake_pot_vals.pop()
+
+    def _update_past_profile_times(self, current_time):
+        """
+        advances the times in the past profile arrays by delta_t = current_time - self._last_reference_time and
+        sets self._last_reference_time to current_time afterwards
+        """
+        delta_t = current_time - self._last_reference_time
+        assert delta_t > 0  # TODO: performance = ?
+        for profile_time in self._past_profile_times:
+            profile_time += delta_t
+
+        self._last_reference_time = current_time
+
     def _update_potential_sources(self, current_time: float=0) -> None:
         """
         Updates `_wake_pot_time`  and `_wake_pot_vals` arrays if `self._wake_pot_vals_needs_update=True`
@@ -644,10 +670,13 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         The time axis is chosen based on the profile in `_parent_wakefield.profile`
 
         """
-        # TODO: kick out overstoraged profiles from lists
-
-        if not self._wake_pot_vals_needs_update:
+        if not self._wake_pot_vals_needs_update:  # TODO: how do we set this automagically?
             return
+
+        self._update_past_profile_times(current_time)
+        self._remove_fully_decayed_wake_profiles(current_time)
+
+
         profile_width = (
                 self._parent_wakefield.profile.cut_right
                 - self._parent_wakefield.profile.cut_left
