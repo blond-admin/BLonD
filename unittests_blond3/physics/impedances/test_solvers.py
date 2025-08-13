@@ -397,9 +397,6 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             center_frequencies=np.array([500e6, 500e6]),
             quality_factors=np.array([10e3, 10e6]),
         )  # 2nd one should be way later
-        local_solv = deepcopy(self.multi_pass_resonator_solver)
-        local_solv.on_wakefield_init_simulation(simulation=simulation,
-                                                parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield)
         local_solv._parent_wakefield.sources = (single_resonator,)
         local_solv._determine_storage_time()
         assert not np.isclose(local_solv._maximum_storage_time,
