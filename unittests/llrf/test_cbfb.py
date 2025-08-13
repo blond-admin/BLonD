@@ -179,6 +179,35 @@ class TestCoupledBunchAnalysis(unittest.TestCase):
         self.assertEqual(max_at, 4)
 
 
+    def test_track(self):
+
+        mode = 4
+        n_bunch = 21
+        freq = 2E-3 # 1/turn
+        phase_advance = 2*np.pi*mode/n_bunch
+        time = np.arange(2**10)
+
+        cba = b_cbfb.CoupledBunchAnalysis(time.shape[0], self.profile,
+                                          n_bunch,
+                                          mode = b_cbfb.CBFBModes.DIPOLAR)
+
+        phase = 0
+        signals = []
+        for _ in range(n_bunch):
+            signal = np.sin(2*np.pi*freq*time + phase)
+            signals.append(signal)
+            phase += phase_advance
+        signals = np.array(signals)
+
+        for i in range(len(time)):
+            self.profile.bunchPosition = signals[:,i]
+            cba.track()
+
+        max_at = np.where(cba.mode_amplitudes
+                                 == np.max(cba.mode_amplitudes))[0][0]
+        self.assertEqual(max_at, 4)
+
+
 
 
 class TestSupportFuncs(unittest.TestCase):
