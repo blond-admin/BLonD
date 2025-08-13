@@ -178,6 +178,7 @@ class CoupledBunchAnalysis:
         n_bunch = self._measure(self._profile, self._bunch_data)
 
         self._motion_fft(n_bunch)
+        self._mode_analysis(n_bunch)
 
     def _motion_fft(self, n_bunch: int):
 
