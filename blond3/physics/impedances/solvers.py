@@ -578,7 +578,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._past_profiles: LateInit[deque[NumpyArray]] = None
         self._past_profile_times: LateInit[deque[NumpyArray]] = None
         self._last_reference_time: LateInit[float] = None
-        self._past_charge_per_macroparticle: LateInit[NumpyArray] = None
+        self._past_charge_per_macroparticle: LateInit[deque[float]] = None
 
         self._maximum_storage_time: LateInit[float] = None
         self._decay_fraction_threshold = decay_fraction_threshold
@@ -623,6 +623,10 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
         self._past_profiles = deque()
         self._past_profile_times = deque()
+        self._past_charge_per_macroparticle = deque()
+
+        self._wake_pot_vals = deque()
+        self._wake_pot_time = deque()
 
         self._maximum_storage_time = 0
         self._last_reference_time = 0
@@ -651,17 +655,43 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 self._wake_pot_time.pop()
                 self._wake_pot_vals.pop()
 
-    def _update_past_profile_times(self, current_time):
+    def _update_past_profile_times_wake_times(self, current_time):
         """
         advances the times in the past profile arrays by delta_t = current_time - self._last_reference_time and
         sets self._last_reference_time to current_time afterwards
         """
         delta_t = current_time - self._last_reference_time
         assert delta_t > 0  # TODO: performance = ?
-        for profile_time in self._past_profile_times:
+        for prof_ind, profile_time in enumerate(self._past_profile_times):
             profile_time += delta_t
+            self._wake_pot_time[prof_ind] += delta_t
 
         self._last_reference_time = current_time
+
+    def _update_past_profile_potentials(self):
+        """
+        updates the wake potentials according to the new timestamps.
+        the arrays are expected to be cleaned before, such that they dont
+        include arrays past self._maximum_storage_time
+        """
+        for prof_ind in range(len(self._past_profiles)):
+            if prof_ind == 0:  # current profile does not yet have arrays initialized
+                profile_width = (  #TODO: check for cut_right and cut_left --> these are not the centers, but rather centers + bin_size/2
+                        self._parent_wakefield.profile.cut_right
+                        - self._parent_wakefield.profile.cut_left
+                )
+                self._wake_pot_time.appendleft(np.arange(
+                    self._parent_wakefield.profile.cut_left - profile_width / 2,
+                    self._parent_wakefield.profile.cut_right
+                    + profile_width / 2,
+                    self._parent_wakefield.profile.bin_size,
+                ))
+
+                self._wake_pot_vals.appendleft(np.zeros_like(self._wake_pot_time))
+
+            # now that everything is initialized, same operation for all arrays
+            for source in self._parent_wakefield.sources:  # TODO: do we ever need multiple resonstors objects in here --> probably not, resonators are defined in the Sources
+                self._wake_pot_vals[prof_ind][0] += source.get_wake(self._wake_pot_time[prof_ind])
 
     def _update_potential_sources(self, current_time: float=0) -> None:
         """
@@ -673,22 +703,28 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         if not self._wake_pot_vals_needs_update:  # TODO: how do we set this automagically?
             return
 
-        self._update_past_profile_times(current_time)
-        self._remove_fully_decayed_wake_profiles(current_time)
+        self._update_past_profile_times_wake_times(current_time)
+        self._remove_fully_decayed_wake_profiles()
 
+        self._past_profile_times.appendleft(self._parent_wakefield.profile.bin_centers)
+        self._past_profiles.appendleft(self._parent_wakefield.profile.n_macroparticles)
 
-        profile_width = (
-                self._parent_wakefield.profile.cut_right
-                - self._parent_wakefield.profile.cut_left
-        )
-        self._wake_pot_time = np.arange(
-            self._parent_wakefield.profile.cut_left - profile_width / 2,
-            self._parent_wakefield.profile.cut_right
-            + profile_width / 2,
-            self._parent_wakefield.profile.bin_size,
-        )  # necessary for boundary effects
-        self._wake_pot_vals = np.zeros_like(self._wake_pot_time)
-        for source in self._parent_wakefield.sources:  # TODO: do we ever need multiple resonstors objects in here --> probably not, resonators are defined in the Sources
-            self._wake_pot_vals += source.get_wake(self._wake_pot_time)
+        self._update_past_profile_potentials()
 
         self._wake_pot_vals_needs_update = False  # avoid repeated update
+
+    def calc_induced_voltage(self, beam: BeamBaseClass) -> NumpyArray | CupyArray:
+        if self._wake_pot_vals_needs_update:
+            self._update_potential_sources()
+
+        _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
+            beam.n_particles / beam.n_macroparticles_partial
+        )
+        self._past_charge_per_macroparticle.appendleft(_charge_per_macroparticle)
+
+        wake_sum = 0
+        for prof_ind in range(len(self._past_profiles)):  # TODO: speedgain through circular shifting with numpy arrays instead of dequeue
+            wake_sum += self._past_charge_per_macroparticle[prof_ind] * np.convolve(self._wake_pot_vals[prof_ind],
+                                                                                    self._past_profiles[prof_ind][::-1],
+                                                                                    mode="valid") # inverse for time-indexing
+        return wake_sum
