@@ -548,7 +548,7 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
         )  # output is one element too long with valid
 
 
-class MutliTurnResonatorSolver(WakeFieldSolver):
+class MultiPassResonatorSolver(WakeFieldSolver):
     """
     Solver, which saves the profiles of past passes and sums the
     wakefields of all previous and the current pass together
@@ -562,7 +562,7 @@ class MutliTurnResonatorSolver(WakeFieldSolver):
     profiles.
     """
 
-    def __init__(self, decay_fraction_threshold: float = .1):  # TODO
+    def __init__(self, decay_fraction_threshold: float = .001):  # TODO
         """
         Parameters
         ----------
@@ -592,13 +592,12 @@ class MutliTurnResonatorSolver(WakeFieldSolver):
         if self._parent_wakefield is None:
             raise RuntimeError("parent wakefield must be present before this function can be called")
         for source in self._parent_wakefield.sources:
-            # 7 time constants --> approx. .1%
-            time_axis = np.linspace(0, np.max(source._quality_factors / source._omega), 10000)
+            time_axis = np.linspace(0, np.max(source._quality_factors / source._omega) * 20, 100000)
             envelope = 0
             for res_ind in range(len(source._quality_factors)):
-                envelope += source._shunt_impedances[res_ind] * source._alpha[res_ind] * np.exp(-source._alpha[res_ind] / time_axis)
-
-            storage_time = np.abs(envelope - self._decay_fraction_threshold).argmin()
+                envelope += source._shunt_impedances[res_ind] * source._alpha[res_ind] * np.exp(- time_axis * source._alpha[res_ind])
+            envelope /= np.max(envelope)
+            storage_time = time_axis[np.abs(envelope - self._decay_fraction_threshold).argmin()]
             if storage_time > self._maximum_storage_time:
                 self._maximum_storage_time = storage_time
 
