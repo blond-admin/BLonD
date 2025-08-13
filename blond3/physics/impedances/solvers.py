@@ -452,7 +452,7 @@ class TimeDomainSolver(WakeFieldSolver):
 
 
 class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
-    def __init__(self):  # TODO
+    def __init__(self):
         """
         Solver to calculate induced voltage from convolution of a Resonator wake potential with bunch.
         """
@@ -464,7 +464,6 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
         self._simulation: LateInit[NumpyArray] = None
         self._parent_wakefield: LateInit[NumpyArray] = None
 
-    @requires(["EnergyCycleBase"])  # because InductiveImpedance.get_
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:
@@ -511,8 +510,7 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
         self._wake_pot_time = np.arange(
             self._parent_wakefield.profile.cut_left - profile_width / 2,
             self._parent_wakefield.profile.cut_right
-            + profile_width / 2
-            + self._parent_wakefield.profile.bin_size,
+            + profile_width / 2,
             self._parent_wakefield.profile.bin_size,
         )  # necessary for boundary effects
         self._wake_pot_vals = np.zeros_like(self._wake_pot_time)
@@ -546,7 +544,7 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
             self._wake_pot_vals,
             self._parent_wakefield.profile.hist_y[::-1],  # inverse for time-indexing
             mode="valid",
-        )[1:]  # output is one elemtent too long with valid
+        )  # output is one element too long with valid
 
 
 class MutliTurnResonatorSolver(WakeFieldSolver):
