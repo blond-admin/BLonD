@@ -672,26 +672,34 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
         self._last_reference_time = current_time
 
-    def _update_past_profile_potentials(self):
+    def _update_past_profile_potentials(self, zero_pinning: bool=False):
         """
         updates the wake potentials according to the new timestamps.
-        the arrays are expected to be cleaned before, such that they dont
+        the arrays are expected to be cleaned before, such that they don't
         include arrays past self._maximum_storage_time
+
+        Parameters
+        ----------
+        zero_pinning: bool
+            causes values <= self._parent_wakefield.profile.bin_size * np.finfo(float).eps * len(self._wake_pot_time)
+            to be pinned to exactly zero. This prevents issues with the heaviside function around the 0 timestamp
+
         """
         for prof_ind in range(len(self._past_profiles)):
             if prof_ind == 0:  # current profile does not yet have arrays initialized
-                profile_width = (  #TODO: check for cut_right and cut_left --> these are not the centers, but rather centers + bin_size/2
-                        self._parent_wakefield.profile.cut_right
-                        - self._parent_wakefield.profile.cut_left
-                )
-                self._wake_pot_time.appendleft(np.arange(
-                    self._parent_wakefield.profile.cut_left - profile_width / 2,
-                    self._parent_wakefield.profile.cut_right
-                    + profile_width / 2,
-                    self._parent_wakefield.profile.bin_size,
-                ))  # TODO: this will not be at the bin centers, where its actually needed
+                left_extend = np.floor((len(self._parent_wakefield.profile.hist_x) - 1) / 2)
+                right_extend = np.ceil((len(self._parent_wakefield.profile.hist_x) - 1) / 2)
+                self._wake_pot_time = np.linspace(
+                    self._parent_wakefield.profile.hist_x[0] - left_extend * self._parent_wakefield.profile.bin_size,
+                    self._parent_wakefield.profile.hist_x[-1] + right_extend * self._parent_wakefield.profile.bin_size,
+                    int(len(self._parent_wakefield.profile.hist_x) + left_extend + right_extend),
+                    endpoint=True)  # necessary for boundary effects
+                if zero_pinning:
+                    self._wake_pot_time[
+                        np.abs(self._wake_pot_time) <= self._parent_wakefield.profile.bin_size * np.finfo(
+                            float).eps * len(self._wake_pot_time)] = 0.0
 
-                self._wake_pot_vals.appendleft(np.zeros_like(self._wake_pot_time))
+            self._wake_pot_vals.appendleft(np.zeros_like(self._wake_pot_time))
 
             # now that everything is initialized, same operation for all arrays
             for source in self._parent_wakefield.sources:  # TODO: do we ever need multiple resonstors objects in here --> probably not, resonators are defined in the Sources
