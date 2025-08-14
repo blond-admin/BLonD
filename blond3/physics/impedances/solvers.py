@@ -633,7 +633,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._wake_pot_time = deque()
 
         self._maximum_storage_time = 0
-        self._last_reference_time = 0
+        self._last_reference_time = -np.finfo(float).eps
 
         is_dynamic = isinstance(
             parent_wakefield.profile, DynamicProfileConstCutoff
@@ -652,6 +652,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         Goes through _wake_pot_time from the back (oldest profile) and removes all arrays from it, which are beyond
         self._maximum_storage_time. only the last indexes_to_check entries are checked.
         """
+        if len(self._past_profiles) == 0:
+            return
         for _ in range(indexes_to_check):
             if np.min(self._past_profile_times[-1]) > self._maximum_storage_time:
                 self._past_profile_times.pop()
@@ -690,7 +692,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             if prof_ind == 0:  # current profile does not yet have arrays initialized
                 left_extend = np.floor((len(self._past_profiles[prof_ind]) - 1) / 2)  # TODO: should ths be derived from the _parent_wakefield or not
                 right_extend = np.ceil((len(self._past_profiles[prof_ind]) - 1) / 2)
-                profile_bin_size = self._past_profiles[prof_ind][1] - self._past_profiles[prof_ind][0]
+                profile_bin_size = self._past_profile_times[prof_ind][1] - self._past_profile_times[prof_ind][0]
                 self._wake_pot_time.appendleft(np.linspace(
                     self._past_profiles[prof_ind][0] - left_extend * profile_bin_size,
                     self._past_profiles[prof_ind][-1] + right_extend * profile_bin_size,
@@ -720,8 +722,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._update_past_profile_times_wake_times(current_time)
         self._remove_fully_decayed_wake_profiles()
 
-        self._past_profile_times.appendleft(self._parent_wakefield.profile.hist_x)
-        self._past_profiles.appendleft(self._parent_wakefield.profile.hist_y)
+        self._past_profile_times.appendleft(np.copy(self._parent_wakefield.profile.hist_x))
+        self._past_profiles.appendleft(np.copy(self._parent_wakefield.profile.hist_y))
 
         self._update_past_profile_potentials()
 
