@@ -685,25 +685,26 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             to be pinned to exactly zero. This prevents issues with the heaviside function around the 0 timestamp
 
         """
+        pass
         for prof_ind in range(len(self._past_profiles)):
             if prof_ind == 0:  # current profile does not yet have arrays initialized
                 left_extend = np.floor((len(self._parent_wakefield.profile.hist_x) - 1) / 2)
                 right_extend = np.ceil((len(self._parent_wakefield.profile.hist_x) - 1) / 2)
-                self._wake_pot_time = np.linspace(
+                self._wake_pot_time.appendleft(np.linspace(
                     self._parent_wakefield.profile.hist_x[0] - left_extend * self._parent_wakefield.profile.bin_size,
                     self._parent_wakefield.profile.hist_x[-1] + right_extend * self._parent_wakefield.profile.bin_size,
                     int(len(self._parent_wakefield.profile.hist_x) + left_extend + right_extend),
-                    endpoint=True)  # necessary for boundary effects
+                    endpoint=True))  # necessary for boundary effects
                 if zero_pinning:
-                    self._wake_pot_time[
-                        np.abs(self._wake_pot_time) <= self._parent_wakefield.profile.bin_size * np.finfo(
-                            float).eps * len(self._wake_pot_time)] = 0.0
+                    self._wake_pot_time[prof_ind][
+                        np.abs(self._wake_pot_time[prof_ind]) <= self._parent_wakefield.profile.bin_size * np.finfo(
+                            float).eps * len(self._wake_pot_time[prof_ind])] = 0.0
 
-            self._wake_pot_vals.appendleft(np.zeros_like(self._wake_pot_time))
+                self._wake_pot_vals.appendleft(np.zeros_like(self._wake_pot_time[prof_ind]))
 
             # now that everything is initialized, same operation for all arrays
             for source in self._parent_wakefield.sources:  # TODO: do we ever need multiple resonstors objects in here --> probably not, resonators are defined in the Sources
-                self._wake_pot_vals[prof_ind][0] += source.get_wake(self._wake_pot_time[prof_ind])
+                self._wake_pot_vals[prof_ind] += source.get_wake(self._wake_pot_time[prof_ind])
 
     def _update_potential_sources(self, current_time: float=0) -> None:
         """
@@ -718,8 +719,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._update_past_profile_times_wake_times(current_time)
         self._remove_fully_decayed_wake_profiles()
 
-        self._past_profile_times.appendleft(self._parent_wakefield.profile.bin_centers)
-        self._past_profiles.appendleft(self._parent_wakefield.profile.n_macroparticles)
+        self._past_profile_times.appendleft(self._parent_wakefield.profile.hist_x)
+        self._past_profiles.appendleft(self._parent_wakefield.profile.hist_y)
 
         self._update_past_profile_potentials()
 

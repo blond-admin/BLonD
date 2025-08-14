@@ -198,7 +198,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         assert np.allclose(updated_voltage[index_offset:len(initial_voltage) + index_offset], initial_voltage)
 
     def test__update_potential_sources_location_of_calculation_matching(self):
-        # test that the location of the wake potential calculation includes the ones, where it has to be calculated
+        # TODO: check for matching
         pass
 
     def test__update_potential_sources_result_values(self):
@@ -335,8 +335,6 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
                 simulation=simulation, parent_wakefield=parent_wakefield
             )
 
-        # resonators.get_wake.return_value = np.array([1 / 3, 1 / 3, 1 / 3])
-
 
 class TestMultiPassResonatorSolver(unittest.TestCase):
     def setUp(self):
@@ -355,10 +353,10 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.multi_pass_resonator_solver._parent_wakefield.profile.bin_size = self.bin_size
         self.multi_pass_resonator_solver._parent_wakefield.profile.hist_x = self.hist_x
 
-        profile = np.zeros_like(self.multi_pass_resonator_solver._parent_wakefield.profile.hist_x)
-        profile[9:12] = 1  # symmetric profile around centerpoint
-        profile /= np.sum(profile)
-        self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y = profile
+        self.profile = np.zeros_like(self.multi_pass_resonator_solver._parent_wakefield.profile.hist_x)
+        self.profile[9:12] = 1  # symmetric profile around centerpoint
+        self.profile /= np.sum(self.profile)
+        self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y = self.profile
 
         self.multi_pass_resonator_solver._parent_wakefield.sources = (self.resonators,)
 
@@ -506,11 +504,25 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             self.multi_pass_resonator_solver._update_past_profile_times_wake_times(
                 current_time=self.multi_pass_resonator_solver._last_reference_time - delta_t)
 
-    def test__update_past_profile_potentials(self):
-        # test that initialization of new array works properly
-        # TODO: tomorrow first thing
-        # compare with profile bin centers --> this needs to be fixed in source, currently the spacing is correct, but it is not exactly at the positions of the bunch --> this might be leading to the skew that we see
-        pass
+    def test__update_past_profile_potentials_new_arr_init(self):
+        sim = Mock(Simulation)
+
+        local_res = deepcopy(self.multi_pass_resonator_solver)
+        local_res.on_wakefield_init_simulation(simulation=sim,
+                                               parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield)
+        local_res._past_profile_times.appendleft(self.multi_pass_resonator_solver._parent_wakefield.profile.hist_x)
+        local_res._past_profiles.appendleft(self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y)
+        local_res._update_past_profile_potentials(zero_pinning=True)
+
+        assert len(local_res._wake_pot_time) == 1
+        assert len(local_res._wake_pot_vals) == 1
+        assert len(local_res._past_profile_times) == 1
+        assert len(local_res._past_profiles) == 1
+
+        assert len(local_res._wake_pot_vals[0]) == len(local_res._wake_pot_time[0])
+
+        assert np.allclose(local_res._past_profile_times[0], self.hist_x)
+        assert np.allclose(local_res._past_profiles[0], self.profile)
 
     def test__update_potential_sources(self):
         # not much to test here, check, that everything gets adjusted correctly according to current time, similar to update_past_profile_times, etc
