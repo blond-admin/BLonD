@@ -524,6 +524,33 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         assert np.allclose(local_res._past_profile_times[0], self.hist_x)
         assert np.allclose(local_res._past_profiles[0], self.profile)
 
+    def test__update_past_profile_potentials_pushback_of_2nd_array(self):
+        sim = Mock(Simulation)
+
+        local_res = deepcopy(self.multi_pass_resonator_solver)
+        local_res.on_wakefield_init_simulation(simulation=sim,
+                                               parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield)
+        local_res._past_profile_times.appendleft(self.multi_pass_resonator_solver._parent_wakefield.profile.hist_x)
+        local_res._past_profiles.appendleft(self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y)
+        local_res._update_past_profile_potentials(zero_pinning=True)
+
+        local_res._past_profile_times.appendleft(self.multi_pass_resonator_solver._parent_wakefield.profile.hist_x + 1)
+        local_res._past_profiles.appendleft(self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y + 1)
+        local_res._update_past_profile_potentials(zero_pinning=True)
+
+        assert len(local_res._wake_pot_time) == 2
+        assert len(local_res._wake_pot_vals) == 2
+        assert len(local_res._past_profile_times) == 2
+        assert len(local_res._past_profiles) == 2
+
+        assert len(local_res._wake_pot_vals[0]) == len(local_res._wake_pot_time[0])
+        assert len(local_res._wake_pot_vals[1]) == len(local_res._wake_pot_time[1])
+
+        assert np.allclose(local_res._past_profile_times[1], self.hist_x)
+        assert np.allclose(local_res._past_profiles[1], self.profile)
+        assert np.allclose(local_res._past_profile_times[0], self.hist_x + 1)
+        assert np.allclose(local_res._past_profiles[0], self.profile + 1)
+
     def test__update_potential_sources(self):
         # not much to test here, check, that everything gets adjusted correctly according to current time, similar to update_past_profile_times, etc
         # test array lengths
