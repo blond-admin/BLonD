@@ -688,16 +688,17 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         pass
         for prof_ind in range(len(self._past_profiles)):
             if prof_ind == 0:  # current profile does not yet have arrays initialized
-                left_extend = np.floor((len(self._parent_wakefield.profile.hist_x) - 1) / 2)
-                right_extend = np.ceil((len(self._parent_wakefield.profile.hist_x) - 1) / 2)
+                left_extend = np.floor((len(self._past_profiles[prof_ind]) - 1) / 2)  # TODO: should ths be derived from the _parent_wakefield or not
+                right_extend = np.ceil((len(self._past_profiles[prof_ind]) - 1) / 2)
+                profile_bin_size = self._past_profiles[prof_ind][1] - self._past_profiles[prof_ind][0]
                 self._wake_pot_time.appendleft(np.linspace(
-                    self._parent_wakefield.profile.hist_x[0] - left_extend * self._parent_wakefield.profile.bin_size,
-                    self._parent_wakefield.profile.hist_x[-1] + right_extend * self._parent_wakefield.profile.bin_size,
-                    int(len(self._parent_wakefield.profile.hist_x) + left_extend + right_extend),
+                    self._past_profiles[prof_ind][0] - left_extend * profile_bin_size,
+                    self._past_profiles[prof_ind][-1] + right_extend * profile_bin_size,
+                    int(len(self._past_profiles[prof_ind]) + left_extend + right_extend),
                     endpoint=True))  # necessary for boundary effects
                 if zero_pinning:
                     self._wake_pot_time[prof_ind][
-                        np.abs(self._wake_pot_time[prof_ind]) <= self._parent_wakefield.profile.bin_size * np.finfo(
+                        np.abs(self._wake_pot_time[prof_ind]) <= profile_bin_size * np.finfo(
                             float).eps * len(self._wake_pot_time[prof_ind])] = 0.0
 
                 self._wake_pot_vals.appendleft(np.zeros_like(self._wake_pot_time[prof_ind]))

@@ -538,6 +538,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         local_res._past_profiles.appendleft(self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y + 1)
         local_res._update_past_profile_potentials(zero_pinning=True)
 
+        # should have been pushed back --> [1] is the oder profile, [0] is the newest
         assert len(local_res._wake_pot_time) == 2
         assert len(local_res._wake_pot_vals) == 2
         assert len(local_res._past_profile_times) == 2
@@ -550,6 +551,9 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         assert np.allclose(local_res._past_profiles[1], self.profile)
         assert np.allclose(local_res._past_profile_times[0], self.hist_x + 1)
         assert np.allclose(local_res._past_profiles[0], self.profile + 1)
+
+        assert np.not_equal(local_res._wake_pot_vals[0], local_res._wake_pot_vals[1]).any()
+        assert np.allclose(local_res._wake_pot_time[0], local_res._wake_pot_time[1] + 1)
 
     def test__update_potential_sources(self):
         # not much to test here, check, that everything gets adjusted correctly according to current time, similar to update_past_profile_times, etc
