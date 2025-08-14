@@ -138,12 +138,10 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
             quality_factors=np.array([5, 5, 5]),
         )
         self.analytical_single_turn_solver = AnalyticSingleTurnResonatorSolver()
-        self.cut_left, self.cut_right, self.bin_size, self.hist_x = -1e-9, 1e-9, 1e-10, np.arange(-1e-9, 1e-9 + 1e-10,
-                                                                                                  1e-10)
+        self.left_edge, self.right_edge, self.bin_size = -1e-9, 1e-9, 1e-10
+        self.hist_x = np.arange(self.left_edge, self.right_edge + self.bin_size, self.bin_size)
 
         self.analytical_single_turn_solver._parent_wakefield = Mock(WakeField)
-        self.analytical_single_turn_solver._parent_wakefield.profile.cut_left = self.cut_left
-        self.analytical_single_turn_solver._parent_wakefield.profile.cut_right = self.cut_right
         self.analytical_single_turn_solver._parent_wakefield.profile.bin_size = self.bin_size
         self.analytical_single_turn_solver._parent_wakefield.profile.hist_x = self.hist_x
 
@@ -167,12 +165,12 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         beam.particle_type.charge = 1
         beam.n_macroparticles_partial = int(1e3)
         self.analytical_single_turn_solver._update_potential_sources()
-        initial = self.analytical_single_turn_solver._wake_pot_vals
+        initial_wake_pot = self.analytical_single_turn_solver._wake_pot_vals
         initial_wake_pot_time = self.analytical_single_turn_solver._wake_pot_time
-        assert len(initial) == len(initial_wake_pot_time)
+        assert len(initial_wake_pot) == len(initial_wake_pot_time)
         initial_voltage = self.analytical_single_turn_solver.calc_induced_voltage(beam=beam)
-        profile_len = len(self.analytical_single_turn_solver._parent_wakefield.profile.hist_x)
-        assert profile_len == len(initial_voltage)
+        initial_profile_len = len(self.analytical_single_turn_solver._parent_wakefield.profile.hist_x)
+        assert initial_profile_len == len(initial_voltage)
 
         # extend profile with 0s towards the back, should not change the values, which are before the 0s
         new_cut_right = 2.0e-9
@@ -181,7 +179,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
             self.analytical_single_turn_solver._parent_wakefield.profile.hist_y, np.zeros(10))
         self.analytical_single_turn_solver._parent_wakefield.profile.hist_x = np.append(
             self.analytical_single_turn_solver._parent_wakefield.profile.hist_x,
-            np.arange(self.cut_right + self.bin_size,
+            np.arange(self.right_edge + self.bin_size,
                       new_cut_right + self.bin_size,
                       self.bin_size))
 
@@ -194,11 +192,14 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         assert len(initial_wake_pot_time) != len(self.analytical_single_turn_solver._wake_pot_time)
 
         # check for unchanging of voltage, which should not change
-        index_offset = np.abs(self.analytical_single_turn_solver._wake_pot_vals[:len(initial)]).argmax() - np.abs(
-            initial).argmax()
-        assert (self.analytical_single_turn_solver._wake_pot_vals[
-                index_offset:len(initial) + index_offset] == initial).all()
-        assert (updated_voltage[index_offset:len(initial_voltage) + index_offset] == initial_voltage).all()
+        index_offset = (profile_len - initial_profile_len) // 2
+        assert np.allclose(self.analytical_single_turn_solver._wake_pot_vals[
+                index_offset:len(initial_wake_pot) + index_offset], initial_wake_pot)
+        assert np.allclose(updated_voltage[index_offset:len(initial_voltage) + index_offset], initial_voltage)
+
+    def test__update_potential_sources_location_of_calculation_matching(self):
+        # test that the location of the wake potential calculation includes the ones, where it has to be calculated
+        pass
 
     def test__update_potential_sources_result_values(self):
         beam = Mock(BeamBaseClass)
@@ -206,7 +207,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         beam.particle_type.charge = 1
         beam.n_macroparticles_partial = int(1e2)
         self.analytical_single_turn_solver._update_potential_sources()
-        profile_width = int((self.cut_right - self.cut_left) / self.bin_size)
+        profile_width = int((self.right_edge - self.left_edge) / self.bin_size)
         self.analytical_single_turn_solver._wake_pot_vals = np.zeros(profile_width * 2 + 1)
         self.analytical_single_turn_solver._wake_pot_vals[profile_width - 1:profile_width + 2] = 1 / 3 / e
         calced_voltage = self.analytical_single_turn_solver.calc_induced_voltage(beam=beam)
@@ -517,4 +518,6 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         pass
 
     def test_calc_induced_voltage(self):
+        # check for array lengths --> array must have same length as profile, check symmetry, asymmetry.
+        # check symmetry --> how to do this properly for 2 passes? --> new wakefield simulation with different parameters
         pass
