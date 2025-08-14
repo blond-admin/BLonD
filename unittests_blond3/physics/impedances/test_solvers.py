@@ -164,7 +164,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         beam.n_particles = int(1e9)
         beam.particle_type.charge = 1
         beam.n_macroparticles_partial = int(1e3)
-        self.analytical_single_turn_solver._update_potential_sources()
+        self.analytical_single_turn_solver._update_potential_sources(zero_pinning=True)
         initial_wake_pot = self.analytical_single_turn_solver._wake_pot_vals
         initial_wake_pot_time = self.analytical_single_turn_solver._wake_pot_time
         assert len(initial_wake_pot) == len(initial_wake_pot_time)
@@ -184,7 +184,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
                       self.bin_size))
 
         self.analytical_single_turn_solver._wake_pot_vals_needs_update = True
-        self.analytical_single_turn_solver._update_potential_sources()
+        self.analytical_single_turn_solver._update_potential_sources(zero_pinning=True)
         updated_voltage = self.analytical_single_turn_solver.calc_induced_voltage(beam=beam)
         # check for correct length of profiles and voltages
         profile_len = len(self.analytical_single_turn_solver._parent_wakefield.profile.hist_x)
