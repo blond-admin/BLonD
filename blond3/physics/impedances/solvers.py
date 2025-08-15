@@ -722,6 +722,11 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._update_past_profile_times_wake_times(current_time)
         self._remove_fully_decayed_wake_profiles()
 
+        if len(self._past_profiles) != 0:  # ensure same time axis for profiles
+            past_bin_size = self._past_profile_times[-1][1] - self._past_profile_times[-1][0]
+            new_bin_size = self._parent_wakefield.profile.hist_x[1] - self._parent_wakefield.profile.hist_x[0]
+            assert np.isclose(new_bin_size,
+                              past_bin_size, atol=0), "profile bin size needs to be constant"
         self._past_profile_times.appendleft(np.copy(self._parent_wakefield.profile.hist_x))
         self._past_profiles.appendleft(np.copy(self._parent_wakefield.profile.hist_y))
 

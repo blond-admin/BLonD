@@ -556,8 +556,9 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         assert np.allclose(local_res._wake_pot_time[0], local_res._wake_pot_time[1] + 1)
 
     def test__update_potential_sources(self):
-        # not much to test here, check, that everything gets adjusted correctly according to current time, similar to update_past_profile_times, etc
-        # test array lengths
+        """
+        test presence of arrays and correct shifting of timing
+        """
         sim = Mock(Simulation)
 
         local_res = deepcopy(self.multi_pass_resonator_solver)
@@ -596,6 +597,22 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
         assert np.allclose(local_res._past_profiles[0], local_res._past_profiles[1])
         assert np.allclose(local_res._past_profiles[1], local_res._past_profiles[2])
+
+    def test__update_potential_sources_bin_size(self):
+        sim = Mock(Simulation)
+
+        local_res = deepcopy(self.multi_pass_resonator_solver)
+        local_res.on_wakefield_init_simulation(simulation=sim,
+                                               parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield)
+        local_res._update_potential_sources()
+
+        local_res._maximum_storage_time = 1.5
+
+        local_res._parent_wakefield.profile.hist_x *= 2
+        local_res._wake_pot_vals_needs_update = True
+        with self.assertRaises(AssertionError, msg="profile bin size needs to be constant"):
+            local_res._update_potential_sources(1.0)
+
 
     def test_calc_induced_voltage(self):
         # check for array lengths --> array must have same length as profile, check symmetry, asymmetry.
