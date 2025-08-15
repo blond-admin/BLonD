@@ -242,6 +242,10 @@ class StaticProfile(ProfileBaseClass):
             cut_left=cut_left, cut_right=cut_right, n_bins=n_bins
         )
 
+    @property
+    def bin_size(self) -> float:
+        return self._hist_x[1] - self._hist_x[0]
+
     @staticmethod
     def from_cutoff(cut_left: float, cut_right: float, cutoff_frequency: float):
         """
