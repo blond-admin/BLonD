@@ -706,7 +706,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                             float).eps * len(self._wake_pot_time[prof_ind])] = 0.0
 
                 self._wake_pot_vals.appendleft(np.zeros_like(self._wake_pot_time[prof_ind]))
-            else:  # TODO: test missing
+            else:
                 self._wake_pot_vals[prof_ind] = np.zeros_like(self._wake_pot_vals[prof_ind])
             # now that everything is initialized, same operation for all arrays
             for source in self._parent_wakefield.sources:  # TODO: do we ever need multiple resonstors objects in here --> probably not, resonators are defined in the Sources
@@ -748,7 +748,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._past_charge_per_macroparticle.appendleft(_charge_per_macroparticle)
 
         wake_sum = 0
-        for prof_ind in range(len(self._past_profiles)):  # TODO: speedgain through circular shifting with numpy arrays instead of dequeue
+        for prof_ind in range(len(self._past_profiles)):  # TODO: speedgain through circular shifting with numpy arrays instead of dequeue --> deque not usable with numba
             wake_sum += self._past_charge_per_macroparticle[prof_ind] * np.convolve(self._wake_pot_vals[prof_ind],
                                                                                     self._past_profiles[prof_ind][::-1],
                                                                                     mode="valid") # inverse for time-indexing
