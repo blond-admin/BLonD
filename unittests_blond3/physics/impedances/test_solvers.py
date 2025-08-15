@@ -683,8 +683,15 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         assert np.isclose(np.min(ind_volt), np.min(ind_volt_init) * (1 + 1 / np.exp(1)))
 
         # assert equality for fully decayed case
+        local_res._wake_pot_vals_needs_update = True
+        local_res._maximum_storage_time = local_res._maximum_storage_time * 1000
+        delay_time = np.floor((1 / resonators._alpha[0]) / t_rf) * t_rf * 100 # multiple of t_r
+        local_res._update_potential_sources(delay_time)  # first one should be 0
+        ind_volt = local_res.calc_induced_voltage(beam=self.beam)
 
-
+        # ensure perfect addition of in-phase component
+        assert np.allclose(ind_volt, ind_volt_init)
+        assert np.argmax(ind_volt) == np.argmax(ind_volt_init)
 
     def compare_to_analytical_resonator_solver_for_results(self):
         # compare to single resonator, if the same results get reached
