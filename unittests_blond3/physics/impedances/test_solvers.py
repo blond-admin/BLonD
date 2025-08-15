@@ -558,9 +558,50 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
     def test__update_potential_sources(self):
         # not much to test here, check, that everything gets adjusted correctly according to current time, similar to update_past_profile_times, etc
         # test array lengths
-        pass
+        sim = Mock(Simulation)
+
+        local_res = deepcopy(self.multi_pass_resonator_solver)
+        local_res.on_wakefield_init_simulation(simulation=sim,
+                                               parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield)
+        local_res._update_potential_sources()
+
+        local_res._wake_pot_vals_needs_update = True
+        tsteps = [0.5, 1.0, 1.6]
+        local_res._maximum_storage_time = 1.5
+        local_res._update_potential_sources(tsteps[0])
+
+        assert len(local_res._wake_pot_time) == len(local_res._wake_pot_vals) == len(local_res._past_profile_times) == len(local_res._past_profiles) == 2
+        assert np.mean(local_res._wake_pot_time[1]) == np.mean(local_res._wake_pot_time[0] + tsteps[0])
+        assert np.mean(local_res._past_profile_times[1]) == np.mean(local_res._past_profile_times[0] + tsteps[0])
+        assert np.allclose(local_res._past_profiles[0], local_res._past_profiles[1])
+
+        # repeat another time, first array should be kicked out due to delay
+        local_res._wake_pot_vals_needs_update = True
+        local_res._update_potential_sources(tsteps[1])
+        assert len(local_res._wake_pot_time) == len(local_res._wake_pot_vals) == len(
+            local_res._past_profile_times) == len(local_res._past_profiles) == 3
+        assert np.mean(local_res._wake_pot_time[1]) == np.mean(local_res._wake_pot_time[0] + tsteps[1] - tsteps[0])
+        assert np.mean(local_res._past_profile_times[1]) == np.mean(local_res._past_profile_times[0] + tsteps[1] - tsteps[0])
+        assert np.allclose(local_res._past_profiles[0], local_res._past_profiles[1])
+
+        # kick out oldest profile
+        local_res._wake_pot_vals_needs_update = True
+        local_res._update_potential_sources(tsteps[2])
+        assert len(local_res._wake_pot_time) == len(local_res._wake_pot_vals) == len(
+            local_res._past_profile_times) == len(local_res._past_profiles) == 3
+        assert np.mean(local_res._wake_pot_time[1]) == np.mean(local_res._wake_pot_time[0] + tsteps[2] - tsteps[1])
+        assert np.mean(local_res._past_profile_times[1]) == np.mean(local_res._past_profile_times[0] + tsteps[2] - tsteps[1])
+        assert np.mean(local_res._wake_pot_time[2]) == np.mean(local_res._wake_pot_time[1] + tsteps[1] - tsteps[0])
+        assert np.mean(local_res._past_profile_times[2]) == np.mean(local_res._past_profile_times[1] + tsteps[1] - tsteps[0])
+
+        assert np.allclose(local_res._past_profiles[0], local_res._past_profiles[1])
+        assert np.allclose(local_res._past_profiles[1], local_res._past_profiles[2])
 
     def test_calc_induced_voltage(self):
         # check for array lengths --> array must have same length as profile, check symmetry, asymmetry.
         # check symmetry --> how to do this properly for 2 passes? --> new wakefield simulation with different parameters
+        pass
+
+    def compare_to_analytical_resonator_solver_for_results(self):
+        # compare to single resonator, if the same results get reached
         pass
