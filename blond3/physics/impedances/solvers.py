@@ -462,8 +462,8 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
         self._wake_pot_time: LateInit[NumpyArray] = None
         self._wake_pot_vals_needs_update = True  # initialization
 
-        self._simulation: LateInit[NumpyArray] = None
-        self._parent_wakefield: LateInit[NumpyArray] = None
+        self._simulation: LateInit[Simulation] = None
+        self._parent_wakefield: LateInit[WakeField] = None
 
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
@@ -587,8 +587,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._maximum_storage_time: LateInit[float] = None
         self._decay_fraction_threshold = decay_fraction_threshold
 
-        self._simulation: LateInit[NumpyArray] = None
-        self._parent_wakefield: LateInit[NumpyArray] = None
+        self._simulation: LateInit[Simulation] = None
+        self._parent_wakefield: LateInit[WakeField] = None
 
     def _determine_storage_time(self):
         """
@@ -689,7 +689,6 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             to be pinned to exactly zero. This prevents issues with the heaviside function around the 0 timestamp
 
         """
-        pass
         for prof_ind in range(len(self._past_profiles)):
             if prof_ind == 0:  # current profile does not yet have arrays initialized
                 left_extend = np.floor((len(self._past_profile_times[prof_ind]) - 1) / 2)  # TODO: should ths be derived from the _parent_wakefield or not

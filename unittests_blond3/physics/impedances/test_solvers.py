@@ -739,4 +739,3 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
         assert np.allclose(local_res.calc_induced_voltage(beam=self.beam),
                            local_res_analy.calc_induced_voltage(beam=self.beam))
-
