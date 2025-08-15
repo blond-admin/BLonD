@@ -33,7 +33,10 @@ class ProfileBaseClass(BeamPhysicsRelevant):
             Section index to group elements into sections
         name
             User given name of the element
-
+        hist_x
+            timestamps of the histogram
+        hist_y
+            histogram values at specified timestamps
         """
         super().__init__(
             section_index=section_index,
@@ -113,7 +116,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
 
     @cached_property
     def bin_edges(self) -> NumpyArray | CupyArray:
-        """Get the edges from cut_left to cut_right of the histogram"""
+        """Get the edges from cut_left to cut_right of the histogram"""  # TODO: misleading, gives back linspace and not edges
         return backend.linspace(
             self.cut_left, self.cut_right, len(self._hist_x) + 1, backend.float
         )
