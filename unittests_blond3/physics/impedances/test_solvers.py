@@ -249,7 +249,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         bunch = np.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
 
         analy._parent_wakefield = Mock(WakeField)
-        analy._parent_wakefield.profile.cut_left = -sigma_z * 8.54 / c
+        analy._parent_wakefield.profile.cut_left = -sigma_z * 8.54 / c  # TODO: cut left is not the correct value --> is probably not used anymore, get back to this
         analy._parent_wakefield.profile.cut_right = 8.54 * sigma_z / c
         analy._parent_wakefield.profile.bin_size = bunch_time[1] - bunch_time[0]
         analy._parent_wakefield.profile.hist_x = bunch_time
@@ -359,6 +359,11 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y = self.profile
 
         self.multi_pass_resonator_solver._parent_wakefield.sources = (self.resonators,)
+
+        self.beam = Mock(BeamBaseClass)
+        self.beam.n_particles = int(1e2)
+        self.beam.particle_type.charge = 1
+        self.beam.n_macroparticles_partial = int(1e2)
 
     def test_determine_storage_time_single_res(self):
         profile = Mock(StaticProfile)
@@ -613,7 +618,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
         local_res._parent_wakefield.profile.hist_x *= 2
         local_res._wake_pot_vals_needs_update = True
-        with self.assertRaises(AssertionError, msg="profile bin size needs to be constant"):
+        with self.assertRaises(AssertionError, msg="profile bin size needs to be constant: bin_size might be too small with casting to delta_t precision"):
             local_res._update_potential_sources(1.0)
 
 
@@ -635,17 +640,51 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         assert len(ind_volt) == len(local_res._parent_wakefield.profile.hist_x)
 
     def test_calc_induced_voltage_vals(self):
-        self.resonators = Resonators(
-            shunt_impedances=np.array([1]),
+        resonators = Resonators(
+            shunt_impedances=np.array([1e12]),
             center_frequencies=np.array([500e6]),
-            quality_factors=np.array([10e3]),
+            quality_factors=np.array([10e5]),
         )
+
+        local_res = MultiPassResonatorSolver()
+
+        sigma_z = 40e-3
+        bunch_time = np.linspace(-sigma_z * 15 / c, 15 * sigma_z / c, 2 ** 10)
+        bunch = np.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
+
+        local_res._parent_wakefield = Mock(WakeField)
+        local_res._parent_wakefield.profile.cut_left = -sigma_z * 15 / c  # TODO: cut left is not the correct value --> is probably not used anymore, get back to this
+        local_res._parent_wakefield.profile.cut_right = 15 * sigma_z / c
+        local_res._parent_wakefield.profile.bin_size = bunch_time[1] - bunch_time[0]
+        local_res._parent_wakefield.profile.hist_x = bunch_time
+        local_res._parent_wakefield.profile.hist_y = bunch / np.sum(bunch)
+
+        local_res._parent_wakefield.sources = (resonators, )
+
         sim = Mock(Simulation)
 
-        local_res = deepcopy(self.multi_pass_resonator_solver)
-        local_parent_wf = deepcopy(self.multi_pass_resonator_solver._parent_wakefield)
         local_res.on_wakefield_init_simulation(simulation=sim,
-                                               parent_wakefield=)
+                                               parent_wakefield=local_res._parent_wakefield)
+        local_res._update_potential_sources()  # does this correctly not throw out the first one?
+
+        ind_volt_init = local_res.calc_induced_voltage(beam=self.beam)
+
+
+
+        local_res._wake_pot_vals_needs_update = True
+        t_rf = 1 / resonators._center_frequencies[0]
+        delay_time = np.floor((1 / resonators._alpha[0]) / t_rf) * t_rf  # multiple of t_r
+        local_res._update_potential_sources(delay_time)  # first one should've fallen to 1/e by this time
+        ind_volt = local_res.calc_induced_voltage(beam=self.beam)
+
+        # ensure perfect addition of in-phase component
+        assert not np.allclose(ind_volt, ind_volt_init)
+        assert np.argmax(ind_volt) == np.argmax(ind_volt_init)
+        assert np.isclose(np.min(ind_volt), np.min(ind_volt_init) * (1 + 1 / np.exp(1)))
+
+        # assert equality for fully decayed case
+
+
 
     def compare_to_analytical_resonator_solver_for_results(self):
         # compare to single resonator, if the same results get reached
