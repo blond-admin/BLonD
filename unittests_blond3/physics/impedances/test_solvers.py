@@ -437,6 +437,9 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         assert np.isclose(np.sum(self.multi_pass_resonator_solver._past_profile_times[1]), 3.6)
         assert np.isclose(np.sum(self.multi_pass_resonator_solver._past_profiles[1]), 6)
 
+        # check that we don't crash for the empty array --> only one entry present
+        self.multi_pass_resonator_solver._remove_fully_decayed_wake_profiles(indexes_to_check=2)
+
         self.multi_pass_resonator_solver._wake_pot_vals = deque(
             [np.array([1, 1, 1]), np.array([2, 2, 2]), np.array([3, 3, 3])])
         self.multi_pass_resonator_solver._wake_pot_time = deque([np.array([0.1, 0.2, 0.3]), np.array([1.1, 1.2, 1.3]),

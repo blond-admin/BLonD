@@ -655,6 +655,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         if len(self._past_profiles) == 0:
             return
         for _ in range(indexes_to_check):
+            if len(self._past_profiles) == 0:
+                return
             if np.min(self._past_profile_times[-1]) > self._maximum_storage_time:
                 self._past_profile_times.pop()
                 self._past_profiles.pop()
