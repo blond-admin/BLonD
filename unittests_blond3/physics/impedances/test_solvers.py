@@ -178,7 +178,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         beam = Mock(BeamBaseClass)
         beam.n_particles = int(1e9)
         beam.particle_type.charge = 1
-        beam.n_macroparticles_partial = int(1e3)
+        beam.n_macroparticles_partial.return_value = int(1e3)
         self.analytical_single_turn_solver._update_potential_sources(zero_pinning=True)
         initial_wake_pot = self.analytical_single_turn_solver._wake_pot_vals
         initial_wake_pot_time = self.analytical_single_turn_solver._wake_pot_time
@@ -237,14 +237,14 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         )
 
     def test__update_potential_sources_location_of_calculation_matching(self):
-        # TODO: check for matching
+        # TODO: check that the array of the bunch time is inside the calculation domain
         pass
 
     def test__update_potential_sources_result_values(self):
         beam = Mock(BeamBaseClass)
         beam.n_particles = int(1e2)
         beam.particle_type.charge = 1
-        beam.n_macroparticles_partial = int(1e2)
+        beam.n_macroparticles_partial.return_value = int(1e2)
         self.analytical_single_turn_solver._update_potential_sources()
         profile_width = int((self.right_edge - self.left_edge) / self.bin_size)
         self.analytical_single_turn_solver._wake_pot_vals = np.zeros(
@@ -307,7 +307,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         beam = Mock(BeamBaseClass)
         beam.n_particles = int(1e3)
         beam.particle_type.charge = 1 / e
-        beam.n_macroparticles_partial = int(1e3)
+        beam.n_macroparticles_partial.return_value = int(1e3)
         # n_particles == n_macroparticles, integrated bunch is 1 --> all normalized to 1C
 
         analy._wake_pot_vals_needs_update = True
@@ -327,7 +327,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         beam = Mock(BeamBaseClass)
         beam.n_particles = int(1e9)
         beam.particle_type.charge = 1
-        beam.n_macroparticles_partial = int(1e3)
+        beam.n_macroparticles_partial.return_value = int(1e3)
         initial = self.analytical_single_turn_solver.calc_induced_voltage(beam=beam)
         first_nonzero_index = np.abs(initial).argmax() - 1
         beam.n_particles = int(1e4)
@@ -415,7 +415,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.beam = Mock(BeamBaseClass)
         self.beam.n_particles = int(1e2)
         self.beam.particle_type.charge = 1
-        self.beam.n_macroparticles_partial = int(1e2)
+        self.beam.n_macroparticles_partial.return_value = int(1e2)
 
     def test_determine_storage_time_single_res(self):
         simulation = Mock(Simulation)
