@@ -492,6 +492,10 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         assert np.isclose(np.sum(self.multi_pass_resonator_solver._past_profile_times[1]), 3.6)
         assert np.isclose(np.sum(self.multi_pass_resonator_solver._past_profiles[1]), 6)
 
+    def test_remove_fully_decayed_wake_profiles_physics(self):
+        #TODO: add test with resonator, that it gets the correct time
+        pass
+
     def test_update_past_profile_times_wake_times(self):
         self.multi_pass_resonator_solver._past_profile_times = deque(
             [np.array([0.1, 0.2, 0.3]), np.array([1.1, 1.2, 1.3]), np.array([2.1, 2.2, 2.3])])
@@ -649,12 +653,13 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         local_res = MultiPassResonatorSolver()
 
         sigma_z = 40e-3
-        bunch_time = np.linspace(-sigma_z * 15 / c, 15 * sigma_z / c, 2 ** 10)
+        sigma_length = 15
+        bunch_time = np.linspace(-sigma_z * sigma_length / c, sigma_length * sigma_z / c, 2 ** 10)
         bunch = np.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
 
         local_res._parent_wakefield = Mock(WakeField)
-        local_res._parent_wakefield.profile.cut_left = -sigma_z * 15 / c  # TODO: cut left is not the correct value --> is probably not used anymore, get back to this
-        local_res._parent_wakefield.profile.cut_right = 15 * sigma_z / c
+        local_res._parent_wakefield.profile.cut_left = -sigma_z * sigma_length / c  # TODO: cut left is not the correct value --> is probably not used anymore, get back to this
+        local_res._parent_wakefield.profile.cut_right = sigma_length * sigma_z / c
         local_res._parent_wakefield.profile.bin_size = bunch_time[1] - bunch_time[0]
         local_res._parent_wakefield.profile.hist_x = bunch_time
         local_res._parent_wakefield.profile.hist_y = bunch / np.sum(bunch)
@@ -668,8 +673,6 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         local_res._update_potential_sources()  # does this correctly not throw out the first one?
 
         ind_volt_init = local_res.calc_induced_voltage(beam=self.beam)
-
-
 
         local_res._wake_pot_vals_needs_update = True
         t_rf = 1 / resonators._center_frequencies[0]
@@ -693,6 +696,47 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         assert np.allclose(ind_volt, ind_volt_init)
         assert np.argmax(ind_volt) == np.argmax(ind_volt_init)
 
-    def compare_to_analytical_resonator_solver_for_results(self):
-        # compare to single resonator, if the same results get reached
-        pass
+    def test_compare_to_analytical_resonator_solver_for_results(self):
+        resonators = Resonators(
+            shunt_impedances=np.array([1e12, 1e10]),
+            center_frequencies=np.array([500e6, 1000e6]),
+            quality_factors=np.array([10e5, 10e4]),
+        )
+
+        local_res = MultiPassResonatorSolver()
+
+        sigma_z = 40e-3
+        sigma_length = 8.54
+        bunch_time = np.linspace(-sigma_z * sigma_length / c, sigma_length * sigma_z / c, 2 ** 10)
+        bunch = np.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
+
+        local_res._parent_wakefield = Mock(WakeField)
+        local_res._parent_wakefield.profile.cut_left = -sigma_z * sigma_length / c  # TODO: cut left is not the correct value --> is probably not used anymore, get back to this
+        local_res._parent_wakefield.profile.cut_right = sigma_length * sigma_z / c
+        local_res._parent_wakefield.profile.bin_size = bunch_time[1] - bunch_time[0]
+        local_res._parent_wakefield.profile.hist_x = bunch_time
+        local_res._parent_wakefield.profile.hist_y = bunch / np.sum(bunch)
+
+        local_res._parent_wakefield.sources = (resonators,)
+        local_res._wake_pot_vals_needs_update = True
+
+        sim = Mock(Simulation)
+
+        local_res.on_wakefield_init_simulation(simulation=sim,
+                                               parent_wakefield=local_res._parent_wakefield)
+        local_res._update_potential_sources()
+
+        local_res_analy = AnalyticSingleTurnResonatorSolver()
+        local_res_analy._parent_wakefield = Mock(WakeField)
+        local_res_analy._parent_wakefield.profile.cut_left = -sigma_z * sigma_length / c  # TODO: cut left is not the correct value --> is probably not used anymore, get back to this
+        local_res_analy._parent_wakefield.profile.cut_right = sigma_length * sigma_z / c
+        local_res_analy._parent_wakefield.profile.bin_size = bunch_time[1] - bunch_time[0]
+        local_res_analy._parent_wakefield.profile.hist_x = bunch_time
+        local_res_analy._parent_wakefield.profile.hist_y = bunch / np.sum(bunch)
+        local_res_analy._parent_wakefield.sources = (resonators,)
+
+        local_res_analy._wake_pot_vals_needs_update = True
+
+        assert np.allclose(local_res.calc_induced_voltage(beam=self.beam),
+                           local_res_analy.calc_induced_voltage(beam=self.beam))
+
