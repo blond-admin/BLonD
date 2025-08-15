@@ -626,8 +626,19 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         assert np.isclose(np.sum(self.multi_pass_resonator_solver._past_profiles[1]), 6)
 
     def test_remove_fully_decayed_wake_profiles_physics(self):
-        # TODO: add test with resonator, that it gets the correct time
-        pass
+        simulation = Mock(Simulation)
+        single_resonator = Resonators(
+            shunt_impedances=np.array([1]),
+            center_frequencies=np.array([500e6]),
+            quality_factors=np.array([10e3]),
+        )  # 2nd one should be way later, but similar amplitude
+        local_solv = deepcopy(self.multi_pass_resonator_solver)
+        local_solv._parent_wakefield.sources = (single_resonator,)
+        local_solv.on_wakefield_init_simulation(
+            simulation=simulation,
+            parent_wakefield=local_solv._parent_wakefield,
+        )
+        assert np.isclose(local_solv._maximum_storage_time, 1 / -single_resonator._alpha[0] * np.log(local_solv._decay_fraction_threshold))
 
     def test_update_past_profile_times_wake_times(self):
         self.multi_pass_resonator_solver._past_profile_times = deque(
