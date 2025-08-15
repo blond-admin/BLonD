@@ -706,7 +706,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                             float).eps * len(self._wake_pot_time[prof_ind])] = 0.0
 
                 self._wake_pot_vals.appendleft(np.zeros_like(self._wake_pot_time[prof_ind]))
-
+            else:  # TODO: test missing
+                self._wake_pot_vals[prof_ind] = np.zeros_like(self._wake_pot_vals[prof_ind])
             # now that everything is initialized, same operation for all arrays
             for source in self._parent_wakefield.sources:  # TODO: do we ever need multiple resonstors objects in here --> probably not, resonators are defined in the Sources
                 self._wake_pot_vals[prof_ind] += source.get_wake(self._wake_pot_time[prof_ind])
@@ -726,9 +727,10 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
         if len(self._past_profiles) != 0:  # ensure same time axis for profiles
             past_bin_size = self._past_profile_times[-1][1] - self._past_profile_times[-1][0]
+            # TODO: big time jumps lead to problematic casting --> do we care about this?
             new_bin_size = self._parent_wakefield.profile.hist_x[1] - self._parent_wakefield.profile.hist_x[0]
             assert np.isclose(new_bin_size,
-                              past_bin_size, atol=0), "profile bin size needs to be constant"
+                              past_bin_size, atol=0), "profile bin size needs to be constant: bin_size might be too small with casting to delta_t precision"
         self._past_profile_times.appendleft(np.copy(self._parent_wakefield.profile.hist_x))
         self._past_profiles.appendleft(np.copy(self._parent_wakefield.profile.hist_y))
 
