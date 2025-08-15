@@ -552,12 +552,12 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
             self._update_potential_sources()
 
         _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
-            beam.n_particles / beam.n_macroparticles_partial
+            beam.n_particles / beam.n_macroparticles_partial()
         )
 
         return _charge_per_macroparticle * np.convolve(
             self._wake_pot_vals,
-            self._parent_wakefield.profile.hist_y[::-1],  # inverse for time-indexing
+            self._parent_wakefield.profile.hist_y,  # inverse for time-indexing
             mode="valid",
         )  # output is one element too long with valid
 
@@ -796,7 +796,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             self._update_potential_sources()
 
         _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
-            beam.n_particles / beam.n_macroparticles_partial
+            beam.n_particles / beam.n_macroparticles_partial()
         )
         self._past_charge_per_macroparticle.appendleft(_charge_per_macroparticle)
 
