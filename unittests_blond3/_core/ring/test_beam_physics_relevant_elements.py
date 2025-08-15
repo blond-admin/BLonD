@@ -66,6 +66,43 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         self.beam_physics_relevant_elements.add_element(element=element)
         assert self.beam_physics_relevant_elements.elements[-1] is element
 
+    def test_insert_element(self):
+        element = Mock(spec=BeamPhysicsRelevant)
+        element.section_index = 0
+        self.beam_physics_relevant_elements.insert(element=element,
+                                                   insert_at=0)
+        assert self.beam_physics_relevant_elements.elements[0] is element
+
+    def test_check_insertion_compatibility(self):
+        element = Mock(spec=BeamPhysicsRelevant)
+        element.section_index = 1
+        with self.assertRaises(AssertionError,
+                               msg='The element section index is incompatible '
+                                 'with the requested location. Please allow '
+                                 'overwrite for automatic handling.'):
+            self.beam_physics_relevant_elements.insert(element=element,
+                                                   insert_at=0)
+        element.section_index = 1
+        with self.assertRaises(AssertionError,
+                               msg='The element section index is incompatible '
+                                   'with the requested location. Please allow '
+                                   'overwrite for automatic handling.'):
+            self.beam_physics_relevant_elements.insert(element=element,
+                                                       insert_at=1)
+        element.section_index = 0
+        with self.assertRaises(AssertionError,
+                               msg='The element section index is incompatible '
+                                   'with the requested location. Please allow '
+                                   'overwrite for automatic handling.'):
+            self.beam_physics_relevant_elements.insert(element=element,
+                                                       insert_at=len(self.beam_physics_relevant_elements.elements))
+        element.section_index = 50
+        with self.assertRaises(AssertionError,
+                               msg=f'The element must be inserted within ['
+                                 f'0:{len(self.beam_physics_relevant_elements.elements)+1}] indexes. '):
+            self.beam_physics_relevant_elements.insert(element=element,
+                                                       insert_at=len(
+                                                           self.beam_physics_relevant_elements.elements))
     def test_count(self):
         assert (
             self.beam_physics_relevant_elements.count(
@@ -117,9 +154,7 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         self.beam_physics_relevant_elements.get_order_info()
 
     def test_get_section_circumference_orbit_lengths(self):
-        orbit_length = (
-            self.beam_physics_relevant_elements.get_sections_orbit_length()
-        )
+        orbit_length = self.beam_physics_relevant_elements.get_sections_orbit_length()
         self.assertEqual(orbit_length[0], 0.5)
         self.assertEqual(orbit_length[1], 0.5)
 
@@ -141,7 +176,6 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
     def test_on_run_simulation(self):
         simulation = Mock(spec=Simulation)
         beam = Mock(spec=BeamBaseClass)
-
         self.beam_physics_relevant_elements.on_run_simulation(
             simulation=simulation, n_turns=10, turn_i_init=0, beam=beam
         )
