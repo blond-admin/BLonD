@@ -495,7 +495,7 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
                     "source needs to be a Resonator and must not be dynamic"
                 )
 
-    def _update_potential_sources(self, zero_pinning: bool=False) -> None:
+    def _update_potential_sources(self, zero_pinning: bool = False) -> None:
         """
         Updates `_wake_pot_time`  and `_wake_pot_vals` arrays if `self._wake_pot_vals_needs_update=True`
 
@@ -512,12 +512,22 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
         left_extend = np.floor((len(self._parent_wakefield.profile.hist_x) - 1) / 2)
         right_extend = np.ceil((len(self._parent_wakefield.profile.hist_x) - 1) / 2)
         self._wake_pot_time = np.linspace(
-            self._parent_wakefield.profile.hist_x[0] - left_extend * self._parent_wakefield.profile.bin_size,
-            self._parent_wakefield.profile.hist_x[-1] + right_extend * self._parent_wakefield.profile.bin_size,
-            int(len(self._parent_wakefield.profile.hist_x) + left_extend + right_extend),
-            endpoint=True) # necessary for boundary effects
+            self._parent_wakefield.profile.hist_x[0]
+            - left_extend * self._parent_wakefield.profile.bin_size,
+            self._parent_wakefield.profile.hist_x[-1]
+            + right_extend * self._parent_wakefield.profile.bin_size,
+            int(
+                len(self._parent_wakefield.profile.hist_x) + left_extend + right_extend
+            ),
+            endpoint=True,
+        )  # necessary for boundary effects
         if zero_pinning:
-            self._wake_pot_time[np.abs(self._wake_pot_time) <= self._parent_wakefield.profile.bin_size * np.finfo(float).eps * len(self._wake_pot_time)] = 0.0
+            self._wake_pot_time[
+                np.abs(self._wake_pot_time)
+                <= self._parent_wakefield.profile.bin_size
+                * np.finfo(float).eps
+                * len(self._wake_pot_time)
+            ] = 0.0
         self._wake_pot_vals = np.zeros_like(self._wake_pot_time)
         for source in self._parent_wakefield.sources:  # TODO: do we ever need multiple resonstors objects in here --> probably not, resonators are defined in the Sources
             self._wake_pot_vals += source.get_wake(self._wake_pot_time)
@@ -566,7 +576,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
     profiles.
     """
 
-    def __init__(self, decay_fraction_threshold: float = .001):  # TODO
+    def __init__(self, decay_fraction_threshold: float = 0.001):  # TODO
         """
         Parameters
         ----------
@@ -595,20 +605,29 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         sum up the contributions of all resonators and determine how long they should be stored in time
         """
         if self._parent_wakefield is None:
-            raise RuntimeError("parent wakefield must be present before this function can be called")
+            raise RuntimeError(
+                "parent wakefield must be present before this function can be called"
+            )
         for source in self._parent_wakefield.sources:
-            time_axis = np.linspace(0, np.max(source._quality_factors / source._omega) * 20, 100000)
+            time_axis = np.linspace(
+                0, np.max(source._quality_factors / source._omega) * 20, 100000
+            )
             envelope = 0
             for res_ind in range(len(source._quality_factors)):
-                envelope += source._shunt_impedances[res_ind] * source._alpha[res_ind] * np.exp(- time_axis * source._alpha[res_ind])
+                envelope += (
+                    source._shunt_impedances[res_ind]
+                    * source._alpha[res_ind]
+                    * np.exp(-time_axis * source._alpha[res_ind])
+                )
             envelope /= np.max(envelope)
-            storage_time = time_axis[np.abs(envelope - self._decay_fraction_threshold).argmin()]
+            storage_time = time_axis[
+                np.abs(envelope - self._decay_fraction_threshold).argmin()
+            ]
             if storage_time > self._maximum_storage_time:
                 self._maximum_storage_time = storage_time
 
-
     def on_wakefield_init_simulation(
-            self, simulation: Simulation, parent_wakefield: WakeField
+        self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:
         """Lateinit method when WakeField is late-initialized
 
@@ -643,7 +662,9 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
         for source in self._parent_wakefield.sources:
             if source.is_dynamic or not isinstance(source, Resonators):
-                raise RuntimeError("source needs to be a Resonator and must not be dynamic")
+                raise RuntimeError(
+                    "source needs to be a Resonator and must not be dynamic"
+                )
 
         self._determine_storage_time()
 
@@ -676,7 +697,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
         self._last_reference_time = current_time
 
-    def _update_past_profile_potentials(self, zero_pinning: bool=False):
+    def _update_past_profile_potentials(self, zero_pinning: bool = False):
         """
         updates the wake potentials according to the new timestamps.
         the arrays are expected to be cleaned before, such that they don't
@@ -691,46 +712,79 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         """
         for prof_ind in range(len(self._past_profiles)):
             if prof_ind == 0:  # current profile does not yet have arrays initialized
-                left_extend = np.floor((len(self._past_profile_times[prof_ind]) - 1) / 2)  # TODO: should ths be derived from the _parent_wakefield or not
+                left_extend = np.floor(
+                    (len(self._past_profile_times[prof_ind]) - 1) / 2
+                )  # TODO: should ths be derived from the _parent_wakefield or not
                 right_extend = np.ceil((len(self._past_profiles[prof_ind]) - 1) / 2)
-                profile_bin_size = self._past_profile_times[prof_ind][1] - self._past_profile_times[prof_ind][0]
-                self._wake_pot_time.appendleft(np.linspace(
-                    self._past_profile_times[prof_ind][0] - left_extend * profile_bin_size,
-                    self._past_profile_times[prof_ind][-1] + right_extend * profile_bin_size,
-                    int(len(self._past_profile_times[prof_ind]) + left_extend + right_extend),
-                    endpoint=True))  # necessary for boundary effects
+                profile_bin_size = (
+                    self._past_profile_times[prof_ind][1]
+                    - self._past_profile_times[prof_ind][0]
+                )
+                self._wake_pot_time.appendleft(
+                    np.linspace(
+                        self._past_profile_times[prof_ind][0]
+                        - left_extend * profile_bin_size,
+                        self._past_profile_times[prof_ind][-1]
+                        + right_extend * profile_bin_size,
+                        int(
+                            len(self._past_profile_times[prof_ind])
+                            + left_extend
+                            + right_extend
+                        ),
+                        endpoint=True,
+                    )
+                )  # necessary for boundary effects
                 if zero_pinning:
                     self._wake_pot_time[prof_ind][
-                        np.abs(self._wake_pot_time[prof_ind]) <= profile_bin_size * np.finfo(
-                            float).eps * len(self._wake_pot_time[prof_ind])] = 0.0
+                        np.abs(self._wake_pot_time[prof_ind])
+                        <= profile_bin_size
+                        * np.finfo(float).eps
+                        * len(self._wake_pot_time[prof_ind])
+                    ] = 0.0
 
-                self._wake_pot_vals.appendleft(np.zeros_like(self._wake_pot_time[prof_ind]))
+                self._wake_pot_vals.appendleft(
+                    np.zeros_like(self._wake_pot_time[prof_ind])
+                )
             else:
-                self._wake_pot_vals[prof_ind] = np.zeros_like(self._wake_pot_vals[prof_ind])
+                self._wake_pot_vals[prof_ind] = np.zeros_like(
+                    self._wake_pot_vals[prof_ind]
+                )
             # now that everything is initialized, same operation for all arrays
             for source in self._parent_wakefield.sources:  # TODO: do we ever need multiple resonstors objects in here --> probably not, resonators are defined in the Sources
-                self._wake_pot_vals[prof_ind] += source.get_wake(self._wake_pot_time[prof_ind])
+                self._wake_pot_vals[prof_ind] += source.get_wake(
+                    self._wake_pot_time[prof_ind]
+                )
 
-    def _update_potential_sources(self, current_time: float=0) -> None:
+    def _update_potential_sources(self, current_time: float = 0) -> None:
         """
         Updates `_wake_pot_time`  and `_wake_pot_vals` arrays if `self._wake_pot_vals_needs_update=True`
 
         The time axis is chosen based on the profile in `_parent_wakefield.profile`
 
         """
-        if not self._wake_pot_vals_needs_update:  # TODO: how do we set this automagically?
+        if (
+            not self._wake_pot_vals_needs_update
+        ):  # TODO: how do we set this automagically?
             return
 
         self._update_past_profile_times_wake_times(current_time)
         self._remove_fully_decayed_wake_profiles()
 
         if len(self._past_profiles) != 0:  # ensure same time axis for profiles
-            past_bin_size = self._past_profile_times[-1][1] - self._past_profile_times[-1][0]
+            past_bin_size = (
+                self._past_profile_times[-1][1] - self._past_profile_times[-1][0]
+            )
             # TODO: big time jumps lead to problematic casting --> do we care about this?
-            new_bin_size = self._parent_wakefield.profile.hist_x[1] - self._parent_wakefield.profile.hist_x[0]
-            assert np.isclose(new_bin_size,
-                              past_bin_size, atol=0), "profile bin size needs to be constant: bin_size might be too small with casting to delta_t precision"
-        self._past_profile_times.appendleft(np.copy(self._parent_wakefield.profile.hist_x))
+            new_bin_size = (
+                self._parent_wakefield.profile.hist_x[1]
+                - self._parent_wakefield.profile.hist_x[0]
+            )
+            assert np.isclose(new_bin_size, past_bin_size, atol=0), (
+                "profile bin size needs to be constant: bin_size might be too small with casting to delta_t precision"
+            )
+        self._past_profile_times.appendleft(
+            np.copy(self._parent_wakefield.profile.hist_x)
+        )
         self._past_profiles.appendleft(np.copy(self._parent_wakefield.profile.hist_y))
 
         self._update_past_profile_potentials()
@@ -747,8 +801,12 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._past_charge_per_macroparticle.appendleft(_charge_per_macroparticle)
 
         wake_sum = 0
-        for prof_ind in range(len(self._past_profiles)):  # TODO: speedgain through circular shifting with numpy arrays instead of dequeue --> deque not usable with numba
-            wake_sum += self._past_charge_per_macroparticle[prof_ind] * np.convolve(self._wake_pot_vals[prof_ind],
-                                                                                    self._past_profiles[prof_ind][::-1],
-                                                                                    mode="valid") # inverse for time-indexing
+        for prof_ind in range(
+            len(self._past_profiles)
+        ):  # TODO: speedgain through circular shifting with numpy arrays instead of dequeue --> deque not usable with numba
+            wake_sum += self._past_charge_per_macroparticle[prof_ind] * np.convolve(
+                self._wake_pot_vals[prof_ind],
+                self._past_profiles[prof_ind][::-1],
+                mode="valid",
+            )  # inverse for time-indexing
         return wake_sum
