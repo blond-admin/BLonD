@@ -614,10 +614,35 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             local_res._update_potential_sources(1.0)
 
 
-    def test_calc_induced_voltage(self):
-        # check for array lengths --> array must have same length as profile, check symmetry, asymmetry.
-        # check symmetry --> how to do this properly for 2 passes? --> new wakefield simulation with different parameters
-        pass
+    def test_calc_induced_voltage_array_lengths(self):
+        sim = Mock(Simulation)
+
+        local_res = deepcopy(self.multi_pass_resonator_solver)
+        local_res.on_wakefield_init_simulation(simulation=sim,
+                                               parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield)
+        local_res._update_potential_sources()
+        ind_volt = local_res.calc_induced_voltage(beam=self.beam)
+
+        assert len(ind_volt) == len(local_res._parent_wakefield.profile.hist_x)
+
+        local_res._maximum_storage_time = 1.5
+        local_res._wake_pot_vals_needs_update = True
+        local_res._update_potential_sources(1.0)
+
+        assert len(ind_volt) == len(local_res._parent_wakefield.profile.hist_x)
+
+    def test_calc_induced_voltage_vals(self):
+        self.resonators = Resonators(
+            shunt_impedances=np.array([1]),
+            center_frequencies=np.array([500e6]),
+            quality_factors=np.array([10e3]),
+        )
+        sim = Mock(Simulation)
+
+        local_res = deepcopy(self.multi_pass_resonator_solver)
+        local_parent_wf = deepcopy(self.multi_pass_resonator_solver._parent_wakefield)
+        local_res.on_wakefield_init_simulation(simulation=sim,
+                                               parent_wakefield=)
 
     def compare_to_analytical_resonator_solver_for_results(self):
         # compare to single resonator, if the same results get reached
