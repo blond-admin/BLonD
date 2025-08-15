@@ -251,7 +251,7 @@ class Blond2:
 
             if DEV_PLOT:
                 plt.figure(1)
-                sname = str(solver)[str(solver).rfind(".") + 1:str(solver).rfind("'")]
+                sname = str(solver)[str(solver).rfind(".") + 1 : str(solver).rfind("'")]
                 plt.plot(tot_vol.induced_voltage, label=f"solver = {sname}")
                 if not solver == InducedVoltageResonator:
                     plt.figure(2)
@@ -321,5 +321,7 @@ class TestBothBlonds(unittest.TestCase):
     def test___init__(self):
         for ind_ind in range(len(self.blond3.blond2.induced_voltage)):
             np.testing.assert_allclose(
-                self.blond3.blond2.induced_voltage[ind_ind], self.blond3.induced_voltage, rtol=1e-6
+                self.blond3.blond2.induced_voltage[ind_ind],
+                self.blond3.induced_voltage,
+                rtol=1e-6,
             )
