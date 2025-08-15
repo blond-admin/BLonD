@@ -155,7 +155,7 @@ class TestResonators(unittest.TestCase):
         t_min = 1 / res._center_frequencies[0]
         assert np.isclose(time[wake_potential.argmin()], t_min / 2)
 
-        DEV_DEBBUG = True
+        DEV_DEBBUG = False
         if DEV_DEBBUG:
             plt.plot(time, wake_potential)
             plt.show()
@@ -168,7 +168,7 @@ class TestResonators(unittest.TestCase):
         freq_y = self.resonators.get_impedance(
             freq_x=freq_x, simulation=simulation, beam=beam
         )
-        DEV_DEBBUG = True
+        DEV_DEBBUG = False
         if DEV_DEBBUG:
             plt.plot(freq_x, np.abs(freq_y))
             plt.show()
@@ -214,7 +214,7 @@ class TestResonators(unittest.TestCase):
             time=time, simulation=simulation, beam=beam
         )
         wake_freq = self.resonators.get_wake_impedance_freq(time=time)
-        DEV_DEBBUG = True
+        DEV_DEBBUG = False
         if DEV_DEBBUG:
             plt.plot(wake_freq, np.abs(wake_imp))
             plt.xlim(0, 1.5e9)
