@@ -46,7 +46,8 @@ class CoupledBunchFeedback:
                  gains: ArrayLike[float], n_samples: int, profile: Profile,
                  mode: CBFBModes = CBFBModes.DIPOLAR,
                  max_n_bunch: Optional[int] = None,
-                 cba: Optional[CoupledBunchAnalysis] = None):
+                 cba: Optional[CoupledBunchAnalysis] = None,
+                 voltage_limit: Optional[float] = None):
 
         self._mode_numbers = np.array(mode_numbers)
         self._phases = np.array(phases)
@@ -59,6 +60,9 @@ class CoupledBunchFeedback:
 
         self._max_n = (np.max(mode_numbers) if max_n_bunch is None
                                             else max_n_bunch)
+
+        self.voltage_limit = (voltage_limit if voltage_limit is not None
+                                            else np.inf)
 
         if cba is None:
             self._cba = CoupledBunchAnalysis(self._n_samples, self._profile,
@@ -80,6 +84,9 @@ class CoupledBunchFeedback:
             fb_volt = self._gains[mode] * self._mode_amplitudes[mode]
 
             fb_wave = fb_volt * np.sin(2*np.pi*freq_CBFB + phase_CBFB
+            # TODO: Voltage limit per mode or total?
+            if fb_volt > self.voltage_limit:
+                fb_volt = self.voltage_limit
                                        + self._phases[mode])
 
 
