@@ -224,15 +224,12 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         )
 
         # check for unchanging of voltage, which should not change
-        index_offset = (profile_len - initial_profile_len) // 2
         assert np.allclose(
-            self.analytical_single_turn_solver._wake_pot_vals[
-                index_offset : len(initial_wake_pot) + index_offset
-            ],
+            self.analytical_single_turn_solver._wake_pot_vals[:len(initial_wake_pot)],
             initial_wake_pot,
         )
         assert np.allclose(
-            updated_voltage[index_offset : len(initial_voltage) + index_offset],
+            updated_voltage[:len(initial_voltage)],
             initial_voltage,
         )
 

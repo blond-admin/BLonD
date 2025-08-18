@@ -509,8 +509,8 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
         """
         if not self._wake_pot_vals_needs_update:
             return
-        left_extend = np.floor((len(self._parent_wakefield.profile.hist_x) - 1) / 2)
-        right_extend = np.ceil((len(self._parent_wakefield.profile.hist_x) - 1) / 2)
+        left_extend = np.abs(self._parent_wakefield.profile.hist_x).argmin()  # time shift for alignment
+        right_extend = int(len(self._parent_wakefield.profile.hist_x) - left_extend - 1)  # total length has to be 2*hist_x
         self._wake_pot_time = np.linspace(
             self._parent_wakefield.profile.hist_x[0]
             - left_extend * self._parent_wakefield.profile.bin_size,
@@ -557,7 +557,7 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
 
         return _charge_per_macroparticle * np.convolve(
             self._wake_pot_vals,
-            self._parent_wakefield.profile.hist_y,  # inverse for time-indexing
+            self._parent_wakefield.profile.hist_y[::-1],  # inverse for time-indexing
             mode="valid",
         )  # output is one element too long with valid
 
@@ -712,10 +712,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         """
         for prof_ind in range(len(self._past_profiles)):
             if prof_ind == 0:  # current profile does not yet have arrays initialized
-                left_extend = np.floor(
-                    (len(self._past_profile_times[prof_ind]) - 1) / 2
-                )  # TODO: should ths be derived from the _parent_wakefield or not
-                right_extend = np.ceil((len(self._past_profiles[prof_ind]) - 1) / 2)
+                left_extend = np.abs(self._past_profile_times[prof_ind]).argmin()  # TODO: should ths be derived from the _parent_wakefield or not
+                right_extend = int(len(self._past_profile_times[prof_ind]) - left_extend - 1)
                 profile_bin_size = (
                     self._past_profile_times[prof_ind][1]
                     - self._past_profile_times[prof_ind][0]
