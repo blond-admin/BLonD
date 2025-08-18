@@ -56,7 +56,8 @@ class CoupledBunchFeedback:
         self._mode = mode
         self._n_samples = n_samples
 
-        self._fft_freqs = npfft.rfftfreq(self._n_fft, self._profile.bin_size)
+        self.total_voltage = np.zeros_like(profile.bin_centers)
+        self._bins = np.arange(len(self.total_voltage))/len(self.total_voltage)
 
         self._max_n = (np.max(mode_numbers) if max_n_bunch is None
                                             else max_n_bunch)
@@ -77,17 +78,30 @@ class CoupledBunchFeedback:
 
     def track(self):
 
+        self.total_voltage *= 0
+
+        self._cba.track()
+
         for mode in range(self._max_n):
-            freq_CBFB = (self._mode_frequencies[mode] + mode*self._max_n)
-            phase_CBFB = self._mode_phases[mode]
+            if mode not in self._mode_numbers:
+                continue
 
-            fb_volt = self._gains[mode] * self._mode_amplitudes[mode]
+            mode_freq = (self._cba._mode_frequencies[mode] + mode*self._max_n)
+            mode_phase = self._cba._mode_phases[mode]
 
-            fb_wave = fb_volt * np.sin(2*np.pi*freq_CBFB + phase_CBFB
+            fb_volt = self._gains[mode] * self._cba._mode_amplitudes[mode]
+
             # TODO: Voltage limit per mode or total?
             if fb_volt > self.voltage_limit:
                 fb_volt = self.voltage_limit
+
+            fb_wave = fb_volt * np.sin(2*np.pi * mode_freq
+                                       * self._bins
+                                       + mode_phase
                                        + self._phases[mode])
+
+            self.total_voltage += fb_wave
+
 
 
 class CoupledBunchAnalysis:
