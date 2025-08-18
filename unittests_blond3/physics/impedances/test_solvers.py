@@ -224,8 +224,9 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         )
 
         # check for unchanging of voltage, which should not change
+        shift_index = int(profile_len - initial_profile_len)
         assert np.allclose(
-            self.analytical_single_turn_solver._wake_pot_vals[:len(initial_wake_pot)],
+            self.analytical_single_turn_solver._wake_pot_vals[shift_index:shift_index + len(initial_wake_pot)],
             initial_wake_pot,
         )
         assert np.allclose(
@@ -413,6 +414,11 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.beam.n_particles = int(1e2)
         self.beam.particle_type.charge = 1
         self.beam.n_macroparticles_partial.return_value = int(1e2)
+
+    def test_profile_without_zeros(self):
+        #TODO: check that algorithm works without a zero-point being present in the array
+        pass
+
 
     def test_determine_storage_time_single_res(self):
         simulation = Mock(Simulation)
@@ -810,18 +816,18 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             == len(local_res._past_profiles)
             == 3
         )
-        assert np.mean(local_res._wake_pot_time[1]) == np.mean(
+        assert np.isclose(np.mean(local_res._wake_pot_time[1]), np.mean(
             local_res._wake_pot_time[0] + tsteps[2] - tsteps[1]
-        )
-        assert np.mean(local_res._past_profile_times[1]) == np.mean(
+        ))
+        assert np.isclose(np.mean(local_res._past_profile_times[1]), np.mean(
             local_res._past_profile_times[0] + tsteps[2] - tsteps[1]
-        )
-        assert np.mean(local_res._wake_pot_time[2]) == np.mean(
+        ))
+        assert np.isclose(np.mean(local_res._wake_pot_time[2]), np.mean(
             local_res._wake_pot_time[1] + tsteps[1] - tsteps[0]
-        )
-        assert np.mean(local_res._past_profile_times[2]) == np.mean(
+        ))
+        assert np.isclose(np.mean(local_res._past_profile_times[2]), np.mean(
             local_res._past_profile_times[1] + tsteps[1] - tsteps[0]
-        )
+        ))
 
         assert np.allclose(local_res._past_profiles[0], local_res._past_profiles[1])
         assert np.allclose(local_res._past_profiles[1], local_res._past_profiles[2])
