@@ -156,21 +156,23 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
 class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
     def __init__(
         self,
-        shunt_impedances: NumpyArray,
-        center_frequencies: NumpyArray,
-        quality_factors: NumpyArray,
+        shunt_impedances: NumpyArray | float,
+        center_frequencies: NumpyArray | float,
+        quality_factors: NumpyArray | float,
     ):
         """
         Multiple resonances of RLC circuits for impedance calculations.
 
         Parameters
         ----------
-        shunt_impedances : array-like
+        shunt_impedances : array-like or float
             Shunt impedances of the resonant circuits, in [Ω].
-        center_frequencies : array-like
+        center_frequencies : array-like or float
             Center frequencies of the resonances, in [Hz].
-        quality_factors : array-like
+        quality_factors : array-like or float
             Quality factors (Q) of the resonances, dimensionless.
+
+        all values must be float, if one is given as float
 
         Notes
         -----
@@ -178,16 +180,23 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         corresponding to a separate resonance.
         """
         super().__init__(is_dynamic=False)
-        assert len(shunt_impedances) == len(center_frequencies), (
-            f"{len(shunt_impedances)} != {len(center_frequencies)}"
-        )
-        assert len(shunt_impedances) == len(quality_factors), (
-            f"{len(shunt_impedances)} != {len(quality_factors)}"
-        )
-        self._shunt_impedances = shunt_impedances
-        self._center_frequencies = center_frequencies
-        self._quality_factors = quality_factors
-        self._n_resonators = len(shunt_impedances)
+        if (type(shunt_impedances) == float and type(center_frequencies) == float and type(
+                quality_factors) == float):
+            self._shunt_impedances = np.array([shunt_impedances])
+            self._center_frequencies = np.array([center_frequencies])
+            self._quality_factors = np.array([quality_factors])
+            self._n_resonators = len(self._shunt_impedances)
+        else:
+            assert len(shunt_impedances) == len(center_frequencies), (
+                f"{len(shunt_impedances)} != {len(center_frequencies)}"
+            )
+            assert len(shunt_impedances) == len(quality_factors), (
+                f"{len(shunt_impedances)} != {len(quality_factors)}"
+            )
+            self._shunt_impedances = shunt_impedances
+            self._center_frequencies = center_frequencies
+            self._quality_factors = quality_factors
+            self._n_resonators = len(shunt_impedances)
 
         # secondary quantities for wake calculation
         self._omega = 2 * np.pi * self._center_frequencies
