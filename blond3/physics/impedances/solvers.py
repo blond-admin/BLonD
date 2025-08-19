@@ -510,8 +510,10 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
         if not self._wake_pot_vals_needs_update:
             return
         bin_size = self._parent_wakefield.profile.bin_size
-        left_extend = int(np.round(len(self._parent_wakefield.profile.hist_x) + self._parent_wakefield.profile.hist_x[0] / bin_size))  # time shift for alignment
-        right_extend = int(len(self._parent_wakefield.profile.hist_x) - left_extend - 1)  # total length has to be 2*hist_x
+        left_extend = len(self._parent_wakefield.profile.hist_x) + self._parent_wakefield.profile.hist_x[0] / bin_size - 1
+        # time shift for alignment with wakepotential definition of 0
+        right_extend = len(self._parent_wakefield.profile.hist_x) - left_extend - 1  # total length has to be 2*hist_x
+
         self._wake_pot_time = np.linspace(
             self._parent_wakefield.profile.hist_x[0]
             - left_extend * bin_size,
@@ -717,9 +719,10 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                     self._past_profile_times[prof_ind][1]
                     - self._past_profile_times[prof_ind][0]
                 )
-                left_extend = int(np.round(len(self._past_profile_times[prof_ind]) + self._past_profile_times[prof_ind][
-                    0] / profile_bin_size))
-                right_extend = int(len(self._past_profile_times[prof_ind]) - left_extend - 1)
+                left_extend = len(self._past_profile_times[prof_ind]) + self._past_profile_times[prof_ind][
+                    0] / profile_bin_size
+                # time shift for alignment with wakepotential definition of 0
+                right_extend = len(self._past_profile_times[prof_ind]) - left_extend - 1 # total length has to be 2*hist_x
                 self._wake_pot_time.appendleft(
                     np.linspace(
                         self._past_profile_times[prof_ind][0]
