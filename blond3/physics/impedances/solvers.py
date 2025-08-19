@@ -720,7 +720,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                     - self._past_profile_times[prof_ind][0]
                 )
                 left_extend = len(self._past_profile_times[prof_ind]) + self._past_profile_times[prof_ind][
-                    0] / profile_bin_size
+                    0] / profile_bin_size - 1
                 # time shift for alignment with wakepotential definition of 0
                 right_extend = len(self._past_profile_times[prof_ind]) - left_extend - 1 # total length has to be 2*hist_x
                 self._wake_pot_time.appendleft(

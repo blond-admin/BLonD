@@ -42,13 +42,13 @@ class Blond2:
         from blond.input_parameters.ring import Ring
 
         for solver in (
-            # InducedVoltageTime,
+            InducedVoltageTime,
             # InducedVoltageFreq,
-            InducedVoltageResonator,
+            # InducedVoltageResonator,
         ):
             ring = Ring(6911.56, 1 / (1 / np.sqrt(0.00192)) ** 2, 25.92e9, Proton(), 10)
             rf_station = RFStation(ring, [4620], [0.9e6], [0.0], 1)
-            beam = Beam(ring, 1001, 1e10)
+            beam = Beam(ring, 1e6, 1e10)
             bigaussian(ring, rf_station, beam, 2e-9 / 4, seed=1)
             self.dt = beam.dt
             self.dE = beam.dE
@@ -56,7 +56,7 @@ class Blond2:
             cut_options = CutOptions(
                 cut_left=0,
                 cut_right=2 * np.pi,
-                n_slices=256,
+                n_slices=64,
                 rf_station=rf_station,
                 cuts_unit="rad",
             )
@@ -64,7 +64,7 @@ class Blond2:
             self.profile = profile
 
             profile.track()
-
+            R_shunt, f_res, Q_factor = 5e5, 1e9, 10e10
             resonator = Resonators(R_shunt, f_res, Q_factor)
             self.resonator = resonator
 
@@ -110,6 +110,7 @@ class Blond3:
         cavity1.harmonic = 4620
         drift = DriftSimple()
         drift.transition_gamma = 1 / (1 / np.sqrt(0.00192)) ** 2
+        R_shunt, f_res, Q_factor = 5e5, 1e9, 10e10
         resonators = Resonators(
             shunt_impedances=R_shunt,
             center_frequencies=f_res,
@@ -150,9 +151,29 @@ class TestBothBlonds(unittest.TestCase):
         backend.change_backend(Numpy64Bit)
         self.blond3 = Blond3()
 
+    def close_in_norm(self, arr_a, arr_b, rtol=1e-5, atol=1e-8):
+        a = np.asarray(arr_a)
+        b = np.asarray(arr_b)
+        diff = a - b
+        den = max(np.linalg.norm(a), np.linalg.norm(b), atol / rtol if rtol > 0 else 1.0)
+        return (np.linalg.norm(diff) <= rtol * den + atol * np.sqrt(diff.size))
+
     def test___init__(self):
+        if DEV_PLOT:
+            plt.show()
+        plt.plot(self.blond3.blond2.induced_voltage)
+        plt.plot(self.blond3.induced_voltage, ls="--")
+        plt.show()
+        # plt.plot(self.blond3.blond2.induced_voltage)
+        # plt.plot(self.blond3.induced_voltage, ls="--")
+        # plt.xlim(390*2, 395*2)
+        # plt.ylim(-1e-7, 1e-7)
+        # plt.show()
+
+        assert self.close_in_norm(self.blond3.blond2.induced_voltage, self.blond3.induced_voltage)
+
         # np.testing.assert_allclose(
         #     self.blond3.blond2.induced_voltage, self.blond3.induced_voltage, rtol=1e-6
         # )
-        if DEV_PLOT:
-            plt.show()
+
+
