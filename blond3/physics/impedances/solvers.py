@@ -509,13 +509,14 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
         """
         if not self._wake_pot_vals_needs_update:
             return
-        left_extend = len(self._parent_wakefield.profile.hist_x) - np.abs(self._parent_wakefield.profile.hist_x).argmin()  # time shift for alignment
+        bin_size = self._parent_wakefield.profile.bin_size
+        left_extend = int(np.round(len(self._parent_wakefield.profile.hist_x) + self._parent_wakefield.profile.hist_x[0] / bin_size))  # time shift for alignment
         right_extend = int(len(self._parent_wakefield.profile.hist_x) - left_extend - 1)  # total length has to be 2*hist_x
         self._wake_pot_time = np.linspace(
             self._parent_wakefield.profile.hist_x[0]
-            - left_extend * self._parent_wakefield.profile.bin_size,
+            - left_extend * bin_size,
             self._parent_wakefield.profile.hist_x[-1]
-            + right_extend * self._parent_wakefield.profile.bin_size,
+            + right_extend * bin_size,
             int(
                 len(self._parent_wakefield.profile.hist_x) + left_extend + right_extend
             ),
@@ -712,13 +713,13 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         """
         for prof_ind in range(len(self._past_profiles)):
             if prof_ind == 0:  # current profile does not yet have arrays initialized
-                left_extend = len(self._past_profile_times[prof_ind]) - np.abs(
-                    self._past_profile_times[prof_ind]).argmin()  # time shift for alignment
-                right_extend = int(len(self._past_profile_times[prof_ind]) - left_extend - 1)
                 profile_bin_size = (
                     self._past_profile_times[prof_ind][1]
                     - self._past_profile_times[prof_ind][0]
                 )
+                left_extend = int(np.round(len(self._past_profile_times[prof_ind]) + self._past_profile_times[prof_ind][
+                    0] / profile_bin_size))
+                right_extend = int(len(self._past_profile_times[prof_ind]) - left_extend - 1)
                 self._wake_pot_time.appendleft(
                     np.linspace(
                         self._past_profile_times[prof_ind][0]
@@ -792,7 +793,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
     def calc_induced_voltage(self, beam: BeamBaseClass) -> NumpyArray | CupyArray:
         if self._wake_pot_vals_needs_update:
-            self._update_potential_sources()
+            self._update_potential_sources(beam.reference_time)
 
         _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
             beam.n_particles / beam.n_macroparticles_partial()
