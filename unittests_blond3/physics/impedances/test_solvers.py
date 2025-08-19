@@ -721,18 +721,18 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield,
         )
         local_res._past_profile_times.appendleft(
-            self.multi_pass_resonator_solver._parent_wakefield.profile.hist_x
+            deepcopy(self.multi_pass_resonator_solver._parent_wakefield.profile.hist_x)
         )
         local_res._past_profiles.appendleft(
-            self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y
+            deepcopy(self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y)
         )
         local_res._update_past_profile_potentials(zero_pinning=True)
-
+        local_res._update_past_profile_times_wake_times(1e-8)
         local_res._past_profile_times.appendleft(
-            self.multi_pass_resonator_solver._parent_wakefield.profile.hist_x + 1
+            deepcopy(self.multi_pass_resonator_solver._parent_wakefield.profile.hist_x)
         )
         local_res._past_profiles.appendleft(
-            self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y + 1
+            deepcopy(self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y)
         )
         local_res._update_past_profile_potentials(zero_pinning=True)
 
@@ -745,15 +745,15 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         assert len(local_res._wake_pot_vals[0]) == len(local_res._wake_pot_time[0])
         assert len(local_res._wake_pot_vals[1]) == len(local_res._wake_pot_time[1])
 
-        assert np.allclose(local_res._past_profile_times[1], self.hist_x)
-        assert np.allclose(local_res._past_profiles[1], self.profile)
-        assert np.allclose(local_res._past_profile_times[0], self.hist_x + 1)
-        assert np.allclose(local_res._past_profiles[0], self.profile + 1)
+        assert np.allclose(local_res._past_profile_times[0], self.hist_x)
+        assert np.allclose(local_res._past_profiles[0], self.profile)
+        assert np.allclose(local_res._past_profile_times[1], self.hist_x + 1e-8)
+        assert np.allclose(local_res._past_profiles[1], self.profile + 1e-8)
 
         assert np.not_equal(
             local_res._wake_pot_vals[0], local_res._wake_pot_vals[1]
         ).any()
-        assert np.allclose(local_res._wake_pot_time[0], local_res._wake_pot_time[1] + 1)
+        assert np.allclose(local_res._wake_pot_time[0], local_res._wake_pot_time[1] - 1e-8, atol=1e-10)
 
     def test__update_potential_sources(self):
         """
@@ -871,6 +871,25 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
         assert len(ind_volt) == len(local_res._parent_wakefield.profile.hist_x)
 
+    def test_calc_induced_voltage_two_passages(self):
+        sim = Mock(Simulation)
+
+        local_res = deepcopy(self.multi_pass_resonator_solver)
+        local_res.on_wakefield_init_simulation(
+            simulation=sim,
+            parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield,
+        )
+        local_res._update_potential_sources()
+        ind_volt = local_res.calc_induced_voltage(beam=self.beam)
+
+        assert len(ind_volt) == len(local_res._parent_wakefield.profile.hist_x)
+
+        local_res._maximum_storage_time = 1.5
+        local_res._wake_pot_vals_needs_update = True
+        local_res._update_potential_sources(1.0)
+
+        assert len(ind_volt) == len(local_res._parent_wakefield.profile.hist_x)
+
     def test_calc_induced_voltage_vals(self):
         resonators = Resonators(
             shunt_impedances=np.array([1e12]),
@@ -942,38 +961,39 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
         sigma_z = 40e-3
         sigma_length = 8.54
-        bunch_time = np.linspace(
-            -sigma_z * sigma_length / c, sigma_length * sigma_z / c, 2**10
-        )
-        bunch = np.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
+        for delta_t in [0, 0.5e-8, -0.5e-8]:
+            bunch_time = np.linspace(
+                -sigma_z * sigma_length / c + delta_t, sigma_length * sigma_z / c + delta_t, 2**10
+            )
+            bunch = np.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
 
-        local_res._parent_wakefield = Mock(WakeField)
-        local_res._parent_wakefield.profile.bin_size = bunch_time[1] - bunch_time[0]
-        local_res._parent_wakefield.profile.hist_x = bunch_time
-        local_res._parent_wakefield.profile.hist_y = bunch / np.sum(bunch)
+            local_res._parent_wakefield = Mock(WakeField)
+            local_res._parent_wakefield.profile.bin_size = bunch_time[1] - bunch_time[0]
+            local_res._parent_wakefield.profile.hist_x = bunch_time
+            local_res._parent_wakefield.profile.hist_y = bunch / np.sum(bunch)
 
-        local_res._parent_wakefield.sources = (resonators,)
-        local_res._wake_pot_vals_needs_update = True
+            local_res._parent_wakefield.sources = (resonators,)
+            local_res._wake_pot_vals_needs_update = True
 
-        sim = Mock(Simulation)
+            sim = Mock(Simulation)
 
-        local_res.on_wakefield_init_simulation(
-            simulation=sim, parent_wakefield=local_res._parent_wakefield
-        )
-        local_res._update_potential_sources()
+            local_res.on_wakefield_init_simulation(
+                simulation=sim, parent_wakefield=local_res._parent_wakefield
+            )
+            local_res._update_potential_sources()
 
-        local_res_analy = AnalyticSingleTurnResonatorSolver()
-        local_res_analy._parent_wakefield = Mock(WakeField)
-        local_res_analy._parent_wakefield.profile.bin_size = (
-            bunch_time[1] - bunch_time[0]
-        )
-        local_res_analy._parent_wakefield.profile.hist_x = bunch_time
-        local_res_analy._parent_wakefield.profile.hist_y = bunch / np.sum(bunch)
-        local_res_analy._parent_wakefield.sources = (resonators,)
+            local_res_analy = AnalyticSingleTurnResonatorSolver()
+            local_res_analy._parent_wakefield = Mock(WakeField)
+            local_res_analy._parent_wakefield.profile.bin_size = (
+                bunch_time[1] - bunch_time[0]
+            )
+            local_res_analy._parent_wakefield.profile.hist_x = bunch_time
+            local_res_analy._parent_wakefield.profile.hist_y = bunch / np.sum(bunch)
+            local_res_analy._parent_wakefield.sources = (resonators,)
 
-        local_res_analy._wake_pot_vals_needs_update = True
+            local_res_analy._wake_pot_vals_needs_update = True
 
-        assert np.allclose(
-            local_res.calc_induced_voltage(beam=self.beam),
-            local_res_analy.calc_induced_voltage(beam=self.beam),
-        )
+            assert np.allclose(
+                local_res.calc_induced_voltage(beam=self.beam),
+                local_res_analy.calc_induced_voltage(beam=self.beam),
+            )
