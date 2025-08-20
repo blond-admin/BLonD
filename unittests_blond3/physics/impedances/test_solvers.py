@@ -273,14 +273,30 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         self.analytical_single_turn_solver._wake_pot_vals = np.zeros(
             profile_width * 2 + 1
         )
-        self.analytical_single_turn_solver._wake_pot_vals[
-        profile_width - 1: profile_width + 2
-        ] = 1 / 3 / e
+        self.analytical_single_turn_solver._wake_pot_vals[profile_width - 1: profile_width + 2] = 1 / 3 / e
         calced_voltage = self.analytical_single_turn_solver.calc_induced_voltage(
             beam=beam
         )
 
         min_voltage = np.min(calced_voltage)  # negative due to positive charge
+        assert np.isclose(min_voltage, -1 / 3)
+        assert np.isclose(
+            np.abs(calced_voltage - min_voltage).argmin(), profile_width // 3
+        )
+        assert np.sum(calced_voltage[0:profile_width // 3 - 3]) == 0
+        assert np.sum(calced_voltage[profile_width // 3 + 3:]) == 0
+
+        # same check, but with self.bin_size/2 shifted histogram, should have same values
+        local_res = deepcopy(self.analytical_single_turn_solver)
+        local_res._parent_wakefield.profile.hist_x = self.hist_x + self.bin_size / 2
+
+        local_res._update_potential_sources(zero_pinning=True)
+
+        calced_voltage = local_res.calc_induced_voltage(
+            beam=beam
+        )
+        min_voltage = np.min(calced_voltage)
+
         assert np.isclose(min_voltage, -1 / 3)
         assert np.isclose(
             np.abs(calced_voltage - min_voltage).argmin(), profile_width // 3
@@ -439,10 +455,6 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.beam.n_particles = int(1e2)
         self.beam.particle_type.charge = 1
         self.beam.n_macroparticles_partial.return_value = int(1e2)
-
-    def test_profile_without_zeros(self):
-        # TODO: check that algorithm works without a zero-point being present in the array
-        pass
 
     def test_determine_storage_time_single_res(self):
         simulation = Mock(Simulation)
