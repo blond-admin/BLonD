@@ -143,8 +143,8 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         )
         self.analytical_single_turn_solver = AnalyticSingleTurnResonatorSolver()
         self.left_edge, self.right_edge, self.bin_size = -2e-9, 1e-9, 1e-10
-        self.hist_x = np.arange(
-            self.left_edge, self.right_edge + self.bin_size, self.bin_size
+        self.hist_x = np.linspace(
+            self.left_edge, self.right_edge, int(np.round((self.right_edge - self.left_edge) / self.bin_size)) + 1, endpoint=True
         )
 
         self.analytical_single_turn_solver._parent_wakefield = Mock(WakeField)
@@ -283,10 +283,10 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         min_voltage = np.min(calced_voltage)  # negative due to positive charge
         assert np.isclose(min_voltage, -1 / 3)
         assert np.isclose(
-            np.abs(calced_voltage - min_voltage).argmin(), profile_width // 2
+            np.abs(calced_voltage - min_voltage).argmin(), profile_width // 3
         )
-        assert np.sum(calced_voltage[0: profile_width // 2 - 3]) == 0
-        assert np.sum(calced_voltage[profile_width + 2:]) == 0
+        assert np.sum(calced_voltage[0:profile_width // 3 - 3]) == 0
+        assert np.sum(calced_voltage[profile_width // 3 + 3:]) == 0
 
     def test_against_CST_results(self):
         # CST settings: open BC at z, magnetic symmetry planes, ec1 parameters from https://cds.cern.ch/record/533324, f_cutoff = 2.5GHz, WF length = 5m
