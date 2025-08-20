@@ -22,20 +22,20 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class ArrayRecorder(ABC):
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def write(self, newdata: NumpyArray) -> None:
         pass
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def get_valid_entries(self) -> NumpyArray:
         pass
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def to_disk(self) -> None:
         pass
 
     @staticmethod
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def from_disk(filepath: str | PathLike) -> ArrayRecorder:
         pass
 
@@ -52,7 +52,6 @@ class DenseArrayRecorder(ArrayRecorder):
     ):
         if filepath_is_relative:
             filepath = callers_relative_path(filepath, stacklevel=2)
-        print(filepath)
         self._memory = np.empty(shape=shape, dtype=dtype, order=order)
         self._write_idx = 0
 

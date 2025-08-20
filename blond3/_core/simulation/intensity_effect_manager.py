@@ -1,42 +1,41 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
+
+from blond3 import WakeField
+from blond3.physics.profiles import ProfileBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond3 import Simulation
 
-    from blond3._core.base import IntensityEffect
-
 
 class IntensityEffectManager:
-    def __init__(self, simulation: Simulation):
+    def __init__(self, simulation: Simulation) -> None:
         self._parent_simulation = simulation
-        self._active = True
-        self._frozen = True
 
-    @property
-    def active(self) -> bool:
-        return self._active
+    def set_wakefields(self, active: bool) -> None:
+        """
+        Activate/deactivate `WakeField`
 
-    @active.setter
-    def active(self, value: bool) -> None:
-        if value != self._active:
-            self._active = value
-            intensity_elements = self._parent_simulation.ring.elements.get_elements(
-                IntensityEffect,
-            )
-            for element in intensity_elements:
-                element.active = bool(value)
+        Parameters
+        ----------
+        active
+            True or False, so that simulation can skip the elements
+        """
+        wakefields = self._parent_simulation.ring.elements.get_elements(WakeField)
+        for wakefield in wakefields:
+            wakefield.active = active
 
-    @property
-    def frozen(self) -> bool:
-        return self._frozen
+    def set_profiles(self, active: bool) -> None:
+        """
+        Activate/deactivate `ProfileBaseClass`
 
-    @frozen.setter
-    def frozen(self, value: bool) -> None:
-        if value != self._frozen:
-            self._frozen = value
-            intensity_elements = self._parent_simulation.ring.elements.get_elements(
-                IntensityEffect,
-            )
-            for element in intensity_elements:
-                element.frozen = bool(value)
+        Parameters
+        ----------
+        active
+            True or False, so that simulation can skip the elements
+
+        """
+        profiles = self._parent_simulation.ring.elements.get_elements(ProfileBaseClass)
+        for profile in profiles:
+            profile.active = active

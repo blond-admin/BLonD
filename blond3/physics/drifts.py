@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 from unittest.mock import Mock
 
 from .._core.backends.backend import backend
@@ -20,17 +20,27 @@ if TYPE_CHECKING:  # pragma: no cover
 class DriftBaseClass(BeamPhysicsRelevant, ABC):
     def __init__(
         self,
-        share_of_circumference: float,
+        orbit_length: float,
         section_index: int = 0,
     ):
-        super().__init__(section_index=section_index)
-        self._share_of_circumference: backend.float = backend.float(
-            share_of_circumference
-        )
+        """
+        Base class of a drift
 
-    @property  # as readonly attributes
-    def share_of_circumference(self) -> backend.float:
-        return self._share_of_circumference
+        Parameters
+        ----------
+        orbit_length
+            Length of drift, in [m].
+            Length / Velocity => Time to pass the element
+        section_index
+            Section index to group elements into sections
+
+        """
+        super().__init__(section_index=section_index)
+
+        self.orbit_length = orbit_length
+
+    def __str__(self):
+        return f''
 
     def track(self, beam: BeamBaseClass) -> None:
         """Main simulation routine to be called in the mainloop
@@ -78,46 +88,47 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
 
     Parameters
     ----------
-    share_of_circumference
-        Share of circumference.
-        E.g. 100% share -> share_of_circumference=1.0
+    orbit_length
+        Length of drift, in [m]
     section_index
         Section index to group elements into sections
-
-    Attributes
-    ----------
-    length
-        Length of drift in [m]
+    transition_gamma
+        Gamma of transition crossing
     """
 
     def __init__(
         self,
-        share_of_circumference: float = 1.0,
+        orbit_length: float,
         section_index: int = 0,
+        transition_gamma: Optional[float] = None,
     ):
         """
         Base class to implement beam drifts in synchrotrons
 
         Parameters
         ----------
-        share_of_circumference
-            Share of circumference.
-            E.g. 100% share -> share_of_circumference=1.0
+        orbit_length
+            Length of drift, in [m].
+            Length / Velocity => Time to pass the element
         section_index
             Section index to group elements into sections
+        transition_gamma
+            Gamma of transition crossing
 
         """
 
         super().__init__(
-            share_of_circumference=share_of_circumference,
+            orbit_length=orbit_length,
             section_index=section_index,
         )
 
         self._transition_gamma: float | None = None
         self._momentum_compaction_factor: float | None = None
-        self.length: float | None = None
 
         self._simulation: LateInit[Simulation] = None
+
+        if transition_gamma is not None:
+            self.transition_gamma = transition_gamma  # use setter method
 
     @property  # read only, set by `transition_gamma`
     def momentum_compaction_factor(self):
@@ -139,8 +150,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
     @staticmethod
     def headless(
         transition_gamma: float | Iterable | Tuple[NumpyArray, NumpyArray],
-        circumference: float,
-        share_of_circumference: float,
+        orbit_length: float,
         section_index: int = 0,
     ) -> DriftSimple:
         """
@@ -151,11 +161,9 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         ----------
         transition_gamma
             Gamma of transition crossing
-        circumference
-            Synchrotron circumference in [m]
-        share_of_circumference
-            Share of circumference.
-            E.g. 100% share -> share_of_circumference=1.0
+        orbit_length
+            Length of drift, in [m].
+            Length / Velocity => Time to pass the element
         section_index
             Section index to group elements into sections
 
@@ -166,7 +174,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         from .._core.base import DynamicParameter
 
         d = DriftSimple(
-            share_of_circumference=share_of_circumference,
+            orbit_length=orbit_length,
             section_index=section_index,
         )
         d.transition_gamma = backend.float(transition_gamma)
@@ -174,7 +182,6 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         from .._core.beam.base import BeamBaseClass
 
         simulation = Mock(Simulation)
-        simulation.ring.circumference = backend.float(circumference)
         simulation.turn_i = Mock(DynamicParameter)
         simulation.turn_i.value = 0
         d.on_init_simulation(simulation=simulation)
@@ -194,9 +201,6 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         """
         super().on_init_simulation(simulation=simulation)
         self._simulation = simulation
-        self.length = backend.float(
-            self.share_of_circumference * simulation.ring.circumference
-        )
         if (
             self.transition_gamma is None
         ) and "transition_gamma" not in self.schedules.keys():
@@ -218,16 +222,16 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
             turn_i=self._simulation.turn_i.value,
             reference_time=beam.reference_time,
         )
-        dt = backend.float(self.length / beam.reference_velocity)
+        dt = backend.float(self.orbit_length / beam.reference_velocity)
         gamma = beam.reference_gamma
         eta_0 = self.alpha_0 - (1 / (gamma * gamma))
         backend.specials.drift_simple(
             dt=beam.write_partial_dt(),
             dE=beam.read_partial_dE(),
-            T=dt,
-            eta_0=eta_0,
-            beta=beam.reference_beta,
-            energy=beam.reference_total_energy,
+            T=backend.float(dt),
+            eta_0=backend.float(eta_0),
+            beta=backend.float(beam.reference_beta),
+            energy=backend.float(beam.reference_total_energy),
         )
         beam.reference_time += dt
 

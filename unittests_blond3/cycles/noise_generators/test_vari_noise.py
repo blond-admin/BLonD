@@ -1,7 +1,6 @@
 import unittest
 
 
-
 class TestVariNoise(unittest.TestCase):
     @unittest.skip
     def test_get_noise(self):

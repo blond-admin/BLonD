@@ -14,12 +14,12 @@ if TYPE_CHECKING:  # pragma: no cover
 
 class Specials(ABC):
     @staticmethod
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def loss_box(self, a, b, c, d) -> None:  # TODO
         pass
 
     @staticmethod
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def kick_single_harmonic(
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
@@ -32,7 +32,7 @@ class Specials(ABC):
         pass
 
     @staticmethod
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def kick_multi_harmonic(
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
@@ -46,7 +46,7 @@ class Specials(ABC):
         pass
 
     @staticmethod
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def drift_simple(
         dt: NumpyArray,
         dE: NumpyArray,
@@ -58,7 +58,7 @@ class Specials(ABC):
         pass
 
     @staticmethod
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def drift_legacy(
         dt: NumpyArray,
         dE: NumpyArray,
@@ -73,7 +73,7 @@ class Specials(ABC):
         pass
 
     @staticmethod
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def drift_exact(
         dt: NumpyArray,
         dE: NumpyArray,
@@ -87,7 +87,7 @@ class Specials(ABC):
         pass
 
     @staticmethod
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def kick_induced_voltage(
         dt: NumpyArray,
         dE: NumpyArray,
@@ -99,7 +99,7 @@ class Specials(ABC):
         pass
 
     @staticmethod
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def histogram(
         array_read: NumpyArray,
         array_write: NumpyArray,
@@ -108,6 +108,18 @@ class Specials(ABC):
     ):
         return
 
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def beam_phase(
+        hist_x: NumpyArray,
+        hist_y: NumpyArray,
+        alpha: float,
+        omega_rf: float,
+        phi_rf: float,
+        bin_size: float,
+    ) -> float:
+        pass
+
 
 class BackendBaseClass(ABC):
     def __init__(
@@ -115,16 +127,21 @@ class BackendBaseClass(ABC):
         float_: Union[np.float32, np.float64],
         int_: np.int32 | np.int64,
         complex_: Union[np.complex128, np.complex64],
+        specials_mode: Literal[
+            "python",
+            "cpp",
+            "numba",
+            "fortran",
+            "cuda",
+        ],
     ):
         self.float: Union[np.float32, np.float64] = float_
         self.int: np.int32 | np.int64 = int_
         self.complex: np.complex128 | np.complex64 = complex_
 
         self.twopi = self.float(2 * np.pi)
-
-        from .python.callables import PythonSpecials
-
-        self.specials = PythonSpecials()
+        self.specials_mode = specials_mode
+        self.specials: Specials = None
 
         # Callables
         self.array = None
@@ -139,8 +156,9 @@ class BackendBaseClass(ABC):
         _new_backend = new_backend()
         self.__dict__ = _new_backend.__dict__
         self.__class__ = _new_backend.__class__
+        self.set_specials(self.specials_mode)
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def set_specials(self, mode):
         pass
 
@@ -159,7 +177,7 @@ class NumpyBackend(BackendBaseClass):
         int_: np.int32 | np.int64,
         complex_: Union[np.complex128, np.complex64],
     ):
-        super().__init__(float_, int_, complex_)
+        super().__init__(float_, int_, complex_, specials_mode="python")
         self.array = np.array
         self.gradient = np.gradient
         self.linspace = np.linspace
@@ -179,10 +197,14 @@ class NumpyBackend(BackendBaseClass):
             from .python.callables import PythonSpecials
 
             self.specials = PythonSpecials()
+            self.specials_mode = mode
         elif mode == "cpp":
-            from .cpp.callables import CppSpecials
-
+            CppSpecials = fresh_import(
+                "blond3._core.backends.cpp.callables",
+                "CppSpecials",
+            )
             self.specials = CppSpecials()
+            self.specials_mode = mode
         elif mode == "numba":
             # like
             # from .numba.callables import NumbaSpecials
@@ -192,23 +214,38 @@ class NumpyBackend(BackendBaseClass):
                 "NumbaSpecials",
             )
             self.specials = NumbaSpecials()
+            self.specials_mode = mode
         elif mode == "fortran":
-            from blond3._core.backends.fortran.callables import FortranSpecials
-
-            assert self.float == np.float64
+            FortranSpecials = fresh_import(
+                "blond3._core.backends.fortran.callables",
+                "FortranSpecials",
+            )
             self.specials = FortranSpecials
+            self.specials_mode = mode
         else:
             raise ValueError(mode)
 
 
 class Numpy32Bit(NumpyBackend):
-    def __init__(self):
-        super().__init__(np.float32, np.int32, np.complex64)
+    def __init__(
+        self,
+    ):
+        super().__init__(
+            np.float32,
+            np.int32,
+            np.complex64,
+        )
 
 
 class Numpy64Bit(NumpyBackend):
-    def __init__(self):
-        super().__init__(np.float64, np.int64, np.complex128)
+    def __init__(
+        self,
+    ):
+        super().__init__(
+            np.float64,
+            np.int64,
+            np.complex128,
+        )
 
 
 class CupyBackend(BackendBaseClass):
@@ -218,9 +255,19 @@ class CupyBackend(BackendBaseClass):
         int_: np.int32 | np.int64,
         complex_: Union[np.complex128, np.complex64],
     ):
-        super().__init__(float_, int_, complex_)
-        self.array = np.array
-        self.gradient = np.gradient
+        super().__init__(
+            float_,
+            int_,
+            complex_,
+            specials_mode="cuda",  # no other backend implemented at the moment
+        )
+        import cupy as cp  # import only if needed, which is not always the case
+
+        self.array = cp.array
+        self.gradient = cp.gradient
+        self.linspace = cp.linspace
+        self.histogram = cp.histogram
+        self.zeros = cp.zeros
 
         from .cuda.callables import CudaSpecials
 
@@ -228,7 +275,10 @@ class CupyBackend(BackendBaseClass):
 
     def set_specials(self, mode: Literal["cuda"]):
         if mode == "cuda":
-            from .cuda.callables import CudaSpecials
+            CudaSpecials = fresh_import(
+                "blond3._core.backends.cuda.callables",
+                "CudaSpecials",
+            )
 
             self.specials = CudaSpecials()
         else:
@@ -237,12 +287,20 @@ class CupyBackend(BackendBaseClass):
 
 class Cupy32Bit(CupyBackend):
     def __init__(self):
-        super().__init__(np.float32, np.int32, np.complex64)
+        super().__init__(
+            np.float32,
+            np.int32,
+            np.complex64,
+        )
 
 
 class Cupy64Bit(CupyBackend):
     def __init__(self):
-        super().__init__(np.float64, np.int64, np.complex128)
+        super().__init__(
+            np.float64,
+            np.int64,
+            np.complex128,
+        )
 
 
 default = Numpy32Bit()  # use .change_backend(...) to change it anywhere

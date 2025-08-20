@@ -65,9 +65,9 @@ class Beam(BeamBaseClass):
         Parameters
         ----------
         dt
-            Macro-particle time coordinates [s]
+            Macro-particle time coordinates, in [s]
         dE
-            Macro-particle energy coordinates [eV]
+            Macro-particle energy coordinates, in [eV]
         flags
             Macro-particle flags
         reference_time
@@ -83,8 +83,8 @@ class Beam(BeamBaseClass):
             assert flags.max() <= BeamFlags.ACTIVE.value
             assert len(dt) == len(flags)
 
-        self._dE = dE.astype(backend.float)
-        self._dt = dt.astype(backend.float)
+        self._dE = backend.array(dE, dtype=backend.float)
+        self._dt = backend.array(dt, dtype=backend.float)
         self._flags = flags.astype(backend.int)
         if reference_time:
             self.reference_time = reference_time
@@ -120,25 +120,25 @@ class Beam(BeamBaseClass):
 
     @cached_property
     def dt_min(self) -> backend.float:
-        """Minimum dt coordinate in [s]"""
+        """Minimum dt coordinate, in [s]"""
 
         return self._dt.min()
 
     @cached_property
     def dt_max(self) -> backend.float:
-        """Maximum dt coordinate in [s]"""
+        """Maximum dt coordinate, in [s]"""
 
         return self._dt.max()
 
     @cached_property
     def dE_min(self) -> backend.float:
-        """Minimum dE coordinate in [eV]"""
+        """Minimum dE coordinate, in [eV]"""
 
         return self._dE.min()
 
     @cached_property
     def dE_max(self) -> backend.float:
-        """Maximum dE coordinate in [eV]"""
+        """Maximum dE coordinate, in [eV]"""
 
         return self._dE.max()
 
@@ -154,7 +154,10 @@ class Beam(BeamBaseClass):
             kwargs["cmap"] = "viridis"
         if "bins" not in kwargs.keys():
             kwargs["bins"] = 256
-        plt.hist2d(self._dt, self._dE, **kwargs)
+        if isinstance(self._dt, np.ndarray):
+            plt.hist2d(self._dt, self._dE, **kwargs)
+        else:
+            plt.hist2d(self._dt.get(), self._dE.get(), **kwargs)
 
 
 class ProbeBeam(Beam):
@@ -174,9 +177,9 @@ class ProbeBeam(Beam):
         particle_type
             Type of particles, e.g. protons
         dt
-            Macro-particle time coordinates [s]
+            Macro-particle time coordinates, in [s]
         dE
-            Macro-particle energy coordinates [eV]
+            Macro-particle energy coordinates, in [eV]
         """
         super().__init__(
             n_particles=0,
@@ -220,9 +223,9 @@ class WeightenedBeam(Beam):
         Parameters
         ----------
         dt
-            Macro-particle time coordinates [s]
+            Macro-particle time coordinates, in [s]
         dE
-            Macro-particle energy coordinates [eV]
+            Macro-particle energy coordinates, in [eV]
         flags
             Macro-particle flags
         reference_time

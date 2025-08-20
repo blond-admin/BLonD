@@ -23,7 +23,7 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
     def setUp(self):
         self.beam_physics_relevant_elements = BeamPhysicsRelevantElements()
         element1 = Mock(spec=DriftBaseClass)
-        element1.share_of_circumference = 0.5
+        element1.orbit_length = 0.5
         element1.section_index = 0
         element1.name = "element1"
         self.beam_physics_relevant_elements.add_element(element1)
@@ -34,7 +34,7 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         self.beam_physics_relevant_elements.add_element(element2)
 
         element3 = Mock(spec=DriftBaseClass)
-        element3.share_of_circumference = 0.5
+        element3.orbit_length = 0.5
         element3.section_index = 1
         element3.name = "element3"
         self.beam_physics_relevant_elements.add_element(element3)
@@ -53,10 +53,56 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
     def test_add_element(self):
         element = Mock(spec=BeamPhysicsRelevant)
         element.section_index = 0
+        # asert that element is inserted at the end of section 0,
+        # which has already 2 elements
+        self.beam_physics_relevant_elements.add_element(element=element)
+        assert self.beam_physics_relevant_elements.elements[2] is element
 
+    def test_add_element2(self):
+        element = Mock(spec=BeamPhysicsRelevant)
+        element.section_index = 1
+        # asert that element is inserted at the end of section 0,
+        # which has already 2 elements
         self.beam_physics_relevant_elements.add_element(element=element)
         assert self.beam_physics_relevant_elements.elements[-1] is element
 
+    def test_insert_element(self):
+        element = Mock(spec=BeamPhysicsRelevant)
+        element.section_index = 0
+        self.beam_physics_relevant_elements.insert(element=element,
+                                                   insert_at=0)
+        assert self.beam_physics_relevant_elements.elements[0] is element
+
+    def test_check_insertion_compatibility(self):
+        element = Mock(spec=BeamPhysicsRelevant)
+        element.section_index = 1
+        with self.assertRaises(AssertionError,
+                               msg='The element section index is incompatible '
+                                 'with the requested location. Please allow '
+                                 'overwrite for automatic handling.'):
+            self.beam_physics_relevant_elements.insert(element=element,
+                                                   insert_at=0)
+        element.section_index = 1
+        with self.assertRaises(AssertionError,
+                               msg='The element section index is incompatible '
+                                   'with the requested location. Please allow '
+                                   'overwrite for automatic handling.'):
+            self.beam_physics_relevant_elements.insert(element=element,
+                                                       insert_at=1)
+        element.section_index = 0
+        with self.assertRaises(AssertionError,
+                               msg='The element section index is incompatible '
+                                   'with the requested location. Please allow '
+                                   'overwrite for automatic handling.'):
+            self.beam_physics_relevant_elements.insert(element=element,
+                                                       insert_at=len(self.beam_physics_relevant_elements.elements))
+        element.section_index = 50
+        with self.assertRaises(AssertionError,
+                               msg=f'The element must be inserted within ['
+                                 f'0:{len(self.beam_physics_relevant_elements.elements)+1}] indexes. '):
+            self.beam_physics_relevant_elements.insert(element=element,
+                                                       insert_at=len(
+                                                           self.beam_physics_relevant_elements.elements))
     def test_count(self):
         assert (
             self.beam_physics_relevant_elements.count(
@@ -107,10 +153,10 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
     def test_get_order_info(self):
         self.beam_physics_relevant_elements.get_order_info()
 
-    def test_get_section_circumference_shares(self):
-        shares = self.beam_physics_relevant_elements.get_section_circumference_shares()
-        self.assertEqual(shares[0], 0.5)
-        self.assertEqual(shares[1], 0.5)
+    def test_get_section_circumference_orbit_lengths(self):
+        orbit_length = self.beam_physics_relevant_elements.get_sections_orbit_length()
+        self.assertEqual(orbit_length[0], 0.5)
+        self.assertEqual(orbit_length[1], 0.5)
 
     def test_get_sections_indices(self):
         indices = self.beam_physics_relevant_elements.get_sections_indices()
@@ -130,9 +176,8 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
     def test_on_run_simulation(self):
         simulation = Mock(spec=Simulation)
         beam = Mock(spec=BeamBaseClass)
-
         self.beam_physics_relevant_elements.on_run_simulation(
-            simulation=simulation, n_turns=10, turn_i_init=0,beam=beam
+            simulation=simulation, n_turns=10, turn_i_init=0, beam=beam
         )
 
     def test_print_order(self):
@@ -197,5 +242,7 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         )
         self.assertEqual((0, 0, 1, 1), section)
         self.assertEqual(expected, actual)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 import numpy as np
-from scipy.constants import m_p, c, e
 from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
 
 m_mu = physical_constants["muon mass"][0]
@@ -62,8 +61,6 @@ uranium_29 = ParticleType(
     mass=238 * m_p * c**2 / e,  # approximate mass-energy in eV
     charge=29,
 )
-
-cl_csa = proton.classical_particle_radius
 
 electron = ParticleType(
     mass=m_e * c**2 / e,

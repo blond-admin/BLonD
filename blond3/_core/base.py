@@ -28,7 +28,7 @@ class Preparable(ABC):
     def __init__(self):
         super().__init__()
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called
 
@@ -37,7 +37,7 @@ class Preparable(ABC):
         """
         pass
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def on_run_simulation(
         self,
         simulation: Simulation,
@@ -77,10 +77,14 @@ class MainLoopRelevant(Preparable):
     def __init__(self) -> None:
         super().__init__()
         self.each_turn_i = 1
+        self.active = True
 
     def is_active_this_turn(self, turn_i: int) -> bool:
         """Whether the element is active or not"""
-        return turn_i % self.each_turn_i == 0
+        if self.active:
+            return turn_i % self.each_turn_i == 0
+        else:
+            return False
 
 
 class Schedulable:
@@ -122,10 +126,11 @@ class Schedulable:
             Required when arrays are handed over
             "per-turn" or "constant"
         """
-        assert hasattr(self, attribute), (
-            f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
-        )
-
+        assert hasattr(
+            self, attribute
+        ), f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
+        if isinstance(value, np.ndarray):
+            value = value.astype(backend.float)
         self.schedules[attribute] = get_scheduler(value, mode=mode)
 
     def schedule_from_file(
@@ -155,9 +160,9 @@ class Schedulable:
         kwargs_loadtxt
             Additional keyword arguments to be passed to `numpy.loadtxt`
         """
-        assert hasattr(self, attribute), (
-            f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
-        )
+        assert hasattr(
+            self, attribute
+        ), f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
         values = np.loadtxt(filename, **kwargs_loadtxt)
         self.schedules[attribute] = get_scheduler(values, mode=mode)
 
@@ -169,7 +174,7 @@ class Schedulable:
         turn_i
             Currently turn index
         reference_time
-            Current time in [s]
+            Current time, in [s]
         """
         for attribute, schedule in self.schedules.items():
             self.__setattr__(
@@ -210,7 +215,7 @@ class BeamPhysicsRelevant(MainLoopRelevant):
         """Section index to group elements into sections"""
         return self._section_index
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def track(self, beam: BeamBaseClass) -> None:
         """Main simulation routine to be called in the mainloop
 
@@ -222,18 +227,8 @@ class BeamPhysicsRelevant(MainLoopRelevant):
         pass
 
 
-class IntensityEffect(BeamPhysicsRelevant):
-    def __init__(self, section_index: int = 0, name: Optional[str] = None):
-        super().__init__(
-            section_index=section_index,
-            name=name,
-        )
-        self.active = True
-        self.frozen = False
-
-
 class _Scheduled:
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def get_scheduled(self, turn_i: int, reference_time: float):
         """Get the value of the schedule for the current turn/time
 
@@ -242,7 +237,7 @@ class _Scheduled:
         turn_i
             Currently turn index
         reference_time
-            Current time in [s]
+            Current time, in [s]
         """
         pass
 
@@ -274,7 +269,7 @@ class ScheduledConstant(_Scheduled):
         turn_i
             Currently turn index
         reference_time
-            Current time in [s]
+            Current time, in [s]
         """
         return self.value
 
@@ -304,7 +299,7 @@ class ScheduledArray(_Scheduled):
         turn_i
             Currently turn index
         reference_time
-            Current time in [s]
+            Current time, in [s]
         """
 
         return self.values[turn_i]
@@ -330,7 +325,7 @@ class ScheduledInterpolation(_Scheduled):
         turn_i
             Currently turn index
         reference_time
-            Current time in [s]
+            Current time, in [s]
         """
         return np.interp(reference_time, self.times, self.values)
 
@@ -407,7 +402,7 @@ class HasPropertyCache(object):
         for prop in props:
             self.__dict__.pop(prop, None)
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def invalidate_cache(self):
         """Delete the stored values of functions with @cached_property"""
         pass

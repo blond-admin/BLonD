@@ -5,8 +5,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import numpy as np
-from cupy.typing import NDArray as CupyArray
-from numpy._typing import NDArray as NumpyArray
+
 
 from blond3 import proton, Simulation
 from blond3._core.backends.backend import backend
@@ -15,6 +14,8 @@ from blond3._core.beam.particle_types import ParticleType
 
 if TYPE_CHECKING:
     from typing import Optional
+    from numpy._typing import NDArray as NumpyArray
+    from cupy.typing import NDArray as CupyArray
 
 
 class BeamBaseClassTester(BeamBaseClass):
@@ -143,7 +144,10 @@ class TestBeamBaseClass(unittest.TestCase):
         beam = Mock(spec=BeamBaseClass)
         simulation.magnetic_cycle.get_target_total_energy.return_value = 11
         self.beam_base_class.on_run_simulation(
-            simulation=simulation, n_turns=1, turn_i_init=1,beam=beam,
+            simulation=simulation,
+            n_turns=1,
+            turn_i_init=1,
+            beam=beam,
         )
 
     def test_read_partial_dE(self):

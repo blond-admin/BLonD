@@ -116,6 +116,11 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             warnings.warn(msg)
         self.reference_total_energy = new_reference_total_energy
 
+    @cached_property
+    def ratio(self) -> float:
+        """Type of particles, e.g. protons"""
+        return self.n_particles / self.common_array_size
+
     @property
     def particle_type(self) -> ParticleType:
         """Type of particles, e.g. protons"""
@@ -129,16 +134,17 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     @reference_total_energy.setter
     def reference_total_energy(self, reference_total_energy) -> float:
         """Total beam energy [eV]"""
+        self.invalidate_cache_reference()
         self._reference_total_energy = reference_total_energy
 
-    @property
+    @cached_property
     def reference_gamma(self) -> float:
         """Beam reference gamma a.k.a. Lorentz factor []"""
         # reference_total_energy in eV and mass_inv in [c²/eV]
-        val = self.reference_total_energy * self.particle_type.mass_inv
+        val = self._reference_total_energy * self._particle_type.mass_inv
         return val
 
-    @property
+    @cached_property
     def reference_beta(self) -> float:
         """Beam reference fraction of speed of light (v/c0) []"""
 
@@ -146,12 +152,12 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         val = np.sqrt(1.0 - 1.0 / (gamma * gamma))
         return val
 
-    @property
+    @cached_property
     def reference_velocity(self) -> float:
         """Beam reference speed [m/s]"""
         return self.reference_beta * c0
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def setup_beam(
         self,
         dt: NumpyArray | CupyArray,
@@ -165,9 +171,9 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         Parameters
         ----------
         dt
-            Macro-particle time coordinates [s]
+            Macro-particle time coordinates, in [s]
         dE
-            Macro-particle energy coordinates [eV]
+            Macro-particle energy coordinates, in [eV]
         flags
             Macro-particle flags
         reference_time
@@ -197,39 +203,39 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         super().on_init_simulation(simulation=simulation)
         self.reference_total_energy = simulation.magnetic_cycle.total_energy_init
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def plot_hist2d(self):
         """Plot 2D histogram of beam coordinates"""
         pass
 
     @cached_property
-    @abstractmethod  # as readonly attributes
+    @abstractmethod  # pragma: no cover  # as readonly attributes
     def dt_min(self) -> backend.float:
-        """Minimum dt coordinate in [s]"""
+        """Minimum dt coordinate, in [s]"""
 
         pass
 
     @cached_property
-    @abstractmethod  # as readonly attributes
+    @abstractmethod  # pragma: no cover  # as readonly attributes
     def dt_max(self) -> backend.float:
-        """Maximum dt coordinate in [s]"""
+        """Maximum dt coordinate, in [s]"""
 
         pass
 
     @cached_property
-    @abstractmethod  # as readonly attributes
+    @abstractmethod  # pragma: no cover  # as readonly attributes
     def dE_min(self) -> backend.float:
-        """Minimum dE coordinate in [eV]"""
+        """Minimum dE coordinate, in [eV]"""
         pass
 
     @cached_property
-    @abstractmethod  # as readonly attributes
+    @abstractmethod  # pragma: no cover  # as readonly attributes
     def dE_max(self) -> backend.float:
-        """Maximum dE coordinate in [eV]"""
+        """Maximum dE coordinate, in [eV]"""
         pass
 
     @cached_property
-    @abstractmethod  # as readonly attributes
+    @abstractmethod  # pragma: no cover  # as readonly attributes
     def common_array_size(self) -> int:
         """Size of the beam, considering distributed beams"""
         pass
@@ -240,8 +246,21 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         "dt_min",
         "dt_max",
         "common_array_size",
+        "ratio",
+        "reference_gamma",
+        "reference_beta",
+        "reference_velocity",
     )
 
+    def invalidate_cache_reference(self) -> None:
+        """Reset cache of `cached_property` attributes"""
+        super()._invalidate_cache(
+            (
+                "reference_gamma",
+                "reference_beta",
+                "reference_velocity",
+            )
+        )
     def invalidate_cache_dE(self) -> None:
         """Reset cache of `cached_property` attributes"""
         super()._invalidate_cache(

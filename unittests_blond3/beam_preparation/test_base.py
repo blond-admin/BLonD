@@ -1,7 +1,6 @@
 import unittest
 
 
-
 class TestBeamPreparationRoutine(unittest.TestCase):
     @unittest.skip("Abstract class")
     def test_on_prepare_beam(self):

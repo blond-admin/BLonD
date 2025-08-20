@@ -2,10 +2,10 @@
 subroutine kick_single_harmonic(dt, dE, voltage, omega_rf, phi_rf, charge, acceleration_kick, n)
     implicit none
     integer, intent(in) :: n
-    real(8), intent(in) :: dt(n)
-    real(8), intent(inout) :: dE(n)
-    real(8), intent(in) :: voltage, omega_rf, phi_rf, charge, acceleration_kick
-    real(8) :: voltage_kick
+    real(4), intent(in) :: dt(n)
+    real(4), intent(inout) :: dE(n)
+    real(4), intent(in) :: voltage, omega_rf, phi_rf, charge, acceleration_kick
+    real(4) :: voltage_kick
     integer :: i
 
     voltage_kick = charge * voltage
@@ -23,15 +23,15 @@ subroutine kick_multi_harmonic(dt, dE, n_rf, charge, voltage, omega_RF, phi_RF, 
 
     ! Inputs
     integer, intent(in) :: n_rf, n_macroparticles
-    real(kind=8), intent(in) :: dt(n_macroparticles)
-    real(kind=8), intent(in) :: charge, voltage(n_rf), omega_RF(n_rf), phi_RF(n_rf), acc_kick
+    real(kind=4), intent(in) :: dt(n_macroparticles)
+    real(kind=4), intent(in) :: charge, voltage(n_rf), omega_RF(n_rf), phi_RF(n_rf), acc_kick
 
     ! In/out
-    real(kind=8), intent(inout) :: dE(n_macroparticles)
+    real(kind=4), intent(inout) :: dE(n_macroparticles)
 
     ! Locals
     integer :: i, j
-    real(kind=8) :: dE_sum, dti
+    real(kind=4) :: dE_sum, dti
 
     select case (n_rf)
 
@@ -80,7 +80,7 @@ subroutine kick_multi_harmonic(dt, dE, n_rf, charge, voltage, omega_RF, phi_RF, 
         !$omp parallel do private(i, dti, dE_sum) shared(dt, dE, voltage, omega_RF, phi_RF, charge, acc_kick, n_rf)
         do i = 1, n_macroparticles
             dti = dt(i)
-            dE_sum = 0.0d0
+            dE_sum = 0.0_4
             do j = 1, n_rf
                 dE_sum = dE_sum + voltage(j) * sin(omega_RF(j) * dti + phi_RF(j))
             end do

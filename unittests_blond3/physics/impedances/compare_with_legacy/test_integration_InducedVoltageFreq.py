@@ -262,8 +262,8 @@ class Blond3:
     def __init__(self):
         blond2 = Blond2()
         self.blond2 = blond2
-
-        ring = Ring(circumference=6911.56)
+        circumference = 6911.56
+        ring = Ring(circumference=circumference)
         profile = StaticProfile(
             blond2.profile.cut_left,
             blond2.profile.cut_right,
@@ -273,7 +273,7 @@ class Blond3:
         cavity1.voltage = 0
         cavity1.phi_rf = 0
         cavity1.harmonic = 1
-        drift = DriftSimple()
+        drift = DriftSimple(orbit_length=circumference)
         drift.transition_gamma = 1
         resonators = Resonators(
             shunt_impedances=R_shunt,

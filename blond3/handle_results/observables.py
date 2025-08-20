@@ -48,7 +48,7 @@ class Observables(MainLoopRelevant):
         """
         return self._turns_array
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def update(
         self,
         simulation: Simulation,
@@ -98,14 +98,14 @@ class Observables(MainLoopRelevant):
         self._turn_i_init = turn_i_init
         self._turns_array = np.arange(turn_i_init, turn_i_init + n_turns)
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def to_disk(self) -> None:
         """
         Save data to disk
         """
         pass
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def from_disk(self) -> None:
         """
         Load data from disk
@@ -326,10 +326,14 @@ class CavityPhaseObservation(Observables):
 
         """
         self._phases.write(
-            self._cavity.phi_rf,
+            None
+            if self._cavity.phi_rf is None
+            else (self._cavity.phi_rf + self._cavity.delta_phi_rf)
         )
         self._omegas.write(
-            self._cavity._omega,
+            None
+            if self._cavity._omega_rf is None
+            else (self._cavity._omega_rf + self._cavity.delta_omega_rf)
         )
         self._voltages.write(
             self._cavity.voltage,
@@ -527,7 +531,7 @@ class WakeFieldObservation(Observables):
     @property  # as readonly attributes
     def induced_voltage(self):
         """
-        Induced voltage in [V] from given beam profile and sources
+        Induced voltage, in [V] from given beam profile and sources
 
         Returns
         -------

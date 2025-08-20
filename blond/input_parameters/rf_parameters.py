@@ -22,7 +22,6 @@ import scipy
 from packaging.version import Version
 from scipy.constants import c
 
-from ..beam.beam import Particle,Proton
 from .rf_parameters_options import RFStationOptions
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
@@ -36,6 +35,7 @@ if TYPE_CHECKING:
     from typing import Literal, Optional
 
     from .ring import Ring
+    from ..beam.beam import Particle, Proton, Beam
     from ..utils.types import DeviceType
 
 
@@ -414,7 +414,7 @@ class RFStation:
         warn("Particle is deprecated, use particle", DeprecationWarning, stacklevel=2)
         self.particle = val
 
-    def eta_tracking(self, beam, counter, dE):
+    def eta_tracking(self, beam: Beam, counter, dE):
         r"""Function to calculate the slippage factor as a function of the
         energy offset :math:`\Delta E` of the particle. The slippage factor
         of the :math:`i` th order is :math:`\eta(\delta) = \sum_{i}(\eta_i \,
@@ -427,7 +427,7 @@ class RFStation:
             return self.eta_0[counter]
         else:
             eta = 0
-            delta = dE / (beam.beta ** 2 * beam.total_energy)
+            delta = dE / (beam.beta ** 2 * beam.energy)
             for i in range(self.alpha_order + 1):
                 eta_i = getattr(self, 'eta_' + str(i))[counter]
                 eta += eta_i * (delta ** i)

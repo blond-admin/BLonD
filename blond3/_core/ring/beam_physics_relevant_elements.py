@@ -16,6 +16,7 @@ if TYPE_CHECKING:  # pragma: no cover
         Type,
         TypeVar,
         Any,
+        List,
     )
     from ..base import BeamPhysicsRelevant
     from numpy.typing import NDArray as NumpyArray
@@ -28,12 +29,14 @@ class BeamPhysicsRelevantElements(Preparable):
 
     def __init__(self):
         super().__init__()
-        self.elements: Tuple[BeamPhysicsRelevant, ...] = ()
+        self.elements: List[BeamPhysicsRelevant] = []
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
         Lateinit method when `simulation.__init__` is called
 
+        Parameters
+        ----------
         simulation
             Simulation context manager"""
         self._check_section_indexing()
@@ -45,9 +48,9 @@ class BeamPhysicsRelevantElements(Preparable):
 
         elem_section_indices = [e.section_index for e in self.elements]
         assert min(elem_section_indices) == 0, "section_index=0 must be set"
-        assert np.all(np.diff(elem_section_indices) >= 0), (
-            f"Section indices must be increasing, but got {elem_section_indices}"
-        )
+        assert np.all(
+            np.diff(elem_section_indices) >= 0
+        ), f"Section indices must be increasing, but got {elem_section_indices}"
         cavities = self.get_elements(CavityBaseClass)
         cav_section_indices = [c.section_index for c in cavities]
         all_different = len(cav_section_indices) == len(set(cav_section_indices))
@@ -74,8 +77,11 @@ class BeamPhysicsRelevantElements(Preparable):
         turn_i_init: int,
         **kwargs,
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called
+        """
+        Lateinit method when `simulation.run_simulation` is called
 
+        Parameters
+        ----------
         simulation
             Simulation context manager
         beam
@@ -95,7 +101,7 @@ class BeamPhysicsRelevantElements(Preparable):
             unique_section_indices.add(e.section_index)
         return tuple(sorted(unique_section_indices))
 
-    def get_section_circumference_shares(self) -> NumpyArray:
+    def get_sections_orbit_length(self) -> NumpyArray:
         """
         Get `share_of_circumference` per section
 
@@ -110,12 +116,12 @@ class BeamPhysicsRelevantElements(Preparable):
         for section_i in sections:
             drifts = self.get_elements(DriftBaseClass, section_i=section_i)
             if len(drifts) > 0:
-                result[section_i] = sum([d.share_of_circumference for d in drifts])
+                result[section_i] = sum([d.orbit_length for d in drifts])
             else:
                 result[section_i] = 0
         return result
 
-    def add_element(self, element: BeamPhysicsRelevant):
+    def add_element(self, element: BeamPhysicsRelevant) -> None:
         """
         Append a beam physics-relevant element to the container.
 
@@ -136,15 +142,86 @@ class BeamPhysicsRelevantElements(Preparable):
             If `element.section_index` is not an integer.
         """
         assert isinstance(element.section_index, int)
-        self.elements = (*self.elements, element)
+
+        for i, elem in enumerate(self.elements):
+            if elem.section_index == element.section_index:
+                insert_at = i
+        self.elements.append(element)
+
+    def check_section_index_compatibility(self, element:
+    BeamPhysicsRelevant, insert_at: int):
+        """
+        Internal method to check the element is inserted in the defined 
+        section.
+
+        Parameters
+        ----------
+        element
+            An object representing a beamline component or any element
+            relevant to beam physics. Must have a valid  `section_index`
+            attribute of type `int`.
+        insert_at
+            Single location.
+        Raises
+        -------
+        AssertionError
+            If 'element.section_index' is inconsistent with the section of
+            insertion.
+            If insert_at is not within [0:len(ring.elements.elements)]
+        """
+        try :
+            if (insert_at != 0) and (insert_at != len(self.elements)):
+                assert (self.elements[insert_at - 1].section_index <=
+                        element.section_index <= self.elements[
+                            insert_at].section_index)
+            elif insert_at == 0:
+                assert (element.section_index ==
+                        self.elements[insert_at].section_index)
+            elif insert_at == len(self.elements):
+                assert (self.elements[insert_at - 1].section_index <=
+                        element.section_index <=
+                        self.elements[insert_at - 1].section_index + 1)
+            else:
+                raise AssertionError(f'The element must be inserted within ['
+                                 f'0:{len(self.elements)}] indexes. ')
+        except:
+            raise AssertionError('The element section index is incompatible '
+                                 'with the requested location. Please allow '
+                                 'overwrite for automatic handling.')
+    def insert(self, element: BeamPhysicsRelevant, insert_at: int) -> None:
+        """
+        Insert a beam physics-relevant element to the container at the
+        specified index.
+
+        Parameters
+        ----------
+        element
+            An object representing a beamline component or any element
+            relevant to beam physics. Must have a valid  `section_index`
+            attribute of type `int`.
+        insert_at:
+            Location of the element to be inserted.
+
+        Raises
+        ------
+        AssertionError
+            If `element.section_index` is not an integer.
+            If 'element.section_index' is inconsistent with the section of
+            insertion.
+            If insert_at is not within [0:len(ring.elements.elements)]
+        """
+        assert isinstance(element.section_index, int)
+        self.check_section_index_compatibility(element = element,
+                                               insert_at= insert_at)
+        self.elements.insert(insert_at, element)
 
     @property  # as readonly attributes
-    def n_sections(self):
+    def n_sections(self) -> int:
         """Number of sections that are mentioned by elements"""
         return len(np.unique([e.section_index for e in self.elements]))
 
     @property  # as readonly attributes
-    def n_elements(self):
+    def n_elements(self) -> int:
         """Number of elements contained in this class"""
         return len(self.elements)
 
@@ -263,7 +340,7 @@ class BeamPhysicsRelevantElements(Preparable):
                     ordered_elements.append(e)
                     _seen.add(e)
 
-        self.elements = tuple(
+        self.elements = list(
             elements_before_section + ordered_elements + elements_after_section
         )
 

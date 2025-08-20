@@ -1,66 +1,111 @@
 import time
 
-import numpy as np
+import cupy as cp
 
-dt = np.linspace(-5, 5, int(1e6))
-dE = np.zeros_like(dt)
-n_rf = 2
-voltage = np.linspace(1, 5, n_rf)
-omega_rf = np.linspace(1, 5, n_rf)
-phi_rf = np.linspace(1, 5, n_rf)
+from blond3._core.backends.backend import backend, Numpy64Bit, Numpy32Bit
 
-charge = 2
-acceleration_kick = 0
-from blond3._core.backends.backend import backend, Numpy64Bit
 
-backend.change_backend(Numpy64Bit)
-from blond3._core.backends.numba.callables import NumbaSpecials
-from blond3._core.backends.cpp.callables import CppSpecials
-from blond3._core.backends.fortran.callables import FortranSpecials
 
-functions = (
-    NumbaSpecials().kick_multi_harmonic,
-    CppSpecials().kick_multi_harmonic,
-    FortranSpecials().kick_multi_harmonic,
-)
-runtimes = {}
-for kick_multi_harmonic in functions:
-    runtimes[str(kick_multi_harmonic)] = 0.0
-for iter in range(1000):
+def main():  # pragma: no cover
+    backend.change_backend(Numpy32Bit)
+
+    dt = backend.linspace(
+        -5,
+        5,
+        int(1e6),
+        dtype=backend.float,
+    )
+    dE = backend.zeros(
+        len(dt),
+        dtype=backend.float,
+    )
+    n_rf = 2
+    voltage = backend.linspace(
+        1,
+        5,
+        n_rf,
+        dtype=backend.float,
+    )
+    omega_rf = backend.linspace(
+        1,
+        5,
+        n_rf,
+        dtype=backend.float,
+    )
+    phi_rf = backend.linspace(
+        1,
+        5,
+        n_rf,
+        dtype=backend.float,
+    )
+
+    dt_cp = cp.array(dt)
+    dE_cp = cp.array(dE)
+    voltage_cp = cp.array(voltage)
+    omega_rf_cp = cp.array(omega_rf)
+    phi_rf_cp = cp.array(phi_rf)
+
+    charge = backend.float(2.0)
+    acceleration_kick = backend.float(0.0)
+
+    from blond3._core.backends.numba.callables import NumbaSpecials
+    from blond3._core.backends.cpp.callables import CppSpecials
+    from blond3._core.backends.fortran.callables import FortranSpecials
+    from blond3._core.backends.cuda.callables import CudaSpecials
+
+    functions = (
+        NumbaSpecials().kick_multi_harmonic,
+        CppSpecials().kick_multi_harmonic,
+        FortranSpecials().kick_multi_harmonic,
+        CudaSpecials().kick_multi_harmonic,
+    )
+    runtimes = {}
     for kick_multi_harmonic in functions:
-        t0 = time.perf_counter()
-        kick_multi_harmonic(
-            dt=dt,
-            dE=dE,
-            voltage=voltage,
-            omega_rf=omega_rf,
-            phi_rf=phi_rf,
-            charge=charge,
-            n_rf=n_rf,
-            acceleration_kick=acceleration_kick,
-        )
-        t1 = time.perf_counter()
-        runtimes[str(kick_multi_harmonic)] += t1 - t0
-for key in sorted(runtimes.keys()):
-    print(runtimes[key], key)
-
-print()
-for kick_multi_harmonic in functions:
-    runtimes[str(kick_multi_harmonic)] = 0.0
-for kick_multi_harmonic in functions:
+        runtimes[str(kick_multi_harmonic)] = 0.0
     for iter in range(1000):
+        for i, kick_multi_harmonic in enumerate(functions):
+            CUDA = kick_multi_harmonic == CudaSpecials().kick_multi_harmonic
+            t0 = time.perf_counter()
+            kick_multi_harmonic(
+                dt=dt_cp if CUDA else dt,
+                dE=dE_cp if CUDA else dE,
+                voltage=voltage_cp if CUDA else voltage,
+                omega_rf=omega_rf_cp if CUDA else omega_rf,
+                phi_rf=phi_rf_cp if CUDA else phi_rf,
+                charge=charge,
+                n_rf=n_rf,
+                acceleration_kick=acceleration_kick,
+            )
+            if CUDA:
+                cp.cuda.runtime.deviceSynchronize()
+            t1 = time.perf_counter()
+            runtimes[str(kick_multi_harmonic)] += t1 - t0
+    for key in sorted(runtimes.keys()):
+        print(runtimes[key], key)
+
+    print()
+    for i, kick_multi_harmonic in enumerate(functions):
+        runtimes[str(kick_multi_harmonic)] = 0.0
+        CUDA = kick_multi_harmonic == CudaSpecials().kick_multi_harmonic
         t0 = time.perf_counter()
-        kick_multi_harmonic(
-            dt=dt,
-            dE=dE,
-            voltage=voltage,
-            omega_rf=omega_rf,
-            phi_rf=phi_rf,
-            charge=charge,
-            n_rf=n_rf,
-            acceleration_kick=acceleration_kick,
-        )
+        for iter in range(1000):
+            kick_multi_harmonic(
+                dt=dt_cp if CUDA else dt,
+                dE=dE_cp if CUDA else dE,
+                voltage=voltage_cp if CUDA else voltage,
+                omega_rf=omega_rf_cp if CUDA else omega_rf,
+                phi_rf=phi_rf_cp if CUDA else phi_rf,
+                charge=charge,
+                n_rf=n_rf,
+                acceleration_kick=acceleration_kick,
+            )
+        if CUDA:
+            cp.cuda.runtime.deviceSynchronize()
         t1 = time.perf_counter()
         runtimes[str(kick_multi_harmonic)] += t1 - t0
-for key in sorted(runtimes.keys()):
-    print(runtimes[key], key)
+    for key in sorted(runtimes.keys()):
+        print(runtimes[key], key)
+
+
+if __name__ == "__main__":  # pragma: no cover
+    main()

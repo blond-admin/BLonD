@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from .base import MatchingRoutine
 from .._core.beam.base import BeamBaseClass
 from .._core.simulation.simulation import Simulation
+
+if TYPE_CHECKING:  # pragma: no cover
+    pass
 
 
 class EmittanceMatcher(MatchingRoutine):

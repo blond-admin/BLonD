@@ -17,10 +17,7 @@ from ...physics.cavities import CavityBaseClass
 from ...physics.profiles import ProfileBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import (
-        Optional,
-        Tuple,
-    )
+    from typing import Optional, Tuple
     from numpy.typing import NDArray as NumpyArray
 
     from ..beam.particle_types import ParticleType
@@ -264,9 +261,9 @@ class Simulation(Preparable, HasPropertyCache):
 
         beams = get_elements(locals_list, BeamBaseClass)
 
-        _energy_cycles = get_elements(locals_list, MagneticCycleBase)
-        assert len(_energy_cycles) == 1, f"Found {len(_energy_cycles)} energy cycles"
-        energy_cycle = _energy_cycles[0]
+        _magnetic_cycle = get_elements(locals_list, MagneticCycleBase)
+        assert len(_magnetic_cycle) == 1, f"Found {len(_magnetic_cycle)} energy cycles"
+        magnetic_cycle = _magnetic_cycle[0]
 
         elements = get_elements(locals_list, BeamPhysicsRelevant)
         ring.add_elements(elements=elements, reorder=True)
@@ -275,7 +272,7 @@ class Simulation(Preparable, HasPropertyCache):
         logger.debug(f"{beams=}")
         logger.debug(f"{elements=}")
 
-        sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
+        sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
         logger.info(sim.ring.elements.get_order_info())
         return sim
 
@@ -334,13 +331,14 @@ class Simulation(Preparable, HasPropertyCache):
 
         Parameters
         ----------
+        beam
+            Simulation beam object
         preparation_routine
             Algorithm to prepare the beam dt and dE coorinates
         turn_i
             Turn to prepare the beam for
 
         """
-
         logger.info("Running `on_prepare_beam`")
         self.turn_i.value = turn_i
         preparation_routine.prepare_beam(simulation=self, beam=beam)
@@ -492,7 +490,7 @@ class Simulation(Preparable, HasPropertyCache):
             MultiHarmonicCavity,
         )
 
-        ring_length = self.ring.circumference
+        ring_length = self.ring.closed_orbit_length
         bending_radius = self.ring.bending_radius
         drift = self.ring.elements.get_element(DriftBaseClass)
         alpha_0 = drift.alpha_0

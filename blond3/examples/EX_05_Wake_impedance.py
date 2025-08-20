@@ -1,3 +1,5 @@
+# pragma: no cover
+
 # Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
@@ -17,10 +19,8 @@ the corresponding h5 files).
 :Authors: **Danilo Quartullo**
 """
 
-import os
-
-import matplotlib as mpl
 import numpy as np
+from matplotlib import pyplot as plt
 
 from blond.impedances.induced_voltage_analytical import analytical_gaussian_resonator
 from blond3 import (
@@ -30,111 +30,132 @@ from blond3 import (
     Ring,
     Simulation,
     MagneticCyclePerTurn,
-    RfStationParams,
     SingleHarmonicCavity,
     DriftSimple,
     BunchObservation,
     WakeField,
     StaticProfile,
 )
-from blond3.physics.impedances.sources import Resonators
+from blond3.handle_results.helpers import callers_relative_path
 from blond3.physics.impedances.solvers import (
-    SingleTurnWakeSolverTimeDomain,
+    TimeDomainSolver,
     PeriodicFreqSolver,
-    AnalyticSingleTurnResonatorSolver,
 )
+from blond3.physics.impedances.sources import Resonators
 
-DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
-# To check if executing correctly, rather than to run the full simulation
-
-mpl.use("Agg")
-
-this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
-
-os.makedirs(this_directory + "../output_files/EX_05_fig", exist_ok=True)
-
-
-# SIMULATION PARAMETERS -------------------------------------------------------
-
-# Beam parameters
-n_particles = 1e10
-n_macroparticles = 1001 if DRAFT_MODE else 5 * 1e6
-tau_0 = 2e-9  # [s]
-
-# Machine and RF parameters
-gamma_transition = 1 / np.sqrt(0.00192)  # [1]
-C = 6911.56  # [m]
-
-# Tracking details
-n_turns = 2
-dt_plt = 1
-
-# Derived parameters
 sync_momentum = 25.92e9  # [eV / c]
-momentum_compaction = 1 / gamma_transition**2  # [1]
 
-# Cavities parameters
-n_rf_systems = 1
-harmonic_number = 4620
-voltage_program = 0.9e6  # [V]
-phi_offset = 0.0
-
-
-table = np.loadtxt(
-    this_directory + "../input_files/EX_05_new_HQ_table.dat", comments="!"
+resonator_data = np.loadtxt(
+    callers_relative_path(
+        "resources/EX_05_new_HQ_table.dat",
+        stacklevel=1,
+    ),
+    comments="!",
 )
 
-R_shunt = table[:, 2] * 10**6
-f_res = table[:, 0] * 10**9
-Q_factor = table[:, 1]
+R_shunt = resonator_data[:, 2] * 10**6
+f_res = resonator_data[:, 0] * 10**9
+Q_factor = resonator_data[:, 1]
 
 for wake_solver in (
-    SingleTurnWakeSolverTimeDomain,
-    PeriodicFreqSolver,
-    AnalyticSingleTurnResonatorSolver,
+    TimeDomainSolver(),
+    PeriodicFreqSolver(t_periodicity=None),  # todo
+    # AnalyticSingleTurnResonatorSolver(), # todo implement
 ):
-    ring = Ring(circumference=C)
-    energy_cycle = MagneticCyclePerTurn(np.linspace(sync_momentum, sync_momentum, 2))
+    ring = Ring(
+        circumference=6911.56,
+    )
+    magnetic_cycle = MagneticCyclePerTurn(
+        reference_particle=proton,
+        values_after_turn=np.linspace(sync_momentum, sync_momentum, 2),
+        value_init=sync_momentum,
+        in_unit="momentum",
+    )
     cavity1 = SingleHarmonicCavity(
-        rf_program=RfStationParams(
-            harmonic=harmonic_number,
-            voltage=voltage_program,
-            phi_rf=phi_offset,
-        ),
+        harmonic=4620,
+        voltage=0.9e6,
+        phi_rf=0.0,
     )
-    beam = Beam(n_particles=n_particles, particle_type=proton)
+    beam = Beam(
+        n_particles=1e10,
+        particle_type=proton,
+    )
     drift = DriftSimple(
-        transition_gamma=gamma_transition,
-        share_of_circumference=1.0,
+        transition_gamma=22.82177322938192,
+        orbit_length=1.0 * ring.circumference,
     )
-    profile = StaticProfile.from_rad(0, 2 * np.pi, 2**8, sim.magnetic_cycle.t_rev[0, 0])
+    profile = StaticProfile.from_rad(
+        0,
+        2 * np.pi,
+        2**8,
+        magnetic_cycle.get_t_rev_init(
+            ring.circumference,
+            turn_i_init=0,
+            t_init=0,
+            particle_type=proton,
+        )
+        / 4620,
+    )
     wakefield = WakeField(
         sources=(Resonators(R_shunt, f_res, Q_factor),),
         solver=wake_solver,
         profile=profile,
     )
-    ring.add_elements((drift, cavity1, wakefield), reorder=True)
-    sim = Simulation(ring=ring)
+    ring.add_elements(
+        (drift, profile, cavity1, wakefield),
+        reorder=True,
+    )
+    sim = Simulation(
+        ring=ring,
+        magnetic_cycle=magnetic_cycle,
+    )
     sim.prepare_beam(
-        BiGaussian(sigma_dt=tau_0 / 4, seed=1, n_macroparticles=n_macroparticles)
+        preparation_routine=BiGaussian(
+            sigma_dt=2e-9 / 4,
+            seed=1,
+            n_macroparticles=(5 * 1e6),
+        ),
+        beam=beam,
     )
     bunch_observable = BunchObservation(each_turn_i=10)
-    sim.run_simulation(observe=(bunch_observable,))
+    sim.run_simulation(
+        observe=(bunch_observable,),
+        beams=(beam,),
+        n_turns=1,
+    )
+    plt.subplot(2, 1, 1)
+    plt.plot(
+        profile.hist_x,
+        profile.hist_y,
+        label=f"{type(wake_solver).__name__}",
+    )
+    plt.subplot(2, 1, 2)
+    plt.plot(
+        profile.hist_x,
+        wakefield.induced_voltage,
+        label=f"{type(wake_solver).__name__}",
+    )
 
 
 # Analytic result-----------------------------------------------------------
-VindGauss = np.zeros(len(profile.bin_centers))
+VindGauss = np.zeros(len(profile.hist_x))
 for r in range(len(Q_factor)):
     # Notice that the time-argument of inducedVoltageGauss is shifted by
-    # mean(my_slices.bin_centers), because the analytical equation assumes the
+    # mean(my_slices.hist_x), because the analytical equation assumes the
     # Gauss to be centered at t=0, but the line density is centered at
-    # mean(my_slices.bin_centers)
+    # mean(my_slices.hist_x)
     tmp = analytical_gaussian_resonator(
-        tau_0 / 4,
+        2e-9 / 4,
         Q_factor[r],
         R_shunt[r],
         2 * np.pi * f_res[r],
-        profile.bin_centers - np.mean(profile.bin_centers),
-        beam.intensity,
+        profile.hist_x - np.mean(profile.hist_x),
+        beam.n_particles,
     )
     VindGauss += tmp.real
+plt.subplot(2, 1, 1)
+plt.plot(profile.hist_x, profile.hist_y, label=f"analytical_gaussian_resonator")
+plt.subplot(2, 1, 2)
+plt.plot(profile.hist_x, VindGauss, label="analytical_gaussian_resonator")
+plt.legend()
+# plt.show()

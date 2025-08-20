@@ -13,6 +13,26 @@ if TYPE_CHECKING:  # pragma: no cover
 
 class PythonSpecials(Specials):
     @staticmethod
+    def beam_phase(
+        hist_x: NumpyArray,
+        hist_y: NumpyArray,
+        alpha: float,
+        omega_rf: float,
+        phi_rf: float,
+        bin_size: float,
+    ) -> float:
+        scoeff = np.trapezoid(
+            np.exp(alpha * hist_x) * np.sin(omega_rf * hist_x + phi_rf) * hist_y,
+            dx=bin_size,
+        )
+        ccoeff = np.trapezoid(
+            np.exp(alpha * hist_x) * np.cos(omega_rf * hist_x + phi_rf) * hist_y,
+            dx=bin_size,
+        )
+
+        return scoeff / ccoeff
+
+    @staticmethod
     def histogram(
         array_read: NumpyArray, array_write: NumpyArray, start: float, stop: float
     ):
@@ -161,17 +181,19 @@ class PythonSpecials(Specials):
         Parameters
         ----------
         dt
-            Macro-particle time coordinates [s]
+            Macro-particle time coordinates, in [s]
         dE
-            Macro-particle energy coordinates [eV]
+            Macro-particle energy coordinates, in [eV]
         voltage
-            Array of voltages along `bin_centers` in [V]
+            Array of voltages along `bin_centers`, in [V]
         bin_centers
-            Positions of `voltage` in [s]
+            Positions of `voltage`, in [s]
         charge
             Particle charge, as number of elementary charges `e` []
         acceleration_kick
-            # TODO
+            Energy, in [eV], which is added to all particles.
+            This is intended to subtract the target energy from the RF
+            energy gain in one common call.
 
         """
         n_slices = len(bin_centers)

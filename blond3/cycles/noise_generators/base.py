@@ -11,6 +11,6 @@ class NoiseGenerator(ABC):
     def __init__(self):
         super().__init__()
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def get_noise(self, n_turns: int) -> NumpyArray:
         pass

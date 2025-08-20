@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import math
 import warnings
-from typing import Optional as LateInit, TYPE_CHECKING
+from typing import Optional as LateInit, TYPE_CHECKING, Optional
 from typing import (
     Tuple,
 )
 
 import numpy as np
+from matplotlib import pyplot as plt
 from scipy.constants import elementary_charge as e
 from scipy.fft import next_fast_len
 
@@ -73,7 +74,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         Returns
         -------
         induced_voltage
-            Induced voltage in [V]
+            Induced voltage, in [V]
         """
         ratio = beam.n_particles / beam.n_macroparticles_partial()
         factor = -(
@@ -93,8 +94,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
     Parameters
     ----------
     t_periodicity
-        Periodicity that is assumed for fast fourier transform
-        in [s]
+        Periodicity that is assumed for fast fourier transform, in [s]
     allow_next_fast_len
         Allow to slightly change `t_periodicity` for
         faster execution of fft via `scipy.fft.next_fast_len`
@@ -110,14 +110,19 @@ class PeriodicFreqSolver(WakeFieldSolver):
         dynamic parameters
     """
 
-    def __init__(self, t_periodicity: float, allow_next_fast_len: bool = False):
+    def __init__(
+        self, t_periodicity: Optional[float] = None, allow_next_fast_len: bool = False
+    ):
         """General wakefield solver to calculate wake-fields via frequency domain
 
         Parameters
         ----------
         t_periodicity
-            Periodicity that is assumed for fast fourier transform
-            in [s]
+            Periodicity that is assumed for fast fourier transform, in [s]
+
+            If None, it will be automatically set during `on_init_simulation`
+            to the revolution time of the initial turn of the magnetic cycle
+            with respect to the reference particle.
         allow_next_fast_len
             Allow to slightly change `t_periodicity` for
             faster execution of fft via `scipy.fft.next_fast_len`
@@ -153,7 +158,14 @@ class PeriodicFreqSolver(WakeFieldSolver):
         parent_wakefield
             Wakefield that this solver affiliated to
         """
-
+        if self._t_periodicity is None:
+            self._t_periodicity = simulation.magnetic_cycle.get_t_rev_init(
+                circumference=simulation.ring.circumference,
+                turn_i_init=0,
+                t_init=0,
+                particle_type=simulation.magnetic_cycle.reference_particle,
+            )
+            print(f"Set t_periodicity={self._t_periodicity} for {self}")
         self._simulation = simulation
         if parent_wakefield.profile is not None:
             is_static = isinstance(parent_wakefield.profile, StaticProfile)
@@ -277,7 +289,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         Returns
         -------
         induced_voltage
-            Induced voltage in [V]
+            Induced voltage, in [V]
         """
         if self.expect_profile_change:
             # always trigger update
@@ -397,19 +409,25 @@ class TimeDomainSolver(WakeFieldSolver):
         if not self._wake_imp_y_needs_update:
             return
         _wake_x = self._parent_wakefield.profile.hist_x
+        _wake_x = _wake_x - _wake_x.min()
+
+        n_fft = next_fast_len(2 * len(_wake_x))
+        n_t = (n_fft // 2) + 1
+
         if (self._wake_imp_y is None) or (_wake_x.shape != self._wake_imp_y.shape):
-            self._wake_imp_y = np.zeros(
-                len(np.fft.rfftfreq(len(_wake_x))), dtype=backend.complex
-            )
+            self._wake_imp_y = np.zeros(n_t, dtype=backend.complex)
         else:
             self._wake_imp_y[:] = 0 + 0j
 
         for source in self._parent_wakefield.sources:
             if isinstance(source, TimeDomain):
+                # get the wake functions in time
+                # but store already fft(wake) for convolution later
                 wake_imp_y_tmp = source.get_wake_impedance(
                     time=_wake_x,
                     simulation=self._simulation,
                     beam=beam,
+                    n_fft=n_fft,
                 )
                 assert not np.any(np.isnan(wake_imp_y_tmp)), f"{type(source).__name__}"
                 self._wake_imp_y += wake_imp_y_tmp
@@ -430,7 +448,7 @@ class TimeDomainSolver(WakeFieldSolver):
         Returns
         -------
         induced_voltage
-            Induced voltage in [V]
+            Induced voltage, in [V]
         """
         if self.expect_impedance_change:
             self._wake_imp_y_needs_update = True
@@ -440,12 +458,18 @@ class TimeDomainSolver(WakeFieldSolver):
             # TODO this might be a problem with MPI
             beam.n_particles / beam.n_macroparticles_partial()
         )
+        # Calculate the convolution of the wake and the beam
+        # Usually this would be np.convolve(wake, beam).
+        # This can be also done via fftconvolve.
+        # Using ifft(fft(wake) * fft(beam)).
+        # fft(wake)  is already precalculated in the memory.
         induced_voltage = _factor * np.fft.irfft(
             self._wake_imp_y
             * self._parent_wakefield.profile.beam_spectrum(
-                n_fft=len(self._parent_wakefield.profile.hist_x)
+                n_fft=next_fast_len(2 * len(self._parent_wakefield.profile.hist_x))
             ),
         )
+
         # calculation in frequency domain must be with full periodicity.
         # The profile and corresponding induced voltage is only a part of
         # the full periodicity and must be thus truncated
