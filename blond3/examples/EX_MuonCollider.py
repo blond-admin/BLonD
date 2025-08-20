@@ -4,94 +4,123 @@ import numpy as np
 
 from blond3 import (
     Beam,
-    proton,
+    mu_plus,
+    mu_minus,
     Ring,
     Simulation,
     SingleHarmonicCavity,
     DriftSimple,
     WakeField,
     MagneticCyclePerTurn,
+    BunchObservation,
+    StaticProfile,
 )
 from blond3._core.beam.base import BeamBaseClass
 from blond3.beam_preparation.base import BeamPreparationRoutine
 from blond3.physics.impedances.sources import Resonators
 from blond3.physics.impedances.solvers import MultiPassResonatorSolver, AnalyticSingleTurnResonatorSolver
-from unittests_blond3.physics.impedances.compare_with_legacy.test_integration_InducedVoltageFreq import R_shunt
+from scipy.constants import pi
 
 
-class LeonardsCounterrrotBeam(BeamPreparationRoutine):
+class LoadBeamDataCR(BeamPreparationRoutine):
     def __init__(
         self,
-        filename_dt: PathLike | str,
-        filename_dE: PathLike | str,
-        filename_dt_cr: PathLike | str,
-        filename_dE_cr: PathLike | str,
-    ):
-        self.dt = np.loadtxt(filename_dt)
-        self.dE = np.loadtxt(filename_dE)
+        filename: PathLike | str,
+        ):
+        self.dt = np.load(filename)["dt"]
+        self.dE = np.load(filename)["dE"]
 
-        self.dt_cr = np.loadtxt(filename_dt_cr)
-        self.dE_cr = np.loadtxt(filename_dE_cr)
+        self.dt_cr = np.load(filename)["dt"]
+        self.dE_cr = np.load(filename)["dE"]
 
     def prepare_beam(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: BeamBaseClass | list[BeamBaseClass],
     ) -> None:
-        beam.setup_beam(
+        beam[0].setup_beam(
             dt=self.dt,
             dE=self.dE,
         )
-        beam.setup_beam(
+        beam[1].setup_beam(
             dt=self.dt_cr,
             dE=self.dE_cr,
         )
 
+phi_s = 128 * pi / 180  # deg
+inj_energy = 63e9
+ejection_energy = 313.83e9
+n_turns = 17
+energy_gain_per_turn = (ejection_energy - inj_energy) / n_turns
+total_voltage = energy_gain_per_turn / np.sin(phi_s)
+n_cavities = 20
+Q_factor = 0.96e6
+R_over_Q = 518
+alpha_p = 4.68e-4
+gamma_transition = 1 / np.sqrt(alpha_p)
+circumference = 5990
+harmonic = 25900
 
-ring = Ring(circumference=5990)
-energy_cycle = MagneticCyclePerTurn(np.linspace(63e9, 313.83e9, 17))
-
-
-n_cavities = 7
+ring = Ring(circumference=circumference)
+magnetic_cycle = MagneticCyclePerTurn(value_init=inj_energy,
+                                    values_after_turn=np.linspace(inj_energy + energy_gain_per_turn, ejection_energy,
+                                                                  n_turns),
+                                    in_unit="kinetic energy",
+                                    reference_particle=mu_plus)
+profile = StaticProfile.from_rad(
+    0,
+    2 * np.pi,
+    2 ** 10,
+    magnetic_cycle.get_t_rev_init(
+        ring.circumference,
+        turn_i_init=0,
+        t_init=0,
+        particle_type=mu_plus,
+    )
+    / harmonic / n_cavities,
+)
 one_turn_model = []
 for cavity_i in range(n_cavities):
-    local_res = Resonators(center_frequencies=1.3e9, quality_factors=, R_shunt=518*0.96e6 )  # FM only
+    local_res = Resonators(center_frequencies=1.3e9, quality_factors=Q_factor, shunt_impedances=R_over_Q*Q_factor)  # FM only
     one_turn_model.extend(
         [
             SingleHarmonicCavity(
-                rf_program=RfStationParams(
-                    voltage=6e6,
-                    phi_rf=0,
-                    harmonic=35640,
-                ),
+                voltage=total_voltage / n_cavities,
+                phi_rf=0,
+                harmonic=harmonic,
                 local_wakefield=WakeField(
-                    sources=(Resonators(),),
+                    sources=(local_res,),
                     solver=AnalyticSingleTurnResonatorSolver(),
+                    profile=profile,
                 ),
+                section_index=cavity_i,
             ),
             DriftSimple(
-                transition_gamma=55.759505,
-                share_of_circumference=1 / n_cavities,
+                transition_gamma=gamma_transition,
+                orbit_length=circumference / n_cavities,
+                section_index=cavity_i,
             ),
         ]
     )
 ring.add_elements(one_turn_model, reorder=False)
 ####################################################################
-beam1 = Beam(
-    n_particles=1e9,
-    particle_type=proton,
+beam = Beam(
+    n_particles=2.7e12,
+    particle_type=mu_plus,
     is_counter_rotating=False,
 )
-beam2 = Beam(
-    n_particles=1e9,
-    particle_type=proton,
+beam_CR = Beam(
+    n_particles=2.7e12,
+    particle_type=mu_minus,
     is_counter_rotating=True,
 )
-sim = Simulation(ring=ring, beams=(beam1, beam2), magnetic_cycle=energy_cycle)
+sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
 sim.prepare_beam(
-    preparation_routine=LeonardsCounterrrotBeam(
-        "coordinates1.npy", "coordinates2.npy", "coordinates3.npy", "coordinates4.npy"
+    beam=[beam, beam_CR],
+    preparation_routine=LoadBeamDataCR(
+        "initial_beam.npz"
     )
 )
 
-sim.run_simulation(turn_i_init=0, n_turns=100)
+bunch_observation = BunchObservation(each_turn_i=1)
+sim.run_simulation(beams=(beam, beam_CR), turn_i_init=0, n_turns=n_turns, observe=[bunch_observation])

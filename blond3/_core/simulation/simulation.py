@@ -323,7 +323,7 @@ class Simulation(Preparable, HasPropertyCache):
 
     def prepare_beam(
         self,
-        beam: BeamBaseClass,
+        beam: BeamBaseClass | list[BeamBaseClass],
         preparation_routine: BeamPreparationRoutine,
         turn_i: int = 0,
     ) -> None:
@@ -420,6 +420,7 @@ class Simulation(Preparable, HasPropertyCache):
                 observe=observe,
                 show_progressbar=show_progressbar,
                 callback=callback,
+                beams=beams,
             )
 
     def _run_simulation_single_beam(
