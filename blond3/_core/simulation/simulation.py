@@ -13,6 +13,7 @@ from ..base import DynamicParameter
 from ..helpers import find_instances_with_method, int_from_float_with_warning
 from ..ring.helpers import get_elements, get_init_order
 from ...cycles.energy_cycle import EnergyCycleBase, EnergyCyclePerTurn
+from ...cycles.magnetic_cycle import MagneticCycleBase
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import (
@@ -66,8 +67,8 @@ class Simulation(Preparable, HasPropertyCache):
 
         if isinstance(energy_cycle, np.ndarray):
             energy_cycle = EnergyCyclePerTurn(energy_cycle)
-        self._energy_cycle: EnergyCycleBase = energy_cycle
-
+        # self._energy_cycle: EnergyCycleBase = energy_cycle
+        self._magnetic_cycle: MagneticCycleBase = energy_cycle
         self.turn_i = DynamicParameter(None)
         self.section_i = DynamicParameter(None)
 
@@ -248,7 +249,7 @@ class Simulation(Preparable, HasPropertyCache):
 
         beams = get_elements(locals_list, BeamBaseClass)
 
-        _energy_cycles = get_elements(locals_list, EnergyCycleBase)
+        _energy_cycles = get_elements(locals_list, MagneticCycleBase)
         assert len(_energy_cycles) == 1, f"Found {len(_energy_cycles)} energy cycles"
         energy_cycle = _energy_cycles[0]
 
@@ -278,6 +279,10 @@ class Simulation(Preparable, HasPropertyCache):
         """Programmed energy program of the synchrotron"""
         return self._energy_cycle
 
+    @property  # as readonly attributes
+    def magnetic_cycle(self) -> MagneticCycleBase:
+        """Programmed energy program of the synchrotron"""
+        return self._magnetic_cycle
     @cached_property
     def get_separatrix(self):
         raise NotImplementedError

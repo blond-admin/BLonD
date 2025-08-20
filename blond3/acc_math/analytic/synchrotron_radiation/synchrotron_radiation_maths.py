@@ -1,7 +1,7 @@
 from __future__ import annotations
 import numpy as np
 from scipy.constants import c
-from _core.beam.particle_types import ParticleType, electron
+from ...._core.beam.particle_types import ParticleType, electron
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
