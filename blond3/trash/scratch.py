@@ -62,7 +62,7 @@ def functest():
     beam = Mock(BeamBaseClass)
     beam.n_particles = int(1e3)
     beam.particle_type.charge = 1 / e
-    beam.n_macroparticles_partial = int(1e3)
+    beam.n_macroparticles_partial.return_value = int(1e3)
     # n_particles == n_macroparticles, integrated bunch is 1 --> all normalized to 1C
 
     analy._wake_pot_vals_needs_update = True
@@ -101,10 +101,10 @@ def functest():
     )
 
     plt.plot(
-        np.interp(bunch_time, time_axis, pot_axis)[len(calced_voltage) // 2 :],
+        np.interp(bunch_time, time_axis, pot_axis),
         label="wake_pot",
     )
-    plt.plot(calced_voltage[len(calced_voltage) // 2 :], label="calced voltage")
+    plt.plot(calced_voltage, label="calced voltage")
     # plt.plot(np.interp(bunch_time, time_axis, pot_axis)[:len(calced_voltage)], label="wake_pot")
     # plt.plot(calced_voltage[:len(calced_voltage)], label="calced voltage")
     plt.legend()
@@ -140,6 +140,8 @@ def convolution_scratch(pad=True):
 
         left_extend = len(extended_time_orig) + int(extended_time_orig[0] / bin_size)
         right_extend = len(extended_time_orig) - left_extend - 1
+        # left_extend = np.ceil((len(extended_time_orig) - 1) / 2)
+        # right_extend = np.floor((len(extended_time_orig) - 1) / 2)
 
         extended_time = np.linspace(
             extended_time_orig[0]
@@ -214,5 +216,5 @@ def convolution_scratch(pad=True):
 
 
 if __name__ == "__main__":
-    # functest()
-    convolution_scratch()
+    functest()
+    # convolution_scratch()

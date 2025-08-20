@@ -10,13 +10,13 @@ from blond3 import (
     SingleHarmonicCavity,
     DriftSimple,
     WakeField,
-    RfStationParams,
     MagneticCyclePerTurn,
 )
 from blond3._core.beam.base import BeamBaseClass
 from blond3.beam_preparation.base import BeamPreparationRoutine
 from blond3.physics.impedances.sources import Resonators
-from blond3.physics.impedances.solvers import MutliTurnResonatorSolver
+from blond3.physics.impedances.solvers import MultiPassResonatorSolver, AnalyticSingleTurnResonatorSolver
+from unittests_blond3.physics.impedances.compare_with_legacy.test_integration_InducedVoltageFreq import R_shunt
 
 
 class LeonardsCounterrrotBeam(BeamPreparationRoutine):
@@ -48,13 +48,14 @@ class LeonardsCounterrrotBeam(BeamPreparationRoutine):
         )
 
 
-ring = Ring(circumference=26_658.883)
-energy_cycle = MagneticCyclePerTurn(np.linspace(450e9, 460.005e9, 2000))
+ring = Ring(circumference=5990)
+energy_cycle = MagneticCyclePerTurn(np.linspace(63e9, 313.83e9, 17))
 
 
 n_cavities = 7
 one_turn_model = []
 for cavity_i in range(n_cavities):
+    local_res = Resonators(center_frequencies=1.3e9, quality_factors=, R_shunt=518*0.96e6 )  # FM only
     one_turn_model.extend(
         [
             SingleHarmonicCavity(
@@ -65,7 +66,7 @@ for cavity_i in range(n_cavities):
                 ),
                 local_wakefield=WakeField(
                     sources=(Resonators(),),
-                    solver=MutliTurnResonatorSolver(),
+                    solver=AnalyticSingleTurnResonatorSolver(),
                 ),
             ),
             DriftSimple(
