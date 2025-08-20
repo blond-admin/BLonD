@@ -171,7 +171,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
 
     def test__update_potential_sources_profile_changes_array_lengths(
             self,
-    ):  # TODO: in principle, this is a test for the dynamic profile, currently not implemented
+    ):  # in principle, this is a test for the dynamic profile, currently not implemented
         """
         ensure that the profile does not change on application of different profile lengths with 0-padding
         """
