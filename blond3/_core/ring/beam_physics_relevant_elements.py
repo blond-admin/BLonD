@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from physics.synchrotron_radiation import _SynchrotronRadiationBaseClass, \
+from ...physics.synchrotron_radiation import SynchrotronRadiationBaseClass, \
     SynchrotronRadiationBaseClass
 from ..base import Preparable
 from ..beam.base import BeamBaseClass
