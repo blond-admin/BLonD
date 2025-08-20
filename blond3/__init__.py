@@ -20,3 +20,7 @@ from .physics.impedances.base import WakeField
 from .physics.losses import BoxLosses
 from .physics.profiles import StaticProfile
 from .physics.synchrotron_radiation import SynchrotronRadiationMaster, WigglerMagnet
+from .acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import \
+    calculate_natural_energy_spread, calculate_damping_times_in_turn, \
+    calculate_energy_loss_per_turn, \
+    gather_longitudinal_synchrotron_radiation_parameters
