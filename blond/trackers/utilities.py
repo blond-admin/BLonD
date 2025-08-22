@@ -645,6 +645,8 @@ def potential_well_cut(time_potential, potential_array):
                 as the main harmonic is probably not the expected one. \
                 You may also increase the percentage of margin to compute \
                 the potentiel well. The full potential well will be taken')
+        time_potential_sep = time_potential
+        potential_well_sep = potential_array
     elif n_maxima == 1:
         if min_time_positions[0] > max_time_positions[0]:
             saved_indexes = (potential_array < max_potential_values[0]) * \
