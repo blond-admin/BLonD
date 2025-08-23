@@ -358,6 +358,8 @@ class Simulation(Preparable, HasPropertyCache):
 
         Parameters
         ----------
+        beams
+            beams to be simulated, in case of two beams, the first must be co-rotating and the second counter-rotating
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -422,6 +424,8 @@ class Simulation(Preparable, HasPropertyCache):
                 callback=callback,
                 beams=beams,
             )
+        else:
+            raise NotImplementedError("No more than 2 beams are implemented")
 
     def _run_simulation_single_beam(
         self,
@@ -606,8 +610,29 @@ class Simulation(Preparable, HasPropertyCache):
             that is called each turn.
 
         """
-        raise NotImplementedError()
-        pass  # todo
+        logger.info("Starting simulation mainloop...")
+        iterator = range(turn_i_init, turn_i_init + n_turns)
+        if show_progressbar:
+            iterator = tqdm(iterator)  # Add TQDM display to iteration
+        self.turn_i.on_change(self._invalidate_cache)
+        self.turn_i.value = 0
+
+        num_elements = len(self._ring.elements.elements)  # TODO: can this change between different turns?
+
+        for turn_i in iterator:
+            self.turn_i.value = turn_i
+            for element_ind, element in enumerate(self._ring.elements.elements):
+                self.section_i.current_group = element.section_index
+
+                if element.is_active_this_turn(turn_i=self.turn_i.value):
+                    element.track(beams[0])  # [0] is expected to be corotating
+                CR_element = self.ring.elements.elements[num_elements - element_ind - 1]
+                if CR_element.is_active_this_turn(turn_i=self.turn_i.value):
+                    element.track(beams[1])
+        # reset counters to uninitialized again
+        self.turn_i.value = None
+        self.section_i.value = None
+
 
     def load_results(
         self,

@@ -16,11 +16,14 @@ from blond3 import (
     StaticProfile,
 )
 from blond3._core.beam.base import BeamBaseClass
+from blond3._core.backends.backend import backend, Numpy64Bit
 from blond3.beam_preparation.base import BeamPreparationRoutine
 from blond3.physics.impedances.sources import Resonators
 from blond3.physics.impedances.solvers import MultiPassResonatorSolver, AnalyticSingleTurnResonatorSolver
 from scipy.constants import pi
 
+backend.change_backend(Numpy64Bit)  # TODO: without these lines, it does not work, default should be set somewhere to be Numpy64bit python
+# backend.set_specials("numba")
 
 class LoadBeamDataCR(BeamPreparationRoutine):
     def __init__(
