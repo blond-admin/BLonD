@@ -156,7 +156,7 @@ class BunchObservation(Observables):
             turn_i_init=turn_i_init,
             beam=beam,
         )
-        n_entries = int(n_turns // self.each_turn_i + 2)
+        n_entries = n_turns // self.each_turn_i + 2
         n_particles = beam.common_array_size
         shape = (n_entries, n_particles)
 
