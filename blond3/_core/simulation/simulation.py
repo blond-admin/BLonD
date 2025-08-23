@@ -14,7 +14,9 @@ from ..helpers import find_instances_with_method, int_from_float_with_warning
 from ..ring.helpers import get_elements, get_init_order
 from ...cycles.magnetic_cycle import MagneticCycleBase, MagneticCyclePerTurn
 from ...physics.cavities import CavityBaseClass
+from ...physics.drifts import DriftBaseClass
 from ...physics.profiles import ProfileBaseClass
+from ...handle_results.observables import CRBunchObservation
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional, Tuple
@@ -629,6 +631,20 @@ class Simulation(Preparable, HasPropertyCache):
                 CR_element = self.ring.elements.elements[num_elements - element_ind - 1]
                 if CR_element.is_active_this_turn(turn_i=self.turn_i.value):
                     element.track(beams[1])
+                if isinstance(CR_element, DriftBaseClass):  # only observe after drifts
+                    for observable in observe:
+                        if observable.is_active_this_turn(turn_i=self.turn_i.value):
+                            if isinstance(observable, CRBunchObservation):
+                                observable.update(
+                                    simulation=self,
+                                    beam=beams[0],
+                                    beam_cr=beams[1],
+                                )
+                            else:
+                                observable.update(
+                                    simulation=self,
+                                    beam=beams[0],
+                                )
         # reset counters to uninitialized again
         self.turn_i.value = None
         self.section_i.value = None

@@ -18,12 +18,15 @@ from blond3 import (
 from blond3._core.beam.base import BeamBaseClass
 from blond3._core.backends.backend import backend, Numpy64Bit
 from blond3.beam_preparation.base import BeamPreparationRoutine
+from blond3.handle_results.observables import CRBunchObservation
 from blond3.physics.impedances.sources import Resonators
 from blond3.physics.impedances.solvers import MultiPassResonatorSolver, AnalyticSingleTurnResonatorSolver
 from scipy.constants import pi
 
+import matplotlib.pyplot as plt
+
 backend.change_backend(Numpy64Bit)  # TODO: without these lines, it does not work, default should be set somewhere to be Numpy64bit python
-# backend.set_specials("numba")
+backend.set_specials("numba")
 
 class LoadBeamDataCR(BeamPreparationRoutine):
     def __init__(
@@ -50,16 +53,26 @@ class LoadBeamDataCR(BeamPreparationRoutine):
             dE=self.dE_cr,
         )
 
-phi_s = 128 * pi / 180  # deg
-inj_energy = 63e9
-ejection_energy = 313.83e9
-n_turns = 17
+# phi_s = 128 * pi / 180  # deg
+# inj_energy = 63e9
+# ejection_energy = 313.83e9
+# n_turns = 17
+# alpha_p = 4.68e-4
+# Q_factor = 0.96e6
+
+# RCS2
+phi_s = 148 * pi / 180  # deg
+inj_energy = 313.83e9
+ejection_energy = 750e9
+n_turns = 55
+alpha_p = 11.4e-4
+Q_factor = 0.775e6
+
 energy_gain_per_turn = (ejection_energy - inj_energy) / n_turns
 total_voltage = energy_gain_per_turn / np.sin(phi_s)
-n_cavities = 20
-Q_factor = 0.96e6
+n_cavities = 8
+
 R_over_Q = 518
-alpha_p = 4.68e-4
 gamma_transition = 1 / np.sqrt(alpha_p)
 circumference = 5990
 harmonic = 25900
@@ -121,9 +134,15 @@ sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
 sim.prepare_beam(
     beam=[beam, beam_CR],
     preparation_routine=LoadBeamDataCR(
-        "initial_beam.npz"
+        "RCS2_8_cavities.npz"
     )
 )
 
-bunch_observation = BunchObservation(each_turn_i=1)
+bunch_observation = CRBunchObservation(each_turn_i=1, obs_per_turn = 4)
 sim.run_simulation(beams=(beam, beam_CR), turn_i_init=0, n_turns=n_turns, observe=[bunch_observation])
+
+plt.plot(np.mean(bunch_observation.dEs, axis=1))
+plt.show()
+
+plt.plot(np.mean(bunch_observation.dts, axis=1))
+plt.show()

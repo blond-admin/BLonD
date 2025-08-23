@@ -156,7 +156,7 @@ class BunchObservation(Observables):
             turn_i_init=turn_i_init,
             beam=beam,
         )
-        n_entries = n_turns // self.each_turn_i + 2
+        n_entries = int(n_turns // self.each_turn_i + 2)
         n_particles = beam.common_array_size
         shape = (n_entries, n_particles)
 
@@ -249,6 +249,122 @@ class BunchObservation(Observables):
             self._flags.filepath,
         )
 
+
+class CRBunchObservation(BunchObservation):
+    def __init__(self, each_turn_i: int, obs_per_turn: int):
+        super().__init__(each_turn_i=each_turn_i)
+
+        self._dts_CR: LateInit[DenseArrayRecorder] = None
+        self._dEs_CR: LateInit[DenseArrayRecorder] = None
+
+        self._obs_per_turn = obs_per_turn
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs,
+    ) -> None:
+        """Lateinit method when `simulation.run_simulation` is called
+
+        simulation
+            Simulation context manager
+        beam
+            Simulation beam object
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
+        # super call is neglected here on purpose, as array sizes will be wrong otherwise
+        self._n_turns = n_turns
+        self._turn_i_init = turn_i_init
+
+        # overwrite for array lengths with multiple section
+        n_entries = int(n_turns * self._obs_per_turn + 1)
+        n_particles = beam.common_array_size
+        shape = (n_entries, n_particles)
+
+        self._turns_array = np.linspace(turn_i_init, turn_i_init + n_turns, n_entries, endpoint=False)
+
+        self._dts = DenseArrayRecorder(
+            f"{'simulation.get_hash'}_dts",
+            shape,
+        )  # TODO
+        self._dEs = DenseArrayRecorder(
+            f"{'simulation.get_hash'}_dEs",
+            shape,
+        )
+        self._dts_CR = DenseArrayRecorder(
+            f"{'simulation.get_hash'}_dts",
+            shape,
+        )  # TODO
+        self._dEs_CR = DenseArrayRecorder(
+            f"{'simulation.get_hash'}_dEs",
+            shape,
+        )
+        # TODO
+        self._flags = DenseArrayRecorder(
+            f"{'simulation.get_hash'}_flags",
+            shape,
+        )  # TODO
+
+        self._reference_time = DenseArrayRecorder(
+            f"{'simulation.get_hash'}_reference_time",
+            (n_entries,),
+        )
+        self._reference_total_energy = DenseArrayRecorder(
+            f"{'simulation.get_hash'}_reference_total_energy",
+            (n_entries,),
+        )
+
+    def update(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        beam_cr: BeamBaseClass=None,
+    ) -> None:
+        """
+        Update memory with new values
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+        beam
+            Simulation beam object
+
+        """
+        if simulation.section_i.current_group % self._obs_per_turn == 0:
+            super().update(simulation=simulation, beam=beam)
+            if beam_cr is None:
+                raise RuntimeError("Use Bunch Observation for single beam observations")
+            self._dts_CR.write(beam_cr._dt)
+            self._dEs_CR.write(beam_cr._dE)
+
+    @property  # as readonly attributes
+    def dts_CR(self):
+        return self._dts.get_valid_entries()
+
+    @property  # as readonly attributes
+    def dEs_CR(self):
+        return self._dEs.get_valid_entries()
+
+    def to_disk(self) -> None:
+        super().to_disk()
+        self._dts_CR.to_disk()
+        self._dEs_CR.to_disk()
+
+    def from_disk(self) -> None:
+        super().from_disk()
+        self._dts_CR = DenseArrayRecorder.from_disk(
+            self._dts_CR.filepath,
+        )
+        self._dEs_CR = DenseArrayRecorder.from_disk(
+            self._dEs_CR.filepath,
+        )
 
 class CavityPhaseObservation(Observables):
     def __init__(self, each_turn_i: int, cavity: SingleHarmonicCavity):
