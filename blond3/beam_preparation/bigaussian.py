@@ -88,8 +88,23 @@ def _get_dE_from_dt(
         ring_circumference=simulation.ring.circumference,
     )
     phi_rf = rf_station.phi_rf
-    warnings.warn("assuming wrongly phi_s = phi_rf for development, " "to be resolved")
-    phi_s = phi_rf  # TODO rf_station.phi_s[counter]
+    voltage = rf_station.voltage
+    if main_harmonic_idx is not None:
+        harmonic = harmonic[main_harmonic_idx]
+        omega_rf = omega_rf[main_harmonic_idx]
+        phi_rf = phi_rf[main_harmonic_idx]
+        voltage = voltage[main_harmonic_idx]
+
+    phi_s = calc_phi_s_single_harmonic(
+        charge=beam.particle_type.charge,
+        voltage=voltage,
+        phase=phi_rf,
+        energy_gain=simulation.magnetic_cycle.get_target_total_energy(
+            1, 0, 0, particle_type=beam.particle_type
+        )
+                    - beam.reference_total_energy,
+        above_transition=above_transition,
+    )
     eta0 = drift.eta_0(gamma=beam.reference_gamma)
     particle_charge = beam.particle_type.charge
 
