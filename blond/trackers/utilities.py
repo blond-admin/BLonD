@@ -772,7 +772,7 @@ def potential_well_cut(time_potential: NumpyArray,
     *Function to cut the potential well in order to take only the separatrix
     (several cases according to the number of min/max).*
     """
-
+    assert len(time_potential) == len(potential_array), f"{len(time_potential)} != {len(potential_array)}"
     # Check for the min/max of the potential well
     minmax_positions, minmax_values = minmax_location(time_potential,
                                                       potential_array)
@@ -781,7 +781,7 @@ def potential_well_cut(time_potential: NumpyArray,
     max_potential_values = minmax_values[1]
     n_minima = len(min_time_positions)
     n_maxima = len(max_time_positions)
-
+    saved_indexes = [False]
     if n_minima == 0:
         # PotentialWellError
         raise RuntimeError('The potential well has no minima...')
@@ -840,11 +840,16 @@ def potential_well_cut(time_potential: NumpyArray,
                             (time_potential < higher_maximum_time)
             time_potential_sep = time_potential[saved_indexes]
             potential_well_sep = potential_array[saved_indexes]
-
-        else:
+        elif lower_maximum_time > higher_maximum_time:
             saved_indexes = (potential_array < lower_maximum_value) * \
                             (time_potential < lower_maximum_time) * \
                             (time_potential > higher_maximum_time)
+            time_potential_sep = time_potential[saved_indexes]
+            potential_well_sep = potential_array[saved_indexes]
+        else:
+            saved_indexes = (potential_array < lower_maximum_value) * \
+                            (time_potential > lower_maximum_time) * \
+                            (time_potential < higher_maximum_time)
             time_potential_sep = time_potential[saved_indexes]
             potential_well_sep = potential_array[saved_indexes]
 
@@ -861,6 +866,8 @@ def potential_well_cut(time_potential: NumpyArray,
 
         time_potential_sep = time_potential[saved_indexes]
         potential_well_sep = potential_array[saved_indexes]
+
+    assert np.sum(saved_indexes) != 0, "giving back empty array, something went wrong in potential well cut"
 
     return time_potential_sep, potential_well_sep
 
