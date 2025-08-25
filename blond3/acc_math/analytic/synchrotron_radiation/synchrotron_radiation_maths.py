@@ -135,7 +135,7 @@ def calculate_energy_loss_per_turn(
     :return:
     """
     energy_loss_per_turn = (
-        particle_type.quantum_radiation_constant
+        particle_type.sands_radiation_constant
         * energy**4
         * synchrotron_radiation_integrals[1]
         / (2 * np.pi)
