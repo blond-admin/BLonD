@@ -52,7 +52,8 @@ class DenseArrayRecorder(ArrayRecorder):
     ):
         if filepath_is_relative:
             filepath = callers_relative_path(filepath, stacklevel=2)
-        self._memory = np.empty(shape=shape, dtype=dtype, order=order)
+        # reserve full memory at init to avoid memory overflow during runtime
+        self._memory = np.zeros(shape=shape, dtype=dtype, order=order)
         self._write_idx = 0
 
         self.filepath = filepath
