@@ -13,6 +13,7 @@ from ..base import DynamicParameter
 from ..helpers import find_instances_with_method, int_from_float_with_warning
 from ..ring.helpers import get_elements, get_init_order
 from ...cycles.magnetic_cycle import MagneticCycleBase, MagneticCyclePerTurn
+from ...handle_results.results import SimulationResults
 from ...physics.cavities import CavityBaseClass
 from ...physics.profiles import ProfileBaseClass
 
