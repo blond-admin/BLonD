@@ -789,11 +789,16 @@ def potential_well_cut(time_potential: NumpyArray,
         # PotentialWellError
         raise RuntimeError('The potential well has more minima than maxima, and only one maximum')
     if n_maxima == 0:
-        print('Warning: The maximum of the potential well could not be found... \
+        from warnings import warn
+        warn(
+            "The maximum of the potential well could not be found... \
                 You may reconsider the options to calculate the potential well \
                 as the main harmonic is probably not the expected one. \
                 You may also increase the percentage of margin to compute \
-                the potentiel well. The full potential well will be taken')
+                the potentiel well. The full potential well will be taken'",
+            UserWarning,
+            stacklevel=2,
+        )
         time_potential_sep = time_potential
         potential_well_sep = potential_array
     elif n_maxima == 1:
