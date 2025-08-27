@@ -14,4 +14,7 @@ class TestFunctions(unittest.TestCase):
             return abspath
 
         expected = "/unittests_blond3/handle_results/test"
-        self.assertEqual(expected, save("test")[-len(expected) :])
+        self.assertEqual(
+            expected,
+            (save("test")[-len(expected) :].replace("\\", "/")), # replacement for windows like paths
+        )
