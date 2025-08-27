@@ -17,11 +17,12 @@ if TYPE_CHECKING:  # pragma: no cover
     from .._core.beam.base import BeamBaseClass
 
 
-class DriftBaseClass(BeamPhysicsRelevant, ABC):
+class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
     def __init__(
         self,
         orbit_length: float,
         section_index: int = 0,
+        **kwargs,  # for MRO of fused elements
     ):
         """
         Base class of a drift
@@ -35,7 +36,10 @@ class DriftBaseClass(BeamPhysicsRelevant, ABC):
             Section index to group elements into sections
 
         """
-        super().__init__(section_index=section_index)
+        super().__init__(
+            section_index=section_index,
+            **kwargs,  # for MRO of fused elements
+        )
 
         self.orbit_length = orbit_length
 
@@ -50,7 +54,7 @@ class DriftBaseClass(BeamPhysicsRelevant, ABC):
         beam
             Beam class to interact with this element
         """
-        pass
+        super().track(beam=beam)
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called
@@ -58,7 +62,7 @@ class DriftBaseClass(BeamPhysicsRelevant, ABC):
         simulation
             Simulation context manager
         """
-        pass
+        super().on_init_simulation(simulation=simulation)
 
     def on_run_simulation(
         self,
@@ -82,7 +86,7 @@ class DriftBaseClass(BeamPhysicsRelevant, ABC):
         pass
 
 
-class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
+class DriftSimple(DriftBaseClass, HasPropertyCache):
     """
     Base class to implement beam drifts in synchrotrons
 
@@ -101,6 +105,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         orbit_length: float,
         section_index: int = 0,
         transition_gamma: Optional[float] = None,
+        **kwargs,  # for MRO of fused elements
     ):
         """
         Base class to implement beam drifts in synchrotrons
@@ -120,6 +125,7 @@ class DriftSimple(DriftBaseClass, Schedulable, HasPropertyCache):
         super().__init__(
             orbit_length=orbit_length,
             section_index=section_index,
+            **kwargs,  # for MRO of fused elements
         )
 
         self._transition_gamma: float | None = None

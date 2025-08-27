@@ -37,6 +37,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         cavity_feedback: Optional[LocalFeedback],
         beam_feedback: Optional[Blond2BeamFeedback],
         name: Optional[str] = None,
+        **kwargs,  # for MRO of fused elements
     ):
         """
         Base class to implement beam-rf interactions in synchrotrons
@@ -54,7 +55,11 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         """
         from .feedbacks.base import LocalFeedback  # prevent cyclic import
 
-        super().__init__(section_index=section_index, name=name)
+        super().__init__(
+            section_index=section_index,
+            name=name,
+            **kwargs,  # for MRO of fused elements
+        )
         if cavity_feedback is None:
             pass
         elif isinstance(cavity_feedback, LocalFeedback):
@@ -93,6 +98,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         simulation
             Simulation context manager
         """
+        super().on_init_simulation(simulation=simulation)
         self._turn_i = simulation.turn_i
         self._magnetic_cycle = simulation.magnetic_cycle
         self._ring = simulation.ring
@@ -170,6 +176,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         beam
             Beam class to interact with this element
         """
+        super().track(beam=beam)
 
         self.apply_schedules(
             turn_i=self._turn_i.value,
@@ -305,6 +312,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         voltage: Optional[float] = None,
         phi_rf: Optional[float] = None,
         harmonic: Optional[float] = None,
+        **kwargs,  # for MRO of fused elements
     ):
         super().__init__(
             n_rf=1,
@@ -313,6 +321,7 @@ class SingleHarmonicCavity(CavityBaseClass):
             cavity_feedback=cavity_feedback,
             beam_feedback=beam_feedback,
             name=name,
+            **kwargs,  # for MRO of fused elements
         )
         self.voltage: float | None = voltage
         self.phi_rf: float | None = phi_rf
