@@ -143,10 +143,16 @@ class BeamPhysicsRelevantElements(Preparable):
         """
         assert isinstance(element.section_index, int)
 
+        insert_at = None
+
         for i, elem in enumerate(self.elements):
             if elem.section_index == element.section_index:
                 insert_at = i
-        self.elements.append(element)
+
+        if insert_at is not None:
+            self.elements.insert(insert_at + 1, element)
+        else:
+            self.elements.append(element)
 
     def check_section_index_compatibility(self, element:
     BeamPhysicsRelevant, insert_at: int):
