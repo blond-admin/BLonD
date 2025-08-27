@@ -142,6 +142,7 @@ class BackendBaseClass(ABC):
         self.twopi = self.float(2 * np.pi)
         self.specials_mode = specials_mode
         self.specials: Specials = None
+        self.set_specials(self.specials_mode)
 
         # Callables
         self.array = None

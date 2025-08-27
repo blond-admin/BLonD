@@ -52,6 +52,11 @@ extern "C" void histogram(
             // First calculate the index to update
             for (int j = 0; j < loop_count; j++) {
                 fbin[j] = floor((input[i + j] - cut_left) * inv_bin_width);
+
+                // Clamp to the last bin if val == cut_right
+                if (input[i + j] == cut_right) {
+                    fbin[j] = n_slices - 1;
+                }
             }
             // Then update the corresponding bins
             for (int j = 0; j < loop_count; j++) {

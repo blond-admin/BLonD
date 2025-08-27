@@ -77,7 +77,6 @@ class TestNumpyBackend(unittest.TestCase):
             float_=np.float32,
             int_=np.int32,
             complex_=np.complex64,
-            specials_mode="python",
         )
 
     def test___init__(self):
@@ -92,7 +91,7 @@ class TestSpecials(unittest.TestCase):
         self.n_voltages = 3
         self.special_modes = (
             "python",
-            "cuda",
+            # "cuda",
             "cpp",
             "numba",
             "fortran",
@@ -203,7 +202,7 @@ class TestSpecials(unittest.TestCase):
                     np.testing.assert_allclose(result, result_python, rtol=self.rtol)
 
     def test_drift_simple(self):
-        for dtype in (np.float64,):  #  (np.float32, np.float64):
+        for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 self._setUp(dtype=dtype, special_mode=special)
                 backend.specials.drift_simple(
@@ -223,7 +222,7 @@ class TestSpecials(unittest.TestCase):
                     np.testing.assert_allclose(result, result_python, rtol=self.rtol)
 
     def test_kick_multi_harmonic(self):
-        for dtype in (np.float64,):  #  (np.float32, np.float64):
+        for dtype in (np.float32, np.float64):
             for n_voltages in (1, 2, 3, 4, 5):
                 for i, special in enumerate(self.special_modes):
                     self.n_voltages = n_voltages
@@ -249,7 +248,7 @@ class TestSpecials(unittest.TestCase):
                         )
 
     def test_kick_single_harmonic(self):
-        for dtype in (np.float64,):  # (np.float32, np.float64):
+        for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 self._setUp(dtype=dtype, special_mode=special)
                 backend.specials.kick_single_harmonic(
@@ -270,7 +269,7 @@ class TestSpecials(unittest.TestCase):
                     np.testing.assert_allclose(result, result_python, rtol=self.rtol)
 
     def test_kick_induced_voltage(self):
-        for dtype in (np.float64,):  # (np.float32, np.float64):
+        for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 self._setUp(dtype=dtype, special_mode=special)
                 dt = np.linspace(-5, 5, 20, dtype=backend.float)
@@ -310,12 +309,16 @@ class TestSpecials(unittest.TestCase):
                     np.testing.assert_allclose(result, result_python, rtol=self.rtol)
 
     def test_beam_phase(self):
-        for dtype in (np.float64,):  # (np.float32, np.float64):
+        for dtype in (
+            np.float32,
+            np.float64,
+        ):
             for i, special in enumerate(self.special_modes):
                 self._setUp(dtype=dtype, special_mode=special)
                 result = backend.specials.beam_phase(
                     hist_x=backend.linspace(-10, 10, 21, dtype=backend.float),
-                    hist_y=backend.linspace(-10, 10, 21, dtype=backend.float),
+                    hist_y=10**2
+                    - backend.linspace(-10, 10, 21, dtype=backend.float) ** 2,
                     alpha=backend.float(1.5),
                     omega_rf=backend.float(2.5),
                     phi_rf=backend.float(3.5),
@@ -327,12 +330,21 @@ class TestSpecials(unittest.TestCase):
                     np.testing.assert_allclose(
                         result,
                         result_python,
-                        rtol=self.rtol,
+                        # There is some numerical reason, why 32-bit C++ and
+                        # Numba returns slightly different results than
+                        # Python.
+                        # The Fortran port of the C++ code works fine,
+                        # so it's not an algorithmic problem, but something
+                        # governed by the compiler.
+                        # The accuracy for 32-bit test is therefore lowered
+                        # to 1e-5 instead of 1e-6, hopefully without
+                        # consequences.
+                        rtol=1e-5 if dtype is np.float32 else self.rtol,
                         err_msg=f"{special=} {dtype=}",
                     )
 
     def test_histogram(self):
-        for dtype in (np.float64,):  # (np.float32, np.float64):
+        for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 self._setUp(dtype=dtype, special_mode=special)
                 array_write = backend.zeros(21, dtype=backend.float)

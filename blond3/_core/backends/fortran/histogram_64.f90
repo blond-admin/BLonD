@@ -39,6 +39,11 @@ subroutine histogram(array_in, array_out, cut_left, cut_right, n_slices, n_macro
         if (bin >= 0 .and. bin < n_slices) then
           histo(bin + 1, tid + 1) = histo(bin + 1, tid + 1) + 1
         end if
+        if (bin == n_slices) then
+            if (array_in(i + j - 1) == cut_right) then
+                histo(bin, tid + 1) = histo(bin, tid + 1) + 1
+            end if
+        end if
       end do
     end do
     !$omp end do
