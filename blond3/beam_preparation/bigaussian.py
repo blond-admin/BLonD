@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -8,10 +7,11 @@ import numpy as np
 from .base import MatchingRoutine
 from .._core.backends.backend import backend
 from .._core.helpers import int_from_float_with_warning
+from .._generals.iterables import all_equal
 from ..acc_math.analytic.hammilton import is_in_separatrix, calc_phi_s_single_harmonic
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional
+    from typing import Optional, Tuple
 
     from .._core.simulation.simulation import Simulation
     from .._core.beam.base import BeamBaseClass
@@ -59,41 +59,24 @@ def _get_dE_from_dt(
         Full amplitude of the particle oscillation, in [eV]
 
     """
-    from .. import MultiHarmonicCavity
-    from ..physics.cavities import SingleHarmonicCavity
     from ..physics.drifts import DriftSimple
 
-    drift: DriftSimple = simulation.ring.elements.get_element(DriftSimple)
-    above_transition = beam.reference_gamma > drift.transition_gamma
+    drifts = simulation.ring.elements.get_elements(DriftSimple)
+    above_transition = [
+        beam.reference_gamma > drift.transition_gamma for drift in drifts
+    ]
+    assert all_equal(above_transition), (
+        f"expected all `above_transition` to be equal, but got {above_transition}"
+    )
+    above_transition = above_transition[0]
 
-    try:
-        rf_station: SingleHarmonicCavity = simulation.ring.elements.get_element(
-            SingleHarmonicCavity
-        )
-        main_harmonic_idx = None
-    except AssertionError:
-        rf_station: MultiHarmonicCavity = simulation.ring.elements.get_element(
-            MultiHarmonicCavity
-        )
-        main_harmonic_idx = rf_station.main_harmonic_idx
+    harmonic, omega_rf, phi_rf, voltage = get_main_harmonic_attributes(
+        beam=beam,
+        simulation=simulation,
+    )
 
-    counter = simulation.turn_i.value  # todo might need to be set
-    drift.apply_schedules(turn_i=counter, reference_time=beam.reference_time)
-    rf_station.apply_schedules(turn_i=counter, reference_time=beam.reference_time)
     energy = beam.reference_total_energy
     beta = beam.reference_beta
-    harmonic = rf_station.harmonic
-    omega_rf = rf_station.calc_omega(
-        beam_beta=beam.reference_beta,
-        ring_circumference=simulation.ring.circumference,
-    )
-    phi_rf = rf_station.phi_rf
-    voltage = rf_station.voltage
-    if main_harmonic_idx is not None:
-        harmonic = harmonic[main_harmonic_idx]
-        omega_rf = omega_rf[main_harmonic_idx]
-        phi_rf = phi_rf[main_harmonic_idx]
-        voltage = voltage[main_harmonic_idx]
 
     phi_s = calc_phi_s_single_harmonic(
         charge=beam.particle_type.charge,
@@ -105,7 +88,12 @@ def _get_dE_from_dt(
         - beam.reference_total_energy,
         above_transition=above_transition,
     )
-    eta0 = drift.eta_0(gamma=beam.reference_gamma)
+
+    eta0 = [drift.eta_0(gamma=beam.reference_gamma) for drift in drifts]
+    assert all_equal(
+        eta0), f"Expected all `eta0` to be the same, but got {eta0}."
+    eta0 = eta0[0]
+
     particle_charge = beam.particle_type.charge
 
     return _get_dE_from_dt_core(
@@ -120,6 +108,51 @@ def _get_dE_from_dt(
         phi_s=float(phi_s),
         voltage=float(voltage),
     )
+
+
+def get_main_harmonic_attributes(
+    beam: BeamBaseClass, simulation: Simulation
+) -> Tuple[float, float, float, float]:
+    from .. import MultiHarmonicCavity
+    from ..physics.cavities import SingleHarmonicCavity
+
+    rf_stations = simulation.ring.elements.get_elements(
+        SingleHarmonicCavity
+    ) + simulation.ring.elements.get_elements(MultiHarmonicCavity)
+    for _rf_station in rf_stations:
+        _rf_station.apply_schedules(
+            turn_i=0,
+            reference_time=0,
+        )
+    # omega_rf should be all same
+    omega_rf = [
+        rf.calc_omega(
+            beam_beta=beam.reference_beta,
+            ring_circumference=simulation.ring.circumference,
+        )
+        for rf in rf_stations
+    ]
+    assert all_equal(omega_rf), (
+        f"Expected all `omega_rf` to be the same, but got {omega_rf}."
+    )
+    omega_rf = omega_rf[0]
+
+    # phi_rf should be all same
+    phi_rf = [rf.phi_rf + rf.delta_phi_rf for rf in rf_stations]
+    assert all_equal(phi_rf), f"Expected all `phi_rf` to be the same, but got {phi_rf}."
+    phi_rf = phi_rf[0]
+
+    # harmonic should be all same
+    harmonic = [rf.harmonic for rf in rf_stations]
+    assert all_equal(harmonic), (
+        f"Expected all `harmonic` to be the same, but got {harmonic}."
+    )
+    harmonic = harmonic[0]
+
+    # voltage sum
+    voltage = sum([rf.voltage for rf in rf_stations])
+
+    return harmonic, omega_rf, phi_rf, voltage
 
 
 class BiGaussian(MatchingRoutine):
@@ -168,37 +201,26 @@ class BiGaussian(MatchingRoutine):
             Simulation context manager
         """
 
-        from .. import MultiHarmonicCavity
-        from ..physics.cavities import SingleHarmonicCavity
         from ..physics.drifts import DriftSimple
 
         super().prepare_beam(
             simulation=simulation,
             beam=beam,
         )
-        try:
-            rf_station: SingleHarmonicCavity = simulation.ring.elements.get_element(
-                SingleHarmonicCavity
-            )
-            main_harmonic = None
-        except AssertionError:
-            rf_station: MultiHarmonicCavity = simulation.ring.elements.get_element(
-                MultiHarmonicCavity
-            )
-            main_harmonic = rf_station.main_harmonic_idx
-        drift: DriftSimple = simulation.ring.elements.get_element(DriftSimple)
         above_transition = (
             beam.reference_gamma > simulation.ring.average_transition_gamma
         )
+        harmonic, omega_rf, phi_rf, voltage = get_main_harmonic_attributes(
+            beam=beam,
+            simulation=simulation,
+        )
 
-        rf_station.apply_schedules(
-            turn_i=0,
-            reference_time=0,
-        )
-        drift.apply_schedules(
-            turn_i=0,
-            reference_time=0,
-        )
+        drifts: DriftSimple = simulation.ring.elements.get_elements(DriftSimple)
+        for _drift in drifts:
+            _drift.apply_schedules(
+                turn_i=0,
+                reference_time=0,
+            )
 
         if self._sigma_dE is None:
             sigma_dE = _get_dE_from_dt(
@@ -211,19 +233,6 @@ class BiGaussian(MatchingRoutine):
         else:
             sigma_dE = self._sigma_dE
 
-        omega_rf = rf_station.calc_omega(
-            beam_beta=beam.reference_beta,
-            ring_circumference=simulation.ring.circumference,
-        )
-        phi_rf = rf_station.phi_rf + rf_station.delta_phi_rf
-        harmonic = rf_station.harmonic
-        voltage = rf_station.voltage
-
-        if main_harmonic is not None:
-            omega_rf = omega_rf[main_harmonic]
-            phi_rf = phi_rf[main_harmonic]
-            harmonic = harmonic[main_harmonic]
-            voltage = voltage[main_harmonic]
         phi_s = calc_phi_s_single_harmonic(
             charge=beam.particle_type.charge,
             voltage=voltage,
@@ -235,7 +244,9 @@ class BiGaussian(MatchingRoutine):
             above_transition=above_transition,
         )
         # call to legacy
-        eta0 = drift.eta_0(gamma=beam.reference_gamma)
+        eta0 = [drift.eta_0(gamma=beam.reference_gamma) for drift in drifts]
+        assert all_equal(eta0), f"Expected all `eta0` to be the same, but got {eta0}."
+        eta0 = eta0[0]
 
         # RF wave is shifted by Pi below transition
         if eta0 < 0:

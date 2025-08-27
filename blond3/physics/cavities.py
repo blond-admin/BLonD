@@ -124,6 +124,38 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         """
         pass
 
+    @abstractmethod  # as readonly attributes
+    def get_main_harmonic(self) -> float:
+        """
+        Returns the harmonic number of the main harmonic
+        """
+        pass
+
+    @abstractmethod  # as readonly attributes
+    def get_main_harmonic_voltage(self) -> float:
+        """
+        Returns the voltage of the main harmonic, in [V]
+        """
+        pass
+
+    @abstractmethod  # as readonly attributes
+    def get_main_harmonic_phi_rf(self) -> float:
+        """
+        Returns the phi_rf of the main harmonic, in [rad]
+        """
+        pass
+
+    @abstractmethod  # as readonly attributes
+    def get_main_harmonic_omega_rf(
+        self,
+        beam_beta: float,
+        ring_circumference: float,
+    ) -> float:
+        """
+        Returns the omega_rf of the main harmonic, in [rad/s]
+        """
+        pass
+
     def calc_phi_s_single_harmonic(self, beam: BeamBaseClass) -> float:
         """
         Calculates the main harmonic synchronous phase
@@ -327,6 +359,37 @@ class SingleHarmonicCavity(CavityBaseClass):
         self.phi_rf: float | None = phi_rf
         self.harmonic: float | None = harmonic
         self.delta_phi_rf: NumpyArray | None = backend.float(0)
+
+    def get_main_harmonic(self) -> float:
+        """
+        Returns the harmonic number of the main harmonic
+        """
+        return self.harmonic
+
+    def get_main_harmonic_voltage(self) -> float:
+        """
+        Returns the voltage of the main harmonic, in [V]
+        """
+        return self.voltage
+
+    def get_main_harmonic_phi_rf(self) -> float:
+        """
+        Returns the phi_rf of the main harmonic, in [rad]
+        """
+        return self.phi_rf
+
+    def get_main_harmonic_omega_rf(
+        self,
+        beam_beta: float,
+        ring_circumference: float,
+    ) -> float:
+        """
+        Returns the omega_rf of the main harmonic, in [rad/s]
+        """
+        return self.calc_omega(
+            beam_beta=beam_beta,
+            ring_circumference=ring_circumference,
+        )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called
@@ -554,9 +617,9 @@ class MultiHarmonicCavity(CavityBaseClass):
         beam_feedback: Optional[Blond2BeamFeedback] = None,
         name: Optional[str] = None,
     ):
-        assert (
-            main_harmonic_idx < n_harmonics
-        ), f"{n_harmonics=}, but {main_harmonic_idx=}."
+        assert main_harmonic_idx < n_harmonics, (
+            f"{n_harmonics=}, but {main_harmonic_idx=}."
+        )
 
         super().__init__(
             n_rf=n_harmonics,
@@ -607,7 +670,9 @@ class MultiHarmonicCavity(CavityBaseClass):
         )
 
         self._t_rf = (2 * np.pi) / self._omega_rf
-        self._t_rev = self._t_rf[0] * self.harmonic[0]
+        self._t_rev = (
+            self._t_rf[0] * self.harmonic[0]
+        )  # todo this should be main harmonic idx??
         try:
             self.phi_s = self.calc_phi_s_single_harmonic(beam=beam)
         except Exception as exc:
@@ -636,6 +701,35 @@ class MultiHarmonicCavity(CavityBaseClass):
             Angular frequency (2 PI f) of cavity in [rad/s]
         """
         return self.harmonic * TWOPI_C0 * beam_beta / ring_circumference
+
+    def get_main_harmonic(self) -> float:
+        """
+        Returns the harmonic number of the main harmonic
+        """
+        return self.harmonic[self.main_harmonic_idx]
+
+    def get_main_harmonic_voltage(self) -> float:
+        """
+        Returns the voltage of the main harmonic, in [V]
+        """
+        return self.voltage[self.main_harmonic_idx]
+
+    def get_main_harmonic_phi_rf(self) -> float:
+        """
+        Returns the phi_rf of the main harmonic, in [rad]
+        """
+        return self.phi_rf[self.main_harmonic_idx]
+
+    def get_main_harmonic_omega_rf(
+        self, beam_beta: float, ring_circumference: float
+    ) -> float:
+        """
+        Returns the omega_rf of the main harmonic, in [rad/s]
+        """
+        return self.calc_omega(
+            beam_beta=beam_beta,
+            ring_circumference=ring_circumference,
+        )[self.main_harmonic_idx]
 
     def voltage_waveform_tmp(self, ts: NumpyArray):
         """
