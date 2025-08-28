@@ -13,9 +13,15 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class Specials(ABC):
+    """
+    Abstract listing of functions that need implementation for a new backend
+    """
+
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def loss_box(self, a, b, c, d) -> None:  # TODO
+    def loss_box(
+        self, top: float, bottom: float, left: float, right: float
+    ) -> None:  # TODO
         pass
 
     @staticmethod
@@ -134,17 +140,36 @@ class BackendBaseClass(ABC):
             "fortran",
             "cuda",
         ],
+        is_gpu: bool,
     ):
+        """
+        Base class for a backend.
+
+        Parameters
+        ----------
+        float_
+            Precision type for float, e.g. float32, float64.
+        int_
+            Precision type for int, e.g. float32, float64.
+        complex_
+            Precision type for complex, e.g. float32, float64.
+        specials_mode
+            Default mode to load special libraries.
+        is_gpu
+            Whether the backend is using the GPU.
+        """
+        self._is_gpu = is_gpu
+
         self.float: Union[np.float32, np.float64] = float_
         self.int: np.int32 | np.int64 = int_
         self.complex: np.complex128 | np.complex64 = complex_
 
         self.twopi = self.float(2 * np.pi)
         self.specials_mode = specials_mode
-        self.specials: Specials = None
+        self.specials: Specials = None # NOQA
         self.set_specials(self.specials_mode)
 
-        # Callables
+        # Callables that link to e.g. Numpy, Cupy
         self.array = None
         self.gradient = None
         self.linspace = None
@@ -153,22 +178,67 @@ class BackendBaseClass(ABC):
 
     def change_backend(
         self, new_backend: Type[Numpy32Bit, Numpy64Bit, Cupy32Bit, Cupy64Bit]
-    ):
+    ) -> None:
+        """
+        Changes the backend precision
+
+        Parameters
+        ----------
+        new_backend
+            One of the available backends
+
+        """
         _new_backend = new_backend()
         self.__dict__ = _new_backend.__dict__
         self.__class__ = _new_backend.__class__
-        self.set_specials(self.specials_mode)
+        self.set_specials(self.specials_mode)  # TODO test changing backends
 
     @abstractmethod  # pragma: no cover
-    def set_specials(self, mode):
+    def set_specials(self, mode) -> None:
+        """
+        Set the special compiled functions
+
+        Parameters
+        ----------
+        mode
+            One of the available backend modes
+
+        """
         pass
 
+    @property
+    def is_gpu(self) -> bool:
+        """
+        Whether the backend is using the GPU
+        """
+        return self._is_gpu
 
-def fresh_import(module_path, obj_name):
-    if module_path in sys.modules:
-        del sys.modules[module_path]
-    module = importlib.import_module(module_path)
-    return getattr(module, obj_name)
+
+def fresh_import(module_location: str, class_name: str) -> type:
+    """
+    To freshly do `from module_location import ClassName`
+
+
+
+    Parameters
+    ----------
+    module_location
+        Import location where the module resides
+    class_name
+        Class to re-import
+
+    Returns
+    -------
+    Newly imported class
+
+    """
+    # TODO Refactor given files as classes, so that only reinstancing of a
+    #  class is needed instead of reloading a module path.
+    #  This function is only intended to reload backend specials.
+    if module_location in sys.modules:
+        del sys.modules[module_location]
+    module = importlib.import_module(module_location)
+    return getattr(module, class_name)
 
 
 class NumpyBackend(BackendBaseClass):
@@ -178,7 +248,25 @@ class NumpyBackend(BackendBaseClass):
         int_: np.int32 | np.int64,
         complex_: Union[np.complex128, np.complex64],
     ):
-        super().__init__(float_, int_, complex_, specials_mode="python")
+        """
+        Base class for Numpy based backends
+
+        Parameters
+        ----------
+        float_
+            Precision type for float, e.g. float32, float64.
+        int_
+            Precision type for int, e.g. float32, float64.
+        complex_
+            Precision type for complex, e.g. float32, float64.
+        """
+        super().__init__(
+            float_,
+            int_,
+            complex_,
+            specials_mode="python",
+            is_gpu=False,
+        )
         self.array = np.array
         self.gradient = np.gradient
         self.linspace = np.linspace
@@ -194,6 +282,15 @@ class NumpyBackend(BackendBaseClass):
             "fortran",
         ],
     ):
+        """
+        Set the special compiled functions
+
+        Parameters
+        ----------
+        mode
+            One of the available backend modes
+
+        """
         if mode == "python":
             from .python.callables import PythonSpecials
 
@@ -231,6 +328,9 @@ class Numpy32Bit(NumpyBackend):
     def __init__(
         self,
     ):
+        """
+        Numpy backend with 32 bit precision.
+        """
         super().__init__(
             np.float32,
             np.int32,
@@ -242,6 +342,9 @@ class Numpy64Bit(NumpyBackend):
     def __init__(
         self,
     ):
+        """
+        Numpy backend with 64 bit precision.
+        """
         super().__init__(
             np.float64,
             np.int64,
@@ -256,11 +359,24 @@ class CupyBackend(BackendBaseClass):
         int_: np.int32 | np.int64,
         complex_: Union[np.complex128, np.complex64],
     ):
+        """
+        Base class for Cupy based backends
+
+        Parameters
+        ----------
+        float_
+            Precision type for float, e.g. float32, float64.
+        int_
+            Precision type for int, e.g. float32, float64.
+        complex_
+            Precision type for complex, e.g. float32, float64.
+        """
         super().__init__(
             float_,
             int_,
             complex_,
             specials_mode="cuda",  # no other backend implemented at the moment
+            is_gpu=True,
         )
         import cupy as cp  # import only if needed, which is not always the case
 
@@ -275,6 +391,15 @@ class CupyBackend(BackendBaseClass):
         self.specials = CudaSpecials()
 
     def set_specials(self, mode: Literal["cuda"]):
+        """
+        Set the special compiled functions
+
+        Parameters
+        ----------
+        mode
+            One of the available backend modes
+
+        """
         if mode == "cuda":
             CudaSpecials = fresh_import(
                 "blond3._core.backends.cuda.callables",
@@ -288,6 +413,9 @@ class CupyBackend(BackendBaseClass):
 
 class Cupy32Bit(CupyBackend):
     def __init__(self):
+        """
+        Cupy backend with 64 bit precision.
+        """
         super().__init__(
             np.float32,
             np.int32,
@@ -297,6 +425,9 @@ class Cupy32Bit(CupyBackend):
 
 class Cupy64Bit(CupyBackend):
     def __init__(self):
+        """
+        Cupy backend with 32 bit precision.
+        """
         super().__init__(
             np.float64,
             np.int64,
