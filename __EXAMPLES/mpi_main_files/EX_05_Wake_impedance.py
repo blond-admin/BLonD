@@ -7,7 +7,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 SPS simulation with intensity effects in time and frequency domains using
 a table of resonators. The input beam has been cloned to show that the two
 methods are equivalent (compare the two figure folders). Note that to create an
@@ -16,9 +16,9 @@ This script shows also an example of how to use the class SliceMonitor (check
 the corresponding h5 files).
 
 :Authors: **Danilo Quartullo**
-'''
+"""
 
-from __future__ import division, print_function
+
 from blond.utils.mpi_config import mpiprint, WORKER
 from blond.utils import bmath as bm
 
@@ -121,13 +121,13 @@ bigaussian(general_params_res, RF_sct_par_res, my_beam_res,
 
 number_slices = 2**8
 cut_options = CutOptions(cut_left=0, cut_right=2 * np.pi, n_slices=number_slices,
-                         RFSectionParameters=RF_sct_par, cuts_unit='rad')
+                         rf_station=RF_sct_par, cuts_unit='rad')
 slice_beam = Profile(my_beam, cut_options, FitOptions(fit_option='gaussian'))
 cut_options_freq = CutOptions(cut_left=0, cut_right=2 * np.pi, n_slices=number_slices,
-                              RFSectionParameters=RF_sct_par_freq, cuts_unit='rad')
+                              rf_station=RF_sct_par_freq, cuts_unit='rad')
 slice_beam_freq = Profile(my_beam_freq, cut_options_freq, FitOptions(fit_option='gaussian'))
 cut_options_res = CutOptions(cut_left=0, cut_right=2 * np.pi, n_slices=number_slices,
-                             RFSectionParameters=RF_sct_par_res, cuts_unit='rad')
+                             rf_station=RF_sct_par_res, cuts_unit='rad')
 slice_beam_res = Profile(my_beam_res, cut_options_res, FitOptions(fit_option='gaussian'))
 
 slice_beam.track()
@@ -179,34 +179,34 @@ if WORKER.is_master:
 
     bunchmonitor = BunchMonitor(general_params, ring_RF_section, my_beam,
                                 this_directory + '../mpi_output_files/EX_05_output_data',
-                                Profile=slice_beam, buffer_time=1)
+                                profile=slice_beam, buffer_time=1)
 
     bunchmonitor_freq = BunchMonitor(general_params_freq, ring_RF_section_freq,
                                      my_beam_freq, this_directory + '../mpi_output_files/EX_05_output_data_freq',
-                                     Profile=slice_beam_freq, buffer_time=1)
+                                     profile=slice_beam_freq, buffer_time=1)
     bunchmonitor_res = BunchMonitor(general_params_res, ring_RF_section_res,
                                     my_beam_res, this_directory + '../mpi_output_files/EX_05_output_data_res',
-                                    Profile=slice_beam_res, buffer_time=1)
+                                    profile=slice_beam_res, buffer_time=1)
 
     # PLOTS
     format_options = {'dirname': this_directory + '../mpi_output_files/EX_05_fig/1', 'linestyle': '.'}
     plots = Plot(general_params, RF_sct_par, my_beam, dt_plt, n_turns, 0,
                  0.0014 * harmonic_number, -1.5e8, 1.5e8, xunit='rad',
-                 separatrix_plot=True, Profile=slice_beam,
+                 separatrix_plot=True, profile=slice_beam,
                  h5file=this_directory + '../mpi_output_files/EX_05_output_data',
                  histograms_plot=True, sampling=50, format_options=format_options)
 
     format_options = {'dirname': this_directory + '../mpi_output_files/EX_05_fig/2', 'linestyle': '.'}
     plots_freq = Plot(general_params_freq, RF_sct_par_freq, my_beam_freq, dt_plt,
                       n_turns, 0, 0.0014 * harmonic_number, -1.5e8, 1.5e8,
-                      xunit='rad', separatrix_plot=True, Profile=slice_beam_freq,
+                      xunit='rad', separatrix_plot=True, profile=slice_beam_freq,
                       h5file=this_directory + '../mpi_output_files/EX_05_output_data_freq',
                       histograms_plot=True, sampling=50,
                       format_options=format_options)
     format_options = {'dirname': this_directory + '../mpi_output_files/EX_05_fig/3', 'linestyle': '.'}
     plots_res = Plot(general_params_res, RF_sct_par_res, my_beam_res, dt_plt,
                      n_turns, 0, 0.0014 * harmonic_number, -1.5e8, 1.5e8,
-                     xunit='rad', separatrix_plot=True, Profile=slice_beam_res,
+                     xunit='rad', separatrix_plot=True, profile=slice_beam_res,
                      h5file=this_directory + '../mpi_output_files/EX_05_output_data_res',
                      histograms_plot=True, sampling=50,
                      format_options=format_options)

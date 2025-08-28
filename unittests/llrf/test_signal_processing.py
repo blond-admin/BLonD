@@ -179,8 +179,8 @@ class TestRFCurrent(unittest.TestCase):
 
         # Create Gaussian beam
         self.beam = Beam(self.ring, N_m, N_b)
-        self.profile = Profile(self.beam, CutOptions=CutOptions(cut_left=-2e-9,
-            cut_right=8e-9, n_slices=100))
+        self.profile = Profile(self.beam, cut_options=CutOptions(cut_left=-2e-9,
+                                                                 cut_right=8e-9, n_slices=100))
 
     # Test charge distribution with analytic functions
     # Compare with theoretical value
@@ -197,12 +197,12 @@ class TestRFCurrent(unittest.TestCase):
         rf_current_real = np.around(rf_current.real, 12)
         rf_current_imag = np.around(rf_current.imag, 12)
 
-        rf_theo_real = 2 * self.beam.ratio * self.profile.Beam.Particle.charge * e\
+        rf_theo_real = 2 * self.beam.ratio * self.profile.beam.particle.charge * e\
             * 2600 * np.exp(-(t - 2.5e-9)**2 / (2 * 0.5 * 1e-9)**2)\
             * np.cos(self.omega * t)
         rf_theo_real = np.around(rf_theo_real, 12)
 
-        rf_theo_imag = -2 * self.beam.ratio * self.profile.Beam.Particle.charge * e\
+        rf_theo_imag = -2 * self.beam.ratio * self.profile.beam.particle.charge * e\
             * 2600 * np.exp(-(t - 2.5e-9)**2 / (2 * 0.5 * 1e-9)**2)\
             * np.sin(self.omega * t)
         rf_theo_imag = np.around(rf_theo_imag, 12)
@@ -398,8 +398,8 @@ class TestRFCurrent(unittest.TestCase):
         for i in range(bunches):
             beam2.dt[i * N_m:(i + 1) * N_m] = self.beam.dt + i * bunch_spacing
             beam2.dE[i * N_m:(i + 1) * N_m] = self.beam.dE
-        profile2 = Profile(beam2, CutOptions=CutOptions(cut_left=0,
-                                                        cut_right=bunches * bunch_spacing, n_slices=1000 * buckets))
+        profile2 = Profile(beam2, cut_options=CutOptions(cut_left=0,
+                                                         cut_right=bunches * bunch_spacing, n_slices=1000 * buckets))
         profile2.track()
 
         tot_charges = np.sum(profile2.n_macroparticles) /\
@@ -507,7 +507,7 @@ class TestFeedforwardFilter(unittest.TestCase):
     def setUp(self):
 
         # Ring and RF definitions
-        ring = Ring(2 * np.pi * 1100.009, 1 / 18**2, 25.92e9, Particle=Proton())
+        ring = Ring(2 * np.pi * 1100.009, 1 / 18 ** 2, 25.92e9, particle=Proton())
         rf = RFStation(ring, [4620], [4.5e6], [0.], n_rf=1)
         self.T_s = 5 * rf.t_rf[0, 0]
 

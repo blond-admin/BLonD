@@ -1,4 +1,3 @@
-
 # Copyright 2016 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
@@ -7,16 +6,14 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Numerical diffusion model based on Ivanov (1992). Stationary single-harmonic
 RF bucket is considered.**
 
 :Authors: **Helga Timko**
-'''
+"""
 
-from __future__ import division
-
-from builtins import range
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,37 +22,53 @@ from pylab import cm
 from scipy.special import ellipk
 
 from .action import x2, action_from_phase_amplitude
+from ..utils.legacy_support import handle_legacy_kwargs
+
+if TYPE_CHECKING:
+    from typing import Tuple
+    from os import PathLike
+
+    from numpy.typing import NDArray as NumpyArray
+
+    from ..input_parameters.rf_parameters import RFStation
+    from ..input_parameters.ring import Ring
 
 
-def phase_noise_diffusion(Ring, RFStation, spectrum, distribution,
-                          distributionBins, Ngrids=200, M=1,
-                          iterations=100000, figdir=None):
-    '''
+@handle_legacy_kwargs
+def phase_noise_diffusion(ring: Ring, rf_station: RFStation, spectrum: NumpyArray,
+                          distribution: NumpyArray, distributionBins: NumpyArray,
+                          Ngrids: int = 200, M: int = 1,
+                          iterations: int = 100000,
+                          figdir: PathLike | str | None = None)\
+                                        -> Tuple[NumpyArray, NumpyArray, NumpyArray]:
+    """
     Calculate diffusion in action space according to a given double-sided phase
     noise spectrum, on a uniform grid in oscillation amplitude.
     The spectrum is defined on the grid points (Ngrids + 1 points) for all M.
-    The particle distribution in action is defined on the grids (Ngrids points). 
+    The particle distribution in action is defined on the grids (Ngrids points).
     Returns the diffused action distribution.
     Optional: define number of side-bands (M) to be taken into account, default
-    is M = 1; N.B. this will only give impair modes for phase noise. 
+    is M = 1; N.B. this will only give impair modes for phase noise.
     Optional: number of iterations to track.
     Optional: save figures into directory 'figdir'.
-    '''
+    """
 
     # Input check
     N = Ngrids
     if spectrum.shape != (M, N + 1):
         # NoiseDiffusionError
-        raise RuntimeError("In phase_noise_diffusion(): spectrum has to have shape (M, Ngrids+1)!")
+        raise RuntimeError("In phase_noise_diffusion(): spectrum has "
+                           + "to have shape (M, Ngrids+1)!")
     if len(distribution) != N:
         # NoiseDiffusionError
-        raise RuntimeError("In phase_noise_diffusion(): distribution has to be an array of Ngrids elements!")
+        raise RuntimeError("In phase_noise_diffusion(): distribution "
+                           + "has to be an array of Ngrids elements!")
 
     # Some constants
-    T0 = Ring.t_rev[0]
-    omega_s0 = RFStation.omega_s0[0]
-    h = RFStation.harmonic[0, 0]
-    Jsep = 8. * omega_s0 / (np.pi * h**2)  # Action at the separatrix
+    T0 = ring.t_rev[0]
+    omega_s0 = rf_station.omega_s0[0]
+    h = rf_station.harmonic[0, 0]
+    Jsep = 8. * omega_s0 / (np.pi * h ** 2)  # Action at the separatrix
 
     # Settings for plots
     plt.rc('axes', labelsize=16, labelweight='normal')
@@ -80,12 +93,13 @@ def phase_noise_diffusion(Ring, RFStation, spectrum, distribution,
     Wm = np.zeros((M, N + 1))
     for k in range(0, M):
         m = 2 * k + 1
-        Wm[k][:] = (np.pi * m / ellipk(xx))**4 / \
-                   (4. * np.cosh(0.5 * np.pi * m * ellipk(1 - xx) / ellipk(xx))**2)
+        Wm[k][:] = ((np.pi * m / ellipk(xx)) ** 4
+                    / (4. * np.cosh(0.5 * np.pi * m * ellipk(1 - xx)
+                                    / ellipk(xx))**2))
 
     # Diffusion coefficient for stationary bucket, according to Ivanov
     # Twice the sum over positive frequencies for double-sided spectrum
-    D = (omega_s0 / h)**4 * np.sum(Wm * spectrum, axis=0)
+    D = (omega_s0 / h) ** 4 * np.sum(Wm * spectrum, axis=0)
     Dav = 0.5 * (D[1:] + D[:-1])  # Average on grid
 
     ax = plt.axes([0.15, 0.1, 0.8, 0.8])
@@ -144,7 +158,6 @@ def phase_noise_diffusion(Ring, RFStation, spectrum, distribution,
     Fold = F.T
 
     for i in range(0, iterations):
-
         Fnew = np.dot(Mtot, Fold)
         Fold = Fnew
 
@@ -193,10 +206,10 @@ def phase_noise_diffusion(Ring, RFStation, spectrum, distribution,
                 fontsize=12, ha='left', va='center')
     plt.figtext(0.6, 0.3, r'$\sigma_{\varphi}^{(f)}=$ %.4f rad' % sigma_phi_f,
                 fontsize=12, ha='left', va='center')
-    plt.figtext(0.6, 0.25, r'$\tau_{4\sigma}^{(i)}=$ %.4f ns' % tau_i, fontsize=12,
-                ha='left', va='center')
-    plt.figtext(0.6, 0.2, r'$\tau_{4\sigma}^{(f)}=$ %.4f ns' % tau_f, fontsize=12,
-                ha='left', va='center')
+    plt.figtext(0.6, 0.25, r'$\tau_{4\sigma}^{(i)}=$ %.4f ns' % tau_i,
+                fontsize=12, ha='left', va='center')
+    plt.figtext(0.6, 0.2, r'$\tau_{4\sigma}^{(f)}=$ %.4f ns' % tau_f,
+                fontsize=12, ha='left', va='center')
     if figdir:
         plt.savefig(figdir + "F_vs_J.png")
         plt.clf()

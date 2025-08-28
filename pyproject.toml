@@ -52,7 +52,7 @@ write_to = 'blond/_version.py' # autogenerates version string using git
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
-optional-dependencies = { all = { file = ["requirements-doc.txt","requirements-lint.txt","requirements-test.txt","requirements-gpu.txt"] }, gpu = { file = ["requirements-gpu.txt"] }, doc = { file = ["requirements-doc.txt"] }, lint = { file = ["requirements-lint.txt"] }, test = { file = ["requirements-test.txt"] } }
+optional-dependencies = { all = { file = ["requirements-doc.txt","requirements-lint.txt","requirements-test.txt","requirements-gpu.txt", "requirements-dev.txt"] }, gpu = { file = ["requirements-gpu.txt"] }, doc = { file = ["requirements-doc.txt"] }, lint = { file = ["requirements-lint.txt"] }, test = { file = ["requirements-test.txt"] } , dev = { file = ["requirements-dev.txt"] }}
 
 [tool.flake8]
 ignore = [

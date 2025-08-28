@@ -1,12 +1,17 @@
-'''
+"""
 Basic methods and objects related to the computational core.
 
 @author: Konstantinos Iliakis
 @date: 25.05.2023
-'''
-
+"""
+from  __future__ import annotations
 import ctypes as ct
+from typing import TYPE_CHECKING
+
 import numpy as np
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray as NumpyArray
 
 
 class PrecisionClass:
@@ -14,7 +19,7 @@ class PrecisionClass:
     """
     __instance = None
 
-    def __init__(self, _precision='double'):
+    def __init__(self, _precision: str = 'double'):
         """Constructor
 
         Args:
@@ -26,7 +31,7 @@ class PrecisionClass:
         PrecisionClass.__instance = self
         self.set(_precision)
 
-    def set(self, _precision='double'):
+    def set(self, _precision: str = 'double'):
         """Set the precision to single or double.
 
         Args:
@@ -44,20 +49,17 @@ class PrecisionClass:
             self.c_real_t = ct.c_double
             self.complex_t = np.complex128
             self.num = 2
+        else:
+            msg = f"{_precision=} is not recognized, use 'single' or 'double'"
+            raise ValueError(msg)
 
 
 class c_complex128(ct.Structure):
     """128-bit (64+64) Complex number, compatible with std::complex layout
-
-    Args:
-        ct (_type_): _description_
-
-    Returns:
-        _type_: _description_
     """
     _fields_ = [("real", ct.c_double), ("imag", ct.c_double)]
 
-    def __init__(self, pycomplex):
+    def __init__(self, pycomplex: NumpyArray):
         """Init from Python complex
 
         Args:
@@ -78,15 +80,10 @@ class c_complex128(ct.Structure):
 class c_complex64(ct.Structure):
     """64-bit (32+32) Complex number, compatible with std::complex layout
 
-    Args:
-        ct (_type_): _description_
-
-    Returns:
-        _type_: _description_
     """
     _fields_ = [("real", ct.c_float), ("imag", ct.c_float)]
 
-    def __init__(self, pycomplex):
+    def __init__(self, pycomplex: NumpyArray):
         """Init from Python complex
 
         Args:
@@ -104,33 +101,26 @@ class c_complex64(ct.Structure):
         return self.real + (1.j) * self.imag
 
 
-def c_real(scalar):
+def c_real(scalar: float) -> ct.c_float | ct.c_double:
     """Convert input to default precision.
-
-    Args:
-        x (_type_): _description_
-
-    Returns:
-        _type_: _description_
     """
     if precision.num == 1:
         return ct.c_float(scalar)
     return ct.c_double(scalar)
 
 
-def c_complex(scalar):
+def c_complex(scalar: complex):
     """Convert input to default precision.
-
-    Args:
-        x (_type_): _description_
-
-    Returns:
-        _type_: _description_
     """
     if precision.num == 1:
         return c_complex64(scalar)
     return c_complex128(scalar)
 
 
-# By default use double precision
+# By default, use double precision
 precision = PrecisionClass('double')
+
+from .bmath_backends import BlondMathBackend
+bmath = BlondMathBackend() # this line controls static type hints of bmath
+bmath.use_cpu() # this line changes the backend to the most suitable one
+

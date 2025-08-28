@@ -7,32 +7,30 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Example script to take into account intensity effects with multi-turn wakes
 Example for the PSB with a narrow-band resonator, to check Robinson instability
 
 :Authors: **Juan F. Esteban Mueller**
-'''
-
-from __future__ import division, print_function
-import time
-from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
-from blond.input_parameters.ring import Ring
-from blond.input_parameters.rf_parameters import RFStation
-from blond.impedances.impedance_sources import Resonators
-from blond.impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
-from blond.beam.profile import CutOptions, Profile
-from blond.beam.distributions import matched_from_distribution_function
-from blond.beam.beam import Beam, Proton
-import blond.utils.bmath as bm
-from scipy.constants import c, e, m_p
+"""
 
 import os
-from builtins import range
+import time
 
 import matplotlib as mpl
 import numpy as np
 import pylab as plt
+from scipy.constants import c, e, m_p
+
+from blond.utils import bmath as bm
+from blond.beam.beam import Beam, Proton
+from blond.beam.distributions import matched_from_distribution_function
+from blond.beam.profile import CutOptions, Profile
+from blond.impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
+from blond.impedances.impedance_sources import Resonators
+from blond.input_parameters.rf_parameters import RFStation
+from blond.input_parameters.ring import Ring
+from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
 
 DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 # To check if executing correctly, rather than to run the full simulation
@@ -144,7 +142,7 @@ print('Robinson instability growth rate = {0:1.3f} turns'.format(tau_RS /
 imp_list = [resonator]
 
 ind_volt_freq = InducedVoltageFreq(beam, slice_beam, imp_list,
-                                   RFParams=RF_sct_par, frequency_resolution=5e2,
+                                   rf_station=RF_sct_par, frequency_resolution=5e2,
                                    multi_turn_wake=True, mtw_mode='time')
 
 total_ind_volt = TotalInducedVoltage(beam, slice_beam, [ind_volt_freq])
@@ -170,7 +168,7 @@ plt.close()
 matched_from_distribution_function(beam, full_tracker,
                                    distribution_type=distribution_type,
                                    bunch_length=bunch_length, n_iterations=3  if DRAFT_MODE else 20,
-                                   TotalInducedVoltage=total_ind_volt, seed=10)
+                                   total_induced_voltage=total_ind_volt, seed=10)
 
 # For testing purposes
 test_string = ''

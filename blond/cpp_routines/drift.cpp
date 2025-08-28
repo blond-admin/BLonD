@@ -31,10 +31,10 @@ extern "C" void drift(real_t * __restrict__ beam_dt,
     real_t T = T0 * length_ratio;
 
     if ( solver == 0 ) {
-        real_t coeff = eta_zero / (beta * beta * energy);
+        real_t coeff = T * eta_zero / (beta * beta * energy);
         #pragma omp parallel for
         for (int i = 0; i < n_macroparticles; i++)
-            beam_dt[i] += T * coeff * beam_dE[i];
+        beam_dt[i] += coeff * beam_dE[i];
     } else if ( solver == 1 ) {
         const real_t coeff = 1. / (beta * beta * energy);
         const real_t eta0 = eta_zero * coeff;

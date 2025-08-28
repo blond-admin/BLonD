@@ -7,22 +7,21 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Unit-tests for the Beam class.
 
 Run as python testBeamObject.py in console or via travis
-'''
+"""
 
 # General imports
 # -----------------
-from __future__ import division, print_function
 
 import unittest
 
 import numpy as np
 from scipy.constants import physical_constants
 
-import blond.utils.exceptions as blExcept
+import blond.utils.exceptions as blond_exceptions
 # BLonD imports
 # --------------
 from blond.beam.beam import Beam, Electron, Particle, Proton
@@ -158,7 +157,7 @@ class testBeamClass(unittest.TestCase):
                               msg='Beam: id is not a numpy.array')
         self.assertIn('int', type(self.beam.id[0]).__name__,
                       msg='Beam: id array does not contain int')
-        self.assertIsInstance(self.beam.n_macroparticles_lost, int,
+        self.assertIsInstance(self.beam.n_macroparticles_not_alive, int,
                               msg='Beam: n_macroparticles_lost is not an int')
         self.assertIsInstance(self.beam.n_macroparticles_alive, int,
                               msg='Beam: n_macroparticles_alive is not an int')
@@ -312,11 +311,11 @@ class testBeamClass(unittest.TestCase):
         self.assertEqual(12E-9, np.max(self.beam.dt),
                          msg="coordinates of added beam not used correctly")
 
-        with self.assertRaises(blExcept.ParticleAdditionError,
+        with self.assertRaises(blond_exceptions.ParticleAdditionError,
                                msg="""Unequal length time and energy should raise exception"""):
             self.beam += ([1, 2, 3], [4, 5])
 
-        with self.assertRaises(blExcept.ParticleAdditionError,
+        with self.assertRaises(blond_exceptions.ParticleAdditionError,
                                msg="""Mising time/energy should raise exception"""):
             self.beam += ([1, 2, 3])
 
@@ -326,7 +325,7 @@ class testBeamClass(unittest.TestCase):
     def test_init_de_dt(self):
         testdEs = np.linspace(-1E6, 1E6, 2000000)
         testdts = np.linspace(0, 10E-9, 2000000)
-        beam = Beam(Ring=self.general_params, n_macroparticles=int(2000000),
+        beam = Beam(ring=self.general_params, n_macroparticles=int(2000000),
                     intensity=1e9, dE=testdEs, dt=testdts)
         self.assertEqual(beam.n_macroparticles, 2000000)
 
@@ -335,14 +334,14 @@ class testBeamClass(unittest.TestCase):
         testdts = np.linspace(0, 10E-9, 2000000)
         self.assertRaises(
             AssertionError,
-            lambda: Beam(Ring=self.general_params, n_macroparticles=int(1000000),  # mismatch in n_macroparticles
+            lambda: Beam(ring=self.general_params, n_macroparticles=int(1000000),  # mismatch in n_macroparticles
                          intensity=1e9, dE=testdEs, dt=testdts)
         )
 
     def test_change_id(self):
         testdEs = np.linspace(-1E6, 1E6, 2000000)
         testdts = np.linspace(0, 10E-9, 2000000)
-        beam = Beam(Ring=self.general_params, n_macroparticles=int(2000000),
+        beam = Beam(ring=self.general_params, n_macroparticles=int(2000000),
                     intensity=1e9, dE=testdEs, dt=testdts)
         # before
         n_macroparticles_before = beam.n_macroparticles

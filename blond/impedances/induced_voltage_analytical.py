@@ -6,18 +6,22 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 :Authors: **Danilo Quartullo**, **Joel Repond**
-'''
+"""
+from __future__ import annotations
 
-from __future__ import division, print_function
+from typing import TYPE_CHECKING
 
 import numpy as np
 import scipy.special as scisp
 from scipy.constants import e
+if TYPE_CHECKING:
+    from numpy.typing import NDArray as NumpyArray
 
-
-def analytical_gaussian_resonator(sigma_t, Q, R_s, omega_r, tau_array, n_particles):
+def analytical_gaussian_resonator(sigma_t: float, Q: float, R_s: float,
+                                  omega_r: float, tau_array: NumpyArray | float,
+                                  n_particles: int) -> NumpyArray | float:
     r"""Calculate the analytical induced voltage for a gaussian bunch and a resonator.
 
     Parameters
@@ -80,13 +84,13 @@ def analytical_gaussian_resonator(sigma_t, Q, R_s, omega_r, tau_array, n_particl
 
     """
     alpha = omega_r / (2 * Q)
-    ombar = np.sqrt(omega_r**2 - alpha**2)
+    ombar = np.sqrt(omega_r ** 2 - alpha ** 2)
 
-    A = (alpha * sigma_t**2 - tau_array + 1j * ombar * sigma_t**2) / (np.sqrt(2) * sigma_t)
-    B = alpha * ombar * sigma_t**2 - ombar * tau_array
-    result = R_s * alpha / ombar * np.e**(0.5 * (alpha**2 - ombar**2) * sigma_t**2 - alpha * tau_array) *\
-        (scisp.erfc(A).real * (ombar * np.cos(B) + alpha * np.sin(B)) +
-         scisp.erfc(A).imag * (alpha * np.cos(B) - ombar * np.sin(B)))
+    A = (alpha * sigma_t ** 2 - tau_array + 1j * ombar * sigma_t ** 2) / (np.sqrt(2) * sigma_t)
+    B = alpha * ombar * sigma_t ** 2 - ombar * tau_array
+    result = R_s * alpha / ombar * np.e ** (0.5 * (alpha ** 2 - ombar ** 2) * sigma_t ** 2 - alpha * tau_array) * \
+             (scisp.erfc(A).real * (ombar * np.cos(B) + alpha * np.sin(B)) +
+              scisp.erfc(A).imag * (alpha * np.cos(B) - ombar * np.sin(B)))
 
     induced_voltage = -n_particles * e * result
 

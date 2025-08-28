@@ -443,7 +443,7 @@ Bunch-length based feedback on noise amplitude
    .. warning:: Note that the FWMH bunch length is scaled by 
       :math:`\sqrt{2/\ln{2}}` in order to obtain a 4-sigma equivalent value.
 
-   .. py:method:: FB(RFSectionParameters, Beam, PhaseNoise, Slices, CC = False)
+   .. py:method:: FB(RFSectionParameters, beam: Beam, PhaseNoise, Slices, CC = False)
    
       Calculates the bunch-length based feedback scaling factor as a function
       of measured FWHM bunch length. For phase noise injected through the 

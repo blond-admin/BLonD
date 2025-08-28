@@ -63,7 +63,7 @@ plt.rc('legend', fontsize=12)
 Logger(debug=True)
 
 
-ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=1)
+ring = Ring(C, alpha, p_s, particle=Proton(), n_turns=1)
 
 bunch = Beam(ring, N_m, N_p)
 

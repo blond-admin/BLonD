@@ -7,13 +7,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Unit-tests for the RFSectionParameters class.
 Run as python test_rf_params_object.py in console or via travis
 :Authors: **Joel Repond**, **Markus Schwarz**
-'''
+"""
 
-from __future__ import division, print_function
 
 import unittest
 
@@ -206,9 +205,9 @@ class testRFParamClass(unittest.TestCase):
 
     def test_rf_parameters_calculate_phi_s(self):
 
-        self.assertEqual(calculate_phi_s(self.rf_params, Particle=Proton())[0], numpy.pi,
+        self.assertEqual(calculate_phi_s(self.rf_params, particle=Proton())[0], numpy.pi,
                          msg="Wrong phi_s for Proton")
-        self.assertEqual(calculate_phi_s(self.rf_params, Particle=Electron())[0], 0.0,
+        self.assertEqual(calculate_phi_s(self.rf_params, particle=Electron())[0], 0.0,
                          msg="Wrong phi_s for Electron")
 
     # Tests of empty RF station

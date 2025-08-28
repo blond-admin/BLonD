@@ -7,11 +7,11 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Unit-tests for the self.SparseSlices  class.**
 
 :Authors: **Markus Schwarz**
-'''
+"""
 
 # General imports
 # -----------------
@@ -103,12 +103,12 @@ class testProfileClass(unittest.TestCase):
                                        + int(np.round((cut_right - t_batch_end) / t_rf)))
 
         self.uniform_profile = Profile(self.beam,
-                                       CutOptions=CutOptions(cut_left=cut_left, n_slices=n_slices,
-                                                             cut_right=cut_right))
+                                       cut_options=CutOptions(cut_left=cut_left, n_slices=n_slices,
+                                                              cut_right=cut_right))
         self.uniform_profile.track()
 
     def test_WrongTrackingFunction(self):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(NameError):
             SparseSlices(self.rf_station, self.beam, self.n_slices_rf, self.filling_pattern,
                          tracker='something horribly wrong')
 

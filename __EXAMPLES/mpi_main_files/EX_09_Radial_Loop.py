@@ -7,13 +7,13 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Test case to show how to use radial loop (CERN PS Booster context).
 
 :Authors: **Danilo Quartullo**
-'''
+"""
 
-from __future__ import division, print_function
+
 from blond.utils.mpi_config import mpiprint, WORKER
 from blond.utils import bmath as bm
 
@@ -86,7 +86,7 @@ phase_loop = BeamFeedback(general_params, rf_params, slices_ring, configuration)
 
 # Long tracker
 long_tracker = RingAndRFTracker(rf_params, my_beam,
-                                BeamFeedback=phase_loop)
+                                beam_feedback=phase_loop)
 
 full_ring = FullRingAndRF([long_tracker])
 
@@ -109,14 +109,14 @@ if WORKER.is_master:
     # Monitor
     bunch_monitor = BunchMonitor(general_params, rf_params, my_beam,
                                  this_directory + '../mpi_output_files/EX_09_output_data',
-                                 Profile=slices_ring, PhaseLoop=phase_loop)
+                                 profile=slices_ring, phase_loop=phase_loop)
 
     # Plots
     format_options = {'dirname': this_directory + '../mpi_output_files/EX_09_fig'}
     plots = Plot(general_params, rf_params, my_beam, 100, n_turns, 0.0, 2.0 * 0.9e-6,
-                 -1.e6, 1.e6, separatrix_plot=True, Profile=slices_ring,
+                 -1.e6, 1.e6, separatrix_plot=True, profile=slices_ring,
                  format_options=format_options,
-                 h5file=this_directory + '../mpi_output_files/EX_09_output_data', PhaseLoop=phase_loop)
+                 h5file=this_directory + '../mpi_output_files/EX_09_output_data', phase_loop=phase_loop)
 
     map_ += [bunch_monitor, plots]
 

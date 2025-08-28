@@ -7,16 +7,15 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Test case for the bunch generation routines. Example for the LHC at 7 TeV.
 
 :Authors: **Juan F. Esteban Mueller**
-'''
+"""
 
-from __future__ import division, print_function
+
 
 import os
-from builtins import str
 
 import matplotlib as mpl
 import numpy as np
@@ -157,7 +156,7 @@ matched_from_distribution_function(beam, full_tracker,
                                    distribution_exponent=distribution_exponent,
                                    bunch_length_fit=bunch_length_fit,
                                    bunch_length=bunch_length, n_iterations=10,
-                                   TotalInducedVoltage=total_ind_volt,
+                                   total_induced_voltage=total_ind_volt,
                                    distribution_variable='Action', seed=9)
 
 plt.figure()
@@ -168,7 +167,7 @@ plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2,
 matched_from_line_density(beam, full_tracker, bunch_length=bunch_length,
                           line_density_type=distribution_type,
                           line_density_exponent=distribution_exponent,
-                          TotalInducedVoltage=total_ind_volt, seed=8)
+                          total_induced_voltage=total_ind_volt, seed=8)
 
 slice_beam.track()
 plt.plot(slice_beam.bin_centers, slice_beam.n_macroparticles, lw=2,

@@ -7,17 +7,15 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Example input for simulation with RF noise
 No intensity effects
 
 :Authors: **Helga Timko**
-'''
+"""
 
-from __future__ import division, print_function
 
 import os
-from builtins import range
 
 import matplotlib as mpl
 import numpy as np
@@ -105,7 +103,7 @@ slice_beam = Profile(beam, CutOptions(n_slices=100),
 slice_beam.track()
 
 # Define what to save in file
-bunchmonitor = BunchMonitor(general_params, rf_params, beam, this_directory + '../output_files/EX_03_output_data', Profile=slice_beam)
+bunchmonitor = BunchMonitor(general_params, rf_params, beam, this_directory + '../output_files/EX_03_output_data', profile=slice_beam)
 
 
 # PLOTS
@@ -113,7 +111,7 @@ bunchmonitor = BunchMonitor(general_params, rf_params, beam, this_directory + '.
 format_options = {'dirname': this_directory + '../output_files/EX_03_fig', 'linestyle': '.'}
 plots = Plot(general_params, rf_params, beam, dt_plt, N_t, 0,
              0.0001763 * h, -450e6, 450e6, xunit='rad',
-             separatrix_plot=True, Profile=slice_beam, h5file=this_directory + '../output_files/EX_03_output_data',
+             separatrix_plot=True, profile=slice_beam, h5file=this_directory + '../output_files/EX_03_output_data',
              histograms_plot=True, format_options=format_options)
 
 # For testing purposes

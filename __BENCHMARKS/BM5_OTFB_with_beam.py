@@ -65,7 +65,7 @@ colors = jet(np.linspace(0, 1, N_t))
 Logger(debug=True)
 
 # Set up machine parameters
-ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=N_t)
+ring = Ring(C, alpha, p_s, particle=Proton(), n_turns=N_t)
 logging.info("...... Machine parameters set!")
 
 # Set up RF parameters
@@ -86,11 +86,11 @@ for i in range(n_bunches):
     beam.dt[int(i * N_m):int((i + 1) * N_m)] = bunch.dt + i * rf.t_rf[0, 0] * bunch_spacing
     beam.dE[int(i * N_m):int((i + 1) * N_m)] = bunch.dE
 
-profile = Profile(beam, CutOptions=CutOptions(cut_left=0.e-9,
-                                              cut_right=rf.t_rev[0],
-                                              n_slices=46200))
+profile = Profile(beam, cut_options= CutOptions(cut_left=0.e-9,
+                                                cut_right=rf.t_rev[0],
+                                                n_slices=46200))
 profile.track()
-logging.debug("Beam q/m ratio %.3e", profile.Beam.ratio)
+logging.debug("Beam q/m ratio %.3e", profile.beam.ratio)
 
 
 OTFB = SPSCavityFeedback(
@@ -98,8 +98,8 @@ OTFB = SPSCavityFeedback(
     commissioning=SPSCavityLoopCommissioning(debug=True, open_ff=True)
 )
 
-tracker = RingAndRFTracker(rf, beam, CavityFeedback=OTFB, interpolation=True, 
-                           Profile=profile)
+tracker = RingAndRFTracker(rf, beam, cavity_feedback=OTFB, interpolation=True,
+                           profile=profile)
 
 if not os.path.exists("fig"):
     os.mkdir("fig")

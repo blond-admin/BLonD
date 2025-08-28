@@ -267,25 +267,61 @@ class TestSyntheticData:
         acceleration_kick = 1e3 * np.random.rand()
 
         # slice the array on CPU. This should behave correctly..
-        voltage = trap_for_slicing[:, 0]
-        omega_rf = trap_for_slicing[:, 0]
-        phi_rf = trap_for_slicing[:, 0]
+        voltage = trap_for_slicing[:, 1]
+        omega_rf = trap_for_slicing[:, 1]
+        phi_rf = trap_for_slicing[:, 1]
         n_rf = len(voltage)
 
         dt_cp = cp.array(dt)
         dE_cp = cp.array(dE)
 
         # slice the array on GPU. This should trigger the bug..?
-        voltage_cp = trap_for_slicing_cp[:, 0]
-        omega_rf_cp = trap_for_slicing_cp[:, 0]
-        phi_rf_cp = trap_for_slicing_cp[:, 0]
-
+        voltage_cp = trap_for_slicing_cp[:, 1]
+        omega_rf_cp = trap_for_slicing_cp[:, 1]
+        phi_rf_cp = trap_for_slicing_cp[:, 1]
         kick_python(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick)
         kick_cupy(dt_cp, dE_cp, voltage_cp, omega_rf_cp, phi_rf_cp, charge, n_rf, acceleration_kick)
+        np.testing.assert_allclose(dE , dE_cp.get())
 
-        for i in range(len(dE)):
-            assert (dE[i] == dE_cp.get()[i]), f"{dE[i]} != {dE_cp.get()[i]}"
+    def test_kick_bug_with_slices_Fcontigous(self):
+        import numpy as np
+        import cupy as cp
+        from blond.utils.butils_wrap_python import kick as kick_python
+        from blond.gpu.butils_wrap_cupy import kick as kick_cupy
+        from blond.gpu import GPU_DEV
 
+        GPU_DEV.set()  # Set CUDA library to double for working on same precision as Python
+        GPU_DEV.load_library('double')  # Set CUDA library to double for working on same precision as Python
+
+        # create array to be sliced
+        trap_for_slicing = 1e6 * np.array([
+            [1, 2, 3],
+            [4, 5, 6],
+        ], dtype=float, order="F")
+        trap_for_slicing_cp = cp.array(trap_for_slicing)
+
+        n_particles = 10
+        dE = 1e6 * np.random.normal(loc=0, scale=1e7, size=n_particles)
+        dt = np.random.normal(loc=1e-5, scale=1e-7, size=n_particles)
+        charge = 1.0
+        acceleration_kick = 1e3 * np.random.rand()
+
+        # slice the array on CPU. This should behave correctly..
+        voltage = np.ascontiguousarray(trap_for_slicing[:, 1])
+        omega_rf = np.ascontiguousarray(trap_for_slicing[:, 1])
+        phi_rf = np.ascontiguousarray(trap_for_slicing[:, 1])
+        n_rf = len(voltage)
+
+        dt_cp = cp.array(dt)
+        dE_cp = cp.array(dE)
+
+        # slice the array on GPU. This should trigger the bug..?
+        voltage_cp = trap_for_slicing_cp[:, 1]
+        omega_rf_cp = trap_for_slicing_cp[:, 1]
+        phi_rf_cp = trap_for_slicing_cp[:, 1]
+        kick_python(dt, dE, voltage, omega_rf, phi_rf, charge, n_rf, acceleration_kick)
+        kick_cupy(dt_cp, dE_cp, voltage_cp, omega_rf_cp, phi_rf_cp, charge, n_rf, acceleration_kick)
+        np.testing.assert_allclose(dE , dE_cp.get())
     @pytest.mark.parametrize('n_particles,solver,alpha_order,n_iter',
                              [(100, 'simple', 0, 1), (100, 'legacy', 1, 10),
                               (100, 'exact', 2, 100), (10000, 'simple', 1, 100),
@@ -604,9 +640,9 @@ class TestBigaussianData:
                                                    cut_right=self.rf.t_rf[0, 0]),
                               FitOptions(fit_option='gaussian'))
 
-        long_tracker = RingAndRFTracker(self.rf, beam, Profile=profile)
+        long_tracker = RingAndRFTracker(self.rf, beam, profile=profile)
         long_tracker_gpu = RingAndRFTracker(
-            rf_gpu, beam_gpu, Profile=profile_gpu)
+            rf_gpu, beam_gpu, profile=profile_gpu)
 
         cp.testing.assert_allclose(beam_gpu.dE, beam.dE, rtol=1e-8, atol=0,
                                    err_msg='Checking initial conditions')

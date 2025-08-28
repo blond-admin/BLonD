@@ -7,18 +7,16 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Example script to take into account intensity effects with multi-turn wakes
 Example for the PSB with a narrow-band resonator, to check Robinson instability
 
 :Authors: **Juan F. Esteban Mueller**
-'''
+"""
 
-from __future__ import division, print_function
-import time
 
 import os
-from builtins import range
+import time
 
 import matplotlib as mpl
 import numpy as np
@@ -136,7 +134,7 @@ print('Robinson instability growth rate = {0:1.3f} turns'.format(tau_RS /
 imp_list = [resonator]
 
 ind_volt_freq = InducedVoltageFreq(beam, slice_beam, imp_list,
-                                   RFParams=RF_sct_par, frequency_resolution=5e2,
+                                   rf_station=RF_sct_par, frequency_resolution=5e2,
                                    multi_turn_wake=True, mtw_mode='time')
 
 total_ind_volt = TotalInducedVoltage(beam, slice_beam, [ind_volt_freq])
@@ -162,7 +160,7 @@ plt.close()
 matched_from_distribution_function(beam, full_tracker,
                                    distribution_type=distribution_type,
                                    bunch_length=bunch_length, n_iterations=3  if DRAFT_MODE else 20,
-                                   TotalInducedVoltage=total_ind_volt, seed=10)
+                                   total_induced_voltage=total_ind_volt, seed=10)
 
 # For testing purposes
 test_string = ''

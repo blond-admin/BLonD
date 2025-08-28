@@ -7,17 +7,16 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 Test case for the bunch generation routines for multi bunch.
 Example for the LHC at 7 TeV.
 
 :Authors: **Juan F. Esteban Mueller**
-'''
+"""
 
-from __future__ import division, print_function
+
 
 import os
-from builtins import str
 
 import matplotlib as mpl
 import numpy as np
@@ -96,7 +95,8 @@ bucket_length = 2.0 * np.pi / RF_sct_par.omega_rf[0, 0]
 
 number_slices = 3000
 slice_beam = Profile(beam, CutOptions(cut_left=0,
-                                      cut_right=21 * bucket_length, n_slices=number_slices))
+                                      cut_right=31 * bucket_length,
+                                      n_slices=number_slices))
 
 # LOAD IMPEDANCE TABLES -------------------------------------------------------
 
@@ -120,10 +120,10 @@ total_ind_volt = TotalInducedVoltage(beam, slice_beam, [ind_volt_freq])
 
 # BEAM GENERATION -------------------------------------------------------------
 
-n_bunches = 3
+n_bunches = 4
 bunch_spacing_buckets = 10
-intensity_list = [1e11, 1e11, 1e11]
-minimum_n_macroparticles = [5e5, 5e5, 5e5]
+intensity_list = [1e11, 1e11, 1e11, 1e11]
+minimum_n_macroparticles = [5e5, 5e5, 5e5, 5e5]
 distribution_options_list = {'bunch_length': 1e-9,
                              'type': 'parabolic_amplitude',
                              'density_variable': 'Hamiltonian'}
@@ -144,7 +144,7 @@ matched_from_distribution_density_multibunch(beam, general_params,
                                              n_bunches, bunch_spacing_buckets,
                                              intensity_list=intensity_list,
                                              minimum_n_macroparticles=minimum_n_macroparticles,
-                                             TotalInducedVoltage=total_ind_volt,
+                                             total_induced_voltage=total_ind_volt,
                                              n_iterations_input=10, seed=7878)
 
 
@@ -172,7 +172,7 @@ matched_from_line_density_multibunch(beam, general_params,
                                      full_tracker, line_density_options_list, n_bunches,
                                      bunch_spacing_buckets, intensity_list=intensity_list,
                                      minimum_n_macroparticles=minimum_n_macroparticles,
-                                     TotalInducedVoltage=total_ind_volt, seed=12)
+                                     total_induced_voltage=total_ind_volt, seed=12)
 
 plt.figure('From line density')
 slice_beam.track()

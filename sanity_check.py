@@ -7,16 +7,29 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Sanity check. Run before committing**
 
 :Authors: **Helga Timko, Konstantinos Iliakis**
-'''
+"""
 
 import argparse
 import subprocess
 import sys
 import textwrap
+
+import flake8
+import isort
+import pylint
+import pytest
+import sphinx
+
+# to bypass "Unused import"
+pylint
+flake8
+isort
+pytest
+sphinx
 
 
 def get_modified_files():
@@ -199,7 +212,7 @@ def main():
     parser.add_argument('-pytest', '--pytest', dest='pytest', const='./unittests',
                         nargs='?', type=str, default=None,
                         help='Run all unit-tests (default) or only ' +
-                        'unit-tests found in the given files/directories')
+                             'unit-tests found in the given files/directories')
 
     parser.add_argument('-coverage', '--coverage', dest='coverage',
                         action='store_true', default=False,
@@ -208,20 +221,20 @@ def main():
     parser.add_argument('-flake8', '--flake8', dest='flake8', const='./blond',
                         nargs='?', type=str, default=None,
                         help='Run the flake8 tool; on the entire BLonD library (default),' +
-                        ' or on the specified files' +
-                        ' or on committed/ modified files with -flake8 git')
+                             ' or on the specified files' +
+                             ' or on committed/ modified files with -flake8 git')
 
     parser.add_argument('-pylint', '--pylint', dest='pylint', const='./blond',
                         nargs='?', type=str, default=None,
                         help='Run the pylint tool; on the entire BLonD library (default),' +
-                        ' or on the specified files' +
-                        ' or on committed/ modified files with -pylint git')
+                             ' or on the specified files' +
+                             ' or on committed/ modified files with -pylint git')
 
     parser.add_argument('-isort', '--isort', dest='isort', const='./blond',
                         nargs='?', type=str, default=None,
                         help='Run the isort tool; on the entire BLonD library (default),' +
-                        ' or on the specified files' +
-                        ' or on committed/ modified files with -isort git')
+                             ' or on the specified files' +
+                             ' or on committed/ modified files with -isort git')
 
     args = parser.parse_args()
 

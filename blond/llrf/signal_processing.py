@@ -7,35 +7,39 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Filters and methods for control loops**
 
 :Authors: **Birk Emil Karlsen-Bæck**, **Helga Timko**
-'''
+"""
 
 from __future__ import annotations
-from typing import TYPE_CHECKING
-
-import numpy
-from scipy.special import comb
-from blond.llrf.impulse_response import TravellingWaveCavity
 
 # Set up logging
 import logging
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.linalg as npla
 from scipy import signal as sgn
 from scipy.constants import e
+from scipy.special import comb
+
+from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-    from blond.beam.profile import Profile
+    from typing import Optional
+
+    from numpy.typing import NDArray as NumpyArray
+
+    from .impulse_response import TravellingWaveCavity
+    from ..beam.profile import Profile
 
 logger = logging.getLogger(__name__)
 
 
-def polar_to_cartesian(amplitude, phase):
+def polar_to_cartesian(amplitude: float | NumpyArray, phase: float | NumpyArray) -> NumpyArray | complex:
     """Convert data from polar to cartesian (I,Q) coordinates.
 
     Parameters
@@ -56,7 +60,7 @@ def polar_to_cartesian(amplitude, phase):
     return amplitude * (np.cos(phase) + 1j * np.sin(phase))
 
 
-def cartesian_to_polar(IQ_vector):
+def cartesian_to_polar(IQ_vector: NumpyArray) -> tuple[NumpyArray, NumpyArray]:
     """Convert data from Cartesian (I,Q) to polar coordinates.
 
     Parameters
@@ -78,7 +82,7 @@ def cartesian_to_polar(IQ_vector):
     return np.absolute(IQ_vector), np.angle(IQ_vector)
 
 
-def get_power_gen_i(I_gen_per_cav, Z_0):
+def get_power_gen_i(I_gen_per_cav: NumpyArray, Z_0: float) -> float:
     """RF generator power from generator current (physical, in [A]), for any
     f_r (and thus any tau)
 
@@ -94,10 +98,11 @@ def get_power_gen_i(I_gen_per_cav, Z_0):
         Absolute value of the generator power
 
     """
-    return 0.5 * Z_0 * np.abs(I_gen_per_cav)**2
+    return 0.5 * Z_0 * np.abs(I_gen_per_cav) ** 2
 
 
-def modulator(signal, omega_i, omega_f, T_sampling, phi_0=0, dt=0):
+def modulator(signal: NumpyArray, omega_i: float, omega_f: float,
+              T_sampling: float, phi_0: float = 0, dt: float = 0) -> NumpyArray:
     """Demodulate a signal from initial frequency to final frequency. The two
     frequencies should be close.
 
@@ -111,7 +116,10 @@ def modulator(signal, omega_i, omega_f, T_sampling, phi_0=0, dt=0):
         Final revolution frequency [1/s] of signal (after demodulation)
     T_sampling : float
         Sampling period (temporal bin size) [s] of the signal
-
+    phi_0 : float
+        # todo
+    dt: float
+        # todo
     Returns
     -------
     float array
@@ -124,17 +132,20 @@ def modulator(signal, omega_i, omega_f, T_sampling, phi_0=0, dt=0):
         raise RuntimeError("ERROR in filters.py/demodulator: signal should" +
                            " be an array!")
     delta_phi = (omega_i - omega_f) * (T_sampling * np.arange(len(signal)) + dt)
-    # Pre compute sine and cosine for speed up
+    # Precompute sine and cosine for speed up
     cs = np.cos(delta_phi + phi_0)
     sn = np.sin(delta_phi + phi_0)
-    I_new = cs*signal.real - sn*signal.imag
-    Q_new = sn*signal.real + cs*signal.imag
+    I_new = cs * signal.real - sn * signal.imag
+    Q_new = sn * signal.real + cs * signal.imag
 
     return I_new + 1j * Q_new
 
 
-def rf_beam_current(Profile: Profile, omega_c: float, T_rev: float, lpf: bool = True, downsample: dict = None,
-                    external_reference: bool = True, dT: float = 0):
+@handle_legacy_kwargs
+def rf_beam_current(profile: Profile, omega_c: float, T_rev: float, lpf: bool = True,
+                    downsample: Optional[dict] = None,
+                    external_reference: bool = True, dT: float = 0
+                    ) -> NumpyArray | tuple[NumpyArray, NumpyArray]:
     r"""Function calculating the beam charge at the (RF) frequency, slice by
     slice. The charge distribution [C] of the beam is determined from the beam
     profile :math:`\lambda_i`, the particle charge :math:`q_p` and the real vs.
@@ -169,7 +180,7 @@ def rf_beam_current(Profile: Profile, omega_c: float, T_rev: float, lpf: bool = 
 
     Parameters
     ----------
-    Profile : class
+    profile : class
         A Profile type class
     omega_c : float
         Revolution frequency [1/s] at which the current should be calculated
@@ -199,20 +210,20 @@ def rf_beam_current(Profile: Profile, omega_c: float, T_rev: float, lpf: bool = 
 
     # Convert from dimensionless to Coulomb/Ampères
     # Take into account macro-particle charge with real-to-macro-particle ratio
-    charges = Profile.Beam.ratio * Profile.Beam.Particle.charge * e \
-         * np.copy(Profile.n_macroparticles)
+    charges = (profile.beam.ratio * profile.beam.particle.charge * e
+               * np.copy(profile.n_macroparticles))
     logger.debug("Sum of particles: %d, total charge: %.4e C",
-                 np.sum(Profile.n_macroparticles), np.sum(charges))
+                 np.sum(profile.n_macroparticles), np.sum(charges))
     logger.debug("DC current is %.4e A", np.sum(charges) / T_rev)
 
     # Mix with frequency of interest; remember factor 2 demodulation
-    I_f = 2. * charges * np.cos(omega_c * Profile.bin_centers)
-    Q_f = -2. * charges * np.sin(omega_c * Profile.bin_centers)
+    I_f = 2. * charges * np.cos(omega_c * profile.bin_centers)
+    Q_f = -2. * charges * np.sin(omega_c * profile.bin_centers)
 
     # Pass through a low-pass filter
     if lpf is True:
         # Nyquist frequency 0.5*f_slices; cutoff at 20 MHz
-        cutoff = 20.e6 * 2. * Profile.bin_size
+        cutoff = 20.e6 * 2. * profile.bin_size
         I_f = low_pass_filter(I_f, cutoff_frequency=cutoff)
         Q_f = low_pass_filter(Q_f, cutoff_frequency=cutoff)
     logger.debug("RF total current is %.4e A", np.fabs(np.sum(I_f)) / T_rev)
@@ -233,7 +244,7 @@ def rf_beam_current(Profile: Profile, omega_c: float, T_rev: float, lpf: bool = 
             raise RuntimeError('Downsampling input erroneous in rf_beam_current')
 
         # Find which index in fine grid matches index in coarse grid
-        ind_fine = np.round((Profile.bin_centers + dT - np.pi / omega_c)/T_s)
+        ind_fine = np.round((profile.bin_centers + dT - np.pi / omega_c) / T_s)
         ind_fine = np.array(ind_fine, dtype=int)
         indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
 
@@ -250,21 +261,19 @@ def rf_beam_current(Profile: Profile, omega_c: float, T_rev: float, lpf: bool = 
         return charges_fine
 
 
-def comb_filter(y, x, a):
+def comb_filter(y: NumpyArray, x: NumpyArray, a: float) -> NumpyArray:
     """Feedback comb filter.
     """
 
     return a * y + (1 - a) * x
 
 
-def fir_filter_coefficients(n_taps, sampling_freq, cutoff_freq):
+def fir_filter_coefficients(n_taps: int, sampling_freq: float, cutoff_freq: float) -> NumpyArray:
     """Band-stop type FIR filter from scipy
     http://docs.scipy.org
 
     Parameters
     ----------
-    signal : complex array
-        Signal to be filtered
     n_taps : int
         Number of taps, should be impair
     sampling_freq : float
@@ -279,14 +288,13 @@ def fir_filter_coefficients(n_taps, sampling_freq, cutoff_freq):
         FIR filter coefficients of length n_taps
 
     """
-
-    fPass = cutoff_freq/sampling_freq
+    fPass = cutoff_freq / sampling_freq
 
     return sgn.firwin(n_taps, [fPass], pass_zero=True)
 
 
-def fir_filter_lhc_otfb_coeff(n_taps=63):
-    '''FIR filter designed for the LHC OTFB, for a sampling frequency of
+def fir_filter_lhc_otfb_coeff(n_taps: int = 63) -> list[float]:
+    """FIR filter designed for the LHC OTFB, for a sampling frequency of
     40 MS/s, with 63 taps.
 
     Parameters
@@ -298,35 +306,35 @@ def fir_filter_lhc_otfb_coeff(n_taps=63):
     -------
     double array
         Coefficients of LHC-type FIR filter
-    '''
-
+    """
+    # todo might return arrays?
     if n_taps == 15:
         coeff = [-0.0469, -0.016, 0.001, 0.0321, 0.0724, 0.1127, 0.1425,
                  0.1534, 0.1425, 0.1127, 0.0724, 0.0321, 0.001, -0.016, -0.0469]
     elif n_taps == 63:
 
         coeff = [-0.038636, -0.00687283, -0.00719296, -0.00733319, -0.00726159,
-            -0.00694037, -0.00634775, -0.00548098, -0.00432789, -0.00288188,
-            -0.0011339, 0.00090253, 0.00321323, 0.00577238, 0.00856464,
-            0.0115605, 0.0147307, 0.0180265, 0.0214057, 0.0248156, 0.0282116,
-            0.0315334, 0.0347311, 0.0377502, 0.0405575, 0.0431076, 0.0453585,
-            0.047243, 0.0487253, 0.049782, 0.0504816, 0.0507121, 0.0504816,
-            0.049782, 0.0487253, 0.047243, 0.0453585, 0.0431076, 0.0405575,
-            0.0377502, 0.0347311, 0.0315334, 0.0282116, 0.0248156, 0.0214057,
-            0.0180265, 0.0147307, 0.0115605, 0.00856464, 0.00577238, 0.00321323,
-            0.00090253, -0.0011339, -0.00288188, -0.00432789, -0.00548098,
-            -0.00634775, -0.00694037, -0.00726159, -0.00733319, -0.00719296,
-            -0.00687283, -0.038636]
+                 -0.00694037, -0.00634775, -0.00548098, -0.00432789, -0.00288188,
+                 -0.0011339, 0.00090253, 0.00321323, 0.00577238, 0.00856464,
+                 0.0115605, 0.0147307, 0.0180265, 0.0214057, 0.0248156, 0.0282116,
+                 0.0315334, 0.0347311, 0.0377502, 0.0405575, 0.0431076, 0.0453585,
+                 0.047243, 0.0487253, 0.049782, 0.0504816, 0.0507121, 0.0504816,
+                 0.049782, 0.0487253, 0.047243, 0.0453585, 0.0431076, 0.0405575,
+                 0.0377502, 0.0347311, 0.0315334, 0.0282116, 0.0248156, 0.0214057,
+                 0.0180265, 0.0147307, 0.0115605, 0.00856464, 0.00577238, 0.00321323,
+                 0.00090253, -0.0011339, -0.00288188, -0.00432789, -0.00548098,
+                 -0.00634775, -0.00694037, -0.00726159, -0.00733319, -0.00719296,
+                 -0.00687283, -0.038636]
     else:
         raise ValueError("In LHC FIR filter, number of taps has to be 15 or 63")
 
     return coeff
 
 
-def fir_filter(coeff, signal):
-    '''Apply FIR filter on discrete time signal.
+def fir_filter(coeff: NumpyArray, signal: NumpyArray):
+    """Apply FIR filter on discrete time signal.
 
-    Paramters
+    Parameters
     ---------
     coeff : double array
         Coefficients of FIR filter with length of number of taps
@@ -337,18 +345,18 @@ def fir_filter(coeff, signal):
     -------
     complex or double array
         Filtered signal of length len(signal) - len(coeff)
-    '''
+    """
 
     n_taps = len(coeff)
     filtered_signal = np.zeros(len(signal) - n_taps)
     for i in range(n_taps, len(signal)):
         for k in range(n_taps):
-            filtered_signal[i-n_taps] += coeff[k] * signal[i - k]
+            filtered_signal[i - n_taps] += coeff[k] * signal[i - k]
 
     return filtered_signal
 
 
-def low_pass_filter(signal, cutoff_frequency=0.5):
+def low_pass_filter(signal: NumpyArray, cutoff_frequency: float = 0.5) -> NumpyArray:
     """Low-pass filter based on Butterworth 5th order digital filter from
     scipy,
     http://docs.scipy.org
@@ -373,7 +381,7 @@ def low_pass_filter(signal, cutoff_frequency=0.5):
     return sgn.filtfilt(b, a, signal)
 
 
-def moving_average(x, N, x_prev=None):
+def moving_average(x: NumpyArray, N: int, x_prev: Optional[NumpyArray] = None) -> NumpyArray:
     """Function to calculate the moving average (or running mean) of the input
     data.
 
@@ -405,8 +413,7 @@ def moving_average(x, N, x_prev=None):
     return mov_avg[N - 1:] / N
 
 
-def moving_average_improved(x, N, x_prev=None):
-
+def moving_average_improved(x: NumpyArray, N: int, x_prev: Optional[NumpyArray] = None):
     if x_prev is not None:
         x = np.concatenate((x_prev, x))
 
@@ -415,8 +422,7 @@ def moving_average_improved(x, N, x_prev=None):
     return mov_avg[:x.shape[0] - N + 1]
 
 
-def H_cav(x, n_sections, x_prev=None):
-
+def H_cav(x: NumpyArray, n_sections: int, x_prev: Optional[NumpyArray] = None):
     if x_prev is not None:
         x = np.concatenate((x_prev, x))
 
@@ -442,7 +448,7 @@ def H_cav(x, n_sections, x_prev=None):
     return resp[:x.shape[0] - h.shape[0] + 1]
 
 
-def smooth_step(x, x_min=0, x_max=1, N=1):
+def smooth_step(x: NumpyArray, x_min: float = 0, x_max: float = 1, N: int = 1):
     """Function to make a smooth step.
 
     Parameters
@@ -473,8 +479,9 @@ def smooth_step(x, x_min=0, x_max=1, N=1):
     return result
 
 
-def feedforward_filter(TWC: TravellingWaveCavity, T_s, taps=None,
-                       opt_output=False):
+def feedforward_filter(TWC: TravellingWaveCavity, T_s: float,
+                       taps: Optional[int] = None, opt_output: bool = False)\
+                                              -> tuple[NumpyArray, int, int, int]:
     """Function to design n-tap FIR filter for SPS TravellingWaveCavity.
 
     Parameters
@@ -525,9 +532,9 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, taps=None,
             if t[i] < -tauf:
                 output[i] = 0
             elif t[i] < 0:
-                output[i] = (t[i]/tauf + 1)**2 / 2
+                output[i] = (t[i] / tauf + 1) ** 2 / 2
             elif t[i] < tauf:
-                output[i] = -1/2 * (t[i]/tauf)**2 + t[i]/tauf + 1/2
+                output[i] = -1 / 2 * (t[i] / tauf) ** 2 + t[i] / tauf + 1 / 2
             else:
                 output[i] = 1
         return output
@@ -539,9 +546,9 @@ def feedforward_filter(TWC: TravellingWaveCavity, T_s, taps=None,
             if t[i] < -tauf:
                 output[i] = 0
             elif t[i] < 0:
-                output[i] = -(t[i]/tauf + 1)**2 / 2
+                output[i] = -(t[i] / tauf + 1) ** 2 / 2
             elif t[i] < tauf:
-                output[i] = -1/2 * (t[i]/tauf)**2 + t[i]/tauf - 1/2
+                output[i] = -1 / 2 * (t[i] / tauf) ** 2 + t[i] / tauf - 1 / 2
             else:
                 output[i] = 0
         return output
@@ -661,17 +668,17 @@ feedforward_filter_TWC4 = np.array(
      -0.01050256])
 
 feedforward_filter_TWC5 = np.array(
-    [0.01802423, -0.01004643,  0.00069372,  0.00069372,  0.00069372, -0.01005897,
-     -0.01005897,  0.00069372,  0.00069372,  0.00069372,  0.0060638,  -0.00797153,
-     0.00104058,  0.00104058,  0.00104058,  0.00104058,  0.00104058,  0.00104058,
-     0.00104058,  0.00104058,  0.00104058,  0.00104058,  0.00104058,  0.00104058,
-     0.00104058,  0.00104058,  0.00104058,  0.00104058,  0.00104058,  0.00104058,
-     0.00104058,  0.0100527,  -0.00398263,  0.00138744,  0.00138744,  0.00138744,
-     0.01187999,  0.01031911, -0.00069372, -0.00069372, -0.00069372,  0.01004643,
+    [0.01802423, -0.01004643, 0.00069372, 0.00069372, 0.00069372, -0.01005897,
+     -0.01005897, 0.00069372, 0.00069372, 0.00069372, 0.0060638, -0.00797153,
+     0.00104058, 0.00104058, 0.00104058, 0.00104058, 0.00104058, 0.00104058,
+     0.00104058, 0.00104058, 0.00104058, 0.00104058, 0.00104058, 0.00104058,
+     0.00104058, 0.00104058, 0.00104058, 0.00104058, 0.00104058, 0.00104058,
+     0.00104058, 0.0100527, -0.00398263, 0.00138744, 0.00138744, 0.00138744,
+     0.01187999, 0.01031911, -0.00069372, -0.00069372, -0.00069372, 0.01004643,
      -0.01802423])
 
 
-def plot_frequency_response(b, a=1):
+def plot_frequency_response(b: NumpyArray, a=1):
     """Plotting the frequency response of a filter with coefficients a, b."""
 
     w, H = sgn.freqz(b, a)
