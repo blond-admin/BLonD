@@ -56,7 +56,8 @@ class Ring(Preparable, Schedulable):
         Lateinit method when `simulation.__init__` is called
 
         simulation
-            Simulation context manager"""
+            Simulation context manager
+        """
 
         assert (
             len(self.elements.get_sections_indices()) == self.n_cavities
@@ -303,7 +304,7 @@ class Ring(Preparable, Schedulable):
 
     def insert_element(
         self,
-        element: Iterable[BeamPhysicsRelevant],
+        element: BeamPhysicsRelevant,
         insert_at: int | list[int],
         deepcopy: bool = True,
         allow_section_index_overwrite: bool = False,
@@ -315,7 +316,7 @@ class Ring(Preparable, Schedulable):
         ----------
         element
             An object representing a beamline component or any element
-            relevant to beam physics. Must have a valid  `section_index`
+            relevant to beam physics. Must have a valid `section_index`
             attribute of type `int`.
         insert_at
             Single location or list of locations in the initial ring.
@@ -328,6 +329,7 @@ class Ring(Preparable, Schedulable):
         ------
         locations_in_the_new_ring
             Location(s) of the inserted element in the new ring
+
         Raises
         ------
         AssertionError
@@ -346,15 +348,19 @@ class Ring(Preparable, Schedulable):
             if deepcopy:
                 element = copy.deepcopy(element)
                 if allow_section_index_overwrite:
-                    element = self.force_section_index_compatibility(
+                    element = self._force_section_index_compatibility(
                         element=element,
-                        insert_at=k + already_inserted)
+                        insert_at=k + already_inserted,
+                    )
                 else:
                     raise AssertionError(
                         'Cannot overwrite the section indexes with '
-                        'deepcopy == False.')
-            self.elements.insert(element=element,
-                                 insert_at= k + already_inserted)
+                        'deepcopy == False.'
+                    )
+            self.elements.insert(
+                element=element,
+                insert_at= k + already_inserted,
+            )
             locations_in_the_new_ring.append(k + already_inserted)
             already_inserted+=1
 
@@ -362,7 +368,7 @@ class Ring(Preparable, Schedulable):
 
     def insert_elements(
         self,
-        elements: list[BeamPhysicsRelevant],
+        elements: Iterable[BeamPhysicsRelevant],
         insert_at: int,
         deepcopy: bool = True,
         allow_section_index_overwrite: bool = False,
@@ -401,11 +407,14 @@ class Ring(Preparable, Schedulable):
                 element=element,
                 insert_at=insert_at,
                 deepcopy=deepcopy,
-                allow_section_index_overwrite = allow_section_index_overwrite,
+                allow_section_index_overwrite=allow_section_index_overwrite,
             )
 
-    def force_section_index_compatibility(self, element:
-    BeamPhysicsRelevant, insert_at: int):
+    def _force_section_index_compatibility(
+            self,
+            element: BeamPhysicsRelevant,
+            insert_at: int
+    ):
         """
         Internal method to ensure section index compatibility.
         
@@ -416,11 +425,13 @@ class Ring(Preparable, Schedulable):
             relevant to beam physics. Must have a valid  `section_index`
             attribute of type `int`.
         insert_at
-            Single location.
+            Single location index.
         """
         try:
-            self.elements.check_section_index_compatibility(element,
-                                                            insert_at)
+            self.elements.check_section_index_compatibility(
+                element=element,
+                insert_at=insert_at,
+            )
         except AssertionError:
             if insert_at == len(self.elements.elements):
                 element._section_index = self.elements.elements[

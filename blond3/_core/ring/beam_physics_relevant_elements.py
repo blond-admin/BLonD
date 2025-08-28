@@ -155,11 +155,12 @@ class BeamPhysicsRelevantElements(Preparable):
             self.elements.append(element)
 
     def check_section_index_compatibility(
-        self, element: BeamPhysicsRelevant, insert_at: int
+            self,
+            element: BeamPhysicsRelevant,
+            insert_at: int,
     ):
         """
-        Internal method to check the element is inserted in the defined
-        section.
+        Method to check the element can be inserted in the defined section.
 
         Parameters
         ----------
@@ -168,7 +169,8 @@ class BeamPhysicsRelevantElements(Preparable):
             relevant to beam physics. Must have a valid  `section_index`
             attribute of type `int`.
         insert_at
-            Single location.
+            Single location index.
+
         Raises
         -------
         AssertionError
