@@ -752,7 +752,8 @@ def minmax_location(x: NumpyArray, f: NumpyArray) -> tuple[list[NumpyArray],
     f_derivative_zeros = np.unique(np.append(np.where(f_derivative == 0),
                                    np.where(f_derivative[1:]
                                             / f_derivative[0:-1] < 0)))
-
+    #todo : use the minima of the provided potential well? What would break
+    # if we were to use the local minima...
     min_x_position = (x[f_derivative_zeros[f_derivative_second[f_derivative_zeros] > 0] + 1]
                       + x[f_derivative_zeros[f_derivative_second[f_derivative_zeros] > 0]]) / 2
     max_x_position = (x[f_derivative_zeros[f_derivative_second[f_derivative_zeros] < 0] + 1]
@@ -785,7 +786,7 @@ def potential_well_cut(time_potential: NumpyArray,
     if n_minima == 0:
         # PotentialWellError
         raise RuntimeError('The potential well has no minima...')
-    if n_minima > n_maxima and n_maxima == 1:
+    if n_minima > n_maxima == 1:
         # PotentialWellError
         raise RuntimeError('The potential well has more minima than maxima, and only one maximum')
     if n_maxima == 0:
@@ -799,6 +800,8 @@ def potential_well_cut(time_potential: NumpyArray,
             UserWarning,
             stacklevel=2,
         )
+        saved_indexes = np.linspace(0, len(time_potential),
+                                    len(time_potential)+1)
         time_potential_sep = time_potential
         potential_well_sep = potential_array
     elif n_maxima == 1:
