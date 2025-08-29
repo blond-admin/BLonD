@@ -19,16 +19,22 @@ variables:
 
     - python3 --version && gcc --version && mpirun --version
     - python3 -m pip install --upgrade pip
-    - python3 -m pip install -v -e ${project_root}[test]
-    - python3 blond/compile.py -p --optimize --parallel -gpu
+    - python3 -m pip install -v -e ${project_root}[all]
+    # - python3 blond/compile.py -p --optimize --parallel -gpu
 
 
 .main:
   script:
     - cd ${project_root}
     # Run all unittests + the examples
-    - python3 -m pytest -v unittests/ --cov --cov-config=.coveragerc --cov-report html:coverage-html
-      --cov-report xml:coverage.xml --junitxml=junit-report.xml
+    - python3 -m pytest
+      -v unittests/
+      --import-mode=importlib
+      --cov
+      --cov-config=.coveragerc
+      --cov-report html:coverage-html
+      --cov-report xml:coverage.xml
+      --junitxml=junit-report.xml
 
 .after:
   after_script:

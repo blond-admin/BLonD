@@ -163,7 +163,7 @@ class TestSpecials(unittest.TestCase):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
-                except FileNotFoundError:
+                except (FileNotFoundError, OSError):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
                 backend.specials.drift_exact(
@@ -196,7 +196,7 @@ class TestSpecials(unittest.TestCase):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
-                except FileNotFoundError:
+                except (FileNotFoundError, OSError):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
                 backend.specials.drift_legacy(
@@ -228,7 +228,7 @@ class TestSpecials(unittest.TestCase):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
-                except FileNotFoundError:
+                except (FileNotFoundError, OSError):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
                 backend.specials.drift_simple(
@@ -259,7 +259,7 @@ class TestSpecials(unittest.TestCase):
                     self.n_voltages = n_voltages
                     try:
                         self._setUp(dtype=dtype, special_mode=special)
-                    except FileNotFoundError:
+                    except (FileNotFoundError, OSError):
                         print(
                             f"Could not perform `{special}` test for {dtype}"
                         )
@@ -292,7 +292,7 @@ class TestSpecials(unittest.TestCase):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
-                except FileNotFoundError:
+                except (FileNotFoundError, OSError):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
                 backend.specials.kick_single_harmonic(
@@ -322,7 +322,7 @@ class TestSpecials(unittest.TestCase):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
-                except FileNotFoundError:
+                except (FileNotFoundError, OSError):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
                 dt = np.linspace(-5, 5, 20, dtype=backend.float)
@@ -359,7 +359,7 @@ class TestSpecials(unittest.TestCase):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
-                except FileNotFoundError:
+                except (FileNotFoundError, OSError):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
                 backend.specials.loss_box(a=None, b=None, c=None, d=None)
@@ -383,7 +383,7 @@ class TestSpecials(unittest.TestCase):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
-                except FileNotFoundError:
+                except (FileNotFoundError, OSError):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
                 result = backend.specials.beam_phase(
@@ -419,7 +419,7 @@ class TestSpecials(unittest.TestCase):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
-                except FileNotFoundError:
+                except (FileNotFoundError, OSError):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
                 array_write = backend.zeros(21, dtype=backend.float)

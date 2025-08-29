@@ -24,8 +24,6 @@ import numpy as np
 from scipy.constants import c
 from scipy.interpolate import Akima1DInterpolator, splev, splrep
 
-from ..plots.plot import fig_folder
-
 if TYPE_CHECKING:
     from typing import Literal, Optional
 
@@ -494,6 +492,8 @@ class RingOptions:
         momentum_interp = momentum_interp[initial_index:final_index]
 
         if self.plot:
+            from ..plots.plot import fig_folder
+
             # Directory where longitudinal_plots will be stored
             fig_folder(self.figdir)
 

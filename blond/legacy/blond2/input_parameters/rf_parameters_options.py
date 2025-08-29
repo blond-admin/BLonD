@@ -23,7 +23,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import splev, splrep
 
-from ..plots.plot import fig_folder
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
@@ -203,6 +202,8 @@ class RFStationOptions:
 
             # Plot original and interpolated data
             if self.plot:
+                from ..plots.plot import fig_folder
+
                 # Directory where plots will be stored
                 fig_folder(self.figdir)
 

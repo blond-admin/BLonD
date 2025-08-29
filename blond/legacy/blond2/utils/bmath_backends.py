@@ -780,7 +780,10 @@ available_backends = [
     PyBackend(),
 ]
 if _cupy_available:
-    available_backends.append(GpuBackend())
+    try:
+        available_backends.append(GpuBackend())
+    except FileNotFoundError as exc:
+        warnings.warn(str(exc))
 
 if _numba_available:
     available_backends.append(NumbaBackend())
