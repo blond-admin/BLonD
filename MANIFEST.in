@@ -3,7 +3,4 @@ recursive-include blond *.h
 recursive-include blond *.cu
 
 recursive-exclude unittests *
-recursive-exclude __EXAMPLES *
-recursive-exclude __BENCHMARKS *
-recursive-exclude __doc *
-recursive-exclude developer_tools *
+recursive-exclude legacy *
