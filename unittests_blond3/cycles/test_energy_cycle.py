@@ -210,9 +210,8 @@ class TestEnergyCycleBase(unittest.TestCase):
         self.momentum_init = 16
         self.magnetic_cycle_base = MagneticCycleBaseHelper(
             reference_particle=proton,
-            magnetic_rigidity_init=self.momentum_init
-                                                              / (proton.charge * c0))
-
+            magnetic_rigidity_init=self.momentum_init / (proton.charge * c0),
+        )
 
     def test___init__(self):
         self.assertIsInstance(self.magnetic_cycle_base, MagneticCycleBase)

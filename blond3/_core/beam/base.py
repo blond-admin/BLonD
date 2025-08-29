@@ -261,6 +261,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
                 "reference_velocity",
             )
         )
+
     def invalidate_cache_dE(self) -> None:
         """Reset cache of `cached_property` attributes"""
         super()._invalidate_cache(

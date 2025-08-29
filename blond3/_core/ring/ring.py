@@ -46,9 +46,9 @@ class Ring(Preparable, Schedulable):
 
         super().__init__()
         self._elements = BeamPhysicsRelevantElements()
-        assert (
-            circumference > 0
-        ), f"`circumference` must be bigger 0, but is {circumference}"
+        assert circumference > 0, (
+            f"`circumference` must be bigger 0, but is {circumference}"
+        )
         self._circumference = circumference
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -59,9 +59,9 @@ class Ring(Preparable, Schedulable):
             Simulation context manager
         """
 
-        assert (
-            len(self.elements.get_sections_indices()) == self.n_cavities
-        ), f"{len(self.elements.get_sections_indices())=}, but {self.n_cavities=}"
+        assert len(self.elements.get_sections_indices()) == self.n_cavities, (
+            f"{len(self.elements.get_sections_indices())=}, but {self.n_cavities=}"
+        )
 
         assert np.all(
             0 <= np.diff([e.section_index for e in self.elements.elements])
@@ -354,15 +354,14 @@ class Ring(Preparable, Schedulable):
                     )
                 else:
                     raise AssertionError(
-                        'Cannot overwrite the section indexes with '
-                        'deepcopy == False.'
+                        "Cannot overwrite the section indexes with deepcopy == False."
                     )
             self.elements.insert(
                 element=element,
-                insert_at= k + already_inserted,
+                insert_at=k + already_inserted,
             )
             locations_in_the_new_ring.append(k + already_inserted)
-            already_inserted+=1
+            already_inserted += 1
 
         return locations_in_the_new_ring
 
@@ -411,13 +410,11 @@ class Ring(Preparable, Schedulable):
             )
 
     def _force_section_index_compatibility(
-            self,
-            element: BeamPhysicsRelevant,
-            insert_at: int
+        self, element: BeamPhysicsRelevant, insert_at: int
     ):
         """
         Internal method to ensure section index compatibility.
-        
+
         Parameters
         ----------
         element
@@ -435,8 +432,8 @@ class Ring(Preparable, Schedulable):
         except AssertionError:
             if insert_at == len(self.elements.elements):
                 element._section_index = self.elements.elements[
-                    insert_at-1].section_index
+                    insert_at - 1
+                ].section_index
             else:
-                element._section_index = self.elements.elements[
-                    insert_at].section_index
+                element._section_index = self.elements.elements[insert_at].section_index
         return element

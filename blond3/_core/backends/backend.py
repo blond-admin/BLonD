@@ -166,7 +166,7 @@ class BackendBaseClass(ABC):
 
         self.twopi = self.float(2 * np.pi)
         self.specials_mode = specials_mode
-        self.specials: Specials = None # NOQA
+        self.specials: Specials = None  # NOQA
         self.set_specials(self.specials_mode)
 
         # Callables that link to e.g. Numpy, Cupy

@@ -155,9 +155,9 @@ class BeamPhysicsRelevantElements(Preparable):
             self.elements.append(element)
 
     def check_section_index_compatibility(
-            self,
-            element: BeamPhysicsRelevant,
-            insert_at: int,
+        self,
+        element: BeamPhysicsRelevant,
+        insert_at: int,
     ):
         """
         Method to check the element can be inserted in the defined section.

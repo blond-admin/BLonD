@@ -116,7 +116,7 @@ class FortranSpecials(Specials):
         )
 
     @staticmethod
-    def loss_box(self, top:float, bottom:float, left:float, right:float) -> None:
+    def loss_box(self, top: float, bottom: float, left: float, right: float) -> None:
         pass
 
     @staticmethod

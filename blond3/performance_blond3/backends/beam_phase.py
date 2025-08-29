@@ -4,6 +4,7 @@ import time
 import numpy as np
 import cupy as cp
 
+
 def main():  # pragma: no cover
     dt = np.linspace(-5, 5, int(1e6))
     hist_x = np.linspace(0, 1, 1024)

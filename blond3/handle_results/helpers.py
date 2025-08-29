@@ -15,6 +15,7 @@ def filesafe_datetime() -> str:
     filename_safe_date = now.strftime("%Y-%m-%d_%H%M%S")
     return filename_safe_date
 
+
 def callers_relative_path(filename: str, stacklevel: int) -> str:
     """
     Absolute path according to filepath of the python script at given stacklevel

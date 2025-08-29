@@ -175,9 +175,7 @@ class TestRfBeamCurrent(unittest.TestCase):
         self.profile.track(beam=self.beam)
         t_rev = float(
             (2 * np.pi * self.rf.harmonic)
-            / self.rf.calc_omega(
-                self.beam.reference_beta, self.ring.circumference
-            )
+            / self.rf.calc_omega(self.beam.reference_beta, self.ring.circumference)
         )
         rf_current = rf_beam_current(
             self.beam,
@@ -422,9 +420,7 @@ class TestRfBeamCurrent(unittest.TestCase):
         )
         t_rev = float(
             (2 * np.pi * self.rf.harmonic)
-            / self.rf.calc_omega(
-                self.beam.reference_beta, self.ring.circumference
-            )
+            / self.rf.calc_omega(self.beam.reference_beta, self.ring.circumference)
         )
         self.profile.track(self.beam)
         self.assertEqual(
@@ -669,9 +665,7 @@ class TestRfBeamCurrent(unittest.TestCase):
     def test_4(self):
         t_rev = float(
             (2 * np.pi * self.rf.harmonic)
-            / self.rf.calc_omega(
-                self.beam.reference_beta, self.ring.circumference
-            )
+            / self.rf.calc_omega(self.beam.reference_beta, self.ring.circumference)
         )
         t_rf = t_rev / self.rf.harmonic
         # Create a batch of 100 equal, short bunches

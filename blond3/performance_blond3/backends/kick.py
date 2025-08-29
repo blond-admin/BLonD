@@ -5,7 +5,6 @@ import cupy as cp
 from blond3._core.backends.backend import backend, Numpy64Bit, Numpy32Bit
 
 
-
 def main():  # pragma: no cover
     backend.change_backend(Numpy32Bit)
 

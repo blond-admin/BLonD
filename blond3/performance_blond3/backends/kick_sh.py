@@ -8,7 +8,7 @@ import cupy as cp
 
 
 def main():  # pragma: no cover
-    #backend.change_backend(Numpy64Bit)
+    # backend.change_backend(Numpy64Bit)
     backend.change_backend(Numpy32Bit)
 
     dt = backend.linspace(-5, 5, int(1e6), dtype=backend.float)
@@ -20,7 +20,6 @@ def main():  # pragma: no cover
 
     dt_cp = cp.array(dt)
     dE_cp = cp.array(dE)
-
 
     charge = backend.float(2.0)
     acceleration_kick = backend.float(0.0)

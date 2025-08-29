@@ -142,7 +142,6 @@ class TestBothBlonds(unittest.TestCase):
         backend.change_backend(Numpy64Bit)
         self.blond3 = Blond3()
         if DEV_PLOT:
-
             plt.show()
 
     def test_induced_voltage(self):

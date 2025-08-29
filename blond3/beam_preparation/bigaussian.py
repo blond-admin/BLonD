@@ -90,8 +90,7 @@ def _get_dE_from_dt(
     )
 
     eta0 = [drift.eta_0(gamma=beam.reference_gamma) for drift in drifts]
-    assert all_equal(
-        eta0), f"Expected all `eta0` to be the same, but got {eta0}."
+    assert all_equal(eta0), f"Expected all `eta0` to be the same, but got {eta0}."
     eta0 = eta0[0]
 
     particle_charge = beam.particle_type.charge

@@ -2,10 +2,14 @@ import unittest
 
 import numpy as np
 
-from blond3.physics.feedbacks.accelerators.sps.helpers import get_power_gen_i, \
-    modulator, moving_average, comb_filter
+from blond3.physics.feedbacks.accelerators.sps.helpers import (
+    get_power_gen_i,
+    modulator,
+    moving_average,
+    comb_filter,
+)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
 
 

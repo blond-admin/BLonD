@@ -44,7 +44,7 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         self.orbit_length = orbit_length
 
     def __str__(self):
-        return f''
+        return f""
 
     def track(self, beam: BeamBaseClass) -> None:
         """Main simulation routine to be called in the mainloop

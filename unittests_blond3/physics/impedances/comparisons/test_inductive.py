@@ -124,7 +124,7 @@ class TestInductiveImpedances(unittest.TestCase):
                 reference = voltages[solver]  # arbitrary choice
             else:
                 np.testing.assert_allclose(
-                    reference * 1e13 ,
-                    voltages[solver] * 1e13 ,
-                    atol= 1e-10,
+                    reference * 1e13,
+                    voltages[solver] * 1e13,
+                    atol=1e-10,
                 )

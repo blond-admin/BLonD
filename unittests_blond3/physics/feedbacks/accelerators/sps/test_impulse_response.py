@@ -245,10 +245,16 @@ class TestTravelingWaveCavity(unittest.TestCase):
         )
 
         beam._dt += n_shift * t_rf
-        rf._update_beam_based_attributes(beam=beam,)
+        rf._update_beam_based_attributes(
+            beam=beam,
+        )
 
-        profile.track(beam=beam,)
-        induced_voltage.calc_induced_voltage(beam=beam,)
+        profile.track(
+            beam=beam,
+        )
+        induced_voltage.calc_induced_voltage(
+            beam=beam,
+        )
         V_ind_impSource = np.around(induced_voltage._induced_voltage, digit_round)
 
         # Beam loading via feed-back system
@@ -257,7 +263,10 @@ class TestTravelingWaveCavity(unittest.TestCase):
             profile,
             4,
             n_cavities=1,
-            commissioning=SPSCavityLoopCommissioning(open_ff=True, rot_iq=1,),
+            commissioning=SPSCavityLoopCommissioning(
+                open_ff=True,
+                rot_iq=1,
+            ),
             df=0.2275e6,
         )
         OTFB_4.counter = 0  # First turn

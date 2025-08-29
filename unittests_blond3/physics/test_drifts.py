@@ -118,8 +118,7 @@ class TestDriftSimple(unittest.TestCase):
         )
         self.assertEqual(
             beam.reference_time,
-            self.drift_simple.orbit_length
-            / (0.5 * c0),  # drifted by length of drift
+            self.drift_simple.orbit_length / (0.5 * c0),  # drifted by length of drift
         )
 
     def tearDown(self):

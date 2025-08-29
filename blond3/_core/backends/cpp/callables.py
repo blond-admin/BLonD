@@ -113,6 +113,7 @@ def c_complex(scalar: complex):
         return c_complex64(scalar)
     return c_complex128(scalar)
 
+
 if backend.float == np.float32:
     # By default, use double precision
     precision = PrecisionClass("single")
@@ -152,6 +153,7 @@ def load_libblond(precision: str = "single"):
 
     return _LIBBLOND
 
+
 if backend.float == np.float32:
     _LIBBLOND = load_libblond(precision="single")
 elif backend.float == np.float64:
@@ -159,7 +161,6 @@ elif backend.float == np.float64:
 
 else:
     raise TypeError(backend.float)
-
 
 
 def _getPointer(x: NumpyArray) -> ct.c_void_p:
@@ -230,7 +231,7 @@ class CppSpecials(Specials):
         )
 
     @staticmethod
-    def loss_box(self, top:float, bottom:float, left:float, right:float) -> None:
+    def loss_box(self, top: float, bottom: float, left: float, right: float) -> None:
         pass
 
     @staticmethod

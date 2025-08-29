@@ -392,7 +392,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
     def test_beam_loading(self):
         digit_round = 7
         # Compute voltage with beam loading
-        #self.cavity_tracker.rf_voltage_calculation()
+        # self.cavity_tracker.rf_voltage_calculation()
         cavity_tracker_rf_voltage = rf_voltage_calculation(
             rf_params=self.rf,
             cavityFB=None,
@@ -400,11 +400,11 @@ class TestSPSCavityFeedback(unittest.TestCase):
         )
         cavity_tracker_total_voltage = (
             cavity_tracker_rf_voltage
-            #+ self.cavity_tracker.totalInducedVoltage.induced_voltage
+            # + self.cavity_tracker.totalInducedVoltage.induced_voltage
         )
 
         self.OTFB.track(beam=self.beam)
-        #self.OTFB_tracker.rf_voltage_calculation()
+        # self.OTFB_tracker.rf_voltage_calculation()
         OTFB_tracker_rf_voltage = rf_voltage_calculation(
             rf_params=self.rf,
             cavityFB=[self.OTFB],

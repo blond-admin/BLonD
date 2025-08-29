@@ -127,9 +127,9 @@ class Schedulable:
             Required when arrays are handed over
             "per-turn" or "constant"
         """
-        assert hasattr(
-            self, attribute
-        ), f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
+        assert hasattr(self, attribute), (
+            f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
+        )
         if isinstance(value, np.ndarray):
             value = value.astype(backend.float)
         self.schedules[attribute] = get_scheduler(value, mode=mode)
@@ -162,9 +162,9 @@ class Schedulable:
         kwargs_loadtxt
             Additional keyword arguments to be passed to `numpy.loadtxt`
         """
-        assert hasattr(
-            self, attribute
-        ), f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
+        assert hasattr(self, attribute), (
+            f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
+        )
         values = np.loadtxt(filename, **kwargs_loadtxt)
         self.schedules[attribute] = get_scheduler(values, mode=mode)
         self.schedule_active = True

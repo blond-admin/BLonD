@@ -179,12 +179,12 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         corresponding to a separate resonance.
         """
         super().__init__(is_dynamic=False)
-        assert len(shunt_impedances) == len(
-            center_frequencies
-        ), f"{len(shunt_impedances)} != {len(center_frequencies)}"
-        assert len(shunt_impedances) == len(
-            quality_factors
-        ), f"{len(shunt_impedances)} != {len(quality_factors)}"
+        assert len(shunt_impedances) == len(center_frequencies), (
+            f"{len(shunt_impedances)} != {len(center_frequencies)}"
+        )
+        assert len(shunt_impedances) == len(quality_factors), (
+            f"{len(shunt_impedances)} != {len(quality_factors)}"
+        )
         self._shunt_impedances = shunt_impedances
         self._center_frequencies = center_frequencies
         self._quality_factors = quality_factors
@@ -539,7 +539,7 @@ class TravelingWaveCavity(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
     ):
         if isinstance(R_S, np.ndarray):
             assert len(R_S) == len(frequency_R), (
-                f"{len(R_S)=}, but" f" {len(frequency_R)=}."
+                f"{len(R_S)=}, but {len(frequency_R)=}."
             )
             assert len(R_S) == len(a_factor), f"{len(R_S)=}, but {len(a_factor)=}."
         super().__init__(is_dynamic=False)
