@@ -7,9 +7,10 @@ import numpy as np
 from ...beam_feedback import Blond2BeamFeedback
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Optional
+
     from ....._core.beam.base import BeamBaseClass
     from ....profiles import ProfileBaseClass
-    from typing import Optional
 
 
 class LhcBeamFeedback(Blond2BeamFeedback):

@@ -9,7 +9,9 @@ if TYPE_CHECKING:  # pragma: no cover
     T = TypeVar("T")
 
 
-def int_from_float_with_warning(value: float | int, warning_stacklevel: int) -> int:
+def int_from_float_with_warning(
+    value: float | int, warning_stacklevel: int
+) -> int:
     """Make int from float, warn if there are fractional digits
 
     Parameters

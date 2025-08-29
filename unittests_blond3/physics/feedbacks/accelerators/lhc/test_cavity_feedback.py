@@ -3,19 +3,19 @@ import unittest
 import numpy as np
 
 from blond3 import (
-    Ring,
     Beam,
-    SingleHarmonicCavity,
-    DriftSimple,
-    proton,
-    StaticProfile,
-    Simulation,
     ConstantMagneticCycle,
+    DriftSimple,
     MultiHarmonicCavity,
+    Ring,
+    Simulation,
+    SingleHarmonicCavity,
+    StaticProfile,
+    proton,
 )
 from blond3.physics.feedbacks.accelerators.lhc.cavity_feedback import (
-    LHCCavityLoopCommissioning,
     LHCCavityLoop,
+    LHCCavityLoopCommissioning,
 )
 
 

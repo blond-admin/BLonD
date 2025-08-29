@@ -4,14 +4,14 @@ from unittest.mock import Mock
 import numpy as np
 from matplotlib import pyplot as plt
 
-from blond3 import WakeField, Simulation
+from blond3 import Simulation, WakeField
 from blond3._core.beam.base import BeamBaseClass
-from blond3.physics.impedances.sources import Resonators
 from blond3.physics.impedances.solvers import (
-    PeriodicFreqSolver,
     InductiveImpedance,
     InductiveImpedanceSolver,
+    PeriodicFreqSolver,
 )
+from blond3.physics.impedances.sources import Resonators
 from blond3.physics.profiles import StaticProfile
 
 hist_y = np.array(
@@ -217,12 +217,16 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         pass  # calls __init__ in  self.setUp
 
     def test__update_internal_data(self):
-        self.periodic_freq_solver._parent_wakefield.sources = (self.resonators,)
+        self.periodic_freq_solver._parent_wakefield.sources = (
+            self.resonators,
+        )
         self.periodic_freq_solver._update_internal_data()
         self.assertEqual(self.periodic_freq_solver._n_time, 10)
 
     def test__update_internal_data2(self):
-        self.periodic_freq_solver._parent_wakefield.sources = (self.resonators,)
+        self.periodic_freq_solver._parent_wakefield.sources = (
+            self.resonators,
+        )
         self.periodic_freq_solver._parent_wakefield.profile.hist_step = 0.5e-9
         self.periodic_freq_solver.t_periodicity = 1e-8
 
@@ -230,7 +234,9 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         self.periodic_freq_solver._parent_wakefield.profile.beam_spectrum.return_value = np.linspace(
             0, 1, 11
         )
-        self.periodic_freq_solver._parent_wakefield.sources = (self.resonators,)
+        self.periodic_freq_solver._parent_wakefield.sources = (
+            self.resonators,
+        )
         self.periodic_freq_solver._parent_wakefield.profile.hist_step = 0.5e-9
         self.periodic_freq_solver._parent_wakefield.profile.n_bins = 20
         self.periodic_freq_solver.t_periodicity = 1e-8

@@ -11,29 +11,31 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from blond3 import (
-    Ring,
-    proton,
-    MultiHarmonicCavity,
     Beam,
-    ConstantMagneticCycle,
-    Simulation,
     BiGaussian,
-    StaticProfile,
     BunchObservation,
     CavityPhaseObservation,
+    ConstantMagneticCycle,
+    MultiHarmonicCavity,
+    Ring,
+    Simulation,
+    StaticProfile,
+    proton,
 )
-from blond3._core.backends.backend import backend, Numpy64Bit, Numpy32Bit
-from blond3.physics.feedbacks.accelerators.sps.beam_feedback import SpsRlBeamFeedback
+from blond3._core.backends.backend import Numpy32Bit, Numpy64Bit, backend
+from blond3.physics.feedbacks.accelerators.sps.beam_feedback import (
+    SpsRlBeamFeedback,
+)
 
 
 class TestBeamFeedback(unittest.TestCase):
     def setUpBlond2(self):
-        from blond.llrf.beam_feedback import BeamFeedback
         from blond.beam.beam import Beam, Proton
         from blond.beam.distributions import bigaussian
         from blond.beam.profile import CutOptions, Profile
         from blond.input_parameters.rf_parameters import RFStation
         from blond.input_parameters.ring import Ring
+        from blond.llrf.beam_feedback import BeamFeedback
         from blond.trackers.tracker import RingAndRFTracker
 
         n_turns = 200
@@ -46,7 +48,9 @@ class TestBeamFeedback(unittest.TestCase):
         C = 6911.5038  # Machine circumference [m]
         sync_momentum = 25.92e9  # SPS momentum at injection [eV/c]
         gamma_transition = 17.95142852  # Q20 Transition gamma
-        momentum_compaction = 1.0 / gamma_transition**2  # Momentum compaction array
+        momentum_compaction = (
+            1.0 / gamma_transition**2
+        )  # Momentum compaction array
 
         self.ring_blond2 = Ring(
             C, momentum_compaction, sync_momentum, Proton(), n_turns=n_turns
@@ -63,7 +67,9 @@ class TestBeamFeedback(unittest.TestCase):
         t_rf = self.rf_station_blond2.t_rf[0, 0]
 
         # Beam setup
-        self.beam_blond2 = Beam(self.ring_blond2, n_macroparticles, intensity_pb)
+        self.beam_blond2 = Beam(
+            self.ring_blond2, n_macroparticles, intensity_pb
+        )
 
         bigaussian(
             self.ring_blond2,

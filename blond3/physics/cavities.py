@@ -8,22 +8,22 @@ from unittest.mock import Mock
 import numpy as np
 from scipy.constants import speed_of_light as c0
 
-from .feedbacks.beam_feedback import Blond2BeamFeedback
 from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
+from .feedbacks.beam_feedback import Blond2BeamFeedback
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional as LateInit
     from typing import Optional
+    from typing import Optional as LateInit
 
     from numpy.typing import NDArray as NumpyArray
 
-    from .impedances.base import WakeField
-    from .feedbacks.base import LocalFeedback
     from .. import Ring
     from .._core.beam.base import BeamBaseClass
     from .._core.simulation.simulation import Simulation
     from ..cycles.magnetic_cycle import MagneticCycleBase
+    from .feedbacks.base import LocalFeedback
+    from .impedances.base import WakeField
 
 TWOPI_C0 = 2.0 * np.pi * c0
 
@@ -177,16 +177,21 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             reference_time=beam.reference_time,
             particle_type=beam.particle_type,
         )
-        reference_energy_change = target_total_energy - beam.reference_total_energy
+        reference_energy_change = (
+            target_total_energy - beam.reference_total_energy
+        )
 
-        from blond3.acc_math.analytic.hammilton import calc_phi_s_single_harmonic
+        from blond3.acc_math.analytic.hammilton import (
+            calc_phi_s_single_harmonic,
+        )
 
         phi_s = calc_phi_s_single_harmonic(
             charge=beam.particle_type.charge,
             voltage=self.voltage,
             phase=self.phi_rf,
             energy_gain=reference_energy_change,
-            above_transition=beam.reference_gamma > self._ring.average_transition_gamma,
+            above_transition=beam.reference_gamma
+            > self._ring.average_transition_gamma,
         )
 
         return phi_s
@@ -264,7 +269,9 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
 
         # Determine phase loop correction on RF phase and frequency
         if self._beam_feedback is not None:
-            self._beam_feedback.update_domega_rf(beam=beam)  # will be applied next turn
+            self._beam_feedback.update_domega_rf(
+                beam=beam
+            )  # will be applied next turn
 
         # Correction from cavity loop
         if self._cavity_feedback is not None:
@@ -542,10 +549,10 @@ class SingleHarmonicCavity(CavityBaseClass):
         -------
         single_harmonic_cavity
         """
-        from .._core.simulation.simulation import Simulation
-        from .._core.ring.ring import Ring
-        from ..cycles.magnetic_cycle import ConstantMagneticCycle
         from .._core.beam.base import BeamBaseClass
+        from .._core.ring.ring import Ring
+        from .._core.simulation.simulation import Simulation
+        from ..cycles.magnetic_cycle import ConstantMagneticCycle
 
         mhc = SingleHarmonicCavity(
             section_index=section_index,
@@ -748,11 +755,15 @@ class MultiHarmonicCavity(CavityBaseClass):
         """
         raise NotImplementedError
         voltage = self.voltage[0] * np.sin(
-            self._omega_rf_effective[0] * ts + self.phi_rf[0] + self.delta_phi_rf[0]
+            self._omega_rf_effective[0] * ts
+            + self.phi_rf[0]
+            + self.delta_phi_rf[0]
         )
         for i in range(1, len(self.voltage)):
             voltage += self.voltage[i] * np.sin(
-                self._omega_rf_effective[i] * ts + self.phi_rf[i] + self.delta_phi_rf[i]
+                self._omega_rf_effective[i] * ts
+                + self.phi_rf[i]
+                + self.delta_phi_rf[i]
             )
 
     @staticmethod
@@ -794,10 +805,10 @@ class MultiHarmonicCavity(CavityBaseClass):
         -------
         multi_harmonic_cavity
         """
-        from .._core.simulation.simulation import Simulation
-        from .._core.ring.ring import Ring
-        from ..cycles.magnetic_cycle import ConstantMagneticCycle
         from .._core.beam.base import BeamBaseClass
+        from .._core.ring.ring import Ring
+        from .._core.simulation.simulation import Simulation
+        from ..cycles.magnetic_cycle import ConstantMagneticCycle
 
         mhc = MultiHarmonicCavity(
             n_harmonics=len(voltage),
@@ -848,7 +859,9 @@ class MultiHarmonicCavity(CavityBaseClass):
             reference_time=beam.reference_time,
             particle_type=beam.particle_type,
         )
-        reference_energy_change = target_total_energy - beam.reference_total_energy
+        reference_energy_change = (
+            target_total_energy - beam.reference_total_energy
+        )
 
         backend.specials.kick_multi_harmonic(
             dt=beam.read_partial_dt(),

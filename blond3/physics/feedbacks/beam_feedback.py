@@ -21,14 +21,15 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from .base import LocalFeedback
 from ..._core.backends.backend import backend
+from .base import LocalFeedback
 
 if TYPE_CHECKING:  # pragma: no cover
-    from ..profiles import ProfileBaseClass
-    from ..cavities import CavityBaseClass
-    from ..._core.beam.base import BeamBaseClass
     from typing import Optional
+
+    from ..._core.beam.base import BeamBaseClass
+    from ..cavities import CavityBaseClass
+    from ..profiles import ProfileBaseClass
 
 
 class GeneralBeamFeedback(LocalFeedback):
@@ -187,8 +188,13 @@ class Blond2BeamFeedback(LocalFeedback):
         """
 
         # Main RF frequency at the present turn
-        omega_rf = self._parent_cavity._omega_rf[0] + self._parent_cavity.delta_omega_rf
-        phi_rf = self._parent_cavity.phi_rf[0] + self._parent_cavity.delta_phi_rf
+        omega_rf = (
+            self._parent_cavity._omega_rf[0]
+            + self._parent_cavity.delta_omega_rf
+        )
+        phi_rf = (
+            self._parent_cavity.phi_rf[0] + self._parent_cavity.delta_phi_rf
+        )
 
         if self.time_offset is None:
             coeff = backend.specials.beam_phase(

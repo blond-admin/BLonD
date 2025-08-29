@@ -5,7 +5,7 @@ from collections import defaultdict, deque
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Iterable, Any, List, Tuple, Type, TypeVar
+    from typing import Any, Iterable, List, Tuple, Type, TypeVar
 
     T = TypeVar("T")
 
@@ -52,7 +52,9 @@ def get_elements(elements: Iterable, class_: Type[T]) -> Tuple[T, ...]:
     return tuple(filter(lambda x: isinstance(x, class_), elements))
 
 
-def get_init_order(instances: Iterable[Any], dependency_attribute: str) -> list[Any]:
+def get_init_order(
+    instances: Iterable[Any], dependency_attribute: str
+) -> list[Any]:
     """
     Get order to be initialized elements
 
@@ -100,7 +102,9 @@ def _build_dependency_graph(
         e.g. "on_init_simulation.requires"
     """
 
-    graph = defaultdict(list)  # Directed graph: dependency -> list of dependent classes
+    graph = defaultdict(
+        list
+    )  # Directed graph: dependency -> list of dependent classes
     in_degree = defaultdict(
         int
     )  # Count of incoming edges (dependencies) for each class
@@ -118,7 +122,9 @@ def _build_dependency_graph(
                 dependencies.add(dep_)
         for dep in dependencies:
             graph[dep].append(cls.__name__)  # Add edge: dep -> cls
-            in_degree[cls.__name__] += 1  # Increment in-degree count for the class
+            in_degree[cls.__name__] += (
+                1  # Increment in-degree count for the class
+            )
             all_classes.add(dep)  # Ensure the dependency class is also tracked
         pass
     return graph, in_degree, all_classes
@@ -143,7 +149,9 @@ def get_dependencies(cls_: type, dependency_attribute: str):
     """
     if "." in dependency_attribute:
         if dependency_attribute.count(".") != 1:
-            raise NotImplementedError(f"Only one . allowed in {dependency_attribute=}")
+            raise NotImplementedError(
+                f"Only one . allowed in {dependency_attribute=}"
+            )
         atr1, atr2 = dependency_attribute.split(".")
         attr = getattr(cls_, atr1, None)
         if attr is not None:
@@ -162,7 +170,9 @@ def get_dependencies(cls_: type, dependency_attribute: str):
 
 
 def _topological_sort(
-    graph: defaultdict[Any, list], in_degree: defaultdict[Any, int], all_classes: set
+    graph: defaultdict[Any, list],
+    in_degree: defaultdict[Any, int],
+    all_classes: set,
 ) -> list[Any]:
     """Function to perform topological sort on the dependency graph"""
     # Initialize queue with classes that have no dependencies (in-degree 0)

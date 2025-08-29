@@ -3,13 +3,13 @@ from __future__ import annotations
 import importlib
 import sys
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Type, Union, Literal
+from typing import TYPE_CHECKING, Literal, Type, Union
 
 import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
-    from numpy.typing import NDArray as NumpyArray
     from cupy.typing import NDArray as CupyArray
+    from numpy.typing import NDArray as NumpyArray
 
 
 class Specials(ABC):

@@ -1,9 +1,9 @@
 /*
  * Copyright 2014-2017 CERN. This software is distributed under the
- * terms of the GNU General Public Licence version 3 (GPL Version 3), 
+ * terms of the GNU General Public Licence version 3 (GPL Version 3),
  * copied verbatim in the file LICENCE.md.
- * In applying this licence, CERN does not waive the privileges and immunities 
- * granted to it by virtue of its status as an Intergovernmental Organization or 
+ * In applying this licence, CERN does not waive the privileges and immunities
+ * granted to it by virtue of its status as an Intergovernmental Organization or
  * submit itself to any jurisdiction.
  * Project website: http://blond.web.cern.ch/
  * */
@@ -24,13 +24,13 @@ extern "C" void fast_resonator_real_imag(real_t *__restrict__ impedanceReal,
         const real_t *__restrict__ resonant_frequencies,
         const int n_resonators,
         const int n_frequencies)
-        
+
 {   /*
-    This function takes as an input a list of resonators parameters and 
+    This function takes as an input a list of resonators parameters and
     computes the impedance in an optimised way.
-    
+
     Parameters
-    ---------- 
+    ----------
     frequencies : float array
         array of frequency in Hz
     shunt_impedances : float array
@@ -43,7 +43,7 @@ extern "C" void fast_resonator_real_imag(real_t *__restrict__ impedanceReal,
         number of resonantors
     n_frequencies : int
         length of the array 'frequencies'
-    
+
     Returns
     -------
     impedanceReal : float array

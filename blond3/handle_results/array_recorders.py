@@ -8,17 +8,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy.typing import NDArray as NumpyArray, DTypeLike
+from numpy.typing import DTypeLike
+from numpy.typing import NDArray as NumpyArray
 
 from .helpers import callers_relative_path
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import (
-        Tuple,
-        Optional,
-        Literal,
-    )
     from os import PathLike
+    from typing import Literal, Optional, Tuple
 
 
 class ArrayRecorder(ABC):

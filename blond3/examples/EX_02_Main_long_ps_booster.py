@@ -19,19 +19,19 @@ import logging
 import os
 
 import numpy as np
-from scipy.constants import m_p, c, e
+from scipy.constants import c, e, m_p
 
 from blond3 import (
     Beam,
-    proton,
+    BiGaussian,
+    ConstantMagneticCycle,
+    DriftSimple,
     Ring,
     Simulation,
     SingleHarmonicCavity,
-    DriftSimple,
-    ConstantMagneticCycle,
-    WakeField,
     StaticProfile,
-    BiGaussian,
+    WakeField,
+    proton,
 )
 from blond3.handle_results.helpers import callers_relative_path
 from blond3.physics.impedances.readers import (
@@ -39,8 +39,8 @@ from blond3.physics.impedances.readers import (
     ExampleImpedanceReader2,
 )
 from blond3.physics.impedances.solvers import (
-    PeriodicFreqSolver,
     InductiveImpedanceSolver,
+    PeriodicFreqSolver,
 )
 from blond3.physics.impedances.sources import (
     ImpedanceTableFreq,

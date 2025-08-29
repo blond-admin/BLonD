@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Tuple, Optional
+from typing import Optional, Tuple
 
 import numpy as np
 
@@ -107,18 +107,22 @@ class PsbBeamFeedback(Blond2BeamFeedback):
         self.dphi_sum += self.dphi
 
         # Phase and radial loop active on certain turns
-        if current_turn == self.on_time[self.PL_counter] and current_turn >= self.delay:
+        if (
+            current_turn == self.on_time[self.PL_counter]
+            and current_turn >= self.delay
+        ):
             # Phase loop
             self.dphi_av = self.dphi_sum / (
-                self.on_time[self.PL_counter] - self.on_time[self.PL_counter - 1]
+                self.on_time[self.PL_counter]
+                - self.on_time[self.PL_counter - 1]
             )
 
             if self.RFnoise is not None:
                 self.dphi_av += self.RFnoise.dphi[current_turn]
 
-            self.domega_PL = 0.99803799 * self.domega_PL + self.gain[current_turn] * (
-                0.99901903 * self.dphi_av - 0.99901003 * self.dphi_av_prev
-            )
+            self.domega_PL = 0.99803799 * self.domega_PL + self.gain[
+                current_turn
+            ] * (0.99901903 * self.dphi_av - 0.99901003 * self.dphi_av_prev)
 
             self.dphi_av_prev = self.dphi_av
             self.dphi_sum = 0.0
@@ -126,12 +130,16 @@ class PsbBeamFeedback(Blond2BeamFeedback):
             # Radial loop
             self.dR_over_R = (self._parent_cavity.delta_omega_rf[0]) / (
                 self._parent_cavity._omega_rf[0]
-                * (1.0 / (self.ring.alpha_0[0] * self._parent_cavity.gamma**2) - 1.0)
+                * (
+                    1.0 / (self.ring.alpha_0[0] * self._parent_cavity.gamma**2)
+                    - 1.0
+                )
             )
 
             self.domega_RL = (
                 self.domega_RL
-                + self.gain2[0][current_turn] * (self.dR_over_R - self.dR_over_R_prev)
+                + self.gain2[0][current_turn]
+                * (self.dR_over_R - self.dR_over_R_prev)
                 + self.gain2[1][current_turn] * self.dR_over_R
             )
 

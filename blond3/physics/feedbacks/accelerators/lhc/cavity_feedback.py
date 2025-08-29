@@ -1,22 +1,25 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional, Optional as LateInit
+from typing import Any
+from typing import Optional
+from typing import Optional as LateInit
 
 import numpy as np
 from numpy import random as rnd
 from numpy._typing import NDArray as NumpyArray
 from scipy.interpolate import interp1d
 
-from blond3 import StaticProfile, Simulation
-from blond3.physics.cavities import SingleHarmonicCavity, MultiHarmonicCavity
-from blond3.physics.feedbacks.base import LocalFeedback, GlobalFeedback
+from blond3 import Simulation, StaticProfile
+from blond3.physics.cavities import MultiHarmonicCavity, SingleHarmonicCavity
+from blond3.physics.feedbacks.base import GlobalFeedback, LocalFeedback
 from blond3.physics.feedbacks.cavity_feedback import BirksCavityFeedback
 from blond3.physics.profiles import ProfileBaseClass
+
 from .helpers import (
-    smooth_step,
     cavity_response_sparse_matrix,
     fir_filter_lhc_otfb_coeff,
+    smooth_step,
 )
 
 
@@ -253,18 +256,23 @@ class LHCCavityLoop(BirksCavityFeedback):
         self.mu = self.RFFB.mu
         self.power_thres = self.RFFB.power_thres
         self.v_swap_thres = (
-            np.sqrt(2 * self.power_thres / (self.R_over_Q * self.Q_L)) / self.G_gen
+            np.sqrt(2 * self.power_thres / (self.R_over_Q * self.Q_L))
+            / self.G_gen
         )
         self.excitation = self.RFFB.excitation
         self.excitation_otfb_1 = self.RFFB.excitation_otfb_1
         self.excitation_otfb_2 = self.RFFB.excitation_otfb_2
 
-        self.logger.debug("Length of arrays in generator path %d", self.n_coarse)
+        self.logger.debug(
+            "Length of arrays in generator path %d", self.n_coarse
+        )
 
         # Initialise FIR filter for OTFB
         self.fir_n_taps = 63
         self.fir_coeff = fir_filter_lhc_otfb_coeff(n_taps=self.fir_n_taps)
-        self.logger.debug("Sum of FIR coefficients %.4e" % np.sum(self.fir_coeff))
+        self.logger.debug(
+            "Sum of FIR coefficients %.4e" % np.sum(self.fir_coeff)
+        )
 
         self.update_rf_variables()
         self.update_fb_variables()
@@ -331,7 +339,9 @@ class LHCCavityLoop(BirksCavityFeedback):
             self.I_GEN_FINE = np.interp(
                 np.concatenate(
                     (
-                        np.array([self.profile.hist_x[0] - self.profile.hist_step]),
+                        np.array(
+                            [self.profile.hist_x[0] - self.profile.hist_step]
+                        ),
                         self.profile.hist_x,
                     )
                 ),
@@ -414,7 +424,12 @@ class LHCCavityLoop(BirksCavityFeedback):
     def generator_power(self) -> NumpyArray:
         r"""Calculation of generator power from generator current"""
 
-        return 0.5 * self.R_over_Q * self.Q_L * np.absolute(self.I_GEN_COARSE) ** 2
+        return (
+            0.5
+            * self.R_over_Q
+            * self.Q_L
+            * np.absolute(self.I_GEN_COARSE) ** 2
+        )
 
     def one_turn_feedback(self, T_s: float):
         r"""Apply effect of the OTFB on the analog branch"""
@@ -428,7 +443,9 @@ class LHCCavityLoop(BirksCavityFeedback):
         )
 
         # FIR filter
-        self.V_FIR_OUT[self.ind] = self.fir_coeff[0] * self.V_OTFB_INT[self.ind]
+        self.V_FIR_OUT[self.ind] = (
+            self.fir_coeff[0] * self.V_OTFB_INT[self.ind]
+        )
         for k in range(1, self.fir_n_taps):
             self.V_FIR_OUT[self.ind] += (
                 self.fir_coeff[k] * self.V_OTFB_INT[self.ind - k]
@@ -496,7 +513,9 @@ class LHCCavityLoop(BirksCavityFeedback):
         poly = np.poly1d(coeff)
         v_set_prev = poly(np.linspace(0, self.n_coarse, self.n_coarse))
 
-        self.V_SET = np.concatenate((v_set_prev, self.set_point_from_rfstation()))
+        self.V_SET = np.concatenate(
+            (v_set_prev, self.set_point_from_rfstation())
+        )
 
     def swap(self):
         r"""Model of the Switch and Protect module: clamping of the output
@@ -507,7 +526,9 @@ class LHCCavityLoop(BirksCavityFeedback):
             self.V_SWAP_OUT[self.ind] = (
                 self.v_swap_thres
                 * smooth_step(
-                    np.abs(self.V_FB_OUT[self.ind]), x_max=self.v_swap_thres, N=0
+                    np.abs(self.V_FB_OUT[self.ind]),
+                    x_max=self.v_swap_thres,
+                    N=0,
                 )
                 * np.exp(1j * np.angle(self.V_FB_OUT[self.ind]))
             )
@@ -524,7 +545,11 @@ class LHCCavityLoop(BirksCavityFeedback):
                 np.min(self.TUNER_INTEGRATED[-self.n_coarse :].imag)
                 + np.max(self.TUNER_INTEGRATED[-self.n_coarse :].imag)
             )
-            / (self._parent_cavity.voltage[self.harmonic_index] / self.n_cavities) ** 2
+            / (
+                self._parent_cavity.voltage[self.harmonic_index]
+                / self.n_cavities
+            )
+            ** 2
         )
 
         # Propagate the corrections to the detuning two the global parameters
@@ -569,46 +594,88 @@ class LHCCavityLoop(BirksCavityFeedback):
         present turn to prepare the next turn. All arrays except for V_SET."""
 
         self.V_ANT_COARSE = np.concatenate(
-            (self.V_ANT_COARSE[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (
+                self.V_ANT_COARSE[self.n_coarse :],
+                np.zeros(self.n_coarse, dtype=complex),
+            )
         )
         self.V_FB_IN = np.concatenate(
-            (self.V_FB_IN[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (
+                self.V_FB_IN[self.n_coarse :],
+                np.zeros(self.n_coarse, dtype=complex),
+            )
         )
         self.V_AC_IN = np.concatenate(
-            (self.V_AC_IN[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (
+                self.V_AC_IN[self.n_coarse :],
+                np.zeros(self.n_coarse, dtype=complex),
+            )
         )
         self.V_AN_IN = np.concatenate(
-            (self.V_AN_IN[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (
+                self.V_AN_IN[self.n_coarse :],
+                np.zeros(self.n_coarse, dtype=complex),
+            )
         )
         self.V_AN_OUT = np.concatenate(
-            (self.V_AN_OUT[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (
+                self.V_AN_OUT[self.n_coarse :],
+                np.zeros(self.n_coarse, dtype=complex),
+            )
         )
         self.V_DI_OUT = np.concatenate(
-            (self.V_DI_OUT[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (
+                self.V_DI_OUT[self.n_coarse :],
+                np.zeros(self.n_coarse, dtype=complex),
+            )
         )
         self.V_OTFB = np.concatenate(
-            (self.V_OTFB[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (
+                self.V_OTFB[self.n_coarse :],
+                np.zeros(self.n_coarse, dtype=complex),
+            )
         )
         self.V_OTFB_INT = np.concatenate(
-            (self.V_OTFB_INT[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (
+                self.V_OTFB_INT[self.n_coarse :],
+                np.zeros(self.n_coarse, dtype=complex),
+            )
         )
         self.V_FIR_OUT = np.concatenate(
-            (self.V_FIR_OUT[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (
+                self.V_FIR_OUT[self.n_coarse :],
+                np.zeros(self.n_coarse, dtype=complex),
+            )
         )
         self.V_FB_OUT = np.concatenate(
-            (self.V_FB_OUT[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (
+                self.V_FB_OUT[self.n_coarse :],
+                np.zeros(self.n_coarse, dtype=complex),
+            )
         )
         self.V_SWAP_OUT = np.concatenate(
-            (self.V_SWAP_OUT[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (
+                self.V_SWAP_OUT[self.n_coarse :],
+                np.zeros(self.n_coarse, dtype=complex),
+            )
         )
         self.I_GEN_COARSE = np.concatenate(
-            (self.I_GEN_COARSE[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (
+                self.I_GEN_COARSE[self.n_coarse :],
+                np.zeros(self.n_coarse, dtype=complex),
+            )
         )
         self.I_TEST = np.concatenate(
-            (self.I_TEST[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (
+                self.I_TEST[self.n_coarse :],
+                np.zeros(self.n_coarse, dtype=complex),
+            )
         )
         self.TUNER_INPUT = np.concatenate(
-            (self.TUNER_INPUT[self.n_coarse :], np.zeros(self.n_coarse, dtype=complex))
+            (
+                self.TUNER_INPUT[self.n_coarse :],
+                np.zeros(self.n_coarse, dtype=complex),
+            )
         )
         self.TUNER_INTEGRATED = np.concatenate(
             (
@@ -657,10 +724,15 @@ class LHCCavityLoop(BirksCavityFeedback):
             elements
         """
 
-        self.V_EXC_IN = 1000 * self.RFFB.generate_white_noise(self.n_coarse * n_turns)
+        self.V_EXC_IN = 1000 * self.RFFB.generate_white_noise(
+            self.n_coarse * n_turns
+        )
         self.V_EXC_OUT = np.zeros(self.n_coarse * n_turns, dtype=complex)
         self.V_SET = np.concatenate(
-            (np.zeros(self.n_coarse, dtype=complex), self.V_EXC_IN[0 : self.n_coarse])
+            (
+                np.zeros(self.n_coarse, dtype=complex),
+                self.V_EXC_IN[0 : self.n_coarse],
+            )
         )
         self.track_one_turn()
         self.V_EXC_OUT[0 : self.n_coarse] = self.V_ANT_COARSE[
@@ -688,11 +760,16 @@ class LHCCavityLoop(BirksCavityFeedback):
             elements
         """
 
-        self.V_EXC_IN = 10000 * self.RFFB.generate_white_noise(self.n_coarse * n_turns)
+        self.V_EXC_IN = 10000 * self.RFFB.generate_white_noise(
+            self.n_coarse * n_turns
+        )
         self.V_EXC_OUT = np.zeros(self.n_coarse * n_turns, dtype=complex)
         self.V_SET = np.zeros(2 * self.n_coarse, dtype=complex)
         self.V_EXC = np.concatenate(
-            (np.zeros(self.n_coarse, dtype=complex), self.V_EXC_IN[0 : self.n_coarse])
+            (
+                np.zeros(self.n_coarse, dtype=complex),
+                self.V_EXC_IN[0 : self.n_coarse],
+            )
         )
 
         self.track_one_turn()
@@ -722,7 +799,9 @@ class LHCCavityLoop(BirksCavityFeedback):
                         self.n_coarse + i
                     ]
                 elif self.excitation_otfb_2:
-                    self.V_EXC_OUT[n * self.n_coarse + i] = self.V_OTFB[self.ind]
+                    self.V_EXC_OUT[n * self.n_coarse + i] = self.V_OTFB[
+                        self.ind
+                    ]
 
     @staticmethod
     def half_detuning(imag_peak_beam_current, R_over_Q, rf_frequency, voltage):
@@ -745,7 +824,9 @@ class LHCCavityLoop(BirksCavityFeedback):
             Optimum detuning (revolution) frequency in the half-detuning scheme
         """
 
-        return -0.25 * R_over_Q * imag_peak_beam_current / voltage * rf_frequency
+        return (
+            -0.25 * R_over_Q * imag_peak_beam_current / voltage * rf_frequency
+        )
 
     @staticmethod
     def half_detuning_power(peak_beam_current, voltage):

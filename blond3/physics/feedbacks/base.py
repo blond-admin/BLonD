@@ -1,26 +1,23 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import (
-    List,
-    TYPE_CHECKING,
-)
+from typing import TYPE_CHECKING, List
 
 from ..._core.base import BeamPhysicsRelevant
 from ..._core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional, Optional as LateInit
+    from typing import Optional
+    from typing import Optional as LateInit
 
+    from ..._core.beam.base import BeamBaseClass
+    from ..._core.simulation.simulation import Simulation
     from ..cavities import (
+        CavityBaseClass,
         MultiHarmonicCavity,
         SingleHarmonicCavity,
-        CavityBaseClass,
     )
     from ..profiles import ProfileBaseClass
-    from ..._core.beam.base import BeamBaseClass
-
-    from ..._core.simulation.simulation import Simulation
 
 
 class FeedbackBaseClass(BeamPhysicsRelevant):
@@ -43,11 +40,15 @@ class LocalFeedback(FeedbackBaseClass):
             section_index=section_index,
             name=name,
         )
-        self._parent_cavity: SingleHarmonicCavity | MultiHarmonicCavity | None = None
+        self._parent_cavity: (
+            SingleHarmonicCavity | MultiHarmonicCavity | None
+        ) = None
         self.profile = profile
 
     def set_parent_cavity(self, cavity: CavityBaseClass):
-        assert self._parent_cavity is None, "This feedback has already one owner!"
+        assert self._parent_cavity is None, (
+            "This feedback has already one owner!"
+        )
         self._parent_cavity = cavity
 
     @abstractmethod  # pragma: no cover
@@ -88,7 +89,9 @@ class GlobalFeedback(FeedbackBaseClass):
         simulation
             Simulation context manager
         """
-        self.cavities = simulation.ring.elements.get_elements(SingleHarmonicCavity)
+        self.cavities = simulation.ring.elements.get_elements(
+            SingleHarmonicCavity
+        )
 
 
 BeamFeedback = GlobalFeedback  # just an alias name

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import logging
 import sys
-from typing import Optional, Optional as LateInit, Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+from typing import Optional
+from typing import Optional as LateInit
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -11,15 +13,16 @@ from scipy.signal import fftconvolve
 
 from blond3 import Simulation
 from blond3.physics.cavities import MultiHarmonicCavity
-from blond3.physics.feedbacks.cavity_feedback import BirksCavityFeedback
-from blond3.physics.feedbacks.helpers import cartesian_to_polar
-from blond3.physics.profiles import StaticProfile
-from .helpers import get_power_gen_i, moving_average, comb_filter, modulator
 from blond3.physics.feedbacks.accelerators.sps.impulse_response import (  # NOQA
     SPS3Section200MHzTWC,
     SPS4Section200MHzTWC,
     SPS5Section200MHzTWC,
-)  # NOQA
+)
+from blond3.physics.feedbacks.cavity_feedback import BirksCavityFeedback
+from blond3.physics.feedbacks.helpers import cartesian_to_polar
+from blond3.physics.profiles import StaticProfile
+
+from .helpers import comb_filter, get_power_gen_i, modulator, moving_average
 
 if TYPE_CHECKING:
     from blond3._core.beam.base import BeamBaseClass
@@ -191,18 +194,23 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
             if self.open_ff == 1:
                 # Feed-forward filter
                 self.coeff_ff = getattr(
-                    sys.modules[__name__], "feedforward_filter_TWC" + str(n_sections)
+                    sys.modules[__name__],
+                    "feedforward_filter_TWC" + str(n_sections),
                 )
                 self.n_ff = len(self.coeff_ff)  # Number of coefficients for FF
                 self.n_ff_delay = round(
                     0.5 * (self.n_ff - 1) + 0.5 * self.TWC.tau / self.T_s / 5
                 )
 
-                self.logger.debug("Feed-forward delay in samples %d", self.n_ff_delay)
+                self.logger.debug(
+                    "Feed-forward delay in samples %d", self.n_ff_delay
+                )
 
                 # Multiply gain by normalisation factors from filter and
                 # beam-to generator current
-                self.G_ff *= self.TWC.R_beam / (self.TWC.R_gen * np.sum(self.coeff_ff))
+                self.G_ff *= self.TWC.R_beam / (
+                    self.TWC.R_gen * np.sum(self.coeff_ff)
+                )
 
         else:
             raise RuntimeError(
@@ -232,7 +240,9 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
         # Check array length for set point modulation
         if self.set_point_modulation:
             if self.V_SET.shape[0] != 2 * self.n_coarse:
-                raise RuntimeError("V_SET length should be %d" % (2 * self.n_coarse))
+                raise RuntimeError(
+                    "V_SET length should be %d" % (2 * self.n_coarse)
+                )
             self.set_point = getattr(self, "set_point_mod")
         else:
             self.set_point = getattr(self, "set_point_std")
@@ -240,7 +250,9 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
         # Array to hold the bucket-by-bucket voltage with length LLRF
         self.DV_GEN = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.logger.debug("Length of arrays on coarse grid 2x %d", self.n_coarse)
+        self.logger.debug(
+            "Length of arrays on coarse grid 2x %d", self.n_coarse
+        )
 
         # Array if noise is being injected
         self.NOISE = np.zeros(2 * self.n_coarse, dtype=complex)
@@ -285,8 +297,12 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
         # Initialise feed-forward; sampled every fifth bucket
         if self.open_ff == 1:
             self.logger.debug("Feed-forward active")
-            self.I_BEAM_COARSE_FF = np.zeros(2 * self.n_coarse_ff, dtype=complex)
-            self.I_BEAM_COARSE_FF_MOD = np.zeros(2 * self.n_coarse_ff, dtype=complex)
+            self.I_BEAM_COARSE_FF = np.zeros(
+                2 * self.n_coarse_ff, dtype=complex
+            )
+            self.I_BEAM_COARSE_FF_MOD = np.zeros(
+                2 * self.n_coarse_ff, dtype=complex
+            )
             self.I_FF_CORR_MOD = np.zeros(2 * self.n_coarse_ff, dtype=complex)
             self.I_FF_CORR_DEL = np.zeros(2 * self.n_coarse_ff, dtype=complex)
             self.I_FF_CORR = np.zeros(2 * self.n_coarse_ff, dtype=complex)
@@ -325,7 +341,9 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
         # Sum generator- and beam-induced voltages for coarse grid
         self.V_ANT_START = np.copy(self.V_ANT_COARSE)
-        self.V_ANT_COARSE[: self.n_coarse] = self.V_ANT_COARSE[-self.n_coarse :]
+        self.V_ANT_COARSE[: self.n_coarse] = self.V_ANT_COARSE[
+            -self.n_coarse :
+        ]
         self.V_ANT_COARSE[-self.n_coarse :] = (
             self.V_IND_COARSE_GEN[-self.n_coarse :]
             + self.V_IND_COARSE_BEAM[-self.n_coarse :]
@@ -333,7 +351,9 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
         # Obtain generator-induced voltage on the fine grid by interpolation
         self.V_ANT_FINE_START = np.copy(self.V_ANT_FINE)
-        self.V_ANT_FINE[: self.profile.n_bins] = self.V_ANT_FINE[-self.profile.n_bins :]
+        self.V_ANT_FINE[: self.profile.n_bins] = self.V_ANT_FINE[
+            -self.profile.n_bins :
+        ]
         self.V_ANT_FINE[-self.profile.n_bins :] = self.V_IND_FINE_BEAM[
             -self.profile.n_bins :
         ] + np.interp(
@@ -389,7 +409,9 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
             self.I_BEAM_COARSE_FF[: self.n_coarse_ff] = self.I_BEAM_COARSE_FF[
                 -self.n_coarse_ff :
             ]
-            I_COARSE_BEAM_RESHAPED = np.copy(self.I_BEAM_COARSE[-self.n_coarse :])
+            I_COARSE_BEAM_RESHAPED = np.copy(
+                self.I_BEAM_COARSE[-self.n_coarse :]
+            )
             I_COARSE_BEAM_RESHAPED = I_COARSE_BEAM_RESHAPED.reshape(
                 (self.n_coarse_ff, self.n_coarse // self.n_coarse_ff)
             )
@@ -398,9 +420,9 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
             )
 
             # Do a down-modulation to the resonant frequency of the TWC
-            self.I_BEAM_COARSE_FF_MOD[: self.n_coarse_ff] = self.I_BEAM_COARSE_FF_MOD[
-                -self.n_coarse_ff :
-            ]
+            self.I_BEAM_COARSE_FF_MOD[: self.n_coarse_ff] = (
+                self.I_BEAM_COARSE_FF_MOD[-self.n_coarse_ff :]
+            )
             self.I_BEAM_COARSE_FF_MOD[-self.n_coarse_ff :] = modulator(
                 self.I_BEAM_COARSE_FF[-self.n_coarse_ff :],
                 omega_i=self.omega_carrier,
@@ -410,7 +432,9 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
                 dt=self.dT,
             )
 
-            self.I_FF_CORR[: self.n_coarse_ff] = self.I_FF_CORR[-self.n_coarse_ff :]
+            self.I_FF_CORR[: self.n_coarse_ff] = self.I_FF_CORR[
+                -self.n_coarse_ff :
+            ]
             self.I_FF_CORR[-self.n_coarse_ff :] = np.zeros(
                 self.n_coarse_ff, dtype=complex
             )
@@ -422,7 +446,10 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
             # Do a down-modulation to the resonant frequency of the TWC
             phi_delay = (
-                self.n_ff_delay * self.T_s * 5 * (self.omega_c - self.omega_carrier)
+                self.n_ff_delay
+                * self.T_s
+                * 5
+                * (self.omega_c - self.omega_carrier)
             )
             self.I_FF_CORR_MOD[: self.n_coarse_ff] = self.I_FF_CORR_MOD[
                 -self.n_coarse_ff :
@@ -477,7 +504,9 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
     def set_point_std(self):
         r"""Computes the desired set point voltage in I/Q."""
 
-        self.logger.debug("Entering %s function" % sys._getframe(0).f_code.co_name)
+        self.logger.debug(
+            "Entering %s function" % sys._getframe(0).f_code.co_name
+        )
         # Read RF voltage from rf object
         self.V_set = self.set_point_from_rfstation()
         self.V_set = (
@@ -495,7 +524,9 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
         That is, if the set point is non-constant over a turn with the periodicity of a turn.
         """
 
-        self.logger.debug("Entering %s function" % sys._getframe(0).f_code.co_name)
+        self.logger.debug(
+            "Entering %s function" % sys._getframe(0).f_code.co_name
+        )
         pass
 
     def error_and_gain(self):
@@ -603,7 +634,9 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
         current will also be added to the generator current if enabled."""
 
         # Store generator current signal from the last turn
-        self.I_GEN_COARSE[: self.n_coarse] = self.I_GEN_COARSE[-self.n_coarse :]
+        self.I_GEN_COARSE[: self.n_coarse] = self.I_GEN_COARSE[
+            -self.n_coarse :
+        ]
         # Compute current turn generator current
         self.I_GEN_COARSE[-self.n_coarse :] = (
             self.DV_MOD_FRF[-self.n_coarse :]
@@ -626,7 +659,9 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
         induced voltage."""
 
         # Store generator-induced from last turn
-        self.V_IND_COARSE_GEN[: self.n_coarse] = self.V_IND_COARSE_GEN[-self.n_coarse :]
+        self.V_IND_COARSE_GEN[: self.n_coarse] = self.V_IND_COARSE_GEN[
+            -self.n_coarse :
+        ]
         # Compute current turn generator-induced voltage
         self.V_IND_COARSE_GEN[-self.n_coarse :] = (
             self.matr_conv(self.I_GEN_COARSE, self.TWC.h_gen)[-self.n_coarse :]
@@ -906,7 +941,9 @@ class SPSCavityFeedback:
         self.V_corr, self.alpha_sum = cartesian_to_polar(self.V_sum)
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
-        self.V_corr /= self.OTFB_1._parent_cavity.voltage[self.OTFB_1.harmonic_index]
+        self.V_corr /= self.OTFB_1._parent_cavity.voltage[
+            self.OTFB_1.harmonic_index
+        ]
         self.phi_corr = self.alpha_sum - np.angle(
             np.interp(
                 self.OTFB_1.profile.hist_x,
@@ -932,13 +969,17 @@ class SPSCavityFeedback:
             if debug:
                 ax.plot(
                     self.OTFB_1.profile.hist_x * 1e6,
-                    np.abs(self.OTFB_1.V_ANT_FINE[-self.OTFB_1.profile.n_bins :]),
+                    np.abs(
+                        self.OTFB_1.V_ANT_FINE[-self.OTFB_1.profile.n_bins :]
+                    ),
                     color=colors[i],
                 )
                 ax.plot(
                     self.OTFB_1.rf_centers * 1e6,
                     self.OTFB_1.n_cavities
-                    * np.abs(self.OTFB_1.V_ANT_COARSE[-self.OTFB_1.n_coarse :]),
+                    * np.abs(
+                        self.OTFB_1.V_ANT_COARSE[-self.OTFB_1.n_coarse :]
+                    ),
                     color=colors[i],
                     linestyle="",
                     marker=".",
@@ -961,7 +1002,9 @@ class SPSCavityFeedback:
         self.V_corr, self.alpha_sum = cartesian_to_polar(self.V_sum)
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
-        self.V_corr /= self.OTFB_1._parent_cavity.voltage[self.OTFB_1.harmonic_index]
+        self.V_corr /= self.OTFB_1._parent_cavity.voltage[
+            self.OTFB_1.harmonic_index
+        ]
         self.phi_corr = self.alpha_sum - np.angle(
             np.interp(
                 self.OTFB_1.profile.hist_x,

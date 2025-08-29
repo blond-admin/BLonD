@@ -1,8 +1,8 @@
 import sys
 import time
 
-import numpy as np
 import cupy as cp
+import numpy as np
 
 
 def main():  # pragma: no cover
@@ -15,14 +15,14 @@ def main():  # pragma: no cover
     omega_rf = float(1.4)
     phi_rf = float(1.4)
     bin_size = float(1.4)
-    from blond3._core.backends.backend import backend, Numpy64Bit
+    from blond3._core.backends.backend import Numpy64Bit, backend
 
     backend.change_backend(Numpy64Bit)
-    from blond3._core.backends.python.callables import PythonSpecials
-    from blond3._core.backends.numba.callables import NumbaSpecials
     from blond3._core.backends.cpp.callables import CppSpecials
     from blond3._core.backends.cuda.callables import CudaSpecials
     from blond3._core.backends.fortran.callables import FortranSpecials
+    from blond3._core.backends.numba.callables import NumbaSpecials
+    from blond3._core.backends.python.callables import PythonSpecials
 
     print(f"Testing `beam_phase` for {len(hist_x)} bins..")
     functions = (

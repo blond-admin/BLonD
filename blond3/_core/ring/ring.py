@@ -6,23 +6,15 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ..base import (
-    BeamPhysicsRelevant,
-    Preparable,
-    Schedulable,
-)
+from ..base import BeamPhysicsRelevant, Preparable, Schedulable
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import (
-        Iterable,
-        Optional,
-        Type,
-    )
-    from .beam_physics_relevant_elements import BeamPhysicsRelevantElements
+    from typing import Iterable, Optional, Type
+
     from ...physics.drifts import DriftBaseClass
     from ..beam.base import BeamBaseClass
-
     from ..simulation.simulation import Simulation
+    from .beam_physics_relevant_elements import BeamPhysicsRelevantElements
 
 
 class Ring(Preparable, Schedulable):
@@ -176,7 +168,9 @@ class Ring(Preparable, Schedulable):
             self.closed_orbit_length,
             self.circumference,
             atol=atol,
-        ), f"{self.closed_orbit_length=}m, but should be {self.circumference}m."
+        ), (
+            f"{self.closed_orbit_length=}m, but should be {self.circumference}m."
+        )
 
     def add_drifts(
         self,
@@ -435,5 +429,7 @@ class Ring(Preparable, Schedulable):
                     insert_at - 1
                 ].section_index
             else:
-                element._section_index = self.elements.elements[insert_at].section_index
+                element._section_index = self.elements.elements[
+                    insert_at
+                ].section_index
         return element

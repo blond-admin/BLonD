@@ -111,7 +111,8 @@ def write_boilerplate_tests(untested_functions):
     for src_path, functions in untested_functions.items():
         functions = list(
             sorted(
-                functions, key=lambda x: ("", x[0]) if x[1] is None else (x[1], x[0])
+                functions,
+                key=lambda x: ("", x[0]) if x[1] is None else (x[1], x[0]),
             )
         )
         rel_path = os.path.relpath(src_path, PROJECT_ROOT)
@@ -156,7 +157,9 @@ def write_boilerplate_tests(untested_functions):
                         f"implement test for `{func_name}`\n{call_line}\n"
                     )
                 else:
-                    call_line = f"        self.{var_name}.{func_name}({call_args})"
+                    call_line = (
+                        f"        self.{var_name}.{func_name}({call_args})"
+                    )
                     test_code = (
                         f"    @unittest.skip\n"
                         f"    def {test_func}(self):\n        # TODO: implement test for `{func_name}`\n{call_line}\n"

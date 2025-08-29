@@ -1,6 +1,9 @@
 import unittest
 
-from blond3.handle_results.helpers import filesafe_datetime, callers_relative_path
+from blond3.handle_results.helpers import (
+    callers_relative_path,
+    filesafe_datetime,
+)
 
 
 class TestFunctions(unittest.TestCase):

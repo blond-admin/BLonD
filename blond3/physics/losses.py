@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from typing import (
-    Optional,
-)
+from typing import Optional
 from typing import Optional as LateInit
 
 from .._core.backends.backend import backend
@@ -58,7 +56,11 @@ class BoxLosses(LossesBaseClass):
             Beam class to interact with this element
         """
         backend.loss_box(
-            beam.write_partial_flags(), self.t_min, self.t_max, self.e_min, self.e_max
+            beam.write_partial_flags(),
+            self.t_min,
+            self.t_max,
+            self.e_min,
+            self.e_max,
         )
 
 

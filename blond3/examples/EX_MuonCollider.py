@@ -7,15 +7,15 @@ import numpy as np
 
 from blond3 import (
     Beam,
-    proton,
+    DriftSimple,
+    MagneticCyclePerTurn,
     Ring,
     Simulation,
     SingleHarmonicCavity,
-    DriftSimple,
-    WakeField,
-    MagneticCyclePerTurn,
-    mu_plus,
     StaticProfile,
+    WakeField,
+    mu_plus,
+    proton,
 )
 from blond3._core.beam.base import BeamBaseClass
 from blond3.beam_preparation.base import BeamPreparationRoutine
@@ -74,7 +74,9 @@ for cavity_i in range(n_cavities):
         section_index=cavity_i,
         # local_wakefield=local_wakefield, # todo
     )
-    profile = StaticProfile(cut_left=0, cut_right=1, n_bins=256, section_index=cavity_i)
+    profile = StaticProfile(
+        cut_left=0, cut_right=1, n_bins=256, section_index=cavity_i
+    )
     cavity.voltage = 6e6
     cavity.phi_rf = 0
     cavity.harmonic = 35640

@@ -4,8 +4,8 @@ import warnings
 
 import numpy as np
 
-from .base import NoiseGenerator
 from ..._core.backends.backend import backend
+from .base import NoiseGenerator
 
 
 class VariNoise(NoiseGenerator):

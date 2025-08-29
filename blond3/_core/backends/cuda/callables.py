@@ -6,8 +6,7 @@ import numpy as np
 from cupy.typing import NDArray as CupyArray
 from numpy._typing import NDArray as NumpyArray
 
-from blond3._core.backends.backend import Specials
-from blond3._core.backends.backend import backend
+from blond3._core.backends.backend import Specials, backend
 from blond3.handle_results.helpers import callers_relative_path
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -36,7 +35,9 @@ _kick_single_harmonic = gpu_module.get_function("kick_single_harmonic")
 
 default_blocks = 2 * cp.cuda.Device(0).attributes["MultiProcessorCount"]
 default_threads = cp.cuda.Device(0).attributes["MaxThreadsPerBlock"]
-max_shared_memory_per_block = cp.cuda.Device(0).attributes["MaxSharedMemoryPerBlock"]
+max_shared_memory_per_block = cp.cuda.Device(0).attributes[
+    "MaxSharedMemoryPerBlock"
+]
 blocks = int(os.environ.get("GPU_BLOCKS", default_blocks))
 threads = int(os.environ.get("GPU_THREADS", default_threads))
 grid_size = (blocks, 1, 1)
@@ -45,7 +46,9 @@ block_size = (threads, 1, 1)
 
 class CudaSpecials(Specials):
     @staticmethod
-    def loss_box(self, top: float, bottom: float, left: float, right: float) -> None:
+    def loss_box(
+        self, top: float, bottom: float, left: float, right: float
+    ) -> None:
         raise NotImplementedError()
 
     @staticmethod
@@ -185,7 +188,10 @@ class CudaSpecials(Specials):
 
     @staticmethod
     def histogram(
-        array_read: NumpyArray, array_write: NumpyArray, start: float, stop: float
+        array_read: NumpyArray,
+        array_write: NumpyArray,
+        start: float,
+        stop: float,
     ):
         raise NotImplementedError()
 

@@ -81,14 +81,18 @@ def calc_hamiltonian(
         if DEV_PLOT:
             plt.figure(10)
             plt.clf()
-            plt.matshow(np.gradient(H, pi, axis=0, edge_order=2) - dH_dp_grid, fignum=0)
+            plt.matshow(
+                np.gradient(H, pi, axis=0, edge_order=2) - dH_dp_grid, fignum=0
+            )
             plt.colorbar()
         err1 = np.gradient(H, pi, axis=0, edge_order=2) - dH_dp_grid
         dH_dp_grid = -0.1 * err1
         if DEV_PLOT:
             plt.figure(11)
             plt.clf()
-            plt.matshow(np.gradient(H, pi, axis=1, edge_order=2) - dH_dx_grid, fignum=0)
+            plt.matshow(
+                np.gradient(H, pi, axis=1, edge_order=2) - dH_dx_grid, fignum=0
+            )
             plt.colorbar()
         err2 = np.gradient(H, xi, axis=1, edge_order=2) - dH_dx_grid
         dH_dx_grid = -0.1 * err2

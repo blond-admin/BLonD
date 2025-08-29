@@ -411,7 +411,7 @@ extern "C"
     {
         /**
          * @brief Linear interpolation with constant bin size (space between xp values is constant)
-         * 
+         *
          * @x: x-coordinates of the interpolated values
          * @N: The x array size
          * @xp: The x-coords of the data points, !!must be sorted!!

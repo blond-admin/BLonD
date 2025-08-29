@@ -4,22 +4,17 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from ... import Simulation
 from ..base import Preparable
 from ..beam.base import BeamBaseClass
 from ..ring.helpers import get_elements
-from ... import Simulation
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import (
-        Optional,
-        Tuple,
-        Type,
-        TypeVar,
-        Any,
-        List,
-    )
-    from ..base import BeamPhysicsRelevant
+    from typing import Any, List, Optional, Tuple, Type, TypeVar
+
     from numpy.typing import NDArray as NumpyArray
+
+    from ..base import BeamPhysicsRelevant
 
     T = TypeVar("T")
 
@@ -53,7 +48,9 @@ class BeamPhysicsRelevantElements(Preparable):
         )
         cavities = self.get_elements(CavityBaseClass)
         cav_section_indices = [c.section_index for c in cavities]
-        all_different = len(cav_section_indices) == len(set(cav_section_indices))
+        all_different = len(cav_section_indices) == len(
+            set(cav_section_indices)
+        )
         if not all_different:
             raise ValueError(
                 f"Each cavity must be in a different section, "
@@ -62,10 +59,14 @@ class BeamPhysicsRelevantElements(Preparable):
             )
 
         for section_index in np.sort(np.unique(elem_section_indices)):
-            cavities = self.get_elements(CavityBaseClass, section_i=section_index)
+            cavities = self.get_elements(
+                CavityBaseClass, section_i=section_index
+            )
             drifts = self.get_elements(DriftBaseClass, section_i=section_index)
             if len(cavities) == 0:
-                raise RuntimeError(f"Missing cavity in section {section_index}")
+                raise RuntimeError(
+                    f"Missing cavity in section {section_index}"
+                )
             if len(drifts) == 0:
                 raise RuntimeError(f"Missing drift in section {section_index}")
 
@@ -186,7 +187,10 @@ class BeamPhysicsRelevantElements(Preparable):
                     <= self.elements[insert_at].section_index
                 )
             elif insert_at == 0:
-                assert element.section_index == self.elements[insert_at].section_index
+                assert (
+                    element.section_index
+                    == self.elements[insert_at].section_index
+                )
             elif insert_at == len(self.elements):
                 assert (
                     self.elements[insert_at - 1].section_index
@@ -228,7 +232,9 @@ class BeamPhysicsRelevantElements(Preparable):
             If insert_at is not within [0:len(ring.elements.elements)]
         """
         assert isinstance(element.section_index, int)
-        self.check_section_index_compatibility(element=element, insert_at=insert_at)
+        self.check_section_index_compatibility(
+            element=element, insert_at=insert_at
+        )
         self.elements.insert(insert_at, element)
 
     @property  # as readonly attributes
@@ -256,10 +262,14 @@ class BeamPhysicsRelevantElements(Preparable):
         """
         elements = get_elements(self.elements, class_)
         if section_i is not None:
-            elements = tuple(filter(lambda x: x.section_index == section_i, elements))
+            elements = tuple(
+                filter(lambda x: x.section_index == section_i, elements)
+            )
         return elements
 
-    def get_element(self, class_: Type[T], section_i: Optional[int] = None) -> T:
+    def get_element(
+        self, class_: Type[T], section_i: Optional[int] = None
+    ) -> T:
         """
         Retrieve a single element of the specified type, optionally filtered by section.
 
@@ -319,12 +329,12 @@ class BeamPhysicsRelevantElements(Preparable):
         """
 
         assert isinstance(section_index, int)
-        from ...physics.drifts import DriftBaseClass
-        from ...physics.profiles import ProfileBaseClass
         from ...physics.cavities import CavityBaseClass
-        from ...physics.losses import LossesBaseClass
-        from ...physics.impedances.base import ImpedanceBaseClass
+        from ...physics.drifts import DriftBaseClass
         from ...physics.feedbacks.base import FeedbackBaseClass
+        from ...physics.impedances.base import ImpedanceBaseClass
+        from ...physics.losses import LossesBaseClass
+        from ...physics.profiles import ProfileBaseClass
 
         natural_order = (
             LossesBaseClass,

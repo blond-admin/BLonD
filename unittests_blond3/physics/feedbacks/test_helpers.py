@@ -1,24 +1,25 @@
 import unittest
 
-from scipy.constants import elementary_charge as e
 import numpy as np
+from scipy.constants import elementary_charge as e
+
 from blond3 import (
     Beam,
-    Ring,
-    MultiHarmonicCavity,
-    DriftSimple,
-    proton,
-    StaticProfile,
-    ConstantMagneticCycle,
-    Simulation,
     BiGaussian,
+    ConstantMagneticCycle,
+    DriftSimple,
+    MultiHarmonicCavity,
+    Ring,
+    Simulation,
+    StaticProfile,
+    proton,
 )
-from blond3._core.backends.backend import backend, Numpy64Bit
+from blond3._core.backends.backend import Numpy64Bit, backend
 from blond3.physics.feedbacks.helpers import (
-    rf_beam_current,
-    low_pass_filter,
     cartesian_to_polar,
+    low_pass_filter,
     polar_to_cartesian,
+    rf_beam_current,
 )
 
 
@@ -95,10 +96,12 @@ class TestRfBeamCurrent(unittest.TestCase):
         )
         simulatuion = Simulation(ring=self.ring, magnetic_cycle=magnetic_cycle)
         self.simulatuion = simulatuion
-        self.beam.reference_total_energy = magnetic_cycle.get_total_energy_init(
-            0,
-            0,
-            particle_type=proton,
+        self.beam.reference_total_energy = (
+            magnetic_cycle.get_total_energy_init(
+                0,
+                0,
+                particle_type=proton,
+            )
         )
         self.omega_rf = self.rf.calc_omega(
             self.beam.reference_beta, self.ring.circumference
@@ -111,7 +114,9 @@ class TestRfBeamCurrent(unittest.TestCase):
     # Compare with theoretical value
     def test_1(self):
         t = self.profile.hist_x
-        self.profile._hist_y = 2600 * np.exp(-((t - 2.5e-9) ** 2) / (2 * 0.5e-9) ** 2)
+        self.profile._hist_y = 2600 * np.exp(
+            -((t - 2.5e-9) ** 2) / (2 * 0.5e-9) ** 2
+        )
 
         t_rev = float((2 * np.pi * self.rf.harmonic) / self.omega_rf)
 
@@ -175,7 +180,9 @@ class TestRfBeamCurrent(unittest.TestCase):
         self.profile.track(beam=self.beam)
         t_rev = float(
             (2 * np.pi * self.rf.harmonic)
-            / self.rf.calc_omega(self.beam.reference_beta, self.ring.circumference)
+            / self.rf.calc_omega(
+                self.beam.reference_beta, self.ring.circumference
+            )
         )
         rf_current = rf_beam_current(
             self.beam,
@@ -420,13 +427,16 @@ class TestRfBeamCurrent(unittest.TestCase):
         )
         t_rev = float(
             (2 * np.pi * self.rf.harmonic)
-            / self.rf.calc_omega(self.beam.reference_beta, self.ring.circumference)
+            / self.rf.calc_omega(
+                self.beam.reference_beta, self.ring.circumference
+            )
         )
         self.profile.track(self.beam)
         self.assertEqual(
             len(self.beam._dt),
             np.sum(self.profile.hist_y),
-            "In" + " TestBeamCurrent: particle number mismatch in Beam vs Profile",
+            "In"
+            + " TestBeamCurrent: particle number mismatch in Beam vs Profile",
         )
 
         # RF current calculation with low-pass filter
@@ -665,7 +675,9 @@ class TestRfBeamCurrent(unittest.TestCase):
     def test_4(self):
         t_rev = float(
             (2 * np.pi * self.rf.harmonic)
-            / self.rf.calc_omega(self.beam.reference_beta, self.ring.circumference)
+            / self.rf.calc_omega(
+                self.beam.reference_beta, self.ring.circumference
+            )
         )
         t_rf = t_rev / self.rf.harmonic
         # Create a batch of 100 equal, short bunches
@@ -693,15 +705,21 @@ class TestRfBeamCurrent(unittest.TestCase):
         bunch_spacing = 5 * t_rf
         buckets = 5 * bunches
         for i in range(bunches):
-            beam2._dt[i * N_m : (i + 1) * N_m] = self.beam._dt + i * bunch_spacing
+            beam2._dt[i * N_m : (i + 1) * N_m] = (
+                self.beam._dt + i * bunch_spacing
+            )
             beam2._dE[i * N_m : (i + 1) * N_m] = self.beam._dE
         profile2 = StaticProfile(
-            cut_left=0, cut_right=bunches * bunch_spacing, n_bins=1000 * buckets
+            cut_left=0,
+            cut_right=bunches * bunch_spacing,
+            n_bins=1000 * buckets,
         )
         profile2.track(beam2)
 
         tot_charges = (
-            np.sum(profile2.hist_y) / beam2.common_array_size * beam2.n_particles
+            np.sum(profile2.hist_y)
+            / beam2.common_array_size
+            * beam2.n_particles
         )
         self.assertAlmostEqual(tot_charges, 2.3000000000e13, 9)
 
@@ -736,7 +754,9 @@ class TestIQ(unittest.TestCase):
 
     def test_1(self):
         # Define signal in range (-pi, pi)
-        phases = np.pi * (np.fmod(2 * np.arange(self.n) * self.f_rf * self.T_s, 2) - 1)
+        phases = np.pi * (
+            np.fmod(2 * np.arange(self.n) * self.f_rf * self.T_s, 2) - 1
+        )
         signal = np.cos(phases) + 1j * np.sin(phases)
         # From IQ to polar
         amplitude, phase = cartesian_to_polar(signal)
@@ -758,7 +778,9 @@ class TestIQ(unittest.TestCase):
 
     def test_2(self):
         # Define signal in range (-pi, pi)
-        phase = np.pi * (np.fmod(2 * np.arange(self.n) * self.f_rf * self.T_s, 2) - 1)
+        phase = np.pi * (
+            np.fmod(2 * np.arange(self.n) * self.f_rf * self.T_s, 2) - 1
+        )
         amplitude = np.ones(self.n)
         # From polar to IQ
         signal = polar_to_cartesian(amplitude, phase)
@@ -781,7 +803,9 @@ class TestIQ(unittest.TestCase):
 
     def test_3(self):
         # Define signal in range (-pi, pi)
-        phase = np.pi * (np.fmod(2 * np.arange(self.n) * self.f_rf * self.T_s, 2) - 1)
+        phase = np.pi * (
+            np.fmod(2 * np.arange(self.n) * self.f_rf * self.T_s, 2) - 1
+        )
         amplitude = np.ones(self.n)
         # Forwards and backwards transform
         signal = polar_to_cartesian(amplitude, phase)
@@ -805,7 +829,9 @@ class TestIQ(unittest.TestCase):
 
     def test_4(self):
         # Define signal in range (-pi, pi)
-        phase = np.pi * (np.fmod(2 * np.arange(self.n) * self.f_rf * self.T_s, 2) - 1)
+        phase = np.pi * (
+            np.fmod(2 * np.arange(self.n) * self.f_rf * self.T_s, 2) - 1
+        )
         signal = np.cos(phase) + 1j * np.sin(phase)
         # Forwards and backwards transform
         amplitude, phase = cartesian_to_polar(signal)

@@ -1,20 +1,21 @@
 import numpy as np
 
-from blond3._core.backends.backend import backend, Numpy32Bit
+from blond3._core.backends.backend import Numpy32Bit, backend
 from blond3.cycles.magnetic_cycle import MagneticCyclePerTurn
 
 backend.change_backend(Numpy32Bit)
 backend.set_specials("numba")
 
+import logging
+
 from blond3 import (
     Beam,
-    proton,
+    DriftSimple,
     Ring,
     Simulation,
     SingleHarmonicCavity,
-    DriftSimple,
+    proton,
 )
-import logging
 
 circumference = 26658.883
 

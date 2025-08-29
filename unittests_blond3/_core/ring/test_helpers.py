@@ -2,11 +2,11 @@ import unittest
 
 from blond3._core.ring.helpers import (
     _build_dependency_graph,
+    _topological_sort,
     get_dependencies,
     get_elements,
     get_init_order,
     requires,
-    _topological_sort,
 )
 
 
@@ -80,7 +80,8 @@ class TestFunctions(unittest.TestCase):
 
     def test_get_init_order2(self):
         sorted_classes = get_init_order(
-            instances=(A(), B(), C(), D()), dependency_attribute="common.requires"
+            instances=(A(), B(), C(), D()),
+            dependency_attribute="common.requires",
         )
         assert sorted_classes == ["A", "B", "C", "D"]
 

@@ -6,16 +6,16 @@ from unittest.mock import Mock
 
 import numpy as np
 
-
-from blond3 import proton, Simulation
+from blond3 import Simulation, proton
 from blond3._core.backends.backend import backend
 from blond3._core.beam.base import BeamBaseClass
 from blond3._core.beam.particle_types import ParticleType
 
 if TYPE_CHECKING:
     from typing import Optional
-    from numpy._typing import NDArray as NumpyArray
+
     from cupy.typing import NDArray as CupyArray
+    from numpy._typing import NDArray as NumpyArray
 
 
 class BeamBaseClassTester(BeamBaseClass):
@@ -151,20 +151,28 @@ class TestBeamBaseClass(unittest.TestCase):
         )
 
     def test_read_partial_dE(self):
-        self.assertTrue(isinstance(self.beam_base_class.read_partial_dE(), np.ndarray))
+        self.assertTrue(
+            isinstance(self.beam_base_class.read_partial_dE(), np.ndarray)
+        )
 
     def test_read_partial_dt(self):
-        self.assertTrue(isinstance(self.beam_base_class.read_partial_dt(), np.ndarray))
+        self.assertTrue(
+            isinstance(self.beam_base_class.read_partial_dt(), np.ndarray)
+        )
 
     @unittest.skip("Abstract method")
     def test_setup_beam(self):
         self.beam_base_class.setup_beam(dt=None, dE=None, flags=None)
 
     def test_write_partial_dE(self):
-        self.assertTrue(isinstance(self.beam_base_class.write_partial_dE(), np.ndarray))
+        self.assertTrue(
+            isinstance(self.beam_base_class.write_partial_dE(), np.ndarray)
+        )
 
     def test_write_partial_dt(self):
-        self.assertTrue(isinstance(self.beam_base_class.write_partial_dt(), np.ndarray))
+        self.assertTrue(
+            isinstance(self.beam_base_class.write_partial_dt(), np.ndarray)
+        )
 
     def test_write_partial_flags(self):
         self.assertTrue(

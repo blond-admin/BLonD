@@ -22,14 +22,14 @@ import numpy as np
 
 from blond3 import (
     Beam,
-    proton,
+    BiGaussian,
+    BoxLosses,
+    DriftSimple,
+    MagneticCyclePerTurn,
     Ring,
     Simulation,
     SingleHarmonicCavity,
-    DriftSimple,
-    MagneticCyclePerTurn,
-    BiGaussian,
-    BoxLosses,
+    proton,
 )
 from blond3.cycles.noise_generators.vari_noise import VariNoise
 from blond3.physics.losses import SeparatrixLosses

@@ -7,8 +7,8 @@ import numpy as np
 from ..backend import Specials
 
 if TYPE_CHECKING:  # pragma: no cover
-    from numpy.typing import NDArray as NumpyArray
     from cupy.typing import NDArray as CupyArray
+    from numpy.typing import NDArray as NumpyArray
 
 
 class PythonSpecials(Specials):
@@ -22,11 +22,15 @@ class PythonSpecials(Specials):
         bin_size: float,
     ) -> float:
         scoeff = np.trapezoid(
-            np.exp(alpha * hist_x) * np.sin(omega_rf * hist_x + phi_rf) * hist_y,
+            np.exp(alpha * hist_x)
+            * np.sin(omega_rf * hist_x + phi_rf)
+            * hist_y,
             dx=bin_size,
         )
         ccoeff = np.trapezoid(
-            np.exp(alpha * hist_x) * np.cos(omega_rf * hist_x + phi_rf) * hist_y,
+            np.exp(alpha * hist_x)
+            * np.cos(omega_rf * hist_x + phi_rf)
+            * hist_y,
             dx=bin_size,
         )
 
@@ -34,14 +38,19 @@ class PythonSpecials(Specials):
 
     @staticmethod
     def histogram(
-        array_read: NumpyArray, array_write: NumpyArray, start: float, stop: float
+        array_read: NumpyArray,
+        array_write: NumpyArray,
+        start: float,
+        stop: float,
     ):
         array_write[:], _ = np.histogram(
             array_read, range=(start, stop), bins=len(array_write)
         )
 
     @staticmethod
-    def loss_box(self, top: float, bottom: float, left: float, right: float) -> None:
+    def loss_box(
+        self, top: float, bottom: float, left: float, right: float
+    ) -> None:
         raise NotImplementedError
 
     @staticmethod
@@ -56,7 +65,10 @@ class PythonSpecials(Specials):
     ):
         voltage_kick = charge * voltage
 
-        dE[:] += voltage_kick * np.sin(omega_rf * dt[:] + phi_rf) + acceleration_kick
+        dE[:] += (
+            voltage_kick * np.sin(omega_rf * dt[:] + phi_rf)
+            + acceleration_kick
+        )
 
     @staticmethod
     def kick_multi_harmonic(
@@ -127,7 +139,8 @@ class PythonSpecials(Specials):
             dt += T * (1.0 / (1.0 - eta0 * dE - eta1 * dE * dE) - 1.0)
         else:
             dt += T * (
-                1.0 / (1.0 - eta0 * dE - eta1 * dE * dE - eta2 * dE * dE * dE) - 1.0
+                1.0 / (1.0 - eta0 * dE - eta1 * dE * dE - eta2 * dE * dE * dE)
+                - 1.0
             )
 
     @staticmethod
@@ -152,7 +165,8 @@ class PythonSpecials(Specials):
         # double beam_delta;
 
         beam_delta = (
-            np.sqrt(1.0 + invbetasq * (dE * dE * invenesq + 2.0 * dE / energy)) - 1.0
+            np.sqrt(1.0 + invbetasq * (dE * dE * invenesq + 2.0 * dE / energy))
+            - 1.0
         )
 
         dt += T * (

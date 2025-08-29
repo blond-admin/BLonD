@@ -163,8 +163,14 @@ class TestRing(unittest.TestCase):
             deepcopy=False,
             allow_section_index_overwrite=False,
         )
-        assert self.ring.elements.elements[locations_in_the_new_ring[0]] is element3
-        assert self.ring.elements.elements[locations_in_the_new_ring[1]] is element3
+        assert (
+            self.ring.elements.elements[locations_in_the_new_ring[0]]
+            is element3
+        )
+        assert (
+            self.ring.elements.elements[locations_in_the_new_ring[1]]
+            is element3
+        )
 
         element4 = Mock(spec=BeamPhysicsRelevant)
         element4.section_index = 5
@@ -235,15 +241,21 @@ class TestRing(unittest.TestCase):
             allow_section_index_overwrite=True,
         )
         assert (
-            self.ring.elements.elements[locations_in_the_new_ring[0]]._section_index
+            self.ring.elements.elements[
+                locations_in_the_new_ring[0]
+            ]._section_index
             == 0
         )
         assert (
-            self.ring.elements.elements[locations_in_the_new_ring[1]]._section_index
+            self.ring.elements.elements[
+                locations_in_the_new_ring[1]
+            ]._section_index
             == 2
         )
         assert (
-            self.ring.elements.elements[locations_in_the_new_ring[2]]._section_index
+            self.ring.elements.elements[
+                locations_in_the_new_ring[2]
+            ]._section_index
             == 3
         )
 
@@ -307,7 +319,8 @@ class TestRing(unittest.TestCase):
         cavity1 = Mock(spec=CavityBaseClass)
         cavity1.section_index = 0
         self.ring.add_elements(
-            [element1 for i in range(10)] + [cavity1 for i in range(10)], deepcopy=True
+            [element1 for i in range(10)] + [cavity1 for i in range(10)],
+            deepcopy=True,
         )
         self.assertEqual(self.ring.n_cavities, 10)
 

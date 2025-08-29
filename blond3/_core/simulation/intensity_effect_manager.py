@@ -22,7 +22,9 @@ class IntensityEffectManager:
         active
             True or False, so that simulation can skip the elements
         """
-        wakefields = self._parent_simulation.ring.elements.get_elements(WakeField)
+        wakefields = self._parent_simulation.ring.elements.get_elements(
+            WakeField
+        )
         for wakefield in wakefields:
             wakefield.active = active
 
@@ -36,6 +38,8 @@ class IntensityEffectManager:
             True or False, so that simulation can skip the elements
 
         """
-        profiles = self._parent_simulation.ring.elements.get_elements(ProfileBaseClass)
+        profiles = self._parent_simulation.ring.elements.get_elements(
+            ProfileBaseClass
+        )
         for profile in profiles:
             profile.active = active

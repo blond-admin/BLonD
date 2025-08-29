@@ -2,25 +2,26 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
-from blond3._core.backends.backend import backend, Numpy32Bit
+from blond3._core.backends.backend import Numpy32Bit, backend
 from blond3.beam_preparation.empiric_matcher import EmpiricMatcher
 from blond3.cycles.magnetic_cycle import MagneticCyclePerTurn
 
 backend.change_backend(Numpy32Bit)
 backend.set_specials("numba")
 
+import logging
+
 from blond3 import (
     Beam,
-    proton,
+    BiGaussian,
+    BunchObservation,
+    CavityPhaseObservation,
+    DriftSimple,
     Ring,
     Simulation,
     SingleHarmonicCavity,
-    DriftSimple,
-    BiGaussian,
-    CavityPhaseObservation,
-    BunchObservation,
+    proton,
 )
-import logging
 
 logging.basicConfig(level=logging.INFO)
 ring = Ring(26658.883)
@@ -86,7 +87,8 @@ def custom_action(simulation: Simulation):
         return
 
     plt.scatter(
-        simulation.beams[0].read_partial_dt(), simulation.beams[0].read_partial_dE()
+        simulation.beams[0].read_partial_dt(),
+        simulation.beams[0].read_partial_dE(),
     )
     plt.draw()
     plt.pause(0.1)

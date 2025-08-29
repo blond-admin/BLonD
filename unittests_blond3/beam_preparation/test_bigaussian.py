@@ -3,7 +3,10 @@ import unittest
 import numpy as np
 
 from blond3 import BiGaussian
-from blond3.beam_preparation.bigaussian import _get_dE_from_dt_core, _get_dE_from_dt
+from blond3.beam_preparation.bigaussian import (
+    _get_dE_from_dt,
+    _get_dE_from_dt_core,
+)
 from blond3.testing.simulation import ExampleSimulation01
 
 
@@ -56,7 +59,9 @@ class TestBiGaussian(unittest.TestCase):
         bi_gaussian.prepare_beam(
             simulation=simulation_.simulation, beam=simulation_.beam1
         )
-        self.assertAlmostEqual(np.std(simulation_.beam1.read_partial_dt()), 50e-9)
+        self.assertAlmostEqual(
+            np.std(simulation_.beam1.read_partial_dt()), 50e-9
+        )
 
     def test_on_prepare_beam2(self):
         simulation_ = ExampleSimulation01()

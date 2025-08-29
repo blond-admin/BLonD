@@ -2,20 +2,20 @@
 import numpy as np
 
 from blond3 import (
-    SingleHarmonicCavity,
-    StaticProfile,
+    Beam,
     DriftSimple,
     MagneticCyclePerTurn,
-    Beam,
-    proton,
     Ring,
     Simulation,
+    SingleHarmonicCavity,
+    StaticProfile,
     WakeField,
+    proton,
 )
 from blond3.beam_preparation.emittance import EmittanceMatcher
 from blond3.physics.cavities import MultiHarmonicCavity
 from blond3.physics.drifts import DriftXSuite
-from blond3.physics.feedbacks.base import LocalFeedback, GlobalFeedback
+from blond3.physics.feedbacks.base import GlobalFeedback, LocalFeedback
 from blond3.physics.impedances.solvers import InductiveImpedanceSolver
 from blond3.physics.impedances.sources import InductiveImpedance
 

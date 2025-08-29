@@ -1,11 +1,12 @@
 from typing import TYPE_CHECKING
 
-from blond3 import Simulation, DriftSimple
+from blond3 import DriftSimple, Simulation
 from blond3._core.base import BeamPhysicsRelevant
 from blond3._core.beam.base import BeamBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional, Optional as LateInit
+    from typing import Optional
+    from typing import Optional as LateInit
 
 
 class SynchrotronRadiation(BeamPhysicsRelevant):

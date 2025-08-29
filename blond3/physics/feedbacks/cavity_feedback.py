@@ -5,22 +5,20 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from .base import LocalFeedback
-from .helpers import (
-    rf_beam_current,
-    cartesian_to_polar,
-    polar_to_cartesian,
-)
 from ... import StaticProfile
 from ..._core.helpers import int_from_float_with_warning
+from .base import LocalFeedback
+from .helpers import cartesian_to_polar, polar_to_cartesian, rf_beam_current
 
 if TYPE_CHECKING:
-    from typing import Optional, Optional as LateInit
+    from typing import Optional
+    from typing import Optional as LateInit
 
     from numpy.typing import NDArray as NumpyArray
-    from ..cavities import MultiHarmonicCavity
-    from ..._core.beam.base import BeamBaseClass
+
     from ... import Simulation
+    from ..._core.beam.base import BeamBaseClass
+    from ..cavities import MultiHarmonicCavity
 
 # TODO rewrite all docstrings
 
@@ -163,9 +161,9 @@ class BirksCavityFeedback(LocalFeedback):
         # Sampling time in the model and the number of samples per turn
         self.n_periods_coarse = int(n_periods_coarse)
 
-        self.T_s = (self.n_periods_coarse * 2 * np.pi) / self._parent_cavity._omega_rf[
-            self.harmonic_index
-        ]
+        self.T_s = (
+            self.n_periods_coarse * 2 * np.pi
+        ) / self._parent_cavity._omega_rf[self.harmonic_index]
         # TODO REMWORK/REMOVE
         t_rev = float(
             (2 * np.pi * self._parent_cavity.harmonic[self.harmonic_index])
@@ -176,11 +174,14 @@ class BirksCavityFeedback(LocalFeedback):
 
         self.n_coarse = round(t_rev / self.T_s)
         self.omega_carrier = (
-            self._parent_cavity._omega_rf[self.harmonic_index] / self.n_periods_coarse
+            self._parent_cavity._omega_rf[self.harmonic_index]
+            / self.n_periods_coarse
         )
         # FIXME NO REDECLARATION!
 
-        self.omega_rf = float(self._parent_cavity._omega_rf[self.harmonic_index])  #
+        self.omega_rf = float(
+            self._parent_cavity._omega_rf[self.harmonic_index]
+        )  #
         self.dT = 0
 
         # The least amount of arrays needed to feedback to the tracker object
@@ -227,7 +228,9 @@ class BirksCavityFeedback(LocalFeedback):
         # Present time step
 
         # Present RF angular frequency
-        self.omega_rf = float(self._parent_cavity._omega_rf[self.harmonic_index])
+        self.omega_rf = float(
+            self._parent_cavity._omega_rf[self.harmonic_index]
+        )
         t_rev = float(  # TODO REMWORK/REMOVE
             2
             * np.pi
@@ -321,7 +324,9 @@ class BirksCavityFeedback(LocalFeedback):
         self.V_corr /= self._parent_cavity.voltage[self.harmonic_index]
         self.phi_corr = self.alpha_sum - np.angle(
             np.interp(
-                self.profile.hist_x, self.rf_centers, self.V_SET[-self.n_coarse :]
+                self.profile.hist_x,
+                self.rf_centers,
+                self.V_SET[-self.n_coarse :],
             )
         )
 
@@ -336,16 +341,20 @@ class BirksCavityFeedback(LocalFeedback):
             / self.omega_rf
         )
         # Beam current from profile
-        self.I_BEAM_COARSE[: self.n_coarse] = self.I_BEAM_COARSE[-self.n_coarse :]
-        self.I_BEAM_FINE, self.I_BEAM_COARSE[-self.n_coarse :] = rf_beam_current(
-            beam=beam,
-            profile=self.profile,
-            omega_c=self.omega_rf,
-            T_rev=t_rev,
-            use_lowpass_filter=use_lowpass_filter,
-            downsample={"Ts": self.T_s, "points": self.n_coarse},
-            external_reference=True,
-            dT=self.dT,
+        self.I_BEAM_COARSE[: self.n_coarse] = self.I_BEAM_COARSE[
+            -self.n_coarse :
+        ]
+        self.I_BEAM_FINE, self.I_BEAM_COARSE[-self.n_coarse :] = (
+            rf_beam_current(
+                beam=beam,
+                profile=self.profile,
+                omega_c=self.omega_rf,
+                T_rev=t_rev,
+                use_lowpass_filter=use_lowpass_filter,
+                downsample={"Ts": self.T_s, "points": self.n_coarse},
+                external_reference=True,
+                dT=self.dT,
+            )
         )
 
         # Convert RF beam currents to be in units of Amperes

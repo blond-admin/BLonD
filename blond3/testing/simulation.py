@@ -5,7 +5,7 @@ class ExampleSimulation01:
     def __init__(self):
         import numpy as np
 
-        from blond3._core.backends.backend import backend, Numpy32Bit
+        from blond3._core.backends.backend import Numpy32Bit, backend
         from blond3.cycles.magnetic_cycle import MagneticCyclePerTurn
 
         backend.change_backend(Numpy32Bit)
@@ -13,13 +13,13 @@ class ExampleSimulation01:
 
         from blond3 import (
             Beam,
-            proton,
+            BiGaussian,
+            CavityPhaseObservation,
+            DriftSimple,
             Ring,
             Simulation,
             SingleHarmonicCavity,
-            DriftSimple,
-            BiGaussian,
-            CavityPhaseObservation,
+            proton,
         )
 
         ring = Ring(circumference=26658.883)
@@ -60,7 +60,9 @@ class ExampleSimulation01:
             turn_i=10,
         )
 
-        phase_observation = CavityPhaseObservation(each_turn_i=1, cavity=cavity1)
+        phase_observation = CavityPhaseObservation(
+            each_turn_i=1, cavity=cavity1
+        )
 
         # bunch_observation = BunchObservation(each_turn_i=10, batch_size=) # todo
         # batches
@@ -83,16 +85,15 @@ class SimulationTwoRfStations:
     def __init__(self):
         import numpy as np
 
-        from blond3.cycles.magnetic_cycle import MagneticCyclePerTurn
-
         from blond3 import (
             Beam,
-            proton,
+            DriftSimple,
             Ring,
             Simulation,
             SingleHarmonicCavity,
-            DriftSimple,
+            proton,
         )
+        from blond3.cycles.magnetic_cycle import MagneticCyclePerTurn
 
         circumference = 26658.883
         ring = Ring(circumference=circumference)

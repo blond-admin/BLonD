@@ -27,7 +27,9 @@ def find_kick_module_so(file: str):
 def add_backend(module_name):
     module_path = find_kick_module_so(module_name)
     # Load it explicitly
-    spec = importlib.util.spec_from_file_location(module_name, str(module_path))
+    spec = importlib.util.spec_from_file_location(
+        module_name, str(module_path)
+    )
     loaded_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(loaded_module)
     # (Optional) Add to sys.modules to make it importable elsewhere
@@ -104,7 +106,10 @@ class FortranSpecials(Specials):
 
     @staticmethod
     def histogram(
-        array_read: NumpyArray, array_write: NumpyArray, start: float, stop: float
+        array_read: NumpyArray,
+        array_write: NumpyArray,
+        start: float,
+        stop: float,
     ):
         histogram_module.histogram(
             array_read,
@@ -116,7 +121,9 @@ class FortranSpecials(Specials):
         )
 
     @staticmethod
-    def loss_box(self, top: float, bottom: float, left: float, right: float) -> None:
+    def loss_box(
+        self, top: float, bottom: float, left: float, right: float
+    ) -> None:
         pass
 
     @staticmethod
@@ -220,10 +227,18 @@ class FortranSpecials(Specials):
             if alpha_order == 0:
                 dt[i] += T * (1.0 / (1.0 - eta0 * dEi) - 1.0)
             elif alpha_order == 1:
-                dt[i] += T * (1.0 / (1.0 - eta0 * dEi - eta1 * dEi * dEi) - 1.0)
+                dt[i] += T * (
+                    1.0 / (1.0 - eta0 * dEi - eta1 * dEi * dEi) - 1.0
+                )
             else:
                 dt[i] += T * (
-                    1.0 / (1.0 - eta0 * dEi - eta1 * dEi * dEi - eta2 * dEi * dEi * dEi)
+                    1.0
+                    / (
+                        1.0
+                        - eta0 * dEi
+                        - eta1 * dEi * dEi
+                        - eta2 * dEi * dEi * dEi
+                    )
                     - 1.0
                 )
 
@@ -247,7 +262,9 @@ class FortranSpecials(Specials):
         for i in prange(len(dt)):
             beam_delta = (
                 np.sqrt(
-                    1.0 + invbetasq * (dE[i] * dE[i] * invenesq + 2.0 * dE[i] / energy)
+                    1.0
+                    + invbetasq
+                    * (dE[i] * dE[i] * invenesq + 2.0 * dE[i] / energy)
                 )
                 - 1.0
             )

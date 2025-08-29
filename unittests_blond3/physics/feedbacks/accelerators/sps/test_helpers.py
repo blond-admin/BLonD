@@ -3,10 +3,10 @@ import unittest
 import numpy as np
 
 from blond3.physics.feedbacks.accelerators.sps.helpers import (
+    comb_filter,
     get_power_gen_i,
     modulator,
     moving_average,
-    comb_filter,
 )
 
 if __name__ == "__main__":
@@ -56,7 +56,8 @@ class TestModulator(unittest.TestCase):
         signal = np.array([42])
 
         with self.assertRaises(
-            RuntimeError, msg="In TestModulator, no exception for wrong signal length"
+            RuntimeError,
+            msg="In TestModulator, no exception for wrong signal length",
         ):
             modulator(signal, self.f_rf, self.f_0, self.T_s)
 

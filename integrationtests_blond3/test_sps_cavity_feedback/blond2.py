@@ -1,8 +1,6 @@
 import unittest
 
 import numpy as np
-from scipy.constants import c
-
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, Profile
@@ -10,8 +8,12 @@ from blond.impedances.impedance import InducedVoltageTime, TotalInducedVoltage
 from blond.impedances.impedance_sources import TravelingWaveCavity
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
-from blond.llrf.cavity_feedback import SPSCavityLoopCommissioning, SPSCavityFeedback
+from blond.llrf.cavity_feedback import (
+    SPSCavityFeedback,
+    SPSCavityLoopCommissioning,
+)
 from blond.trackers.tracker import RingAndRFTracker
+from scipy.constants import c
 
 
 class TestSPSCavityFeedback(unittest.TestCase):
@@ -40,7 +42,9 @@ class TestSPSCavityFeedback(unittest.TestCase):
         # Gaussian beam profile
         self.beam = Beam(self.ring, N_m, N_b)
         sigma = 1.0e-9
-        bigaussian(self.ring, self.rf, self.beam, sigma, seed=1234, reinsertion=False)
+        bigaussian(
+            self.ring, self.rf, self.beam, sigma, seed=1234, reinsertion=False
+        )
 
         n_shift = 1550  # how many rf-buckets to shift beam
         self.beam.dt += n_shift * self.rf.t_rf[0, 0]
@@ -73,7 +77,9 @@ class TestSPSCavityFeedback(unittest.TestCase):
         long_cavity = TravelingWaveCavity(
             l_cav**2 * n_cav * 27.1e3 / 8, f_cav, 2 * np.pi * tau
         )
-        longInducedVoltage = InducedVoltageTime(self.beam, self.profile, [long_cavity])
+        longInducedVoltage = InducedVoltageTime(
+            self.beam, self.profile, [long_cavity]
+        )
         self.induced_voltage = TotalInducedVoltage(
             self.beam, self.profile, [shortInducedVoltage, longInducedVoltage]
         )

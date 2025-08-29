@@ -4,16 +4,16 @@ from unittest.mock import Mock, create_autospec
 import numpy as np
 
 from blond3 import (
-    Simulation,
-    Ring,
     Beam,
-    SingleHarmonicCavity,
     DriftSimple,
+    Ring,
+    Simulation,
+    SingleHarmonicCavity,
     proton,
 )
 from blond3._core.beam.base import BeamBaseClass
 from blond3.cycles.magnetic_cycle import MagneticCyclePerTurn
-from blond3.handle_results.observables import Observables, BunchObservation
+from blond3.handle_results.observables import BunchObservation, Observables
 
 
 class TestSimulation(unittest.TestCase):
@@ -141,7 +141,9 @@ class TestSimulation(unittest.TestCase):
         # TODO: implement test for `on_prepare_beam`
         beam = Mock(spec=BeamBaseClass)
 
-        self.simulation.prepare_beam(preparation_routine=None, turn_i=None, beam=beam)
+        self.simulation.prepare_beam(
+            preparation_routine=None, turn_i=None, beam=beam
+        )
 
     def test_on_run_simulation(self):
         beam = Mock(spec=BeamBaseClass)

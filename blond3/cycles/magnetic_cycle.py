@@ -7,22 +7,18 @@ from unittest.mock import Mock
 import numpy as np
 from scipy.constants import speed_of_light as c0
 
-from .base import ProgrammedCycle
 from .._core.backends.backend import backend
 from .._core.base import HasPropertyCache
 from .._core.beam.base import BeamBaseClass
 from .._core.beam.particle_types import ParticleType, proton
 from ..acc_math.analytic.simple_math import calc_total_energy
+from .base import ProgrammedCycle
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import (
-        Optional as LateInit,
-        TypeVar,
-        Optional,
-        Literal,
-        Union,
-        Dict,
-    )
+    from typing import Dict, Literal
+    from typing import Optional
+    from typing import Optional as LateInit
+    from typing import TypeVar, Union
 
     from numpy.typing import NDArray as NumpyArray
 
@@ -185,7 +181,9 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         )
         reference_gamma = reference_total_energy * particle_type.mass_inv
 
-        reference_beta = np.sqrt(1.0 - 1.0 / (reference_gamma * reference_gamma))
+        reference_beta = np.sqrt(
+            1.0 - 1.0 / (reference_gamma * reference_gamma)
+        )
 
         reference_velocity = reference_beta * c0
         return circumference / reference_velocity
@@ -233,7 +231,9 @@ class ConstantMagneticCycle(MagneticCycleBase):
             mass=reference_particle.mass,
             charge=reference_particle.charge,
             convert_from=in_unit,
-            bending_radius=(bending_radius if in_unit == "bending field" else None),
+            bending_radius=(
+                bending_radius if in_unit == "bending field" else None
+            ),
         )
         super().__init__(
             reference_particle=reference_particle,
@@ -379,7 +379,9 @@ class MagneticCyclePerTurn(MagneticCycleBase):
             mass=reference_particle.mass,
             charge=reference_particle.charge,
             convert_from=in_unit,
-            bending_radius=(bending_radius if in_unit == "bending field" else None),
+            bending_radius=(
+                bending_radius if in_unit == "bending field" else None
+            ),
         )
         super().__init__(
             reference_particle=reference_particle,
@@ -422,7 +424,9 @@ class MagneticCyclePerTurn(MagneticCycleBase):
             charge=self._reference_particle.charge,
             convert_from=self._in_unit,
             bending_radius=(
-                self._bending_radius if self._in_unit == "bending field" else None
+                self._bending_radius
+                if self._in_unit == "bending field"
+                else None
             ),
         )
         assert n_cavities > 0
@@ -432,7 +436,10 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         # even part of the kick
         stair_like = np.linspace(1 / n_cavities, 1, n_cavities, endpoint=True)
         base = np.concatenate(
-            ([self._magnetic_rigidity_before_turn_0], magnetic_rigidity_per_turn)
+            (
+                [self._magnetic_rigidity_before_turn_0],
+                magnetic_rigidity_per_turn,
+            )
         )
         step = np.diff(base)
         for cav_i in range(n_cavities):
@@ -525,9 +532,9 @@ class MagneticCyclePerTurn(MagneticCycleBase):
             reference_particle=reference_particle,
         )
 
-        from .._core.simulation.simulation import Simulation
         from .._core.beam.base import BeamBaseClass
         from .._core.beam.particle_types import ParticleType
+        from .._core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
         beam = Mock(BeamBaseClass)
@@ -581,7 +588,9 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
             mass=reference_particle.mass,
             charge=reference_particle.charge,
             convert_from=in_unit,
-            bending_radius=(bending_radius if in_unit == "bending field" else None),
+            bending_radius=(
+                bending_radius if in_unit == "bending field" else None
+            ),
         )
         super().__init__(
             reference_particle=reference_particle,
@@ -593,7 +602,9 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
         self._in_unit = in_unit
         self._bending_radius = bending_radius
 
-        self._magnetic_rigidity_after_cavity_per_turn: LateInit[NumpyArray] = None
+        self._magnetic_rigidity_after_cavity_per_turn: LateInit[NumpyArray] = (
+            None
+        )
         self._momentum_cached: Dict[int, NumpyArray] = {}
 
     def on_init_simulation(
@@ -613,12 +624,16 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
             charge=self._reference_particle.charge,
             convert_from=self._in_unit,
             bending_radius=(
-                self._bending_radius if self._in_unit == "bending field" else None
+                self._bending_radius
+                if self._in_unit == "bending field"
+                else None
             ),
         )
         n_cavities = simulation.ring.n_cavities
         n_turns_max = magnetic_rigidity_after_cavity_per_turn.shape[1]
-        assert n_cavities == magnetic_rigidity_after_cavity_per_turn.shape[0], (
+        assert (
+            n_cavities == magnetic_rigidity_after_cavity_per_turn.shape[0]
+        ), (
             f"{n_cavities=}, but {magnetic_rigidity_after_cavity_per_turn.shape=}"
         )
 
@@ -663,7 +678,9 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
         key = hash(particle_type)
         if key not in self._momentum_cached:
             self._momentum_cached[key] = magnetic_rigidity_to_momentum(
-                magnetic_rigidity=self._magnetic_rigidity_after_cavity_per_turn[:, :],
+                magnetic_rigidity=self._magnetic_rigidity_after_cavity_per_turn[
+                    :, :
+                ],
                 charge=particle_type.charge,
             )
         return calc_total_energy(
@@ -709,9 +726,9 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
             in_unit=in_unit,
             reference_particle=reference_particle,
         )
-        from .._core.simulation.simulation import Simulation
         from .._core.beam.base import BeamBaseClass
         from .._core.beam.particle_types import ParticleType
+        from .._core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
         beam = Mock(BeamBaseClass)
@@ -769,7 +786,9 @@ class MagneticCycleByTime(MagneticCycleBase):
             mass=reference_particle.mass,
             charge=reference_particle.charge,
             convert_from=in_unit,
-            bending_radius=(bending_radius if in_unit == "bending field" else None),
+            bending_radius=(
+                bending_radius if in_unit == "bending field" else None
+            ),
         )
         self._base_magnetic_rigidity: NumpyArray = base_magnetic_rigidity
 
@@ -878,9 +897,9 @@ class MagneticCycleByTime(MagneticCycleBase):
         -------
         Magnetic_cycle_by_time
         """
-        from .._core.simulation.simulation import Simulation
         from .._core.beam.base import BeamBaseClass
         from .._core.beam.particle_types import ParticleType
+        from .._core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
         beam = Mock(BeamBaseClass)

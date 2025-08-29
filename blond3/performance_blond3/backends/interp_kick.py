@@ -10,12 +10,12 @@ def main():  # pragma: no cover
     voltage = bin_centers**2
     charge = 10
     acceleration_kick = 0
-    from blond3._core.backends.backend import backend, Numpy64Bit
+    from blond3._core.backends.backend import Numpy64Bit, backend
 
     backend.change_backend(Numpy64Bit)
-    from blond3._core.backends.numba.callables import NumbaSpecials
     from blond3._core.backends.cpp.callables import CppSpecials
     from blond3._core.backends.fortran.callables import FortranSpecials
+    from blond3._core.backends.numba.callables import NumbaSpecials
 
     functions = (
         NumbaSpecials().kick_induced_voltage,

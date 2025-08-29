@@ -5,10 +5,10 @@ from matplotlib import pyplot as plt
 
 from blond3.acc_math.analytic.hammilton import (
     calc_phi_s_single_harmonic,
+    is_in_separatrix,
     phase_modulo_above_transition,
     phase_modulo_below_transition,
     single_rf_sin_hamiltonian,
-    is_in_separatrix,
 )
 
 
@@ -25,7 +25,11 @@ class TestPhiS(unittest.TestCase):
         plt.axhline(energy_gain)
         for above_transition in (0, 1):
             phi_s = calc_phi_s_single_harmonic(
-                charge, voltage, phi, energy_gain, above_transition=above_transition
+                charge,
+                voltage,
+                phi,
+                energy_gain,
+                above_transition=above_transition,
             )
             t_s = phi_s / (omega)
             plt.axvline(t_s)

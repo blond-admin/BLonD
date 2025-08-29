@@ -19,26 +19,26 @@ import numpy as np
 from scipy.constants import c
 
 from blond3 import (
-    Ring,
-    MultiHarmonicCavity,
     Beam,
-    proton,
-    DriftSimple,
-    Simulation,
     BiGaussian,
     ConstantMagneticCycle,
+    DriftSimple,
+    MultiHarmonicCavity,
+    Ring,
+    Simulation,
     StaticProfile,
     WakeField,
+    proton,
 )
-from blond3._core.backends.backend import backend, Numpy64Bit, Numpy32Bit
+from blond3._core.backends.backend import Numpy32Bit, Numpy64Bit, backend
 from blond3.physics.feedbacks.accelerators.sps.cavity_feedback import (
-    SPSOneTurnFeedback,
     SPSCavityLoopCommissioning,
+    SPSOneTurnFeedback,
 )
 from blond3.physics.feedbacks.accelerators.sps.impulse_response import (
+    SPS4Section200MHzTWC,
     rectangle,
     triangle,
-    SPS4Section200MHzTWC,
 )
 from blond3.physics.impedances.solvers import TimeDomainSolver
 from blond3.physics.impedances.sources import TravelingWaveCavity
@@ -115,7 +115,8 @@ class TestTravelingWaveCavity(unittest.TestCase):
 
         with self.assertRaises(
             RuntimeError,
-            msg="In TestTravelingWaveCavity," + " no exception for group velocity > 1",
+            msg="In TestTravelingWaveCavity,"
+            + " no exception for group velocity > 1",
         ):
             TravellingWaveCavity(0.374, 43, 2.71e4, v_g, 2 * np.pi * 200.222e6)
 
@@ -255,7 +256,9 @@ class TestTravelingWaveCavity(unittest.TestCase):
         induced_voltage.calc_induced_voltage(
             beam=beam,
         )
-        V_ind_impSource = np.around(induced_voltage._induced_voltage, digit_round)
+        V_ind_impSource = np.around(
+            induced_voltage._induced_voltage, digit_round
+        )
 
         # Beam loading via feed-back system
         OTFB_4 = SPSOneTurnFeedback(
@@ -278,7 +281,9 @@ class TestTravelingWaveCavity(unittest.TestCase):
         # Compute induced voltage in (I,Q) coordinates
         OTFB_4.track(beam=beam)
         # convert back to time
-        V_ind_OTFB = np.abs(OTFB_4.V_IND_FINE_BEAM[-OTFB_4.profile.n_bins :]) * np.sin(
+        V_ind_OTFB = np.abs(
+            OTFB_4.V_IND_FINE_BEAM[-OTFB_4.profile.n_bins :]
+        ) * np.sin(
             OTFB_4.omega_rf * profile.hist_x
             + np.angle(OTFB_4.V_IND_FINE_BEAM[-OTFB_4.profile.n_bins :])
             + rf.phi_rf[0]

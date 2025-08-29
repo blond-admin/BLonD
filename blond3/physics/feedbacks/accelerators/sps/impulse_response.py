@@ -25,6 +25,7 @@ from scipy.sparse.linalg import spsolve
 
 if TYPE_CHECKING:
     from typing import Optional
+
     from numpy.typing import NDArray as NumpyArray
 
 logger = logging.getLogger(__name__)
@@ -87,7 +88,11 @@ def cavity_response_sparse_matrix(
 
     # Initialize the two sparse matrices needed to find antenna voltage
     B_matrix = diags(
-        [-B, 1], [-1, 0], (n_samples + 1, n_samples + 1), dtype=complex, format="csc"
+        [-B, 1],
+        [-1, 0],
+        (n_samples + 1, n_samples + 1),
+        dtype=complex,
+        format="csc",
     )
     I_matrix = diags([A], [-1], (n_samples + 1, n_samples + 1), dtype=complex)
 
@@ -377,7 +382,8 @@ class TravellingWaveCavity:
         # Impulse response if not on carrier frequency
         if np.fabs((self.d_omega) / self.omega_r) > 1e-12:
             self.h_gen = self.h_gen.real * (
-                np.cos(self.d_omega * t_gen) - 1j * np.sin(self.d_omega * t_gen)
+                np.cos(self.d_omega * t_gen)
+                - 1j * np.sin(self.d_omega * t_gen)
             )
 
     def impulse_response_beam(
@@ -428,14 +434,15 @@ class TravellingWaveCavity:
         t_beam = time_fine - time_fine[0]
 
         # Impulse response if on carrier frequency
-        self.h_beam = (-2 * self.R_beam / self.tau * triangle(t_beam, self.tau)).astype(
-            np.complex128
-        )
+        self.h_beam = (
+            -2 * self.R_beam / self.tau * triangle(t_beam, self.tau)
+        ).astype(np.complex128)
 
         # Impulse response if not on carrier frequency
         if np.fabs((self.d_omega) / self.omega_r) > 1e-12:
             self.h_beam = self.h_beam.real * (
-                np.cos(self.d_omega * t_beam) - 1j * np.sin(self.d_omega * t_beam)
+                np.cos(self.d_omega * t_beam)
+                - 1j * np.sin(self.d_omega * t_beam)
             )
 
         if time_coarse is not None:
@@ -450,7 +457,8 @@ class TravellingWaveCavity:
             # Impulse response if not on carrier frequency
             if np.fabs((self.d_omega) / self.omega_r) > 1e-12:
                 self.h_beam_coarse = self.h_beam_coarse.real * (
-                    np.cos(self.d_omega * t_beam) - 1j * np.sin(self.d_omega * t_beam)
+                    np.cos(self.d_omega * t_beam)
+                    - 1j * np.sin(self.d_omega * t_beam)
                 )
 
     def compute_wakes(self, time: NumpyArray):
@@ -468,12 +476,16 @@ class TravellingWaveCavity:
 
 class SPS3Section200MHzTWC(TravellingWaveCavity):
     def __init__(self, df: float = 0):
-        super().__init__(0.374, 32, 2.71e4, 0.0946, 2 * np.pi * 200.03766667e6, df=df)
+        super().__init__(
+            0.374, 32, 2.71e4, 0.0946, 2 * np.pi * 200.03766667e6, df=df
+        )
 
 
 class SPS4Section200MHzTWC(TravellingWaveCavity):
     def __init__(self, df: float = 0):
-        super().__init__(0.374, 43, 2.71e4, 0.0946, 2 * np.pi * 199.9945e6, df=df)
+        super().__init__(
+            0.374, 43, 2.71e4, 0.0946, 2 * np.pi * 199.9945e6, df=df
+        )
 
 
 class SPS5Section200MHzTWC(TravellingWaveCavity):

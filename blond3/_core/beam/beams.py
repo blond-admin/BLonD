@@ -1,22 +1,23 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import Optional as LateInit, TYPE_CHECKING
+from typing import TYPE_CHECKING
+from typing import Optional as LateInit
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .base import BeamBaseClass, BeamFlags
 from ..backends.backend import backend
+from .base import BeamBaseClass, BeamFlags
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional
+
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
-    from ..beam.particle_types import ParticleType
-
     from ... import Simulation
+    from ..beam.particle_types import ParticleType
 
 
 class Beam(BeamBaseClass):
@@ -78,7 +79,9 @@ class Beam(BeamBaseClass):
         assert len(dt) == len(dE), f"{len(dt)} != {len(dE)}"
         n_particles = len(dt)
         if flags is None:
-            flags = BeamFlags.ACTIVE.value * np.ones(n_particles, dtype=backend.int)
+            flags = BeamFlags.ACTIVE.value * np.ones(
+                n_particles, dtype=backend.int
+            )
         else:
             assert flags.max() <= BeamFlags.ACTIVE.value
             assert len(dt) == len(flags)

@@ -6,19 +6,17 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
-from .array_recorders import DenseArrayRecorder
 from .._core.base import MainLoopRelevant
+from .array_recorders import DenseArrayRecorder
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional as LateInit
-    from .. import WakeField
-    from ..physics.cavities import SingleHarmonicCavity
-    from ..physics.profiles import (
-        StaticProfile,
-    )
-    from .._core.beam.base import BeamBaseClass
 
+    from .. import WakeField
+    from .._core.beam.base import BeamBaseClass
     from .._core.simulation.simulation import Simulation
+    from ..physics.cavities import SingleHarmonicCavity
+    from ..physics.profiles import StaticProfile
 
 
 class Observables(MainLoopRelevant):
@@ -526,7 +524,9 @@ class WakeFieldObservation(Observables):
                 self._wakefield.induced_voltage,
             )
         except AttributeError:
-            self._induced_voltage.write(np.zeros(self._wakefield._profile.n_bins))
+            self._induced_voltage.write(
+                np.zeros(self._wakefield._profile.n_bins)
+            )
 
     @property  # as readonly attributes
     def induced_voltage(self):

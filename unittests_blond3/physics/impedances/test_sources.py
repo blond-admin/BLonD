@@ -21,7 +21,9 @@ class TestImpedanceTableFreq(unittest.TestCase):
     @unittest.skip
     def setUp(self):
         # TODO: implement test for `__init__`
-        self.impedance_table_freq = ImpedanceTableFreq(freq_x=None, freq_y=None)
+        self.impedance_table_freq = ImpedanceTableFreq(
+            freq_x=None, freq_y=None
+        )
 
     @unittest.skip
     def test___init__(self):

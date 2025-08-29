@@ -4,17 +4,20 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from .base import MatchingRoutine
 from .._core.backends.backend import backend
 from .._core.helpers import int_from_float_with_warning
 from .._generals.iterables import all_equal
-from ..acc_math.analytic.hammilton import is_in_separatrix, calc_phi_s_single_harmonic
+from ..acc_math.analytic.hammilton import (
+    calc_phi_s_single_harmonic,
+    is_in_separatrix,
+)
+from .base import MatchingRoutine
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional, Tuple
 
-    from .._core.simulation.simulation import Simulation
     from .._core.beam.base import BeamBaseClass
+    from .._core.simulation.simulation import Simulation
 
 
 def _get_dE_from_dt_core(
@@ -90,7 +93,9 @@ def _get_dE_from_dt(
     )
 
     eta0 = [drift.eta_0(gamma=beam.reference_gamma) for drift in drifts]
-    assert all_equal(eta0), f"Expected all `eta0` to be the same, but got {eta0}."
+    assert all_equal(eta0), (
+        f"Expected all `eta0` to be the same, but got {eta0}."
+    )
     eta0 = eta0[0]
 
     particle_charge = beam.particle_type.charge
@@ -138,7 +143,9 @@ def get_main_harmonic_attributes(
 
     # phi_rf should be all same
     phi_rf = [rf.phi_rf + rf.delta_phi_rf for rf in rf_stations]
-    assert all_equal(phi_rf), f"Expected all `phi_rf` to be the same, but got {phi_rf}."
+    assert all_equal(phi_rf), (
+        f"Expected all `phi_rf` to be the same, but got {phi_rf}."
+    )
     phi_rf = phi_rf[0]
 
     # harmonic should be all same
@@ -214,7 +221,9 @@ class BiGaussian(MatchingRoutine):
             simulation=simulation,
         )
 
-        drifts: DriftSimple = simulation.ring.elements.get_elements(DriftSimple)
+        drifts: DriftSimple = simulation.ring.elements.get_elements(
+            DriftSimple
+        )
         for _drift in drifts:
             _drift.apply_schedules(
                 turn_i=0,
@@ -244,7 +253,9 @@ class BiGaussian(MatchingRoutine):
         )
         # call to legacy
         eta0 = [drift.eta_0(gamma=beam.reference_gamma) for drift in drifts]
-        assert all_equal(eta0), f"Expected all `eta0` to be the same, but got {eta0}."
+        assert all_equal(eta0), (
+            f"Expected all `eta0` to be the same, but got {eta0}."
+        )
         eta0 = eta0[0]
 
         # RF wave is shifted by Pi below transition

@@ -7,8 +7,8 @@ from blond3 import Simulation
 from blond3._core.base import BeamPhysicsRelevant
 from blond3._core.beam.base import BeamBaseClass
 from blond3._core.ring.beam_physics_relevant_elements import (
-    pprint,
     BeamPhysicsRelevantElements,
+    pprint,
 )
 from blond3.physics.cavities import CavityBaseClass
 from blond3.physics.drifts import DriftBaseClass
@@ -69,7 +69,9 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
     def test_insert_element(self):
         element = Mock(spec=BeamPhysicsRelevant)
         element.section_index = 0
-        self.beam_physics_relevant_elements.insert(element=element, insert_at=0)
+        self.beam_physics_relevant_elements.insert(
+            element=element, insert_at=0
+        )
         assert self.beam_physics_relevant_elements.elements[0] is element
 
     def test_check_insertion_compatibility(self):
@@ -81,7 +83,9 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
             "with the requested location. Please allow "
             "overwrite for automatic handling.",
         ):
-            self.beam_physics_relevant_elements.insert(element=element, insert_at=0)
+            self.beam_physics_relevant_elements.insert(
+                element=element, insert_at=0
+            )
         element.section_index = 1
         with self.assertRaises(
             AssertionError,
@@ -89,7 +93,9 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
             "with the requested location. Please allow "
             "overwrite for automatic handling.",
         ):
-            self.beam_physics_relevant_elements.insert(element=element, insert_at=1)
+            self.beam_physics_relevant_elements.insert(
+                element=element, insert_at=1
+            )
         element.section_index = 0
         with self.assertRaises(
             AssertionError,
@@ -163,7 +169,9 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         self.beam_physics_relevant_elements.get_order_info()
 
     def test_get_section_circumference_orbit_lengths(self):
-        orbit_length = self.beam_physics_relevant_elements.get_sections_orbit_length()
+        orbit_length = (
+            self.beam_physics_relevant_elements.get_sections_orbit_length()
+        )
         self.assertEqual(orbit_length[0], 0.5)
         self.assertEqual(orbit_length[1], 0.5)
 
@@ -180,7 +188,9 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
     def test_on_init_simulation(self):
         simulation = Mock(spec=Simulation)
 
-        self.beam_physics_relevant_elements.on_init_simulation(simulation=simulation)
+        self.beam_physics_relevant_elements.on_init_simulation(
+            simulation=simulation
+        )
 
     def test_on_run_simulation(self):
         simulation = Mock(spec=Simulation)
@@ -225,7 +235,10 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
             ]
         )
         section = tuple(
-            [e.section_index for e in self.beam_physics_relevant_elements.elements]
+            [
+                e.section_index
+                for e in self.beam_physics_relevant_elements.elements
+            ]
         )
         self.assertEqual((0, 0, 1, 1), section)
         self.assertEqual(expected, actual)
@@ -247,7 +260,10 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
             ]
         )
         section = tuple(
-            [e.section_index for e in self.beam_physics_relevant_elements.elements]
+            [
+                e.section_index
+                for e in self.beam_physics_relevant_elements.elements
+            ]
         )
         self.assertEqual((0, 0, 1, 1), section)
         self.assertEqual(expected, actual)

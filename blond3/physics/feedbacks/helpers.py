@@ -15,9 +15,6 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional
-    from typing import Optional
-
-    from numpy.typing import NDArray as NumpyArray
 
     from numpy.typing import NDArray as NumpyArray
 
@@ -26,7 +23,9 @@ if TYPE_CHECKING:  # pragma: no cover
 logger = logging.getLogger(__name__)
 
 
-def low_pass_filter(signal: NumpyArray, cutoff_frequency: float = 0.5) -> NumpyArray:
+def low_pass_filter(
+    signal: NumpyArray, cutoff_frequency: float = 0.5
+) -> NumpyArray:
     """
     Low-pass filter based on Butterworth 5th order digital filter
 
@@ -168,7 +167,9 @@ def rf_beam_current(
             T_s = float(downsample["Ts"])
             n_points = int(downsample["points"])
         except Exception:
-            raise RuntimeError("Downsampling input erroneous in rf_beam_current")
+            raise RuntimeError(
+                "Downsampling input erroneous in rf_beam_current"
+            )
 
         # Find which index in fine grid matches index in coarse grid
         ind_fine = np.round((profile.hist_x + dT - np.pi / omega_c) / T_s)
@@ -177,7 +178,9 @@ def rf_beam_current(
 
         # Pick total current within one coarse grid
         charges_coarse = np.zeros(n_points, dtype=complex)
-        charges_coarse[ind_fine[0]] = np.sum(charges_fine[np.arange(indices[0])])
+        charges_coarse[ind_fine[0]] = np.sum(
+            charges_fine[np.arange(indices[0])]
+        )
         for i in range(1, len(indices)):
             charges_coarse[i + ind_fine[0]] = np.sum(
                 charges_fine[np.arange(indices[i - 1], indices[i])]

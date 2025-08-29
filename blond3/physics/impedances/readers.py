@@ -3,9 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from enum import Enum
 from os import PathLike
-from typing import (
-    Tuple,
-)
+from typing import Tuple
 
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
@@ -32,10 +30,14 @@ class ExampleImpedanceReader1(ImpedanceReader):
             encoding="utf-8",
             converters={
                 0: lambda s: complex(
-                    bytes(s, encoding="utf-8").decode("UTF-8").replace("i", "j")
+                    bytes(s, encoding="utf-8")
+                    .decode("UTF-8")
+                    .replace("i", "j")
                 ),
                 1: lambda y: complex(
-                    bytes(y, encoding="utf-8").decode("UTF-8").replace("i", "j")
+                    bytes(y, encoding="utf-8")
+                    .decode("UTF-8")
+                    .replace("i", "j")
                 ),
             },
         )
@@ -50,7 +52,9 @@ class ModesExampleReader2(str, Enum):
 
 
 class ExampleImpedanceReader2(ImpedanceReader):
-    def __init__(self, mode: ModesExampleReader2 = ModesExampleReader2.CLOSED_LOOP):
+    def __init__(
+        self, mode: ModesExampleReader2 = ModesExampleReader2.CLOSED_LOOP
+    ):
         super().__init__()
         self._mode = mode
 

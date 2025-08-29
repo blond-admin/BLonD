@@ -24,10 +24,12 @@ class BeamPreparationRoutine(ABC):
         simulation
             Simulation context manager
         """
-        beam.reference_total_energy = simulation.magnetic_cycle.get_total_energy_init(
-            turn_i_init=simulation.turn_i.value,
-            t_init=beam.reference_time,  # FIXME
-            particle_type=beam.particle_type,
+        beam.reference_total_energy = (
+            simulation.magnetic_cycle.get_total_energy_init(
+                turn_i_init=simulation.turn_i.value,
+                t_init=beam.reference_time,  # FIXME
+                particle_type=beam.particle_type,
+            )
         )
         beam.reference_time = 0  # FIXME
 

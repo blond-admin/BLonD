@@ -7,33 +7,38 @@ from unittest.mock import Mock
 import numpy as np
 from numpy.testing import assert_allclose
 from scipy.constants import speed_of_light as c0
+
 from blond3 import (
+    ConstantMagneticCycle,
     MagneticCycleByTime,
     MagneticCyclePerTurn,
     MagneticCyclePerTurnAllCavities,
-    ConstantMagneticCycle,
     proton,
 )
 from blond3._core.beam.base import BeamBaseClass
 from blond3._core.beam.particle_types import ParticleType, uranium_29
 from blond3.acc_math.analytic.simple_math import (
+    beta_by_momentum,
     calc_beta,
+    calc_energy_kin,
     calc_gamma,
     calc_total_energy,
-    calc_energy_kin,
-    beta_by_momentum,
 )
 from blond3.cycles.magnetic_cycle import (
     MagneticCycleBase,
     _to_magnetic_rigidity,
     magnetic_rigidity_to_momentum,
 )
-from blond3.testing.simulation import ExampleSimulation01, SimulationTwoRfStations
+from blond3.testing.simulation import (
+    ExampleSimulation01,
+    SimulationTwoRfStations,
+)
 
 if TYPE_CHECKING:
     from typing import Optional
 
     from numpy.typing import NDArray as NumpyArray
+
     from blond3.cycles.magnetic_cycle import SynchronousDataTypes
 simulation_ex1 = ExampleSimulation01().simulation
 
@@ -93,7 +98,10 @@ class TestFunctions(unittest.TestCase):
             convert_from="momentum",
         )
         np.testing.assert_allclose(
-            result, data, rtol=1e-8, err_msg="Momentum input should return unchanged"
+            result,
+            data,
+            rtol=1e-8,
+            err_msg="Momentum input should return unchanged",
         )
 
     def test__to_momentum_total_energy(self):
@@ -167,7 +175,9 @@ class TestConstantEnergyCycle(unittest.TestCase):
         pass  # calls __init__ in  self.setUp
 
     def test_on_init_simulation(self):
-        self.constant_magnetic_cycle.on_init_simulation(simulation=simulation_ex1)
+        self.constant_magnetic_cycle.on_init_simulation(
+            simulation=simulation_ex1
+        )
         self.assertEqual(
             2000e6,
             self.constant_magnetic_cycle.get_total_energy_init(
@@ -256,7 +266,9 @@ class TestEnergyCycleByTime(unittest.TestCase):
         pass  # calls __init__ in  self.setUp
 
     def test_on_init_simulation(self):
-        self.magnetic_cycle_by_time.on_init_simulation(simulation=simulation_ex1)
+        self.magnetic_cycle_by_time.on_init_simulation(
+            simulation=simulation_ex1
+        )
 
     def test_headless(self):
         ebt = MagneticCycleByTime.headless(
@@ -283,7 +295,9 @@ class TestEnergyCyclePerTurn(unittest.TestCase):
         pass  # calls __init__ in  self.setUp
 
     def test_on_init_simulation(self):
-        self.magnetic_cycle_per_turn.on_init_simulation(simulation=simulation_ex1)
+        self.magnetic_cycle_per_turn.on_init_simulation(
+            simulation=simulation_ex1
+        )
         turn_i = 0
         assert_allclose(
             magnetic_rigidity_to_momentum(
@@ -318,10 +332,12 @@ class TestEnergyCyclePerTurn(unittest.TestCase):
 class TestEnergyCyclePerTurnAllCavities(unittest.TestCase):
     def setUp(self):
         self.momentum = np.ones((1, 10))
-        self.magnetic_cycle_per_turn_all_cavities = MagneticCyclePerTurnAllCavities(
-            values_after_cavity_per_turn=self.momentum,
-            value_init=1,
-            reference_particle=uranium_29,
+        self.magnetic_cycle_per_turn_all_cavities = (
+            MagneticCyclePerTurnAllCavities(
+                values_after_cavity_per_turn=self.momentum,
+                value_init=1,
+                reference_particle=uranium_29,
+            )
         )
 
     def test___init__(self):
@@ -330,10 +346,12 @@ class TestEnergyCyclePerTurnAllCavities(unittest.TestCase):
     def test_wrong_cavity_count(self):
         # simulation has only one cavity, but give program for 10 cavities
         with self.assertRaises(AssertionError):
-            self.magnetic_cycle_per_turn_all_cavities = MagneticCyclePerTurnAllCavities(
-                values_after_cavity_per_turn=np.ones((10, 10)),
-                value_init=10,
-                reference_particle=uranium_29,
+            self.magnetic_cycle_per_turn_all_cavities = (
+                MagneticCyclePerTurnAllCavities(
+                    values_after_cavity_per_turn=np.ones((10, 10)),
+                    value_init=10,
+                    reference_particle=uranium_29,
+                )
             )
             self.magnetic_cycle_per_turn_all_cavities.on_init_simulation(
                 simulation=simulation_ex1

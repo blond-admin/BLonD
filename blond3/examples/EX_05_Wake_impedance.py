@@ -20,26 +20,28 @@ the corresponding h5 files).
 """
 
 import numpy as np
+from blond.impedances.induced_voltage_analytical import (
+    analytical_gaussian_resonator,
+)
 from matplotlib import pyplot as plt
 
-from blond.impedances.induced_voltage_analytical import analytical_gaussian_resonator
 from blond3 import (
-    BiGaussian,
     Beam,
-    proton,
+    BiGaussian,
+    BunchObservation,
+    DriftSimple,
+    MagneticCyclePerTurn,
     Ring,
     Simulation,
-    MagneticCyclePerTurn,
     SingleHarmonicCavity,
-    DriftSimple,
-    BunchObservation,
-    WakeField,
     StaticProfile,
+    WakeField,
+    proton,
 )
 from blond3.handle_results.helpers import callers_relative_path
 from blond3.physics.impedances.solvers import (
-    TimeDomainSolver,
     PeriodicFreqSolver,
+    TimeDomainSolver,
 )
 from blond3.physics.impedances.sources import Resonators
 
@@ -154,7 +156,9 @@ for r in range(len(Q_factor)):
     )
     VindGauss += tmp.real
 plt.subplot(2, 1, 1)
-plt.plot(profile.hist_x, profile.hist_y, label=f"analytical_gaussian_resonator")
+plt.plot(
+    profile.hist_x, profile.hist_y, label=f"analytical_gaussian_resonator"
+)
 plt.subplot(2, 1, 2)
 plt.plot(profile.hist_x, VindGauss, label="analytical_gaussian_resonator")
 plt.legend()

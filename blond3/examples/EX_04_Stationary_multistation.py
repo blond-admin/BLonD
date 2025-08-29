@@ -18,19 +18,19 @@ No intensity effects
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.constants import m_p, c, e
+from scipy.constants import c, e, m_p
 
 from blond3 import (
-    BiGaussian,
     Beam,
-    proton,
+    BiGaussian,
+    BoxLosses,
+    ConstantMagneticCycle,
+    DriftSimple,
     Ring,
     Simulation,
-    ConstantMagneticCycle,
-    StaticProfileObservation,
     SingleHarmonicCavity,
-    DriftSimple,
-    BoxLosses,
+    StaticProfileObservation,
+    proton,
 )
 from blond3.physics.losses import SeparatrixLosses
 from blond3.physics.profiles import DynamicProfileConstNBins

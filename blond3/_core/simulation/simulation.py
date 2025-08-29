@@ -8,23 +8,28 @@ from typing import TYPE_CHECKING, Callable
 import numpy as np
 from tqdm import tqdm
 
-from ..base import BeamPhysicsRelevant, Preparable, HasPropertyCache
-from ..base import DynamicParameter
-from ..helpers import find_instances_with_method, int_from_float_with_warning
-from ..ring.helpers import get_elements, get_init_order
 from ...cycles.magnetic_cycle import MagneticCycleBase, MagneticCyclePerTurn
 from ...physics.cavities import CavityBaseClass
 from ...physics.profiles import ProfileBaseClass
+from ..base import (
+    BeamPhysicsRelevant,
+    DynamicParameter,
+    HasPropertyCache,
+    Preparable,
+)
+from ..helpers import find_instances_with_method, int_from_float_with_warning
+from ..ring.helpers import get_elements, get_init_order
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional, Tuple
+
     from numpy.typing import NDArray as NumpyArray
 
-    from ..beam.particle_types import ParticleType
-    from ..beam.base import BeamBaseClass
-    from ..ring.ring import Ring
     from ...beam_preparation.base import BeamPreparationRoutine
     from ...handle_results.observables import Observables
+    from ..beam.base import BeamBaseClass
+    from ..beam.particle_types import ParticleType
+    from ..ring.ring import Ring
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +99,9 @@ class Simulation(Preparable, HasPropertyCache):
         """
         assert profile_start_turn_i >= turn_i_init
 
-        import cProfile, pstats, io
+        import cProfile
+        import io
+        import pstats
 
         pr = cProfile.Profile()
 
@@ -262,7 +269,9 @@ class Simulation(Preparable, HasPropertyCache):
         beams = get_elements(locals_list, BeamBaseClass)
 
         _magnetic_cycle = get_elements(locals_list, MagneticCycleBase)
-        assert len(_magnetic_cycle) == 1, f"Found {len(_magnetic_cycle)} energy cycles"
+        assert len(_magnetic_cycle) == 1, (
+            f"Found {len(_magnetic_cycle)} energy cycles"
+        )
         magnetic_cycle = _magnetic_cycle[0]
 
         elements = get_elements(locals_list, BeamPhysicsRelevant)
@@ -384,7 +393,9 @@ class Simulation(Preparable, HasPropertyCache):
             )
 
         # temporarily pin attributes
-        self.observe = observe  # to find `on_run_simulation` within `simulation`
+        self.observe = (
+            observe  # to find `on_run_simulation` within `simulation`
+        )
         self.beams = beams  # to find `on_run_simulation` within `simulation`
 
         self._exec_on_run_simulation(
@@ -413,7 +424,9 @@ class Simulation(Preparable, HasPropertyCache):
             ) == (
                 False,
                 True,
-            ), "First beam must be normal, second beam must be counter-rotating"
+            ), (
+                "First beam must be normal, second beam must be counter-rotating"
+            )
             self._run_simulation_counterrotating_beam(
                 n_turns=n_turns,
                 turn_i_init=turn_i_init,
@@ -486,8 +499,8 @@ class Simulation(Preparable, HasPropertyCache):
         raise NotImplementedError
         from ...physics.cavities import (  # prevent cyclic import
             CavityBaseClass,
-            SingleHarmonicCavity,
             MultiHarmonicCavity,
+            SingleHarmonicCavity,
         )
 
         ring_length = self.ring.closed_orbit_length
@@ -499,11 +512,11 @@ class Simulation(Preparable, HasPropertyCache):
         particle = self.beams[0].particle_type
         #  BLonD legacy Imports
         from blond.beam.beam import Beam
-        from blond.beam.profile import Profile, CutOptions
+        from blond.beam.profile import CutOptions, Profile
+        from blond.impedances.impedance import TotalInducedVoltage
         from blond.input_parameters.rf_parameters import RFStation
         from blond.input_parameters.ring import Ring
-        from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
-        from blond.impedances.impedance import TotalInducedVoltage
+        from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
 
         ring_blond2 = Ring(
             ring_length=ring_length,

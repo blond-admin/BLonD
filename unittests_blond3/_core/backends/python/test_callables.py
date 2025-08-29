@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from blond3._core.backends.backend import backend, Numpy64Bit
+from blond3._core.backends.backend import Numpy64Bit, backend
 
 backend.change_backend(Numpy64Bit)
 from blond3._core.backends.python.callables import PythonSpecials

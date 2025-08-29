@@ -5,8 +5,8 @@ import numpy as np
 from numpy._typing import NDArray as NumpyArray
 from scipy.constants import speed_of_light as c0
 
-from blond3 import WakeField, Simulation, proton
-from blond3._core.backends.backend import backend, Numpy32Bit, Numpy64Bit
+from blond3 import Simulation, WakeField, proton
+from blond3._core.backends.backend import Numpy32Bit, Numpy64Bit, backend
 from blond3._core.beam.base import BeamBaseClass
 from blond3.physics.cavities import (
     CavityBaseClass,
@@ -88,7 +88,11 @@ class TestMultiHarmonicCavity(unittest.TestCase):
 
 class TestSingleHarmonicCavity(unittest.TestCase):
     def setUp(self):
-        from blond3._core.backends.backend import backend, Numpy32Bit, Numpy64Bit
+        from blond3._core.backends.backend import (
+            Numpy32Bit,
+            Numpy64Bit,
+            backend,
+        )
 
         self.single_harmonic_cavity = SingleHarmonicCavity.headless(
             section_index=0,
@@ -114,8 +118,12 @@ class TestSingleHarmonicCavity(unittest.TestCase):
         beam.reference_velocity = backend.float(beam.reference_beta * c0)
         beam.reference_gamma = backend.float(np.sqrt(1 - 0.25))  # beta**2
         beam.reference_total_energy = backend.float(938)
-        beam.dE = np.linspace(-1e6, 1e6, 10, dtype=backend.float)  # delta E in eV
-        beam.dt = np.linspace(-1e-6, 1e-6, 10, dtype=backend.float)  # delta t in s
+        beam.dE = np.linspace(
+            -1e6, 1e6, 10, dtype=backend.float
+        )  # delta E in eV
+        beam.dt = np.linspace(
+            -1e-6, 1e-6, 10, dtype=backend.float
+        )  # delta t in s
         beam.read_partial_dt.return_value = beam.dt
         beam.write_partial_dE.return_value = beam.dE
 

@@ -1,6 +1,6 @@
 import unittest
 
-from blond3._core.backends.backend import backend, Numpy64Bit, Numpy32Bit
+from blond3._core.backends.backend import Numpy32Bit, Numpy64Bit, backend
 
 
 class TestEX03RfNoise(unittest.TestCase):
@@ -12,4 +12,5 @@ class TestEX03RfNoise(unittest.TestCase):
 
     def test_executable(self):
         from blond3.examples import EX_03_RFnoise  # NOQA will run the
+
         # full script. just checking if it crashes

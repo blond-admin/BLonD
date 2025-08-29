@@ -4,7 +4,7 @@ from unittest.mock import Mock
 import matplotlib.pyplot as plt
 import numpy as np
 
-from blond3 import Beam, proton, Simulation
+from blond3 import Beam, Simulation, proton
 from blond3._core.beam.base import BeamBaseClass
 from blond3._core.beam.beams import ProbeBeam
 
@@ -14,7 +14,9 @@ class TestBeam(unittest.TestCase):
         self.beam = Beam(
             n_particles=1e12, particle_type=proton, is_counter_rotating=False
         )
-        self.beam.setup_beam(dE=np.linspace(1, 10, 10), dt=np.linspace(20, 30, 10))
+        self.beam.setup_beam(
+            dE=np.linspace(1, 10, 10), dt=np.linspace(20, 30, 10)
+        )
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
@@ -39,7 +41,9 @@ class TestBeam(unittest.TestCase):
 
     def test_invalidate_cache_dE1(self):
         before = self.beam.dE_max
-        self.beam.setup_beam(dE=np.linspace(1, 20, 10), dt=np.linspace(20, 30, 10))
+        self.beam.setup_beam(
+            dE=np.linspace(1, 20, 10), dt=np.linspace(20, 30, 10)
+        )
         after2 = self.beam.dE_max
         self.assertNotEqual(before, after2)
 
@@ -54,7 +58,9 @@ class TestBeam(unittest.TestCase):
 
     def test_invalidate_cache_dE_min1(self):
         before = self.beam.dE_min
-        self.beam.setup_beam(dE=np.linspace(2, 20, 10), dt=np.linspace(20, 30, 10))
+        self.beam.setup_beam(
+            dE=np.linspace(2, 20, 10), dt=np.linspace(20, 30, 10)
+        )
         after2 = self.beam.dE_min
         self.assertNotEqual(before, after2)
 
@@ -68,7 +74,9 @@ class TestBeam(unittest.TestCase):
 
     def test_invalidate_cache_dt_max1(self):
         before = self.beam.dt_max
-        self.beam.setup_beam(dE=np.linspace(1, 20, 10), dt=np.linspace(10, 40, 10))
+        self.beam.setup_beam(
+            dE=np.linspace(1, 20, 10), dt=np.linspace(10, 40, 10)
+        )
         after2 = self.beam.dt_max
         self.assertNotEqual(before, after2)
 
@@ -82,7 +90,9 @@ class TestBeam(unittest.TestCase):
 
     def test_invalidate_cache_dt_min1(self):
         before = self.beam.dt_min
-        self.beam.setup_beam(dE=np.linspace(1, 20, 10), dt=np.linspace(5, 25, 10))
+        self.beam.setup_beam(
+            dE=np.linspace(1, 20, 10), dt=np.linspace(5, 25, 10)
+        )
         after2 = self.beam.dt_min
         self.assertNotEqual(before, after2)
 
@@ -118,7 +128,9 @@ class TestBeam(unittest.TestCase):
         with self.assertRaises(AssertionError):
             self.beam.setup_beam(dE=np.ones(10), dt=np.ones(11))
         with self.assertRaises(AssertionError):
-            self.beam.setup_beam(dE=np.ones(10), dt=np.ones(10), flags=np.ones(11))
+            self.beam.setup_beam(
+                dE=np.ones(10), dt=np.ones(10), flags=np.ones(11)
+            )
 
 
 class TestProbeBunch(unittest.TestCase):
@@ -140,7 +152,9 @@ class TestWeightenedBeam(unittest.TestCase):
     @unittest.skip
     def setUp(self):
         # TODO: implement test for `__init__`
-        self.weightened_beam = WeightenedBeam(n_particles=None, particle_type=None)
+        self.weightened_beam = WeightenedBeam(
+            n_particles=None, particle_type=None
+        )
 
     @unittest.skip
     def test___init__(self):
@@ -154,7 +168,9 @@ class TestWeightenedBeam(unittest.TestCase):
     @unittest.skip
     def test_setup_beam(self):
         # TODO: implement test for `setup_beam`
-        self.weightened_beam.setup_beam(dt=None, dE=None, flags=None, weights=None)
+        self.weightened_beam.setup_beam(
+            dt=None, dE=None, flags=None, weights=None
+        )
 
 
 if __name__ == "__main__":

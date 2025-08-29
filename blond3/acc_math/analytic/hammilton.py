@@ -7,6 +7,7 @@ from scipy.constants import speed_of_light as c
 
 if TYPE_CHECKING:
     from typing import List
+
     from numpy.typing import NDArray as NumpyArray
 
 

@@ -5,29 +5,32 @@ import numpy as np
 
 from blond3 import (
     Beam,
+    ConstantMagneticCycle,
+    DriftSimple,
     Ring,
     Simulation,
-    proton,
-    ConstantMagneticCycle,
-    StaticProfile,
     SingleHarmonicCavity,
-    DriftSimple,
+    StaticProfile,
     WakeField,
+    proton,
+)
+from blond3.physics.impedances.solvers import (
+    PeriodicFreqSolver,
+    TimeDomainSolver,
 )
 from blond3.physics.impedances.sources import Resonators
-from blond3.physics.impedances.solvers import PeriodicFreqSolver, TimeDomainSolver
 
 DEV_PLOT = False
 
 
 class TestResonatorImpedances(unittest.TestCase):
     def setUp(self):
-        from blond3._core.backends.backend import backend, Numpy64Bit
+        from blond3._core.backends.backend import Numpy64Bit, backend
 
         backend.change_backend(Numpy64Bit)
 
     def tearDown(self):
-        from blond3._core.backends.backend import backend, Numpy32Bit
+        from blond3._core.backends.backend import Numpy32Bit, backend
 
         backend.change_backend(Numpy32Bit)
 

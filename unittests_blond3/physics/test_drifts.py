@@ -2,17 +2,19 @@ import unittest
 from unittest.mock import Mock, patch
 
 import numpy as np
+from scipy.constants import speed_of_light as c0
 
 from blond3 import Simulation
-from blond3._core.backends.backend import backend, Numpy64Bit, Numpy32Bit
+from blond3._core.backends.backend import Numpy32Bit, Numpy64Bit, backend
 from blond3._core.beam.base import BeamBaseClass
 from blond3.physics.drifts import DriftBaseClass, DriftSimple
-from scipy.constants import speed_of_light as c0
 
 
 class TestDriftBaseClass(unittest.TestCase):
     def setUp(self):
-        self.drift_base_class = DriftBaseClass(orbit_length=123, section_index=0)
+        self.drift_base_class = DriftBaseClass(
+            orbit_length=123, section_index=0
+        )
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
@@ -53,7 +55,8 @@ class TestDriftSimple(unittest.TestCase):
 
     def test_alpha_0(self):
         np.testing.assert_array_equal(
-            self.drift_simple.alpha_0, 1 / self.drift_simple.transition_gamma**2
+            self.drift_simple.alpha_0,
+            1 / self.drift_simple.transition_gamma**2,
         )
 
     def test_momentum_compaction_factor(self):
@@ -87,8 +90,12 @@ class TestDriftSimple(unittest.TestCase):
         beam.reference_velocity = backend.float(beam.reference_beta * c0)
         beam.reference_gamma = backend.float(np.sqrt(1 - 0.25))  # beta**2
         beam.reference_total_energy = backend.float(938)
-        beam.dE = np.linspace(-1e6, 1e6, 10, dtype=backend.float)  # delta E in eV
-        beam.dt = np.linspace(-1e-6, 1e-6, 10, dtype=backend.float)  # delta t in s
+        beam.dE = np.linspace(
+            -1e6, 1e6, 10, dtype=backend.float
+        )  # delta E in eV
+        beam.dt = np.linspace(
+            -1e-6, 1e-6, 10, dtype=backend.float
+        )  # delta t in s
         beam.write_partial_dt.return_value = beam.dt
         beam.read_partial_dE.return_value = beam.dE
 
@@ -118,7 +125,8 @@ class TestDriftSimple(unittest.TestCase):
         )
         self.assertEqual(
             beam.reference_time,
-            self.drift_simple.orbit_length / (0.5 * c0),  # drifted by length of drift
+            self.drift_simple.orbit_length
+            / (0.5 * c0),  # drifted by length of drift
         )
 
     def tearDown(self):

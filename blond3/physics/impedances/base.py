@@ -8,14 +8,16 @@ from ..._core.base import BeamPhysicsRelevant
 from ..._core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional as LateInit, Tuple, Optional
+    from typing import Optional
+    from typing import Optional as LateInit
+    from typing import Tuple
 
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
-    from ..profiles import ProfileBaseClass
-    from ..._core.simulation.simulation import Simulation
     from ..._core.beam.base import BeamBaseClass
+    from ..._core.simulation.simulation import Simulation
+    from ..profiles import ProfileBaseClass
 
 
 class WakeFieldSolver:
@@ -26,7 +28,9 @@ class WakeFieldSolver:
         pass
 
     @abstractmethod  # pragma: no cover
-    def calc_induced_voltage(self, beam: BeamBaseClass) -> NumpyArray | CupyArray:
+    def calc_induced_voltage(
+        self, beam: BeamBaseClass
+    ) -> NumpyArray | CupyArray:
         pass
 
 
@@ -103,7 +107,9 @@ class DiscreteWakeFieldSource(WakeFieldSource):
 
 class ImpedanceBaseClass(BeamPhysicsRelevant):
     def __init__(
-        self, section_index: int = 0, profile: LateInit[ProfileBaseClass] = None
+        self,
+        section_index: int = 0,
+        profile: LateInit[ProfileBaseClass] = None,
     ):
         super().__init__(section_index=section_index)
         self._profile = profile
@@ -113,7 +119,9 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         return self._profile
 
     @abstractmethod  # pragma: no cover
-    def calc_induced_voltage(self, beam: BeamBaseClass) -> NumpyArray | CupyArray:
+    def calc_induced_voltage(
+        self, beam: BeamBaseClass
+    ) -> NumpyArray | CupyArray:
         pass
 
     def on_run_simulation(
@@ -234,12 +242,16 @@ class WakeField(ImpedanceBaseClass):
             Simulation context manager
         """
         super().on_init_simulation(simulation=simulation)
-        assert len(self.sources) > 0, "Provide for at least one `WakeFieldSource`"
+        assert len(self.sources) > 0, (
+            "Provide for at least one `WakeFieldSource`"
+        )
         self.solver.on_wakefield_init_simulation(
             simulation=simulation, parent_wakefield=self
         )
 
-    def calc_induced_voltage(self, beam: BeamBaseClass) -> NumpyArray | CupyArray:
+    def calc_induced_voltage(
+        self, beam: BeamBaseClass
+    ) -> NumpyArray | CupyArray:
         """
 
         Parameters

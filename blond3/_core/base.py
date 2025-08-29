@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Tuple, Literal
+from typing import TYPE_CHECKING, Literal, Tuple
 
 import numpy as np
 
@@ -9,17 +9,12 @@ from .backends.backend import backend
 
 if TYPE_CHECKING:  # pragma: no cover
     from os import PathLike
+    from typing import Any, Callable, List, Optional, TypeVar
+
+    from numpy.typing import NDArray as NumpyArray
 
     from .beam.base import BeamBaseClass
     from .simulation.simulation import Simulation
-    from typing import (
-        Optional,
-        TypeVar,
-        List,
-        Callable,
-        Any,
-    )
-    from numpy.typing import NDArray as NumpyArray
 
     T = TypeVar("T")
 
@@ -182,7 +177,9 @@ class Schedulable:
         for attribute, schedule in self.schedules.items():
             self.__setattr__(
                 attribute,
-                schedule.get_scheduled(turn_i=turn_i, reference_time=reference_time),
+                schedule.get_scheduled(
+                    turn_i=turn_i, reference_time=reference_time
+                ),
             )
 
 
@@ -209,7 +206,9 @@ class BeamPhysicsRelevant(MainLoopRelevant):
         super().__init__()
         self._section_index = section_index
         if name is None:
-            name = f"Unnamed-{type(self).__name__}-{type(self).n_instances:03d}"
+            name = (
+                f"Unnamed-{type(self).__name__}-{type(self).n_instances:03d}"
+            )
         self.name = name
         type(self).n_instances += 1
 

@@ -4,8 +4,8 @@ import numpy
 import numpy as np
 
 from blond3.handle_results.array_recorders import (
-    DenseArrayRecorder,
     ChunkedArrayRecorder,
+    DenseArrayRecorder,
 )
 
 
@@ -65,11 +65,17 @@ class TestDenseArrayRecorder(unittest.TestCase):
         )
 
     def test_get_valid_entries(self):
-        self.assertEqual(0, self.dense_array_recorder.get_valid_entries().shape[0])
+        self.assertEqual(
+            0, self.dense_array_recorder.get_valid_entries().shape[0]
+        )
         self.dense_array_recorder.write(np.arange(10))
-        self.assertEqual(1, self.dense_array_recorder.get_valid_entries().shape[0])
+        self.assertEqual(
+            1, self.dense_array_recorder.get_valid_entries().shape[0]
+        )
         self.dense_array_recorder.write(np.arange(10))
-        self.assertEqual(2, self.dense_array_recorder.get_valid_entries().shape[0])
+        self.assertEqual(
+            2, self.dense_array_recorder.get_valid_entries().shape[0]
+        )
 
     def test_write(self):
         newdata = np.linspace(10, 20, 10, dtype=np.float32)

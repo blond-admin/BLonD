@@ -12,13 +12,14 @@ from .._core.base import BeamPhysicsRelevant
 from .._core.helpers import int_from_float_with_warning
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional as LateInit, Optional
+    from typing import Optional
+    from typing import Optional as LateInit
 
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
-    from .._core.simulation.simulation import Simulation
     from .._core.beam.base import BeamBaseClass
+    from .._core.simulation.simulation import Simulation
 
 
 class ProfileBaseClass(BeamPhysicsRelevant):
@@ -127,7 +128,9 @@ class ProfileBaseClass(BeamPhysicsRelevant):
             Beam class to interact with this element
         """
         if beam.is_distributed:
-            raise NotImplementedError("Implement histogram on distributed array")
+            raise NotImplementedError(
+                "Implement histogram on distributed array"
+            )
         else:
             backend.specials.histogram(
                 array_read=beam.read_partial_dt(),
@@ -188,7 +191,9 @@ class ProfileBaseClass(BeamPhysicsRelevant):
                 n_fft,
             )
         else:
-            np.fft.rfft(self._hist_y, n_fft, out=self._beam_spectrum_buffer[n_fft])
+            np.fft.rfft(
+                self._hist_y, n_fft, out=self._beam_spectrum_buffer[n_fft]
+            )
 
         return self._beam_spectrum_buffer[n_fft]
 
@@ -236,12 +241,16 @@ class StaticProfile(ProfileBaseClass):
             name=name,
         )
         self._hist_x, self._hist_y = ProfileBaseClass.get_arrays(
-            cut_left=float(cut_left), cut_right=float(cut_right), n_bins=int(n_bins)
+            cut_left=float(cut_left),
+            cut_right=float(cut_right),
+            n_bins=int(n_bins),
         )
         assert len(self._hist_x.shape) == 1
 
     @staticmethod
-    def from_cutoff(cut_left: float, cut_right: float, cutoff_frequency: float):
+    def from_cutoff(
+        cut_left: float, cut_right: float, cutoff_frequency: float
+    ):
         """
         Initialization method from `cutoff_frequency` in Hz
 
@@ -262,7 +271,9 @@ class StaticProfile(ProfileBaseClass):
         """
         dt = 1 / (2 * cutoff_frequency)
         n_bins = int(math.ceil((cut_right - cut_left) / dt))
-        return StaticProfile(cut_left=cut_left, cut_right=cut_right, n_bins=n_bins)
+        return StaticProfile(
+            cut_left=cut_left, cut_right=cut_right, n_bins=n_bins
+        )
 
     @staticmethod
     def from_rad(
@@ -291,7 +302,9 @@ class StaticProfile(ProfileBaseClass):
         rad_to_frac = 1 / (2 * np.pi)
         cut_left = cut_left_rad * rad_to_frac * t_period
         cut_right = cut_right_rad * rad_to_frac * t_period
-        return StaticProfile(cut_left=cut_left, cut_right=cut_right, n_bins=n_bins)
+        return StaticProfile(
+            cut_left=cut_left, cut_right=cut_right, n_bins=n_bins
+        )
 
 
 class DynamicProfile(ProfileBaseClass):
@@ -392,7 +405,9 @@ class DynamicProfileConstCutoff(DynamicProfile):
 
 
 class DynamicProfileConstNBins(DynamicProfile):
-    def __init__(self, n_bins: int, section_index: int = 0, name: Optional[str] = None):
+    def __init__(
+        self, n_bins: int, section_index: int = 0, name: Optional[str] = None
+    ):
         """
         Profile that changes its width, keeping a constant bin number
 

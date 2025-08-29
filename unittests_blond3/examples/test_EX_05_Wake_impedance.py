@@ -1,6 +1,6 @@
 import unittest
 
-from blond3._core.backends.backend import backend, Numpy64Bit, Numpy32Bit
+from blond3._core.backends.backend import Numpy32Bit, Numpy64Bit, backend
 
 
 class TestEX05WakeImpedance(unittest.TestCase):
@@ -12,5 +12,6 @@ class TestEX05WakeImpedance(unittest.TestCase):
 
     def test_executable(self):
         from blond3.examples import EX_05_Wake_impedance  # NOQA
+
         # will run the
         # full script. just checking if it crashes

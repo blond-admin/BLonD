@@ -22,11 +22,19 @@ class ParticleType:
         object.__setattr__(self, "mass_inv", 1 / self.mass)
 
         # classical particle radius [m]
-        radius_cl = 0.25 / (np.pi * epsilon_0) * e**2 * self.charge**2 / (self.mass * e)
+        radius_cl = (
+            0.25
+            / (np.pi * epsilon_0)
+            * e**2
+            * self.charge**2
+            / (self.mass * e)
+        )
         object.__setattr__(self, "_classical_particle_radius", radius_cl)
 
         # Sand's radiation constant [ m / eV^3]
-        c_gamma = 4 * np.pi / 3 * self._classical_particle_radius / self.mass**3
+        c_gamma = (
+            4 * np.pi / 3 * self._classical_particle_radius / self.mass**3
+        )
         object.__setattr__(self, "_sands_radiation_constant", c_gamma)
 
         # Quantum radiation constant [m]

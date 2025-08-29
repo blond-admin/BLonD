@@ -5,21 +5,19 @@ import numpy as np
 from scipy.constants import c, e, m_p
 
 from blond3 import (
-    Ring,
     Beam,
-    proton,
+    ConstantMagneticCycle,
     DriftSimple,
+    Ring,
+    Simulation,
     SingleHarmonicCavity,
     StaticProfile,
     WakeField,
-    Simulation,
-    ConstantMagneticCycle,
+    proton,
 )
-from blond3._core.backends.backend import backend, Numpy64Bit
+from blond3._core.backends.backend import Numpy64Bit, backend
+from blond3.physics.impedances.solvers import PeriodicFreqSolver
 from blond3.physics.impedances.sources import InductiveImpedance
-from blond3.physics.impedances.solvers import (
-    PeriodicFreqSolver,
-)
 
 DEV_PLOT = False
 
@@ -27,13 +25,10 @@ DEV_PLOT = False
 class Blond2:
     def __init__(self):
         import numpy as np
-
         from blond.beam.beam import Beam, Proton
         from blond.beam.distributions import bigaussian
         from blond.beam.profile import CutOptions, Profile
-        from blond.impedances.impedance import (
-            InductiveImpedance,
-        )
+        from blond.impedances.impedance import InductiveImpedance
         from blond.input_parameters.rf_parameters import RFStation
         from blond.input_parameters.ring import Ring
 
@@ -64,11 +59,15 @@ class Blond2:
 
         profile = Profile(
             beam,
-            CutOptions(cut_left=0, cut_right=bucket_length, n_slices=number_slices),
+            CutOptions(
+                cut_left=0, cut_right=bucket_length, n_slices=number_slices
+            ),
         )
         self.profile = profile
 
-        inductive_impedance = InductiveImpedance(beam, profile, [100] * 1, rf_station)
+        inductive_impedance = InductiveImpedance(
+            beam, profile, [100] * 1, rf_station
+        )
         inductive_impedance.induced_voltage_generation()
         self.induced_voltage = inductive_impedance.induced_voltage
         if DEV_PLOT:

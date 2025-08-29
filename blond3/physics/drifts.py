@@ -8,13 +8,14 @@ from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant, HasPropertyCache, Schedulable
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional as LateInit, Tuple
-
     from typing import Iterable
+    from typing import Optional as LateInit
+    from typing import Tuple
+
     from numpy.typing import NDArray as NumpyArray
 
-    from .._core.simulation.simulation import Simulation
     from .._core.beam.base import BeamBaseClass
+    from .._core.simulation.simulation import Simulation
 
 
 class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
@@ -150,7 +151,9 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
     def transition_gamma(self, transition_gamma):
         """Gamma of transition crossing"""
         transition_gamma = backend.float(transition_gamma)
-        self._momentum_compaction_factor = 1 / (transition_gamma * transition_gamma)
+        self._momentum_compaction_factor = 1 / (
+            transition_gamma * transition_gamma
+        )
         self._transition_gamma = transition_gamma
 
     @staticmethod
@@ -184,8 +187,8 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             section_index=section_index,
         )
         d.transition_gamma = backend.float(transition_gamma)
-        from .._core.simulation.simulation import Simulation
         from .._core.beam.base import BeamBaseClass
+        from .._core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
         simulation.turn_i = Mock(DynamicParameter)

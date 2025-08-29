@@ -8,8 +8,7 @@ import numba
 import numpy as np
 from numba import njit, prange
 
-from ..backend import Specials
-from ..backend import backend
+from ..backend import Specials, backend
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
@@ -191,7 +190,10 @@ class NumbaSpecials(Specials):  # pragma: no cover
     @staticmethod
     @njit(sig_histogram, parallel=True, fastmath=True)
     def histogram(
-        array_read: NumpyArray, array_write: NumpyArray, start: float, stop: float
+        array_read: NumpyArray,
+        array_write: NumpyArray,
+        start: float,
+        stop: float,
     ):
         width = stop - start
         n_bins = len(array_write)
@@ -213,7 +215,9 @@ class NumbaSpecials(Specials):  # pragma: no cover
         array_write[:] = array_tmp[:]
 
     @staticmethod
-    def loss_box(self, top: float, bottom: float, left: float, right: float) -> None:
+    def loss_box(
+        self, top: float, bottom: float, left: float, right: float
+    ) -> None:
         pass
 
     @staticmethod
@@ -230,7 +234,8 @@ class NumbaSpecials(Specials):  # pragma: no cover
         voltage_kick = charge * voltage
         for i in prange(len(dt)):
             dE[i] += (
-                voltage_kick * np.sin(omega_rf * dt[i] + phi_rf) + acceleration_kick
+                voltage_kick * np.sin(omega_rf * dt[i] + phi_rf)
+                + acceleration_kick
             )
 
     @staticmethod
@@ -269,7 +274,9 @@ class NumbaSpecials(Specials):  # pragma: no cover
             dti = dt[i]
             de_sum = 0.0
             for j in range(n_rf):
-                de_sum += charge * voltage[j] * np.sin(omega_rf[j] * dti + phi_rf[j])
+                de_sum += (
+                    charge * voltage[j] * np.sin(omega_rf[j] * dti + phi_rf[j])
+                )
             dE[i] += de_sum + acceleration_kick
 
     @staticmethod
@@ -296,10 +303,18 @@ class NumbaSpecials(Specials):  # pragma: no cover
             if alpha_order == 0:
                 dt[i] += T * (1.0 / (1.0 - eta0 * dEi) - 1.0)
             elif alpha_order == 1:
-                dt[i] += T * (1.0 / (1.0 - eta0 * dEi - eta1 * dEi * dEi) - 1.0)
+                dt[i] += T * (
+                    1.0 / (1.0 - eta0 * dEi - eta1 * dEi * dEi) - 1.0
+                )
             else:
                 dt[i] += T * (
-                    1.0 / (1.0 - eta0 * dEi - eta1 * dEi * dEi - eta2 * dEi * dEi * dEi)
+                    1.0
+                    / (
+                        1.0
+                        - eta0 * dEi
+                        - eta1 * dEi * dEi
+                        - eta2 * dEi * dEi * dEi
+                    )
                     - 1.0
                 )
 
@@ -323,7 +338,9 @@ class NumbaSpecials(Specials):  # pragma: no cover
         for i in prange(len(dt)):
             beam_delta = (
                 np.sqrt(
-                    1.0 + invbetasq * (dE[i] * dE[i] * invenesq + 2.0 * dE[i] / energy)
+                    1.0
+                    + invbetasq
+                    * (dE[i] * dE[i] * invenesq + 2.0 * dE[i] / energy)
                 )
                 - 1.0
             )

@@ -10,8 +10,8 @@ import numpy as np
 from blond3._core.backends.backend import Specials, backend
 
 if TYPE_CHECKING:  # pragma: no cover
-    from numpy.typing import NDArray as NumpyArray
     from cupy.typing import NDArray as CupyArray
+    from numpy.typing import NDArray as NumpyArray
 
 
 class PrecisionClass:
@@ -231,7 +231,9 @@ class CppSpecials(Specials):
         )
 
     @staticmethod
-    def loss_box(self, top: float, bottom: float, left: float, right: float) -> None:
+    def loss_box(
+        self, top: float, bottom: float, left: float, right: float
+    ) -> None:
         pass
 
     @staticmethod

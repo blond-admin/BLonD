@@ -3,11 +3,11 @@ import unittest
 import numpy as np
 
 from blond3._core.backends.backend import (
-    Numpy64Bit,
-    Numpy32Bit,
     Cupy32Bit,
     Cupy64Bit,
     CupyBackend,
+    Numpy32Bit,
+    Numpy64Bit,
     NumpyBackend,
     backend,
 )
@@ -135,11 +135,15 @@ class TestSpecials(unittest.TestCase):
         self.omega_rf_single_harmonic = backend.float(2 * np.pi * 400e3)
         self.phi_rf_single_harmonic = backend.float(0.3)
 
-        self.voltages = backend.linspace(1e6, 5e6, self.n_voltages, dtype=backend.float)
+        self.voltages = backend.linspace(
+            1e6, 5e6, self.n_voltages, dtype=backend.float
+        )
         self.omegas = backend.linspace(
             200e6, 400e6, self.n_voltages, dtype=backend.float
         )
-        self.phis = backend.linspace(0, 2 * np.pi, self.n_voltages, dtype=backend.float)
+        self.phis = backend.linspace(
+            0, 2 * np.pi, self.n_voltages, dtype=backend.float
+        )
 
         self.charge = backend.float(1)
         self.acceleration_kick = backend.float(-1)
@@ -175,7 +179,9 @@ class TestSpecials(unittest.TestCase):
                 if i == 0:
                     result_python = result
                 else:
-                    np.testing.assert_allclose(result, result_python, rtol=self.rtol)
+                    np.testing.assert_allclose(
+                        result, result_python, rtol=self.rtol
+                    )
 
     @unittest.skip
     def test_drift_legacy(self):
@@ -199,7 +205,9 @@ class TestSpecials(unittest.TestCase):
                 if i == 0:
                     result_python = result
                 else:
-                    np.testing.assert_allclose(result, result_python, rtol=self.rtol)
+                    np.testing.assert_allclose(
+                        result, result_python, rtol=self.rtol
+                    )
 
     def test_drift_simple(self):
         for dtype in (np.float32, np.float64):
@@ -219,7 +227,9 @@ class TestSpecials(unittest.TestCase):
                 if i == 0:
                     result_python = result
                 else:
-                    np.testing.assert_allclose(result, result_python, rtol=self.rtol)
+                    np.testing.assert_allclose(
+                        result, result_python, rtol=self.rtol
+                    )
 
     def test_kick_multi_harmonic(self):
         for dtype in (np.float32, np.float64):
@@ -266,7 +276,9 @@ class TestSpecials(unittest.TestCase):
                 if i == 0:
                     result_python = result
                 else:
-                    np.testing.assert_allclose(result, result_python, rtol=self.rtol)
+                    np.testing.assert_allclose(
+                        result, result_python, rtol=self.rtol
+                    )
 
     def test_kick_induced_voltage(self):
         for dtype in (np.float32, np.float64):
@@ -292,7 +304,9 @@ class TestSpecials(unittest.TestCase):
                 if i == 0:
                     result_python = result
                 else:
-                    np.testing.assert_allclose(result, result_python, rtol=self.rtol)
+                    np.testing.assert_allclose(
+                        result, result_python, rtol=self.rtol
+                    )
 
     @unittest.skip
     def test_loss_box(self):
@@ -306,7 +320,9 @@ class TestSpecials(unittest.TestCase):
                 if i == 0:
                     result_python = result
                 else:
-                    np.testing.assert_allclose(result, result_python, rtol=self.rtol)
+                    np.testing.assert_allclose(
+                        result, result_python, rtol=self.rtol
+                    )
 
     def test_beam_phase(self):
         for dtype in (
@@ -350,7 +366,9 @@ class TestSpecials(unittest.TestCase):
                 array_write = backend.zeros(21, dtype=backend.float)
 
                 backend.specials.histogram(
-                    array_read=backend.linspace(-10, 10, 21, dtype=backend.float),
+                    array_read=backend.linspace(
+                        -10, 10, 21, dtype=backend.float
+                    ),
                     array_write=array_write,
                     start=backend.float(-12),
                     stop=backend.float(8.0),

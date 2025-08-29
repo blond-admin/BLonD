@@ -1,10 +1,9 @@
 import time
 
+import cupy as cp
 import numpy as np
 
-from blond3._core.backends.backend import backend, Numpy64Bit, Numpy32Bit
-
-import cupy as cp
+from blond3._core.backends.backend import Numpy32Bit, Numpy64Bit, backend
 
 
 def main():  # pragma: no cover
@@ -24,10 +23,10 @@ def main():  # pragma: no cover
     charge = backend.float(2.0)
     acceleration_kick = backend.float(0.0)
 
-    from blond3._core.backends.numba.callables import NumbaSpecials
     from blond3._core.backends.cpp.callables import CppSpecials
-    from blond3._core.backends.fortran.callables import FortranSpecials
     from blond3._core.backends.cuda.callables import CudaSpecials
+    from blond3._core.backends.fortran.callables import FortranSpecials
+    from blond3._core.backends.numba.callables import NumbaSpecials
 
     functions = (
         NumbaSpecials().kick_single_harmonic,

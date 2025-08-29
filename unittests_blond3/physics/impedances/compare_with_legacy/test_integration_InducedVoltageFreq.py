@@ -5,18 +5,18 @@ import numpy as np
 
 from blond3 import (
     Beam,
+    ConstantMagneticCycle,
+    DriftSimple,
     Ring,
     Simulation,
-    proton,
-    ConstantMagneticCycle,
-    StaticProfile,
     SingleHarmonicCavity,
-    DriftSimple,
+    StaticProfile,
     WakeField,
+    proton,
 )
-from blond3._core.backends.backend import backend, Numpy64Bit
-from blond3.physics.impedances.sources import Resonators
+from blond3._core.backends.backend import Numpy64Bit, backend
 from blond3.physics.impedances.solvers import PeriodicFreqSolver
+from blond3.physics.impedances.sources import Resonators
 
 R_shunt = np.array(
     [
@@ -193,7 +193,6 @@ DEV_PLOT = False
 class Blond2:
     def __init__(self):
         import numpy as np
-
         from blond.beam.beam import Beam, Proton
         from blond.beam.distributions import bigaussian
         from blond.beam.profile import CutOptions, Profile
@@ -212,7 +211,9 @@ class Blond2:
             InducedVoltageFreq,
             # InducedVoltageResonator,
         ):
-            ring = Ring(6911.56, 1 / (1 / np.sqrt(0.00192)) ** 2, 25.92e9, Proton(), 10)
+            ring = Ring(
+                6911.56, 1 / (1 / np.sqrt(0.00192)) ** 2, 25.92e9, Proton(), 10
+            )
             rf_station = RFStation(ring, [4620], [0.9e6], [0.0], 1)
             beam = Beam(ring, 1001, 1e10)
             bigaussian(ring, rf_station, beam, 2e-9 / 4, seed=1)
@@ -283,7 +284,9 @@ class Blond3:
 
         wake = WakeField(
             sources=(resonators,),
-            solver=PeriodicFreqSolver(t_periodicity=1 / 1e5, allow_next_fast_len=True),
+            solver=PeriodicFreqSolver(
+                t_periodicity=1 / 1e5, allow_next_fast_len=True
+            ),
             profile=profile,
         )
         ring.add_elements((profile, cavity1, drift, wake))
@@ -309,7 +312,9 @@ class TestBothBlonds(unittest.TestCase):
 
     def test___init__(self):
         np.testing.assert_allclose(
-            self.blond3.blond2.induced_voltage, self.blond3.induced_voltage, rtol=1e-6
+            self.blond3.blond2.induced_voltage,
+            self.blond3.induced_voltage,
+            rtol=1e-6,
         )
         if DEV_PLOT:
             plt.show()

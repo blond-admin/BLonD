@@ -9,18 +9,19 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.constants import speed_of_light as c0
 
-from ..base import Preparable, HasPropertyCache
-from ..helpers import int_from_float_with_warning
 from ..._core.backends.backend import backend
 from ..._core.ring.helpers import requires
+from ..base import HasPropertyCache, Preparable
+from ..helpers import int_from_float_with_warning
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional
-    from .particle_types import ParticleType
-    from ..simulation.simulation import Simulation
 
-    from numpy.typing import NDArray as NumpyArray
     from cupy.typing import NDArray as CupyArray
+    from numpy.typing import NDArray as NumpyArray
+
+    from ..simulation.simulation import Simulation
+    from .particle_types import ParticleType
 
 
 class BeamFlags(int, Enum):
@@ -100,10 +101,12 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         assert self._dt is not None, msg
         assert self._dE is not None, msg
         assert self._flags is not None, msg
-        new_reference_total_energy = simulation.magnetic_cycle.get_total_energy_init(
-            turn_i_init=turn_i_init,
-            t_init=self.reference_time,
-            particle_type=self.particle_type,
+        new_reference_total_energy = (
+            simulation.magnetic_cycle.get_total_energy_init(
+                turn_i_init=turn_i_init,
+                t_init=self.reference_time,
+                particle_type=self.particle_type,
+            )
         )
         if self.reference_total_energy != new_reference_total_energy:
             msg = (
@@ -201,7 +204,9 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             Simulation context manager
         """
         super().on_init_simulation(simulation=simulation)
-        self.reference_total_energy = simulation.magnetic_cycle.total_energy_init
+        self.reference_total_energy = (
+            simulation.magnetic_cycle.total_energy_init
+        )
 
     @abstractmethod  # pragma: no cover
     def plot_hist2d(self):

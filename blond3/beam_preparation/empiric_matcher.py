@@ -12,8 +12,9 @@ from blond3.acc_math.empiric.hammiltonian import calc_hamiltonian, separatrixes
 from blond3.beam_preparation.base import MatchingRoutine
 
 if TYPE_CHECKING:  # pragma: no cover
-    from blond3._core.beam.base import BeamBaseClass
     from numpy.typing import NDArray as NumpyArray
+
+    from blond3._core.beam.base import BeamBaseClass
 
 
 def populate_beam(
@@ -183,7 +184,9 @@ class EmpiricMatcher(MatchingRoutine):
         reference_time = deepcopy(beam.reference_time)
         reference_total_energy = deepcopy(beam.reference_total_energy)
 
-        time_grid, deltaE_grid = np.meshgrid(self._grid_base_dt, self._grid_base_dE)
+        time_grid, deltaE_grid = np.meshgrid(
+            self._grid_base_dt, self._grid_base_dE
+        )
         shape_2d = time_grid.shape
         dt_flat_init = time_grid.flatten()
         dE_flat_init = deltaE_grid.flatten()

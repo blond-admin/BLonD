@@ -7,15 +7,15 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
-from .readers import ImpedanceReader
-from ..impedances.base import (
-    AnalyticWakeFieldSource,
-    FreqDomain,
-    TimeDomain,
-    DiscreteWakeFieldSource,
-)
 from ... import Simulation
 from ..._core.backends.backend import backend
+from ..impedances.base import (
+    AnalyticWakeFieldSource,
+    DiscreteWakeFieldSource,
+    FreqDomain,
+    TimeDomain,
+)
+from .readers import ImpedanceReader
 
 if TYPE_CHECKING:  # pragma: no cover
     from ..._core.beam.base import BeamBaseClass
@@ -191,7 +191,9 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
 
         # Test if one or more quality factors is smaller than 0.5.
         if np.sum(self._quality_factors < 0.5) > 0:
-            raise RuntimeError("All quality factors Q must be greater or equal 0.5")
+            raise RuntimeError(
+                "All quality factors Q must be greater or equal 0.5"
+            )
 
         self._cache_wake_impedance = None
         self._cache_wake_impedance_hash = None
@@ -306,7 +308,9 @@ class ImpedanceTable(DiscreteWakeFieldSource):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def from_file(filepath: PathLike, reader: ImpedanceReader) -> ImpedanceTable:
+    def from_file(
+        filepath: PathLike, reader: ImpedanceReader
+    ) -> ImpedanceTable:
         pass
 
 
@@ -541,7 +545,9 @@ class TravelingWaveCavity(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
             assert len(R_S) == len(frequency_R), (
                 f"{len(R_S)=}, but {len(frequency_R)=}."
             )
-            assert len(R_S) == len(a_factor), f"{len(R_S)=}, but {len(a_factor)=}."
+            assert len(R_S) == len(a_factor), (
+                f"{len(R_S)=}, but {len(a_factor)=}."
+            )
         super().__init__(is_dynamic=False)
 
         # Shunt impedance in :math:`\Omega`

@@ -100,7 +100,11 @@ def cavity_response_sparse_matrix(
 
     # Initialize the two sparse matrices needed to find antenna voltage
     B_matrix = diags(
-        [-B, 1], [-1, 0], (n_samples + 1, n_samples + 1), dtype=complex, format="csc"
+        [-B, 1],
+        [-1, 0],
+        (n_samples + 1, n_samples + 1),
+        dtype=complex,
+        format="csc",
     )
     I_matrix = diags([A], [-1], (n_samples + 1, n_samples + 1), dtype=complex)
 
@@ -112,7 +116,9 @@ def cavity_response_sparse_matrix(
     return spsolve(B_matrix, b)
 
 
-def fir_filter_lhc_otfb_coeff(n_taps: int = 63) -> list[float]:  # pragma: no cover
+def fir_filter_lhc_otfb_coeff(
+    n_taps: int = 63,
+) -> list[float]:  # pragma: no cover
     """FIR filter designed for the LHC OTFB, for a sampling frequency of
     40 MS/s, with 63 taps.
 
@@ -212,6 +218,8 @@ def fir_filter_lhc_otfb_coeff(n_taps: int = 63) -> list[float]:  # pragma: no co
             -0.038636,
         ]
     else:
-        raise ValueError("In LHC FIR filter, number of taps has to be 15 or 63")
+        raise ValueError(
+            "In LHC FIR filter, number of taps has to be 15 or 63"
+        )
 
     return coeff

@@ -1,14 +1,11 @@
 from __future__ import annotations
-from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import (
-        TypeVar,
-    )
+    from typing import TypeVar
 
     T = TypeVar("T")
 

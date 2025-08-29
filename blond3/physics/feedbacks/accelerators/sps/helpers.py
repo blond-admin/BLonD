@@ -121,7 +121,9 @@ def modulator(
         raise RuntimeError(
             "ERROR in filters.py/demodulator: signal should" + " be an array!"
         )
-    delta_phi = (omega_i - omega_f) * (T_sampling * np.arange(len(signal)) + dt)
+    delta_phi = (omega_i - omega_f) * (
+        T_sampling * np.arange(len(signal)) + dt
+    )
     # Precompute sine and cosine for speed up
     cs = np.cos(delta_phi + phi_0)
     sn = np.sin(delta_phi + phi_0)

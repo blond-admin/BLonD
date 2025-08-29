@@ -5,25 +5,25 @@ from typing import List
 
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.typing import NDArray as NumpyArray
 
 from blond3 import (
-    Ring,
-    MultiHarmonicCavity,
-    DriftSimple,
-    ConstantMagneticCycle,
-    proton,
-    Simulation,
     Beam,
     BiGaussian,
+    ConstantMagneticCycle,
+    DriftSimple,
+    MultiHarmonicCavity,
+    Ring,
+    Simulation,
     StaticProfile,
+    proton,
 )
-from blond3._core.backends.backend import backend, Numpy64Bit
+from blond3._core.backends.backend import Numpy64Bit, backend
 from blond3.physics.feedbacks.accelerators.sps.cavity_feedback import (
     SPSCavityFeedback,
     SPSCavityLoopCommissioning,
     SPSOneTurnFeedback,
 )
-from numpy.typing import NDArray as NumpyArray
 
 this_directory = os.path.dirname(os.path.realpath(__file__))
 
@@ -48,7 +48,9 @@ def rf_volt_comp(
     rf_voltage = np.zeros(len(bin_centers))
 
     for j in range(len(voltages)):
-        rf_voltage += voltages[j] * np.sin(omega_rf[j] * bin_centers + phi_rf[j])
+        rf_voltage += voltages[j] * np.sin(
+            omega_rf[j] * bin_centers + phi_rf[j]
+        )
 
     return rf_voltage
 
@@ -77,7 +79,9 @@ def rf_voltage_calculation(
                     voltages[ind]
                     * feedback.V_corr
                     * np.sin(
-                        omega_rf[ind] * profile.hist_x + phi_rf[ind] + feedback.phi_corr
+                        omega_rf[ind] * profile.hist_x
+                        + phi_rf[ind]
+                        + feedback.phi_corr
                     )
                 )
             else:
@@ -251,13 +255,17 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
         Vind3_mean = (
             np.mean(
-                np.absolute(self.OTFB.OTFB_1.V_ANT_COARSE[-self.OTFB.OTFB_1.n_coarse :])
+                np.absolute(
+                    self.OTFB.OTFB_1.V_ANT_COARSE[-self.OTFB.OTFB_1.n_coarse :]
+                )
             )
             / 1e6
         )
         Vind3_std = (
             np.std(
-                np.absolute(self.OTFB.OTFB_1.V_ANT_COARSE[-self.OTFB.OTFB_1.n_coarse :])
+                np.absolute(
+                    self.OTFB.OTFB_1.V_ANT_COARSE[-self.OTFB.OTFB_1.n_coarse :]
+                )
             )
             / 1e6
         )
@@ -266,13 +274,17 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
         Vind4_mean = (
             np.mean(
-                np.absolute(self.OTFB.OTFB_2.V_ANT_COARSE[-self.OTFB.OTFB_2.n_coarse :])
+                np.absolute(
+                    self.OTFB.OTFB_2.V_ANT_COARSE[-self.OTFB.OTFB_2.n_coarse :]
+                )
             )
             / 1e6
         )
         Vind4_std = (
             np.std(
-                np.absolute(self.OTFB.OTFB_2.V_ANT_COARSE[-self.OTFB.OTFB_2.n_coarse :])
+                np.absolute(
+                    self.OTFB.OTFB_2.V_ANT_COARSE[-self.OTFB.OTFB_2.n_coarse :]
+                )
             )
             / 1e6
         )
@@ -386,7 +398,8 @@ class TestSPSCavityFeedback(unittest.TestCase):
             max_ratio,
             max_ratio_exp,
             places=digit_round,
-            msg="In TestCavityFeedback test_rf_voltage: " + "RF-voltages differ",
+            msg="In TestCavityFeedback test_rf_voltage: "
+            + "RF-voltages differ",
         )
 
     def test_beam_loading(self):
@@ -412,7 +425,9 @@ class TestSPSCavityFeedback(unittest.TestCase):
         )
         OTFB_tracker_total_voltage = OTFB_tracker_rf_voltage
 
-        max_ratio = np.max(cavity_tracker_total_voltage / OTFB_tracker_total_voltage)
+        max_ratio = np.max(
+            cavity_tracker_total_voltage / OTFB_tracker_total_voltage
+        )
 
         max_ratio_exp = 1.0691789378319636
 
@@ -420,7 +435,8 @@ class TestSPSCavityFeedback(unittest.TestCase):
             max_ratio,
             max_ratio_exp,
             places=digit_round,
-            msg="In TestCavityFeedback test_beam_loading: " + "total voltages differ",
+            msg="In TestCavityFeedback test_beam_loading: "
+            + "total voltages differ",
         )
 
     def test_Vsum_IQ(self):
@@ -725,7 +741,9 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         self.ring = Ring(circumference=C)
 
         # RFStation
-        self.rfstation = MultiHarmonicCavity(n_harmonics=1, main_harmonic_idx=0)
+        self.rfstation = MultiHarmonicCavity(
+            n_harmonics=1, main_harmonic_idx=0
+        )
         self.rfstation.voltage = np.array([V])
         self.rfstation.phi_rf = np.array([phi])
         self.rfstation.harmonic = np.array([h])
@@ -790,7 +808,9 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         self.OTFB.set_point()
         t_sig = np.zeros(2 * self.OTFB.n_coarse, dtype=complex)
         t_sig[-self.OTFB.n_coarse :] = (
-            (1 / 9) * 10e6 * np.exp(1j * (np.pi / 2 - self.rfstation.phi_rf[0]))
+            (1 / 9)
+            * 10e6
+            * np.exp(1j * (np.pi / 2 - self.rfstation.phi_rf[0]))
         )
 
         np.testing.assert_allclose(self.OTFB.V_SET, t_sig)
@@ -798,19 +818,25 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
     def test_error_and_gain(self):
         self.OTFB.error_and_gain()
 
-        np.testing.assert_allclose(self.OTFB.DV_GEN, self.OTFB.V_SET * self.OTFB.G_llrf)
+        np.testing.assert_allclose(
+            self.OTFB.DV_GEN, self.OTFB.V_SET * self.OTFB.G_llrf
+        )
 
     def test_comb(self):
         sig = np.zeros(self.OTFB.n_coarse)
         self.OTFB.DV_COMB_OUT = np.sin(
             2 * np.pi * self.turn_array / self.rfstation._t_rev
         )
-        self.OTFB.DV_GEN = -np.sin(2 * np.pi * self.turn_array / self.rfstation._t_rev)
+        self.OTFB.DV_GEN = -np.sin(
+            2 * np.pi * self.turn_array / self.rfstation._t_rev
+        )
         self.OTFB.a_comb = 0.5
 
         self.OTFB.comb()
 
-        np.testing.assert_allclose(self.OTFB.DV_COMB_OUT[-self.OTFB.n_coarse :], sig)
+        np.testing.assert_allclose(
+            self.OTFB.DV_COMB_OUT[-self.OTFB.n_coarse :], sig
+        )
 
     def test_one_turn_delay(self):
         self.OTFB.DV_COMB_OUT = np.zeros(2 * self.OTFB.n_coarse, dtype=complex)
@@ -819,7 +845,8 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         self.OTFB.one_turn_delay()
 
         self.assertEqual(
-            np.argmax(self.OTFB.DV_DELAYED), 2 * self.OTFB.n_coarse - self.OTFB.n_mov_av
+            np.argmax(self.OTFB.DV_DELAYED),
+            2 * self.OTFB.n_coarse - self.OTFB.n_mov_av,
         )
 
     def test_mod_to_fr(self):
@@ -867,7 +894,9 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
             * time_array[: self.OTFB.n_coarse]
         )
 
-        np.testing.assert_allclose(self.OTFB.DV_MOD_FR[-self.OTFB.n_coarse :], ref_sig)
+        np.testing.assert_allclose(
+            self.OTFB.DV_MOD_FR[-self.OTFB.n_coarse :], ref_sig
+        )
 
         self.OTFB.dphi_mod = self.mod_phi
 
@@ -883,9 +912,9 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         sig[: self.OTFB.n_mov_av] = (1 / self.OTFB.n_mov_av) * np.array(
             range(self.OTFB.n_mov_av)
         )
-        sig[self.OTFB.n_mov_av : 2 * self.OTFB.n_mov_av] = (1 / self.OTFB.n_mov_av) * (
-            self.OTFB.n_mov_av - np.array(range(self.OTFB.n_mov_av))
-        )
+        sig[self.OTFB.n_mov_av : 2 * self.OTFB.n_mov_av] = (
+            1 / self.OTFB.n_mov_av
+        ) * (self.OTFB.n_mov_av - np.array(range(self.OTFB.n_mov_av)))
 
         np.testing.assert_allclose(
             np.abs(self.OTFB.DV_MOV_AVG[-self.OTFB.n_coarse :]), sig
@@ -928,7 +957,9 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         self.OTFB.mod_to_frf()
 
         time_array = self.OTFB.rf_centers - 0.5 * self.OTFB.T_s
-        dphi_demod = (self.OTFB.omega_c - self.OTFB.omega_carrier) * self.OTFB.TWC.tau
+        dphi_demod = (
+            self.OTFB.omega_c - self.OTFB.omega_carrier
+        ) * self.OTFB.TWC.tau
         ref_sig = np.cos(
             -(self.OTFB.omega_carrier - self.OTFB.omega_c)
             * time_array[: self.OTFB.n_coarse]
@@ -939,7 +970,9 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
             - dphi_demod
         )
 
-        np.testing.assert_allclose(self.OTFB.DV_MOD_FRF[-self.OTFB.n_coarse :], ref_sig)
+        np.testing.assert_allclose(
+            self.OTFB.DV_MOD_FRF[-self.OTFB.n_coarse :], ref_sig
+        )
 
         self.OTFB.dphi_mod = self.mod_phi
 
@@ -953,22 +986,37 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
 
         self.OTFB.sum_and_gain()
 
-        sig = 2 * np.ones(self.OTFB.n_coarse) * self.OTFB.G_tx / self.OTFB.TWC.R_gen
+        sig = (
+            2
+            * np.ones(self.OTFB.n_coarse)
+            * self.OTFB.G_tx
+            / self.OTFB.TWC.R_gen
+        )
 
-        np.testing.assert_allclose(self.OTFB.I_GEN_COARSE[-self.OTFB.n_coarse :], sig)
+        np.testing.assert_allclose(
+            self.OTFB.I_GEN_COARSE[-self.OTFB.n_coarse :], sig
+        )
 
     def test_gen_response(self):
         # Tests generator response at resonant frequency.
-        self.OTFB.I_GEN_COARSE = np.zeros(2 * self.OTFB.n_coarse, dtype=complex)
+        self.OTFB.I_GEN_COARSE = np.zeros(
+            2 * self.OTFB.n_coarse, dtype=complex
+        )
         self.OTFB.I_GEN_COARSE[self.OTFB.n_coarse] = 1
 
-        self.OTFB.TWC.impulse_response_gen(self.OTFB.TWC.omega_r, self.OTFB.rf_centers)
+        self.OTFB.TWC.impulse_response_gen(
+            self.OTFB.TWC.omega_r, self.OTFB.rf_centers
+        )
         self.OTFB.gen_response()
 
         sig = np.zeros(self.OTFB.n_coarse)
-        sig[1 : 1 + self.OTFB.n_mov_av] = 4 * self.OTFB.TWC.R_gen / self.OTFB.TWC.tau
+        sig[1 : 1 + self.OTFB.n_mov_av] = (
+            4 * self.OTFB.TWC.R_gen / self.OTFB.TWC.tau
+        )
         sig[0] = 2 * self.OTFB.TWC.R_gen / self.OTFB.TWC.tau
-        sig[self.OTFB.n_mov_av + 1] = 2 * self.OTFB.TWC.R_gen / self.OTFB.TWC.tau
+        sig[self.OTFB.n_mov_av + 1] = (
+            2 * self.OTFB.TWC.R_gen / self.OTFB.TWC.tau
+        )
         sig *= self.OTFB.T_s
 
         np.testing.assert_allclose(
@@ -979,9 +1027,13 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         )
 
         # Tests generator response at carrier frequency.
-        self.OTFB.TWC.impulse_response_gen(self.OTFB.omega_c, self.OTFB.rf_centers)
+        self.OTFB.TWC.impulse_response_gen(
+            self.OTFB.omega_c, self.OTFB.rf_centers
+        )
 
-        self.OTFB.I_GEN_COARSE = np.zeros(2 * self.OTFB.n_coarse, dtype=complex)
+        self.OTFB.I_GEN_COARSE = np.zeros(
+            2 * self.OTFB.n_coarse, dtype=complex
+        )
         self.OTFB.I_GEN_COARSE[self.OTFB.n_coarse] = 1
 
         self.OTFB.gen_response()
@@ -992,7 +1044,9 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
 
         # Test real part - sum of cavities
         np.testing.assert_allclose(
-            np.around(self.OTFB.V_IND_COARSE_GEN[-self.OTFB.n_coarse :].real, 12)
+            np.around(
+                self.OTFB.V_IND_COARSE_GEN[-self.OTFB.n_coarse :].real, 12
+            )
             * self.OTFB.n_cavities,
             np.around(ref_V_IND_COARSE_GEN.real, 12),
             rtol=1e-6,
@@ -1003,7 +1057,9 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
 
         # Test imaginary part - sum of cavities
         np.testing.assert_allclose(
-            np.around(self.OTFB.V_IND_COARSE_GEN[-self.OTFB.n_coarse :].imag, 12)
+            np.around(
+                self.OTFB.V_IND_COARSE_GEN[-self.OTFB.n_coarse :].imag, 12
+            )
             * self.OTFB.n_cavities,
             np.around(ref_V_IND_COARSE_GEN.imag, 12),
             rtol=1e-6,
@@ -1078,7 +1134,14 @@ class TestSPSTransmitterGain(unittest.TestCase):
         pass
 
     def init_otfb(
-        self, rf, profile, commissioning, no_sections, no_cavities, V_part, G_tx
+        self,
+        rf,
+        profile,
+        commissioning,
+        no_sections,
+        no_cavities,
+        V_part,
+        G_tx,
     ):
         OTFB = SPSOneTurnFeedback(
             rf,
@@ -1096,7 +1159,9 @@ class TestSPSTransmitterGain(unittest.TestCase):
             OTFB.track_no_beam()
 
         V = (
-            np.average(np.absolute(OTFB.V_ANT_COARSE[-10])) * OTFB.n_cavities * 1e-6
+            np.average(np.absolute(OTFB.V_ANT_COARSE[-10]))
+            * OTFB.n_cavities
+            * 1e-6
         )  # in MV
         I = np.average(np.absolute(OTFB.I_GEN_COARSE[-10])) * 1e-2  # in 100 A
 

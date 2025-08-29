@@ -101,7 +101,9 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         """
         *Radial difference between beam and design orbit.*
         """
-        self.average_dE = np.mean(beam._dE[:: self.sample_dE])  # todo other access
+        self.average_dE = np.mean(
+            beam._dE[:: self.sample_dE]
+        )  # todo other access
         # FIXME why is all clipped to the first turn????
         self.drho = (
             self.alpha_0  # self._drift.alpha_0[0]
@@ -139,12 +141,17 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         # FIXME dphi_rf_steering never declared, this will crash
         self._parent_cavity.dphi_rf_steering += (
             (2.0 * np.pi)
-            * (self._parent_cavity.harmonic[:] / self._parent_cavity._omega_rf[:])
+            * (
+                self._parent_cavity.harmonic[:]
+                / self._parent_cavity._omega_rf[:]
+            )
             * (self._parent_cavity.delta_omega_rf[:])
         )
 
         # Total phase offset
-        self._parent_cavity.delta_phi_rf[:] += self._parent_cavity.dphi_rf_steering
+        self._parent_cavity.delta_phi_rf[:] += (
+            self._parent_cavity.dphi_rf_steering
+        )
 
 
 class SpsFBeamFeedback(Blond2BeamFeedback):
@@ -200,9 +207,12 @@ class SpsFBeamFeedback(Blond2BeamFeedback):
 
         # Main RF frequency at the present turn
         omega_rf = (
-            self._parent_cavity._omega_rf[0] + self._parent_cavity.delta_omega_rf[0]
+            self._parent_cavity._omega_rf[0]
+            + self._parent_cavity.delta_omega_rf[0]
         )
-        phi_rf = self._parent_cavity.phi_rf[0] + self._parent_cavity.delta_phi_rf
+        phi_rf = (
+            self._parent_cavity.phi_rf[0] + self._parent_cavity.delta_phi_rf
+        )
 
         if self.alpha != 0.0:
             indexes = np.logical_and(
