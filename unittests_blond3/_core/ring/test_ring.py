@@ -278,6 +278,42 @@ class TestRing(unittest.TestCase):
         )
         assert self.ring.elements.elements[1] is element3
 
+    def test_force_section_index_compatibility(self):
+        element1 = Mock(spec=BeamPhysicsRelevant)
+        element2 = Mock(spec=BeamPhysicsRelevant)
+        element3 = Mock(spec=BeamPhysicsRelevant)
+        element4 = Mock(spec=BeamPhysicsRelevant)
+        element1.section_index = 0
+        element2.section_index = 1
+        element3.section_index = 2
+        element4.section_index = 3
+        self.ring.add_elements(
+            elements=[element1, element2, element3, element4],
+            reorder=False,
+            deepcopy=False,
+            section_index=None,
+        )
+
+        element_test = Mock(spec=BeamPhysicsRelevant)
+        element_test.section_index = 10
+        location = 1
+        element_forced = self.ring._force_section_index_compatibility(
+            element = element_test,
+            insert_at=location,
+        )
+        assert element_forced._section_index == self.ring.elements.elements[
+            location].section_index
+        assert element_forced._section_index == 1
+
+        element_forced = self.ring._force_section_index_compatibility(
+            element=element_test,
+            insert_at=len(self.ring.elements.elements),
+        )
+        assert element_forced._section_index == self.ring.elements.elements[
+            len(self.ring.elements.elements)-1].section_index
+        assert element_forced._section_index == 3
+
+
     def test_elements(self):
         element1 = Mock(spec=BeamPhysicsRelevant)
         element1.section_index = 0
