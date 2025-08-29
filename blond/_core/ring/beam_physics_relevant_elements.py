@@ -163,6 +163,10 @@ class BeamPhysicsRelevantElements(Preparable):
         """
         Method to check the element can be inserted in the defined section.
 
+        The method checks the input location is in [0 : len(
+        ring.elements.elements)], then assesses the element section index is
+        compatible with its neighbouring elements in the ring.
+
         Parameters
         ----------
         element
@@ -179,34 +183,35 @@ class BeamPhysicsRelevantElements(Preparable):
             insertion.
             If insert_at is not within [0:len(ring.elements.elements)]
         """
-        try:
-            if (insert_at != 0) and (insert_at != len(self.elements)):
-                assert (
-                    self.elements[insert_at - 1].section_index
-                    <= element.section_index
-                    <= self.elements[insert_at].section_index
-                )
-            elif insert_at == 0:
-                assert (
-                    element.section_index
-                    == self.elements[insert_at].section_index
-                )
-            elif insert_at == len(self.elements):
-                assert (
-                    self.elements[insert_at - 1].section_index
-                    <= element.section_index
-                    <= self.elements[insert_at - 1].section_index + 1
-                )
-            else:
+        if insert_at <= len(self.elements):
+            try:
+                if (insert_at != 0) and (insert_at < len(self.elements)):
+                    assert (
+                        self.elements[insert_at - 1].section_index
+                        <= element.section_index
+                        <= self.elements[insert_at].section_index
+                    )
+                elif insert_at == 0:
+                    assert (
+                        element.section_index
+                        == self.elements[insert_at].section_index
+                    )
+                elif insert_at == len(self.elements):
+                    assert (
+                        self.elements[insert_at - 1].section_index
+                        <= element.section_index
+                        <= self.elements[insert_at - 1].section_index + 1
+                    )
+            except:
                 raise AssertionError(
-                    f"The element must be inserted within ["
-                    f"0:{len(self.elements)}] indexes. "
+                    "The element section index is incompatible "
+                    "with the requested location. Please allow "
+                    "overwrite for automatic handling."
                 )
-        except:
+        else:
             raise AssertionError(
-                "The element section index is incompatible "
-                "with the requested location. Please allow "
-                "overwrite for automatic handling."
+                f"The element must be inserted within ["
+                f"0:{len(self.elements)}] indexes. "
             )
 
     def insert(self, element: BeamPhysicsRelevant, insert_at: int) -> None:
