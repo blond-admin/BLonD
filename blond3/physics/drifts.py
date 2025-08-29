@@ -224,10 +224,11 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             Beam class to interact with this element
         """
         super().track(beam=beam)
-        self.apply_schedules(
-            turn_i=self._simulation.turn_i.value,
-            reference_time=beam.reference_time,
-        )
+        if self.schedule_active:
+            self.apply_schedules(
+                turn_i=self._simulation.turn_i.value,
+                reference_time=beam.reference_time,
+            )
         dt = backend.float(self.orbit_length / beam.reference_velocity)
         gamma = beam.reference_gamma
         eta_0 = self.alpha_0 - (1 / (gamma * gamma))

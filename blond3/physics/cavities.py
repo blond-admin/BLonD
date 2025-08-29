@@ -209,13 +209,13 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             Beam class to interact with this element
         """
         super().track(beam=beam)
+        if self.schedule_active:
+            self.apply_schedules(
+                turn_i=self._turn_i.value,
+                reference_time=beam.reference_time,
+            )
 
-        self.apply_schedules(
-            turn_i=self._turn_i.value,
-            reference_time=beam.reference_time,
-        )
-
-        # set design omega etc for this turn
+        # set design omega etc. for this turn
         self._update_beam_based_attributes(beam=beam)
 
         # TODO incorrect for simulations that start later

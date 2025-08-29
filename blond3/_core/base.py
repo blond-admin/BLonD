@@ -101,6 +101,7 @@ class Schedulable:
     def __init__(self):
         super().__init__()
         self.schedules: dict[str, _Scheduled] = {}
+        self.schedule_active = False
 
     def schedule(
         self,
@@ -132,6 +133,7 @@ class Schedulable:
         if isinstance(value, np.ndarray):
             value = value.astype(backend.float)
         self.schedules[attribute] = get_scheduler(value, mode=mode)
+        self.schedule_active = True
 
     def schedule_from_file(
         self,
@@ -165,6 +167,7 @@ class Schedulable:
         ), f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
         values = np.loadtxt(filename, **kwargs_loadtxt)
         self.schedules[attribute] = get_scheduler(values, mode=mode)
+        self.schedule_active = True
 
     def apply_schedules(self, turn_i: int, reference_time: float):
         """Set value of schedule to the target parameter for current turn/time
