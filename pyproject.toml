@@ -55,8 +55,4 @@ dependencies = { file = ["requirements.txt"] }
 optional-dependencies = { all = { file = ["requirements.txt","requirements-gpu.txt","requirements-dev.txt"] }, gpu = { file = ["requirements-gpu.txt"] },  dev = { file = ["requirements-dev.txt"] }}
 
 [tool.ruff]
-exclude = [
-    "legacy/",
-    "__doc/",
-    "blond3/legacy",
-]
+line-length = 79

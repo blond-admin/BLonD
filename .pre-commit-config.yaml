@@ -1,4 +1,24 @@
+exclude: ^(legacy|__doc|blond3/legacy/)
+
 repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace  # Trims trailing whitespace.
+      - id: end-of-file-fixer  # Makes sure files end in a newline and only a newline.
+      - id: check-yaml  # Attempts to load all yaml files to verify syntax.
+      - id: check-json  # Attempts to load all yaml files to verify syntax.
+      - id: check-merge-conflict  # Check for files that contain merge conflict strings.
+      - id: check-added-large-files  # Prevent giant files from being committed.
+        args: [ '--maxkb=5000' ]
+
+  # Sorts the python import statements
+  - repo: https://github.com/PyCQA/isort
+    rev: 6.0.1
+    hooks:
+      - id: isort
+        args: ["--profile", "black"] # otherwise not compatible with ruff
+
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.12.11  # Replace with the latest version
     hooks:
