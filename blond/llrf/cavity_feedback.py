@@ -1628,7 +1628,6 @@ class LHCCavityLoop(CavityFeedback):
         self.V_FB_OUT[self.ind] = self.open_rffb * (
                 self.V_AN_OUT[self.ind] + self.V_DI_OUT[self.ind]
         )
-
     def update_set_point(self):
         r"""Updates the set point for the next turn based on the design RF
         voltage."""
