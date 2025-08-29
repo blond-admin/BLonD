@@ -11,5 +11,6 @@ if TYPE_CHECKING:  # pragma: no cover
 
 class SimulationResults(ABC):
     def __init__(self):
+        raise NotImplementedError
         super().__init__()
         self.observables: List[Observables] = []

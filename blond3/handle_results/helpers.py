@@ -1,9 +1,13 @@
 import inspect
 import os
+import warnings
 from datetime import datetime
 
 
 def filesafe_datetime() -> str:
+    """
+    Datetime string suitable as filename
+    """
     # Get current datetime
     now = datetime.now()
 
@@ -11,8 +15,23 @@ def filesafe_datetime() -> str:
     filename_safe_date = now.strftime("%Y-%m-%d_%H%M%S")
     return filename_safe_date
 
-
 def callers_relative_path(filename: str, stacklevel: int) -> str:
+    """
+    Absolute path according to filepath of the python script at given stacklevel
+
+    Parameters
+    ----------
+    filename
+        Local filepath, e.g. resources/file1.txt
+    stacklevel
+        Use global filepath according to the file at the level of
+        the python call stack
+
+    Returns
+    -------
+    Absolute path according to filepath of the python script at given stacklevel
+
+    """
     # Get the path of the file that called this function
     caller_frame = inspect.stack()[stacklevel]
     caller_file = caller_frame.filename

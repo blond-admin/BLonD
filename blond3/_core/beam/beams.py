@@ -181,6 +181,7 @@ class ProbeBeam(Beam):
         dE
             Macro-particle energy coordinates, in [eV]
         """
+        raise NotImplementedError
         super().__init__(
             n_particles=0,
             particle_type=particle_type,
