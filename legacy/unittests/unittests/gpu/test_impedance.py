@@ -21,18 +21,18 @@ import numpy as np
 import pytest
 from scipy.constants import c, e, m_p
 
-from blond.beam.beam import Beam, Proton
-from blond.beam.distributions import bigaussian
-from blond.beam.profile import CutOptions, FitOptions, Profile
-from blond.impedances.impedance import (InducedVoltageFreq,
+from blond3.legacy.blond2.beam.beam import Beam, Proton
+from blond3.legacy.blond2.beam.distributions import bigaussian
+from blond3.legacy.blond2.beam.profile import CutOptions, FitOptions, Profile
+from blond3.legacy.blond2.impedances.impedance import (InducedVoltageFreq,
                                         InducedVoltageResonator,
                                         InducedVoltageTime,
                                         TotalInducedVoltage)
-from blond.impedances.impedance_sources import Resonators
-from blond.input_parameters.rf_parameters import RFStation
-from blond.input_parameters.ring import Ring
-from blond.trackers.tracker import RingAndRFTracker
-from blond.utils import bmath as bm
+from blond3.legacy.blond2.impedances.impedance_sources import Resonators
+from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond3.legacy.blond2.input_parameters.ring import Ring
+from blond3.legacy.blond2.trackers.tracker import RingAndRFTracker
+from blond3.legacy.blond2.utils import bmath as bm
 
 this_directory = os.path.dirname(os.path.realpath(__file__))
 

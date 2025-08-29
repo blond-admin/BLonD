@@ -2,13 +2,13 @@ import unittest
 import numpy as np
 from unittest.mock import MagicMock
 
-from blond.beam.beam import Proton, Beam
-from blond.beam.profile import Profile, FitOptions, CutOptions
-from blond.input_parameters.rf_parameters import RFStation
-from blond.input_parameters.ring import Ring
+from blond3.legacy.blond2.beam.beam import Proton, Beam
+from blond3.legacy.blond2.beam.profile import Profile, FitOptions, CutOptions
+from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond3.legacy.blond2.input_parameters.ring import Ring
 # Dummy backend math module if the original uses a backend like cupy
 
-from blond.llrf.rf_noise import LHCNoiseFB
+from blond3.legacy.blond2.llrf.rf_noise import LHCNoiseFB
 
 # Dummy cfwhm if it’s used as a global constant
 cfwhm = 1.0  # Adjust if there's a specific constant you're using

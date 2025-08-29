@@ -9,8 +9,8 @@ import unittest
 
 import numpy as np
 
-import blond.llrf.rf_modulation as rfMod
-import blond.utils.exceptions as blond_exceptions
+import blond3.legacy.blond2.llrf.rf_modulation as rfMod
+import blond3.legacy.blond2.utils.exceptions as blond_exceptions
 
 
 class TestRFModulation(unittest.TestCase):

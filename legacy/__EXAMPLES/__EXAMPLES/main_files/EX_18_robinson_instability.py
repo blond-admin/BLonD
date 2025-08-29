@@ -23,14 +23,14 @@ import numpy as np
 import pylab as plt
 from scipy.constants import c, e, m_p
 
-from blond.beam.beam import Beam, Proton
-from blond.beam.distributions import matched_from_distribution_function
-from blond.beam.profile import CutOptions, Profile
-from blond.impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
-from blond.impedances.impedance_sources import Resonators
-from blond.input_parameters.rf_parameters import RFStation
-from blond.input_parameters.ring import Ring
-from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
+from blond3.legacy.blond2.beam.beam import Beam, Proton
+from blond3.legacy.blond2.beam.distributions import matched_from_distribution_function
+from blond3.legacy.blond2.beam.profile import CutOptions, Profile
+from blond3.legacy.blond2.impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
+from blond3.legacy.blond2.impedances.impedance_sources import Resonators
+from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond3.legacy.blond2.input_parameters.ring import Ring
+from blond3.legacy.blond2.trackers.tracker import FullRingAndRF, RingAndRFTracker
 
 DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 # To check if executing correctly, rather than to run the full simulation

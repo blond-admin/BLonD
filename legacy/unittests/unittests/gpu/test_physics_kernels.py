@@ -18,13 +18,13 @@ import unittest
 import numpy as np
 import pytest
 
-from blond.beam.beam import Beam, Proton
-from blond.beam.distributions import bigaussian
-from blond.beam.profile import CutOptions, FitOptions, Profile
-from blond.input_parameters.rf_parameters import RFStation
-from blond.input_parameters.ring import Ring
-from blond.trackers.tracker import RingAndRFTracker
-from blond.utils import bmath as bm
+from blond3.legacy.blond2.beam.beam import Beam, Proton
+from blond3.legacy.blond2.beam.distributions import bigaussian
+from blond3.legacy.blond2.beam.profile import CutOptions, FitOptions, Profile
+from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond3.legacy.blond2.input_parameters.ring import Ring
+from blond3.legacy.blond2.trackers.tracker import RingAndRFTracker
+from blond3.legacy.blond2.utils import bmath as bm
 
 
 class TestSyntheticData:
@@ -246,9 +246,9 @@ class TestSyntheticData:
     def test_kick_bug_with_slices(self):
         import numpy as np
         import cupy as cp
-        from blond.utils.butils_wrap_python import kick as kick_python
-        from blond.gpu.butils_wrap_cupy import kick as kick_cupy
-        from blond.gpu import GPU_DEV
+        from blond3.legacy.blond2.utils.butils_wrap_python import kick as kick_python
+        from blond3.legacy.blond2.gpu.butils_wrap_cupy import kick as kick_cupy
+        from blond3.legacy.blond2.gpu import GPU_DEV
 
         GPU_DEV.set()  # Set CUDA library to double for working on same precision as Python
         GPU_DEV.load_library('double')  # Set CUDA library to double for working on same precision as Python
@@ -286,9 +286,9 @@ class TestSyntheticData:
     def test_kick_bug_with_slices_Fcontigous(self):
         import numpy as np
         import cupy as cp
-        from blond.utils.butils_wrap_python import kick as kick_python
-        from blond.gpu.butils_wrap_cupy import kick as kick_cupy
-        from blond.gpu import GPU_DEV
+        from blond3.legacy.blond2.utils.butils_wrap_python import kick as kick_python
+        from blond3.legacy.blond2.gpu.butils_wrap_cupy import kick as kick_cupy
+        from blond3.legacy.blond2.gpu import GPU_DEV
 
         GPU_DEV.set()  # Set CUDA library to double for working on same precision as Python
         GPU_DEV.load_library('double')  # Set CUDA library to double for working on same precision as Python

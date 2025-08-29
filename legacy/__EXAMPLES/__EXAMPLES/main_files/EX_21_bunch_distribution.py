@@ -19,12 +19,12 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 
-from blond.beam.beam import Beam, Proton
-from blond.beam.distributions import bigaussian
-from blond.beam.profile import CutOptions, Profile
-from blond.input_parameters.rf_parameters import RFStation
-from blond.input_parameters.ring import Ring
-from blond.toolbox.action import oscillation_amplitude_from_coordinates
+from blond3.legacy.blond2.beam.beam import Beam, Proton
+from blond3.legacy.blond2.beam.distributions import bigaussian
+from blond3.legacy.blond2.beam.profile import CutOptions, Profile
+from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond3.legacy.blond2.input_parameters.ring import Ring
+from blond3.legacy.blond2.toolbox.action import oscillation_amplitude_from_coordinates
 
 DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 # To check if executing correctly, rather than to run the full simulation

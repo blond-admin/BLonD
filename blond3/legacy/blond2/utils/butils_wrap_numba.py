@@ -594,7 +594,7 @@ def resonator_induced_voltage_1_turn(kappa1: NumpyArray,
                                              copy=False)
     return induced_voltage, deltaT
 
-from blond.utils.butils_wrap_python import (
+from blond3.legacy.blond2.utils.butils_wrap_python import (
     distribution_from_tomoscope as __distribution_from_tomoscope_python,
     sparse_histogram as __sparse_histogram_python,
     beam_phase_fast as __beam_phase_fast_python,

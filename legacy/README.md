@@ -154,7 +154,7 @@ In addition, you may want to:
 
 By default, BLonD uses double precision calculations (float64). To change to single precision for faster calculations, in the beginning of your main file you will have to add the following code lines:
 ```python
-from blond.utils import bmath as bm
+from blond3.legacy.blond2.utils import bmath as bm
 bm.use_precision('single') 
 ```
 
@@ -179,7 +179,7 @@ supported. `fft_convolve()` to be added soon.
         `use_fftw()` from `bmath.py`:
 
         ``` python
-        from blond.utils import bmath as bm
+        from blond3.legacy.blond2.utils import bmath as bm
         bm.use_fftw()
         ...
         bm.rfft(...)
@@ -202,7 +202,7 @@ supported. `fft_convolve()` to be added soon.
         `use_fftw()` from `bmath.py`:
 
         ``` python
-        from blond.utils import bmath as bm
+        from blond3.legacy.blond2.utils import bmath as bm
         bm.use_fftw()
         ...
         bm.rfft(...)
@@ -286,8 +286,8 @@ supported. `fft_convolve()` to be added soon.
 1.  These statements in the beginning of the script:
 
     ``` python
-    from blond.utils import bmath as bm
-    from blond.utils.mpi_config import WORKER, mpiprint
+    from blond3.legacy.blond2.utils import bmath as bm
+    from blond3.legacy.blond2.utils.mpi_config import WORKER, mpiprint
     bm.use_mpi()  
     ```
 
@@ -361,7 +361,7 @@ supported. `fft_convolve()` to be added soon.
 1.  Right before your main loop you need to add:
 
     ``` python
-    from blond.utils import bmath as bm
+    from blond3.legacy.blond2.utils import bmath as bm
     # change some of the basic functions to their GPU equivalent
     bm.use_gpu()
     ```

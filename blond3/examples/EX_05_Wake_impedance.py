@@ -20,9 +20,6 @@ the corresponding h5 files).
 """
 
 import numpy as np
-from blond.impedances.induced_voltage_analytical import (
-    analytical_gaussian_resonator,
-)
 from matplotlib import pyplot as plt
 
 from blond3 import (
@@ -39,6 +36,9 @@ from blond3 import (
     proton,
 )
 from blond3.handle_results.helpers import callers_relative_path
+from blond3.legacy.blond2.impedances.induced_voltage_analytical import (
+    analytical_gaussian_resonator,
+)
 from blond3.physics.impedances.solvers import (
     PeriodicFreqSolver,
     TimeDomainSolver,

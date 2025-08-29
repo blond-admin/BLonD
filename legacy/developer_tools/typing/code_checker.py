@@ -1,7 +1,7 @@
 import os
 import re
 
-from blond.utils.legacy_support import __new_by_old
+from blond3.legacy.blond2.utils.legacy_support import __new_by_old
 
 
 def all_python_files():

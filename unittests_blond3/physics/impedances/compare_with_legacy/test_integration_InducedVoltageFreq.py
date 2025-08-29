@@ -193,18 +193,23 @@ DEV_PLOT = False
 class Blond2:
     def __init__(self):
         import numpy as np
-        from blond.beam.beam import Beam, Proton
-        from blond.beam.distributions import bigaussian
-        from blond.beam.profile import CutOptions, Profile
-        from blond.impedances.impedance import (
+
+        from blond3.legacy.blond2.beam.beam import Beam, Proton
+        from blond3.legacy.blond2.beam.distributions import bigaussian
+        from blond3.legacy.blond2.beam.profile import CutOptions, Profile
+        from blond3.legacy.blond2.impedances.impedance import (
             InducedVoltageFreq,
             InducedVoltageResonator,
             InducedVoltageTime,
             TotalInducedVoltage,
         )
-        from blond.impedances.impedance_sources import Resonators
-        from blond.input_parameters.rf_parameters import RFStation
-        from blond.input_parameters.ring import Ring
+        from blond3.legacy.blond2.impedances.impedance_sources import (
+            Resonators,
+        )
+        from blond3.legacy.blond2.input_parameters.rf_parameters import (
+            RFStation,
+        )
+        from blond3.legacy.blond2.input_parameters.ring import Ring
 
         for solver in (
             # InducedVoltageTime,

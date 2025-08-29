@@ -18,16 +18,16 @@ import unittest
 import numpy as np
 from scipy.constants import c
 
-from blond.beam.beam import Beam, Proton
-from blond.beam.distributions import bigaussian
-from blond.beam.profile import CutOptions, Profile
-from blond.impedances.impedance import InducedVoltageTime, TotalInducedVoltage
-from blond.impedances.impedance_sources import TravelingWaveCavity
-from blond.input_parameters.rf_parameters import RFStation
-from blond.input_parameters.ring import Ring
-from blond.llrf.cavity_feedback import (SPSCavityLoopCommissioning,
+from blond3.legacy.blond2.beam.beam import Beam, Proton
+from blond3.legacy.blond2.beam.distributions import bigaussian
+from blond3.legacy.blond2.beam.profile import CutOptions, Profile
+from blond3.legacy.blond2.impedances.impedance import InducedVoltageTime, TotalInducedVoltage
+from blond3.legacy.blond2.impedances.impedance_sources import TravelingWaveCavity
+from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond3.legacy.blond2.input_parameters.ring import Ring
+from blond3.legacy.blond2.llrf.cavity_feedback import (SPSCavityLoopCommissioning,
                                         SPSOneTurnFeedback)
-from blond.llrf.impulse_response import (SPS4Section200MHzTWC, rectangle,
+from blond3.legacy.blond2.llrf.impulse_response import (SPS4Section200MHzTWC, rectangle,
                                          triangle)
 
 class TestRectangle(unittest.TestCase):
@@ -87,7 +87,7 @@ class TestTriangle(unittest.TestCase):
 class TestTravelingWaveCavity(unittest.TestCase):
 
     def test_vg(self):
-        from blond.llrf.impulse_response import TravellingWaveCavity
+        from blond3.legacy.blond2.llrf.impulse_response import TravellingWaveCavity
         v_g = 0.0946 + 1
 
         with self.assertRaises(RuntimeError, msg="In TestTravelingWaveCavity,"

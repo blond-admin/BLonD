@@ -23,14 +23,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.constants import c, e, m_p
 
-import blond.beam.beam as beamClass
-import blond.beam.profile as slicesClass
-import blond.impedances.impedance as impClass
-import blond.impedances.impedance_sources as impSClass
-import blond.impedances.induced_voltage_analytical as indVoltAn
-import blond.impedances.music as musClass
-import blond.input_parameters.rf_parameters as rfparClass
-import blond.input_parameters.ring as genparClass
+import blond3.legacy.blond2.beam.beam as beamClass
+import blond3.legacy.blond2.beam.profile as slicesClass
+import blond3.legacy.blond2.impedances.impedance as impClass
+import blond3.legacy.blond2.impedances.impedance_sources as impSClass
+import blond3.legacy.blond2.impedances.induced_voltage_analytical as indVoltAn
+import blond3.legacy.blond2.impedances.music as musClass
+import blond3.legacy.blond2.input_parameters.rf_parameters as rfparClass
+import blond3.legacy.blond2.input_parameters.ring as genparClass
 
 DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 # To check if executing correctly, rather than to run the full simulation

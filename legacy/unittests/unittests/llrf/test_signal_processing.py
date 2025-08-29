@@ -18,15 +18,15 @@ import unittest
 import numpy as np
 from scipy.constants import e
 
-from blond.beam.beam import Beam, Proton
-from blond.beam.distributions import bigaussian
-from blond.beam.profile import CutOptions, Profile
-from blond.input_parameters.rf_parameters import RFStation
-from blond.input_parameters.ring import Ring
-from blond.llrf.impulse_response import (SPS3Section200MHzTWC,
+from blond3.legacy.blond2.beam.beam import Beam, Proton
+from blond3.legacy.blond2.beam.distributions import bigaussian
+from blond3.legacy.blond2.beam.profile import CutOptions, Profile
+from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond3.legacy.blond2.input_parameters.ring import Ring
+from blond3.legacy.blond2.llrf.impulse_response import (SPS3Section200MHzTWC,
                                          SPS4Section200MHzTWC,
                                          SPS5Section200MHzTWC)
-from blond.llrf.signal_processing import (cartesian_to_polar, comb_filter,
+from blond3.legacy.blond2.llrf.signal_processing import (cartesian_to_polar, comb_filter,
                                           feedforward_filter,
                                           feedforward_filter_TWC3,
                                           feedforward_filter_TWC4,

@@ -20,19 +20,19 @@ import matplotlib as mpl
 import numpy as np
 from scipy.constants import c, e, m_p
 
-from blond.beam.beam import Beam, Proton
-from blond.beam.distributions import bigaussian
-from blond.beam.profile import CutOptions, Profile
-from blond.impedances.impedance import (InducedVoltageFreq, InductiveImpedance,
+from blond3.legacy.blond2.beam.beam import Beam, Proton
+from blond3.legacy.blond2.beam.distributions import bigaussian
+from blond3.legacy.blond2.beam.profile import CutOptions, Profile
+from blond3.legacy.blond2.impedances.impedance import (InducedVoltageFreq, InductiveImpedance,
                                         TotalInducedVoltage)
-from blond.impedances.impedance_sources import InputTable
-from blond.input_parameters.rf_parameters import RFStation
-from blond.input_parameters.ring import Ring
-from blond.monitors.monitors import BunchMonitor
-from blond.plots.plot import Plot
-from blond.plots.plot_impedance import (plot_impedance_vs_frequency,
+from blond3.legacy.blond2.impedances.impedance_sources import InputTable
+from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond3.legacy.blond2.input_parameters.ring import Ring
+from blond3.legacy.blond2.monitors.monitors import BunchMonitor
+from blond3.legacy.blond2.plots.plot import Plot
+from blond3.legacy.blond2.plots.plot_impedance import (plot_impedance_vs_frequency,
                                         plot_induced_voltage_vs_bin_centers)
-from blond.trackers.tracker import RingAndRFTracker
+from blond3.legacy.blond2.trackers.tracker import RingAndRFTracker
 
 DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 # To check if executing correctly, rather than to run the full simulation

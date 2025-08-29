@@ -21,16 +21,16 @@ import matplotlib as mpl
 import numpy as np
 from scipy.constants import physical_constants
 
-from blond.beam.beam import Beam, Particle
-from blond.beam.distributions import bigaussian
-from blond.beam.profile import CutOptions, Profile
-from blond.input_parameters.rf_parameters import RFStation
-from blond.input_parameters.ring import Ring
-from blond.monitors.monitors import BunchMonitor
-from blond.plots.plot import Plot
-from blond.trackers.tracker import RingAndRFTracker
-from blond.utils import bmath as bm
-from blond.utils.mpi_config import mpiprint, WORKER
+from blond3.legacy.blond2.beam.beam import Beam, Particle
+from blond3.legacy.blond2.beam.distributions import bigaussian
+from blond3.legacy.blond2.beam.profile import CutOptions, Profile
+from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond3.legacy.blond2.input_parameters.ring import Ring
+from blond3.legacy.blond2.monitors.monitors import BunchMonitor
+from blond3.legacy.blond2.plots.plot import Plot
+from blond3.legacy.blond2.trackers.tracker import RingAndRFTracker
+from blond3.legacy.blond2.utils import bmath as bm
+from blond3.legacy.blond2.utils.mpi_config import mpiprint, WORKER
 
 DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 # To check if executing correctly, rather than to run the full simulation

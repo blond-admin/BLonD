@@ -17,11 +17,11 @@ import unittest
 import numpy as np
 import scipy.optimize as spOpt
 
-import blond.beam.beam as bBeam
-import blond.beam.coasting_beam as cBeam
-import blond.input_parameters.ring as Ring
-import blond.utils.exceptions as blond_exceptions
-from blond.beam.beam import Proton
+import blond3.legacy.blond2.beam.beam as bBeam
+import blond3.legacy.blond2.beam.coasting_beam as cBeam
+import blond3.legacy.blond2.input_parameters.ring as Ring
+import blond3.legacy.blond2.utils.exceptions as blond_exceptions
+from blond3.legacy.blond2.beam.beam import Proton
 
 
 class testCoastingBeamModule(unittest.TestCase):

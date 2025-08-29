@@ -21,14 +21,14 @@ import numpy as np
 import pytest
 
 
-from blond.beam.beam import Beam, Proton
-from blond.beam.distributions import bigaussian
-from blond.beam.profile import CutOptions, FitOptions, Profile, OtherSlicesOptions
-from blond.input_parameters.rf_parameters import RFStation
-from blond.input_parameters.ring import Ring
-from blond.llrf.rf_modulation import PhaseModulation as PMod
-from blond.trackers.tracker import RingAndRFTracker
-from blond.utils import bmath
+from blond3.legacy.blond2.beam.beam import Beam, Proton
+from blond3.legacy.blond2.beam.distributions import bigaussian
+from blond3.legacy.blond2.beam.profile import CutOptions, FitOptions, Profile, OtherSlicesOptions
+from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond3.legacy.blond2.input_parameters.ring import Ring
+from blond3.legacy.blond2.llrf.rf_modulation import PhaseModulation as PMod
+from blond3.legacy.blond2.trackers.tracker import RingAndRFTracker
+from blond3.legacy.blond2.utils import bmath
 try:
     import cupy
     cupy_available = True

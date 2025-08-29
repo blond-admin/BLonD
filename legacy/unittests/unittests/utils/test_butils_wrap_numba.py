@@ -21,16 +21,16 @@ import numpy as np
 import pytest
 from scipy.constants import c
 
-from blond.beam.beam import Beam, Proton
-from blond.beam.sparse_slices import SparseSlices
-from blond.impedances.music import Music
-from blond.input_parameters.rf_parameters import RFStation
-from blond.input_parameters.ring import Ring
-from blond.utils import bmath as bm
-from blond.utils.butils_wrap_cpp import get_libblond
-from blond.utils.butils_wrap_numba import \
+from blond3.legacy.blond2.beam.beam import Beam, Proton
+from blond3.legacy.blond2.beam.sparse_slices import SparseSlices
+from blond3.legacy.blond2.impedances.music import Music
+from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond3.legacy.blond2.input_parameters.ring import Ring
+from blond3.legacy.blond2.utils import bmath as bm
+from blond3.legacy.blond2.utils.butils_wrap_cpp import get_libblond
+from blond3.legacy.blond2.utils.butils_wrap_numba import \
     resonator_induced_voltage_1_turn as resonator_induced_voltage_1_turn_numba
-from blond.utils.butils_wrap_python import \
+from blond3.legacy.blond2.utils.butils_wrap_python import \
     resonator_induced_voltage_1_turn as resonator_induced_voltage_1_turn_python
 
 

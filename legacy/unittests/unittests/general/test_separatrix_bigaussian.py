@@ -19,13 +19,13 @@ import unittest
 
 import numpy as np
 
-from blond.beam.beam import Beam, Proton
-from blond.beam.distributions import bigaussian
-from blond.beam.profile import CutOptions, Profile
-from blond.input_parameters.rf_parameters import RFStation, calculate_phi_s
-from blond.input_parameters.ring import Ring
-from blond.llrf.beam_feedback import BeamFeedback
-from blond.trackers.utilities import separatrix
+from blond3.legacy.blond2.beam.beam import Beam, Proton
+from blond3.legacy.blond2.beam.distributions import bigaussian
+from blond3.legacy.blond2.beam.profile import CutOptions, Profile
+from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation, calculate_phi_s
+from blond3.legacy.blond2.input_parameters.ring import Ring
+from blond3.legacy.blond2.llrf.beam_feedback import BeamFeedback
+from blond3.legacy.blond2.trackers.utilities import separatrix
 
 
 class TestSeparatrixBigaussian(unittest.TestCase):

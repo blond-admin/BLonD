@@ -5,12 +5,12 @@ import unittest
 
 import numpy as np
 
-from blond.beam.beam import Beam, Proton
-from blond.beam.profile import Profile
-from blond.input_parameters.rf_parameters import RFStation
-from blond.input_parameters.ring import Ring
-from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
-from blond.utils.track_iteration import TrackIteration
+from blond3.legacy.blond2.beam.beam import Beam, Proton
+from blond3.legacy.blond2.beam.profile import Profile
+from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond3.legacy.blond2.input_parameters.ring import Ring
+from blond3.legacy.blond2.trackers.tracker import FullRingAndRF, RingAndRFTracker
+from blond3.legacy.blond2.utils.track_iteration import TrackIteration
 
 
 class TestTrackIteration(unittest.TestCase):

@@ -3,8 +3,8 @@ from copy import deepcopy
 
 import numpy as np
 
-from blond.utils.bmath_backends import NumbaBackend, CppBackend, GpuBackend
-from blond.utils.bmath_backends import PyBackend
+from blond3.legacy.blond2.utils.bmath_backends import NumbaBackend, CppBackend, GpuBackend
+from blond3.legacy.blond2.utils.bmath_backends import PyBackend
 
 py_backend = PyBackend()
 

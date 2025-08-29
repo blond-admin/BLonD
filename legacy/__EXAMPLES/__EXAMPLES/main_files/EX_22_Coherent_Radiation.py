@@ -25,15 +25,15 @@ except AttributeError:
 from matplotlib import pyplot as plt
 from scipy.constants import e as e_charge
 
-from blond.beam.beam import Electron
-from blond.impedances.impedance_sources import CoherentSynchrotronRadiation
+from blond3.legacy.blond2.beam.beam import Electron
+from blond3.legacy.blond2.impedances.impedance_sources import CoherentSynchrotronRadiation
 # to compute induced voltage from BLonD routines
-from blond.input_parameters.ring import Ring
-from blond.beam.beam import Beam
-from blond.beam.profile import Profile, CutOptions
-from blond.input_parameters.rf_parameters import RFStation
-from blond.beam.distributions import bigaussian
-from blond.impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
+from blond3.legacy.blond2.input_parameters.ring import Ring
+from blond3.legacy.blond2.beam.beam import Beam
+from blond3.legacy.blond2.beam.profile import Profile, CutOptions
+from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond3.legacy.blond2.beam.distributions import bigaussian
+from blond3.legacy.blond2.impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
 
 
 mpl.use('Agg')

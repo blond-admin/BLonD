@@ -18,14 +18,14 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 
-from blond.beam.beam import Beam, Proton
-from blond.beam.distributions import bigaussian
-from blond.beam.profile import CutOptions, Profile
-from blond.input_parameters.rf_parameters import RFStation
-from blond.input_parameters.ring import Ring
-from blond.llrf.cavity_feedback import (SPSCavityLoopCommissioning,
+from blond3.legacy.blond2.beam.beam import Beam, Proton
+from blond3.legacy.blond2.beam.distributions import bigaussian
+from blond3.legacy.blond2.beam.profile import CutOptions, Profile
+from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond3.legacy.blond2.input_parameters.ring import Ring
+from blond3.legacy.blond2.llrf.cavity_feedback import (SPSCavityLoopCommissioning,
                                         SPSCavityFeedback)
-from blond.toolbox.logger import Logger
+from blond3.legacy.blond2.toolbox.logger import Logger
 
 # CERN SPS --------------------------------------------------------------------
 # Machine and RF parameters

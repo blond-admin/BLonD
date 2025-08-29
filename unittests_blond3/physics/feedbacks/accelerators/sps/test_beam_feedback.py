@@ -30,13 +30,15 @@ from blond3.physics.feedbacks.accelerators.sps.beam_feedback import (
 
 class TestBeamFeedback(unittest.TestCase):
     def setUpBlond2(self):
-        from blond.beam.beam import Beam, Proton
-        from blond.beam.distributions import bigaussian
-        from blond.beam.profile import CutOptions, Profile
-        from blond.input_parameters.rf_parameters import RFStation
-        from blond.input_parameters.ring import Ring
-        from blond.llrf.beam_feedback import BeamFeedback
-        from blond.trackers.tracker import RingAndRFTracker
+        from blond3.legacy.blond2.beam.beam import Beam, Proton
+        from blond3.legacy.blond2.beam.distributions import bigaussian
+        from blond3.legacy.blond2.beam.profile import CutOptions, Profile
+        from blond3.legacy.blond2.input_parameters.rf_parameters import (
+            RFStation,
+        )
+        from blond3.legacy.blond2.input_parameters.ring import Ring
+        from blond3.legacy.blond2.llrf.beam_feedback import BeamFeedback
+        from blond3.legacy.blond2.trackers.tracker import RingAndRFTracker
 
         n_turns = 200
         intensity_pb = 1.2e6  # protons per bunch

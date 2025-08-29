@@ -20,16 +20,16 @@ import pytest
 from scipy.constants import c
 
 # from blond import get_libblond()
-from blond.utils.butils_wrap_cpp import get_libblond
-from blond.beam.beam import Beam, Proton
-from blond.beam.sparse_slices import SparseSlices
-from blond.impedances.music import Music
-from blond.input_parameters.rf_parameters import RFStation
-from blond.input_parameters.ring import Ring
-from blond.utils import bmath as bm
-from blond.impedances.impedance import InducedVoltageResonator
-from blond.impedances.impedance_sources import Resonators
-from blond.beam.profile import CutOptions, FitOptions, Profile
+from blond3.legacy.blond2.utils.butils_wrap_cpp import get_libblond
+from blond3.legacy.blond2.beam.beam import Beam, Proton
+from blond3.legacy.blond2.beam.sparse_slices import SparseSlices
+from blond3.legacy.blond2.impedances.music import Music
+from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond3.legacy.blond2.input_parameters.ring import Ring
+from blond3.legacy.blond2.utils import bmath as bm
+from blond3.legacy.blond2.impedances.impedance import InducedVoltageResonator
+from blond3.legacy.blond2.impedances.impedance_sources import Resonators
+from blond3.legacy.blond2.beam.profile import CutOptions, FitOptions, Profile
 
 
 class Test:

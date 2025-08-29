@@ -20,15 +20,15 @@ import os
 import matplotlib as mpl
 import numpy as np
 
-from blond.beam.beam import Beam, Proton
-from blond.beam.distributions import bigaussian
-from blond.beam.profile import CutOptions, FitOptions, Profile
-from blond.input_parameters.rf_parameters import RFStation
-from blond.input_parameters.ring import Ring
-from blond.monitors.monitors import BunchMonitor
-from blond.plots.plot import Plot
-from blond.trackers.tracker import RingAndRFTracker
-from blond.trackers.utilities import total_voltage
+from blond3.legacy.blond2.beam.beam import Beam, Proton
+from blond3.legacy.blond2.beam.distributions import bigaussian
+from blond3.legacy.blond2.beam.profile import CutOptions, FitOptions, Profile
+from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond3.legacy.blond2.input_parameters.ring import Ring
+from blond3.legacy.blond2.monitors.monitors import BunchMonitor
+from blond3.legacy.blond2.plots.plot import Plot
+from blond3.legacy.blond2.trackers.tracker import RingAndRFTracker
+from blond3.legacy.blond2.trackers.utilities import total_voltage
 
 DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 # To check if executing correctly, rather than to run the full simulation

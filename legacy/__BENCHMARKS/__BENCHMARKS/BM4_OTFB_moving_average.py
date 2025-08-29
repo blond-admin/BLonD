@@ -16,7 +16,7 @@ Example for llrf.filters and llrf.cavity_feedback
 import matplotlib.pyplot as plt
 import numpy as np
 
-from blond.llrf.signal_processing import moving_average
+from blond3.legacy.blond2.llrf.signal_processing import moving_average
 
 n = 10000
 n_ma = 100

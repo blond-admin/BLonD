@@ -17,9 +17,9 @@ import unittest
 
 import numpy as np
 
-from blond.beam.beam import Electron
-from blond.input_parameters.ring import Ring
-from blond.input_parameters.ring_options import convert_data
+from blond3.legacy.blond2.beam.beam import Electron
+from blond3.legacy.blond2.input_parameters.ring import Ring
+from blond3.legacy.blond2.input_parameters.ring_options import convert_data
 
 
 class TestGeneralParameters(unittest.TestCase):
@@ -177,7 +177,7 @@ class TestGeneralParameters(unittest.TestCase):
             msg='No NaN for total energy less than rest mass!')
 
     def test_bug_floattype(self):
-        from blond.beam.beam import Proton
+        from blond3.legacy.blond2.beam.beam import Proton
         # Different treatment of python float and numpy float
         C = 2 * np.pi * 1100.009  # Ring circumference [m]
         gamma_t = 18.0  # Gamma at transition

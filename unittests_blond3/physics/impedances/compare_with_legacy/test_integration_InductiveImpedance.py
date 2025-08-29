@@ -25,12 +25,17 @@ DEV_PLOT = False
 class Blond2:
     def __init__(self):
         import numpy as np
-        from blond.beam.beam import Beam, Proton
-        from blond.beam.distributions import bigaussian
-        from blond.beam.profile import CutOptions, Profile
-        from blond.impedances.impedance import InductiveImpedance
-        from blond.input_parameters.rf_parameters import RFStation
-        from blond.input_parameters.ring import Ring
+
+        from blond3.legacy.blond2.beam.beam import Beam, Proton
+        from blond3.legacy.blond2.beam.distributions import bigaussian
+        from blond3.legacy.blond2.beam.profile import CutOptions, Profile
+        from blond3.legacy.blond2.impedances.impedance import (
+            InductiveImpedance,
+        )
+        from blond3.legacy.blond2.input_parameters.rf_parameters import (
+            RFStation,
+        )
+        from blond3.legacy.blond2.input_parameters.ring import Ring
 
         E_0 = m_p * c**2 / e  # [eV]
         ring = Ring(

@@ -109,7 +109,9 @@ class TestTravelingWaveCavity(unittest.TestCase):
         backend.change_backend(Numpy64Bit)
 
     def test_vg(self):
-        from blond.llrf.impulse_response import TravellingWaveCavity
+        from blond3.legacy.blond2.llrf.impulse_response import (
+            TravellingWaveCavity,
+        )
 
         v_g = 0.0946 + 1
 

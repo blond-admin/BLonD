@@ -21,14 +21,14 @@ import unittest
 import numpy as np
 from scipy.constants import physical_constants
 
-import blond.utils.exceptions as blond_exceptions
+import blond3.legacy.blond2.utils.exceptions as blond_exceptions
 # BLonD imports
 # --------------
-from blond.beam.beam import Beam, Electron, Particle, Proton
-from blond.beam.distributions import matched_from_distribution_function
-from blond.input_parameters.rf_parameters import RFStation
-from blond.input_parameters.ring import Ring
-from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
+from blond3.legacy.blond2.beam.beam import Beam, Electron, Particle, Proton
+from blond3.legacy.blond2.beam.distributions import matched_from_distribution_function
+from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond3.legacy.blond2.input_parameters.ring import Ring
+from blond3.legacy.blond2.trackers.tracker import FullRingAndRF, RingAndRFTracker
 
 
 class testParticleClass(unittest.TestCase):

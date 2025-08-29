@@ -26,11 +26,11 @@ import unittest
 import numpy as np
 from scipy.constants import c
 
-from blond.beam.beam import Beam, Proton
-from blond.input_parameters.rf_parameters import RFStation
+from blond3.legacy.blond2.beam.beam import Beam, Proton
+from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
 # BLonD imports
-from blond.input_parameters.ring import Ring
-from blond.trackers.tracker import RingAndRFTracker
+from blond3.legacy.blond2.input_parameters.ring import Ring
+from blond3.legacy.blond2.trackers.tracker import RingAndRFTracker
 
 # Tests tolerance
 absolute_tolerance = 0.    # 0. / 1e-16

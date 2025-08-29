@@ -22,8 +22,8 @@ except AttributeError:
     np.trapezoid = np.trapz
 from scipy.constants import e as e_charge
 
-from blond.beam.beam import Electron
-from blond.impedances.impedance_sources import (CoherentSynchrotronRadiation,
+from blond3.legacy.blond2.beam.beam import Electron
+from blond3.legacy.blond2.impedances.impedance_sources import (CoherentSynchrotronRadiation,
                                                 ResistiveWall, Resonators,
                                                 _ImpedanceObject)
 

@@ -594,7 +594,7 @@ def resonator_induced_voltage_1_turn(kappa1: NumpyArray,
     float_precision: type
         Digital precision of calculation
     """
-    from blond.utils import bmath as bm # local import to prevent cyclic import
+    from blond3.legacy.blond2.utils import bmath as bm # local import to prevent cyclic import
 
     # Compute the slopes of the line sections of the linearly interpolated
     # (normalized) line density.

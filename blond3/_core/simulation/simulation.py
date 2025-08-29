@@ -511,12 +511,19 @@ class Simulation(Preparable, HasPropertyCache):
         synchronous_data_type = self.magnetic_cycle._synchronous_data_type
         particle = self.beams[0].particle_type
         #  BLonD legacy Imports
-        from blond.beam.beam import Beam
-        from blond.beam.profile import CutOptions, Profile
-        from blond.impedances.impedance import TotalInducedVoltage
-        from blond.input_parameters.rf_parameters import RFStation
-        from blond.input_parameters.ring import Ring
-        from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
+        from blond3.legacy.blond2.beam.beam import Beam
+        from blond3.legacy.blond2.beam.profile import CutOptions, Profile
+        from blond3.legacy.blond2.impedances.impedance import (
+            TotalInducedVoltage,
+        )
+        from blond3.legacy.blond2.input_parameters.rf_parameters import (
+            RFStation,
+        )
+        from blond3.legacy.blond2.input_parameters.ring import Ring
+        from blond3.legacy.blond2.trackers.tracker import (
+            FullRingAndRF,
+            RingAndRFTracker,
+        )
 
         ring_blond2 = Ring(
             ring_length=ring_length,

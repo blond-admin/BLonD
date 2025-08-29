@@ -2,8 +2,8 @@ import unittest
 
 import numpy as np
 
-from blond.beam.beam import Beam, Proton
-from blond.input_parameters.ring import Ring
+from blond3.legacy.blond2.beam.beam import Beam, Proton
+from blond3.legacy.blond2.input_parameters.ring import Ring
 
 
 class TestBeam(unittest.TestCase):

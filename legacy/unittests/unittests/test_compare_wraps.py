@@ -6,7 +6,7 @@ import cupyx
 import numpy as np
 import pytest
 
-from blond.utils import bmath as bm
+from blond3.legacy.blond2.utils import bmath as bm
 
 
 class TestCompareWraps:

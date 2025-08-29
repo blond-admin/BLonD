@@ -23,8 +23,8 @@ import numpy as np
 import scipy
 from packaging.version import Version
 
-from blond.utils import precision
-from blond.utils.custom_warnings import PerformanceWarning
+from blond3.legacy.blond2.utils import precision
+from blond3.legacy.blond2.utils.custom_warnings import PerformanceWarning
 from ..llrf.cavity_feedback import CavityFeedback
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
@@ -551,7 +551,7 @@ class RingAndRFTracker:
         energy = self.rf_params.energy[turn + 1]
 
         n_rf = self.rf_params.voltage.shape[0]
-        from blond.gpu import GPU_DEV
+        from blond3.legacy.blond2.gpu import GPU_DEV
 
         kickdrift_considering_periodicity = GPU_DEV.mod.get_function("kickdrift_considering_periodicity")
         kickdrift_considering_periodicity(

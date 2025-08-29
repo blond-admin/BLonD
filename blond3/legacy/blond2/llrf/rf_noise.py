@@ -16,7 +16,7 @@ amplitude as a function of bunch length**
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from blond.utils import bmath as bm
+from blond3.legacy.blond2.utils import bmath as bm
 
 import numpy as np
 import numpy.random as rnd

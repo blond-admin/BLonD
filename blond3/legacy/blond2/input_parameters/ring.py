@@ -169,8 +169,8 @@ class Ring:
     --------
     >>> # To declare a single-section synchrotron at constant energy:
     >>> # Particle type Proton
-    >>> from blond.beam.beam import Proton
-    >>> from blond.input_parameters.ring import Ring
+    >>> from blond3.legacy.blond2.beam.beam import Proton
+    >>> from blond3.legacy.blond2.input_parameters.ring import Ring
     >>>
     >>> n_turns = 10
     >>> C = 26659
@@ -181,8 +181,8 @@ class Ring:
     >>>
     >>> # To declare a single-section synchrotron with a momentum program in time:
     >>> # Particle type Proton
-    >>> from blond.beam.beam import Proton
-    >>> from blond.input_parameters.ring import Ring
+    >>> from blond3.legacy.blond2.beam.beam import Proton
+    >>> from blond3.legacy.blond2.input_parameters.ring import Ring
     >>>
     >>> C = 26659
     >>> alpha_0 = 3.21e-4
@@ -195,8 +195,8 @@ class Ring:
     >>>
     >>> # To declare a two section synchrotron at constant energy and
     >>> # higher-order momentum compaction factors; particle Electron:
-    >>> from blond.beam.beam import Electron
-    >>> from blond.input_parameters.ring import Ring
+    >>> from blond3.legacy.blond2.beam.beam import Electron
+    >>> from blond3.legacy.blond2.input_parameters.ring import Ring
     >>>
     >>> n_turns = 10
     >>> C = [13000, 13659]

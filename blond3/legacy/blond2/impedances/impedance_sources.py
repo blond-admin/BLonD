@@ -747,7 +747,7 @@ class CoherentSynchrotronRadiation(_ImpedanceObject):
 
     Examples
     ----------
-    >>> from blond.impedances.impedance_sources import CoherentSynchrotronRadiation
+    >>> from blond3.legacy.blond2.impedances.impedance_sources import CoherentSynchrotronRadiation
     >>> freqs = 10**np.linspace(8,15, num=200)  # frequencies at which to compute impedance
 
     Specify bending radius and chamber height (both in [m]) and the Lorentz gamma

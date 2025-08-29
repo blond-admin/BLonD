@@ -81,8 +81,8 @@ class CutOptions:
 
     Examples
     --------
-    >>> from blond.input_parameters.ring import Ring
-    >>> from blond.input_parameters.rf_parameters import RFStation
+    >>> from blond3.legacy.blond2.input_parameters.ring import Ring
+    >>> from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
     >>> self.ring = Ring(n_turns = 1, ring_length = 100,
     >>> alpha = 0.00001, momentum = 1e9)
     >>> self.rf_params = RFStation(ring=self.ring, n_rf=1, harmonic=[4620],

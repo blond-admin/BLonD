@@ -71,7 +71,7 @@ class Particle:
 
     Examples
     --------
-    >>> from blond.beam.beam import Proton
+    >>> from blond3.legacy.blond2.beam.beam import Proton
     >>> particle = Proton()
 
     Usually, a `Particle` is used to construct a :class:`~blond.input_parameters.ring.Ring` object,
