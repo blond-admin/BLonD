@@ -21,12 +21,12 @@ import numpy as np
 
 # BLonD imports
 # --------------
-from blond3.legacy.blond2.beam.beam import Beam, Proton
-from blond3.legacy.blond2.beam.distributions import bigaussian
-from blond3.legacy.blond2.beam.profile import CutOptions, Profile
-from blond3.legacy.blond2.beam.sparse_slices import SparseSlices
-from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
-from blond3.legacy.blond2.input_parameters.ring import Ring
+from blond.legacy.blond2.beam.beam import Beam, Proton
+from blond.legacy.blond2.beam.distributions import bigaussian
+from blond.legacy.blond2.beam.profile import CutOptions, Profile
+from blond.legacy.blond2.beam.sparse_slices import SparseSlices
+from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond.legacy.blond2.input_parameters.ring import Ring
 
 
 class testProfileClass(unittest.TestCase):

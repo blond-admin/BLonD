@@ -17,7 +17,7 @@ import unittest
 
 import numpy as np
 
-from blond3.legacy.blond2.input_parameters.ring_options import RingOptions
+from blond.legacy.blond2.input_parameters.ring_options import RingOptions
 
 
 class test_preprocess(unittest.TestCase):

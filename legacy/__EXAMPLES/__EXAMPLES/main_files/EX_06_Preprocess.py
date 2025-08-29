@@ -20,11 +20,11 @@ import os
 import matplotlib as mpl
 import numpy as np
 
-from blond3.legacy.blond2.beam.beam import Proton
-from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
-from blond3.legacy.blond2.input_parameters.rf_parameters_options import RFStationOptions
-from blond3.legacy.blond2.input_parameters.ring import Ring
-from blond3.legacy.blond2.input_parameters.ring_options import RingOptions
+from blond.legacy.blond2.beam.beam import Proton
+from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond.legacy.blond2.input_parameters.rf_parameters_options import RFStationOptions
+from blond.legacy.blond2.input_parameters.ring import Ring
+from blond.legacy.blond2.input_parameters.ring_options import RingOptions
 
 DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 # To check if executing correctly, rather than to run the full simulation

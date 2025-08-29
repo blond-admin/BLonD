@@ -21,13 +21,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import logging
 
-from blond3.legacy.blond2.toolbox.logger import Logger
-from blond3.legacy.blond2.input_parameters.ring import Ring
-from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
-from blond3.legacy.blond2.beam.beam import Beam, Proton
-from blond3.legacy.blond2.beam.distributions import bigaussian
-from blond3.legacy.blond2.beam.profile import Profile, CutOptions
-from blond3.legacy.blond2.llrf.cavity_feedback import SPSCavityFeedback, \
+from blond.legacy.blond2.toolbox.logger import Logger
+from blond.legacy.blond2.input_parameters.ring import Ring
+from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond.legacy.blond2.beam.beam import Beam, Proton
+from blond.legacy.blond2.beam.distributions import bigaussian
+from blond.legacy.blond2.beam.profile import Profile, CutOptions
+from blond.legacy.blond2.llrf.cavity_feedback import SPSCavityFeedback, \
     SPSOneTurnFeedback, SPSCavityLoopCommissioning
 
 

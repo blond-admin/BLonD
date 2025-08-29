@@ -10,13 +10,13 @@ import unittest
 
 import numpy as np
 
-from blond3.legacy.blond2.beam.beam import Beam, Proton
-from blond3.legacy.blond2.beam.distributions import bigaussian
-from blond3.legacy.blond2.beam.profile import CutOptions, Profile
-from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
-from blond3.legacy.blond2.input_parameters.ring import Ring
-from blond3.legacy.blond2.llrf.beam_feedback import BeamFeedback
-from blond3.legacy.blond2.trackers.tracker import FullRingAndRF, RingAndRFTracker
+from blond.legacy.blond2.beam.beam import Beam, Proton
+from blond.legacy.blond2.beam.distributions import bigaussian
+from blond.legacy.blond2.beam.profile import CutOptions, Profile
+from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond.legacy.blond2.input_parameters.ring import Ring
+from blond.legacy.blond2.llrf.beam_feedback import BeamFeedback
+from blond.legacy.blond2.trackers.tracker import FullRingAndRF, RingAndRFTracker
 
 
 class TestBeamFeedback(unittest.TestCase):

@@ -19,7 +19,7 @@ def clone_gitlab_repo(repo_url: str, destination_folder: str):
 
 def rf_noise_repo_is_missing():
     try:
-        from blond3.legacy.blond2.interfaces.rf_noise_cpp.wrap_rf_noise import rf_noise, _local_path  # only possible after setUp
+        from blond.legacy.blond2.interfaces.rf_noise_cpp.wrap_rf_noise import rf_noise, _local_path  # only possible after setUp
         return False, ""
     except FileNotFoundError as exc:
         return True, str(exc)
@@ -29,7 +29,7 @@ class RfNoise(unittest.TestCase):
 
     @unittest.skipIf(*rf_noise_repo_is_missing())
     def test_flat_noise(self):
-        from blond3.legacy.blond2.interfaces.rf_noise_cpp.wrap_rf_noise import rf_noise  # only possible after setUp
+        from blond.legacy.blond2.interfaces.rf_noise_cpp.wrap_rf_noise import rf_noise  # only possible after setUp
         ys = np.ones(10)
         xs = np.linspace(0.0, 1.0, len(ys))  # flat denisity within band
         N = 20000000
@@ -71,7 +71,7 @@ class RfNoise(unittest.TestCase):
         self.assertTrue(np.all((freq_masked > (f_low[0] - delta_x)) & (freq_masked < (f_high[0] + delta_x))))
 
     def test_docstring_example(self):
-        from blond3.legacy.blond2.interfaces.rf_noise_cpp.wrap_rf_noise import rf_noise, _local_path  # only possible after setUp
+        from blond.legacy.blond2.interfaces.rf_noise_cpp.wrap_rf_noise import rf_noise, _local_path  # only possible after setUp
         ys = np.loadtxt(_local_path / "lhc_spectrum.txt")
         xs = np.linspace(0.0, 1.0, len(ys))
         N = 20_000_000

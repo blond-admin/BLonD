@@ -19,7 +19,7 @@ import pytest
 import numpy as np
 
 import blond
-from blond3.legacy.blond2.utils import bmath as bm
+from blond.legacy.blond2.utils import bmath as bm
 from packaging.version import Version
 import scipy
 

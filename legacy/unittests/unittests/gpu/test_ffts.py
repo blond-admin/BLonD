@@ -18,7 +18,7 @@ import unittest
 import numpy as np
 import pytest
 
-from blond3.legacy.blond2.utils import bmath as bm
+from blond.legacy.blond2.utils import bmath as bm
 
 
 class TestFFTS:

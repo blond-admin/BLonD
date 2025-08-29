@@ -22,12 +22,12 @@ import unittest
 
 import numpy as np
 
-import blond3.legacy.blond2.beam.profile as profileModule
+import blond.legacy.blond2.beam.profile as profileModule
 # BLonD imports
 # --------------
-from blond3.legacy.blond2.beam.beam import Beam, Proton
-from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
-from blond3.legacy.blond2.input_parameters.ring import Ring
+from blond.legacy.blond2.beam.beam import Beam, Proton
+from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond.legacy.blond2.input_parameters.ring import Ring
 
 # import matplotlib.pyplot as plt
 

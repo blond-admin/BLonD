@@ -15,8 +15,11 @@ omit =
     *.cu
     *.npy
     *.npz
-    blond/compile.py
-    blond/_version.py
-    blond/sanity_check.py
-    blond/gpu/*
-    blond/utils/butils_wrap_numba.py
+    blond/legacy/*
+    blond/experimental/*
+    blond/performance_blond3/*
+    blond/testing/*
+    blond/_core/backends/cuda/*
+    blond/_core/backends/cpp/*
+    blond/_core/backends/fortran/*
+    blond/_core/backends/numba/*

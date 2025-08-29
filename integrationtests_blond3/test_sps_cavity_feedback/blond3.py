@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 from scipy.constants import c
 
-from blond3 import (
+from blond import (
     Beam,
     ConstantMagneticCycle,
     DriftSimple,

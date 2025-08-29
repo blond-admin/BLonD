@@ -18,13 +18,13 @@ import unittest
 import numpy as np
 import pytest
 
-from blond3.legacy.blond2.beam.beam import Beam, Proton
-from blond3.legacy.blond2.beam.distributions import bigaussian
-from blond3.legacy.blond2.beam.profile import CutOptions, FitOptions, Profile
-from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
-from blond3.legacy.blond2.input_parameters.ring import Ring
-from blond3.legacy.blond2.trackers.tracker import RingAndRFTracker
-from blond3.legacy.blond2.utils import bmath as bm
+from blond.legacy.blond2.beam.beam import Beam, Proton
+from blond.legacy.blond2.beam.distributions import bigaussian
+from blond.legacy.blond2.beam.profile import CutOptions, FitOptions, Profile
+from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond.legacy.blond2.input_parameters.ring import Ring
+from blond.legacy.blond2.trackers.tracker import RingAndRFTracker
+from blond.legacy.blond2.utils import bmath as bm
 
 
 class TestSyntheticData:

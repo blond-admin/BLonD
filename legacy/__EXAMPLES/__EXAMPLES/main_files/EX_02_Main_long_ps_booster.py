@@ -20,19 +20,19 @@ import matplotlib as mpl
 import numpy as np
 from scipy.constants import c, e, m_p
 
-from blond3.legacy.blond2.beam.beam import Beam, Proton
-from blond3.legacy.blond2.beam.distributions import bigaussian
-from blond3.legacy.blond2.beam.profile import CutOptions, Profile
-from blond3.legacy.blond2.impedances.impedance import (InducedVoltageFreq, InductiveImpedance,
-                                        TotalInducedVoltage)
-from blond3.legacy.blond2.impedances.impedance_sources import InputTable
-from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
-from blond3.legacy.blond2.input_parameters.ring import Ring
-from blond3.legacy.blond2.monitors.monitors import BunchMonitor
-from blond3.legacy.blond2.plots.plot import Plot
-from blond3.legacy.blond2.plots.plot_impedance import (plot_impedance_vs_frequency,
-                                        plot_induced_voltage_vs_bin_centers)
-from blond3.legacy.blond2.trackers.tracker import RingAndRFTracker
+from blond.legacy.blond2.beam.beam import Beam, Proton
+from blond.legacy.blond2.beam.distributions import bigaussian
+from blond.legacy.blond2.beam.profile import CutOptions, Profile
+from blond.legacy.blond2.impedances.impedance import (InducedVoltageFreq, InductiveImpedance,
+                                                      TotalInducedVoltage)
+from blond.legacy.blond2.impedances.impedance_sources import InputTable
+from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond.legacy.blond2.input_parameters.ring import Ring
+from blond.legacy.blond2.monitors.monitors import BunchMonitor
+from blond.legacy.blond2.plots.plot import Plot
+from blond.legacy.blond2.plots.plot_impedance import (plot_impedance_vs_frequency,
+                                                      plot_induced_voltage_vs_bin_centers)
+from blond.legacy.blond2.trackers.tracker import RingAndRFTracker
 
 DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 # To check if executing correctly, rather than to run the full simulation

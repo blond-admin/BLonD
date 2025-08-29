@@ -23,16 +23,16 @@ import numpy as np
 import pylab as plt
 from scipy.constants import c, e, m_p
 
-from blond3.legacy.blond2.beam.beam import Beam, Proton
-from blond3.legacy.blond2.beam.distributions_multibunch import (
+from blond.legacy.blond2.beam.beam import Beam, Proton
+from blond.legacy.blond2.beam.distributions_multibunch import (
     matched_from_distribution_density_multibunch,
     matched_from_line_density_multibunch)
-from blond3.legacy.blond2.beam.profile import CutOptions, Profile
-from blond3.legacy.blond2.impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
-from blond3.legacy.blond2.impedances.impedance_sources import Resonators
-from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
-from blond3.legacy.blond2.input_parameters.ring import Ring
-from blond3.legacy.blond2.trackers.tracker import FullRingAndRF, RingAndRFTracker
+from blond.legacy.blond2.beam.profile import CutOptions, Profile
+from blond.legacy.blond2.impedances.impedance import InducedVoltageFreq, TotalInducedVoltage
+from blond.legacy.blond2.impedances.impedance_sources import Resonators
+from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond.legacy.blond2.input_parameters.ring import Ring
+from blond.legacy.blond2.trackers.tracker import FullRingAndRF, RingAndRFTracker
 
 mpl.use('Agg')
 

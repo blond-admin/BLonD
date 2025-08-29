@@ -17,9 +17,9 @@ import unittest
 
 import numpy as np
 
-from blond3.legacy.blond2.beam.profile import CutOptions, Profile
-from blond3.legacy.blond2.impedances.impedance import InducedVoltageFreq, InducedVoltageTime
-from blond3.legacy.blond2.impedances.impedance_sources import Resonators
+from blond.legacy.blond2.beam.profile import CutOptions, Profile
+from blond.legacy.blond2.impedances.impedance import InducedVoltageFreq, InducedVoltageTime
+from blond.legacy.blond2.impedances.impedance_sources import Resonators
 
 
 class TestInducedVoltageFreq(unittest.TestCase):

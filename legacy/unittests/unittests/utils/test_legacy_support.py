@@ -1,6 +1,6 @@
 import unittest
 
-from blond3.legacy.blond2.utils.legacy_support import _handle_legacy_kwargs
+from blond.legacy.blond2.utils.legacy_support import _handle_legacy_kwargs
 
 
 class TestHandleLegacyKwargs(unittest.TestCase):

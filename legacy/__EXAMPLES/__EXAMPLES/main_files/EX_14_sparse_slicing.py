@@ -22,12 +22,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.constants import c, e, m_e
 
-from blond3.legacy.blond2.beam.beam import Beam, Electron
-from blond3.legacy.blond2.beam.distributions import matched_from_distribution_function
-from blond3.legacy.blond2.beam.sparse_slices import SparseSlices
-from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
-from blond3.legacy.blond2.input_parameters.ring import Ring
-from blond3.legacy.blond2.trackers.tracker import FullRingAndRF, RingAndRFTracker
+from blond.legacy.blond2.beam.beam import Beam, Electron
+from blond.legacy.blond2.beam.distributions import matched_from_distribution_function
+from blond.legacy.blond2.beam.sparse_slices import SparseSlices
+from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond.legacy.blond2.input_parameters.ring import Ring
+from blond.legacy.blond2.trackers.tracker import FullRingAndRF, RingAndRFTracker
 
 DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 # To check if executing correctly, rather than to run the full simulation

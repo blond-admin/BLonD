@@ -18,10 +18,10 @@ import unittest
 
 import numpy
 
-from blond3.legacy.blond2.beam.beam import Beam, Electron, Proton
-from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation, calculate_phi_s
-from blond3.legacy.blond2.input_parameters.ring import Ring
-from blond3.legacy.blond2.llrf.rf_modulation import PhaseModulation as PMod
+from blond.legacy.blond2.beam.beam import Beam, Electron, Proton
+from blond.legacy.blond2.input_parameters.rf_parameters import RFStation, calculate_phi_s
+from blond.legacy.blond2.input_parameters.ring import Ring
+from blond.legacy.blond2.llrf.rf_modulation import PhaseModulation as PMod
 
 
 class testRFParamClass(unittest.TestCase):

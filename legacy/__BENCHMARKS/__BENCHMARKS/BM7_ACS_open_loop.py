@@ -15,13 +15,13 @@ Benchmarking open loop gain
 """
 from matplotlib.pyplot import tight_layout
 
-from blond3.legacy.blond2.toolbox.logger import Logger
-from blond3.legacy.blond2.input_parameters.ring import Ring
-from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
-from blond3.legacy.blond2.beam.beam import Beam, Proton
-from blond3.legacy.blond2.beam.profile import Profile, CutOptions, FitOptions
-from blond3.legacy.blond2.llrf.cavity_feedback import LHCCavityLoop, LHCCavityLoopCommissioning
-from blond3.legacy.blond2.llrf.transfer_function import TransferFunction
+from blond.legacy.blond2.toolbox.logger import Logger
+from blond.legacy.blond2.input_parameters.ring import Ring
+from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond.legacy.blond2.beam.beam import Beam, Proton
+from blond.legacy.blond2.beam.profile import Profile, CutOptions, FitOptions
+from blond.legacy.blond2.llrf.cavity_feedback import LHCCavityLoop, LHCCavityLoopCommissioning
+from blond.legacy.blond2.llrf.transfer_function import TransferFunction
 
 import logging
 import numpy as np

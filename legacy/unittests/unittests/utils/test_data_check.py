@@ -9,7 +9,7 @@ import unittest
 
 import numpy as np
 
-import blond3.legacy.blond2.utils.data_check as dCheck
+import blond.legacy.blond2.utils.data_check as dCheck
 
 
 class TestRFModulation(unittest.TestCase):

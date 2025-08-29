@@ -20,20 +20,20 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import gridspec
 
-from blond3.legacy.blond2.beam.beam import Beam, Proton
-from blond3.legacy.blond2.beam.distributions import bigaussian
-from blond3.legacy.blond2.beam.profile import CutOptions, Profile
-from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
-from blond3.legacy.blond2.input_parameters.ring import Ring
-from blond3.legacy.blond2.llrf.cavity_feedback import (SPSCavityLoopCommissioning,
-                                        SPSCavityFeedback)
-from blond3.legacy.blond2.llrf.impulse_response import (SPS3Section200MHzTWC,
-                                         SPS4Section200MHzTWC,
-                                         SPS5Section200MHzTWC)
-from blond3.legacy.blond2.llrf.signal_processing import feedforward_filter
-from blond3.legacy.blond2.plots.plot_beams import plot_long_phase_space
-from blond3.legacy.blond2.toolbox.logger import Logger
-from blond3.legacy.blond2.trackers.tracker import RingAndRFTracker
+from blond.legacy.blond2.beam.beam import Beam, Proton
+from blond.legacy.blond2.beam.distributions import bigaussian
+from blond.legacy.blond2.beam.profile import CutOptions, Profile
+from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond.legacy.blond2.input_parameters.ring import Ring
+from blond.legacy.blond2.llrf.cavity_feedback import (SPSCavityLoopCommissioning,
+                                                      SPSCavityFeedback)
+from blond.legacy.blond2.llrf.impulse_response import (SPS3Section200MHzTWC,
+                                                       SPS4Section200MHzTWC,
+                                                       SPS5Section200MHzTWC)
+from blond.legacy.blond2.llrf.signal_processing import feedforward_filter
+from blond.legacy.blond2.plots.plot_beams import plot_long_phase_space
+from blond.legacy.blond2.toolbox.logger import Logger
+from blond.legacy.blond2.trackers.tracker import RingAndRFTracker
 
 # CERN SPS --------------------------------------------------------------------
 # Machine and RF parameters

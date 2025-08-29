@@ -3,23 +3,23 @@ import unittest
 import numpy as np
 from scipy.constants import c
 
-from blond3.legacy.blond2.beam.beam import Beam, Proton
-from blond3.legacy.blond2.beam.distributions import bigaussian
-from blond3.legacy.blond2.beam.profile import CutOptions, Profile
-from blond3.legacy.blond2.impedances.impedance import (
+from blond.legacy.blond2.beam.beam import Beam, Proton
+from blond.legacy.blond2.beam.distributions import bigaussian
+from blond.legacy.blond2.beam.profile import CutOptions, Profile
+from blond.legacy.blond2.impedances.impedance import (
     InducedVoltageTime,
     TotalInducedVoltage,
 )
-from blond3.legacy.blond2.impedances.impedance_sources import (
+from blond.legacy.blond2.impedances.impedance_sources import (
     TravelingWaveCavity,
 )
-from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
-from blond3.legacy.blond2.input_parameters.ring import Ring
-from blond3.legacy.blond2.llrf.cavity_feedback import (
+from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond.legacy.blond2.input_parameters.ring import Ring
+from blond.legacy.blond2.llrf.cavity_feedback import (
     SPSCavityFeedback,
     SPSCavityLoopCommissioning,
 )
-from blond3.legacy.blond2.trackers.tracker import RingAndRFTracker
+from blond.legacy.blond2.trackers.tracker import RingAndRFTracker
 
 
 class TestSPSCavityFeedback(unittest.TestCase):

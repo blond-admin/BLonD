@@ -153,8 +153,9 @@ In addition, you may want to:
 ## Changing the floating point number datatype
 
 By default, BLonD uses double precision calculations (float64). To change to single precision for faster calculations, in the beginning of your main file you will have to add the following code lines:
+
 ```python
-from blond3.legacy.blond2.utils import bmath as bm
+from blond.legacy.blond2.utils import bmath as bm
 bm.use_precision('single') 
 ```
 

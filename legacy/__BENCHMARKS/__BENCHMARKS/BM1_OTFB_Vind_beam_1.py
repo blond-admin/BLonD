@@ -19,19 +19,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.constants import e
 
-from blond3.legacy.blond2.beam.beam import Beam, Proton
-from blond3.legacy.blond2.beam.distributions import bigaussian
-from blond3.legacy.blond2.beam.profile import CutOptions, Profile
-from blond3.legacy.blond2.impedances.impedance import InducedVoltageTime, TotalInducedVoltage
-from blond3.legacy.blond2.impedances.impedance_sources import TravelingWaveCavity
-from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
-from blond3.legacy.blond2.input_parameters.ring import Ring
-from blond3.legacy.blond2.llrf.cavity_feedback import (SPSCavityLoopCommissioning,
-                                        SPSOneTurnFeedback)
-from blond3.legacy.blond2.llrf.impulse_response import (SPS3Section200MHzTWC,
-                                         SPS4Section200MHzTWC)
-from blond3.legacy.blond2.llrf.signal_processing import rf_beam_current
-from blond3.legacy.blond2.toolbox.logger import Logger
+from blond.legacy.blond2.beam.beam import Beam, Proton
+from blond.legacy.blond2.beam.distributions import bigaussian
+from blond.legacy.blond2.beam.profile import CutOptions, Profile
+from blond.legacy.blond2.impedances.impedance import InducedVoltageTime, TotalInducedVoltage
+from blond.legacy.blond2.impedances.impedance_sources import TravelingWaveCavity
+from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond.legacy.blond2.input_parameters.ring import Ring
+from blond.legacy.blond2.llrf.cavity_feedback import (SPSCavityLoopCommissioning,
+                                                      SPSOneTurnFeedback)
+from blond.legacy.blond2.llrf.impulse_response import (SPS3Section200MHzTWC,
+                                                       SPS4Section200MHzTWC)
+from blond.legacy.blond2.llrf.signal_processing import rf_beam_current
+from blond.legacy.blond2.toolbox.logger import Logger
 
 # CERN SPS --------------------------------------------------------------------
 # Machine and RF parameters

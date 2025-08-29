@@ -20,11 +20,11 @@ import numpy as np
 # Drift test equations import
 from test_drift import exact_drift, expected_drift, legacy_drift, linear_drift
 
-from blond3.legacy.blond2.beam.beam import Beam, Proton
-from blond3.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond.legacy.blond2.beam.beam import Beam, Proton
+from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
 # BLonD imports
-from blond3.legacy.blond2.input_parameters.ring import Ring
-from blond3.legacy.blond2.trackers.tracker import RingAndRFTracker
+from blond.legacy.blond2.input_parameters.ring import Ring
+from blond.legacy.blond2.trackers.tracker import RingAndRFTracker
 
 
 class CompareDrift:
