@@ -53,7 +53,8 @@ def load_libblond(precision: str = 'single'):
             else:
                 __LIBBLOND = ct.CDLL(libblond_path)
         else:
-            print('YOU DO NOT HAVE A WINDOWS OR UNIX OPERATING SYSTEM. ABORTING.')
+            print('YOU DO NOT HAVE A WINDOWS OR UNIX OPERATING SYSTEM. '
+                  'ABORTING.')
             sys.exit()
     except OSError as exc:
         # An alternative backend can be used.
