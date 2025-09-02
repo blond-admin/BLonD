@@ -403,6 +403,7 @@ class Beam:
                 self.dE[select_alive], dtype=bm.precision.real_t)
             self.n_macroparticles = len(self.dt)
             self.id = bm.arange(1, self.n_macroparticles + 1, dtype=int)
+            self.intensity = self.n_macroparticles*self.ratio
         else:
             # AllParticlesLost
             raise RuntimeError("ERROR in Beams: all particles lost and" +

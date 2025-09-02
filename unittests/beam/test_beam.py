@@ -32,6 +32,10 @@ class TestBeam(unittest.TestCase):
         self.assertEqual(self.beam.n_macroparticles_eliminated, 1)
         self.assertEqual(self.beam.n_macroparticles_not_alive, 0)
 
+    def test_intensity_update(self):
+        self.beam.id[0:-1] = 0
+        self.beam.eliminate_lost_particles()
+        self.assertEqual(self.beam.intensity, self.beam.ratio)
 
 if __name__ == '__main__':
     unittest.main()
