@@ -128,6 +128,59 @@ class TestBeam(unittest.TestCase):
         assert beam.dt_max(ignore_id_0=False) == 199
         assert beam.dt_max(ignore_id_0=True) == 199
 
+    # def test_intensity_after_removal(self):
+    #     dt = np.concatenate(np.zeros(2))
+    #     dE = np.concatenate(np.zeros(2))
+    #     weights = np.array([1,2])
+    #
+    #     beam = Beam(
+    #         Ring=self.ring,
+    #         n_macroparticles=20,
+    #         intensity=1e9,
+    #         dt=dt,
+    #         dE=dE,
+    #         weights=weights,
+    #     )
+    #     beam.id[10:] = 0
+    #     beam.eliminate_lost_particles()
+    #     print(beam.n_macroparticles*beam.ratio)
+    #     self.assertEqual(beam.n_macroparticles*beam.ratio, 1e9/3)
+    #
+    # def test_intensity_after_removal_for_equal_weights(self):
+    #     dt = np.concatenate(np.zeros(2))
+    #     dE = np.concatenate(np.zeros(2))
+    #     weights = np.array([1,1])
+    #
+    #     beam = Beam(
+    #         Ring=self.ring,
+    #         n_macroparticles=20,
+    #         intensity=1e9,
+    #         dt=dt,
+    #         dE=dE,
+    #         weights=weights,
+    #     )
+    #     beam.id[10:] = 0
+    #     beam.eliminate_lost_particles()
+    #     print(beam.n_macroparticles*beam.ratio)
+    #     self.assertEqual(beam.n_macroparticles*beam.ratio, 1e9/2)
+
+    def test_intensity_after_removal(self):
+        dt = np.zeros(2)
+        dE = np.zeros(2)
+        weights = np.array([1,2])
+
+        beam = Beam(
+            Ring=self.ring,
+            n_macroparticles=2,
+            intensity=3,
+            dt=dt,
+            dE=dE,
+            weights=weights,
+        )
+        beam.id[1] = 0
+        beam.eliminate_lost_particles()
+        print(beam.n_macroparticles*beam.ratio)
+        self.assertEqual(np.sum(beam.weights) * beam.ratio, 1)
 
 
 

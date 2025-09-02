@@ -51,7 +51,6 @@ class BeamBaseClass:
         self.sigma_dE: float = 0.0
         self.intensity: float = float(intensity)
         self.n_macroparticles: int = int(n_macroparticles)
-        self.ratio: float = self.intensity / self.n_macroparticles
 
         self.epsn_rms_l: float = 0.0
         self.n_macroparticles_eliminated = 0
@@ -157,22 +156,6 @@ class BeamBaseClass:
             Lower limit (dE=dE_min is kept)
         """
 
-    def particle_decay(self, time: float) -> None:
-        """Decreases beam intensity due to the particle decay
-
-        Sets the ratio to a lower value if the particle can decay.
-        Number of macroparticles remains unchanged.
-
-        Parameters
-        ----------
-        time : float
-            time in seconds, which is used
-            to determine the fraction of the
-            particle decay
-        """
-        self.ratio *= np.exp(
-            -time * self.particle.decay_rate / self.gamma
-        )  # todo bugfix should act on number of particles?
 
     @abstractmethod
     def dE_mean(self, ignore_id_0: bool = False):

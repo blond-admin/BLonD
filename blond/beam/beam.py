@@ -272,8 +272,11 @@ class Beam(BeamBaseClass):
 
         if weights is None:
             weights: NumpyArray | CupyArray | None  = None
+            self.ratio: float = self.intensity / n_macroparticles
+
         else:
             assert n_macroparticles == len(weights)
+            self.ratio: float = self.intensity / np.sum(weights)
 
             # machine limits for integer types
             machine_max = np.iinfo(np.int32).max
@@ -390,6 +393,7 @@ class Beam(BeamBaseClass):
 
         return bm.count_nonzero(self.id)
 
+
     @property
     def n_macroparticles_not_alive(self):
         '''Number of macro-particles marked as not-alive
@@ -417,6 +421,10 @@ class Beam(BeamBaseClass):
             if self.weights is not None:
                 self.weights = bm.ascontiguousarray(
                     self.weights[select_alive], dtype=np.int32)
+                self.intensity = self.ratio * bm.sum(self.weights)
+            else:
+                self.intensity = self.ratio * self.n_macroparticles
+
             self.n_macroparticles = len(self.dt)
             self.id = bm.arange(1, self.n_macroparticles + 1, dtype=int)
         else:
@@ -543,6 +551,7 @@ class Beam(BeamBaseClass):
             particle decay
         """
         self.ratio *= np.exp(-time * self.particle.decay_rate / self.gamma)
+
 
     def add_particles(self, new_particles: NumpyArray | list[list[float]]) -> None:
         """
