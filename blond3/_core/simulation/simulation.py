@@ -628,24 +628,16 @@ class Simulation(Preparable, HasPropertyCache):
 
                 if element.is_active_this_turn(turn_i=self.turn_i.value):
                     element.track(beams[0])  # [0] is expected to be corotating
-                CR_element = self.ring.elements.elements[num_elements - element_ind - 1]
-                if CR_element.is_active_this_turn(turn_i=self.turn_i.value):
+                element_counterrot = self.ring.elements.elements[num_elements - element_ind - 1]
+                if element_counterrot.is_active_this_turn(turn_i=self.turn_i.value):
                     element.track(beams[1])
-                if isinstance(CR_element, DriftBaseClass):  # only observe after drifts
+                if isinstance(element_counterrot, DriftBaseClass):  # only observe after drifts
                     for observable in observe:
                         if observable.is_active_this_turn(turn_i=self.turn_i.value):
-                            if (isinstance(observable, CRBunchObservation) or
-                                    isinstance(observable, CRBunchObservation_meta_params)):
-                                observable.update(
-                                    simulation=self,
-                                    beam=beams[0],
-                                    beam_cr=beams[1],
-                                )
-                            else:
-                                observable.update(
-                                    simulation=self,
-                                    beam=beams[0],
-                                )
+                            observable.update(
+                                simulation=self,
+                                beam=beams[0],
+                            )
         # reset counters to uninitialized again
         self.turn_i.value = None
         self.section_i.value = None
