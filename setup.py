@@ -45,7 +45,6 @@ def _potentially_compile(
         Location of the compilation script from content-root
 
     """
-    print(f"Trying to compile {backend_name}..")
     try:
         subprocess.check_call(
             args=["python", compile_file],

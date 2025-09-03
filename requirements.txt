@@ -3,4 +3,4 @@ numpy
 scipy
 matplotlib
 numba
-meson # to use f2py, which comes with numpy
+tqdm

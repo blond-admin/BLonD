@@ -36,6 +36,7 @@ def compile_cuda_library(
         see https://developer.nvidia.com/cuda-gpus.
 
     """
+    print(f"\nTrying to compile CUDA backend.")
 
     cuda_files = [
         os.path.join(_basepath, "kernels.cu"),
@@ -57,8 +58,7 @@ def compile_cuda_library(
     cuda_path = os.getenv("CUDA_PATH", default="")
     if cuda_path != "":
         nvcc = cuda_path + "/bin/nvcc"
-
-    import cupy as cp  # force exception,
+    import cupy as cp  # NOQA must be installed to be compiled / force exception
 
     # if something is wrong with the installation
 
@@ -142,7 +142,7 @@ def main_cli():
         "-sm",
         "--sm",
         nargs="+",
-        default="discover",
+        default=["discover"],
         help="CUDA Streaming Multiprocessor (SM) compute capabilitie(s),"
         " e.g. -sm 70 80"
         " (see https://en.wikipedia.org/wiki/CUDA#GPUs_supported).",

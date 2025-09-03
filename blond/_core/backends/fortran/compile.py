@@ -1,12 +1,19 @@
 from __future__ import annotations
 
+import os
 import subprocess  # Used to run external commands (like f2py)
+import sys
+
+_filepath = os.path.realpath(__file__)
+_basepath = os.sep.join(_filepath.split(os.sep)[:-1])
+
+from typing import List
 
 # Name of the Python module to generate from Fortran code
-module_name = "libblond"
+_module_name32 = "libblond32"
 
 # List of Fortran source files for 32-bit operations
-fortran_files = [
+_fortran_files32 = [
     "beam_phase_32.f90",
     "drift_32.f90",
     "histogram_32.f90",
@@ -15,10 +22,10 @@ fortran_files = [
 ]
 
 # Generate corresponding 64-bit file names by replacing "32" with "64"
-fortran_file = fortran_files + [f.replace("32", "64") for f in fortran_files]
+_fortran_files32 = [os.path.join(_basepath, f) for f in _fortran_files32]
 
 
-def compile_fortran_module():
+def compile_fortran_module(module_name: str, fortran_files: List[str]):
     """
     Compile the Fortran source files into a Python module using f2py.
 
@@ -27,7 +34,10 @@ def compile_fortran_module():
     Applies high-performance compilation flags.
 
     """
-    print("Compiling Fortran module using f2py...")
+
+    print(f"\nTrying to compile Fortran backend.")
+    import ninja
+    from numpy import f2py  # NOQA must be installed to be compiled / force exception
 
     # Optimization and parallelization flags for the Fortran compiler
     f90flags = (
@@ -39,22 +49,19 @@ def compile_fortran_module():
     # - `-m` to specify the module name
     # - include all Fortran files
     # - pass optimization flags and link to OpenMP (`-lgomp`)
-    cmd = (
-        ["f2py", "-c", "-m", module_name]
-        + fortran_files
-        + [
-            f"--f90flags='{f90flags}'",
-            "-lgomp",
-        ]
-    )
+    cmd = ["f2py", "-c", "-m", module_name, fortran_files[0]] + [
+        f"--f90flags='{f90flags}'",
+        "-lgomp",
+    ]
 
     try:
         # Run the command and capture output
+        print(" ".join(cmd))
         result = subprocess.run(
             cmd,
             check=True,  # Raise error on failure
-            capture_output=True,  # Capture stdout/stderr
-            text=True,  # Decode output as string
+            text=True,  # Decode output as string,
+            stdout=sys.stdout,
         )
         print("Compilation successful.\n")
         print(result.stdout)  # Show compilation messages
@@ -72,7 +79,11 @@ def main_cli():
     Entry point for running from the command line.
     Calls the Fortran compilation function.
     """
-    sucess = compile_fortran_module()
+    sucess = compile_fortran_module(_module_name32, _fortran_files32)
+    sucess = compile_fortran_module(
+        _module_name32.replace("32", "64"),
+        [f.replace("32", "64") for f in _fortran_files32],
+    )
 
 
 # If the script is run directly (not imported), execute main_cli

@@ -97,6 +97,7 @@ def compile_cpp_library(
     This function assumes the presence of a Makefile or equivalent build system
     capable of processing the supplied options.
     """
+    print(f"\nTrying to compile C++ backend.")
 
     if libname is None:
         libname = os.path.join(_basepath, default_libname)
