@@ -18,7 +18,8 @@ from blond3 import (
 from blond3._core.beam.base import BeamBaseClass
 from blond3._core.backends.backend import backend, Numpy64Bit
 from blond3.beam_preparation.base import BeamPreparationRoutine
-from blond3.handle_results.observables import CRBunchObservation
+from blond3.handle_results.observables import CRBunchObservation, CRBunchObservation_meta_params, \
+    StaticProfileObservation, WakeFieldObservation
 from blond3.physics.impedances.sources import Resonators
 from blond3.physics.impedances.solvers import MultiPassResonatorSolver, AnalyticSingleTurnResonatorSolver
 from scipy.constants import pi
@@ -79,27 +80,31 @@ harmonic = 25900
 
 ring = Ring(circumference=circumference)
 magnetic_cycle = MagneticCyclePerTurn(value_init=inj_energy,
-                                    values_after_turn=np.linspace(inj_energy + energy_gain_per_turn, ejection_energy,
-                                                                  n_turns),
-                                    in_unit="kinetic energy",
-                                    reference_particle=mu_plus)
-profile = StaticProfile.from_rad(
-    0,
-    2 * np.pi,
-    2 ** 10,
-    magnetic_cycle.get_t_rev_init(
-        ring.circumference,
-        turn_i_init=0,
-        t_init=0,
-        particle_type=mu_plus,
-    )
-    / harmonic / n_cavities,
-)
+                                      values_after_turn=np.linspace(inj_energy + energy_gain_per_turn,
+                                                                    ejection_energy,
+                                                                    n_turns),
+                                      in_unit="kinetic energy",
+                                      reference_particle=mu_plus)
 one_turn_model = []
 for cavity_i in range(n_cavities):
+    profile_tmp = StaticProfile.from_rad( # todo inside for loop?
+        0,
+        2 * np.pi,
+        2 ** 10,
+        magnetic_cycle.get_t_rev_init(
+            ring.circumference,
+            turn_i_init=0,
+            t_init=0,
+            particle_type=mu_plus,
+        )
+        / harmonic,
+        section_index=cavity_i,
+
+    )
     local_res = Resonators(center_frequencies=1.3e9, quality_factors=Q_factor, shunt_impedances=R_over_Q*Q_factor)  # FM only
     one_turn_model.extend(
         [
+            profile_tmp,
             SingleHarmonicCavity(
                 voltage=total_voltage / n_cavities,
                 phi_rf=0,
@@ -107,7 +112,7 @@ for cavity_i in range(n_cavities):
                 local_wakefield=WakeField(
                     sources=(local_res,),
                     solver=AnalyticSingleTurnResonatorSolver(),
-                    profile=profile,
+                    profile=profile_tmp,
                 ),
                 section_index=cavity_i,
             ),
@@ -138,11 +143,25 @@ sim.prepare_beam(
     )
 )
 
-bunch_observation = CRBunchObservation(each_turn_i=1, obs_per_turn = 4)
-sim.run_simulation(beams=(beam, beam_CR), turn_i_init=0, n_turns=n_turns, observe=[bunch_observation])
+sim.print_one_turn_execution_order()
 
-plt.plot(np.mean(bunch_observation.dEs, axis=1))
+bunch_observation = CRBunchObservation_meta_params(each_turn_i=1, obs_per_turn = 4)
+profile_observation = StaticProfileObservation(each_turn_i=1, obs_per_turn=4, profile=profile_tmp)
+wakefield_observation = WakeFieldObservation(each_turn_i=1, obs_per_turn = 4)
+sim.run_simulation(beams=(beam, beam_CR), turn_i_init=0, n_turns=n_turns, observe=[bunch_observation,
+                                                                                   profile_observation])
+
+plt.plot(bunch_observation.sigma_dt_CR, label="bunch length")
+plt.plot(bunch_observation.mean_dt, label="bunch centroid")
+plt.legend()
 plt.show()
 
-plt.plot(np.mean(bunch_observation.dts, axis=1))
+plt.plot(bunch_observation.sigma_dE_CR, label="energy length")
+plt.plot(bunch_observation.mean_dE, label="energy centroid")
+plt.legend()
+plt.show()
+
+plt.plot(bunch_observation.emittance_stat, label="emittance")
+plt.plot(bunch_observation.sigma_dE * bunch_observation.sigma_dt, label="sigma t * sigma E")
+plt.legend()
 plt.show()

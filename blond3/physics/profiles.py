@@ -273,7 +273,7 @@ class StaticProfile(ProfileBaseClass):
 
     @staticmethod
     def from_rad(
-        cut_left_rad: float, cut_right_rad: float, n_bins: int, t_period: float
+        cut_left_rad: float, cut_right_rad: float, n_bins: int, t_period: float, **static_profile_kwargs
     ) -> StaticProfile:
         """
         Initialization method in radian
@@ -298,7 +298,7 @@ class StaticProfile(ProfileBaseClass):
         rad_to_frac = 1 / (2 * np.pi)
         cut_left = cut_left_rad * rad_to_frac * t_period
         cut_right = cut_right_rad * rad_to_frac * t_period
-        return StaticProfile(cut_left=cut_left, cut_right=cut_right, n_bins=n_bins)
+        return StaticProfile(cut_left=cut_left, cut_right=cut_right, n_bins=n_bins, **static_profile_kwargs)
 
 
 class DynamicProfile(ProfileBaseClass):

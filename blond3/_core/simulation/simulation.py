@@ -16,7 +16,7 @@ from ...cycles.magnetic_cycle import MagneticCycleBase, MagneticCyclePerTurn
 from ...physics.cavities import CavityBaseClass
 from ...physics.drifts import DriftBaseClass
 from ...physics.profiles import ProfileBaseClass
-from ...handle_results.observables import CRBunchObservation
+from ...handle_results.observables import CRBunchObservation, CRBunchObservation_meta_params
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional, Tuple
@@ -634,7 +634,8 @@ class Simulation(Preparable, HasPropertyCache):
                 if isinstance(CR_element, DriftBaseClass):  # only observe after drifts
                     for observable in observe:
                         if observable.is_active_this_turn(turn_i=self.turn_i.value):
-                            if isinstance(observable, CRBunchObservation):
+                            if (isinstance(observable, CRBunchObservation) or
+                                    isinstance(observable, CRBunchObservation_meta_params)):
                                 observable.update(
                                     simulation=self,
                                     beam=beams[0],

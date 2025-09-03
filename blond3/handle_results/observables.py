@@ -22,7 +22,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class Observables(MainLoopRelevant):
-    def __init__(self, each_turn_i: int):
+    def __init__(self, each_turn_i: int, obs_per_turn: int=1):
         """
         Base class to observe attributes during simulation
 
@@ -31,10 +31,13 @@ class Observables(MainLoopRelevant):
         each_turn_i
             Value to control that the element is
             callable each n-th turn.
+        obs_per_turn
+            Number of observations per turn.
 
         """
         super().__init__()
         self.each_turn_i = each_turn_i
+        self._obs_per_turn = obs_per_turn
 
         self._n_turns: LateInit[int] = None
         self._turn_i_init: LateInit[int] = None
@@ -50,9 +53,9 @@ class Observables(MainLoopRelevant):
 
     @abstractmethod  # pragma: no cover
     def update(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
+            self,
+            simulation: Simulation,
+            beam: BeamBaseClass,
     ) -> None:
         """
         Update memory with new values
@@ -76,12 +79,13 @@ class Observables(MainLoopRelevant):
         self._hash = simulation.get_hash()
 
     def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        turn_i_init: int,
-        **kwargs,
+            self,
+            simulation: Simulation,
+            beam: BeamBaseClass,
+            n_turns: int,
+            turn_i_init: int,
+            obs_per_turn: int = 1,
+            **kwargs,
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
@@ -96,7 +100,8 @@ class Observables(MainLoopRelevant):
         """
         self._n_turns = n_turns
         self._turn_i_init = turn_i_init
-        self._turns_array = np.arange(turn_i_init, turn_i_init + n_turns)
+        self._obs_per_turn = obs_per_turn
+        self._turns_array = np.linspace(turn_i_init, turn_i_init + n_turns, int(n_turns * self._obs_per_turn + 1), endpoint=False)
 
     @abstractmethod  # pragma: no cover
     def to_disk(self) -> None:
@@ -132,12 +137,12 @@ class BunchObservation(Observables):
         self._reference_total_energy: LateInit[DenseArrayRecorder] = None
 
     def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        turn_i_init: int,
-        **kwargs,
+            self,
+            simulation: Simulation,
+            beam: BeamBaseClass,
+            n_turns: int,
+            turn_i_init: int,
+            **kwargs,
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
@@ -183,9 +188,9 @@ class BunchObservation(Observables):
         )
 
     def update(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
+            self,
+            simulation: Simulation,
+            beam: BeamBaseClass,
     ) -> None:
         """
         Update memory with new values
@@ -250,7 +255,230 @@ class BunchObservation(Observables):
         )
 
 
+class CRBunchObservation_meta_params(Observables):
+    """
+    Records mean and sigma of both energy and time bunch coordinates
+    """
+
+    def __init__(self, each_turn_i: int, obs_per_turn: int):
+        super().__init__(each_turn_i=each_turn_i)
+
+        self._sigma_dt: LateInit[DenseArrayRecorder] = None
+        self._sigma_dE: LateInit[DenseArrayRecorder] = None
+        self._mean_dt: LateInit[DenseArrayRecorder] = None
+        self._mean_dE: LateInit[DenseArrayRecorder] = None
+
+        self._sigma_dt_CR: LateInit[DenseArrayRecorder] = None
+        self._sigma_dE_CR: LateInit[DenseArrayRecorder] = None
+        self._mean_dt_CR: LateInit[DenseArrayRecorder] = None
+        self._mean_dE_CR: LateInit[DenseArrayRecorder] = None
+
+        self._emittance_stat: LateInit[DenseArrayRecorder] = None
+        self._emittance_stat_CR: LateInit[DenseArrayRecorder] = None
+
+        assert obs_per_turn >= 0, "obs per turn needs to be >= 0"
+        self._obs_per_turn = obs_per_turn
+
+    def on_run_simulation(
+            self,
+            simulation: Simulation,
+            beam: BeamBaseClass,
+            n_turns: int,
+            turn_i_init: int,
+            **kwargs,
+    ) -> None:
+        # super call is neglected here on purpose, as array sizes will be wrong otherwise
+        self._n_turns = n_turns
+        self._turn_i_init = turn_i_init
+
+        # TODO: check if the obs_per_turn is larger than the number of sections --> not possible
+
+        n_entries = int(n_turns * self._obs_per_turn + 1)
+        shape = (n_entries)
+
+        self._turns_array = np.linspace(turn_i_init, turn_i_init + n_turns, n_entries, endpoint=False)
+        self._inp.arange(0, len(arra), step=np.ceil(len(arra) / 3))
+
+        assert simulation.ring.n_cavities >= self._obs_per_turn, "more obervations than observation points"
+
+        self._mean_dt = DenseArrayRecorder(
+            f"{'simulation.get_hash'}_mean_dt",
+            shape,
+        )
+        self._mean_dE = DenseArrayRecorder(
+            f"{'simulation.get_hash'}_mean_dE",
+            shape,
+        )
+        self._mean_dt_CR = DenseArrayRecorder(
+            f"{'simulation.get_hash'}_mean_dt_CR",
+            shape,
+        )
+        self._mean_dE_CR = DenseArrayRecorder(
+            f"{'simulation.get_hash'}_mean_dE_CR",
+            shape,
+        )
+        self._sigma_dt = DenseArrayRecorder(
+            f"{'simulation.get_hash'}_sigma_dt",
+            shape,
+        )
+        self._sigma_dE = DenseArrayRecorder(
+            f"{'simulation.get_hash'}_sigma_dE",
+            shape,
+        )
+        self._sigma_dt_CR = DenseArrayRecorder(
+            f"{'simulation.get_hash'}_sigma_dt_CR",
+            shape,
+        )
+        self._sigma_dE_CR = DenseArrayRecorder(
+            f"{'simulation.get_hash'}_sigma_dE_CR",
+            shape,
+        )
+        self._emittance_stat = DenseArrayRecorder(
+            f"{'simulation.get_hash'}_emittance_stat",
+            shape,
+        )
+        self._emittance_stat_CR = DenseArrayRecorder(
+            f"{'simulation.get_hash'}_emittance_stat_CR",
+            shape,
+        )
+
+    def update(
+            self,
+            simulation: Simulation,
+            beam: BeamBaseClass,
+            beam_cr: BeamBaseClass = None,
+    ) -> None:
+        """
+        Update memory with new values
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+        beam
+            Simulation beam object
+
+        """
+        if simulation.section_i.current_group % self._obs_per_turn == 0:
+            super().update(simulation=simulation, beam=beam)
+            if beam_cr is None:
+                raise RuntimeError("Use Bunch Observation for single beam observations")
+            self._sigma_dt.write(np.std(beam._dt))
+            self._sigma_dE.write(np.std(beam._dE))
+            self._mean_dt.write(np.mean(beam._dt))
+            self._mean_dE.write(np.mean(beam._dE))
+            self._emittance_stat.write(
+                np.sqrt(np.average(beam._dE ** 2) * np.average(beam._dt ** 2) - np.average(beam._dE * beam._dt)))
+
+            self._sigma_dt_CR.write(np.std(beam_cr._dt))
+            self._sigma_dE_CR.write(np.std(beam_cr._dE))
+            self._mean_dt_CR.write(np.mean(beam_cr._dt))
+            self._mean_dE_CR.write(np.mean(beam_cr._dE))
+            self._emittance_stat_CR.write(np.sqrt(
+                np.average(beam_cr._dE ** 2) * np.average(beam_cr._dt ** 2) - np.average(beam_cr._dE * beam_cr._dt)))
+
+    @property  # as readonly attributes
+    def sigma_dt(self):
+        return self._sigma_dt.get_valid_entries()
+
+    @property  # as readonly attributes
+    def sigma_dE(self):
+        return self._sigma_dE.get_valid_entries()
+
+    @property  # as readonly attributes
+    def mean_dt(self):
+        return self._mean_dt.get_valid_entries()
+
+    @property  # as readonly attributes
+    def mean_dE(self):
+        return self._mean_dE.get_valid_entries()
+
+    @property  # as readonly attributes
+    def emittance_stat(self):
+        return self._emittance_stat.get_valid_entries()
+
+    @property  # as readonly attributes
+    def sigma_dt_CR(self):
+        return self._sigma_dt_CR.get_valid_entries()
+
+    @property  # as readonly attributes
+    def sigma_dE_CR(self):
+        return self._sigma_dE_CR.get_valid_entries()
+
+    @property  # as readonly attributes
+    def mean_dt_CR(self):
+        return self._mean_dt_CR.get_valid_entries()
+
+    @property  # as readonly attributes
+    def mean_dE_CR(self):
+        return self._mean_dE_CR.get_valid_entries()
+
+    @property  # as readonly attributes
+    def emittance_stat_CR(self):
+        return self._emittance_stat_CR.get_valid_entries()
+
+    def to_disk(self) -> None:
+        super().to_disk()
+        self._sigma_dt.to_disk()
+        self._sigma_dE.to_disk()
+        self._mean_dt.to_disk()
+        self._mean_dE.to_disk()
+        self._emittance_stat.to_disk()
+
+        self._sigma_dt_CR.to_disk()
+        self._sigma_dE_CR.to_disk()
+        self._mean_dt_CR.to_disk()
+        self._mean_dE_CR.to_disk()
+        self._emittance_stat_CR.to_disk()
+
+    def from_disk(self) -> None:
+        super().from_disk()
+
+        self._sigma_dt = DenseArrayRecorder.from_disk(
+            self._sigma_dt.filepath,
+        )
+        self._sigma_dE = DenseArrayRecorder.from_disk(
+            self._sigma_dE.filepath,
+        )
+
+        self._mean_dt = DenseArrayRecorder.from_disk(
+            self._mean_dt.filepath,
+        )
+
+        self._mean_dE = DenseArrayRecorder.from_disk(
+            self._mean_dE.filepath,
+        )
+
+        self._emittance_stat = DenseArrayRecorder.from_disk(
+            self._emittance_stat.filepath,
+        )
+
+        self._sigma_dt_CR = DenseArrayRecorder.from_disk(
+            self._sigma_dt_CR.filepath,
+        )
+
+        self._sigma_dE_CR = DenseArrayRecorder.from_disk(
+            self._sigma_dE_CR.filepath,
+        )
+
+        self._mean_dt_CR = DenseArrayRecorder.from_disk(
+            self._mean_dt_CR.filepath,
+        )
+
+        self._mean_dE_CR = DenseArrayRecorder.from_disk(
+            self._mean_dE_CR.filepath,
+        )
+
+        self._emittance_stat_CR = DenseArrayRecorder.from_disk(
+            self._emittance_stat_CR.filepath,
+        )
+
+
 class CRBunchObservation(BunchObservation):
+    """
+    Same as Bunch observation, but takes all data from the co- and counter-rotating beams
+    """
+
     def __init__(self, each_turn_i: int, obs_per_turn: int):
         super().__init__(each_turn_i=each_turn_i)
 
@@ -260,12 +488,12 @@ class CRBunchObservation(BunchObservation):
         self._obs_per_turn = obs_per_turn
 
     def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        turn_i_init: int,
-        **kwargs,
+            self,
+            simulation: Simulation,
+            beam: BeamBaseClass,
+            n_turns: int,
+            turn_i_init: int,
+            **kwargs,
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
@@ -298,11 +526,11 @@ class CRBunchObservation(BunchObservation):
             shape,
         )
         self._dts_CR = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_dts",
+            f"{'simulation.get_hash'}_dts_CR",
             shape,
         )  # TODO
         self._dEs_CR = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_dEs",
+            f"{'simulation.get_hash'}_dEs_CR",
             shape,
         )
         # TODO
@@ -321,10 +549,10 @@ class CRBunchObservation(BunchObservation):
         )
 
     def update(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        beam_cr: BeamBaseClass=None,
+            self,
+            simulation: Simulation,
+            beam: BeamBaseClass,
+            beam_cr: BeamBaseClass = None,
     ) -> None:
         """
         Update memory with new values
@@ -366,6 +594,7 @@ class CRBunchObservation(BunchObservation):
             self._dEs_CR.filepath,
         )
 
+
 class CavityPhaseObservation(Observables):
     def __init__(self, each_turn_i: int, cavity: SingleHarmonicCavity):
         """
@@ -386,12 +615,12 @@ class CavityPhaseObservation(Observables):
         self._voltages: LateInit[DenseArrayRecorder] = None
 
     def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        turn_i_init: int,
-        **kwargs,
+            self,
+            simulation: Simulation,
+            beam: BeamBaseClass,
+            n_turns: int,
+            turn_i_init: int,
+            **kwargs,
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
@@ -426,9 +655,9 @@ class CavityPhaseObservation(Observables):
         )
 
     def update(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
+            self,
+            simulation: Simulation,
+            beam: BeamBaseClass,
     ) -> None:
         """
         Update memory with new values
@@ -485,7 +714,7 @@ class CavityPhaseObservation(Observables):
 
 
 class StaticProfileObservation(Observables):
-    def __init__(self, each_turn_i: int, profile: StaticProfile):
+    def __init__(self, each_turn_i: int, profile: StaticProfile, obs_per_turn: int=1):
         """
         Observation of a static beam profile
 
@@ -497,18 +726,20 @@ class StaticProfileObservation(Observables):
         profile
             Class for the calculation of beam profile
             that doesn't change its parameters
+        obs_per_turn
+            Number of observations per turn
         """
-        super().__init__(each_turn_i=each_turn_i)
+        super().__init__(each_turn_i=each_turn_i, obs_per_turn=obs_per_turn)
         self._profile = profile
         self._hist_y: LateInit[DenseArrayRecorder] = None
 
     def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        turn_i_init: int,
-        **kwargs,
+            self,
+            simulation: Simulation,
+            beam: BeamBaseClass,
+            n_turns: int,
+            turn_i_init: int,
+            **kwargs,
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
@@ -525,19 +756,20 @@ class StaticProfileObservation(Observables):
             simulation=simulation,
             n_turns=n_turns,
             turn_i_init=turn_i_init,
+            obs_per_turn=self._obs_per_turn,
             beam=beam,
         )
-        n_entries = n_turns // self.each_turn_i + 2
+        n_entries = len(self._turns_array)
         n_bins = self._profile.n_bins
         self._hist_y = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_phases",  # TODO
+            f"{'simulation.get_hash'}_hist_y",  # TODO
             (n_entries, n_bins),
         )
 
     def update(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
+            self,
+            simulation: Simulation,
+            beam: BeamBaseClass,
     ) -> None:
         """
         Update memory with new values
@@ -550,9 +782,10 @@ class StaticProfileObservation(Observables):
             Simulation beam object
 
         """
-        self._hist_y.write(
-            self._profile._hist_y,
-        )
+        if simulation.section_i.current_group % self._obs_per_turn == 0:
+            self._hist_y.write(
+                self._profile._hist_y,
+            )
 
     @property  # as readonly attributes
     def hist_y(self):
@@ -571,9 +804,9 @@ class StaticProfileObservation(Observables):
         """
         self._hist_y = DenseArrayRecorder.from_disk(self._hist_y.filepath)
 
-
 class WakeFieldObservation(Observables):
-    def __init__(self, each_turn_i: int, wakefield: WakeField):
+    def __init__(self, each_turn_i: int, wakefield: WakeField,
+                 obs_per_turn: int=1):
         """
         Observe the calculation of wake-fields
 
@@ -584,18 +817,21 @@ class WakeFieldObservation(Observables):
             callable each n-th turn.
         wakefield
             Manager class to calculate wake-fields
+        obs_per_turn
+            Number of observations per turn
         """
-        super().__init__(each_turn_i=each_turn_i)
+        super().__init__(each_turn_i=each_turn_i, obs_per_turn=obs_per_turn)
+        self._obs_per_turn = obs_per_turn
         self._wakefield = wakefield
         self._induced_voltage: LateInit[DenseArrayRecorder] = None
 
     def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        turn_i_init: int,
-        **kwargs,
+            self,
+            simulation: Simulation,
+            beam: BeamBaseClass,
+            n_turns: int,
+            turn_i_init: int,
+            **kwargs,
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
@@ -612,9 +848,10 @@ class WakeFieldObservation(Observables):
             simulation=simulation,
             n_turns=n_turns,
             turn_i_init=turn_i_init,
+            obs_per_turn=self._obs_per_turn,
             beam=beam,
         )
-        n_entries = n_turns // self.each_turn_i + 2
+        n_entries = len(self._turns_array)
         n_bins = self._wakefield._profile.n_bins
         self._induced_voltage = DenseArrayRecorder(
             f"{'simulation.get_hash'}_phases",  # TODO
@@ -622,9 +859,9 @@ class WakeFieldObservation(Observables):
         )
 
     def update(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
+            self,
+            simulation: Simulation,
+            beam: BeamBaseClass,
     ) -> None:
         """
         Update memory with new values
@@ -637,12 +874,13 @@ class WakeFieldObservation(Observables):
             Simulation beam object
 
         """
-        try:
-            self._induced_voltage.write(
-                self._wakefield.induced_voltage,
-            )
-        except AttributeError:
-            self._induced_voltage.write(np.zeros(self._wakefield._profile.n_bins))
+        if simulation.section_i.current_group in self._index_list:
+            try:
+                self._induced_voltage.write(
+                    self._wakefield.induced_voltage,
+                )
+            except AttributeError:
+                self._induced_voltage.write(np.zeros(self._wakefield._profile.n_bins))
 
     @property  # as readonly attributes
     def induced_voltage(self):
