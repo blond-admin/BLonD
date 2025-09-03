@@ -45,7 +45,9 @@ Repository = "https://gitlab.cern.ch/blond/BLonD"
 
 
 [project.scripts]
-blond-compile = "blond.compile:main"
+blond-compile-cpp = "blond._core.backends.cpp.compile:main_cli"
+blond-compile-cuda = "blond._core.backends.cuda.compile:main_cli"
+blond-compile-fortran = "blond._core.backends.fortran.compile:main_cli"
 
 [tool.setuptools_scm]
 write_to = 'blond/_version.py' # autogenerates version string using git
