@@ -18,8 +18,8 @@ from blond3 import (
 from blond3._core.beam.base import BeamBaseClass
 from blond3._core.backends.backend import backend, Numpy64Bit
 from blond3.beam_preparation.base import BeamPreparationRoutine
-from blond3.handle_results.observables import CRBunchObservation, CRBunchObservation_meta_params, \
-    StaticProfileObservation, WakeFieldObservation
+from blond3.handle_results.observables import (BunchObservation_meta_params, \
+    StaticProfileObservation, WakeFieldObservation)
 from blond3.physics.impedances.sources import Resonators
 from blond3.physics.impedances.solvers import MultiPassResonatorSolver, AnalyticSingleTurnResonatorSolver
 from scipy.constants import pi
@@ -145,9 +145,9 @@ sim.prepare_beam(
 
 sim.print_one_turn_execution_order()
 
-bunch_observation = CRBunchObservation_meta_params(each_turn_i=1, obs_per_turn = 4)
+bunch_observation = BunchObservation_meta_params(each_turn_i=1, obs_per_turn = 4)
 profile_observation = StaticProfileObservation(each_turn_i=1, obs_per_turn=4, profile=profile_tmp)
-wakefield_observation = WakeFieldObservation(each_turn_i=1, obs_per_turn = 4)
+# wakefield_observation = WakeFieldObservation(each_turn_i=1, obs_per_turn = 4)
 sim.run_simulation(beams=(beam, beam_CR), turn_i_init=0, n_turns=n_turns, observe=[bunch_observation,
                                                                                    profile_observation])
 
