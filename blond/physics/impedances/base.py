@@ -286,3 +286,24 @@ class WakeField(ImpedanceBaseClass):
             charge=beam.particle_type.charge,
             acceleration_kick=0.0,  # TODO was this ever required??
         )
+
+    @staticmethod
+    def headless(
+        sources: Tuple[WakeFieldSource, ...],
+        solver: WakeFieldSolver,
+        section_index: int = 0,
+        profile: LateInit[ProfileBaseClass] = None,
+    ):
+        wf = WakeField(
+            sources=sources,
+            solver=solver,
+            section_index=section_index,
+            profile=profile,
+        )
+        from unittest.mock import Mock
+
+        from ..._core.simulation.simulation import Simulation
+
+        simulation = Mock(Simulation)
+        wf.on_init_simulation(simulation=simulation)
+        return wf

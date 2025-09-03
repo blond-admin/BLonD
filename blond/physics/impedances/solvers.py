@@ -228,8 +228,9 @@ class PeriodicFreqSolver(WakeFieldSolver):
     def _update_internal_data(self):
         """Rebuild internal data model"""
         self._n_time = int(
-            math.ceil(
-                self._t_periodicity / self._parent_wakefield.profile.hist_step
+            round(
+                self._t_periodicity / self._parent_wakefield.profile.hist_step,
+                0,
             )
         )
         assert self._n_time >= self._parent_wakefield.profile.n_bins, (
