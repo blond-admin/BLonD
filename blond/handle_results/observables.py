@@ -112,18 +112,38 @@ class Observables(MainLoopRelevant):
             warnings.warn(
                 f"obs_per_turn must be greater than 0, got {obs_per_turn}, value was set to 1."
             )
+        if obs_per_turn > simulation.ring.n_cavities:
+            self._obs_per_turn = simulation.ring.n_cavities
+            warnings.warn(
+                f"obs_per_turn must be smaller than n_cavities ({simulation.ring.n_cavities}), got {obs_per_turn}, value was set to {simulation.ring.n_cavities}."
+            )
 
-        self._turns_array = np.linspace(
-            turn_i_init,
-            turn_i_init + n_turns,
-            int(n_turns * self._obs_per_turn + 1),
-            endpoint=False,
-        )  # TODO: this assumes equidistant spacing, which is not correct with mutiple obs per turn, needs to check actual turn distances between obs
         self._index_list = np.arange(
             0,
             simulation.ring.n_cavities,
             step=np.ceil(simulation.ring.n_cavities / self._obs_per_turn),
+            dtype=int,
         )
+        section_distances = (
+            np.array(
+                [
+                    np.sum(simulation.ring.section_lengths[0:ind])
+                    for ind in self._index_list
+                ]
+            )
+            / simulation.ring.circumference
+        )
+        self._turns_array = np.zeros(0)
+        for turn in range(turn_i_init, turn_i_init + n_turns):
+            self._turns_array = np.append(
+                self._turns_array, turn + section_distances
+            )
+        # self._turns_array = np.linspace(
+        #     turn_i_init,
+        #     turn_i_init + n_turns,
+        #     int(n_turns * self._obs_per_turn + 1),
+        #     endpoint=False,
+        # )  # TODO: this assumes equidistant spacing, which is not correct with mutiple obs per turn, needs to check actual turn distances between obs
 
     @abstractmethod  # pragma: no cover
     def to_disk(self) -> None:
@@ -313,27 +333,17 @@ class BunchObservation_meta_params(Observables):
         turn_i_init: int,
         **kwargs,
     ) -> None:
-        # super call is neglected here on purpose, as array sizes will be wrong otherwise
-        self._n_turns = n_turns
-        self._turn_i_init = turn_i_init
-
+        super().on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=n_turns,
+            turn_i_init=turn_i_init,
+            obs_per_turn=self._obs_per_turn,
+        )
         # TODO: check if the obs_per_turn is larger than the number of sections --> not possible
 
         n_entries = int(n_turns * self._obs_per_turn + 1)
         shape = n_entries
-
-        self._turns_array = np.linspace(
-            turn_i_init, turn_i_init + n_turns, n_entries, endpoint=False
-        )
-
-        assert simulation.ring.n_cavities >= self._obs_per_turn, (
-            "more obervations than observation points"
-        )
-        self._index_list = np.arange(
-            0,
-            simulation.ring.n_cavities,
-            step=np.ceil(simulation.ring.n_cavities / self._obs_per_turn),
-        )
 
         self._mean_dt = DenseArrayRecorder(
             f"{'simulation.get_hash'}_mean_dt",
@@ -614,7 +624,7 @@ class StaticProfileObservation(Observables):
         n_entries = len(self._turns_array)
         n_bins = self._profile.n_bins
         self._hist_y = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_hist_y",  # TODO
+            f"{'simulation.get_hash'}_hist_y",
             (n_entries, n_bins),
         )
 
