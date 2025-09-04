@@ -150,17 +150,20 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         self.analytical_single_turn_solver = (
             SingleTurnResonatorConvolutionSolver()
         )
-        self.left_edge, self.right_edge, self.bin_size = -2e-9, 1e-9, 1e-10
+        self.left_edge, self.right_edge, self.hist_step = -2e-9, 1e-9, 1e-10
         self.hist_x = np.linspace(
             self.left_edge,
             self.right_edge,
-            int(np.round((self.right_edge - self.left_edge) / self.bin_size))
+            int(np.round((self.right_edge - self.left_edge) / self.hist_step))
             + 1,
             endpoint=True,
         )
 
         self.analytical_single_turn_solver._parent_wakefield = Mock(WakeField)
-        self.analytical_single_turn_solver._parent_wakefield.profile.bin_size = self.bin_size
+        self.analytical_single_turn_solver._parent_wakefield.profile = Mock(
+            spec=StaticProfile
+        )
+        self.analytical_single_turn_solver._parent_wakefield.profile.hist_step = self.hist_step
         self.analytical_single_turn_solver._parent_wakefield.profile.hist_x = (
             self.hist_x
         )
@@ -216,9 +219,9 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         self.analytical_single_turn_solver._parent_wakefield.profile.hist_x = np.append(
             self.analytical_single_turn_solver._parent_wakefield.profile.hist_x,
             np.arange(
-                self.right_edge + self.bin_size,
-                new_right_edge + self.bin_size,
-                self.bin_size,
+                self.right_edge + self.hist_step,
+                new_right_edge + self.hist_step,
+                self.hist_step,
             ),
         )
 
@@ -275,7 +278,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
                     )
                 ],
                 self.analytical_single_turn_solver._parent_wakefield.profile.hist_x,
-                atol=self.bin_size / 100,
+                atol=self.hist_step / 100,
             ):
                 found = True
                 break
@@ -299,7 +302,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
                     + len(local_copy._parent_wakefield.profile.hist_x)
                 ],
                 first_time,
-                atol=self.bin_size / 100,
+                atol=self.hist_step / 100,
             ):
                 found = True
                 break
@@ -313,7 +316,9 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         self.analytical_single_turn_solver._update_potential_sources(
             zero_pinning=True
         )
-        profile_width = int((self.right_edge - self.left_edge) / self.bin_size)
+        profile_width = int(
+            (self.right_edge - self.left_edge) / self.hist_step
+        )
         self.analytical_single_turn_solver._wake_pot_vals = np.zeros(
             profile_width * 2 + 1
         )
@@ -332,10 +337,10 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         assert np.sum(calced_voltage[0 : profile_width // 3 - 3]) == 0
         assert np.sum(calced_voltage[profile_width // 3 + 3 :]) == 0
 
-        # same check, but with self.bin_size/2 shifted histogram, should have same values
+        # same check, but with self.hist_step/2 shifted histogram, should have same values
         local_res = deepcopy(self.analytical_single_turn_solver)
         local_res._parent_wakefield.profile.hist_x = (
-            self.hist_x + self.bin_size / 2
+            self.hist_x + self.hist_step / 2
         )
 
         local_res._update_potential_sources(zero_pinning=True)
@@ -387,9 +392,10 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         bunch = np.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
 
         analy._parent_wakefield = Mock(WakeField)
-        analy._parent_wakefield.profile.bin_size = (
+        analy._parent_wakefield.profile.hist_step = (
             bunch_time[1] - bunch_time[0]
         )
+        analy._parent_wakefield.profile.__
         analy._parent_wakefield.profile.hist_x = bunch_time
         analy._parent_wakefield.profile.hist_y = bunch / np.sum(bunch)
 
@@ -488,15 +494,16 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             quality_factors=np.array([10e3, 10e3, 10e3]),
         )
         self.multi_pass_resonator_solver = MultiPassResonatorSolver()
-        self.bin_size, self.hist_x = (
+        self.hist_step, self.hist_x = (
             1e-10,
             np.arange(-1e-9, 1e-9 + 1e-10, 1e-10),
         )
 
         self.multi_pass_resonator_solver._parent_wakefield = Mock(WakeField)
-        self.multi_pass_resonator_solver._parent_wakefield.profile.bin_size = (
-            self.bin_size
+        self.multi_pass_resonator_solver._parent_wakefield.profile = Mock(
+            StaticProfile
         )
+        self.multi_pass_resonator_solver._parent_wakefield.profile.hist_step = self.hist_step
         self.multi_pass_resonator_solver._parent_wakefield.profile.hist_x = (
             self.hist_x
         )
@@ -1002,7 +1009,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             local_res._past_profiles[1], local_res._past_profiles[2]
         )
 
-    def test__update_potential_sources_bin_size(self):
+    def test__update_potential_sources_hist_step(self):
         sim = Mock(Simulation)
 
         local_res = deepcopy(self.multi_pass_resonator_solver)
@@ -1018,7 +1025,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         local_res._wake_pot_vals_needs_update = True
         with self.assertRaises(
             AssertionError,
-            msg="profile bin size needs to be constant: bin_size might be too small with casting to delta_t precision",
+            msg="profile bin size needs to be constant: hist_step might be too small with casting to delta_t precision",
         ):
             local_res._update_potential_sources(1.0)
 
@@ -1077,7 +1084,8 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         bunch = np.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
 
         local_res._parent_wakefield = Mock(WakeField)
-        local_res._parent_wakefield.profile.bin_size = (
+        local_res._parent_wakefield.profile = Mock(spec=StaticProfile)
+        local_res._parent_wakefield.profile.hist_step = (
             bunch_time[1] - bunch_time[0]
         )
         local_res._parent_wakefield.profile.hist_x = bunch_time
@@ -1148,7 +1156,8 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             bunch = np.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
 
             local_res._parent_wakefield = Mock(WakeField)
-            local_res._parent_wakefield.profile.bin_size = (
+            local_res._parent_wakefield.profile = Mock(spec=StaticProfile)
+            local_res._parent_wakefield.profile.hist_step = (
                 bunch_time[1] - bunch_time[0]
             )
             local_res._parent_wakefield.profile.hist_x = bunch_time
@@ -1166,7 +1175,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
             local_res_analy = SingleTurnResonatorConvolutionSolver()
             local_res_analy._parent_wakefield = Mock(WakeField)
-            local_res_analy._parent_wakefield.profile.bin_size = (
+            local_res_analy._parent_wakefield.profile.hist_step = (
                 bunch_time[1] - bunch_time[0]
             )
             local_res_analy._parent_wakefield.profile.hist_x = bunch_time

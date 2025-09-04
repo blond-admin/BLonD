@@ -567,15 +567,15 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
         Parameters
         ----------
         zero_pinning: boolean
-            causes values <= self._parent_wakefield.profile.bin_size * np.finfo(float).eps * len(self._wake_pot_time)
+            causes values <= self._parent_wakefield.profile.hist_step * np.finfo(float).eps * len(self._wake_pot_time)
             to be pinned to exactly zero. This prevents issues with the heaviside function around the 0 timestamp
         """
         if not self._wake_pot_vals_needs_update:
             return
-        bin_size = self._parent_wakefield.profile.bin_size
+        hist_step = self._parent_wakefield.profile.hist_step
         left_extend = (
             len(self._parent_wakefield.profile.hist_x)
-            + self._parent_wakefield.profile.hist_x[0] / bin_size
+            + self._parent_wakefield.profile.hist_x[0] / hist_step
             - 1
         )
         # time shift for alignment with wakepotential definition of 0
@@ -584,9 +584,9 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
         )  # total length has to be 2*hist_x
 
         self._wake_pot_time = np.linspace(
-            self._parent_wakefield.profile.hist_x[0] - left_extend * bin_size,
+            self._parent_wakefield.profile.hist_x[0] - left_extend * hist_step,
             self._parent_wakefield.profile.hist_x[-1]
-            + right_extend * bin_size,
+            + right_extend * hist_step,
             int(
                 len(self._parent_wakefield.profile.hist_x)
                 + left_extend
@@ -597,7 +597,7 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
         if zero_pinning:
             self._wake_pot_time[
                 np.abs(self._wake_pot_time)
-                <= self._parent_wakefield.profile.bin_size
+                <= self._parent_wakefield.profile.hist_step
                 * np.finfo(float).eps
                 * len(self._wake_pot_time)
             ] = 0.0
@@ -692,7 +692,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 "Parent wakefield must be present before this function can be called."
             )
         for source in self._parent_wakefield.sources:
-            envelope, time_axis = source.calculate_envelope()
+            time_axis, envelope = source.calculate_envelope()
 
             storage_time = time_axis[
                 np.abs(envelope - self._decay_fraction_threshold).argmin()
@@ -784,7 +784,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         Parameters
         ----------
         zero_pinning: bool
-            causes values <= self._parent_wakefield.profile.bin_size * np.finfo(float).eps * len(self._wake_pot_time)
+            causes values <= self._parent_wakefield.profile.hist_step * np.finfo(float).eps * len(self._wake_pot_time)
             to be pinned to exactly zero. This prevents issues with the heaviside function around the 0 timestamp
 
         """
@@ -792,13 +792,13 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             if (
                 prof_ind == 0
             ):  # current profile does not yet have arrays initialized
-                profile_bin_size = (
+                profile_hist_step = (
                     self._past_profile_times[prof_ind][1]
                     - self._past_profile_times[prof_ind][0]
                 )
                 left_extend = (
                     len(self._past_profile_times[prof_ind])
-                    + self._past_profile_times[prof_ind][0] / profile_bin_size
+                    + self._past_profile_times[prof_ind][0] / profile_hist_step
                     - 1
                 )
                 # time shift for alignment with wakepotential definition of 0
@@ -808,9 +808,9 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 self._wake_pot_time.appendleft(
                     np.linspace(
                         self._past_profile_times[prof_ind][0]
-                        - left_extend * profile_bin_size,
+                        - left_extend * profile_hist_step,
                         self._past_profile_times[prof_ind][-1]
-                        + right_extend * profile_bin_size,
+                        + right_extend * profile_hist_step,
                         int(
                             len(self._past_profile_times[prof_ind])
                             + left_extend
@@ -822,7 +822,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 if zero_pinning:
                     self._wake_pot_time[prof_ind][
                         np.abs(self._wake_pot_time[prof_ind])
-                        <= profile_bin_size
+                        <= profile_hist_step
                         * np.finfo(float).eps
                         * len(self._wake_pot_time[prof_ind])
                     ] = 0.0
@@ -856,17 +856,17 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._remove_fully_decayed_wake_profiles()
 
         if len(self._past_profiles) != 0:  # ensure same time axis for profiles
-            past_bin_size = (
+            past_hist_step = (
                 self._past_profile_times[-1][1]
                 - self._past_profile_times[-1][0]
             )
             # TODO: big time jumps lead to problematic casting --> do we care about this?
-            new_bin_size = (
+            new_hist_step = (
                 self._parent_wakefield.profile.hist_x[1]
                 - self._parent_wakefield.profile.hist_x[0]
             )
-            assert np.isclose(new_bin_size, past_bin_size, atol=0), (
-                "Profile bin size needs to be constant: bin_size might be too small with casting to delta_t precision."
+            assert np.isclose(new_hist_step, past_hist_step, atol=0), (
+                "Profile bin size needs to be constant: hist_step might be too small with casting to delta_t precision."
             )
         self._past_profile_times.appendleft(
             np.copy(self._parent_wakefield.profile.hist_x)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from os import PathLike
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, Tuple
 
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
@@ -294,7 +294,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
             )
         return wake
 
-    def calculate_envelope(self) -> List[NumpyArray, NumpyArray]:
+    def calculate_envelope(self) -> Tuple[NumpyArray, NumpyArray]:
         """
         Calculates the normalized envelope of all resonators.
         """
