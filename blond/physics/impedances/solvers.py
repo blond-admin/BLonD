@@ -19,6 +19,7 @@ from ..._core.beam.base import BeamBaseClass
 from ..._core.ring.helpers import requires
 from ..._core.simulation.simulation import Simulation
 from ..profiles import (
+    DynamicProfile,
     DynamicProfileConstCutoff,
     DynamicProfileConstNBins,
     StaticProfile,
@@ -533,20 +534,19 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
         """
         self._simulation = simulation
         if parent_wakefield.profile is None:
-            raise ValueError(f"parent wakefield needs to have a profile")
+            raise ValueError(f"Parent wakefield needs to have a profile.")
         self._parent_wakefield = parent_wakefield
         self._wake_pot_vals_needs_update = True
 
-        is_dynamic = isinstance(
-            parent_wakefield.profile, DynamicProfileConstCutoff
-        ) or isinstance(parent_wakefield.profile, DynamicProfileConstNBins)
-        if is_dynamic:
-            raise RuntimeError("dynamic profiles are not supported")
+        if not isinstance(parent_wakefield.profile, StaticProfile):
+            raise RuntimeError(
+                f"Expected `StaticProfile` but got {type(parent_wakefield.profile)=}."
+            )
 
         for source in self._parent_wakefield.sources:
             if source.is_dynamic or not isinstance(source, Resonators):
                 raise RuntimeError(
-                    "source needs to be a Resonator and must not be dynamic"
+                    f"Expected `Resonators` and not source.is_dynamic, but got {type(source)=}."
                 )
 
     def _update_potential_sources(self, zero_pinning: bool = False) -> None:
@@ -672,7 +672,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         """
         if self._parent_wakefield is None:
             raise RuntimeError(
-                "parent wakefield must be present before this function can be called"
+                "Parent wakefield must be present before this function can be called."
             )
         for source in self._parent_wakefield.sources:
             time_axis = np.linspace(
@@ -706,7 +706,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         """
         self._simulation = simulation
         if parent_wakefield.profile is None:
-            raise ValueError(f"parent wakefield needs to have a profile")
+            raise ValueError(f"Parent wakefield needs to have a profile.")
         self._parent_wakefield = parent_wakefield
         self._wake_pot_vals_needs_update = True
 
@@ -720,16 +720,15 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._maximum_storage_time = 0
         self._last_reference_time = -np.finfo(float).eps
 
-        is_dynamic = isinstance(
-            parent_wakefield.profile, DynamicProfileConstCutoff
-        ) or isinstance(parent_wakefield.profile, DynamicProfileConstNBins)
-        if is_dynamic:
-            raise RuntimeError("dynamic profiles are not supported")
+        if not isinstance(parent_wakefield.profile, StaticProfile):
+            raise RuntimeError(
+                f"Expected `StaticProfile` but got {type(parent_wakefield.profile)=}."
+            )
 
         for source in self._parent_wakefield.sources:
             if source.is_dynamic or not isinstance(source, Resonators):
                 raise RuntimeError(
-                    "source needs to be a Resonator and must not be dynamic"
+                    f"Expected `Resonators` and not source.is_dynamic, but got {type(source)=}."
                 )
 
         self._determine_storage_time()
