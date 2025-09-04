@@ -125,7 +125,7 @@ beam_CR = Beam(
 )
 sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
 load_beam_data_counterrot_from_file(
-    str(Path(__file__).parent) + r"\\RCS2_8_cavities.npz", beam, beam_CR
+    str(Path(__file__).parent) + r"/RCS2_8_cavities.npz", beam, beam_CR
 )
 
 bunch_observation = BunchObservation_meta_params(
