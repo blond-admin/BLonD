@@ -692,17 +692,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 "Parent wakefield must be present before this function can be called."
             )
         for source in self._parent_wakefield.sources:
-            time_axis = np.linspace(
-                0, np.max(source._quality_factors / source._omega) * 20, 100000
-            )
-            envelope = 0
-            for res_ind in range(len(source._quality_factors)):
-                envelope += (
-                    source._shunt_impedances[res_ind]
-                    * source._alpha[res_ind]
-                    * np.exp(-time_axis * source._alpha[res_ind])
-                )
-            envelope /= np.max(envelope)
+            envelope, time_axis = source.calculate_envelope()
+
             storage_time = time_axis[
                 np.abs(envelope - self._decay_fraction_threshold).argmin()
             ]

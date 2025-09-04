@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from os import PathLike
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
@@ -293,6 +293,24 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
                 )
             )
         return wake
+
+    def calculate_envelope(self) -> List[NumpyArray, NumpyArray]:
+        """
+        Calculates the normalized envelope of all resonators.
+        """
+        time_axis = np.linspace(
+            0, np.max(self._quality_factors / self._omega) * 20, 100000
+        )
+        envelope = np.zeros_like(time_axis)
+        for res_ind in range(len(self._quality_factors)):
+            envelope += (
+                self._shunt_impedances[res_ind]
+                * self._alpha[res_ind]
+                * np.exp(-time_axis * self._alpha[res_ind])
+            )
+        envelope /= np.max(envelope)
+
+        return time_axis, envelope
 
     def get_impedance(
         self,
