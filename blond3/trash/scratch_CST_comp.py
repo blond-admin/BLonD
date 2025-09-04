@@ -9,7 +9,7 @@ from scipy.constants import c, e
 from blond import WakeField
 from blond._core.beam.base import BeamBaseClass
 from blond.physics.impedances.solvers import (
-    AnalyticSingleTurnResonatorSolver,
+    SingleTurnResonatorConvolutionSolver,
 )
 from blond.physics.impedances.sources import Resonators
 
@@ -46,7 +46,7 @@ def functest():
         shunt_impedances=R_shunt,
         center_frequencies=freq,
     )
-    analy = AnalyticSingleTurnResonatorSolver()
+    analy = SingleTurnResonatorConvolutionSolver()
     csts_stupid_number = 8.548921333333334
     # csts_stupid_number = 8.54
     bunch_time = np.linspace(

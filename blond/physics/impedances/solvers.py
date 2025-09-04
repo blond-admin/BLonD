@@ -507,7 +507,16 @@ class TimeDomainSolver(WakeFieldSolver):
         return induced_voltage
 
 
-class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
+class AnalyticalSingleTurnResonatorSolver(WakeFieldSolver):
+    """
+    TODO: integration of BLond2 Induced voltage resonator algorithm
+    """
+
+    def __init__(self):
+        raise NotImplementedError()
+
+
+class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
     def __init__(self):
         """
         Solver to calculate induced voltage from convolution of a Resonator wake potential with bunch.

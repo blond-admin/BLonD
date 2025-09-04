@@ -25,7 +25,7 @@ from blond.handle_results.observables import (
     StaticProfileObservation,
 )
 from blond.physics.impedances.solvers import (
-    AnalyticSingleTurnResonatorSolver,
+    SingleTurnResonatorConvolutionSolver,
 )
 from blond.physics.impedances.sources import Resonators
 
@@ -98,7 +98,7 @@ for cavity_i in range(n_cavities):
                 harmonic=harmonic,
                 local_wakefield=WakeField(
                     sources=(local_res,),
-                    solver=AnalyticSingleTurnResonatorSolver(),
+                    solver=SingleTurnResonatorConvolutionSolver(),
                     profile=profile_tmp,
                 ),
                 section_index=cavity_i,

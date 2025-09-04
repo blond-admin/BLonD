@@ -11,11 +11,11 @@ from scipy.constants import c, e
 from blond import Simulation, WakeField
 from blond._core.beam.base import BeamBaseClass
 from blond.physics.impedances.solvers import (
-    AnalyticSingleTurnResonatorSolver,
     InductiveImpedance,
     InductiveImpedanceSolver,
     MultiPassResonatorSolver,
     PeriodicFreqSolver,
+    SingleTurnResonatorConvolutionSolver,
 )
 from blond.physics.impedances.sources import Resonators
 from blond.physics.profiles import (
@@ -148,7 +148,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
             quality_factors=np.array([5, 5, 5]),
         )
         self.analytical_single_turn_solver = (
-            AnalyticSingleTurnResonatorSolver()
+            SingleTurnResonatorConvolutionSolver()
         )
         self.left_edge, self.right_edge, self.bin_size = -2e-9, 1e-9, 1e-10
         self.hist_x = np.linspace(
@@ -379,7 +379,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
             shunt_impedances=R_shunt,
             center_frequencies=freq,
         )
-        analy = AnalyticSingleTurnResonatorSolver()
+        analy = SingleTurnResonatorConvolutionSolver()
 
         bunch_time = np.linspace(
             -sigma_z * 8.54 / c, 8.54 * sigma_z / c, 2**12
@@ -1164,7 +1164,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             )
             local_res._update_potential_sources()
 
-            local_res_analy = AnalyticSingleTurnResonatorSolver()
+            local_res_analy = SingleTurnResonatorConvolutionSolver()
             local_res_analy._parent_wakefield = Mock(WakeField)
             local_res_analy._parent_wakefield.profile.bin_size = (
                 bunch_time[1] - bunch_time[0]

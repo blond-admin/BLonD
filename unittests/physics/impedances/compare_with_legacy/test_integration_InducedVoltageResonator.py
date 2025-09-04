@@ -17,8 +17,8 @@ from blond import (
 )
 from blond._core.backends.backend import Numpy64Bit, backend
 from blond.physics.impedances.solvers import (
-    AnalyticSingleTurnResonatorSolver,
     PeriodicFreqSolver,
+    SingleTurnResonatorConvolutionSolver,
 )
 from blond.physics.impedances.sources import Resonators
 
@@ -146,7 +146,7 @@ class Blond3:
 
         wake = WakeField(
             sources=(resonators,),
-            solver=AnalyticSingleTurnResonatorSolver(),
+            solver=SingleTurnResonatorConvolutionSolver(),
             profile=profile,
         )
         wake.solver._wake_pot_vals_need_update = True
