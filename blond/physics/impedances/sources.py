@@ -5,7 +5,6 @@ from os import PathLike
 from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy.typing import NDArray as NumpyArray
 
 from ... import Simulation
 from ..._core.backends.backend import backend
@@ -18,6 +17,8 @@ from ..impedances.base import (
 from .readers import ImpedanceReader
 
 if TYPE_CHECKING:  # pragma: no cover
+    from numpy.typing import NDArray as NumpyArray
+
     from ..._core.beam.base import BeamBaseClass
 
 
@@ -559,7 +560,7 @@ class TravelingWaveCavity(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         # Damping time a in s
         self.a_factor = np.array([a_factor], dtype=float).flatten()
 
-    def wake_calc(self, time: NumpyArray):
+    def wake_calc(self, time: NumpyArray) -> NumpyArray:
         r"""
         Wake calculation method as a function of time.
 

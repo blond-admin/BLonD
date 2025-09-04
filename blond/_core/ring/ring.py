@@ -9,7 +9,9 @@ import numpy as np
 from ..base import BeamPhysicsRelevant, Preparable, Schedulable
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Iterable, Optional, Type
+    from typing import Iterable, List, Optional, Type
+
+    from numpy.typing import NDArray as NumpyArray
 
     from ...physics.drifts import DriftBaseClass
     from ..beam.base import BeamBaseClass
@@ -140,7 +142,7 @@ class Ring(Preparable, Schedulable):
         return orbit_length
 
     @property
-    def section_lengths(self):
+    def section_lengths(self) -> NumpyArray:
         """
         Length of each section, in [m]
         """
@@ -302,7 +304,7 @@ class Ring(Preparable, Schedulable):
         insert_at: int | list[int],
         deepcopy: bool = True,
         allow_section_index_overwrite: bool = False,
-    ):
+    ) -> List[int]:
         """
         Insert a single element at the specified locations in the ring.
 
@@ -421,7 +423,7 @@ class Ring(Preparable, Schedulable):
 
     def _force_section_index_compatibility(
         self, element: BeamPhysicsRelevant, insert_at: int
-    ):
+    ) -> BeamPhysicsRelevant:
         """
         Internal method to ensure section index compatibility.
 

@@ -40,7 +40,7 @@ class Observables(MainLoopRelevant):
         self._hash: LateInit[str] = None
 
     @property  # as readonly attributes
-    def turns_array(self):
+    def turns_array(self) -> NumpyArray | None:
         """
         Helper method to get x-axis array with turn-number
         """
@@ -338,15 +338,15 @@ class CavityPhaseObservation(Observables):
         )
 
     @property  # as readonly attributes
-    def phases(self):
+    def phases(self) -> NumpyArray:
         return self._phases.get_valid_entries()
 
     @property  # as readonly attributes
-    def omegas(self):
+    def omegas(self) -> NumpyArray:
         return self._omegas.get_valid_entries()
 
     @property  # as readonly attributes
-    def voltages(self):
+    def voltages(self) -> NumpyArray:
         return self._voltages.get_valid_entries()
 
     def to_disk(self) -> None:

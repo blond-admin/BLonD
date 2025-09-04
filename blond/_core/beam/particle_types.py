@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 import numpy as np
+from numpy import float32, float64
 from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
 
 m_mu = physical_constants["muon mass"][0]
@@ -45,17 +46,17 @@ class ParticleType:
     # in IDEs like PyCharm
 
     @property
-    def classical_particle_radius(self):
+    def classical_particle_radius(self) -> float:
         """Classical particle radius [m]"""
         return self._classical_particle_radius
 
     @property
-    def sands_radiation_constant(self):
+    def sands_radiation_constant(self) -> float:
         """Sand's radiation constant [ m / eV^3]"""
         return self._sands_radiation_constant
 
     @property
-    def quantum_radiation_constant(self):
+    def quantum_radiation_constant(self) -> float32 | float64:
         """Quantum radiation constant [m]"""
         return self._quantum_radiation_constant
 

@@ -378,7 +378,7 @@ class BeamPhysicsRelevantElements(Preparable):
             elements_before_section + ordered_elements + elements_after_section
         )
 
-    def count(self, class_: Type[T], section_i: Optional[int] = None):
+    def count(self, class_: Type[T], section_i: Optional[int] = None) -> int:
         """
         Count instances in this class that match class-type
 
@@ -396,7 +396,7 @@ class BeamPhysicsRelevantElements(Preparable):
         """Print current execution order"""
         print(self.get_order_info())
 
-    def get_order_info(self):
+    def get_order_info(self) -> str:
         """Generate execution order string
 
         Notes
@@ -414,7 +414,7 @@ class BeamPhysicsRelevantElements(Preparable):
         )
         for element in self.elements:
             filtered_dict = {
-                k: pprint(v)
+                k: pretty_string(v)
                 for k, v in element.__dict__.items()
                 if (not k.startswith("_")) and (k != "name")
             }
@@ -426,7 +426,7 @@ class BeamPhysicsRelevantElements(Preparable):
         return content
 
 
-def pprint(v: NumpyArray | Any):
+def pretty_string(v: NumpyArray | Any) -> Any:
     """Pretty print an array"""
     if isinstance(v, np.ndarray):
         return f"array(min={v.min()}, max={v.max()}, shape={v.shape})"

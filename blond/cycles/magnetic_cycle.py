@@ -267,7 +267,7 @@ class ConstantMagneticCycle(MagneticCycleBase):
         section_i: int,
         reference_time: float,
         particle_type: ParticleType,
-    ):
+    ) -> float:
         """
         Calculate the total energy [eV] that is foreseen by the magnetic cycle
 
@@ -457,7 +457,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         section_i: int,
         reference_time: float,
         particle_type: ParticleType,
-    ):
+    ) -> float:
         """
         Calculate the total energy [eV] that is foreseen by the magnetic cycle
 
@@ -982,5 +982,8 @@ def _to_magnetic_rigidity(
     return magnetic_rigidity
 
 
-def magnetic_rigidity_to_momentum(magnetic_rigidity, charge: float):
+def magnetic_rigidity_to_momentum(
+    magnetic_rigidity: Union[float, NumpyArray],
+    charge: float,
+) -> Union[float, NumpyArray]:
     return magnetic_rigidity * np.abs(charge) * c0

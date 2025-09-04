@@ -3,6 +3,7 @@ from __future__ import annotations
 import ctypes as ct
 import os
 import sys
+from ctypes import CDLL
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -124,7 +125,7 @@ else:
     raise TypeError(backend.float)
 
 
-def load_libblond(precision: str = "single"):
+def load_libblond(precision: str = "single") -> CDLL:
     """Locates and initializes the blond compiled library
     @param precision: The floating point precision of the calculations. Can be 'single' or 'double'.
     """

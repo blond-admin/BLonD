@@ -1,5 +1,3 @@
-# pragma: no cover
-import sys
 from os import PathLike
 from typing import TYPE_CHECKING
 
@@ -13,16 +11,14 @@ from blond import (
     Simulation,
     SingleHarmonicCavity,
     StaticProfile,
-    WakeField,
     mu_plus,
     proton,
 )
 from blond._core.beam.base import BeamBaseClass
 from blond.beam_preparation.base import BeamPreparationRoutine
 from blond.handle_results.helpers import callers_relative_path
-from blond.physics.impedances.solvers import MutliTurnResonatorSolver
-from blond.physics.impedances.sources import Resonators
 
+# pragma: no cover
 if TYPE_CHECKING:
     pass
 

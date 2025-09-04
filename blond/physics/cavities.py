@@ -197,7 +197,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         return phi_s
 
     @property  # as readonly attributes
-    def n_rf(self):
+    def n_rf(self) -> int:
         """Number of different rf waves for interaction"""
         return self._n_rf
 
