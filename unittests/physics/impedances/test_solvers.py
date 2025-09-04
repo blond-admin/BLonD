@@ -1,7 +1,9 @@
 import json
+import os
 import unittest
 from collections import deque
 from copy import deepcopy
+from pathlib import Path
 from unittest.mock import Mock
 
 import numpy as np
@@ -362,8 +364,13 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         # R_over_Q = np.array([51.94, 13.7312, 0.0915, 2.638805, 2.132499, 2.712645, 4.064])
         # q_factor = np.array([4.15e8, 4.416e5, 38791, 70.629, 59.224, 35.6335, 23.2348])
         # freq = np.array([1.30192e9, 2.4508e9, 2.70038e9, 3.0675e9, 3.083e9, 3.34753e9, 3.42894e9])
+        print("cwd =", os.getcwd())
+        print("__file__ dir =", Path(__file__).parent)
         with open(
-            "resources/TESLA_until_4.5GHz.json", "r", encoding="utf-8"
+            str(Path(__file__).parent)
+            + r"\\resources\\TESLA_until_4.5GHz.json",
+            "r",
+            encoding="utf-8",
         ) as cst_modes_EM_file:
             cst_modes_dict = json.load(cst_modes_EM_file)
         freq, q_factor, R_over_Q = [], [], []
@@ -411,7 +418,9 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
 
         calced_voltage = analy.calc_induced_voltage(beam=beam)
 
-        cst_result = np.load("resources/TESLA_ec1_WF_pot.npz")
+        cst_result = np.load(
+            str(Path(__file__).parent) + r"\\resources\\TESLA_ec1_WF_pot.npz"
+        )
         # time_axis = cst_result["s_axis"] / c
         # pot_axis = cst_result["pot_axis"] * 1e12  # pC
         # plt.plot(np.interp(bunch_time, time_axis, pot_axis)[: len(calced_voltage)])
