@@ -225,7 +225,7 @@ class TestResonators(unittest.TestCase):
         beam = Mock(BeamBaseClass)
         time = np.linspace(-1e-9, 1e-9, int(1e3))
         wake_imp = self.resonators.get_wake_impedance(
-            time=time, simulation=simulation, beam=beam
+            time=time, simulation=simulation, beam=beam, n_fft=len(time)
         )
         wake_freq = self.resonators.get_wake_impedance_freq(time=time)
         DEV_DEBBUG = False

@@ -228,6 +228,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         time: NumpyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
+        n_fft: int,
     ) -> NumpyArray:
         """
         Get impedance computed via fft from time domain anayltical formula equivalent
@@ -242,6 +243,8 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
             Simulation object containing turn index and RF info.
         beam
             Simulation beam object
+        n_fft
+            Number of fft bins to use
 
         Returns
         -------
@@ -254,7 +257,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
             return self._cache_wake_impedance
 
         wake = self.get_wake(time)
-        wake_impedance = np.fft.rfft(wake)
+        wake_impedance = np.fft.rfft(wake, n=n_fft)
 
         self._cache_wake_impedance_hash = hash
         self._cache_wake_impedance = wake_impedance
@@ -264,7 +267,9 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         """
         Get frequency array corresponding to time used in :func:`get_wake_impedance`
         """
-        return np.fft.rfftfreq(len(time), time[1] - time[0])
+        return np.fft.rfftfreq(
+            len(self._cache_wake_impedance), time[1] - time[0]
+        )
 
     def get_wake(self, time: NumpyArray) -> NumpyArray:
         """
