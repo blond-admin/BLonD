@@ -167,7 +167,8 @@ class CoupledBunchAnalysis:
     def _motion_fft(self, n_bunch: int):
 
         for i in range(n_bunch):
-            self._fft_matrix[i] = (npfft.rfft(self._bunch_data[i], self._n_fft)
+            mean_off_dat = self._bunch_data[i] - np.mean(self._bunch_data[i])
+            self._fft_matrix[i] = (npfft.rfft(mean_off_dat, self._n_fft)
                                 * (2/self._n_samples))
 
     def _mode_analysis(self, n_bunch: int):
