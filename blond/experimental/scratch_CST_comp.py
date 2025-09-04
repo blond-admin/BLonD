@@ -22,7 +22,7 @@ def functest():
     # q_factor = np.array([4.15e8, 4.416e5, 38791, 70.629, 59.224, 35.6335, 23.2348])
     # freq = np.array([1.30192e9, 2.4508e9, 2.70038e9, 3.0675e9, 3.083e9, 3.34753e9, 3.42894e9])
     with open(
-        "../../unittests_blond3/physics/impedances/resources/TESLA_until_4.5GHz_CST_WG_ports_finer_5_PM.json",
+        "./resources/TESLA_until_4.5GHz_CST_WG_ports_finer_5_PM.json",
         "r",
         encoding="utf-8",
     ) as cst_modes_EM_file:
