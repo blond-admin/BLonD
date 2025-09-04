@@ -117,7 +117,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
 
     @cached_property
     def bin_edges(self) -> NumpyArray | CupyArray:
-        """Get the edges from cut_left to cut_right of the histogram"""  # TODO: misleading, gives back linspace and not edges
+        """Get the edges from cut_left to cut_right of the histogram"""
         return backend.linspace(
             self.cut_left, self.cut_right, len(self._hist_x) + 1, backend.float
         )
