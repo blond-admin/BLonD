@@ -20,6 +20,7 @@ from blond import (
 from blond._core.backends.backend import Numpy64Bit, backend
 from blond.handle_results.observables import (
     BunchObservation_meta_params,
+    StaticMultiProfileObservation,
     StaticProfileObservation,
 )
 from blond.physics.impedances.solvers import (
@@ -70,19 +71,22 @@ magnetic_cycle = MagneticCyclePerTurn(
     reference_particle=mu_plus,
 )
 one_turn_model = []
+profile_list = []
 for cavity_i in range(n_cavities):
-    profile_tmp = StaticProfile.from_rad(  # todo inside for loop?
-        -np.pi,
-        np.pi,
-        2**10,
-        magnetic_cycle.get_t_rev_init(
-            ring.circumference,
-            turn_i_init=0,
-            t_init=0,
-            particle_type=mu_plus,
+    profile_list.append(
+        StaticProfile.from_rad(
+            -np.pi,
+            np.pi,
+            2**10,
+            magnetic_cycle.get_t_rev_init(
+                ring.circumference,
+                turn_i_init=0,
+                t_init=0,
+                particle_type=mu_plus,
+            )
+            / harmonic,  # this does not track anzthing?
+            section_index=cavity_i,
         )
-        / harmonic,
-        section_index=cavity_i,
     )
     # TODO: adjust center frequency to harmonic
     local_res = Resonators(
@@ -92,7 +96,7 @@ for cavity_i in range(n_cavities):
     )  # FM only
     one_turn_model.extend(
         [
-            profile_tmp,
+            profile_list[-1],
             SingleHarmonicCavity(
                 voltage=total_voltage / n_cavities,
                 phi_rf=0,
@@ -100,7 +104,7 @@ for cavity_i in range(n_cavities):
                 local_wakefield=WakeField(
                     sources=(local_res,),
                     solver=SingleTurnResonatorConvolutionSolver(),
-                    profile=profile_tmp,
+                    profile=profile_list[-1],
                 ),
                 section_index=cavity_i,
             ),
@@ -132,14 +136,24 @@ bunch_observation = BunchObservation_meta_params(
     each_turn_i=1, obs_per_turn=n_cavities, beam=beam
 )
 profile_observation = StaticProfileObservation(
-    each_turn_i=1, obs_per_turn=n_cavities, profile=profile_tmp, beam=beam
+    each_turn_i=1, obs_per_turn=n_cavities, profile=profile_list[-1], beam=beam
+)
+multi_profile_observation = StaticMultiProfileObservation(
+    each_turn_i=1,
+    obs_per_turn=1,
+    profiles=profile_list,
+    beam=beam,
 )
 # wakefield_observation = WakeFieldObservation(each_turn_i=1, obs_per_turn = 4)
 sim.run_simulation(
     beams=(beam, beam_CR),
     turn_i_init=0,
     n_turns=n_turns,
-    observe=[bunch_observation, profile_observation],
+    observe=(
+        bunch_observation,
+        profile_observation,
+        multi_profile_observation,
+    ),
 )
 
 plt.title("bunch length")
@@ -169,6 +183,13 @@ profiles = profile_observation.hist_y
 turn_arr = profile_observation.turns_array
 
 for prof_ind, prof in enumerate(profiles):
+    if np.sum(prof) != 0:
+        plt.plot(prof, label=f"profile@ {prof_ind}")
+plt.legend()
+plt.show()
+
+prof_ = multi_profile_observation.hist_y
+for prof_ind, prof in enumerate(prof_):
     if np.sum(prof) != 0:
         plt.plot(prof, label=f"profile@ {prof_ind}")
 plt.legend()

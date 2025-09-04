@@ -11,6 +11,7 @@ from .._core.base import MainLoopRelevant
 from .array_recorders import DenseArrayRecorder
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import List
     from typing import Optional as LateInit
 
     from .. import WakeField
@@ -667,9 +668,75 @@ class StaticProfileObservation(Observables):
 class StaticMultiProfileObservation(Observables):
     # get from simulation elements
     def __init__(
-        self, each_turn_i: int, profile: StaticProfile, obs_per_turn: int = 1
+        self,
+        each_turn_i: int,
+        beam: BeamBaseClass,
+        profiles: List[StaticProfile],
+        obs_per_turn: int = 1,
     ):
-        pass
+        super().__init__(
+            each_turn_i=each_turn_i, beam=beam, obs_per_turn=obs_per_turn
+        )
+
+        self._profiles = profiles
+        assert all(
+            prof.n_bins == self._profiles[0].n_bins for prof in self._profiles
+        )
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,  # this is not used in this context
+        n_turns: int,
+        turn_i_init: int,
+        obs_per_turn: int = 1,
+        **kwargs,
+    ) -> None:
+        super().on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=n_turns,
+            turn_i_init=turn_i_init,
+            obs_per_turn=obs_per_turn,
+        )
+        n_entries = len(self._turns_array) * len(self._profiles)
+        n_bins = self._profiles[0].n_bins
+        self._hist_y = DenseArrayRecorder(
+            f"{'simulation.get_hash'}_hist_y",
+            (n_entries, n_bins),
+        )
+
+    def update(
+        self,
+        simulation: Simulation,
+    ) -> None:
+        for prof in self._profiles:
+            if simulation.section_i.current_group == prof.section_index:
+                self._hist_y.write(prof.hist_y)
+
+    @property  # as readonly attributes
+    def hist_y(self):
+        """
+        Histogram of given profiles
+
+        Returns
+        -------
+        induced_voltage
+
+        """
+        return self._hist_y.get_valid_entries()
+
+    def to_disk(self) -> None:
+        """
+        Save data to disk
+        """
+        self._hist_y.to_disk()
+
+    def from_disk(self) -> None:
+        """
+        Load data from disk
+        """
+        self._hist_y = DenseArrayRecorder.from_disk(self._hist_y.filepath)
 
 
 class WakeFieldObservation(Observables):
@@ -698,7 +765,6 @@ class WakeFieldObservation(Observables):
         super().__init__(
             each_turn_i=each_turn_i, obs_per_turn=obs_per_turn, beam=beam
         )
-        self._obs_per_turn = obs_per_turn
         self._wakefield = wakefield
         self._induced_voltage: LateInit[DenseArrayRecorder] = None
 
