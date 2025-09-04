@@ -20,7 +20,12 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class Observables(MainLoopRelevant):
-    def __init__(self, each_turn_i: int, obs_per_turn: int = 1):
+    def __init__(
+        self,
+        each_turn_i: int,
+        beam: BeamBaseClass,
+        obs_per_turn: int = 1,
+    ):
         """
         Base class to observe attributes during simulation
 
@@ -30,12 +35,16 @@ class Observables(MainLoopRelevant):
             Value to control that the element is
             callable each n-th turn.
         obs_per_turn
-            Number of observations per turn.
+            Number of observations per turn. Default is 1,
+            cannot be more than number of cavities in turn map
+        beam
+            Simulation beam object
 
         """
         super().__init__()
         self.each_turn_i = each_turn_i
         self._obs_per_turn = obs_per_turn
+        self._beam = beam
 
         self._n_turns: LateInit[int] = None
         self._index_list: LateInit[int] = None
@@ -54,7 +63,6 @@ class Observables(MainLoopRelevant):
     def update(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
     ) -> None:
         """
         Update memory with new values
@@ -63,9 +71,6 @@ class Observables(MainLoopRelevant):
         ----------
         simulation
             Simulation context manager
-        beam
-            Simulation beam object
-
         """
         pass
 
@@ -80,7 +85,7 @@ class Observables(MainLoopRelevant):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: BeamBaseClass,  # this is not used in this context
         n_turns: int,
         turn_i_init: int,
         obs_per_turn: int = 1,
@@ -105,7 +110,7 @@ class Observables(MainLoopRelevant):
             turn_i_init + n_turns,
             int(n_turns * self._obs_per_turn + 1),
             endpoint=False,
-        )
+        )  # TODO: this assumes equidistant spacing, which is not correct with mutiple obs per turn, needs to check actual turn distances between obs
         self._index_list = np.arange(
             0,
             simulation.ring.n_cavities,
@@ -128,7 +133,7 @@ class Observables(MainLoopRelevant):
 
 
 class BunchObservation(Observables):
-    def __init__(self, each_turn_i: int):
+    def __init__(self, each_turn_i: int, beam: BeamBaseClass):
         """
         Observe the bunch coordinates during simulation execution
 
@@ -137,8 +142,10 @@ class BunchObservation(Observables):
         each_turn_i
             Value to control that the element is
             callable each n-th turn.
+        beam
+            Simulation beam object
         """
-        super().__init__(each_turn_i=each_turn_i)
+        super().__init__(each_turn_i=each_turn_i, beam=beam)
         self._dts: LateInit[DenseArrayRecorder] = None
         self._dEs: LateInit[DenseArrayRecorder] = None
         self._flags: LateInit[DenseArrayRecorder] = None
@@ -148,7 +155,7 @@ class BunchObservation(Observables):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: BeamBaseClass,  # not used in this context
         n_turns: int,
         turn_i_init: int,
         **kwargs,
@@ -168,10 +175,10 @@ class BunchObservation(Observables):
             simulation=simulation,
             n_turns=n_turns,
             turn_i_init=turn_i_init,
-            beam=beam,
+            beam=self._beam,
         )
         n_entries = n_turns // self.each_turn_i + 2
-        n_particles = beam.common_array_size
+        n_particles = self._beam.common_array_size
         shape = (n_entries, n_particles)
 
         self._dts = DenseArrayRecorder(
@@ -199,7 +206,6 @@ class BunchObservation(Observables):
     def update(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
     ) -> None:
         """
         Update memory with new values
@@ -208,16 +214,14 @@ class BunchObservation(Observables):
         ----------
         simulation
             Simulation context manager
-        beam
-            Simulation beam object
 
         """
         # TODO allow several bunches
-        self._reference_time.write(beam.reference_time)
-        self._reference_total_energy.write(beam.reference_total_energy)
-        self._dts.write(beam._dt)
-        self._dEs.write(beam._dE)
-        self._flags.write(beam._flags)
+        self._reference_time.write(self._beam.reference_time)
+        self._reference_total_energy.write(self._beam.reference_total_energy)
+        self._dts.write(self._beam._dt)
+        self._dEs.write(self._beam._dE)
+        self._flags.write(self._beam._flags)
 
     @property  # as readonly attributes
     def reference_time(self):
@@ -269,8 +273,23 @@ class BunchObservation_meta_params(Observables):
     Records mean and sigma of both energy and time bunch coordinates
     """
 
-    def __init__(self, each_turn_i: int, obs_per_turn: int):
-        super().__init__(each_turn_i=each_turn_i)
+    def __init__(
+        self, each_turn_i: int, beam: BeamBaseClass, obs_per_turn: int = 1
+    ):
+        """
+        Parameters
+        each_turn_i
+            Value to control that the element is
+            callable each n-th turn.
+        obs_per_turn
+            Number of observations per turn. Default is 1,
+            cannot be more than number of cavities in turn map
+        beam
+            Simulation beam object
+        """
+        super().__init__(
+            each_turn_i=each_turn_i, beam=beam, obs_per_turn=obs_per_turn
+        )
 
         self._sigma_dt: LateInit[DenseArrayRecorder] = None
         self._sigma_dE: LateInit[DenseArrayRecorder] = None
@@ -335,7 +354,6 @@ class BunchObservation_meta_params(Observables):
     def update(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
     ) -> None:
         """
         Update memory with new values
@@ -344,20 +362,18 @@ class BunchObservation_meta_params(Observables):
         ----------
         simulation
             Simulation context manager
-        beam
-            Simulation beam object
 
         """
         if simulation.section_i.current_group in self._index_list:
-            super().update(simulation=simulation, beam=beam)
-            self._sigma_dt.write(np.std(beam._dt))
-            self._sigma_dE.write(np.std(beam._dE))
-            self._mean_dt.write(np.mean(beam._dt))
-            self._mean_dE.write(np.mean(beam._dE))
+            self._sigma_dt.write(np.std(self._beam._dt))
+            self._sigma_dE.write(np.std(self._beam._dE))
+            self._mean_dt.write(np.mean(self._beam._dt))
+            self._mean_dE.write(np.mean(self._beam._dE))
             self._emittance_stat.write(
                 np.sqrt(
-                    np.average(beam._dE**2) * np.average(beam._dt**2)
-                    - np.average(beam._dE * beam._dt)
+                    np.average(self._beam._dE**2)
+                    * np.average(self._beam._dt**2)
+                    - np.average(self._beam._dE * self._beam._dt)
                 )
             )
 
@@ -413,7 +429,12 @@ class BunchObservation_meta_params(Observables):
 
 
 class CavityPhaseObservation(Observables):
-    def __init__(self, each_turn_i: int, cavity: SingleHarmonicCavity):
+    def __init__(
+        self,
+        each_turn_i: int,
+        cavity: SingleHarmonicCavity,
+        beam: BeamBaseClass,
+    ):
         """
         Observe the cavity rf parameters during simulation execution
 
@@ -424,8 +445,10 @@ class CavityPhaseObservation(Observables):
             callable each n-th turn.
         cavity
             Class that implements beam-rf interactions in a synchrotron
+        beam
+            Simulation beam object
         """
-        super().__init__(each_turn_i=each_turn_i)
+        super().__init__(each_turn_i=each_turn_i, beam=beam)
         self._cavity = cavity
         self._phases: LateInit[DenseArrayRecorder] = None
         self._omegas: LateInit[DenseArrayRecorder] = None
@@ -434,7 +457,7 @@ class CavityPhaseObservation(Observables):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: BeamBaseClass,  # not used in this context
         n_turns: int,
         turn_i_init: int,
         **kwargs,
@@ -454,7 +477,7 @@ class CavityPhaseObservation(Observables):
             simulation=simulation,
             n_turns=n_turns,
             turn_i_init=turn_i_init,
-            beam=beam,
+            beam=self._beam,
         )
         n_entries = n_turns // self.each_turn_i + 2
         n_harmonics = self._cavity.n_rf
@@ -463,18 +486,17 @@ class CavityPhaseObservation(Observables):
             (n_entries, n_harmonics),
         )
         self._omegas = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_phases",  # TODO
+            f"{'simulation.get_hash'}_omegas",  # TODO
             (n_entries, n_harmonics),
         )
         self._voltages = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_phases",  # TODO
+            f"{'simulation.get_hash'}_voltages",  # TODO
             (n_entries, n_harmonics),
         )
 
     def update(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
     ) -> None:
         """
         Update memory with new values
@@ -483,8 +505,6 @@ class CavityPhaseObservation(Observables):
         ----------
         simulation
             Simulation context manager
-        beam
-            Simulation beam object
 
         """
         self._phases.write(
@@ -532,7 +552,11 @@ class CavityPhaseObservation(Observables):
 
 class StaticProfileObservation(Observables):
     def __init__(
-        self, each_turn_i: int, profile: StaticProfile, obs_per_turn: int = 1
+        self,
+        each_turn_i: int,
+        profile: StaticProfile,
+        beam: BeamBaseClass,
+        obs_per_turn: int = 1,
     ):
         """
         Observation of a static beam profile
@@ -545,17 +569,21 @@ class StaticProfileObservation(Observables):
         profile
             Class for the calculation of beam profile
             that doesn't change its parameters
+        beam
+            Simulation beam object
         obs_per_turn
-            Number of observations per turn
+            Number of observations per turn, default is 1
         """
-        super().__init__(each_turn_i=each_turn_i, obs_per_turn=obs_per_turn)
+        super().__init__(
+            each_turn_i=each_turn_i, obs_per_turn=obs_per_turn, beam=beam
+        )
         self._profile = profile
         self._hist_y: LateInit[DenseArrayRecorder] = None
 
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: BeamBaseClass,  # not used in this context
         n_turns: int,
         turn_i_init: int,
         **kwargs,
@@ -576,7 +604,7 @@ class StaticProfileObservation(Observables):
             n_turns=n_turns,
             turn_i_init=turn_i_init,
             obs_per_turn=self._obs_per_turn,
-            beam=beam,
+            beam=self._beam,
         )
         n_entries = len(self._turns_array)
         n_bins = self._profile.n_bins
@@ -588,7 +616,6 @@ class StaticProfileObservation(Observables):
     def update(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
     ) -> None:
         """
         Update memory with new values
@@ -597,8 +624,6 @@ class StaticProfileObservation(Observables):
         ----------
         simulation
             Simulation context manager
-        beam
-            Simulation beam object
 
         """
         if simulation.section_i.current_group in self._index_list:
@@ -624,7 +649,7 @@ class StaticProfileObservation(Observables):
         self._hist_y = DenseArrayRecorder.from_disk(self._hist_y.filepath)
 
 
-class StaticAllProfileObservation(Observables):
+class StaticMultiProfileObservation(Observables):
     # get from simulation elements
     def __init__(
         self, each_turn_i: int, profile: StaticProfile, obs_per_turn: int = 1
@@ -634,7 +659,11 @@ class StaticAllProfileObservation(Observables):
 
 class WakeFieldObservation(Observables):
     def __init__(
-        self, each_turn_i: int, wakefield: WakeField, obs_per_turn: int = 1
+        self,
+        each_turn_i: int,
+        wakefield: WakeField,
+        beam: BeamBaseClass,
+        obs_per_turn: int = 1,
     ):
         """
         Observe the calculation of wake-fields
@@ -648,8 +677,12 @@ class WakeFieldObservation(Observables):
             Manager class to calculate wake-fields
         obs_per_turn
             Number of observations per turn
+        beam
+            Simulation beam object
         """
-        super().__init__(each_turn_i=each_turn_i, obs_per_turn=obs_per_turn)
+        super().__init__(
+            each_turn_i=each_turn_i, obs_per_turn=obs_per_turn, beam=beam
+        )
         self._obs_per_turn = obs_per_turn
         self._wakefield = wakefield
         self._induced_voltage: LateInit[DenseArrayRecorder] = None
@@ -657,7 +690,7 @@ class WakeFieldObservation(Observables):
     def on_run_simulation(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
+        beam: BeamBaseClass,  # not used in this context
         n_turns: int,
         turn_i_init: int,
         **kwargs,
@@ -678,7 +711,7 @@ class WakeFieldObservation(Observables):
             n_turns=n_turns,
             turn_i_init=turn_i_init,
             obs_per_turn=self._obs_per_turn,
-            beam=beam,
+            beam=self._beam,
         )
         n_entries = len(self._turns_array)
         n_bins = self._wakefield._profile.n_bins
@@ -690,7 +723,6 @@ class WakeFieldObservation(Observables):
     def update(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
     ) -> None:
         """
         Update memory with new values
@@ -699,8 +731,6 @@ class WakeFieldObservation(Observables):
         ----------
         simulation
             Simulation context manager
-        beam
-            Simulation beam object
 
         """
         if simulation.section_i.current_group in self._index_list:

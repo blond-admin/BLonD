@@ -203,10 +203,11 @@ class TestBeamFeedback(unittest.TestCase):
         backend.change_backend(Numpy32Bit)
 
     def test_setup(self):
-        obs_bunch = BunchObservation(each_turn_i=1)
+        obs_bunch = BunchObservation(each_turn_i=1, beam=self.beam)
         cav_obs = CavityPhaseObservation(
             each_turn_i=1,
             cavity=self.cavity,
+            beam=self.beam,
         )
 
         def callback(simulation: Simulation):

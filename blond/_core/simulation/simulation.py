@@ -484,7 +484,6 @@ class Simulation(Preparable, HasPropertyCache):
         for observable in observe:
             observable.update(
                 simulation=self,
-                beam=beam,
             )
         for turn_i in iterator:
             self.turn_i.value = turn_i
@@ -496,7 +495,6 @@ class Simulation(Preparable, HasPropertyCache):
                 if observable.is_active_this_turn(turn_i=self.turn_i.value):
                     observable.update(
                         simulation=self,
-                        beam=beam,
                     )
             if callback is not None:
                 callback(self)
@@ -671,7 +669,6 @@ class Simulation(Preparable, HasPropertyCache):
                         ):
                             observable.update(
                                 simulation=self,
-                                beam=beams[0],
                             )
         # reset counters to uninitialized again
         self.turn_i.value = None

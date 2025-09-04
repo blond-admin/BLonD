@@ -129,10 +129,10 @@ load_beam_data_counterrot_from_file(
 )
 
 bunch_observation = BunchObservation_meta_params(
-    each_turn_i=1, obs_per_turn=n_cavities
+    each_turn_i=1, obs_per_turn=n_cavities, beam=beam
 )
 profile_observation = StaticProfileObservation(
-    each_turn_i=1, obs_per_turn=n_cavities, profile=profile_tmp
+    each_turn_i=1, obs_per_turn=n_cavities, profile=profile_tmp, beam=beam
 )
 # wakefield_observation = WakeFieldObservation(each_turn_i=1, obs_per_turn = 4)
 sim.run_simulation(

@@ -167,7 +167,7 @@ class TestSimulation(unittest.TestCase):
         self.assertIsInstance(self.simulation.ring, Ring)
 
     def test_run_simulation(self):
-        observe = BunchObservation(each_turn_i=10)
+        observe = BunchObservation(each_turn_i=10, beam=self.beam)
 
         def my_callback(simulation: Simulation) -> None:
             return

@@ -102,7 +102,7 @@ class DenseArrayRecorder(ArrayRecorder):
         dense_recorder.overwrite = loaded_data["overwrite"]
         return dense_recorder
 
-    def write(self, newdata: NumpyArray):
+    def write(self, newdata: NumpyArray | float):
         self._memory[self._write_idx] = newdata
         self._write_idx += 1
 

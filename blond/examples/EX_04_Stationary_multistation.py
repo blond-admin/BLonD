@@ -100,7 +100,7 @@ sim.prepare_beam(
     beam=beam,
 )
 # profile_observable = DynamicProfileObservation(each_turn_i=10,
-# profile=profile)
+# profile=profile, beam=beam)
 sim.run_simulation(
     n_turns=2000,
     # observe=(profile_observable,),

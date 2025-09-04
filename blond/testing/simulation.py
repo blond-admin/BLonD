@@ -61,7 +61,7 @@ class ExampleSimulation01:
         )
 
         phase_observation = CavityPhaseObservation(
-            each_turn_i=1, cavity=cavity1
+            each_turn_i=1, cavity=cavity1, beam=beam1
         )
 
         # bunch_observation = BunchObservation(each_turn_i=10, batch_size=) # todo
