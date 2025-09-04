@@ -2,7 +2,6 @@ import unittest
 from unittest.mock import Mock
 
 import numpy as np
-from examples.EX_MuonCollider import local_res
 from matplotlib import pyplot as plt
 from scipy.constants import pi
 from scipy.constants import speed_of_light as c0
