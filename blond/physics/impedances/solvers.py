@@ -632,9 +632,9 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
 
         return _charge_per_macroparticle * np.convolve(
             self._wake_pot_vals,
-            self._parent_wakefield.profile.hist_y,  # inverse for time-indexing
+            self._parent_wakefield.profile.hist_y,
             mode="valid",
-        )  # output is one element too long with valid
+        )
 
 
 class MultiPassResonatorSolver(WakeFieldSolver):
@@ -902,5 +902,5 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 self._wake_pot_vals[prof_ind],
                 self._past_profiles[prof_ind],
                 mode="valid",
-            )  # inverse for time-indexing
+            )
         return wake_sum
