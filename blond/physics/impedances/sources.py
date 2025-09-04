@@ -181,8 +181,11 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         corresponding to a separate resonance.
         """
         super().__init__(is_dynamic=False)
-        if (type(shunt_impedances) == float and type(center_frequencies) == float and type(
-                quality_factors) == float):
+        if (
+            type(shunt_impedances) == float
+            and type(center_frequencies) == float
+            and type(quality_factors) == float
+        ):
             self._shunt_impedances = np.array([shunt_impedances])
             self._center_frequencies = np.array([center_frequencies])
             self._quality_factors = np.array([quality_factors])
@@ -190,7 +193,6 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         else:
             assert len(shunt_impedances) == len(center_frequencies), (
                 f"{len(shunt_impedances)} != {len(center_frequencies)}"
-        )
             )
             assert len(shunt_impedances) == len(quality_factors), (
                 f"{len(shunt_impedances)} != {len(quality_factors)}"
@@ -211,7 +213,9 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
                 "All quality factors Q must be greater or equal 0.5"
             )
         if np.sum(self._center_frequencies < 0) > 0:
-            raise RuntimeError("All center frequencies must be greater or equal 0")
+            raise RuntimeError(
+                "All center frequencies must be greater or equal 0"
+            )
 
         self._cache_wake_impedance = None
         self._cache_wake_impedance_hash = None
@@ -412,7 +416,9 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
         return impedance
 
     @staticmethod
-    def from_file(filepath: PathLike, reader: ImpedanceReader) -> ImpedanceTableFreq:
+    def from_file(
+        filepath: PathLike, reader: ImpedanceReader
+    ) -> ImpedanceTableFreq:
         """
         Instance table from a file on the disk
 

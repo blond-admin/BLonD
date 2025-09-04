@@ -1,11 +1,11 @@
 from os import PathLike
 
+import matplotlib.pyplot as plt
 import numpy as np
+from scipy.constants import pi
 
 from blond import (
     Beam,
-    mu_plus,
-    mu_minus,
     DriftSimple,
     MagneticCyclePerTurn,
     Ring,
@@ -13,34 +13,32 @@ from blond import (
     SingleHarmonicCavity,
     StaticProfile,
     WakeField,
-    MagneticCyclePerTurn,
-    BunchObservation,
-    StaticProfile,
+    mu_minus,
+    mu_plus,
 )
-from blond3._core.beam.base import BeamBaseClass
-from blond3._core.backends.backend import backend, Numpy64Bit
-from blond3.beam_preparation.base import BeamPreparationRoutine
-from blond3.handle_results.observables import (BunchObservation_meta_params, \
-    StaticProfileObservation, WakeFieldObservation)
-from blond3.physics.impedances.sources import Resonators
-from blond3.physics.impedances.solvers import MultiPassResonatorSolver, AnalyticSingleTurnResonatorSolver
-from scipy.constants import pi
+from blond._core.backends.backend import Numpy64Bit, backend
 from blond._core.beam.base import BeamBaseClass
 from blond.beam_preparation.base import BeamPreparationRoutine
-from blond.handle_results.helpers import callers_relative_path
-from blond.physics.impedances.solvers import MutliTurnResonatorSolver
+from blond.handle_results.observables import (
+    BunchObservation_meta_params,
+    StaticProfileObservation,
+)
+from blond.physics.impedances.solvers import (
+    AnalyticSingleTurnResonatorSolver,
+)
 from blond.physics.impedances.sources import Resonators
 
-import matplotlib.pyplot as plt
-
-backend.change_backend(Numpy64Bit)  # TODO: without these lines, it does not work, default should be set somewhere to be Numpy64bit python
+backend.change_backend(
+    Numpy64Bit
+)  # TODO: without these lines, it does not work, default should be set somewhere to be Numpy64bit python
 backend.set_specials("numba")
+
 
 class LoadBeamDataCR(BeamPreparationRoutine):
     def __init__(
         self,
         filename: PathLike | str,
-        ):
+    ):
         self.dt = np.load(filename)["dt"]
         self.dE = np.load(filename)["dE"]
 
@@ -60,6 +58,7 @@ class LoadBeamDataCR(BeamPreparationRoutine):
             dt=self.dt_cr,
             dE=self.dE_cr,
         )
+
 
 # phi_s = 128 * pi / 180  # deg
 # inj_energy = 63e9
@@ -86,18 +85,20 @@ circumference = 5990
 harmonic = 25900
 
 ring = Ring(circumference=circumference)
-magnetic_cycle = MagneticCyclePerTurn(value_init=inj_energy,
-                                      values_after_turn=np.linspace(inj_energy + energy_gain_per_turn,
-                                                                    ejection_energy,
-                                                                    n_turns),
-                                      in_unit="kinetic energy",
-                                      reference_particle=mu_plus)
+magnetic_cycle = MagneticCyclePerTurn(
+    value_init=inj_energy,
+    values_after_turn=np.linspace(
+        inj_energy + energy_gain_per_turn, ejection_energy, n_turns
+    ),
+    in_unit="kinetic energy",
+    reference_particle=mu_plus,
+)
 one_turn_model = []
 for cavity_i in range(n_cavities):
-    profile_tmp = StaticProfile.from_rad( # todo inside for loop?
+    profile_tmp = StaticProfile.from_rad(  # todo inside for loop?
         -np.pi,
         np.pi,
-        2 ** 10,
+        2**10,
         magnetic_cycle.get_t_rev_init(
             ring.circumference,
             turn_i_init=0,
@@ -106,10 +107,13 @@ for cavity_i in range(n_cavities):
         )
         / harmonic,
         section_index=cavity_i,
-
     )
     # TODO: adjust center frequency to harmonic
-    local_res = Resonators(center_frequencies=1.3e9, quality_factors=Q_factor, shunt_impedances=R_over_Q*Q_factor)  # FM only
+    local_res = Resonators(
+        center_frequencies=1.3e9,
+        quality_factors=Q_factor,
+        shunt_impedances=R_over_Q * Q_factor,
+    )  # FM only
     one_turn_model.extend(
         [
             profile_tmp,
@@ -146,18 +150,24 @@ beam_CR = Beam(
 sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
 sim.prepare_beam(
     beam=[beam, beam_CR],
-    preparation_routine=LoadBeamDataCR(
-        "RCS2_8_cavities.npz"
-    )
+    preparation_routine=LoadBeamDataCR("RCS2_8_cavities.npz"),
 )
 
 sim.print_one_turn_execution_order()
 
-bunch_observation = BunchObservation_meta_params(each_turn_i=1, obs_per_turn = n_cavities)
-profile_observation = StaticProfileObservation(each_turn_i=1, obs_per_turn=n_cavities, profile=profile_tmp)
+bunch_observation = BunchObservation_meta_params(
+    each_turn_i=1, obs_per_turn=n_cavities
+)
+profile_observation = StaticProfileObservation(
+    each_turn_i=1, obs_per_turn=n_cavities, profile=profile_tmp
+)
 # wakefield_observation = WakeFieldObservation(each_turn_i=1, obs_per_turn = 4)
-sim.run_simulation(beams=(beam, beam_CR), turn_i_init=0, n_turns=n_turns, observe=[bunch_observation,
-                                                                                   profile_observation])
+sim.run_simulation(
+    beams=(beam, beam_CR),
+    turn_i_init=0,
+    n_turns=n_turns,
+    observe=[bunch_observation, profile_observation],
+)
 
 plt.title("bunch length")
 plt.plot(bunch_observation.sigma_dt)

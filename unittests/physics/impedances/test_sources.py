@@ -3,13 +3,17 @@ from unittest.mock import Mock
 
 import numpy as np
 from matplotlib import pyplot as plt
-from scipy.constants import speed_of_light as c0
 from scipy.constants import pi
+from scipy.constants import speed_of_light as c0
 from scipy.signal import find_peaks
 
 from blond._core.beam.base import BeamBaseClass
 from blond._core.simulation.simulation import Simulation
-from blond.physics.impedances.sources import InductiveImpedance, Resonators
+from blond.physics.impedances.sources import (
+    ImpedanceTableFreq,
+    InductiveImpedance,
+    Resonators,
+)
 
 
 class TestImpedanceTable(unittest.TestCase):
@@ -194,7 +198,9 @@ class TestResonators(unittest.TestCase):
                 center_frequencies=np.array(
                     [self.resonators._center_frequencies[freq_ind]]
                 ),
-                quality_factors=np.array([self.resonators._quality_factors[freq_ind]]),
+                quality_factors=np.array(
+                    [self.resonators._quality_factors[freq_ind]]
+                ),
             )
             freq_y = local_res.get_impedance(
                 freq_x=freq_x, simulation=simulation, beam=beam
@@ -208,7 +214,8 @@ class TestResonators(unittest.TestCase):
                 / (1 - 1.5j * self.resonators._quality_factors[freq_ind]),
                 freq_y[
                     np.abs(
-                        freq_x - self.resonators._center_frequencies[freq_ind] / 2
+                        freq_x
+                        - self.resonators._center_frequencies[freq_ind] / 2
                     ).argmin()
                 ],
             )

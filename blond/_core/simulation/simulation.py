@@ -28,6 +28,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from ...beam_preparation.base import BeamPreparationRoutine
     from ...handle_results.observables import Observables
+    from ...handle_results.results import SimulationResults
     from ..beam.base import BeamBaseClass
     from ..beam.particle_types import ParticleType
     from ..ring.ring import Ring
@@ -440,7 +441,9 @@ class Simulation(Preparable, HasPropertyCache):
                 beams=beams,
             )
         else:
-            raise NotImplementedError(f"Up to two beam supported, but got {len(beams)}")
+            raise NotImplementedError(
+                f"Up to two beam supported, but got {len(beams)}"
+            )
 
     def _run_simulation_single_beam(
         self,
@@ -639,21 +642,33 @@ class Simulation(Preparable, HasPropertyCache):
         self.turn_i.on_change(self._invalidate_cache)
         self.turn_i.value = 0
 
-        num_elements = len(self._ring.elements.elements)  # TODO: can this change between different turns?
+        num_elements = len(
+            self._ring.elements.elements
+        )  # TODO: can this change between different turns?
 
         for turn_i in iterator:
             self.turn_i.value = turn_i
-            for element_ind, element in enumerate(self._ring.elements.elements):
+            for element_ind, element in enumerate(
+                self._ring.elements.elements
+            ):
                 self.section_i.current_group = element.section_index
 
                 if element.is_active_this_turn(turn_i=self.turn_i.value):
                     element.track(beams[0])  # [0] is expected to be corotating
-                element_counterrot = self.ring.elements.elements[num_elements - element_ind - 1]
-                if element_counterrot.is_active_this_turn(turn_i=self.turn_i.value):
+                element_counterrot = self.ring.elements.elements[
+                    num_elements - element_ind - 1
+                ]
+                if element_counterrot.is_active_this_turn(
+                    turn_i=self.turn_i.value
+                ):
                     element.track(beams[1])
-                if isinstance(element_counterrot, DriftBaseClass):  # only observe after drifts
+                if isinstance(
+                    element_counterrot, DriftBaseClass
+                ):  # only observe after drifts
                     for observable in observe:
-                        if observable.is_active_this_turn(turn_i=self.turn_i.value):
+                        if observable.is_active_this_turn(
+                            turn_i=self.turn_i.value
+                        ):
                             observable.update(
                                 simulation=self,
                                 beam=beams[0],
@@ -661,7 +676,6 @@ class Simulation(Preparable, HasPropertyCache):
         # reset counters to uninitialized again
         self.turn_i.value = None
         self.section_i.value = None
-
 
     def load_results(
         self,

@@ -257,11 +257,15 @@ class Blond2:
 
             if DEV_PLOT:
                 plt.figure(1)
-                sname = str(solver)[str(solver).rfind(".") + 1 : str(solver).rfind("'")]
+                sname = str(solver)[
+                    str(solver).rfind(".") + 1 : str(solver).rfind("'")
+                ]
                 plt.plot(tot_vol.induced_voltage, label=f"solver = {sname}")
                 if not solver == InducedVoltageResonator:
                     plt.figure(2)
-                    plt.plot(ind_volt.total_impedance, label=f"solver = {sname}")
+                    plt.plot(
+                        ind_volt.total_impedance, label=f"solver = {sname}"
+                    )
 
 
 class Blond3:

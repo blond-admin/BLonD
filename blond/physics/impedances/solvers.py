@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import warnings
+from collections import deque
 from typing import TYPE_CHECKING
 from typing import Optional
 from typing import Optional as LateInit
@@ -12,13 +13,6 @@ from matplotlib import pyplot as plt
 from scipy.constants import elementary_charge as e
 from scipy.fft import next_fast_len
 
-from .base import WakeFieldSolver, WakeField, FreqDomain, TimeDomain
-from .sources import InductiveImpedance, Resonators
-from ..profiles import (
-    StaticProfile,
-    DynamicProfileConstCutoff,
-    DynamicProfileConstNBins,
-)
 from ..._core.backends.backend import backend
 from ..._core.base import DynamicParameter
 from ..._core.beam.base import BeamBaseClass
@@ -30,8 +24,7 @@ from ..profiles import (
     StaticProfile,
 )
 from .base import FreqDomain, TimeDomain, WakeField, WakeFieldSolver
-from .sources import InductiveImpedance
-from collections import deque
+from .sources import InductiveImpedance, Resonators
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
@@ -571,17 +564,24 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
         if not self._wake_pot_vals_needs_update:
             return
         bin_size = self._parent_wakefield.profile.bin_size
-        left_extend = len(self._parent_wakefield.profile.hist_x) + self._parent_wakefield.profile.hist_x[0] / bin_size - 1
+        left_extend = (
+            len(self._parent_wakefield.profile.hist_x)
+            + self._parent_wakefield.profile.hist_x[0] / bin_size
+            - 1
+        )
         # time shift for alignment with wakepotential definition of 0
-        right_extend = len(self._parent_wakefield.profile.hist_x) - left_extend - 1  # total length has to be 2*hist_x
+        right_extend = (
+            len(self._parent_wakefield.profile.hist_x) - left_extend - 1
+        )  # total length has to be 2*hist_x
 
         self._wake_pot_time = np.linspace(
-            self._parent_wakefield.profile.hist_x[0]
-            - left_extend * bin_size,
+            self._parent_wakefield.profile.hist_x[0] - left_extend * bin_size,
             self._parent_wakefield.profile.hist_x[-1]
             + right_extend * bin_size,
             int(
-                len(self._parent_wakefield.profile.hist_x) + left_extend + right_extend
+                len(self._parent_wakefield.profile.hist_x)
+                + left_extend
+                + right_extend
             ),
             endpoint=True,
         )  # necessary for boundary effects
@@ -598,7 +598,9 @@ class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
 
         self._wake_pot_vals_needs_update = False  # avoid repeated update
 
-    def calc_induced_voltage(self, beam: BeamBaseClass) -> NumpyArray | CupyArray:
+    def calc_induced_voltage(
+        self, beam: BeamBaseClass
+    ) -> NumpyArray | CupyArray:
         """
         Calculates the induced voltage based on the beam profile and beam parameters
 
@@ -732,7 +734,9 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
         self._determine_storage_time()
 
-    def _remove_fully_decayed_wake_profiles(self, indexes_to_check: int = 2) -> None:
+    def _remove_fully_decayed_wake_profiles(
+        self, indexes_to_check: int = 2
+    ) -> None:
         """
         Goes through _wake_pot_time from the back (oldest profile) and removes all arrays from it, which are beyond
         self._maximum_storage_time. only the last indexes_to_check entries are checked.
@@ -742,7 +746,10 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         for _ in range(indexes_to_check):
             if len(self._past_profiles) == 0:
                 return
-            if np.min(self._past_profile_times[-1]) > self._maximum_storage_time:
+            if (
+                np.min(self._past_profile_times[-1])
+                > self._maximum_storage_time
+            ):
                 self._past_profile_times.pop()
                 self._past_profiles.pop()
                 self._wake_pot_time.pop()
@@ -775,15 +782,22 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
         """
         for prof_ind in range(len(self._past_profiles)):
-            if prof_ind == 0:  # current profile does not yet have arrays initialized
+            if (
+                prof_ind == 0
+            ):  # current profile does not yet have arrays initialized
                 profile_bin_size = (
                     self._past_profile_times[prof_ind][1]
                     - self._past_profile_times[prof_ind][0]
                 )
-                left_extend = len(self._past_profile_times[prof_ind]) + self._past_profile_times[prof_ind][
-                    0] / profile_bin_size - 1
+                left_extend = (
+                    len(self._past_profile_times[prof_ind])
+                    + self._past_profile_times[prof_ind][0] / profile_bin_size
+                    - 1
+                )
                 # time shift for alignment with wakepotential definition of 0
-                right_extend = len(self._past_profile_times[prof_ind]) - left_extend - 1 # total length has to be 2*hist_x
+                right_extend = (
+                    len(self._past_profile_times[prof_ind]) - left_extend - 1
+                )  # total length has to be 2*hist_x
                 self._wake_pot_time.appendleft(
                     np.linspace(
                         self._past_profile_times[prof_ind][0]
@@ -836,7 +850,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
         if len(self._past_profiles) != 0:  # ensure same time axis for profiles
             past_bin_size = (
-                self._past_profile_times[-1][1] - self._past_profile_times[-1][0]
+                self._past_profile_times[-1][1]
+                - self._past_profile_times[-1][0]
             )
             # TODO: big time jumps lead to problematic casting --> do we care about this?
             new_bin_size = (
@@ -849,26 +864,34 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._past_profile_times.appendleft(
             np.copy(self._parent_wakefield.profile.hist_x)
         )
-        self._past_profiles.appendleft(np.copy(self._parent_wakefield.profile.hist_y))
+        self._past_profiles.appendleft(
+            np.copy(self._parent_wakefield.profile.hist_y)
+        )
 
         self._update_past_profile_potentials()
 
         self._wake_pot_vals_needs_update = False  # avoid repeated update
 
-    def calc_induced_voltage(self, beam: BeamBaseClass) -> NumpyArray | CupyArray:
+    def calc_induced_voltage(
+        self, beam: BeamBaseClass
+    ) -> NumpyArray | CupyArray:
         if self._wake_pot_vals_needs_update:
             self._update_potential_sources(beam.reference_time)
 
         _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
             beam.n_particles / beam.n_macroparticles_partial()
         )
-        self._past_charge_per_macroparticle.appendleft(_charge_per_macroparticle)
+        self._past_charge_per_macroparticle.appendleft(
+            _charge_per_macroparticle
+        )
 
         wake_sum = 0
         for prof_ind in range(
             len(self._past_profiles)
         ):  # TODO: speedgain through circular shifting with numpy arrays instead of dequeue --> deque not usable with numba
-            wake_sum += self._past_charge_per_macroparticle[prof_ind] * np.convolve(
+            wake_sum += self._past_charge_per_macroparticle[
+                prof_ind
+            ] * np.convolve(
                 self._wake_pot_vals[prof_ind],
                 self._past_profiles[prof_ind],
                 mode="valid",

@@ -20,7 +20,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class Observables(MainLoopRelevant):
-    def __init__(self, each_turn_i: int, obs_per_turn: int=1):
+    def __init__(self, each_turn_i: int, obs_per_turn: int = 1):
         """
         Base class to observe attributes during simulation
 
@@ -52,9 +52,9 @@ class Observables(MainLoopRelevant):
 
     @abstractmethod  # pragma: no cover
     def update(
-            self,
-            simulation: Simulation,
-            beam: BeamBaseClass,
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
     ) -> None:
         """
         Update memory with new values
@@ -78,13 +78,13 @@ class Observables(MainLoopRelevant):
         self._hash = simulation.get_hash()
 
     def on_run_simulation(
-            self,
-            simulation: Simulation,
-            beam: BeamBaseClass,
-            n_turns: int,
-            turn_i_init: int,
-            obs_per_turn: int = 1,
-            **kwargs,
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        obs_per_turn: int = 1,
+        **kwargs,
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
@@ -100,9 +100,17 @@ class Observables(MainLoopRelevant):
         self._n_turns = n_turns
         self._turn_i_init = turn_i_init
         self._obs_per_turn = obs_per_turn
-        self._turns_array = np.linspace(turn_i_init, turn_i_init + n_turns, int(n_turns * self._obs_per_turn + 1), endpoint=False)
-        self._index_list = np.arange(0, simulation.ring.n_cavities,
-                                     step=np.ceil(simulation.ring.n_cavities / self._obs_per_turn))
+        self._turns_array = np.linspace(
+            turn_i_init,
+            turn_i_init + n_turns,
+            int(n_turns * self._obs_per_turn + 1),
+            endpoint=False,
+        )
+        self._index_list = np.arange(
+            0,
+            simulation.ring.n_cavities,
+            step=np.ceil(simulation.ring.n_cavities / self._obs_per_turn),
+        )
 
     @abstractmethod  # pragma: no cover
     def to_disk(self) -> None:
@@ -138,12 +146,12 @@ class BunchObservation(Observables):
         self._reference_total_energy: LateInit[DenseArrayRecorder] = None
 
     def on_run_simulation(
-            self,
-            simulation: Simulation,
-            beam: BeamBaseClass,
-            n_turns: int,
-            turn_i_init: int,
-            **kwargs,
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs,
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
@@ -189,9 +197,9 @@ class BunchObservation(Observables):
         )
 
     def update(
-            self,
-            simulation: Simulation,
-            beam: BeamBaseClass,
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
     ) -> None:
         """
         Update memory with new values
@@ -274,12 +282,12 @@ class BunchObservation_meta_params(Observables):
         self._obs_per_turn = obs_per_turn
 
     def on_run_simulation(
-            self,
-            simulation: Simulation,
-            beam: BeamBaseClass,
-            n_turns: int,
-            turn_i_init: int,
-            **kwargs,
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs,
     ) -> None:
         # super call is neglected here on purpose, as array sizes will be wrong otherwise
         self._n_turns = n_turns
@@ -288,13 +296,20 @@ class BunchObservation_meta_params(Observables):
         # TODO: check if the obs_per_turn is larger than the number of sections --> not possible
 
         n_entries = int(n_turns * self._obs_per_turn + 1)
-        shape = (n_entries)
+        shape = n_entries
 
-        self._turns_array = np.linspace(turn_i_init, turn_i_init + n_turns, n_entries, endpoint=False)
+        self._turns_array = np.linspace(
+            turn_i_init, turn_i_init + n_turns, n_entries, endpoint=False
+        )
 
-        assert simulation.ring.n_cavities >= self._obs_per_turn, "more obervations than observation points"
-        self._index_list = np.arange(0, simulation.ring.n_cavities,
-                                     step=np.ceil(simulation.ring.n_cavities / self._obs_per_turn))
+        assert simulation.ring.n_cavities >= self._obs_per_turn, (
+            "more obervations than observation points"
+        )
+        self._index_list = np.arange(
+            0,
+            simulation.ring.n_cavities,
+            step=np.ceil(simulation.ring.n_cavities / self._obs_per_turn),
+        )
 
         self._mean_dt = DenseArrayRecorder(
             f"{'simulation.get_hash'}_mean_dt",
@@ -318,9 +333,9 @@ class BunchObservation_meta_params(Observables):
         )
 
     def update(
-            self,
-            simulation: Simulation,
-            beam: BeamBaseClass,
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
     ) -> None:
         """
         Update memory with new values
@@ -340,7 +355,11 @@ class BunchObservation_meta_params(Observables):
             self._mean_dt.write(np.mean(beam._dt))
             self._mean_dE.write(np.mean(beam._dE))
             self._emittance_stat.write(
-                np.sqrt(np.average(beam._dE ** 2) * np.average(beam._dt ** 2) - np.average(beam._dE * beam._dt)))
+                np.sqrt(
+                    np.average(beam._dE**2) * np.average(beam._dt**2)
+                    - np.average(beam._dE * beam._dt)
+                )
+            )
 
     @property  # as readonly attributes
     def sigma_dt(self):
@@ -413,12 +432,12 @@ class CavityPhaseObservation(Observables):
         self._voltages: LateInit[DenseArrayRecorder] = None
 
     def on_run_simulation(
-            self,
-            simulation: Simulation,
-            beam: BeamBaseClass,
-            n_turns: int,
-            turn_i_init: int,
-            **kwargs,
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs,
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
@@ -453,9 +472,9 @@ class CavityPhaseObservation(Observables):
         )
 
     def update(
-            self,
-            simulation: Simulation,
-            beam: BeamBaseClass,
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
     ) -> None:
         """
         Update memory with new values
@@ -512,7 +531,9 @@ class CavityPhaseObservation(Observables):
 
 
 class StaticProfileObservation(Observables):
-    def __init__(self, each_turn_i: int, profile: StaticProfile, obs_per_turn: int=1):
+    def __init__(
+        self, each_turn_i: int, profile: StaticProfile, obs_per_turn: int = 1
+    ):
         """
         Observation of a static beam profile
 
@@ -532,12 +553,12 @@ class StaticProfileObservation(Observables):
         self._hist_y: LateInit[DenseArrayRecorder] = None
 
     def on_run_simulation(
-            self,
-            simulation: Simulation,
-            beam: BeamBaseClass,
-            n_turns: int,
-            turn_i_init: int,
-            **kwargs,
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs,
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
@@ -565,9 +586,9 @@ class StaticProfileObservation(Observables):
         )
 
     def update(
-            self,
-            simulation: Simulation,
-            beam: BeamBaseClass,
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
     ) -> None:
         """
         Update memory with new values
@@ -602,15 +623,19 @@ class StaticProfileObservation(Observables):
         """
         self._hist_y = DenseArrayRecorder.from_disk(self._hist_y.filepath)
 
+
 class StaticAllProfileObservation(Observables):
     # get from simulation elements
-    def __init__(self, each_turn_i: int, profile: StaticProfile, obs_per_turn: int=1):
+    def __init__(
+        self, each_turn_i: int, profile: StaticProfile, obs_per_turn: int = 1
+    ):
         pass
 
 
 class WakeFieldObservation(Observables):
-    def __init__(self, each_turn_i: int, wakefield: WakeField,
-                 obs_per_turn: int=1):
+    def __init__(
+        self, each_turn_i: int, wakefield: WakeField, obs_per_turn: int = 1
+    ):
         """
         Observe the calculation of wake-fields
 
@@ -630,12 +655,12 @@ class WakeFieldObservation(Observables):
         self._induced_voltage: LateInit[DenseArrayRecorder] = None
 
     def on_run_simulation(
-            self,
-            simulation: Simulation,
-            beam: BeamBaseClass,
-            n_turns: int,
-            turn_i_init: int,
-            **kwargs,
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs,
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
@@ -663,9 +688,9 @@ class WakeFieldObservation(Observables):
         )
 
     def update(
-            self,
-            simulation: Simulation,
-            beam: BeamBaseClass,
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
     ) -> None:
         """
         Update memory with new values
@@ -685,8 +710,8 @@ class WakeFieldObservation(Observables):
                 )
             except AttributeError:
                 self._induced_voltage.write(
-                np.zeros(self._wakefield._profile.n_bins)
-            )
+                    np.zeros(self._wakefield._profile.n_bins)
+                )
 
     @property  # as readonly attributes
     def induced_voltage(self):

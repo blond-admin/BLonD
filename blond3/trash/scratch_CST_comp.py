@@ -1,15 +1,17 @@
-import numpy as np
-from unittest.mock import Mock
 import json
+from unittest.mock import Mock
+
+import cst.results
 import matplotlib.pyplot as plt
-from blond3 import WakeField
-from blond3._core.beam.base import BeamBaseClass
-from blond3.physics.impedances.sources import Resonators
-from blond3.physics.impedances.solvers import (
+import numpy as np
+from scipy.constants import c, e
+
+from blond import WakeField
+from blond._core.beam.base import BeamBaseClass
+from blond.physics.impedances.solvers import (
     AnalyticSingleTurnResonatorSolver,
 )
-from scipy.constants import e, c
-import cst.results
+from blond.physics.impedances.sources import Resonators
 
 
 def functest():
@@ -40,19 +42,27 @@ def functest():
     R_shunt = R_over_Q * q_factor
 
     res = Resonators(
-        quality_factors=q_factor, shunt_impedances=R_shunt, center_frequencies=freq
+        quality_factors=q_factor,
+        shunt_impedances=R_shunt,
+        center_frequencies=freq,
     )
     analy = AnalyticSingleTurnResonatorSolver()
     csts_stupid_number = 8.548921333333334
     # csts_stupid_number = 8.54
     bunch_time = np.linspace(
-        -sigma_z * csts_stupid_number / c, csts_stupid_number * sigma_z / c, 2**12
+        -sigma_z * csts_stupid_number / c,
+        csts_stupid_number * sigma_z / c,
+        2**12,
     )
     bunch = np.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
 
     analy._parent_wakefield = Mock(WakeField)
-    analy._parent_wakefield.profile.cut_left = -sigma_z * csts_stupid_number / c
-    analy._parent_wakefield.profile.cut_right = csts_stupid_number * sigma_z / c
+    analy._parent_wakefield.profile.cut_left = (
+        -sigma_z * csts_stupid_number / c
+    )
+    analy._parent_wakefield.profile.cut_right = (
+        csts_stupid_number * sigma_z / c
+    )
     analy._parent_wakefield.profile.bin_size = bunch_time[1] - bunch_time[0]
     analy._parent_wakefield.profile.hist_x = bunch_time
     analy._parent_wakefield.profile.hist_y = bunch / np.sum(bunch)
@@ -74,7 +84,8 @@ def functest():
     # pot_axis = cst_result["pot_axis"] * 1e12  # pC
 
     project = cst.results.ProjectFile(
-        r"D:\CB_2\BLonD_verification\TESLA_ec1_WF-WG_ports.cst", allow_interactive=True
+        r"D:\CB_2\BLonD_verification\TESLA_ec1_WF-WG_ports.cst",
+        allow_interactive=True,
     )
     # time_axis = np.array(project.get_3d().get_result_item("1D Results\\saved\\Z_analy_id_tb").get_xdata()) / 1e3 / c
     # pot_axis = np.array(project.get_3d().get_result_item("1D Results\\saved\\Z_analy_id_tb").get_ydata()) * 1e12
@@ -110,6 +121,7 @@ def functest():
     plt.legend()
     plt.show()
 
+
 def convolution_scratch(pad=True):
     profile = np.zeros(21)
     profile[10] = 1
@@ -119,38 +131,36 @@ def convolution_scratch(pad=True):
     profile_time_orig = np.linspace(starttime, stoptime, num=21, endpoint=True)
 
     extended_profile = np.pad(profile, (0, 10))
-    extended_time_orig = np.linspace(starttime, stoptime + 1e-9, num=31, endpoint=True)
+    extended_time_orig = np.linspace(
+        starttime, stoptime + 1e-9, num=31, endpoint=True
+    )
 
     bin_size = 1e-10
     if pad:
-        left_extend = len(profile_time_orig) + int(profile_time_orig[0] / bin_size)
+        left_extend = len(profile_time_orig) + int(
+            profile_time_orig[0] / bin_size
+        )
         right_extend = len(profile_time_orig) - left_extend - 1
 
         profile_time = np.linspace(
-            profile_time_orig[0]
-            - left_extend * bin_size,
-            profile_time_orig[-1]
-            + right_extend * bin_size,
-            int(
-                len(profile_time_orig) + left_extend + right_extend
-            ),
+            profile_time_orig[0] - left_extend * bin_size,
+            profile_time_orig[-1] + right_extend * bin_size,
+            int(len(profile_time_orig) + left_extend + right_extend),
             endpoint=True,
         )
         shift_prof = 0
 
-        left_extend = len(extended_time_orig) + int(extended_time_orig[0] / bin_size)
+        left_extend = len(extended_time_orig) + int(
+            extended_time_orig[0] / bin_size
+        )
         right_extend = len(extended_time_orig) - left_extend - 1
         # left_extend = np.ceil((len(extended_time_orig) - 1) / 2)
         # right_extend = np.floor((len(extended_time_orig) - 1) / 2)
 
         extended_time = np.linspace(
-            extended_time_orig[0]
-            - left_extend * bin_size,
-            extended_time_orig[-1]
-            + right_extend * bin_size,
-            int(
-                len(extended_time_orig) + left_extend + right_extend
-            ),
+            extended_time_orig[0] - left_extend * bin_size,
+            extended_time_orig[-1] + right_extend * bin_size,
+            int(len(extended_time_orig) + left_extend + right_extend),
             endpoint=True,
         )
         shift_prof_ext = 0
@@ -159,48 +169,44 @@ def convolution_scratch(pad=True):
         left_extend = 10
         right_extend = 0
         profile_time = np.linspace(
-            profile_time_orig[0]
-            - left_extend * bin_size,
-            profile_time_orig[-1]
-            + right_extend * bin_size,
-            int(
-                len(profile_time_orig) + left_extend + right_extend
-            ),
+            profile_time_orig[0] - left_extend * bin_size,
+            profile_time_orig[-1] + right_extend * bin_size,
+            int(len(profile_time_orig) + left_extend + right_extend),
             endpoint=True,
         )
         left_extend = 10
         right_extend = 0
         extended_time = np.linspace(
-            extended_time_orig[0]
-            - left_extend * bin_size,
-            extended_time_orig[-1]
-            + right_extend * bin_size,
-            int(
-                len(extended_time_orig) + left_extend + right_extend
-            ),
+            extended_time_orig[0] - left_extend * bin_size,
+            extended_time_orig[-1] + right_extend * bin_size,
+            int(len(extended_time_orig) + left_extend + right_extend),
             endpoint=True,
         )
     extended_time[
         np.abs(extended_time)
-        <= 1e-10
-        * np.finfo(float).eps
-        * len(extended_time)
-        ] = 0.0
+        <= 1e-10 * np.finfo(float).eps * len(extended_time)
+    ] = 0.0
     profile_time[
-        np.abs(profile_time)
-        <= 1e-10
-        * np.finfo(float).eps
-        * len(profile_time)
-        ] = 0.0
+        np.abs(profile_time) <= 1e-10 * np.finfo(float).eps * len(profile_time)
+    ] = 0.0
 
-    res = Resonators(center_frequencies=1e9, quality_factors=1e10, shunt_impedances=1e5)
+    res = Resonators(
+        center_frequencies=1e9, quality_factors=1e10, shunt_impedances=1e5
+    )
     extended_kernel = res.get_wake(extended_time)
     wake = res.get_wake(profile_time)
     if pad:
         voltage = np.convolve(profile, wake, mode="valid")
-        extended_voltage = np.convolve(extended_profile, extended_kernel, mode="valid")
-        plt.plot(voltage[shift_prof:shift_prof+len(profile)])
-        plt.plot(extended_voltage[shift_prof_ext:shift_prof_ext+len(extended_profile)], ls="--")
+        extended_voltage = np.convolve(
+            extended_profile, extended_kernel, mode="valid"
+        )
+        plt.plot(voltage[shift_prof : shift_prof + len(profile)])
+        plt.plot(
+            extended_voltage[
+                shift_prof_ext : shift_prof_ext + len(extended_profile)
+            ],
+            ls="--",
+        )
         # plt.xlim(5, 15)
         plt.show()
         plt.plot(voltage)
@@ -209,9 +215,11 @@ def convolution_scratch(pad=True):
         plt.show()
     else:
         voltage = np.convolve(profile[::-1], wake, mode="full")
-        extended_voltage = np.convolve(extended_profile[::-1], extended_kernel, mode="full")
-        plt.plot(voltage[21:21 + len(profile)])
-        plt.plot(extended_voltage[31:31 + len(extended_profile)], ls="--")
+        extended_voltage = np.convolve(
+            extended_profile[::-1], extended_kernel, mode="full"
+        )
+        plt.plot(voltage[21 : 21 + len(profile)])
+        plt.plot(extended_voltage[31 : 31 + len(extended_profile)], ls="--")
         plt.show()
 
 

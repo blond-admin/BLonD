@@ -88,7 +88,7 @@ def _get_dE_from_dt(
         energy_gain=simulation.magnetic_cycle.get_target_total_energy(
             1, 0, 0, particle_type=beam.particle_type
         )
-                    - beam.reference_total_energy,
+        - beam.reference_total_energy,
         above_transition=above_transition,
     )
 
