@@ -1,4 +1,5 @@
 from os import PathLike
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -123,7 +124,9 @@ beam_CR = Beam(
     is_counter_rotating=True,
 )
 sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
-load_beam_data_counterrot_from_file("RCS2_8_cavities.npz", beam, beam_CR)
+load_beam_data_counterrot_from_file(
+    str(Path(__file__).parent) + r"\\RCS2_8_cavities.npz", beam, beam_CR
+)
 
 bunch_observation = BunchObservation_meta_params(
     each_turn_i=1, obs_per_turn=n_cavities
