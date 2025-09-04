@@ -367,8 +367,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         print("cwd =", os.getcwd())
         print("__file__ dir =", Path(__file__).parent)
         with open(
-            str(Path(__file__).parent)
-            + r"\\resources\\TESLA_until_4.5GHz.json",
+            str(Path(__file__).parent) + r"/resources/TESLA_until_4.5GHz.json",
             "r",
             encoding="utf-8",
         ) as cst_modes_EM_file:
@@ -419,7 +418,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         calced_voltage = analy.calc_induced_voltage(beam=beam)
 
         cst_result = np.load(
-            str(Path(__file__).parent) + r"\\resources\\TESLA_ec1_WF_pot.npz"
+            str(Path(__file__).parent) + r"/resources/TESLA_ec1_WF_pot.npz"
         )
         # time_axis = cst_result["s_axis"] / c
         # pot_axis = cst_result["pot_axis"] * 1e12  # pC
