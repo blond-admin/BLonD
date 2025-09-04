@@ -1,0 +1,7 @@
+h5py
+matplotlib>=3.7
+mpmath
+numba
+numpy>=1.20
+scipy
+packaging

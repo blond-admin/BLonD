@@ -1,3 +1,3 @@
-python -m pytest --import-mode=importlib --cov=./blond3/ --cov-report=term-missing ./unittests_blond3/ --cov-append
+python -m pytest --import-mode=importlib --cov=./blond/ --cov-report=term-missing ./unittests/ --cov-append --cov-config=.coveragerc
 coverage html
 coverage report

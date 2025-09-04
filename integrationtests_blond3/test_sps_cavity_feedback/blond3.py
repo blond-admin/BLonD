@@ -3,8 +3,15 @@ import unittest
 import numpy as np
 from scipy.constants import c
 
-from blond3 import Ring, MultiHarmonicCavity, Beam, proton, Simulation, \
-    DriftSimple, ConstantMagneticCycle
+from blond import (
+    Beam,
+    ConstantMagneticCycle,
+    DriftSimple,
+    MultiHarmonicCavity,
+    Ring,
+    Simulation,
+    proton,
+)
 
 
 class TestSPSCavityFeedback(unittest.TestCase):
@@ -26,9 +33,12 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
         # TODO C, alpha, particle=Proton(), n_turns=N_t)
         self.magnetic_cycle = ConstantMagneticCycle(
-            reference_particle=proton, value=p_s, in_unit="momentum")
+            reference_particle=proton, value=p_s, in_unit="momentum"
+        )
         self.ring = Ring()
-        self.cavity = MultiHarmonicCavity(n_harmonics=1) # TODO as single harmonic
+        self.cavity = MultiHarmonicCavity(
+            n_harmonics=1
+        )  # TODO as single harmonic
         self.cavity.harmonic = np.array([h])
         self.cavity.voltage = np.array([V])
         self.cavity.phi_rf_effective = np.array([phi])
@@ -42,7 +52,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
         # TODO self.beam = Beam( N_m)
         self.beam = Beam(n_particles=N_b, particle_type=proton)
         sigma = 1.0e-9
-        #bigaussian(self.ring, self.cavity, self.beam, sigma, seed=1234, reinsertion=False)
+        # bigaussian(self.ring, self.cavity, self.beam, sigma, seed=1234, reinsertion=False)
         Simulation(ring=self.ring, magnetic_cycle=self.magnetic_cycle)
 
         n_shift = 1550  # how many rf-buckets to shift beam
@@ -76,7 +86,9 @@ class TestSPSCavityFeedback(unittest.TestCase):
         long_cavity = TravelingWaveCavity(
             l_cav**2 * n_cav * 27.1e3 / 8, f_cav, 2 * np.pi * tau
         )
-        longInducedVoltage = InducedVoltageTime(self.beam, self.profile, [long_cavity])
+        longInducedVoltage = InducedVoltageTime(
+            self.beam, self.profile, [long_cavity]
+        )
         self.induced_voltage = TotalInducedVoltage(
             self.beam, self.profile, [shortInducedVoltage, longInducedVoltage]
         )

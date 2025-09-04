@@ -2,21 +2,24 @@
 branch = True
 
 # a list of packages or directories, the source to measure during execution.
-source = 
+source =
     blond/
 
 # a list of file name patterns, the files to include in measurement or reporting.
-# include = 
+# include =
 
 # a list of file name patterns, the files to leave out of measurement or reporting.
-omit = 
+omit =
     *.cpp
     *.h
     *.cu
     *.npy
     *.npz
-    blond/compile.py
-    blond/_version.py
-    blond/sanity_check.py
-    blond/gpu/*
-    blond/utils/butils_wrap_numba.py
+    blond/legacy/*
+    blond/experimental/*
+    blond/performance_blond3/*
+    blond/testing/*
+    blond/_core/backends/cuda/*
+    blond/_core/backends/cpp/*
+    blond/_core/backends/fortran/*
+    blond/_core/backends/numba/*

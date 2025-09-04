@@ -1,2 +1,3 @@
-monkeytype
-ruff
+pre-commit
+pytest-cov
+mpmath # part of the testing against blond2
