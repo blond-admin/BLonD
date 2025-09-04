@@ -3,6 +3,9 @@ from os import PathLike
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.constants import pi
+from specifics.muon_collider.beam_matching.beam_matching_rountine import (
+    load_beam_data_counterrot_from_file,
+)
 
 from blond import (
     Beam,
@@ -17,8 +20,6 @@ from blond import (
     mu_plus,
 )
 from blond._core.backends.backend import Numpy64Bit, backend
-from blond._core.beam.base import BeamBaseClass
-from blond.beam_preparation.base import BeamPreparationRoutine
 from blond.handle_results.observables import (
     BunchObservation_meta_params,
     StaticProfileObservation,
@@ -32,32 +33,6 @@ backend.change_backend(
     Numpy64Bit
 )  # TODO: without these lines, it does not work, default should be set somewhere to be Numpy64bit python
 backend.set_specials("numba")
-
-
-class LoadBeamDataCR(BeamPreparationRoutine):
-    def __init__(
-        self,
-        filename: PathLike | str,
-    ):
-        self.dt = np.load(filename)["dt"]
-        self.dE = np.load(filename)["dE"]
-
-        self.dt_cr = np.load(filename)["dt"]
-        self.dE_cr = np.load(filename)["dE"]
-
-    def prepare_beam(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass | list[BeamBaseClass],
-    ) -> None:
-        beam[0].setup_beam(
-            dt=self.dt,
-            dE=self.dE,
-        )
-        beam[1].setup_beam(
-            dt=self.dt_cr,
-            dE=self.dE_cr,
-        )
 
 
 # phi_s = 128 * pi / 180  # deg
@@ -148,12 +123,7 @@ beam_CR = Beam(
     is_counter_rotating=True,
 )
 sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
-sim.prepare_beam(
-    beam=[beam, beam_CR],
-    preparation_routine=LoadBeamDataCR("RCS2_8_cavities.npz"),
-)
-
-sim.print_one_turn_execution_order()
+load_beam_data_counterrot_from_file("RCS2_8_cavities.npz", beam, beam_CR)
 
 bunch_observation = BunchObservation_meta_params(
     each_turn_i=1, obs_per_turn=n_cavities

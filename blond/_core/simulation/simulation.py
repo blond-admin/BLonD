@@ -334,7 +334,7 @@ class Simulation(Preparable, HasPropertyCache):
 
     def prepare_beam(
         self,
-        beam: BeamBaseClass | list[BeamBaseClass],
+        beam: BeamBaseClass,
         preparation_routine: BeamPreparationRoutine,
         turn_i: int = 0,
     ) -> None:
