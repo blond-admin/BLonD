@@ -270,14 +270,7 @@ class BunchObservation_meta_params(Observables):
         self._sigma_dE: LateInit[DenseArrayRecorder] = None
         self._mean_dt: LateInit[DenseArrayRecorder] = None
         self._mean_dE: LateInit[DenseArrayRecorder] = None
-
-        self._sigma_dt_CR: LateInit[DenseArrayRecorder] = None
-        self._sigma_dE_CR: LateInit[DenseArrayRecorder] = None
-        self._mean_dt_CR: LateInit[DenseArrayRecorder] = None
-        self._mean_dE_CR: LateInit[DenseArrayRecorder] = None
-
         self._emittance_stat: LateInit[DenseArrayRecorder] = None
-        self._emittance_stat_CR: LateInit[DenseArrayRecorder] = None
 
         assert obs_per_turn >= 0, "obs per turn needs to be >= 0"
         self._obs_per_turn = obs_per_turn
@@ -313,14 +306,6 @@ class BunchObservation_meta_params(Observables):
             f"{'simulation.get_hash'}_mean_dE",
             shape,
         )
-        self._mean_dt_CR = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_mean_dt_CR",
-            shape,
-        )
-        self._mean_dE_CR = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_mean_dE_CR",
-            shape,
-        )
         self._sigma_dt = DenseArrayRecorder(
             f"{'simulation.get_hash'}_sigma_dt",
             shape,
@@ -329,20 +314,8 @@ class BunchObservation_meta_params(Observables):
             f"{'simulation.get_hash'}_sigma_dE",
             shape,
         )
-        self._sigma_dt_CR = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_sigma_dt_CR",
-            shape,
-        )
-        self._sigma_dE_CR = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_sigma_dE_CR",
-            shape,
-        )
         self._emittance_stat = DenseArrayRecorder(
             f"{'simulation.get_hash'}_emittance_stat",
-            shape,
-        )
-        self._emittance_stat_CR = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_emittance_stat_CR",
             shape,
         )
 
@@ -630,6 +603,12 @@ class StaticProfileObservation(Observables):
         Load data from disk
         """
         self._hist_y = DenseArrayRecorder.from_disk(self._hist_y.filepath)
+
+class StaticAllProfileObservation(Observables):
+    # get from simulation elements
+    def __init__(self, each_turn_i: int, profile: StaticProfile, obs_per_turn: int=1):
+        pass
+
 
 class WakeFieldObservation(Observables):
     def __init__(self, each_turn_i: int, wakefield: WakeField,

@@ -157,8 +157,13 @@ class TestResonators(unittest.TestCase):
 
         DEV_DEBBUG = False
         if DEV_DEBBUG:
-            plt.plot(time, wake_potential)
-            plt.show()
+            with plt.rc_context({"font.size": 22}):
+                plt.plot(time * 1e9, wake_potential, linewidth=3)
+                plt.xlabel("time [ns]")
+                plt.ylabel("Wake kernel [V/pC]")
+                plt.tight_layout()
+                # plt.savefig("")
+                plt.show()
 
     def test_get_impedance(self):
         simulation = Mock(Simulation)

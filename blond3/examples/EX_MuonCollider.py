@@ -70,7 +70,7 @@ alpha_p = 11.4e-4
 Q_factor = 0.775e6
 
 energy_gain_per_turn = (ejection_energy - inj_energy) / n_turns
-total_voltage = energy_gain_per_turn / np.sin(phi_s)
+total_voltage = energy_gain_per_turn / np.sin(phi_s)  # different from BlonD2
 n_cavities = 8
 
 R_over_Q = 518
@@ -88,8 +88,8 @@ magnetic_cycle = MagneticCyclePerTurn(value_init=inj_energy,
 one_turn_model = []
 for cavity_i in range(n_cavities):
     profile_tmp = StaticProfile.from_rad( # todo inside for loop?
-        0,
-        2 * np.pi,
+        -np.pi,
+        np.pi,
         2 ** 10,
         magnetic_cycle.get_t_rev_init(
             ring.circumference,
@@ -101,6 +101,7 @@ for cavity_i in range(n_cavities):
         section_index=cavity_i,
 
     )
+    # TODO: adjust center frequency to harmonic
     local_res = Resonators(center_frequencies=1.3e9, quality_factors=Q_factor, shunt_impedances=R_over_Q*Q_factor)  # FM only
     one_turn_model.extend(
         [
@@ -145,23 +146,42 @@ sim.prepare_beam(
 
 sim.print_one_turn_execution_order()
 
-bunch_observation = BunchObservation_meta_params(each_turn_i=1, obs_per_turn = 4)
-profile_observation = StaticProfileObservation(each_turn_i=1, obs_per_turn=4, profile=profile_tmp)
+bunch_observation = BunchObservation_meta_params(each_turn_i=1, obs_per_turn = n_cavities)
+profile_observation = StaticProfileObservation(each_turn_i=1, obs_per_turn=n_cavities, profile=profile_tmp)
 # wakefield_observation = WakeFieldObservation(each_turn_i=1, obs_per_turn = 4)
 sim.run_simulation(beams=(beam, beam_CR), turn_i_init=0, n_turns=n_turns, observe=[bunch_observation,
                                                                                    profile_observation])
 
-plt.plot(bunch_observation.sigma_dt_CR, label="bunch length")
-plt.plot(bunch_observation.mean_dt, label="bunch centroid")
-plt.legend()
+plt.title("bunch length")
+plt.plot(bunch_observation.sigma_dt)
 plt.show()
 
-plt.plot(bunch_observation.sigma_dE_CR, label="energy length")
-plt.plot(bunch_observation.mean_dE, label="energy centroid")
-plt.legend()
+plt.title("bunch centroid")
+plt.plot(bunch_observation.mean_dt)
 plt.show()
 
+plt.title("energy length")
+plt.plot(bunch_observation.sigma_dE)
+plt.show()
+
+plt.title("energy centroid")
+plt.plot(bunch_observation.mean_dE)
+plt.show()
+
+plt.title("emittance")
 plt.plot(bunch_observation.emittance_stat, label="emittance")
-plt.plot(bunch_observation.sigma_dE * bunch_observation.sigma_dt, label="sigma t * sigma E")
+plt.show()
+plt.title("sigma t * sigma E")
+plt.plot(bunch_observation.sigma_dE * bunch_observation.sigma_dt)
+plt.show()
+
+profiles = profile_observation.hist_y
+turn_arr = profile_observation.turns_array
+
+for prof_ind, prof in enumerate(profiles):
+    if np.sum(prof) != 0:
+        plt.plot(prof, label=f"profile@ {prof_ind}")
 plt.legend()
 plt.show()
+
+pass

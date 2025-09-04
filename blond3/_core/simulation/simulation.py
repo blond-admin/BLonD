@@ -16,7 +16,6 @@ from ...cycles.magnetic_cycle import MagneticCycleBase, MagneticCyclePerTurn
 from ...physics.cavities import CavityBaseClass
 from ...physics.drifts import DriftBaseClass
 from ...physics.profiles import ProfileBaseClass
-from ...handle_results.observables import CRBunchObservation, CRBunchObservation_meta_params
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional, Tuple
@@ -361,7 +360,8 @@ class Simulation(Preparable, HasPropertyCache):
         Parameters
         ----------
         beams
-            beams to be simulated, in case of two beams, the first must be co-rotating and the second counter-rotating
+            Beams to be simulated, in case of two beams, the first must be
+            co-rotating and the second counter-rotating
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -427,7 +427,7 @@ class Simulation(Preparable, HasPropertyCache):
                 beams=beams,
             )
         else:
-            raise NotImplementedError("No more than 2 beams are implemented")
+            raise NotImplementedError(f"Up to two beam supported, but got {len(beams)}")
 
     def _run_simulation_single_beam(
         self,
