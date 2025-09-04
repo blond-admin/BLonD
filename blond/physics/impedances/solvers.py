@@ -640,15 +640,21 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
 class MultiPassResonatorSolver(WakeFieldSolver):
     """
     Solver, which saves the profiles of past passes and sums the
-    wakefields of all previous and the current pass together
+    wakefields of all previous and the current pass together.
 
-    Members
+    Attributes
     -------
-    _wake_pot_vals and _wake_pot_time are both lists holding the wake potentials,
-    with the 0th entry being from the current pass and all previous entries,
+    _wake_pot_vals: deque
+        List of wake potential values: 0th entry being from the current pass,
+        subsequent entries from previous passes.
+    _wake_pot_time: deque
+        time axes corresponding to _wake_pot_vals.
 
-    _past_profiles and _past_profile_times time and amplitude arrays for the previous
-    profiles.
+    _past_profiles: deque
+        List of previously passed profiles: 0th entry being from the current pass,
+        subsequent entries from previous passes.
+    _past_profile_times: deque
+        time axes corresponding to _past_profiles.
     """
 
     def __init__(self, decay_fraction_threshold: float = 0.001):  # TODO
@@ -656,10 +662,11 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         Parameters
         ----------
         decay_fraction_threshold: float
-            until which fraction of the decay will the profile
-            still be considered for multi-pass wake calculation
+            Until which fraction of the decay will the profile
+            still be considered for multi-pass wake calculation.
         """
         super().__init__()
+        # define wake potential values and corresponding time axis
         self._wake_pot_vals: LateInit[deque[NumpyArray]] = None
         self._wake_pot_time: LateInit[deque[NumpyArray]] = None
         self._wake_pot_vals_needs_update = True  # initialization
@@ -677,7 +684,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
     def _determine_storage_time(self):
         """
-        sum up the contributions of all resonators and determine how long they should be stored in time
+        Sum up the contributions of all resonators and
+        determine how long they should be stored in time.
         """
         if self._parent_wakefield is None:
             raise RuntimeError(
@@ -765,8 +773,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
     def _update_past_profile_times_wake_times(self, current_time):
         """
-        advances the times in the past profile arrays by delta_t = current_time - self._last_reference_time and
-        sets self._last_reference_time to current_time afterwards
+        Advances the times in the past profile arrays by delta_t = current_time - self._last_reference_time and
+        sets self._last_reference_time to current_time afterwards.
         """
         delta_t = current_time - self._last_reference_time
         assert delta_t > 0  # TODO: performance = ?
@@ -778,9 +786,9 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
     def _update_past_profile_potentials(self, zero_pinning: bool = False):
         """
-        updates the wake potentials according to the new timestamps.
+        Updates the wake potentials according to the new timestamps.
         the arrays are expected to be cleaned before, such that they don't
-        include arrays past self._maximum_storage_time
+        include arrays past self._maximum_storage_time.
 
         Parameters
         ----------
@@ -867,7 +875,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 - self._parent_wakefield.profile.hist_x[0]
             )
             assert np.isclose(new_bin_size, past_bin_size, atol=0), (
-                "profile bin size needs to be constant: bin_size might be too small with casting to delta_t precision"
+                "Profile bin size needs to be constant: bin_size might be too small with casting to delta_t precision."
             )
         self._past_profile_times.appendleft(
             np.copy(self._parent_wakefield.profile.hist_x)
