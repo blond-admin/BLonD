@@ -3,8 +3,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from blond._core.backends.backend import Numpy32Bit, backend
-from blond.beam_preparation.empiric_matcher import EmpiricMatcher
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
+from blond.experimental.beam_preparation.empiric_matcher import EmpiricMatcher
 
 backend.change_backend(Numpy32Bit)
 backend.set_specials("numba")
