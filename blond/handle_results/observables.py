@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
@@ -104,7 +105,14 @@ class Observables(MainLoopRelevant):
         """
         self._n_turns = n_turns
         self._turn_i_init = turn_i_init
-        self._obs_per_turn = obs_per_turn
+        if obs_per_turn >= 0:
+            self._obs_per_turn = obs_per_turn
+        else:
+            self._obs_per_turn = 1
+            warnings.warn(
+                f"obs_per_turn must be greater than 0, got {obs_per_turn}, value was set to 1."
+            )
+
         self._turns_array = np.linspace(
             turn_i_init,
             turn_i_init + n_turns,
@@ -296,9 +304,6 @@ class BunchObservation_meta_params(Observables):
         self._mean_dt: LateInit[DenseArrayRecorder] = None
         self._mean_dE: LateInit[DenseArrayRecorder] = None
         self._emittance_stat: LateInit[DenseArrayRecorder] = None
-
-        assert obs_per_turn >= 0, "obs per turn needs to be >= 0"
-        self._obs_per_turn = obs_per_turn
 
     def on_run_simulation(
         self,
