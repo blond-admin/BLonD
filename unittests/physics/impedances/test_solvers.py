@@ -417,9 +417,9 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
 
         calced_voltage = analy.calc_induced_voltage(beam=beam)
 
-        cst_result = np.load(
-            str(Path(__file__).parent) + r"/resources/TESLA_ec1_WF_pot.npz"
-        )
+        # cst_result = np.load(
+        #     str(Path(__file__).parent) + r"/resources/TESLA_ec1_WF_pot.npz"
+        # )
         # time_axis = cst_result["s_axis"] / c
         # pot_axis = cst_result["pot_axis"] * 1e12  # pC
         # plt.plot(np.interp(bunch_time, time_axis, pot_axis)[: len(calced_voltage)])
