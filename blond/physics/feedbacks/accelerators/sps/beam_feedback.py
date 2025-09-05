@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # pragma: no cover
+    from typing import Optional, Dict, Any
 
 import numpy as np
 
@@ -55,7 +58,7 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         self.alpha_0 = self._drift.alpha_0
         self.beta = beam.reference_beta

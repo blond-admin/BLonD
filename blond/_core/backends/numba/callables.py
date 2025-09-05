@@ -4,15 +4,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import numba
+import numba  # type: ignore
 import numpy as np
 from numba import njit, prange
 
 from ..backend import Specials, backend
 
 if TYPE_CHECKING:  # pragma: no cover
-    from cupy.typing import NDArray as CupyArray
-    from numpy._typing import NDArray as NumpyArray
+    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import NDArray as NumpyArray
 
 if backend.float == np.float32:
     nb_f = numba.float32
@@ -194,7 +194,7 @@ class NumbaSpecials(Specials):  # pragma: no cover
         array_write: NumpyArray,
         start: float,
         stop: float,
-    ):
+    ) -> None:
         width = stop - start
         n_bins = len(array_write)
         bin_step = width / n_bins
@@ -215,9 +215,7 @@ class NumbaSpecials(Specials):  # pragma: no cover
         array_write[:] = array_tmp[:]
 
     @staticmethod
-    def loss_box(
-        self, top: float, bottom: float, left: float, right: float
-    ) -> None:
+    def loss_box(top: float, bottom: float, left: float, right: float) -> None:
         pass
 
     @staticmethod
@@ -230,7 +228,7 @@ class NumbaSpecials(Specials):  # pragma: no cover
         phi_rf: float,
         charge: float,
         acceleration_kick: float,
-    ):
+    ) -> None:
         voltage_kick = charge * voltage
         for i in prange(len(dt)):
             dE[i] += (
@@ -247,7 +245,7 @@ class NumbaSpecials(Specials):  # pragma: no cover
         eta_0: float,
         beta: float,
         energy: float,
-    ):
+    ) -> None:
         """
         Function to apply drift equation of motion
         """
@@ -269,7 +267,7 @@ class NumbaSpecials(Specials):  # pragma: no cover
         charge: float,
         n_rf: int,
         acceleration_kick: float,
-    ):
+    ) -> None:
         for i in prange(len(dt)):
             dti = dt[i]
             de_sum = 0.0
@@ -292,7 +290,7 @@ class NumbaSpecials(Specials):  # pragma: no cover
         eta_2: float,
         beta: float,
         energy: float,
-    ):
+    ) -> None:
         T = t_rev * length_ratio
         coeff = 1.0 / (beta * beta * energy)
         eta0 = eta_0 * coeff
@@ -330,7 +328,7 @@ class NumbaSpecials(Specials):  # pragma: no cover
         alpha_2: float,
         beta: float,
         energy: float,
-    ):
+    ) -> None:
         T = t_rev * length_ratio
         invbetasq = 1 / (beta * beta)
         invenesq = 1 / (energy * energy)
@@ -366,7 +364,7 @@ class NumbaSpecials(Specials):  # pragma: no cover
         bin_centers: NumpyArray,
         charge: float,
         acceleration_kick: float,
-    ):
+    ) -> None:
         dx = (bin_centers[-1] - bin_centers[0]) / (len(bin_centers) - 1)
         inv_dx = 1 / dx
         x_min = bin_centers[0]

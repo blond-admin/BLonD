@@ -11,6 +11,7 @@ from .base import LocalFeedback
 from .helpers import cartesian_to_polar, polar_to_cartesian, rf_beam_current
 
 if TYPE_CHECKING:
+    from typing import Any, Dict
     from typing import Optional
     from typing import Optional as LateInit
 
@@ -209,7 +210,7 @@ class BirksCavityFeedback(LocalFeedback):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         pass
 

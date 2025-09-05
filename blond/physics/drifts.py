@@ -10,10 +10,10 @@ from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant, HasPropertyCache, Schedulable
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Iterable
+    from typing import Any, Dict, Iterable
     from typing import Optional
     from typing import Optional as LateInit
-    from typing import Tuple, Union
+    from typing import Tuple
 
     from numpy.typing import NDArray as NumpyArray
 
@@ -26,7 +26,7 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         self,
         orbit_length: float,
         section_index: int = 0,
-        **kwargs,  # for MRO of fused elements
+        **kwargs: Dict[str, Any],  # for MRO of fused elements
     ):
         """
         Base class of a drift
@@ -74,7 +74,7 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
@@ -109,7 +109,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         orbit_length: float,
         section_index: int = 0,
         transition_gamma: Optional[float] = None,
-        **kwargs,  # for MRO of fused elements
+        **kwargs: Dict[str, Any],  # for MRO of fused elements
     ):
         """
         Base class to implement beam drifts in synchrotrons

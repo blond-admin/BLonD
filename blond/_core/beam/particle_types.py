@@ -19,7 +19,7 @@ class ParticleType:
     _sands_radiation_constant: float = field(init=False)
     _quantum_radiation_constant: float = field(init=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         object.__setattr__(self, "mass_inv", 1 / self.mass)
 
         # classical particle radius [m]

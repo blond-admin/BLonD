@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Literal, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, Literal, Tuple
 
 import numpy as np
 
@@ -20,7 +20,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class Preparable(ABC):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
     @abstractmethod  # pragma: no cover
@@ -39,7 +39,7 @@ class Preparable(ABC):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
@@ -93,7 +93,7 @@ class Schedulable:
         via `apply_schedules`
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.schedules: dict[str, _Scheduled] = {}
         self.schedule_active = False
@@ -103,7 +103,7 @@ class Schedulable:
         attribute: str,
         value: float | int | NumpyArray | Tuple[NumpyArray, NumpyArray],
         mode: Literal["per-turn", "constant"] | None = None,
-    ):
+    ) -> None:
         """
         Schedule a parameter to be changed during simulation
 
@@ -136,7 +136,7 @@ class Schedulable:
         filename: str | PathLike,
         mode: Literal["per-turn", "constant"] | None = None,
         **kwargs_loadtxt,
-    ):
+    ) -> None:
         """
         Schedule a parameter to be changed during simulation
 
@@ -164,7 +164,7 @@ class Schedulable:
         self.schedules[attribute] = get_scheduler(values, mode=mode)
         self.schedule_active = True
 
-    def apply_schedules(self, turn_i: int, reference_time: float):
+    def apply_schedules(self, turn_i: int, reference_time: float) -> None:
         """Set value of schedule to the target parameter for current turn/time
 
         Parameters
@@ -202,7 +202,11 @@ class BeamPhysicsRelevant(MainLoopRelevant):
 
     n_instances = 0
 
-    def __init__(self, section_index: int = 0, name: Optional[str] = None):
+    def __init__(
+        self,
+        section_index: int = 0,
+        name: Optional[str] = None,
+    ) -> None:
         super().__init__()
         self._section_index = section_index
         if name is None:
@@ -245,7 +249,7 @@ class _Scheduled:
 
 
 class ScheduledConstant(_Scheduled):
-    def __init__(self, value: float | int | NumpyArray):
+    def __init__(self, value: float | int | NumpyArray) -> None:
         """Schedule a value that never changes
 
         Parameters
@@ -277,7 +281,7 @@ class ScheduledConstant(_Scheduled):
 
 
 class ScheduledArray(_Scheduled):
-    def __init__(self, values: NumpyArray):
+    def __init__(self, values: NumpyArray) -> None:
         """Schedule values that change per turn
 
         Parameters
@@ -308,7 +312,7 @@ class ScheduledArray(_Scheduled):
 
 
 class ScheduledInterpolation(_Scheduled):
-    def __init__(self, times: NumpyArray, values: NumpyArray):
+    def __init__(self, times: NumpyArray, values: NumpyArray) -> None:
         """Schedule values that change along time"""
 
         super().__init__()
@@ -363,7 +367,7 @@ def get_scheduler(
 
 
 class DynamicParameter:  # TODO add code generation for this method with type-hints
-    def __init__(self, value_init: Any):
+    def __init__(self, value_init: Any) -> None:
         """Changeable parameter tact can be subscribed on_change
 
         Parameters
@@ -374,7 +378,7 @@ class DynamicParameter:  # TODO add code generation for this method with type-hi
         self._value = value_init
         self._observers: List[Callable[[Any], None]] = []
 
-    def on_change(self, callback: Callable[[Any], None]):
+    def on_change(self, callback: Callable[[Any], None]) -> None:
         """Subscribe to changes on a specific parameter.
 
         Parameters
@@ -384,7 +388,7 @@ class DynamicParameter:  # TODO add code generation for this method with type-hi
         """
         self._observers.append(callback)
 
-    def _notify(self, value: Any):
+    def _notify(self, value: Any) -> None:
         """Execute all callbacks of subscribed observers"""
         for callback in self._observers:
             callback(value)
@@ -394,7 +398,7 @@ class DynamicParameter:  # TODO add code generation for this method with type-hi
         return self._value
 
     @value.setter
-    def value(self, new_val: T):
+    def value(self, new_val: T) -> None:
         if new_val != self._value:
             self._notify(new_val)
         self._value = new_val
@@ -403,7 +407,7 @@ class DynamicParameter:  # TODO add code generation for this method with type-hi
 class HasPropertyCache(object):
     """Helper objet to use @cached_property() for class methods"""
 
-    def _invalidate_cache(self, props: Tuple[str, ...]):
+    def _invalidate_cache(self, props: Tuple[str, ...]) -> None:
         """Delete the stored values of functions with @cached_property"""
         for prop in props:
             self.__dict__.pop(prop, None)

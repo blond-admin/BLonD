@@ -1,19 +1,20 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict
 from typing import Optional as LateInit
 
 import matplotlib.pyplot as plt
 import numpy as np
 
+from ..._generals.cupy.no_cupy_import import is_cupy_array
 from ..backends.backend import backend
 from .base import BeamBaseClass, BeamFlags
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional
 
-    from cupy.typing import NDArray as CupyArray
+    from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
     from ... import Simulation
@@ -26,7 +27,7 @@ class Beam(BeamBaseClass):
         n_particles: int | float,
         particle_type: ParticleType,
         is_counter_rotating: bool = False,
-    ):
+    ) -> None:
         """Base class to host particle coordinates and timing information
 
         Parameters
@@ -60,7 +61,7 @@ class Beam(BeamBaseClass):
         flags: Optional[NumpyArray | CupyArray] = None,
         reference_time: Optional[float] = None,
         reference_total_energy: Optional[float] = None,
-    ):
+    ) -> None:
         """Sets beam array attributes for simulation
 
         Parameters
@@ -79,16 +80,20 @@ class Beam(BeamBaseClass):
         assert len(dt) == len(dE), f"{len(dt)} != {len(dE)}"
         n_particles = len(dt)
         if flags is None:
-            flags = BeamFlags.ACTIVE.value * np.ones(
+            flags = backend.int(BeamFlags.ACTIVE.value) * np.ones(
                 n_particles, dtype=backend.int
             )
         else:
             assert flags.max() <= BeamFlags.ACTIVE.value
             assert len(dt) == len(flags)
 
-        self._dE = backend.array(dE, dtype=backend.float)
-        self._dt = backend.array(dt, dtype=backend.float)
-        self._flags = flags.astype(backend.int)
+        self._dE: NumpyArray | CupyArray = backend.array(
+            dE, dtype=backend.float
+        )
+        self._dt: NumpyArray | CupyArray = backend.array(
+            dt, dtype=backend.float
+        )
+        self._flags: NumpyArray | CupyArray = flags.astype(backend.int)
         if reference_time:
             self.reference_time = reference_time
         if reference_total_energy:
@@ -101,7 +106,7 @@ class Beam(BeamBaseClass):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
@@ -151,16 +156,19 @@ class Beam(BeamBaseClass):
 
         return len(self._dt)
 
-    def plot_hist2d(self, **kwargs):
+    def plot_hist2d(self, **kwargs) -> None:
         """Plot 2D histogram of beam coordinates"""
         if "cmap" not in kwargs.keys():
             kwargs["cmap"] = "viridis"
         if "bins" not in kwargs.keys():
             kwargs["bins"] = 256
-        if isinstance(self._dt, np.ndarray):
-            plt.hist2d(self._dt, self._dE, **kwargs)
+        if is_cupy_array(self._dt):
+            # variables below are just for the type hints to function correctly
+            dE: CupyArray = self._dE
+            dt: CupyArray = self._dt
+            plt.hist2d(dt.get(), dE.get(), **kwargs)
         else:
-            plt.hist2d(self._dt.get(), self._dE.get(), **kwargs)
+            plt.hist2d(self._dt, self._dE, **kwargs)
 
 
 class ProbeBeam(Beam):
@@ -171,7 +179,7 @@ class ProbeBeam(Beam):
         dE: Optional[NumpyArray] = None,
         reference_time: Optional[float] = None,
         reference_total_energy: Optional[float] = None,
-    ):
+    ) -> None:
         """
         Test Bunch without intensity effects
 
@@ -209,7 +217,7 @@ class WeightenedBeam(Beam):
         self,
         n_particles: int | float,
         particle_type: ParticleType,
-    ):
+    ) -> None:
         raise NotImplementedError  # todo
         super().__init__(n_particles, particle_type)
         self._weights: LateInit[NumpyArray] = None
@@ -222,7 +230,7 @@ class WeightenedBeam(Beam):
         weights: NumpyArray | CupyArray = None,
         reference_time: Optional[float] = None,
         reference_total_energy: Optional[float] = None,
-    ):
+    ) -> None:
         """Sets beam array attributes for simulation
 
         Parameters

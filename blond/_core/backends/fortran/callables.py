@@ -4,6 +4,7 @@ import importlib.util
 import inspect
 import os
 import sys
+from types import ModuleType
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -11,7 +12,7 @@ import numpy as np
 from blond._core.backends.backend import Specials, backend
 
 
-def find_kick_module_so(file: str):
+def find_kick_module_so(file: str) -> str:
     # Get the file where this function is defined
     current_file = inspect.getfile(find_kick_module_so)
     # Get the directory of that file
@@ -24,16 +25,26 @@ def find_kick_module_so(file: str):
     raise FileNotFoundError(file)
 
 
-def add_backend(module_name):
+def add_backend(module_name: str) -> ModuleType:
     module_path = find_kick_module_so(module_name)
     # Load it explicitly
     spec = importlib.util.spec_from_file_location(
         module_name, str(module_path)
     )
-    loaded_module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(loaded_module)
-    # (Optional) Add to sys.modules to make it importable elsewhere
-    sys.modules[module_name] = loaded_module
+    if spec is not None:
+        loaded_module = importlib.util.module_from_spec(spec)
+        if spec.loader is not None:
+            spec.loader.exec_module(loaded_module)
+        else:
+            raise Exception(
+                f"Failed to load spec from {module_name} at {module_path}"
+            )
+        # (Optional) Add to sys.modules to make it importable elsewhere
+        sys.modules[module_name] = loaded_module
+    else:
+        raise Exception(
+            f"Failed to load spec from {module_name} at {module_path}"
+        )
     return loaded_module
 
 
@@ -80,8 +91,8 @@ else:
 
 
 if TYPE_CHECKING:  # pragma: no cover
-    from cupy.typing import NDArray as CupyArray
-    from numpy._typing import NDArray as NumpyArray
+    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import NDArray as NumpyArray
 
 
 class FortranSpecials(Specials):
@@ -93,7 +104,7 @@ class FortranSpecials(Specials):
         omega_rf: float,
         phi_rf: float,
         bin_size: float,
-    ) -> float:
+    ) -> np.float32 | np.float64:
         return beam_phase_module.beam_phase_module.beam_phase(
             bin_centers=hist_x,
             profile=hist_y,
@@ -110,7 +121,7 @@ class FortranSpecials(Specials):
         array_write: NumpyArray,
         start: float,
         stop: float,
-    ):
+    ) -> None:
         histogram_module.histogram(
             array_read,
             array_out=array_write,
@@ -121,9 +132,7 @@ class FortranSpecials(Specials):
         )
 
     @staticmethod
-    def loss_box(
-        self, top: float, bottom: float, left: float, right: float
-    ) -> None:
+    def loss_box(top: float, bottom: float, left: float, right: float) -> None:
         pass
 
     @staticmethod
@@ -135,7 +144,7 @@ class FortranSpecials(Specials):
         phi_rf: float,
         charge: float,
         acceleration_kick: float,
-    ):
+    ) -> None:
         assert dt.dtype == backend.float
         assert dE.dtype == backend.float
         assert isinstance(voltage, backend.float)
@@ -163,7 +172,7 @@ class FortranSpecials(Specials):
         eta_0: float,
         beta: float,
         energy: float,
-    ):
+    ) -> None:
         """
         Function to apply drift equation of motion
         """
@@ -189,7 +198,7 @@ class FortranSpecials(Specials):
         charge: float,
         n_rf: int,
         acceleration_kick: float,
-    ):
+    ) -> None:
         kick_module.kick_multi_harmonic(
             dt=dt,
             de=dE,
@@ -214,7 +223,7 @@ class FortranSpecials(Specials):
         eta_2: float,
         beta: float,
         energy: float,
-    ):
+    ) -> None:
         raise NotImplementedError
 
         T = t_rev * length_ratio
@@ -253,7 +262,7 @@ class FortranSpecials(Specials):
         alpha_2: float,
         beta: float,
         energy: float,
-    ):
+    ) -> None:
         raise NotImplementedError
         T = t_rev * length_ratio
         invbetasq = 1 / (beta * beta)
@@ -289,7 +298,7 @@ class FortranSpecials(Specials):
         bin_centers: NumpyArray,
         charge: float,
         acceleration_kick: float,
-    ):
+    ) -> None:
         kick_induced_module.linear_interp_kick(
             beam_dt=dt,
             beam_de=dE,

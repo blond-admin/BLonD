@@ -7,7 +7,7 @@ import platform
 import subprocess
 import sys
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import List, Optional
@@ -141,9 +141,9 @@ def compile_cpp_library(
         cflags += ["-I", boost_path, "-DBOOST"]
 
     if libs:
-        libs = libs.split()
+        libs_ = libs.split()
     else:
-        libs = []
+        libs_ = []
 
     if parallel:
         cflags += ["-fopenmp", "-DPARALLEL", "-D_GLIBCXX_PARALLEL"]
@@ -191,14 +191,14 @@ def compile_cpp_library(
     print("Compiler version: ", compiler_version)
 
     print("Compiler flags: ", " ".join(cflags))
-    print("Extra libraries: ", " ".join(libs))
+    print("Extra libraries: ", " ".join(libs_))
 
     command = (
         [compiler]
         + cflags
         + ["-DUSEFLOAT"]
         + cpp_files
-        + libs
+        + libs_
         + ["-o", libname_single]
     )
     print("\nCompiling the single-precision (32-bit) C++ library")
@@ -228,7 +228,7 @@ def compile_cpp_library(
         + cflags
         + fftw_cflags
         + cpp_files
-        + libs
+        + libs_
         + fftw_libs
         + ["-o", libname_double]
     )
@@ -249,12 +249,15 @@ def compile_cpp_library(
             print(exception)
 
 
+from typing import List
+
+
 def prepare_cflags(
     cflags: List[str],
     compiler: str,
     libname: str,
     optimize: bool,
-):
+) -> tuple[List[str], str, str]:
     if "posix" in os.name:
         cflags += ["-fPIC"]
         if optimize:
@@ -285,7 +288,7 @@ def prepare_cflags(
 
     else:
         raise NameError(f"Unknown operating system: {sys.platform=}")
-    return cflags, libname_double, libname_single
+    return cflags, str(libname_double), str(libname_single)
 
 
 def prepare_fftw(
@@ -294,7 +297,7 @@ def prepare_fftw(
     with_fftw_lib: Optional[str] = None,
     with_fftw_omp: Optional[bool] = False,
     with_fftw_threads: Optional[bool] = False,
-):
+) -> Tuple[List[str], list[str]]:
     fftw_cflags = []
     fftw_libs = []
     if with_fftw:
@@ -316,7 +319,7 @@ def prepare_fftw(
     return fftw_cflags, fftw_libs
 
 
-def add_avx_flags(cflags, compiler):
+def add_avx_flags(cflags: List[str], compiler: str) -> List[str]:
     # Check compiler defined directives
     # This is compatible with python3.6 - python 3.9
     # The universal_newlines argument transforms output to text (from binary)
@@ -364,7 +367,7 @@ def add_avx_flags(cflags, compiler):
     return cflags
 
 
-def main_cli():
+def main_cli() -> None:
     """Parse arguments from command line"""
     parser = argparse.ArgumentParser(
         description="Script used to compile the C++ libraries needed by BLonD.",

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-from typing import Optional
-from typing import Optional as LateInit
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # pragma: no cover
+    from typing import Optional, Dict, Any
+    from typing import Optional as LateInit
 
 from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant
@@ -43,7 +46,7 @@ class BoxLosses(LossesBaseClass):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         pass
 
@@ -83,7 +86,7 @@ class SeparatrixLosses(LossesBaseClass):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         pass
 

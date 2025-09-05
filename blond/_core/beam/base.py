@@ -4,12 +4,13 @@ import warnings
 from abc import ABC, abstractmethod
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict
 
 import numpy as np
-from scipy.constants import speed_of_light as c0
+from scipy.constants import speed_of_light as c0  # type: ignore
 
-from ..._core.backends.backend import backend
+from blond._core.backends.backend import backend
+
 from ..._core.ring.helpers import requires
 from ..base import HasPropertyCache, Preparable
 from ..helpers import int_from_float_with_warning
@@ -17,7 +18,7 @@ from ..helpers import int_from_float_with_warning
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional
 
-    from cupy.typing import NDArray as CupyArray
+    from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
     from ..simulation.simulation import Simulation
@@ -36,7 +37,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         particle_type: ParticleType,
         is_counter_rotating: bool = False,
         is_distributed: bool = False,
-    ):
+    ) -> None:
         """Base class to make beam classes
 
         Parameters
@@ -60,12 +61,13 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         self._particle_type = particle_type
         self._is_counter_rotating = is_counter_rotating
 
-        self._dE = None  # should be initialized later using `setup_beam`
-        self._dt = None  # should be initialized later using `setup_beam`
-        self._flags = None  # should be initialized later using `setup_beam`
+        # should be initialized later using `setup_beam`
+        self._dE: NumpyArray | CupyArray | None = None
+        self._dt: NumpyArray | CupyArray | None = None
+        self._flags: NumpyArray | CupyArray | None = None
 
-        self.reference_time = 0  # todo cached properties
-        self._reference_total_energy = 0  # todo cached properties
+        self.reference_time = 0.0  # todo cached properties
+        self._reference_total_energy = 0.0  # todo cached properties
 
     @requires(["EnergyCycleBase"])
     def on_run_simulation(
@@ -74,7 +76,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
@@ -135,7 +137,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         return self._reference_total_energy
 
     @reference_total_energy.setter
-    def reference_total_energy(self, reference_total_energy) -> float:
+    def reference_total_energy(self, reference_total_energy: float) -> None:
         """Total beam energy [eV]"""
         self.invalidate_cache_reference()
         self._reference_total_energy = reference_total_energy
@@ -168,7 +170,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         flags: NumpyArray | CupyArray = None,
         reference_time: Optional[float] = None,
         reference_total_energy: Optional[float] = None,
-    ):
+    ) -> None:
         """Sets beam array attributes for simulation
 
         Parameters
@@ -203,13 +205,10 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         simulation
             Simulation context manager
         """
-        super().on_init_simulation(simulation=simulation)
-        self.reference_total_energy = (
-            simulation.magnetic_cycle.total_energy_init
-        )
+        pass  # this gets never called
 
     @abstractmethod  # pragma: no cover
-    def plot_hist2d(self):
+    def plot_hist2d(self) -> None:
         """Plot 2D histogram of beam coordinates"""
         pass
 
@@ -297,7 +296,13 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         Depends on `is_distributed`
 
         """
-        return len(self._dE)
+        if self._dE is not None:
+            return len(self._dE)
+        else:
+            raise AttributeError(
+                f"{self._dE=}. You can use `setup_beam("
+                f"...)` for initialisation."
+            )
 
     def read_partial_dt(self) -> NumpyArray | CupyArray:
         """Returns dt-array on current node (distributed computing ready)

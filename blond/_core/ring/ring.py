@@ -9,7 +9,7 @@ import numpy as np
 from ..base import BeamPhysicsRelevant, Preparable, Schedulable
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Iterable, List, Optional, Type
+    from typing import Any, Dict, Iterable, List, Optional, Type
 
     from numpy.typing import NDArray as NumpyArray
 
@@ -70,7 +70,7 @@ class Ring(Preparable, Schedulable):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """
         Lateinit method when `simulation.run_simulation` is called
@@ -370,7 +370,7 @@ class Ring(Preparable, Schedulable):
 
     def insert_elements(
         self,
-        elements: Iterable[BeamPhysicsRelevant],
+        elements: List[BeamPhysicsRelevant],
         insert_at: int,
         deepcopy: bool = True,
         allow_section_index_overwrite: bool = False,

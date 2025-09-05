@@ -12,6 +12,7 @@ from .._core.base import BeamPhysicsRelevant
 from .._core.helpers import int_from_float_with_warning
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Any, Dict
     from typing import Optional
     from typing import Optional as LateInit
     from typing import Tuple
@@ -60,7 +61,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
@@ -341,7 +342,7 @@ class DynamicProfile(ProfileBaseClass):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 

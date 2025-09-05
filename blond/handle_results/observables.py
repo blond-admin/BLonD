@@ -10,6 +10,7 @@ from .._core.base import MainLoopRelevant
 from .array_recorders import DenseArrayRecorder
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Any, Dict
     from typing import Optional as LateInit
 
     from .. import WakeField
@@ -79,7 +80,7 @@ class Observables(MainLoopRelevant):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
@@ -135,7 +136,7 @@ class BunchObservation(Observables):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
@@ -273,7 +274,7 @@ class CavityPhaseObservation(Observables):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
@@ -390,7 +391,7 @@ class StaticProfileObservation(Observables):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
@@ -477,7 +478,7 @@ class WakeFieldObservation(Observables):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 

@@ -5,6 +5,7 @@ from blond._core.base import BeamPhysicsRelevant
 from blond._core.beam.base import BeamBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Any, Dict
     from typing import Optional
     from typing import Optional as LateInit
 
@@ -27,7 +28,7 @@ class SynchrotronRadiation(BeamPhysicsRelevant):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 

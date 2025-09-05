@@ -58,7 +58,7 @@ def compile_cuda_library(
     cuda_path = os.getenv("CUDA_PATH", default="")
     if cuda_path != "":
         nvcc = cuda_path + "/bin/nvcc"
-    import cupy as cp  # NOQA must be installed to be compiled / force exception
+    import cupy as cp  # type: ignore # NOQA must be installed to be compiled / force exception
 
     # if something is wrong with the installation
 
@@ -133,7 +133,7 @@ def compile_cuda_library(
         print("Compiled successfully.")
 
 
-def main_cli():
+def main_cli() -> None:
     """Parse arguments from command line"""
     parser = argparse.ArgumentParser(
         description="Script used to compile the CUDA libraries needed by BLonD.",

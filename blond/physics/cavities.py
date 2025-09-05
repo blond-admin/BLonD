@@ -13,6 +13,7 @@ from .._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
 from .feedbacks.beam_feedback import Blond2BeamFeedback
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Any, Dict
     from typing import Optional
     from typing import Optional as LateInit
 
@@ -37,7 +38,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         cavity_feedback: Optional[LocalFeedback],
         beam_feedback: Optional[Blond2BeamFeedback],
         name: Optional[str] = None,
-        **kwargs,  # for MRO of fused elements
+        **kwargs: Dict[str, Any],  # for MRO of fused elements
     ):
         """
         Base class to implement beam-rf interactions in synchrotrons
@@ -109,7 +110,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
@@ -351,7 +352,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         voltage: Optional[float] = None,
         phi_rf: Optional[float] = None,
         harmonic: Optional[float] = None,
-        **kwargs,  # for MRO of fused elements
+        **kwargs: Dict[str, Any],  # for MRO of fused elements
     ):
         super().__init__(
             n_rf=1,

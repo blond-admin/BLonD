@@ -1,16 +1,18 @@
+from __future__ import annotations
+
 import os
 from typing import TYPE_CHECKING
 
-import cupy as cp
+import cupy as cp  # type: ignore
 import numpy as np
-from cupy.typing import NDArray as CupyArray
-from numpy._typing import NDArray as NumpyArray
 
 from blond._core.backends.backend import Specials, backend
 from blond.handle_results.helpers import callers_relative_path
 
 if TYPE_CHECKING:  # pragma: no cover
-    pass
+    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import NDArray as NumpyArray
+
 if backend.float == np.float32:
     gpu_module = cp.RawModule(
         path=callers_relative_path(
@@ -46,9 +48,7 @@ block_size = (threads, 1, 1)
 
 class CudaSpecials(Specials):
     @staticmethod
-    def loss_box(
-        self, top: float, bottom: float, left: float, right: float
-    ) -> None:
+    def loss_box(top: float, bottom: float, left: float, right: float) -> None:
         raise NotImplementedError()
 
     @staticmethod
@@ -60,7 +60,7 @@ class CudaSpecials(Specials):
         phi_rf: float,
         charge: float,
         acceleration_kick: float,
-    ):
+    ) -> None:
         assert dt.dtype == backend.float
         assert dE.dtype == backend.float
         assert isinstance(charge, backend.float)
@@ -94,7 +94,7 @@ class CudaSpecials(Specials):
         charge: float,
         n_rf: int,
         acceleration_kick: float,
-    ):
+    ) -> None:
         """assert dt.dtype == backend.float
         assert dE.dtype == backend.float
         assert phi_rf.dtype == backend.float
@@ -127,7 +127,7 @@ class CudaSpecials(Specials):
         eta_0: float,
         beta: float,
         energy: float,
-    ):
+    ) -> None:
         assert dt.dtype == backend.float
         assert dE.dtype == backend.float
         assert isinstance(T, backend.float)
@@ -159,7 +159,7 @@ class CudaSpecials(Specials):
         eta_2: float,
         beta: float,
         energy: float,
-    ):
+    ) -> None:
         raise NotImplementedError()
 
     @staticmethod
@@ -172,7 +172,7 @@ class CudaSpecials(Specials):
         alpha_2: float,
         beta: float,
         energy: float,
-    ):
+    ) -> None:
         raise NotImplementedError()
 
     @staticmethod
@@ -183,7 +183,7 @@ class CudaSpecials(Specials):
         bin_centers: NumpyArray,
         charge: float,
         acceleration_kick: float,
-    ):
+    ) -> None:
         raise NotImplementedError()
 
     @staticmethod
@@ -192,7 +192,7 @@ class CudaSpecials(Specials):
         array_write: NumpyArray,
         start: float,
         stop: float,
-    ):
+    ) -> None:
         raise NotImplementedError()
 
     @staticmethod
@@ -203,7 +203,7 @@ class CudaSpecials(Specials):
         omega_rf: float,
         phi_rf: float,
         bin_size: float,
-    ) -> float:
+    ) -> np.float32 | np.float64:
         """assert hist_x.dtype == backend.float
         assert hist_y.dtype == backend.float
         assert isinstance(alpha, backend.float), type(alpha)

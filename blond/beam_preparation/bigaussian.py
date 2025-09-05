@@ -169,7 +169,7 @@ class BiGaussian(MatchingRoutine):
         sigma_dE: Optional[float] = None,
         reinsertion: bool = False,
         seed: int = 0,
-    ):
+    ) -> None:
         """Beam matching routine to generate a 2D Gaussian particle distribution
 
         Parameters

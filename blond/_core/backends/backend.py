@@ -3,12 +3,14 @@ from __future__ import annotations
 import importlib
 import sys
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Literal, Type, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
-    from cupy.typing import NDArray as CupyArray
+    from typing import TYPE_CHECKING, Any, Callable, Literal, Type, Union
+
+    from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
 
@@ -20,7 +22,7 @@ class Specials(ABC):
     @staticmethod
     @abstractmethod  # pragma: no cover
     def loss_box(
-        self, top: float, bottom: float, left: float, right: float
+        top: float, bottom: float, left: float, right: float
     ) -> None:  # TODO
         pass
 
@@ -34,7 +36,7 @@ class Specials(ABC):
         phi_rf: float,
         charge: float,
         acceleration_kick: float,
-    ):
+    ) -> None:
         pass
 
     @staticmethod
@@ -48,7 +50,7 @@ class Specials(ABC):
         charge: float,
         n_rf: int,
         acceleration_kick: float,
-    ):
+    ) -> None:
         pass
 
     @staticmethod
@@ -60,7 +62,7 @@ class Specials(ABC):
         eta_0: float,
         beta: float,
         energy: float,
-    ):
+    ) -> None:
         pass
 
     @staticmethod
@@ -75,7 +77,7 @@ class Specials(ABC):
         eta_2: float,
         beta: float,
         energy: float,
-    ):
+    ) -> None:
         pass
 
     @staticmethod
@@ -89,7 +91,7 @@ class Specials(ABC):
         alpha_2: float,
         beta: float,
         energy: float,
-    ):
+    ) -> None:
         pass
 
     @staticmethod
@@ -101,7 +103,7 @@ class Specials(ABC):
         bin_centers: NumpyArray,
         charge: float,
         acceleration_kick: float,
-    ):
+    ) -> None:
         pass
 
     @staticmethod
@@ -111,8 +113,8 @@ class Specials(ABC):
         array_write: NumpyArray,
         start: float,
         stop: float,
-    ):
-        return
+    ) -> None:
+        pass
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -123,7 +125,7 @@ class Specials(ABC):
         omega_rf: float,
         phi_rf: float,
         bin_size: float,
-    ) -> float:
+    ) -> np.float32 | np.float64:
         pass
 
 
@@ -131,7 +133,7 @@ class BackendBaseClass(ABC):
     def __init__(
         self,
         float_: Type[Union[np.float32, np.float64]],
-        int_: Type[np.int32 | np.int64],
+        int_: Type[np.int32] | Type[np.int64],
         complex_: Type[Union[np.complex128, np.complex64]],
         specials_mode: Literal[
             "python",
@@ -141,7 +143,7 @@ class BackendBaseClass(ABC):
             "cuda",
         ],
         is_gpu: bool,
-    ):
+    ) -> None:
         """
         Base class for a backend.
 
@@ -149,7 +151,7 @@ class BackendBaseClass(ABC):
         ----------
         float_
             Precision type for float, e.g. float32, float64.
-        int_
+        int_:
             Precision type for int, e.g. float32, float64.
         complex_
             Precision type for complex, e.g. float32, float64.
@@ -161,23 +163,24 @@ class BackendBaseClass(ABC):
         self._is_gpu = is_gpu
 
         self.float: Type[Union[np.float32, np.float64]] = float_
-        self.int: Type[np.int32 | np.int64] = int_
+        self.int: Type[np.int32] | Type[np.int64] = int_
         self.complex: Type[np.complex128 | np.complex64] = complex_
 
         self.twopi = self.float(2 * np.pi)
         self.specials_mode = specials_mode
-        self.specials: Specials = None  # NOQA
+        self.specials: Specials = None  # type: ignore
         self.set_specials(self.specials_mode)
 
         # Callables that link to e.g. Numpy, Cupy
-        self.array = None
-        self.gradient = None
-        self.linspace = None
-        self.histogram = None
-        self.zeros = None
+        self.array: Callable = None  # type: ignore
+        self.gradient: Callable = None  # type: ignore
+        self.linspace: Callable = None  # type: ignore
+        self.histogram: Callable = None  # type: ignore
+        self.zeros: Callable = None  # type: ignore
 
     def change_backend(
-        self, new_backend: Type[Numpy32Bit, Numpy64Bit, Cupy32Bit, Cupy64Bit]
+        self,
+        new_backend: Type[Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit],
     ) -> None:
         """
         Changes the backend precision
@@ -194,7 +197,7 @@ class BackendBaseClass(ABC):
         self.set_specials(self.specials_mode)  # TODO test changing backends
 
     @abstractmethod  # pragma: no cover
-    def set_specials(self, mode) -> None:
+    def set_specials(self, mode: Any) -> None:
         """
         Set the special compiled functions
 
@@ -244,10 +247,10 @@ def fresh_import(module_location: str, class_name: str) -> type:
 class NumpyBackend(BackendBaseClass):
     def __init__(
         self,
-        float_: Union[np.float32, np.float64],
-        int_: np.int32 | np.int64,
-        complex_: Union[np.complex128, np.complex64],
-    ):
+        float_: Type[Union[np.float32 | np.float64]],
+        int_: Type[np.int32 | np.int64],
+        complex_: Type[Union[np.complex128 | np.complex64]],
+    ) -> None:
         """
         Base class for Numpy based backends
 
@@ -281,7 +284,7 @@ class NumpyBackend(BackendBaseClass):
             "numba",
             "fortran",
         ],
-    ):
+    ) -> None:
         """
         Set the special compiled functions
 
@@ -318,7 +321,7 @@ class NumpyBackend(BackendBaseClass):
                 "blond._core.backends.fortran.callables",
                 "FortranSpecials",
             )
-            self.specials = FortranSpecials
+            self.specials = FortranSpecials()
             self.specials_mode = mode
         else:
             raise ValueError(mode)
@@ -327,7 +330,7 @@ class NumpyBackend(BackendBaseClass):
 class Numpy32Bit(NumpyBackend):
     def __init__(
         self,
-    ):
+    ) -> None:
         """
         Numpy backend with 32 bit precision.
         """
@@ -341,7 +344,7 @@ class Numpy32Bit(NumpyBackend):
 class Numpy64Bit(NumpyBackend):
     def __init__(
         self,
-    ):
+    ) -> None:
         """
         Numpy backend with 64 bit precision.
         """
@@ -355,10 +358,10 @@ class Numpy64Bit(NumpyBackend):
 class CupyBackend(BackendBaseClass):
     def __init__(
         self,
-        float_: Union[np.float32, np.float64],
-        int_: np.int32 | np.int64,
-        complex_: Union[np.complex128, np.complex64],
-    ):
+        float_: Type[Union[np.float32 | np.float64]],
+        int_: Type[np.int32 | np.int64],
+        complex_: Type[Union[np.complex128 | np.complex64]],
+    ) -> None:
         """
         Base class for Cupy based backends
 
@@ -378,7 +381,7 @@ class CupyBackend(BackendBaseClass):
             specials_mode="cuda",  # no other backend implemented at the moment
             is_gpu=True,
         )
-        import cupy as cp  # import only if needed, which is not always the case
+        import cupy as cp  # type: ignore # import only if needed, which is not always the case
 
         self.array = cp.array
         self.gradient = cp.gradient
@@ -390,7 +393,7 @@ class CupyBackend(BackendBaseClass):
 
         self.specials = CudaSpecials()
 
-    def set_specials(self, mode: Literal["cuda"]):
+    def set_specials(self, mode: Literal["cuda"]) -> None:
         """
         Set the special compiled functions
 
@@ -412,7 +415,7 @@ class CupyBackend(BackendBaseClass):
 
 
 class Cupy32Bit(CupyBackend):
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Cupy backend with 64 bit precision.
         """
@@ -424,7 +427,7 @@ class Cupy32Bit(CupyBackend):
 
 
 class Cupy64Bit(CupyBackend):
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Cupy backend with 32 bit precision.
         """

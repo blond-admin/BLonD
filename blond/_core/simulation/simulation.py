@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Callable
 import numpy as np
 from tqdm import tqdm
 
+from blond.handle_results.results import SimulationResults
+
 from ...cycles.magnetic_cycle import MagneticCycleBase, MagneticCyclePerTurn
 from ...physics.cavities import CavityBaseClass
 from ...physics.profiles import ProfileBaseClass
@@ -21,9 +23,25 @@ from ..helpers import find_instances_with_method, int_from_float_with_warning
 from ..ring.helpers import get_elements, get_init_order
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional, Tuple
+    from typing import Any, Dict, Optional, Tuple
 
     from numpy.typing import NDArray as NumpyArray
+
+    from blond.legacy.blond2.beam.beam import Beam as Blond2Beam
+    from blond.legacy.blond2.beam.profile import Profile as Blond2Profile
+    from blond.legacy.blond2.impedances.impedance import (
+        TotalInducedVoltage as Blond2TotalInducedVoltage,
+    )
+    from blond.legacy.blond2.input_parameters.rf_parameters import (
+        RFStation as Blond2RFStation,
+    )
+    from blond.legacy.blond2.input_parameters.ring import Ring as Blond2Ring
+    from blond.legacy.blond2.trackers.tracker import (
+        FullRingAndRF as Blond2FullRingAndRF,
+    )
+    from blond.legacy.blond2.trackers.tracker import (
+        RingAndRFTracker as Blond2RingAndRFTracker,
+    )
 
     from ...beam_preparation.base import BeamPreparationRoutine
     from ...handle_results.observables import Observables
@@ -59,7 +77,7 @@ class Simulation(Preparable, HasPropertyCache):
         self,
         ring: Ring,
         magnetic_cycle: NumpyArray | MagneticCycleBase,
-    ):
+    ) -> None:
         from .intensity_effect_manager import IntensityEffectManager
 
         super().__init__()
@@ -82,7 +100,7 @@ class Simulation(Preparable, HasPropertyCache):
         profile_start_turn_i: int,
         profile_n_turns: int,
         sortby: SortKey = SortKey.CUMULATIVE,
-    ):
+    ) -> None:
         """Executes the python profiler
 
         Parameters
@@ -176,7 +194,7 @@ class Simulation(Preparable, HasPropertyCache):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
@@ -191,7 +209,7 @@ class Simulation(Preparable, HasPropertyCache):
         """
         pass
 
-    def _exec_all_in_tree(self, method: str, **kwargs):
+    def _exec_all_in_tree(self, method: str, **kwargs) -> None:
         """Execute all methods that are somewhere in the attribute hierarchy of `Simulation`
 
         Parameters
@@ -221,7 +239,7 @@ class Simulation(Preparable, HasPropertyCache):
                 logger.info(f"Running `{method}` of {element}")
                 getattr(element, method)(**kwargs)
 
-    def _exec_on_init_simulation(self):
+    def _exec_on_init_simulation(self) -> None:
         """Execute all `on_init_simulation` in the attribute hierarchy of `Simulation`"""
         self._exec_all_in_tree("on_init_simulation", simulation=self)
 
@@ -230,7 +248,7 @@ class Simulation(Preparable, HasPropertyCache):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-    ):
+    ) -> None:
         """Execute all `on_run_simulation` in the attribute hierarchy of `Simulation`
 
         Parameters
@@ -296,17 +314,17 @@ class Simulation(Preparable, HasPropertyCache):
         return self._magnetic_cycle
 
     @cached_property
-    def get_separatrix(self):
+    def get_separatrix(self) -> None:
         raise NotImplementedError
         return None
 
     @cached_property
-    def get_potential_well(self):
+    def get_potential_well(self) -> None:
         raise NotImplementedError
         return None
 
     @cached_property
-    def get_hash(self):
+    def get_hash(self) -> None:
         raise NotImplementedError
         return None
 
@@ -495,7 +513,17 @@ class Simulation(Preparable, HasPropertyCache):
         self.turn_i.value = None
         self.section_i.value = None
 
-    def get_legacy_map(self):
+    def get_legacy_map(
+        self,
+    ) -> list[
+        Blond2Ring
+        | Blond2Beam
+        | Blond2RFStation
+        | Blond2Profile
+        | Blond2TotalInducedVoltage
+        | Blond2RingAndRFTracker
+        | Blond2FullRingAndRF
+    ]:
         raise NotImplementedError
         from ...physics.cavities import (  # prevent cyclic import
             CavityBaseClass,
@@ -546,16 +574,17 @@ class Simulation(Preparable, HasPropertyCache):
         cavity_blond3: SingleHarmonicCavity | MultiHarmonicCavity = (
             self.ring.elements.get_element(CavityBaseClass)
         )
+        # FIXME
         rf_station = RFStation(
             ring=ring_blond2,
-            harmonic=cavity_blond3.rf_program.harmonics,
-            voltage=cavity_blond3.rf_program.effective_voltages,
-            phi_rf_d=cavity_blond3.rf_program.phases,
-            n_rf=len(cavity_blond3.rf_program.phases),
+            harmonic=cavity_blond3.rf_program.harmonics,  # type: ignore # FIXME
+            voltage=cavity_blond3.rf_program.effective_voltages,  # type: ignore # FIXME
+            phi_rf_d=cavity_blond3.rf_program.phases,  # type: ignore # FIXME
+            n_rf=len(cavity_blond3.rf_program.phases),  # type: ignore # FIXME
             section_index=0,
-            omega_rf=cavity_blond3.rf_program.omegas_rf,
-            phi_noise=cavity_blond3.rf_program.phase_noise,
-            phi_modulation=cavity_blond3.rf_program.phase_modulation,
+            omega_rf=cavity_blond3.rf_program.omegas_rf,  # type: ignore # FIXME
+            phi_noise=cavity_blond3.rf_program.phase_noise,  # type: ignore # FIXME
+            phi_modulation=cavity_blond3.rf_program.phase_modulation,  # type: ignore # FIXME
             rf_station_options=None,
         )
         profile_blond3 = self.ring.elements.get_element(ProfileBaseClass)
