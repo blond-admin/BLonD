@@ -73,7 +73,8 @@ class GPUDev:
         return self.mod.get_function(name)
 
     def load_library(self, _precision: str):
-        """Load the GPU library
+        """
+        Load the GPU library
 
         Args:
             _precision (str): must be either 'single' or 'double'

@@ -84,7 +84,8 @@ class GlobalFeedback(FeedbackBaseClass):
     # `element.on_init_simulation` for all elements
     @requires(["SingleHarmonicCavity"])
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """
+        Lateinit method when `simulation.__init__` is called
 
         simulation
             Simulation context manager

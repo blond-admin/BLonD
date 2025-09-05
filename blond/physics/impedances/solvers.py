@@ -45,7 +45,8 @@ class InductiveImpedanceSolver(WakeFieldSolver):
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ):
-        """Lateinit method when WakeField is late-initialized
+        """
+        Lateinit method when WakeField is late-initialized
 
         Parameters
         ----------
@@ -157,7 +158,8 @@ class PeriodicFreqSolver(WakeFieldSolver):
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ):
-        """Lateinit method when WakeField is late-initialized
+        """
+        Lateinit method when WakeField is late-initialized
 
         Parameters
         ----------
@@ -369,7 +371,8 @@ class TimeDomainSolver(WakeFieldSolver):
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:
-        """Lateinit method when WakeField is late-initialized
+        """
+        Lateinit method when WakeField is late-initialized
 
         Parameters
         ----------
@@ -532,7 +535,8 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:
-        """Lateinit method when WakeField is late-initialized
+        """
+        Lateinit method when WakeField is late-initialized
 
         Parameters
         ----------
@@ -705,7 +709,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:
-        """Lateinit method when WakeField is late-initialized
+        """
+        Lateinit method when WakeField is late-initialized
 
         Parameters
         ----------

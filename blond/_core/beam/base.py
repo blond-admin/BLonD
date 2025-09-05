@@ -76,7 +76,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         turn_i_init: int,
         **kwargs,
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called
+        """
+        Lateinit method when `simulation.run_simulation` is called
 
         simulation
             Simulation context manager
@@ -198,7 +199,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     @requires(["EnergyCycleBase"])
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """
+        Lateinit method when `simulation.__init__` is called
 
         simulation
             Simulation context manager

@@ -457,7 +457,8 @@ def fir_filter(coeff: NumpyArray, signal: NumpyArray):
 def low_pass_filter(
     signal: NumpyArray, cutoff_frequency: float = 0.5
 ) -> NumpyArray:
-    """Low-pass filter based on Butterworth 5th order digital filter from
+    """
+    Low-pass filter based on Butterworth 5th order digital filter from
     scipy,
     http://docs.scipy.org
 

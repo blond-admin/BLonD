@@ -77,7 +77,8 @@ class Observables(MainLoopRelevant):
         pass
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """
+        Lateinit method when `simulation.__init__` is called
 
         simulation
             Simulation context manager
@@ -93,7 +94,8 @@ class Observables(MainLoopRelevant):
         obs_per_turn: int = 1,
         **kwargs,
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called
+        """
+        Lateinit method when `simulation.run_simulation` is called
 
         simulation
             Simulation context manager
@@ -189,7 +191,8 @@ class BunchObservation(Observables):
         turn_i_init: int,
         **kwargs,
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called
+        """
+        Lateinit method when `simulation.run_simulation` is called
 
         simulation
             Simulation context manager
@@ -478,7 +481,8 @@ class CavityPhaseObservation(Observables):
         turn_i_init: int,
         **kwargs,
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called
+        """
+        Lateinit method when `simulation.run_simulation` is called
 
         simulation
             Simulation context manager
@@ -604,7 +608,8 @@ class StaticProfileObservation(Observables):
         turn_i_init: int,
         **kwargs,
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called
+        """
+        Lateinit method when `simulation.run_simulation` is called
 
         simulation
             Simulation context manager
@@ -776,7 +781,8 @@ class WakeFieldObservation(Observables):
         turn_i_init: int,
         **kwargs,
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called
+        """
+        Lateinit method when `simulation.run_simulation` is called
 
         simulation
             Simulation context manager

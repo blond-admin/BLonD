@@ -30,7 +30,8 @@ class BoxLosses(LossesBaseClass):
         self.e_max = backend.float(e_max)
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """
+        Lateinit method when `simulation.__init__` is called
 
         simulation
             Simulation context manager
@@ -70,7 +71,8 @@ class SeparatrixLosses(LossesBaseClass):
         self._simulation: LateInit[Simulation] = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """
+        Lateinit method when `simulation.__init__` is called
 
         simulation
             Simulation context manager

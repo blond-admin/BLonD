@@ -64,7 +64,8 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         simulation: Simulation,
         **kwargs,
     ) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """
+        Lateinit method when `simulation.__init__` is called
 
         simulation
             Simulation context manager
@@ -82,7 +83,8 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         turn_i_init: int,
         **kwargs,
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called
+        """
+        Lateinit method when `simulation.run_simulation` is called
 
         simulation
             Simulation context manager
@@ -250,7 +252,8 @@ class ConstantMagneticCycle(MagneticCycleBase):
         simulation: Simulation,
         **kwargs,
     ) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """
+        Lateinit method when `simulation.__init__` is called
 
         simulation
             Simulation context manager
@@ -405,12 +408,8 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         simulation: Simulation,
         **kwargs,
     ) -> None:
-        """Lateinit method when `simulation.__init__` is called
-
-        simulation
-            Simulation context manager
         """
-        """Lateinit method when `simulation.run` is called
+        Lateinit method when `simulation.__init__` is called
 
         simulation
             Simulation context manager
@@ -612,7 +611,8 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
         simulation: Simulation,
         **kwargs,
     ) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """
+        Lateinit method when `simulation.__init__` is called
 
         simulation
             Simulation context manager
@@ -807,7 +807,8 @@ class MagneticCycleByTime(MagneticCycleBase):
         simulation: Simulation,
         **kwargs,
     ) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """
+        Lateinit method when `simulation.__init__` is called
 
         simulation
             Simulation context manager
