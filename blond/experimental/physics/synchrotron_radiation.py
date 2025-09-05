@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from functools import cached_property
 from typing import TYPE_CHECKING
 
@@ -8,27 +8,26 @@ import numpy as np
 from numpy.matlib import empty
 from scipy.constants import c, e
 
-from .._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
-from ..acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
+from blond._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
+from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
     calculate_damping_times_in_turn,
     calculate_energy_loss_per_turn,
     calculate_natural_energy_spread,
     gather_longitudinal_synchrotron_radiation_parameters,
 )
-from ..cycles.magnetic_cycle import MagneticCycleBase
+from blond.cycles.magnetic_cycle import MagneticCycleBase
 
 if TYPE_CHECKING:
     from typing import Optional
     from typing import Optional as LateInit
 
-    from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
-    from .. import Ring
-    from .._core.beam.base import BeamBaseClass
-    from .._core.simulation.simulation import Simulation
-    from ..physics.cavities import CavityBaseClass
-    from ..physics.drifts import DriftBaseClass
+    from blond._core.beam.base import BeamBaseClass
+    from blond._core.ring.ring import Ring
+    from blond._core.simulation.simulation import Simulation
+    from blond.physics.cavities import CavityBaseClass
+    from blond.physics.drifts import DriftBaseClass
 
 
 class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
@@ -57,20 +56,19 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
             section_index=section_index,
             name=name,
         )
+        self._longitudinal_damping_time = None
         self._energy_loss_per_turn = None
         self.is_isomagnetic: Optional[bool] = (
             False  # FIXME Optional means  bool | None, but is never none
         )
         self.get_synchrotron_radiation_info_turn_by_turn: Optional[bool] = True
-        self.synchrotron_radiation_integrals: LateInit[
-            NumpyArray | CupyArray
-        ] = None
+        self.synchrotron_radiation_integrals: LateInit[NumpyArray] = None
         self._simulation: LateInit[Simulation] = None
-        self._damping_times: LateInit[NumpyArray | CupyArray] = (
+        self._damping_times: LateInit[NumpyArray] = (
             None  # TODO why duplicate `_damping_times_in_seconds`, could this be property?
         )
-        self._damping_times_in_seconds: LateInit[NumpyArray | CupyArray] = None
-        self._natural_energy_spread: LateInit[NumpyArray | CupyArray] = None
+        self._damping_times_in_seconds: LateInit[NumpyArray] = None
+        self._natural_energy_spread: LateInit[NumpyArray] = None
 
         self._turn_i: LateInit[DynamicParameter] = 0
         self._energy_cycle: LateInit[MagneticCycleBase] = None
@@ -105,7 +103,6 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
             )
         else:
             i = 0
-
             if element_list is not None:
                 if all(
                     [
@@ -131,9 +128,11 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
                 elif all([isinstance(e, int) for e in element_list]):
                     for section_index in element_list:
                         i += 1
+                        length_to_consider = 0
                         SRClass_child = SynchrotronRadiationSection(
                             section_index=section_index,
                             name=f"SynchrotronRadiationTracker_{i}",
+                            fraction_of_ring_cirucumference=length_to_consider,
                         )
                         self._simulation.ring.add_element(
                             SRClass_child,
@@ -245,18 +244,18 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         self,
         name: Optional[str] = None,
         section_index: Optional[int] = None,
+        fraction_of_ring_circumference: float = None,
     ):
         super().__init__(name=name, section_index=section_index)
 
         self._simulation: LateInit[Simulation] = None
         self._energy_lost_due_to_synchrotron_radiation = None
-        self._synchrotron_radiation_integrals: LateInit[
-            NumpyArray | CupyArray
-        ] = None
+        self._synchrotron_radiation_integrals: LateInit[NumpyArray] = None
         self._damping_partition_number: float = None
         self._damping_time: NumpyArray = None
         self._natural_energy_spread: NumpyArray = None
         self._turn_i: LateInit[DynamicParameter] = 0
+        self._fraction_of_ring_circumference = fraction_of_ring_circumference
 
     def _calculate_kick(self, beam: BeamBaseClass):
         """
@@ -270,6 +269,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
             gather_longitudinal_synchrotron_radiation_parameters(
                 particle_type=beam.particle_type,
                 energy=beam.reference_total_energy,
+                synchrotron_radiation_integrals=self._synchrotron_radiation_integrals,
             )
         )
         self._natural_energy_spread[self._turn_i] = np.average(sigma0)
@@ -341,11 +341,15 @@ class SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
         """Synchrotron radiation integrals of the drift"""
         return self._synchrotron_radiation_integrals
 
+    def _calculate_fraction_of_ring(self):
+        pass
+
     def on_init_simulation(self, simulation: Simulation) -> None:
         pass
         self._turn_i = simulation.turn_i
+        self.fraction_of_ring = self._calculate_fraction_of_ring()
         self._synchrotron_radiation_integrals = (
-            self._ * self._synchrotron_radiation_integrals
+            self.length * self._synchrotron_radiation_integrals
         )
 
 
@@ -375,7 +379,7 @@ class SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
     def on_init_simulation(self, simulation: Simulation) -> None:
         pass
         self._turn_i = simulation.turn_i
-        lengths_sections = self._simulation.ring.section_lengths()
+        lengths_sections = self._simulation.ring.section_lengths
         share_synchrotron_radiation_integrals = (
             lengths_sections[self.section_index]
             / self._simulation.ring.circumference
@@ -411,10 +415,10 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
 
         self._simulation: LateInit[Simulation] = None
         self._contribution_to_synchrotron_radiation_integrals_without_energy: LateInit[
-            NumpyArray | CupyArray
+            NumpyArray
         ] = np.zeros((1, 5))
         self._contribution_to_synchrotron_radiation_integrals_with_energy: LateInit[
-            NumpyArray | CupyArray
+            NumpyArray
         ] = np.zeros((1, 5))
 
     @property
@@ -423,8 +427,8 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
 
     @property
     def length_wiggler(self):
-        if self.type == "wiggler_type":
-            return self.pole_length * self.number_poles
+        if self._type == "wiggler_type":
+            return self.pole_length * self._number_poles
 
     @property
     def number_of_poles(self):
@@ -450,15 +454,17 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         self._simulation = simulation
+        self.calculate_contribution_to_synchrotron_radiation_integrals()
 
     def on_run_simulation(
         self,
         simulation: Simulation,
+        beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
+        **kwargs,
     ) -> None:
-        self.calculate_contribution_to_synchrotron_radiation_integrals(self)
-        pass
+        self._turn_i = simulation.turn_i
 
     def calculate_contribution_to_synchrotron_radiation_integrals(self):
         """
@@ -469,28 +475,28 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         self._contribution_to_synchrotron_radiation_integrals_without_energy = np.array(
             [
                 (
-                    -self.number
+                    -self.number_of_wigglers
                     * self.length_wiggler
-                    * (e * self.peak_field) ** 2
+                    * (e * self.peak_magnetic_field) ** 2
                     * self.length_wiggler
                     / (2 * np.pi)
                 ),
                 1
                 / 2
-                * self.number
+                * self.number_of_wigglers
                 * self.length_wiggler
-                * (e * self.peak_field) ** 2,
+                * (e * self.peak_magnetic_field) ** 2,
                 4
                 / (3 * np.pi)
-                * self.number
+                * self.number_of_wigglers
                 * self.length_wiggler
-                * (e * self.peak_field) ** 3,
+                * (e * self.peak_magnetic_field) ** 3,
                 0,
-                self.number
+                self.number_of_wigglers
                 * self.pole_length**2
                 * self.length_wiggler
                 / (15 * np.pi**3)
-                * (e * self.peak_field) ** 5,
+                * (e * self.peak_magnetic_field) ** 5,
             ]
         )
 
@@ -518,8 +524,8 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         )
         pass
 
-    @abstractmethod
-    def track(self, beam: BeamBaseClass) -> None:
+    def track(self) -> None:
+        self._turn_i = self._simulation.turn_i
         for beam in self._simulation.beams:
             self.update_synchrotron_radiation_integrals(beam=beam)
             self._update_beam_energy(beam)
