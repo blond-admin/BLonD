@@ -179,7 +179,6 @@ class TestBeam(unittest.TestCase):
         )
         beam.id[1] = 0
         beam.eliminate_lost_particles()
-        print(beam.n_macroparticles*beam.ratio)
         self.assertEqual(np.sum(beam.weights) * beam.ratio, 1)
         self.assertEqual(beam.intensity, 1)
 
