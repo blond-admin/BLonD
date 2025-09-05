@@ -35,7 +35,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         n_particles: int | float,
         particle_type: ParticleType,
         is_counter_rotating: bool = False,
-        is_distributed=False,
+        is_distributed: bool = False,
     ):
         """Base class to make beam classes
 
@@ -188,12 +188,12 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         pass
 
     @property  # as readonly attributes
-    def is_distributed(self):
+    def is_distributed(self) -> bool:
         """Developer option to allow distributed computing"""
         return self._is_distributed
 
     @property  # as readonly attributes
-    def is_counter_rotating(self):
+    def is_counter_rotating(self) -> bool:
         """If this is a normal or counter-rotating beam"""
         return self._is_counter_rotating
 
@@ -291,7 +291,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """Delete the stored values of functions with @cached_property"""
         self._invalidate_cache(BeamBaseClass.cached_props)
 
-    def n_macroparticles_partial(self):
+    def n_macroparticles_partial(self) -> int:
         """Size of the beam, ignoring that beam might be distributed
 
         Note
@@ -301,7 +301,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """
         return len(self._dE)
 
-    def read_partial_dt(self):
+    def read_partial_dt(self) -> NumpyArray | CupyArray:
         """Returns dt-array on current node (distributed computing ready)
 
         Note
@@ -310,7 +310,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """
         return self._dt
 
-    def write_partial_dt(self):
+    def write_partial_dt(self) -> NumpyArray | CupyArray:
         """Returns dt-array on current node (distributed computing ready)
 
         Note
@@ -321,7 +321,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         self.invalidate_cache_dt()
         return self._dt
 
-    def read_partial_dE(self):
+    def read_partial_dE(self) -> NumpyArray | CupyArray:
         """Returns dE-array on current node (distributed computing ready)
 
         Note
@@ -330,7 +330,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """
         return self._dE
 
-    def write_partial_dE(self):
+    def write_partial_dE(self) -> NumpyArray | CupyArray:
         """Returns dE-array on current node (distributed computing ready)
 
         Note
@@ -340,7 +340,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         self.invalidate_cache_dE()
         return self._dE
 
-    def write_partial_flags(self):
+    def write_partial_flags(self) -> NumpyArray | CupyArray:
         """Returns flags-array on current node (distributed computing ready)
 
         Note

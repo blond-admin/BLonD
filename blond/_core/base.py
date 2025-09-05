@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Literal, Tuple
+from typing import TYPE_CHECKING, Literal, Optional, Tuple
 
 import numpy as np
 
@@ -337,7 +337,7 @@ class ScheduledInterpolation(_Scheduled):
 def get_scheduler(
     value: float | int | NumpyArray | Tuple[NumpyArray, NumpyArray],
     mode: Literal["per-turn", "constant"] | None = None,
-):
+) -> _Scheduled:
     """Auto-select the correct class of the schedulers
 
     Parameters
@@ -356,12 +356,16 @@ def get_scheduler(
             return ScheduledArray(values=value)
         elif mode == "constant":
             return ScheduledConstant(value=value)
+        else:
+            raise TypeError(type(value))
     elif isinstance(value, np.ndarray):
         return ScheduledInterpolation(times=value[0], values=value[1])
+    else:
+        raise TypeError(type(value))
 
 
 class DynamicParameter:  # TODO add code generation for this method with type-hints
-    def __init__(self, value_init):
+    def __init__(self, value_init: Any):
         """Changeable parameter tact can be subscribed on_change
 
         Parameters
@@ -382,7 +386,7 @@ class DynamicParameter:  # TODO add code generation for this method with type-hi
         """
         self._observers.append(callback)
 
-    def _notify(self, value):
+    def _notify(self, value: Any):
         """Execute all callbacks of subscribed observers"""
         for callback in self._observers:
             callback(value)

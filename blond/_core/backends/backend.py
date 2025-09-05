@@ -130,9 +130,9 @@ class Specials(ABC):
 class BackendBaseClass(ABC):
     def __init__(
         self,
-        float_: Union[np.float32, np.float64],
-        int_: np.int32 | np.int64,
-        complex_: Union[np.complex128, np.complex64],
+        float_: Type[Union[np.float32, np.float64]],
+        int_: Type[np.int32 | np.int64],
+        complex_: Type[Union[np.complex128, np.complex64]],
         specials_mode: Literal[
             "python",
             "cpp",
@@ -160,9 +160,9 @@ class BackendBaseClass(ABC):
         """
         self._is_gpu = is_gpu
 
-        self.float: Union[np.float32, np.float64] = float_
-        self.int: np.int32 | np.int64 = int_
-        self.complex: np.complex128 | np.complex64 = complex_
+        self.float: Type[Union[np.float32, np.float64]] = float_
+        self.int: Type[np.int32 | np.int64] = int_
+        self.complex: Type[np.complex128 | np.complex64] = complex_
 
         self.twopi = self.float(2 * np.pi)
         self.specials_mode = specials_mode

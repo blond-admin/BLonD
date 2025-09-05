@@ -8,8 +8,11 @@ import numpy as np
 
 from blond import Simulation
 from blond._core.helpers import int_from_float_with_warning
-from blond.acc_math.empiric.hammiltonian import calc_hamiltonian, separatrixes
 from blond.beam_preparation.base import MatchingRoutine
+from blond.experimental.acc_math.empiric.hammiltonian import (
+    calc_hamiltonian,
+    separatrixes,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray

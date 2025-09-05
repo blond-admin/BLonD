@@ -8,7 +8,7 @@ from blond._core.base import BeamPhysicsRelevant
 from blond._core.beam.base import BeamBaseClass
 from blond._core.ring.beam_physics_relevant_elements import (
     BeamPhysicsRelevantElements,
-    pprint,
+    pretty_string,
 )
 from blond.physics.cavities import CavityBaseClass
 from blond.physics.drifts import DriftBaseClass
@@ -16,7 +16,7 @@ from blond.physics.drifts import DriftBaseClass
 
 class TestFunctions(unittest.TestCase):
     def test_pprint_executes(self):
-        pprint(v=np.array(10))
+        pretty_string(v=np.array(10))
 
 
 class TestBeamPhysicsRelevantElements(unittest.TestCase):

@@ -2,15 +2,23 @@ from __future__ import annotations
 
 import inspect
 from collections import defaultdict, deque
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, Iterable, List, Tuple, Type, TypeVar
+    from typing import (
+        Any,
+        Callable,
+        Iterable,
+        List,
+        Tuple,
+        Type,
+        TypeVar,
+    )
 
     T = TypeVar("T")
 
 
-def requires(argument: List[str]):
+def requires(argument: List[str]) -> Callable:
     """Decorator to manage execution order of decorated functions
 
     Parameters
@@ -145,7 +153,7 @@ def get_dependencies(cls_: type, dependency_attribute: str):
 
     Returns
     -------
-
+    # TODO
     """
     if "." in dependency_attribute:
         if dependency_attribute.count(".") != 1:

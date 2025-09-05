@@ -227,7 +227,7 @@ class WakeField(ImpedanceBaseClass):
         self._induced_voltage = None
 
     @property
-    def induced_voltage(self):
+    def induced_voltage(self) -> NumpyArray | CupyArray:
         """
         Induced voltage in [V] from given beam profile and sources
         """

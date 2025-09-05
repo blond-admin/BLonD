@@ -42,10 +42,10 @@ class DenseArrayRecorder(ArrayRecorder):
         self,
         filepath: str | PathLike,
         shape: int | Tuple[int, ...],
-        filepath_is_relative=True,
+        filepath_is_relative: bool = True,
         dtype: Optional[DTypeLike] = None,
         order: Literal["C", "F"] = "C",
-        overwrite=True,
+        overwrite: bool = True,
     ):
         if filepath_is_relative:
             filepath = callers_relative_path(filepath, stacklevel=2)
@@ -60,14 +60,14 @@ class DenseArrayRecorder(ArrayRecorder):
                 warnings.warn(f"{self.filepath_array} exists already!")
 
     @property
-    def filepath_array(self):
+    def filepath_array(self) -> str:
         return f"{self.filepath}.npy"
 
     @property
-    def filepath_attributes(self):
+    def filepath_attributes(self) -> str:
         return f"{self.filepath}.json"
 
-    def purge_from_disk(self, verbose=True):
+    def purge_from_disk(self, verbose: bool = True):
         if os.path.exists(self.filepath_array):
             os.remove(self.filepath_array)
             if verbose:
@@ -106,7 +106,7 @@ class DenseArrayRecorder(ArrayRecorder):
         self._memory[self._write_idx] = newdata
         self._write_idx += 1
 
-    def get_valid_entries(self):
+    def get_valid_entries(self) -> NumpyArray:
         return self._memory[: self._write_idx]
 
 

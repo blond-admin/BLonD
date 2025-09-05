@@ -14,6 +14,7 @@ from .._core.helpers import int_from_float_with_warning
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional
     from typing import Optional as LateInit
+    from typing import Tuple
 
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
@@ -146,7 +147,9 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         self.invalidate_cache()
 
     @staticmethod
-    def get_arrays(cut_left: float, cut_right: float, n_bins: int):
+    def get_arrays(
+        cut_left: float, cut_right: float, n_bins: int
+    ) -> Tuple[NumpyArray, NumpyArray] | Tuple[CupyArray, CupyArray]:
         """
         Helper method to initialize beam profiles
 
@@ -175,7 +178,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         return hist_x, hist_y
 
     @property  # as readonly attributes
-    def cutoff_frequency(self):
+    def cutoff_frequency(self) -> np.float32 | np.float64:
         """Cutoff frequency if the profile is fourier transformed, in [Hz]"""
         return backend.float(1 / (2 * self.hist_step))
 
@@ -188,7 +191,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         raise NotImplementedError
         return self._calc_gauss()
 
-    def beam_spectrum(self, n_fft: int):
+    def beam_spectrum(self, n_fft: int) -> float:
         """Calculate fourier transform of the profile"""
         if n_fft not in self._beam_spectrum_buffer.keys():
             self._beam_spectrum_buffer[n_fft] = np.fft.rfft(

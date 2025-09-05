@@ -38,7 +38,7 @@ def int_from_float_with_warning(
         raise TypeError(type(value))
 
 
-def find_instances_with_method(root: Any, method_name: str):
+def find_instances_with_method(root: Any, method_name: str) -> Any:
     """Find all instances within root that have a callable `methodname`
 
     Parameters

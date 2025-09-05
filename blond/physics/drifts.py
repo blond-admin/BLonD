@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 from unittest.mock import Mock
+
+import numpy as np
 
 from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant, HasPropertyCache, Schedulable
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Iterable
+    from typing import Optional
     from typing import Optional as LateInit
-    from typing import Tuple
+    from typing import Tuple, Union
 
     from numpy.typing import NDArray as NumpyArray
 
@@ -44,7 +47,7 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
 
         self.orbit_length = orbit_length
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f""
 
     def track(self, beam: BeamBaseClass) -> None:
@@ -140,7 +143,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             self.transition_gamma = transition_gamma  # use setter method
 
     @property  # read only, set by `transition_gamma`
-    def momentum_compaction_factor(self):
+    def momentum_compaction_factor(self) -> np.float64 | np.float32:
         """Momentum compaction factor"""
         return self._momentum_compaction_factor
 
@@ -188,7 +191,10 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             orbit_length=orbit_length,
             section_index=section_index,
         )
-        d.transition_gamma = backend.float(transition_gamma)
+        if isinstance(transition_gamma, float):
+            d.transition_gamma = backend.float(transition_gamma)
+        else:
+            d.schedule("transition_gamma", transition_gamma, mode="per-turn")
         from .._core.beam.base import BeamBaseClass
         from .._core.simulation.simulation import Simulation
 
