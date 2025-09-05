@@ -1,5 +1,6 @@
 from os import PathLike
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -18,9 +19,6 @@ from blond import (
     mu_plus,
 )
 from blond._core.backends.backend import Numpy64Bit, backend
-from blond._core.beam.base import BeamBaseClass
-from blond.beam_preparation.base import BeamPreparationRoutine
-from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
     BunchObservation_meta_params,
     StaticMultiProfileObservation,
@@ -38,6 +36,7 @@ backend.change_backend(
     Numpy64Bit
 )  # TODO: without these lines, it does not work, default should be set somewhere to be Numpy64bit python
 backend.set_specials("numba")
+
 # pragma: no cover
 if TYPE_CHECKING:
     pass
@@ -148,9 +147,8 @@ multi_profile_observation = StaticMultiProfileObservation(
     each_turn_i=1,
     obs_per_turn=1,
     profiles=profile_list,
-    beam=beam,
+    beam=beam_CR,
 )
-# wakefield_observation = WakeFieldObservation(each_turn_i=1, obs_per_turn = 4)
 sim.run_simulation(
     beams=(beam, beam_CR),
     turn_i_init=0,
