@@ -708,8 +708,6 @@ def slice_beam(dt: NDArray, profile: NDArray, cut_left: float,
                          __getPointer(weights),
                          ct.c_bool(use_weights),
     )
-    # if use_weights:
-    #     profile *= len(dt) / weights.sum()
 
 def slice_beam_old(dt: NDArray, profile: NDArray, cut_left: float,
                cut_right: float,

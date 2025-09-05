@@ -203,7 +203,7 @@ def slice_beam(dt: NDArray, profile: NDArray,
         # Iterare over a part of dt
         i_dt_start = i_parallel * chunk_size
         i_dt_stop = i_dt_start + chunk_size
-        for i_dt in range(i_dt_start, min(i_dt_stop, (len_dt-1))):
+        for i_dt in range(i_dt_start, min(i_dt_stop, len_dt)):
             # Calculate index of dt[index] with respect to profile
             i_profile = int((dt[i_dt] - cut_left) * dt_to_profile_idx)
 
@@ -213,9 +213,8 @@ def slice_beam(dt: NDArray, profile: NDArray,
                 else:
                     profile_loc[i_profile] += weights[i_dt]
 
+
         profile += profile_loc # only this syntax is without race condition
-    #if weights is not None:
-    #    profile *= len(dt) / np.sum(weights)
 
 
 @jit(nopython=True, fastmath=True, parallel=True, cache=True)

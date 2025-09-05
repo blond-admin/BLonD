@@ -29,6 +29,7 @@ from blond.beam.beam import Beam, Proton
 from blond.beam.profile import CutOptions
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
+from blond.utils import bmath as bm
 
 # import matplotlib.pyplot as plt
 
@@ -280,15 +281,34 @@ class testProfileClass(unittest.TestCase):
             rtol=rtol, atol=atol,
             err_msg='Bunch length values not correct')
 
-    def test_profile_of_weighted_beam(self):
-        dt = np.zeros(2)
-        dE = np.zeros(2)
-        weights = np.array([1, 2])
+
+    def test_integral_of_non_weighted_beam(self):
+        dt = np.zeros(3)
+        dE = np.zeros(3)
 
         beam = Beam(
             Ring=self.ring,
-            n_macroparticles=2,
-            intensity=3,
+            n_macroparticles=3,
+            intensity=1,
+            dt=dt,
+            dE=dE,
+        )
+
+        profile = profileModule.Profile(beam, cut_options=CutOptions(cut_left=-1, cut_right=1, n_slices=1))
+
+        profile.track()
+
+        self.assertEqual(beam.n_macroparticles, np.sum(profile.n_macroparticles))
+
+    def test_integral_of_weighted_profile(self):
+        dt = np.zeros(6)
+        dE = np.zeros(6)
+        weights = np.array([1, 2, 3, 4, 5, 6])
+
+        beam = Beam(
+            Ring=self.ring,
+            n_macroparticles=6,
+            intensity=23,
             dt=dt,
             dE=dE,
             weights=weights,
@@ -298,7 +318,7 @@ class testProfileClass(unittest.TestCase):
 
         profile.track()
 
-        self.assertEqual(np.sum(profile.n_macroparticles), np.sum(beam.weights))
+        self.assertEqual(np.sum(beam.weights), np.sum(profile.n_macroparticles))
 
 
 if __name__ == '__main__':
