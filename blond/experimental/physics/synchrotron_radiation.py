@@ -56,6 +56,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
             section_index=section_index,
             name=name,
         )
+
         self._longitudinal_damping_time = None
         self._energy_loss_per_turn = None
         self.is_isomagnetic: Optional[bool] = (
@@ -71,7 +72,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         self._natural_energy_spread: LateInit[NumpyArray] = None
 
         self._turn_i: LateInit[DynamicParameter] = 0
-        self._energy_cycle: LateInit[MagneticCycleBase] = None
+        self._magnetic_cycle: LateInit[MagneticCycleBase] = None
         self._ring: LateInit[Ring] = None
 
         self.generated_children: list[
@@ -90,12 +91,21 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
     def damping_times_in_seconds(self) -> NumpyArray:
         return self._damping_times_in_seconds
 
+    # TODO : Add a function to calcualte the length of the sections/ drifts
+    # before the children and store it for later SR integrals update.
+    # Question: How to handle modification from wigglers and other classes.
+
+    # TODO : UPdate synchrotron radiation integrals after a wiggler? Detect
+    #  other SynchrotronRadiationBaseClass elements before generating the
+    #  children and save their location for SRI update.
+
+    # TODO: transmit the share of SRI to the children.
     def generate_children(
         self,
         element_list: Optional[
             list[DriftBaseClass | CavityBaseClass] | list[int]
         ] = None,
-    ):  # FIXME SRtracker BEFORE Drifts and AFTER Cavity
+    ):  # FIXME SR tracker BEFORE Drifts and AFTER Cavity
         if not empty(self.generated_children):
             raise Warning(
                 "Synchrotron radiation subclasses have already been "
@@ -129,10 +139,12 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
                     for section_index in element_list:
                         i += 1
                         length_to_consider = 0
+                        share_of_synchrotron_radiation_integrals = 0
                         SRClass_child = SynchrotronRadiationSection(
                             section_index=section_index,
                             name=f"SynchrotronRadiationTracker_{i}",
-                            fraction_of_ring_cirucumference=length_to_consider,
+                            fraction_of_ring_circumference=length_to_consider,
+                            share_of_synchrotron_radiation_integrals=share_of_synchrotron_radiation_integrals,
                         )
                         self._simulation.ring.add_element(
                             SRClass_child,
@@ -170,7 +182,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         self.init_synchrotron_radiation_integrals_ring()
 
         self._turn_i = simulation.turn_i
-        self._energy_cycle = simulation.energy_cycle
+        self._magnetic_cycle = simulation.magnetic_cycle
         self._ring = simulation.ring
 
         self.__str__()  # TODO WHY
@@ -238,7 +250,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
     """
 
     def __str__(self):
-        return f"Sychrotron radiation section element."
+        return f"Synchrotron radiation section element."
 
     def __init__(
         self,
@@ -310,11 +322,9 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         self._turn_i = simulation.turn_i
         self._simulation = simulation
 
-    def track(self) -> None:
+    def track(self, beam: BeamBaseClass) -> None:
         self._turn_i = self._simulation.turn_i
-        for beam in self._simulation.beams:
-            self._update_beam_energy(beam)
-        pass
+        self._update_beam_energy(beam)
 
 
 class SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
@@ -322,11 +332,17 @@ class SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
         self,
         section_index: int = 0,
         name: Optional[str] = None,
+        fraction_of_ring_circumference: float = None,
+        share_of_synchrotron_radiation_integrals: NumpyArray = None,
         is_isomagnetic: bool = False,
     ):
         super().__init__(
             section_index=section_index,
             name=name,
+        )
+        self._fraction_of_ring_circumference = fraction_of_ring_circumference
+        self._share_of_synchrotron_radiation_integrals = (
+            share_of_synchrotron_radiation_integrals
         )
 
     @property
@@ -335,20 +351,17 @@ class SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
         return self._energy_lost_due_to_synchrotron_radiation
 
     @property
+    def share_of_synchrotron_radiation_integrals(self):
+        return self._share_of_synchrotron_radiation_integrals
+
+    @property
     def synchrotron_radiation_integrals_drift(self):
         """Synchrotron radiation integrals of the drift"""
-        return self._synchrotron_radiation_integrals
-
-    def _calculate_fraction_of_ring(self):
-        pass
+        return self._share_of_synchrotron_radiation_integrals
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         pass
         self._turn_i = simulation.turn_i
-        self.fraction_of_ring = self._calculate_fraction_of_ring()
-        self._synchrotron_radiation_integrals = (
-            self.length * self._synchrotron_radiation_integrals
-        )
 
 
 class SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
@@ -359,12 +372,16 @@ class SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
         section_index: int = 0,
         name: Optional[str] = None,
         fraction_of_ring_circumference: float = None,
+        share_of_synchrotron_radiation_integrals: NumpyArray = None,
     ):
         super().__init__(
             section_index=section_index,
             name=name,
         )
         self._fraction_of_ring_circumference = fraction_of_ring_circumference
+        self._share_of_synchrotron_radiation_integrals = (
+            share_of_synchrotron_radiation_integrals
+        )
 
     @property
     def energy_lost_due_to_synchrotron_radiation_section(self):
@@ -372,9 +389,13 @@ class SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
         return self._energy_lost_due_to_synchrotron_radiation
 
     @property
+    def share_of_synchrotron_radiation_integrals(self):
+        return self._share_of_synchrotron_radiation_integrals
+
+    @property
     def synchrotron_radiation_integrals_section(self):
         """Synchrotron radiation integrals of the section"""
-        return self._synchrotron_radiation_integrals
+        return self._share_of_synchrotron_radiation_integrals
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         pass
@@ -475,7 +496,8 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         self._contribution_to_synchrotron_radiation_integrals_without_energy = np.array(
             [
                 (
-                    -self.number_of_wigglers
+                    -1
+                    * self.number_of_wigglers
                     * self.length_wiggler
                     * (e * self.peak_magnetic_field) ** 2
                     * self.length_wiggler
@@ -524,8 +546,7 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         )
         pass
 
-    def track(self) -> None:
+    def track(self, beam: BeamBaseClass) -> None:
         self._turn_i = self._simulation.turn_i
-        for beam in self._simulation.beams:
-            self.update_synchrotron_radiation_integrals(beam=beam)
-            self._update_beam_energy(beam)
+        self.update_synchrotron_radiation_integrals(beam=beam)
+        self._update_beam_energy(beam)
