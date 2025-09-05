@@ -54,6 +54,11 @@ class Observables(MainLoopRelevant):
         self._turns_array: LateInit[NumpyArray] = None
         self._hash: LateInit[str] = None
 
+        self._last_turn_i_observed = (
+            -1
+        )  # to avoid double recordings with multiple drifts in one section
+        self._last_section_i_observed = -1
+
     @property  # as readonly attributes
     def turns_array(self) -> NumpyArray | None:
         """
@@ -383,6 +388,14 @@ class BunchObservation_meta_params(Observables):
             Simulation context manager
 
         """
+        # check if this value was already recorded, avoid double recording in the same section
+        if (
+            self._last_section_i_observed == simulation.section_i.current_group
+            and self._last_turn_i_observed == simulation.turn_i.value
+        ):
+            return
+        self._last_turn_i_observed = simulation.turn_i.value
+        self._last_section_i_observed = simulation.section_i.current_group
         if simulation.section_i.current_group in self._index_list:
             self._sigma_dt.write(np.std(self._beam._dt))
             self._sigma_dE.write(np.std(self._beam._dE))

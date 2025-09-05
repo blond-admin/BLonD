@@ -101,6 +101,11 @@ for cavity_i in range(n_cavities):
     )  # FM only
     one_turn_model.extend(
         [
+            DriftSimple(  # for symmetry sake for the CR bunch, we need to inject in the middle of a drift
+                transition_gamma=gamma_transition,
+                orbit_length=circumference / n_cavities / 2,
+                section_index=cavity_i,
+            ),
             profile_list[-1],
             SingleHarmonicCavity(
                 voltage=total_voltage / n_cavities,
@@ -113,9 +118,10 @@ for cavity_i in range(n_cavities):
                 ),
                 section_index=cavity_i,
             ),
+            profile_list[-1],  # for CR beam
             DriftSimple(
                 transition_gamma=gamma_transition,
-                orbit_length=circumference / n_cavities,
+                orbit_length=circumference / n_cavities / 2,
                 section_index=cavity_i,
             ),
         ]
@@ -129,10 +135,11 @@ beam = Beam(
 )
 beam_CR = Beam(
     n_particles=2.7e12,
-    particle_type=mu_minus,
+    particle_type=mu_plus,
     is_counter_rotating=True,
 )
 sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
+sim.print_one_turn_execution_order()
 load_beam_data_counterrot_from_file(
     str(Path(__file__).parent) + r"/RCS2_8_cavities.npz", beam, beam_CR
 )
@@ -140,63 +147,82 @@ load_beam_data_counterrot_from_file(
 bunch_observation = BunchObservation_meta_params(
     each_turn_i=1, obs_per_turn=n_cavities, beam=beam
 )
-profile_observation = StaticProfileObservation(
-    each_turn_i=1, obs_per_turn=n_cavities, profile=profile_list[-1], beam=beam
+bunch_observation_CR = BunchObservation_meta_params(
+    each_turn_i=1, obs_per_turn=n_cavities, beam=beam_CR
 )
-multi_profile_observation = StaticMultiProfileObservation(
-    each_turn_i=1,
-    obs_per_turn=1,
-    profiles=profile_list,
-    beam=beam_CR,
-)
+# profile_observation = StaticProfileObservation(
+#     each_turn_i=1, obs_per_turn=n_cavities, profile=profile_list[-1], beam=beam
+# )
+# multi_profile_observation = StaticMultiProfileObservation(
+#     each_turn_i=1,
+#     obs_per_turn=1,
+#     profiles=profile_list,
+#     beam=beam_CR,
+# )
 sim.run_simulation(
     beams=(beam, beam_CR),
     turn_i_init=0,
     n_turns=n_turns,
     observe=(
         bunch_observation,
-        profile_observation,
-        multi_profile_observation,
+        bunch_observation_CR,
+        # profile_observation,
+        # multi_profile_observation,
     ),
 )
 
 plt.title("bunch length")
 plt.plot(bunch_observation.sigma_dt)
+plt.plot(bunch_observation_CR.sigma_dt, label="CR")
+plt.legend()
 plt.show()
 
 plt.title("bunch centroid")
 plt.plot(bunch_observation.mean_dt)
+plt.plot(bunch_observation_CR.mean_dt, label="CR")
+plt.legend()
 plt.show()
 
-plt.title("energy length")
+plt.title("energy spread")
 plt.plot(bunch_observation.sigma_dE)
+plt.plot(bunch_observation_CR.sigma_dE, label="CR")
+plt.legend()
 plt.show()
 
 plt.title("energy centroid")
 plt.plot(bunch_observation.mean_dE)
+plt.plot(bunch_observation_CR.mean_dE, label="CR")
+plt.legend()
 plt.show()
 
 plt.title("emittance")
 plt.plot(bunch_observation.emittance_stat, label="emittance")
+plt.plot(bunch_observation_CR.emittance_stat, label="CR")
+plt.legend()
 plt.show()
+
 plt.title("sigma t * sigma E")
 plt.plot(bunch_observation.sigma_dE * bunch_observation.sigma_dt)
-plt.show()
-
-profiles = profile_observation.hist_y
-turn_arr = profile_observation.turns_array
-
-for prof_ind, prof in enumerate(profiles):
-    if np.sum(prof) != 0:
-        plt.plot(prof, label=f"profile@ {prof_ind}")
+plt.plot(
+    bunch_observation_CR.sigma_dE * bunch_observation_CR.sigma_dt, label="CR"
+)
 plt.legend()
 plt.show()
 
-prof_ = multi_profile_observation.hist_y
-for prof_ind, prof in enumerate(prof_):
-    if np.sum(prof) != 0:
-        plt.plot(prof, label=f"profile@ {prof_ind}")
-plt.legend()
-plt.show()
+# profiles = profile_observation.hist_y
+# turn_arr = profile_observation.turns_array
+#
+# for prof_ind, prof in enumerate(profiles):
+#     if np.sum(prof) != 0:
+#         plt.plot(prof, label=f"profile@ {prof_ind}")
+# plt.legend()
+# plt.show()
+#
+# prof_ = multi_profile_observation.hist_y
+# for prof_ind, prof in enumerate(prof_):
+#     if np.sum(prof) != 0:
+#         plt.plot(prof, label=f"profile@ {prof_ind}")
+# plt.legend()
+# plt.show()
 
 pass
