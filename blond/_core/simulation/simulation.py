@@ -661,7 +661,7 @@ class Simulation(Preparable, HasPropertyCache):
                 if element_counterrot.is_active_this_turn(
                     turn_i=self.turn_i.value
                 ):
-                    element.track(beams[1])
+                    element_counterrot.track(beams[1])
                 if isinstance(
                     element_counterrot, DriftBaseClass
                 ):  # only observe after drifts
