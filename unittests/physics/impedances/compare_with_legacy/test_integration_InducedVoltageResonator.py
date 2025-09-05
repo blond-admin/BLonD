@@ -262,6 +262,7 @@ class TestBothBlonds(unittest.TestCase):
                         self.blond3.induced_voltage,
                     )
 
+                    # TODO: fix tests, only align under certain circumstances with certain solvers
                     #     assert self.close_in_norm(blond2_ind_volt, self.blond3.induced_voltage)
                     # except AssertionError:
                     #     np.testing.assert_allclose(

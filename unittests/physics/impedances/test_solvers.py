@@ -362,6 +362,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         assert np.sum(calced_voltage[profile_width // 3 + 3 :]) == 0
 
     def test_against_CST_results(self):
+        # TODO: fix this, not very close to CST atm
         # CST settings: open BC at z, magnetic symmetry planes, ec1 parameters from https://cds.cern.ch/record/533324, f_cutoff = 2.5GHz, WF length = 5m
         # create bunch with sigma of 40mm --> set this as profile, convolute with potential to get wake for the first 5 meters
         sigma_z = 40e-3
