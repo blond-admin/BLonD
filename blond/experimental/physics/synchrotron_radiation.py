@@ -244,7 +244,6 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         self,
         name: Optional[str] = None,
         section_index: Optional[int] = None,
-        fraction_of_ring_circumference: float = None,
     ):
         super().__init__(name=name, section_index=section_index)
 
@@ -255,7 +254,6 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         self._damping_time: NumpyArray = None
         self._natural_energy_spread: NumpyArray = None
         self._turn_i: LateInit[DynamicParameter] = 0
-        self._fraction_of_ring_circumference = fraction_of_ring_circumference
 
     def _calculate_kick(self, beam: BeamBaseClass):
         """
@@ -360,11 +358,13 @@ class SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
         self,
         section_index: int = 0,
         name: Optional[str] = None,
+        fraction_of_ring_circumference: float = None,
     ):
         super().__init__(
             section_index=section_index,
             name=name,
         )
+        self._fraction_of_ring_circumference = fraction_of_ring_circumference
 
     @property
     def energy_lost_due_to_synchrotron_radiation_section(self):
