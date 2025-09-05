@@ -519,12 +519,12 @@ class AnalyticalSingleTurnResonatorSolver(WakeFieldSolver):
 class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
     def __init__(self):
         """
-        Solver to calculate induced voltage from convolution of a Resonator wake potential with bunch.
+        Solver to calculate induced voltage from convolution of a Resonator wake function with bunch.
         """
         super().__init__()
-        self._wake_pot_vals: LateInit[NumpyArray] = None
-        self._wake_pot_time: LateInit[NumpyArray] = None
-        self._wake_pot_vals_needs_update = True  # initialization
+        self._wake_function_vals: LateInit[NumpyArray] = None
+        self._wake_function_time: LateInit[NumpyArray] = None
+        self._wake_function_vals_needs_update = True  # initialization
 
         self._simulation: LateInit[Simulation] = None
         self._parent_wakefield: LateInit[WakeField] = None
@@ -545,7 +545,7 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
         if parent_wakefield.profile is None:
             raise ValueError(f"Parent wakefield needs to have a profile.")
         self._parent_wakefield = parent_wakefield
-        self._wake_pot_vals_needs_update = True
+        self._wake_function_vals_needs_update = True
 
         if not isinstance(parent_wakefield.profile, StaticProfile):
             raise RuntimeError(
@@ -560,17 +560,17 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
 
     def _update_potential_sources(self, zero_pinning: bool = False) -> None:
         """
-        Updates `_wake_pot_time`  and `_wake_pot_vals` arrays if `self._wake_pot_vals_needs_update=True`
+        Updates `_wake_function_time`  and `_wake_function_vals` arrays if `self._wake_function_vals_needs_update=True`
 
         The time axis is chosen based on the profile in `_parent_wakefield.profile`
 
         Parameters
         ----------
         zero_pinning: boolean
-            causes values <= self._parent_wakefield.profile.hist_step * np.finfo(float).eps * len(self._wake_pot_time)
+            causes values <= self._parent_wakefield.profile.hist_step * np.finfo(float).eps * len(self._wake_function_time)
             to be pinned to exactly zero. This prevents issues with the heaviside function around the 0 timestamp
         """
-        if not self._wake_pot_vals_needs_update:
+        if not self._wake_function_vals_needs_update:
             return
         hist_step = self._parent_wakefield.profile.hist_step
         left_extend = (
@@ -578,12 +578,12 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
             + self._parent_wakefield.profile.hist_x[0] / hist_step
             - 1
         )
-        # time shift for alignment with wakepotential definition of 0
+        # time shift for alignment with wakefunction definition of 0
         right_extend = (
             len(self._parent_wakefield.profile.hist_x) - left_extend - 1
         )  # total length has to be 2*hist_x
 
-        self._wake_pot_time = np.linspace(
+        self._wake_function_time = np.linspace(
             self._parent_wakefield.profile.hist_x[0] - left_extend * hist_step,
             self._parent_wakefield.profile.hist_x[-1]
             + right_extend * hist_step,
@@ -595,17 +595,19 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
             endpoint=True,
         )  # necessary for boundary effects
         if zero_pinning:
-            self._wake_pot_time[
-                np.abs(self._wake_pot_time)
+            self._wake_function_time[
+                np.abs(self._wake_function_time)
                 <= self._parent_wakefield.profile.hist_step
                 * np.finfo(float).eps
-                * len(self._wake_pot_time)
+                * len(self._wake_function_time)
             ] = 0.0
-        self._wake_pot_vals = np.zeros_like(self._wake_pot_time)
+        self._wake_function_vals = np.zeros_like(self._wake_function_time)
         for source in self._parent_wakefield.sources:  # TODO: do we ever need multiple resonstors objects in here --> probably not, resonators are defined in the Sources
-            self._wake_pot_vals += source.get_wake(self._wake_pot_time)
+            self._wake_function_vals += source.get_wake(
+                self._wake_function_time
+            )
 
-        self._wake_pot_vals_needs_update = False  # avoid repeated update
+        self._wake_function_vals_needs_update = False  # avoid repeated update
 
     def calc_induced_voltage(
         self, beam: BeamBaseClass
@@ -623,7 +625,7 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
         induced_voltage
             Induced voltage in [V]
         """
-        if self._wake_pot_vals_needs_update:
+        if self._wake_function_vals_needs_update:
             self._update_potential_sources()
 
         _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
@@ -631,7 +633,7 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
         )
 
         return _charge_per_macroparticle * np.convolve(
-            self._wake_pot_vals,
+            self._wake_function_vals,
             self._parent_wakefield.profile.hist_y,
             mode="valid",
         )
@@ -644,11 +646,11 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
     Attributes
     -------
-    _wake_pot_vals: deque
-        List of wake potential values: 0th entry being from the current pass,
+    _wake_function_vals: deque
+        List of wake function values: 0th entry being from the current pass,
         subsequent entries from previous passes.
-    _wake_pot_time: deque
-        time axes corresponding to _wake_pot_vals.
+    _wake_function_time: deque
+        time axes corresponding to _wake_function_time.
 
     _past_profiles: deque
         List of previously passed profiles: 0th entry being from the current pass,
@@ -666,10 +668,10 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             still be considered for multi-pass wake calculation.
         """
         super().__init__()
-        # define wake potential values and corresponding time axis
-        self._wake_pot_vals: LateInit[deque[NumpyArray]] = None
-        self._wake_pot_time: LateInit[deque[NumpyArray]] = None
-        self._wake_pot_vals_needs_update = True  # initialization
+        # define wake function values and corresponding time axis
+        self._wake_function_vals: LateInit[deque[NumpyArray]] = None
+        self._wake_function_time: LateInit[deque[NumpyArray]] = None
+        self._wake_function_vals_needs_update = True  # initialization
 
         self._past_profiles: LateInit[deque[NumpyArray]] = None
         self._past_profile_times: LateInit[deque[NumpyArray]] = None
@@ -716,14 +718,14 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         if parent_wakefield.profile is None:
             raise ValueError(f"Parent wakefield needs to have a profile.")
         self._parent_wakefield = parent_wakefield
-        self._wake_pot_vals_needs_update = True
+        self._wake_function_vals_needs_update = True
 
         self._past_profiles = deque()
         self._past_profile_times = deque()
         self._past_charge_per_macroparticle = deque()
 
-        self._wake_pot_vals = deque()
-        self._wake_pot_time = deque()
+        self._wake_function_vals = deque()
+        self._wake_function_time = deque()
 
         self._maximum_storage_time = 0
         self._last_reference_time = -np.finfo(float).eps
@@ -745,7 +747,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self, indexes_to_check: int = 2
     ) -> None:
         """
-        Goes through _wake_pot_time from the back (oldest profile) and removes all arrays from it, which are beyond
+        Goes through _wake_function_time from the back (oldest profile) and removes all arrays from it, which are beyond
         self._maximum_storage_time. only the last indexes_to_check entries are checked.
         """
         if len(self._past_profiles) == 0:
@@ -759,8 +761,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             ):
                 self._past_profile_times.pop()
                 self._past_profiles.pop()
-                self._wake_pot_time.pop()
-                self._wake_pot_vals.pop()
+                self._wake_function_time.pop()
+                self._wake_function_vals.pop()
 
     def _update_past_profile_times_wake_times(self, current_time):
         """
@@ -771,20 +773,20 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         assert delta_t > 0  # TODO: performance = ?
         for prof_ind, profile_time in enumerate(self._past_profile_times):
             profile_time += delta_t
-            self._wake_pot_time[prof_ind] += delta_t
+            self._wake_function_time[prof_ind] += delta_t
 
         self._last_reference_time = current_time
 
-    def _update_past_profile_potentials(self, zero_pinning: bool = False):
+    def _update_past_profile_wake_functions(self, zero_pinning: bool = False):
         """
-        Updates the wake potentials according to the new timestamps.
+        Updates the wake functions according to the new timestamps.
         the arrays are expected to be cleaned before, such that they don't
         include arrays past self._maximum_storage_time.
 
         Parameters
         ----------
         zero_pinning: bool
-            causes values <= self._parent_wakefield.profile.hist_step * np.finfo(float).eps * len(self._wake_pot_time)
+            causes values <= self._parent_wakefield.profile.hist_step * np.finfo(float).eps * len(self._wake_function_time)
             to be pinned to exactly zero. This prevents issues with the heaviside function around the 0 timestamp
 
         """
@@ -801,11 +803,11 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                     + self._past_profile_times[prof_ind][0] / profile_hist_step
                     - 1
                 )
-                # time shift for alignment with wakepotential definition of 0
+                # time shift for alignment with wakefunction definition of 0
                 right_extend = (
                     len(self._past_profile_times[prof_ind]) - left_extend - 1
                 )  # total length has to be 2*hist_x
-                self._wake_pot_time.appendleft(
+                self._wake_function_time.appendleft(
                     np.linspace(
                         self._past_profile_times[prof_ind][0]
                         - left_extend * profile_hist_step,
@@ -820,35 +822,35 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                     )
                 )  # necessary for boundary effects
                 if zero_pinning:
-                    self._wake_pot_time[prof_ind][
-                        np.abs(self._wake_pot_time[prof_ind])
+                    self._wake_function_time[prof_ind][
+                        np.abs(self._wake_function_time[prof_ind])
                         <= profile_hist_step
                         * np.finfo(float).eps
-                        * len(self._wake_pot_time[prof_ind])
+                        * len(self._wake_function_time[prof_ind])
                     ] = 0.0
 
-                self._wake_pot_vals.appendleft(
-                    np.zeros_like(self._wake_pot_time[prof_ind])
+                self._wake_function_vals.appendleft(
+                    np.zeros_like(self._wake_function_time[prof_ind])
                 )
             else:
-                self._wake_pot_vals[prof_ind] = np.zeros_like(
-                    self._wake_pot_vals[prof_ind]
+                self._wake_function_vals[prof_ind] = np.zeros_like(
+                    self._wake_function_vals[prof_ind]
                 )
             # now that everything is initialized, same operation for all arrays
             for source in self._parent_wakefield.sources:  # TODO: do we ever need multiple resonstors objects in here --> probably not, resonators are defined in the Sources
-                self._wake_pot_vals[prof_ind] += source.get_wake(
-                    self._wake_pot_time[prof_ind]
+                self._wake_function_vals[prof_ind] += source.get_wake(
+                    self._wake_function_time[prof_ind]
                 )
 
     def _update_potential_sources(self, current_time: float = 0) -> None:
         """
-        Updates `_wake_pot_time`  and `_wake_pot_vals` arrays if `self._wake_pot_vals_needs_update=True`
+        Updates `_wake_function_time`  and `_wake_function_vals` arrays if `self._wake_function_vals_needs_update=True`
 
         The time axis is chosen based on the profile in `_parent_wakefield.profile`
 
         """
         if (
-            not self._wake_pot_vals_needs_update
+            not self._wake_function_vals_needs_update
         ):  # TODO: how do we set this automagically?
             return
 
@@ -875,14 +877,14 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             np.copy(self._parent_wakefield.profile.hist_y)
         )
 
-        self._update_past_profile_potentials()
+        self._update_past_profile_wake_functions()
 
-        self._wake_pot_vals_needs_update = False  # avoid repeated update
+        self._wake_function_vals_needs_update = False  # avoid repeated update
 
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
-        if self._wake_pot_vals_needs_update:
+        if self._wake_function_vals_needs_update:
             self._update_potential_sources(beam.reference_time)
 
         _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
@@ -899,7 +901,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             wake_sum += self._past_charge_per_macroparticle[
                 prof_ind
             ] * np.convolve(
-                self._wake_pot_vals[prof_ind],
+                self._wake_function_vals[prof_ind],
                 self._past_profiles[prof_ind],
                 mode="valid",
             )

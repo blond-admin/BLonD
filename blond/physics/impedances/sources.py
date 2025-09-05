@@ -273,7 +273,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
 
     def get_wake(self, time: NumpyArray) -> NumpyArray:
         """
-        Computes the wake potential of all resonators in time domain for the given time and returns the summed potential.
+        Computes the wake function of all resonators in time domain for the given time and returns the summed potential.
 
         Parameters
         ----------

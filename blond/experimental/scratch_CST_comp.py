@@ -75,7 +75,7 @@ def functest():
     beam.n_macroparticles_partial.return_value = int(1e3)
     # n_particles == n_macroparticles, integrated bunch is 1 --> all normalized to 1C
 
-    analy._wake_pot_vals_needs_update = True
+    analy._wake_function_vals_needs_update = True
 
     calced_voltage = analy.calc_induced_voltage(beam=beam)
 
