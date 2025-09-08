@@ -66,7 +66,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         self._dt: NumpyArray | CupyArray | None = None
         self._flags: NumpyArray | CupyArray | None = None
 
-        self.reference_time = 0.0  # todo cached properties
+        self.reference_time: np.float32 | np.float64 = backend.float(0.0)  #
+        # todo cached properties
         self._reference_total_energy = 0.0  # todo cached properties
 
     @requires(["EnergyCycleBase"])

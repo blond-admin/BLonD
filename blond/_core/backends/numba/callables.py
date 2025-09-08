@@ -192,8 +192,8 @@ class NumbaSpecials(Specials):  # pragma: no cover
     def histogram(
         array_read: NumpyArray,
         array_write: NumpyArray,
-        start: float,
-        stop: float,
+        start: np.float32 | np.float64,
+        stop: np.float32 | np.float64,
     ) -> None:
         width = stop - start
         n_bins = len(array_write)
@@ -241,10 +241,10 @@ class NumbaSpecials(Specials):  # pragma: no cover
     def drift_simple(
         dt: NumpyArray,
         dE: NumpyArray,
-        T: float,
-        eta_0: float,
-        beta: float,
-        energy: float,
+        T: np.float32 | np.float64,
+        eta_0: np.float32 | np.float64,
+        beta: np.float32 | np.float64,
+        energy: np.float32 | np.float64,
     ) -> None:
         """
         Function to apply drift equation of motion

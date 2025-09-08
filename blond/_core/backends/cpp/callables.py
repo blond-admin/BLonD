@@ -208,8 +208,8 @@ class CppSpecials(Specials):
     def histogram(
         array_read: NumpyArray,
         array_write: NumpyArray,
-        start: float,
-        stop: float,
+        start: np.float32 | np.float64,
+        stop: np.float32 | np.float64,
     ) -> None:
         _LIBBLOND.histogram(
             array_read.ctypes.data_as(ct.c_void_p),
@@ -294,10 +294,10 @@ class CppSpecials(Specials):
     def drift_simple(
         dt: NumpyArray,
         dE: NumpyArray,
-        T: float,
-        eta_0: float,
-        beta: float,
-        energy: float,
+        T: np.float32 | np.float64,
+        eta_0: np.float32 | np.float64,
+        beta: np.float32 | np.float64,
+        energy: np.float32 | np.float64,
     ) -> None:
         _LIBBLOND.drift_simple(
             _getPointer(dt),

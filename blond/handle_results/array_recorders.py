@@ -8,14 +8,17 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy.typing import DTypeLike
-from numpy.typing import NDArray as NumpyArray
 
+from .._generals.cupy.no_cupy_import import is_cupy_array
 from .helpers import callers_relative_path
 
 if TYPE_CHECKING:  # pragma: no cover
     from os import PathLike
     from typing import Literal, Optional, Tuple
+
+    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import DTypeLike
+    from numpy.typing import NDArray as NumpyArray
 
 
 class ArrayRecorder(ABC):
@@ -101,7 +104,9 @@ class DenseArrayRecorder(ArrayRecorder):
         dense_recorder.overwrite = loaded_data["overwrite"]
         return dense_recorder
 
-    def write(self, newdata: NumpyArray):
+    def write(self, newdata: NumpyArray | CupyArray):
+        if is_cupy_array(newdata):
+            newdata = newdata.get()
         self._memory[self._write_idx] = newdata
         self._write_idx += 1
 

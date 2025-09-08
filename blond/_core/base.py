@@ -164,7 +164,11 @@ class Schedulable:
         self.schedules[attribute] = get_scheduler(values, mode=mode)
         self.schedule_active = True
 
-    def apply_schedules(self, turn_i: int, reference_time: float) -> None:
+    def apply_schedules(
+        self,
+        turn_i: int,
+        reference_time: np.float32 | np.float64,
+    ) -> None:
         """Set value of schedule to the target parameter for current turn/time
 
         Parameters
@@ -235,7 +239,11 @@ class BeamPhysicsRelevant(MainLoopRelevant):
 
 class _Scheduled:
     @abstractmethod  # pragma: no cover
-    def get_scheduled(self, turn_i: int, reference_time: float):
+    def get_scheduled(
+        self,
+        turn_i: int,
+        reference_time: np.float32 | np.float64,
+    ):
         """Get the value of the schedule for the current turn/time
 
         Parameters

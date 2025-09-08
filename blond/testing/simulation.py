@@ -40,7 +40,7 @@ class ExampleSimulation01:
         drift1 = DriftSimple(
             orbit_length=26658.883,
         )
-        drift1.transition_gamma = (55.759505,)
+        drift1.transition_gamma = 55.759505
 
         beam1 = Beam(n_particles=1e9, particle_type=proton)
         self.beam1 = beam1

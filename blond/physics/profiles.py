@@ -17,7 +17,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional as LateInit
     from typing import Tuple
 
-    from cupy.typing import NDArray as CupyArray
+    from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
     from .._core.beam.base import BeamBaseClass
@@ -25,7 +25,9 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class ProfileBaseClass(BeamPhysicsRelevant):
-    def __init__(self, section_index: int = 0, name: Optional[str] = None):
+    def __init__(
+        self, section_index: int = 0, name: Optional[str] = None
+    ) -> None:
         """
         Base class to implement calculation of beam profiles
 
@@ -45,7 +47,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         self._hist_x: LateInit[NumpyArray | CupyArray] = None
         self._hist_y: LateInit[NumpyArray | CupyArray] = None
 
-        self._beam_spectrum_buffer = {}
+        self._beam_spectrum_buffer: Dict[int, NumpyArray] = {}
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called
@@ -91,7 +93,10 @@ class ProfileBaseClass(BeamPhysicsRelevant):
     @cached_property  # as readonly attributes
     def n_bins(self) -> int:
         """Number of bins in the histogram"""
-        return len(self._hist_x)
+        # `_hist_x`, `_hist_x` could be None, which is not handled and
+        # causes a MyPy type error,
+        # This is intentionally ignored, we want to get an exception.
+        return len(self._hist_x)  # type: ignore
 
     @cached_property
     def diff_hist_y(self) -> NumpyArray | CupyArray:
@@ -99,26 +104,40 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         return backend.gradient(self._hist_y, self.hist_step, edge_order=2)
 
     @cached_property
-    def hist_step(self) -> float:
+    def hist_step(self) -> np.float32 | np.float64:
         """Size of a single histogram bin"""
-
-        return backend.float(self._hist_x[1] - self._hist_x[0])
+        # `_hist_x`, `_hist_x` could be None, which is not handled and
+        # causes a MyPy type error,
+        # This is intentionally ignored, we want to get an exception.
+        return backend.float(self._hist_x[1] - self._hist_x[0])  # type: ignore
 
     @cached_property
-    def cut_left(self) -> float:
+    def cut_left(self) -> np.float32 | np.float64:
         """Left outer edge of the histogram"""
-        return backend.float(self._hist_x[0] - self.hist_step / 2.0)
+        # `_hist_x`, `_hist_x` could be None, which is not handled and
+        # causes a MyPy type error,
+        # This is intentionally ignored, we want to get an exception.
+        return backend.float(self._hist_x[0] - self.hist_step / 2.0)  # type: ignore
 
     @cached_property
-    def cut_right(self) -> float:
+    def cut_right(self) -> np.float32 | np.float64:
         """Right outer edge of the histogram"""
-        return backend.float(self._hist_x[-1] + self.hist_step / 2.0)
+        # `_hist_x`, `_hist_x` could be None, which is not handled and
+        # causes a MyPy type error,
+        # This is intentionally ignored, we want to get an exception.
+        return backend.float(self._hist_x[-1] + self.hist_step / 2.0)  # type: ignore
 
     @cached_property
     def bin_edges(self) -> NumpyArray | CupyArray:
         """Get the edges from cut_left to cut_right of the histogram"""
+        # `_hist_x`, `_hist_x` could be None, which is not handled and
+        # causes a MyPy type error,
+        # This is intentionally ignored, we want to get an exception.
         return backend.linspace(
-            self.cut_left, self.cut_right, len(self._hist_x) + 1, backend.float
+            self.cut_left,
+            self.cut_right,
+            len(self._hist_x) + 1,
+            backend.float,  # type: ignore
         )
 
     def track(self, beam: BeamBaseClass) -> None:
@@ -134,9 +153,12 @@ class ProfileBaseClass(BeamPhysicsRelevant):
                 "Implement histogram on distributed array"
             )
         else:
+            # `_hist_x`, `_hist_x` could be None, which is not handled and
+            # causes a MyPy type error,
+            # This is intentionally ignored, we want to get an exception.
             backend.specials.histogram(
                 array_read=beam.read_partial_dt(),
-                array_write=self._hist_y,
+                array_write=self._hist_y,  # type: ignore
                 start=self.cut_left,
                 stop=self.cut_right,
             )
@@ -178,30 +200,36 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         """Cutoff frequency if the profile is fourier transformed, in [Hz]"""
         return backend.float(1 / (2 * self.hist_step))
 
-    def _calc_gauss(self):
+    def _calc_gauss(self) -> None:
         raise NotImplementedError
         return
 
     @cached_property
-    def gauss_fit_params(self):
+    def gauss_fit_params(self) -> None:
         raise NotImplementedError
         return self._calc_gauss()
 
-    def beam_spectrum(self, n_fft: int) -> float:
+    def beam_spectrum(self, n_fft: int) -> NumpyArray:
         """Calculate fourier transform of the profile"""
+        # `_hist_x`, `_hist_x` could be None, which is not handled and
+        # causes a MyPy type error,
+        # This is intentionally ignored, we want to get an exception.
+
         if n_fft not in self._beam_spectrum_buffer.keys():
             self._beam_spectrum_buffer[n_fft] = np.fft.rfft(
-                self._hist_y,
+                self._hist_y,  # type: ignore
                 n_fft,
             )
         else:
             np.fft.rfft(
-                self._hist_y, n_fft, out=self._beam_spectrum_buffer[n_fft]
+                self._hist_y,
+                n_fft,
+                out=self._beam_spectrum_buffer[n_fft],  # type: ignore
             )
 
         return self._beam_spectrum_buffer[n_fft]
 
-    def invalidate_cache(self):
+    def invalidate_cache(self) -> None:
         """Delete the stored values of functions with @cached_property"""
         for attribute in (
             "gauss_fit_params",
@@ -223,7 +251,7 @@ class StaticProfile(ProfileBaseClass):
         n_bins: int,
         section_index: int = 0,
         name: Optional[str] = None,
-    ):
+    ) -> None:
         """
         Calculation of beam profile that doesn't change its parameters
 
@@ -254,7 +282,7 @@ class StaticProfile(ProfileBaseClass):
     @staticmethod
     def from_cutoff(
         cut_left: float, cut_right: float, cutoff_frequency: float
-    ):
+    ) -> StaticProfile:
         """
         Initialization method from `cutoff_frequency` in Hz
 
@@ -312,7 +340,9 @@ class StaticProfile(ProfileBaseClass):
 
 
 class DynamicProfile(ProfileBaseClass):
-    def __init__(self, section_index: int = 0, name: Optional[str] = None):
+    def __init__(
+        self, section_index: int = 0, name: Optional[str] = None
+    ) -> None:
         """
         Profile that can change its parameters during runtime
 
@@ -380,7 +410,7 @@ class DynamicProfileConstCutoff(DynamicProfile):
         timestep: float,
         section_index: int = 0,
         name: Optional[str] = None,
-    ):
+    ) -> None:
         """
         Profile that changes its width, keeping a constant cutoff frequency
 
@@ -399,7 +429,7 @@ class DynamicProfileConstCutoff(DynamicProfile):
         )
         self.timestep = timestep
 
-    def update_attributes(self, beam: BeamBaseClass):
+    def update_attributes(self, beam: BeamBaseClass) -> None:
         cut_left = beam.dt_min  # TODO caching of attribute access
         cut_right = beam.dt_max  # TODO caching of attribute access
         n_bins = int(math.ceil((cut_right - cut_left) / self.timestep))
@@ -411,7 +441,7 @@ class DynamicProfileConstCutoff(DynamicProfile):
 class DynamicProfileConstNBins(DynamicProfile):
     def __init__(
         self, n_bins: int, section_index: int = 0, name: Optional[str] = None
-    ):
+    ) -> None:
         """
         Profile that changes its width, keeping a constant bin number
 
@@ -430,7 +460,7 @@ class DynamicProfileConstNBins(DynamicProfile):
         )
         self.n_bins = int_from_float_with_warning(n_bins, warning_stacklevel=2)
 
-    def update_attributes(self, beam: BeamBaseClass):
+    def update_attributes(self, beam: BeamBaseClass) -> None:
         cut_left = beam.dt_min  # TODO caching of attribute access
         cut_right = beam.dt_max  # TODO caching of attribute access
         self._hist_x, self._hist_y = ProfileBaseClass.get_arrays(

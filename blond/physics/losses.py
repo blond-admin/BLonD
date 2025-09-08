@@ -13,7 +13,7 @@ from .._core.simulation.simulation import Simulation
 
 
 class LossesBaseClass(BeamPhysicsRelevant):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
 
@@ -24,7 +24,7 @@ class BoxLosses(LossesBaseClass):
         t_max: Optional[backend.float] = None,
         e_min: Optional[backend.float] = None,
         e_max: Optional[backend.float] = None,
-    ):
+    ) -> None:
         super().__init__()
 
         self.t_min = backend.float(t_min)
@@ -68,7 +68,7 @@ class BoxLosses(LossesBaseClass):
 
 
 class SeparatrixLosses(LossesBaseClass):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._simulation: LateInit[Simulation] = None
 

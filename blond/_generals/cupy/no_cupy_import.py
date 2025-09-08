@@ -12,14 +12,14 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 
-def is_cupy_array(arr: NumpyArray | CupyArray) -> bool:
+def is_cupy_array(arr: NumpyArray | CupyArray | None) -> bool:
     """
-    Checks if a the array is an cupy array
+    Checks if the array is a Cupy array
 
     Parameters
     ----------
     arr
-        An Numpy or Cupy array
+        A Numpy or Cupy array
 
     Returns
     -------
@@ -27,6 +27,6 @@ def is_cupy_array(arr: NumpyArray | CupyArray) -> bool:
 
     """
     if hasattr(arr, "device"):
-        return True
+        return not (arr.device == "cpu")  # type: ignore
     else:
         return False

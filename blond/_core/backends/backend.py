@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import os
 import sys
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
@@ -58,10 +59,10 @@ class Specials(ABC):
     def drift_simple(
         dt: NumpyArray,
         dE: NumpyArray,
-        T: float,
-        eta_0: float,
-        beta: float,
-        energy: float,
+        T: np.float32 | np.float64,
+        eta_0: np.float32 | np.float64,
+        beta: np.float32 | np.float64,
+        energy: np.float32 | np.float64,
     ) -> None:
         pass
 
@@ -111,8 +112,8 @@ class Specials(ABC):
     def histogram(
         array_read: NumpyArray,
         array_write: NumpyArray,
-        start: float,
-        stop: float,
+        start: np.float32 | np.float64,
+        stop: np.float32 | np.float64,
     ) -> None:
         pass
 
@@ -130,6 +131,11 @@ class Specials(ABC):
 
 
 class BackendBaseClass(ABC):
+    # type annotations for MyPy
+    float: Type[Union[np.float32, np.float64]]
+    int: Type[np.int32] | Type[np.int64]
+    complex: Type[np.complex128 | np.complex64]
+
     def __init__(
         self,
         float_: Type[Union[np.float32, np.float64]],
@@ -161,10 +167,11 @@ class BackendBaseClass(ABC):
             Whether the backend is using the GPU.
         """
         self._is_gpu = is_gpu
+        self.verbose = True
 
-        self.float: Type[Union[np.float32, np.float64]] = float_
-        self.int: Type[np.int32] | Type[np.int64] = int_
-        self.complex: Type[np.complex128 | np.complex64] = complex_
+        self.float = float_
+        self.int = int_
+        self.complex = complex_
 
         self.twopi = self.float(2 * np.pi)
         self.specials_mode = specials_mode
@@ -191,7 +198,11 @@ class BackendBaseClass(ABC):
             One of the available backends
 
         """
+        if self.__class__ == new_backend.__class__:
+            return
         _new_backend = new_backend()
+        if self.verbose:
+            print(f"Changed backend to {_new_backend.__class__}")
         self.__dict__ = _new_backend.__dict__
         self.__class__ = _new_backend.__class__
         self.set_specials(self.specials_mode)  # TODO test changing backends
@@ -215,6 +226,83 @@ class BackendBaseClass(ABC):
         Whether the backend is using the GPU
         """
         return self._is_gpu
+
+    def apply_environment_variables(self) -> None:
+        """
+        Load the environment variables and set up the backend accordingly.
+
+        Notes
+        -----
+        Following environment variables can be set:
+
+        - `BLOND_BACKEND_MODE` can be 'python', 'cpp', 'numba', 'fortran', 'cuda'
+        - `BLOND_BACKEND_BITS` can be '32' or '64'
+
+
+
+        """
+        _backend_mode_flag: str = os.environ.get(
+            "BLOND_BACKEND_MODE",
+            "numba",  # default
+        ).lower()
+        _allowed_backend_modes = (
+            "python",
+            "cpp",
+            "numba",
+            "fortran",
+            "cuda",
+        )
+        if _backend_mode_flag in _allowed_backend_modes:
+            _backend_mode: Literal[
+                "python",
+                "cpp",
+                "numba",
+                "fortran",
+                "cuda",
+            ] = _backend_mode_flag  # type: ignore
+        else:
+            raise ValueError(
+                f"The environment variable BLOND_BACKEND "
+                f"was set to {_backend_mode_flag}, but can only be one "
+                f"of {_allowed_backend_modes}."
+            )
+
+        _backend_bits_flag: str = os.environ.get(
+            "BLOND_BACKEND_BITS",
+            "32",  # default
+        )
+        _allowed_backend_bits_flag = (
+            "32",
+            "64",
+        )
+        if _backend_bits_flag in _allowed_backend_bits_flag:
+            _backend_bits: Literal[
+                "32",
+                "64",
+            ] = _backend_bits_flag  # type: ignore
+        else:
+            raise ValueError(
+                f"The environment variable BLOND_BACKEND_BITS "
+                f"was set to {_backend_bits_flag}, but can only be one "
+                f"of {_allowed_backend_bits_flag}."
+            )
+
+        if _backend_mode_flag == "cuda":
+            if _backend_bits == "32":
+                self.change_backend(Cupy32Bit)
+            elif _backend_bits == "64":
+                self.change_backend(Cupy64Bit)
+            else:
+                raise ValueError(_backend_bits)
+            self.set_specials(mode=_backend_mode)  # type: ignore
+        else:
+            if _backend_bits == "32":
+                self.change_backend(Numpy32Bit)
+            elif _backend_bits == "64":
+                self.change_backend(Numpy64Bit)
+            else:
+                raise ValueError(_backend_bits)
+            self.set_specials(mode=_backend_mode)  # type: ignore
 
 
 def fresh_import(module_location: str, class_name: str) -> type:
@@ -294,6 +382,8 @@ class NumpyBackend(BackendBaseClass):
             One of the available backend modes
 
         """
+        if mode == self.specials_mode and self.specials is not None:
+            return
         if mode == "python":
             from .python.callables import PythonSpecials
 
@@ -325,6 +415,8 @@ class NumpyBackend(BackendBaseClass):
             self.specials_mode = mode
         else:
             raise ValueError(mode)
+        if self.verbose:
+            print(f"Set special to {self.specials.__class__}")
 
 
 class Numpy32Bit(NumpyBackend):
@@ -412,6 +504,8 @@ class CupyBackend(BackendBaseClass):
             self.specials = CudaSpecials()
         else:
             raise ValueError(mode)
+        if self.verbose:
+            print(f"Set special to {self.specials.__class__}")
 
 
 class Cupy32Bit(CupyBackend):
@@ -440,3 +534,4 @@ class Cupy64Bit(CupyBackend):
 
 default = Numpy32Bit()  # use .change_backend(...) to change it anywhere
 backend: Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit = default
+backend.apply_environment_variables()
