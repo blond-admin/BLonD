@@ -3,10 +3,10 @@ import unittest
 import matplotlib.pyplot as plt
 import numpy as np
 
-from blond.beam.distributions import bigaussian
 from blond.beam.beam import Beam, Proton
-from blond.input_parameters.ring import Ring
+from blond.beam.distributions import bigaussian
 from blond.input_parameters.rf_parameters import RFStation
+from blond.input_parameters.ring import Ring
 
 
 class TestBeam(unittest.TestCase):
@@ -67,8 +67,9 @@ class TestBeam(unittest.TestCase):
 
     def test_statistics(self):
         dt = np.concatenate((np.zeros(10), 5 * np.ones(10), 199 * np.ones(1)))
-        dE = np.concatenate((np.zeros(10), 10.0 * np.ones(10), 98 * np.ones(
-            1)))
+        dE = np.concatenate(
+            (np.zeros(10), 10.0 * np.ones(10), 98 * np.ones(1))
+        )
         weights = np.concatenate((np.ones(10), np.zeros(10), np.ones(1)))
         beam = Beam(
             Ring=self.ring,
@@ -99,8 +100,9 @@ class TestBeam(unittest.TestCase):
 
     def test_statistics_no_weights(self):
         dt = np.concatenate((np.zeros(10), 5 * np.ones(10), 199 * np.ones(1)))
-        dE = np.concatenate((np.zeros(10), 10.0 * np.ones(10), 98 * np.ones(
-            1)))
+        dE = np.concatenate(
+            (np.zeros(10), 10.0 * np.ones(10), 98 * np.ones(1))
+        )
         beam = Beam(
             Ring=self.ring,
             n_macroparticles=21,
@@ -128,46 +130,10 @@ class TestBeam(unittest.TestCase):
         assert beam.dt_max(ignore_id_0=False) == 199
         assert beam.dt_max(ignore_id_0=True) == 199
 
-    # def test_intensity_after_removal(self):
-    #     dt = np.concatenate(np.zeros(2))
-    #     dE = np.concatenate(np.zeros(2))
-    #     weights = np.array([1,2])
-    #
-    #     beam = Beam(
-    #         Ring=self.ring,
-    #         n_macroparticles=20,
-    #         intensity=1e9,
-    #         dt=dt,
-    #         dE=dE,
-    #         weights=weights,
-    #     )
-    #     beam.id[10:] = 0
-    #     beam.eliminate_lost_particles()
-    #     print(beam.n_macroparticles*beam.ratio)
-    #     self.assertEqual(beam.n_macroparticles*beam.ratio, 1e9/3)
-    #
-    # def test_intensity_after_removal_for_equal_weights(self):
-    #     dt = np.concatenate(np.zeros(2))
-    #     dE = np.concatenate(np.zeros(2))
-    #     weights = np.array([1,1])
-    #
-    #     beam = Beam(
-    #         Ring=self.ring,
-    #         n_macroparticles=20,
-    #         intensity=1e9,
-    #         dt=dt,
-    #         dE=dE,
-    #         weights=weights,
-    #     )
-    #     beam.id[10:] = 0
-    #     beam.eliminate_lost_particles()
-    #     print(beam.n_macroparticles*beam.ratio)
-    #     self.assertEqual(beam.n_macroparticles*beam.ratio, 1e9/2)
-
     def test_intensity_after_removal(self):
         dt = np.zeros(2)
         dE = np.zeros(2)
-        weights = np.array([1,2])
+        weights = np.array([1, 2])
 
         beam = Beam(
             Ring=self.ring,
@@ -182,6 +148,27 @@ class TestBeam(unittest.TestCase):
         self.assertEqual(np.sum(beam.weights) * beam.ratio, 1)
         self.assertEqual(beam.intensity, 1)
 
+    def test_initiate_beam_with_weights(self):
+        dt = np.array([0, 1, 1])
+        dE = np.array([0, 0, 0])
+        weights = np.array([1, 1, 1])
+
+        beam = Beam(
+            Ring=self.ring,
+            n_macroparticles=3,
+            intensity=3,
+            dt=dt,
+            dE=dE,
+            weights=weights,
+        )
+
+        initial_ratio = beam.ratio
+        initial_intensity = beam.intensity
+
+        beam.instantiate_beam_with_weights((2, 1))
+        self.assertEqual(beam.n_macroparticles, 2)
+        self.assertEqual(beam.intensity, initial_intensity)
+        self.assertEqual(beam.ratio, initial_ratio)
 
 
 if __name__ == "__main__":

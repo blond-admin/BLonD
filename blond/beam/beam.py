@@ -24,13 +24,13 @@ from warnings import warn
 import numpy as np
 from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
 
-from .beam_abstract import BeamBaseClass
 from ..trackers.utilities import is_in_separatrix
 from ..utils import bmath as bm
 from ..utils import exceptions as blond_exceptions
 from ..utils.bmath_extras import mean_and_std
 from ..utils.custom_warnings import PerformanceWarning
 from ..utils.legacy_support import handle_legacy_kwargs
+from .beam_abstract import BeamBaseClass
 
 try:
     import cupy as cp
@@ -46,7 +46,7 @@ if TYPE_CHECKING:
     from ..input_parameters.ring import Ring
     from ..utils.types import DeviceType, SolverTypes
 
-m_mu = physical_constants['muon mass'][0]
+m_mu = physical_constants["muon mass"][0]
 
 
 class Particle:
@@ -61,7 +61,7 @@ class Particle:
     user_charge : float
         Particle charge in units of the elementary charge
     user_decay_rate : float
-        Particle decay rate in units of 1/s 
+        Particle decay rate in units of 1/s
 
     Attributes
     ----------
@@ -90,71 +90,72 @@ class Particle:
 
     """
 
-    def __init__(self, user_mass: float, user_charge: float, user_decay_rate: float = 0) -> None:
-
-        if user_mass > 0.:
+    def __init__(
+        self, user_mass: float, user_charge: float, user_decay_rate: float = 0
+    ) -> None:
+        if user_mass > 0.0:
             self.mass = float(user_mass)
             self.charge = float(user_charge)
         else:
             # MassError
-            raise RuntimeError('ERROR: Particle mass not recognized!')
+            raise RuntimeError("ERROR: Particle mass not recognized!")
 
-        if user_decay_rate >= 0.:
+        if user_decay_rate >= 0.0:
             self.decay_rate = float(user_decay_rate)
 
         else:
             # MassError
-            raise RuntimeError('ERROR: Invalid particle decay rate!')
+            raise RuntimeError("ERROR: Invalid particle decay rate!")
 
         # classical particle radius [m]
-        self.radius_cl = 0.25 / (np.pi * epsilon_0) * \
-                         e ** 2 * self.charge ** 2 / (self.mass * e)
+        self.radius_cl = (
+            0.25
+            / (np.pi * epsilon_0)
+            * e**2
+            * self.charge**2
+            / (self.mass * e)
+        )
 
         # Sand's radiation constant [ m / eV^3]
-        self.c_gamma = 4 * np.pi / 3 * self.radius_cl / self.mass ** 3
+        self.c_gamma = 4 * np.pi / 3 * self.radius_cl / self.mass**3
 
         # Quantum radiation constant [m]
-        self.c_q = (55.0 / (32.0 * np.sqrt(3.0)) * hbar * c / (self.mass * e))
+        self.c_q = 55.0 / (32.0 * np.sqrt(3.0)) * hbar * c / (self.mass * e)
 
 
 class Proton(Particle):
-    """ Implements a proton `Particle`.
-    """
+    """Implements a proton `Particle`."""
 
     def __init__(self) -> None:
-        Particle.__init__(self, m_p * c ** 2 / e, 1)
+        Particle.__init__(self, m_p * c**2 / e, 1)
 
 
 class Electron(Particle):
-    """ Implements an electron `Particle`.
-    """
+    """Implements an electron `Particle`."""
 
     def __init__(self) -> None:
-        Particle.__init__(self, m_e * c ** 2 / e, -1)
+        Particle.__init__(self, m_e * c**2 / e, -1)
 
 
 class Positron(Particle):
-    """ Implements a positron `Particle`.
-    """
+    """Implements a positron `Particle`."""
 
     def __init__(self) -> None:
-        Particle.__init__(self, m_e * c ** 2 / e, 1)
+        Particle.__init__(self, m_e * c**2 / e, 1)
 
 
 class MuPlus(Particle):
-    """ Implements a muon+ `Particle`.
-    """
+    """Implements a muon+ `Particle`."""
 
     def __init__(self):
-        Particle.__init__(self, m_mu * c ** 2 / e, 1, float(1 / 2.1969811e-6))
+        Particle.__init__(self, m_mu * c**2 / e, 1, float(1 / 2.1969811e-6))
 
 
 class MuMinus(Particle):
-    """ Implements a muon- `Particle`.
-    """
+    """Implements a muon- `Particle`."""
 
     def __init__(self):
-        Particle.__init__(self, m_mu * c ** 2 / e, -1, float(1 / 2.1969811e-6))
+        Particle.__init__(self, m_mu * c**2 / e, -1, float(1 / 2.1969811e-6))
 
 
 class Beam(BeamBaseClass):
@@ -236,42 +237,42 @@ class Beam(BeamBaseClass):
     >>> my_beam = Beam(ring, n_macroparticle, intensity)
     """
 
-
-
     @handle_legacy_kwargs
-    def __init__(self,
-                 ring: Ring,
-                 n_macroparticles: int,
-                 intensity: float,
-                 dt: Optional[NumpyArray | CupyArray] = None,
-                 dE: Optional[NumpyArray | CupyArray] = None,
-                 weights: Optional[NumpyArray | CupyArray]=None
-                 ) -> None:
-
+    def __init__(
+        self,
+        ring: Ring,
+        n_macroparticles: int,
+        intensity: float,
+        dt: Optional[NumpyArray | CupyArray] = None,
+        dE: Optional[NumpyArray | CupyArray] = None,
+        weights: Optional[NumpyArray | CupyArray] = None,
+    ) -> None:
         super().__init__(
-            ring=ring,
-            n_macroparticles=n_macroparticles,
-            intensity=intensity
+            ring=ring, n_macroparticles=n_macroparticles, intensity=intensity
         )
         self._ring = ring
         if dt is None:
-            self.dt: NumpyArray | CupyArray  = bm.zeros([int(n_macroparticles)],
-                                                        dtype=bm.precision.real_t)
+            self.dt: NumpyArray | CupyArray = bm.zeros(
+                [int(n_macroparticles)], dtype=bm.precision.real_t
+            )
         else:
             assert n_macroparticles == len(dt)
-            self.dt: NumpyArray | CupyArray  = bm.ascontiguousarray(dt,
-                                                                    dtype=bm.precision.real_t)
+            self.dt: NumpyArray | CupyArray = bm.ascontiguousarray(
+                dt, dtype=bm.precision.real_t
+            )
 
         if dE is None:
-            self.dE: NumpyArray | CupyArray  = bm.zeros([int(n_macroparticles)],
-                                               dtype=bm.precision.real_t)
+            self.dE: NumpyArray | CupyArray = bm.zeros(
+                [int(n_macroparticles)], dtype=bm.precision.real_t
+            )
         else:
             assert n_macroparticles == len(dE)
-            self.dE: NumpyArray | CupyArray  = bm.ascontiguousarray(dE,
-                                                                    dtype=bm.precision.real_t)
+            self.dE: NumpyArray | CupyArray = bm.ascontiguousarray(
+                dE, dtype=bm.precision.real_t
+            )
 
         if weights is None:
-            weights: NumpyArray | CupyArray | None  = None
+            weights: NumpyArray | CupyArray | None = None
             self.ratio: float = self.intensity / n_macroparticles
 
         else:
@@ -281,48 +282,52 @@ class Beam(BeamBaseClass):
             # machine limits for integer types
             machine_max = np.iinfo(np.int32).max
             # check upper limit
-            msg = (f"`weights` should be < {machine_max},"
-                   f" but {bm.max(weights)=}")
+            msg = (
+                f"`weights` should be < {machine_max}, but {bm.max(weights)=}"
+            )
             assert bm.max(weights) < machine_max, msg
             # check lower limit
-            msg = (f"`weights` should be > 0,"
-                   f" but {bm.min(weights)=}")
+            msg = f"`weights` should be > 0, but {bm.min(weights)=}"
             if bm.min(weights) == 0:
                 warn(msg, PerformanceWarning, stacklevel=2)
 
             sum_weights = bm.sum(weights)
             if sum_weights >= machine_max:
-                msg = (f"Overflow possible with `weights`, because the"
-                       f" maximum allowed integer in one histogram bin is {machine_max},"
-                       f" but could reach {sum_weights}!")
+                msg = (
+                    f"Overflow possible with `weights`, because the"
+                    f" maximum allowed integer in one histogram bin is {machine_max},"
+                    f" but could reach {sum_weights}!"
+                )
                 warn(msg, UserWarning, stacklevel=2)
-            weights: NumpyArray | CupyArray  = bm.ascontiguousarray(
-                weights,
-                dtype=np.int32)
+            weights: NumpyArray | CupyArray = bm.ascontiguousarray(
+                weights, dtype=np.int32
+            )
         self.weights = weights
 
         self.id: NumpyArray | CupyArray = bm.arange(
-            1,
-            self.n_macroparticles + 1,
-            dtype=int
+            1, self.n_macroparticles + 1, dtype=int
         )
-
 
     @property
     def Particle(self):
         from warnings import warn
+
         warn("Particle is deprecated, use particle", DeprecationWarning)
         return self.particle
 
     @Particle.setter
     def Particle(self, val):
         from warnings import warn
+
         warn("Particle is deprecated, use particle", DeprecationWarning)
         self.particle = val
 
     @property
     def n_total_macroparticles_lost(self):
-        warnings.warn("Use '_mpi_n_total_macroparticles_lost' instead !", DeprecationWarning)
+        warnings.warn(
+            "Use '_mpi_n_total_macroparticles_lost' instead !",
+            DeprecationWarning,
+        )
         return self._mpi_n_total_macroparticles_lost
 
     @n_total_macroparticles_lost.setter
@@ -331,7 +336,9 @@ class Beam(BeamBaseClass):
 
     @property
     def n_total_macroparticles(self):
-        warnings.warn("Use '_mpi_n_total_macroparticles' instead !", DeprecationWarning)
+        warnings.warn(
+            "Use '_mpi_n_total_macroparticles' instead !", DeprecationWarning
+        )
         return self._mpi_n_total_macroparticles
 
     @n_total_macroparticles.setter
@@ -375,8 +382,10 @@ class Beam(BeamBaseClass):
             number of macroparticles where 'id' is 'lost' (i.e. 0).
 
         """
-        warnings.warn("Use 'n_macroparticles_not_alive' instead of 'n_macroparticles_lost' for readability",
-                      DeprecationWarning)
+        warnings.warn(
+            "Use 'n_macroparticles_not_alive' instead of 'n_macroparticles_lost' for readability",
+            DeprecationWarning,
+        )
 
         return self.n_macroparticles - self.n_macroparticles_alive
 
@@ -393,34 +402,35 @@ class Beam(BeamBaseClass):
 
         return bm.count_nonzero(self.id)
 
-
     @property
     def n_macroparticles_not_alive(self):
-        '''Number of macro-particles marked as not-alive
+        """Number of macro-particles marked as not-alive
 
         Returns
         -------
         n_macroparticles_not_alive : int
             number of macroparticles marked as lost.
 
-        '''
+        """
 
         return self.n_macroparticles - self.n_macroparticles_alive
 
     def eliminate_lost_particles(self):
-        """Eliminate lost particles from the beam coordinate arrays
-        """
+        """Eliminate lost particles from the beam coordinate arrays"""
 
         select_alive = self.id != 0
         if bm.sum(select_alive) > 0:
             self.n_macroparticles_eliminated += bm.sum(~select_alive)
             self.dt = bm.ascontiguousarray(
-                self.dt[select_alive], dtype=bm.precision.real_t)
+                self.dt[select_alive], dtype=bm.precision.real_t
+            )
             self.dE = bm.ascontiguousarray(
-                self.dE[select_alive], dtype=bm.precision.real_t)
+                self.dE[select_alive], dtype=bm.precision.real_t
+            )
             if self.weights is not None:
                 self.weights = bm.ascontiguousarray(
-                    self.weights[select_alive], dtype=np.int32)
+                    self.weights[select_alive], dtype=np.int32
+                )
                 self.intensity = self.ratio * bm.sum(self.weights)
             else:
                 self.intensity = self.ratio * self.n_macroparticles
@@ -429,8 +439,9 @@ class Beam(BeamBaseClass):
             self.id = bm.arange(1, self.n_macroparticles + 1, dtype=int)
         else:
             # AllParticlesLost
-            raise RuntimeError("ERROR in Beams: all particles lost and" +
-                               " eliminated!")
+            raise RuntimeError(
+                "ERROR in Beams: all particles lost and" + " eliminated!"
+            )
 
     def statistics(self) -> None:
         r"""
@@ -446,21 +457,23 @@ class Beam(BeamBaseClass):
 
         # Statistics only for particles that are not flagged as lost
         if self.weights is not None:
-            itemindex = self.id > 0 # this could be as well used to set weights to 0..
+            itemindex = (
+                self.id > 0
+            )  # this could be as well used to set weights to 0..
             self.mean_dt, self.sigma_dt = mean_and_std(
-                self.dt[itemindex],
-                weights=self.weights[itemindex]
+                self.dt[itemindex], weights=self.weights[itemindex]
             )
             self.mean_dE, self.sigma_dE = mean_and_std(
-                self.dE[itemindex],
-                weights=self.weights[itemindex]
+                self.dE[itemindex], weights=self.weights[itemindex]
             )
         else:
             self.mean_dt = self.dt_mean(ignore_id_0=True)
             self.sigma_dt = self.dt_std(ignore_id_0=True)
             self.mean_dE = self.dE_mean(ignore_id_0=True)
             self.sigma_dE = self.dE_std(ignore_id_0=True)
-        itemindex = self.id > 0 # this could be as well used to set weights to 0..
+        itemindex = (
+            self.id > 0
+        )  # this could be as well used to set weights to 0..
         self._mpi_sumsq_dt = bm.dot(self.dt[itemindex], self.dt[itemindex])
         # self.min_dt = bm.min(self.dt[itemindex])
         # self.max_dt = bm.max(self.dt[itemindex])
@@ -487,8 +500,9 @@ class Beam(BeamBaseClass):
             Used to call the function is_in_separatrix.
         """
 
-        lost_index = is_in_separatrix(ring, rf_station, self,
-                                      self.dt, self.dE) == False
+        lost_index = (
+            is_in_separatrix(ring, rf_station, self, self.dt, self.dE) == False
+        )
 
         self.id[lost_index] = 0
 
@@ -536,7 +550,7 @@ class Beam(BeamBaseClass):
             minimum dE.
         """
 
-        lost_index = (self.dE < dE_min)
+        lost_index = self.dE < dE_min
         self.id[lost_index] = 0
 
     def particle_decay(self, time: float) -> None:
@@ -552,8 +566,9 @@ class Beam(BeamBaseClass):
         """
         self.ratio *= np.exp(-time * self.particle.decay_rate / self.gamma)
 
-
-    def add_particles(self, new_particles: NumpyArray | list[list[float]]) -> None:
+    def add_particles(
+        self, new_particles: NumpyArray | list[list[float]]
+    ) -> None:
         """
         Method to add array of new particles to beam object
         New particles are given id numbers sequential from last id of this beam
@@ -575,7 +590,8 @@ class Beam(BeamBaseClass):
                 new_weights = None
             if len(new_dt) != len(new_dE):
                 raise blond_exceptions.ParticleAdditionError(
-                    "new_particles must have equal number of time and energy coordinates")
+                    "new_particles must have equal number of time and energy coordinates"
+                )
         except TypeError:
             raise blond_exceptions.ParticleAdditionError(
                 "new_particles shape must be (2, n)"
@@ -583,10 +599,16 @@ class Beam(BeamBaseClass):
 
         n_new = len(new_dt)
 
-        self.id = bm.concatenate((self.id, bm.arange(self.n_macroparticles + 1,
-                                                     self.n_macroparticles + n_new + 1,
-                                                     dtype=int)
-                                  ))
+        self.id = bm.concatenate(
+            (
+                self.id,
+                bm.arange(
+                    self.n_macroparticles + 1,
+                    self.n_macroparticles + n_new + 1,
+                    dtype=int,
+                ),
+            )
+        )
         self.n_macroparticles += n_new
 
         self.dt = bm.concatenate((self.dt, new_dt))
@@ -666,9 +688,11 @@ class Beam(BeamBaseClass):
 
         if not bm.in_mpi():
             raise RuntimeError(
-                'ERROR: Cannot use this routine unless in MPI Mode')
+                "ERROR: Cannot use this routine unless in MPI Mode"
+            )
 
         from ..utils.mpi_config import WORKER
+
         if WORKER.is_master and random:
             bm.random.shuffle(self.id)
             if not fast:
@@ -689,7 +713,7 @@ class Beam(BeamBaseClass):
             if self.weights is not None:
                 self.weights = WORKER.scatter(self.weights)
 
-        assert (len(self.dt) == len(self.dE) and len(self.dt) == len(self.id))
+        assert len(self.dt) == len(self.dE) and len(self.dt) == len(self.id)
 
         self.n_macroparticles = len(self.dt)
         self._mpi_is_splitted = True
@@ -706,7 +730,8 @@ class Beam(BeamBaseClass):
         """
         if not bm.in_mpi():
             raise RuntimeError(
-                'ERROR: Cannot use this routine unless in MPI Mode')
+                "ERROR: Cannot use this routine unless in MPI Mode"
+            )
         from ..utils.mpi_config import WORKER
 
         if all_gather:
@@ -739,60 +764,87 @@ class Beam(BeamBaseClass):
         """
         if not bm.in_mpi():
             raise RuntimeError(
-                'ERROR: Cannot use this routine unless in MPI Mode')
+                "ERROR: Cannot use this routine unless in MPI Mode"
+            )
 
         from ..utils.mpi_config import WORKER
-        if all_gather:
 
+        if all_gather:
             self.mean_dt = WORKER.allreduce(
-                np.array([self.mean_dt]), operator='mean')[0]
+                np.array([self.mean_dt]), operator="mean"
+            )[0]
 
             self.mean_dE = WORKER.allreduce(
-                np.array([self.mean_dE]), operator='mean')[0]
+                np.array([self.mean_dE]), operator="mean"
+            )[0]
 
             self._mpi_n_total_macroparticles_lost = WORKER.allreduce(
-                np.array([self.n_macroparticles_not_alive]), operator='sum')[0]
+                np.array([self.n_macroparticles_not_alive]), operator="sum"
+            )[0]
 
             # self.__mpi_n_total_macroparticles_alive = WORKER.allreduce(
             # np.array([self.n_macroparticles_alive]), operator='sum')[0]
 
             self.sigma_dt = WORKER.allreduce(
-                np.array([self._mpi_sumsq_dt]), operator='sum')[0]
+                np.array([self._mpi_sumsq_dt]), operator="sum"
+            )[0]
             self.sigma_dt = np.sqrt(
-                self.sigma_dt / (self._mpi_n_total_macroparticles -
-                                 self._mpi_n_total_macroparticles_lost)
-                - self.mean_dt ** 2)
+                self.sigma_dt
+                / (
+                    self._mpi_n_total_macroparticles
+                    - self._mpi_n_total_macroparticles_lost
+                )
+                - self.mean_dt**2
+            )
 
             self.sigma_dE = WORKER.allreduce(
-                np.array([self._mpi_sumsq_dE]), operator='sum')[0]
+                np.array([self._mpi_sumsq_dE]), operator="sum"
+            )[0]
             self.sigma_dE = np.sqrt(
-                self.sigma_dE / (self._mpi_n_total_macroparticles -
-                                 self._mpi_n_total_macroparticles_lost)
-                - self.mean_dE ** 2)
+                self.sigma_dE
+                / (
+                    self._mpi_n_total_macroparticles
+                    - self._mpi_n_total_macroparticles_lost
+                )
+                - self.mean_dE**2
+            )
 
         else:
             self.mean_dt = WORKER.reduce(
-                np.array([self.mean_dt]), operator='mean')[0]
+                np.array([self.mean_dt]), operator="mean"
+            )[0]
 
             self.mean_dE = WORKER.reduce(
-                np.array([self.mean_dE]), operator='mean')[0]
+                np.array([self.mean_dE]), operator="mean"
+            )[0]
 
             self._mpi_n_total_macroparticles_lost = WORKER.reduce(
-                np.array([self.n_macroparticles_not_alive]), operator='sum')[0]
+                np.array([self.n_macroparticles_not_alive]), operator="sum"
+            )[0]
 
             self.sigma_dt = WORKER.reduce(
-                np.array([self._mpi_sumsq_dt]), operator='sum')[0]
+                np.array([self._mpi_sumsq_dt]), operator="sum"
+            )[0]
             self.sigma_dt = np.sqrt(
-                self.sigma_dt / (self._mpi_n_total_macroparticles -
-                                 self._mpi_n_total_macroparticles_lost)
-                - self.mean_dt ** 2)
+                self.sigma_dt
+                / (
+                    self._mpi_n_total_macroparticles
+                    - self._mpi_n_total_macroparticles_lost
+                )
+                - self.mean_dt**2
+            )
 
             self.sigma_dE = WORKER.reduce(
-                np.array([self._mpi_sumsq_dE]), operator='sum')[0]
+                np.array([self._mpi_sumsq_dE]), operator="sum"
+            )[0]
             self.sigma_dE = np.sqrt(
-                self.sigma_dE / (self._mpi_n_total_macroparticles -
-                                 self._mpi_n_total_macroparticles_lost)
-                - self.mean_dE ** 2)
+                self.sigma_dE
+                / (
+                    self._mpi_n_total_macroparticles
+                    - self._mpi_n_total_macroparticles_lost
+                )
+                - self.mean_dE**2
+            )
 
     def gather_losses(self, all_gather: bool = False):
         """
@@ -806,7 +858,8 @@ class Beam(BeamBaseClass):
         """
         if not bm.in_mpi():
             raise RuntimeError(
-                'ERROR: Cannot use this routine unless in MPI Mode')
+                "ERROR: Cannot use this routine unless in MPI Mode"
+            )
 
         from ..utils.mpi_config import WORKER
 
@@ -822,7 +875,7 @@ class Beam(BeamBaseClass):
         Transfer all necessary arrays to the GPU
         """
         # Check if to_gpu has been invoked already
-        if hasattr(self, '_device') and self._device == 'GPU':
+        if hasattr(self, "_device") and self._device == "GPU":
             return
 
         self.dE = cp.array(self.dE)
@@ -831,14 +884,16 @@ class Beam(BeamBaseClass):
             self.weights = cp.array(self.weights)
         self.id = cp.array(self.id)
 
-        self._device: DeviceType = 'GPU'
+        self._device: DeviceType = "GPU"
 
     def to_cpu(self, recursive=True):
         """
         Transfer all necessary arrays back to the CPU
         """
         # Check if to_cpu has been invoked already
-        if hasattr(self, '_device') and self._device == 'CPU':  # todo hasattr useless?
+        if (
+            hasattr(self, "_device") and self._device == "CPU"
+        ):  # todo hasattr useless?
             return
 
         self.dE = cp.asnumpy(self.dE)
@@ -848,7 +903,7 @@ class Beam(BeamBaseClass):
         self.id = cp.asnumpy(self.id)
 
         # to make sure it will not be called again
-        self._device: DeviceType = 'CPU'
+        self._device: DeviceType = "CPU"
 
     def dE_mean(self, ignore_id_0: bool = False):
         """Calculate mean of energy
@@ -906,7 +961,7 @@ class Beam(BeamBaseClass):
                 return bm.mean(self.dt[mask])
         else:
             if self.weights is not None:
-                return bm.average(self.dt,weights=self.weights)
+                return bm.average(self.dt, weights=self.weights)
             else:
                 return bm.mean(self.dt)
 
@@ -921,7 +976,9 @@ class Beam(BeamBaseClass):
         if ignore_id_0:
             mask = self.id > 0
             if self.weights is not None:
-                return mean_and_std(self.dt[mask], weights=self.weights[mask])[1]
+                return mean_and_std(self.dt[mask], weights=self.weights[mask])[
+                    1
+                ]
             else:
                 return bm.std(self.dt[mask])
         else:
@@ -958,15 +1015,18 @@ class Beam(BeamBaseClass):
         else:
             return self.dE.max()
 
-    def slice_beam(self, profile: NumpyArray | CupyArray,
-                   cut_left: float, cut_right: float
-                   ):
+    def slice_beam(
+        self,
+        profile: NumpyArray | CupyArray,
+        cut_left: float,
+        cut_right: float,
+    ):
         bm.slice_beam(
             dt=self.dt,
             profile=profile,
             cut_left=cut_left,
             cut_right=cut_right,
-            weights=self.weights
+            weights=self.weights,
         )
         if bm.in_mpi():
             from ..utils.mpi_config import WORKER
@@ -976,22 +1036,24 @@ class Beam(BeamBaseClass):
 
             if self._mpi_is_splitted:
                 if isinstance(profile, np.ndarray):
-                    profile_tmp = profile.view() # guarantee numpy array
-                else: # assume is cupy array
-                    profile_tmp = cp.asnumpy(profile) # guarantee numpy array
-                WORKER.allreduce(profile_tmp) # collect from all workers
+                    profile_tmp = profile.view()  # guarantee numpy array
+                else:  # assume is cupy array
+                    profile_tmp = cp.asnumpy(profile)  # guarantee numpy array
+                WORKER.allreduce(profile_tmp)  # collect from all workers
                 if isinstance(profile, np.ndarray):
                     # write reduce result back
                     # to memory of profile
                     profile[:] = profile_tmp[:]
-                else: # assume is cupy array
+                else:  # assume is cupy array
                     # write reduce
                     # result back to memory of profile
                     profile[:] = cp.array(profile_tmp[:])
 
-
     def kick(
-        self, rf_station: RFStation, acceleration_kicks: NumpyArray, turn_i: int
+        self,
+        rf_station: RFStation,
+        acceleration_kicks: NumpyArray,
+        turn_i: int,
     ):
         r"""Function updating the dE array
 
@@ -1016,7 +1078,7 @@ class Beam(BeamBaseClass):
             phi_rf=rf_station.phi_rf[:, turn_i],
             charge=rf_station.particle.charge,
             n_rf=rf_station.n_rf,
-            acceleration_kick=acceleration_kicks[turn_i]
+            acceleration_kick=acceleration_kicks[turn_i],
         )
 
     def drift(self, rf_station: RFStation, solver: SolverTypes, turn_i: int):
@@ -1062,7 +1124,8 @@ class Beam(BeamBaseClass):
             alpha_1=rf_station.alpha_1[turn_i],
             alpha_2=rf_station.alpha_2[turn_i],
             beta=rf_station.beta[turn_i],
-            energy=rf_station.energy[turn_i])
+            energy=rf_station.energy[turn_i],
+        )
 
     def linear_interp_kick(
         self,
@@ -1071,11 +1134,14 @@ class Beam(BeamBaseClass):
         charge: float,
         acceleration_kick: float,
     ):
-        bm.linear_interp_kick(dt=self.dt, dE=self.dE,
-                              voltage=voltage,
-                              bin_centers=bin_centers,
-                              charge=charge,
-                              acceleration_kick=acceleration_kick)
+        bm.linear_interp_kick(
+            dt=self.dt,
+            dE=self.dE,
+            voltage=voltage,
+            bin_centers=bin_centers,
+            charge=charge,
+            acceleration_kick=acceleration_kick,
+        )
 
     def kickdrift_considering_periodicity(
         self,
@@ -1086,32 +1152,36 @@ class Beam(BeamBaseClass):
     ):
         # Distinguish the particles inside the frame from the particles on
         # the right-hand side of the frame.
-        indices_right_outside = \
-            bm.where(self.dt > rf_station.t_rev[turn_i + 1])[0]
-        indices_inside_frame = \
-            bm.where(self.dt < rf_station.t_rev[turn_i + 1])[0]
+        indices_right_outside = bm.where(
+            self.dt > rf_station.t_rev[turn_i + 1]
+        )[0]
+        indices_inside_frame = bm.where(
+            self.dt < rf_station.t_rev[turn_i + 1]
+        )[0]
 
         if len(indices_right_outside) > 0:
             # Change reference of all the particles on the right of the
             # current frame; these particles skip one kick and drift
-            self.dt[indices_right_outside] -= \
-                rf_station.t_rev[turn_i + 1]
+            self.dt[indices_right_outside] -= rf_station.t_rev[turn_i + 1]
             # Synchronize the bunch with the particles that are on the
             # RHS of the current frame applying kick and drift to the
             # bunch
             # After that all the particles are in the new updated frame
-            insiders_dt = bm.ascontiguousarray(
-                self.dt[indices_inside_frame])
-            insiders_dE = bm.ascontiguousarray(
-                self.dE[indices_inside_frame])
-            #kick(insiders_dt, insiders_dE, turn)
+            insiders_dt = bm.ascontiguousarray(self.dt[indices_inside_frame])
+            insiders_dE = bm.ascontiguousarray(self.dE[indices_inside_frame])
+            # kick(insiders_dt, insiders_dE, turn)
             index = turn_i
-            bm.kick(insiders_dt, insiders_dE, rf_station.voltage[:, index],
-                    rf_station.omega_rf[:, index],
-                    rf_station.phi_rf[:, index],
-                    rf_station.particle.charge, rf_station.n_rf,
-                    acceleration_kicks[index])
-            #drift(insiders_dt, insiders_dE, turn + 1)
+            bm.kick(
+                insiders_dt,
+                insiders_dE,
+                rf_station.voltage[:, index],
+                rf_station.omega_rf[:, index],
+                rf_station.phi_rf[:, index],
+                rf_station.particle.charge,
+                rf_station.n_rf,
+                acceleration_kicks[index],
+            )
+            # drift(insiders_dt, insiders_dE, turn + 1)
             self.dt[indices_inside_frame] = insiders_dt
             self.dE[indices_inside_frame] = insiders_dE
             # Check all the particles on the left of the just updated
@@ -1119,47 +1189,67 @@ class Beam(BeamBaseClass):
             # previous wave after having changed reference.
             indices_left_outside = bm.where(self.dt < 0)[0]
         else:
-            #kick(self.dt, self.dE, turn)
-            self.kick(rf_station=rf_station,
-                      acceleration_kicks=acceleration_kicks, turn_i=turn_i)
+            # kick(self.dt, self.dE, turn)
+            self.kick(
+                rf_station=rf_station,
+                acceleration_kicks=acceleration_kicks,
+                turn_i=turn_i,
+            )
 
-            #drift(self.dt, self.dE, turn + 1)
-            self.drift(rf_station=rf_station,solver=solver,turn_i=turn_i+1)
+            # drift(self.dt, self.dE, turn + 1)
+            self.drift(rf_station=rf_station, solver=solver, turn_i=turn_i + 1)
             # Check all the particles on the left of the just updated
             # frame and apply a second kick and drift to them with the
             # previous wave after having changed reference.
             indices_left_outside = bm.where(self.dt < 0)[0]
         if len(indices_left_outside) > 0:
             left_outsiders_dt = bm.ascontiguousarray(
-                self.dt[indices_left_outside])
+                self.dt[indices_left_outside]
+            )
             left_outsiders_dE = bm.ascontiguousarray(
-                self.dE[indices_left_outside])
+                self.dE[indices_left_outside]
+            )
             left_outsiders_dt += rf_station.t_rev[turn_i + 1]
-            #kick(left_outsiders_dt, left_outsiders_dE, turn)
+            # kick(left_outsiders_dt, left_outsiders_dE, turn)
             index = turn_i
-            bm.kick(left_outsiders_dt, left_outsiders_dE, rf_station.voltage[:, index],
-                    rf_station.omega_rf[:, index],
-                    rf_station.phi_rf[:, index],
-                    rf_station.particle.charge, rf_station.n_rf,
-                    acceleration_kicks[index])
+            bm.kick(
+                left_outsiders_dt,
+                left_outsiders_dE,
+                rf_station.voltage[:, index],
+                rf_station.omega_rf[:, index],
+                rf_station.phi_rf[:, index],
+                rf_station.particle.charge,
+                rf_station.n_rf,
+                acceleration_kicks[index],
+            )
             # drift(left_outsiders_dt, left_outsiders_dE, turn + 1)
             index = turn_i + 1
-            bm.drift(left_outsiders_dt, left_outsiders_dE, solver,
-                     rf_station.t_rev[index],
-                     rf_station.length_ratio, rf_station.alpha_order,
-                     rf_station.eta_0[index], rf_station.eta_1[index],
-                     rf_station.eta_2[index],
-                     rf_station.alpha_0[index],
-                     rf_station.alpha_1[index],
-                     rf_station.alpha_2[index],
-                     rf_station.beta[index], rf_station.energy[index])
+            bm.drift(
+                left_outsiders_dt,
+                left_outsiders_dE,
+                solver,
+                rf_station.t_rev[index],
+                rf_station.length_ratio,
+                rf_station.alpha_order,
+                rf_station.eta_0[index],
+                rf_station.eta_1[index],
+                rf_station.eta_2[index],
+                rf_station.alpha_0[index],
+                rf_station.alpha_1[index],
+                rf_station.alpha_2[index],
+                rf_station.beta[index],
+                rf_station.energy[index],
+            )
             self.dt[indices_left_outside] = left_outsiders_dt
             self.dE[indices_left_outside] = left_outsiders_dE
 
-    def get_new_beam_with_weights(self,
-                                  bins: int | Tuple[int, int],
-                                  range: Optional[Tuple[Tuple[float,float], Tuple[float,float]]]=None
-    ) -> Beam:
+    def instantiate_beam_with_weights(
+        self,
+        bins: int | Tuple[int, int],
+        range: Optional[
+            Tuple[Tuple[float, float], Tuple[float, float]]
+        ] = None,
+    ):
         """Generate beam with weights based on a 2D histogram
 
         Parameters
@@ -1168,19 +1258,20 @@ class Beam(BeamBaseClass):
             The number of bins for the two dimensions
         range
             The boundaries [[xmin, xmax], [ymin, ymax]]
-            """
+        """
 
-        H, dt_edges, dE_edges = bm.histogram2d(self.dt,
-                                               self.dE,
-                                               bins=bins,
-                                               range=range,
-                                               weights=self.weights,
-                                               density=False
-                                               )
+        H, dt_edges, dE_edges = bm.histogram2d(
+            self.dt,
+            self.dE,
+            bins=bins,
+            range=range,
+            weights=self.weights,
+            density=False,
+        )
         dt_centers = (dt_edges[:-1] + dt_edges[1:]) / 2
         dE_centers = (dE_edges[:-1] + dE_edges[1:]) / 2
 
-        dt, dE = bm.meshgrid(dt_centers, dE_centers, indexing='ij')
+        dt, dE = bm.meshgrid(dt_centers, dE_centers, indexing="ij")
         assert dE.shape == H.shape
         assert dt.shape == H.shape
         dt = dt.flatten()
@@ -1188,12 +1279,12 @@ class Beam(BeamBaseClass):
         weights = H.flatten()
         select = weights > 0
         dt, dE, weights = dt[select], dE[select], weights[select]
-
-        new_beam = Beam(ring=self._ring,
-                        n_macroparticles=len(weights),
-                        intensity=self.intensity,
-                        dt=dt,
-                        dE=dE,
-                        weights=weights
-                        )
-        return new_beam
+        self.__init__(
+            ring=self._ring,
+            n_macroparticles=len(weights),
+            intensity=self.intensity,
+            dt=dt,
+            dE=dE,
+            weights=weights,
+        )
+        return
