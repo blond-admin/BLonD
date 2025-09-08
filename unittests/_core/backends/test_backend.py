@@ -90,8 +90,17 @@ class TestNumpyBackend(unittest.TestCase):
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
-    def test_set_specials(self) -> None:
+    def test_set_specials_python(self) -> None:
         self.numpy_backend.set_specials(mode="python")
+
+    def test_set_specials_cpp(self) -> None:
+        self.numpy_backend.set_specials(mode="cpp")
+
+    def test_set_specials_numba(self) -> None:
+        self.numpy_backend.set_specials(mode="numba")
+
+    def test_set_specials_fortran(self) -> None:
+        self.numpy_backend.set_specials(mode="fortran")
 
 
 class TestSpecials(unittest.TestCase):

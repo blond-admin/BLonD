@@ -20,7 +20,9 @@ variables:
     - python3 --version && gcc --version && mpirun --version
     - python3 -m pip install --upgrade pip
     - python3 -m pip install -v -e ${project_root}[all]
-    # - python3 blond/compile.py -p --optimize --parallel -gpu
+    - python3 blond/_core/backends/cpp/compile.py
+    - python3 blond/_core/backends/cuda/compile.py
+    - cd ./blond/_core/backends/fortran/ && python3 ./compile.py
 
 
 .main:

@@ -25,7 +25,7 @@ _fortran_files32 = [
 _fortran_files32 = [os.path.join(_basepath, f) for f in _fortran_files32]
 
 
-def compile_fortran_module(module_name: str, fortran_files: List[str]):
+def compile_fortran_module(module_name: str, fortran_files: List[str]) -> bool:
     """
     Compile the Fortran source files into a Python module using f2py.
 
@@ -36,7 +36,6 @@ def compile_fortran_module(module_name: str, fortran_files: List[str]):
     """
 
     print(f"\nTrying to compile Fortran backend.")
-    import ninja
     from numpy import f2py  # NOQA must be installed to be compiled / force exception
 
     # Optimization and parallelization flags for the Fortran compiler
@@ -49,10 +48,19 @@ def compile_fortran_module(module_name: str, fortran_files: List[str]):
     # - `-m` to specify the module name
     # - include all Fortran files
     # - pass optimization flags and link to OpenMP (`-lgomp`)
-    cmd = ["f2py", "-c", "-m", module_name, fortran_files[0]] + [
-        f"--f90flags='{f90flags}'",
-        "-lgomp",
-    ]
+    cmd = (
+        [
+            "f2py",
+            "-c",
+            "-m",
+            module_name,
+        ]
+        + fortran_files
+        + [
+            f"--f90flags='{f90flags}'",
+            "-lgomp",
+        ]
+    )
 
     try:
         # Run the command and capture output
@@ -62,6 +70,7 @@ def compile_fortran_module(module_name: str, fortran_files: List[str]):
             check=True,  # Raise error on failure
             text=True,  # Decode output as string,
             stdout=sys.stdout,
+            cwd=os.path.dirname(__file__),
         )
         print("Compilation successful.\n")
         print(result.stdout)  # Show compilation messages
@@ -74,16 +83,17 @@ def compile_fortran_module(module_name: str, fortran_files: List[str]):
     return True  # Return True if compilation succeeds
 
 
-def main_cli():
+def main_cli() -> None:
     """
     Entry point for running from the command line.
     Calls the Fortran compilation function.
     """
     sucess = compile_fortran_module(_module_name32, _fortran_files32)
-    sucess = compile_fortran_module(
-        _module_name32.replace("32", "64"),
-        [f.replace("32", "64") for f in _fortran_files32],
-    )
+    if sucess:
+        sucess = compile_fortran_module(
+            _module_name32.replace("32", "64"),
+            [f.replace("32", "64") for f in _fortran_files32],
+        )
 
 
 # If the script is run directly (not imported), execute main_cli
