@@ -142,8 +142,8 @@ class FortranSpecials(Specials):
         voltage: float,
         omega_rf: float,
         phi_rf: float,
-        charge: float,
-        acceleration_kick: float,
+        charge: np.flaot32 | np.float64,
+        acceleration_kick: np.flaot32 | np.float64,
     ) -> None:
         assert dt.dtype == backend.float
         assert dE.dtype == backend.float
@@ -296,8 +296,8 @@ class FortranSpecials(Specials):
         dE: NumpyArray,
         voltage: NumpyArray,
         bin_centers: NumpyArray,
-        charge: float,
-        acceleration_kick: float,
+        charge: np.flaot32 | np.float64,
+        acceleration_kick: np.flaot32 | np.float64,
     ) -> None:
         kick_induced_module.linear_interp_kick(
             beam_dt=dt,

@@ -157,3 +157,142 @@ __global__ void beam_phase(const real_t* __restrict__ hist_x,
         atomicAdd(&result[1], cos_partial[0]);
     }
 }
+
+
+
+extern "C"
+__global__ void hybrid_histogram(
+                                 const real_t * __restrict__  input,
+                                 real_t * __restrict__  output,
+                                 const real_t cut_left,
+                                 const real_t cut_right,
+                                 const unsigned int n_slices,
+                                 const unsigned int n_macroparticles,
+                                 const int capacity
+                                 )
+{
+    extern __shared__ int block_hist[];
+    //reset shared memory
+    for (int i = threadIdx.x; i < capacity; i += blockDim.x)
+        block_hist[i] = 0;
+    __syncthreads();
+    int const tid = threadIdx.x + blockDim.x * blockIdx.x;
+    int target_bin;
+    real_t const inv_bin_width = n_slices / (cut_right - cut_left);
+
+    const int low_tbin = (n_slices / 2) - (capacity / 2);
+    const int high_tbin = low_tbin + capacity;
+
+
+    for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+        if (input[i] == cut_right){
+            target_bin = n_slices - 1;
+            if (target_bin >= low_tbin && target_bin < high_tbin)
+                atomicAdd(&(block_hist[target_bin - low_tbin]), 1);
+            else
+                atomicAdd(&(output[target_bin]), 1);
+            continue;
+        }
+        target_bin = floor((input[i] - cut_left) * inv_bin_width);
+        if (target_bin < 0 || target_bin >= n_slices)
+            continue;
+        if (target_bin >= low_tbin && target_bin < high_tbin)
+            atomicAdd(&(block_hist[target_bin - low_tbin]), 1);
+        else
+            atomicAdd(&(output[target_bin]), 1);
+
+    }
+    __syncthreads();
+    for (int i = threadIdx.x; i < capacity; i += blockDim.x)
+        atomicAdd(&output[low_tbin + i], (real_t) block_hist[i]);
+}
+
+
+extern "C"
+__global__ void sm_histogram(const real_t * __restrict__  input,
+                             real_t * __restrict__  output,
+                             const real_t cut_left,
+                             const real_t cut_right,
+                             const unsigned int n_slices,
+                             const unsigned int n_macroparticles)
+{
+    extern __shared__ int block_hist[];
+    for (int i = threadIdx.x; i < n_slices; i += blockDim.x)
+        block_hist[i] = 0;
+    __syncthreads();
+    int const tid = threadIdx.x + blockDim.x * blockIdx.x;
+    int target_bin;
+    real_t const inv_bin_width = n_slices / (cut_right - cut_left);
+    for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+        target_bin = floor((input[i] - cut_left) * inv_bin_width);
+
+        if (input[i] == cut_right){
+            target_bin = n_slices - 1;
+            atomicAdd(&(block_hist[target_bin]), 1);
+            continue;
+        }
+
+        if (target_bin < 0 || target_bin >= n_slices)
+            continue;
+
+        atomicAdd(&(block_hist[target_bin]), 1);
+    }
+    __syncthreads();
+    for (int i = threadIdx.x; i < n_slices; i += blockDim.x)
+        atomicAdd(&output[i], (real_t) block_hist[i]);
+}
+
+
+
+
+extern "C"
+__global__ void lik_only_gm_copy(
+    real_t * __restrict__ beam_dt,
+    real_t * __restrict__ beam_dE,
+    const real_t * __restrict__ voltage_array,
+    const real_t * __restrict__ bin_centers,
+    const real_t charge,
+    const int n_slices,
+    const int n_macroparticles,
+    const real_t acc_kick,
+    real_t * __restrict__ glob_vkick_factor
+)
+{
+    int tid = threadIdx.x + blockDim.x * blockIdx.x;
+    real_t const inv_bin_width = (n_slices - 1)
+                                 / (bin_centers[n_slices - 1] - bin_centers[0]);
+
+
+    for (int i = tid; i < n_slices - 1; i += gridDim.x * blockDim.x) {
+        glob_vkick_factor[2*i] = charge * (voltage_array[i + 1] - voltage_array[i])
+                              * inv_bin_width;
+        glob_vkick_factor[2*i+1] = (charge * voltage_array[i] - bin_centers[i] * glob_vkick_factor[2*i])
+                         + acc_kick;
+    }
+}
+
+
+extern "C"
+__global__ void lik_only_gm_comp(
+    real_t * __restrict__ beam_dt,
+    real_t * __restrict__ beam_dE,
+    const real_t * __restrict__ voltage_array,
+    const real_t * __restrict__ bin_centers,
+    const real_t charge,
+    const int n_slices,
+    const int n_macroparticles,
+    const real_t acc_kick,
+    real_t * __restrict__ glob_vkick_factor
+)
+{
+    int tid = threadIdx.x + blockDim.x * blockIdx.x;
+    real_t const inv_bin_width = (n_slices - 1)
+                                 / (bin_centers[n_slices - 1] - bin_centers[0]);
+    int fbin;
+    const real_t bin0 = bin_centers[0];
+    for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
+        fbin = floor((beam_dt[i] - bin0) * inv_bin_width);
+        if ((fbin < n_slices - 1) && (fbin >= 0))
+            beam_dE[i] += beam_dt[i] * glob_vkick_factor[2*fbin] + glob_vkick_factor[2*fbin+1];
+    }
+}

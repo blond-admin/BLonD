@@ -35,8 +35,8 @@ class Specials(ABC):
         voltage: float,
         omega_rf: float,
         phi_rf: float,
-        charge: float,
-        acceleration_kick: float,
+        charge: np.flaot32 | np.float64,
+        acceleration_kick: np.flaot32 | np.float64,
     ) -> None:
         pass
 
@@ -102,8 +102,8 @@ class Specials(ABC):
         dE: NumpyArray,
         voltage: NumpyArray,
         bin_centers: NumpyArray,
-        charge: float,
-        acceleration_kick: float,
+        charge: np.flaot32 | np.float64,
+        acceleration_kick: np.flaot32 | np.float64,
     ) -> None:
         pass
 
@@ -149,6 +149,7 @@ class BackendBaseClass(ABC):
             "cuda",
         ],
         is_gpu: bool,
+        verbose: bool = False,
     ) -> None:
         """
         Base class for a backend.
@@ -166,8 +167,9 @@ class BackendBaseClass(ABC):
         is_gpu
             Whether the backend is using the GPU.
         """
+        self.verbose = verbose
+
         self._is_gpu = is_gpu
-        self.verbose = True
 
         self.float = float_
         self.int = int_
@@ -184,6 +186,13 @@ class BackendBaseClass(ABC):
         self.linspace: Callable = None  # type: ignore
         self.histogram: Callable = None  # type: ignore
         self.zeros: Callable = None  # type: ignore
+        self.zeros_like = None  # type: ignore
+        self.fft = None  # type: ignore
+
+    def _finalize(self) -> None:
+        for attribute, val in self.__dict__.items():
+            if val is None:
+                raise AttributeError(f"{self.__class__}.{attribute} is None.")
 
     def change_backend(
         self,
@@ -200,9 +209,12 @@ class BackendBaseClass(ABC):
         """
         if self.__class__ == new_backend.__class__:
             return
-        _new_backend = new_backend()
         if self.verbose:
-            print(f"Changed backend to {_new_backend.__class__}")
+            print(f"Changing backend to `{new_backend.__name__}`")
+        _new_backend = new_backend()
+        # transfer variables that should be kept when changing backend.
+
+        _new_backend.verbose = self.verbose
         self.__dict__ = _new_backend.__dict__
         self.__class__ = _new_backend.__class__
         self.set_specials(self.specials_mode)  # TODO test changing backends
@@ -241,10 +253,15 @@ class BackendBaseClass(ABC):
 
 
         """
-        _backend_mode_flag: str = os.environ.get(
+        _backend_mode_raw: str = os.environ.get(
             "BLOND_BACKEND_MODE",
             "numba",  # default
         ).lower()
+        if _backend_mode_raw != "numba":
+            print(
+                f"Using environment variable BLOND_BACKEND_MODE"
+                f"={_backend_mode_raw}"
+            )
         _allowed_backend_modes = (
             "python",
             "cpp",
@@ -252,42 +269,47 @@ class BackendBaseClass(ABC):
             "fortran",
             "cuda",
         )
-        if _backend_mode_flag in _allowed_backend_modes:
+        if _backend_mode_raw in _allowed_backend_modes:
             _backend_mode: Literal[
                 "python",
                 "cpp",
                 "numba",
                 "fortran",
                 "cuda",
-            ] = _backend_mode_flag  # type: ignore
+            ] = _backend_mode_raw  # type: ignore
         else:
             raise ValueError(
-                f"The environment variable BLOND_BACKEND "
-                f"was set to {_backend_mode_flag}, but can only be one "
+                f"The environment variable `BLOND_BACKEND` "
+                f"was set to '{_backend_mode_raw}', but can only be one "
                 f"of {_allowed_backend_modes}."
             )
 
-        _backend_bits_flag: str = os.environ.get(
+        _backend_bits_raw: str = os.environ.get(
             "BLOND_BACKEND_BITS",
             "32",  # default
         )
+        if _backend_bits_raw != "32":
+            print(
+                f"Using  environment variable BLOND_BACKEND_BITS ="
+                f" {_backend_bits_raw}"
+            )
         _allowed_backend_bits_flag = (
             "32",
             "64",
         )
-        if _backend_bits_flag in _allowed_backend_bits_flag:
+        if _backend_bits_raw in _allowed_backend_bits_flag:
             _backend_bits: Literal[
                 "32",
                 "64",
-            ] = _backend_bits_flag  # type: ignore
+            ] = _backend_bits_raw  # type: ignore
         else:
             raise ValueError(
-                f"The environment variable BLOND_BACKEND_BITS "
-                f"was set to {_backend_bits_flag}, but can only be one "
+                f"The environment variable `BLOND_BACKEND_BITS` "
+                f"was set to '{_backend_bits_raw}', but can only be one "
                 f"of {_allowed_backend_bits_flag}."
             )
 
-        if _backend_mode_flag == "cuda":
+        if _backend_mode == "cuda":
             if _backend_bits == "32":
                 self.change_backend(Cupy32Bit)
             elif _backend_bits == "64":
@@ -363,6 +385,10 @@ class NumpyBackend(BackendBaseClass):
         self.linspace = np.linspace
         self.histogram = np.histogram
         self.zeros = np.zeros
+        self.zeros_like = np.zeros_like
+        self.fft = np.fft
+
+        self._finalize()
 
     def set_specials(
         self,
@@ -382,8 +408,6 @@ class NumpyBackend(BackendBaseClass):
             One of the available backend modes
 
         """
-        if mode == self.specials_mode and self.specials is not None:
-            return
         if mode == "python":
             from .python.callables import PythonSpecials
 
@@ -416,7 +440,7 @@ class NumpyBackend(BackendBaseClass):
         else:
             raise ValueError(mode)
         if self.verbose:
-            print(f"Set special to {self.specials.__class__}")
+            print(f"Set special to `{self.specials.__class__.__name__}`")
 
 
 class Numpy32Bit(NumpyBackend):
@@ -480,10 +504,14 @@ class CupyBackend(BackendBaseClass):
         self.linspace = cp.linspace
         self.histogram = cp.histogram
         self.zeros = cp.zeros
+        self.zeros_like = cp.zeros_like
+        self.fft = cp.fft
 
         from .cuda.callables import CudaSpecials
 
         self.specials = CudaSpecials()
+
+        self._finalize()
 
     def set_specials(self, mode: Literal["cuda"]) -> None:
         """
@@ -505,7 +533,7 @@ class CupyBackend(BackendBaseClass):
         else:
             raise ValueError(mode)
         if self.verbose:
-            print(f"Set special to {self.specials.__class__}")
+            print(f"Set special to `{self.specials.__class__.__name__}`")
 
 
 class Cupy32Bit(CupyBackend):
@@ -534,4 +562,5 @@ class Cupy64Bit(CupyBackend):
 
 default = Numpy32Bit()  # use .change_backend(...) to change it anywhere
 backend: Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit = default
+backend.verbose = True
 backend.apply_environment_variables()

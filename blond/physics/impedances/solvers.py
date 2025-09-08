@@ -60,7 +60,9 @@ class InductiveImpedanceSolver(WakeFieldSolver):
             ]
         )
         impedances: Tuple[InductiveImpedance, ...] = parent_wakefield.sources
-        self._Z_over_n = np.sum(np.array([o.Z_over_n for o in impedances]))
+        self._Z_over_n = backend.float(
+            np.sum(np.array([o.Z_over_n for o in impedances]))
+        )
         self._turn_i = simulation.turn_i
         self._simulation = simulation
 
@@ -80,8 +82,10 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         induced_voltage
             Induced voltage, in [V]
         """
-        ratio = beam.n_particles / beam.n_macroparticles_partial()
-        factor = -(
+        ratio = backend.float(
+            beam.n_particles / beam.n_macroparticles_partial()
+        )
+        factor = -backend.float(
             (beam.particle_type.charge * e)
             / (2 * np.pi)
             * ratio
@@ -267,7 +271,9 @@ class PeriodicFreqSolver(WakeFieldSolver):
         if (self._freq_y is None) or (
             self._freq_x.shape != self._freq_y.shape
         ):
-            self._freq_y = np.zeros_like(self._freq_x, dtype=backend.complex)
+            self._freq_y = backend.zeros_like(
+                self._freq_x, dtype=backend.complex
+            )
         else:
             self._freq_y[:] = 0 + 0j
         for source in (
@@ -280,7 +286,9 @@ class PeriodicFreqSolver(WakeFieldSolver):
                     beam=beam,  # FIXME
                 )
                 assert not np.any(np.isnan(freq_y)), f"{type(source).__name__}"
-                self._freq_y += freq_y
+
+                self._freq_y += backend.array(freq_y, dtype=backend.complex)  #
+                # potentially on gpu
             else:
                 raise Exception(
                     "Can only accept impedance that support `FreqDomain`"
@@ -315,22 +323,36 @@ class PeriodicFreqSolver(WakeFieldSolver):
 
         self._update_impedance_sources(beam=beam)
 
-        _factor = (-1 * beam.particle_type.charge * e) * (
-            # TODO this might be a problem with MPI
-            beam.n_particles / beam.n_macroparticles_partial()
+        _factor = backend.float(
+            (-1 * beam.particle_type.charge * e)
+            * (
+                # TODO this might be a problem with MPI
+                beam.n_particles / beam.n_macroparticles_partial()
+            )
         )
 
         key = len(self._freq_y)  # todo
         if key in self._induced_voltage_buffer:
             # use `out` variable of fft to avoid array creation
-            out = self._induced_voltage_buffer[key]
-            np.fft.irfft(
-                self._freq_y
-                * self._parent_wakefield.profile.beam_spectrum(
-                    n_fft=self._n_time
-                ),
-                out=out,
-            )
+            if backend.is_gpu:
+                # At the time of writing (2025), out is not a keyword argument
+                # of cp.fft.rfft, but might be in future.
+                out = backend.fft.irfft(
+                    self._freq_y
+                    * self._parent_wakefield.profile.beam_spectrum(
+                        n_fft=self._n_time
+                    ),
+                )
+            else:
+                out = self._induced_voltage_buffer[key]
+                backend.fft.irfft(
+                    self._freq_y
+                    * self._parent_wakefield.profile.beam_spectrum(
+                        n_fft=self._n_time
+                    ),
+                    out=out,
+                )
+
             out *= _factor
             self._induced_voltage_buffer[key] = out
         else:
@@ -436,7 +458,7 @@ class TimeDomainSolver(WakeFieldSolver):
         if (self._wake_imp_y is None) or (
             _wake_x.shape != self._wake_imp_y.shape
         ):
-            self._wake_imp_y = np.zeros(n_t, dtype=backend.complex)
+            self._wake_imp_y = backend.zeros(n_t, dtype=backend.complex)
         else:
             self._wake_imp_y[:] = 0 + 0j
 
@@ -453,7 +475,10 @@ class TimeDomainSolver(WakeFieldSolver):
                 assert not np.any(np.isnan(wake_imp_y_tmp)), (
                     f"{type(source).__name__}"
                 )
-                self._wake_imp_y += wake_imp_y_tmp
+                self._wake_imp_y += backend.array(
+                    wake_imp_y_tmp,
+                    dtype=backend.complex,
+                )
             else:
                 raise Exception(
                     "Can only accept impedance that support `TimeDomain`"

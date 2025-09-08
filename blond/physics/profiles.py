@@ -109,7 +109,12 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
         # This is intentionally ignored, we want to get an exception.
-        return backend.float(self._hist_x[1] - self._hist_x[0])  # type: ignore
+        fist_hist_x = self._hist_x[0]  # type: ignore
+        second_hist_x = self._hist_x[1]  # type: ignore
+        if backend.is_gpu:
+            fist_hist_x = fist_hist_x.get()
+            second_hist_x = second_hist_x.get()
+        return backend.float(second_hist_x - fist_hist_x)  # type: ignore
 
     @cached_property
     def cut_left(self) -> np.float32 | np.float64:
@@ -117,7 +122,10 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
         # This is intentionally ignored, we want to get an exception.
-        return backend.float(self._hist_x[0] - self.hist_step / 2.0)  # type: ignore
+        fist_hist_x = self._hist_x[0]
+        if backend.is_gpu:
+            fist_hist_x = fist_hist_x.get()
+        return backend.float(fist_hist_x - self.hist_step / 2.0)  # type: ignore
 
     @cached_property
     def cut_right(self) -> np.float32 | np.float64:
@@ -125,7 +133,10 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
         # This is intentionally ignored, we want to get an exception.
-        return backend.float(self._hist_x[-1] + self.hist_step / 2.0)  # type: ignore
+        last_hist_x = self._hist_x[-1]
+        if backend.is_gpu:
+            last_hist_x = last_hist_x.get()
+        return backend.float(last_hist_x + self.hist_step / 2.0)  # type: ignore
 
     @cached_property
     def bin_edges(self) -> NumpyArray | CupyArray:
@@ -221,11 +232,19 @@ class ProfileBaseClass(BeamPhysicsRelevant):
                 n_fft,
             )
         else:
-            np.fft.rfft(
-                self._hist_y,
-                n_fft,
-                out=self._beam_spectrum_buffer[n_fft],  # type: ignore
-            )
+            if backend.is_gpu:
+                # At the time of writing (2025), out is not a keyword argument
+                # of cp.fft.rfft, but might be in future.
+                self._beam_spectrum_buffer[n_fft] = backend.fft.rfft(
+                    self._hist_y,
+                    n_fft,
+                )
+            else:
+                backend.fft.rfft(
+                    self._hist_y,
+                    n_fft,
+                    out=self._beam_spectrum_buffer[n_fft],  # type: ignore
+                )
 
         return self._beam_spectrum_buffer[n_fft]
 

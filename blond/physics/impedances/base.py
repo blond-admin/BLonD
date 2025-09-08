@@ -77,7 +77,7 @@ class FreqDomain(ABC):
         freq_x: NumpyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
-    ) -> NumpyArray:
+    ) -> NumpyArray | CupyArray:
         """
         Return the impedance in the frequency domain.
 
@@ -279,13 +279,19 @@ class WakeField(ImpedanceBaseClass):
             Beam class to interact with this element
         """
         induced_voltage = self.calc_induced_voltage(beam=beam)
+        assert (beam.read_partial_dt()).dtype == backend.float
+        assert (beam.write_partial_dE()).dtype == backend.float
+        assert (induced_voltage).dtype == backend.float
+        assert (self.profile.hist_x).dtype == backend.float
         backend.specials.kick_induced_voltage(
             dt=beam.read_partial_dt(),
             dE=beam.write_partial_dE(),
             voltage=induced_voltage,
             bin_centers=self.profile.hist_x,  # base for induced voltage
-            charge=beam.particle_type.charge,
-            acceleration_kick=0.0,  # TODO was this ever required??
+            charge=backend.float(beam.particle_type.charge),
+            acceleration_kick=backend.float(
+                0.0
+            ),  # TODO was this ever required??
         )
 
     @staticmethod

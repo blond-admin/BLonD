@@ -152,7 +152,12 @@ sig_beam_phase = (
 
 class NumbaSpecials(Specials):  # pragma: no cover
     @staticmethod
-    @njit(sig_beam_phase, parallel=True, fastmath=True)
+    @njit(
+        sig_beam_phase,
+        parallel=True,
+        fastmath=True,
+        cache=True,
+    )
     def beam_phase(
         hist_x: NumpyArray,
         hist_y: NumpyArray,
@@ -188,7 +193,12 @@ class NumbaSpecials(Specials):  # pragma: no cover
         return scoeff / ccoeff
 
     @staticmethod
-    @njit(sig_histogram, parallel=True, fastmath=True)
+    @njit(
+        sig_histogram,
+        parallel=True,
+        fastmath=True,
+        cache=True,
+    )
     def histogram(
         array_read: NumpyArray,
         array_write: NumpyArray,
@@ -219,15 +229,20 @@ class NumbaSpecials(Specials):  # pragma: no cover
         pass
 
     @staticmethod
-    @njit(sig_kick_single_harmonic, parallel=True, fastmath=True)
+    @njit(
+        sig_kick_single_harmonic,
+        parallel=True,
+        fastmath=True,
+        cache=True,
+    )
     def kick_single_harmonic(
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         voltage: float,
         omega_rf: float,
         phi_rf: float,
-        charge: float,
-        acceleration_kick: float,
+        charge: np.flaot32 | np.float64,
+        acceleration_kick: np.flaot32 | np.float64,
     ) -> None:
         voltage_kick = charge * voltage
         for i in prange(len(dt)):
@@ -237,7 +252,12 @@ class NumbaSpecials(Specials):  # pragma: no cover
             )
 
     @staticmethod
-    @njit(sig_drift_simple, parallel=True, fastmath=True)
+    @njit(
+        sig_drift_simple,
+        parallel=True,
+        fastmath=True,
+        cache=True,
+    )
     def drift_simple(
         dt: NumpyArray,
         dE: NumpyArray,
@@ -317,7 +337,12 @@ class NumbaSpecials(Specials):  # pragma: no cover
                 )
 
     @staticmethod
-    @njit(sig_drift_exact, parallel=True, fastmath=True)
+    @njit(
+        sig_drift_exact,
+        parallel=True,
+        fastmath=True,
+        cache=True,
+    )
     def drift_exact(
         dt: NumpyArray,
         dE: NumpyArray,
@@ -356,14 +381,19 @@ class NumbaSpecials(Specials):  # pragma: no cover
             )
 
     @staticmethod
-    @njit(sig_kick_induced_voltage, parallel=True, fastmath=True)
+    @njit(
+        sig_kick_induced_voltage,
+        parallel=True,
+        fastmath=True,
+        cache=True,
+    )
     def kick_induced_voltage(
         dt: NumpyArray,
         dE: NumpyArray,
         voltage: NumpyArray,
         bin_centers: NumpyArray,
-        charge: float,
-        acceleration_kick: float,
+        charge: np.flaot32 | np.float64,
+        acceleration_kick: np.flaot32 | np.float64,
     ) -> None:
         dx = (bin_centers[-1] - bin_centers[0]) / (len(bin_centers) - 1)
         inv_dx = 1 / dx

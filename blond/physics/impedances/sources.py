@@ -23,7 +23,14 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def get_hash(array1d: NumpyArray) -> int:
-    return hash((array1d[0], array1d[1], array1d[-1], len(array1d)))
+    return hash(
+        (
+            float(array1d[0]),
+            float(array1d[1]),
+            float(array1d[-1]),
+            len(array1d),
+        )
+    )
 
 
 class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
@@ -208,7 +215,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_fft: int,
-    ) -> NumpyArray:
+    ) -> NumpyArray | CupyArray:  # Fixme all get_wake_impedance same
         """
         Get impedance equivalent to the partial single-particle-wake in
         time domain
@@ -233,7 +240,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         if hash is self._cache_wake_impedance_hash:
             return self._cache_wake_impedance
 
-        wake = np.zeros(len(time), dtype=backend.float, order="C")
+        wake = backend.zeros(len(time), dtype=backend.float, order="C")
         n_centers = len(self._center_frequencies)
         omega = 2 * np.pi * self._center_frequencies
         for i in range(n_centers):
