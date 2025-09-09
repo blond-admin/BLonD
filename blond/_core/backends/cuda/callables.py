@@ -18,18 +18,22 @@ _basepath = os.sep.join(_filepath.split(os.sep)[:-1])
 _compute_capability = cp.cuda.Device(0).compute_capability
 
 if backend.float == np.float32:
+    path = os.path.join(
+        _basepath,
+        f"kernels_sm_{_compute_capability}_single.cubin",
+    )
+    assert os.path.isfile(path), f"{path=}"
     gpu_module = cp.RawModule(
-        path=os.path.join(
-            _basepath,
-            f"kernels_sm_{_compute_capability}_single.cubin",
-        )
+        path=path,
     )
 elif backend.float == np.float64:
+    path = os.path.join(
+        _basepath,
+        f"kernels_sm_{_compute_capability}_double.cubin",
+    )
+    assert os.path.isfile(path), f"{path=}"
     gpu_module = cp.RawModule(
-        path=os.path.join(
-            _basepath,
-            f"kernels_sm_{_compute_capability}_double.cubin",
-        )
+        path=path,
     )
 else:
     raise TypeError(backend.float)
