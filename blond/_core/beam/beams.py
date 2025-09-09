@@ -80,7 +80,7 @@ class Beam(BeamBaseClass):
         assert len(dt) == len(dE), f"{len(dt)} != {len(dE)}"
         n_particles = len(dt)
         if flags is None:
-            flags = backend.int(BeamFlags.ACTIVE.value) * np.ones(
+            flags = backend.int(BeamFlags.ACTIVE.value) * backend.ones(
                 n_particles, dtype=backend.int
             )
         else:

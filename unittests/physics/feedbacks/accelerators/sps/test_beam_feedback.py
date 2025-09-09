@@ -59,9 +59,9 @@ class TestBeamFeedback(unittest.TestCase):
         )
 
         # RF parameters SPS
-        harmonic = 4620  # Harmonic numbers
+        harmonic = 4620.0  # Harmonic numbers
         voltage = 4.5e6  # [V]
-        phi_offsets = 0
+        phi_offsets = 0.0
 
         self.rf_station_blond2 = RFStation(
             self.ring_blond2, harmonic, voltage, phi_offsets
@@ -159,7 +159,7 @@ class TestBeamFeedback(unittest.TestCase):
         )
 
         # RF parameters SPS
-        self.cavity.harmonic = np.array([4620])  # Harmonic numbers
+        self.cavity.harmonic = np.array([4620.0])  # Harmonic numbers
         self.cavity.voltage = np.array([4.5e6])  # [V]
         self.cavity.phi_rf = np.array([0.0])
         self.ring.add_element(self.cavity)

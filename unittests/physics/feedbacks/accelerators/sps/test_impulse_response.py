@@ -194,9 +194,9 @@ class TestTravelingWaveCavity(unittest.TestCase):
             orbit_length=C,
             transition_gamma=gamma_t,
         )
-        rf.voltage = np.array([V])
-        rf.phi_rf = np.array([phi])
-        rf.harmonic = np.array([h])
+        rf.voltage = np.array([V], dtype=backend.float)
+        rf.phi_rf = np.array([phi], dtype=backend.float)
+        rf.harmonic = np.array([h], dtype=backend.float)
         t_rf = t_rev / rf.harmonic[0]
 
         n_shift = 5  # how many rf-buckets to shift beam
@@ -315,9 +315,9 @@ class TestTravelingWaveCavity(unittest.TestCase):
             n_harmonics=1,
             main_harmonic_idx=0,
         )
-        rf.harmonic = np.array([4620])
-        rf.voltage = np.array([4.5e6])
-        rf.phi_rf = np.array([0])
+        rf.harmonic = np.array([4620], backend.float)
+        rf.voltage = np.array([4.5e6], backend.float)
+        rf.phi_rf = np.array([0], backend.float)
         ring.add_element(rf)
         ring.add_element(
             DriftSimple(

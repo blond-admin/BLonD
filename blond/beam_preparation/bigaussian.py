@@ -130,7 +130,7 @@ def get_main_harmonic_attributes(
         )
     # omega_rf should be all same
     omega_rf = [
-        rf.calc_omega(
+        rf.get_main_harmonic_omega_rf(
             beam_beta=beam.reference_beta,
             ring_circumference=simulation.ring.circumference,
         )
@@ -139,24 +139,34 @@ def get_main_harmonic_attributes(
     assert all_equal(omega_rf), (
         f"Expected all `omega_rf` to be the same, but got {omega_rf}."
     )
-    omega_rf = omega_rf[0]
+    omega_rf = float(omega_rf[0])
 
     # phi_rf should be all same
-    phi_rf = [rf.phi_rf + rf.delta_phi_rf for rf in rf_stations]
+    try:
+        phi_rf = [
+            rf.get_main_harmonic_phi_rf()
+            + rf.delta_phi_rf[rf.main_harmonic_idx]
+            for rf in rf_stations
+        ]
+    except AttributeError:
+        phi_rf = [
+            rf.get_main_harmonic_phi_rf() + rf.delta_phi_rf
+            for rf in rf_stations
+        ]
     assert all_equal(phi_rf), (
         f"Expected all `phi_rf` to be the same, but got {phi_rf}."
     )
-    phi_rf = phi_rf[0]
+    phi_rf = float(phi_rf[0])
 
     # harmonic should be all same
-    harmonic = [rf.harmonic for rf in rf_stations]
+    harmonic = [rf.get_main_harmonic() for rf in rf_stations]
     assert all_equal(harmonic), (
         f"Expected all `harmonic` to be the same, but got {harmonic}."
     )
-    harmonic = harmonic[0]
+    harmonic = float(harmonic[0])
 
     # voltage sum
-    voltage = sum([rf.voltage for rf in rf_stations])
+    voltage = sum([rf.get_main_harmonic_voltage() for rf in rf_stations])
 
     return harmonic, omega_rf, phi_rf, voltage
 
@@ -237,7 +247,7 @@ class BiGaussian(MatchingRoutine):
                 dt_amplitude=self._sigma_dt,
             )
             # IMPORT
-            assert not np.isnan(sigma_dE), "BUG, fix phi_s"
+            assert not backend.isnan(sigma_dE), "BUG, fix phi_s"
         else:
             sigma_dE = self._sigma_dE
 
@@ -263,19 +273,20 @@ class BiGaussian(MatchingRoutine):
             phi_rf -= np.pi
 
         # Generate coordinates. For reproducibility, a separate random number stream is used for dt and dE
-        rng_dt = np.random.default_rng(self._seed)
-        rng_dE = np.random.default_rng(self._seed + 1)
+        rng_dt = backend.random.default_rng(self._seed)
+        rng_dE = backend.random.default_rng(self._seed + 1)
+        import cupy as cp
 
         dt = (
             self._sigma_dt
-            * rng_dt.normal(size=self.n_macroparticles).astype(
+            * rng_dt.standard_normal(size=self.n_macroparticles).astype(
                 dtype=backend.float, order="C", copy=False
             )
             + (phi_s - phi_rf) / omega_rf
         )
-        dE = sigma_dE * rng_dE.normal(size=self.n_macroparticles).astype(
-            dtype=backend.float, order="C"
-        )
+        dE = sigma_dE * rng_dE.standard_normal(
+            size=self.n_macroparticles
+        ).astype(dtype=backend.float, order="C")
 
         # Re-insert if necessary
         if self._reinsertion:
@@ -298,18 +309,18 @@ class BiGaussian(MatchingRoutine):
                     == False
                 )
 
-                n_new = np.sum(sel)
+                n_new = int(backend.sum(sel))
                 if n_new == 0:
                     break
                 dt[sel] = (
                     self._sigma_dt
-                    * rng_dt.normal(size=n_new).astype(
+                    * rng_dt.standard_normal(size=n_new).astype(
                         dtype=backend.float, order="C", copy=False
                     )
                     + (phi_s - phi_rf) / omega_rf
                 )
 
-                dE[sel] = sigma_dE * rng_dE.normal(size=n_new).astype(
+                dE[sel] = sigma_dE * rng_dE.standard_normal(size=n_new).astype(
                     dtype=backend.float, order="C"
                 )
         beam.setup_beam(dt=dt, dE=dE)

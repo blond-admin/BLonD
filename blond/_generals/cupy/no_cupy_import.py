@@ -8,17 +8,20 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
+from numpy import ndarray
 
 from ..._core.backends.backend import backend
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Any, Optional, Type
+
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
 numpy_asarray = np.asarray
 
 
-def is_cupy_array(arr: NumpyArray | CupyArray | None) -> bool:
+def is_cupy_array(arr: NumpyArray | CupyArray | Any) -> bool:
     """
     Checks if the array is a Cupy array
 
@@ -43,7 +46,14 @@ class _AsarrayOverrideManager:
         """Override functionality for 'np.asarray' with caching"""
         self.cache: dict[int, np.ndarray] = {}
 
-    def asarray_override(self, a, dtype=None, order=None, *args, **kwargs):
+    def asarray_override(
+        self,
+        a: NumpyArray | CupyArray,
+        dtype: Any = None,
+        order: Optional[str] = None,
+        *args: Any,
+        **kwargs: Any,
+    ) -> ndarray:
         import cupy as cp
 
         if isinstance(a, cp.ndarray):
@@ -55,7 +65,13 @@ class _AsarrayOverrideManager:
             else:
                 a = a.get()  # copy data from GPU
                 self.cache[key] = a
-        return numpy_asarray(a, dtype=dtype, order=order, *args, **kwargs)
+        return numpy_asarray(
+            a,
+            dtype=dtype,
+            order=order,
+            *args,
+            **kwargs,
+        )
 
 
 class AllowPlotting:
@@ -79,7 +95,12 @@ class AllowPlotting:
         self.asarray_org = np.asarray
         np.asarray = self.asarray_override_manager.asarray_override
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> bool | None:
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[Any],
+    ):
         if not backend.is_gpu:
             return
         # reset to original numpy function

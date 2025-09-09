@@ -69,9 +69,9 @@ class TestRfBeamCurrent(unittest.TestCase):
             n_harmonics=1,
             main_harmonic_idx=0,
         )
-        self.rf.phi_rf = np.array([0])
-        self.rf.harmonic = np.array([4620])
-        self.rf.voltage = np.array([4.5e6])
+        self.rf.phi_rf = np.array([0], dtype=backend.float)
+        self.rf.harmonic = np.array([4620], dtype=backend.float)
+        self.rf.voltage = np.array([4.5e6], dtype=backend.float)
         self.drift = DriftSimple(
             orbit_length=C,
             transition_gamma=gamma_t,

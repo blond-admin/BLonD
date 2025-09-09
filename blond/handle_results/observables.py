@@ -93,8 +93,8 @@ class Observables(MainLoopRelevant):
         turn_i_init
             Initial turn to execute simulation
         """
-        self._n_turns = n_turns
-        self._turn_i_init = turn_i_init
+        self._n_turns = int(n_turns)
+        self._turn_i_init = int(turn_i_init)
         self._turns_array = np.arange(turn_i_init, turn_i_init + n_turns)
 
     @abstractmethod  # pragma: no cover
@@ -156,7 +156,7 @@ class BunchObservation(Observables):
             beam=beam,
         )
         n_entries = n_turns // self.each_turn_i + 2
-        n_particles = beam.common_array_size
+        n_particles = int(beam.common_array_size)
         shape = (n_entries, n_particles)
 
         self._dts = DenseArrayRecorder(
@@ -294,7 +294,7 @@ class CavityPhaseObservation(Observables):
             beam=beam,
         )
         n_entries = n_turns // self.each_turn_i + 2
-        n_harmonics = self._cavity.n_rf
+        n_harmonics = int(self._cavity.n_rf)
         self._phases = DenseArrayRecorder(
             f"{'simulation.get_hash'}_phases",  # TODO
             (n_entries, n_harmonics),
@@ -411,7 +411,7 @@ class StaticProfileObservation(Observables):
             beam=beam,
         )
         n_entries = n_turns // self.each_turn_i + 2
-        n_bins = self._profile.n_bins
+        n_bins = int(self._profile.n_bins)
         self._hist_y = DenseArrayRecorder(
             f"{'simulation.get_hash'}_phases",  # TODO
             (n_entries, n_bins),
@@ -498,7 +498,7 @@ class WakeFieldObservation(Observables):
             beam=beam,
         )
         n_entries = n_turns // self.each_turn_i + 2
-        n_bins = self._wakefield._profile.n_bins
+        n_bins = int(self._wakefield._profile.n_bins)
         self._induced_voltage = DenseArrayRecorder(
             f"{'simulation.get_hash'}_phases",  # TODO
             (n_entries, n_bins),

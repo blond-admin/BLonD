@@ -153,5 +153,5 @@ def main_cli() -> None:
         compile_cuda_library(compute_capability=sm)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main_cli()

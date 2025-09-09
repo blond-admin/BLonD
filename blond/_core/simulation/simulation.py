@@ -406,8 +406,8 @@ class Simulation(Preparable, HasPropertyCache):
         max_turns = self.magnetic_cycle.n_turns
         if max_turns is not None:
             assert (turn_i_init + n_turns) <= max_turns, (
-                f"Max turn number is {max_turns}, but trying to "
-                f"simulate {(turn_i_init + n_turns)} turns"
+                f"Max turn number is {self.magnetic_cycle.n_turns=}, "
+                f"but trying to simulate {(turn_i_init + n_turns)} turns"
             )
 
         # temporarily pin attributes

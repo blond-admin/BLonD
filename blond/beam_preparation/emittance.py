@@ -11,7 +11,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class EmittanceMatcher(MatchingRoutine):
-    def __init__(self, some_emittance: float):
+    def __init__(self, some_emittance: float, n_macroparticles: int):
         raise NotImplementedError("To be developed")  # TODO
         super().__init__()
         self.some_emittance = some_emittance

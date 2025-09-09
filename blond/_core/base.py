@@ -368,7 +368,7 @@ def get_scheduler(
             return ScheduledConstant(value=value)
         else:
             raise TypeError(type(value))
-    elif isinstance(value, np.ndarray):
+    elif isinstance(value, tuple):
         return ScheduledInterpolation(times=value[0], values=value[1])
     else:
         raise TypeError(type(value))

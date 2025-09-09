@@ -112,5 +112,5 @@ def main():
     # plt.plot(profile_observable.turns_array, profile_observable.hist_y)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()

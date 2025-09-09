@@ -97,5 +97,5 @@ def main_cli() -> None:
 
 
 # If the script is run directly (not imported), execute main_cli
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main_cli()

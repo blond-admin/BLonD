@@ -1,19 +1,56 @@
 import unittest
 
+from blond._core.backends.backend import (
+    Cupy32Bit,
+    Cupy64Bit,
+    Numpy32Bit,
+    Numpy64Bit,
+    backend,
+)
 
-@unittest.skip
-class TestMain(unittest.TestCase):
-    @unittest.skip
-    def test_describe_accelerator(self):
-        # TODO: implement test for `describe_accelerator`
-        self.main.describe_accelerator()
 
-    @unittest.skip
-    def test_ready_simulation_and_beam(self):
-        # TODO: implement test for `ready_simulation_and_beam`
-        self.main.ready_simulation_and_beam(my_accelerator=None)
+class Test_main_user(unittest.TestCase):
+    def test_executable_numba32(self):
+        backend.change_backend(Numpy32Bit)
+        backend.set_specials("numba")
+        from blond.examples import main_user  # NOQA will run the
 
-    @unittest.skip
-    def test_run_simulation(self):
-        # TODO: implement test for `run_simulation`
-        self.main.run_simulation(simulation=None)
+        # full script. just checking if it crashes
+        main_user.main()
+
+    def test_executable_numba64(self):
+        backend.change_backend(Numpy64Bit)
+        backend.set_specials("numba")
+        from blond.examples import main_user  # NOQA will run the
+
+        # full script. just checking if it crashes
+        main_user.main()
+
+    def test_executable_cuda32(self):
+        try:
+            import cupy  # type: ignore
+        except ImportError as exc:
+            # skip test if GPU is not available
+            self.skipTest(str(exc))
+        backend.change_backend(Cupy32Bit)
+        backend.set_specials("cuda")
+        from blond.examples import main_user  # NOQA will run the
+
+        # full script. just checking if it crashes
+
+        main_user.main()
+        backend.zeros(100)
+
+    def test_executable_cuda64(self):
+        try:
+            import cupy  # type: ignore
+        except ImportError as exc:
+            # skip test if GPU is not available
+            self.skipTest(str(exc))
+        backend.change_backend(Cupy64Bit)
+        backend.set_specials("cuda")
+        from blond.examples import main_user  # NOQA will run the
+
+        # full script. just checking if it crashes
+        main_user.main()
+        backend.zeros(100)

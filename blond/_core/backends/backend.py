@@ -186,8 +186,12 @@ class BackendBaseClass(ABC):
         self.linspace: Callable = None  # type: ignore
         self.histogram: Callable = None  # type: ignore
         self.zeros: Callable = None  # type: ignore
-        self.zeros_like = None  # type: ignore
+        self.ones: Callable = None  # type: ignore
+        self.zeros_like: Callable = None  # type: ignore
         self.fft = None  # type: ignore
+        self.random = None  # type: ignore
+        self.isnan = None  # type: ignore
+        self.sum = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -385,8 +389,12 @@ class NumpyBackend(BackendBaseClass):
         self.linspace = np.linspace
         self.histogram = np.histogram
         self.zeros = np.zeros
+        self.ones = np.ones
         self.zeros_like = np.zeros_like
         self.fft = np.fft
+        self.random = np.random
+        self.isnan = np.isnan
+        self.sum = np.sum
 
         self._finalize()
 
@@ -504,8 +512,12 @@ class CupyBackend(BackendBaseClass):
         self.linspace = cp.linspace
         self.histogram = cp.histogram
         self.zeros = cp.zeros
+        self.ones = cp.ones
         self.zeros_like = cp.zeros_like
         self.fft = cp.fft
+        self.random = cp.random
+        self.isnan = cp.isnan
+        self.sum = cp.sum
 
         from .cuda.callables import CudaSpecials
 

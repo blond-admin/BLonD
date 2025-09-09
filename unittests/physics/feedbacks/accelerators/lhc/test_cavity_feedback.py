@@ -21,6 +21,8 @@ from blond.physics.feedbacks.accelerators.lhc.cavity_feedback import (
 
 class TestLHCOpenDrive(unittest.TestCase):
     def setUp(self):
+        from blond._core.backends.backend import backend
+
         # Bunch parameters (dummy)
         N_b = 1e9  # Intensity
         N_p = 50000  # Macro-particles
@@ -43,9 +45,9 @@ class TestLHCOpenDrive(unittest.TestCase):
             n_harmonics=1,
             main_harmonic_idx=0,
         )
-        rf.harmonic = np.array([h])
-        rf.voltage = np.array([V])
-        rf.phi_rf = np.array([dphi])
+        rf.harmonic = np.array([h], dtype=backend.float)
+        rf.voltage = np.array([V], dtype=backend.float)
+        rf.phi_rf = np.array([dphi], dtype=backend.float)
         self.rf = rf
         ring.add_element(rf)
         ring.add_drifts(

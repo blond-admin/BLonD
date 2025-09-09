@@ -409,17 +409,21 @@ class SingleHarmonicCavity(CavityBaseClass):
         if (self.voltage is None) and "voltage" not in self.schedules.keys():
             raise ValueError(
                 "You need to define `voltage` via `.voltage=...` "
-                "or `.schedule(attribute='voltage', value=...)`"
+                f"or `.schedule(attribute='voltage', value=...)` for {
+                    self.name
+                }"
             )
         if (self.phi_rf is None) and "phi_rf" not in self.schedules.keys():
             raise ValueError(
                 "You need to define `phi_rf` via `.phi_rf=...` "
-                "or `.schedule(attribute='phi_rf', value=...)`"
+                "or `.schedule(attribute='phi_rf', value=...)` for {self.name}"
             )
         if (self.harmonic is None) and "harmonic" not in self.schedules.keys():
             raise ValueError(
                 "You need to define `harmonic` via `.harmonic=...` "
-                "or `.schedule(attribute='harmonic', value=...)`"
+                f"or `.schedule(attribute='harmonic', value=...)` for {
+                    self.name
+                }"
             )
 
     def _update_beam_based_attributes(self, beam: BeamBaseClass) -> None:
@@ -643,7 +647,9 @@ class MultiHarmonicCavity(CavityBaseClass):
         self.voltage: Optional[NumpyArray] = None
         self.phi_rf: Optional[NumpyArray] = None
         self.harmonic: Optional[NumpyArray] = None
-        self.delta_phi_rf: NumpyArray | None = np.zeros(1, dtype=np.float64)
+        self.delta_phi_rf: NumpyArray | None = backend.zeros(
+            1, dtype=backend.float
+        )
 
         self._t_rf: NumpyArray | None = None
         self._t_rev: float | None = None
@@ -670,6 +676,12 @@ class MultiHarmonicCavity(CavityBaseClass):
                 f"You need to define `harmonic` for '{self.name}' via "
                 f"`.harmonic=...` or `.schedule(attribute='harmonic', value=...)`"
             )
+        assert self.voltage.dtype == backend.float, f"{self.voltage.dtype=}"
+        assert self.phi_rf.dtype == backend.float, f"{self.phi_rf.dtype=}"
+        assert self.harmonic.dtype == backend.float, f"{self.harmonic.dtype=}"
+        assert self.delta_phi_rf.dtype == backend.float, (
+            f"{self.delta_phi_rf.dtype=}"
+        )
 
     def _update_beam_based_attributes(self, beam: BeamBaseClass) -> None:
         self._omega_rf = self.calc_omega(
@@ -708,7 +720,9 @@ class MultiHarmonicCavity(CavityBaseClass):
         omega
             Angular frequency (2 PI f) of cavity in [rad/s]
         """
-        return self.harmonic * TWOPI_C0 * beam_beta / ring_circumference
+        return self.harmonic * backend.float(
+            TWOPI_C0 * beam_beta / ring_circumference
+        )
 
     def get_main_harmonic(self) -> float:
         """
