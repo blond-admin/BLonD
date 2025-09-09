@@ -14,10 +14,10 @@ BLonD common header file
 */
 #pragma once
 
-#include <complex>
-#include "sin.h"
 #include "cos.h"
 #include "exp.h"
+#include "sin.h"
+#include <complex>
 
 #ifdef USEFLOAT
 

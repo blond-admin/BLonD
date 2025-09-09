@@ -1,9 +1,9 @@
 /*
  * exp.h
  * The basic idea is to exploit Pade polynomials.
- * A lot of ideas were inspired by the cephes math library (by Stephen L. Moshier
- * moshier@na-net.ornl.gov) as well as actual code.
- * The Cephes library can be found here:  http://www.netlib.org/cephes/
+ * A lot of ideas were inspired by the cephes math library (by Stephen L.
+ * Moshier moshier@na-net.ornl.gov) as well as actual code. The Cephes library
+ * can be found here:  http://www.netlib.org/cephes/
  *
  *  Created on: Jun 23, 2012
  *      Author: Danilo Piparo, Thomas Hauth, Vincenzo Innocente
@@ -49,8 +49,8 @@ const double LOG2E = 1.4426950408889634073599; // 1/log(2)
 const float MAXLOGF = 88.72283905206835f;
 const float MINLOGF = -88.f;
 
-const float C1F =   0.693359375f;
-const float C2F =  -2.12194440e-4f;
+const float C1F = 0.693359375f;
+const float C2F = -2.12194440e-4f;
 
 const float PX1expf = 1.9875691500E-4f;
 const float PX2expf = 1.3981999507E-3f;
@@ -61,10 +61,9 @@ const float PX6expf = 5.0000001201E-1f;
 
 const float LOG2EF = 1.44269504088896341f;
 
-}
+} // namespace details
 
 // Exp double precision --------------------------------------------------------
-
 
 /// Exponential Function double precision
 inline double fast_exp(double initial_x) {
@@ -101,7 +100,7 @@ inline double fast_exp(double initial_x) {
   x = 1.0 + 2.0 * x;
 
   // Build 2^n in double.
-  x *= details::uint642dp(( ((uint64_t)n) + 1023) << 52);
+  x *= details::uint642dp((((uint64_t)n) + 1023) << 52);
 
   if (initial_x > details::EXP_LIMIT)
     x = std::numeric_limits<double>::infinity();
@@ -109,7 +108,6 @@ inline double fast_exp(double initial_x) {
     x = 0.;
 
   return x;
-
 }
 
 // Exp single precision --------------------------------------------------------
@@ -119,11 +117,12 @@ inline float fast_expf(float initial_x) {
 
   float x = initial_x;
 
-  float z = details::fpfloor( details::LOG2EF * x + 0.5f ); /* floor() truncates toward -infinity. */
+  float z = details::fpfloor(details::LOG2EF * x +
+                             0.5f); /* floor() truncates toward -infinity. */
 
   x -= z * details::C1F;
   x -= z * details::C2F;
-  const int32_t n = int32_t ( z );
+  const int32_t n = int32_t(z);
 
   const float x2 = x * x;
 
@@ -141,21 +140,26 @@ inline float fast_expf(float initial_x) {
   z += x + 1.0f;
 
   /* multiply by power of 2 */
-  z *=  details::uint322sp((n + 0x7f) << 23);
+  z *= details::uint322sp((n + 0x7f) << 23);
 
-  if (initial_x > details::MAXLOGF) z = std::numeric_limits<float>::infinity();
-  if (initial_x < details::MINLOGF) z = 0.f;
+  if (initial_x > details::MAXLOGF)
+    z = std::numeric_limits<float>::infinity();
+  if (initial_x < details::MINLOGF)
+    z = 0.f;
 
   return z;
-
 }
 
 //------------------------------------------------------------------------------
 
-void expv(const uint32_t size, double const * __restrict__ iarray, double* __restrict__ oarray);
-void fast_expv(const uint32_t size, double const * __restrict__ iarray, double* __restrict__ oarray);
-void expfv(const uint32_t size, float const * __restrict__ iarray, float* __restrict__ oarray);
-void fast_expfv(const uint32_t size, float const * __restrict__ iarray, float* __restrict__ oarray);
+void expv(const uint32_t size, double const *__restrict__ iarray,
+          double *__restrict__ oarray);
+void fast_expv(const uint32_t size, double const *__restrict__ iarray,
+               double *__restrict__ oarray);
+void expfv(const uint32_t size, float const *__restrict__ iarray,
+           float *__restrict__ oarray);
+void fast_expfv(const uint32_t size, float const *__restrict__ iarray,
+                float *__restrict__ oarray);
 
 } // end namespace vdt
 
