@@ -43,7 +43,7 @@ from blond.legacy.blond2.impedances.induced_voltage_analytical import (
 )
 from blond.physics.impedances.solvers import (
     PeriodicFreqSolver,
-    TimeDomainSolver,
+    TimeDomainFftSolver,
 )
 from blond.physics.impedances.sources import Resonators
 
@@ -64,7 +64,7 @@ def main():
     Q_factor = resonator_data[:, 1]
 
     for wake_solver in (
-        TimeDomainSolver(),
+        TimeDomainFftSolver(),
         PeriodicFreqSolver(t_periodicity=None),  # todo
         # AnalyticSingleTurnResonatorSolver(), # todo implement
     ):

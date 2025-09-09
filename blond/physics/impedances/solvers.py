@@ -99,6 +99,13 @@ class InductiveImpedanceSolver(WakeFieldSolver):
 class PeriodicFreqSolver(WakeFieldSolver):
     """General wakefield solver to calculate wake-fields via frequency domain
 
+    Notes
+    -----
+    This solver is intended for the case, that the
+    length of the beam profile is in the order of time as one revolution
+    around the synchrotron takes ( long profiles).
+
+
     Parameters
     ----------
     t_periodicity
@@ -371,10 +378,16 @@ class PeriodicFreqSolver(WakeFieldSolver):
         ]
 
 
-class TimeDomainSolver(WakeFieldSolver):
+class TimeDomainFftSolver(WakeFieldSolver):
     def __init__(self):
         """
         Solver to calculate induced voltage using fftconvolve(wake,profile)
+
+        Notes
+        -----
+        This method is intended for beam profiles that are only a fraction of
+        the synchrotron revolution time (short profiles).
+
         """
         super().__init__()
         self.expect_impedance_change = False

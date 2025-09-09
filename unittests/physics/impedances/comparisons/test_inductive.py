@@ -18,7 +18,7 @@ from blond import (
 from blond.physics.impedances.solvers import (
     InductiveImpedanceSolver,
     PeriodicFreqSolver,
-    TimeDomainSolver,
+    TimeDomainFftSolver,
 )
 from blond.physics.impedances.sources import InductiveImpedance
 
@@ -42,7 +42,7 @@ class TestInductiveImpedances(unittest.TestCase):
             t_periodicity=100,
             allow_next_fast_len=False,
         )
-        solver2 = TimeDomainSolver()
+        solver2 = TimeDomainFftSolver()
 
         solver3 = InductiveImpedanceSolver()
 

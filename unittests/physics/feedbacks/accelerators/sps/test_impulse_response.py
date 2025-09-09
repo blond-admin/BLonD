@@ -40,7 +40,7 @@ from blond.physics.feedbacks.accelerators.sps.impulse_response import (
     rectangle,
     triangle,
 )
-from blond.physics.impedances.solvers import TimeDomainSolver
+from blond.physics.impedances.solvers import TimeDomainFftSolver
 from blond.physics.impedances.sources import TravelingWaveCavity
 
 
@@ -224,7 +224,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         # [inducedVoltageTWC])
         induced_voltage = WakeField(
             sources=(TWC_impedance_source,),
-            solver=TimeDomainSolver(),
+            solver=TimeDomainFftSolver(),
             profile=profile,
         )
         ring.add_element(induced_voltage)
