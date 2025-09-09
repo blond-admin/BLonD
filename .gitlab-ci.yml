@@ -20,9 +20,10 @@ variables:
     - python3 --version && gcc --version && mpirun --version
     - python3 -m pip install --upgrade pip
     - python3 -m pip install -v -e ${project_root}[all]
+    - cd ${project_root}
     - python3 blond/_core/backends/cpp/compile.py
     - python3 blond/_core/backends/cuda/compile.py
-    - cd ./blond/_core/backends/fortran/ && python3 ./compile.py
+    - python3 blond/_core/backends/fortran/compile.py
 
 
 .main:

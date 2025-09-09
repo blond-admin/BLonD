@@ -13,18 +13,22 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as CupyArray
 
+_filepath = os.path.realpath(__file__)
+_basepath = os.sep.join(_filepath.split(os.sep)[:-1])
+_compute_capability = cp.cuda.Device(0).compute_capability
+
 if backend.float == np.float32:
     gpu_module = cp.RawModule(
-        path=callers_relative_path(
-            "kernels_sm_75_single.cubin",
-            stacklevel=1,
+        path=os.path.join(
+            _basepath,
+            f"kernels_sm_{_compute_capability}_single.cubin",
         )
     )
 elif backend.float == np.float64:
     gpu_module = cp.RawModule(
-        path=callers_relative_path(
-            "kernels_sm_75_double.cubin",
-            stacklevel=1,
+        path=os.path.join(
+            _basepath,
+            f"kernels_sm_{_compute_capability}_double.cubin",
         )
     )
 else:

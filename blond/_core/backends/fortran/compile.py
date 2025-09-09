@@ -57,7 +57,7 @@ def compile_fortran_module(module_name: str, fortran_files: List[str]) -> bool:
         ]
         + fortran_files
         + [
-            f"--f90flags='{f90flags}'",
+            f"--f90flags={f90flags}",
             "-lgomp",
         ]
     )
