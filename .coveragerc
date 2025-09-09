@@ -22,4 +22,5 @@ omit =
     blond/_core/backends/cuda/*
     blond/_core/backends/cpp/*
     blond/_core/backends/fortran/*
-    blond/_core/backends/numba/*
+    blond/_core/backends/numba/*+
+    blond/_version.py
