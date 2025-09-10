@@ -1,4 +1,5 @@
 import unittest
+from copy import deepcopy
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -48,7 +49,8 @@ class TestBeam(unittest.TestCase):
             [np.min(beam.dt), np.max(beam.dt)],
             [np.min(beam.dE), np.max(beam.dE)],
         ]
-        weighted_beam = beam.get_new_beam_with_weights(bins=bins)
+        weighted_beam = deepcopy(beam)
+        weighted_beam.instantiate_beam_with_weights(bins=bins)
         H1, xbins1, ybins1 = np.histogram2d(
             beam.dt, beam.dE, bins=bins, range=hist_range, density=True
         )
