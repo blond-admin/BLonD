@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
@@ -34,6 +34,9 @@ class Observables(MainLoopRelevant):
         """
         super().__init__()
         self.each_turn_i = each_turn_i
+        self.common_name = (
+            "last"  # will result in filenames like last_dE.npy etc.
+        )
 
         self._n_turns: LateInit[int] = None
         self._turn_i_init: LateInit[int] = None
@@ -72,7 +75,7 @@ class Observables(MainLoopRelevant):
         simulation
             Simulation context manager
         """
-        self._hash = simulation.get_hash()
+        pass
 
     def on_run_simulation(
         self,
@@ -96,20 +99,61 @@ class Observables(MainLoopRelevant):
         self._n_turns = int(n_turns)
         self._turn_i_init = int(turn_i_init)
         self._turns_array = np.arange(turn_i_init, turn_i_init + n_turns)
+        # should be called by child class via super()
 
-    @abstractmethod  # pragma: no cover
+    def get_recorders(self) -> List[DenseArrayRecorder]:
+        return [
+            instance
+            for _, instance in self.__dict__.items()
+            if isinstance(instance, DenseArrayRecorder)
+        ]
+
+    def rename(self, common_name: str) -> None:
+        """
+        Change the common save name of all internal arrays
+
+        Notes
+        -----
+        This has no effect on files that are already saved to the disk.
+
+        Parameters
+        ----------
+        common_name
+            The new common name of all internal arrays.
+
+        """
+        for instance in self.get_recorders():
+            if self.common_name not in instance.filepath:
+                raise NameError(
+                    f"'{instance.filepath} does not include"
+                    f" {self.common_name}' anymore. This might be caused"
+                    f" by a manual override of the filename."
+                )
+            instance.filepath = instance.filepath.replace(
+                self.common_name,
+                common_name,
+            )
+        self.common_name = common_name
+
     def to_disk(self) -> None:
         """
         Save data to disk
         """
-        pass
+        for instance in self.get_recorders():
+            array_recorder: DenseArrayRecorder = instance
+            print(f"Saved {array_recorder.filepath_array}")
+            array_recorder.to_disk()
 
-    @abstractmethod  # pragma: no cover
     def from_disk(self) -> None:
         """
         Load data from disk
         """
-        pass
+        for instance in self.get_recorders():
+            array_recorder: DenseArrayRecorder = instance
+            print(f"Loaded {array_recorder.filepath_array}")
+            array_recorder.from_disk(
+                filepath=array_recorder.filepath,
+            )
 
 
 class BunchObservation(Observables):
@@ -160,24 +204,24 @@ class BunchObservation(Observables):
         shape = (n_entries, n_particles)
 
         self._dts = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_dts",
+            f"{self.common_name}_dts",
             shape,
         )  # TODO
         self._dEs = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_dEs",
+            f"{self.common_name}_dEs",
             shape,
         )  # TODO
         self._flags = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_flags",
+            f"{self.common_name}_flags",
             shape,
         )  # TODO
 
         self._reference_time = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_reference_time",
+            f"{self.common_name}_reference_time",
             (n_entries,),
         )
         self._reference_total_energy = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_reference_total_energy",
+            f"{self.common_name}_reference_total_energy",
             (n_entries,),
         )
 
@@ -223,30 +267,6 @@ class BunchObservation(Observables):
     @property  # as readonly attributes
     def flags(self):
         return self._flags.get_valid_entries()
-
-    def to_disk(self) -> None:
-        self._reference_time.to_disk()
-        self._reference_total_energy.to_disk()
-        self._dts.to_disk()
-        self._dEs.to_disk()
-        self._flags.to_disk()
-
-    def from_disk(self) -> None:
-        self._reference_time = DenseArrayRecorder.from_disk(
-            self._reference_time.filepath,
-        )
-        self._reference_total_energy = DenseArrayRecorder.from_disk(
-            self._reference_total_energy.filepath,
-        )
-        self._dts = DenseArrayRecorder.from_disk(
-            self._dts.filepath,
-        )
-        self._dEs = DenseArrayRecorder.from_disk(
-            self._dEs.filepath,
-        )
-        self._flags = DenseArrayRecorder.from_disk(
-            self._flags.filepath,
-        )
 
 
 class CavityPhaseObservation(Observables):
@@ -296,15 +316,15 @@ class CavityPhaseObservation(Observables):
         n_entries = n_turns // self.each_turn_i + 2
         n_harmonics = int(self._cavity.n_rf)
         self._phases = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_phases",  # TODO
+            f"{self.common_name}_phases",  # TODO
             (n_entries, n_harmonics),
         )
         self._omegas = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_phases",  # TODO
+            f"{self.common_name}_omegas",  # TODO
             (n_entries, n_harmonics),
         )
         self._voltages = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_phases",  # TODO
+            f"{self.common_name}_voltages",  # TODO
             (n_entries, n_harmonics),
         )
 
@@ -349,22 +369,6 @@ class CavityPhaseObservation(Observables):
     @property  # as readonly attributes
     def voltages(self) -> NumpyArray:
         return self._voltages.get_valid_entries()
-
-    def to_disk(self) -> None:
-        """
-        Save data to disk
-        """
-        self._phases.to_disk()
-        self._omegas.to_disk()
-        self._voltages.to_disk()
-
-    def from_disk(self) -> None:
-        """
-        Load data from disk
-        """
-        self._phases = DenseArrayRecorder.from_disk(self._phases.filepath)
-        self._omegas = DenseArrayRecorder.from_disk(self._omegas.filepath)
-        self._voltages = DenseArrayRecorder.from_disk(self._voltages.filepath)
 
 
 class StaticProfileObservation(Observables):
@@ -413,7 +417,7 @@ class StaticProfileObservation(Observables):
         n_entries = n_turns // self.each_turn_i + 2
         n_bins = int(self._profile.n_bins)
         self._hist_y = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_phases",  # TODO
+            f"{self.common_name}_hist_y",  # TODO
             (n_entries, n_bins),
         )
 
@@ -441,18 +445,6 @@ class StaticProfileObservation(Observables):
     def hist_y(self):
         """Histogram amplitude"""
         return self._hist_y.get_valid_entries()
-
-    def to_disk(self) -> None:
-        """
-        Save data to disk
-        """
-        self._hist_y.to_disk()
-
-    def from_disk(self) -> None:
-        """
-        Load data from disk
-        """
-        self._hist_y = DenseArrayRecorder.from_disk(self._hist_y.filepath)
 
 
 class WakeFieldObservation(Observables):
@@ -500,7 +492,7 @@ class WakeFieldObservation(Observables):
         n_entries = n_turns // self.each_turn_i + 2
         n_bins = int(self._wakefield._profile.n_bins)
         self._induced_voltage = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_phases",  # TODO
+            f"{self.common_name}_induced_voltage",  # TODO
             (n_entries, n_bins),
         )
 
@@ -540,17 +532,3 @@ class WakeFieldObservation(Observables):
 
         """
         return self._induced_voltage.get_valid_entries()
-
-    def to_disk(self) -> None:
-        """
-        Save data to disk
-        """
-        self._induced_voltage.to_disk()
-
-    def from_disk(self) -> None:
-        """
-        Load data from disk
-        """
-        self._induced_voltage = DenseArrayRecorder.from_disk(
-            self._induced_voltage.filepath
-        )

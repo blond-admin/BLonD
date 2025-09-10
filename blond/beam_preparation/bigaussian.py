@@ -6,7 +6,7 @@ import numpy as np
 
 from .._core.backends.backend import backend
 from .._core.helpers import int_from_float_with_warning
-from .._generals.iterables import all_equal
+from .._generals._iterables import all_equal
 from ..acc_math.analytic.hammilton import (
     calc_phi_s_single_harmonic,
     is_in_separatrix,

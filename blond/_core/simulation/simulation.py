@@ -9,7 +9,7 @@ from warnings import warn
 from scipy.integrate import cumulative_trapezoid
 from tqdm import tqdm  # type: ignore
 
-from ..._warnings import PerformanceWarning
+from ..._generals._warnings import PerformanceWarning
 from ...cycles.magnetic_cycle import MagneticCycleBase
 from ...physics.profiles import ProfileBaseClass
 from ..backends.backend import backend
@@ -371,11 +371,6 @@ class Simulation(Preparable, HasPropertyCache):
         raise NotImplementedError
         return None
 
-    @cached_property
-    def get_hash(self) -> None:
-        raise NotImplementedError
-        return None
-
     def print_one_turn_execution_order(self) -> None:
         """Prints the execution order of the main simulation loop"""
         self._ring.elements.print_order()
@@ -384,7 +379,6 @@ class Simulation(Preparable, HasPropertyCache):
     cached_properties = (
         "get_separatrix",
         "get_potential_well",
-        "get_hash",
     )
 
     def _invalidate_cache_on_turn(
@@ -744,12 +738,46 @@ class Simulation(Preparable, HasPropertyCache):
         raise NotImplementedError()
         pass  # todo
 
+    def save_results(
+        self,
+        observe: Tuple[Observables, ...] = tuple(),
+        common_name: Optional[str] = None,
+    ) -> None:
+        """
+        Save the given observables to the disk
+
+        Parameters
+        ----------
+        observe
+            List of observables to protocol of whats happening inside
+            the simulation
+        common_name
+            A common filename for the files/arrays to save.
+
+        """
+        for observable in observe:
+            if common_name is not None:
+                observable.rename(common_name=common_name)
+            observable.to_disk()
+
     def load_results(
         self,
-        n_turns: int,
-        turn_i_init: int = 0,
         observe: Tuple[Observables, ...] = tuple(),
-        callback: Optional[Callable[[Simulation], None]] = None,
+        common_name: Optional[str] = None,
     ) -> None:
-        raise FileNotFoundError()
-        return
+        """
+        Load the given observables from the disk
+
+        Parameters
+        ----------
+        observe
+            List of observables that protocoled what was happening inside
+            the simulation.
+        common_name
+            A common filename for the files/arrays to save.
+
+        """
+        for observable in observe:
+            if common_name is not None:
+                observable.rename(common_name=common_name)
+            observable.from_disk()

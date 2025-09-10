@@ -1,4 +1,5 @@
 import unittest
+from copy import deepcopy
 from unittest.mock import Mock, create_autospec
 
 import matplotlib.pyplot as plt
@@ -16,6 +17,7 @@ from blond._core.beam.base import BeamBaseClass
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import BunchObservation, Observables
+from unittests.handle_results.test_observables import simulation
 
 
 class TestSimulation(unittest.TestCase):
@@ -95,9 +97,14 @@ class TestSimulation(unittest.TestCase):
         # self.simulation.from_locals(locals=None)
         pass
 
-    @unittest.skip
     def test_get_hash(self):
-        # TODO: implement test for `get_hash`
+        simulation2 = deepcopy(self.simulation)
+        self.assertEqual(self.simulation.get_hash(), simulation2.get_hash())
+
+    def test_get_hash_with_mock(self):
+        self.simulation.ring.elements.elements.append(
+            Mock(SingleHarmonicCavity)
+        )
         self.simulation.get_hash()
 
     @unittest.skip
@@ -145,12 +152,23 @@ class TestSimulation(unittest.TestCase):
     def test_invalidate_cache(self):
         self.simulation.invalidate_cache()
 
-    @unittest.skip
     def test_load_results(self):
-        # TODO: implement test for `load_results`
-        self.simulation.load_results(
-            n_turns=None, turn_i_init=None, observe=None, callback=None
+        observation = BunchObservation(each_turn_i=10)
+        kwargs = dict(
+            beams=(self.beam,),
+            n_turns=10,
+            turn_i_init=0,
+            observe=(observation,),
         )
+        self.simulation.run_simulation(**kwargs)
+        de_before_save = observation.dEs.copy()
+        self.simulation.save_results(observe=(observation,))
+        self.simulation.load_results(observe=(observation,))
+        de_from_disk = observation.dEs.copy()
+        np.testing.assert_almost_equal(de_before_save, de_from_disk)
+
+        for rec in observation.get_recorders():
+            rec.purge_from_disk()
 
     def test_on_init_simulation(self):
         self.simulation.on_init_simulation(simulation=self.simulation)

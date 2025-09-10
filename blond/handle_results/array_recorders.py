@@ -4,6 +4,7 @@ import json
 import os.path
 import warnings
 from abc import ABC, abstractmethod
+from os.path import isfile
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -50,7 +51,7 @@ class DenseArrayRecorder(ArrayRecorder):
         overwrite: bool = True,
     ):
         if filepath_is_relative:
-            filepath = callers_relative_path(filepath, stacklevel=2)
+            filepath = callers_relative_path(filepath, stacklevel=6)
         self._memory = np.empty(shape=shape, dtype=dtype, order=order)
         self._write_idx = 0
 
@@ -95,6 +96,7 @@ class DenseArrayRecorder(ArrayRecorder):
             filepath=filepath,
             shape=(1, 1),
         )
+        assert isfile(dense_recorder.filepath_array)
         _memory: NumpyArray = np.load(dense_recorder.filepath_array)
         dense_recorder._memory = _memory
         with open(dense_recorder.filepath_attributes, "r") as f:
@@ -110,6 +112,11 @@ class DenseArrayRecorder(ArrayRecorder):
         self._write_idx += 1
 
     def get_valid_entries(self) -> NumpyArray:
+        if self._write_idx == 0:
+            ValueError(
+                "Cannot retrieve results:"
+                " no data has been written to memory yet."
+            )
         return self._memory[: self._write_idx]
 
 
