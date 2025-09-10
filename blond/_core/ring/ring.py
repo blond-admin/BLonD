@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING
 
@@ -52,10 +53,18 @@ class Ring(Preparable, Schedulable):
         simulation
             Simulation context manager
         """
-
-        assert len(self.elements.get_sections_indices()) == self.n_cavities, (
-            f"{len(self.elements.get_sections_indices())=}, but {self.n_cavities=}"
-        )
+        if self.n_cavities > 1:
+            assert (
+                len(self.elements.get_sections_indices()) == self.n_cavities
+            ), (
+                f"{len(self.elements.get_sections_indices())=}, but {self.n_cavities=}"
+            )
+        elif self.n_cavities == 0:
+            warnings.warn(
+                "The simulation has been initialized without cavity.",
+                UserWarning,
+                stacklevel=1,
+            )
 
         assert np.all(
             0 <= np.diff([e.section_index for e in self.elements.elements])

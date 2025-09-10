@@ -156,8 +156,8 @@ class TestSimulation(unittest.TestCase):
         self.simulation.on_init_simulation(simulation=self.simulation)
 
     @unittest.skip
-    def test_on_prepare_beam(self):
-        # TODO: implement test for `on_prepare_beam`
+    def test_prepare_beam(self):
+        # TODO: implement test for `prepare_beam`
         beam = Mock(spec=BeamBaseClass)
 
         self.simulation.prepare_beam(

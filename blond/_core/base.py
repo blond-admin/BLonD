@@ -237,6 +237,37 @@ class BeamPhysicsRelevant(MainLoopRelevant):
         pass
 
 
+class UserDefinedElement(BeamPhysicsRelevant, ABC):
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called
+
+        simulation
+            Simulation context manager
+        """
+        pass
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs: Dict[str, Any],
+    ) -> None:
+        """Lateinit method when `simulation.run_simulation` is called
+
+        simulation
+            Simulation context manager
+        beam
+            Simulation beam object
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
+        pass
+
+
 class _Scheduled:
     @abstractmethod  # pragma: no cover
     def get_scheduled(

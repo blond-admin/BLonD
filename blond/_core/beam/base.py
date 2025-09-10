@@ -97,8 +97,9 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             turn_i_init=turn_i_init,
         )
         msg = (
-            "Beam was not initialized. Did you forget to call "
-            "simulation.on_prepare_beam(...)?"
+            "Beam was not initialized. This is possible using"
+            " `simulation.prepare_beam(...)` or"
+            " `beam.setup_beam(...)`."
         )
         assert self._dt is not None, msg
         assert self._dE is not None, msg

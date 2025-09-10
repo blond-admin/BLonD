@@ -58,18 +58,24 @@ class BeamPhysicsRelevantElements(Preparable):
                 f"{[(cav.name, cav.section_index) for cav in cavities]}"
             )
 
-        for section_index in np.sort(np.unique(elem_section_indices)):
-            cavities = self.get_elements(
-                CavityBaseClass,
+        unique_section_indices = np.unique(elem_section_indices)
+        if len(unique_section_indices) > 1:
+            for section_index in np.sort(unique_section_indices):
+                cavities = self.get_elements(
+                    CavityBaseClass,
                 section_i=section_index,  # type: ignore
-            )
-            drifts = self.get_elements(DriftBaseClass, section_i=section_index)
-            if len(cavities) == 0:
-                raise RuntimeError(
-                    f"Missing cavity in section {section_index}"
                 )
-            if len(drifts) == 0:
-                raise RuntimeError(f"Missing drift in section {section_index}")
+                drifts = self.get_elements(
+                    DriftBaseClass, section_i=section_index
+                )
+                if len(cavities) == 0:
+                    raise RuntimeError(
+                        f"Missing cavity in section {section_index}"
+                    )
+                if len(drifts) == 0:
+                    raise RuntimeError(
+                        f"Missing drift in section {section_index}"
+                    )
 
     def on_run_simulation(
         self,

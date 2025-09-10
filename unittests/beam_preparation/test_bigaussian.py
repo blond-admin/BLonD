@@ -47,7 +47,7 @@ class TestBiGaussian(unittest.TestCase):
             seed=0,
         )
 
-    def test_on_prepare_beam(self):
+    def test_prepare_beam(self):
         simulation_ = ExampleSimulation01()
         bi_gaussian = BiGaussian(
             n_macroparticles=1e4,
@@ -63,7 +63,7 @@ class TestBiGaussian(unittest.TestCase):
             np.std(simulation_.beam1.read_partial_dt()), 50e-9
         )
 
-    def test_on_prepare_beam2(self):
+    def test_prepare_beam2(self):
         simulation_ = ExampleSimulation01()
         bi_gaussian = BiGaussian(
             n_macroparticles=1e4,

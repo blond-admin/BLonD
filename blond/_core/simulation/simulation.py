@@ -84,6 +84,8 @@ class Simulation(Preparable, HasPropertyCache):
         ring: Ring,
         magnetic_cycle: MagneticCycleBase,
     ) -> None:
+        assert ring.elements.n_elements > 0, f"{ring.elements.n_elements=}"
+
         from .intensity_effect_manager import IntensityEffectManager
 
         super().__init__()
@@ -421,7 +423,7 @@ class Simulation(Preparable, HasPropertyCache):
             Turn to prepare the beam for
 
         """
-        logger.info("Running `on_prepare_beam`")
+        logger.info("Running `prepare_beam`")
         self.turn_i.value = turn_i
         preparation_routine.prepare_beam(simulation=self, beam=beam)
 
