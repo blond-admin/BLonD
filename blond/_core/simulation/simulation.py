@@ -4,15 +4,18 @@ import logging
 from functools import cached_property
 from pstats import SortKey
 from typing import TYPE_CHECKING, Callable
+from warnings import warn
 
 import numpy as np
 from tqdm import tqdm
 
 from blond.handle_results.results import SimulationResults
 
+from ..._warnings import PerformanceWarning
 from ...cycles.magnetic_cycle import MagneticCycleBase, MagneticCyclePerTurn
 from ...physics.cavities import CavityBaseClass
 from ...physics.profiles import ProfileBaseClass
+from ..backends.backend import backend
 from ..base import (
     BeamPhysicsRelevant,
     DynamicParameter,
@@ -92,6 +95,8 @@ class Simulation(Preparable, HasPropertyCache):
         self.intensity_effect_manager = IntensityEffectManager(simulation=self)
 
         self._exec_on_init_simulation()
+
+        self._particle_performance_waning_threshold = int(1e3)
 
     def profiling(
         self,
@@ -402,7 +407,25 @@ class Simulation(Preparable, HasPropertyCache):
         """
         logger.info(f"Running `run_simulation` with {locals()}")
         n_turns = int_from_float_with_warning(n_turns, warning_stacklevel=2)
-
+        if backend.specials_mode == "python":
+            particles_above_threshold = any(
+                [
+                    b.common_array_size
+                    > self._particle_performance_waning_threshold
+                    for b in beams
+                ]
+            )
+            if particles_above_threshold:
+                warn(
+                    f"There are more than"
+                    f" {self._particle_performance_waning_threshold}"
+                    f" particles in your beam."
+                    f" Consider using another backend via\n"
+                    f" >>> from blond._core.backends.backend import backend\n"
+                    f" >>> backend.set_specials(mode=...)",
+                    PerformanceWarning,
+                    stacklevel=2,
+                )
         max_turns = self.magnetic_cycle.n_turns
         if max_turns is not None:
             assert (turn_i_init + n_turns) <= max_turns, (
