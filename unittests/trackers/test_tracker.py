@@ -300,20 +300,23 @@ class Test:
     @pytest.mark.parametrize('set_mode',
                              (bmath.use_cpp, bmath.use_py, bmath.use_numba, bmath.use_gpu))
     def test_executes(self, set_mode):
-        print(set_mode)
-        set_mode()
-        self._setUp()
-        dt_org = deepcopy(self.long_tracker.beam.dt)
-        self.long_tracker.beam.kickdrift_considering_periodicity(
-            acceleration_kicks=self.long_tracker.acceleration_kick,
-            rf_station=self.long_tracker.rf_params,
-            solver=self.long_tracker.solver,
-            turn_i=self.turn,
-        )
-        dt_new = deepcopy(self.long_tracker.beam.dt)
-        # assert that _fix_periodicity is acting on dt
-        # otherwise testcase has no sense
-        assert (np.any(dt_org != dt_new))
+        if cupy_not_found:
+            unittest.skip("Cupy ModuleNotFoundError")
+        else:
+            print(set_mode)
+            set_mode()
+            self._setUp()
+            dt_org = deepcopy(self.long_tracker.beam.dt)
+            self.long_tracker.beam.kickdrift_considering_periodicity(
+                acceleration_kicks=self.long_tracker.acceleration_kick,
+                rf_station=self.long_tracker.rf_params,
+                solver=self.long_tracker.solver,
+                turn_i=self.turn,
+            )
+            dt_new = deepcopy(self.long_tracker.beam.dt)
+            # assert that _fix_periodicity is acting on dt
+            # otherwise testcase has no sense
+            assert (np.any(dt_org != dt_new))
 
     @unittest.skipIf(cupy_not_found, "Cupy ModuleNotFoundError")
     def test_executes_gpu(self):
