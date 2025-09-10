@@ -801,8 +801,7 @@ def potential_well_cut(time_potential: NumpyArray,
             UserWarning,
             stacklevel=2,
         )
-        saved_indexes = np.linspace(0, len(time_potential),
-                                    len(time_potential)+1)
+        saved_indexes = np.arange(len(time_potential)+1)
         time_potential_sep = time_potential
         potential_well_sep = potential_array
     elif n_maxima == 1:
