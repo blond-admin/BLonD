@@ -5,15 +5,15 @@ from blond.trackers.utilities import minmax_location, potential_well_cut
 
 
 class TestUtilities(unittest.TestCase):
-    def total_voltage(self):
+    def _total_voltage(self):
         pass
-    def hamiltonian(self):
+    def _hamiltonian(self):
         pass
-    def separatrix(self):
+    def _separatrix(self):
         pass
-    def test_is_in_separatrix(self):
+    def _test_is_in_separatrix(self):
         pass
-    def test_minmax_location(self):
+    def _test_minmax_location(self):
         pass
     def test_potential_well_cut(self):
         time_potential = np.linspace(0, 1, 50)
@@ -49,10 +49,9 @@ class TestUtilities(unittest.TestCase):
                                )
         np.testing.assert_equal(time_potential_sep, time_potential)
         np.testing.assert_equal(potential_well_sep, potential_array)
+    def _test_phase_modulo_above_transition(self):
         pass
-    def test_phase_modulo_above_transition(self):
+    def _test_phase_modulo_below_transition(self):
         pass
-    def test_phase_modulo_below_transition(self):
-        pass
-    def time_modulo(self):
+    def _time_modulo(self):
         pass
