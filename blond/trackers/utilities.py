@@ -740,7 +740,8 @@ def minmax_location(x: NumpyArray, f: NumpyArray) -> tuple[list[NumpyArray],
     """
     *Function to locate the minima and maxima of the f(x) numerical function.*
     """
-    assert len(x) == len(f), f"The time and potential arrays have different lengths: {len(x)} != {len(f)}"
+    if len(x) == len(f):
+        raise ValueError(f"The time and potential arrays have different lengths: {len(x)} != {len(f)}")
 
     f_derivative = np.diff(f)
     x_derivative = x[0:-1] + (x[1] - x[0]) / 2
@@ -875,7 +876,9 @@ def potential_well_cut(time_potential: NumpyArray,
         time_potential_sep = time_potential[saved_indexes]
         potential_well_sep = potential_array[saved_indexes]
 
-    assert np.sum(saved_indexes) != 0, "Time and potential arrays are still empty. Something went wrong in potential well cut."
+    if np.sum(saved_indexes) != 0:
+        raise ValueError("Time and potential arrays are still empty. Something went wrong in potential well cut."
+    )
 
     return time_potential_sep, potential_well_sep
 
