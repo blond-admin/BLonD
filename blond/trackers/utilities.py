@@ -875,7 +875,7 @@ def potential_well_cut(time_potential: NumpyArray,
         time_potential_sep = time_potential[saved_indexes]
         potential_well_sep = potential_array[saved_indexes]
 
-    assert np.sum(saved_indexes) != 0, "giving back empty array, something went wrong in potential well cut"
+    assert np.sum(saved_indexes) != 0, "Time and potential arrays are still empty. Something went wrong in potential well cut."
 
     return time_potential_sep, potential_well_sep
 
