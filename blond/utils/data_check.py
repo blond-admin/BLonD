@@ -14,15 +14,20 @@
 """
 from __future__ import annotations
 
+import numbers
 from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ..utils import exceptions as blond_exceptions
+from . import exceptions as blond_exceptions
+from . import bmath as bm
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
-    from typing import Any, Iterable
+    from typing import Any, Iterable, TypeVar
+
+    T = TypeVar("T")
+
 
 
 def check_input(variable: Any, msg: str, *args) -> tuple[bool, Any]:
@@ -159,3 +164,22 @@ def _check_dimensions(input_data: NumpyArray | list | tuple, dim: Iterable[int])
         raise TypeError("dim must be number or iterable of numbers") from exc
 
     return input_shape == tuple(dim)
+
+def interp_if_array(new_x: float, value: T | Iterable[Iterable[T]]) -> T:
+    """
+    Interpolate value at new_x if it is a 2-array.  If it is a number,
+    return the same value
+
+    Args:
+        new_x (float): The new x at which to interpolate
+        value (T | Iterable[Iterable[T]]): Either a number or an array
+                                           to be interpolated.
+
+    Returns:
+        T: The interpolated value
+    """
+
+    if isinstance(value, numbers.Number):
+        return value
+    else:
+        return bm.interp(new_x, value[0], value[1])
