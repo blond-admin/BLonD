@@ -11,10 +11,8 @@
 
 :Authors: **Juan F. Esteban Mueller, L. Valle**
 '''
-
-from __future__ import division, print_function
+from __future__ import annotations
 import warnings
-from builtins import range
 
 import numpy as np
 from typing import TYPE_CHECKING, Optional
@@ -34,6 +32,7 @@ if TYPE_CHECKING:
     from ..input_parameters.ring import Ring
     from ..utils.types import DeviceType
 
+    from numpy.typing import NDArray
 
 class SynchrotronRadiation:
     ''' Class to compute synchrotron radiation effects, including
@@ -50,13 +49,14 @@ class SynchrotronRadiation:
     # - handling of lost particles during tracking,
     # - multiple RF sections
 
+    @handle_legacy_kwargs
     def __init__(self, ring: Ring, rf_station: RFStation, beam: Beam,
                  bending_radius: Optional[float] = None,
                  radiation_integrals : Optional[NDArray | list] = None,
                  n_kicks:Optional[int] =1, quantum_excitation: Optional[
                 bool]=True,
                  python: Optional[bool]=True, seed: Optional[int]=None,
-                 shift_beam:Optional[bool]=False):
+                 shift_beam:Optional[bool]=True):
         """
         Synchrotron radiation tracker
         Calculates the energy losses per turn and longitudinal damping
@@ -112,8 +112,8 @@ class SynchrotronRadiation:
         np.random.seed(seed=seed)
 
         # Calculate static parameters
-        self.c_gamma = self.ring.Particle.c_gamma
-        self.c_q = self.ring.Particle.c_q
+        self.c_gamma = self.ring.particle.c_gamma
+        self.c_q = self.ring.particle.c_q
         # Initialize the random number array if quantum excitation
         if quantum_excitation:
             self.random_array = np.zeros(self.beam.n_macroparticles)
@@ -136,7 +136,7 @@ class SynchrotronRadiation:
         if shift_beam and (self.rf_params.section_index == 0):
             self.beam_phase_to_compensate_SR =\
                 np.abs(np.arcsin(self.U0 /
-                                 (self.ring.Particle.charge *
+                                 (self.ring.particle.charge *
                                   self.rf_params.voltage[0][0])))
             self.beam_position_to_compensate_SR = (
                     self.beam_phase_to_compensate_SR
