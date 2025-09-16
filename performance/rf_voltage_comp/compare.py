@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 def main():
-    target = "benchmark_cpp.py"
+    target = "benchmark_cpp_untracked.py"
     print(f"Running {target}")
     branches = ["develop", "performance/rf_volt_comp"]
     this_dir = Path(os.path.dirname(os.path.realpath(__file__)))
