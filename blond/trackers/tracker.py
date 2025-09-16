@@ -19,6 +19,13 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING
 
+try:
+    import cupy as cp
+
+except ImportError as _cupy_import_error:
+    _cupy_available = False
+
+
 import numpy as np
 import scipy
 from packaging.version import Version
@@ -38,6 +45,7 @@ if TYPE_CHECKING:
     from typing import Optional, Literal
 
     from numpy.typing import NDArray as NumpyArray
+    from cupy.typing import NDArray as CupyArray
 
     from ..impedances.impedance import TotalInducedVoltage
     from ..llrf.beam_feedback import BeamFeedback
@@ -46,7 +54,9 @@ if TYPE_CHECKING:
     from ..input_parameters.rf_parameters import RFStation
     from ..utils.types import DeviceType
 
-    MainHarmonicOptionType = Literal["lowest_freq", "highest_voltage"] | float
+    MainHarmonicOptionType = (
+        Literal["lowest_freq", "highest_voltage"] | float | int
+    )
 
 
 class FullRingAndRF:
@@ -61,10 +71,11 @@ class FullRingAndRF:
         self.ring_and_rf_section = ring_and_rf_section
 
         #: *Total potential well in [V]*
-        self.potential_well: NumpyArray | None = None
+        self.potential_well: NumpyArray | CupyArray | None = None
 
         #: *Total potential well theta coordinates in [rad]*
-        self.potential_well_coordinates: NumpyArray | None = None
+        self.potential_well_coordinates: NumpyArray | CupyArray | None = None
+        self.total_voltage: NumpyArray | CupyArray | None = None
 
         #: *Ring circumference in [m]*
         self.ring_circumference: float = 0.0
@@ -75,6 +86,7 @@ class FullRingAndRF:
 
         #: *Ring radius in [m]*
         self.ring_radius = self.ring_circumference / (2 * np.pi)
+        self._device: DeviceType = "CPU"
 
     @property
     def RingAndRFSection_list(self):
@@ -198,6 +210,46 @@ class FullRingAndRF:
         for RingAndRFSectionElement in self.ring_and_rf_section:
             RingAndRFSectionElement.track()
 
+    def to_gpu(self, recursive: bool = True):
+        """Function to loop over all the RingAndRFSection.track methods"""
+        if not _cupy_available:
+            raise _cupy_import_error
+
+        if self._device == "GPU":
+            return
+
+        self.potential_well_coordinates = cp.array(
+            self.potential_well_coordinates
+        )
+        self.potential_well = cp.array(self.potential_well)
+        self.total_voltage = cp.array(self.total_voltage)
+
+        if recursive:
+            for ring_and_rf_section in self.ring_and_rf_section:
+                ring_and_rf_section.to_gpu(recursive=recursive)
+
+        self._device: DeviceType = "GPU"
+
+    def to_cpu(self, recursive: bool = True):
+        """Function to loop over all the RingAndRFSection.track methods"""
+        if not _cupy_available:
+            raise _cupy_import_error
+
+        if self._device == "CPU":
+            return
+
+        self.potential_well_coordinates = cp.asnumpy(
+            self.potential_well_coordinates
+        )
+        self.potential_well = cp.asnumpy(self.potential_well)
+        self.total_voltage = cp.asnumpy(self.total_voltage)
+
+        if recursive:
+            for ring_and_rf_section in self.ring_and_rf_section:
+                ring_and_rf_section.to_cpu(recursive=recursive)
+
+        self._device: DeviceType = "CPU"
+
 
 class RingAndRFTracker:
     r"""Class taking care of basic particle coordinate tracking for a given
@@ -263,6 +315,7 @@ class RingAndRFTracker:
         cavity_feedback: Optional[CavityFeedback] = None,
         periodicity: bool = False,
         interpolation: bool = False,
+        with_xsuite: bool = False,
         profile: Optional[Profile] = None,
         total_induced_voltage: Optional[TotalInducedVoltage] = None,
     ):
@@ -274,6 +327,7 @@ class RingAndRFTracker:
         self.rf_params = rf_station
         self.counter = rf_station.counter
         self.acceleration_kick = -rf_station.delta_E
+        self.with_xsuite = with_xsuite
 
         # Other imports
         self.beam = beam
@@ -392,22 +446,24 @@ class RingAndRFTracker:
             \\delta = \\frac{\\Delta E}{\\beta_s^2 E_s} \quad \\text{(simple, legacy)}
 
         """
-        bm.drift(
-            beam_dt,
-            beam_dE,
-            self.solver,
-            self.rf_params.t_rev[index],
-            self.rf_params.length_ratio,
-            self.rf_params.alpha_order,
-            self.rf_params.eta_0[index],
-            self.rf_params.eta_1[index],
-            self.rf_params.eta_2[index],
-            self.rf_params.alpha_0[index],
-            self.rf_params.alpha_1[index],
-            self.rf_params.alpha_2[index],
-            self.rf_params.beta[index],
-            self.rf_params.energy[index],
-        )
+
+        if not self.with_xsuite:
+            bm.drift(
+                beam_dt,
+                beam_dE,
+                self.solver,
+                self.rf_params.t_rev[index],
+                self.rf_params.length_ratio,
+                self.rf_params.alpha_order,
+                self.rf_params.eta_0[index],
+                self.rf_params.eta_1[index],
+                self.rf_params.eta_2[index],
+                self.rf_params.alpha_0[index],
+                self.rf_params.alpha_1[index],
+                self.rf_params.alpha_2[index],
+                self.rf_params.beta[index],
+                self.rf_params.energy[index],
+            )
 
     def rf_voltage_calculation(self):
         """Function calculating the total, discretised RF voltage seen by the

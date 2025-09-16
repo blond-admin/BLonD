@@ -1,6 +1,13 @@
 import unittest
 from copy import deepcopy
 
+try:
+    import cupy
+    import cupyx
+
+    cupy_available = True
+except ModuleNotFoundError:
+    cupy_available = False
 import numpy as np
 import pytest
 
@@ -28,6 +35,9 @@ class TestCompareWraps:
         ],
     )
     def test_drift_simple(self, precision, bm_use_other):
+        if bm_use_other == bm.use_gpu:
+            if not cupy_available:
+                pytest.skip("No GPU")
         self._test_drift(precision, bm_use_other, solver="simple")
 
     @pytest.mark.parametrize(
@@ -42,6 +52,9 @@ class TestCompareWraps:
         ],
     )
     def test_drift_legacy(self, precision, bm_use_other):
+        if bm_use_other == bm.use_gpu:
+            if not cupy_available:
+                pytest.skip("No GPU")
         self._test_drift(precision, bm_use_other, solver="legacy")
 
     @pytest.mark.parametrize(
@@ -56,6 +69,9 @@ class TestCompareWraps:
         ],
     )
     def test_drift_legacy2(self, precision, bm_use_other):
+        if bm_use_other == bm.use_gpu:
+            if not cupy_available:
+                pytest.skip("No GPU")
         self._test_drift(precision, bm_use_other, solver="legacy")
 
     def _test_drift(self, precision, bm_use_other, solver):
@@ -146,6 +162,9 @@ class TestCompareWraps:
         ],
     )
     def test_kick(self, precision, bm_use_other):
+        if bm_use_other == bm.use_gpu:
+            if not cupy_available:
+                pytest.skip("No GPU")
         n_particles = 12
 
         bm.use_py()

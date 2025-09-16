@@ -16,8 +16,8 @@ Unittest for trackers.tracker.py
 import time
 import unittest
 from copy import deepcopy
+from unittest import skipIf
 
-import cupy
 import numpy as np
 import pytest
 
@@ -35,6 +35,13 @@ from blond.input_parameters.ring import Ring
 from blond.llrf.rf_modulation import PhaseModulation as PMod
 from blond.trackers.tracker import RingAndRFTracker
 from blond.utils import bmath
+
+try:
+    import cupy
+
+    cupy_available = True
+except ModuleNotFoundError:
+    cupy_available = False
 
 
 def orig_rf_volt_comp(tracker):
@@ -403,7 +410,10 @@ class Test:
     )
     def test_executes(self, set_mode):
         print(set_mode)
-        set_mode()
+        try:
+            set_mode()
+        except ModuleNotFoundError as exc:
+            pytest.skip(str(exc))
         self._setUp()
         dt_org = deepcopy(self.long_tracker.beam.dt)
         self.long_tracker._kickdrift_considering_periodicity(turn=self.turn)
@@ -413,7 +423,10 @@ class Test:
         assert np.any(dt_org != dt_new)
 
     def test_executes_gpu(self):
-        bmath.use_gpu()
+        try:
+            bmath.use_gpu()
+        except ModuleNotFoundError as exc:
+            pytest.skip(str(exc))
         self._setUp()
         dt_org = deepcopy(self.long_tracker.beam.dt)
         self.long_tracker._kickdrift_considering_periodicity_gpu(
@@ -424,6 +437,7 @@ class Test:
         # otherwise testcase has no sense
         assert np.any(dt_org != dt_new)
 
+    @skipIf(not cupy_available, "No GPU found")
     def test_gpu_correct(self):
         bmath.use_gpu()
         self._setUp()

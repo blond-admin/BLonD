@@ -44,6 +44,7 @@ __new_by_old = {
     "OtherSlicesOptions": "other_slices_options",
     "Ring": "ring",
     "GeneralParameters": "ring",
+    "rf_parameters": "rf_station",
     "RFStation": "rf_station",
     "RFParams": "rf_station",
     "RFSectionParameters": "rf_station",

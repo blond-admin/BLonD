@@ -115,7 +115,8 @@ matched_from_distribution_function(
 )
 
 slice_beam.track()
-
+beam.statistics()
+print(np.pi * beam.sigma_dt * beam.sigma_dE)
 (
     [sync_freq_distribution_left, sync_freq_distribution_right],
     [emittance_array_left, emittance_array_right],

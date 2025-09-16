@@ -23,6 +23,7 @@ import unittest
 import numpy as np
 
 import blond.beam.profile as profileModule
+from blond.beam.profile import CutOptions
 
 # BLonD imports
 # --------------
@@ -786,6 +787,28 @@ class testProfileClass(unittest.TestCase):
             rtol=rtol,
             atol=atol,
             err_msg="Bunch length values not correct",
+        )
+
+    def test_profile_of_weighted_beam(self):
+        dt = np.zeros(2)
+        dE = np.zeros(2)
+
+        beam = Beam(
+            Ring=self.ring,
+            n_macroparticles=2,
+            intensity=3,
+            dt=dt,
+            dE=dE,
+        )
+
+        profile = profileModule.Profile(
+            beam, cut_options=CutOptions(cut_left=-1, cut_right=1, n_slices=1)
+        )
+
+        profile.track()
+
+        self.assertEqual(
+            np.sum(profile.n_macroparticles), beam.n_macroparticles
         )
 
 

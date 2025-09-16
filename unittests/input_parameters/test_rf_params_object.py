@@ -349,6 +349,33 @@ class testRFParamClass(unittest.TestCase):
         rf_params = RFStation(self.ring, [4620], [0], [0.0])
         self.assertFalse(hasattr(rf_params, "omega_s0"))
 
+    def test_comp_voltage_waveform(self):
+        mainh = 4620
+        rf_params = RFStation(
+            self.ring, [mainh, mainh * 2], [7e6, 2e6], [0.0, 0.0], 2
+        )
+
+        time_arr = numpy.linspace(0, self.ring.t_rev[0] / mainh, 1000)
+
+        computed_time, computed_voltage = rf_params.compute_voltage_waveform(
+            time_arr
+        )
+
+        numpy.testing.assert_array_equal(computed_time, time_arr)
+
+        expected_voltage = numpy.zeros_like(time_arr)
+        for i in range(rf_params.n_rf):
+            voltage = rf_params.voltage[i, 0]
+            phase = rf_params.phi_rf_d[i, 0]
+            omega = rf_params.omega_rf_d[i, 0]
+            expected_voltage += voltage * numpy.sin(
+                omega * time_arr[:] + phase
+            )
+
+        numpy.testing.assert_array_almost_equal(
+            computed_voltage, expected_voltage
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
