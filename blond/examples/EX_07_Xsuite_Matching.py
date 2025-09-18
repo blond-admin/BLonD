@@ -2,26 +2,25 @@
 import logging
 
 import numpy as np
+from interefaces.xsuite.beam_preparation.rfbucket_matching import (
+    XsuiteRFBucketMatcher,
+)
 from matplotlib import pyplot as plt
+from xpart.longitudinal.rfbucket_matching import (
+    ThermalDistribution,
+)
 
 from blond import (
     Beam,
+    BunchObservation,
+    CavityPhaseObservation,
     DriftSimple,
     Ring,
     Simulation,
     SingleHarmonicCavity,
     proton,
-    BunchObservation,
-    CavityPhaseObservation,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
-
-from xpart.longitudinal.rfbucket_matching import (
-    ThermalDistribution,
-)
-
-
-from interefaces.xsuite.beam_preparation.rfbucket_matching import XsuiteRFBucketMatcher
 
 logging.basicConfig(level=logging.INFO)
 
@@ -35,7 +34,7 @@ def main():
     cavity1.phi_rf = 0
 
     N_TURNS = int(10)
-    energy_init= 10e9
+    energy_init = 10e9
     energy_cycle = MagneticCyclePerTurn(
         value_init=energy_init,
         values_after_turn=np.linspace(energy_init, energy_init, N_TURNS),
@@ -63,7 +62,9 @@ def main():
             energy_init=energy_init,
             cavity=cavity1,
             sigma_z=zmax / 20,
-            n_macroparticles=int(1e6)))
+            n_macroparticles=int(1e6),
+        ),
+    )
 
     phase_observation = CavityPhaseObservation(
         each_turn_i=1,
@@ -82,6 +83,7 @@ def main():
         plt.draw()
         plt.pause(0.1)
         plt.clf()
+
     try:
         sim.load_results(
             turn_i_init=0,
@@ -90,7 +92,7 @@ def main():
         )
     except FileNotFoundError as exc:
         sim.run_simulation(
-            beams=(beam1),
+            beams=(beam1,),
             turn_i_init=0,
             n_turns=N_TURNS,
             observe=[phase_observation, bunch_observation],
