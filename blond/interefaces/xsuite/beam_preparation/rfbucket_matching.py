@@ -1,32 +1,33 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional, Type
+
 import numpy as np
-
-from blond import SingleHarmonicCavity
-
-from blond.beam_preparation.base import MatchingRoutine
+from scipy.constants import c, e
+from xpart.longitudinal.rf_bucket import RFBucket
+from xpart.longitudinal.rfbucket_matching import ThermalDistribution  # default
 from xpart.longitudinal.rfbucket_matching import (
     RFBucketMatcher,
-    ThermalDistribution,  # default
 )
-from xpart.longitudinal.rf_bucket import RFBucket
-from scipy.constants import c, e
+
+from blond import SingleHarmonicCavity
+from blond.beam_preparation.base import MatchingRoutine
 
 if TYPE_CHECKING:
-    from blond._core.simulation.simulation import Simulation
     from blond._core.beam.base import BeamBaseClass
+    from blond._core.simulation.simulation import Simulation
+
 
 class XsuiteRFBucketMatcher(MatchingRoutine):
-    def __init__(self,
+    def __init__(
+        self,
         n_macroparticles: int | float,
-        distribution_type:ThermalDistribution,
+        distribution_type: ThermalDistribution,
         cavity: Optional[SingleHarmonicCavity] = None,
         sigma_z: Optional[float] = None,
         energy_init: Optional[float] = None,
         verbose_regeneration: bool = False,
-                 ) -> None:
-
+    ) -> None:
         super().__init__()
         self.distribution_type = distribution_type
         self.sigma_z = sigma_z
@@ -69,12 +70,11 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
 
         energy = self.energy_init
         rest_mass = beam.particle_type.mass
-        gamma = energy/rest_mass
+        gamma = energy / rest_mass
         transition_gamma = drifts[0].transition_gamma
-        alpha_c = 1 / transition_gamma ** 2 - 1 / gamma ** 2
-        mass_kg = beam.particle_type.mass * e / c ** 2
+        alpha_c = 1 / transition_gamma**2 - 1 / gamma**2
+        mass_kg = beam.particle_type.mass * e / c**2
         charge_coulomb = beam.particle_type.charge * e
-
 
         # --- Build RF bucket ---
         rfbucket = RFBucket(
@@ -87,7 +87,6 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             voltage_list=np.atleast_1d(self.cavity.voltage),
             phi_offset_list=np.atleast_1d(self.cavity.phi_rf),
             p_increment=0,
-
         )
 
         matcher = RFBucketMatcher(
@@ -97,10 +96,11 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             verbose_regeneration=self.verbose_regeneration,
         )
 
-        z, delta, *_ = matcher.generate(macroparticlenumber=self.n_macroparticles)
+        z, delta, *_ = matcher.generate(
+            macroparticlenumber=self.n_macroparticles
+        )
 
         print(z, delta)
 
         # --- Set the beam using standard interface ---
-        beam.setup_beam(dt=z/c, dE=delta)
-
+        beam.setup_beam(dt=z / c, dE=delta)

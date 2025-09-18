@@ -104,7 +104,7 @@ def main():
             turn_i_init=0,
             n_turns=N_TURNS,
             observe=[phase_observation, bunch_observation],
-            #callback=custom_action,
+            # callback=custom_action,
         )
     ANIMATE = True
     if ANIMATE:
