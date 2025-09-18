@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Union
 
 try:
     import cupy as cp
+    _cupy_available = True
 
 except ImportError as _cupy_import_error:
     _cupy_available = False
