@@ -6,17 +6,22 @@ from matplotlib import pyplot as plt
 
 from blond import (
     Beam,
-    BiGaussian,
-    BunchObservation,
-    CavityPhaseObservation,
     DriftSimple,
     Ring,
     Simulation,
     SingleHarmonicCavity,
     proton,
+    BunchObservation,
+    CavityPhaseObservation,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
-from blond.experimental.beam_preparation.empiric_matcher import EmpiricMatcher
+
+from xpart.longitudinal.rfbucket_matching import (
+    ThermalDistribution,
+)
+
+
+from interefaces.xsuite.beam_preparation.rfbucket_matching import XsuiteRFBucketMatcher
 
 logging.basicConfig(level=logging.INFO)
 
@@ -29,11 +34,11 @@ def main():
     cavity1.voltage = 6e6
     cavity1.phi_rf = 0
 
-    N_TURNS = int(1e3)
-
+    N_TURNS = int(10)
+    energy_init= 10e9
     energy_cycle = MagneticCyclePerTurn(
-        value_init=450e9,
-        values_after_turn=np.linspace(450e9, 450e9, N_TURNS),
+        value_init=energy_init,
+        values_after_turn=np.linspace(energy_init, energy_init, N_TURNS),
         reference_particle=proton,
     )
 
@@ -42,37 +47,23 @@ def main():
     )
     drift1.transition_gamma = 55.759505
     beam1 = Beam(
-        n_particles=1e9,
+        n_particles=1e6,
         particle_type=proton,
     )
 
     sim = Simulation.from_locals(locals())
     sim.print_one_turn_execution_order()
-    BIGAUS = True
-    if BIGAUS:
-        sim.prepare_beam(
-            beam=beam1,
-            preparation_routine=BiGaussian(
-                sigma_dt=0.4e-9 / 4,
-                sigma_dE=1e9 / 4,
-                reinsertion=False,
-                seed=1,
-                n_macroparticles=1e3,
-            ),
-        )
-    else:
-        sim.prepare_beam(
-            beam=beam1,
-            preparation_routine=EmpiricMatcher(
-                grid_base_dt=np.linspace(0, 2.5e-9, 100),
-                grid_base_dE=np.linspace(
-                    -(777538700.0 * 2), 777538700.0 * 2, 100
-                ),
-                n_macroparticles=1e6,
-                seed=0,
-                maxiter_intensity_effects=0,
-            ),
-        )
+
+    zmax = ring.circumference / (2 * np.amin(cavity1.harmonic))
+
+    sim.prepare_beam(
+        beam=beam1,
+        preparation_routine=XsuiteRFBucketMatcher(
+            distribution_type=ThermalDistribution,
+            energy_init=energy_init,
+            cavity=cavity1,
+            sigma_z=zmax / 20,
+            n_macroparticles=int(1e6)))
 
     phase_observation = CavityPhaseObservation(
         each_turn_i=1,
@@ -91,7 +82,6 @@ def main():
         plt.draw()
         plt.pause(0.1)
         plt.clf()
-
     try:
         sim.load_results(
             turn_i_init=0,
@@ -100,12 +90,12 @@ def main():
         )
     except FileNotFoundError as exc:
         sim.run_simulation(
-            beams=(beam1,),
+            beams=(beam1),
             turn_i_init=0,
             n_turns=N_TURNS,
             observe=[phase_observation, bunch_observation],
-            #callback=custom_action,
         )
+
     ANIMATE = True
     if ANIMATE:
         plt.plot(phase_observation.phases)
