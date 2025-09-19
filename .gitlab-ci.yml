@@ -17,10 +17,12 @@ variables:
     - gcc --version
     - nvcc --version # probe NVCC installation
 
+    # Install project with extras
     - python3 --version && gcc --version && mpirun --version
     - python3 -m pip install --upgrade pip
     - python3 -m pip install -v -e ${project_root}[all]
     - cd ${project_root}
+    # Compile C++, CUDA, Fortran backends
     - python3 blond/_core/backends/cpp/compile.py
     - python3 blond/_core/backends/cuda/compile.py
     - python3 blond/_core/backends/fortran/compile.py
