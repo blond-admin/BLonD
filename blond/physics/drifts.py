@@ -10,7 +10,7 @@ from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant, HasPropertyCache, Schedulable
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, Dict, Iterable
+    from typing import Any, Dict
     from typing import Optional
     from typing import Optional as LateInit
     from typing import Tuple
@@ -269,28 +269,6 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
 
 
 class DriftSpecial(DriftBaseClass):
-    def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop
-
-        Parameters
-        ----------
-        beam
-            Beam class to interact with this element
-        """
-        pass
-
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
-
-        simulation
-            Simulation context manager
-        """
-        super().on_init_simulation(simulation=simulation)
-
-    pass
-
-
-class DriftXSuite(DriftBaseClass):
     def track(self, beam: BeamBaseClass) -> None:
         """Main simulation routine to be called in the mainloop
 

@@ -2,9 +2,6 @@
 import logging
 
 import numpy as np
-from interefaces.xsuite.beam_preparation.rfbucket_matching import (
-    XsuiteRFBucketMatcher,
-)
 from matplotlib import pyplot as plt
 from xpart.longitudinal.rfbucket_matching import (
     ThermalDistribution,
@@ -21,6 +18,9 @@ from blond import (
     proton,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
+from blond.interefaces.xsuite.beam_preparation.rfbucket_matching import (
+    XsuiteRFBucketMatcher,
+)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -61,7 +61,7 @@ def main():
             distribution_type=ThermalDistribution,
             energy_init=energy_init,
             cavity=cavity1,
-            sigma_z=zmax / 20,
+            sigma_z=zmax / 2,
             n_macroparticles=int(1e6),
         ),
     )
@@ -108,7 +108,7 @@ def main():
                 bunch_observation.dts[i, :],
                 bunch_observation.dEs[i, :],
                 bins=256,
-                range=[[0, 2.5e-9], [-4e8, 4e8]],
+                # range=[[0, 2.5e-9], [-4e8, 4e8]],
             )
             plt.draw()
             plt.pause(0.1)
