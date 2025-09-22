@@ -3,7 +3,6 @@ import unittest
 from copy import deepcopy
 from typing import List
 
-import matplotlib.pyplot as plt
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
@@ -19,7 +18,7 @@ from blond import (
     proton,
 )
 from blond._core.backends.backend import Numpy32Bit, Numpy64Bit, backend
-from blond.physics.feedbacks.accelerators.sps.cavity_feedback import (
+from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback import (
     SPSCavityFeedback,
     SPSCavityLoopCommissioning,
     SPSOneTurnFeedback,

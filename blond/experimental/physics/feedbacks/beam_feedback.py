@@ -21,15 +21,16 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ..._core.backends.backend import backend
+from blond._core.backends.backend import backend
+
 from .base import LocalFeedback
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional
 
-    from ..._core.beam.base import BeamBaseClass
-    from ..cavities import CavityBaseClass
-    from ..profiles import ProfileBaseClass
+    from blond._core.beam.base import BeamBaseClass
+    from blond.physics.cavities import CavityBaseClass
+    from blond.physics.profiles import ProfileBaseClass
 
 
 class GeneralBeamFeedback(LocalFeedback):

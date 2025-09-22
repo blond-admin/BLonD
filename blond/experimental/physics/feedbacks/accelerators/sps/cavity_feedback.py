@@ -12,14 +12,16 @@ from numpy._typing import NDArray as NumpyArray
 from scipy.signal import fftconvolve
 
 from blond import Simulation
-from blond.physics.cavities import MultiHarmonicCavity
-from blond.physics.feedbacks.accelerators.sps.impulse_response import (  # NOQA
+from blond.experimental.physics.feedbacks.accelerators.sps.impulse_response import (  # NOQA
     SPS3Section200MHzTWC,
     SPS4Section200MHzTWC,
     SPS5Section200MHzTWC,
 )
-from blond.physics.feedbacks.cavity_feedback import BirksCavityFeedback
-from blond.physics.feedbacks.helpers import cartesian_to_polar
+from blond.experimental.physics.feedbacks.cavity_feedback import (
+    BirksCavityFeedback,
+)
+from blond.experimental.physics.feedbacks.helpers import cartesian_to_polar
+from blond.physics.cavities import MultiHarmonicCavity
 from blond.physics.profiles import StaticProfile
 
 from .helpers import comb_filter, get_power_gen_i, modulator, moving_average

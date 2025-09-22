@@ -23,7 +23,7 @@ from blond import (
     proton,
 )
 from blond._core.backends.backend import Numpy32Bit, Numpy64Bit, backend
-from blond.physics.feedbacks.accelerators.sps.beam_feedback import (
+from blond.experimental.physics.feedbacks.accelerators.sps.beam_feedback import (
     SpsRlBeamFeedback,
 )
 

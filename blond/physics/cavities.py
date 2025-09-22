@@ -8,9 +8,12 @@ from unittest.mock import Mock
 import numpy as np
 from scipy.constants import speed_of_light as c0
 
+from blond.experimental.physics.feedbacks.beam_feedback import (
+    Blond2BeamFeedback,
+)
+
 from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
-from .feedbacks.beam_feedback import Blond2BeamFeedback
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Dict
@@ -23,7 +26,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from .._core.beam.base import BeamBaseClass
     from .._core.simulation.simulation import Simulation
     from ..cycles.magnetic_cycle import MagneticCycleBase
-    from .feedbacks.base import LocalFeedback
+    from ..experimental.physics.feedbacks.base import LocalFeedback
     from .impedances.base import WakeField
 
 TWOPI_C0 = 2.0 * np.pi * c0
@@ -54,7 +57,9 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         cavity_feedback
             Optional cavity feedback to change cavity parameters
         """
-        from .feedbacks.base import LocalFeedback  # prevent cyclic import
+        from blond.experimental.physics.feedbacks.base import LocalFeedback
+
+        # prevent cyclic import
 
         super().__init__(
             section_index=section_index,

@@ -15,7 +15,7 @@ from blond import (
     proton,
 )
 from blond._core.backends.backend import Numpy64Bit, backend
-from blond.physics.feedbacks.helpers import (
+from blond.experimental.physics.feedbacks.helpers import (
     cartesian_to_polar,
     low_pass_filter,
     polar_to_cartesian,

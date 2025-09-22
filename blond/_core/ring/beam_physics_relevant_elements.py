@@ -334,9 +334,10 @@ class BeamPhysicsRelevantElements(Preparable):
         """
 
         assert isinstance(section_index, int)
+        from blond.experimental.physics.feedbacks.base import FeedbackBaseClass
+
         from ...physics.cavities import CavityBaseClass
         from ...physics.drifts import DriftBaseClass
-        from ...physics.feedbacks.base import FeedbackBaseClass
         from ...physics.impedances.base import ImpedanceBaseClass
         from ...physics.losses import LossesBaseClass
         from ...physics.profiles import ProfileBaseClass

@@ -9,11 +9,10 @@ from blond import (
     MultiHarmonicCavity,
     Ring,
     Simulation,
-    SingleHarmonicCavity,
     StaticProfile,
     proton,
 )
-from blond.physics.feedbacks.accelerators.lhc.cavity_feedback import (
+from blond.experimental.physics.feedbacks.accelerators.lhc.cavity_feedback import (
     LHCCavityLoop,
     LHCCavityLoopCommissioning,
 )

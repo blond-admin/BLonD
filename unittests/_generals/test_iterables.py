@@ -20,6 +20,9 @@ class TestFunctions(unittest.TestCase):
                     msg=f"{iterable_type=} {comparison_type=}",
                 )
 
+    def test_all_equal_empty(self):
+        self.assertTrue(all_equal([]))
+
 
 if __name__ == "__main__":
     unittest.main()

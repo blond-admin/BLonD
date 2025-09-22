@@ -5,7 +5,9 @@ from typing import Optional, Tuple
 import numpy as np
 
 from blond._core.beam.base import BeamBaseClass
-from blond.physics.feedbacks.beam_feedback import Blond2BeamFeedback
+from blond.experimental.physics.feedbacks.beam_feedback import (
+    Blond2BeamFeedback,
+)
 from blond.physics.profiles import ProfileBaseClass
 
 

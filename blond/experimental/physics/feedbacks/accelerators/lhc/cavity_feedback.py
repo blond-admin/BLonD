@@ -11,9 +11,14 @@ from numpy._typing import NDArray as NumpyArray
 from scipy.interpolate import interp1d
 
 from blond import Simulation, StaticProfile
+from blond.experimental.physics.feedbacks.base import (
+    GlobalFeedback,
+    LocalFeedback,
+)
+from blond.experimental.physics.feedbacks.cavity_feedback import (
+    BirksCavityFeedback,
+)
 from blond.physics.cavities import MultiHarmonicCavity, SingleHarmonicCavity
-from blond.physics.feedbacks.base import GlobalFeedback, LocalFeedback
-from blond.physics.feedbacks.cavity_feedback import BirksCavityFeedback
 from blond.physics.profiles import ProfileBaseClass
 
 from .helpers import (

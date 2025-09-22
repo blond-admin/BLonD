@@ -3,21 +3,21 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING, List
 
-from ..._core.base import BeamPhysicsRelevant
-from ..._core.ring.helpers import requires
+from blond._core.base import BeamPhysicsRelevant
+from blond._core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional
     from typing import Optional as LateInit
 
-    from ..._core.beam.base import BeamBaseClass
-    from ..._core.simulation.simulation import Simulation
-    from ..cavities import (
+    from blond._core.beam.base import BeamBaseClass
+    from blond._core.simulation.simulation import Simulation
+    from blond.physics.cavities import (
         CavityBaseClass,
         MultiHarmonicCavity,
         SingleHarmonicCavity,
     )
-    from ..profiles import ProfileBaseClass
+    from blond.physics.profiles import ProfileBaseClass
 
 
 class FeedbackBaseClass(BeamPhysicsRelevant):

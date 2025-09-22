@@ -31,11 +31,11 @@ from blond import (
     proton,
 )
 from blond._core.backends.backend import Numpy32Bit, Numpy64Bit, backend
-from blond.physics.feedbacks.accelerators.sps.cavity_feedback import (
+from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback import (
     SPSCavityLoopCommissioning,
     SPSOneTurnFeedback,
 )
-from blond.physics.feedbacks.accelerators.sps.impulse_response import (
+from blond.experimental.physics.feedbacks.accelerators.sps.impulse_response import (
     SPS4Section200MHzTWC,
     rectangle,
     triangle,

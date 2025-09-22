@@ -5,8 +5,9 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ... import StaticProfile
-from ..._core.helpers import int_from_float_with_warning
+from blond import StaticProfile
+from blond._core.helpers import int_from_float_with_warning
+
 from .base import LocalFeedback
 from .helpers import cartesian_to_polar, polar_to_cartesian, rf_beam_current
 
@@ -17,9 +18,9 @@ if TYPE_CHECKING:
 
     from numpy.typing import NDArray as NumpyArray
 
-    from ... import Simulation
-    from ..._core.beam.base import BeamBaseClass
-    from ..cavities import MultiHarmonicCavity
+    from blond import Simulation
+    from blond._core.beam.base import BeamBaseClass
+    from blond.physics.cavities import MultiHarmonicCavity
 
 # TODO rewrite all docstrings
 

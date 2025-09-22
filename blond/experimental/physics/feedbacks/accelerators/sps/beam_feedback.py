@@ -9,7 +9,9 @@ import numpy as np
 
 from blond import Simulation
 from blond._core.beam.base import BeamBaseClass
-from blond.physics.feedbacks.beam_feedback import Blond2BeamFeedback
+from blond.experimental.physics.feedbacks.beam_feedback import (
+    Blond2BeamFeedback,
+)
 from blond.physics.profiles import ProfileBaseClass
 
 
@@ -47,7 +49,8 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         simulation
             Simulation context manager
         """
-        from ..... import DriftSimple  # prevent cyclic import
+
+        from blond.physics.drifts import DriftSimple
 
         self._simulation = simulation  # todo declare
         self._drift = simulation.ring.elements.get_element(DriftSimple)

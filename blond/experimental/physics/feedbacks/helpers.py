@@ -8,7 +8,7 @@ import scipy
 from numpy._typing import NDArray as NumpyArray
 from scipy.constants import e
 
-from ..._core.beam.base import BeamBaseClass
+from blond._core.beam.base import BeamBaseClass
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from numpy.typing import NDArray as NumpyArray
 
-    from ...physics.profiles import StaticProfile
+    from blond.physics.profiles import StaticProfile
 
 logger = logging.getLogger(__name__)
 
