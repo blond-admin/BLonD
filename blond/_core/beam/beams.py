@@ -94,7 +94,7 @@ class Beam(BeamBaseClass):
         )
         self._flags: NumpyArray | CupyArray = flags.astype(backend.int)
         if reference_time:
-            self.reference_time = reference_time
+            self.reference_time = backend.float(reference_time)
         if reference_total_energy:
             self.reference_total_energy = reference_total_energy
         self.invalidate_cache()
@@ -124,6 +124,14 @@ class Beam(BeamBaseClass):
             n_turns=n_turns,
             turn_i_init=turn_i_init,
         )
+
+    @cached_property
+    def ratio(self) -> float:
+        """Ratio of the intensity vs. the sum of weights"""
+        # As there are no weights, lets assume all weights are 1,
+        # The sum over all macro-particles with weight 1
+        # is thus `common_array_size`.
+        return self.n_particles / self.common_array_size
 
     @cached_property
     def dt_min(self) -> backend.float:

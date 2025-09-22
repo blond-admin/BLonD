@@ -122,9 +122,10 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             warnings.warn(msg)
         self.reference_total_energy = new_reference_total_energy
 
+    @abstractmethod  # pragma: no cover
     @cached_property
     def ratio(self) -> float:
-        """Type of particles, e.g. protons"""
+        """Ratio of the intensity vs. the sum of weights"""
         return self.n_particles / self.common_array_size
 
     @property
