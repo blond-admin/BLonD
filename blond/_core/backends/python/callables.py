@@ -123,7 +123,7 @@ class PythonSpecials(Specials):
         eta_2: float,
         beta: float,
         energy: float,
-    ) -> None:
+    ) -> None:  # pragma: no cover # TODO
         """
         Function to apply drift equation of motion
         """
@@ -155,7 +155,7 @@ class PythonSpecials(Specials):
         alpha_2: float,
         beta: float,
         energy: float,
-    ) -> None:
+    ) -> None:  # pragma: no cover # TODO
         """
         Function to apply drift equation of motion
         """

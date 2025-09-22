@@ -5,8 +5,9 @@ import numpy as np
 from numpy._typing import NDArray as NumpyArray
 from scipy.constants import speed_of_light as c0
 
-from blond import proton
+from blond import Simulation, proton
 from blond._core.backends.backend import backend
+from blond._core.base import DynamicParameter
 from blond.physics.cavities import (
     CavityBaseClass,
     MultiHarmonicCavity,
@@ -23,7 +24,7 @@ class CavityBaseClassHelper(CavityBaseClass):
 
 
 class TestMultiHarmonicCavity(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.multi_harmonic_cavity = MultiHarmonicCavity.headless(
             section_index=0,
             voltage=np.array([1e6, 2e6], dtype=backend.float),
@@ -39,7 +40,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
-    def test_track(self):
+    def test_track(self) -> None:
         from blond._core.beam.base import BeamBaseClass
 
         beam = Mock(BeamBaseClass)
@@ -83,9 +84,36 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             np.linspace(-1e-6, 1e-6, 10),
         )
 
+    def test_on_init_simulation_fails(self) -> None:
+        simulation = Mock(Simulation)
+        simulation.turn_i = DynamicParameter(0)
+        with self.assertRaises(ValueError):
+            self.multi_harmonic_cavity.voltage = None
+            self.multi_harmonic_cavity.on_init_simulation(
+                simulation=simulation
+            )
+
+    def test_on_init_simulation_fails2(self) -> None:
+        simulation = Mock(Simulation)
+        simulation.turn_i = DynamicParameter(0)
+        with self.assertRaises(ValueError):
+            self.multi_harmonic_cavity.phi_rf = None
+            self.multi_harmonic_cavity.on_init_simulation(
+                simulation=simulation
+            )
+
+    def test_on_init_simulation_fails3(self) -> None:
+        simulation = Mock(Simulation)
+        simulation.turn_i = DynamicParameter(0)
+        with self.assertRaises(ValueError):
+            self.multi_harmonic_cavity.harmonic = None
+            self.multi_harmonic_cavity.on_init_simulation(
+                simulation=simulation
+            )
+
 
 class TestSingleHarmonicCavity(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.single_harmonic_cavity = SingleHarmonicCavity.headless(
             section_index=0,
             voltage=1e6,
@@ -100,7 +128,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
-    def test_track(self):
+    def test_track(self) -> None:
         from blond._core.beam.base import BeamBaseClass
 
         beam = Mock(BeamBaseClass)
@@ -145,6 +173,33 @@ class TestSingleHarmonicCavity(unittest.TestCase):
             beam.dt,
             np.linspace(-1e-6, 1e-6, 10),
         )
+
+    def test_on_init_simulation_fails(self) -> None:
+        simulation = Mock(Simulation)
+        simulation.turn_i = DynamicParameter(0)
+        with self.assertRaises(ValueError):
+            self.single_harmonic_cavity.voltage = None
+            self.single_harmonic_cavity.on_init_simulation(
+                simulation=simulation
+            )
+
+    def test_on_init_simulation_fails2(self) -> None:
+        simulation = Mock(Simulation)
+        simulation.turn_i = DynamicParameter(0)
+        with self.assertRaises(ValueError):
+            self.single_harmonic_cavity.phi_rf = None
+            self.single_harmonic_cavity.on_init_simulation(
+                simulation=simulation
+            )
+
+    def test_on_init_simulation_fails3(self) -> None:
+        simulation = Mock(Simulation)
+        simulation.turn_i = DynamicParameter(0)
+        with self.assertRaises(ValueError):
+            self.single_harmonic_cavity.harmonic = None
+            self.single_harmonic_cavity.on_init_simulation(
+                simulation=simulation
+            )
 
 
 if __name__ == "__main__":

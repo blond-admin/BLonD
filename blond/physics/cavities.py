@@ -130,28 +130,28 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         """
         pass
 
-    @abstractmethod  # as readonly attributes
+    @abstractmethod  # pragma: no cover
     def get_main_harmonic(self) -> float:
         """
         Returns the harmonic number of the main harmonic
         """
         pass
 
-    @abstractmethod  # as readonly attributes
+    @abstractmethod  # pragma: no cover
     def get_main_harmonic_voltage(self) -> float:
         """
         Returns the voltage of the main harmonic, in [V]
         """
         pass
 
-    @abstractmethod  # as readonly attributes
+    @abstractmethod  # pragma: no cover
     def get_main_harmonic_phi_rf(self) -> float:
         """
         Returns the phi_rf of the main harmonic, in [rad]
         """
         pass
 
-    @abstractmethod  # as readonly attributes
+    @abstractmethod  # pragma: no cover
     def get_main_harmonic_omega_rf(
         self,
         beam_beta: float,

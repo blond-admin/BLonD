@@ -9,8 +9,6 @@ from warnings import warn
 import numpy as np
 from tqdm import tqdm
 
-from blond.handle_results.results import SimulationResults
-
 from ..._warnings import PerformanceWarning
 from ...cycles.magnetic_cycle import MagneticCycleBase, MagneticCyclePerTurn
 from ...physics.cavities import CavityBaseClass
@@ -686,6 +684,6 @@ class Simulation(Preparable, HasPropertyCache):
         turn_i_init: int = 0,
         observe: Tuple[Observables, ...] = tuple(),
         callback: Callable[[Simulation], None] = None,
-    ) -> SimulationResults:
+    ) -> None:
         raise FileNotFoundError()
         return

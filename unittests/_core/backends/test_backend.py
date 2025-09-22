@@ -39,6 +39,27 @@ class TestBackendBaseClass(unittest.TestCase):
     def tearDown(self) -> None:
         self.backend_base_class.set_specials(mode="numba")
 
+    def test_apply_environment_variables(self):
+        import os
+
+        backend_modes = ["python", "cpp", "numba", "fortran", "fail"]
+        backend_bits = ["32", "64", "fail"]
+        try:
+            import cupy
+
+            backend_modes = ["cuda"] + backend_modes
+        except ModuleNotFoundError:
+            pass
+        for backend_mode in backend_modes:
+            os.environ["BLOND_BACKEND_MODE"] = backend_mode
+            for backend_bit in backend_bits:
+                os.environ["BLOND_BACKEND_BITS"] = backend_bit
+                if (backend_mode is "fail") or (backend_bit is "fail"):
+                    with self.assertRaises(ValueError):
+                        self.backend_base_class.apply_environment_variables()
+                else:
+                    self.backend_base_class.apply_environment_variables()
+
 
 class TestCupy32Bit(unittest.TestCase):
     def test___init__(self) -> None:

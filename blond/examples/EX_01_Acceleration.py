@@ -60,7 +60,7 @@ def main():
                 n_macroparticles=1e3,
             ),
         )
-    else:
+    else:  # pragma: no cover
         sim.prepare_beam(
             beam=beam1,
             preparation_routine=EmpiricMatcher(
@@ -80,7 +80,7 @@ def main():
     )
     bunch_observation = BunchObservation(each_turn_i=1)
 
-    def custom_action(simulation: Simulation):
+    def custom_action(simulation: Simulation):  # pragma: no cover
         if simulation.turn_i.value % 10 != 0:
             return
 
@@ -107,7 +107,7 @@ def main():
             # callback=custom_action,
         )
     ANIMATE = False
-    if ANIMATE:
+    if ANIMATE:  # pragma: no cover
         plt.plot(phase_observation.phases)
         plt.figure()
         for i in range(N_TURNS):

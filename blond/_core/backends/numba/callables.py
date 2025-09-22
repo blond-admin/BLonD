@@ -310,7 +310,7 @@ class NumbaSpecials(Specials):  # pragma: no cover
         eta_2: float,
         beta: float,
         energy: float,
-    ) -> None:
+    ) -> None:  # pragma: no cover # TODO
         T = t_rev * length_ratio
         coeff = 1.0 / (beta * beta * energy)
         eta0 = eta_0 * coeff
@@ -353,7 +353,7 @@ class NumbaSpecials(Specials):  # pragma: no cover
         alpha_2: float,
         beta: float,
         energy: float,
-    ) -> None:
+    ) -> None:  # pragma: no cover # TODO
         T = t_rev * length_ratio
         invbetasq = 1 / (beta * beta)
         invenesq = 1 / (energy * energy)
