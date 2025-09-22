@@ -740,7 +740,7 @@ def minmax_location(x: NumpyArray, f: NumpyArray) -> tuple[list[NumpyArray],
     """
     *Function to locate the minima and maxima of the f(x) numerical function.*
     """
-    if len(x) == len(f):
+    if len(x) != len(f):
         raise ValueError(f"The time and potential arrays have different lengths: {len(x)} != {len(f)}")
 
     f_derivative = np.diff(f)
