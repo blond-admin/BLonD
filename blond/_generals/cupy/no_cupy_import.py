@@ -18,8 +18,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
-numpy_asarray = np.asarray
-
 
 def is_cupy_array(arr: NumpyArray | CupyArray | Any) -> bool:
     """
@@ -37,13 +35,22 @@ def is_cupy_array(arr: NumpyArray | CupyArray | Any) -> bool:
     """
     if hasattr(arr, "device"):
         return not (arr.device == "cpu")  # type: ignore
+    elif hasattr(arr, "gpu_data"):  # numba.cuda array
+        # Overall there is no problem with numba-cuda arrays.
+        # Its just that the entire code is tested against Cupy
+        # So use of it is discouraged.
+        raise TypeError(f"{type(arr)} not supported.")
     else:
         return False
 
 
+# pin original numpy function for `AllowPlotting`
+_numpy_asarray_original = np.asarray
+
+
 class _AsarrayOverrideManager:
     def __init__(self) -> None:
-        """Override functionality for 'np.asarray' with caching"""
+        """Override functionality for 'np.asarray' to handle Cupy"""
         self.cache: dict[int, np.ndarray] = {}
 
     def asarray_override(
@@ -54,18 +61,18 @@ class _AsarrayOverrideManager:
         *args: Any,
         **kwargs: Any,
     ) -> ndarray:
-        import cupy as cp
+        import cupy as cp  # type: ignore
 
         if isinstance(a, cp.ndarray):
             key = a.data.ptr
-            if key in self.cache.keys():
-                a = self.cache[
-                    key
-                ]  # DON'T copy data from GPU, because it was done already
-            else:
+            if key not in self.cache.keys():
                 a = a.get()  # copy data from GPU
                 self.cache[key] = a
-        return numpy_asarray(
+            else:
+                # DON'T copy data from GPU, because it was done already
+                a = self.cache[key]
+
+        return _numpy_asarray_original(  # type: ignore
             a,
             dtype=dtype,
             order=order,
@@ -76,19 +83,30 @@ class _AsarrayOverrideManager:
 
 class AllowPlotting:
     def __init__(self) -> None:
-        """Allows implicitly casting of cupy arrays to numpy arrays .
+        """Allows implicitly casting of Cupy arrays to Numpy arrays .
 
         Notes
         -----
         This is only intended for plotting of arrays.
+        The function temporarily overrides the numpy.asarray function.
+
+        Examples
+        --------
+        >>> y = cupy.ones(12)
+        >>> with AllowPlotting():
+        >>>     plt.plot(y)
+
 
         """
         if not backend.is_gpu:
-            return
+            return  # do nothing
         # initialize cache, make override function available
         self.asarray_override_manager = _AsarrayOverrideManager()
 
     def __enter__(self) -> None:
+        """
+        Override np.asarray with own function to handle .get() for Cupy arrays
+        """
         if not backend.is_gpu:
             return
         # override numpy "asarray" function with own function
@@ -101,7 +119,11 @@ class AllowPlotting:
         exc_val: Optional[BaseException],
         exc_tb: Optional[Any],
     ):
+        """
+        Reset np.asarray to original Numpy function
+        """
+
         if not backend.is_gpu:
-            return
+            return  # do nothing
         # reset to original numpy function
-        np.asarray = numpy_asarray
+        np.asarray = _numpy_asarray_original

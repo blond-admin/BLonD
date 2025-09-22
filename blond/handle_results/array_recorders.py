@@ -91,7 +91,7 @@ class DenseArrayRecorder(ArrayRecorder):
             json.dump(attributes, f)
 
     @staticmethod
-    def from_disk(filepath: str | Path) -> DenseArrayRecorder:
+    def from_disk(filepath: str | PathLike) -> DenseArrayRecorder:
         dense_recorder = DenseArrayRecorder(
             filepath=filepath,
             shape=(1, 1),
@@ -106,7 +106,7 @@ class DenseArrayRecorder(ArrayRecorder):
 
     def write(self, newdata: NumpyArray | CupyArray):
         if is_cupy_array(newdata):
-            newdata = newdata.get()
+            newdata = newdata.get()  # type: ignore
         self._memory[self._write_idx] = newdata
         self._write_idx += 1
 

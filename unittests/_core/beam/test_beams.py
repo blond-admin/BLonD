@@ -124,6 +124,17 @@ class TestBeam(unittest.TestCase):
         self.beam.plot_hist2d()
         plt.gcf().clf()
 
+    def test_plot_hist2d_executes_gpu(self) -> None:
+        try:
+            import cupy as cp  # type: ignore
+        except ModuleNotFoundError:
+            self.skipTest("Cupy not available")
+        beam = Mock(Beam)
+        beam._dE = cp.ones(10)
+        beam._dt = cp.ones(10)
+        Beam.plot_hist2d(beam)
+        plt.gcf().clf()
+
     def test_setup_beam(self) -> None:
         with self.assertRaises(AssertionError):
             self.beam.setup_beam(dE=np.ones(10), dt=np.ones(11))
