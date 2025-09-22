@@ -1967,7 +1967,6 @@ class FCCBoosterCavityLoop(CavityFeedback):
         RFFB: LHCCavityLoopCommissioning = None,
         n_h: int = 0,
         n_s: int = 20,
-        total_ind_volt_time: TotalInducedVoltage = None,
     ):
         super().__init__(
             RFStation=RFStation, Profile=Profile, n_cavities=n_cavities,
@@ -1995,8 +1994,6 @@ class FCCBoosterCavityLoop(CavityFeedback):
         self.tau_loop = tau_loop
         self.tau_otfb = tau_otfb
         self.logger.debug("Cavity loaded Q is %.0f", self.Q_L)
-
-        self.induced_voltage = total_ind_volt_time
 
         # Import RF FB properties
         self.open_drive = self.RFFB.open_drive
@@ -2070,7 +2067,7 @@ class FCCBoosterCavityLoop(CavityFeedback):
             self.logger.debug("Pre-tracking without beam")
             self.track_no_beam(self.n_pretrack)
 
-        self.logger.info("LHCCavityLoop class initialized")
+        self.logger.info("FCC-ee-booster-CavityLoop class initialized")
 
     def circuit_track(self, no_beam: bool = False):
         r"""Track the feedback model"""
@@ -2115,7 +2112,7 @@ class FCCBoosterCavityLoop(CavityFeedback):
             * (1 - 0.5 * samples / self.Q_L + 1j * self.detuning * samples)
             - self.I_BEAM_COARSE[self.ind - 1] * 0.5 * self.R_over_Q * samples
         )
-        self.V_BEAM_INDUCED[self.ind] += (self.I_BEAM_COARSE[self.ind] *
+        self.V_BEAM_INDUCED[self.ind] = (0.5*self.I_BEAM_COARSE[self.ind] *
                                          self.R_over_Q * samples)
 
     def cavity_response_fine_matrix(self):
@@ -2528,25 +2525,6 @@ class FCCBoosterCavityLoop(CavityFeedback):
         """
 
         return 0.125 * peak_beam_current * voltage
-
-    @staticmethod
-    def optimum_Q_L(detuning, rf_frequency):
-        """Optimum loaded Q when no real part of RF beam current is present
-
-        Parameters
-        ----------
-        detuning : float
-            Detuning frequency
-        rf_frequency : float
-            RF frequency
-
-        Returns
-        -------
-        float
-            Optimum loaded Q
-        """
-
-        return np.fabs(0.5 * rf_frequency / detuning)
 
     @staticmethod
     def optimum_Q_L_beam(R_over_Q, real_peak_beam_current, voltage):
