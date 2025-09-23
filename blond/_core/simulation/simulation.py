@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Callable
 from warnings import warn
 
 import numpy as np
+from fontTools.varLib.instancer import verticalMetricsKeptInSync
 from tqdm import tqdm
 
 from ..._warnings import PerformanceWarning
@@ -28,6 +29,12 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from numpy.typing import NDArray as NumpyArray
 
+    from blond import (
+        Beam,
+        DriftSimple,
+        MagneticCyclePerTurn,
+        SingleHarmonicCavity,
+    )
     from blond.legacy.blond2.beam.beam import Beam as Blond2Beam
     from blond.legacy.blond2.beam.profile import Profile as Blond2Profile
     from blond.legacy.blond2.impedances.impedance import (
@@ -270,19 +277,35 @@ class Simulation(Preparable, HasPropertyCache):
         )
 
     @staticmethod
-    def from_locals(locals: dict) -> Simulation:
+    def from_locals(
+        locals: dict[str, Any], verbose: bool = False
+    ) -> Simulation:
         """Automatically instance simulation from all locals of where its called
 
         Parameters
         ----------
         locals
-            Just hand `locals()` over
+            Dictionary of elements that
+            should be contained in the simulation.
+
+        Examples
+        --------
+        >>> beam1 = Beam( ... )
+        >>> ring = Ring( ... )
+        >>> energy_cycle = MagneticCyclePerTurn( ... )
+        >>> cavity1 = SingleHarmonicCavity( ... )
+        >>> drift1 = DriftSimple( ... )
+        >>> Simulation.from_locals(locals=locals(), verbose=True)
+
         """
         from ..beam.base import BeamBaseClass  # prevent cyclic import
         from ..ring.ring import Ring  # prevent cyclic import
 
         locals_list = locals.values()
-        logger.debug(f"Found {locals.keys()}")
+        msg1 = f"Found locals: {locals.keys()}"
+        logger.debug(msg=msg1)
+        if verbose:
+            print(msg1)
         _rings = get_elements(locals_list, Ring)
         assert len(_rings) == 1, f"Found {len(_rings)} rings"
         ring = _rings[0]
@@ -303,7 +326,10 @@ class Simulation(Preparable, HasPropertyCache):
         logger.debug(f"{elements=}")
 
         sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
-        logger.info(sim.ring.elements.get_order_info())
+        order_info = sim.ring.elements.get_order_info()
+        logger.info(order_info)
+        if verbose:
+            print(order_info)
         return sim
 
     @property  # as readonly attributes
