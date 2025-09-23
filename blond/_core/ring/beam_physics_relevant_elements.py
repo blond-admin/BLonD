@@ -60,7 +60,8 @@ class BeamPhysicsRelevantElements(Preparable):
 
         for section_index in np.sort(np.unique(elem_section_indices)):
             cavities = self.get_elements(
-                CavityBaseClass, section_i=section_index
+                CavityBaseClass,
+                section_i=section_index,  # type: ignore
             )
             drifts = self.get_elements(DriftBaseClass, section_i=section_index)
             if len(cavities) == 0:
@@ -265,11 +266,13 @@ class BeamPhysicsRelevantElements(Preparable):
         section_i
             Optional filter to get instances only in one section
         """
+
+        def is_in_section(element: T) -> bool:
+            return element.section_index == section_i
+
         elements = get_elements(self.elements, class_)
         if section_i is not None:
-            elements = tuple(
-                filter(lambda x: x.section_index == section_i, elements)
-            )
+            elements = tuple(filter(is_in_section, elements))
         return elements
 
     def get_element(

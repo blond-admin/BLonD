@@ -1,17 +1,12 @@
 from matplotlib import pyplot as plt
 
 from blond import MultiHarmonicCavity
+from blond._core.backends.backend import backend
 
 
 class ExampleSimulation01:
     def __init__(self):
         import numpy as np
-
-        from blond._core.backends.backend import Numpy32Bit, backend
-        from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
-
-        backend.change_backend(Numpy32Bit)
-        backend.set_specials("numba")
 
         from blond import (
             Beam,
@@ -23,6 +18,7 @@ class ExampleSimulation01:
             SingleHarmonicCavity,
             proton,
         )
+        from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 
         ring = Ring(circumference=26658.883)
 
@@ -106,25 +102,28 @@ class SimulationTwoRfStations:
         cavity1.harmonic = np.array(
             [
                 35640.0,
-            ]
+            ],
+            dtype=backend.float,
         )
         cavity1.voltage = np.array(
             [
                 6e6,
-            ]
+            ],
+            dtype=backend.float,
         )
         cavity1.phi_rf = np.array(
             [
                 0.0,
-            ]
+            ],
+            dtype=backend.float,
         )
 
         cavity2 = SingleHarmonicCavity(
             section_index=1,
         )
-        cavity2.harmonic = 35640
-        cavity2.voltage = 6e6
-        cavity2.phi_rf = 0
+        cavity2.harmonic = backend.float(35640)
+        cavity2.voltage = backend.float(6e6)
+        cavity2.phi_rf = backend.float(0)
 
         N_TURNS = int(10)
         energy_cycle = MagneticCyclePerTurn(

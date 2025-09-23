@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import Mock, create_autospec
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from blond import (
@@ -13,6 +14,7 @@ from blond import (
 )
 from blond._core.beam.base import BeamBaseClass
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
+from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import BunchObservation, Observables
 
 
@@ -113,10 +115,27 @@ class TestSimulation(unittest.TestCase):
         # TODO: implement test for `get_potential_well_analytic`
         self.simulation.get_potential_well_analytic()
 
-    @unittest.skip
     def test_get_potential_well_empiric(self):
-        # TODO: implement test for `get_potential_well_empiric`
-        self.simulation.get_potential_well_empiric()
+        from blond.testing.simulation import SimulationTwoRfStations
+
+        sim = SimulationTwoRfStations()
+        potential_well = sim.simulation.get_potential_well_empiric(
+            ts=np.linspace(-1e-9, 1e-9, 100),
+            particle_type=proton,
+        )
+        SAVE_PINNED = False
+        if SAVE_PINNED:
+            np.savetxt(
+                "resources/potential_well.csv",
+                potential_well,
+            )
+        potential_well_pinned = np.loadtxt(
+            callers_relative_path("resources/potential_well.csv", stacklevel=1)
+        )
+        np.testing.assert_allclose(
+            potential_well_pinned,
+            potential_well,
+        )
 
     @unittest.skip
     def test_get_separatrix(self):

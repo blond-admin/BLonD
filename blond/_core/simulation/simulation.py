@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Callable
 from warnings import warn
 
 import numpy as np
+from scipy.integrate import cumulative_trapezoid
 from tqdm import tqdm  # type: ignore
 
 from ..._warnings import PerformanceWarning
@@ -155,18 +156,50 @@ class Simulation(Preparable, HasPropertyCache):
         pass  # TODO
 
     def get_potential_well_empiric(
-        self, ts: NumpyArray, particle_type: ParticleType
+        self,
+        ts: NumpyArray,
+        particle_type: ParticleType,
     ) -> NumpyArray:
-        raise NotImplementedError
+        """
+        Obtain the potential well by tracking a beam one turn
+
+        Notes
+        -----
+        This function internally obtains `dE_out` of `dt_in`.
+        During one turn with many drifts, the time coordinate will change
+        and sample different positions of dt, which is the expected
+        physical behaviour. The RF of successive station can thus appear
+        phase shifted/distorted due to the inherent drift in between RF
+        stations=.
+
+        Parameters
+        ----------
+        ts
+            Time coordinates to probe the potential, in [s]
+        particle_type
+            Type of particle to probe.
+            The particle charge influences the phase advance per station
+            and might exhibit different distortion of the potential well
+            due to the side effects described in `Notes`
+
+        Returns
+        -------
+        potential_well
+            The effective voltage that lead to a change of `dE` in one turn.
+        """
         from ..._core.beam.beams import ProbeBeam
 
-        bunch = ProbeBeam(
+        probe_bunch = ProbeBeam(
             dt=ts,
-            particle_type=self.beams[0].particle_type,
+            particle_type=particle_type,
         )
-        for element in self.ring.elements.elements:
-            element.track(beam=bunch)
-        potential_well = np.trapezoid(bunch.read_partial_dE())
+        self.run_simulation(
+            beams=(probe_bunch,),
+            n_turns=1,
+            turn_i_init=0,
+            show_progressbar=False,
+        )
+        potential_well = cumulative_trapezoid(probe_bunch.read_partial_dE())
         potential_well -= potential_well.min()
         return potential_well
 

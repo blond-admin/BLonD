@@ -205,11 +205,12 @@ class ProbeBeam(Beam):
         )
         if dt is not None:
             dE = np.zeros_like(dt)
-        if dE is not None:
+        elif dE is not None:
             dt = np.zeros_like(dE)
-
-        if (dE is None) and (dt is None):
+        elif (dE is None) and (dt is None):
             raise ValueError("dE or dt must be given!")
+        else:
+            raise RuntimeError(f"{dE=} {dt=}")
 
         self.setup_beam(
             dt=dt,

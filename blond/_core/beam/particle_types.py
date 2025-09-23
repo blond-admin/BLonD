@@ -6,6 +6,8 @@ import numpy as np
 from numpy import float32, float64
 from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
 
+from ..backends.backend import backend
+
 m_mu = physical_constants["muon mass"][0]
 
 
@@ -15,9 +17,9 @@ class ParticleType:
     charge: float
     user_decay_rate: float = 0.0
     mass_inv: float = field(init=False)
-    _classical_particle_radius: float = field(init=False)
-    _sands_radiation_constant: float = field(init=False)
-    _quantum_radiation_constant: float = field(init=False)
+    _classical_particle_radius: float32 | float64 = field(init=False)
+    _sands_radiation_constant: float32 | float64 = field(init=False)
+    _quantum_radiation_constant: float32 | float64 = field(init=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "mass_inv", 1 / self.mass)
@@ -30,28 +32,34 @@ class ParticleType:
             * self.charge**2
             / (self.mass * e)
         )
-        object.__setattr__(self, "_classical_particle_radius", radius_cl)
+        object.__setattr__(
+            self, "_classical_particle_radius", backend.float(radius_cl)
+        )
 
         # Sand's radiation constant [ m / eV^3]
         c_gamma = (
             4 * np.pi / 3 * self._classical_particle_radius / self.mass**3
         )
-        object.__setattr__(self, "_sands_radiation_constant", c_gamma)
+        object.__setattr__(
+            self, "_sands_radiation_constant", backend.float(c_gamma)
+        )
 
         # Quantum radiation constant [m]
         c_q = 55.0 / (32.0 * np.sqrt(3.0)) * hbar * c / (self.mass * e)
-        object.__setattr__(self, "_quantum_radiation_constant", c_q)
+        object.__setattr__(
+            self, "_quantum_radiation_constant", backend.float(c_q)
+        )
 
     # The properties below are just used to allow displaying the info strings
     # in IDEs like PyCharm
 
     @property
-    def classical_particle_radius(self) -> float:
+    def classical_particle_radius(self) -> float32 | float64:
         """Classical particle radius [m]"""
         return self._classical_particle_radius
 
     @property
-    def sands_radiation_constant(self) -> float:
+    def sands_radiation_constant(self) -> float32 | float64:
         """Sand's radiation constant [ m / eV^3]"""
         return self._sands_radiation_constant
 
