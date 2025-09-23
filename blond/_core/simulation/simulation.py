@@ -7,12 +7,10 @@ from typing import TYPE_CHECKING, Callable
 from warnings import warn
 
 import numpy as np
-from fontTools.varLib.instancer import verticalMetricsKeptInSync
-from tqdm import tqdm
+from tqdm import tqdm  # type: ignore
 
 from ..._warnings import PerformanceWarning
-from ...cycles.magnetic_cycle import MagneticCycleBase, MagneticCyclePerTurn
-from ...physics.cavities import CavityBaseClass
+from ...cycles.magnetic_cycle import MagneticCycleBase
 from ...physics.profiles import ProfileBaseClass
 from ..backends.backend import backend
 from ..base import (
@@ -84,15 +82,13 @@ class Simulation(Preparable, HasPropertyCache):
     def __init__(
         self,
         ring: Ring,
-        magnetic_cycle: NumpyArray | MagneticCycleBase,
+        magnetic_cycle: MagneticCycleBase,
     ) -> None:
         from .intensity_effect_manager import IntensityEffectManager
 
         super().__init__()
         self._ring: Ring = ring
 
-        if isinstance(magnetic_cycle, np.ndarray):
-            magnetic_cycle = MagneticCyclePerTurn(magnetic_cycle)
         self._magnetic_cycle: MagneticCycleBase = magnetic_cycle
 
         self.turn_i = DynamicParameter(None)
@@ -157,22 +153,6 @@ class Simulation(Preparable, HasPropertyCache):
         """Delete the stored values of functions with @cached_property"""
 
         pass  # TODO
-
-    def calc_cavity_voltage_sum(self, ts: NumpyArray) -> NumpyArray:
-        """
-        Sum of all cavity voltages, ignoring drifts between cavities
-
-        Parameters
-        ----------
-        ts
-            Time array, in [s]
-            to calculate voltage
-        """
-        cavities = self.ring.elements.get_elements(CavityBaseClass)
-        total_voltage = 0.0  # will be an array later
-        for cavity in cavities:
-            total_voltage += cavity.voltage_waveform_tmp(ts=ts)
-        return total_voltage[:]
 
     def get_potential_well_empiric(
         self, ts: NumpyArray, particle_type: ParticleType
@@ -310,15 +290,15 @@ class Simulation(Preparable, HasPropertyCache):
         assert len(_rings) == 1, f"Found {len(_rings)} rings"
         ring = _rings[0]
 
-        beams = get_elements(locals_list, BeamBaseClass)
+        beams = get_elements(locals_list, BeamBaseClass)  # type: ignore
 
-        _magnetic_cycle = get_elements(locals_list, MagneticCycleBase)
+        _magnetic_cycle = get_elements(locals_list, MagneticCycleBase)  # type: ignore
         assert len(_magnetic_cycle) == 1, (
             f"Found {len(_magnetic_cycle)} energy cycles"
         )
         magnetic_cycle = _magnetic_cycle[0]
 
-        elements = get_elements(locals_list, BeamPhysicsRelevant)
+        elements = get_elements(locals_list, BeamPhysicsRelevant)  # type: ignore
         ring.add_elements(elements=elements, reorder=True)
 
         logger.debug(f"{ring=}")
@@ -368,14 +348,23 @@ class Simulation(Preparable, HasPropertyCache):
         "get_hash",
     )
 
-    def _invalidate_cache(
+    def _invalidate_cache_on_turn(
         self,
-        # turn i needed to be
-        # compatible with subscription
-        turn_i: int,
+        turn_i: int,  # required by `turn_i.on_change`
     ) -> None:
-        """Reset cache of `cached_property` attributes"""
-        super()._invalidate_cache(Simulation.cached_properties)
+        """
+        Reset cache of `cached_property` attributes
+
+        Parameters
+        ----------
+        Current turn
+
+        Notes
+        -----
+        This method is subscribed to turn_i.on_change
+
+        """
+        self._invalidate_cache(Simulation.cached_properties)
 
     def prepare_beam(
         self,
@@ -432,16 +421,23 @@ class Simulation(Preparable, HasPropertyCache):
         logger.info(f"Running `run_simulation` with {locals()}")
         max_turns = self.magnetic_cycle.n_turns
         if n_turns is not None:
-            n_turns = int_from_float_with_warning(
+            _n_turns = int_from_float_with_warning(
                 n_turns, warning_stacklevel=2
             )
             if max_turns is not None:
-                assert (turn_i_init + n_turns) <= max_turns, (
+                assert (turn_i_init + _n_turns) <= max_turns, (
                     f"Max turn number is {self.magnetic_cycle.n_turns=}, "
-                    f"but trying to simulate {(turn_i_init + n_turns)} turns"
+                    f"but trying to simulate {(turn_i_init + _n_turns)} turns"
                 )
         else:
-            n_turns = max_turns
+            if max_turns is None:
+                raise ValueError(
+                    f"`n_turns` must be provided, because"
+                    f" {type(self.magnetic_cycle)=} has"
+                    f" unlimited turns."
+                )
+            else:
+                _n_turns = max_turns
         if backend.specials_mode == "python":
             particles_above_threshold = any(
                 [
@@ -470,7 +466,7 @@ class Simulation(Preparable, HasPropertyCache):
 
         self._exec_on_run_simulation(
             beam=beams[0],
-            n_turns=n_turns,
+            n_turns=_n_turns,
             turn_i_init=turn_i_init,
         )
 
@@ -481,7 +477,7 @@ class Simulation(Preparable, HasPropertyCache):
         if len(beams) == 1:
             self._run_simulation_single_beam(
                 beam=beams[0],
-                n_turns=n_turns,
+                n_turns=_n_turns,
                 turn_i_init=turn_i_init,
                 observe=observe,
                 show_progressbar=show_progressbar,
@@ -498,7 +494,7 @@ class Simulation(Preparable, HasPropertyCache):
                 "First beam must be normal, second beam must be counter-rotating"
             )
             self._run_simulation_counterrotating_beam(
-                n_turns=n_turns,
+                n_turns=_n_turns,
                 turn_i_init=turn_i_init,
                 observe=observe,
                 show_progressbar=show_progressbar,
@@ -539,7 +535,7 @@ class Simulation(Preparable, HasPropertyCache):
         iterator = range(turn_i_init, turn_i_init + n_turns)
         if show_progressbar:
             iterator = tqdm(iterator)  # Add TQDM display to iteration
-        self.turn_i.on_change(self._invalidate_cache)
+        self.turn_i.on_change(self._invalidate_cache_on_turn)
         self.turn_i.value = 0
         for observable in observe:
             observable.update(
@@ -549,7 +545,7 @@ class Simulation(Preparable, HasPropertyCache):
         for turn_i in iterator:
             self.turn_i.value = turn_i
             for element in self._ring.elements.elements:
-                self.section_i.current_group = element.section_index
+                self.section_i.value = element.section_index
                 if element.is_active_this_turn(turn_i=self.turn_i.value):
                     element.track(beam)
             for observable in observe:
@@ -585,7 +581,7 @@ class Simulation(Preparable, HasPropertyCache):
 
         ring_length = self.ring.closed_orbit_length
         bending_radius = self.ring.bending_radius
-        drift = self.ring.elements.get_element(DriftBaseClass)
+        drift = self.ring.elements.get_element(DriftBaseClass)  # type: ignore
         alpha_0 = drift.alpha_0
         synchronous_data = self.magnetic_cycle._synchronous_data
         synchronous_data_type = self.magnetic_cycle._synchronous_data_type
@@ -714,7 +710,7 @@ class Simulation(Preparable, HasPropertyCache):
         n_turns: int,
         turn_i_init: int = 0,
         observe: Tuple[Observables, ...] = tuple(),
-        callback: Callable[[Simulation], None] = None,
+        callback: Optional[Callable[[Simulation], None]] = None,
     ) -> None:
         raise FileNotFoundError()
         return
