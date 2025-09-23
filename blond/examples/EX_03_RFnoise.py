@@ -23,7 +23,6 @@ import numpy as np
 from blond import (
     Beam,
     BiGaussian,
-    BoxLosses,
     DriftSimple,
     MagneticCyclePerTurn,
     Ring,
@@ -32,7 +31,6 @@ from blond import (
     proton,
 )
 from blond.cycles.noise_generators.vari_noise import VariNoise
-from blond.physics.losses import SeparatrixLosses
 from blond.physics.profiles import DynamicProfileConstNBins
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"

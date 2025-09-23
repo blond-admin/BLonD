@@ -60,7 +60,6 @@ from .signal_processing import (  # noqa
 if TYPE_CHECKING:
     from typing import Any, Optional
 
-    from numpy import float64
     from numpy.typing import NDArray as NumpyArray
 
     from ..beam.profile import Profile

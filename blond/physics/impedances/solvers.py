@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 import warnings
 from typing import TYPE_CHECKING
 from typing import Optional
@@ -8,7 +7,6 @@ from typing import Optional as LateInit
 from typing import Tuple
 
 import numpy as np
-from matplotlib import pyplot as plt
 from scipy.constants import elementary_charge as e
 from scipy.fft import next_fast_len
 

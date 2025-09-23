@@ -7,7 +7,6 @@ import cupy as cp  # type: ignore
 import numpy as np
 
 from blond._core.backends.backend import Specials, backend
-from blond.handle_results.helpers import callers_relative_path
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore

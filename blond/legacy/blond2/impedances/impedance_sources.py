@@ -38,8 +38,6 @@ if TYPE_CHECKING:
     from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
-    from ..utils.types import ResonatorsMethodType
-
 
 class _ImpedanceObject:
     r"""

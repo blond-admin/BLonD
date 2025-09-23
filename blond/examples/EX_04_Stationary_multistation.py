@@ -16,23 +16,16 @@ No intensity effects
 :Authors: **Helga Timko**
 """
 
-import matplotlib.pyplot as plt
-import numpy as np
-from scipy.constants import c, e, m_p
-
 from blond import (
     Beam,
     BiGaussian,
-    BoxLosses,
     ConstantMagneticCycle,
     DriftSimple,
     Ring,
     Simulation,
     SingleHarmonicCavity,
-    StaticProfileObservation,
     proton,
 )
-from blond.physics.losses import SeparatrixLosses
 from blond.physics.profiles import DynamicProfileConstNBins
 
 

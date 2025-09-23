@@ -4,7 +4,6 @@ import json
 import os.path
 import warnings
 from abc import ABC, abstractmethod
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np

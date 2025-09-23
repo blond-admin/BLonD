@@ -17,7 +17,7 @@ and the beam coordinates in phase space.**
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 import scipy

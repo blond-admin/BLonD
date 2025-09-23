@@ -275,7 +275,6 @@ class BiGaussian(MatchingRoutine):
         # Generate coordinates. For reproducibility, a separate random number stream is used for dt and dE
         rng_dt = backend.random.default_rng(self._seed)
         rng_dE = backend.random.default_rng(self._seed + 1)
-        import cupy as cp
 
         dt = (
             self._sigma_dt

@@ -6,7 +6,6 @@ from pstats import SortKey
 from typing import TYPE_CHECKING, Callable
 from warnings import warn
 
-import numpy as np
 from scipy.integrate import cumulative_trapezoid
 from tqdm import tqdm  # type: ignore
 
@@ -159,6 +158,7 @@ class Simulation(Preparable, HasPropertyCache):
         self,
         ts: NumpyArray,
         particle_type: ParticleType,
+        subtract_min: bool = True,
     ) -> NumpyArray:
         """
         Obtain the potential well by tracking a beam one turn
@@ -181,6 +181,9 @@ class Simulation(Preparable, HasPropertyCache):
             The particle charge influences the phase advance per station
             and might exhibit different distortion of the potential well
             due to the side effects described in `Notes`
+        subtract_min
+            If True, will always return min(potential_well) = 0.
+            If False, potential_well[0] = 0.
 
         Returns
         -------
@@ -200,7 +203,8 @@ class Simulation(Preparable, HasPropertyCache):
             show_progressbar=False,
         )
         potential_well = cumulative_trapezoid(probe_bunch.read_partial_dE())
-        potential_well -= potential_well.min()
+        if subtract_min:
+            potential_well -= potential_well.min()
         return potential_well
 
     def on_init_simulation(self, simulation: Simulation) -> None:

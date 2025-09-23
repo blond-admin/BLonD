@@ -10,7 +10,7 @@ from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant, HasPropertyCache, Schedulable
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, Dict, Iterable
+    from typing import Any, Dict
     from typing import Optional
     from typing import Optional as LateInit
     from typing import Tuple
