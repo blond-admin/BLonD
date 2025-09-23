@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from functools import cached_property
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -35,6 +36,10 @@ class BeamBaseClassTester(BeamBaseClass):
         self._dE = np.linspace(1, 10, 10)
         self._dt = np.linspace(20, 30, 10)
         self._flags = np.zeros(10, dtype=int)
+
+    @cached_property
+    def ratio(self) -> float:
+        return self.n_particles / self.common_array_size
 
     def setup_beam(
         self,

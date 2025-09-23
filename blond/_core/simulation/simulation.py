@@ -404,7 +404,18 @@ class Simulation(Preparable, HasPropertyCache):
 
         """
         logger.info(f"Running `run_simulation` with {locals()}")
-        n_turns = int_from_float_with_warning(n_turns, warning_stacklevel=2)
+        max_turns = self.magnetic_cycle.n_turns
+        if n_turns is not None:
+            n_turns = int_from_float_with_warning(
+                n_turns, warning_stacklevel=2
+            )
+            if max_turns is not None:
+                assert (turn_i_init + n_turns) <= max_turns, (
+                    f"Max turn number is {self.magnetic_cycle.n_turns=}, "
+                    f"but trying to simulate {(turn_i_init + n_turns)} turns"
+                )
+        else:
+            n_turns = max_turns
         if backend.specials_mode == "python":
             particles_above_threshold = any(
                 [
@@ -424,12 +435,6 @@ class Simulation(Preparable, HasPropertyCache):
                     PerformanceWarning,
                     stacklevel=2,
                 )
-        max_turns = self.magnetic_cycle.n_turns
-        if max_turns is not None:
-            assert (turn_i_init + n_turns) <= max_turns, (
-                f"Max turn number is {self.magnetic_cycle.n_turns=}, "
-                f"but trying to simulate {(turn_i_init + n_turns)} turns"
-            )
 
         # temporarily pin attributes
         self.observe = (

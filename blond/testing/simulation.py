@@ -1,5 +1,7 @@
 from matplotlib import pyplot as plt
 
+from blond import MultiHarmonicCavity
+
 
 class ExampleSimulation01:
     def __init__(self):
@@ -98,12 +100,24 @@ class SimulationTwoRfStations:
         circumference = 26658.883
         ring = Ring(circumference=circumference)
 
-        cavity1 = SingleHarmonicCavity(
-            section_index=0,
+        cavity1 = MultiHarmonicCavity(
+            section_index=0, n_harmonics=1, main_harmonic_idx=0
         )
-        cavity1.harmonic = 35640
-        cavity1.voltage = 6e6
-        cavity1.phi_rf = 0
+        cavity1.harmonic = np.array(
+            [
+                35640.0,
+            ]
+        )
+        cavity1.voltage = np.array(
+            [
+                6e6,
+            ]
+        )
+        cavity1.phi_rf = np.array(
+            [
+                0.0,
+            ]
+        )
 
         cavity2 = SingleHarmonicCavity(
             section_index=1,
