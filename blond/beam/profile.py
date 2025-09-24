@@ -33,9 +33,13 @@ if TYPE_CHECKING:
     from ..utils.types import DeviceType
     from .beam import Beam
     from ..input_parameters.rf_parameters import RFStation
-    from ..utils.types import (FilterExtraOptionsType, CutUnitType,
-                               FitOptionTypes, FilterMethodType,
-                               BeamProfileDerivativeModes)
+    from ..utils.types import (
+        FilterExtraOptionsType,
+        CutUnitType,
+        FitOptionTypes,
+        FilterMethodType,
+        BeamProfileDerivativeModes,
+    )
 
 
 class CutOptions:
@@ -93,53 +97,79 @@ class CutOptions:
     """
 
     @handle_legacy_kwargs
-    def __init__(self, cut_left: Optional[float] = None,
-                 cut_right: Optional[float] = None, n_slices: int = 100,
-                 n_sigma: Optional[int] = None, cuts_unit: CutUnitType = 's',
-                 rf_station: Optional[RFStation] = None):
+    def __init__(
+        self,
+        cut_left: Optional[float] = None,
+        cut_right: Optional[float] = None,
+        n_slices: int = 100,
+        n_sigma: Optional[int] = None,
+        cuts_unit: CutUnitType = "s",
+        rf_station: Optional[RFStation] = None,
+    ):
         """
         Constructor
         """
 
-        self.cut_left: Optional[float] = float(cut_left) if cut_left is not None \
-            else None
+        self.cut_left: Optional[float] = (
+            float(cut_left) if cut_left is not None else None
+        )
 
-        self.cut_right: Optional[float] = float(cut_right) if cut_right is not None \
-            else None
+        self.cut_right: Optional[float] = (
+            float(cut_right) if cut_right is not None else None
+        )
 
         self.n_slices = int(n_slices)
 
-        self.n_sigma: Optional[float] = float(n_sigma) if n_sigma is not None \
-            else None
+        self.n_sigma: Optional[float] = (
+            float(n_sigma) if n_sigma is not None else None
+        )
 
         self.cuts_unit: CutUnitType = cuts_unit
 
         self.rf_station: Optional[RFStation] = rf_station
 
-        if self.cuts_unit == 'rad' and self.rf_station is None:
+        if self.cuts_unit == "rad" and self.rf_station is None:
             # CutError
-            raise RuntimeError('Argument "rf_station" required ' +
-                               'convert from radians to seconds')
-        if self.cuts_unit not in ['rad', 's']:
+            raise RuntimeError(
+                'Argument "rf_station" required '
+                + "convert from radians to seconds"
+            )
+        if self.cuts_unit not in ["rad", "s"]:
             # CutError
-            raise NameError(f'cuts_unit should be "s" or "rad", not {cuts_unit=} !')
+            raise NameError(
+                f'cuts_unit should be "s" or "rad", not {cuts_unit=} !'
+            )
 
-        self.edges: NumpyArray = np.zeros(n_slices + 1, dtype=bm.precision.real_t, order='C')
-        self.bin_centers: NumpyArray = np.zeros(n_slices, dtype=bm.precision.real_t, order='C')
+        self.edges: NumpyArray = np.zeros(
+            n_slices + 1, dtype=bm.precision.real_t, order="C"
+        )
+        self.bin_centers: NumpyArray = np.zeros(
+            n_slices, dtype=bm.precision.real_t, order="C"
+        )
         self.bin_size: float = 0.0
         # For CuPy backend
-        self._device: DeviceType = 'CPU'
+        self._device: DeviceType = "CPU"
 
     @property
     def RFParams(self):
         from warnings import warn
-        warn("AMBIGUOUS is deprecated, use ring", DeprecationWarning, stacklevel=2)
+
+        warn(
+            "AMBIGUOUS is deprecated, use ring",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self.rf_station
 
     @RFParams.setter
     def RFParams(self, val):
         from warnings import warn
-        warn("AMBIGUOUS is deprecated, use ring", DeprecationWarning, stacklevel=2)
+
+        warn(
+            "AMBIGUOUS is deprecated, use ring",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.rf_station = val
 
     def set_cuts(self, beam: Optional[Beam] = None):
@@ -153,7 +183,6 @@ class CutOptions:
         """
 
         if self.cut_left is None and self.cut_right is None:
-
             if self.n_sigma is None:
                 dt_min = beam.dt.min()
                 dt_max = beam.dt.max()
@@ -168,14 +197,16 @@ class CutOptions:
         # todo handle cutleftNone, cutright!=None and vice versa
 
         else:
+            self.cut_left = float(
+                self.convert_coordinates(self.cut_left, self.cuts_unit)
+            )
+            self.cut_right = float(
+                self.convert_coordinates(self.cut_right, self.cuts_unit)
+            )
 
-            self.cut_left = float(self.convert_coordinates(self.cut_left,
-                                                           self.cuts_unit))
-            self.cut_right = float(self.convert_coordinates(self.cut_right,
-                                                            self.cuts_unit))
-
-        self.edges = (np.linspace(self.cut_left, self.cut_right, self.n_slices + 1)
-                      .astype(dtype=bm.precision.real_t, order='C', copy=False))
+        self.edges = np.linspace(
+            self.cut_left, self.cut_right, self.n_slices + 1
+        ).astype(dtype=bm.precision.real_t, order="C", copy=False)
         self.bin_centers = (self.edges[:-1] + self.edges[1:]) / 2
         self.bin_size = (self.cut_right - self.cut_left) / self.n_slices
 
@@ -194,33 +225,46 @@ class CutOptions:
         self.edges += delta
         self.bin_centers += delta
 
-    def convert_coordinates(self, value: float, input_unit_type: CutUnitType) -> float:
+    def convert_coordinates(
+        self, value: float, input_unit_type: CutUnitType
+    ) -> float:
         """
         Method to convert a value from 'rad' to 's'.
         """
 
-        if input_unit_type == 's':
+        if input_unit_type == "s":
             return value
 
-        elif input_unit_type == 'rad':
-            return value / float(self.rf_station.omega_rf[0, self.rf_station.counter[0]])
+        elif input_unit_type == "rad":
+            return value / float(
+                self.rf_station.omega_rf[0, self.rf_station.counter[0]]
+            )
 
         else:
             raise NameError(input_unit_type)
 
-    def get_slices_parameters(self) -> tuple[int, float, float, None, NumpyArray, NumpyArray, float]:
+    def get_slices_parameters(
+        self,
+    ) -> tuple[int, float, float, None, NumpyArray, NumpyArray, float]:
         """
         Return all the computed parameters.
         """
-        return self.n_slices, self.cut_left, self.cut_right, self.n_sigma, \
-            self.edges, self.bin_centers, self.bin_size
+        return (
+            self.n_slices,
+            self.cut_left,
+            self.cut_right,
+            self.n_sigma,
+            self.edges,
+            self.bin_centers,
+            self.bin_size,
+        )
 
-    def to_gpu(self, recursive: bool=True):
+    def to_gpu(self, recursive: bool = True):
         """
         Transfer all necessary arrays to the GPU
         """
         # Check if to_gpu has been invoked already
-        if self._device == 'GPU':
+        if self._device == "GPU":
             return
 
         # transfer recursively objects
@@ -233,14 +277,14 @@ class CutOptions:
         self.bin_centers = cp.array(self.bin_centers)
 
         # to make sure it will not be called again
-        self._device: DeviceType = 'GPU'
+        self._device: DeviceType = "GPU"
 
     def to_cpu(self, recursive=True):
         """
         Transfer all necessary arrays back to the CPU
         """
         # Check if to_cpu has been invoked already
-        if hasattr(self, '_device') and self._device == 'CPU':
+        if hasattr(self, "_device") and self._device == "CPU":
             return
 
         # transfer recursively objects
@@ -252,11 +296,11 @@ class CutOptions:
         self.edges = cp.asnumpy(self.edges)
         self.bin_centers = cp.asnumpy(self.bin_centers)
 
-        if hasattr(self, 'rf_voltage'):
+        if hasattr(self, "rf_voltage"):
             self.rf_voltage = cp.asnumpy(self.rf_voltage)
 
         # to make sure it will not be called again
-        self._device: DeviceType = 'CPU'
+        self._device: DeviceType = "CPU"
 
 
 class FitOptions:
@@ -282,9 +326,11 @@ class FitOptions:
     """
 
     @handle_legacy_kwargs
-    def __init__(self,
-                 fit_option: Optional[FitOptionTypes] = None,
-                 fit_extra_options: None = None):  # todo type hint
+    def __init__(
+        self,
+        fit_option: Optional[FitOptionTypes] = None,
+        fit_extra_options: None = None,
+    ):  # todo type hint
         """
         Constructor
         """
@@ -295,13 +341,23 @@ class FitOptions:
     @property
     def fitExtraOptions(self):
         from warnings import warn
-        warn("fitExtraOptions is deprecated, use fit_extra_options", DeprecationWarning, stacklevel=2)
+
+        warn(
+            "fitExtraOptions is deprecated, use fit_extra_options",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self.fit_extra_options
 
     @fitExtraOptions.setter
     def fitExtraOptions(self, val):
         from warnings import warn
-        warn("fitExtraOptions is deprecated, use fit_extra_options", DeprecationWarning, stacklevel=2)
+
+        warn(
+            "fitExtraOptions is deprecated, use fit_extra_options",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.fit_extra_options = val
 
 
@@ -329,37 +385,62 @@ class FilterOptions:
     """
 
     @handle_legacy_kwargs
-    def __init__(self, filter_method: Optional[FilterMethodType] = None,
-                 filter_extra_options: Optional[FilterExtraOptionsType] = None):
+    def __init__(
+        self,
+        filter_method: Optional[FilterMethodType] = None,
+        filter_extra_options: Optional[FilterExtraOptionsType] = None,
+    ):
         """
         Constructor
         """
 
         self.filter_method: Optional[FilterMethodType] = filter_method
-        self.filter_extra_options: Optional[FilterExtraOptionsType] = filter_extra_options
+        self.filter_extra_options: Optional[FilterExtraOptionsType] = (
+            filter_extra_options
+        )
 
     @property
     def filterMethod(self):
         from warnings import warn
-        warn("filterMethod is deprecated, use filter_method", DeprecationWarning, stacklevel=2)
+
+        warn(
+            "filterMethod is deprecated, use filter_method",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self.filter_method
 
     @filterMethod.setter
     def filterMethod(self, val):
         from warnings import warn
-        warn("filterMethod is deprecated, use filter_method", DeprecationWarning, stacklevel=2)
+
+        warn(
+            "filterMethod is deprecated, use filter_method",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.filter_method = val
 
     @property
     def filterExtraOptions(self):
         from warnings import warn
-        warn("filterExtraOptions is deprecated, use filter_extra_options", DeprecationWarning, stacklevel=2)
+
+        warn(
+            "filterExtraOptions is deprecated, use filter_extra_options",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self.filter_extra_options
 
     @filterExtraOptions.setter
     def filterExtraOptions(self, val):
         from warnings import warn
-        warn("filterExtraOptions is deprecated, use filter_extra_options", DeprecationWarning, stacklevel=2)
+
+        warn(
+            "filterExtraOptions is deprecated, use filter_extra_options",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.filter_extra_options = val
 
 
@@ -477,11 +558,14 @@ class Profile:
     """
 
     @handle_legacy_kwargs
-    def __init__(self, beam: Beam,
-                 cut_options: Optional[CutOptions] = None,
-                 fit_options: Optional[FitOptions] = None,
-                 filter_options: Optional[FilterOptions] = None,
-                 other_slices_options: Optional[OtherSlicesOptions] = None):
+    def __init__(
+        self,
+        beam: Beam,
+        cut_options: Optional[CutOptions] = None,
+        fit_options: Optional[FitOptions] = None,
+        filter_options: Optional[FilterOptions] = None,
+        other_slices_options: Optional[OtherSlicesOptions] = None,
+    ):
         """
         Constructor
         """
@@ -505,22 +589,28 @@ class Profile:
         self.beam = beam
 
         self.n_slices = 0
-        self.cut_left = 0.
-        self.cut_right = 0.
+        self.cut_left = 0.0
+        self.cut_right = 0.0
         self.n_sigma = 0
         self.edges: NumpyArray | None = None
         self.bin_centers: NumpyArray | None = None
-        self.bin_size = 0.
+        self.bin_size = 0.0
         self.fit_extra_options = None  # todo typing
         # Get all computed parameters from CutOptions
         self.set_slices_parameters()
 
         # Initialize profile array as zero array
-        self.n_macroparticles: NumpyArray = np.zeros(self.n_slices, dtype=bm.precision.real_t, order='C')
+        self.n_macroparticles: NumpyArray = np.zeros(
+            self.n_slices, dtype=bm.precision.real_t, order="C"
+        )
 
         # Initialize beam_spectrum and beam_spectrum_freq as empty arrays
-        self.beam_spectrum: NumpyArray = np.array([], dtype=bm.precision.real_t, order='C')
-        self.beam_spectrum_freq: NumpyArray = np.array([], dtype=bm.precision.real_t, order='C')
+        self.beam_spectrum: NumpyArray = np.array(
+            [], dtype=bm.precision.real_t, order="C"
+        )
+        self.beam_spectrum_freq: NumpyArray = np.array(
+            [], dtype=bm.precision.real_t, order="C"
+        )
 
         self.operations: list[Callable] = []
         if other_slices_options.smooth:
@@ -529,19 +619,21 @@ class Profile:
             self.operations.append(self._slice)
 
         self.fit_option = fit_options.fit_option
-        if fit_options.fit_option is not None:  # todo remove conditional attributes
+        if (
+            fit_options.fit_option is not None
+        ):  # todo remove conditional attributes
             self.bunchPosition = 0.0
             self.bunchLength = 0.0
-            if fit_options.fit_option == 'gaussian':
+            if fit_options.fit_option == "gaussian":
                 self.operations.append(self.apply_fit)
-            elif fit_options.fit_option == 'rms':
+            elif fit_options.fit_option == "rms":
                 self.operations.append(self.rms)
-            elif fit_options.fit_option == 'fwhm':
+            elif fit_options.fit_option == "fwhm":
                 self.operations.append(self.fwhm)
             else:
                 raise NameError(f"{fit_options=}")
 
-        if filter_options.filter_method == 'chebishev':
+        if filter_options.filter_method == "chebishev":
             self.filter_extra_options = filter_options.filter_extra_options
             self.operations.append(self.apply_filter)
         elif filter_options.filter_method is None:
@@ -553,39 +645,57 @@ class Profile:
             self.track()
 
         # For CuPy backend
-        self._device: DeviceType = 'CPU'
+        self._device: DeviceType = "CPU"
 
     @property
     def Beam(self):
         from warnings import warn
+
         warn("Beam is deprecated, use beam", DeprecationWarning, stacklevel=2)
         return self.beam
 
     @Beam.setter
     def Beam(self, val):
         from warnings import warn
+
         warn("Beam is deprecated, use beam", DeprecationWarning, stacklevel=2)
         self.beam = val
 
     @property
     def filterExtraOptions(self):
         from warnings import warn
-        warn("filterExtraOptions is deprecated, use filter_extra_options", DeprecationWarning, stacklevel=2)
+
+        warn(
+            "filterExtraOptions is deprecated, use filter_extra_options",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self.filter_extra_options
 
     @filterExtraOptions.setter
     def filterExtraOptions(self, val):
         from warnings import warn
-        warn("filterExtraOptions is deprecated, use filter_extra_options", DeprecationWarning, stacklevel=2)
+
+        warn(
+            "filterExtraOptions is deprecated, use filter_extra_options",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.filter_extra_options = val
 
     def set_slices_parameters(self):
         """
         Set various slices parameters.
         """
-        self.n_slices, self.cut_left, self.cut_right, self.n_sigma, \
-            self.edges, self.bin_centers, self.bin_size = \
-            self.cut_options.get_slices_parameters()  # fixme get_slices_parameters doesnt exist
+        (
+            self.n_slices,
+            self.cut_left,
+            self.cut_right,
+            self.n_sigma,
+            self.edges,
+            self.bin_centers,
+            self.bin_size,
+        ) = self.cut_options.get_slices_parameters()  # fixme get_slices_parameters doesnt exist
 
     def track(self):
         """
@@ -601,8 +711,9 @@ class Profile:
         """
         Constant space slicing with a constant frame.
         """
-        bm.slice_beam(self.beam.dt, self.n_macroparticles, self.cut_left,
-                      self.cut_right)
+        bm.slice_beam(
+            self.beam.dt, self.n_macroparticles, self.cut_left, self.cut_right
+        )
 
         if bm.in_mpi():
             self.reduce_histo()
@@ -613,7 +724,8 @@ class Profile:
         """
         if not bm.in_mpi():
             raise RuntimeError(
-                'ERROR: Cannot use this routine unless in MPI Mode')
+                "ERROR: Cannot use this routine unless in MPI Mode"
+            )
 
         from ..utils.mpi_config import WORKER
 
@@ -621,35 +733,41 @@ class Profile:
             return
 
         if self.beam._mpi_is_splitted:
-
-            if 'CPU' in bm.device:
+            if "CPU" in bm.device:
                 # Convert to uint32t for better performance
                 self.n_macroparticles = self.n_macroparticles.astype(
-                    dtype, order='C')
+                    dtype, order="C"
+                )
 
-            if bm.device == 'GPU':
+            if bm.device == "GPU":
                 import cupy as cp
 
                 # tranfer to cpu
-                self.n_macroparticles = cp.asnumpy(self.n_macroparticles, dtype=dtype)
+                self.n_macroparticles = cp.asnumpy(
+                    self.n_macroparticles, dtype=dtype
+                )
 
             WORKER.allreduce(self.n_macroparticles)
 
-            if bm.device == 'GPU':
+            if bm.device == "GPU":
                 # transfer back to gpu
-                self.n_macroparticles = cp.array(self.n_macroparticles, dtype=bm.precision.real_t)
+                self.n_macroparticles = cp.array(
+                    self.n_macroparticles, dtype=bm.precision.real_t
+                )
 
-            if 'CPU' in bm.device:
+            if "CPU" in bm.device:
                 # Convert back to float64
                 self.n_macroparticles = self.n_macroparticles.astype(
-                    dtype=bm.precision.real_t, order='C', copy=False)
+                    dtype=bm.precision.real_t, order="C", copy=False
+                )
 
     def _slice_smooth(self, reduce: bool = True):
         """
         At the moment 4x slower than _slice but smoother (filtered).
         """
-        bm.slice_smooth(self.beam.dt, self.n_macroparticles, self.cut_left,
-                        self.cut_right)
+        bm.slice_smooth(
+            self.beam.dt, self.n_macroparticles, self.cut_left, self.cut_right
+        )
 
         if bm.in_mpi():
             self.reduce_histo(dtype=np.float64)
@@ -660,30 +778,44 @@ class Profile:
         """
 
         if self.bunchLength == 0:
-            p_0 = [float(self.n_macroparticles.max()),
-                   float(self.beam.dt.mean()),
-                   float(self.beam.dt.std())]
+            p_0 = [
+                float(self.n_macroparticles.max()),
+                float(self.beam.dt.mean()),
+                float(self.beam.dt.std()),
+            ]
         else:
-            p_0 = [float(self.n_macroparticles.max()),
-                   float(self.bunchPosition),
-                   float(self.bunchLength / 4.)]
+            p_0 = [
+                float(self.n_macroparticles.max()),
+                float(self.bunchPosition),
+                float(self.bunchLength / 4.0),
+            ]
 
-        self.fit_extra_options = ffroutines.gaussian_fit(self.n_macroparticles,
-                                                         self.bin_centers,
-                                                         p_0)
+        self.fit_extra_options = ffroutines.gaussian_fit(
+            self.n_macroparticles, self.bin_centers, p_0
+        )
         self.bunchPosition = self.fit_extra_options[1]
         self.bunchLength = 4 * self.fit_extra_options[2]
 
     @property
     def fitExtraOptions(self):  # TODO
         from warnings import warn
-        warn("fitExtraOptions is deprecated, use fit_extra_options", DeprecationWarning, stacklevel=2)  # TODO
+
+        warn(
+            "fitExtraOptions is deprecated, use fit_extra_options",
+            DeprecationWarning,
+            stacklevel=2,
+        )  # TODO
         return self.fit_extra_options
 
     @fitExtraOptions.setter  # TODO
     def fitExtraOptions(self, val):  # TODO
         from warnings import warn
-        warn("fitExtraOptions is deprecated, use fit_extra_options", DeprecationWarning, stacklevel=2)  # TODO
+
+        warn(
+            "fitExtraOptions is deprecated, use fit_extra_options",
+            DeprecationWarning,
+            stacklevel=2,
+        )  # TODO
         self.fit_extra_options = val
 
     def apply_filter(self):
@@ -691,7 +823,8 @@ class Profile:
         It applies Chebishev filter to the profile.
         """
         self.n_macroparticles = ffroutines.beam_profile_filter_chebyshev(
-            self.n_macroparticles, self.bin_centers, self.filter_extra_options)
+            self.n_macroparticles, self.bin_centers, self.filter_extra_options
+        )
 
     def rms(self):
         """
@@ -700,17 +833,28 @@ class Profile:
         """
 
         self.bunchPosition, self.bunchLength = ffroutines.rms(
-            self.n_macroparticles, self.bin_centers)
+            self.n_macroparticles, self.bin_centers
+        )
 
-    def rms_multibunch(self, n_bunches, bunch_spacing_buckets, bucket_size_tau,
-                       bucket_tolerance=0.40):
+    def rms_multibunch(
+        self,
+        n_bunches,
+        bunch_spacing_buckets,
+        bucket_size_tau,
+        bucket_tolerance=0.40,
+    ):
         """
         Computation of the bunch length (4sigma) and position from RMS.
         """
 
         self.bunchPosition, self.bunchLength = ffroutines.rms_multibunch(
-            self.n_macroparticles, self.bin_centers, n_bunches,
-            bunch_spacing_buckets, bucket_size_tau, bucket_tolerance)
+            self.n_macroparticles,
+            self.bin_centers,
+            n_bunches,
+            bunch_spacing_buckets,
+            bucket_size_tau,
+            bucket_tolerance,
+        )
 
     def fwhm(self, shift: float = 0):
         """
@@ -719,18 +863,31 @@ class Profile:
         """
 
         self.bunchPosition, self.bunchLength = ffroutines.fwhm(
-            self.n_macroparticles, self.bin_centers, shift)
+            self.n_macroparticles, self.bin_centers, shift
+        )
 
-    def fwhm_multibunch(self, n_bunches, bunch_spacing_buckets,
-                        bucket_size_tau, bucket_tolerance=0.40, shift=0):
+    def fwhm_multibunch(
+        self,
+        n_bunches,
+        bunch_spacing_buckets,
+        bucket_size_tau,
+        bucket_tolerance=0.40,
+        shift=0,
+    ):
         """
         Computation of the bunch length and position from the FWHM
         assuming Gaussian line density for multibunch case.
         """
 
         self.bunchPosition, self.bunchLength = ffroutines.fwhm_multibunch(
-            self.n_macroparticles, self.bin_centers, n_bunches,
-            bunch_spacing_buckets, bucket_size_tau, bucket_tolerance, shift)
+            self.n_macroparticles,
+            self.bin_centers,
+            n_bunches,
+            bunch_spacing_buckets,
+            bucket_size_tau,
+            bucket_tolerance,
+            shift,
+        )
 
     def beam_spectrum_freq_generation(self, n_sampling_fft: int):
         """
@@ -745,7 +902,9 @@ class Profile:
         """
         self.beam_spectrum = bm.rfft(self.n_macroparticles, n_sampling_fft)
 
-    def beam_profile_derivative(self, mode: BeamProfileDerivativeModes = 'gradient') -> Tuple[NumpyArray, NumpyArray]:
+    def beam_profile_derivative(
+        self, mode: BeamProfileDerivativeModes = "gradient"
+    ) -> Tuple[NumpyArray, NumpyArray]:
         """
         The input is one of the three available methods for differentiating
         a function. The two outputs are the bin centres and the discrete
@@ -755,31 +914,34 @@ class Profile:
         bin_centers = self.bin_centers
         dist_centers = bin_centers[1] - bin_centers[0]
 
-        if mode == 'filter1d':
-            if bm.device == 'GPU':
-                raise RuntimeError('filter1d mode is not supported in GPU.')
+        if mode == "filter1d":
+            if bm.device == "GPU":
+                raise RuntimeError("filter1d mode is not supported in GPU.")
 
-            derivative = ndimage.gaussian_filter1d(
-                self.n_macroparticles, sigma=1, order=1, mode='wrap') / \
-                         dist_centers
-        elif mode == 'gradient':
+            derivative = (
+                ndimage.gaussian_filter1d(
+                    self.n_macroparticles, sigma=1, order=1, mode="wrap"
+                )
+                / dist_centers
+            )
+        elif mode == "gradient":
             derivative = bm.gradient(self.n_macroparticles, dist_centers)
-        elif mode == 'diff':
+        elif mode == "diff":
             derivative = bm.diff(self.n_macroparticles) / dist_centers
             diffCenters = bin_centers[0:-1] + dist_centers / 2
             derivative = bm.interp(bin_centers, diffCenters, derivative)
         else:
             # ProfileDerivativeError
-            raise RuntimeError('Option for derivative is not recognized.')
+            raise RuntimeError("Option for derivative is not recognized.")
 
         return bin_centers, derivative
 
-    def to_gpu(self, recursive: bool=True):
+    def to_gpu(self, recursive: bool = True):
         """
         Transfer all necessary arrays to the GPU
         """
         # Check if to_gpu has been invoked already
-        if hasattr(self, '_device') and self._device == 'GPU':
+        if hasattr(self, "_device") and self._device == "GPU":
             return
 
         # transfer recursively objects to_gpu
@@ -799,14 +961,14 @@ class Profile:
         self.beam_spectrum_freq = cp.array(self.beam_spectrum_freq)
 
         # to make sure it will not be called again
-        self._device: DeviceType = 'GPU'
+        self._device: DeviceType = "GPU"
 
     def to_cpu(self, recursive=True):
         """
         Transfer all necessary arrays back to the CPU
         """
         # Check if to_cpu has been invoked already
-        if hasattr(self, '_device') and self._device == 'CPU':
+        if hasattr(self, "_device") and self._device == "CPU":
             return
 
         # transfer recursively objects
@@ -826,4 +988,4 @@ class Profile:
         self.beam_spectrum_freq = cp.asnumpy(self.beam_spectrum_freq)
 
         # to make sure it will not be called again
-        self._device: DeviceType = 'CPU'
+        self._device: DeviceType = "CPU"

@@ -2,6 +2,7 @@
 # Beam Exceptions
 # ===============
 
+
 class MassError(Exception):
     pass
 
@@ -18,6 +19,7 @@ class ParticleAdditionError(Exception):
 # Distribution Generation Exceptions
 # ==================================
 
+
 class DistributionError(Exception):
     pass
 
@@ -30,6 +32,7 @@ class GenerationError(Exception):
 # Profile Exceptions
 # ==================
 
+
 class CutError(Exception):
     pass
 
@@ -41,6 +44,7 @@ class ProfileDerivativeError(Exception):
 # ====================
 # Impedance Exceptions
 # ====================
+
 
 class WakeLengthError(Exception):
     pass
@@ -66,6 +70,7 @@ class MissingParameterError(Exception):
 # Input Parameters Exceptions
 # ===========================
 
+
 class MomentumError(Exception):
     pass
 
@@ -73,6 +78,7 @@ class MomentumError(Exception):
 # ===============
 # LLRF Exceptions
 # ===============
+
 
 class PhaseLoopError(Exception):
     pass
@@ -94,6 +100,7 @@ class ImpulseError(Exception):
 # Toolbox Exceptions
 # ==================
 
+
 class PhaseSpaceError(Exception):
     pass
 
@@ -105,6 +112,7 @@ class NoiseDiffusionError(Exception):
 # ==================
 # Tracker Exceptions
 # ==================
+
 
 class PotentialWellError(Exception):
     pass
@@ -130,6 +138,7 @@ class SynchrotronMotionError(Exception):
 # Util Exceptions
 # ===============
 
+
 class ConvolutionError(Exception):
     pass
 
@@ -145,6 +154,7 @@ class SortError(Exception):
 # =================
 # Global Exceptions
 # =================
+
 
 class InterpolationError(Exception):
     pass

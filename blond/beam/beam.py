@@ -29,7 +29,6 @@ from ..utils import exceptions as blond_exceptions
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
-
     from numpy.typing import NDArray as NumpyArray
     import cupy as cp
 
@@ -37,7 +36,7 @@ if TYPE_CHECKING:
     from ..input_parameters.rf_parameters import RFStation
     from ..utils.types import DeviceType
 
-m_mu = physical_constants['muon mass'][0]
+m_mu = physical_constants["muon mass"][0]
 
 
 class Particle:
@@ -52,7 +51,7 @@ class Particle:
     user_charge : float
         Particle charge in units of the elementary charge
     user_decay_rate : float
-        Particle decay rate in units of 1/s 
+        Particle decay rate in units of 1/s
 
     Attributes
     ----------
@@ -81,71 +80,72 @@ class Particle:
 
     """
 
-    def __init__(self, user_mass: float, user_charge: float, user_decay_rate: float = 0):
-
-        if user_mass > 0.:
+    def __init__(
+        self, user_mass: float, user_charge: float, user_decay_rate: float = 0
+    ):
+        if user_mass > 0.0:
             self.mass = float(user_mass)
             self.charge = float(user_charge)
         else:
             # MassError
-            raise RuntimeError('ERROR: Particle mass not recognized!')
+            raise RuntimeError("ERROR: Particle mass not recognized!")
 
-        if user_decay_rate >= 0.:
+        if user_decay_rate >= 0.0:
             self.decay_rate = float(user_decay_rate)
 
         else:
             # MassError
-            raise RuntimeError('ERROR: Invalid particle decay rate!')
+            raise RuntimeError("ERROR: Invalid particle decay rate!")
 
         # classical particle radius [m]
-        self.radius_cl = 0.25 / (np.pi * epsilon_0) * \
-                         e ** 2 * self.charge ** 2 / (self.mass * e)
+        self.radius_cl = (
+            0.25
+            / (np.pi * epsilon_0)
+            * e**2
+            * self.charge**2
+            / (self.mass * e)
+        )
 
         # Sand's radiation constant [ m / eV^3]
-        self.c_gamma = 4 * np.pi / 3 * self.radius_cl / self.mass ** 3
+        self.c_gamma = 4 * np.pi / 3 * self.radius_cl / self.mass**3
 
         # Quantum radiation constant [m]
-        self.c_q = (55.0 / (32.0 * np.sqrt(3.0)) * hbar * c / (self.mass * e))
+        self.c_q = 55.0 / (32.0 * np.sqrt(3.0)) * hbar * c / (self.mass * e)
 
 
 class Proton(Particle):
-    """ Implements a proton `Particle`.
-    """
+    """Implements a proton `Particle`."""
 
     def __init__(self):
-        Particle.__init__(self, m_p * c ** 2 / e, 1)
+        Particle.__init__(self, m_p * c**2 / e, 1)
 
 
 class Electron(Particle):
-    """ Implements an electron `Particle`.
-    """
+    """Implements an electron `Particle`."""
 
     def __init__(self):
-        Particle.__init__(self, m_e * c ** 2 / e, -1)
+        Particle.__init__(self, m_e * c**2 / e, -1)
 
 
 class Positron(Particle):
-    """ Implements a positron `Particle`.
-    """
+    """Implements a positron `Particle`."""
 
     def __init__(self):
-        Particle.__init__(self, m_e * c ** 2 / e, 1)
+        Particle.__init__(self, m_e * c**2 / e, 1)
 
 
 class MuPlus(Particle):
-    """ Implements a muon+ `Particle`.
-    """
+    """Implements a muon+ `Particle`."""
 
     def __init__(self):
-        Particle.__init__(self, m_mu * c ** 2 / e, 1, float(1 / 2.1969811e-6))
+        Particle.__init__(self, m_mu * c**2 / e, 1, float(1 / 2.1969811e-6))
 
 
 class MuMinus(Particle):
-    """ Implements a muon- `Particle`.
-    """
+    """Implements a muon- `Particle`."""
 
     def __init__(self):
-        Particle.__init__(self, m_mu * c ** 2 / e, -1, float(1 / 2.1969811e-6))
+        Particle.__init__(self, m_mu * c**2 / e, -1, float(1 / 2.1969811e-6))
 
 
 class Beam:
@@ -228,63 +228,76 @@ class Beam:
     """
 
     @handle_legacy_kwargs
-    def __init__(self, ring: Ring, n_macroparticles: int, intensity: float,
-                 dt:Optional[NumpyArray]=None, dE:Optional[NumpyArray]=None):
+    def __init__(
+        self,
+        ring: Ring,
+        n_macroparticles: int,
+        intensity: float,
+        dt: Optional[NumpyArray] = None,
+        dE: Optional[NumpyArray] = None,
+    ):
         self.particle = ring.particle
         self.beta: float = ring.beta[0][0]
         self.gamma: float = ring.gamma[0][0]
         self.energy: float = ring.energy[0][0]
         self.momentum: float = ring.momentum[0][0]
         if dt is None:
-            self.dt: NumpyArray | cp.array  = np.zeros([int(n_macroparticles)], dtype=bm.precision.real_t)
+            self.dt: NumpyArray | cp.array = np.zeros(
+                [int(n_macroparticles)], dtype=bm.precision.real_t
+            )
         else:
             assert n_macroparticles == len(dt)
-            self.dt: NumpyArray | cp.array  = np.ascontiguousarray(dt)
+            self.dt: NumpyArray | cp.array = np.ascontiguousarray(dt)
 
         if dE is None:
-            self.dE: NumpyArray | cp.array  = np.zeros([int(n_macroparticles)], dtype=bm.precision.real_t)
+            self.dE: NumpyArray | cp.array = np.zeros(
+                [int(n_macroparticles)], dtype=bm.precision.real_t
+            )
         else:
             assert n_macroparticles == len(dE)
-            self.dE: NumpyArray | cp.array  = np.ascontiguousarray(dE)
+            self.dE: NumpyArray | cp.array = np.ascontiguousarray(dE)
 
-
-        self.mean_dt: float = 0.
-        self.mean_dE: float = 0.
-        self.sigma_dt: float = 0.
-        self.sigma_dE: float = 0.
+        self.mean_dt: float = 0.0
+        self.mean_dE: float = 0.0
+        self.sigma_dt: float = 0.0
+        self.sigma_dE: float = 0.0
         self.intensity: float = float(intensity)
         self.n_macroparticles: int = int(n_macroparticles)
         self.ratio: float = self.intensity / self.n_macroparticles
-        self.id: NumpyArray | cp.array = np.arange(1, self.n_macroparticles + 1, dtype=int)
-        self.epsn_rms_l: float = 0.
+        self.id: NumpyArray | cp.array = np.arange(
+            1, self.n_macroparticles + 1, dtype=int
+        )
+        self.epsn_rms_l: float = 0.0
         self.n_macroparticles_eliminated = 0
 
         # For MPI
         self._mpi_n_total_macroparticles_lost: int = 0
         self._mpi_n_total_macroparticles: int = n_macroparticles
         self._mpi_is_splitted: bool = False
-        self._mpi_sumsq_dt: NumpyArray | float = 0.
-        self._mpi_sumsq_dE: NumpyArray | float = 0.
+        self._mpi_sumsq_dt: NumpyArray | float = 0.0
+        self._mpi_sumsq_dE: NumpyArray | float = 0.0
         # For handling arrays on CPU/GPU
-        self._device = 'CPU'
+        self._device = "CPU"
 
     @property
     def Particle(self):
         from warnings import warn
+
         warn(
             "Particle is deprecated, use particle",
-             DeprecationWarning,
-             stacklevel=2
-             )
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self.particle
 
     @Particle.setter
     def Particle(self, val):
         from warnings import warn
+
         warn(
             "Particle is deprecated, use particle",
-             DeprecationWarning,
-             stacklevel=2
+            DeprecationWarning,
+            stacklevel=2,
         )
         self.particle = val
 
@@ -306,7 +319,7 @@ class Beam:
         warnings.warn(
             "Use '_mpi_n_total_macroparticles' instead !",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self._mpi_n_total_macroparticles
 
@@ -319,7 +332,7 @@ class Beam:
         warnings.warn(
             "Use '_mpi_is_splitted' instead !",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self._mpi_is_splitted
 
@@ -329,7 +342,9 @@ class Beam:
 
     @property
     def _sumsq_dt(self):
-        warnings.warn("Use '_mpi_sumsq_dt' instead !", DeprecationWarning, stacklevel=2)
+        warnings.warn(
+            "Use '_mpi_sumsq_dt' instead !", DeprecationWarning, stacklevel=2
+        )
         return self._mpi_sumsq_dt
 
     @_sumsq_dt.setter
@@ -338,7 +353,9 @@ class Beam:
 
     @property
     def _sumsq_dE(self):
-        warnings.warn("Use '_mpi_sumsq_dE' instead !", DeprecationWarning, stacklevel=2)
+        warnings.warn(
+            "Use '_mpi_sumsq_dE' instead !", DeprecationWarning, stacklevel=2
+        )
         return self._mpi_sumsq_dE
 
     @_sumsq_dE.setter
@@ -359,7 +376,7 @@ class Beam:
             "Use 'n_macroparticles_not_alive' instead of "
             "'n_macroparticles_lost' for readability",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
 
         return self.n_macroparticles - self.n_macroparticles_alive
@@ -379,34 +396,36 @@ class Beam:
 
     @property
     def n_macroparticles_not_alive(self) -> int:
-        '''Number of macro-particles marked as not-alive
+        """Number of macro-particles marked as not-alive
 
         Returns
         -------
         n_macroparticles_not_alive : int
             number of macroparticles marked as lost.
 
-        '''
+        """
 
         return self.n_macroparticles - self.n_macroparticles_alive
 
     def eliminate_lost_particles(self):
-        """Eliminate lost particles from the beam coordinate arrays
-        """
+        """Eliminate lost particles from the beam coordinate arrays"""
 
         select_alive = self.id != 0
         if bm.sum(select_alive) > 0:
             self.n_macroparticles_eliminated += bm.sum(~select_alive)
             self.dt = bm.ascontiguousarray(
-                self.dt[select_alive], dtype=bm.precision.real_t)
+                self.dt[select_alive], dtype=bm.precision.real_t
+            )
             self.dE = bm.ascontiguousarray(
-                self.dE[select_alive], dtype=bm.precision.real_t)
+                self.dE[select_alive], dtype=bm.precision.real_t
+            )
             self.n_macroparticles = len(self.dt)
             self.id = bm.arange(1, self.n_macroparticles + 1, dtype=int)
         else:
             # AllParticlesLost
-            raise RuntimeError("ERROR in Beams: all particles lost and" +
-                               " eliminated!")
+            raise RuntimeError(
+                "ERROR in Beams: all particles lost and" + " eliminated!"
+            )
 
     def statistics(self):
         r"""
@@ -452,8 +471,9 @@ class Beam:
             Used to call the function is_in_separatrix.
         """
 
-        lost_index = is_in_separatrix(ring, rf_station, self,
-                                      self.dt, self.dE) == False
+        lost_index = (
+            is_in_separatrix(ring, rf_station, self, self.dt, self.dE) == False
+        )
 
         self.id[lost_index] = 0
 
@@ -501,7 +521,7 @@ class Beam:
             minimum dE.
         """
 
-        lost_index = (self.dE < dE_min)
+        lost_index = self.dE < dE_min
         self.id[lost_index] = 0
 
     def particle_decay(self, time: float):
@@ -533,7 +553,8 @@ class Beam:
             newdE = new_particles[1]
             if len(newdt) != len(newdE):
                 raise blond_exceptions.ParticleAdditionError(
-                    "new_particles must have equal number of time and energy coordinates")
+                    "new_particles must have equal number of time and energy coordinates"
+                )
         except TypeError:
             raise blond_exceptions.ParticleAdditionError(
                 "new_particles shape must be (2, n)"
@@ -541,10 +562,16 @@ class Beam:
 
         n_new = len(newdt)
 
-        self.id = bm.concatenate((self.id, bm.arange(self.n_macroparticles + 1,
-                                                     self.n_macroparticles + n_new + 1,
-                                                     dtype=int)
-                                  ))
+        self.id = bm.concatenate(
+            (
+                self.id,
+                bm.arange(
+                    self.n_macroparticles + 1,
+                    self.n_macroparticles + n_new + 1,
+                    dtype=int,
+                ),
+            )
+        )
         self.n_macroparticles += n_new
 
         self.dt = bm.concatenate((self.dt, newdt))
@@ -615,9 +642,11 @@ class Beam:
 
         if not bm.in_mpi():
             raise RuntimeError(
-                'ERROR: Cannot use this routine unless in MPI Mode')
+                "ERROR: Cannot use this routine unless in MPI Mode"
+            )
 
         from ..utils.mpi_config import WORKER
+
         if WORKER.is_master and random:
             bm.random.shuffle(self.id)
             if not fast:
@@ -632,7 +661,7 @@ class Beam:
             self.dt = WORKER.scatter(self.dt)
             self.dE = WORKER.scatter(self.dE)
 
-        assert (len(self.dt) == len(self.dE) and len(self.dt) == len(self.id))
+        assert len(self.dt) == len(self.dE) and len(self.dt) == len(self.id)
 
         self.n_macroparticles = len(self.dt)
         self._mpi_is_splitted = True
@@ -649,7 +678,8 @@ class Beam:
         """
         if not bm.in_mpi():
             raise RuntimeError(
-                'ERROR: Cannot use this routine unless in MPI Mode')
+                "ERROR: Cannot use this routine unless in MPI Mode"
+            )
         from ..utils.mpi_config import WORKER
 
         if all_gather:
@@ -678,60 +708,87 @@ class Beam:
         """
         if not bm.in_mpi():
             raise RuntimeError(
-                'ERROR: Cannot use this routine unless in MPI Mode')
+                "ERROR: Cannot use this routine unless in MPI Mode"
+            )
 
         from ..utils.mpi_config import WORKER
-        if all_gather:
 
+        if all_gather:
             self.mean_dt = WORKER.allreduce(
-                np.array([self.mean_dt]), operator='mean')[0]
+                np.array([self.mean_dt]), operator="mean"
+            )[0]
 
             self.mean_dE = WORKER.allreduce(
-                np.array([self.mean_dE]), operator='mean')[0]
+                np.array([self.mean_dE]), operator="mean"
+            )[0]
 
             self._mpi_n_total_macroparticles_lost = WORKER.allreduce(
-                np.array([self.n_macroparticles_not_alive]), operator='sum')[0]
+                np.array([self.n_macroparticles_not_alive]), operator="sum"
+            )[0]
 
             # self.__mpi_n_total_macroparticles_alive = WORKER.allreduce(
             # np.array([self.n_macroparticles_alive]), operator='sum')[0]
 
             self.sigma_dt = WORKER.allreduce(
-                np.array([self._mpi_sumsq_dt]), operator='sum')[0]
+                np.array([self._mpi_sumsq_dt]), operator="sum"
+            )[0]
             self.sigma_dt = np.sqrt(
-                self.sigma_dt / (self._mpi_n_total_macroparticles -
-                                 self._mpi_n_total_macroparticles_lost)
-                - self.mean_dt ** 2)
+                self.sigma_dt
+                / (
+                    self._mpi_n_total_macroparticles
+                    - self._mpi_n_total_macroparticles_lost
+                )
+                - self.mean_dt**2
+            )
 
             self.sigma_dE = WORKER.allreduce(
-                np.array([self._mpi_sumsq_dE]), operator='sum')[0]
+                np.array([self._mpi_sumsq_dE]), operator="sum"
+            )[0]
             self.sigma_dE = np.sqrt(
-                self.sigma_dE / (self._mpi_n_total_macroparticles -
-                                 self._mpi_n_total_macroparticles_lost)
-                - self.mean_dE ** 2)
+                self.sigma_dE
+                / (
+                    self._mpi_n_total_macroparticles
+                    - self._mpi_n_total_macroparticles_lost
+                )
+                - self.mean_dE**2
+            )
 
         else:
             self.mean_dt = WORKER.reduce(
-                np.array([self.mean_dt]), operator='mean')[0]
+                np.array([self.mean_dt]), operator="mean"
+            )[0]
 
             self.mean_dE = WORKER.reduce(
-                np.array([self.mean_dE]), operator='mean')[0]
+                np.array([self.mean_dE]), operator="mean"
+            )[0]
 
             self._mpi_n_total_macroparticles_lost = WORKER.reduce(
-                np.array([self.n_macroparticles_not_alive]), operator='sum')[0]
+                np.array([self.n_macroparticles_not_alive]), operator="sum"
+            )[0]
 
             self.sigma_dt = WORKER.reduce(
-                np.array([self._mpi_sumsq_dt]), operator='sum')[0]
+                np.array([self._mpi_sumsq_dt]), operator="sum"
+            )[0]
             self.sigma_dt = np.sqrt(
-                self.sigma_dt / (self._mpi_n_total_macroparticles -
-                                 self._mpi_n_total_macroparticles_lost)
-                - self.mean_dt ** 2)
+                self.sigma_dt
+                / (
+                    self._mpi_n_total_macroparticles
+                    - self._mpi_n_total_macroparticles_lost
+                )
+                - self.mean_dt**2
+            )
 
             self.sigma_dE = WORKER.reduce(
-                np.array([self._mpi_sumsq_dE]), operator='sum')[0]
+                np.array([self._mpi_sumsq_dE]), operator="sum"
+            )[0]
             self.sigma_dE = np.sqrt(
-                self.sigma_dE / (self._mpi_n_total_macroparticles -
-                                 self._mpi_n_total_macroparticles_lost)
-                - self.mean_dE ** 2)
+                self.sigma_dE
+                / (
+                    self._mpi_n_total_macroparticles
+                    - self._mpi_n_total_macroparticles_lost
+                )
+                - self.mean_dE**2
+            )
 
     def gather_losses(self, all_gather: bool = False):
         """
@@ -745,7 +802,8 @@ class Beam:
         """
         if not bm.in_mpi():
             raise RuntimeError(
-                'ERROR: Cannot use this routine unless in MPI Mode')
+                "ERROR: Cannot use this routine unless in MPI Mode"
+            )
 
         from ..utils.mpi_config import WORKER
 
@@ -756,33 +814,37 @@ class Beam:
             temp = WORKER.gather(np.array([self.n_macroparticles_lost]))
             self._mpi_n_total_macroparticles_lost = np.sum(temp)
 
-    def to_gpu(self, recursive: bool=True):
+    def to_gpu(self, recursive: bool = True):
         """
         Transfer all necessary arrays to the GPU
         """
         # Check if to_gpu has been invoked already
-        if hasattr(self, '_device') and self._device == 'GPU':
+        if hasattr(self, "_device") and self._device == "GPU":
             return
 
         import cupy as cp
+
         self.dE = cp.array(self.dE)
         self.dt = cp.array(self.dt)
         self.id = cp.array(self.id)
 
-        self._device: DeviceType = 'GPU'
+        self._device: DeviceType = "GPU"
 
     def to_cpu(self, recursive=True):
         """
         Transfer all necessary arrays back to the CPU
         """
         # Check if to_cpu has been invoked already
-        if hasattr(self, '_device') and self._device == 'CPU':  # todo hasattr useless?
+        if (
+            hasattr(self, "_device") and self._device == "CPU"
+        ):  # todo hasattr useless?
             return
 
         import cupy as cp
+
         self.dE = cp.asnumpy(self.dE)
         self.dt = cp.asnumpy(self.dt)
         self.id = cp.asnumpy(self.id)
 
         # to make sure it will not be called again
-        self._device: DeviceType = 'CPU'
+        self._device: DeviceType = "CPU"
