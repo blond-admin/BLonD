@@ -45,13 +45,10 @@ class DenseArrayRecorder(ArrayRecorder):
         self,
         filepath: str | PathLike,
         shape: int | Tuple[int, ...],
-        filepath_is_relative: bool = True,
         dtype: Optional[DTypeLike] = None,
         order: Literal["C", "F"] = "C",
         overwrite: bool = True,
     ):
-        if filepath_is_relative:
-            filepath = callers_relative_path(filepath, stacklevel=6)
         self._memory = np.empty(shape=shape, dtype=dtype, order=order)
         self._write_idx = 0
 

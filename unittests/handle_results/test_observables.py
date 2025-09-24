@@ -5,6 +5,7 @@ import numpy as np
 
 from blond import Simulation, SingleHarmonicCavity, StaticProfile, WakeField
 from blond._core.beam.base import BeamBaseClass
+from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
     BunchObservation,
     CavityPhaseObservation,
@@ -41,11 +42,13 @@ class TestObservables(unittest.TestCase):
     def setUp(self) -> None:
         self.observables = ObservablesHelper(
             each_turn_i=1,
+            folder=callers_relative_path("results/", stacklevel=1),
         )
 
     def test___init__(self) -> None:
         self.observables = ObservablesHelper(
             each_turn_i=1,
+            folder=callers_relative_path("results/", stacklevel=1),
         )
 
     def test_from_disk(self) -> None:
@@ -71,11 +74,13 @@ class TestBunchObservation(unittest.TestCase):
     def setUp(self) -> None:
         self.bunch_observation = BunchObservation(
             each_turn_i=1,
+            folder=callers_relative_path("results/", stacklevel=1),
         )
 
     def test___init__(self) -> None:
         self.bunch_observation = BunchObservation(
             each_turn_i=1,
+            folder=callers_relative_path("results/", stacklevel=1),
         )
 
     def test_from_disk(self) -> None:
@@ -110,6 +115,7 @@ class TestCavityPhaseObservation(unittest.TestCase):
         self.cavity_phase_observation = CavityPhaseObservation(
             each_turn_i=1,
             cavity=cavity,
+            folder=callers_relative_path("results/", stacklevel=1),
         )
 
     def test___init__(self) -> None:
@@ -117,6 +123,7 @@ class TestCavityPhaseObservation(unittest.TestCase):
             each_turn_i=1,
             cavity=Mock(
                 SingleHarmonicCavity,
+                folder=callers_relative_path("results/", stacklevel=1),
             ),
         )
 
@@ -148,12 +155,14 @@ class TestStaticProfileObservation(unittest.TestCase):
         self.static_profile_observation = StaticProfileObservation(
             each_turn_i=1,
             profile=profile,
+            folder=callers_relative_path("results/", stacklevel=1),
         )
 
     def test___init__(self) -> None:
         self.static_profile_observation = StaticProfileObservation(
             each_turn_i=1,
             profile=Mock(StaticProfile),
+            folder=callers_relative_path("results/", stacklevel=1),
         )
 
     def test_from_disk(self) -> None:
@@ -183,6 +192,7 @@ class TestWakeFieldObservation(unittest.TestCase):
         self.wake_field_observation = WakeFieldObservation(
             each_turn_i=1,
             wakefield=wakefield,
+            folder=callers_relative_path("results/", stacklevel=1),
         )
         wakefield.induced_voltage = np.ones(
             wakefield._profile.n_bins, dtype=float
@@ -192,6 +202,7 @@ class TestWakeFieldObservation(unittest.TestCase):
         self.wake_field_observation = WakeFieldObservation(
             each_turn_i=1,
             wakefield=Mock(WakeField),
+            folder=callers_relative_path("results/", stacklevel=1),
         )
 
     def test_from_disk(self) -> None:

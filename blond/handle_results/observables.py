@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from abc import abstractmethod
 from typing import TYPE_CHECKING, List
 
@@ -19,9 +20,11 @@ if TYPE_CHECKING:  # pragma: no cover
     from ..physics.cavities import SingleHarmonicCavity
     from ..physics.profiles import StaticProfile
 
+logger = logging.getLogger(__name__)
+
 
 class Observables(MainLoopRelevant):
-    def __init__(self, each_turn_i: int):
+    def __init__(self, each_turn_i: int, folder: str):
         """
         Base class to observe attributes during simulation
 
@@ -34,9 +37,12 @@ class Observables(MainLoopRelevant):
         """
         super().__init__()
         self.each_turn_i = each_turn_i
+        if len(folder) > 0:
+            assert folder.endswith("/") or folder.endswith("\\")
         self.common_name = (
-            "last"  # will result in filenames like last_dE.npy etc.
+            folder + "last"  # will result in filenames like last_dE.npy etc.
         )
+        logger.info(f"Will save {self} to {self.common_name}_,,,")
 
         self._n_turns: LateInit[int] = None
         self._turn_i_init: LateInit[int] = None
@@ -134,6 +140,7 @@ class Observables(MainLoopRelevant):
                 common_name,
             )
         self.common_name = common_name
+        logger.info(f"Changed save target of {self} to {self.common_name}_,,,")
 
     def to_disk(self) -> None:
         """
@@ -141,7 +148,7 @@ class Observables(MainLoopRelevant):
         """
         for instance in self.get_recorders():
             array_recorder: DenseArrayRecorder = instance
-            print(f"Saved {array_recorder.filepath_array}")
+            logger.info(f"Saved {array_recorder.filepath_array}")
             array_recorder.to_disk()
 
     def from_disk(self) -> None:
@@ -150,14 +157,18 @@ class Observables(MainLoopRelevant):
         """
         for instance in self.get_recorders():
             array_recorder: DenseArrayRecorder = instance
-            print(f"Loaded {array_recorder.filepath_array}")
+            logger.info(f"Loaded {array_recorder.filepath_array}")
             array_recorder.from_disk(
                 filepath=array_recorder.filepath,
             )
 
 
 class BunchObservation(Observables):
-    def __init__(self, each_turn_i: int):
+    def __init__(
+        self,
+        each_turn_i: int,
+        folder: str = "",
+    ):
         """
         Observe the bunch coordinates during simulation execution
 
@@ -167,7 +178,7 @@ class BunchObservation(Observables):
             Value to control that the element is
             callable each n-th turn.
         """
-        super().__init__(each_turn_i=each_turn_i)
+        super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._dts: LateInit[DenseArrayRecorder] = None
         self._dEs: LateInit[DenseArrayRecorder] = None
         self._flags: LateInit[DenseArrayRecorder] = None
@@ -206,15 +217,15 @@ class BunchObservation(Observables):
         self._dts = DenseArrayRecorder(
             f"{self.common_name}_dts",
             shape,
-        )  # TODO
+        )
         self._dEs = DenseArrayRecorder(
             f"{self.common_name}_dEs",
             shape,
-        )  # TODO
+        )
         self._flags = DenseArrayRecorder(
             f"{self.common_name}_flags",
             shape,
-        )  # TODO
+        )
 
         self._reference_time = DenseArrayRecorder(
             f"{self.common_name}_reference_time",
@@ -270,7 +281,12 @@ class BunchObservation(Observables):
 
 
 class CavityPhaseObservation(Observables):
-    def __init__(self, each_turn_i: int, cavity: SingleHarmonicCavity):
+    def __init__(
+        self,
+        each_turn_i: int,
+        cavity: SingleHarmonicCavity,
+        folder: str = "",
+    ):
         """
         Observe the cavity rf parameters during simulation execution
 
@@ -282,7 +298,7 @@ class CavityPhaseObservation(Observables):
         cavity
             Class that implements beam-rf interactions in a synchrotron
         """
-        super().__init__(each_turn_i=each_turn_i)
+        super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._cavity = cavity
         self._phases: LateInit[DenseArrayRecorder] = None
         self._omegas: LateInit[DenseArrayRecorder] = None
@@ -316,15 +332,15 @@ class CavityPhaseObservation(Observables):
         n_entries = n_turns // self.each_turn_i + 2
         n_harmonics = int(self._cavity.n_rf)
         self._phases = DenseArrayRecorder(
-            f"{self.common_name}_phases",  # TODO
+            f"{self.common_name}_phases",
             (n_entries, n_harmonics),
         )
         self._omegas = DenseArrayRecorder(
-            f"{self.common_name}_omegas",  # TODO
+            f"{self.common_name}_omegas",
             (n_entries, n_harmonics),
         )
         self._voltages = DenseArrayRecorder(
-            f"{self.common_name}_voltages",  # TODO
+            f"{self.common_name}_voltages",
             (n_entries, n_harmonics),
         )
 
@@ -372,7 +388,12 @@ class CavityPhaseObservation(Observables):
 
 
 class StaticProfileObservation(Observables):
-    def __init__(self, each_turn_i: int, profile: StaticProfile):
+    def __init__(
+        self,
+        each_turn_i: int,
+        profile: StaticProfile,
+        folder: str = "",
+    ):
         """
         Observation of a static beam profile
 
@@ -385,7 +406,7 @@ class StaticProfileObservation(Observables):
             Class for the calculation of beam profile
             that doesn't change its parameters
         """
-        super().__init__(each_turn_i=each_turn_i)
+        super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._profile = profile
         self._hist_y: LateInit[DenseArrayRecorder] = None
 
@@ -417,7 +438,7 @@ class StaticProfileObservation(Observables):
         n_entries = n_turns // self.each_turn_i + 2
         n_bins = int(self._profile.n_bins)
         self._hist_y = DenseArrayRecorder(
-            f"{self.common_name}_hist_y",  # TODO
+            f"{self.common_name}_hist_y",
             (n_entries, n_bins),
         )
 
@@ -448,7 +469,12 @@ class StaticProfileObservation(Observables):
 
 
 class WakeFieldObservation(Observables):
-    def __init__(self, each_turn_i: int, wakefield: WakeField):
+    def __init__(
+        self,
+        each_turn_i: int,
+        wakefield: WakeField,
+        folder: str = "",
+    ):
         """
         Observe the calculation of wake-fields
 
@@ -460,7 +486,7 @@ class WakeFieldObservation(Observables):
         wakefield
             Manager class to calculate wake-fields
         """
-        super().__init__(each_turn_i=each_turn_i)
+        super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._wakefield = wakefield
         self._induced_voltage: LateInit[DenseArrayRecorder] = None
 
@@ -492,7 +518,7 @@ class WakeFieldObservation(Observables):
         n_entries = n_turns // self.each_turn_i + 2
         n_bins = int(self._wakefield._profile.n_bins)
         self._induced_voltage = DenseArrayRecorder(
-            f"{self.common_name}_induced_voltage",  # TODO
+            f"{self.common_name}_induced_voltage",
             (n_entries, n_bins),
         )
 
