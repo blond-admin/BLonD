@@ -221,5 +221,20 @@ class TestGeneralParameters(unittest.TestCase):
         np.testing.assert_allclose(delta_E_values, mom_gain)
 
 
+class TestRing(unittest.TestCase):
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.ring = Ring(ring_length=None, alpha_0=None, synchronous_data=None, Particle=None, n_turns=None, synchronous_data_type=None, bending_radius=None, n_sections=None, alpha_1=None, alpha_2=None, RingOptions=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
+    @unittest.skip
+    def test_parameters_at_time(self):
+        # TODO: implement test for `parameters_at_time`
+        self.ring.parameters_at_time(cycle_moments=None)
+
+
 if __name__ == '__main__':
     unittest.main()

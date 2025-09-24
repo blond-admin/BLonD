@@ -1,7 +1,5 @@
-import os
 import subprocess
 import unittest
-from pathlib import Path
 
 import numpy as np
 
@@ -99,6 +97,13 @@ class RfNoise(unittest.TestCase):
         plt.ylim(0, 2 * f_high[-1])
         plt.legend(loc="upper left")
         # plt.show()
+
+    @unittest.skip
+    def test__compile_rf_noise_library(self):
+        from blond.interfaces.rf_noise_cpp.wrap_rf_noise import (
+            _compile_rf_noise_library)
+        # TODO: implement test for `_compile_rf_noise_library`
+        _compile_rf_noise_library(rf_noise_dir=None)
 
 
 if __name__ == '__main__':

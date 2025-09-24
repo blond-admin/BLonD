@@ -1,14 +1,14 @@
 import unittest
-import numpy as np
 from unittest.mock import MagicMock
 
-from blond.beam.beam import Proton, Beam
-from blond.beam.profile import Profile, FitOptions, CutOptions
+import numpy as np
+
+from blond.beam.beam import Proton
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
-# Dummy backend math module if the original uses a backend like cupy
+from blond.llrf.rf_noise import LHCNoiseFB, CallEveryNTurns, FlatSpectrum
 
-from blond.llrf.rf_noise import LHCNoiseFB
+# Dummy backend math module if the original uses a backend like cupy
 
 # Dummy cfwhm if it’s used as a global constant
 cfwhm = 1.0  # Adjust if there's a specific constant you're using
@@ -91,6 +91,61 @@ class TestLHCNoiseFB(unittest.TestCase):
         fb.x = 0.2
         fb.update_noise_amplitude()
         self.assertTrue(0 <= fb.x <= 1)
+
+
+
+class TestCallEveryNTurns(unittest.TestCase):
+    @unittest.skip
+    def test___call__(self):
+        # TODO: implement test for `__call__`
+        self.call_every_n_turns.__call__()
+
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.call_every_n_turns = CallEveryNTurns(n_turns=None, function=None, delay=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
+    @unittest.skip
+    def test_tick(self):
+        # TODO: implement test for `tick`
+        self.call_every_n_turns.tick()
+
+
+class TestFlatSpectrum(unittest.TestCase):
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.flat_spectrum = FlatSpectrum(Ring=None, RFStation=None, delta_f=None, corr_time=None, fmin_s0=None, fmax_s0=None, initial_amplitude=None, seed1=None, seed2=None, predistortion=None, continuous_phase=None, folder_plots=None, print_option=None, initial_final_turns=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
+    @unittest.skip
+    def test_generate(self):
+        # TODO: implement test for `generate`
+        self.flat_spectrum.generate()
+
+    @unittest.skip
+    def test_spectrum_to_phase_noise(self):
+        # TODO: implement test for `spectrum_to_phase_noise`
+        self.flat_spectrum.spectrum_to_phase_noise(freq=None, spectrum=None, transform=None)
+
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.lhc_noise_fb = LHCNoiseFB(RFStation_=None, Profile_=None, f_rev=None, bl_target=None, gain=None, factor=None, update_frequency=None, variable_gain=None, bunch_pattern=None, old_FESA_class=None, no_delay=None, seed=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
+    @unittest.skip
+    def test_fwhm_multi_bunch(self):
+        # TODO: implement test for `fwhm_multi_bunch`
+        self.lhc_noise_fb.fwhm_multi_bunch()
+
 
 if __name__ == "__main__":
     unittest.main()

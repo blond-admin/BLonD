@@ -19,9 +19,16 @@ import unittest
 import numpy as np
 from scipy.constants import c, e, m_p
 
-import xpart as xp
-import xtrack as xt
-
+try:
+    import xpart as xp
+    import xtrack as xt
+    from blond.interfaces.xsuite import (BlondElement, BlondObserver,
+                                         EnergyUpdate,
+                                         blond_to_xsuite_transform,
+                                         xsuite_to_blond_transform)
+    xsuite_missing = False
+except ModuleNotFoundError:
+    xsuite_missing = True
 from blond.beam.beam import Beam, Proton
 from blond.beam.profile import CutOptions, Profile
 from blond.input_parameters.rf_parameters import RFStation
@@ -29,10 +36,6 @@ from blond.input_parameters.ring import Ring
 from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
 from blond.monitors.monitors import BunchMonitor
 
-from blond.interfaces.xsuite import (BlondElement, BlondObserver,
-                                     EnergyUpdate,
-                                     blond_to_xsuite_transform,
-                                     xsuite_to_blond_transform)
 
 # TODO: Make a test of the EnergyFrequencyUpdate and BlondObserver classes
 
@@ -40,6 +43,8 @@ from blond.interfaces.xsuite import (BlondElement, BlondObserver,
 class TestXsuiteBLonDTransforms(unittest.TestCase):
 
     def setUp(self):
+        if xsuite_missing:
+            self.skipTest("xsuite not installed")
         # Accelerator parameters
         C = 26658.8832
         p_s = 450e9
@@ -153,6 +158,9 @@ class TestXsuiteBLonDTransforms(unittest.TestCase):
 class TestXsuiteLHC(unittest.TestCase):
 
     def setUp(self):
+
+        if xsuite_missing:
+            self.skipTest("xsuite not installed")
         # Accelerator parameters
         self.C = 26658.8832                     # Machine circumference [m]
         self.p_s = 450e9                        # Synchronous momentum [eV/c]
@@ -430,6 +438,9 @@ class TestXsuiteLHC(unittest.TestCase):
 class TestXsuitePSB(unittest.TestCase):
 
     def setUp(self):
+
+        if xsuite_missing:
+            self.skipTest("xsuite not installed")
         # Accelerator parameters
         self.C = 2 * np.pi * 25.00005794526065  # Machine circumference, radius 25 [m]
         gamma_t = 4.11635447373496              # Transition gamma [-]

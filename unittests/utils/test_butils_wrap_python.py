@@ -30,6 +30,8 @@ from blond.utils import bmath as bm
 from blond.impedances.impedance import InducedVoltageResonator
 from blond.impedances.impedance_sources import Resonators
 from blond.beam.profile import CutOptions, FitOptions, Profile
+from blond.utils.butils_wrap_python import distribution_from_tomoscope, \
+    sparse_histogram
 
 
 class Test:
@@ -102,9 +104,9 @@ class Test:
         bm.use_cpp()
         np.testing.assert_equal(bm.device, 'CPU_CPP')
 
-        voltages = np.random.randn(n_slices)
-        omega_rf = np.random.randn(n_slices)
-        phi_rf = np.random.randn(n_slices)
+        voltages = np.random.randn(10)
+        omega_rf = np.random.randn(10)
+        phi_rf = np.random.randn(10)
         bin_centers = np.linspace(1e-5, 1e-6, n_slices)
 
         res = bm.rf_volt_comp(voltages, omega_rf, phi_rf, bin_centers)
@@ -616,6 +618,16 @@ class TestWithObjects:
         np.testing.assert_array_almost_equal(time_save, ind_volt_res._deltaT, decimal=8)
 
 
-if __name__ == '__main__':
+class TestFunctions(unittest.TestCase):
+    @unittest.skip
+    def test_distribution_from_tomoscope(self):
+        # TODO: implement test for `distribution_from_tomoscope`
+        distribution_from_tomoscope(dt=None, dE=None, probDistr=None, seed=None, profLen=None, cutoff=None, x0=None, y0=None, dtBin=None, dEBin=None)
 
+    @unittest.skip
+    def test_sparse_histogram(self):
+        # TODO: implement test for `sparse_histogram`
+        sparse_histogram(dt=None, profile=None, cut_left=None, cut_right=None, bunch_indexes=None, n_slices_bucket=None)
+
+if __name__ == '__main__':
     unittest.main()

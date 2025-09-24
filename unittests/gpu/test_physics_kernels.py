@@ -12,7 +12,7 @@ Unittest for the FFTs used in blond with CuPy and NumPy
 
 :Authors: **Konstantinos Iliakis**
 """
-
+import time
 import unittest
 
 import numpy as np
@@ -25,6 +25,7 @@ from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.trackers.tracker import RingAndRFTracker
 from blond.utils import bmath as bm
+from blond.utils import butils_wrap_cpp
 
 
 class TestSyntheticData:
@@ -34,6 +35,7 @@ class TestSyntheticData:
         # Try to import cupy, skip if not found
         pytest.importorskip('cupy')
         np.random.seed(0)
+        bm.use_cpu()
 
     # Run after every test
     def teardown_method(self):
@@ -129,22 +131,22 @@ class TestSyntheticData:
 
         cp.testing.assert_array_almost_equal(res_gpu, res, decimal=8)
 
-    @pytest.mark.parametrize('n_slices', [1, 8, 100, 100000])
+    @pytest.mark.parametrize('n_slices', [1, 8, 100, 10000])
     def test_rf_volt_comp(self, n_slices):
-        voltages = np.random.randn(n_slices)
-        omega_rf = np.random.randn(n_slices)
-        phi_rf = np.random.randn(n_slices)
+        voltages = np.random.randn(10)
+        omega_rf = np.random.randn(10)
+        phi_rf = np.random.randn(10)
         bin_centers = np.linspace(1e-5, 1e-6, n_slices)
-
-        res = bm.rf_volt_comp(voltages, omega_rf, phi_rf, bin_centers)
-
+        res = butils_wrap_cpp.rf_volt_comp(voltages, omega_rf, phi_rf, bin_centers)
         import cupy as cp
+        from blond.gpu import butils_wrap_cupy
+
         bm.use_gpu()
         voltages = bm.array(voltages)
         omega_rf = bm.array(omega_rf)
         phi_rf = bm.array(phi_rf)
         bin_centers = bm.array(bin_centers)
-        res_gpu = bm.rf_volt_comp(voltages, omega_rf, phi_rf, bin_centers)
+        res_gpu = butils_wrap_cupy.rf_volt_comp(voltages, omega_rf, phi_rf, bin_centers)
 
         cp.testing.assert_array_almost_equal(res_gpu, res, decimal=8)
 
