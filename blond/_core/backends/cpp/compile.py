@@ -27,7 +27,7 @@ cpp_files = [
     # "fast_resonator.cpp",
     "beam_phase.cpp",
     # "fft.cpp",
-    # "openmp.cpp",
+    "openmp.cpp",  # required for single core compilation without parallel flag
 ]
 cpp_files = [os.path.join(_basepath, f) for f in cpp_files]
 
@@ -108,7 +108,6 @@ def compile_cpp_library(
         "-O3",
         "-std=c++11",
         "-shared",
-        "-D_USE_MATH_DEFINES",
         # Necessary on windows, as here the M_PI etc.
         # are not defined by mingw without the flag.
     ]
@@ -116,6 +115,7 @@ def compile_cpp_library(
     cflags += [
         "-Wall",
         "-Wno-unknown-pragmas",
+        "-D_USE_MATH_DEFINES",
     ]
 
     for file in cpp_files:
@@ -376,8 +376,7 @@ def main_cli() -> None:
     parser.add_argument(
         "-p",
         "--parallel",
-        type=bool,
-        default=True,
+        action="store_true",
         help="Produce Multi-threaded code. Use the environment"
         " variable OMP_NUM_THREADS=xx to control the number of"
         " threads that will be used."
