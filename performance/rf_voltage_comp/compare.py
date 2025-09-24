@@ -26,7 +26,7 @@ def main():
         time.sleep(0.1)
         print("Compiling...", end="")
         subprocess.run(
-            ["python3", str(compile_file), "--optimize", "--parallel", "-gpu"],
+            ["python", str(compile_file), "--optimize", "--parallel", "-gpu"],
             check=True,
             capture_output=False,
             stdout=None if compile_verbose else subprocess.PIPE,
