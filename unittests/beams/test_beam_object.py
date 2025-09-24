@@ -157,9 +157,10 @@ class testBeamClass(unittest.TestCase):
                               msg='Beam: id is not a numpy.array')
         self.assertIn('int', type(self.beam.id[0]).__name__,
                       msg='Beam: id array does not contain int')
-        assert isinstance(self.beam.n_macroparticles_not_alive, int) or isinstance(self.beam.n_macroparticles_not_alive, np.int64), 'Beam: n_macroparticles_not_alive is not an int'
-        assert isinstance(self.beam.n_macroparticles_not_alive, int) or isinstance(self.beam.n_macroparticles_not_alive,
-                                                                                   np.int64), 'Beam: n_macroparticles_alive is not an int'
+        self.assertIsInstance(self.beam.n_macroparticles_not_alive, int,
+                              msg='Beam: n_macroparticles_lost is not an int')
+        self.assertIsInstance(self.beam.n_macroparticles_alive, int,
+                              msg='Beam: n_macroparticles_alive is not an int')
         self.assertIsInstance(self.beam.dt, np.ndarray,
                               msg='Beam: dt is not a numpy.array')
         self.assertIsInstance(self.beam.dE, np.ndarray,
