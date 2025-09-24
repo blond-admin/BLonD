@@ -18,7 +18,7 @@ class TestUtilities(unittest.TestCase):
     def test_potential_well_cut(self):
         time_potential = np.linspace(0, 1, 50)
         potential_array = np.array([np.sin(k * np.pi / 51) for k in range(10)])
-        with self.assertRaises(AssertionError,
+        with self.assertRaises(ValueError,
                                msg=f"{len(time_potential)} != "
                                    f"{len(potential_array)}"):
             potential_well_cut(time_potential=time_potential,
