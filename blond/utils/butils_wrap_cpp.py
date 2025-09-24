@@ -84,6 +84,8 @@ def __getLen(x: NumpyArray) -> ct.c_int:
 #           True: element satisfied the cond, False: otherwise
 def where_cpp(x: NumpyArray, more_than: Optional[float] = None, less_than: Optional[float] = None,
               result: Optional[NumpyArray] = None) -> NumpyArray:
+    raise NotImplementedError("Fix bugs")
+    # TODO make testcases working. Result should be int, not double
     if result is None:
         result = np.empty_like(x, dtype=bool)
     if more_than is None and less_than is not None:
@@ -262,7 +264,8 @@ def arange_cpp(start: float | int, stop: float | int, step: float | int,
     elif dtype == int:
         get_libblond().arange_int(ct.c_int(start), ct.c_int(stop),
                                   ct.c_int(step), __getPointer(result))
-
+    else:
+        raise ValueError(f"Unexpected dtype {dtype=}. Use one of `None`, `int`, `float` instead")
     return result
 
 
@@ -798,6 +801,8 @@ def synchrotron_radiation_full(dE: NumpyArray, U0: float, n_kicks: int, tau_z: f
 
 
 def set_random_seed(seed):
+    raise NotImplementedError("This function needs further development!")
+    # TODO fix this function and make testcases working
     get_libblond().set_random_seed(ct.c_int(seed))
 
 
