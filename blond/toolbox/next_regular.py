@@ -24,7 +24,7 @@ def next_regular(target: int) -> int:
 
     target = -(-target // 2)
 
-    match = float('inf')  # Anything found will be smaller
+    match = float("inf")  # Anything found will be smaller
     p5 = 1
     while p5 < target:
         p35 = p5
@@ -57,6 +57,7 @@ def next_regular(target: int) -> int:
         match = p5
 
     return match * 2
+
 
 # THIS IS THE ORIGINAL PYTHON VERSION #
 

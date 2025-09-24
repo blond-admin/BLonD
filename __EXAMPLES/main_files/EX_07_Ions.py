@@ -33,37 +33,37 @@ DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 
 
 # Atomic Mass Unit [eV]
-u = physical_constants['atomic mass unit-electron volt relationship'][0]
+u = physical_constants["atomic mass unit-electron volt relationship"][0]
 
 
-mpl.use('Agg')
+mpl.use("Agg")
 
-this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
+this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 
-os.makedirs(this_directory + '../output_files/EX_07_fig', exist_ok=True)
+os.makedirs(this_directory + "../output_files/EX_07_fig", exist_ok=True)
 
 
 # Simulation parameters --------------------------------------------------------
 # Bunch parameters
-N_b = 5.0e11                 # Design Intensity in SIS100
-N_p = 1001 if DRAFT_MODE else 50000                  # Macro-particles
-tau_0 = 100.0e-9             # Initial bunch length, 4 sigma [s]
-Z = 28.                      # Charge state of Uranium
-m_p = 238.05078826 * u         # Isotope mass of U-238
+N_b = 5.0e11  # Design Intensity in SIS100
+N_p = 1001 if DRAFT_MODE else 50000  # Macro-particles
+tau_0 = 100.0e-9  # Initial bunch length, 4 sigma [s]
+Z = 28.0  # Charge state of Uranium
+m_p = 238.05078826 * u  # Isotope mass of U-238
 
 # Machine and RF parameters
-C = 1083.6                   # Machine circumference [m]
-p_i = 153.37e9               # Synchronous momentum [eV/c]
-p_f = 535.62e9               # Synchronous momentum, final 535.62e9
-h = 10                       # Harmonic number
-V = 280.e3                   # RF voltage [V]
-dphi = np.pi                 # Phase modulation/offset
-gamma_t = 15.59              # Transition gamma
-alpha = 1. / gamma_t / gamma_t   # First order mom. comp. factor
+C = 1083.6  # Machine circumference [m]
+p_i = 153.37e9  # Synchronous momentum [eV/c]
+p_f = 535.62e9  # Synchronous momentum, final 535.62e9
+h = 10  # Harmonic number
+V = 280.0e3  # RF voltage [V]
+dphi = np.pi  # Phase modulation/offset
+gamma_t = 15.59  # Transition gamma
+alpha = 1.0 / gamma_t / gamma_t  # First order mom. comp. factor
 
 # Tracking details
-N_t = 45500                 # Number of turns to track
-dt_plt = 5000                # Time steps between plots
+N_t = 45500  # Number of turns to track
+dt_plt = 5000  # Time steps between plots
 
 
 # Simulation setup -------------------------------------------------------------
@@ -74,8 +74,9 @@ print("")
 # Define general parameters
 
 
-general_params = Ring(C, alpha, np.linspace(p_i, p_f, N_t + 1),
-                      Particle(m_p, Z), n_turns=N_t)
+general_params = Ring(
+    C, alpha, np.linspace(p_i, p_f, N_t + 1), Particle(m_p, Z), n_turns=N_t
+)
 
 # Define beam and distribution
 beam = Beam(general_params, N_p, N_b)
@@ -92,47 +93,85 @@ charge_test = general_params.particle.charge  # e*Z
 
 # Define RF station parameters and corresponding tracker
 rf_params = RFStation(general_params, [h], [V], [dphi])
-print("Initial bucket length is %.3e s" % (2. * np.pi / rf_params.omega_rf[0, 0]))
-print("Final bucket length is %.3e s" % (2. * np.pi / rf_params.omega_rf[0, N_t]))
+print(
+    "Initial bucket length is %.3e s"
+    % (2.0 * np.pi / rf_params.omega_rf[0, 0])
+)
+print(
+    "Final bucket length is %.3e s"
+    % (2.0 * np.pi / rf_params.omega_rf[0, N_t])
+)
 
 phi_s_test = rf_params.phi_s  # : *Synchronous phase
-omega_RF_d_test = rf_params.omega_rf_d  # : *Design RF frequency of the RF systems in the station [GHz]*
-omega_RF_test = rf_params.omega_rf  #: *Initial, actual RF frequency of the RF systems in the station [GHz]*
-phi_RF_test = rf_params.omega_rf  # : *Initial, actual RF phase of each harmonic system*
-E_increment_test = rf_params.delta_E  # Energy increment (acceleration/deceleration) between two turns,
+omega_RF_d_test = (
+    rf_params.omega_rf_d
+)  # : *Design RF frequency of the RF systems in the station [GHz]*
+omega_RF_test = (
+    rf_params.omega_rf
+)  #: *Initial, actual RF frequency of the RF systems in the station [GHz]*
+phi_RF_test = (
+    rf_params.omega_rf
+)  # : *Initial, actual RF phase of each harmonic system*
+E_increment_test = (
+    rf_params.delta_E
+)  # Energy increment (acceleration/deceleration) between two turns,
 
 
 long_tracker = RingAndRFTracker(rf_params, beam)
 
-eta_0_test = rf_params.eta_0  # : *Slippage factor (0th order) for the given RF section*
-eta_1_test = rf_params.eta_1  # : *Slippage factor (1st order) for the given RF section*
-eta_2_test = rf_params.eta_2  # : *Slippage factor (2nd order) for the given RF section*
+eta_0_test = (
+    rf_params.eta_0
+)  # : *Slippage factor (0th order) for the given RF section*
+eta_1_test = (
+    rf_params.eta_1
+)  # : *Slippage factor (1st order) for the given RF section*
+eta_2_test = (
+    rf_params.eta_2
+)  # : *Slippage factor (2nd order) for the given RF section*
 alpha_order_test = rf_params.alpha_order
 
-bigaussian(general_params, rf_params, beam, tau_0 / 4,
-           reinsertion='on', seed=1)
+bigaussian(
+    general_params, rf_params, beam, tau_0 / 4, reinsertion="on", seed=1
+)
 
 
 # Need slices for the Gaussian fit
 slice_beam = Profile(beam, CutOptions(n_slices=100))
 
 # Define what to save in file
-bunchmonitor = BunchMonitor(general_params, rf_params, beam,
-                            this_directory + '../output_files/EX_07_output_data',
-                            profile=slice_beam)
+bunchmonitor = BunchMonitor(
+    general_params,
+    rf_params,
+    beam,
+    this_directory + "../output_files/EX_07_output_data",
+    profile=slice_beam,
+)
 
-format_options = {'dirname': this_directory + '../output_files/EX_07_fig'}
-plots = Plot(general_params, rf_params, beam, dt_plt, N_t, 0, 8.e-7,
-             -400e6, 400e6, separatrix_plot=True, profile=slice_beam,
-             h5file=this_directory + '../output_files/EX_07_output_data',
-             format_options=format_options)
+format_options = {"dirname": this_directory + "../output_files/EX_07_fig"}
+plots = Plot(
+    general_params,
+    rf_params,
+    beam,
+    dt_plt,
+    N_t,
+    0,
+    8.0e-7,
+    -400e6,
+    400e6,
+    separatrix_plot=True,
+    profile=slice_beam,
+    h5file=this_directory + "../output_files/EX_07_output_data",
+    format_options=format_options,
+)
 
 # For testing purposes
-test_string = ''
-test_string += '{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
-    'mean_dE', 'std_dE', 'mean_dt', 'std_dt')
-test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
-    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
+test_string = ""
+test_string += "{:<17}\t{:<17}\t{:<17}\t{:<17}\n".format(
+    "mean_dE", "std_dE", "mean_dt", "std_dt"
+)
+test_string += "{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n".format(
+    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt)
+)
 
 
 # Accelerator map
@@ -144,10 +183,9 @@ print("")
 # Tracking ---------------------------------------------------------------------
 if DRAFT_MODE:
     # Tracking details
-    N_t = 45                 # Number of turns to track
-    dt_plt = 5                # Time steps between plots
+    N_t = 45  # Number of turns to track
+    dt_plt = 5  # Time steps between plots
 for i in range(1, N_t + 1):
-
     # Plot has to be done before tracking (at least for cases with separatrix)
     if (i % dt_plt) == 0:
         print("Outputting at time step %d..." % i)
@@ -155,7 +193,9 @@ for i in range(1, N_t + 1):
         print("   Beam gamma %3.3f" % beam.gamma)
         print("   Beam beta %3.3f" % beam.beta)
         print("   Beam energy %.6e eV" % beam.energy)
-        print("   Four-times r.m.s. bunch length %.4e s" % (4. * beam.sigma_dt))
+        print(
+            "   Four-times r.m.s. bunch length %.4e s" % (4.0 * beam.sigma_dt)
+        )
         print("")
 
     # Track
@@ -166,9 +206,10 @@ for i in range(1, N_t + 1):
     beam.losses_separatrix(general_params, rf_params)
 
 # For testing purposes
-test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
-    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
-with open(this_directory + '../output_files/EX_07_test_data.txt', 'w') as f:
+test_string += "{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n".format(
+    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt)
+)
+with open(this_directory + "../output_files/EX_07_test_data.txt", "w") as f:
     f.write(test_string)
 
 

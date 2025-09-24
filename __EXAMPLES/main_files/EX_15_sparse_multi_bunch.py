@@ -1,4 +1,3 @@
-
 # Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
@@ -34,23 +33,23 @@ from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
 DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 # To check if executing correctly, rather than to run the full simulation
 
-mpl.use('Agg')
+mpl.use("Agg")
 
-this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
+this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 
-os.makedirs(this_directory + '../output_files/EX_15_fig/', exist_ok=True)
+os.makedirs(this_directory + "../output_files/EX_15_fig/", exist_ok=True)
 
 
 # SIMULATION PARAMETERS -------------------------------------------------------
 
 # Beam parameters
 n_particles = int(1.7e11)
-n_macroparticles = int(1001)  if DRAFT_MODE else int(20e6)
+n_macroparticles = int(1001) if DRAFT_MODE else int(20e6)
 sync_momentum = 175e9  # [eV]
 
-distribution_type = 'gaussian'
+distribution_type = "gaussian"
 emittance = 1.0
-distribution_variable = 'Action'
+distribution_variable = "Action"
 
 # Machine and RF parameters
 radius = 15915.49
@@ -62,7 +61,7 @@ n_turns = int(200)
 n_turns_between_two_plots = 100
 
 # Derived parameters
-E_0 = m_e * c**2 / e    # [eV]
+E_0 = m_e * c**2 / e  # [eV]
 tot_beam_energy = np.sqrt(sync_momentum**2 + E_0**2)  # [eV]
 momentum_compaction = 1 / gamma_transition**2  # [1]
 
@@ -76,11 +75,13 @@ bucket_length = C / c / harmonic_numbers[0]
 
 # DEFINE RING------------------------------------------------------------------
 
-general_params = Ring(C, momentum_compaction,
-                      sync_momentum, Electron(), n_turns)
+general_params = Ring(
+    C, momentum_compaction, sync_momentum, Electron(), n_turns
+)
 
-RF_sct_par = RFStation(general_params, harmonic_numbers, voltage_program,
-                       phi_offset, n_rf_systems)
+RF_sct_par = RFStation(
+    general_params, harmonic_numbers, voltage_program, phi_offset, n_rf_systems
+)
 
 # DEFINE BEAM------------------------------------------------------------------
 
@@ -97,50 +98,65 @@ full_tracker = FullRingAndRF([longitudinal_tracker])
 n_slices = 500
 
 n_bunches = 80
-bunch_spacing = 1600    # buckets
+bunch_spacing = 1600  # buckets
 filling_pattern = np.zeros(bunch_spacing * n_bunches)
 filling_pattern[::bunch_spacing] = 1
 
 
 # BEAM GENERATION--------------------------------------------------------------
 
-matched_from_distribution_function(beam, full_tracker, emittance=emittance,
-                                   distribution_type=distribution_type,
-                                   distribution_variable=distribution_variable, seed=134253)
+matched_from_distribution_function(
+    beam,
+    full_tracker,
+    emittance=emittance,
+    distribution_type=distribution_type,
+    distribution_variable=distribution_variable,
+    seed=134253,
+)
 
 indexes = np.arange(n_macroparticles)
 
 for i in range(int(np.sum(filling_pattern))):
-    beam.dt[indexes[int(i * len(beam.dt) // np.sum(filling_pattern))]:
-            indexes[int((i + 1) * len(beam.dt) // np.sum(filling_pattern) - 1)]] += (
-        bucket_length * np.where(filling_pattern)[0][i])
+    beam.dt[
+        indexes[int(i * len(beam.dt) // np.sum(filling_pattern))] : indexes[
+            int((i + 1) * len(beam.dt) // np.sum(filling_pattern) - 1)
+        ]
+    ] += bucket_length * np.where(filling_pattern)[0][i]
 
 
 slice_beam = SparseSlices(RF_sct_par, beam, n_slices, filling_pattern)
 
 t0 = time.time()
 slice_beam.track()
-print('Time for optimized C++ track ', time.time() - t0)
+print("Time for optimized C++ track ", time.time() - t0)
 plt.figure()
 for i in range(int(np.sum(filling_pattern))):
-    plt.plot(slice_beam.profiles_list[i].bin_centers,
-             slice_beam.profiles_list[i].n_macroparticles, 'b', lw=2)
+    plt.plot(
+        slice_beam.profiles_list[i].bin_centers,
+        slice_beam.profiles_list[i].n_macroparticles,
+        "b",
+        lw=2,
+    )
 
 
 for i in range(int(np.sum(filling_pattern))):
     slice_beam.profiles_list[i].n_macroparticles *= 0
 
 
-slice_beam = SparseSlices(RF_sct_par, beam, n_slices, filling_pattern,
-                          tracker='onebyone')
+slice_beam = SparseSlices(
+    RF_sct_par, beam, n_slices, filling_pattern, tracker="onebyone"
+)
 
 t0 = time.time()
 slice_beam.track()
-print('Time for individual tracks ', time.time() - t0)
+print("Time for individual tracks ", time.time() - t0)
 
 for i in range(int(np.sum(filling_pattern))):
-    plt.plot(slice_beam.profiles_list[i].bin_centers,
-             slice_beam.profiles_list[i].n_macroparticles, 'r')
-plt.savefig(this_directory + '../output_files/EX_15_fig/ind_track.png')
+    plt.plot(
+        slice_beam.profiles_list[i].bin_centers,
+        slice_beam.profiles_list[i].n_macroparticles,
+        "r",
+    )
+plt.savefig(this_directory + "../output_files/EX_15_fig/ind_track.png")
 
 print("Done!")

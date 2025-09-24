@@ -12,6 +12,7 @@
 
 :Authors: **Simon Albright**
 """
+
 from __future__ import annotations
 
 import numbers
@@ -27,7 +28,6 @@ if TYPE_CHECKING:
     from typing import Any, Iterable, TypeVar
 
     T = TypeVar("T")
-
 
 
 def check_input(variable: Any, msg: str, *args) -> tuple[bool, Any]:
@@ -86,6 +86,7 @@ def check_data_dimensions(input_data: Any, *args) -> tuple[bool, Any]:
 
     return success, type(input_data)
 
+
 def _check_number(input_data: Any) -> bool:
     """returns True if input_data can be cast to int
 
@@ -106,8 +107,9 @@ def _check_number(input_data: Any) -> bool:
     except (TypeError, ValueError):
         return False
 
+
 def _check_length(input_data: NumpyArray | list | tuple, length: int) -> bool:
-    """ Returns True if len(input_data) == length
+    """Returns True if len(input_data) == length
     Should this return True if n-dim > 1?
 
     Args:
@@ -129,7 +131,9 @@ def _check_length(input_data: NumpyArray | list | tuple, length: int) -> bool:
         return False
 
 
-def _check_dimensions(input_data: NumpyArray | list | tuple, dim: Iterable[int]) -> bool:
+def _check_dimensions(
+    input_data: NumpyArray | list | tuple, dim: Iterable[int]
+) -> bool:
     """
     Casts input_data to numpy array and dimensions to tuple
     compares shape of array to tuple and returns True if equal.
@@ -156,14 +160,17 @@ def _check_dimensions(input_data: NumpyArray | list | tuple, dim: Iterable[int])
     try:
         if -1 in dim:
             try:
-                dim = [input_shape[i] if dim[i] == -1
-                       else dim[i] for i in range(len(dim))]
+                dim = [
+                    input_shape[i] if dim[i] == -1 else dim[i]
+                    for i in range(len(dim))
+                ]
             except IndexError:
                 return False
     except TypeError as exc:
         raise TypeError("dim must be number or iterable of numbers") from exc
 
     return input_shape == tuple(dim)
+
 
 def interp_if_array(new_x: float, value: T | Iterable[Iterable[T]]) -> T:
     """
