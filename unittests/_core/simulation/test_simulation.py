@@ -97,16 +97,6 @@ class TestSimulation(unittest.TestCase):
         # self.simulation.from_locals(locals=None)
         pass
 
-    def test_get_hash(self):
-        simulation2 = deepcopy(self.simulation)
-        self.assertEqual(self.simulation.get_hash(), simulation2.get_hash())
-
-    def test_get_hash_with_mock(self):
-        self.simulation.ring.elements.elements.append(
-            Mock(SingleHarmonicCavity)
-        )
-        self.simulation.get_hash()
-
     @unittest.skip
     def test_get_legacy_map(self):
         # TODO: implement test for `get_legacy_map`

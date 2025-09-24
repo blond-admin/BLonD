@@ -16,7 +16,7 @@ try:
     import cupy as _  # type: ignore
 
     cupy_available = True
-except ImportError:
+except ModuleNotFoundError:
     cupy_available = False
 
 
@@ -64,28 +64,28 @@ class TestBackendBaseClass(unittest.TestCase):
 class TestCupy32Bit(unittest.TestCase):
     def test___init__(self) -> None:
         if not cupy_available:
-            unittest.skip(f"{cupy_available=}")
+            self.skipTest(f"{cupy_available=}")
         self.cupy32_bit = Cupy32Bit()
 
 
 class TestCupy64Bit(unittest.TestCase):
     def test___init__(self) -> None:
         if not cupy_available:
-            unittest.skip(f"{cupy_available=}")
+            self.skipTest(f"{cupy_available=}")
         self.cupy64_bit = Cupy64Bit()
 
 
 class TestCupyBackend(unittest.TestCase):
     def test___init__(self) -> None:
         if not cupy_available:
-            unittest.skip(f"{cupy_available=}")
+            self.skipTest(f"{cupy_available=}")
         self.cupy_backend = CupyBackend(
             float_=np.float32, int_=np.float32, complex_=np.complex64
         )
 
     def test_set_specials(self) -> None:
         if not cupy_available:
-            unittest.skip(f"{cupy_available=}")
+            self.skipTest(f"{cupy_available=}")
         self.cupy_backend = CupyBackend(
             float_=np.float32, int_=np.float32, complex_=np.complex64
         )

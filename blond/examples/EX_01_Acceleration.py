@@ -94,16 +94,14 @@ def main():
 
     try:
         sim.load_results(
-            turn_i_init=0,
-            n_turns=N_TURNS,
-            observe=[phase_observation],
+            observe=(phase_observation,),
         )
     except FileNotFoundError as exc:
         sim.run_simulation(
             beams=(beam1,),
             turn_i_init=0,
             n_turns=N_TURNS,
-            observe=[phase_observation, bunch_observation],
+            observe=(phase_observation, bunch_observation),
             # callback=custom_action,
         )
     ANIMATE = False

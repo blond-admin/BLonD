@@ -20,7 +20,11 @@ def find_module_so(file: str) -> str:
 
     # List all files in the directory and filter
     for filename in os.listdir(folder):
-        if filename.endswith(".so") and file in filename:
+        is_lib = (
+            filename.endswith(".so")  # linux
+            or filename.endswith(".pyd")  # windows
+        )
+        if is_lib and file in filename:
             return os.path.join(folder, filename)
     raise FileNotFoundError(file)
 

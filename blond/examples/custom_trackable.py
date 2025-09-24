@@ -6,6 +6,7 @@ from blond import (
     Ring,
     Simulation,
     UserDefinedElement,
+    backend,
     proton,
 )
 from blond._core.beam.base import BeamBaseClass
@@ -17,7 +18,7 @@ class TimeRandomizer(UserDefinedElement):
 
     def track(self, beam: BeamBaseClass):
         dt = beam.write_partial_dt()
-        dt += np.random.rand(len(dt))
+        dt += backend.random.rand(len(dt))
 
 
 def main():
