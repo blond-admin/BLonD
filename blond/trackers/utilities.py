@@ -783,7 +783,7 @@ def potential_well_cut(time_potential: NumpyArray,
     max_potential_values = minmax_values[1]
     n_minima = len(min_time_positions)
     n_maxima = len(max_time_positions)
-    saved_indexes = [False]
+    saved_indexes = []
     if n_minima == 0:
         # PotentialWellError
         raise RuntimeError('The potential well has no minima...')
@@ -874,11 +874,11 @@ def potential_well_cut(time_potential: NumpyArray,
 
         time_potential_sep = time_potential[saved_indexes]
         potential_well_sep = potential_array[saved_indexes]
+    else:
+        raise RuntimeError("case not covered, cannot perform cut")
 
-    if np.sum(saved_indexes) != 0:
-        raise ValueError("Time and potential arrays are still empty. Something went wrong in potential well cut."
-    )
-
+    if len(saved_indexes) == 0:
+        raise RuntimeError("potential well cut failed")
     return time_potential_sep, potential_well_sep
 
 
