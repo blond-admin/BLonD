@@ -18,7 +18,7 @@ from __future__ import annotations
 # General imports
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Iterable, Callable, Protocol, Any, Self
 
     from .types import Trackable

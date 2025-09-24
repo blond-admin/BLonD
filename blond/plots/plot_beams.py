@@ -22,7 +22,7 @@ from matplotlib.layout_engine import PlaceHolderLayoutEngine
 from ..trackers.utilities import separatrix
 from ..utils.legacy_support import handle_legacy_kwargs
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from os import PathLike
     from typing import Literal
     import h5py as hp

@@ -32,7 +32,7 @@ if Version(scipy.__version__) >= Version("1.14"):
 else:
     from scipy.integrate import cumtrapz
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:   # pragma: no cover
     from typing import Literal, Optional, Iterable
 
     from numpy.typing import NDArray
@@ -487,9 +487,9 @@ class RFStation:
         return waveform
 
     def to_gpu(self, recursive=True):
-        '''
+        """
         Transfer all necessary arrays to the GPU
-        '''
+        """
         # Check if to_gpu has been invoked already
         if hasattr(self, '_device') and self._device == 'GPU':
             return

@@ -48,7 +48,7 @@ except AttributeError:
     np.trapezoid = np.trapz
 
 logger = logging.getLogger(__name__)
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal
     from ..gpu import GPU_DEV
 

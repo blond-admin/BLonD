@@ -27,7 +27,7 @@ from ..plots.plot_llrf import plot_phase_noise, plot_noise_spectrum
 from ..toolbox.next_regular import next_regular
 from ..utils.legacy_support import handle_legacy_kwargs
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional, Literal, Tuple, Sequence, Callable
 
     from numpy.typing import ArrayLike, NDArray as NumpyArray

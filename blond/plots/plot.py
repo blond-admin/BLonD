@@ -32,7 +32,7 @@ from .plot_llrf import (plot_PL_bunch_phase,
 from .plot_slices import (plot_beam_profile, plot_beam_spectrum)
 from ..utils.legacy_support import handle_legacy_kwargs
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional
     from ..beam.beam import Beam
     from ..input_parameters.rf_parameters import RFStation

@@ -15,7 +15,7 @@ from numba import jit
 from numba import prange
 from scipy.constants import e
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 

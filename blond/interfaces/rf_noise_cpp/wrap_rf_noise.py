@@ -16,7 +16,7 @@ from os.path import isfile
 from warnings import warn
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 _local_path = pathlib.Path(__file__).parent.resolve()

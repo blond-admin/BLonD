@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from typing import TYPE_CHECKING, Literal
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     if sys.version_info < (3, 11):  # todo consider this fix in other files
         from typing_extensions import TypedDict, NotRequired
     else:

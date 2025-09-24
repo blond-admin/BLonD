@@ -22,7 +22,7 @@ import numpy as np
 from ..impedances.impedance_sources import InputTable
 from ..utils.legacy_support import handle_legacy_kwargs
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from os import PathLike
     from typing import Optional
 

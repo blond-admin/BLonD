@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import scipy.special as scisp
 from scipy.constants import e
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 def analytical_gaussian_resonator(sigma_t: float, Q: float, R_s: float,

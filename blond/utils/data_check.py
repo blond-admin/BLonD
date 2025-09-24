@@ -22,7 +22,7 @@ import numpy as np
 from . import exceptions as blond_exceptions
 from . import bmath as bm
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
     from typing import Any, Iterable, TypeVar
 

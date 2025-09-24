@@ -12,6 +12,7 @@ RF bucket is considered.**
 
 :Authors: **Helga Timko**
 """
+from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
@@ -24,7 +25,7 @@ from scipy.special import ellipk
 from .action import x2, action_from_phase_amplitude
 from ..utils.legacy_support import handle_legacy_kwargs
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Tuple
     from os import PathLike
 
