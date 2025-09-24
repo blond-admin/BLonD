@@ -64,13 +64,13 @@ class ExampleSimulation01:
 
         # bunch_observation = BunchObservation(each_turn_i=10, batch_size=) # todo
         # batches
-        def my_callback(simulation: Simulation):
+        def my_callback(simulation: Simulation, beam: Beam):
             if simulation.turn_i.value % 10 != 0:
                 return
 
             plt.scatter(
-                simulation.beams[0].read_partial_dt(),
-                simulation.beams[0].read_partial_dE(),
+                beam.read_partial_dt(),
+                beam.read_partial_dE(),
             )
             plt.draw()
             plt.pause(0.1)

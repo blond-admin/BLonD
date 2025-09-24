@@ -296,7 +296,10 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         Note
         ----
         Depends on `is_distributed`
-
+        If not distributed, returns all particles.
+        If distributed, returns only the particles
+        visible to the current node.
+        Using `_dt` and `_dE` will result in the same behaviour.
         """
         if self._dE is not None:
             return len(self._dE)
@@ -312,6 +315,10 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         Note
         ----
         Depends on `is_distributed`
+        If not distributed, returns all particles.
+        If distributed, returns only the particles
+        visible to the current node.
+        Using `_dt` and `_dE` will result in the same behaviour
         """
         return self._dt
 
@@ -321,7 +328,10 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         Note
         ----
         Depends on `is_distributed`
-
+        If not distributed, returns all particles.
+        If distributed, returns only the particles
+        visible to the current node.
+        Using `_dt` and `_dE` will result in the same behaviour.
         """
         self.invalidate_cache_dt()
         return self._dt
@@ -332,6 +342,10 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         Note
         ----
         Depends on `is_distributed`
+        If not distributed, returns all particles.
+        If distributed, returns only the particles
+        visible to the current node.
+        Using `_dt` and `_dE` will result in the same behaviour.
         """
         return self._dE
 
@@ -341,6 +355,10 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         Note
         ----
         Depends on `is_distributed`
+        If not distributed, returns all particles.
+        If distributed, returns only the particles
+        visible to the current node.
+        Using `_dt` and `_dE` will result in the same behaviour.
         """
         self.invalidate_cache_dE()
         return self._dE
@@ -351,6 +369,10 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         Note
         ----
         Depends on `is_distributed`
+        If not distributed, returns all particles.
+        If distributed, returns only the particles
+        visible to the current node.
+        Using `_dt` and `_dE` will result in the same behaviour.
         """
         self.invalidate_cache_dt()
         self.invalidate_cache_dE()

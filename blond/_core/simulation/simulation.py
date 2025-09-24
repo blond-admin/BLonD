@@ -113,6 +113,8 @@ class Simulation(Preparable, HasPropertyCache):
 
         Parameters
         ----------
+        beams
+            Beams that are used to perform the simulation
         turn_i_init
             Initial turn to start simulation
         profile_start_turn_i
@@ -132,7 +134,7 @@ class Simulation(Preparable, HasPropertyCache):
         pr = cProfile.Profile()
 
         # trigger profiling later than turn 0
-        def start_profiling(simulation: Simulation):
+        def start_profiling(simulation: Simulation, beam: BeamBaseClass):
             if simulation.turn_i.value == profile_start_turn_i:
                 pr.enable()
 
@@ -428,7 +430,7 @@ class Simulation(Preparable, HasPropertyCache):
         turn_i_init: int = 0,
         observe: Tuple[Observables, ...] = tuple(),
         show_progressbar: bool = True,
-        callback: Optional[Callable[[Simulation], None]] = None,
+        callback: Optional[Callable[[Simulation, Beam], None]] = None,
     ) -> None:
         """
         Execute the beam dynamics simulation
@@ -436,6 +438,8 @@ class Simulation(Preparable, HasPropertyCache):
 
         Parameters
         ----------
+        beams
+            Beams that are used to perform the simulation
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -452,6 +456,41 @@ class Simulation(Preparable, HasPropertyCache):
 
         """
         logger.info(f"Running `run_simulation` with {locals()}")
+        _n_turns = self.finalze(
+            beams=beams,
+            n_turns=n_turns,
+            observe=observe,
+            turn_i_init=turn_i_init,
+        )
+
+        if len(beams) == 1:
+            self._run_simulation_single_beam(
+                beam=beams[0],
+                n_turns=_n_turns,
+                turn_i_init=turn_i_init,
+                observe=observe,
+                show_progressbar=show_progressbar,
+                callback=callback,
+            )
+        elif len(beams) == 2:
+            assert (
+                beams[0].is_counter_rotating,
+                beams[1].is_counter_rotating,
+            ) == (
+                False,
+                True,
+            ), (
+                "First beam must be normal, second beam must be counter-rotating"
+            )
+            self._run_simulation_counterrotating_beam(
+                n_turns=_n_turns,
+                turn_i_init=turn_i_init,
+                observe=observe,
+                show_progressbar=show_progressbar,
+                callback=callback,
+            )
+
+    def finalze(self, beams, n_turns, observe, turn_i_init):
         max_turns = self.magnetic_cycle.n_turns
         if n_turns is not None:
             _n_turns = int_from_float_with_warning(
@@ -490,49 +529,20 @@ class Simulation(Preparable, HasPropertyCache):
                     PerformanceWarning,
                     stacklevel=2,
                 )
-
         # temporarily pin attributes
-        self.observe = (
+        self._observe = (
             observe  # to find `on_run_simulation` within `simulation`
         )
-        self.beams = beams  # to find `on_run_simulation` within `simulation`
-
+        self._beams = beams  # to find `on_run_simulation` within `simulation`
         self._exec_on_run_simulation(
             beam=beams[0],
             n_turns=_n_turns,
             turn_i_init=turn_i_init,
         )
-
         # unpin temporary attributes
-        del self.observe
-        del self.beams
-
-        if len(beams) == 1:
-            self._run_simulation_single_beam(
-                beam=beams[0],
-                n_turns=_n_turns,
-                turn_i_init=turn_i_init,
-                observe=observe,
-                show_progressbar=show_progressbar,
-                callback=callback,
-            )
-        elif len(beams) == 2:
-            assert (
-                beams[0].is_counter_rotating,
-                beams[1].is_counter_rotating,
-            ) == (
-                False,
-                True,
-            ), (
-                "First beam must be normal, second beam must be counter-rotating"
-            )
-            self._run_simulation_counterrotating_beam(
-                n_turns=_n_turns,
-                turn_i_init=turn_i_init,
-                observe=observe,
-                show_progressbar=show_progressbar,
-                callback=callback,
-            )
+        del self._observe
+        del self._beams
+        return _n_turns
 
     def _run_simulation_single_beam(
         self,
@@ -541,7 +551,7 @@ class Simulation(Preparable, HasPropertyCache):
         turn_i_init: int = 0,
         observe: Tuple[Observables, ...] = tuple(),
         show_progressbar: bool = True,
-        callback: Optional[Callable[[Simulation], None]] = None,
+        callback: Optional[Callable[[Simulation, Beam], None]] = None,
     ) -> None:
         """
         Execute the beam dynamics simulation for only one beam
@@ -588,7 +598,7 @@ class Simulation(Preparable, HasPropertyCache):
                         beam=beam,
                     )
             if callback is not None:
-                callback(self)
+                callback(simulation=self, beam=beam)
 
         # reset counters to uninitialized again
         self.turn_i.value = None
@@ -712,7 +722,7 @@ class Simulation(Preparable, HasPropertyCache):
         turn_i_init: int = 0,
         observe: Tuple[Observables, ...] = tuple(),
         show_progressbar: bool = True,
-        callback: Optional[Callable[[Simulation], None]] = None,
+        callback: Optional[Callable[[Simulation, Beam], None]] = None,
     ) -> None:
         """
         Execute the beam dynamics simulation for only one beam
@@ -762,6 +772,9 @@ class Simulation(Preparable, HasPropertyCache):
 
     def load_results(
         self,
+        beams: Tuple[BeamBaseClass],
+        n_turns: Optional[int] = None,
+        turn_i_init: int = 0,
         observe: Tuple[Observables, ...] = tuple(),
         common_name: Optional[str] = None,
     ) -> None:
@@ -770,13 +783,25 @@ class Simulation(Preparable, HasPropertyCache):
 
         Parameters
         ----------
+        beams
+            Beams that are used to perform the simulation
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to start with simulation
         observe
-            List of observables that protocoled what was happening inside
-            the simulation.
+            List of observables to protocol of whats happening inside
+            the simulation
         common_name
             A common filename for the files/arrays to save.
 
         """
+        self.finalze(
+            beams=beams,
+            n_turns=n_turns,
+            observe=observe,
+            turn_i_init=turn_i_init,
+        )
         for observable in observe:
             if common_name is not None:
                 observable.rename(common_name=common_name)

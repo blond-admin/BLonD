@@ -129,7 +129,7 @@ class TestSpecials(unittest.TestCase):
         self.n_voltages = 3
         self.special_modes = [
             "python",
-            "cuda",
+            "cpp",
             "numba",
             "fortran",
         ]

@@ -2,14 +2,50 @@ from __future__ import annotations
 
 import importlib.util
 import inspect
+import logging
 import os
+import shutil
 import sys
+import warnings
 from types import ModuleType
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 from blond._core.backends.backend import Specials, backend
+
+logger = logging.getLogger(__name__)
+
+
+def _add_dll_directory(command):
+    """
+    Add the bin directory of some executable to the DLL search path
+
+    Parameters
+    ----------
+    command
+        A command line command, e.g. gcc or gfortran
+
+    Returns
+    -------
+
+    """
+    _gfortran_path = shutil.which(command)
+    if not _gfortran_path:
+        raise RuntimeError(f'shutil.which("{command}") = {_gfortran_path}')
+    gfortran_bin_directory = os.path.dirname(_gfortran_path)
+    logger.debug(f"Added {gfortran_bin_directory=} to the DLL search path.")
+    os.add_dll_directory(gfortran_bin_directory)
+
+
+_using_windows = os.name == "nt"
+if _using_windows:
+    try:
+        # this is implemented to prevent
+        # add_backend(..) from crashing on windows
+        _add_dll_directory("gfortran")
+    except RuntimeError as exc:
+        warnings.warn(str(exc), stacklevel=1)
 
 
 def find_module_so(file: str) -> str:

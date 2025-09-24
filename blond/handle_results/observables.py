@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from abc import abstractmethod
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Tuple
 
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
@@ -47,7 +47,6 @@ class Observables(MainLoopRelevant):
         self._n_turns: LateInit[int] = None
         self._turn_i_init: LateInit[int] = None
         self._turns_array: LateInit[NumpyArray] = None
-        self._hash: LateInit[str] = None
 
     @property  # as readonly attributes
     def turns_array(self) -> NumpyArray | None:
@@ -107,12 +106,19 @@ class Observables(MainLoopRelevant):
         self._turns_array = np.arange(turn_i_init, turn_i_init + n_turns)
         # should be called by child class via super()
 
-    def get_recorders(self) -> List[DenseArrayRecorder]:
-        return [
-            instance
-            for _, instance in self.__dict__.items()
-            if isinstance(instance, DenseArrayRecorder)
+    def assert_lateinit(self):
+        for parameter, value in self.__dict__.items():
+            if value is None:  # uninitialized
+                assert value is not None, f"`{parameter}` was not initialized."
+
+    def get_recorders(self) -> List[Tuple[str, DenseArrayRecorder]]:
+        self.assert_lateinit()
+        recorders = [
+            (attribute, instance)
+            for attribute, instance in self.__dict__.items()
+            if isinstance(instance, DenseArrayRecorder)  # initialized
         ]
+        return recorders
 
     def rename(self, common_name: str) -> None:
         """
@@ -128,7 +134,7 @@ class Observables(MainLoopRelevant):
             The new common name of all internal arrays.
 
         """
-        for instance in self.get_recorders():
+        for attribute_name, instance in self.get_recorders():
             if self.common_name not in instance.filepath:
                 raise NameError(
                     f"'{instance.filepath} does not include"
@@ -146,7 +152,7 @@ class Observables(MainLoopRelevant):
         """
         Save data to disk
         """
-        for instance in self.get_recorders():
+        for attribute_name, instance in self.get_recorders():
             array_recorder: DenseArrayRecorder = instance
             logger.info(f"Saved {array_recorder.filepath_array}")
             array_recorder.to_disk()
@@ -155,11 +161,15 @@ class Observables(MainLoopRelevant):
         """
         Load data from disk
         """
-        for instance in self.get_recorders():
+        for attribute_name, instance in self.get_recorders():
             array_recorder: DenseArrayRecorder = instance
             logger.info(f"Loaded {array_recorder.filepath_array}")
-            array_recorder.from_disk(
-                filepath=array_recorder.filepath,
+
+            self.__setattr__(
+                attribute_name,
+                array_recorder.from_disk(
+                    filepath=array_recorder.filepath,
+                ),
             )
 
 

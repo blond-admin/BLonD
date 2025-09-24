@@ -74,7 +74,7 @@ class TestSimulation(unittest.TestCase):
     def test__run_simulation_single_beam(self):
         observe = Mock(spec=Observables)
 
-        def my_callback(simulation: Simulation) -> None:
+        def my_callback(simulation: Simulation, beam: Beam) -> None:
             return
 
         mock_func = create_autospec(my_callback, return_value=True)
@@ -153,11 +153,11 @@ class TestSimulation(unittest.TestCase):
         self.simulation.run_simulation(**kwargs)
         de_before_save = observation.dEs.copy()
         self.simulation.save_results(observe=(observation,))
-        self.simulation.load_results(observe=(observation,))
+        self.simulation.load_results(**kwargs)
         de_from_disk = observation.dEs.copy()
         np.testing.assert_almost_equal(de_before_save, de_from_disk)
 
-        for rec in observation.get_recorders():
+        for name, rec in observation.get_recorders():
             rec.purge_from_disk()
 
     def test_on_init_simulation(self):
@@ -196,7 +196,7 @@ class TestSimulation(unittest.TestCase):
     def test_run_simulation(self):
         observe = BunchObservation(each_turn_i=10)
 
-        def my_callback(simulation: Simulation) -> None:
+        def my_callback(simulation: Simulation, beam: BeamBaseClass) -> None:
             return
 
         mock_func = create_autospec(my_callback, return_value=False)
