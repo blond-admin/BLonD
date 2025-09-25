@@ -12,6 +12,7 @@ intensity effects is considered.**
 
 :Authors: **Helga Timko**
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -47,10 +48,11 @@ def action_from_phase_amplitude(x2: NumpyArray) -> NumpyArray:
 
     action = np.zeros(len(x2))
 
-    indices = np.where(x2 != 1.)[0]
-    indices0 = np.where(x2 == 1.)[0]
-    action[indices] = (ellipe(x2[indices]) -
-                       (1. - x2[indices]) * ellipk(x2[indices]))
+    indices = np.where(x2 != 1.0)[0]
+    indices0 = np.where(x2 == 1.0)[0]
+    action[indices] = ellipe(x2[indices]) - (1.0 - x2[indices]) * ellipk(
+        x2[indices]
+    )
 
     if indices0:
         action[indices0] = float(ellipe(x2[indices0]))
@@ -77,33 +79,35 @@ def phase_amplitude_from_tune(tune: NumpyArray) -> NumpyArray:
     phimax = np.zeros(n)
 
     for i in range(n):
+        if tune[i] == 1.0:
+            phimax[i] = 0.0
 
-        if tune[i] == 1.:
-
-            phimax[i] = 0.
-
-        elif tune[i] == 0.:
-
+        elif tune[i] == 0.0:
             phimax[i] = np.pi
 
         else:
-
             guess = 0.5 * np.pi
             difference = 0.25 * np.pi
             k = 0
 
-            while (np.fabs(tune[i] - tune_from_phase_amplitude(guess))
-                   / tune[i] > 0.001 and np.fabs(difference / guess) > 1.e-10):
-
-                guess += np.sign(tune_from_phase_amplitude(guess)
-                                 - tune[i]) * difference
+            while (
+                np.fabs(tune[i] - tune_from_phase_amplitude(guess)) / tune[i]
+                > 0.001
+                and np.fabs(difference / guess) > 1.0e-10
+            ):
+                guess += (
+                    np.sign(tune_from_phase_amplitude(guess) - tune[i])
+                    * difference
+                )
                 difference *= 0.5
                 k += 1
                 if k > 100:
                     # PhaseSpaceError
-                    raise RuntimeError("Exceeded maximum number of "
-                                       + "iterations in "
-                                       + "phase_amplitude_from_tune()!")
+                    raise RuntimeError(
+                        "Exceeded maximum number of "
+                        + "iterations in "
+                        + "phase_amplitude_from_tune()!"
+                    )
 
             phimax[i] = guess
 
@@ -111,10 +115,14 @@ def phase_amplitude_from_tune(tune: NumpyArray) -> NumpyArray:
 
 
 @handle_legacy_kwargs
-def oscillation_amplitude_from_coordinates(ring: Ring, rf_station: RFStation,
-                                           dt: NumpyArray, dE: NumpyArray,
-                                           timestep: int = 0,
-                                           Np_histogram: Optional[NumpyArray] = None):
+def oscillation_amplitude_from_coordinates(
+    ring: Ring,
+    rf_station: RFStation,
+    dt: NumpyArray,
+    dE: NumpyArray,
+    timestep: int = 0,
+    Np_histogram: Optional[NumpyArray] = None,
+):
     """
     Returns the oscillation amplitude in time for given particle coordinates,
     assuming single-harmonic RF system and no intensity effects.
@@ -130,29 +138,37 @@ def oscillation_amplitude_from_coordinates(ring: Ring, rf_station: RFStation,
     V = rf_station.voltage[0, 0]
     beta_sq = rf_station.beta[0] ** 2
     E = rf_station.energy[0]
-    const = eta * T0 * omega_rf / (2. * V * beta_sq * E)
+    const = eta * T0 * omega_rf / (2.0 * V * beta_sq * E)
 
-    dtmax = np.fabs(np.arccos(np.cos(omega_rf*dt + phi_rf) + const*dE**2)
-                    - phi_rf - phi_s) / omega_rf
+    dtmax = (
+        np.fabs(
+            np.arccos(np.cos(omega_rf * dt + phi_rf) + const * dE**2)
+            - phi_rf
+            - phi_s
+        )
+        / omega_rf
+    )
 
     if Np_histogram is not None:
-
-        histogram, bins = np.histogram(dtmax, Np_histogram, (0,
-                                                             np.pi / omega_rf))
+        histogram, bins = np.histogram(
+            dtmax, Np_histogram, (0, np.pi / omega_rf)
+        )
         histogram = np.double(histogram) / np.sum(histogram[:])
         bin_centres = 0.5 * (bins[0:-1] + bins[1:])
 
         return dtmax, bin_centres, histogram
 
     else:
-
         return dtmax
 
 
 @handle_legacy_kwargs
-def action_from_oscillation_amplitude(rf_station: RFStation, dtmax: float,
-                                      timestep: int = 0,
-                                      Np_histogram: Optional[NumpyArray] = None):
+def action_from_oscillation_amplitude(
+    rf_station: RFStation,
+    dtmax: float,
+    timestep: int = 0,
+    Np_histogram: Optional[NumpyArray] = None,
+):
     """
     Returns the relative action for given oscillation amplitude in time,
     assuming single-harmonic RF system and no intensity effects.
@@ -165,15 +181,15 @@ def action_from_oscillation_amplitude(rf_station: RFStation, dtmax: float,
     xx = x2(omega_rf * dtmax)
     action = np.zeros(len(xx))
 
-    indices = np.where(xx != 1.)[0]
-    indices0 = np.where(xx == 1.)[0]
-    action[indices] = (ellipe(xx[indices]) -
-                       (1. - xx[indices]) * ellipk(xx[indices]))
+    indices = np.where(xx != 1.0)[0]
+    indices0 = np.where(xx == 1.0)[0]
+    action[indices] = ellipe(xx[indices]) - (1.0 - xx[indices]) * ellipk(
+        xx[indices]
+    )
     if indices0:
         action[indices0] = float(ellipe(xx[indices0]))
 
     if Np_histogram is not None:
-
         histogram, bins = np.histogram(action, Np_histogram, (0, 1))
         histogram = np.double(histogram) / np.sum(histogram[:])
         bin_centres = 0.5 * (bins[0:-1] + bins[1:])
@@ -181,5 +197,4 @@ def action_from_oscillation_amplitude(rf_station: RFStation, dtmax: float,
         return action, bin_centres, histogram
 
     else:
-
         return action

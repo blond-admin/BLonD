@@ -2,7 +2,14 @@ import unittest
 from copy import deepcopy
 from time import perf_counter
 
-import cupyx
+from blond.utils.bmath_backends import MasterBackend
+
+try:
+    import cupy
+    import cupyx
+    cupy_available = True
+except ModuleNotFoundError:
+    cupy_available = False
 import numpy as np
 import pytest
 
@@ -26,6 +33,9 @@ class TestCompareWraps:
                                  ("single", bm.use_gpu), ("double", bm.use_gpu),
                              ])
     def test_drift_simple(self, precision, bm_use_other):
+        if bm_use_other == bm.use_gpu:
+            if not cupy_available:
+                pytest.skip("No GPU")
         self._test_drift(precision, bm_use_other, solver="simple")
 
     @pytest.mark.parametrize('precision, bm_use_other',
@@ -35,6 +45,9 @@ class TestCompareWraps:
                                  ("single", bm.use_gpu), ("double", bm.use_gpu),
                              ])
     def test_drift_legacy(self, precision, bm_use_other):
+        if bm_use_other == bm.use_gpu:
+            if not cupy_available:
+                pytest.skip("No GPU")
         self._test_drift(precision, bm_use_other, solver="legacy")
 
     @pytest.mark.parametrize('precision, bm_use_other',
@@ -44,6 +57,9 @@ class TestCompareWraps:
                                  ("single", bm.use_gpu), ("double", bm.use_gpu),
                              ])
     def test_drift_legacy(self, precision, bm_use_other):
+        if bm_use_other == bm.use_gpu:
+            if not cupy_available:
+                pytest.skip("No GPU")
         self._test_drift(precision, bm_use_other, solver="legacy")
 
     def _test_drift(self, precision, bm_use_other, solver):
@@ -99,6 +115,9 @@ class TestCompareWraps:
                                  ("single", bm.use_gpu), ("double", bm.use_gpu),
                              ])
     def test_kick(self, precision, bm_use_other):
+        if bm_use_other == bm.use_gpu:
+            if not cupy_available:
+                pytest.skip("No GPU")
         n_particles = 12
 
         bm.use_py()

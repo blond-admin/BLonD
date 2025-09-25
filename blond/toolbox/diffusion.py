@@ -35,12 +35,17 @@ if TYPE_CHECKING:
 
 
 @handle_legacy_kwargs
-def phase_noise_diffusion(ring: Ring, rf_station: RFStation, spectrum: NumpyArray,
-                          distribution: NumpyArray, distributionBins: NumpyArray,
-                          Ngrids: int = 200, M: int = 1,
-                          iterations: int = 100000,
-                          figdir: PathLike | str | None = None)\
-                                        -> Tuple[NumpyArray, NumpyArray, NumpyArray]:
+def phase_noise_diffusion(
+    ring: Ring,
+    rf_station: RFStation,
+    spectrum: NumpyArray,
+    distribution: NumpyArray,
+    distributionBins: NumpyArray,
+    Ngrids: int = 200,
+    M: int = 1,
+    iterations: int = 100000,
+    figdir: PathLike | str | None = None,
+) -> Tuple[NumpyArray, NumpyArray, NumpyArray]:
     """
     Calculate diffusion in action space according to a given double-sided phase
     noise spectrum, on a uniform grid in oscillation amplitude.
@@ -57,27 +62,31 @@ def phase_noise_diffusion(ring: Ring, rf_station: RFStation, spectrum: NumpyArra
     N = Ngrids
     if spectrum.shape != (M, N + 1):
         # NoiseDiffusionError
-        raise RuntimeError("In phase_noise_diffusion(): spectrum has "
-                           + "to have shape (M, Ngrids+1)!")
+        raise RuntimeError(
+            "In phase_noise_diffusion(): spectrum has "
+            + "to have shape (M, Ngrids+1)!"
+        )
     if len(distribution) != N:
         # NoiseDiffusionError
-        raise RuntimeError("In phase_noise_diffusion(): distribution "
-                           + "has to be an array of Ngrids elements!")
+        raise RuntimeError(
+            "In phase_noise_diffusion(): distribution "
+            + "has to be an array of Ngrids elements!"
+        )
 
     # Some constants
     T0 = ring.t_rev[0]
     omega_s0 = rf_station.omega_s0[0]
     h = rf_station.harmonic[0, 0]
-    Jsep = 8. * omega_s0 / (np.pi * h ** 2)  # Action at the separatrix
+    Jsep = 8.0 * omega_s0 / (np.pi * h**2)  # Action at the separatrix
 
     # Settings for plots
-    plt.rc('axes', labelsize=16, labelweight='normal')
-    plt.rc('lines', linewidth=1.5, markersize=6)
-    plt.rc('font', family='sans-serif')
-    plt.rc('legend', fontsize=12)
+    plt.rc("axes", labelsize=16, labelweight="normal")
+    plt.rc("lines", linewidth=1.5, markersize=6)
+    plt.rc("font", family="sans-serif")
+    plt.rc("legend", fontsize=12)
 
     # Construct action grid
-    phimax = np.linspace(0., np.pi, N + 1, endpoint=True)
+    phimax = np.linspace(0.0, np.pi, N + 1, endpoint=True)
     xx = x2(phimax)
     J = action_from_phase_amplitude(xx)
     dJ = J[1:] - J[:-1]  # Differential on grid
@@ -93,9 +102,9 @@ def phase_noise_diffusion(ring: Ring, rf_station: RFStation, spectrum: NumpyArra
     Wm = np.zeros((M, N + 1))
     for k in range(0, M):
         m = 2 * k + 1
-        Wm[k][:] = ((np.pi * m / ellipk(xx)) ** 4
-                    / (4. * np.cosh(0.5 * np.pi * m * ellipk(1 - xx)
-                                    / ellipk(xx))**2))
+        Wm[k][:] = (np.pi * m / ellipk(xx)) ** 4 / (
+            4.0 * np.cosh(0.5 * np.pi * m * ellipk(1 - xx) / ellipk(xx)) ** 2
+        )
 
     # Diffusion coefficient for stationary bucket, according to Ivanov
     # Twice the sum over positive frequencies for double-sided spectrum
@@ -114,8 +123,12 @@ def phase_noise_diffusion(ring: Ring, rf_station: RFStation, spectrum: NumpyArra
 
     ax = plt.axes([0.15, 0.1, 0.8, 0.8])
     for k in range(0, M):
-        ax.plot(J, Wm[k], color=cm.get_cmap('jet')(k / M),
-                label="m=%d mode" % (2 * k + 1))
+        ax.plot(
+            J,
+            Wm[k],
+            color=cm.get_cmap("jet")(k / M),
+            label="m=%d mode" % (2 * k + 1),
+        )
     ax.set_xlabel(r"Relative action (J/J$_{\mathrm{sep}}$)")
     ax.set_ylabel(r"Weight function W$_m$ [1]")
     plt.legend(loc=0)
@@ -129,13 +142,13 @@ def phase_noise_diffusion(ring: Ring, rf_station: RFStation, spectrum: NumpyArra
     A = np.zeros((N, N), float)
     for i in range(1, N - 1):
         A[i, i - 1] = dJ[i - 1]
-        A[i, i] = 2. * (dJ[i - 1] + dJ[i])
+        A[i, i] = 2.0 * (dJ[i - 1] + dJ[i])
         A[i, i + 1] = dJ[i]
-    A[0, 0] = 2. * dJ[0]
+    A[0, 0] = 2.0 * dJ[0]
     A[0, 1] = dJ[0]
     A[N - 1, N - 2] = dJ[N - 2]
-    A[N - 1, N - 1] = 2. * (dJ[N - 2] + dJ[N - 1])
-    A *= Jsep / 6.
+    A[N - 1, N - 1] = 2.0 * (dJ[N - 2] + dJ[N - 1])
+    A *= Jsep / 6.0
 
     B = np.zeros((N, N), float)
     for i in range(1, N - 1):
@@ -149,8 +162,8 @@ def phase_noise_diffusion(ring: Ring, rf_station: RFStation, spectrum: NumpyArra
     B /= Jsep
 
     # Time evolution ----------------------------------------------------------
-    M1 = A - T0 * B / 2.
-    M2 = A + T0 * B / 2.
+    M1 = A - T0 * B / 2.0
+    M2 = A + T0 * B / 2.0
     M1 = np.matrix(M1)
     M2 = np.matrix(M2)
     F = np.matrix(distributionInterp)
@@ -174,10 +187,10 @@ def phase_noise_diffusion(ring: Ring, rf_station: RFStation, spectrum: NumpyArra
     J_av_f = int.simps(Fnew[0] * Jav, Jav) / norm_J_f
 
     # Conversion in SHORT-BUNCH APPROXIMATION!!!
-    sigma_phi_i = np.sqrt(8. / np.pi * J_av_i)
-    sigma_phi_f = np.sqrt(8. / np.pi * J_av_f)
-    tau_i = sigma_phi_i * 2 * T0 / h / np.pi * 1.e9
-    tau_f = sigma_phi_f * 2 * T0 / h / np.pi * 1.e9
+    sigma_phi_i = np.sqrt(8.0 / np.pi * J_av_i)
+    sigma_phi_f = np.sqrt(8.0 / np.pi * J_av_f)
+    tau_i = sigma_phi_i * 2 * T0 / h / np.pi * 1.0e9
+    tau_f = sigma_phi_f * 2 * T0 / h / np.pi * 1.0e9
 
     ax = plt.axes([0.12, 0.1, 0.78, 0.8])
     ax.plot(Jav, F[0], "b", label="Initial distribution")
@@ -187,29 +200,84 @@ def phase_noise_diffusion(ring: Ring, rf_station: RFStation, spectrum: NumpyArra
     plt.legend(loc=1)
     ax2 = plt.twinx(ax)
     for k in range(0, M):
-        ax2.plot(J, spectrum[k], color=cm.get_cmap('jet')(k / M), alpha=0.5)
-        ax2.fill_between(J, 0, spectrum[k], color=cm.get_cmap('jet')(k / M),
-                         alpha=0.2)
+        ax2.plot(J, spectrum[k], color=cm.get_cmap("jet")(k / M), alpha=0.5)
+        ax2.fill_between(
+            J, 0, spectrum[k], color=cm.get_cmap("jet")(k / M), alpha=0.2
+        )
     ax2.set_ylabel(r"Double-sided spectral density [rad$^2$/Hz]")
-    ax2.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
-    plt.figtext(0.6, 0.7, r'$\int_0^{J_{sep}}{F_i(J)}dJ=$ %.3f' % norm_J_i,
-                fontsize=14, ha='left', va='center')
-    plt.figtext(0.6, 0.625, r'$\int_0^{J_{sep}}{F_f(J)}dJ=$ %.3f' % norm_J_f,
-                fontsize=14, ha='left', va='center')
-    plt.figtext(0.6, 0.55, r'$<J>_i=$ %.4e s' % J_av_i, fontsize=14, ha='left',
-                va='center')
-    plt.figtext(0.6, 0.5, r'$<J>_f=$ %.4e s' % J_av_f, fontsize=14, ha='left',
-                va='center')
-    plt.figtext(0.4, 0.4, "Converting in short-bunch approximation...",
-                fontsize=12, ha='left', va='center')
-    plt.figtext(0.6, 0.35, r'$\sigma_{\varphi}^{(i)}=$ %.4f rad' % sigma_phi_i,
-                fontsize=12, ha='left', va='center')
-    plt.figtext(0.6, 0.3, r'$\sigma_{\varphi}^{(f)}=$ %.4f rad' % sigma_phi_f,
-                fontsize=12, ha='left', va='center')
-    plt.figtext(0.6, 0.25, r'$\tau_{4\sigma}^{(i)}=$ %.4f ns' % tau_i,
-                fontsize=12, ha='left', va='center')
-    plt.figtext(0.6, 0.2, r'$\tau_{4\sigma}^{(f)}=$ %.4f ns' % tau_f,
-                fontsize=12, ha='left', va='center')
+    ax2.ticklabel_format(style="sci", axis="y", scilimits=(0, 0))
+    plt.figtext(
+        0.6,
+        0.7,
+        r"$\int_0^{J_{sep}}{F_i(J)}dJ=$ %.3f" % norm_J_i,
+        fontsize=14,
+        ha="left",
+        va="center",
+    )
+    plt.figtext(
+        0.6,
+        0.625,
+        r"$\int_0^{J_{sep}}{F_f(J)}dJ=$ %.3f" % norm_J_f,
+        fontsize=14,
+        ha="left",
+        va="center",
+    )
+    plt.figtext(
+        0.6,
+        0.55,
+        r"$<J>_i=$ %.4e s" % J_av_i,
+        fontsize=14,
+        ha="left",
+        va="center",
+    )
+    plt.figtext(
+        0.6,
+        0.5,
+        r"$<J>_f=$ %.4e s" % J_av_f,
+        fontsize=14,
+        ha="left",
+        va="center",
+    )
+    plt.figtext(
+        0.4,
+        0.4,
+        "Converting in short-bunch approximation...",
+        fontsize=12,
+        ha="left",
+        va="center",
+    )
+    plt.figtext(
+        0.6,
+        0.35,
+        r"$\sigma_{\varphi}^{(i)}=$ %.4f rad" % sigma_phi_i,
+        fontsize=12,
+        ha="left",
+        va="center",
+    )
+    plt.figtext(
+        0.6,
+        0.3,
+        r"$\sigma_{\varphi}^{(f)}=$ %.4f rad" % sigma_phi_f,
+        fontsize=12,
+        ha="left",
+        va="center",
+    )
+    plt.figtext(
+        0.6,
+        0.25,
+        r"$\tau_{4\sigma}^{(i)}=$ %.4f ns" % tau_i,
+        fontsize=12,
+        ha="left",
+        va="center",
+    )
+    plt.figtext(
+        0.6,
+        0.2,
+        r"$\tau_{4\sigma}^{(f)}=$ %.4f ns" % tau_f,
+        fontsize=12,
+        ha="left",
+        va="center",
+    )
     if figdir:
         plt.savefig(figdir + "F_vs_J.png")
         plt.clf()
