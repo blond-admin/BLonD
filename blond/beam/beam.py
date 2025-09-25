@@ -489,7 +489,6 @@ class Beam:
         self._ratio = ratio
         self._intensity = ratio * self._n_macroparticles
 
-
     def eliminate_lost_particles(self):
         """Eliminate lost particles from the beam coordinate arrays"""
 
@@ -742,7 +741,8 @@ class Beam:
 
         assert len(self.dt) == len(self.dE) and len(self.dt) == len(self.id)
 
-        self.n_macroparticles = len(self.dt)
+        self._set_beam_info(n_macroparticles=len(self.dt), ratio=self.ratio)
+        # ratio needs to be kept constant for induced voltage calculations
         self._mpi_is_splitted = True
 
     def gather(self, all_gather: bool = False):
@@ -773,7 +773,8 @@ class Beam:
             if WORKER.is_master:
                 self._mpi_is_splitted = False
 
-        self.n_macroparticles = len(self.dt)
+        self._set_beam_info(n_macroparticles=len(self.dt), ratio=self.ratio)
+        # ratio needs to be kept constant for induced voltage calculations
 
     def gather_statistics(self, all_gather: bool = False):
         """
