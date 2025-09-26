@@ -37,7 +37,7 @@ import os
 import importlib.abc, importlib.machinery
 
 # names to fail; or read from env: SPHINX_BLOCK_IMPORTS="mpi4py,torch"
-BLOCKED = set("cupy")
+BLOCKED = ["cupy", "cupyx"]
 
 class _BlockLoader(importlib.abc.Loader):
     def exec_module(self, module):
