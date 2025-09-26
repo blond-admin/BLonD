@@ -36,12 +36,10 @@ import os
 
 import importlib.abc, importlib.machinery
 
-# names to fail; or read from env: SPHINX_BLOCK_IMPORTS="mpi4py,torch"
 BLOCKED = ["cupy", "cupyx"]
 
 class _BlockLoader(importlib.abc.Loader):
     def exec_module(self, module):
-        # ModuleNotFoundError is a subclass of ImportError
         raise ImportError(f"mocked missing module: {module.__name__}")
 
 class _BlockFinder(importlib.abc.MetaPathFinder):
