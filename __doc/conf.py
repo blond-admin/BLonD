@@ -42,7 +42,7 @@ BLOCKED = ["cupy", "cupyx"]
 class _BlockLoader(importlib.abc.Loader):
     def exec_module(self, module):
         # ModuleNotFoundError is a subclass of ImportError
-        raise ModuleNotFoundError(f"mocked missing module: {module.__name__}")
+        raise ImportError(f"mocked missing module: {module.__name__}")
 
 class _BlockFinder(importlib.abc.MetaPathFinder):
     def find_spec(self, fullname, path, target=None):
