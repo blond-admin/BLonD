@@ -10,7 +10,7 @@ from blond.gpu import butils_wrap_cupy
 
 def main():
     for n_rf in (1, 2, 10):
-        n_slices = 100000
+        n_slices = 100000000
         voltages = np.random.randn(n_rf)
         omega_rf = np.random.randn(n_rf)
         phi_rf = np.random.randn(n_rf)
