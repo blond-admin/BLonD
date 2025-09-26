@@ -20,7 +20,6 @@ from scipy.constants import e
 from ..utils import bmath as bm
 
 if TYPE_CHECKING:
-
     from ..beam.beam import Beam
 
 
@@ -104,19 +103,29 @@ class Music:
 
     """
 
-    def __init__(self, beam: Beam, resonator: tuple[float, float, float],
-                 n_macroparticles: int, n_particles: int, t_rev: float):
-
-        self.beam : Beam = beam
+    def __init__(
+        self,
+        beam: Beam,
+        resonator: tuple[float, float, float],
+        n_macroparticles: int,
+        n_particles: int,
+        t_rev: float,
+    ):
+        self.beam: Beam = beam
         self.R_S = resonator[0]
         self.omega_R = resonator[1]
         self.Q = resonator[2]
         self.n_macroparticles = n_macroparticles
         self.n_particles = n_particles
         self.alpha = self.omega_R / (2 * self.Q)
-        self.omega_bar = np.sqrt(self.omega_R ** 2 - self.alpha ** 2)
-        self.const = -e * self.R_S * self.omega_R * \
-                     self.n_particles / (self.n_macroparticles * self.Q)
+        self.omega_bar = np.sqrt(self.omega_R**2 - self.alpha**2)
+        self.const = (
+            -e
+            * self.R_S
+            * self.omega_R
+            * self.n_particles
+            / (self.n_macroparticles * self.Q)
+        )
         self.induced_voltage = np.zeros(len(self.beam.dt))
         self.induced_voltage[0] = self.const / 2
         self.coeff1 = -self.alpha / self.omega_bar
@@ -127,8 +136,14 @@ class Music:
         self.input_second_component = 0
         self.t_rev = t_rev
         self.last_dt = self.beam.dt[-1]
-        self.array_parameters = np.array([self.input_first_component,
-                                          self.input_second_component, self.t_rev, self.last_dt])
+        self.array_parameters = np.array(
+            [
+                self.input_first_component,
+                self.input_second_component,
+                self.t_rev,
+                self.last_dt,
+            ]
+        )
 
     def track_cpp(self):
         r"""
@@ -146,10 +161,19 @@ class Music:
         >>> music_cpp.track_cpp()
 
         """
-        bm.music_track(self.beam.dt, self.beam.dE, self.induced_voltage,
-                       self.array_parameters, self.alpha, self.omega_bar,
-                       self.const, self.coeff1, self.coeff2, self.coeff3,
-                       self.coeff4)
+        bm.music_track(
+            self.beam.dt,
+            self.beam.dE,
+            self.induced_voltage,
+            self.array_parameters,
+            self.alpha,
+            self.omega_bar,
+            self.const,
+            self.coeff1,
+            self.coeff2,
+            self.coeff3,
+            self.coeff4,
+        )
 
     def track_cpp_multi_turn(self):
         r"""
@@ -169,10 +193,19 @@ class Music:
         >>>     music_cpp.track_cpp_multi_turn()
 
         """
-        bm.music_track_multiturn(self.beam.dt, self.beam.dE, self.induced_voltage,
-                                 self.array_parameters, self.alpha, self.omega_bar,
-                                 self.const, self.coeff1, self.coeff2, self.coeff3,
-                                 self.coeff4)
+        bm.music_track_multiturn(
+            self.beam.dt,
+            self.beam.dE,
+            self.induced_voltage,
+            self.array_parameters,
+            self.alpha,
+            self.omega_bar,
+            self.const,
+            self.coeff1,
+            self.coeff2,
+            self.coeff3,
+            self.coeff4,
+        )
 
     def track_py(self):
         r"""
@@ -204,15 +237,20 @@ class Music:
             cos_term = np.cos(self.omega_bar * time_difference)
             sin_term = np.sin(self.omega_bar * time_difference)
 
-            product_first_component = exp_term * \
-                                      ((cos_term + self.coeff1 * sin_term) * self.input_first_component
-                                       + self.coeff2 * sin_term * self.input_second_component)
-            product_second_component = exp_term * \
-                                       (self.coeff3 * sin_term * self.input_first_component
-                                        + (cos_term + self.coeff4 * sin_term) * self.input_second_component)
+            product_first_component = exp_term * (
+                (cos_term + self.coeff1 * sin_term)
+                * self.input_first_component
+                + self.coeff2 * sin_term * self.input_second_component
+            )
+            product_second_component = exp_term * (
+                self.coeff3 * sin_term * self.input_first_component
+                + (cos_term + self.coeff4 * sin_term)
+                * self.input_second_component
+            )
 
-            self.induced_voltage[i + 1] = self.const * \
-                                          (0.5 + product_first_component)
+            self.induced_voltage[i + 1] = self.const * (
+                0.5 + product_first_component
+            )
             self.beam.dE[i + 1] += self.induced_voltage[i + 1]
 
             self.input_first_component = product_first_component + 1.0
@@ -245,14 +283,15 @@ class Music:
         exp_term = np.exp(-self.alpha * time_difference_0)
         cos_term = np.cos(self.omega_bar * time_difference_0)
         sin_term = np.sin(self.omega_bar * time_difference_0)
-        product_first_component = exp_term * \
-                                  ((cos_term + self.coeff1 * sin_term) * self.input_first_component
-                                   + self.coeff2 * sin_term * self.input_second_component)
-        product_second_component = exp_term * \
-                                   (self.coeff3 * sin_term * self.input_first_component
-                                    + (cos_term + self.coeff4 * sin_term) * self.input_second_component)
-        self.induced_voltage[0] = self.const * \
-                                  (0.5 + product_first_component)
+        product_first_component = exp_term * (
+            (cos_term + self.coeff1 * sin_term) * self.input_first_component
+            + self.coeff2 * sin_term * self.input_second_component
+        )
+        product_second_component = exp_term * (
+            self.coeff3 * sin_term * self.input_first_component
+            + (cos_term + self.coeff4 * sin_term) * self.input_second_component
+        )
+        self.induced_voltage[0] = self.const * (0.5 + product_first_component)
         self.beam.dE[0] += self.induced_voltage[0]
         self.input_first_component = product_first_component + 1.0
         self.input_second_component = product_second_component
@@ -264,15 +303,20 @@ class Music:
             cos_term = np.cos(self.omega_bar * time_difference)
             sin_term = np.sin(self.omega_bar * time_difference)
 
-            product_first_component = exp_term * \
-                                      ((cos_term + self.coeff1 * sin_term) * self.input_first_component
-                                       + self.coeff2 * sin_term * self.input_second_component)
-            product_second_component = exp_term * \
-                                       (self.coeff3 * sin_term * self.input_first_component
-                                        + (cos_term + self.coeff4 * sin_term) * self.input_second_component)
+            product_first_component = exp_term * (
+                (cos_term + self.coeff1 * sin_term)
+                * self.input_first_component
+                + self.coeff2 * sin_term * self.input_second_component
+            )
+            product_second_component = exp_term * (
+                self.coeff3 * sin_term * self.input_first_component
+                + (cos_term + self.coeff4 * sin_term)
+                * self.input_second_component
+            )
 
-            self.induced_voltage[i + 1] = self.const * \
-                                          (0.5 + product_first_component)
+            self.induced_voltage[i + 1] = self.const * (
+                0.5 + product_first_component
+            )
             self.beam.dE[i + 1] += self.induced_voltage[i + 1]
 
             self.input_first_component = product_first_component + 1.0
@@ -293,15 +337,16 @@ class Music:
         self.induced_voltage[1:] = 0
 
         for i in range(len(self.beam.dt) - 1):
-
             for j in range(i + 1):
                 time_difference = self.beam.dt[i + 1] - self.beam.dt[j]
                 exp_term = np.exp(-self.alpha * time_difference)
                 cos_term = np.cos(self.omega_bar * time_difference)
                 sin_term = np.sin(self.omega_bar * time_difference)
-                self.induced_voltage[i + 1] += \
-                    exp_term * (cos_term + self.coeff1 * sin_term)
+                self.induced_voltage[i + 1] += exp_term * (
+                    cos_term + self.coeff1 * sin_term
+                )
 
-            self.induced_voltage[i + 1] = \
-                self.const * (0.5 + self.induced_voltage[i + 1])
+            self.induced_voltage[i + 1] = self.const * (
+                0.5 + self.induced_voltage[i + 1]
+            )
             self.beam.dE[i + 1] += self.induced_voltage[i + 1]
