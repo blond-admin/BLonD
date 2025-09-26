@@ -165,6 +165,10 @@ class Beam(BeamBaseClass):
 
     def plot_hist2d(self, **kwargs) -> None:
         """Plot 2D histogram of beam coordinates"""
+        if self._dt is None or self._dE is None:
+            raise ValueError(
+                "Beam `dt` and `dE` coordinates are not initialized!"
+            )
         if "cmap" not in kwargs.keys():
             kwargs["cmap"] = "viridis"
         if "bins" not in kwargs.keys():

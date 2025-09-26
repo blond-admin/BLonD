@@ -490,7 +490,9 @@ class SingleHarmonicCavity(CavityBaseClass):
         omega
             Angular frequency (2 PI f) of cavity, in [rad/s]
         """
-        return self.harmonic * TWOPI_C0 * beam_beta / ring_circumference
+        return self.harmonic * backend.float(
+            TWOPI_C0 * beam_beta / ring_circumference
+        )
 
     def voltage_waveform_tmp(self, ts: NumpyArray):
         """

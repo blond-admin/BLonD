@@ -125,7 +125,7 @@ class SimulationTwoRfStations:
         cavity2.voltage = backend.float(6e6)
         cavity2.phi_rf = backend.float(0)
 
-        N_TURNS = int(10)
+        N_TURNS = int(1e6)
         energy_cycle = MagneticCyclePerTurn(
             value_init=450e9,
             values_after_turn=np.linspace(
@@ -154,3 +154,4 @@ class SimulationTwoRfStations:
         simulation = Simulation.from_locals(locals())
 
         self.simulation = simulation
+        self.beam1 = beam1

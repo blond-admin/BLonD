@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import abc
 from abc import ABC
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
@@ -46,6 +47,10 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         )
 
         self.orbit_length = orbit_length
+
+    @abc.abstractmethod
+    def eta_0(self, gamma: float) -> backend.float:
+        pass
 
     def __str__(self) -> str:
         return f""

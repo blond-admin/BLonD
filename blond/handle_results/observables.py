@@ -298,7 +298,7 @@ class CavityPhaseObservation(Observables):
         folder: str = "",
     ):
         """
-        Observe the cavity rf parameters during simulation execution
+        Observe the cavity RF parameters during simulation execution
 
         Parameters
         ----------
@@ -306,7 +306,7 @@ class CavityPhaseObservation(Observables):
             Value to control that the element is
             callable each n-th turn.
         cavity
-            Class that implements beam-rf interactions in a synchrotron
+            Class that implements beam-RF interactions in a synchrotron
         """
         super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._cavity = cavity

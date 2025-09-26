@@ -188,10 +188,11 @@ class BackendBaseClass(ABC):
         self.zeros: Callable = None  # type: ignore
         self.ones: Callable = None  # type: ignore
         self.zeros_like: Callable = None  # type: ignore
-        self.fft = None  # type: ignore
-        self.random = None  # type: ignore
-        self.isnan = None  # type: ignore
-        self.sum = None  # type: ignore
+        self.fft: Callable = None  # type: ignore
+        self.random: Callable = None  # type: ignore
+        self.isnan: Callable = None  # type: ignore
+        self.sum: Callable = None  # type: ignore
+        self.sqrt: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -395,6 +396,9 @@ class NumpyBackend(BackendBaseClass):
         self.random = np.random
         self.isnan = np.isnan
         self.sum = np.sum
+        self.sqrt = np.sqrt
+        self.interp = np.interp
+        self.meshgrid = np.meshgrid
 
         self._finalize()
 
@@ -518,6 +522,9 @@ class CupyBackend(BackendBaseClass):
         self.random = cp.random
         self.isnan = cp.isnan
         self.sum = cp.sum
+        self.sqrt = cp.sqrt
+        self.interp = cp.interp
+        self.meshgrid = cp.meshgrid
 
         from .cuda.callables import CudaSpecials
 

@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from blond._core.backends.backend import backend
+
 from ..base import BeamPhysicsRelevant, Preparable, Schedulable
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -123,6 +125,19 @@ class Ring(Preparable, Schedulable):
             ]
         )
         return transition_gamma_average
+
+    def calc_average_eta_0(self, gamma: float) -> np.float32 | np.float64:
+        from ...physics.drifts import DriftBaseClass
+
+        drifts = self.elements.get_elements(DriftBaseClass)
+        weights = [d.orbit_length for d in drifts]
+        etas = [d.eta_0(gamma) for d in drifts]
+        return backend.float(
+            np.average(
+                etas,
+                weights=weights,
+            )
+        )
 
     @property
     def n_cavities(self) -> int:

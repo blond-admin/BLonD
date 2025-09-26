@@ -206,10 +206,12 @@ class Simulation(Preparable, HasPropertyCache):
             turn_i_init=0,
             show_progressbar=False,
         )
-        potential_well = cumulative_trapezoid(probe_bunch.read_partial_dE())
+        potential_well = cumulative_trapezoid(
+            probe_bunch.read_partial_dE(), initial=0
+        )
         if subtract_min:
             potential_well -= potential_well.min()
-        return potential_well
+        return potential_well / particle_type.charge
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called
@@ -414,7 +416,7 @@ class Simulation(Preparable, HasPropertyCache):
         beam
             Simulation beam object
         preparation_routine
-            Algorithm to prepare the beam dt and dE coorinates
+            Algorithm to prepare the beam `dt` and `dE` coorinates
         turn_i
             Turn to prepare the beam for
 
@@ -441,7 +443,8 @@ class Simulation(Preparable, HasPropertyCache):
         beams
             Beams that are used to perform the simulation
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate.
+            If None, will use the maximum number of turns given by the cycle.
         turn_i_init
             Initial turn to start with simulation
         observe
@@ -451,7 +454,8 @@ class Simulation(Preparable, HasPropertyCache):
             If True, will show a progress bar indicating how many turns have
             been completed and other metrics
         callback
-            User defined function `def myfunction(simulation: Simulation): ...`
+            User defined function
+            `def myfunction(simulation: Simulation, beam: Beam): ...`
             that is called each turn.
 
         """

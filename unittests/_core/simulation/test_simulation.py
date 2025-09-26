@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import unittest
 from copy import deepcopy
+from typing import TYPE_CHECKING, Optional
 from unittest.mock import Mock, create_autospec
 
 import matplotlib.pyplot as plt
@@ -7,10 +10,12 @@ import numpy as np
 
 from blond import (
     Beam,
+    BiGaussian,
     DriftSimple,
     Ring,
     Simulation,
     SingleHarmonicCavity,
+    backend,
     proton,
 )
 from blond._core.beam.base import BeamBaseClass
@@ -18,6 +23,12 @@ from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import BunchObservation, Observables
 from unittests.handle_results.test_observables import simulation
+
+if TYPE_CHECKING:  # pragma: no cover
+    from typing import Tuple
+
+    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import NDArray as NumpyArray
 
 
 class TestSimulation(unittest.TestCase):
@@ -116,11 +127,13 @@ class TestSimulation(unittest.TestCase):
         from blond.testing.simulation import SimulationTwoRfStations
 
         sim = SimulationTwoRfStations()
+        ts = np.linspace(-2e-9, 2e-9, 100)
+
         potential_well = sim.simulation.get_potential_well_empiric(
-            ts=np.linspace(-1e-9, 1e-9, 100),
+            ts=ts,
             particle_type=proton,
         )
-        SAVE_PINNED = False
+        SAVE_PINNED = True
         if SAVE_PINNED:
             np.savetxt(
                 "resources/potential_well.csv",
