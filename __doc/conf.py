@@ -65,7 +65,7 @@ project = u'BLonD'
 copyright = u'2017'
 author = u'BLonD-admin'
 
-autodoc_mock_imports = ["mpi4py", "cupy"]
+autodoc_mock_imports = ["mpi4py"]
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
