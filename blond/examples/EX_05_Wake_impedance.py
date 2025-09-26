@@ -159,7 +159,7 @@ def main():
             profile.hist_x.get() - np.mean(profile.hist_x.get())
             if backend.is_gpu
             else profile.hist_x - np.mean(profile.hist_x),
-            beam.n_particles,
+            beam.intensity,
         )
         VindGauss += tmp.real
     with AllowPlotting():

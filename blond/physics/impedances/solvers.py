@@ -80,13 +80,10 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         induced_voltage
             Induced voltage, in [V]
         """
-        ratio = backend.float(
-            beam.n_particles / beam.n_macroparticles_partial()
-        )
         factor = -backend.float(
             (beam.particle_type.charge * e)
             / (2 * np.pi)
-            * ratio
+            * beam.ratio
             * (self._simulation.ring.circumference / beam.reference_velocity)
             / self._parent_wakefield.profile.hist_step
         )
@@ -332,7 +329,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
             (-1 * beam.particle_type.charge * e)
             * (
                 # TODO this might be a problem with MPI
-                beam.n_particles / beam.n_macroparticles_partial()
+                beam.ratio
             )
         )
 
@@ -519,7 +516,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
 
         _factor = (-1 * beam.particle_type.charge * e) * (
             # TODO this might be a problem with MPI
-            beam.n_particles / beam.n_macroparticles_partial()
+            beam.ratio
         )
         # Calculate the convolution of the wake and the beam
         # Usually this would be np.convolve(wake, beam).

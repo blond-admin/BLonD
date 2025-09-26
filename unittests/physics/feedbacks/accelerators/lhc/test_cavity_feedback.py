@@ -60,7 +60,6 @@ class TestLHCOpenDrive(unittest.TestCase):
             n_particles=N_b,
             particle_type=proton,
         )
-        beam.ratio = N_b / N_p
         # self.profile = Profile(beam)
         self.profile = StaticProfile(0, 1, 8)  # TODO kwargs should matter
         sim = Simulation(

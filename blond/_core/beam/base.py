@@ -53,7 +53,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """
         super().__init__()
 
-        self.n_particles = int_from_float_with_warning(
+        self.intensity = int_from_float_with_warning(
             n_particles, warning_stacklevel=2
         )
         self._is_distributed = is_distributed
@@ -122,11 +122,11 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             warnings.warn(msg)
         self.reference_total_energy = new_reference_total_energy
 
+    @property
     @abstractmethod  # pragma: no cover
-    @cached_property
     def ratio(self) -> float:
         """Ratio of the intensity vs. the sum of weights"""
-        return self.n_particles / self.common_array_size
+        pass
 
     @property
     def particle_type(self) -> ParticleType:

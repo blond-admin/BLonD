@@ -125,13 +125,13 @@ class Beam(BeamBaseClass):
             turn_i_init=turn_i_init,
         )
 
-    @cached_property
+    @property
     def ratio(self) -> float:
         """Ratio of the intensity vs. the sum of weights"""
         # As there are no weights, lets assume all weights are 1,
         # The sum over all macro-particles with weight 1
         # is thus `common_array_size`.
-        return self.n_particles / self.common_array_size
+        return self.intensity / self.common_array_size
 
     @cached_property
     def dt_min(self) -> backend.float:

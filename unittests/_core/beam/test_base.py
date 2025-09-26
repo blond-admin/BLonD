@@ -39,7 +39,7 @@ class BeamBaseClassTester(BeamBaseClass):
 
     @cached_property
     def ratio(self) -> float:
-        return self.n_particles / self.common_array_size
+        return self.intensity / self.common_array_size
 
     def setup_beam(
         self,
