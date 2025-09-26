@@ -33,7 +33,9 @@ def main():
         )
         print("Done!")
 
-        result = subprocess.run(["python", target], capture_output=True, text=True)
+        result = subprocess.run(
+            ["python", target], capture_output=True, text=True
+        )
         print(f"{result.stdout[:-1]} on {branch}")  # stdout without last \n
 
 
