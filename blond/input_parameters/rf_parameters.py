@@ -515,7 +515,7 @@ class RFStation:
             If None, the present value of self.counter is used.
         design : bool, optional
             Flag to force using the design value (ignore the influence
-                                                  of feedbacks)
+            of feedbacks)
             The default is False.
             If True, the design value is used, if False the actual
             value is used.

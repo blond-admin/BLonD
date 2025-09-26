@@ -1646,6 +1646,7 @@ class LHCCavityLoop(CavityFeedback):
         r"""Generator response
 
         Attributes
+        ----------
         I_TEST : complex array
             Test point for open loop measurements (when injecting a generator
             offset)
