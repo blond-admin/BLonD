@@ -33,6 +33,27 @@
 import sys
 import os
 
+
+import importlib.abc, importlib.machinery
+
+# names to fail; or read from env: SPHINX_BLOCK_IMPORTS="mpi4py,torch"
+BLOCKED = set("cupy")
+
+class _BlockLoader(importlib.abc.Loader):
+    def exec_module(self, module):
+        # ModuleNotFoundError is a subclass of ImportError
+        raise ModuleNotFoundError(f"mocked missing module: {module.__name__}")
+
+class _BlockFinder(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path, target=None):
+        for root in BLOCKED:
+            if fullname == root or fullname.startswith(root + "."):
+                return importlib.machinery.ModuleSpec(fullname, _BlockLoader())
+        return None  # let normal importers handle others
+
+# Ensure it runs before normal importers
+sys.meta_path.insert(0, _BlockFinder())
+
     
 folder = os.path.abspath('../')
 sys.path.insert(0,folder)
