@@ -61,4 +61,3 @@ extern "C" void rf_volt_comp(const real_t * __restrict__ voltage,
             }
         }
 }
-
