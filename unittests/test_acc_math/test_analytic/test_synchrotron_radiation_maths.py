@@ -23,10 +23,19 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
         self.synchrotron_radiation_integrals = np.array(
             [
                 1,
-                2 * np.pi / self.particle_type.quantum_radiation_constant,
-                np.pi / self.particle_type.quantum_radiation_constant**2,
+                2 * np.pi / self.particle_type.sands_radiation_constant,
+                np.pi
+                / (
+                    self.particle_type.quantum_radiation_constant
+                    * self.particle_type.sands_radiation_constant
+                ),
                 0,
-                2 * np.pi / self.particle_type.quantum_radiation_constant**2,
+                2
+                * np.pi
+                / (
+                    self.particle_type.sands_radiation_constant
+                    * self.particle_type.quantum_radiation_constant
+                ),
             ]
         )
         self.revolution_frequency = 1
@@ -47,8 +56,8 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
             which_plane="longitudinal",
         )
         self.assertEqual(1.0, jy)
-        self.assertEqual(1.0, jx, jx_1)
-        self.assertEqual(2.0, jz, jz_1)
+        self.assertEqual(jx, jx_1, msg="Expected value = 1")
+        self.assertEqual(jz, jz_1, msg="Expected value = 2")
 
     def test_calculate_damping_times_in_turn(self):
         damping_times_in_turn = calculate_damping_times_in_turn(
@@ -68,9 +77,13 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
             energy_loss_per_turn=self.energy_lost_per_turn,
             which_plane="longitudinal",
         )
-        self.assertEqual(2, damping_times_in_turn[1])
-        self.assertEqual(2, damping_times_in_turn[0], taux_1)
-        self.assertEqual(1, damping_times_in_turn[2], tauz_1)
+        self.assertEqual(2, damping_times_in_turn[1], msg="Expected value = 2")
+        self.assertEqual(
+            damping_times_in_turn[0], taux_1, msg="Expected value = 2"
+        )
+        self.assertEqual(
+            damping_times_in_turn[2], tauz_1, msg="Expected value = 1"
+        )
 
     def test_calculate_damping_times_in_seconds(self):
         damping_times_in_second = calculate_damping_times_in_second(
@@ -91,13 +104,22 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
             synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
             energy_loss_per_turn=self.energy_lost_per_turn,
             revolution_frequency=self.revolution_frequency,
-            which_plane="horizontal",
+            which_plane="longitudinal",
         )
-        self.assertEqual(2, damping_times_in_second[1])
-        self.assertEqual(2, damping_times_in_second[0], taux_1)
-        self.assertEqual(1, damping_times_in_second[2], tauz_1)
+        self.assertEqual(
+            2, damping_times_in_second[1], msg="Expected value = 2"
+        )
+        self.assertEqual(
+            damping_times_in_second[0], taux_1, msg="Expected value = 2"
+        )
+        self.assertEqual(
+            damping_times_in_second[2], tauz_1, msg="Expected value = 1"
+        )
 
     def test_calculate_energy_loss_per_turn(self):
+        print(self.particle_type.sands_radiation_constant)
+        print(2 * np.pi / self.synchrotron_radiation_integrals[1])
+
         self.assertEqual(
             1.0,
             calculate_energy_loss_per_turn(
@@ -148,12 +170,19 @@ class TestSynchrotronRadiationMaths_array_inputs(unittest.TestCase):
         self.synchrotron_radiation_integrals = np.array(
             [
                 1,
-                2 * np.pi / self.particle_type.quantum_radiation_constant,
-                np.pi / (self.particle_type.quantum_radiation_constant) ** 2,
+                2 * np.pi / self.particle_type.sands_radiation_constant,
+                np.pi
+                / (
+                    self.particle_type.quantum_radiation_constant
+                    * self.particle_type.sands_radiation_constant
+                ),
                 0,
                 2
                 * np.pi
-                / (self.particle_type.quantum_radiation_constant) ** 2,
+                / (
+                    self.particle_type.sands_radiation_constant
+                    * self.particle_type.quantum_radiation_constant
+                ),
             ]
         )
         self.revolution_frequency = 1
@@ -174,8 +203,8 @@ class TestSynchrotronRadiationMaths_array_inputs(unittest.TestCase):
             which_plane="longitudinal",
         )
         self.assertEqual(1.0, jy)
-        self.assertEqual(1.0, jx, jx_1)
-        self.assertEqual(2.0, jz, jz_1)
+        self.assertEqual(jx, jx_1, msg="Expected value = 1")
+        self.assertEqual(jz, jz_1, msg="Expected value = 2")
 
     def test_calculate_damping_times_in_turn(self):
         damping_times_in_turn = calculate_damping_times_in_turn(
@@ -193,26 +222,18 @@ class TestSynchrotronRadiationMaths_array_inputs(unittest.TestCase):
             energy=self.beam_energy,
             synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
             energy_loss_per_turn=self.energy_lost_per_turn,
-            which_plane="horizontal",
+            which_plane="longitudinal",
         )
-        self.assertIsNone(
-            np.testing.assert_array_equal(
-                np.array([2.0, 2.0, 2.0, 0.0, 2.0]), damping_times_in_turn[1]
-            )
+        np.testing.assert_array_equal(
+            np.array([2.0, 2.0, 2.0, 0.0, 2.0]), damping_times_in_turn[1]
         )
-        self.assertIsNone(
-            np.testing.assert_array_equal(
-                np.array([2.0, 2.0, 2.0, 0.0, 2.0]),
-                damping_times_in_turn[0],
-                taux_1,
-            )
+        np.testing.assert_array_equal(
+            damping_times_in_turn[0],
+            taux_1,
         )
-        self.assertIsNone(
-            np.testing.assert_array_equal(
-                np.array([1.0, 1.0, 1.0, 0.0, 1.0]),
-                damping_times_in_turn[2],
-                tauz_1,
-            )
+        np.testing.assert_array_equal(
+            damping_times_in_turn[2],
+            tauz_1,
         )
 
     def test_calculate_damping_times_in_seconds(self):
@@ -234,74 +255,58 @@ class TestSynchrotronRadiationMaths_array_inputs(unittest.TestCase):
             synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
             energy_loss_per_turn=self.energy_lost_per_turn,
             revolution_frequency=self.revolution_frequency,
-            which_plane="horizontal",
+            which_plane="longitudinal",
         )
-        self.assertIsNone(
-            np.testing.assert_array_equal(
-                np.array([2.0, 2.0, 2.0, 0.0, 2.0]), damping_times_in_second[1]
-            )
+        np.testing.assert_array_equal(
+            np.array([2.0, 2.0, 2.0, 0.0, 2.0]), damping_times_in_second[1]
         )
-        self.assertIsNone(
-            np.testing.assert_array_equal(
-                np.array([2.0, 2.0, 2.0, 0.0, 2.0]),
-                damping_times_in_second[0],
-                taux_1,
-            )
+        np.testing.assert_array_equal(
+            damping_times_in_second[0],
+            taux_1,
         )
-        self.assertIsNone(
-            np.testing.assert_array_equal(
-                np.array([1.0, 1.0, 1.0, 0.0, 1.0]),
-                damping_times_in_second[2],
-                tauz_1,
-            )
+        np.testing.assert_array_equal(
+            damping_times_in_second[2],
+            tauz_1,
         )
 
     def test_calculate_energy_loss_per_turn(self):
-        self.assertIsNone(
-            np.testing.assert_array_equal(
-                np.array([1.0, 1.0, 1.0, 0.0, 1.0]),
-                calculate_energy_loss_per_turn(
-                    energy=self.beam_energy,
-                    synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
-                    particle_type=self.particle_type,
-                ),
-            )
+        np.testing.assert_array_equal(
+            np.array([1.0, 1.0, 1.0, 0.0, 1.0]),
+            calculate_energy_loss_per_turn(
+                energy=self.beam_energy,
+                synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+                particle_type=self.particle_type,
+            ),
         )
 
     def test_calculate_natural_horizontal_emittance(self):
-        self.assertIsNone(
-            np.testing.assert_array_equal(
-                np.array([1.0, 1.0, 1.0, 0.0, 1.0]),
-                calculate_natural_horizontal_emittance(
-                    energy=self.beam_energy,
-                    synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
-                    particle_type=self.particle_type,
-                ),
-            )
+        np.testing.assert_array_equal(
+            np.array([1.0, 1.0, 1.0, 0.0, 1.0]),
+            calculate_natural_horizontal_emittance(
+                energy=self.beam_energy,
+                synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+                particle_type=self.particle_type,
+            ),
         )
 
     def test_calculate_natural_energy_spread(self):
-        self.assertIsNone(
-            np.testing.assert_array_equal(
-                np.array([0.5, 0.5, 0.5, 0.0, 0.5]),
-                calculate_natural_energy_spread(
-                    energy=self.beam_energy,
-                    synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
-                    particle_type=self.particle_type,
-                ),
-            )
+        np.testing.assert_array_equal(
+            np.array([0.5, 0.5, 0.5, 0.0, 0.5]),
+            calculate_natural_energy_spread(
+                energy=self.beam_energy,
+                synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+                particle_type=self.particle_type,
+            ),
         )
 
     def test_calculate_natural_bunch_length(self):
-        self.assertIsNone(
-            np.testing.assert_array_equal(
-                np.array([0.5, 0.5, 0.5, 0.0, 0.5]),
-                calculate_natural_bunch_length(
-                    energy=self.beam_energy,
-                    synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
-                    angular_synchrotron_frequency=self.angular_synchrotron_frequency,
-                    momentum_compaction_factor=self.momentum_compaction_factor,
-                    particle_type=self.particle_type,
-                ),
-            )
+        np.testing.assert_array_equal(
+            np.array([0.5, 0.5, 0.5, 0.0, 0.5]),
+            calculate_natural_bunch_length(
+                energy=self.beam_energy,
+                synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+                angular_synchrotron_frequency=self.angular_synchrotron_frequency,
+                momentum_compaction_factor=self.momentum_compaction_factor,
+                particle_type=self.particle_type,
+            ),
         )
