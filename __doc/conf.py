@@ -194,7 +194,7 @@ texinfo_documents = [
      'Miscellaneous'),
 ]
 
-
+html_last_updated_fmt = '%b %d, %Y'
 
 
 # Example configuration for intersphinx: refer to the Python standard library.
