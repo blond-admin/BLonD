@@ -54,6 +54,7 @@ extern "C" void rf_volt_comp(const real_t * __restrict__ voltage,
                 // guarantee only one array access outside loop
 
                 real_t rf_voltage_i = 0.0; // rf_voltage = np.empty in wrapper function
+                // use register instead of array access for speedup
                 for (int j = 0; j < n_rf; j++) {
                     rf_voltage_i += voltage[j] * FAST_SIN(omega_RF[j] * bin_center + phi_RF[j]);
                 }
