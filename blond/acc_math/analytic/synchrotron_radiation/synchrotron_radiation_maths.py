@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Dict, Literal, Tuple
 
 import numpy as np
 from scipy.constants import c
