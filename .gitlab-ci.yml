@@ -124,4 +124,6 @@ pages:
     paths:
       - ${project_root}public
   only:
-    - master
+    - bugfix/CI_documentation
+  tags:
+    - k8s-gpu
