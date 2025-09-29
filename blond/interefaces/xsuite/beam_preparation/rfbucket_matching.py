@@ -86,16 +86,27 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
                 turn_i=0,
                 reference_time=0,
             )
-        rf_element = self.cavity
-        # TODO what  if rf_element is None
+        if self.cavity:
+            rf_element = self.cavity
+        else:
+            raise ValueError("Cavity is not set. Cannot assign rf_element.")
+
         rf_element.apply_schedules(turn_i=0, reference_time=0)
+
+        if not self.energy_init:
+            raise ValueError('Initial energy is not set.')
 
         energy = self.energy_init
         rest_mass = beam.particle_type.mass
-        # TODO what  if energy is None
         gamma = energy / rest_mass
+
+        if not drifts:
+            raise ValueError("Drift list is empty. Cannot access transition_gamma.")
+
+        if  drifts[0].transition_gamma is None:
+            raise ValueError("transition_gamma is not set in the first drift element.")
         transition_gamma = drifts[0].transition_gamma
-        # TODO what  if transition_gamma is None
+
         alpha_c = 1 / transition_gamma**2 - 1 / gamma**2
         mass_kg = beam.particle_type.mass * e / c**2
         charge_coulomb = beam.particle_type.charge * e
@@ -107,7 +118,6 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             mass_kg=mass_kg,
             charge_coulomb=charge_coulomb,
             alpha_array=np.atleast_1d(alpha_c),
-            # TODO what  if cavity is None
             harmonic_list=np.atleast_1d(self.cavity.harmonic),
             voltage_list=np.atleast_1d(self.cavity.voltage),
             phi_offset_list=np.atleast_1d(self.cavity.phi_rf),
@@ -125,7 +135,8 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             macroparticlenumber=self.n_macroparticles
         )
 
-        print(z, delta)
+        # convert from delta to dE
+        dE = delta*self.energy_init
 
         # --- Set the beam using standard interface ---
-        beam.setup_beam(dt=z / c, dE=delta)
+        beam.setup_beam(dt=z / c, dE=dE)

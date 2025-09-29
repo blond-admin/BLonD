@@ -26,15 +26,15 @@ logging.basicConfig(level=logging.INFO)
 
 
 def main():
-    ring = Ring(26658.883)
+    ring = Ring(26_658.883)
 
     cavity1 = SingleHarmonicCavity()
     cavity1.harmonic = 35640
     cavity1.voltage = 6e6
-    cavity1.phi_rf = 0
+    cavity1.phi_rf = 135
 
     N_TURNS = int(10)
-    energy_init = 10e9
+    energy_init = 450e9
     energy_cycle = MagneticCyclePerTurn(
         value_init=energy_init,
         values_after_turn=np.linspace(energy_init, energy_init, N_TURNS),
@@ -61,7 +61,7 @@ def main():
             distribution_type=ThermalDistribution,
             energy_init=energy_init,
             cavity=cavity1,
-            sigma_z=zmax / 2,
+            sigma_z=zmax / 4,
             n_macroparticles=int(1e6),
         ),
     )
