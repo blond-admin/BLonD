@@ -17,7 +17,7 @@ sphinx-apidoc -o modules ../blond -f -e -M -d 5 -P
 ```
 from this folder.
 
-> [!NOTE]
+> [!WARNING]
 > Beware, this will overwrite all existing `.rst` files
 
 The python package `sphinx-apidoc` needs to be installed for this to work.
