@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict
 
 import numpy as np
 from numpy.matlib import empty
@@ -10,7 +10,7 @@ from scipy.constants import c, e
 
 from blond._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
 from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
-    calculate_damping_times_in_turn,
+    calculate_damping_times_in_turns,
     calculate_energy_loss_per_turn,
     calculate_natural_energy_spread,
     gather_longitudinal_synchrotron_radiation_parameters,
@@ -190,8 +190,10 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
     def on_run_simulation(
         self,
         simulation: Simulation,
+        beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
+        **kwargs: Dict[str, Any],
     ) -> None:
         if self.get_synchrotron_radiation_info_turn_by_turn:
             self._energy_loss_per_turn = np.empty(n_turns)
@@ -214,7 +216,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
                 )
             )
             self._damping_times[self._turn_i, :] = (
-                calculate_damping_times_in_turn(
+                calculate_damping_times_in_turns(
                     energy=beam.reference_total_energy,
                     synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
                     energy_loss_per_turn=self._energy_loss_per_turn[
