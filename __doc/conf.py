@@ -33,24 +33,26 @@
 import sys
 import os
 
-#
-# import importlib.abc, importlib.machinery
-#
-# BLOCKED = ["cupy", "cupyx"]
-#
-# class _BlockLoader(importlib.abc.Loader):
-#     def exec_module(self, module):
-#         raise ImportError(f"mocked missing module: {module.__name__}")
-#
-# class _BlockFinder(importlib.abc.MetaPathFinder):
-#     def find_spec(self, fullname, path, target=None):
-#         for root in BLOCKED:
-#             if fullname == root or fullname.startswith(root + "."):
-#                 return importlib.machinery.ModuleSpec(fullname, _BlockLoader())
-#         return None  # let normal importers handle others
-#
-# # Ensure it runs before normal importers
-# sys.meta_path.insert(0, _BlockFinder())
+
+import importlib.abc, importlib.machinery
+
+BLOCKED = ["cupy", "cupyx"]
+# The blocking is necessary in case the gitlab runner has cupy installed, which adds
+# no benefit to the building of the documentation but will instead crash it.
+
+class _BlockLoader(importlib.abc.Loader):
+    def exec_module(self, module):
+        raise ImportError(f"Mocked missing module: {module.__name__}")
+
+class _BlockFinder(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path, target=None):
+        for root in BLOCKED:
+            if fullname == root or fullname.startswith(root + "."):
+                return importlib.machinery.ModuleSpec(fullname, _BlockLoader())
+        return None  # let normal importers handle others
+
+# Ensure it runs before normal importers
+sys.meta_path.insert(0, _BlockFinder())
 
     
 folder = os.path.abspath('../')
@@ -86,6 +88,8 @@ copyright = str(datetime.datetime.now().year)
 author = u'BLonD-admin'
 
 autodoc_mock_imports = ["mpi4py"]
+# Mocking the module causes blond to try and create the GPU backend
+# which fails on machines without cupy installed.
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -93,7 +97,7 @@ autodoc_mock_imports = ["mpi4py"]
 #
 # The short X.Y version.
 from importlib.metadata import version as get_version
-version = ".".join(get_version("blond").split(".")[:])
+version = ".".join(get_version("blond").split(".")[:3])
 # The full version, including alpha/beta/rc tags.
 release = get_version("blond")
 
