@@ -89,7 +89,9 @@ language = "en"
 #exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "_themes"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "*/blond.legacy.*",
                     "*/blond.performance_blond3.*", "*/blond.experimental.*",
-                    "*/blond.examples.*", "*_version.*"]
+                    "*/blond.examples.*", "*/blond._versio*", "*/blond._core.backends.cuda.call*",
+                    "*/blond._core.backends.fortran.call*"]
+# callables are only importable with cupy/fortran compiled
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "sphinx"
