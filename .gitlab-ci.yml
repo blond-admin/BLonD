@@ -125,5 +125,3 @@ pages:
       - ${project_root}public
   only:
     - bugfix/CI_documentation
-  tags:
-    - k8s-gpu
