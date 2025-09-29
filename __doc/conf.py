@@ -19,7 +19,7 @@
 # import os
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
-
+print(">>> Sphinx loaded THIS conf.py:", __file__)
 
 # -- General configuration ------------------------------------------------
 
@@ -34,7 +34,7 @@ import sys
 import os
 
     
-folder = os.path.abspath('../')
+folder = os.path.abspath('modules')
 sys.path.insert(0,folder)
 extensions = ['sphinx.ext.autodoc',
      'sphinx.ext.autosummary',
@@ -65,7 +65,7 @@ project = u'BLonD'
 copyright = u'2017'
 author = u'BLonD-admin'
 
-autodoc_mock_imports = ["mpi4py", "cupy"]
+autodoc_mock_imports = ["mpi4py"]
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -87,7 +87,9 @@ language = 'en'
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
 #exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '_themes']
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '*/blond.legacy.*',
+                    '*/blond.performance_blond3.*', '*/blond.experimental.*',
+                    '*/blond.examples.*']
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
@@ -112,8 +114,7 @@ pygments_style = 'sphinx'
 #html_theme = 'classic'
 #html_theme = 'alabaster'
 
-html_theme = 'sphinx_rtd_theme'
-html_theme_path = ["themes",]
+# html_theme = 'sphinx_rtd_theme'
 
 # html_theme_options = {
 #     'collapsiblesidebar': True,
