@@ -8,3 +8,8 @@
   padding-left: 2rem;
   padding-right: 2rem;
 }
+
+.center {
+    display: block;
+    text-align: center;
+}

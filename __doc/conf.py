@@ -185,7 +185,12 @@ texinfo_documents = [
      "Miscellaneous"),
 ]
 
-suppress_warnings = ["autodoc.duplicate_object"]  # remove warning for multiple mentions of the same item
+rst_prolog = """
+.. role:: center
+   :class: center
+"""  # allow for :center:
+
+suppress_warnings = ["autodoc.duplicate_object", "toc.excluded"]  # remove warning for multiple mentions of the same item
 html_static_path = ["_static"]
 html_css_files = ["css/wide.css"]
 

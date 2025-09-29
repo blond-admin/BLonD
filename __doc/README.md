@@ -25,7 +25,7 @@ This will overwrite all existing source files in the modules folder.
 Afterwards the content of the file `modules/blond.rst` is replaced with
 ```markdown
 API documentation
-=======
+=================
 
 .. toctree::
     :maxdepth: 5
