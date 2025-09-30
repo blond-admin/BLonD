@@ -135,9 +135,12 @@ release_sdist_310:
 
 test_documentation_building:
   image: gitlab-registry.cern.ch/blond/blond/python310
-  extends:
-    - .before
+  before_script:
+    - cd ${project_root}
+    - python3 -m pip install --upgrade pip
+    - python3 -m pip install .[doc]
   script:
+    - cd ${project_root}
     - sphinx-build -b html -W -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=5 --keep-going __doc __doc/_build/html
 
 pages:
