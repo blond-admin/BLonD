@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import logging
 import warnings
 from abc import abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Tuple
 
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
@@ -11,7 +12,7 @@ from .._core.base import MainLoopRelevant
 from .array_recorders import DenseArrayRecorder
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import List
+    from typing import Any, Dict, List
     from typing import Optional as LateInit
 
     from .. import WakeField
@@ -20,12 +21,15 @@ if TYPE_CHECKING:  # pragma: no cover
     from ..physics.cavities import SingleHarmonicCavity
     from ..physics.profiles import StaticProfile
 
+logger = logging.getLogger(__name__)
+
 
 class Observables(MainLoopRelevant):
     def __init__(
         self,
         each_turn_i: int,
         beam: BeamBaseClass,
+        folder: str,
         obs_per_turn: int = 1,
     ):
         """
@@ -47,12 +51,17 @@ class Observables(MainLoopRelevant):
         self.each_turn_i = each_turn_i
         self._obs_per_turn = obs_per_turn
         self._beam = beam
+        if len(folder) > 0:
+            assert folder.endswith("/") or folder.endswith("\\")
+        self.common_name = (
+            folder + "last"  # will result in filenames like last_dE.npy etc.
+        )
+        logger.info(f"Will save {self} to {self.common_name}_,,,")
 
         self._n_turns: LateInit[int] = None
         self._index_list: LateInit[int] = None
         self._turn_i_init: LateInit[int] = None
         self._turns_array: LateInit[NumpyArray] = None
-        self._hash: LateInit[str] = None
 
         self._last_turn_i_observed = (
             -1
@@ -88,7 +97,7 @@ class Observables(MainLoopRelevant):
         simulation
             Simulation context manager
         """
-        self._hash = simulation.get_hash()
+        pass
 
     def on_run_simulation(
         self,
@@ -97,7 +106,7 @@ class Observables(MainLoopRelevant):
         n_turns: int,
         turn_i_init: int,
         obs_per_turn: int = 1,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """
         Lateinit method when `simulation.run_simulation` is called
@@ -111,8 +120,8 @@ class Observables(MainLoopRelevant):
         turn_i_init
             Initial turn to execute simulation
         """
-        self._n_turns = n_turns
-        self._turn_i_init = turn_i_init
+        self._n_turns = int(n_turns)
+        self._turn_i_init = int(turn_i_init)
         if obs_per_turn >= 0:
             self._obs_per_turn = obs_per_turn
         else:
@@ -152,24 +161,79 @@ class Observables(MainLoopRelevant):
         #     int(n_turns * self._obs_per_turn + 1),
         #     endpoint=False,
         # )  # TODO: this assumes equidistant spacing, which is not correct with mutiple obs per turn, needs to check actual turn distances between obs
+        # should be called by child class via super()
 
-    @abstractmethod  # pragma: no cover
+    def assert_lateinit(self):
+        for parameter, value in self.__dict__.items():
+            if value is None:  # uninitialized
+                assert value is not None, f"`{parameter}` was not initialized."
+
+    def get_recorders(self) -> List[Tuple[str, DenseArrayRecorder]]:
+        self.assert_lateinit()
+        recorders = [
+            (attribute, instance)
+            for attribute, instance in self.__dict__.items()
+            if isinstance(instance, DenseArrayRecorder)  # initialized
+        ]
+        return recorders
+
+    def rename(self, common_name: str) -> None:
+        """
+        Change the common save name of all internal arrays
+
+        Notes
+        -----
+        This has no effect on files that are already saved to the disk.
+
+        Parameters
+        ----------
+        common_name
+            The new common name of all internal arrays.
+
+        """
+        for attribute_name, instance in self.get_recorders():
+            if self.common_name not in instance.filepath:
+                raise NameError(
+                    f"'{instance.filepath} does not include"
+                    f" {self.common_name}' anymore. This might be caused"
+                    f" by a manual override of the filename."
+                )
+            instance.filepath = instance.filepath.replace(
+                self.common_name,
+                common_name,
+            )
+        self.common_name = common_name
+        logger.info(f"Changed save target of {self} to {self.common_name}_,,,")
+
     def to_disk(self) -> None:
         """
         Save data to disk
         """
-        pass
+        for attribute_name, instance in self.get_recorders():
+            array_recorder: DenseArrayRecorder = instance
+            logger.info(f"Saved {array_recorder.filepath_array}")
+            array_recorder.to_disk()
 
-    @abstractmethod  # pragma: no cover
     def from_disk(self) -> None:
         """
         Load data from disk
         """
-        pass
+        for attribute_name, instance in self.get_recorders():
+            array_recorder: DenseArrayRecorder = instance
+            logger.info(f"Loaded {array_recorder.filepath_array}")
+
+            self.__setattr__(
+                attribute_name,
+                array_recorder.from_disk(
+                    filepath=array_recorder.filepath,
+                ),
+            )
 
 
 class BunchObservation(Observables):
-    def __init__(self, each_turn_i: int, beam: BeamBaseClass):
+    def __init__(
+        self, each_turn_i: int, beam: BeamBaseClass, folder: str = ""
+    ):
         """
         Observe the bunch coordinates during simulation execution
 
@@ -181,7 +245,7 @@ class BunchObservation(Observables):
         beam
             Simulation beam object
         """
-        super().__init__(each_turn_i=each_turn_i, beam=beam)
+        super().__init__(each_turn_i=each_turn_i, beam=beam, folder=folder)
         self._dts: LateInit[DenseArrayRecorder] = None
         self._dEs: LateInit[DenseArrayRecorder] = None
         self._flags: LateInit[DenseArrayRecorder] = None
@@ -194,7 +258,7 @@ class BunchObservation(Observables):
         beam: BeamBaseClass,  # not used in this context
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """
         Lateinit method when `simulation.run_simulation` is called
@@ -215,28 +279,28 @@ class BunchObservation(Observables):
             beam=self._beam,
         )
         n_entries = n_turns // self.each_turn_i + 2
-        n_particles = self._beam.common_array_size
+        n_particles = int(self._beam.common_array_size)
         shape = (n_entries, n_particles)
 
         self._dts = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_dts",
+            f"{self.common_name}_dts",
             shape,
-        )  # TODO
+        )
         self._dEs = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_dEs",
+            f"{self.common_name}_dEs",
             shape,
-        )  # TODO
+        )
         self._flags = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_flags",
+            f"{self.common_name}_flags",
             shape,
-        )  # TODO
+        )
 
         self._reference_time = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_reference_time",
+            f"{self.common_name}_reference_time",
             (n_entries,),
         )
         self._reference_total_energy = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_reference_total_energy",
+            f"{self.common_name}_reference_total_energy",
             (n_entries,),
         )
 
@@ -279,30 +343,6 @@ class BunchObservation(Observables):
     @property  # as readonly attributes
     def flags(self):
         return self._flags.get_valid_entries()
-
-    def to_disk(self) -> None:
-        self._reference_time.to_disk()
-        self._reference_total_energy.to_disk()
-        self._dts.to_disk()
-        self._dEs.to_disk()
-        self._flags.to_disk()
-
-    def from_disk(self) -> None:
-        self._reference_time = DenseArrayRecorder.from_disk(
-            self._reference_time.filepath,
-        )
-        self._reference_total_energy = DenseArrayRecorder.from_disk(
-            self._reference_total_energy.filepath,
-        )
-        self._dts = DenseArrayRecorder.from_disk(
-            self._dts.filepath,
-        )
-        self._dEs = DenseArrayRecorder.from_disk(
-            self._dEs.filepath,
-        )
-        self._flags = DenseArrayRecorder.from_disk(
-            self._flags.filepath,
-        )
 
 
 class BunchObservation_meta_params(Observables):
@@ -466,6 +506,7 @@ class CavityPhaseObservation(Observables):
         each_turn_i: int,
         cavity: SingleHarmonicCavity,
         beam: BeamBaseClass,
+        folder: str = "",
     ):
         """
         Observe the cavity rf parameters during simulation execution
@@ -480,7 +521,7 @@ class CavityPhaseObservation(Observables):
         beam
             Simulation beam object
         """
-        super().__init__(each_turn_i=each_turn_i, beam=beam)
+        super().__init__(each_turn_i=each_turn_i, beam=beam, folder=folder)
         self._cavity = cavity
         self._phases: LateInit[DenseArrayRecorder] = None
         self._omegas: LateInit[DenseArrayRecorder] = None
@@ -492,7 +533,7 @@ class CavityPhaseObservation(Observables):
         beam: BeamBaseClass,  # not used in this context
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """
         Lateinit method when `simulation.run_simulation` is called
@@ -513,17 +554,17 @@ class CavityPhaseObservation(Observables):
             beam=self._beam,
         )
         n_entries = n_turns // self.each_turn_i + 2
-        n_harmonics = self._cavity.n_rf
+        n_harmonics = int(self._cavity.n_rf)
         self._phases = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_phases",  # TODO
+            f"{self.common_name}_phases",
             (n_entries, n_harmonics),
         )
         self._omegas = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_omegas",  # TODO
+            f"{self.common_name}_omegas",  # TODO
             (n_entries, n_harmonics),
         )
         self._voltages = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_voltages",  # TODO
+            f"{self.common_name}_voltages",  # TODO
             (n_entries, n_harmonics),
         )
 
@@ -566,22 +607,6 @@ class CavityPhaseObservation(Observables):
     def voltages(self) -> NumpyArray:
         return self._voltages.get_valid_entries()
 
-    def to_disk(self) -> None:
-        """
-        Save data to disk
-        """
-        self._phases.to_disk()
-        self._omegas.to_disk()
-        self._voltages.to_disk()
-
-    def from_disk(self) -> None:
-        """
-        Load data from disk
-        """
-        self._phases = DenseArrayRecorder.from_disk(self._phases.filepath)
-        self._omegas = DenseArrayRecorder.from_disk(self._omegas.filepath)
-        self._voltages = DenseArrayRecorder.from_disk(self._voltages.filepath)
-
 
 class StaticProfileObservation(Observables):
     def __init__(
@@ -590,6 +615,7 @@ class StaticProfileObservation(Observables):
         profile: StaticProfile,
         beam: BeamBaseClass,
         obs_per_turn: int = 1,
+        folder: str = "",
     ):
         """
         Observation of a static beam profile
@@ -608,7 +634,10 @@ class StaticProfileObservation(Observables):
             Number of observations per turn, default is 1
         """
         super().__init__(
-            each_turn_i=each_turn_i, obs_per_turn=obs_per_turn, beam=beam
+            each_turn_i=each_turn_i,
+            obs_per_turn=obs_per_turn,
+            beam=beam,
+            folder=folder,
         )
         self._profile = profile
         self._hist_y: LateInit[DenseArrayRecorder] = None
@@ -619,7 +648,7 @@ class StaticProfileObservation(Observables):
         beam: BeamBaseClass,  # not used in this context
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """
         Lateinit method when `simulation.run_simulation` is called
@@ -641,9 +670,9 @@ class StaticProfileObservation(Observables):
             beam=self._beam,
         )
         n_entries = len(self._turns_array)
-        n_bins = self._profile.n_bins
+        n_bins = int(self._profile.n_bins)
         self._hist_y = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_hist_y",
+            f"{self.common_name}_hist_y",
             (n_entries, n_bins),
         )
 
@@ -744,18 +773,6 @@ class StaticMultiProfileObservation(Observables):
         """
         return self._hist_y.get_valid_entries()
 
-    def to_disk(self) -> None:
-        """
-        Save data to disk
-        """
-        self._hist_y.to_disk()
-
-    def from_disk(self) -> None:
-        """
-        Load data from disk
-        """
-        self._hist_y = DenseArrayRecorder.from_disk(self._hist_y.filepath)
-
 
 class WakeFieldObservation(Observables):
     def __init__(
@@ -763,6 +780,7 @@ class WakeFieldObservation(Observables):
         each_turn_i: int,
         wakefield: WakeField,
         beam: BeamBaseClass,
+        folder: str = "",
         obs_per_turn: int = 1,
     ):
         """
@@ -781,7 +799,10 @@ class WakeFieldObservation(Observables):
             Simulation beam object
         """
         super().__init__(
-            each_turn_i=each_turn_i, obs_per_turn=obs_per_turn, beam=beam
+            each_turn_i=each_turn_i,
+            folder=folder,
+            obs_per_turn=obs_per_turn,
+            beam=beam,
         )
         self._wakefield = wakefield
         self._induced_voltage: LateInit[DenseArrayRecorder] = None
@@ -792,7 +813,7 @@ class WakeFieldObservation(Observables):
         beam: BeamBaseClass,  # not used in this context
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """
         Lateinit method when `simulation.run_simulation` is called
@@ -814,9 +835,9 @@ class WakeFieldObservation(Observables):
             beam=self._beam,
         )
         n_entries = len(self._turns_array)
-        n_bins = self._wakefield._profile.n_bins
+        n_bins = int(self._wakefield._profile.n_bins)
         self._induced_voltage = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_phases",  # TODO
+            f"{self.common_name}_induced_voltage",
             (n_entries, n_bins),
         )
 
@@ -854,17 +875,3 @@ class WakeFieldObservation(Observables):
 
         """
         return self._induced_voltage.get_valid_entries()
-
-    def to_disk(self) -> None:
-        """
-        Save data to disk
-        """
-        self._induced_voltage.to_disk()
-
-    def from_disk(self) -> None:
-        """
-        Load data from disk
-        """
-        self._induced_voltage = DenseArrayRecorder.from_disk(
-            self._induced_voltage.filepath
-        )

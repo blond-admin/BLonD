@@ -4,14 +4,17 @@ import logging
 from functools import cached_property
 from pstats import SortKey
 from typing import TYPE_CHECKING, Callable
+from warnings import warn
 
-import numpy as np
-from tqdm import tqdm
+from scipy.integrate import cumulative_trapezoid
+from tqdm import tqdm  # type: ignore
 
+from ..._generals._warnings import PerformanceWarning
 from ...cycles.magnetic_cycle import MagneticCycleBase, MagneticCyclePerTurn
 from ...physics.cavities import CavityBaseClass
 from ...physics.drifts import DriftBaseClass
 from ...physics.profiles import ProfileBaseClass
+from ..backends.backend import backend
 from ..base import (
     BeamPhysicsRelevant,
     DynamicParameter,
@@ -22,9 +25,31 @@ from ..helpers import find_instances_with_method, int_from_float_with_warning
 from ..ring.helpers import get_elements, get_init_order
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional, Tuple
+    from typing import Any, Dict, Optional, Tuple
 
     from numpy.typing import NDArray as NumpyArray
+
+    from blond import (
+        Beam,
+        DriftSimple,
+        MagneticCyclePerTurn,
+        SingleHarmonicCavity,
+    )
+    from blond.legacy.blond2.beam.beam import Beam as Blond2Beam
+    from blond.legacy.blond2.beam.profile import Profile as Blond2Profile
+    from blond.legacy.blond2.impedances.impedance import (
+        TotalInducedVoltage as Blond2TotalInducedVoltage,
+    )
+    from blond.legacy.blond2.input_parameters.rf_parameters import (
+        RFStation as Blond2RFStation,
+    )
+    from blond.legacy.blond2.input_parameters.ring import Ring as Blond2Ring
+    from blond.legacy.blond2.trackers.tracker import (
+        FullRingAndRF as Blond2FullRingAndRF,
+    )
+    from blond.legacy.blond2.trackers.tracker import (
+        RingAndRFTracker as Blond2RingAndRFTracker,
+    )
 
     from ...beam_preparation.base import BeamPreparationRoutine
     from ...handle_results.observables import Observables
@@ -60,15 +85,15 @@ class Simulation(Preparable, HasPropertyCache):
     def __init__(
         self,
         ring: Ring,
-        magnetic_cycle: NumpyArray | MagneticCycleBase,
-    ):
+        magnetic_cycle: MagneticCycleBase,
+    ) -> None:
+        assert ring.elements.n_elements > 0, f"{ring.elements.n_elements=}"
+
         from .intensity_effect_manager import IntensityEffectManager
 
         super().__init__()
         self._ring: Ring = ring
 
-        if isinstance(magnetic_cycle, np.ndarray):
-            magnetic_cycle = MagneticCyclePerTurn(magnetic_cycle)
         self._magnetic_cycle: MagneticCycleBase = magnetic_cycle
 
         self.turn_i = DynamicParameter(None)
@@ -77,6 +102,8 @@ class Simulation(Preparable, HasPropertyCache):
 
         self._exec_on_init_simulation()
 
+        self._particle_performance_waning_threshold = int(1e3)
+
     def profiling(
         self,
         beams: Tuple[BeamBaseClass],
@@ -84,11 +111,13 @@ class Simulation(Preparable, HasPropertyCache):
         profile_start_turn_i: int,
         profile_n_turns: int,
         sortby: SortKey = SortKey.CUMULATIVE,
-    ):
+    ) -> None:
         """Executes the python profiler
 
         Parameters
         ----------
+        beams
+            Beams that are used to perform the simulation
         turn_i_init
             Initial turn to start simulation
         profile_start_turn_i
@@ -108,7 +137,7 @@ class Simulation(Preparable, HasPropertyCache):
         pr = cProfile.Profile()
 
         # trigger profiling later than turn 0
-        def start_profiling(simulation: Simulation):
+        def start_profiling(simulation: Simulation, beam: BeamBaseClass):
             if simulation.turn_i.value == profile_start_turn_i:
                 pr.enable()
 
@@ -132,36 +161,57 @@ class Simulation(Preparable, HasPropertyCache):
 
         pass  # TODO
 
-    def calc_cavity_voltage_sum(self, ts: NumpyArray) -> NumpyArray:
+    def get_potential_well_empiric(
+        self,
+        ts: NumpyArray,
+        particle_type: ParticleType,
+        subtract_min: bool = True,
+    ) -> NumpyArray:
         """
-        Sum of all cavity voltages, ignoring drifts between cavities
+        Obtain the potential well by tracking a beam one turn
+
+        Notes
+        -----
+        This function internally obtains `dE_out` of `dt_in`.
+        During one turn with many drifts, the time coordinate will change
+        and sample different positions of dt, which is the expected
+        physical behaviour. The RF of successive station can thus appear
+        phase shifted/distorted due to the inherent drift in between RF
+        stations=.
 
         Parameters
         ----------
         ts
-            Time array, in [s]
-            to calculate voltage
-        """
-        cavities = self.ring.elements.get_elements(CavityBaseClass)
-        total_voltage = 0.0  # will be an array later
-        for cavity in cavities:
-            total_voltage += cavity.voltage_waveform_tmp(ts=ts)
-        return total_voltage[:]
+            Time coordinates to probe the potential, in [s]
+        particle_type
+            Type of particle to probe.
+            The particle charge influences the phase advance per station
+            and might exhibit different distortion of the potential well
+            due to the side effects described in `Notes`
+        subtract_min
+            If True, will always return min(potential_well) = 0.
+            If False, potential_well[0] = 0.
 
-    def get_potential_well_empiric(
-        self, ts: NumpyArray, particle_type: ParticleType
-    ) -> NumpyArray:
-        raise NotImplementedError
+        Returns
+        -------
+        potential_well
+            The effective voltage that lead to a change of `dE` in one turn.
+        """
         from ..._core.beam.beams import ProbeBeam
 
-        bunch = ProbeBeam(
+        probe_bunch = ProbeBeam(
             dt=ts,
-            particle_type=self.beams[0].particle_type,
+            particle_type=particle_type,
         )
-        for element in self.ring.elements.elements:
-            element.track(beam=bunch)
-        potential_well = np.trapezoid(bunch.read_partial_dE())
-        potential_well -= potential_well.min()
+        self.run_simulation(
+            beams=(probe_bunch,),
+            n_turns=1,
+            turn_i_init=0,
+            show_progressbar=False,
+        )
+        potential_well = cumulative_trapezoid(probe_bunch.read_partial_dE())
+        if subtract_min:
+            potential_well -= potential_well.min()
         return potential_well
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -179,7 +229,7 @@ class Simulation(Preparable, HasPropertyCache):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """
         Lateinit method when `simulation.run_simulation` is called
@@ -195,7 +245,7 @@ class Simulation(Preparable, HasPropertyCache):
         """
         pass
 
-    def _exec_all_in_tree(self, method: str, **kwargs):
+    def _exec_all_in_tree(self, method: str, **kwargs) -> None:
         """Execute all methods that are somewhere in the attribute hierarchy of `Simulation`
 
         Parameters
@@ -225,7 +275,7 @@ class Simulation(Preparable, HasPropertyCache):
                 logger.info(f"Running `{method}` of {element}")
                 getattr(element, method)(**kwargs)
 
-    def _exec_on_init_simulation(self):
+    def _exec_on_init_simulation(self) -> None:
         """Execute all `on_init_simulation` in the attribute hierarchy of `Simulation`"""
         self._exec_all_in_tree("on_init_simulation", simulation=self)
 
@@ -234,7 +284,7 @@ class Simulation(Preparable, HasPropertyCache):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-    ):
+    ) -> None:
         """Execute all `on_run_simulation` in the attribute hierarchy of `Simulation`
 
         Parameters
@@ -253,32 +303,48 @@ class Simulation(Preparable, HasPropertyCache):
         )
 
     @staticmethod
-    def from_locals(locals: dict) -> Simulation:
+    def from_locals(
+        locals: dict[str, Any], verbose: bool = False
+    ) -> Simulation:
         """Automatically instance simulation from all locals of where its called
 
         Parameters
         ----------
         locals
-            Just hand `locals()` over
+            Dictionary of elements that
+            should be contained in the simulation.
+
+        Examples
+        --------
+        >>> beam1 = Beam( ... )
+        >>> ring = Ring( ... )
+        >>> energy_cycle = MagneticCyclePerTurn( ... )
+        >>> cavity1 = SingleHarmonicCavity( ... )
+        >>> drift1 = DriftSimple( ... )
+        >>> Simulation.from_locals(locals=locals(), verbose=True)
+
         """
         from ..beam.base import BeamBaseClass  # prevent cyclic import
         from ..ring.ring import Ring  # prevent cyclic import
 
         locals_list = locals.values()
-        logger.debug(f"Found {locals.keys()}")
+        msg1 = f"Found locals: {locals.keys()}"
+        logger.debug(msg=msg1)
+        if verbose:
+            print(msg1)
         _rings = get_elements(locals_list, Ring)
         assert len(_rings) == 1, f"Found {len(_rings)} rings"
         ring = _rings[0]
 
-        beams = get_elements(locals_list, BeamBaseClass)
+        beams = get_elements(locals_list, BeamBaseClass)  # type: ignore
 
-        _magnetic_cycle = get_elements(locals_list, MagneticCycleBase)
+        _magnetic_cycle = get_elements(locals_list, MagneticCycleBase)  # type: ignore
         assert len(_magnetic_cycle) == 1, (
             f"Found {len(_magnetic_cycle)} energy cycles"
         )
         magnetic_cycle = _magnetic_cycle[0]
 
-        elements = get_elements(locals_list, BeamPhysicsRelevant)
+        elements = get_elements(locals_list, BeamPhysicsRelevant)  # type: ignore
         ring.add_elements(elements=elements, reorder=True)
 
         logger.debug(f"{ring=}")
@@ -286,7 +352,10 @@ class Simulation(Preparable, HasPropertyCache):
         logger.debug(f"{elements=}")
 
         sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
-        logger.info(sim.ring.elements.get_order_info())
+        order_info = sim.ring.elements.get_order_info()
+        logger.info(order_info)
+        if verbose:
+            print(order_info)
         return sim
 
     @property  # as readonly attributes
@@ -300,17 +369,12 @@ class Simulation(Preparable, HasPropertyCache):
         return self._magnetic_cycle
 
     @cached_property
-    def get_separatrix(self):
+    def get_separatrix(self) -> None:
         raise NotImplementedError
         return None
 
     @cached_property
-    def get_potential_well(self):
-        raise NotImplementedError
-        return None
-
-    @cached_property
-    def get_hash(self):
+    def get_potential_well(self) -> None:
         raise NotImplementedError
         return None
 
@@ -322,17 +386,25 @@ class Simulation(Preparable, HasPropertyCache):
     cached_properties = (
         "get_separatrix",
         "get_potential_well",
-        "get_hash",
     )
 
-    def _invalidate_cache(
+    def _invalidate_cache_on_turn(
         self,
-        # turn i needed to be
-        # compatible with subscription
-        turn_i: int,
+        turn_i: int,  # required by `turn_i.on_change`
     ) -> None:
-        """Reset cache of `cached_property` attributes"""
-        super()._invalidate_cache(Simulation.cached_properties)
+        """
+        Reset cache of `cached_property` attributes
+
+        Parameters
+        ----------
+        Current turn
+
+        Notes
+        -----
+        This method is subscribed to turn_i.on_change
+
+        """
+        self._invalidate_cache(Simulation.cached_properties)
 
     def prepare_beam(
         self,
@@ -352,7 +424,7 @@ class Simulation(Preparable, HasPropertyCache):
             Turn to prepare the beam for
 
         """
-        logger.info("Running `on_prepare_beam`")
+        logger.info("Running `prepare_beam`")
         self.turn_i.value = turn_i
         preparation_routine.prepare_beam(simulation=self, beam=beam)
 
@@ -363,7 +435,7 @@ class Simulation(Preparable, HasPropertyCache):
         turn_i_init: int = 0,
         observe: Tuple[Observables, ...] = tuple(),
         show_progressbar: bool = True,
-        callback: Optional[Callable[[Simulation], None]] = None,
+        callback: Optional[Callable[[Simulation, Beam], None]] = None,
     ) -> None:
         """
         Execute the beam dynamics simulation
@@ -390,35 +462,17 @@ class Simulation(Preparable, HasPropertyCache):
 
         """
         logger.info(f"Running `run_simulation` with {locals()}")
-        n_turns = int_from_float_with_warning(n_turns, warning_stacklevel=2)
-
-        max_turns = self.magnetic_cycle.n_turns
-        if max_turns is not None:
-            assert (turn_i_init + n_turns) <= max_turns, (
-                f"Max turn number is {max_turns}, but trying to "
-                f"simulate {(turn_i_init + n_turns)} turns"
-            )
-
-        # temporarily pin attributes
-        self.observe = (
-            observe  # to find `on_run_simulation` within `simulation`
-        )
-        self.beams = beams  # to find `on_run_simulation` within `simulation`
-
-        self._exec_on_run_simulation(
-            beam=beams[0],
+        _n_turns = self.finalze(
+            beams=beams,
             n_turns=n_turns,
+            observe=observe,
             turn_i_init=turn_i_init,
         )
-
-        # unpin temporary attributes
-        del self.observe
-        del self.beams
 
         if len(beams) == 1:
             self._run_simulation_single_beam(
                 beam=beams[0],
-                n_turns=n_turns,
+                n_turns=_n_turns,
                 turn_i_init=turn_i_init,
                 observe=observe,
                 show_progressbar=show_progressbar,
@@ -435,7 +489,7 @@ class Simulation(Preparable, HasPropertyCache):
                 "First beam must be normal, second beam must be counter-rotating"
             )
             self._run_simulation_counterrotating_beam(
-                n_turns=n_turns,
+                n_turns=_n_turns,
                 turn_i_init=turn_i_init,
                 observe=observe,
                 show_progressbar=show_progressbar,
@@ -447,6 +501,60 @@ class Simulation(Preparable, HasPropertyCache):
                 f"Up to two beam supported, but got {len(beams)}"
             )
 
+    def finalze(self, beams, n_turns, observe, turn_i_init):
+        max_turns = self.magnetic_cycle.n_turns
+        if n_turns is not None:
+            _n_turns = int_from_float_with_warning(
+                n_turns, warning_stacklevel=2
+            )
+            if max_turns is not None:
+                assert (turn_i_init + _n_turns) <= max_turns, (
+                    f"Max turn number is {self.magnetic_cycle.n_turns=}, "
+                    f"but trying to simulate {(turn_i_init + _n_turns)} turns"
+                )
+        else:
+            if max_turns is None:
+                raise ValueError(
+                    f"`n_turns` must be provided, because"
+                    f" {type(self.magnetic_cycle)=} has"
+                    f" unlimited turns."
+                )
+            else:
+                _n_turns = max_turns
+        if backend.specials_mode == "python":
+            particles_above_threshold = any(
+                [
+                    b.common_array_size
+                    > self._particle_performance_waning_threshold
+                    for b in beams
+                ]
+            )
+            if particles_above_threshold:
+                warn(
+                    f"There are more than"
+                    f" {self._particle_performance_waning_threshold}"
+                    f" particles in your beam."
+                    f" Consider using another backend via\n"
+                    f" >>> from blond._core.backends.backend import backend\n"
+                    f" >>> backend.set_specials(mode=...)",
+                    PerformanceWarning,
+                    stacklevel=2,
+                )
+        # temporarily pin attributes
+        self._observe = (
+            observe  # to find `on_run_simulation` within `simulation`
+        )
+        self._beams = beams  # to find `on_run_simulation` within `simulation`
+        self._exec_on_run_simulation(
+            beam=beams[0],
+            n_turns=_n_turns,
+            turn_i_init=turn_i_init,
+        )
+        # unpin temporary attributes
+        del self._observe
+        del self._beams
+        return _n_turns
+
     def _run_simulation_single_beam(
         self,
         beam: BeamBaseClass,
@@ -454,7 +562,7 @@ class Simulation(Preparable, HasPropertyCache):
         turn_i_init: int = 0,
         observe: Tuple[Observables, ...] = tuple(),
         show_progressbar: bool = True,
-        callback: Optional[Callable[[Simulation], None]] = None,
+        callback: Optional[Callable[[Simulation, Beam], None]] = None,
     ) -> None:
         """
         Execute the beam dynamics simulation for only one beam
@@ -481,7 +589,7 @@ class Simulation(Preparable, HasPropertyCache):
         iterator = range(turn_i_init, turn_i_init + n_turns)
         if show_progressbar:
             iterator = tqdm(iterator)  # Add TQDM display to iteration
-        self.turn_i.on_change(self._invalidate_cache)
+        self.turn_i.on_change(self._invalidate_cache_on_turn)
         self.turn_i.value = 0
         for observable in observe:
             observable.update(
@@ -490,7 +598,7 @@ class Simulation(Preparable, HasPropertyCache):
         for turn_i in iterator:
             self.turn_i.value = turn_i
             for element in self._ring.elements.elements:
-                self.section_i.current_group = element.section_index
+                self.section_i.value = element.section_index
                 if element.is_active_this_turn(turn_i=self.turn_i.value):
                     element.track(beam)
             for observable in observe:
@@ -499,13 +607,23 @@ class Simulation(Preparable, HasPropertyCache):
                         simulation=self,
                     )
             if callback is not None:
-                callback(self)
+                callback(simulation=self, beam=beam)
 
         # reset counters to uninitialized again
         self.turn_i.value = None
         self.section_i.value = None
 
-    def get_legacy_map(self):
+    def get_legacy_map(
+        self,
+    ) -> list[
+        Blond2Ring
+        | Blond2Beam
+        | Blond2RFStation
+        | Blond2Profile
+        | Blond2TotalInducedVoltage
+        | Blond2RingAndRFTracker
+        | Blond2FullRingAndRF
+    ]:
         raise NotImplementedError
         from ...physics.cavities import (  # prevent cyclic import
             CavityBaseClass,
@@ -515,7 +633,7 @@ class Simulation(Preparable, HasPropertyCache):
 
         ring_length = self.ring.closed_orbit_length
         bending_radius = self.ring.bending_radius
-        drift = self.ring.elements.get_element(DriftBaseClass)
+        drift = self.ring.elements.get_element(DriftBaseClass)  # type: ignore
         alpha_0 = drift.alpha_0
         synchronous_data = self.magnetic_cycle._synchronous_data
         synchronous_data_type = self.magnetic_cycle._synchronous_data_type
@@ -556,16 +674,17 @@ class Simulation(Preparable, HasPropertyCache):
         cavity_blond3: SingleHarmonicCavity | MultiHarmonicCavity = (
             self.ring.elements.get_element(CavityBaseClass)
         )
+        # FIXME
         rf_station = RFStation(
             ring=ring_blond2,
-            harmonic=cavity_blond3.rf_program.harmonics,
-            voltage=cavity_blond3.rf_program.effective_voltages,
-            phi_rf_d=cavity_blond3.rf_program.phases,
-            n_rf=len(cavity_blond3.rf_program.phases),
+            harmonic=cavity_blond3.rf_program.harmonics,  # type: ignore # FIXME
+            voltage=cavity_blond3.rf_program.effective_voltages,  # type: ignore # FIXME
+            phi_rf_d=cavity_blond3.rf_program.phases,  # type: ignore # FIXME
+            n_rf=len(cavity_blond3.rf_program.phases),  # type: ignore # FIXME
             section_index=0,
-            omega_rf=cavity_blond3.rf_program.omegas_rf,
-            phi_noise=cavity_blond3.rf_program.phase_noise,
-            phi_modulation=cavity_blond3.rf_program.phase_modulation,
+            omega_rf=cavity_blond3.rf_program.omegas_rf,  # type: ignore # FIXME
+            phi_noise=cavity_blond3.rf_program.phase_noise,  # type: ignore # FIXME
+            phi_modulation=cavity_blond3.rf_program.phase_modulation,  # type: ignore # FIXME
             rf_station_options=None,
         )
         profile_blond3 = self.ring.elements.get_element(ProfileBaseClass)
@@ -612,7 +731,7 @@ class Simulation(Preparable, HasPropertyCache):
         turn_i_init: int = 0,
         observe: Tuple[Observables, ...] = tuple(),
         show_progressbar: bool = True,
-        callback: Optional[Callable[[Simulation], None]] = None,
+        callback: Optional[Callable[[Simulation, Beam], None]] = None,
     ) -> None:
         """
         Execute the beam dynamics simulation for only one beam
@@ -676,12 +795,61 @@ class Simulation(Preparable, HasPropertyCache):
         self.turn_i.value = None
         self.section_i.value = None
 
+    def save_results(
+        self,
+        observe: Tuple[Observables, ...] = tuple(),
+        common_name: Optional[str] = None,
+    ) -> None:
+        """
+        Save the given observables to the disk
+
+        Parameters
+        ----------
+        observe
+            List of observables to protocol of whats happening inside
+            the simulation
+        common_name
+            A common filename for the files/arrays to save.
+
+        """
+        for observable in observe:
+            if common_name is not None:
+                observable.rename(common_name=common_name)
+            observable.to_disk()
+
     def load_results(
         self,
-        n_turns: int,
+        beams: Tuple[BeamBaseClass],
+        n_turns: Optional[int] = None,
         turn_i_init: int = 0,
         observe: Tuple[Observables, ...] = tuple(),
-        callback: Callable[[Simulation], None] = None,
-    ) -> SimulationResults:
-        raise FileNotFoundError()
-        return
+        common_name: Optional[str] = None,
+    ) -> None:
+        """
+        Load the given observables from the disk
+
+        Parameters
+        ----------
+        beams
+            Beams that are used to perform the simulation
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to start with simulation
+        observe
+            List of observables to protocol of whats happening inside
+            the simulation
+        common_name
+            A common filename for the files/arrays to save.
+
+        """
+        self.finalze(
+            beams=beams,
+            n_turns=n_turns,
+            observe=observe,
+            turn_i_init=turn_i_init,
+        )
+        for observable in observe:
+            if common_name is not None:
+                observable.rename(common_name=common_name)
+            observable.from_disk()

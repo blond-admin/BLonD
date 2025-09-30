@@ -9,10 +9,14 @@ from scipy.signal import find_peaks
 
 from blond._core.beam.base import BeamBaseClass
 from blond._core.simulation.simulation import Simulation
+from blond.handle_results.helpers import callers_relative_path
+from blond.physics.impedances.readers import CsvReader
 from blond.physics.impedances.sources import (
     ImpedanceTableFreq,
+    ImpedanceTableTime,
     InductiveImpedance,
     Resonators,
+    TravelingWaveCavity,
 )
 
 
@@ -52,10 +56,34 @@ class TestImpedanceTableFreq(unittest.TestCase):
 
 
 class TestImpedanceTableTime(unittest.TestCase):
-    @unittest.skip
     def test_from_file(self):
-        # TODO: implement test for `from_file`
-        self.impedance_table_time.from_file(filepath=None, reader=None)
+        impedance_table = ImpedanceTableTime.from_file(
+            filepath=callers_relative_path(
+                "resources/example_impedance_table.csv", stacklevel=1
+            ),
+            reader=CsvReader(delimiter=","),
+        )
+        np.testing.assert_allclose(impedance_table._wake_x, np.arange(1, 6))
+        np.testing.assert_allclose(
+            impedance_table._wake_y, 10 * np.arange(1, 6)
+        )
+        simulation = Mock(Simulation)
+        beam = Mock(BeamBaseClass)
+        time = np.linspace(0, 100)
+
+        wake_impedance = impedance_table.get_wake_impedance(
+            time=time, simulation=simulation, beam=beam, n_fft=len(time)
+        )
+        wake_impedance2 = impedance_table.get_wake_impedance(
+            time=time, simulation=simulation, beam=beam, n_fft=len(time)
+        )
+        wake_impedance3 = impedance_table.get_wake_impedance(
+            time=time * 2, simulation=simulation, beam=beam, n_fft=len(time)
+        )
+        # assert cache hit
+        np.testing.assert_allclose(wake_impedance, wake_impedance2)
+        # assert cache miss
+        self.assertTrue(np.all(wake_impedance3 != wake_impedance2))
 
 
 class TestInductiveImpedance(unittest.TestCase):
@@ -333,3 +361,57 @@ class TestResonators(unittest.TestCase):
             plt.xlim(0, 1.5e9)
             plt.show()
         # TODO PIN VALUE!
+
+
+class TestTravelingWaveCavity(unittest.TestCase):
+    def setUp(self):
+        R_S = [1, 2, 3]
+        frequency_R = [1, 2, 3]
+        a_factor = [1, 2, 3]
+        self.twc = TravelingWaveCavity(R_S, frequency_R, a_factor)
+
+    def test___init__(self):
+        pass  # calls __init__ in  self.setUp
+
+    def test_get_wake_impedance(self):
+        wake_impedance = self.twc.get_wake_impedance(
+            time=np.linspace(1, 1e-9),
+            simulation=Mock(Simulation),
+            beam=Mock(BeamBaseClass),
+            n_fft=None,
+        )
+        # pinned to an arbitrary value, physics is not checked or guaranteed
+        # to work
+        SAVE_PINNED = False
+        if SAVE_PINNED:
+            np.savetxt(
+                "resources/wake_impedance.csv",
+                np.column_stack((wake_impedance.real, wake_impedance.imag)),
+            )
+        wake_impedance_pinned = np.loadtxt(
+            callers_relative_path("resources/wake_impedance.csv", stacklevel=1)
+        )
+        wake_impedance_pinned = (
+            wake_impedance_pinned[:, 0] + 1j * wake_impedance_pinned[:, 1]
+        )
+        np.testing.assert_allclose(wake_impedance, wake_impedance_pinned)
+
+    def test_get_impedance(self):
+        impedance = self.twc.get_impedance(
+            freq_x=np.linspace(0, 10),
+            simulation=Mock(Simulation),
+            beam=Mock(BeamBaseClass),
+        )
+        # pinned to an arbitrary value, physics is not checked or guaranteed
+        # to work
+        SAVE_PINNED = False
+        if SAVE_PINNED:
+            np.savetxt(
+                "resources/impedance.csv",
+                np.column_stack((impedance.real, impedance.imag)),
+            )
+        impedance_pinned = np.loadtxt(
+            callers_relative_path("resources/impedance.csv", stacklevel=1)
+        )
+        impedance_pinned = impedance_pinned[:, 0] + 1j * impedance_pinned[:, 1]
+        np.testing.assert_allclose(impedance, impedance_pinned)
