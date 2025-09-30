@@ -22,14 +22,14 @@ from scipy.constants import c, e, m_p
 import xpart as xp
 import xtrack as xt
 
-from blond.beam.beam import Beam, Proton
-from blond.beam.profile import CutOptions, Profile
-from blond.input_parameters.rf_parameters import RFStation
-from blond.input_parameters.ring import Ring
-from blond.trackers.tracker import RingAndRFTracker, FullRingAndRF
-from blond.monitors.monitors import BunchMonitor
+from blond.legacy.blond2.beam.beam import Beam, Proton
+from blond.legacy.blond2.beam.profile import CutOptions, Profile
+from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond.legacy.blond2.input_parameters.ring import Ring
+from blond.legacy.blond2.trackers.tracker import RingAndRFTracker, FullRingAndRF
+from blond.legacy.blond2.monitors.monitors import BunchMonitor
 
-from blond.interfaces.xsuite import (BlondElement, BlondObserver,
+from blond.legacy.blond2.interfaces.xsuite import (BlondElement, BlondObserver,
                                      EnergyUpdate,
                                      blond_to_xsuite_transform,
                                      xsuite_to_blond_transform)

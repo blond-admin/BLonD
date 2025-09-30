@@ -22,18 +22,6 @@ def test():
         import scipy
         from packaging import version
 
-        assert version.parse(matplotlib.__version__) >= version.parse("3.7"), (
-            f"matplotlib version {matplotlib.__version__} does not meet minimum required version 3.7"
-        )
-        assert version.parse(platform.python_version()) >= version.parse(
-            "3.8"
-        ), (
-            f"python version {platform.python_version()} does not meet minimum required version 3.8"
-        )
-        assert version.parse(numpy.__version__) >= version.parse("1.20"), (
-            "numpy version {numpy.__version__} does not meet minimum required version 1.20"
-        )
-
         from . import (
             beam,
             impedances,

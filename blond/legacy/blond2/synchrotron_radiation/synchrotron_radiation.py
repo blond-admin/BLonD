@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 
 class SynchrotronRadiation:
     """Class to compute synchrotron radiation effects, including
-    radiationdamping and quantum excitation.
+    radiation damping and quantum excitation.
     For multiple RF section, instantiate one object per RF section and
     call the track() method after tracking each section.
     """
@@ -151,10 +151,10 @@ class SynchrotronRadiation:
                     / (
                         self.ring.particle.charge
                         * self.rf_params.voltage[0][0]
-
                     )
                 )
-            )self.beam_position_to_compensate_SR = (
+            )
+            self.beam_position_to_compensate_SR = (
                 self.beam_phase_to_compensate_SR
                 * self.rf_params.t_rf[0, 0]
                 / (2.0 * np.pi)
@@ -341,8 +341,10 @@ class SynchrotronRadiation:
         for i in range(self.n_kicks):
             self.beam.dE += -(
                 2.0 / self.tau_z / self.n_kicks * self.beam.dE
-                # synchrotron radiation damping+ self.U0 / self.n_kicks
-               # energy lost due to synchrotron radiation - 2.0
+                # synchrotron radiation damping
+                + self.U0 / self.n_kicks
+                # energy lost due to synchrotron radiation
+                - 2.0
                 * self.sigma_dE
                 / np.sqrt(self.tau_z * self.n_kicks)
                 * self.beam.energy

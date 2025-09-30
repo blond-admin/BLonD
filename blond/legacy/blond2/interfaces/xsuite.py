@@ -5,24 +5,25 @@ Functions and classes to interface BLonD with xsuite.
 """
 
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
+
 import numpy as np
 from scipy.constants import c as clight
-
 from xtrack import ReferenceEnergyIncrease, ZetaShift
-from blond.trackers.tracker import RingAndRFTracker
-from blond.impedances.impedance import TotalInducedVoltage
+
+from blond.legacy.blond2.impedances.impedance import TotalInducedVoltage
+from blond.legacy.blond2.trackers.tracker import RingAndRFTracker
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from numpy.typing import NDArray
+    from xtrack import Line, Particles
 
-    from xtrack import Particles
-    from xtrack import Line
-    from blond.beam.beam import Beam
-    from blond.beam.profile import Profile
-    from blond.utils.types import Trackable
+    from blond.legacy.blond2.beam.beam import Beam
+    from blond.legacy.blond2.beam.profile import Profile
+    from blond.legacy.blond2.utils.types import Trackable
 
 
 def blond_to_xsuite_transform(

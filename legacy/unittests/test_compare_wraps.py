@@ -2,7 +2,7 @@ import unittest
 from copy import deepcopy
 from time import perf_counter
 
-from blond.utils.bmath_backends import MasterBackend
+from blond.legacy.blond2.utils.bmath_backends import MasterBackend
 
 try:
     import cupy

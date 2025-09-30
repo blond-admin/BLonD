@@ -23,7 +23,7 @@ import unittest
 import numpy as np
 
 import blond.legacy.blond2.beam.profile as profileModule
-from blond.beam.profile import CutOptions
+from blond.legacy.blond2.beam.profile import CutOptions
 # BLonD imports
 # --------------
 from blond.legacy.blond2.beam.beam import Beam, Proton

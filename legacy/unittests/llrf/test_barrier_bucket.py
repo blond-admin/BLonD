@@ -4,7 +4,7 @@ import numpy as np
 import numpy.testing as nptest
 
 # BLonD imports
-import blond.llrf.barrier_bucket as bbuck
+import blond.legacy.blond2.llrf.barrier_bucket as bbuck
 
 
 class TestBarrierBucketFunctions(unittest.TestCase):

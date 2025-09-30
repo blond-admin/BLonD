@@ -307,8 +307,6 @@ class RingAndRFTracker:
 
     """
 
-    rf_params: RFStation
-
     @handle_legacy_kwargs
     def __init__(
         self,

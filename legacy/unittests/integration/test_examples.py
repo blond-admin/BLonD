@@ -27,6 +27,7 @@ class TestExamples(unittest.TestCase):
     def setUp(self):
         if main_files_dir not in sys.path:
             sys.path.append(main_files_dir)
+            print(main_files_dir)
 
     # Run after every test
     def tearDown(self):

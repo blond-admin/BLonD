@@ -28,7 +28,7 @@ from blond.legacy.blond2.input_parameters.ring import Ring
 from blond.legacy.blond2.synchrotron_radiation.synchrotron_radiation import \
     SynchrotronRadiation
 from blond.legacy.blond2.trackers.tracker import FullRingAndRF, RingAndRFTracker
-from blond.utils.exceptions import MissingParameterError
+from blond.legacy.blond2.utils.exceptions import MissingParameterError
 
 
 class TestSynchtrotronRadiation(unittest.TestCase):
