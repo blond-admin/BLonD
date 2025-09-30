@@ -318,8 +318,8 @@ class Ring(Preparable, Schedulable):
         Insert a single element at the specified locations in the ring.
 
         This function inserts the element at the specified locations in the
-        ring, ensuring:
-                ring.elements.elements[location] == element
+        ring, ensuring ``ring.elements.elements[location] == element``
+
         Deepcopy is recommended. The function offers the possibility to
         automatically update the copied elements' section indexes,
         for guaranteed compatibility.
@@ -345,9 +345,9 @@ class Ring(Preparable, Schedulable):
         Raises
         ------
         AssertionError
-            If `element.section_index` is not an integer.
+            If ``element.section_index`` is not an integer.
             If insert_at is not within [0:len(ring.elements.elements)]
-            If 'element.section_index' is inconsistent with the section of
+            If ``element.section_index`` is inconsistent with the section of
             insertion.
             If allow_section_index_overwrite is enabled without deepcopy
 
@@ -389,9 +389,10 @@ class Ring(Preparable, Schedulable):
 
         This function inserts the list of elements at the specified locations
         in the ring, respecting the element order in list:
-                ring.elements.elements[location] == elements[0]
-                ring.elements.elements[location:location+len(elements)] ==
-                elements
+
+        - ``ring.elements.elements[location] == elements[0]``
+        - ``ring.elements.elements[location:location+len(elements)] == elements``
+
         Deepcopy is recommended. The function offers the possibility to
         automatically update the copied elements' section indexes,
         for guaranteed compatibility.
@@ -439,21 +440,24 @@ class Ring(Preparable, Schedulable):
         This method overwrites the section index of the element, to ensure
         section index compatibility in the ring. The element section index
         is copied from the following element the ring:
-                element.section_index = ring.elements.elements[
-                insert_at].section_index
-        unless the element is appended at the end of the ring:
-                element.section_index = ring.elements.elements[
-                    len(self.elements.elements)-1].section_index
 
+            ``element.section_index = ring.elements.elements[
+            insert_at].section_index``
+
+        unless the element is appended at the end of the ring:
+
+            ``element.section_index = ring.elements.elements[
+            len(self.elements.elements)-1].section_index``
 
         Parameters
         ----------
         element
             An object representing a beamline component or any element
-            relevant to beam physics. Must have a valid  `section_index`
-            attribute of type `int`.
+            relevant to beam physics. Must have a valid  ``section_index``
+            attribute of type ``int``.
         insert_at
             Single location index.
+
         """
         try:
             self.elements.check_section_index_compatibility(

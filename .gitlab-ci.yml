@@ -122,13 +122,21 @@ release_sdist_310:
       dist/*.tar.gz
 
 
+test_documentation_building:
+  image: gitlab-registry.cern.ch/blond/blond/python310
+  script:
+    - cd ${project_root}
+    - python3 -m pip install --upgrade pip
+    - python3 -m pip install .[doc]
+    - sphinx-build -b html -W -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=5 --keep-going __doc __doc/_build/html
+
 pages:
   image: gitlab-registry.cern.ch/blond/blond/python310
   script:
     - cd ${project_root}
     - mkdir public
     - python3 -m pip install --upgrade pip
-    - python3 -m pip install -v ${project_root}[doc]
+    - python3 -m pip install .[doc]
     - export PATH=$HOME/.local/bin:$PATH && make -C __doc html
     - cp -r __doc/_build/html/* public/
   artifacts:

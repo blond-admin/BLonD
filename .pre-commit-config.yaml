@@ -23,3 +23,16 @@ repos:
     rev: v0.12.11  # Replace with the latest version
     hooks:
       - id: ruff-format  # This runs `ruff format`
+
+  - repo: local
+    hooks:
+      - id: sphinx_cleanup
+        name: Sphinx docs cleanup
+        language: python
+        pass_filenames: false
+        entry: python -c "import shutil, subprocess, sys; shutil.rmtree('__doc/_build', ignore_errors=True);"
+      - id: sphinx-build
+        name: Sphinx docs building (fail with warning)
+        entry: sphinx-build -b html -W -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=5 --keep-going __doc __doc/_build/html
+        language: system
+        pass_filenames: false
