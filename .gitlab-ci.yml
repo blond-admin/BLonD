@@ -141,7 +141,7 @@ test_documentation_building:
     - python3 -m pip install .[doc]
   script:
     - cd ${project_root}
-    - sphinx-build -b html -W -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=5 --keep-going __doc __doc/_build/html
+    - python3 -m sphinx build -b html -W -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=5 --keep-going __doc __doc/_build/html
 
 pages:
   image: gitlab-registry.cern.ch/blond/blond/python310
