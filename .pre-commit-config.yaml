@@ -23,3 +23,10 @@ repos:
     rev: v0.12.11  # Replace with the latest version
     hooks:
       - id: ruff-format  # This runs `ruff format`
+
+  - repo: https://github.com/sphinx-doc/sphinx-autobuild
+    rev: 8.2.3
+    hooks:
+      - id: sphinx-build
+        name: Sphinx docs building (fail with warning)
+        entry: sphinx-build -b html -W -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=5 --keep-going __doc __doc/_build/html
