@@ -63,7 +63,7 @@ class BeamPhysicsRelevantElements(Preparable):
             for section_index in np.sort(unique_section_indices):
                 cavities = self.get_elements(
                     CavityBaseClass,
-                section_i=section_index,  # type: ignore
+                    section_i=section_index,  # type: ignore
                 )
                 drifts = self.get_elements(
                     DriftBaseClass, section_i=section_index
