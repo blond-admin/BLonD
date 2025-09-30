@@ -34,12 +34,10 @@ if TYPE_CHECKING:
     from ..utils.types import (
         BeamProfileDerivativeModes,
         CutUnitType,
-        DeviceType,
         FilterExtraOptionsType,
         FilterMethodType,
         FitOptionTypes,
     )
-    from .beam import Beam
 
 
 class CutOptions:
