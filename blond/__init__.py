@@ -1,3 +1,5 @@
+from ._core.backends.backend import backend
+from ._core.base import UserDefinedElement
 from ._core.beam.beams import Beam
 from ._core.beam.particle_types import (
     electron,
@@ -9,6 +11,7 @@ from ._core.beam.particle_types import (
 )
 from ._core.ring.ring import Ring
 from ._core.simulation.simulation import Simulation
+from ._generals.cupy.no_cupy_import import AllowPlotting
 from .beam_preparation.bigaussian import BiGaussian
 from .cycles.magnetic_cycle import (
     ConstantMagneticCycle,

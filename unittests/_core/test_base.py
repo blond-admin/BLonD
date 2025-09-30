@@ -2,6 +2,8 @@ import unittest
 from functools import cached_property
 from typing import Optional
 
+import numpy as np
+
 from blond import Simulation
 from blond._core.base import (
     BeamPhysicsRelevant,
@@ -9,6 +11,7 @@ from blond._core.base import (
     HasPropertyCache,
     MainLoopRelevant,
     Preparable,
+    get_scheduler,
 )
 from blond._core.beam.base import BeamBaseClass
 
@@ -142,6 +145,24 @@ class TestPreparable(unittest.TestCase):
     @unittest.skip("Abstract methods")
     def test_on_run_simulation(self):
         pass
+
+
+class TestFunctions(unittest.TestCase):
+    def test_get_scheduler_1(self):
+        get_scheduler(1, mode="per-turn")
+        get_scheduler(1.0, mode="per-turn")
+        get_scheduler(np.ones(10), mode="per-turn")
+        get_scheduler((np.ones(10), np.ones(10)), mode="per-turn")
+        with self.assertRaises(TypeError):
+            get_scheduler("a string", mode="per-turn")
+
+    def test_get_scheduler_1(self):
+        get_scheduler(1, mode="constant")
+        get_scheduler(1.0, mode="constant")
+        get_scheduler(np.ones(10), mode="constant")
+        get_scheduler((np.ones(10), np.ones(10)), mode="constant")
+        with self.assertRaises(TypeError):
+            get_scheduler("a string", mode="constant")
 
 
 if __name__ == "__main__":

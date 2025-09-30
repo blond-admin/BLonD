@@ -10,10 +10,10 @@ from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant, HasPropertyCache, Schedulable
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Iterable
+    from typing import Any, Dict
     from typing import Optional
     from typing import Optional as LateInit
-    from typing import Tuple, Union
+    from typing import Tuple
 
     from numpy.typing import NDArray as NumpyArray
 
@@ -26,8 +26,8 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         self,
         orbit_length: float,
         section_index: int = 0,
-        **kwargs,  # for MRO of fused elements
-    ):
+        **kwargs: Dict[str, Any],  # for MRO of fused elements
+    ) -> None:
         """
         Base class of a drift
 
@@ -75,7 +75,7 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """
         Lateinit method when `simulation.run_simulation` is called
@@ -111,8 +111,8 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         orbit_length: float,
         section_index: int = 0,
         transition_gamma: Optional[float] = None,
-        **kwargs,  # for MRO of fused elements
-    ):
+        **kwargs: Dict[str, Any],  # for MRO of fused elements
+    ) -> None:
         """
         Base class to implement beam drifts in synchrotrons
 
@@ -134,8 +134,8 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             **kwargs,  # for MRO of fused elements
         )
 
-        self._transition_gamma: float | None = None
-        self._momentum_compaction_factor: float | None = None
+        self._transition_gamma: np.float64 | np.float32 | None = None
+        self._momentum_compaction_factor: np.float64 | np.float32 | None = None
 
         self._simulation: LateInit[Simulation] = None
 
@@ -143,27 +143,29 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             self.transition_gamma = transition_gamma  # use setter method
 
     @property  # read only, set by `transition_gamma`
-    def momentum_compaction_factor(self) -> np.float64 | np.float32:
+    def momentum_compaction_factor(self) -> np.float64 | np.float32 | None:
         """Momentum compaction factor"""
         return self._momentum_compaction_factor
 
     @property
-    def transition_gamma(self):
+    def transition_gamma(self) -> np.float64 | np.float32 | None:
         """Gamma of transition crossing"""
         return self._transition_gamma
 
     @transition_gamma.setter
-    def transition_gamma(self, transition_gamma):
+    def transition_gamma(self, transition_gamma: float) -> None:
         """Gamma of transition crossing"""
-        transition_gamma = backend.float(transition_gamma)
-        self._momentum_compaction_factor = 1 / (
-            transition_gamma * transition_gamma
+        self._momentum_compaction_factor = backend.float(
+            1.0 / (transition_gamma * transition_gamma)
         )
-        self._transition_gamma = transition_gamma
+        self._transition_gamma = backend.float(transition_gamma)
 
     @staticmethod
     def headless(
-        transition_gamma: float | Iterable | Tuple[NumpyArray, NumpyArray],
+        transition_gamma: float
+        | int
+        | NumpyArray
+        | Tuple[NumpyArray, NumpyArray],
         orbit_length: float,
         section_index: int = 0,
     ) -> DriftSimple:

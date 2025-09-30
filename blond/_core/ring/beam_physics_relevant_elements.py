@@ -10,7 +10,7 @@ from ..beam.base import BeamBaseClass
 from ..ring.helpers import get_elements
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, List, Optional, Tuple, Type, TypeVar
+    from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar
 
     from numpy.typing import NDArray as NumpyArray
 
@@ -22,7 +22,7 @@ if TYPE_CHECKING:  # pragma: no cover
 class BeamPhysicsRelevantElements(Preparable):
     """Container object to manage all beam interactions in `Ring`"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.elements: List[BeamPhysicsRelevant] = []
 
@@ -36,7 +36,7 @@ class BeamPhysicsRelevantElements(Preparable):
             Simulation context manager"""
         self._check_section_indexing()
 
-    def _check_section_indexing(self):
+    def _check_section_indexing(self) -> None:
         """Verify that indices have been set correctly"""
         from ...physics.cavities import CavityBaseClass
         from ...physics.drifts import DriftBaseClass
@@ -58,17 +58,24 @@ class BeamPhysicsRelevantElements(Preparable):
                 f"{[(cav.name, cav.section_index) for cav in cavities]}"
             )
 
-        for section_index in np.sort(np.unique(elem_section_indices)):
-            cavities = self.get_elements(
-                CavityBaseClass, section_i=section_index
-            )
-            drifts = self.get_elements(DriftBaseClass, section_i=section_index)
-            if len(cavities) == 0:
-                raise RuntimeError(
-                    f"Missing cavity in section {section_index}"
+        unique_section_indices = np.unique(elem_section_indices)
+        if len(unique_section_indices) > 1:
+            for section_index in np.sort(unique_section_indices):
+                cavities = self.get_elements(
+                    CavityBaseClass,
+                    section_i=section_index,  # type: ignore
                 )
-            if len(drifts) == 0:
-                raise RuntimeError(f"Missing drift in section {section_index}")
+                drifts = self.get_elements(
+                    DriftBaseClass, section_i=section_index
+                )
+                if len(cavities) == 0:
+                    raise RuntimeError(
+                        f"Missing cavity in section {section_index}"
+                    )
+                if len(drifts) == 0:
+                    raise RuntimeError(
+                        f"Missing drift in section {section_index}"
+                    )
 
     def on_run_simulation(
         self,
@@ -76,7 +83,7 @@ class BeamPhysicsRelevantElements(Preparable):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """
         Lateinit method when `simulation.run_simulation` is called
@@ -159,7 +166,7 @@ class BeamPhysicsRelevantElements(Preparable):
         self,
         element: BeamPhysicsRelevant,
         insert_at: int,
-    ):
+    ) -> None:
         """
         Method to check the element can be inserted in the defined section.
 
@@ -265,11 +272,13 @@ class BeamPhysicsRelevantElements(Preparable):
         section_i
             Optional filter to get instances only in one section
         """
+
+        def is_in_section(element: T) -> bool:
+            return element.section_index == section_i
+
         elements = get_elements(self.elements, class_)
         if section_i is not None:
-            elements = tuple(
-                filter(lambda x: x.section_index == section_i, elements)
-            )
+            elements = tuple(filter(is_in_section, elements))
         return elements
 
     def get_element(
@@ -314,7 +323,7 @@ class BeamPhysicsRelevantElements(Preparable):
         )
         return elements[0]
 
-    def reorder(self):
+    def reorder(self) -> None:
         """Reorder each section by `natural_order`"""
         for section_index in range(self.n_sections):
             self.reorder_section(
@@ -323,7 +332,7 @@ class BeamPhysicsRelevantElements(Preparable):
 
         self._check_section_indexing()
 
-    def reorder_section(self, section_index: int):
+    def reorder_section(self, section_index: int) -> None:
         """
         Reorder section by `natural_order`
 
@@ -334,9 +343,10 @@ class BeamPhysicsRelevantElements(Preparable):
         """
 
         assert isinstance(section_index, int)
+        from blond.experimental.physics.feedbacks.base import FeedbackBaseClass
+
         from ...physics.cavities import CavityBaseClass
         from ...physics.drifts import DriftBaseClass
-        from ...physics.feedbacks.base import FeedbackBaseClass
         from ...physics.impedances.base import ImpedanceBaseClass
         from ...physics.losses import LossesBaseClass
         from ...physics.profiles import ProfileBaseClass
@@ -392,7 +402,7 @@ class BeamPhysicsRelevantElements(Preparable):
         """
         return len(self.get_elements(class_=class_, section_i=section_i))
 
-    def print_order(self):
+    def print_order(self) -> None:
         """Print current execution order"""
         print(self.get_order_info())
 

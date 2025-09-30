@@ -18,6 +18,24 @@ class ImpedanceReader(ABC):
         return freq, amplitude  # NOQA
 
 
+class CsvReader(ImpedanceReader):
+    def __init__(self, **kwargs) -> None:
+        """
+        Simple CSV file reader for two rows of data
+
+        Parameters
+        ----------
+        **kwargs:
+            Additional keyword arguments for `numpy.loadtxt`
+        """
+        super().__init__()
+        self.kwargs = kwargs
+
+    def load_file(self, filepath: PathLike) -> Tuple[NumpyArray, NumpyArray]:
+        data = np.loadtxt(filepath, **self.kwargs)
+        return data[:, 0], data[:, 1]
+
+
 class ExampleImpedanceReader1(ImpedanceReader):
     def __init__(self):
         super().__init__()

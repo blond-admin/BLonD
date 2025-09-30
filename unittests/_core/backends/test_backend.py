@@ -12,59 +12,88 @@ from blond._core.backends.backend import (
     backend,
 )
 
+try:
+    import cupy as _  # type: ignore
+
+    cupy_available = True
+except ModuleNotFoundError:
+    cupy_available = False
+
 
 class TestBackendBaseClass(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.backend_base_class = Numpy32Bit()
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
-    def test_change_backend(self):
+    def test_change_backend(self) -> None:
         self.backend_base_class.change_backend(new_backend=Numpy64Bit)
         self.assertEqual(self.backend_base_class.float, np.float64)
         self.assertEqual(self.backend_base_class.int, np.int64)
         self.assertEqual(self.backend_base_class.complex, np.complex128)
 
-    def test_set_specials(self):
+    def test_set_specials(self) -> None:
         self.backend_base_class.set_specials(mode="numba")
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         self.backend_base_class.set_specials(mode="numba")
 
+    def test_apply_environment_variables(self):
+        import os
 
-@unittest.skip
+        backend_modes = ["python", "cpp", "numba", "fortran", "fail"]
+        backend_bits = ["32", "64", "fail"]
+        try:
+            import cupy
+
+            backend_modes = ["cuda"] + backend_modes
+        except ModuleNotFoundError:
+            pass
+        for backend_mode in backend_modes:
+            os.environ["BLOND_BACKEND_MODE"] = backend_mode
+            for backend_bit in backend_bits:
+                os.environ["BLOND_BACKEND_BITS"] = backend_bit
+                if (backend_mode is "fail") or (backend_bit is "fail"):
+                    with self.assertRaises(ValueError):
+                        self.backend_base_class.apply_environment_variables()
+                else:
+                    self.backend_base_class.apply_environment_variables()
+
+
 class TestCupy32Bit(unittest.TestCase):
-    def setUp(self):
+    def test___init__(self) -> None:
+        if not cupy_available:
+            self.skipTest(f"{cupy_available=}")
         self.cupy32_bit = Cupy32Bit()
 
-    def test___init__(self):
-        pass  # calls __init__ in  self.setUp
 
-
-@unittest.skip
 class TestCupy64Bit(unittest.TestCase):
-    def setUp(self):
+    def test___init__(self) -> None:
+        if not cupy_available:
+            self.skipTest(f"{cupy_available=}")
         self.cupy64_bit = Cupy64Bit()
 
-    def test___init__(self):
-        pass  # calls __init__ in  self.setUp
 
-
-@unittest.skip
 class TestCupyBackend(unittest.TestCase):
-    def setUp(self):
-        self.cupy_backend = CupyBackend(float_=np.float32, int_=np.float64)
+    def test___init__(self) -> None:
+        if not cupy_available:
+            self.skipTest(f"{cupy_available=}")
+        self.cupy_backend = CupyBackend(
+            float_=np.float32, int_=np.float32, complex_=np.complex64
+        )
 
-    def test___init__(self):
-        pass  # calls __init__ in  self.setUp
-
-    def test_set_specials(self):
+    def test_set_specials(self) -> None:
+        if not cupy_available:
+            self.skipTest(f"{cupy_available=}")
+        self.cupy_backend = CupyBackend(
+            float_=np.float32, int_=np.float32, complex_=np.complex64
+        )
         self.cupy_backend.set_specials(mode="cuda")
 
 
 class TestNumpy64Bit(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.numpy64_bit = Numpy64Bit()
 
     def test___init__(self):
@@ -72,7 +101,7 @@ class TestNumpy64Bit(unittest.TestCase):
 
 
 class TestNumpyBackend(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.numpy_backend = NumpyBackend(
             float_=np.float32,
             int_=np.int32,
@@ -82,22 +111,32 @@ class TestNumpyBackend(unittest.TestCase):
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
-    def test_set_specials(self):
+    def test_set_specials_python(self) -> None:
         self.numpy_backend.set_specials(mode="python")
+
+    def test_set_specials_cpp(self) -> None:
+        self.numpy_backend.set_specials(mode="cpp")
+
+    def test_set_specials_numba(self) -> None:
+        self.numpy_backend.set_specials(mode="numba")
+
+    def test_set_specials_fortran(self) -> None:
+        self.numpy_backend.set_specials(mode="fortran")
 
 
 class TestSpecials(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.n_voltages = 3
-        self.special_modes = (
+        self.special_modes = [
             "python",
-            # "cuda",
             "cpp",
             "numba",
             "fortran",
-        )
+        ]
+        if cupy_available:
+            self.special_modes.append("cuda")
 
-    def _setUp(self, dtype, special_mode):
+    def _setUp(self, dtype, special_mode) -> None:
         if special_mode in (
             "python",
             "cpp",
@@ -158,7 +197,7 @@ class TestSpecials(unittest.TestCase):
         pass
 
     @unittest.skip
-    def test_drift_exact(self):
+    def test_drift_exact(self) -> None:
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 try:
@@ -191,7 +230,7 @@ class TestSpecials(unittest.TestCase):
                     )
 
     @unittest.skip
-    def test_drift_legacy(self):
+    def test_drift_legacy(self) -> None:
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 try:
@@ -223,7 +262,7 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
 
-    def test_drift_simple(self):
+    def test_drift_simple(self) -> None:
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 try:
@@ -252,7 +291,7 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
 
-    def test_kick_multi_harmonic(self):
+    def test_kick_multi_harmonic(self) -> None:
         for dtype in (np.float32, np.float64):
             for n_voltages in (1, 2, 3, 4, 5):
                 for i, special in enumerate(self.special_modes):
@@ -287,7 +326,7 @@ class TestSpecials(unittest.TestCase):
                             err_msg=f"Failed test `{special}` with {dtype}",
                         )
 
-    def test_kick_single_harmonic(self):
+    def test_kick_single_harmonic(self) -> None:
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 try:
@@ -317,7 +356,7 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
 
-    def test_kick_induced_voltage(self):
+    def test_kick_induced_voltage(self) -> None:
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 try:
@@ -325,12 +364,12 @@ class TestSpecials(unittest.TestCase):
                 except (FileNotFoundError, OSError):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
-                dt = np.linspace(-5, 5, 20, dtype=backend.float)
-                dE = np.zeros_like(dt, dtype=backend.float)
-                bin_centers = np.linspace(-4, 4, 20, dtype=backend.float)
+                dt = backend.linspace(-5, 5, 20, dtype=backend.float)
+                dE = backend.zeros_like(dt, dtype=backend.float)
+                bin_centers = backend.linspace(-4, 4, 20, dtype=backend.float)
                 voltage = bin_centers**2
-                charge = 10
-                acceleration_kick = 0.5
+                charge = backend.float(10)
+                acceleration_kick = backend.float(0.5)
                 backend.specials.kick_induced_voltage(
                     dt=dt,
                     dE=dE,
@@ -353,7 +392,7 @@ class TestSpecials(unittest.TestCase):
                     )
 
     @unittest.skip
-    def test_loss_box(self):
+    def test_loss_box(self) -> None:
         # TODO: implement test for `loss_box`
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
@@ -375,7 +414,7 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
 
-    def test_beam_phase(self):
+    def test_beam_phase(self) -> None:
         for dtype in (
             np.float32,
             np.float64,
@@ -414,7 +453,7 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
 
-    def test_histogram(self):
+    def test_histogram(self) -> None:
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 try:
@@ -446,7 +485,7 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"{special=} {dtype=}",
                     )
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         backend.change_backend(Numpy32Bit)
         backend.set_specials("numba")
 

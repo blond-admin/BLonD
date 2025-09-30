@@ -8,11 +8,15 @@ from unittest.mock import Mock
 import numpy as np
 from scipy.constants import speed_of_light as c0
 
+from blond.experimental.physics.feedbacks.beam_feedback import (
+    Blond2BeamFeedback,
+)
+
 from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
-from .feedbacks.beam_feedback import Blond2BeamFeedback
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Any, Dict
     from typing import Optional
     from typing import Optional as LateInit
 
@@ -22,7 +26,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from .._core.beam.base import BeamBaseClass
     from .._core.simulation.simulation import Simulation
     from ..cycles.magnetic_cycle import MagneticCycleBase
-    from .feedbacks.base import LocalFeedback
+    from ..experimental.physics.feedbacks.base import LocalFeedback
     from .impedances.base import WakeField
 
 TWOPI_C0 = 2.0 * np.pi * c0
@@ -37,7 +41,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         cavity_feedback: Optional[LocalFeedback],
         beam_feedback: Optional[Blond2BeamFeedback],
         name: Optional[str] = None,
-        **kwargs,  # for MRO of fused elements
+        **kwargs: Dict[str, Any],  # for MRO of fused elements
     ):
         """
         Base class to implement beam-rf interactions in synchrotrons
@@ -53,7 +57,9 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         cavity_feedback
             Optional cavity feedback to change cavity parameters
         """
-        from .feedbacks.base import LocalFeedback  # prevent cyclic import
+        from blond.experimental.physics.feedbacks.base import LocalFeedback
+
+        # prevent cyclic import
 
         super().__init__(
             section_index=section_index,
@@ -110,7 +116,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """
         Lateinit method when `simulation.run_simulation` is called
@@ -126,28 +132,28 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         """
         pass
 
-    @abstractmethod  # as readonly attributes
+    @abstractmethod  # pragma: no cover
     def get_main_harmonic(self) -> float:
         """
         Returns the harmonic number of the main harmonic
         """
         pass
 
-    @abstractmethod  # as readonly attributes
+    @abstractmethod  # pragma: no cover
     def get_main_harmonic_voltage(self) -> float:
         """
         Returns the voltage of the main harmonic, in [V]
         """
         pass
 
-    @abstractmethod  # as readonly attributes
+    @abstractmethod  # pragma: no cover
     def get_main_harmonic_phi_rf(self) -> float:
         """
         Returns the phi_rf of the main harmonic, in [rad]
         """
         pass
 
-    @abstractmethod  # as readonly attributes
+    @abstractmethod  # pragma: no cover
     def get_main_harmonic_omega_rf(
         self,
         beam_beta: float,
@@ -353,7 +359,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         voltage: Optional[float] = None,
         phi_rf: Optional[float] = None,
         harmonic: Optional[float] = None,
-        **kwargs,  # for MRO of fused elements
+        **kwargs: Dict[str, Any],  # for MRO of fused elements
     ):
         super().__init__(
             n_rf=1,
@@ -411,17 +417,17 @@ class SingleHarmonicCavity(CavityBaseClass):
         if (self.voltage is None) and "voltage" not in self.schedules.keys():
             raise ValueError(
                 "You need to define `voltage` via `.voltage=...` "
-                "or `.schedule(attribute='voltage', value=...)`"
+                f"or `.schedule(attribute='voltage', value=...)` for {self.name}"
             )
         if (self.phi_rf is None) and "phi_rf" not in self.schedules.keys():
             raise ValueError(
                 "You need to define `phi_rf` via `.phi_rf=...` "
-                "or `.schedule(attribute='phi_rf', value=...)`"
+                f"or `.schedule(attribute='phi_rf', value=...)` for {self.name}"
             )
         if (self.harmonic is None) and "harmonic" not in self.schedules.keys():
             raise ValueError(
                 "You need to define `harmonic` via `.harmonic=...` "
-                "or `.schedule(attribute='harmonic', value=...)`"
+                f"or `.schedule(attribute='harmonic', value=...)` for {self.name}"
             )
 
     def _update_beam_based_attributes(self, beam: BeamBaseClass) -> None:
@@ -645,7 +651,9 @@ class MultiHarmonicCavity(CavityBaseClass):
         self.voltage: Optional[NumpyArray] = None
         self.phi_rf: Optional[NumpyArray] = None
         self.harmonic: Optional[NumpyArray] = None
-        self.delta_phi_rf: NumpyArray | None = np.zeros(1, dtype=np.float64)
+        self.delta_phi_rf: NumpyArray | None = backend.zeros(
+            1, dtype=backend.float
+        )
 
         self._t_rf: NumpyArray | None = None
         self._t_rev: float | None = None
@@ -711,7 +719,9 @@ class MultiHarmonicCavity(CavityBaseClass):
         omega
             Angular frequency (2 PI f) of cavity in [rad/s]
         """
-        return self.harmonic * TWOPI_C0 * beam_beta / ring_circumference
+        return self.harmonic * backend.float(
+            TWOPI_C0 * beam_beta / ring_circumference
+        )
 
     def get_main_harmonic(self) -> float:
         """

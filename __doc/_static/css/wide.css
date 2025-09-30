@@ -1,0 +1,15 @@
+/* Make the main content span the full available width */
+.wy-nav-content {
+  max-width: none;   /* remove the default cap */
+}
+
+/* Optional: add some horizontal breathing room */
+.wy-nav-content {
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
+
+.center {
+    display: block;
+    text-align: center;
+}

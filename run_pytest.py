@@ -1,13 +1,23 @@
+import os
 from pathlib import Path
 
-import pytest
+import pytest  # type: ignore
 
 
-def run_pytest(folder_path: str):
+def run_pytest(folder_path: str) -> None:
     """Run pytest on the specified folder with importlib import mode"""
-    return pytest.main(["--import-mode=importlib", folder_path])
+    pytest.main(["--import-mode=importlib", folder_path])
 
 
 if __name__ == "__main__":
-    unittest_path = Path("./unittests").resolve()
-    run_pytest(str(unittest_path))
+    cpu = True
+    if cpu:
+        os.environ["BLOND_BACKEND_MODE"] = "numba"
+        os.environ["BLOND_BACKEND_BITS"] = "64"
+        unittest_path = Path("./unittests").resolve()
+        run_pytest(str(unittest_path))
+    else:
+        os.environ["BLOND_BACKEND_MODE"] = "cuda"
+        os.environ["BLOND_BACKEND_BITS"] = "32"
+        unittest_path = Path("./unittests").resolve()
+        run_pytest(str(unittest_path))

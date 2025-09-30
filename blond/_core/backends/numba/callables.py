@@ -4,15 +4,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import numba
+import numba  # type: ignore
 import numpy as np
 from numba import njit, prange
 
 from ..backend import Specials, backend
 
 if TYPE_CHECKING:  # pragma: no cover
-    from cupy.typing import NDArray as CupyArray
-    from numpy._typing import NDArray as NumpyArray
+    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import NDArray as NumpyArray
 
 if backend.float == np.float32:
     nb_f = numba.float32
@@ -152,7 +152,12 @@ sig_beam_phase = (
 
 class NumbaSpecials(Specials):  # pragma: no cover
     @staticmethod
-    @njit(sig_beam_phase, parallel=True, fastmath=True)
+    @njit(
+        sig_beam_phase,
+        parallel=True,
+        fastmath=True,
+        cache=True,
+    )
     def beam_phase(
         hist_x: NumpyArray,
         hist_y: NumpyArray,
@@ -188,13 +193,18 @@ class NumbaSpecials(Specials):  # pragma: no cover
         return scoeff / ccoeff
 
     @staticmethod
-    @njit(sig_histogram, parallel=True, fastmath=True)
+    @njit(
+        sig_histogram,
+        parallel=True,
+        fastmath=True,
+        cache=True,
+    )
     def histogram(
         array_read: NumpyArray,
         array_write: NumpyArray,
-        start: float,
-        stop: float,
-    ):
+        start: np.float32 | np.float64,
+        stop: np.float32 | np.float64,
+    ) -> None:
         width = stop - start
         n_bins = len(array_write)
         bin_step = width / n_bins
@@ -215,22 +225,25 @@ class NumbaSpecials(Specials):  # pragma: no cover
         array_write[:] = array_tmp[:]
 
     @staticmethod
-    def loss_box(
-        self, top: float, bottom: float, left: float, right: float
-    ) -> None:
+    def loss_box(top: float, bottom: float, left: float, right: float) -> None:
         pass
 
     @staticmethod
-    @njit(sig_kick_single_harmonic, parallel=True, fastmath=True)
+    @njit(
+        sig_kick_single_harmonic,
+        parallel=True,
+        fastmath=True,
+        cache=True,
+    )
     def kick_single_harmonic(
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         voltage: float,
         omega_rf: float,
         phi_rf: float,
-        charge: float,
-        acceleration_kick: float,
-    ):
+        charge: np.flaot32 | np.float64,
+        acceleration_kick: np.flaot32 | np.float64,
+    ) -> None:
         voltage_kick = charge * voltage
         for i in prange(len(dt)):
             dE[i] += (
@@ -239,15 +252,20 @@ class NumbaSpecials(Specials):  # pragma: no cover
             )
 
     @staticmethod
-    @njit(sig_drift_simple, parallel=True, fastmath=True)
+    @njit(
+        sig_drift_simple,
+        parallel=True,
+        fastmath=True,
+        cache=True,
+    )
     def drift_simple(
         dt: NumpyArray,
         dE: NumpyArray,
-        T: float,
-        eta_0: float,
-        beta: float,
-        energy: float,
-    ):
+        T: np.float32 | np.float64,
+        eta_0: np.float32 | np.float64,
+        beta: np.float32 | np.float64,
+        energy: np.float32 | np.float64,
+    ) -> None:
         """
         Function to apply drift equation of motion
         """
@@ -269,7 +287,7 @@ class NumbaSpecials(Specials):  # pragma: no cover
         charge: float,
         n_rf: int,
         acceleration_kick: float,
-    ):
+    ) -> None:
         for i in prange(len(dt)):
             dti = dt[i]
             de_sum = 0.0
@@ -292,7 +310,7 @@ class NumbaSpecials(Specials):  # pragma: no cover
         eta_2: float,
         beta: float,
         energy: float,
-    ):
+    ) -> None:  # pragma: no cover # TODO
         T = t_rev * length_ratio
         coeff = 1.0 / (beta * beta * energy)
         eta0 = eta_0 * coeff
@@ -319,7 +337,12 @@ class NumbaSpecials(Specials):  # pragma: no cover
                 )
 
     @staticmethod
-    @njit(sig_drift_exact, parallel=True, fastmath=True)
+    @njit(
+        sig_drift_exact,
+        parallel=True,
+        fastmath=True,
+        cache=True,
+    )
     def drift_exact(
         dt: NumpyArray,
         dE: NumpyArray,
@@ -330,7 +353,7 @@ class NumbaSpecials(Specials):  # pragma: no cover
         alpha_2: float,
         beta: float,
         energy: float,
-    ):
+    ) -> None:  # pragma: no cover # TODO
         T = t_rev * length_ratio
         invbetasq = 1 / (beta * beta)
         invenesq = 1 / (energy * energy)
@@ -358,15 +381,20 @@ class NumbaSpecials(Specials):  # pragma: no cover
             )
 
     @staticmethod
-    @njit(sig_kick_induced_voltage, parallel=True, fastmath=True)
+    @njit(
+        sig_kick_induced_voltage,
+        parallel=True,
+        fastmath=True,
+        cache=True,
+    )
     def kick_induced_voltage(
         dt: NumpyArray,
         dE: NumpyArray,
         voltage: NumpyArray,
         bin_centers: NumpyArray,
-        charge: float,
-        acceleration_kick: float,
-    ):
+        charge: np.flaot32 | np.float64,
+        acceleration_kick: np.flaot32 | np.float64,
+    ) -> None:
         dx = (bin_centers[-1] - bin_centers[0]) / (len(bin_centers) - 1)
         inv_dx = 1 / dx
         x_min = bin_centers[0]

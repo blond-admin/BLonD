@@ -16,7 +16,7 @@ from blond import (
 )
 from blond.physics.impedances.solvers import (
     PeriodicFreqSolver,
-    TimeDomainSolver,
+    TimeDomainFftSolver,
 )
 from blond.physics.impedances.sources import Resonators
 
@@ -42,7 +42,7 @@ class TestResonatorImpedances(unittest.TestCase):
                     t_periodicity=960.0,
                     allow_next_fast_len=False,
                 ),
-                TimeDomainSolver(),
+                TimeDomainFftSolver(),
             )
         ):
             ring = Ring(

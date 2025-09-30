@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-from typing import Optional
-from typing import Optional as LateInit
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # pragma: no cover
+    from typing import Optional, Dict, Any
+    from typing import Optional as LateInit
 
 from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant
@@ -10,7 +13,7 @@ from .._core.simulation.simulation import Simulation
 
 
 class LossesBaseClass(BeamPhysicsRelevant):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
 
@@ -21,7 +24,7 @@ class BoxLosses(LossesBaseClass):
         t_max: Optional[backend.float] = None,
         e_min: Optional[backend.float] = None,
         e_max: Optional[backend.float] = None,
-    ):
+    ) -> None:
         super().__init__()
 
         self.t_min = backend.float(t_min)
@@ -44,7 +47,7 @@ class BoxLosses(LossesBaseClass):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         pass
 
@@ -66,7 +69,7 @@ class BoxLosses(LossesBaseClass):
 
 
 class SeparatrixLosses(LossesBaseClass):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._simulation: LateInit[Simulation] = None
 
@@ -85,7 +88,7 @@ class SeparatrixLosses(LossesBaseClass):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         pass
 

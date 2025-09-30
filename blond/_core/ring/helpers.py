@@ -8,6 +8,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import (
         Any,
         Callable,
+        DefaultDict,
+        Dict,
         Iterable,
         List,
         Tuple,
@@ -26,38 +28,39 @@ def requires(argument: List[str]) -> Callable:
     argument
         List of class names that are required before executing
         the decorated function
+
     """
 
-    def decorator(function):
-        def wrapper(*args, **kwargs):
+    def decorator(function: Callable) -> Callable:
+        def wrapper(*args: List[Any], **kwargs: Dict[Any, Any]) -> Any:
             return function(*args, **kwargs)
 
         # allow strings to prevent cyclic imports
         assert all([isinstance(a, str) for a in argument])
-        wrapper.requires = argument
+        wrapper.requires = argument  # type: ignore
         return wrapper
 
     return decorator
 
 
-def get_elements(elements: Iterable, class_: Type[T]) -> Tuple[T, ...]:
+def get_elements(elements: Iterable, _class: Type[T]) -> Tuple[T, ...]:
     """
     Find all elements of a certain type
 
     Parameters
     ----------
     elements
-        List of instances that might match isinstance(element, class_)
-    class_
+        List of instances that might match isinstance(element, _class)
+    _class
         Return only elements that are instance of this class
 
     Returns
     -------
     filtered_elements
-        List of filtered elements that match class_
+        List of filtered elements that match _class
 
     """
-    return tuple(filter(lambda x: isinstance(x, class_), elements))
+    return tuple(filter(lambda x: isinstance(x, _class), elements))
 
 
 def get_init_order(
@@ -98,7 +101,7 @@ def get_init_order(
 
 def _build_dependency_graph(
     instances: Iterable[Any], dependency_attribute: str
-) -> (defaultdict[Any, list], defaultdict[Any, int], set):
+) -> Tuple[defaultdict[Any, list], defaultdict[Any, int], set]:
     """Function to build a dependency graph
 
     Parameters
@@ -113,7 +116,7 @@ def _build_dependency_graph(
     graph = defaultdict(
         list
     )  # Directed graph: dependency -> list of dependent classes
-    in_degree = defaultdict(
+    in_degree: DefaultDict = defaultdict(
         int
     )  # Count of incoming edges (dependencies) for each class
     all_classes = set()  # Set to keep track of all involved classes
@@ -138,7 +141,7 @@ def _build_dependency_graph(
     return graph, in_degree, all_classes
 
 
-def get_dependencies(cls_: type, dependency_attribute: str):
+def get_dependencies(cls_: type, dependency_attribute: str) -> List:
     """
     Investigate on which classes this class depends
 

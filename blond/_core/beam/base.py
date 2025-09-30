@@ -4,10 +4,10 @@ import warnings
 from abc import ABC, abstractmethod
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict
 
 import numpy as np
-from scipy.constants import speed_of_light as c0
+from scipy.constants import speed_of_light as c0  # type: ignore
 
 from ..._core.backends.backend import backend
 from ..._core.ring.helpers import requires
@@ -17,7 +17,7 @@ from ..helpers import int_from_float_with_warning
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional
 
-    from cupy.typing import NDArray as CupyArray
+    from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
     from ..simulation.simulation import Simulation
@@ -36,7 +36,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         particle_type: ParticleType,
         is_counter_rotating: bool = False,
         is_distributed: bool = False,
-    ):
+    ) -> None:
         """Base class to make beam classes
 
         Parameters
@@ -53,19 +53,21 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """
         super().__init__()
 
-        self.n_particles = int_from_float_with_warning(
+        self.intensity = int_from_float_with_warning(
             n_particles, warning_stacklevel=2
         )
         self._is_distributed = is_distributed
         self._particle_type = particle_type
         self._is_counter_rotating = is_counter_rotating
 
-        self._dE = None  # should be initialized later using `setup_beam`
-        self._dt = None  # should be initialized later using `setup_beam`
-        self._flags = None  # should be initialized later using `setup_beam`
+        # should be initialized later using `setup_beam`
+        self._dE: NumpyArray | CupyArray | None = None
+        self._dt: NumpyArray | CupyArray | None = None
+        self._flags: NumpyArray | CupyArray | None = None
 
-        self.reference_time = 0  # todo cached properties
-        self._reference_total_energy = 0  # todo cached properties
+        self.reference_time: np.float32 | np.float64 = backend.float(0.0)  #
+        # todo cached properties
+        self._reference_total_energy = 0.0  # todo cached properties
 
     @requires(["EnergyCycleBase"])
     def on_run_simulation(
@@ -74,7 +76,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """
         Lateinit method when `simulation.run_simulation` is called
@@ -96,8 +98,9 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             turn_i_init=turn_i_init,
         )
         msg = (
-            "Beam was not initialized. Did you forget to call "
-            "simulation.on_prepare_beam(...)?"
+            "Beam was not initialized. This is possible using"
+            " `simulation.prepare_beam(...)` or"
+            " `beam.setup_beam(...)`."
         )
         assert self._dt is not None, msg
         assert self._dE is not None, msg
@@ -120,10 +123,11 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             warnings.warn(msg)
         self.reference_total_energy = new_reference_total_energy
 
-    @cached_property
+    @property
+    @abstractmethod  # pragma: no cover
     def ratio(self) -> float:
-        """Type of particles, e.g. protons"""
-        return self.n_particles / self.common_array_size
+        """Ratio of the intensity vs. the sum of weights"""
+        pass
 
     @property
     def particle_type(self) -> ParticleType:
@@ -136,7 +140,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         return self._reference_total_energy
 
     @reference_total_energy.setter
-    def reference_total_energy(self, reference_total_energy) -> float:
+    def reference_total_energy(self, reference_total_energy: float) -> None:
         """Total beam energy [eV]"""
         self.invalidate_cache_reference()
         self._reference_total_energy = reference_total_energy
@@ -169,7 +173,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         flags: NumpyArray | CupyArray = None,
         reference_time: Optional[float] = None,
         reference_total_energy: Optional[float] = None,
-    ):
+    ) -> None:
         """Sets beam array attributes for simulation
 
         Parameters
@@ -205,13 +209,10 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         simulation
             Simulation context manager
         """
-        super().on_init_simulation(simulation=simulation)
-        self.reference_total_energy = (
-            simulation.magnetic_cycle.total_energy_init
-        )
+        pass  # this gets never called
 
     @abstractmethod  # pragma: no cover
-    def plot_hist2d(self):
+    def plot_hist2d(self) -> None:
         """Plot 2D histogram of beam coordinates"""
         pass
 
@@ -297,9 +298,18 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         Note
         ----
         Depends on `is_distributed`
-
+        If not distributed, returns all particles.
+        If distributed, returns only the particles
+        visible to the current node.
+        Using `_dt` and `_dE` will result in the same behaviour.
         """
-        return len(self._dE)
+        if self._dE is not None:
+            return len(self._dE)
+        else:
+            raise AttributeError(
+                f"{self._dE=}. You can use `setup_beam("
+                f"...)` for initialisation."
+            )
 
     def read_partial_dt(self) -> NumpyArray | CupyArray:
         """Returns dt-array on current node (distributed computing ready)
@@ -307,6 +317,10 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         Note
         ----
         Depends on `is_distributed`
+        If not distributed, returns all particles.
+        If distributed, returns only the particles
+        visible to the current node.
+        Using `_dt` and `_dE` will result in the same behaviour
         """
         return self._dt
 
@@ -316,7 +330,10 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         Note
         ----
         Depends on `is_distributed`
-
+        If not distributed, returns all particles.
+        If distributed, returns only the particles
+        visible to the current node.
+        Using `_dt` and `_dE` will result in the same behaviour.
         """
         self.invalidate_cache_dt()
         return self._dt
@@ -327,6 +344,10 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         Note
         ----
         Depends on `is_distributed`
+        If not distributed, returns all particles.
+        If distributed, returns only the particles
+        visible to the current node.
+        Using `_dt` and `_dE` will result in the same behaviour.
         """
         return self._dE
 
@@ -336,6 +357,10 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         Note
         ----
         Depends on `is_distributed`
+        If not distributed, returns all particles.
+        If distributed, returns only the particles
+        visible to the current node.
+        Using `_dt` and `_dE` will result in the same behaviour.
         """
         self.invalidate_cache_dE()
         return self._dE
@@ -346,6 +371,10 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         Note
         ----
         Depends on `is_distributed`
+        If not distributed, returns all particles.
+        If distributed, returns only the particles
+        visible to the current node.
+        Using `_dt` and `_dE` will result in the same behaviour.
         """
         self.invalidate_cache_dt()
         self.invalidate_cache_dE()

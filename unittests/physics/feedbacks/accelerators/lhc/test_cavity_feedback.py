@@ -9,11 +9,10 @@ from blond import (
     MultiHarmonicCavity,
     Ring,
     Simulation,
-    SingleHarmonicCavity,
     StaticProfile,
     proton,
 )
-from blond.physics.feedbacks.accelerators.lhc.cavity_feedback import (
+from blond.experimental.physics.feedbacks.accelerators.lhc.cavity_feedback import (
     LHCCavityLoop,
     LHCCavityLoopCommissioning,
 )
@@ -21,6 +20,8 @@ from blond.physics.feedbacks.accelerators.lhc.cavity_feedback import (
 
 class TestLHCOpenDrive(unittest.TestCase):
     def setUp(self):
+        from blond._core.backends.backend import backend
+
         # Bunch parameters (dummy)
         N_b = 1e9  # Intensity
         N_p = 50000  # Macro-particles
@@ -43,9 +44,9 @@ class TestLHCOpenDrive(unittest.TestCase):
             n_harmonics=1,
             main_harmonic_idx=0,
         )
-        rf.harmonic = np.array([h])
-        rf.voltage = np.array([V])
-        rf.phi_rf = np.array([dphi])
+        rf.harmonic = np.array([h], dtype=backend.float)
+        rf.voltage = np.array([V], dtype=backend.float)
+        rf.phi_rf = np.array([dphi], dtype=backend.float)
         self.rf = rf
         ring.add_element(rf)
         ring.add_drifts(
@@ -59,7 +60,6 @@ class TestLHCOpenDrive(unittest.TestCase):
             n_particles=N_b,
             particle_type=proton,
         )
-        beam.ratio = N_b / N_p
         # self.profile = Profile(beam)
         self.profile = StaticProfile(0, 1, 8)  # TODO kwargs should matter
         sim = Simulation(

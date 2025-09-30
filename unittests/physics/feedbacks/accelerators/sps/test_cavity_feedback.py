@@ -3,7 +3,6 @@ import unittest
 from copy import deepcopy
 from typing import List
 
-import matplotlib.pyplot as plt
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
@@ -18,8 +17,8 @@ from blond import (
     StaticProfile,
     proton,
 )
-from blond._core.backends.backend import Numpy64Bit, backend
-from blond.physics.feedbacks.accelerators.sps.cavity_feedback import (
+from blond._core.backends.backend import Numpy32Bit, Numpy64Bit, backend
+from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback import (
     SPSCavityFeedback,
     SPSCavityLoopCommissioning,
     SPSOneTurnFeedback,
@@ -129,9 +128,9 @@ class TestSPSCavityFeedback(unittest.TestCase):
             n_harmonics=1,
             main_harmonic_idx=0,
         )
-        rf.harmonic = np.array([h])
-        rf.voltage = np.array([V])
-        rf.phi_rf = np.array([phi])
+        rf.harmonic = np.array([h], dtype=backend.float)
+        rf.voltage = np.array([V], dtype=backend.float)
+        rf.phi_rf = np.array([phi], dtype=backend.float)
         self.ring.add_element(rf)
         self.ring.add_drifts(
             n_drifts_per_section=1,
@@ -720,6 +719,10 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
 class TestSPSOneTurnFeedback(unittest.TestCase):
     def setUp(self):
+        backend.change_backend(Numpy64Bit)  # this test fail in 32 bit due to
+        # missing accuracy. could be fixed be considering less digits,
+        # if required
+
         # Parameters ----------------------------------------------------------
         C = 2 * np.pi * 1100.009  # Ring circumference [m]
         gamma_t = 18.0  # Transition Gamma [-]
@@ -744,9 +747,9 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         self.rfstation = MultiHarmonicCavity(
             n_harmonics=1, main_harmonic_idx=0
         )
-        self.rfstation.voltage = np.array([V])
-        self.rfstation.phi_rf = np.array([phi])
-        self.rfstation.harmonic = np.array([h])
+        self.rfstation.voltage = np.array([V], dtype=backend.float)
+        self.rfstation.phi_rf = np.array([phi], dtype=backend.float)
+        self.rfstation.harmonic = np.array([h], dtype=backend.float)
         self.magnetic_cycle = ConstantMagneticCycle(
             reference_particle=proton,
             value=p_s,
@@ -800,6 +803,9 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         self.turn_array = np.linspace(
             0, 2 * self.rfstation._t_rev, 2 * self.OTFB.n_coarse
         )
+
+    def tearDown(self):
+        backend.change_backend(Numpy32Bit)
 
     def test_setup(self):
         pass
@@ -1076,9 +1082,9 @@ class TestSPSTransmitterGain(unittest.TestCase):
             n_harmonics=1,
             main_harmonic_idx=0,
         )
-        cavity.harmonic = np.array([4620])
-        cavity.phi_rf = np.array([0])
-        cavity.voltage = np.array([4.5e6])
+        cavity.harmonic = np.array([4620], dtype=backend.float)
+        cavity.phi_rf = np.array([0], dtype=backend.float)
+        cavity.voltage = np.array([4.5e6], dtype=backend.float)
         self.rf = cavity
         drift = DriftSimple(
             orbit_length=2 * np.pi * 1100.009,

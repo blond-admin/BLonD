@@ -199,6 +199,30 @@ class TestConstantEnergyCycle(unittest.TestCase):
             cec.get_target_total_energy(111, 111, 111, proton),
         )
 
+    def test_get_target_total_energy(self):
+        e_tot_1 = self.constant_magnetic_cycle.get_target_total_energy(
+            turn_i=0,
+            section_i=0,
+            reference_time=0,
+            particle_type=proton,
+        )
+        # try to hit cache
+        e_tot_2 = self.constant_magnetic_cycle.get_target_total_energy(
+            turn_i=0,
+            section_i=0,
+            reference_time=0,
+            particle_type=proton,
+        )
+        e_tot_3 = self.constant_magnetic_cycle.get_target_total_energy(
+            turn_i=0,
+            section_i=0,
+            reference_time=0,
+            particle_type=uranium_29,
+        )
+        self.assertEqual(e_tot_1, e_tot_2)
+
+        self.assertNotEqual(e_tot_1, e_tot_3)
+
 
 class MagneticCycleBaseHelper(MagneticCycleBase):
     def get_target_total_energy(
@@ -280,6 +304,35 @@ class TestEnergyCycleByTime(unittest.TestCase):
         self.assertEqual(
             ebt.get_total_energy_init(0, 0, particle_type=uranium_29), 1e12
         )
+
+    def test_get_target_total_energy(self):
+        cycle = MagneticCycleByTime.headless(
+            base_time=np.linspace(1e12, 1e12, endpoint=True),
+            base_values=np.linspace(1e12, 1e12, endpoint=True),
+            reference_particle=uranium_29,
+            in_unit="total energy",
+        )
+        e_tot_1 = cycle.get_target_total_energy(
+            turn_i=0,
+            section_i=0,
+            reference_time=0,
+            particle_type=uranium_29,
+        )
+        # try to hit cache
+        e_tot_2 = cycle.get_target_total_energy(
+            turn_i=0,
+            section_i=0,
+            reference_time=0,
+            particle_type=uranium_29,
+        )
+        e_tot_3 = cycle.get_target_total_energy(
+            turn_i=0,
+            section_i=0,
+            reference_time=0,
+            particle_type=proton,
+        )
+        self.assertEqual(e_tot_1, e_tot_2)
+        self.assertNotEqual(e_tot_1, e_tot_3)
 
 
 class TestEnergyCyclePerTurn(unittest.TestCase):
@@ -385,6 +438,34 @@ class TestEnergyCyclePerTurnAllCavities(unittest.TestCase):
                 ecptac._magnetic_rigidity_after_cavity_per_turn, proton.charge
             ).shape,
         )
+
+    def test_get_target_total_energy(self):
+        cycle = MagneticCyclePerTurnAllCavities.headless(
+            value_init=10,
+            values_after_cavity_per_turn=np.ones((2, 20)),
+            reference_particle=uranium_29,
+        )
+        e_tot_1 = cycle.get_target_total_energy(
+            turn_i=0,
+            section_i=0,
+            reference_time=0,
+            particle_type=uranium_29,
+        )
+        # try to hit cache
+        e_tot_2 = cycle.get_target_total_energy(
+            turn_i=0,
+            section_i=0,
+            reference_time=0,
+            particle_type=uranium_29,
+        )
+        e_tot_3 = cycle.get_target_total_energy(
+            turn_i=0,
+            section_i=0,
+            reference_time=0,
+            particle_type=proton,
+        )
+        self.assertEqual(e_tot_1, e_tot_2)
+        self.assertNotEqual(e_tot_1, e_tot_3)
 
 
 if __name__ == "__main__":

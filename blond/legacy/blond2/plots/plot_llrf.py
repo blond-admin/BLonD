@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import h5py as hp
 import matplotlib.pyplot as plt
 import numpy as np
 from pylab import cm

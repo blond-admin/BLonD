@@ -2,7 +2,7 @@ import time
 
 import cupy as cp
 
-from blond._core.backends.backend import Numpy32Bit, Numpy64Bit, backend
+from blond._core.backends.backend import Numpy32Bit, backend
 
 
 def main():  # pragma: no cover

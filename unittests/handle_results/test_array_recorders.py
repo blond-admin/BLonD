@@ -7,6 +7,7 @@ from blond.handle_results.array_recorders import (
     ChunkedArrayRecorder,
     DenseArrayRecorder,
 )
+from blond.handle_results.helpers import callers_relative_path
 
 
 class TestChunkedArrayRecorder(unittest.TestCase):
@@ -23,7 +24,7 @@ class TestChunkedArrayRecorder(unittest.TestCase):
 class TestDenseArrayRecorder(unittest.TestCase):
     def setUp(self):
         self.dense_array_recorder = DenseArrayRecorder(
-            filepath="deleteme",
+            filepath=callers_relative_path("deleteme", 1),
             shape=(20, 10),
             dtype=np.float32,
             order="C",

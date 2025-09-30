@@ -1,6 +1,8 @@
 import unittest
+from copy import deepcopy
 from unittest.mock import Mock, create_autospec
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from blond import (
@@ -13,7 +15,9 @@ from blond import (
 )
 from blond._core.beam.base import BeamBaseClass
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
+from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import BunchObservation, Observables
+from unittests.handle_results.test_observables import simulation
 
 
 class TestSimulation(unittest.TestCase):
@@ -70,7 +74,7 @@ class TestSimulation(unittest.TestCase):
     def test__run_simulation_single_beam(self):
         observe = Mock(spec=Observables)
 
-        def my_callback(simulation: Simulation) -> None:
+        def my_callback(simulation: Simulation, beam: Beam) -> None:
             return
 
         mock_func = create_autospec(my_callback, return_value=True)
@@ -94,11 +98,6 @@ class TestSimulation(unittest.TestCase):
         pass
 
     @unittest.skip
-    def test_get_hash(self):
-        # TODO: implement test for `get_hash`
-        self.simulation.get_hash()
-
-    @unittest.skip
     def test_get_legacy_map(self):
         # TODO: implement test for `get_legacy_map`
         self.simulation.get_legacy_map()
@@ -113,10 +112,27 @@ class TestSimulation(unittest.TestCase):
         # TODO: implement test for `get_potential_well_analytic`
         self.simulation.get_potential_well_analytic()
 
-    @unittest.skip
     def test_get_potential_well_empiric(self):
-        # TODO: implement test for `get_potential_well_empiric`
-        self.simulation.get_potential_well_empiric()
+        from blond.testing.simulation import SimulationTwoRfStations
+
+        sim = SimulationTwoRfStations()
+        potential_well = sim.simulation.get_potential_well_empiric(
+            ts=np.linspace(-1e-9, 1e-9, 100),
+            particle_type=proton,
+        )
+        SAVE_PINNED = False
+        if SAVE_PINNED:
+            np.savetxt(
+                "resources/potential_well.csv",
+                potential_well,
+            )
+        potential_well_pinned = np.loadtxt(
+            callers_relative_path("resources/potential_well.csv", stacklevel=1)
+        )
+        np.testing.assert_allclose(
+            potential_well_pinned,
+            potential_well,
+        )
 
     @unittest.skip
     def test_get_separatrix(self):
@@ -126,19 +142,30 @@ class TestSimulation(unittest.TestCase):
     def test_invalidate_cache(self):
         self.simulation.invalidate_cache()
 
-    @unittest.skip
     def test_load_results(self):
-        # TODO: implement test for `load_results`
-        self.simulation.load_results(
-            n_turns=None, turn_i_init=None, observe=None, callback=None
+        observation = BunchObservation(each_turn_i=10)
+        kwargs = dict(
+            beams=(self.beam,),
+            n_turns=10,
+            turn_i_init=0,
+            observe=(observation,),
         )
+        self.simulation.run_simulation(**kwargs)
+        de_before_save = observation.dEs.copy()
+        self.simulation.save_results(observe=(observation,))
+        self.simulation.load_results(**kwargs)
+        de_from_disk = observation.dEs.copy()
+        np.testing.assert_almost_equal(de_before_save, de_from_disk)
+
+        for name, rec in observation.get_recorders():
+            rec.purge_from_disk()
 
     def test_on_init_simulation(self):
         self.simulation.on_init_simulation(simulation=self.simulation)
 
     @unittest.skip
-    def test_on_prepare_beam(self):
-        # TODO: implement test for `on_prepare_beam`
+    def test_prepare_beam(self):
+        # TODO: implement test for `prepare_beam`
         beam = Mock(spec=BeamBaseClass)
 
         self.simulation.prepare_beam(
@@ -169,7 +196,7 @@ class TestSimulation(unittest.TestCase):
     def test_run_simulation(self):
         observe = BunchObservation(each_turn_i=10, beam=self.beam)
 
-        def my_callback(simulation: Simulation) -> None:
+        def my_callback(simulation: Simulation, beam: BeamBaseClass) -> None:
             return
 
         mock_func = create_autospec(my_callback, return_value=False)

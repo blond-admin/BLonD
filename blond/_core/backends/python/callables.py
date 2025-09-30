@@ -7,7 +7,7 @@ import numpy as np
 from ..backend import Specials
 
 if TYPE_CHECKING:  # pragma: no cover
-    from cupy.typing import NDArray as CupyArray
+    from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
 
@@ -20,14 +20,14 @@ class PythonSpecials(Specials):
         omega_rf: float,
         phi_rf: float,
         bin_size: float,
-    ) -> float:
-        scoeff = np.trapezoid(
+    ) -> np.float32 | np.float64:
+        scoeff = np.trapezoid(  # type: ignore
             np.exp(alpha * hist_x)
             * np.sin(omega_rf * hist_x + phi_rf)
             * hist_y,
             dx=bin_size,
         )
-        ccoeff = np.trapezoid(
+        ccoeff = np.trapezoid(  # type: ignore
             np.exp(alpha * hist_x)
             * np.cos(omega_rf * hist_x + phi_rf)
             * hist_y,
@@ -40,17 +40,19 @@ class PythonSpecials(Specials):
     def histogram(
         array_read: NumpyArray,
         array_write: NumpyArray,
-        start: float,
-        stop: float,
-    ):
+        start: np.float32 | np.float64,
+        stop: np.float32 | np.float64,
+    ) -> None:
         array_write[:], _ = np.histogram(
-            array_read, range=(start, stop), bins=len(array_write)
+            array_read,
+            range=(float(start), float(stop)),
+            bins=len(array_write),
         )
 
     @staticmethod
     def loss_box(
-        self, top: float, bottom: float, left: float, right: float
-    ) -> None:
+        top: float, bottom: float, left: float, right: float
+    ) -> None:  # TODO
         raise NotImplementedError
 
     @staticmethod
@@ -60,9 +62,9 @@ class PythonSpecials(Specials):
         voltage: float,
         omega_rf: float,
         phi_rf: float,
-        charge: float,
-        acceleration_kick: float,
-    ):
+        charge: np.flaot32 | np.float64,
+        acceleration_kick: np.flaot32 | np.float64,
+    ) -> None:
         voltage_kick = charge * voltage
 
         dE[:] += (
@@ -80,7 +82,7 @@ class PythonSpecials(Specials):
         charge: float,
         n_rf: int,
         acceleration_kick: float,
-    ):
+    ) -> None:
         """
         Function to apply RF kick on the particles with sin function
         """
@@ -96,11 +98,11 @@ class PythonSpecials(Specials):
     def drift_simple(
         dt: NumpyArray,
         dE: NumpyArray,
-        T: float,
-        eta_0: float,
-        beta: float,
-        energy: float,
-    ):
+        T: np.float32 | np.float64,
+        eta_0: np.float32 | np.float64,
+        beta: np.float32 | np.float64,
+        energy: np.float32 | np.float64,
+    ) -> None:
         """
         Function to apply drift equation of motion
         """
@@ -121,7 +123,7 @@ class PythonSpecials(Specials):
         eta_2: float,
         beta: float,
         energy: float,
-    ):
+    ) -> None:  # pragma: no cover # TODO
         """
         Function to apply drift equation of motion
         """
@@ -153,7 +155,7 @@ class PythonSpecials(Specials):
         alpha_2: float,
         beta: float,
         energy: float,
-    ):
+    ) -> None:  # pragma: no cover # TODO
         """
         Function to apply drift equation of motion
         """
@@ -187,9 +189,9 @@ class PythonSpecials(Specials):
         dE: NumpyArray,
         voltage: NumpyArray,
         bin_centers: NumpyArray,
-        charge: float,
-        acceleration_kick: float,
-    ):
+        charge: np.flaot32 | np.float64,
+        acceleration_kick: np.flaot32 | np.float64,
+    ) -> None:
         """Interpolated kick method.
 
         Parameters

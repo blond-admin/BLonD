@@ -15,7 +15,7 @@ from ..acc_math.analytic.simple_math import calc_total_energy
 from .base import ProgrammedCycle
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Dict, Literal
+    from typing import Any, Dict, Literal
     from typing import Optional
     from typing import Optional as LateInit
     from typing import TypeVar, Union
@@ -62,7 +62,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
     def on_init_simulation(
         self,
         simulation: Simulation,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """
         Lateinit method when `simulation.__init__` is called
@@ -81,7 +81,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """
         Lateinit method when `simulation.run_simulation` is called
@@ -250,7 +250,7 @@ class ConstantMagneticCycle(MagneticCycleBase):
     def on_init_simulation(
         self,
         simulation: Simulation,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """
         Lateinit method when `simulation.__init__` is called
@@ -406,7 +406,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
     def on_init_simulation(
         self,
         simulation: Simulation,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """
         Lateinit method when `simulation.__init__` is called
@@ -609,7 +609,7 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
     def on_init_simulation(
         self,
         simulation: Simulation,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """
         Lateinit method when `simulation.__init__` is called
@@ -805,7 +805,7 @@ class MagneticCycleByTime(MagneticCycleBase):
     def on_init_simulation(
         self,
         simulation: Simulation,
-        **kwargs,
+        **kwargs: Dict[str, Any],
     ) -> None:
         """
         Lateinit method when `simulation.__init__` is called

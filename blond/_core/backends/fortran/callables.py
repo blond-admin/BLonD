@@ -2,86 +2,105 @@ from __future__ import annotations
 
 import importlib.util
 import inspect
+import logging
 import os
+import shutil
 import sys
+import warnings
+from types import ModuleType
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 from blond._core.backends.backend import Specials, backend
 
+logger = logging.getLogger(__name__)
 
-def find_kick_module_so(file: str):
+
+def _add_dll_directory(command):
+    """
+    Add the bin directory of some executable to the DLL search path
+
+    Parameters
+    ----------
+    command
+        A command line command, e.g. gcc or gfortran
+
+    Returns
+    -------
+
+    """
+    _gfortran_path = shutil.which(command)
+    if not _gfortran_path:
+        raise RuntimeError(f'shutil.which("{command}") = {_gfortran_path}')
+    gfortran_bin_directory = os.path.dirname(_gfortran_path)
+    logger.debug(f"Added {gfortran_bin_directory=} to the DLL search path.")
+    os.add_dll_directory(gfortran_bin_directory)
+
+
+_using_windows = os.name == "nt"
+if _using_windows:
+    try:
+        # this is implemented to prevent
+        # add_backend(..) from crashing on windows
+        _add_dll_directory("gfortran")
+    except RuntimeError as exc:
+        warnings.warn(str(exc), stacklevel=1)
+
+
+def find_module_so(file: str) -> str:
     # Get the file where this function is defined
-    current_file = inspect.getfile(find_kick_module_so)
+    current_file = inspect.getfile(find_module_so)
     # Get the directory of that file
     folder = os.path.dirname(current_file)
 
     # List all files in the directory and filter
     for filename in os.listdir(folder):
-        if filename.endswith(".so") and file in filename:
+        is_lib = (
+            filename.endswith(".so")  # linux
+            or filename.endswith(".pyd")  # windows
+        )
+        if is_lib and file in filename:
             return os.path.join(folder, filename)
     raise FileNotFoundError(file)
 
 
-def add_backend(module_name):
-    module_path = find_kick_module_so(module_name)
+def add_backend(module_name: str) -> ModuleType:
+    module_path = find_module_so(module_name)
     # Load it explicitly
     spec = importlib.util.spec_from_file_location(
         module_name, str(module_path)
     )
-    loaded_module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(loaded_module)
-    # (Optional) Add to sys.modules to make it importable elsewhere
-    sys.modules[module_name] = loaded_module
+    if spec is not None:
+        loaded_module = importlib.util.module_from_spec(spec)
+        if spec.loader is not None:
+            spec.loader.exec_module(loaded_module)
+        else:
+            raise Exception(
+                f"Failed to load spec from {module_name} at {module_path}"
+            )
+        # (Optional) Add to sys.modules to make it importable elsewhere
+        sys.modules[module_name] = loaded_module
+    else:
+        raise Exception(
+            f"Failed to load spec from {module_name} at {module_path}"
+        )
     return loaded_module
 
 
 if backend.float == np.float32:
-    drift_module = add_backend(
-        module_name="drift_module_32",
-    )
-    kick_module = add_backend(
-        module_name="kick_module_32",
-    )
+    libblond_fortran = add_backend(module_name="libblond32")
 
-    kick_induced_module = add_backend(
-        module_name="kick_induced_module_32",
-    )
-
-    histogram_module = add_backend(
-        module_name="histogram_module_32",
-    )
-
-    beam_phase_module = add_backend(
-        module_name="beam_phase_module_32",
-    )
 elif backend.float == np.float64:
-    drift_module = add_backend(
-        module_name="drift_module_64",
-    )
-    kick_module = add_backend(
-        module_name="kick_module_64",
-    )
+    libblond_fortran = add_backend(module_name="libblond64")
 
-    kick_induced_module = add_backend(
-        module_name="kick_induced_module_64",
-    )
-
-    histogram_module = add_backend(
-        module_name="histogram_module_64",
-    )
-
-    beam_phase_module = add_backend(
-        module_name="beam_phase_module_64",
-    )
 else:
     raise TypeError(backend.float)
 
 
 if TYPE_CHECKING:  # pragma: no cover
-    from cupy.typing import NDArray as CupyArray
-    from numpy._typing import NDArray as NumpyArray
+    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import NDArray as NumpyArray
 
 
 class FortranSpecials(Specials):
@@ -93,8 +112,8 @@ class FortranSpecials(Specials):
         omega_rf: float,
         phi_rf: float,
         bin_size: float,
-    ) -> float:
-        return beam_phase_module.beam_phase_module.beam_phase(
+    ) -> np.float32 | np.float64:
+        return libblond_fortran.beam_phase_module.beam_phase(
             bin_centers=hist_x,
             profile=hist_y,
             alpha=alpha,
@@ -108,10 +127,10 @@ class FortranSpecials(Specials):
     def histogram(
         array_read: NumpyArray,
         array_write: NumpyArray,
-        start: float,
-        stop: float,
-    ):
-        histogram_module.histogram(
+        start: np.float32 | np.float64,
+        stop: np.float32 | np.float64,
+    ) -> None:
+        libblond_fortran.histogram(
             array_read,
             array_out=array_write,
             n_macroparticles=np.int32(len(array_read)),
@@ -121,9 +140,7 @@ class FortranSpecials(Specials):
         )
 
     @staticmethod
-    def loss_box(
-        self, top: float, bottom: float, left: float, right: float
-    ) -> None:
+    def loss_box(top: float, bottom: float, left: float, right: float) -> None:
         pass
 
     @staticmethod
@@ -133,9 +150,9 @@ class FortranSpecials(Specials):
         voltage: float,
         omega_rf: float,
         phi_rf: float,
-        charge: float,
-        acceleration_kick: float,
-    ):
+        charge: np.flaot32 | np.float64,
+        acceleration_kick: np.flaot32 | np.float64,
+    ) -> None:
         assert dt.dtype == backend.float
         assert dE.dtype == backend.float
         assert isinstance(voltage, backend.float)
@@ -143,7 +160,7 @@ class FortranSpecials(Specials):
         assert isinstance(phi_rf, backend.float)
         assert isinstance(charge, backend.float)
         assert isinstance(acceleration_kick, backend.float)
-        kick_module.kick_single_harmonic(
+        libblond_fortran.kick_single_harmonic(
             dt=dt,
             de=dE,
             voltage=voltage,
@@ -159,16 +176,16 @@ class FortranSpecials(Specials):
     def drift_simple(
         dt: NumpyArray,
         dE: NumpyArray,
-        T: float,
-        eta_0: float,
-        beta: float,
-        energy: float,
-    ):
+        T: np.float32 | np.float64,
+        eta_0: np.float32 | np.float64,
+        beta: np.float32 | np.float64,
+        energy: np.float32 | np.float64,
+    ) -> None:
         """
         Function to apply drift equation of motion
         """
 
-        drift_module.drift_simple(
+        libblond_fortran.drift_simple(
             dt=dt,
             de=dE,
             t=T,
@@ -189,8 +206,8 @@ class FortranSpecials(Specials):
         charge: float,
         n_rf: int,
         acceleration_kick: float,
-    ):
-        kick_module.kick_multi_harmonic(
+    ) -> None:
+        libblond_fortran.kick_multi_harmonic(
             dt=dt,
             de=dE,
             n_rf=n_rf,
@@ -214,7 +231,7 @@ class FortranSpecials(Specials):
         eta_2: float,
         beta: float,
         energy: float,
-    ):
+    ) -> None:
         raise NotImplementedError
 
         T = t_rev * length_ratio
@@ -253,7 +270,7 @@ class FortranSpecials(Specials):
         alpha_2: float,
         beta: float,
         energy: float,
-    ):
+    ) -> None:
         raise NotImplementedError
         T = t_rev * length_ratio
         invbetasq = 1 / (beta * beta)
@@ -287,10 +304,10 @@ class FortranSpecials(Specials):
         dE: NumpyArray,
         voltage: NumpyArray,
         bin_centers: NumpyArray,
-        charge: float,
-        acceleration_kick: float,
-    ):
-        kick_induced_module.linear_interp_kick(
+        charge: np.flaot32 | np.float64,
+        acceleration_kick: np.flaot32 | np.float64,
+    ) -> None:
+        libblond_fortran.linear_interp_kick(
             beam_dt=dt,
             beam_de=dE,
             voltage_array=voltage,
