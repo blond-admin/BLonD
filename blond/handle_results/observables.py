@@ -29,7 +29,6 @@ class Observables(MainLoopRelevant):
     def __init__(
         self,
         each_turn_i: int,
-        beam: BeamBaseClass,
         folder: str,
         obs_per_turn: int = 1,
     ):
@@ -44,14 +43,12 @@ class Observables(MainLoopRelevant):
         obs_per_turn
             Number of observations per turn. Default is 1,
             cannot be more than number of cavities in turn map
-        beam
-            Simulation beam object
+
 
         """
         super().__init__()
         self.each_turn_i = each_turn_i
         self._obs_per_turn = obs_per_turn
-        self._beam = beam
         if len(folder) > 0:
             assert folder.endswith("/") or folder.endswith("\\")
         self.common_name = (
@@ -251,9 +248,9 @@ class BunchObservation(Observables):
         """
         super().__init__(
             each_turn_i=each_turn_i,
-            beam=beam,
             folder=folder,
         )
+        self._beam = beam
         self._dts: LateInit[DenseArrayRecorder] = None
         self._dEs: LateInit[DenseArrayRecorder] = None
         self._flags: LateInit[DenseArrayRecorder] = None
@@ -372,9 +369,8 @@ class BunchObservation_meta_params(Observables):  # TODO rework class
         beam
             Simulation beam object
         """
-        super().__init__(
-            each_turn_i=each_turn_i, beam=beam, obs_per_turn=obs_per_turn
-        )
+        super().__init__(each_turn_i=each_turn_i, obs_per_turn=obs_per_turn)
+        self._beam = beam
 
         self._sigma_dt: LateInit[DenseArrayRecorder] = None
         self._sigma_dE: LateInit[DenseArrayRecorder] = None
@@ -513,7 +509,6 @@ class CavityPhaseObservation(Observables):
         self,
         each_turn_i: int,
         cavity: SingleHarmonicCavity,
-        beam: BeamBaseClass,
         folder: str = "",
     ):
         """
@@ -526,10 +521,8 @@ class CavityPhaseObservation(Observables):
             callable each n-th turn.
         cavity
             Class that implements beam-rf interactions in a synchrotron
-        beam
-            Simulation beam object
         """
-        super().__init__(each_turn_i=each_turn_i, folder=folder, beam=beam)
+        super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._cavity = cavity
         self._phases: LateInit[DenseArrayRecorder] = None
         self._omegas: LateInit[DenseArrayRecorder] = None
@@ -621,7 +614,6 @@ class StaticProfileObservation(Observables):
         self,
         each_turn_i: int,
         profile: StaticProfile,
-        beam: BeamBaseClass,
         obs_per_turn: int = 1,
         folder: str = "",  # TODO docstring everywhere
     ):
@@ -636,15 +628,13 @@ class StaticProfileObservation(Observables):
         profile
             Class for the calculation of beam profile
             that doesn't change its parameters
-        beam
-            Simulation beam object
+
         obs_per_turn
             Number of observations per turn, default is 1
         """
         super().__init__(
             each_turn_i=each_turn_i,
             obs_per_turn=obs_per_turn,
-            beam=beam,
             folder=folder,
         )
         self._profile = profile
@@ -713,13 +703,10 @@ class StaticMultiProfileObservation(Observables):
     def __init__(
         self,
         each_turn_i: int,
-        beam: BeamBaseClass,
         profiles: List[StaticProfile],
         obs_per_turn: int = 1,
     ):
-        super().__init__(
-            each_turn_i=each_turn_i, beam=beam, obs_per_turn=obs_per_turn
-        )
+        super().__init__(each_turn_i=each_turn_i, obs_per_turn=obs_per_turn)
 
         self._profiles = profiles
         assert all(
@@ -775,7 +762,6 @@ class WakeFieldObservation(Observables):
         self,
         each_turn_i: int,
         wakefield: WakeField,
-        beam: BeamBaseClass,
         obs_per_turn: int = 1,
         folder: str = "",
     ):
@@ -791,13 +777,10 @@ class WakeFieldObservation(Observables):
             Manager class to calculate wake-fields
         obs_per_turn
             Number of observations per turn
-        beam
-            Simulation beam object
         """
         super().__init__(
             each_turn_i=each_turn_i,
             obs_per_turn=obs_per_turn,
-            beam=beam,
             folder=folder,
         )
         self._wakefield = wakefield
