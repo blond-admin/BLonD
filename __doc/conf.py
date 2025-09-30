@@ -100,6 +100,7 @@ exclude_patterns = [
     "*/blond._versio*",
     "*/blond._core.backends.cuda.call*",
     "*/blond._core.backends.fortran.call*",
+    "*/blond._core.backends.cpp.call*",
 ]
 # callables are only importable with cupy/fortran compiled
 
