@@ -668,7 +668,7 @@ class Simulation(Preparable, HasPropertyCache):
         beam_blond2 = Beam(
             ring=ring_blond2,
             n_macroparticles=self.beams[0]._n_macroparticles__init,
-            intensity=self.beams[0]._n_particles__init,
+            intensity=self.beams[0]._intensity__init,
         )
         # todo handle multiple RF stations
         cavity_blond3: SingleHarmonicCavity | MultiHarmonicCavity = (
@@ -843,7 +843,7 @@ class Simulation(Preparable, HasPropertyCache):
             A common filename for the files/arrays to save.
 
         """
-        self.finalze(
+        self.finalize(
             beams=beams,
             n_turns=n_turns,
             observe=observe,

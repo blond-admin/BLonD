@@ -41,7 +41,7 @@ class TestSimulation(unittest.TestCase):
         )
         drift1.transition_gamma = 55.759505
 
-        beam1 = Beam(n_particles=1e9, particle_type=proton)
+        beam1 = Beam(intensity=1e9, particle_type=proton)
         beam1.setup_beam(
             dt=np.linspace(1, 10, 10),
             dE=np.linspace(11, 20, 10),
@@ -143,7 +143,7 @@ class TestSimulation(unittest.TestCase):
         self.simulation.invalidate_cache()
 
     def test_load_results(self):
-        observation = BunchObservation(each_turn_i=10)
+        observation = BunchObservation(each_turn_i=10, beam=self.beam)
         kwargs = dict(
             beams=(self.beam,),
             n_turns=10,

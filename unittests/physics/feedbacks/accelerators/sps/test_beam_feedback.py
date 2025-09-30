@@ -172,7 +172,7 @@ class TestBeamFeedback(unittest.TestCase):
 
         # Beam setup
         self.beam = Beam(
-            n_particles=intensity_pb,
+            intensity=intensity_pb,
             particle_type=proton,
         )
         self.simulation = Simulation(
@@ -207,7 +207,6 @@ class TestBeamFeedback(unittest.TestCase):
         cav_obs = CavityPhaseObservation(
             each_turn_i=1,
             cavity=self.cavity,
-            beam=self.beam,
         )
 
         def callback(simulation: Simulation):

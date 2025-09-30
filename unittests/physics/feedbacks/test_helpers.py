@@ -83,7 +83,7 @@ class TestRfBeamCurrent(unittest.TestCase):
 
         # Create Gaussian beam
         self.beam = Beam(
-            n_particles=N_b,
+            intensity=N_b,
             particle_type=proton,
         )
 

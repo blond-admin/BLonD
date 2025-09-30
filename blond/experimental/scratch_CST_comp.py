@@ -70,10 +70,10 @@ def functest():
     analy._parent_wakefield.sources = (res,)
 
     beam = Mock(BeamBaseClass)
-    beam.n_particles = int(1e3)
+    beam.intensity = int(1e3)
     beam.particle_type.charge = 1 / e
     beam.n_macroparticles_partial.return_value = int(1e3)
-    # n_particles == n_macroparticles, integrated bunch is 1 --> all normalized to 1C
+    # intensity == n_macroparticles, integrated bunch is 1 --> all normalized to 1C
 
     analy._wake_function_vals_needs_update = True
 

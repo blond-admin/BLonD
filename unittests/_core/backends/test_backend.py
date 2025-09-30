@@ -121,7 +121,10 @@ class TestNumpyBackend(unittest.TestCase):
         self.numpy_backend.set_specials(mode="numba")
 
     def test_set_specials_fortran(self) -> None:
-        self.numpy_backend.set_specials(mode="fortran")
+        try:
+            self.numpy_backend.set_specials(mode="fortran")
+        except FileNotFoundError:
+            self.skipTest(f"fortran not available!")
 
 
 class TestSpecials(unittest.TestCase):

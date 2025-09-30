@@ -129,12 +129,12 @@ for cavity_i in range(n_cavities):
 ring.add_elements(one_turn_model, reorder=False)
 ####################################################################
 beam = Beam(
-    n_particles=2.7e12,
+    intensity=2.7e12,
     particle_type=mu_plus,
     is_counter_rotating=False,
 )
 beam_CR = Beam(
-    n_particles=2.7e12,
+    intensity=2.7e12,
     particle_type=mu_plus,
     is_counter_rotating=True,
 )

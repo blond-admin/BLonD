@@ -23,7 +23,7 @@ if TYPE_CHECKING:  # pragma: no cover
 class Beam(BeamBaseClass):
     def __init__(
         self,
-        n_particles: int | float,
+        intensity: int | float,
         particle_type: ParticleType,
         is_counter_rotating: bool = False,
     ) -> None:
@@ -31,7 +31,7 @@ class Beam(BeamBaseClass):
 
         Parameters
         ----------
-        n_particles
+        intensity
             Actual/real number of particles
             a.k.a. beam intensity
         particle_type
@@ -40,7 +40,7 @@ class Beam(BeamBaseClass):
             If this is a normal or counter-rotating beam
         """
         super().__init__(
-            n_particles=n_particles,
+            intensity=intensity,
             particle_type=particle_type,
             is_counter_rotating=is_counter_rotating,
         )
@@ -78,10 +78,10 @@ class Beam(BeamBaseClass):
             Time of the reference frame (global total energy), in [eV]
         """
         assert len(dt) == len(dE), f"{len(dt)} != {len(dE)}"
-        n_particles = len(dt)
+        intensity = len(dt)
         if flags is None:
             flags = backend.int(BeamFlags.ACTIVE.value) * backend.ones(
-                n_particles, dtype=backend.int
+                intensity, dtype=backend.int
             )
         else:
             assert flags.max() <= BeamFlags.ACTIVE.value
@@ -202,7 +202,7 @@ class ProbeBeam(Beam):
             Macro-particle energy coordinates, in [eV]
         """
         super().__init__(
-            n_particles=0,
+            intensity=0,
             particle_type=particle_type,
         )
         if dt is not None:

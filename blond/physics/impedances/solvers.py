@@ -666,7 +666,7 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
             self._update_potential_sources()
 
         _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
-            beam.n_particles / beam.n_macroparticles_partial()
+            beam.intensity / beam.n_macroparticles_partial()
         )
 
         return _charge_per_macroparticle * np.convolve(
@@ -926,7 +926,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             self._update_potential_sources(beam.reference_time)
 
         _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
-            beam.n_particles / beam.n_macroparticles_partial()
+            beam.intensity / beam.n_macroparticles_partial()
         )
         self._past_charge_per_macroparticle.appendleft(
             _charge_per_macroparticle

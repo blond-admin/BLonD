@@ -55,7 +55,7 @@ drift3 = DriftSimple(
 drift1.transition_gamma = 55.759505
 drift2.transition_gamma = 55.759505
 drift3.transition_gamma = 55.759505
-beam1 = Beam(n_particles=1e9, particle_type=proton)
+beam1 = Beam(intensity=1e9, particle_type=proton)
 
 
 sim = Simulation.from_locals(locals())

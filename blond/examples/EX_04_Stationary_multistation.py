@@ -46,7 +46,7 @@ def main():
         circumference=26658.883,
     )
     beam = Beam(
-        n_particles=1.0e9,
+        intensity=1.0e9,
         particle_type=proton,
     )
     profile = DynamicProfileConstNBins(

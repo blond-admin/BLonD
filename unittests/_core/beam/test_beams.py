@@ -12,7 +12,7 @@ from blond._core.beam.beams import ProbeBeam
 class TestBeam(unittest.TestCase):
     def setUp(self) -> None:
         self.beam = Beam(
-            n_particles=1e12, particle_type=proton, is_counter_rotating=False
+            intensity=1e12, particle_type=proton, is_counter_rotating=False
         )
         self.beam.setup_beam(
             dE=np.linspace(1, 10, 10), dt=np.linspace(20, 30, 10)
@@ -164,7 +164,7 @@ class TestWeightenedBeam(unittest.TestCase):
     def setUp(self) -> None:
         # TODO: implement test for `__init__`
         self.weightened_beam = WeightenedBeam(
-            n_particles=None, particle_type=None
+            intensity=None, particle_type=None
         )
 
     @unittest.skip

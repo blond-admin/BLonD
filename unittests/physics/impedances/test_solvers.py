@@ -31,7 +31,7 @@ class TestInductiveImpedanceSolver(unittest.TestCase):
     def setUp(self):
         self.inductive_impedance_solver = InductiveImpedanceSolver()
         beam = Mock(BeamBaseClass)
-        beam.n_particles = 1e12
+        beam.intensity = 1e12
         beam.n_macroparticles_partial.return_value = 128
         beam.particle_type.charge = 1
 
@@ -114,7 +114,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         self.periodic_freq_solver.t_periodicity = 1e-8
         self.periodic_freq_solver._update_internal_data()
         beam = Mock(BeamBaseClass)
-        beam.n_particles = int(11e3)
+        beam.intensity = int(11e3)
         beam.n_macroparticles_partial.return_value = int(3e6)
         beam.particle_type.charge = 1
         induced_voltage = self.periodic_freq_solver.calc_induced_voltage(
@@ -193,7 +193,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         ensure that the profile does not change on application of different profile lengths with 0-padding
         """
         beam = Mock(BeamBaseClass)
-        beam.n_particles = int(1e9)
+        beam.intensity = int(1e9)
         beam.particle_type.charge = 1
         beam.n_macroparticles_partial.return_value = int(1e3)
         self.analytical_single_turn_solver._update_potential_sources(
@@ -262,7 +262,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
 
     def test__update_potential_sources_location_of_calculation_matching(self):
         beam = Mock(BeamBaseClass)
-        beam.n_particles = int(1e9)
+        beam.intensity = int(1e9)
         beam.particle_type.charge = 1
         beam.n_macroparticles_partial.return_value = int(1e3)
         _ = self.analytical_single_turn_solver.calc_induced_voltage(beam=beam)
@@ -316,7 +316,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
 
     def test__update_potential_sources_result_values(self):
         beam = Mock(BeamBaseClass)
-        beam.n_particles = int(1e2)
+        beam.intensity = int(1e2)
         beam.particle_type.charge = 1
         beam.n_macroparticles_partial.return_value = int(1e2)
         self.analytical_single_turn_solver._update_potential_sources(
@@ -413,10 +413,10 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         analy._parent_wakefield.sources = (res,)
 
         beam = Mock(BeamBaseClass)
-        beam.n_particles = int(1e3)
+        beam.intensity = int(1e3)
         beam.particle_type.charge = 1 / e
         beam.n_macroparticles_partial.return_value = int(1e3)
-        # n_particles == n_macroparticles, integrated bunch is 1 --> all normalized to 1C
+        # intensity == n_macroparticles, integrated bunch is 1 --> all normalized to 1C
 
         analy._wake_function_vals_needs_update = True
 
@@ -435,14 +435,14 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
 
     def test_calc_induced_voltage(self):
         beam = Mock(BeamBaseClass)
-        beam.n_particles = int(1e9)
+        beam.intensity = int(1e9)
         beam.particle_type.charge = 1
         beam.n_macroparticles_partial.return_value = int(1e3)
         initial = self.analytical_single_turn_solver.calc_induced_voltage(
             beam=beam
         )
         first_nonzero_index = np.abs(initial).argmax() - 1
-        beam.n_particles = int(1e4)
+        beam.intensity = int(1e4)
         assert (
             self.analytical_single_turn_solver.calc_induced_voltage(beam=beam)[
                 first_nonzero_index:
@@ -535,7 +535,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         )
 
         self.beam = Mock(BeamBaseClass)
-        self.beam.n_particles = int(1e2)
+        self.beam.intensity = int(1e2)
         self.beam.particle_type.charge = 1
         self.beam.n_macroparticles_partial.return_value = int(1e2)
 

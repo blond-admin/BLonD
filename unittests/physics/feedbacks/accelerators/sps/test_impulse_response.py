@@ -234,7 +234,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         )
         # beam = Beam(ring, N_m, N_b)
         beam = Beam(
-            n_particles=N_b,
+            intensity=N_b,
             particle_type=proton,
         )
         sim.prepare_beam(
@@ -331,7 +331,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         bunches = 100
         buckets = 5 * bunches
         beam = Beam(
-            n_particles=N_b,
+            intensity=N_b,
             particle_type=proton,
         )
         t_rf = (
@@ -366,7 +366,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         )
 
         beam2 = Beam(
-            n_particles=bunches * N_b,
+            intensity=bunches * N_b,
             particle_type=proton,
         )
 

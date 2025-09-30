@@ -284,8 +284,8 @@ class BunchObservation(Observables):
             beam=self._beam,
         )
         n_entries = n_turns // self.each_turn_i + 2
-        n_particles = int(self._beam.common_array_size)
-        shape = (n_entries, n_particles)
+        intensity = int(self._beam.common_array_size)
+        shape = (n_entries, intensity)
 
         self._dts = DenseArrayRecorder(
             f"{self.common_name}_dts",
@@ -356,7 +356,11 @@ class BunchObservation_meta_params(Observables):  # TODO rework class
     """
 
     def __init__(
-        self, each_turn_i: int, beam: BeamBaseClass, obs_per_turn: int = 1
+        self,
+        each_turn_i: int,
+        beam: BeamBaseClass,
+        folder: str = "",  # TODO docstring
+        obs_per_turn: int = 1,
     ):
         """
         Parameters
@@ -369,7 +373,9 @@ class BunchObservation_meta_params(Observables):  # TODO rework class
         beam
             Simulation beam object
         """
-        super().__init__(each_turn_i=each_turn_i, obs_per_turn=obs_per_turn)
+        super().__init__(
+            each_turn_i=each_turn_i, obs_per_turn=obs_per_turn, folder=folder
+        )
         self._beam = beam
 
         self._sigma_dt: LateInit[DenseArrayRecorder] = None
@@ -552,7 +558,7 @@ class CavityPhaseObservation(Observables):
             simulation=simulation,
             n_turns=n_turns,
             turn_i_init=turn_i_init,
-            beam=self._beam,
+            beam=beam,
         )
         n_entries = n_turns // self.each_turn_i + 2
         n_harmonics = int(self._cavity.n_rf)
@@ -665,7 +671,7 @@ class StaticProfileObservation(Observables):
             n_turns=n_turns,
             turn_i_init=turn_i_init,
             obs_per_turn=self._obs_per_turn,
-            beam=self._beam,
+            beam=beam,
         )
         n_entries = len(self._turns_array)
         n_bins = int(self._profile.n_bins)
@@ -704,9 +710,12 @@ class StaticMultiProfileObservation(Observables):
         self,
         each_turn_i: int,
         profiles: List[StaticProfile],
+        folder: str = "",  # TODO docstring
         obs_per_turn: int = 1,
     ):
-        super().__init__(each_turn_i=each_turn_i, obs_per_turn=obs_per_turn)
+        super().__init__(
+            each_turn_i=each_turn_i, obs_per_turn=obs_per_turn, folder=folder
+        )
 
         self._profiles = profiles
         assert all(
@@ -811,7 +820,7 @@ class WakeFieldObservation(Observables):
             n_turns=n_turns,
             turn_i_init=turn_i_init,
             obs_per_turn=self._obs_per_turn,
-            beam=self._beam,
+            beam=beam,
         )
         n_entries = len(self._turns_array)
         n_bins = int(self._wakefield._profile.n_bins)
