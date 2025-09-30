@@ -13,7 +13,6 @@ from ..._generals._warnings import PerformanceWarning
 from ...cycles.magnetic_cycle import MagneticCycleBase, MagneticCyclePerTurn
 from ...physics.cavities import CavityBaseClass
 from ...physics.drifts import DriftBaseClass
-from ...cycles.magnetic_cycle import MagneticCycleBase
 from ...physics.profiles import ProfileBaseClass
 from ..backends.backend import backend
 from ..base import (

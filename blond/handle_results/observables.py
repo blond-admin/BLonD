@@ -12,8 +12,9 @@ from .._core.base import MainLoopRelevant
 from .array_recorders import DenseArrayRecorder
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, Dict, List, Tuple
+    from typing import Any, Dict, List
     from typing import Optional as LateInit
+    from typing import Tuple
 
     from .. import WakeField
     from .._core.beam.base import BeamBaseClass
@@ -235,7 +236,7 @@ class BunchObservation(Observables):
         self,
         each_turn_i: int,
         beam: BeamBaseClass,
-        folder: str = "", # TODO docstring
+        folder: str = "",  # TODO docstring
     ):
         """
         Observe the bunch coordinates during simulation execution
@@ -248,7 +249,11 @@ class BunchObservation(Observables):
         beam
             Simulation beam object
         """
-        super().__init__(each_turn_i=each_turn_i, beam=beam, folder=folder, )
+        super().__init__(
+            each_turn_i=each_turn_i,
+            beam=beam,
+            folder=folder,
+        )
         self._dts: LateInit[DenseArrayRecorder] = None
         self._dEs: LateInit[DenseArrayRecorder] = None
         self._flags: LateInit[DenseArrayRecorder] = None
@@ -348,7 +353,7 @@ class BunchObservation(Observables):
         return self._flags.get_valid_entries()
 
 
-class BunchObservation_meta_params(Observables): # TODO rework class
+class BunchObservation_meta_params(Observables):  # TODO rework class
     """
     Records mean and sigma of both energy and time bunch coordinates
     """
@@ -524,8 +529,7 @@ class CavityPhaseObservation(Observables):
         beam
             Simulation beam object
         """
-        super().__init__(each_turn_i=each_turn_i,
-                         folder=folder, beam=beam)
+        super().__init__(each_turn_i=each_turn_i, folder=folder, beam=beam)
         self._cavity = cavity
         self._phases: LateInit[DenseArrayRecorder] = None
         self._omegas: LateInit[DenseArrayRecorder] = None
@@ -619,7 +623,7 @@ class StaticProfileObservation(Observables):
         profile: StaticProfile,
         beam: BeamBaseClass,
         obs_per_turn: int = 1,
-        folder: str = "", # TODO docstring everywhere
+        folder: str = "",  # TODO docstring everywhere
     ):
         """
         Observation of a static beam profile
@@ -637,7 +641,12 @@ class StaticProfileObservation(Observables):
         obs_per_turn
             Number of observations per turn, default is 1
         """
-        super().__init__(each_turn_i=each_turn_i, obs_per_turn=obs_per_turn, beam=beam, folder=folder,)
+        super().__init__(
+            each_turn_i=each_turn_i,
+            obs_per_turn=obs_per_turn,
+            beam=beam,
+            folder=folder,
+        )
         self._profile = profile
         self._hist_y: LateInit[DenseArrayRecorder] = None
 
@@ -785,7 +794,12 @@ class WakeFieldObservation(Observables):
         beam
             Simulation beam object
         """
-        super().__init__(each_turn_i=each_turn_i, obs_per_turn=obs_per_turn, beam=beam, folder=folder)
+        super().__init__(
+            each_turn_i=each_turn_i,
+            obs_per_turn=obs_per_turn,
+            beam=beam,
+            folder=folder,
+        )
         self._wakefield = wakefield
         self._induced_voltage: LateInit[DenseArrayRecorder] = None
 

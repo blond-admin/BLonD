@@ -12,15 +12,11 @@ from blond._core.simulation.simulation import Simulation
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.readers import CsvReader
 from blond.physics.impedances.sources import (
+    ImpedanceTableFreq,
     ImpedanceTableTime,
     InductiveImpedance,
     Resonators,
     TravelingWaveCavity,
-)
-from blond.physics.impedances.sources import (
-    ImpedanceTableFreq,
-    InductiveImpedance,
-    Resonators,
 )
 
 
