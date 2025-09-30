@@ -66,6 +66,17 @@ variables:
     # reports:
     #   junit: ${project_root}/coverage-report.xml
 
+precommit-check:
+  image: python:3.12
+  stage: test
+  before_script:
+    - pip install pre-commit
+  script:
+    - pre-commit run --all-files
+  cache:
+    key: pre-commit-cache
+    paths:
+      - .cache/pre-commit
 
 test_py_310:
   image: gitlab-registry.cern.ch/blond/blond/python310
