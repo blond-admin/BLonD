@@ -596,6 +596,7 @@ class Simulation(Preparable, HasPropertyCache):
         for turn_i in iterator:
             self.turn_i.value = turn_i
             for element in self._ring.elements.elements:
+                # TODO: do we need to invalidate the cache here as well?
                 self.section_i.value = element.section_index
                 if element.is_active_this_turn(turn_i=self.turn_i.value):
                     element.track(beam)
@@ -758,7 +759,7 @@ class Simulation(Preparable, HasPropertyCache):
         iterator = range(turn_i_init, turn_i_init + n_turns)
         if show_progressbar:
             iterator = tqdm(iterator)  # Add TQDM display to iteration
-        self.turn_i.on_change(self._invalidate_cache)
+        self.turn_i.on_change(self._invalidate_cache_on_turn)
         self.turn_i.value = 0
 
         num_elements = len(
@@ -770,6 +771,7 @@ class Simulation(Preparable, HasPropertyCache):
             for element_ind, element in enumerate(
                 self._ring.elements.elements
             ):
+                # TODO: invalidation of cache?
                 self.section_i.current_group = element.section_index
 
                 if element.is_active_this_turn(turn_i=self.turn_i.value):
