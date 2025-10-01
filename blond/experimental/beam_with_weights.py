@@ -14,11 +14,11 @@ from blond._core.beam.particle_types import ParticleType
 class WeightenedBeam(Beam):
     def __init__(
         self,
-        n_particles: int | float,
+        intensity: int | float,
         particle_type: ParticleType,
     ) -> None:
         raise NotImplementedError  # todo
-        super().__init__(n_particles, particle_type)
+        super().__init__(intensity, particle_type)
         self._weights: LateInit[NumpyArray] = None
 
     def setup_beam(

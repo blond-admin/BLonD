@@ -283,7 +283,7 @@ class Blond3:
             quality_factors=Q_factor,
         )
 
-        beam = Beam(n_particles=1e10, particle_type=proton)
+        beam = Beam(intensity=1e10, particle_type=proton)
         beam.setup_beam(dt=blond2.dt, dE=blond2.dE)
         profile.track(beam)
 

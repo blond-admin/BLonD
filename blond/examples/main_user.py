@@ -66,7 +66,7 @@ class Main:
         )
 
         my_beam = Beam(
-            n_particles=1e6,
+            intensity=1e6,
             particle_type=proton,
         )
 

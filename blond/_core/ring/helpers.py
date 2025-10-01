@@ -28,6 +28,7 @@ def requires(argument: List[str]) -> Callable:
     argument
         List of class names that are required before executing
         the decorated function
+
     """
 
     def decorator(function: Callable) -> Callable:
@@ -42,24 +43,24 @@ def requires(argument: List[str]) -> Callable:
     return decorator
 
 
-def get_elements(elements: Iterable, class_: Type[T]) -> Tuple[T, ...]:
+def get_elements(elements: Iterable, _class: Type[T]) -> Tuple[T, ...]:
     """
     Find all elements of a certain type
 
     Parameters
     ----------
     elements
-        List of instances that might match isinstance(element, class_)
-    class_
+        List of instances that might match isinstance(element, _class)
+    _class
         Return only elements that are instance of this class
 
     Returns
     -------
     filtered_elements
-        List of filtered elements that match class_
+        List of filtered elements that match _class
 
     """
-    return tuple(filter(lambda x: isinstance(x, class_), elements))
+    return tuple(filter(lambda x: isinstance(x, _class), elements))
 
 
 def get_init_order(

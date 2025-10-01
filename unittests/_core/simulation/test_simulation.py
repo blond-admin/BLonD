@@ -52,7 +52,7 @@ class TestSimulation(unittest.TestCase):
         )
         drift1.transition_gamma = 55.759505
 
-        beam1 = Beam(n_particles=1e9, particle_type=proton)
+        beam1 = Beam(intensity=1e9, particle_type=proton)
         beam1.setup_beam(
             dt=np.linspace(1, 10, 10),
             dE=np.linspace(11, 20, 10),

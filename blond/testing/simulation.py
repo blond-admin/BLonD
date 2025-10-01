@@ -40,7 +40,7 @@ class ExampleSimulation01:
         )
         drift1.transition_gamma = 55.759505
 
-        beam1 = Beam(n_particles=1e9, particle_type=proton)
+        beam1 = Beam(intensity=1e9, particle_type=proton)
         self.beam1 = beam1
 
         simulation = Simulation.from_locals(locals())
@@ -62,7 +62,7 @@ class ExampleSimulation01:
             each_turn_i=1, cavity=cavity1
         )
 
-        # bunch_observation = BunchObservation(each_turn_i=10, batch_size=) # todo
+        # bunch_observation = BunchObservation(each_turn_i=10, batch_size=)
         # batches
         def my_callback(simulation: Simulation, beam: Beam):
             if simulation.turn_i.value % 10 != 0:
@@ -147,7 +147,7 @@ class SimulationTwoRfStations:
         )
         drift2.transition_gamma = 55.759505
         beam1 = Beam(
-            n_particles=1e9,
+            intensity=1e9,
             particle_type=proton,
         )
 

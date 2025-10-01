@@ -50,7 +50,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
         # Gaussian beam profile
         # TODO self.beam = Beam( N_m)
-        self.beam = Beam(n_particles=N_b, particle_type=proton)
+        self.beam = Beam(intensity=N_b, particle_type=proton)
         sigma = 1.0e-9
         # bigaussian(self.ring, self.cavity, self.beam, sigma, seed=1234, reinsertion=False)
         Simulation(ring=self.ring, magnetic_cycle=self.magnetic_cycle)

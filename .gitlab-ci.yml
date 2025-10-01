@@ -66,6 +66,17 @@ variables:
     # reports:
     #   junit: ${project_root}/coverage-report.xml
 
+precommit-check:
+  image: python:3.12
+  stage: test
+  before_script:
+    - pip install pre-commit
+  script:
+    - pre-commit run --all-files
+  cache:
+    key: pre-commit-cache
+    paths:
+      - .cache/pre-commit
 
 test_py_310:
   image: gitlab-registry.cern.ch/blond/blond/python310
@@ -122,13 +133,40 @@ release_sdist_310:
       dist/*.tar.gz
 
 
-pages:
+test_documentation_building:
+  image: gitlab-registry.cern.ch/blond/blond/python310
+  before_script:
+    - cd ${project_root}
+    - python3 -m pip install --upgrade pip
+    - python3 -m pip install .[doc]
+  script:
+    - cd ${project_root}
+    - python3 -m sphinx build -b html -W -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=5 --keep-going __doc __doc/_build/html
+
+#pages_blond3:  # adjusted for BLonD3, not active yet
+#  image: gitlab-registry.cern.ch/blond/blond/python310
+#  before_script:
+#    - cd ${project_root}
+#    - mkdir public
+#    - python3 -m pip install --upgrade pip
+#    - python3 -m pip install .[doc]
+#  script:
+#    - cd ${project_root}
+#    - python3 -m sphinx build -b html -W -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=5 --keep-going __doc __doc/_build/html
+#    - cp -r __doc/_build/html/* public/
+#  artifacts:
+#    paths:
+#      - ${project_root}public
+#  only:
+#    - master
+
+pages:  # BLonD2 scripts
   image: gitlab-registry.cern.ch/blond/blond/python310
   script:
     - cd ${project_root}
     - mkdir public
     - python3 -m pip install --upgrade pip
-    - python3 -m pip install -v ${project_root}[doc]
+    - python3 -m pip install .[doc]
     - export PATH=$HOME/.local/bin:$PATH && make -C __doc html
     - cp -r __doc/_build/html/* public/
   artifacts:

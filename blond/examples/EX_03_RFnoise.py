@@ -52,7 +52,7 @@ def main():
         reference_particle=proton,
     )
     beam = Beam(
-        n_particles=1.0e9,
+        intensity=1.0e9,
         particle_type=proton,
     )
     profile = DynamicProfileConstNBins(n_bins=100)

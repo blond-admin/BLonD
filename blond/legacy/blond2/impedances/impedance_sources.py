@@ -378,7 +378,7 @@ class Resonators(_ImpedanceObject):
                 )
             )
 
-    def imped_calc(self, frequency_array: NDArray) -> None:
+    def imped_calc(self, frequency_array: NDArray):
         r"""Impedance calculation method as a function of frequency
 
         Parameters

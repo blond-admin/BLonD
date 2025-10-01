@@ -22,6 +22,7 @@ import scipy
 from packaging.version import Version
 from scipy.constants import c
 
+from ..beam.beam import Particle, Proton
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
 from .rf_parameters_options import RFStationOptions
@@ -32,7 +33,9 @@ else:
     from scipy.integrate import cumtrapz
 
 if TYPE_CHECKING:
-    from typing import Literal, Optional
+    from typing import Iterable, Literal, Optional
+
+    from numpy.typing import NDArray
 
     from ..beam.beam import Beam, Particle, Proton
     from ..utils.types import DeviceType
@@ -491,6 +494,60 @@ class RFStation:
                 eta_i = getattr(self, "eta_" + str(i))[counter]
                 eta += eta_i * (delta**i)
             return eta
+
+    def compute_voltage_waveform(
+        self,
+        time_array: Iterable[float],
+        turn_number: Optional[int] = None,
+        design: bool = False,
+    ) -> NDArray:
+        """
+        Convenience function to compute the voltage waveform provided by
+        this RFStation at the current turn (if turn_number is None) or
+        at the turn specified by turn_number.
+
+        Parameters
+        ----------
+        time_array : Iterable[float]
+            The array of time values at which to compute the voltage
+        turn_number : Union[int, None], optional
+            The turn number at which to compute the voltage.
+            The default is None.
+            If None, the present value of self.counter is used.
+        design : bool, optional
+            Flag to force using the design value (ignore the influence
+                                                  of feedbacks)
+            The default is False.
+            If True, the design value is used, if False the actual
+            value is used.
+
+        Returns
+        -------
+        NDArray
+            2D numpy array of [time, voltage].
+        """
+
+        # TODO:  Some equivalent including local feedbacks needed
+
+        turn_number = self.counter[0] if turn_number is None else turn_number
+
+        waveform = np.array([time_array, np.zeros_like(time_array)])
+
+        volts = self.voltage[:, turn_number]
+        if design:
+            phases = self.phi_rf_d[:, turn_number]
+            omegas = self.omega_rf_d[:, turn_number]
+        else:
+            phases = self.phi_rf[:, turn_number]
+            omegas = self.omega_rf[:, turn_number]
+
+        volts = bm.rf_volt_comp(volts, omegas, phases, time_array)
+        if hasattr(self, "_device") and self._device == "GPU":
+            volts = volts.get()
+
+        waveform[1] = volts
+
+        return waveform
 
     def to_gpu(self, recursive=True):
         """
