@@ -118,7 +118,7 @@ pages:
     - mkdir public
     - python3 -m pip install --upgrade pip
     - python3 -m pip install -e .[doc]
-    - python -m sphinx-build -b html -c . -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=5 __doc __doc/_build/html
+    - python3 -m sphinx-build -b html -c . -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=5 __doc __doc/_build/html
     - cp -r __doc/_build/html/* public/
   artifacts:
     paths:
