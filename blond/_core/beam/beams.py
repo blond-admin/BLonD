@@ -127,6 +127,9 @@ class Beam(BeamBaseClass):
             turn_i_init=turn_i_init,
         )
 
+    def histogram(self, **kwargs):
+        return np.histogram(self._dt, **kwargs)[0]
+
     @property
     def ratio(self) -> float:
         """Ratio of the intensity vs. the sum of weights"""
@@ -219,6 +222,7 @@ class ProbeBeam(Beam):
         dE: Optional[NumpyArray] = None,
         reference_time: Optional[float] = None,
         reference_total_energy: Optional[float] = None,
+        intensity: int = 0,
     ) -> None:
         """
         Test Bunch without intensity effects
@@ -233,7 +237,7 @@ class ProbeBeam(Beam):
             Macro-particle energy coordinates, in [eV]
         """
         super().__init__(
-            intensity=0,
+            intensity=intensity,
             particle_type=particle_type,
         )
         if dt is not None:

@@ -1,7 +1,12 @@
 from matplotlib import pyplot as plt
 
-from blond import MultiHarmonicCavity
+from blond import MultiHarmonicCavity, WakeField
 from blond._core.backends.backend import backend
+from blond.physics.impedances.solvers import (
+    TimeDomainFftSolver,
+)
+from blond.physics.impedances.sources import Resonators
+from blond.physics.profiles import ProfileBaseClass, StaticProfile
 
 
 class ExampleSimulation01:
@@ -149,6 +154,112 @@ class SimulationTwoRfStations:
         beam1 = Beam(
             intensity=1e9,
             particle_type=proton,
+        )
+
+        simulation = Simulation.from_locals(locals())
+
+        self.simulation = simulation
+        self.beam1 = beam1
+
+
+class SimulationTwoRfStationsWithWake:
+    def __init__(self):
+        import numpy as np
+
+        from blond import (
+            Beam,
+            DriftSimple,
+            Ring,
+            Simulation,
+            SingleHarmonicCavity,
+            proton,
+        )
+        from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
+
+        circumference = 26658.883
+        ring = Ring(circumference=circumference)
+
+        cavity1 = MultiHarmonicCavity(
+            section_index=0, n_harmonics=1, main_harmonic_idx=0
+        )
+        cavity1.harmonic = np.array(
+            [
+                35640.0,
+            ],
+            dtype=backend.float,
+        )
+        cavity1.voltage = np.array(
+            [
+                6e6,
+            ],
+            dtype=backend.float,
+        )
+        cavity1.phi_rf = np.array(
+            [
+                0.0,
+            ],
+            dtype=backend.float,
+        )
+
+        cavity2 = SingleHarmonicCavity(
+            section_index=1,
+        )
+        cavity2.harmonic = backend.float(35640)
+        cavity2.voltage = backend.float(6e6)
+        cavity2.phi_rf = backend.float(0)
+
+        N_TURNS = int(1e6)
+        energy_cycle = MagneticCyclePerTurn(
+            value_init=450e9,
+            values_after_turn=np.linspace(
+                450e9,
+                450e9,
+                N_TURNS,
+            ),
+            reference_particle=proton,
+        )
+
+        drift1 = DriftSimple(
+            orbit_length=0.5 * circumference,
+            section_index=0,
+        )
+        drift1.transition_gamma = 55.759505
+        drift2 = DriftSimple(
+            orbit_length=0.5 * circumference,
+            section_index=1,
+        )
+        drift2.transition_gamma = 55.759505
+        beam1 = Beam(
+            intensity=1e9,
+            particle_type=proton,
+        )
+        t_rev = energy_cycle.get_t_rev_init(
+            circumference=ring.circumference,
+            turn_i_init=0,
+            t_init=0,
+            particle_type=beam1.particle_type,
+        )
+
+        wakefield = WakeField(
+            sources=(
+                Resonators(
+                    shunt_impedances=[
+                        512e6,
+                    ],
+                    center_frequencies=[
+                        10 * 400e6,
+                    ],
+                    quality_factors=[
+                        512,
+                    ],
+                ),
+            ),
+            solver=TimeDomainFftSolver(),
+            profile=StaticProfile(
+                cut_left=0,
+                cut_right=t_rev / 36540,
+                n_bins=512,
+            ),
         )
 
         simulation = Simulation.from_locals(locals())

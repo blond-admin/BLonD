@@ -17,6 +17,15 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
         from blond.testing.simulation import SimulationTwoRfStations
 
         sim = SimulationTwoRfStations()
+        self._test_matching(sim)
+
+    def test_something2(self):
+        from blond.testing.simulation import SimulationTwoRfStationsWithWake
+
+        sim = SimulationTwoRfStationsWithWake()
+        self._test_matching(sim)
+
+    def _test_matching(self, sim):
         simulation = sim.simulation
         beam = sim.beam1
         ts = (
@@ -36,18 +45,16 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
             particle_type=beam.particle_type,
         )
         plt.show()
-
         sim.simulation.prepare_beam(
             beam=sim.beam1,
             preparation_routine=SemiEmpiricMatcher(
                 t_lim=(ts.min(), ts.max()),
                 h_max=50,
                 n_macroparticles=1e6,
-                internal_grid_shape=(511, 1023),
+                internal_grid_shape=(2048 - 1, 2048 - 1),
                 density_modifier=5,
             ),
         )
-
         sim.beam1.plot_hist2d()
 
         def custom_action(

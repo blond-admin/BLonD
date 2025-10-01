@@ -3,7 +3,9 @@ from __future__ import annotations
 from typing import Callable  # NOQA
 from typing import TYPE_CHECKING
 
-from blond import backend
+import matplotlib.pyplot as plt
+
+from blond import WakeField, backend
 from blond.beam_preparation.base import MatchingRoutine
 
 from ..._core.helpers import int_from_float_with_warning
@@ -133,7 +135,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         density_modifier: float
         | Callable[[NumpyArray | CupyArray], NumpyArray | CupyArray] = 1,
         internal_grid_shape: Tuple[int, int] = (1023, 1023),
-        maxiter_intensity_effects=10,
+        maxiter_intensity_effects=1000,
         seed: int = 0,
     ):
         """
@@ -193,12 +195,20 @@ class SemiEmpiricMatcher(MatchingRoutine):
         self._match_beam(beam, simulation, ts)
 
         # iterate solution with intensity effects
+        intensity_org = beam.intensity
         if simulation.intensity_effect_manager.has_wakefields():
             for i in range(self._maxiter_intensity_effects):
+                if i < 100:
+                    scalar = i / 100  # t
+                else:
+                    scalar = 1
+                beam.intensity = scalar * intensity_org
+
                 # run simulation with beam to collect the actual profiles
                 # that cause the wake-fields
                 simulation.intensity_effect_manager.set_wakefields(active=True)
                 simulation.intensity_effect_manager.set_profiles(active=True)
+
                 simulation.run_simulation(
                     beams=(beam,),
                     n_turns=1,
@@ -211,10 +221,23 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 # inside `_match_beam` experiences the forces from the
                 # previously run with the full beam
                 self._match_beam(beam, simulation, ts)
+                plt.figure(264542)
+                plt.cla()
+                plt.title(f"{i=}")
+
+                a = beam.histogram(
+                    bins=self._internal_grid_shape[0], range=self.t_lim
+                )
+                plt.plot(a)
+                plt.draw()
+                plt.pause(0.1)
+
+            simulation.intensity_effect_manager.set_wakefields(active=True)
+            simulation.intensity_effect_manager.set_profiles(active=True)
 
     def _match_beam(self, beam, simulation, ts):
         potential_well = simulation.get_potential_well_empiric(
-            ts=ts, particle_type=beam.particle_type
+            ts=ts, particle_type=beam.particle_type, intensity=beam.intensity
         )
         deltaE_grid, time_grid, hamilton_2D = get_hamiltonian_semi_analytic(
             ts=ts,
@@ -242,3 +265,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
             seed=self._seed,
             normalize_density=True,
         )
+        plt.figure(1234)
+        plt.clf()
+        plt.matshow(density.T, fignum=1234)
+        plt.draw()
+        plt.pause(0.1)

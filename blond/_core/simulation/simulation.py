@@ -179,6 +179,7 @@ class Simulation(Preparable, HasPropertyCache):
         ts: NumpyArray,
         particle_type: ParticleType,
         subtract_min: bool = True,
+        intensity: int = 0,
     ) -> NumpyArray:
         """
         Obtain the potential well by tracking a beam one turn
@@ -213,8 +214,7 @@ class Simulation(Preparable, HasPropertyCache):
         from ..._core.beam.beams import ProbeBeam
 
         probe_bunch = ProbeBeam(
-            dt=ts,
-            particle_type=particle_type,
+            dt=ts, particle_type=particle_type, intensity=intensity
         )
         t_0 = probe_bunch.reference_time
         self.run_simulation(

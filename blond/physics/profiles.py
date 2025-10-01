@@ -5,6 +5,7 @@ from abc import abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from .._core.backends.backend import backend
@@ -79,6 +80,9 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         assert self._hist_x is not None
         assert self._hist_y is not None
         self.invalidate_cache()
+
+    def plot(self, **kwargs_plot: Dict[str, Any]):
+        plt.plot(self.hist_x, self.hist_y, **kwargs_plot)
 
     @property  # as readonly attributes
     def hist_x(self) -> NumpyArray | CupyArray:

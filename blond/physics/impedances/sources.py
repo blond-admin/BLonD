@@ -168,9 +168,9 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
 class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
     def __init__(
         self,
-        shunt_impedances: NumpyArray,
-        center_frequencies: NumpyArray,
-        quality_factors: NumpyArray,
+        shunt_impedances: NumpyArray | ArrayLike,
+        center_frequencies: NumpyArray | ArrayLike,
+        quality_factors: NumpyArray | ArrayLike,
     ):
         """
         Multiple resonances of RLC circuits for impedance calculations.
@@ -196,9 +196,9 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         assert len(shunt_impedances) == len(quality_factors), (
             f"{len(shunt_impedances)} != {len(quality_factors)}"
         )
-        self._shunt_impedances = shunt_impedances
-        self._center_frequencies = center_frequencies
-        self._quality_factors = quality_factors
+        self._shunt_impedances = np.array(shunt_impedances)
+        self._center_frequencies = np.array(center_frequencies)
+        self._quality_factors = np.array(quality_factors)
 
         # Test if one or more quality factors is smaller than 0.5.
         if np.sum(self._quality_factors < 0.5) > 0:

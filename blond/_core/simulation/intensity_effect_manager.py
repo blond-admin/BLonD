@@ -56,3 +56,9 @@ class IntensityEffectManager:
         )
         for profile in profiles:
             profile.active = active
+
+        wakefields = self._parent_simulation.ring.elements.get_elements(
+            WakeField
+        )
+        for wakefield in wakefields:
+            wakefield.profile.active = active
