@@ -243,7 +243,7 @@ class TestResonators(unittest.TestCase):
                 (1.902597177481868 + 0.33642772231686235j),
             ]
         )
-        DEV_DEBBUG = True
+        DEV_DEBBUG = False
         if DEV_DEBBUG:
             plt.plot(freq_x, np.abs(freq_y))
             plt.show()
@@ -252,6 +252,115 @@ class TestResonators(unittest.TestCase):
         # It should just allow to change internals of `get_impedance`
         # and guarantee that the result did not change
         np.testing.assert_allclose(freq_y, pinned_freq_y)
+
+    def test_get_impedance(self):
+        simulation = Mock(Simulation)
+        beam = Mock(BeamBaseClass)
+        min_freq, max_freq, num = 0, 4e9, 801
+        freq_x = np.linspace(min_freq, max_freq, num)
+        freq_y = self.resonators.get_impedance(
+            freq_x=freq_x, simulation=simulation, beam=beam
+        )
+        DEV_DEBBUG = False
+        if DEV_DEBBUG:
+            plt.plot(freq_x, np.abs(freq_y))
+            plt.show()
+        assert np.allclose(
+            self.resonators._center_frequencies,
+            freq_x[find_peaks(freq_y)[0]],
+            atol=(max_freq - min_freq) / num / 2,
+        )  # closeness of peaks to centre frequency
+        for freq_ind in range(
+            0, len(self.resonators._shunt_impedances)
+        ):  # has to be single resonator, otherwise overlaps will occur
+            local_res = Resonators(
+                shunt_impedances=np.array(
+                    [self.resonators._shunt_impedances[freq_ind]]
+                ),
+                center_frequencies=np.array(
+                    [self.resonators._center_frequencies[freq_ind]]
+                ),
+                quality_factors=np.array(
+                    [self.resonators._quality_factors[freq_ind]]
+                ),
+            )
+            freq_y = local_res.get_impedance(
+                freq_x=freq_x, simulation=simulation, beam=beam
+            )
+            assert np.allclose(
+                self.resonators._shunt_impedances[freq_ind],
+                np.abs(freq_y[find_peaks(freq_y)[0]]),
+            )
+            assert np.isclose(
+                self.resonators._shunt_impedances[freq_ind]
+                / (1 - 1.5j * self.resonators._quality_factors[freq_ind]),
+                freq_y[
+                    np.abs(
+                        freq_x
+                        - self.resonators._center_frequencies[freq_ind] / 2
+                    ).argmin()
+                ],
+            )
+
+    def test_get_wake(self):
+        freq, q_factor, shut_imp = (
+            self.resonators._center_frequencies[0],
+            1e10,
+            self.resonators._shunt_impedances[0],
+        )
+        res = Resonators(
+            shunt_impedances=np.array([shut_imp]),
+            center_frequencies=np.array([freq]),
+            quality_factors=np.array([q_factor]),
+        )  # high Q to avoid smearing of frequency --> minimum getting
+        time = np.linspace(-1e-9, 1.5e-9, 751)
+
+        wake_potential = res.get_wake(time=time)
+        assert wake_potential.shape == time.shape
+
+        # check value at 0-time
+        assert np.isclose(
+            wake_potential[np.abs(time).argmin()],
+            0.5 * np.max(wake_potential),
+            rtol=1e-2,
+        )
+        # maximum point will only be true maximum with infinite points, hence high rtol
+
+        # check maximum value
+        assert np.isclose(
+            wake_potential[wake_potential.argmax()],
+            2 * 2 * pi * freq * shut_imp / (2 * q_factor),
+            rtol=1e-4,
+        )  # *2 from heaviside
+
+        # check periodicity
+        t_min = 1 / res._center_frequencies[0]
+        assert np.isclose(time[wake_potential.argmin()], t_min / 2)
+
+        DEV_DEBBUG = False
+        if DEV_DEBBUG:
+            with plt.rc_context({"font.size": 22}):
+                plt.plot(time * 1e9, wake_potential, linewidth=3)
+                plt.xlabel("time [ns]")
+                plt.ylabel("Wake kernel [V/pC]")
+                plt.tight_layout()
+                # plt.savefig("")
+                plt.show()
+
+    def test_get_wake_impedance(self):
+        simulation = Mock(Simulation)
+        beam = Mock(BeamBaseClass)
+        time = np.linspace(-1e-9, 1e-9, int(1e3))
+        wake_imp = self.resonators.get_wake_impedance(
+            time=time, simulation=simulation, beam=beam, n_fft=len(time)
+        )
+        wake_freq = self.resonators.get_wake_impedance_freq(time=time)
+        DEV_DEBBUG = False
+        if DEV_DEBBUG:
+            plt.plot(wake_freq, np.abs(wake_imp))
+            plt.xlim(0, 1.5e9)
+            plt.show()
+        # TODO PIN VALUE!
 
 
 class TestTravelingWaveCavity(unittest.TestCase):
@@ -306,112 +415,3 @@ class TestTravelingWaveCavity(unittest.TestCase):
         )
         impedance_pinned = impedance_pinned[:, 0] + 1j * impedance_pinned[:, 1]
         np.testing.assert_allclose(impedance, impedance_pinned)
-
-    def test_get_wake(self):
-        freq, q_factor, shut_imp = (
-            self.resonators._center_frequencies[0],
-            1e10,
-            self.resonators._shunt_impedances[0],
-        )
-        res = Resonators(
-            shunt_impedances=np.array([shut_imp]),
-            center_frequencies=np.array([freq]),
-            quality_factors=np.array([q_factor]),
-        )  # high Q to avoid smearing of frequency --> minimum getting
-        time = np.linspace(-1e-9, 1.5e-9, 751)
-
-        wake_potential = res.get_wake(time=time)
-        assert wake_potential.shape == time.shape
-
-        # check value at 0-time
-        assert np.isclose(
-            wake_potential[np.abs(time).argmin()],
-            0.5 * np.max(wake_potential),
-            rtol=1e-2,
-        )
-        # maximum point will only be true maximum with infinite points, hence high rtol
-
-        # check maximum value
-        assert np.isclose(
-            wake_potential[wake_potential.argmax()],
-            2 * 2 * pi * freq * shut_imp / (2 * q_factor),
-            rtol=1e-4,
-        )  # *2 from heaviside
-
-        # check periodicity
-        t_min = 1 / res._center_frequencies[0]
-        assert np.isclose(time[wake_potential.argmin()], t_min / 2)
-
-        DEV_DEBBUG = False
-        if DEV_DEBBUG:
-            with plt.rc_context({"font.size": 22}):
-                plt.plot(time * 1e9, wake_potential, linewidth=3)
-                plt.xlabel("time [ns]")
-                plt.ylabel("Wake kernel [V/pC]")
-                plt.tight_layout()
-                # plt.savefig("")
-                plt.show()
-
-    def test_get_impedance(self):
-        simulation = Mock(Simulation)
-        beam = Mock(BeamBaseClass)
-        min_freq, max_freq, num = 0, 4e9, 801
-        freq_x = np.linspace(min_freq, max_freq, num)
-        freq_y = self.resonators.get_impedance(
-            freq_x=freq_x, simulation=simulation, beam=beam
-        )
-        DEV_DEBBUG = False
-        if DEV_DEBBUG:
-            plt.plot(freq_x, np.abs(freq_y))
-            plt.show()
-        assert np.allclose(
-            self.resonators._center_frequencies,
-            freq_x[find_peaks(freq_y)[0]],
-            atol=(max_freq - min_freq) / num / 2,
-        )  # closeness of peaks to centre frequency
-        for freq_ind in range(
-            0, len(self.resonators._shunt_impedances)
-        ):  # has to be single resonator, otherwise overlaps will occur
-            local_res = Resonators(
-                shunt_impedances=np.array(
-                    [self.resonators._shunt_impedances[freq_ind]]
-                ),
-                center_frequencies=np.array(
-                    [self.resonators._center_frequencies[freq_ind]]
-                ),
-                quality_factors=np.array(
-                    [self.resonators._quality_factors[freq_ind]]
-                ),
-            )
-            freq_y = local_res.get_impedance(
-                freq_x=freq_x, simulation=simulation, beam=beam
-            )
-            assert np.allclose(
-                self.resonators._shunt_impedances[freq_ind],
-                np.abs(freq_y[find_peaks(freq_y)[0]]),
-            )
-            assert np.isclose(
-                self.resonators._shunt_impedances[freq_ind]
-                / (1 - 1.5j * self.resonators._quality_factors[freq_ind]),
-                freq_y[
-                    np.abs(
-                        freq_x
-                        - self.resonators._center_frequencies[freq_ind] / 2
-                    ).argmin()
-                ],
-            )
-
-    def test_get_wake_impedance(self):
-        simulation = Mock(Simulation)
-        beam = Mock(BeamBaseClass)
-        time = np.linspace(-1e-9, 1e-9, int(1e3))
-        wake_imp = self.resonators.get_wake_impedance(
-            time=time, simulation=simulation, beam=beam, n_fft=len(time)
-        )
-        wake_freq = self.resonators.get_wake_impedance_freq(time=time)
-        DEV_DEBBUG = False
-        if DEV_DEBBUG:
-            plt.plot(wake_freq, np.abs(wake_imp))
-            plt.xlim(0, 1.5e9)
-            plt.show()
-        # TODO PIN VALUE!

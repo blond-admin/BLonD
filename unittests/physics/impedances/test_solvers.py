@@ -118,6 +118,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         beam.intensity = int(11e3)
         beam.n_macroparticles_partial.return_value = int(3e6)
         beam.particle_type.charge = 1
+        beam.ratio = 1
         induced_voltage = self.periodic_freq_solver.calc_induced_voltage(
             beam=beam,
         )  # TODO Pin Physics case here!
