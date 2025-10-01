@@ -40,9 +40,11 @@ BLOCKED = ["cupy", "cupyx"]
 # The blocking is necessary in case the gitlab runner has cupy installed, which adds
 # no benefit to the building of the documentation but will instead crash it.
 
+
 class _BlockLoader(importlib.abc.Loader):
     def exec_module(self, module):
         raise ImportError(f"Mocked missing module: {module.__name__}")
+
 
 class _BlockFinder(importlib.abc.MetaPathFinder):
     def find_spec(self, fullname, path, target=None):
@@ -51,41 +53,45 @@ class _BlockFinder(importlib.abc.MetaPathFinder):
                 return importlib.machinery.ModuleSpec(fullname, _BlockLoader())
         return None  # let normal importers handle others
 
+
 # Ensure it runs before normal importers
 sys.meta_path.insert(0, _BlockFinder())
 
-    
-folder = os.path.abspath('../')
-sys.path.insert(0,folder)
-extensions = ['sphinx.ext.autodoc',
-     'sphinx.ext.autosummary',
-#    'sphinx.ext.doctest',
-#    'sphinx.ext.intersphinx',
-#    'sphinx.ext.todo',
-#    'sphinx.ext.coverage',
-    'sphinx.ext.mathjax',
-#    'sphinx.ext.viewcode',
-#    'sphinx.ext.githubpages',
+
+folder = os.path.abspath("../")
+sys.path.insert(0, folder)
+extensions = [
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    #    'sphinx.ext.doctest',
+    #    'sphinx.ext.intersphinx',
+    #    'sphinx.ext.todo',
+    #    'sphinx.ext.coverage',
+    "sphinx.ext.mathjax",
+    #    'sphinx.ext.viewcode',
+    #    'sphinx.ext.githubpages',
     # 'sphinxcontrib.napoleon'
-    'sphinx.ext.napoleon']
+    "sphinx.ext.napoleon",
+]
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates"]
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
 #
 # source_suffix = ['.rst', '.md']
-source_suffix = '.rst'
+source_suffix = ".rst"
 
 # The master toctree document.
-master_doc = 'index'
+master_doc = "index"
 
 # General information about the project.
 import datetime
-project = u'BLonD'
-copyright = str(datetime.datetime.now().year)
-author = u'BLonD-admin'
+
+project = "BLonD"
+copyright = "2014 - " + str(datetime.datetime.now().year)
+author = "BLonD-admin"
 
 autodoc_mock_imports = ["mpi4py"]
 # Mocking the module causes blond to try and create the GPU backend
@@ -97,6 +103,7 @@ autodoc_mock_imports = ["mpi4py"]
 #
 # The short X.Y version.
 from importlib.metadata import version as get_version
+
 version = ".".join(get_version("blond").split(".")[:3])
 # The full version, including alpha/beta/rc tags.
 release = get_version("blond")
@@ -106,19 +113,19 @@ release = get_version("blond")
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = 'en'
+language = "en"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
-#exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '_themes']
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+# exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '_themes']
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
+pygments_style = "sphinx"
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
-#todo_include_todos = True
+# todo_include_todos = True
 
 
 # -- Options for HTML output ----------------------------------------------
@@ -126,19 +133,18 @@ pygments_style = 'sphinx'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-#html_theme = 'bizstyle'
-#html_theme = 'pyramid'
-#html_theme = 'haiku'
-#html_theme = 'nature'
-#html_theme = 'traditional'
-#html_theme = 'agogo'
-#html_theme = 'scrolls'
-#html_theme = 'sphinxdoc'
-#html_theme = 'classic'
-#html_theme = 'alabaster'
-
-html_theme = 'sphinx_rtd_theme'
-html_theme_path = ["themes",]
+# html_theme = 'bizstyle'
+# html_theme = 'pyramid'
+# html_theme = 'haiku'
+# html_theme = 'nature'
+# html_theme = 'traditional'
+# html_theme = 'agogo'
+# html_theme = 'scrolls'
+# html_theme = 'sphinxdoc'
+# html_theme = 'classic'
+# html_theme = 'alabaster'
+# html_theme = 'sphinx_rtd_theme'
+# html_theme_path = ["themes",]
 
 # html_theme_options = {
 #     'collapsiblesidebar': True,
@@ -146,9 +152,9 @@ html_theme_path = ["themes",]
 # }
 
 html_theme_options = {
-    'collapse_navigation':False,
-    'sticky_navigation':False,
-    'navigation_depth':3
+    "collapse_navigation": False,
+    "sticky_navigation": False,
+    "navigation_depth": 3,
 }
 
 # Theme options are theme-specific and customize the look and feel of a theme
@@ -166,7 +172,7 @@ html_theme_options = {
 # -- Options for HTMLHelp output ------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'BLonD Documentation'
+htmlhelp_basename = "BLonD Documentation"
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -175,15 +181,12 @@ latex_elements = {
     # The paper size ('letterpaper' or 'a4paper').
     #
     # 'papersize': 'letterpaper',
-
     # The font size ('10pt', '11pt' or '12pt').
     #
     # 'pointsize': '10pt',
-
     # Additional stuff for the LaTeX preamble.
     #
     # 'preamble': '',
-
     # Latex figure (float) alignment
     #
     # 'figure_align': 'htbp',
@@ -193,8 +196,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'BLonD.tex', u'BLonD Documentation',
-     u'Test', 'manual'),
+    (master_doc, "BLonD.tex", "BLonD Documentation", "Test", "manual"),
 ]
 
 
@@ -202,10 +204,7 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [
-    (master_doc, 'blond', u'BLonD Documentation',
-     [author], 1)
-]
+man_pages = [(master_doc, "blond", "BLonD Documentation", [author], 1)]
 
 
 # -- Options for Texinfo output -------------------------------------------
@@ -214,13 +213,19 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'BLonD', u'BLonD Documentation',
-     author, 'BLonD', 'One line description of project.',
-     'Miscellaneous'),
+    (
+        master_doc,
+        "BLonD",
+        "BLonD Documentation",
+        author,
+        "BLonD",
+        "One line description of project.",
+        "Miscellaneous",
+    ),
 ]
 
-html_last_updated_fmt = '%b %d, %Y'
+html_last_updated_fmt = "%b %d, %Y"
 
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/': None}
+intersphinx_mapping = {"https://docs.python.org/": None}

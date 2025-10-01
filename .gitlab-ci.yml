@@ -118,10 +118,10 @@ pages:
     - mkdir public
     - python3 -m pip install --upgrade pip
     - python3 -m pip install -v ${project_root}[doc]
-    - export PATH=$HOME/.local/bin:$PATH && make -C __doc html
+    - sphinx-build -b html -c . -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=5 __doc __doc/_build/html
     - cp -r __doc/_build/html/* public/
   artifacts:
     paths:
       - ${project_root}public
   only:
-    - master
+    - bugfix/CI_documentation
