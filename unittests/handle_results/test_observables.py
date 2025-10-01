@@ -3,8 +3,8 @@ from unittest.mock import Mock
 
 import numpy as np
 
-from blond._core.base import DynamicParameter
 from blond import Simulation, SingleHarmonicCavity, StaticProfile, WakeField
+from blond._core.base import DynamicParameter
 from blond._core.beam.base import BeamBaseClass
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (

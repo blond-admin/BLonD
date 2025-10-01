@@ -3,6 +3,8 @@ class PerformanceWarning(UserWarning):
 
     pass
 
+
 class NotTestedWarning(UserWarning):
     """Warning for not tested code/classes."""
+
     pass

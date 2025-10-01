@@ -9,7 +9,7 @@ from warnings import warn
 from scipy.integrate import cumulative_trapezoid
 from tqdm import tqdm  # type: ignore
 
-from ..._generals._warnings import PerformanceWarning, NotTestedWarning
+from ..._generals._warnings import NotTestedWarning, PerformanceWarning
 from ...cycles.magnetic_cycle import MagneticCycleBase
 from ...physics.drifts import DriftBaseClass
 from ...physics.profiles import ProfileBaseClass

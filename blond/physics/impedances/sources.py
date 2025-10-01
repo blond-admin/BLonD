@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from warnings import warn
 from abc import abstractmethod
 from os import PathLike
 from typing import TYPE_CHECKING, Tuple
+from warnings import warn
 
 import numpy as np
 
-from ..._generals._warnings import NotTestedWarning
 from ... import Simulation
 from ..._core.backends.backend import backend
+from ..._generals._warnings import NotTestedWarning
 from ..impedances.base import (
     AnalyticWakeFieldSource,
     DiscreteWakeFieldSource,

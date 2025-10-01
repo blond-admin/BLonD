@@ -1,22 +1,22 @@
 from __future__ import annotations
 
-from warnings import warn
 from collections import deque
 from typing import TYPE_CHECKING
 from typing import Optional
 from typing import Optional as LateInit
 from typing import Tuple
+from warnings import warn
 
 import numpy as np
 from scipy.constants import elementary_charge as e
 from scipy.fft import next_fast_len
 
-from ..._generals._warnings import NotTestedWarning
 from ..._core.backends.backend import backend
 from ..._core.base import DynamicParameter
 from ..._core.beam.base import BeamBaseClass
 from ..._core.ring.helpers import requires
 from ..._core.simulation.simulation import Simulation
+from ..._generals._warnings import NotTestedWarning
 from ..profiles import (
     DynamicProfileConstCutoff,
     DynamicProfileConstNBins,
