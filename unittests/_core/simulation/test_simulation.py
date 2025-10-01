@@ -69,7 +69,7 @@ class TestSimulation(unittest.TestCase):
             beam=self.beam,
         )
 
-    def test__run_simulation_counterrotating_beam(self):
+    def test__run_simulation_counterrotating_beam_no_int_effects(self):
         beam = Beam(intensity=1e9, particle_type=mu_plus)
         beam.setup_beam(
             dt=np.linspace(-1e-9, 1e-9, 100),
@@ -101,7 +101,7 @@ class TestSimulation(unittest.TestCase):
         for cavity_i in range(n_cavities):
             one_turn_model.extend(
                 [
-                    DriftSimple(  # for symmetry sake for the CR bunch, we need to inject in the middle of a drift
+                    DriftSimple(  # for symmetry's sake for the CR bunch, we need to inject in the middle of a drift
                         transition_gamma=transition_gamma,
                         orbit_length=circumference / n_cavities / 2,
                         section_index=cavity_i,
@@ -135,13 +135,11 @@ class TestSimulation(unittest.TestCase):
             turn_i_init=0,
             observe=(bunch_observation, bunch_observation_CR),
         )
-        print("asdfl;kasjdfl;sdjf;asldfjal;dfjk")
-        assert np.allclose(
-            bunch_observation.mean_dE, bunch_observation_CR.mean_dE
-        )
-        assert np.allclose(
-            bunch_observation.mean_dt, bunch_observation_CR.mean_dt
-        )
+        for member in ["mean_dE", "mean_dt", "sigma_dE", "sigma_dt"]:
+            assert np.allclose(
+                getattr(bunch_observation, member),
+                getattr(bunch_observation_CR, member),
+            )
 
     def test__run_simulation_single_beam(self):
         observe = Mock(spec=Observables)
