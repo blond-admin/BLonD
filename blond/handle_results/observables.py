@@ -694,6 +694,13 @@ class StaticProfileObservation(Observables):
 
         """
         if simulation.section_i.current_group in self._index_list:
+            if (
+                self._last_turn_i_observed == simulation.turn_i.value
+                and self._last_section_i_observed == simulation.section_i
+            ):
+                return
+            self._last_turn_i_observed = simulation.turn_i.value
+            self._last_section_i_observed = simulation.section_i
             self._hist_y.write(
                 self._profile._hist_y,
             )
@@ -749,6 +756,13 @@ class StaticMultiProfileObservation(Observables):
         self,
         simulation: Simulation,
     ) -> None:
+        if (
+            self._last_turn_i_observed == simulation.turn_i.value
+            and self._last_section_i_observed == simulation.section_i
+        ):
+            return
+        self._last_turn_i_observed = simulation.turn_i.value
+        self._last_section_i_observed = simulation.section_i
         for prof in self._profiles:
             if simulation.section_i.current_group == prof.section_index:
                 self._hist_y.write(prof.hist_y)
