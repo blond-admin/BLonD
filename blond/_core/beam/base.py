@@ -32,7 +32,7 @@ class BeamFlags(int, Enum):
 class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     def __init__(
         self,
-        n_particles: int | float,
+        intensity: int | float,
         particle_type: ParticleType,
         is_counter_rotating: bool = False,
         is_distributed: bool = False,
@@ -41,7 +41,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
         Parameters
         ----------
-        n_particles
+        intensity
             Actual/real number of particles
             a.k.a. beam intensity
         particle_type
@@ -54,7 +54,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         super().__init__()
 
         self.intensity = int_from_float_with_warning(
-            n_particles, warning_stacklevel=2
+            intensity, warning_stacklevel=2
         )
         self._is_distributed = is_distributed
         self._particle_type = particle_type

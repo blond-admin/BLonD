@@ -152,7 +152,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
         # Gaussian beam profile
         self.beam = Beam(
-            n_particles=N_b,
+            intensity=N_b,
             particle_type=proton,
         )
 
@@ -765,7 +765,7 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         sim = Simulation(ring=self.ring, magnetic_cycle=self.magnetic_cycle)
 
         # Beam
-        self.beam = Beam(n_particles=N_b, particle_type=proton)
+        self.beam = Beam(intensity=N_b, particle_type=proton)
         self.beam.setup_beam(
             dt=np.zeros(N_m),
             dE=np.zeros(N_m),
@@ -1099,7 +1099,7 @@ class TestSPSTransmitterGain(unittest.TestCase):
             in_unit="momentum",
         )
         self.beam = Beam(
-            n_particles=1.0e11,
+            intensity=1.0e11,
             particle_type=proton,
         )
         sim = Simulation(

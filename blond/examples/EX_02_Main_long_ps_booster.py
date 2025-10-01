@@ -76,7 +76,7 @@ def main():
     )
     drift.transition_gamma = 4.4
     beam1 = Beam(
-        n_particles=1e11,
+        intensity=1e11,
         particle_type=proton,
     )
     profile1 = StaticProfile(

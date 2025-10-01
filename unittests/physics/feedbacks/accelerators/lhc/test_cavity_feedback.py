@@ -57,7 +57,7 @@ class TestLHCOpenDrive(unittest.TestCase):
         )
         # beam = Beam(ring, N_p, N_b)
         beam = Beam(
-            n_particles=N_b,
+            intensity=N_b,
             particle_type=proton,
         )
         # self.profile = Profile(beam)

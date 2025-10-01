@@ -12,7 +12,7 @@ from blond._core.beam.beams import ProbeBeam
 class TestBeam(unittest.TestCase):
     def setUp(self) -> None:
         self.beam = Beam(
-            n_particles=1e12, particle_type=proton, is_counter_rotating=False
+            intensity=1e12, particle_type=proton, is_counter_rotating=False
         )
         self.beam.setup_beam(
             dE=np.linspace(1, 10, 10), dt=np.linspace(20, 30, 10)

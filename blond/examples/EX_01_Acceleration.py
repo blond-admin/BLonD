@@ -42,7 +42,7 @@ def main():
     )
     drift1.transition_gamma = 55.759505
     beam1 = Beam(
-        n_particles=1e9,
+        intensity=1e9,
         particle_type=proton,
     )
 

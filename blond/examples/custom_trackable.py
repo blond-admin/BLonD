@@ -33,7 +33,7 @@ def main():
         ),
     )
     beam = Beam(
-        n_particles=1e9,
+        intensity=1e9,
         particle_type=proton,
     )
     beam.setup_beam(

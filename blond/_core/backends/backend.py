@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
+    from types import ModuleType
     from typing import TYPE_CHECKING, Any, Callable, Literal, Type, Union
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -188,10 +189,10 @@ class BackendBaseClass(ABC):
         self.zeros: Callable = None  # type: ignore
         self.ones: Callable = None  # type: ignore
         self.zeros_like: Callable = None  # type: ignore
-        self.fft = None  # type: ignore
-        self.random = None  # type: ignore
-        self.isnan = None  # type: ignore
-        self.sum = None  # type: ignore
+        self.fft: ModuleType = None  # type: ignore
+        self.random: ModuleType = None  # type: ignore
+        self.isnan: Callable = None  # type: ignore
+        self.sum: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():

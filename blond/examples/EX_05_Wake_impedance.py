@@ -53,7 +53,7 @@ def main():
 
     resonator_data = np.loadtxt(
         callers_relative_path(
-            "resources/EX_05_new_HQ_table.dat",
+            "resources/EX_05_new_HQ_table.txt",
             stacklevel=1,
         ),
         comments="!",
@@ -83,7 +83,7 @@ def main():
             phi_rf=0.0,
         )
         beam = Beam(
-            n_particles=1e10,
+            intensity=1e10,
             particle_type=proton,
         )
         drift = DriftSimple(

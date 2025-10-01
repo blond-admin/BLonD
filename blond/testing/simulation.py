@@ -40,7 +40,7 @@ class ExampleSimulation01:
         )
         drift1.transition_gamma = 55.759505
 
-        beam1 = Beam(n_particles=1e9, particle_type=proton)
+        beam1 = Beam(intensity=1e9, particle_type=proton)
         self.beam1 = beam1
 
         simulation = Simulation.from_locals(locals())
@@ -147,7 +147,7 @@ class SimulationTwoRfStations:
         )
         drift2.transition_gamma = 55.759505
         beam1 = Beam(
-            n_particles=1e9,
+            intensity=1e9,
             particle_type=proton,
         )
 

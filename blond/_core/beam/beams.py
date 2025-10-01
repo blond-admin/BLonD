@@ -23,15 +23,16 @@ if TYPE_CHECKING:  # pragma: no cover
 class Beam(BeamBaseClass):
     def __init__(
         self,
-        n_particles: int | float,
+        intensity: int | float,
         particle_type: ParticleType,
         is_counter_rotating: bool = False,
     ) -> None:
-        """Base class to host particle coordinates and timing information
+        """
+        Base class to host particle coordinates and timing information
 
         Parameters
         ----------
-        n_particles
+        intensity
             Actual/real number of particles
             a.k.a. beam intensity
         particle_type
@@ -40,9 +41,10 @@ class Beam(BeamBaseClass):
             If this is a normal or counter-rotating beam
         """
         super().__init__(
-            n_particles=n_particles,
+            intensity=intensity,
             particle_type=particle_type,
             is_counter_rotating=is_counter_rotating,
+            is_distributed=False,
         )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -77,10 +79,10 @@ class Beam(BeamBaseClass):
             Time of the reference frame (global total energy), in [eV]
         """
         assert len(dt) == len(dE), f"{len(dt)} != {len(dE)}"
-        n_particles = len(dt)
+        n_macroparticles = len(dt)
         if flags is None:
             flags = backend.int(BeamFlags.ACTIVE.value) * backend.ones(
-                n_particles, dtype=backend.int
+                n_macroparticles, dtype=backend.int
             )
         else:
             assert flags.max() <= BeamFlags.ACTIVE.value
@@ -134,25 +136,25 @@ class Beam(BeamBaseClass):
         return self.intensity / self.common_array_size
 
     @cached_property
-    def dt_min(self) -> backend.float:
+    def dt_min(self) -> np.int32 | np.int64:
         """Minimum dt coordinate, in [s]"""
 
         return self._dt.min()
 
     @cached_property
-    def dt_max(self) -> backend.float:
+    def dt_max(self) -> np.int32 | np.int64:
         """Maximum dt coordinate, in [s]"""
 
         return self._dt.max()
 
     @cached_property
-    def dE_min(self) -> backend.float:
+    def dE_min(self) -> np.int32 | np.int64:
         """Minimum dE coordinate, in [eV]"""
 
         return self._dE.min()
 
     @cached_property
-    def dE_max(self) -> backend.float:
+    def dE_max(self) -> np.int32 | np.int64:
         """Maximum dE coordinate, in [eV]"""
 
         return self._dE.max()
@@ -200,7 +202,7 @@ class ProbeBeam(Beam):
             Macro-particle energy coordinates, in [eV]
         """
         super().__init__(
-            n_particles=0,
+            intensity=0,
             particle_type=particle_type,
         )
         if dt is not None:
