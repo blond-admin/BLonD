@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond._core.backends.backend import Specials, backend
+from ...._core.backends.backend import Specials, backend
 
 if TYPE_CHECKING:  # pragma: no cover
     from ctypes import CDLL
@@ -139,8 +139,16 @@ def load_libblond(precision: str = "single") -> CDLL:
     @param precision: The floating point precision of the calculations. Can be 'single' or 'double'.
     """
     libblond_path = os.environ.get("LIBBLOND", None)
-    path = os.path.realpath(__file__)
-    basepath = os.sep.join(path.split(os.sep)[:-1])
+    from ...._generals._hashing import hash_in_folder
+
+    folder = os.path.dirname(os.path.abspath(__file__))
+
+    hash_ = hash_in_folder(
+        folder=folder,
+        extensions=(".py", ".h", ".cpp"),
+        recursive=False,
+    )
+    basepath = os.path.join(folder, "compiled", hash_)
     if "posix" in os.name:
         if libblond_path:
             libblond_path = os.path.abspath(libblond_path)

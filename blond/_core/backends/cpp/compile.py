@@ -100,7 +100,18 @@ def compile_cpp_library(
     print(f"\nTrying to compile C++ backend.")
 
     if libname is None:
-        libname = os.path.join(_basepath, default_libname)
+        from blond._generals._hashing import hash_in_folder
+
+        folder = os.path.dirname(os.path.abspath(__file__))
+
+        hash_ = hash_in_folder(
+            folder=folder,
+            extensions=(".py", ".h", ".cpp"),
+            recursive=False,
+        )
+        target = os.path.join(folder, "compiled", hash_)
+        os.makedirs(target, exist_ok=True)
+        libname = os.path.join(target, default_libname)
     # EXAMPLE FLAGS: -Ofast -std=c++11 -fopt-info-vec -march=native
     #                -mfma4 -fopenmp -ftree-vectorizer-verbose=1 '-ffast-math'
 
@@ -452,7 +463,7 @@ def main_cli() -> None:
         "-libname",
         "--libname",
         type=str,
-        default=os.path.join(_basepath, "libblond"),
+        default=None,  # handled inside compile
         help="The C++ library name, without the file extension.",
     )
 
