@@ -3,6 +3,7 @@ from unittest.mock import Mock
 
 import numpy as np
 
+from blond._core.base import DynamicParameter
 from blond import Simulation, SingleHarmonicCavity, StaticProfile, WakeField
 from blond._core.beam.base import BeamBaseClass
 from blond.handle_results.helpers import callers_relative_path
@@ -20,6 +21,7 @@ simulation = Mock(
 simulation.ring.n_cavities = 2
 simulation.ring.section_lengths = [250, 250]
 simulation.ring.circumference = 500
+simulation.section_i = DynamicParameter(None)
 simulation.section_i.current_group = 0
 beam = Mock(BeamBaseClass)
 beam.common_array_size = 128
