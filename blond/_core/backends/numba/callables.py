@@ -209,8 +209,8 @@ class NumbaSpecials(Specials):  # pragma: no cover
         n_bins = len(array_write)
         bin_step = width / n_bins
         inv_bin_step = 1 / bin_step
-        array_tmp = np.zeros(n_bins)
-        for i in prange(len(array_read)):
+        array_tmp = np.zeros(n_bins)  # TODO make parallel
+        for i in range(len(array_read)):
             if array_read[i] == stop:
                 array_tmp[-1] += 1
                 continue
