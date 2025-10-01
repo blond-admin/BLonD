@@ -34,6 +34,7 @@ class TestInductiveImpedanceSolver(unittest.TestCase):
         beam.intensity = 1e12
         beam.n_macroparticles_partial.return_value = 128
         beam.particle_type.charge = 1
+        beam.ratio = 1
 
         beam.reference_velocity = 123
         self.inductive_impedance_solver._beam = beam
