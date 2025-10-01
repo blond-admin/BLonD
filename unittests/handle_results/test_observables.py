@@ -20,6 +20,7 @@ simulation = Mock(
 simulation.ring.n_cavities = 2
 simulation.ring.section_lengths = [250, 250]
 simulation.ring.circumference = 500
+simulation.section_i.current_group = 0
 beam = Mock(BeamBaseClass)
 beam.common_array_size = 128
 beam.reference_time = 0.8
@@ -31,7 +32,7 @@ beam._flags = np.ones(beam.common_array_size, dtype=int)
 
 
 class ObservablesHelper(Observables):
-    def update(self, simulation: Simulation, beam: BeamBaseClass) -> None:
+    def update(self, simulation: Simulation) -> None:
         pass
 
     def to_disk(self) -> None:
@@ -78,12 +79,14 @@ class TestBunchObservation(unittest.TestCase):
         self.bunch_observation = BunchObservation(
             each_turn_i=1,
             folder=callers_relative_path("results/", stacklevel=1),
+            beam=beam,
         )
 
     def test___init__(self) -> None:
         self.bunch_observation = BunchObservation(
             each_turn_i=1,
             folder=callers_relative_path("results/", stacklevel=1),
+            beam=beam,
         )
 
     def test_from_disk(self) -> None:
@@ -98,7 +101,6 @@ class TestBunchObservation(unittest.TestCase):
         )
         self.bunch_observation.update(
             simulation=simulation,
-            beam=beam,
         )
         self.bunch_observation.to_disk()
         self.bunch_observation.from_disk()
@@ -142,7 +144,6 @@ class TestCavityPhaseObservation(unittest.TestCase):
         )
         self.cavity_phase_observation.update(
             simulation=simulation,
-            beam=beam,
         )
         self.cavity_phase_observation.to_disk()
 
@@ -180,7 +181,6 @@ class TestStaticProfileObservation(unittest.TestCase):
         )
         self.static_profile_observation.update(
             simulation=simulation,
-            beam=beam,
         )
         self.static_profile_observation.to_disk()
 
@@ -220,7 +220,6 @@ class TestWakeFieldObservation(unittest.TestCase):
         )
         self.wake_field_observation.update(
             simulation=simulation,
-            beam=beam,
         )
         self.wake_field_observation.to_disk()
         self.wake_field_observation.from_disk()
