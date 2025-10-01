@@ -53,7 +53,7 @@ def main():
 
     resonator_data = np.loadtxt(
         callers_relative_path(
-            "resources/EX_05_new_HQ_table.dat",
+            "resources/EX_05_new_HQ_table.txt",
             stacklevel=1,
         ),
         comments="!",

@@ -200,7 +200,7 @@ bunchmonitor_res = BunchMonitor(
 # LOAD IMPEDANCE TABLE--------------------------------------------------------
 
 table = np.loadtxt(
-    this_directory + "../input_files/EX_05_new_HQ_table.dat", comments="!"
+    this_directory + "../input_files/EX_05_new_HQ_table.txt", comments="!"
 )
 
 R_shunt = table[:, 2] * 10**6

@@ -284,8 +284,8 @@ class BunchObservation(Observables):
             beam=self._beam,
         )
         n_entries = n_turns // self.each_turn_i + 2
-        intensity = int(self._beam.common_array_size)
-        shape = (n_entries, intensity)
+        n_macroparticles = int(beam.common_array_size)
+        shape = (n_entries, n_macroparticles)
 
         self._dts = DenseArrayRecorder(
             f"{self.common_name}_dts",

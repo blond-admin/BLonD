@@ -27,7 +27,8 @@ class Beam(BeamBaseClass):
         particle_type: ParticleType,
         is_counter_rotating: bool = False,
     ) -> None:
-        """Base class to host particle coordinates and timing information
+        """
+        Base class to host particle coordinates and timing information
 
         Parameters
         ----------
@@ -43,6 +44,7 @@ class Beam(BeamBaseClass):
             intensity=intensity,
             particle_type=particle_type,
             is_counter_rotating=is_counter_rotating,
+            is_distributed=False,
         )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -136,25 +138,25 @@ class Beam(BeamBaseClass):
         return self.intensity / self.common_array_size
 
     @cached_property
-    def dt_min(self) -> backend.float:
+    def dt_min(self) -> np.int32 | np.int64:
         """Minimum dt coordinate, in [s]"""
 
         return self._dt.min()
 
     @cached_property
-    def dt_max(self) -> backend.float:
+    def dt_max(self) -> np.int32 | np.int64:
         """Maximum dt coordinate, in [s]"""
 
         return self._dt.max()
 
     @cached_property
-    def dE_min(self) -> backend.float:
+    def dE_min(self) -> np.int32 | np.int64:
         """Minimum dE coordinate, in [eV]"""
 
         return self._dE.min()
 
     @cached_property
-    def dE_max(self) -> backend.float:
+    def dE_max(self) -> np.int32 | np.int64:
         """Maximum dE coordinate, in [eV]"""
 
         return self._dE.max()
