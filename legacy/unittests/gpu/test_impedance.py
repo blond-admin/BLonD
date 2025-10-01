@@ -91,7 +91,7 @@ class TestImpedanceBigaussianData:
 
         # LOAD IMPEDANCE TABLE--------------------------------------------------------
         table = np.loadtxt(os.path.join(
-            this_directory, '../../__EXAMPLES/input_files/EX_05_new_HQ_table.dat'), comments='!')
+            this_directory, '../../__EXAMPLES/input_files/EX_05_new_HQ_table.txt'), comments='!')
 
         R_shunt = table[:, 2] * 10**6
         f_res = table[:, 0] * 10**9
