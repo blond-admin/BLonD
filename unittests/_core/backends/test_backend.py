@@ -58,7 +58,13 @@ class TestBackendBaseClass(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         self.backend_base_class.apply_environment_variables()
                 else:
-                    self.backend_base_class.apply_environment_variables()
+                    try:
+                        self.backend_base_class.apply_environment_variables()
+                    except FileNotFoundError as error:
+                        if backend_mode is "fortran" or backend_mode is "cpp":  # allow for non-compiled
+                            continue
+                        else:
+                            raise error
 
 
 class TestCupy32Bit(unittest.TestCase):
