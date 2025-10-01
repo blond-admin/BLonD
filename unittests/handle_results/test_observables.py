@@ -69,7 +69,6 @@ class TestObservables(unittest.TestCase):
         )
         self.observables.update(
             simulation=simulation,
-            beam=beam,
         )
         self.observables.to_disk()
 
