@@ -17,6 +17,9 @@ from blond.handle_results.observables import (
 simulation = Mock(
     Simulation,
 )
+simulation.ring.n_cavities = 2
+simulation.ring.section_lengths = [250, 250]
+simulation.ring.circumference = 500
 beam = Mock(BeamBaseClass)
 beam.common_array_size = 128
 beam.reference_time = 0.8
