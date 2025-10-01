@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
-
-import matplotlib.pyplot as plt
-import numpy as np
-from numba.cuda.libdevicedecl import retty
+from typing import Callable  # NOQA
+from typing import TYPE_CHECKING
 
 from blond import backend
 from blond.beam_preparation.base import MatchingRoutine
@@ -13,7 +10,7 @@ from ..._core.helpers import int_from_float_with_warning
 from .helpers import populate_beam
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Tuple
+    from typing import Callable, Optional, Tuple
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
@@ -24,16 +21,21 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond._core.beam.base import BeamBaseClass
 
 
-def apply_density_function(array: NumpyArray | CupyArray):
-    array[array < (array.max() * 0.9)] = 0
-    return  # TODO
+def _apply_density_function(
+    hamilton_2D: NumpyArray | CupyArray, density_modifier: float
+):
+    _hamilton_2D = hamilton_2D.copy()
+    _hamilton_2D[_hamilton_2D > 1] = 1
+    _hamilton_2D *= -1
+    _hamilton_2D -= _hamilton_2D.min()
+    _hamilton_2D **= density_modifier
+    return _hamilton_2D
 
 
 def get_hamiltonian_semi_analytic(
     ts: NumpyArray | CupyArray,
     potential_well: NumpyArray | CupyArray,
     reference_total_energy: float,
-    beta: float,
     eta: float,
     shape: Tuple[int, int],
     energy_range: Optional[Tuple[float, float]] = None,
@@ -62,8 +64,6 @@ def get_hamiltonian_semi_analytic(
         Potential energy values corresponding to `ts`, in [V].
     reference_total_energy
         Reference total energy (E0), in [eV].
-    beta
-        Normalized particle velocity (v / c), unitless.
     eta
         General synchrotron parameter - Zeroth order slippage factor, unitless
     shape
@@ -81,13 +81,11 @@ def get_hamiltonian_semi_analytic(
         time vs. energy difference. Same device (NumPy or CuPy) as inputs.
         Units: [eV]
     """
-    from scipy.constants import speed_of_light as c
 
     E0 = reference_total_energy  # [eV]
 
     # Compute kinetic energy term constant
-    kinetic_energy_term = (eta * E0) / (beta * beta * c * c)  # [eV⁻¹]
-
+    kinetic_energy_term = eta / E0  # [1/eV]
     assert len(ts) == len(potential_well), (
         f"{len(ts)=}, but {len(potential_well)=}"
     )
@@ -126,33 +124,56 @@ def get_hamiltonian_semi_analytic(
     return deltaE_grid, time_grid, hamilton_2D
 
 
-def _plot_ham(Delta, T, hamiltonian):
-    cs = plt.contour(T, Delta, hamiltonian, levels=50)
-    plt.xlabel("Time [s]")
-    plt.ylabel("ΔE  [eV]")
-    plt.title("Longitudinal Hamiltonian [eV]")
-    plt.colorbar(label="hamiltonian [eV]")
-    plt.grid(True)
-    plt.tight_layout()
-    plt.show()
-
-
 class SemiEmpiricMatcher(MatchingRoutine):
     def __init__(
         self,
+        t_lim: Tuple[float, float],
+        h_max: float,
         n_macroparticles: int | float,
-        internal_grid_shape: Tuple[int, int] = (1024, 1024),
+        density_modifier: float
+        | Callable[[NumpyArray | CupyArray], NumpyArray | CupyArray] = 1,
+        internal_grid_shape: Tuple[int, int] = (1023, 1023),
+        maxiter_intensity_effects=10,
         seed: int = 0,
     ):
+        """
+        Match distribution to ``potential_well_empiric`` with analytic drift term
+
+        Parameters
+        ----------
+        t_lim
+            Start and stop of time, in [s]
+        h_max
+            Maximum value of the Hamilton, in [arb. unit]
+        n_macroparticles
+            Number of macroparticles to inject into the beam
+        density_modifier
+            H**density_modifier shapes the density distribution.
+
+            If Callable, should be a function that maps the 2D Hamiltonian to
+            a density. The Hamiltonian is 1 at the user-given maximum
+            contour (given by `h_max`)
+
+        internal_grid_shape
+        seed
+        """
         self._n_macroparticles = int_from_float_with_warning(
             n_macroparticles,
             warning_stacklevel=2,
         )
+        self._maxiter_intensity_effects = int_from_float_with_warning(
+            maxiter_intensity_effects,
+            warning_stacklevel=2,
+        )
+
         self._internal_grid_shape = internal_grid_shape
         self._seed = int_from_float_with_warning(
             seed,
             warning_stacklevel=2,
         )
+        self.t_lim = t_lim
+        self.h_max = h_max
+        self.density_modifier = density_modifier
 
     def prepare_beam(
         self,
@@ -163,35 +184,60 @@ class SemiEmpiricMatcher(MatchingRoutine):
             simulation=simulation,
             beam=beam,
         )
-        t_max = simulation.magnetic_cycle.get_t_rev_init(
-            simulation.ring.circumference,
-            turn_i_init=0,
-            t_init=0,
-            particle_type=beam.particle_type,
+        ts = backend.linspace(
+            self.t_lim[0], self.t_lim[1], self._internal_grid_shape[0]
         )
-        ts = np.linspace(0, t_max / 35640, self._internal_grid_shape[0])
+        # match beam without intensity effects
+        simulation.intensity_effect_manager.set_wakefields(active=False)
+        simulation.intensity_effect_manager.set_profiles(active=False)
+        self._match_beam(beam, simulation, ts)
+
+        # iterate solution with intensity effects
+        if simulation.intensity_effect_manager.has_wakefields():
+            for i in range(self._maxiter_intensity_effects):
+                # run simulation with beam to collect the actual profiles
+                # that cause the wake-fields
+                simulation.intensity_effect_manager.set_wakefields(active=True)
+                simulation.intensity_effect_manager.set_profiles(active=True)
+                simulation.run_simulation(
+                    beams=(beam,),
+                    n_turns=1,
+                    turn_i_init=0,
+                    show_progressbar=False,
+                )
+                # Prevent the profiles from updating.
+                simulation.intensity_effect_manager.set_profiles(active=False)
+                # This is intended as override, so that the line density
+                # inside `_match_beam` experiences the forces from the
+                # previously run with the full beam
+                self._match_beam(beam, simulation, ts)
+
+    def _match_beam(self, beam, simulation, ts):
         potential_well = simulation.get_potential_well_empiric(
             ts=ts, particle_type=beam.particle_type
         )
-        potential_well *= -1
         deltaE_grid, time_grid, hamilton_2D = get_hamiltonian_semi_analytic(
             ts=ts,
             potential_well=potential_well,
             reference_total_energy=beam.reference_total_energy,
-            beta=beam.reference_beta,
             eta=float(
                 simulation.ring.calc_average_eta_0(beam.reference_gamma)
             ),
             shape=self._internal_grid_shape,
         )
-        hamilton_2D *= -1
-        hamilton_2D -= hamilton_2D.min()
-        apply_density_function(hamilton_2D)
+        hamilton_2D /= self.h_max
+        if isinstance(self.density_modifier, Callable):
+            density = self.density_modifier(hamilton_2D=hamilton_2D)
+        else:
+            density = _apply_density_function(
+                hamilton_2D=hamilton_2D,
+                density_modifier=float(self.density_modifier),
+            )
         populate_beam(
             beam=beam,
             time_grid=time_grid.T,
             deltaE_grid=deltaE_grid.T,
-            density_grid=hamilton_2D.T,
+            density_grid=density.T,
             n_macroparticles=self._n_macroparticles,
             seed=self._seed,
             normalize_density=True,

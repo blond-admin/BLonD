@@ -20,6 +20,7 @@ from blond import (
 )
 from blond._core.beam.base import BeamBaseClass
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
+from blond.examples.EX_MuonCollider import cavity
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import BunchObservation, Observables
 from unittests.handle_results.test_observables import simulation
@@ -57,7 +58,7 @@ class TestSimulation(unittest.TestCase):
             dt=np.linspace(1, 10, 10),
             dE=np.linspace(11, 20, 10),
             reference_time=0,
-            reference_total_energy=1,
+            reference_total_energy=450e9,
         )
         self.simulation = Simulation.from_locals(locals())
         self.beam = beam1
@@ -223,6 +224,48 @@ class TestSimulation(unittest.TestCase):
             beams=(self.beam,),
         )
         mock_func.assert_called()
+
+    def test_get_potential_well_empiric(self):
+        cavity = self.simulation.ring.elements.get_element(
+            SingleHarmonicCavity
+        )
+        particle_type = proton
+
+        ts = np.linspace(
+            0,
+            self.simulation.magnetic_cycle.get_t_rev_init(
+                circumference=self.simulation.ring.circumference,
+                t_init=0,
+                turn_i_init=0,
+                particle_type=particle_type,
+            )
+            / cavity.harmonic,
+            200,
+        )
+        phis = ts * cavity.calc_omega(
+            beam_beta=self.beam.reference_beta,
+            ring_circumference=self.simulation.ring.circumference,
+        )
+        potential_well = self.simulation.get_potential_well_empiric(
+            ts, particle_type=particle_type
+        )
+        DEV_PLOT = False
+        phi_s = np.pi
+
+        potential_well_analytic = (
+            particle_type.charge
+            * cavity.voltage
+            / (2 * np.pi)
+            * (np.cos(phis) - np.cos(phi_s) + (phis - phi_s) * np.sin(phi_s))
+        )
+        if DEV_PLOT:
+            plt.plot(phis, potential_well)
+            plt.plot(
+                phis,
+                potential_well_analytic,
+            )
+            plt.show()
+        np.testing.assert_allclose(potential_well_analytic, potential_well)
 
 
 if __name__ == "__main__":

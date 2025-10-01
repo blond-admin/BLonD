@@ -6,6 +6,7 @@ from pstats import SortKey
 from typing import TYPE_CHECKING, Callable
 from warnings import warn
 
+import matplotlib.pyplot as plt
 from scipy.integrate import cumulative_trapezoid
 from tqdm import tqdm  # type: ignore
 
@@ -158,6 +159,21 @@ class Simulation(Preparable, HasPropertyCache):
 
         pass  # TODO
 
+    def plot_potential_well_empiric(
+        self,
+        ts: NumpyArray,
+        particle_type: ParticleType,
+        subtract_min: bool = True,
+    ) -> None:
+        potential_well = self.get_potential_well_empiric(
+            ts=ts,
+            particle_type=particle_type,
+            subtract_min=subtract_min,
+        )
+        plt.plot(ts, potential_well)
+        plt.xlabel("Time (s)")
+        plt.ylabel("Amplitude (arb. unit)")
+
     def get_potential_well_empiric(
         self,
         ts: NumpyArray,
@@ -200,14 +216,18 @@ class Simulation(Preparable, HasPropertyCache):
             dt=ts,
             particle_type=particle_type,
         )
+        t_0 = probe_bunch.reference_time
         self.run_simulation(
             beams=(probe_bunch,),
             n_turns=1,
             turn_i_init=0,
             show_progressbar=False,
         )
-        potential_well = cumulative_trapezoid(
-            probe_bunch.read_partial_dE(), initial=0
+        t_1 = probe_bunch.reference_time
+        t_rev = t_1 - t_0
+
+        potential_well = -cumulative_trapezoid(
+            probe_bunch.read_partial_dE(), ts / t_rev, initial=0
         )
         if subtract_min:
             potential_well -= potential_well.min()

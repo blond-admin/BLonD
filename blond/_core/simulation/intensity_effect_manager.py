@@ -13,6 +13,19 @@ class IntensityEffectManager:
     def __init__(self, simulation: Simulation) -> None:
         self._parent_simulation = simulation
 
+    def has_wakefields(self):
+        """
+        Checks if there are any WakeFields in the Simulation
+
+        Returns
+        -------
+        True if there is any WakeField
+        """
+        wakefields = self._parent_simulation.ring.elements.get_elements(
+            WakeField
+        )
+        return len(wakefields) > 0
+
     def set_wakefields(self, active: bool) -> None:
         """
         Activate/deactivate `WakeField`

@@ -1,18 +1,10 @@
 from __future__ import annotations
 
-from copy import deepcopy
 from typing import TYPE_CHECKING
 
-import matplotlib.pyplot as plt
 import numpy as np
 
-from blond import Simulation
-from blond._core.helpers import int_from_float_with_warning
-from blond.beam_preparation.base import MatchingRoutine
-from blond.experimental.acc_math.empiric.hammiltonian import (
-    calc_hamiltonian,
-    separatrixes,
-)
+from ..._core.backends.backend import backend
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
@@ -63,6 +55,9 @@ def populate_beam(
         n_macroparticles,
         p=density_grid.flatten(),
     )
+    indexes = backend.array(
+        indexes
+    )  # to always use the same random seed/choice
     time_step = time_grid[0, 1] - time_grid[0, 0]
     assert time_step > 0, f"{time_step=}"
     deltaE_step = deltaE_grid[1, 0] - deltaE_grid[0, 0]
@@ -70,12 +65,16 @@ def populate_beam(
     # Randomize particles inside each grid cell (uniform distribution)
     dt = (
         time_grid.flatten()[indexes]
-        + np.random.triangular(left=-1, mode=0, right=1, size=n_macroparticles)
+        + backend.random.triangular(
+            left=-1, mode=0, right=1, size=n_macroparticles
+        )
         * time_step
     )
     dE = (
         deltaE_grid.flatten()[indexes]
-        + np.random.triangular(left=-1, mode=0, right=1, size=n_macroparticles)
+        + backend.random.triangular(
+            left=-1, mode=0, right=1, size=n_macroparticles
+        )
         * deltaE_step
     )
     beam.setup_beam(dt=dt, dE=dE)
