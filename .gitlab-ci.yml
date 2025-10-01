@@ -125,4 +125,4 @@ pages:
     paths:
       - ${project_root}public
   only:
-    - bugfix/CI_documentation
+    - master
