@@ -1,3 +1,4 @@
+from copy import deepcopy
 from os import PathLike
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -139,7 +140,7 @@ beam_CR = Beam(
     is_counter_rotating=True,
 )
 sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
-sim.print_one_turn_execution_order()
+# sim.print_one_turn_execution_order()
 load_beam_data_counterrot_from_file(
     str(Path(__file__).parent) + r"/RCS2_8_cavities.npz", beam, beam_CR
 )
