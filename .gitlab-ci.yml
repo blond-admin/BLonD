@@ -115,7 +115,7 @@ pages:
   image: gitlab-registry.cern.ch/blond/blond/python310
   before_script:
     - python3 -m pip install --upgrade pip
-    - python3 -m pip install -v -e .[doc]
+    - python3 -m pip install -v -e -U ${project_root}[doc]
   script:
     - cd ${project_root}
     - mkdir public
