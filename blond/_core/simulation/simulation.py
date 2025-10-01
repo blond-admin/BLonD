@@ -9,9 +9,8 @@ from warnings import warn
 from scipy.integrate import cumulative_trapezoid
 from tqdm import tqdm  # type: ignore
 
-from ..._generals._warnings import PerformanceWarning
-from ...cycles.magnetic_cycle import MagneticCycleBase, MagneticCyclePerTurn
-from ...physics.cavities import CavityBaseClass
+from ..._generals._warnings import PerformanceWarning, NotTestedWarning
+from ...cycles.magnetic_cycle import MagneticCycleBase
 from ...physics.drifts import DriftBaseClass
 from ...physics.profiles import ProfileBaseClass
 from ..backends.backend import backend
@@ -53,7 +52,6 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from ...beam_preparation.base import BeamPreparationRoutine
     from ...handle_results.observables import Observables
-    from ...handle_results.results import SimulationResults
     from ..beam.base import BeamBaseClass
     from ..beam.particle_types import ParticleType
     from ..ring.ring import Ring
@@ -754,6 +752,8 @@ class Simulation(Preparable, HasPropertyCache):
             that is called each turn.
 
         """
+        warn("Untested code", NotTestedWarning)
+
         logger.info("Starting simulation mainloop...")
         iterator = range(turn_i_init, turn_i_init + n_turns)
         if show_progressbar:

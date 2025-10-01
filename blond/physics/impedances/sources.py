@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-import warnings
+from warnings import warn
 from abc import abstractmethod
 from os import PathLike
 from typing import TYPE_CHECKING, Tuple
 
 import numpy as np
 
+from ..._generals._warnings import NotTestedWarning
 from ... import Simulation
 from ..._core.backends.backend import backend
 from ..impedances.base import (
@@ -191,6 +192,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         Ensure that all input arrays have the same length, with each entry
         corresponding to a separate resonance.
         """
+        warn("Untested code", NotTestedWarning)
         super().__init__(is_dynamic=False)
         if (
             type(shunt_impedances) == float
@@ -549,9 +551,9 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         if hash_ is self._cache_wake_impedance_hash:
             return self._cache_wake_impedance
         if time.min() < self._wake_x.min():
-            warnings.warn("Interpolation of wake outside boundaries")
+            warn("Interpolation of wake outside boundaries")
         if time.max() > self._wake_x.max():
-            warnings.warn("Interpolation of wake outside boundaries")
+            warn("Interpolation of wake outside boundaries")
         wake = np.interp(time, self._wake_x, self._wake_y)
         wake_impedance = np.fft.rfft(wake, n=n_fft)
         self._cache_wake_impedance_hash = hash_
