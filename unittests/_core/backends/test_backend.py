@@ -61,7 +61,10 @@ class TestBackendBaseClass(unittest.TestCase):
                     try:
                         self.backend_base_class.apply_environment_variables()
                     except FileNotFoundError as error:
-                        if backend_mode is "fortran" or backend_mode is "cpp":  # allow for non-compiled
+                        # Compiled backends might not be available locally --> skip.
+                        # On the CI, these will always be available, as the before_script builds them
+                        # or otherwise fails the CI
+                        if backend_mode is "fortran" or backend_mode is "cpp":
                             continue
                         else:
                             raise error
