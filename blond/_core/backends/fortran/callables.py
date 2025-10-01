@@ -12,7 +12,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond._core.backends.backend import Specials, backend
+from ...._core.backends.backend import Specials, backend
+from ...._generals._hashing import hash_in_folder
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,13 @@ def find_module_so(file: str) -> str:
     # Get the file where this function is defined
     current_file = inspect.getfile(find_module_so)
     # Get the directory of that file
-    folder = os.path.dirname(current_file)
+    this_folder = os.path.dirname(os.path.abspath(__file__))
+    hash_ = hash_in_folder(
+        folder=this_folder,
+        extensions=(".py", ".f90"),
+        recursive=False,
+    )
+    folder = os.path.join(this_folder, "compiled", hash_)
 
     # List all files in the directory and filter
     for filename in os.listdir(folder):

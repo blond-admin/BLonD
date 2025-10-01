@@ -49,8 +49,20 @@ def compile_cuda_library(
         "32",
     ]
 
+    from blond._generals._hashing import hash_in_folder
+
+    folder = os.path.dirname(os.path.abspath(__file__))
+
+    hash_ = hash_in_folder(
+        folder=folder,
+        extensions=(".py", ".cu"),
+        recursive=False,
+    )
+    target = os.path.join(folder, "compiled", hash_)
+    os.makedirs(target, exist_ok=True)
+
     # The CUDA library name, without the file extension.
-    cuda_libname = os.path.join(_basepath, "kernels")
+    cuda_libname = os.path.join(target, "kernels")
 
     nvcc = "nvcc"
 

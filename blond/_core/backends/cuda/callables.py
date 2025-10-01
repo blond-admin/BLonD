@@ -6,15 +6,25 @@ from typing import TYPE_CHECKING
 import cupy as cp  # type: ignore
 import numpy as np
 
-from blond._core.backends.backend import Specials, backend
+from ...._core.backends.backend import Specials, backend
+from ...._generals._hashing import hash_in_folder
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as CupyArray
 
 _filepath = os.path.realpath(__file__)
-_basepath = os.sep.join(_filepath.split(os.sep)[:-1])
 _compute_capability = cp.cuda.Device(0).compute_capability
+
+
+folder = os.path.dirname(os.path.abspath(__file__))
+
+hash_ = hash_in_folder(
+    folder=folder,
+    extensions=(".py", ".cu"),
+    recursive=False,
+)
+_basepath = os.path.join(folder, "compiled", hash_)
 
 if backend.float == np.float32:
     path = os.path.join(
