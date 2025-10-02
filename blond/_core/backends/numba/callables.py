@@ -193,12 +193,12 @@ class NumbaSpecials(Specials):  # pragma: no cover
         return scoeff / ccoeff
 
     @staticmethod
-    # @njit(
-    #     sig_histogram,
-    #     parallel=True,
-    #     fastmath=True,
-    #     cache=True,
-    # )
+    @njit(
+        sig_histogram,
+        parallel=True,
+        fastmath=True,
+        cache=True,
+    )
     def histogram(
         array_read: NumpyArray,
         array_write: NumpyArray,
@@ -210,7 +210,7 @@ class NumbaSpecials(Specials):  # pragma: no cover
         n_bins = len(array_write)
         bin_step = width / n_bins
         inv_bin_step = 1 / bin_step
-        array_tmp = np.zeros((n_threads, n_bins))  # TODO make parallel
+        array_tmp = np.zeros((n_threads, n_bins))
         for i in prange(len(array_read)):
             curr_thread = numba.get_thread_id()
             if array_read[i] == stop:
@@ -223,10 +223,8 @@ class NumbaSpecials(Specials):  # pragma: no cover
                 continue
             else:
                 array_tmp[curr_thread, idx] += 1
-        array_tmp_comb = np.zeros(len(array_write))
         for i in range(n_threads):
-            array_tmp_comb += array_tmp[i]
-        return array_tmp_comb
+            array_write += array_tmp[i]
 
     @staticmethod
     def loss_box(top: float, bottom: float, left: float, right: float) -> None:
