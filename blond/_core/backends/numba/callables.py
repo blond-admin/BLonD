@@ -197,7 +197,7 @@ class NumbaSpecials(Specials):  # pragma: no cover
         sig_histogram,
         parallel=True,
         fastmath=True,
-        cache=True,
+        cache=False,
     )
     def histogram(
         array_read: NumpyArray,
@@ -205,7 +205,7 @@ class NumbaSpecials(Specials):  # pragma: no cover
         start: np.float32 | np.float64,
         stop: np.float32 | np.float64,
     ) -> None:
-        n_threads = numba.get_num_threads()
+        n_threads = numba.get_num_threads()  # this prevents caching
         width = stop - start
         n_bins = len(array_write)
         bin_step = width / n_bins
