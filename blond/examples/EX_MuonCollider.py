@@ -1,14 +1,8 @@
 import os
 
-# Set number of OpenMP threads
-os.environ["OMP_NUM_THREADS"] = "20"
-
-# Make sure threads are pinned to specific cores
-os.environ["OMP_PROC_BIND"] = "true"
-
-# Define how to place them (each thread gets its own core)
-os.environ["OMP_PLACES"] = "cores"
-
+os.environ["NUMBA_THREADING_LAYER"] = "omp"  # use OpenMP threading layer
+# optional, to bias selection if numba is choosing automatically:
+os.environ["NUMBA_THREADING_LAYER_PRIORITY"] = "omp tbb workqueue"
 from copy import deepcopy
 from os import PathLike
 from pathlib import Path
@@ -16,7 +10,11 @@ from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
+import psutil
 from scipy.constants import pi
+
+p = psutil.Process(os.getpid())
+p.cpu_affinity(([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]))
 
 from blond import (
     Beam,
@@ -48,6 +46,21 @@ backend.change_backend(
     Numpy64Bit
 )  # TODO: without these lines, it does not work, default should be set somewhere to be Numpy64bit python
 backend.set_specials("cpp")
+
+import ctypes
+
+import numba
+
+print(
+    "Numba threading layer:", numba.config.THREADING_LAYER
+)  # or numba.threading_layer()
+mods = [b"libiomp5md.dll", b"libomp.dll", b"vcomp140.dll", b"libgomp-1.dll"]
+print(
+    {
+        m.decode(): bool(ctypes.windll.kernel32.GetModuleHandleA(m))
+        for m in mods
+    }
+)
 
 # pragma: no cover
 if TYPE_CHECKING:
@@ -188,69 +201,69 @@ sim.run_simulation(
         # multi_profile_observation,
     ),
 )
-
-plt.title("bunch length")
-plt.plot(bunch_observation.turns_array, bunch_observation.sigma_dt * 1e12)
-plt.plot(
-    bunch_observation_CR.turns_array,
-    bunch_observation_CR.sigma_dt * 1e12,
-    label="CR",
-)
-plt.ylabel("bunch length [ps]")
-plt.xlabel("turns ")
-plt.legend()
-plt.show()
-
-plt.title("bunch centroid")
-plt.plot(bunch_observation.mean_dt * 1e9)
-plt.plot(bunch_observation_CR.mean_dt * 1e9, label="CR")
-plt.ylabel("bunch centroid [ns]")
-plt.legend()
-plt.show()
-
-plt.title("energy spread")
-plt.plot(bunch_observation.sigma_dE * 1e9)
-plt.plot(bunch_observation_CR.sigma_dE * 1e9, label="CR")
-plt.ylabel("energy spread [GeV]")
-plt.legend()
-plt.show()
-
-plt.title("energy centroid")
-plt.plot(bunch_observation.mean_dE)
-plt.plot(bunch_observation_CR.mean_dE, label="CR")
-plt.legend()
-plt.show()
-
-plt.title("emittance")
-plt.plot(bunch_observation.emittance_stat, label="emittance")
-plt.plot(bunch_observation_CR.emittance_stat, label="CR")
-plt.ylabel("statistical emittance (eVs)")
-plt.legend()
-plt.show()
-
-plt.title("sigma t * sigma E")
-plt.plot(bunch_observation.sigma_dE * bunch_observation.sigma_dt)
-plt.plot(
-    bunch_observation_CR.sigma_dE * bunch_observation_CR.sigma_dt, label="CR"
-)
-plt.legend()
-plt.show()
-
-profiles = profile_observation.hist_y
-turn_arr = profile_observation.turns_array
-
-n_printed = 0
-for prof_ind, prof in enumerate(profiles):
-    if n_printed > 10:
-        break
-    if np.sum(prof) != 0:
-        n_printed += 1
-        plt.plot(
-            profile_list[-1].hist_x * 1e9, prof, label=f"profile@ {prof_ind}"
-        )
-plt.xlabel("profile time [ns]")
-plt.legend()
-plt.show()
+#
+# plt.title("bunch length")
+# plt.plot(bunch_observation.turns_array, bunch_observation.sigma_dt * 1e12)
+# plt.plot(
+#     bunch_observation_CR.turns_array,
+#     bunch_observation_CR.sigma_dt * 1e12,
+#     label="CR",
+# )
+# plt.ylabel("bunch length [ps]")
+# plt.xlabel("turns ")
+# plt.legend()
+# plt.show()
+#
+# plt.title("bunch centroid")
+# plt.plot(bunch_observation.mean_dt * 1e9)
+# plt.plot(bunch_observation_CR.mean_dt * 1e9, label="CR")
+# plt.ylabel("bunch centroid [ns]")
+# plt.legend()
+# plt.show()
+#
+# plt.title("energy spread")
+# plt.plot(bunch_observation.sigma_dE * 1e9)
+# plt.plot(bunch_observation_CR.sigma_dE * 1e9, label="CR")
+# plt.ylabel("energy spread [GeV]")
+# plt.legend()
+# plt.show()
+#
+# plt.title("energy centroid")
+# plt.plot(bunch_observation.mean_dE)
+# plt.plot(bunch_observation_CR.mean_dE, label="CR")
+# plt.legend()
+# plt.show()
+#
+# plt.title("emittance")
+# plt.plot(bunch_observation.emittance_stat, label="emittance")
+# plt.plot(bunch_observation_CR.emittance_stat, label="CR")
+# plt.ylabel("statistical emittance (eVs)")
+# plt.legend()
+# plt.show()
+#
+# plt.title("sigma t * sigma E")
+# plt.plot(bunch_observation.sigma_dE * bunch_observation.sigma_dt)
+# plt.plot(
+#     bunch_observation_CR.sigma_dE * bunch_observation_CR.sigma_dt, label="CR"
+# )
+# plt.legend()
+# plt.show()
+#
+# profiles = profile_observation.hist_y
+# turn_arr = profile_observation.turns_array
+#
+# n_printed = 0
+# for prof_ind, prof in enumerate(profiles):
+#     if n_printed > 10:
+#         break
+#     if np.sum(prof) != 0:
+#         n_printed += 1
+#         plt.plot(
+#             profile_list[-1].hist_x * 1e9, prof, label=f"profile@ {prof_ind}"
+#         )
+# plt.xlabel("profile time [ns]")
+# plt.legend()
+# plt.show()
 #
 # prof_ = multi_profile_observation.hist_y
 # for prof_ind, prof in enumerate(prof_):
