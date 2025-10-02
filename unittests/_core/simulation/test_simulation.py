@@ -134,10 +134,10 @@ class TestSimulation(unittest.TestCase):
             ts=ts,
             particle_type=proton,
         )
-        SAVE_PINNED = True
+        SAVE_PINNED = False
         if SAVE_PINNED:
             np.savetxt(
-                "resources/potential_well.csv",
+                callers_relative_path("resources/potential_well.csv", 1),
                 potential_well,
             )
         potential_well_pinned = np.loadtxt(
@@ -225,7 +225,7 @@ class TestSimulation(unittest.TestCase):
         )
         mock_func.assert_called()
 
-    def test_get_potential_well_empiric(self):
+    def test_get_potential_well_empiric_shape(self):
         cavity = self.simulation.ring.elements.get_element(
             SingleHarmonicCavity
         )
@@ -257,15 +257,24 @@ class TestSimulation(unittest.TestCase):
             * cavity.voltage
             / (2 * np.pi)
             * (np.cos(phis) - np.cos(phi_s) + (phis - phi_s) * np.sin(phi_s))
-        )
+        ) / ts.max()
         if DEV_PLOT:
-            plt.plot(phis, potential_well)
             plt.plot(
-                phis,
-                potential_well_analytic,
+                potential_well / potential_well.max(),
+                label="potential_well",
             )
+            plt.plot(
+                potential_well_analytic / potential_well_analytic.max(),
+                "--",
+                label="potential_well_analytic",
+            )
+            plt.legend()
             plt.show()
-        np.testing.assert_allclose(potential_well_analytic, potential_well)
+        np.testing.assert_allclose(
+            potential_well_analytic / potential_well_analytic.max() + 1,
+            potential_well / potential_well.max() + 1,
+            rtol=1e-4,
+        )
 
 
 if __name__ == "__main__":

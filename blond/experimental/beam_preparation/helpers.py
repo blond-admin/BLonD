@@ -19,7 +19,6 @@ def populate_beam(
     density_grid: NumpyArray,
     n_macroparticles: int,
     seed: int,
-    normalize_density: bool = False,
 ) -> None:
     """
     Fill bunch with macroparticles according to density_distribution
@@ -44,8 +43,6 @@ def populate_beam(
         Random seed, to make function with same seed
         always return the same value
     """
-    if normalize_density:
-        density_grid /= np.sum(density_grid)
     # Initialise the random number generator
     np.random.seed(seed=seed)
     # Generating particles randomly inside the grid cells according to the
@@ -53,7 +50,7 @@ def populate_beam(
     indexes = np.random.choice(
         np.arange(0, np.size(density_grid)),
         n_macroparticles,
-        p=density_grid.flatten(),
+        p=density_grid.flatten() / np.sum(density_grid),
     )
     indexes = backend.array(
         indexes
@@ -77,4 +74,5 @@ def populate_beam(
         )
         * deltaE_step
     )
+
     beam.setup_beam(dt=dt, dE=dE)

@@ -56,7 +56,7 @@ class Main:
             profile1,
             # LocalFeedback(cavity1, profile1),
             # GlobalFeedback(profile1),
-            DriftXSuite(orbit_length=0.1 * my_ring.circumference),
+            # DriftXSuite(orbit_length=0.1 * my_ring.circumference),
         )
 
         my_cycle = MagneticCyclePerTurn(

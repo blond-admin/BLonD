@@ -10,9 +10,14 @@ from blond._core.beam.base import BeamBaseClass
 from blond.physics.drifts import DriftBaseClass, DriftSimple
 
 
+class DriftBaseClassHelper(DriftBaseClass):
+    def eta_0(self, gamma: float) -> backend.float:
+        pass
+
+
 class TestDriftBaseClass(unittest.TestCase):
     def setUp(self):
-        self.drift_base_class = DriftBaseClass(
+        self.drift_base_class = DriftBaseClassHelper(
             orbit_length=123, section_index=0
         )
 

@@ -214,7 +214,9 @@ class Simulation(Preparable, HasPropertyCache):
         from ..._core.beam.beams import ProbeBeam
 
         probe_bunch = ProbeBeam(
-            dt=ts, particle_type=particle_type, intensity=intensity
+            dt=ts,
+            particle_type=particle_type,
+            intensity=intensity,
         )
         t_0 = probe_bunch.reference_time
         self.run_simulation(

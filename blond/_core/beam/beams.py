@@ -235,6 +235,13 @@ class ProbeBeam(Beam):
             Macro-particle time coordinates, in [s]
         dE
             Macro-particle energy coordinates, in [eV]
+        reference_time
+            Time of the reference frame (global time), in [s]
+        reference_total_energy
+            Time of the reference frame (global total energy), in [eV]
+        intensity
+            Actual/real number of particles
+            a.k.a. beam intensity
         """
         super().__init__(
             intensity=intensity,
