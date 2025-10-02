@@ -399,7 +399,7 @@ def main_cli() -> None:
         "-c",
         "--compiler",
         type=str,
-        default="clang++",
+        default="g++",
         help="C++ compiler that will be used to compile the"
         " source files. Default: g++",
     )
