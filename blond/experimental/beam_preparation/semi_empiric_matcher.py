@@ -5,9 +5,8 @@ from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.lines import lineStyles
 
-from blond import AllowPlotting, WakeField, backend
+from blond import AllowPlotting, backend
 from blond.beam_preparation.base import MatchingRoutine
 
 from ..._core.helpers import int_from_float_with_warning
@@ -30,14 +29,14 @@ def _apply_density_function(
     density_modifier: float,
 ) -> NumpyArray | CupyArray:
     """
-    Convert Hamiltonian to a density distribution
+    Converts Hamiltonian to a density distribution
 
     Parameters
     ----------
     hamilton_2D
         2D representation of the Hamiltonian
         with 1 representing the limit between particles/no-particles.
-        Smaller 1 means there should be particles
+        Smaller 1 means there should be particles.
     density_modifier
         Exponent that modifies the denisity distribution.
 
@@ -229,7 +228,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         self.tolerance = tolerance
         self.verbose = verbose
 
-        self._previous_potential_well = None
+        self._previous_potential_well: NumpyArray | CupyArray | None = None
 
     def prepare_beam(
         self,
@@ -355,8 +354,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
             shape=self.internal_grid_shape,
         )
         hamilton_2D /= self.hamilton_max
-        if isinstance(self.density_modifier, Callable):
-            density = self.density_modifier(hamilton_2D=hamilton_2D)
+        if callable(self.density_modifier):
+            density = self.density_modifier(hamilton_2D=hamilton_2D)  # type: ignore
         else:
             density = _apply_density_function(
                 hamilton_2D=hamilton_2D,

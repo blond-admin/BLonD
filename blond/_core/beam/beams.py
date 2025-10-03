@@ -127,9 +127,6 @@ class Beam(BeamBaseClass):
             turn_i_init=turn_i_init,
         )
 
-    def histogram(self, **kwargs):
-        return np.histogram(self._dt, **kwargs)[0]
-
     @property
     def ratio(self) -> float:
         """Ratio of the intensity vs. the sum of weights"""

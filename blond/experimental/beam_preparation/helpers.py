@@ -21,11 +21,11 @@ def populate_beam(
     seed: int,
 ) -> None:
     """
-    Fill bunch with macroparticles according to density_distribution
+    Fill bunch with macroparticles according to `density_distribution`
 
     Notes
     -----
-    The beam coordinate dt and dE will be overwritten.
+    The beam coordinate `dt and` `dE` will be overwritten.
 
     Parameters
     ----------
