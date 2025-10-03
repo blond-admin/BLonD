@@ -9,8 +9,10 @@ from xpart.longitudinal.rfbucket_matching import (
     RFBucketMatcher,
 )
 
+from blond._core.helpers import int_from_float_with_warning
 from blond import SingleHarmonicCavity
 from blond.beam_preparation.base import MatchingRoutine
+from examples.EX_MuonCollider import cavity
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional, Tuple
@@ -18,44 +20,85 @@ if TYPE_CHECKING:  # pragma: no cover
     from xpart.longitudinal.rfbucket_matching import (
         ParabolicDistribution,
         QGaussianDistribution,
-        StationaryDistribution,
         ThermalDistribution,
-        WaterbagDistribution,
     )
 
     from blond._core.beam.base import BeamBaseClass
     from blond._core.simulation.simulation import Simulation
 
-    # TODO tests should cover all generators, if included in type hint
     distribution_hints = Type[
         Union[
-            ThermalDistribution,
-            ThermalDistribution,
-            QGaussianDistribution,
             ParabolicDistribution,
-            WaterbagDistribution,
-            StationaryDistribution,  # general, in case xsuite was extended
+            QGaussianDistribution,
+            ThermalDistribution,
         ]
     ]
 
 
 class XsuiteRFBucketMatcher(MatchingRoutine):
+    """
+    Beam preparation routine that matches a longitudinal beam distribution
+    using the Xsuite RFBucketMatcher and populates the beam with macroparticles.
+    REF:
+
+    This class constructs an RF bucket using the given machine parameters and
+    applies a stationary distribution (e.g., Q-Gaussian, Thermal) to initialize
+    the beam's longitudinal phase space (`dt`, `dE`) in a matched state.
+
+    Parameters
+    ----------
+    n_macroparticles : int or float
+        Number of macroparticles to generate in the matched distribution.
+    distribution_type : type
+        Type of stationary distribution to use for matching. Must be a class from
+        `xpart.longitudinal.rfbucket_matching`, such as `QGaussianDistribution`
+        or `ThermalDistribution`.
+    cavity : SingleHarmonicCavity, optional
+        RF cavity to use when constructing the RF bucket. Required for voltage,
+        harmonic number, and phase.
+    sigma_z : float, optional
+        RMS bunch length, in [m]
+        for use in the distribution generation.
+    energy_init : float, optional
+        Initial beam energy, in [eV].
+        Required for relativistic and bucket parameters.
+    verbose_regeneration : bool, default=False
+        Whether to print verbose logs during the matching routine.
+
+    Examples
+    --------
+    >>> sim.prepare_beam(
+    >>>     beam= ... ,
+    >>>     preparation_routine=XsuiteRFBucketMatcher(
+    >>>         distribution_type=QGaussianDistribution,
+    >>>         energy_init= ... ,
+    >>>         cavity= ...,
+    >>>         sigma_z= ... ,
+    >>>         n_macroparticles= ...,
+    >>>     ),
+    >>> )
+
+    Raises
+    ------
+    ValueError
+        If the cavity is not set, energy is not provided, or transition gamma is missing.
+
+    """
+
     def __init__(
         self,
         n_macroparticles: int | float,
         distribution_type: distribution_hints,
-        cavity: Optional[SingleHarmonicCavity] = None,
-        sigma_z: Optional[float] = None,
-        energy_init: Optional[float] = None,
+        sigma_z: float,
         verbose_regeneration: bool = False,
     ) -> None:
         super().__init__()
         self.distribution_type = distribution_type
         self.sigma_z = sigma_z
-        self.n_macroparticles = n_macroparticles
+        self.n_macroparticles = int_from_float_with_warning(
+            n_macroparticles, warning_stacklevel=2
+        )
         self.verbose_regeneration = verbose_regeneration
-        self.energy_init = energy_init
-        self.cavity = cavity
 
     def prepare_beam(
         self,
@@ -63,14 +106,32 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
         beam: BeamBaseClass,
     ) -> None:
         """
-        Populates the `Beam` object with macro-particles
+        Generate and apply a matched longitudinal beam distribution.
+
+        This method constructs an RF bucket from the simulation and cavity
+        parameters, computes a stationary longitudinal distribution using
+        `RFBucketMatcher`, and populates the `Beam` object with macroparticles
+        matched to the bucket.
 
         Parameters
         ----------
-        simulation
-            Simulation context manager
-        """
+        simulation : Simulation
+            The simulation context, which includes the ring, drift elements,
+            magnetic cycle, and RF systems.
+        beam : BeamBaseClass
+            The beam to be populated. Must have `particle_type.mass` and
+            `particle_type.charge` defined.
 
+        Raises
+        ------
+        ValueError
+            If:
+            - The cavity is not provided.
+            - Initial beam energy is not set.
+            - No `DriftSimple` elements are found in the ring.
+            - `transition_gamma` is not defined in the first drift element.
+
+        """
         from blond.physics.drifts import DriftSimple
 
         super().prepare_beam(
@@ -78,52 +139,42 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             beam=beam,
         )
 
-        drifts: Tuple[DriftSimple, ...] = (
-            simulation.ring.elements.get_elements(DriftSimple)
+        drift: DriftSimple = (
+            simulation.ring.elements.get_element(DriftSimple)
         )
-        for _drift in drifts:
-            _drift.apply_schedules(
-                turn_i=0,
-                reference_time=0,
+        drift.apply_schedules(
+            turn_i=0,
+            reference_time=0,
+        )
+        cavity: SingleHarmonicCavity = simulation.ring.elements.get_element(
+            SingleHarmonicCavity
+        )
+
+        cavity.apply_schedules(turn_i=0, reference_time=0.0)
+
+
+        if drift.transition_gamma is None:
+            raise ValueError(
+                "transition_gamma is not set in the first drift element."
             )
-        if self.cavity:
-            rf_element = self.cavity
-        else:
-            raise ValueError("Cavity is not set. Cannot assign rf_element.")
 
-        rf_element.apply_schedules(turn_i=0, reference_time=0)
-
-        if not self.energy_init:
-            raise ValueError('Initial energy is not set.')
-
-        energy = self.energy_init
-        rest_mass = beam.particle_type.mass
-        gamma = energy / rest_mass
-
-        if not drifts:
-            raise ValueError("Drift list is empty. Cannot access transition_gamma.")
-
-        if  drifts[0].transition_gamma is None:
-            raise ValueError("transition_gamma is not set in the first drift element.")
-        transition_gamma = drifts[0].transition_gamma
-
-        alpha_c = 1 / transition_gamma**2 - 1 / gamma**2
+        alpha_c = drift.momentum_compaction_factor
         mass_kg = beam.particle_type.mass * e / c**2
         charge_coulomb = beam.particle_type.charge * e
 
-        # --- Build RF bucket ---
         rfbucket = RFBucket(
             circumference=simulation.ring.circumference,
-            gamma=gamma,
+            gamma=beam.reference_gamma,
             mass_kg=mass_kg,
             charge_coulomb=charge_coulomb,
             alpha_array=np.atleast_1d(alpha_c),
-            harmonic_list=np.atleast_1d(self.cavity.harmonic),
-            voltage_list=np.atleast_1d(self.cavity.voltage),
-            phi_offset_list=np.atleast_1d(self.cavity.phi_rf),
+            harmonic_list=np.atleast_1d(cavity.harmonic),
+            voltage_list=np.atleast_1d(cavity.voltage),
+            phi_offset_list=np.atleast_1d(cavity.phi_rf + np.pi),
             p_increment=0,
         )
 
+        np.random.seed(seed=42)
         matcher = RFBucketMatcher(
             rfbucket=rfbucket,
             distribution_type=self.distribution_type,
@@ -131,12 +182,17 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             verbose_regeneration=self.verbose_regeneration,
         )
 
-        z, delta, *_ = matcher.generate(
+        zeta, delta, *_ = matcher.generate(
             macroparticlenumber=self.n_macroparticles
         )
 
+        omega = cavity.calc_omega(
+            beam_beta=beam.reference_beta,
+            ring_circumference=simulation.ring.circumference,
+        )
+        # convert zeta to t coordinate
+        T = (2 * np.pi) / omega
+        dt = -1 * (zeta) / c + T / 2
         # convert from delta to dE
-        dE = delta*self.energy_init
-
-        # --- Set the beam using standard interface ---
-        beam.setup_beam(dt=z / c, dE=dE)
+        dE = delta * beam.reference_total_energy
+        beam.setup_beam(dt=dt, dE=dE)

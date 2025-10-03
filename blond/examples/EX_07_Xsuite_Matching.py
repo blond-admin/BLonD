@@ -4,7 +4,9 @@ import logging
 import numpy as np
 from matplotlib import pyplot as plt
 from xpart.longitudinal.rfbucket_matching import (
-    ThermalDistribution,
+QGaussianDistribution,
+#ThermalDistribution,
+#ParabolicDistribution,
 )
 
 from blond import (
@@ -31,9 +33,10 @@ def main():
     cavity1 = SingleHarmonicCavity()
     cavity1.harmonic = 35640
     cavity1.voltage = 6e6
-    cavity1.phi_rf = 135
+    cavity1.phi_rf = 85 #45*(np.pi/180)
 
-    N_TURNS = int(10)
+
+    N_TURNS = int(1)
     energy_init = 450e9
     energy_cycle = MagneticCyclePerTurn(
         value_init=energy_init,
@@ -58,11 +61,9 @@ def main():
     sim.prepare_beam(
         beam=beam1,
         preparation_routine=XsuiteRFBucketMatcher(
-            distribution_type=ThermalDistribution,
-            energy_init=energy_init,
-            cavity=cavity1,
+            distribution_type=QGaussianDistribution,
             sigma_z=zmax / 4,
-            n_macroparticles=int(1e6),
+            n_macroparticles=int(1e3),
         ),
     )
 
@@ -98,19 +99,22 @@ def main():
             observe=[phase_observation, bunch_observation],
         )
 
+
     ANIMATE = True
     if ANIMATE:
-        plt.plot(phase_observation.phases)
         plt.figure()
         for i in range(N_TURNS):
             plt.clf()
-            plt.hist2d(
+            plt.hist(
                 bunch_observation.dts[i, :],
-                bunch_observation.dEs[i, :],
-                bins=256,
-                # range=[[0, 2.5e-9], [-4e8, 4e8]],
+                bins=20,
+                density=True
             )
-            plt.draw()
+            plt.title(f"Turn {i}")
+            plt.xlabel("Time deviation dt [s]")
+            plt.ylabel("Number of macroparticles")
+            plt.grid(True)
+            plt.tight_layout()
             plt.pause(0.1)
 
         plt.show()
