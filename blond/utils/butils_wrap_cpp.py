@@ -845,7 +845,7 @@ def rf_volt_comp(
     omega_rf = omega_rf.astype(dtype=precision.real_t, order="C", copy=False)
     phi_rf = phi_rf.astype(dtype=precision.real_t, order="C", copy=False)
 
-    rf_voltage = np.zeros(len(bin_centers), dtype=precision.real_t, order="C")
+    rf_voltage = np.empty(len(bin_centers), dtype=precision.real_t, order="C")
 
     get_libblond().rf_volt_comp(
         __getPointer(voltages),
@@ -1135,7 +1135,7 @@ def fast_resonator(
     Q: np.ndarray,
     frequency_array: np.ndarray,
     frequency_R: np.ndarray,
-    impedance: Optional[NDArray] = None,
+    impedance: Optional[NumpyArray] = None,
 ) -> NumpyArray:
     R_S = R_S.astype(dtype=precision.real_t, order="C", copy=False)
     Q = Q.astype(dtype=precision.real_t, order="C", copy=False)
