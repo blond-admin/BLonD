@@ -59,6 +59,7 @@ def get_hamiltonian_semi_analytic(
     potential_well: NumpyArray | CupyArray,
     reference_total_energy: float,
     eta: float,
+    beta: float,
     shape: Tuple[int, int],
     energy_range: Optional[Tuple[float, float]] = None,
 ) -> (
@@ -110,7 +111,7 @@ def get_hamiltonian_semi_analytic(
     E0 = reference_total_energy  # [eV]
 
     # Compute kinetic energy term constant
-    drift_term = eta / E0  # [1/eV]
+    drift_term = eta / (beta * beta * E0)  # [1/eV]
     assert len(ts) == len(potential_well), (
         f"{len(ts)=}, but {len(potential_well)=}"
     )
@@ -348,6 +349,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             ts=ts,
             potential_well=potential_well,
             reference_total_energy=beam.reference_total_energy,
+            beta=beam.reference_beta,
             eta=float(
                 simulation.ring.calc_average_eta_0(beam.reference_gamma)
             ),

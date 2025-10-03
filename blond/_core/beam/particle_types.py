@@ -13,6 +13,30 @@ m_mu = physical_constants["muon mass"][0]
 
 @dataclass(frozen=True)
 class ParticleType:
+    """
+    Represents a particle type with physical constants.
+
+    Parameters
+    ----------
+    mass : float
+        Rest mass energy of the particle, in [eV].
+    charge : float
+        Number of electric charges of the particle, in  []
+    user_decay_rate : float, optional
+        Optional user-specified decay rate. Default is 0.0.
+
+    Attributes
+    ----------
+    mass : float
+        Rest mass energy of the particle, in [eV].
+    charge : float
+        Number of electrons of the particle, in  []
+    user_decay_rate : float, optional
+        Optional user-specified decay rate. Default is 0.0.
+    mass_inv : float
+        Inverse of the mass (1/mass), in [1/eV].
+    """
+
     mass: float
     charge: float
     user_decay_rate: float = 0.0
@@ -69,36 +93,36 @@ class ParticleType:
         return self._quantum_radiation_constant
 
 
-proton = ParticleType(
+proton: ParticleType = ParticleType(
     mass=m_p * c**2 / e,
     charge=1,
 )
 
-uranium_29 = ParticleType(
+uranium_29: ParticleType = ParticleType(
     mass=238 * m_p * c**2 / e,  # approximate mass-energy in eV
     charge=29,
 )
 
-electron = ParticleType(
+electron: ParticleType = ParticleType(
     mass=m_e * c**2 / e,
     charge=-1,
 )
 
-positron = ParticleType(
+positron: ParticleType = ParticleType(
     mass=m_e * c**2 / e,
     charge=1,
 )
 
 _muon_decay_rate = float(1 / 2.1969811e-6)
 
-mu_plus = ParticleType(
+mu_plus: ParticleType = ParticleType(
     mass=m_mu * c**2 / e,
     charge=1,
     user_decay_rate=_muon_decay_rate,
 )
 
 
-mu_minus = ParticleType(
+mu_minus: ParticleType = ParticleType(
     mass=m_mu * c**2 / e,
     charge=-1,
     user_decay_rate=_muon_decay_rate,

@@ -249,7 +249,7 @@ class TestSimulation(unittest.TestCase):
         potential_well = self.simulation.get_potential_well_empiric(
             ts, particle_type=particle_type
         )
-        DEV_PLOT = False
+        DEV_PLOT = True  # TODO set false
         phi_s = np.pi
 
         potential_well_analytic = (
@@ -257,14 +257,18 @@ class TestSimulation(unittest.TestCase):
             * cavity.voltage
             / (2 * np.pi)
             * (np.cos(phis) - np.cos(phi_s) + (phis - phi_s) * np.sin(phi_s))
-        ) / ts.max()
+        )
         if DEV_PLOT:
+            plt.subplot(2, 1, 1)
             plt.plot(
-                potential_well / potential_well.max(),
+                potential_well,
                 label="potential_well",
             )
+            plt.legend()
+
+            plt.subplot(2, 1, 2)
             plt.plot(
-                potential_well_analytic / potential_well_analytic.max(),
+                potential_well_analytic,
                 "--",
                 label="potential_well_analytic",
             )

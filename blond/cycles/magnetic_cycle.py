@@ -174,6 +174,25 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         t_init: float,
         particle_type: ParticleType,
     ) -> backend.float:
+        """
+        Ring revolution time for initial turn, assuming there is NO acceleration.
+
+        Parameters
+        ----------
+        circumference
+                Constant synchrotron reference circumference, in [m].
+        turn_i_init
+            Initial turn to start simulation.
+        t_init
+            Time at initial turn, in [s].
+        particle_type
+            Type of particle to probe.
+
+        Returns
+        -------
+        t_rev
+            The time it takes to complete one turn at CONSTANT velocity, in [s]
+        """
         reference_total_energy = self.get_total_energy_init(
             turn_i_init=turn_i_init,
             t_init=t_init,

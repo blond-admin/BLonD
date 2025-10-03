@@ -28,9 +28,24 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
         }
         sim = SimulationTwoRfStations()
         self._test_matching(sim)
+
+        DEV_PLOT = False
+        if DEV_PLOT:
+
+            def my_callback(simulation: Simulation, beam: Beam):
+                plt.clf()
+                beam.plot_hist2d()
+                plt.draw()
+                plt.pause(0.1)
+
+            sim.simulation.run_simulation(
+                beams=(sim.beam1,), callback=my_callback
+            )
         for percentile in (10, 50, 90):
             percentile_dt = float(np.percentile(sim.beam1._dt, percentile))
             percentile_dE = float(np.percentile(sim.beam1._dE, percentile))
+            # print(percentile, ":", percentile_dt,",")
+            # print(percentile, ":", percentile_dE,",")
             np.testing.assert_allclose(
                 expected_dt[percentile],
                 percentile_dt,
