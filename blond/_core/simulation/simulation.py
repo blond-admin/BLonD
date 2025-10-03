@@ -172,7 +172,6 @@ class Simulation(Preparable, HasPropertyCache):
     def get_potential_well_empiric(
         self, ts: NumpyArray, particle_type: ParticleType
     ) -> NumpyArray:
-        raise NotImplementedError
         from ..._core.beam.beams import ProbeBeam
 
         bunch = ProbeBeam(
