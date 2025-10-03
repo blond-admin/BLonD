@@ -96,7 +96,7 @@ class TrackIteration:
     ):
         """
         Takes a user defined callable and calls it every repetion_rate
-        number of turns with predicate(track_map, turn_number, *args, **kwargs)
+        number of turns with ``predicate(track_map, turn_number, *args, **kwargs)``
         """
 
         self.function_list.append(
