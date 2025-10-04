@@ -455,7 +455,7 @@ class BunchObservation_meta_params(Observables):  # TODO rework class
                 np.sqrt(
                     np.average(self._beam._dE**2)
                     * np.average(self._beam._dt**2)
-                    - np.average(self._beam._dE * self._beam._dt)
+                    - np.average(self._beam._dE * self._beam._dt) ** 2
                 )
             )
 
