@@ -268,7 +268,7 @@ class WakeField(ImpedanceBaseClass):
         """
         self._induced_voltage = self.solver.calc_induced_voltage(beam=beam)[
             : self.profile.n_bins
-        ]
+        ]  # double slicing?
         return self.induced_voltage[: self.profile.n_bins]
 
     def track(self, beam: BeamBaseClass) -> None:
