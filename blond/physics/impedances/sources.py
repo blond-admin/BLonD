@@ -244,7 +244,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         n_fft: int,
     ) -> NumpyArray | CupyArray:  # Fixme all get_wake_impedance same
         """
-        Get impedance computed via fft from time domain anayltical formula equivalent
+        Get impedance computed via fft from time domain analytical formula equivalent
         to the partial single-particle-wake
 
 
