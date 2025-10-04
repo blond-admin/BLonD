@@ -55,6 +55,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from ..beam.base import BeamBaseClass
     from ..beam.particle_types import ParticleType
     from ..ring.ring import Ring
+from ...physics.cavities import CavityBaseClass
 
 logger = logging.getLogger(__name__)
 
@@ -600,11 +601,16 @@ class Simulation(Preparable, HasPropertyCache):
                 self.section_i.value = element.section_index
                 if element.is_active_this_turn(turn_i=self.turn_i.value):
                     element.track(beam)
-            for observable in observe:
-                if observable.is_active_this_turn(turn_i=self.turn_i.value):
-                    observable.update(
-                        simulation=self,
-                    )
+                if isinstance(
+                    element, DriftBaseClass
+                ):  # only observe after drifts
+                    for observable in observe:
+                        if observable.is_active_this_turn(
+                            turn_i=self.turn_i.value
+                        ):
+                            observable.update(
+                                simulation=self,
+                            )
             if callback is not None:
                 callback(simulation=self, beam=beam)
 
