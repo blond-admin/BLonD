@@ -440,13 +440,13 @@ class BunchObservation_meta_params(Observables):  # TODO rework class
         """
         # check if this value was already recorded, avoid double recording in the same section
         if (
-            self._last_section_i_observed == simulation.section_i.current_group
+            self._last_section_i_observed == simulation.section_i.value
             and self._last_turn_i_observed == simulation.turn_i.value
         ):
             return
         self._last_turn_i_observed = simulation.turn_i.value
-        self._last_section_i_observed = simulation.section_i.current_group
-        if simulation.section_i.current_group in self._index_list:
+        self._last_section_i_observed = simulation.section_i.value
+        if simulation.section_i.value in self._index_list:
             self._sigma_dt.write(np.std(self._beam._dt))
             self._sigma_dE.write(np.std(self._beam._dE))
             self._mean_dt.write(np.mean(self._beam._dt))
@@ -693,7 +693,7 @@ class StaticProfileObservation(Observables):
             Simulation context manager
 
         """
-        if simulation.section_i.current_group in self._index_list:
+        if simulation.section_i.value in self._index_list:
             if (
                 self._last_turn_i_observed == simulation.turn_i.value
                 and self._last_section_i_observed == simulation.section_i
@@ -764,7 +764,7 @@ class StaticMultiProfileObservation(Observables):
         self._last_turn_i_observed = simulation.turn_i.value
         self._last_section_i_observed = simulation.section_i
         for prof in self._profiles:
-            if simulation.section_i.current_group == prof.section_index:
+            if simulation.section_i.value == prof.section_index:
                 self._hist_y.write(prof.hist_y)
 
     @property  # as readonly attributes
@@ -856,7 +856,7 @@ class WakeFieldObservation(Observables):
             Simulation context manager
 
         """
-        if simulation.section_i.current_group in self._index_list:
+        if simulation.section_i.value in self._index_list:
             try:
                 self._induced_voltage.write(
                     self._wakefield.induced_voltage,

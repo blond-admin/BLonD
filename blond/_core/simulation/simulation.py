@@ -772,7 +772,7 @@ class Simulation(Preparable, HasPropertyCache):
                 self._ring.elements.elements
             ):
                 # TODO: invalidation of cache?
-                self.section_i.current_group = element.section_index
+                self.section_i.value = element.section_index
 
                 if element.is_active_this_turn(turn_i=self.turn_i.value):
                     element.track(beams[0])  # [0] is expected to be corotating
