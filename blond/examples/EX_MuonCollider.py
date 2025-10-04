@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 
@@ -28,11 +29,16 @@ from blond.handle_results.observables import (
 )
 from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
+    TimeDomainFftSolver,
 )
 from blond.physics.impedances.sources import Resonators
 from blond.specifics.muon_collider.beam_matching.beam_matching_rountine import (
     load_beam_data_counterrot_from_file,
 )
+
+# p = psutil.Process(os.getpid())
+# p.cpu_affinity(([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]))
+
 
 backend.change_backend(
     Numpy32Bit
@@ -98,10 +104,9 @@ def setup_and_run(int_eff=False):
                 t_rf,
                 section_index=cavity_i,
             )
-        )
-        # TODO: adjust center frequency to harmonic
+        )  # very slight difference in linspaces of bin_centers
         local_res = Resonators(
-            center_frequencies=1.3e9,
+            center_frequencies=1 / t_rf,
             quality_factors=Q_factor,
             shunt_impedances=R_over_Q * Q_factor * cav_per_station,
         )  # FM only
@@ -114,7 +119,7 @@ def setup_and_run(int_eff=False):
                     harmonic=harmonic,
                     local_wakefield=WakeField(
                         sources=(local_res,),
-                        solver=SingleTurnResonatorConvolutionSolver(),
+                        solver=TimeDomainFftSolver(),
                         profile=profile_list[-1],
                     )
                     if int_eff
@@ -149,7 +154,10 @@ def setup_and_run(int_eff=False):
     sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
     # sim.print_one_turn_execution_order()
     load_beam_data_counterrot_from_file(
-        str(Path(__file__).parent) + r"/RCS2_8_stations_no_int_eff.npz",
+        str(Path(__file__).parent) + r"/RCS2_8_stations_no_int_eff.npz"
+        if not int_eff
+        else str(Path(__file__).parent)
+        + r"/RCS2_8_stations_ind_volt_time.npz",
         beam,
         beam_CR,
     )
@@ -204,21 +212,21 @@ def plot_and_compare(
     energy_spread_blond2 = np.array(jdict["energy_spread_rms"])
     energy_centroid_blond2 = np.array(jdict["energy_mean"])
 
-    plt.title("bunch length")
-    plt.plot(bunch_observation.sigma_dt * 1e12)
+    # plt.title("bunch length")
+    # plt.plot(bunch_observation.sigma_dt * 1e12)
+    # # plt.plot(
+    # #     bunch_observation_CR.turns_array,
+    # #     bunch_observation_CR.sigma_dt * 1e12,
+    # #     label="CR",
+    # # )
     # plt.plot(
-    #     bunch_observation_CR.turns_array,
-    #     bunch_observation_CR.sigma_dt * 1e12,
-    #     label="CR",
+    #     bunch_length_blond2[1:] * 1e12,
+    #     label="blond2",
     # )
-    plt.plot(
-        bunch_length_blond2[1:] * 1e12,
-        label="blond2",
-    )
-    plt.ylabel("bunch length [ps]")
-    plt.xlabel("turns ")
-    plt.legend()
-    plt.show()
+    # plt.ylabel("bunch length [ps]")
+    # plt.xlabel("turns ")
+    # plt.legend()
+    # plt.show()
 
     plt.title("bunch centroid")
     plt.plot(bunch_observation.mean_dt * 1e9)
@@ -228,13 +236,13 @@ def plot_and_compare(
     plt.legend()
     plt.show()
 
-    plt.title("energy spread")
-    plt.plot(bunch_observation.sigma_dE / 1e9)
-    # plt.plot(bunch_observation_CR.sigma_dE / 1e9, label="CR")
-    plt.plot(energy_spread_blond2[1:] / 1e9, label="blond2")
-    plt.ylabel("energy spread [GeV]")
-    plt.legend()
-    plt.show()
+    # plt.title("energy spread")
+    # plt.plot(bunch_observation.sigma_dE / 1e9)
+    # # plt.plot(bunch_observation_CR.sigma_dE / 1e9, label="CR")
+    # plt.plot(energy_spread_blond2[1:] / 1e9, label="blond2")
+    # plt.ylabel("energy spread [GeV]")
+    # plt.legend()
+    # plt.show()
 
     plt.title("energy centroid")
     plt.plot(bunch_observation.mean_dE)
@@ -284,7 +292,7 @@ def plot_and_compare(
 
 
 if __name__ == "__main__":
-    int_eff = False
+    int_eff = True
     bunch_observation, bunch_observation_CR, profile_observation = (
         setup_and_run(int_eff=int_eff)
     )
