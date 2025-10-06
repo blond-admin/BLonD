@@ -611,26 +611,12 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
         if not self._wake_function_vals_needs_update:
             return
         hist_step = self._parent_wakefield.profile.hist_step
-        left_extend = (
-            len(self._parent_wakefield.profile.hist_x)
-            + self._parent_wakefield.profile.hist_x[0] / hist_step
-            - 1
-        )
-        # time shift for alignment with wakefunction definition of 0
-        right_extend = (
-            len(self._parent_wakefield.profile.hist_x) - left_extend - 1
-        )  # total length has to be 2*hist_x
-
+        arr_len = len(self._parent_wakefield.profile.hist_x)
         self._wake_function_time = np.linspace(
-            self._parent_wakefield.profile.hist_x[0] - left_extend * hist_step,
-            self._parent_wakefield.profile.hist_x[-1]
-            + right_extend * hist_step,
-            int(
-                len(self._parent_wakefield.profile.hist_x)
-                + left_extend
-                + right_extend
-            ),
-            endpoint=True,
+            -(arr_len - 1) * hist_step,
+            arr_len * hist_step,
+            int(2 * arr_len - 1),
+            endpoint=False,
         )  # necessary for boundary effects
         if zero_pinning:
             self._wake_function_time[
@@ -663,12 +649,14 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
         induced_voltage
             Induced voltage in [V]
         """
-        if self._wake_function_vals_needs_update:
-            self._update_potential_sources()
+        # if self._wake_function_vals_needs_update:
+        self._update_potential_sources()
 
         _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
             beam.intensity / beam.n_macroparticles_partial()
         )
+        # assert len(self._wake_function_vals) == 2 * len(self._parent_wakefield.profile.hist_x) ,(
+        # f"{len(self._wake_function_vals)}, {len(self._parent_wakefield.profile.hist_x)}")
 
         return _charge_per_macroparticle * np.convolve(
             self._wake_function_vals,
@@ -845,7 +833,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 )
                 # time shift for alignment with wakefunction definition of 0
                 right_extend = (
-                    len(self._past_profile_times[prof_ind]) - left_extend - 1
+                    len(self._past_profile_times[prof_ind]) - left_extend
                 )  # total length has to be 2*hist_x
                 self._wake_function_time.appendleft(
                     np.linspace(
