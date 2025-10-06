@@ -210,7 +210,7 @@ class NumbaSpecials(Specials):  # pragma: no cover
         bin_step = width / n_bins
         inv_bin_step = 1 / bin_step
         array_tmp = np.zeros(n_bins)
-        for i in prange(len(array_read)):
+        for i in range(len(array_read)):
             if array_read[i] == stop:
                 array_tmp[-1] += 1
                 continue
