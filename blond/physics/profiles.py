@@ -232,11 +232,13 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         # causes a MyPy type error,
         # This is intentionally ignored, we want to get an exception.
 
-        if n_fft not in self._beam_spectrum_buffer.keys():
+        no_array_buffer = n_fft not in self._beam_spectrum_buffer.keys()
+        if no_array_buffer:
             self._beam_spectrum_buffer[n_fft] = np.fft.rfft(
                 self._hist_y,  # type: ignore
                 n_fft,
             )
+        # recycle array, but overwrite data (preventing new array allocation)
         else:
             if backend.is_gpu:
                 # At the time of writing (2025), out is not a keyword argument
@@ -255,7 +257,9 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         return self._beam_spectrum_buffer[n_fft]
 
     def invalidate_cache(self) -> None:
-        """Delete the stored values of functions with @cached_property"""
+        """
+        Delete the stored values of functions with @cached_property
+        """
         for attribute in (
             "gauss_fit_params",
             "beam_spectrum",
