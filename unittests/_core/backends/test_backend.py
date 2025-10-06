@@ -513,7 +513,7 @@ class TestSpecials(unittest.TestCase):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
                 set_num_threads(8)
-                array_write = backend.zeros(21, dtype=backend.float)
+                array_write = backend.ones(21, dtype=backend.float)
                 #
                 backend.specials.histogram(
                     array_read=backend.array(

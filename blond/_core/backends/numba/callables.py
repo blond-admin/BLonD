@@ -211,6 +211,7 @@ class NumbaSpecials(Specials):  # pragma: no cover
         bin_step = width / n_bins
         inv_bin_step = 1 / bin_step
         array_tmp = np.zeros((n_threads, n_bins))
+        array_write[:] = 0
         for i in prange(len(array_read)):
             curr_thread = numba.get_thread_id()
             if array_read[i] == stop:
