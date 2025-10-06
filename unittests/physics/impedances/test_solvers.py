@@ -18,6 +18,7 @@ from blond.physics.impedances.solvers import (
     MultiPassResonatorSolver,
     PeriodicFreqSolver,
     SingleTurnResonatorConvolutionSolver,
+    TimeDomainFftSolver,
 )
 from blond.physics.impedances.sources import Resonators
 from blond.physics.profiles import (
@@ -151,7 +152,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
             center_frequencies=np.array([500e6, 750e6, 1.5e9]),
             quality_factors=np.array([5, 5, 5]),
         )
-        self.analytical_single_turn_solver = (
+        self.single_turn_resonator_convolution_solver = (
             SingleTurnResonatorConvolutionSolver()
         )
         self.left_edge, self.right_edge, self.hist_step = -2e-9, 1e-9, 1e-10
@@ -163,26 +164,70 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
             endpoint=True,
         )
 
-        self.analytical_single_turn_solver._parent_wakefield = Mock(WakeField)
-        self.analytical_single_turn_solver._parent_wakefield.profile = Mock(
+        self.single_turn_resonator_convolution_solver._parent_wakefield = Mock(
+            WakeField
+        )
+        self.single_turn_resonator_convolution_solver._parent_wakefield.profile = Mock(
             spec=StaticProfile
         )
-        self.analytical_single_turn_solver._parent_wakefield.profile.hist_step = self.hist_step
-        self.analytical_single_turn_solver._parent_wakefield.profile.hist_x = (
-            self.hist_x
-        )
+        self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_step = self.hist_step
+        self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_x = self.hist_x
 
         profile = np.zeros_like(
-            self.analytical_single_turn_solver._parent_wakefield.profile.hist_x
+            self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_x
         )
         profile[9:12] = 1  # symmetric profile around centerpoint
         profile /= np.sum(profile)
-        self.analytical_single_turn_solver._parent_wakefield.profile.hist_y = (
-            profile
+        self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y = profile
+
+        self.single_turn_resonator_convolution_solver._parent_wakefield.sources = (
+            self.resonators,
         )
 
-        self.analytical_single_turn_solver._parent_wakefield.sources = (
-            self.resonators,
+    def test_compare_with_fft_solver(self):
+        beam = Mock(BeamBaseClass)
+
+        beam.intensity = int(1e9)
+        beam.particle_type.charge = 1
+        beam.n_macroparticles_partial.return_value = int(1e3)
+        beam.ratio = beam.intensity / beam.n_macroparticles_partial()
+        self.single_turn_resonator_convolution_solver._update_potential_sources(
+            zero_pinning=True
+        )
+        initial_wake_pot = (
+            self.single_turn_resonator_convolution_solver._wake_function_vals
+        )
+        initial_wake_pot_time = (
+            self.single_turn_resonator_convolution_solver._wake_function_time
+        )
+        assert len(initial_wake_pot) == len(initial_wake_pot_time)
+        initial_voltage = (
+            self.single_turn_resonator_convolution_solver.calc_induced_voltage(
+                beam=beam
+            )
+        )
+
+        td_fft_solver = TimeDomainFftSolver()
+        td_fft_solver._parent_wakefield = Mock(WakeField)
+        td_fft_solver._parent_wakefield.profile = Mock(StaticProfile)
+        td_fft_solver._parent_wakefield.profile.hist_step = self.hist_step
+        td_fft_solver._parent_wakefield.profile.hist_x = self.hist_x
+
+        td_fft_solver._parent_wakefield.profile.hist_y = self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y
+
+        td_fft_solver._parent_wakefield.sources = (self.resonators,)
+
+        td_fft_solver._parent_wakefield.profile.beam_spectrum.return_value = np.fft.rfft(
+            self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y,
+            n=len(
+                self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y
+            )
+            * 2,
+        )
+
+        td_solver = td_fft_solver.calc_induced_voltage(beam=beam)
+        assert np.allclose(
+            initial_voltage, td_solver[0 : len(initial_voltage)]
         )
 
     def test___init__(self):
@@ -198,32 +243,34 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         beam.intensity = int(1e9)
         beam.particle_type.charge = 1
         beam.n_macroparticles_partial.return_value = int(1e3)
-        self.analytical_single_turn_solver._update_potential_sources(
+        self.single_turn_resonator_convolution_solver._update_potential_sources(
             zero_pinning=True
         )
         initial_wake_pot = (
-            self.analytical_single_turn_solver._wake_function_vals
+            self.single_turn_resonator_convolution_solver._wake_function_vals
         )
         initial_wake_pot_time = (
-            self.analytical_single_turn_solver._wake_function_time
+            self.single_turn_resonator_convolution_solver._wake_function_time
         )
         assert len(initial_wake_pot) == len(initial_wake_pot_time)
         initial_voltage = (
-            self.analytical_single_turn_solver.calc_induced_voltage(beam=beam)
+            self.single_turn_resonator_convolution_solver.calc_induced_voltage(
+                beam=beam
+            )
         )
         initial_profile_len = len(
-            self.analytical_single_turn_solver._parent_wakefield.profile.hist_x
+            self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_x
         )
         assert initial_profile_len == len(initial_voltage)
 
         # extend profile with 0s towards the back, should not change the values, which are before the 0s
         new_right_edge = 2.0e-9
-        self.analytical_single_turn_solver._parent_wakefield.profile.hist_y = np.append(
-            self.analytical_single_turn_solver._parent_wakefield.profile.hist_y,
+        self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y = np.append(
+            self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y,
             np.zeros(10),
         )
-        self.analytical_single_turn_solver._parent_wakefield.profile.hist_x = np.append(
-            self.analytical_single_turn_solver._parent_wakefield.profile.hist_x,
+        self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_x = np.append(
+            self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_x,
             np.arange(
                 self.right_edge + self.hist_step,
                 new_right_edge + self.hist_step,
@@ -231,28 +278,28 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
             ),
         )
 
-        self.analytical_single_turn_solver._wake_function_vals_needs_update = (
-            True
-        )
-        self.analytical_single_turn_solver._update_potential_sources(
+        self.single_turn_resonator_convolution_solver._wake_function_vals_needs_update = True
+        self.single_turn_resonator_convolution_solver._update_potential_sources(
             zero_pinning=True
         )
         updated_voltage = (
-            self.analytical_single_turn_solver.calc_induced_voltage(beam=beam)
+            self.single_turn_resonator_convolution_solver.calc_induced_voltage(
+                beam=beam
+            )
         )
         # check for correct length of profiles and voltages
         profile_len = len(
-            self.analytical_single_turn_solver._parent_wakefield.profile.hist_x
+            self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_x
         )
         assert profile_len == len(updated_voltage)
         assert len(initial_wake_pot_time) != len(
-            self.analytical_single_turn_solver._wake_function_time
+            self.single_turn_resonator_convolution_solver._wake_function_time
         )
 
         # check for unchanging of voltage, which should not change
         shift_index = int(profile_len - initial_profile_len)
         assert np.allclose(
-            self.analytical_single_turn_solver._wake_function_vals[
+            self.single_turn_resonator_convolution_solver._wake_function_vals[
                 shift_index : shift_index + len(initial_wake_pot)
             ],
             initial_wake_pot,
@@ -267,32 +314,34 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         beam.intensity = int(1e9)
         beam.particle_type.charge = 1
         beam.n_macroparticles_partial.return_value = int(1e3)
-        _ = self.analytical_single_turn_solver.calc_induced_voltage(beam=beam)
-        first_time = (
-            self.analytical_single_turn_solver._parent_wakefield.profile.hist_x
+        _ = self.single_turn_resonator_convolution_solver.calc_induced_voltage(
+            beam=beam
         )
+        first_time = self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_x
         found = False
         for run_ind in range(
-            len(self.analytical_single_turn_solver._wake_function_time)
+            len(
+                self.single_turn_resonator_convolution_solver._wake_function_time
+            )
             - len(
-                self.analytical_single_turn_solver._parent_wakefield.profile.hist_x
+                self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_x
             )
         ):
             if np.allclose(
-                self.analytical_single_turn_solver._wake_function_time[
+                self.single_turn_resonator_convolution_solver._wake_function_time[
                     run_ind : run_ind
                     + len(
-                        self.analytical_single_turn_solver._parent_wakefield.profile.hist_x
+                        self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_x
                     )
                 ],
-                self.analytical_single_turn_solver._parent_wakefield.profile.hist_x,
+                self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_x,
                 atol=self.hist_step / 100,
             ):
                 found = True
                 break
         assert found
 
-        local_copy = deepcopy(self.analytical_single_turn_solver)
+        local_copy = deepcopy(self.single_turn_resonator_convolution_solver)
         local_copy._wake_function_vals_needs_update = True
         local_copy._parent_wakefield.profile.hist_x = (
             local_copy._parent_wakefield.profile.hist_x + 1e-10 / 2
@@ -321,20 +370,22 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         beam.intensity = int(1e2)
         beam.particle_type.charge = 1
         beam.n_macroparticles_partial.return_value = int(1e2)
-        self.analytical_single_turn_solver._update_potential_sources(
+        self.single_turn_resonator_convolution_solver._update_potential_sources(
             zero_pinning=True
         )
         profile_width = int(
             (self.right_edge - self.left_edge) / self.hist_step
         )
-        self.analytical_single_turn_solver._wake_function_vals = np.zeros(
-            profile_width * 2 + 1
+        self.single_turn_resonator_convolution_solver._wake_function_vals = (
+            np.zeros(profile_width * 2 + 1)
         )
-        self.analytical_single_turn_solver._wake_function_vals[
+        self.single_turn_resonator_convolution_solver._wake_function_vals[
             profile_width - 1 : profile_width + 2
         ] = 1 / 3 / e
         calced_voltage = (
-            self.analytical_single_turn_solver.calc_induced_voltage(beam=beam)
+            self.single_turn_resonator_convolution_solver.calc_induced_voltage(
+                beam=beam
+            )
         )
 
         min_voltage = np.min(calced_voltage)  # negative due to positive charge
@@ -346,7 +397,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         assert np.sum(calced_voltage[profile_width // 3 + 3 :]) == 0
 
         # same check, but with self.hist_step/2 shifted histogram, should have same values
-        local_res = deepcopy(self.analytical_single_turn_solver)
+        local_res = deepcopy(self.single_turn_resonator_convolution_solver)
         local_res._parent_wakefield.profile.hist_x = (
             self.hist_x + self.hist_step / 2
         )
@@ -440,15 +491,17 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         beam.intensity = int(1e9)
         beam.particle_type.charge = 1
         beam.n_macroparticles_partial.return_value = int(1e3)
-        initial = self.analytical_single_turn_solver.calc_induced_voltage(
-            beam=beam
+        initial = (
+            self.single_turn_resonator_convolution_solver.calc_induced_voltage(
+                beam=beam
+            )
         )
         first_nonzero_index = np.abs(initial).argmax() - 1
         beam.intensity = int(1e4)
         assert (
-            self.analytical_single_turn_solver.calc_induced_voltage(beam=beam)[
-                first_nonzero_index:
-            ]
+            self.single_turn_resonator_convolution_solver.calc_induced_voltage(
+                beam=beam
+            )[first_nonzero_index:]
             != initial[first_nonzero_index:]
         ).all()
 
@@ -463,20 +516,20 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         resonators = Mock(Resonators)
         resonators.is_dynamic = False
         parent_wakefield.sources = (resonators,)
-        self.analytical_single_turn_solver.on_wakefield_init_simulation(
+        self.single_turn_resonator_convolution_solver.on_wakefield_init_simulation(
             simulation=simulation, parent_wakefield=parent_wakefield
         )
 
         with self.assertRaises(RuntimeError):
             profile_wrong = Mock(DynamicProfileConstCutoff)
             parent_wakefield.profile = profile_wrong
-            self.analytical_single_turn_solver.on_wakefield_init_simulation(
+            self.single_turn_resonator_convolution_solver.on_wakefield_init_simulation(
                 simulation=simulation, parent_wakefield=parent_wakefield
             )
         with self.assertRaises(RuntimeError):
             profile_wrong = Mock(DynamicProfileConstNBins)
             parent_wakefield.profile = profile_wrong
-            self.analytical_single_turn_solver.on_wakefield_init_simulation(
+            self.single_turn_resonator_convolution_solver.on_wakefield_init_simulation(
                 simulation=simulation, parent_wakefield=parent_wakefield
             )
         parent_wakefield.profile = profile
@@ -484,19 +537,19 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
             wrong_source = Mock(InductiveImpedance)
             wrong_source.is_dynamic = False
             parent_wakefield.sources = (wrong_source, resonators)
-            self.analytical_single_turn_solver.on_wakefield_init_simulation(
+            self.single_turn_resonator_convolution_solver.on_wakefield_init_simulation(
                 simulation=simulation, parent_wakefield=parent_wakefield
             )
         with self.assertRaises(RuntimeError):
             wrong_source.is_dynamic = True
             parent_wakefield.sources = (wrong_source, resonators)
-            self.analytical_single_turn_solver.on_wakefield_init_simulation(
+            self.single_turn_resonator_convolution_solver.on_wakefield_init_simulation(
                 simulation=simulation, parent_wakefield=parent_wakefield
             )
         with self.assertRaises(ValueError):
             parent_wakefield.profile = None
             parent_wakefield.sources = (resonators,)
-            self.analytical_single_turn_solver.on_wakefield_init_simulation(
+            self.single_turn_resonator_convolution_solver.on_wakefield_init_simulation(
                 simulation=simulation, parent_wakefield=parent_wakefield
             )
 
