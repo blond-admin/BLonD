@@ -43,7 +43,7 @@ from blond.specifics.muon_collider.beam_matching.beam_matching_rountine import (
 backend.change_backend(
     Numpy32Bit
 )  # TODO: without these lines, it does not work, default should be set somewhere to be Numpy64bit python
-backend.set_specials("numba")
+backend.set_specials("python")
 
 
 # phi_s = 128 * pi / 180  # deg

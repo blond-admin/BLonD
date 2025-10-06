@@ -510,6 +510,21 @@ class BunchObservation_meta_params(Observables):  # TODO rework class
         )
 
 
+# class MultiCavityObservation(Observables):
+#     def __init__(self,
+#                  each_turn_i: int,
+#                  cavities: List[SingleHarmonicCavity],
+#                  folder: str = "",
+#     ):
+#         super().__init__(each_turn_i=each_turn_i, folder=folder)
+#         self._cavities = cavities
+#         self._phases: LateInit[DenseArrayRecorder] = None
+#         self._omegas: LateInit[DenseArrayRecorder] = None
+#         self._voltages: LateInit[DenseArrayRecorder] = None
+#
+#
+
+
 class CavityPhaseObservation(Observables):
     def __init__(
         self,

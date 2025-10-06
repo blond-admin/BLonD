@@ -773,7 +773,7 @@ class Simulation(Preparable, HasPropertyCache):
         )  # TODO: can this change between different turns?
 
         for turn_i in iterator:
-            self.turn_i.value = turn_i
+            self.turn_i.value = turn_i  # invaliade cache
             for element_ind, element in enumerate(
                 self._ring.elements.elements
             ):
