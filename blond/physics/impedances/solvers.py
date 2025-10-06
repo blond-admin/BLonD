@@ -822,41 +822,23 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             if (
                 prof_ind == 0
             ):  # current profile does not yet have arrays initialized
-                profile_hist_step = (
-                    self._past_profile_times[prof_ind][1]
-                    - self._past_profile_times[prof_ind][0]
-                )
-                left_extend = (
-                    len(self._past_profile_times[prof_ind])
-                    + self._past_profile_times[prof_ind][0] / profile_hist_step
-                    - 1
-                )
-                # time shift for alignment with wakefunction definition of 0
-                right_extend = (
-                    len(self._past_profile_times[prof_ind]) - left_extend
-                )  # total length has to be 2*hist_x
+                hist_step = self._parent_wakefield.profile.hist_step
+                arr_len = len(self._parent_wakefield.profile.hist_x)
                 self._wake_function_time.appendleft(
                     np.linspace(
-                        self._past_profile_times[prof_ind][0]
-                        - left_extend * profile_hist_step,
-                        self._past_profile_times[prof_ind][-1]
-                        + right_extend * profile_hist_step,
-                        int(
-                            len(self._past_profile_times[prof_ind])
-                            + left_extend
-                            + right_extend
-                        ),
-                        endpoint=True,
+                        -(arr_len - 1) * hist_step,
+                        arr_len * hist_step,
+                        int(2 * arr_len - 1),
+                        endpoint=False,
                     )
                 )  # necessary for boundary effects
                 if zero_pinning:
                     self._wake_function_time[prof_ind][
                         np.abs(self._wake_function_time[prof_ind])
-                        <= profile_hist_step
+                        <= hist_step
                         * np.finfo(float).eps
                         * len(self._wake_function_time[prof_ind])
                     ] = 0.0
-
                 self._wake_function_vals.appendleft(
                     np.zeros_like(self._wake_function_time[prof_ind])
                 )
