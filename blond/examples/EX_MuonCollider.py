@@ -43,7 +43,7 @@ from blond.specifics.muon_collider.beam_matching.beam_matching_rountine import (
 backend.change_backend(
     Numpy32Bit
 )  # TODO: without these lines, it does not work, default should be set somewhere to be Numpy64bit python
-backend.set_specials("python")
+backend.set_specials("numba")
 
 
 # phi_s = 128 * pi / 180  # deg
@@ -108,35 +108,50 @@ def setup_and_run(int_eff=False):
         local_res = Resonators(
             center_frequencies=1 / t_rf,
             quality_factors=Q_factor,
-            shunt_impedances=R_over_Q * Q_factor * cav_per_station,
+            shunt_impedances=R_over_Q * Q_factor * cav_per_station / 2,
         )  # FM only
         one_turn_model.extend(
             [
+                DriftSimple(
+                    transition_gamma=-gamma_transition,
+                    orbit_length=circumference / n_stations / 2,
+                    section_index=cavity_i,
+                ),
                 profile_list[-1],
                 SingleHarmonicCavity(
-                    voltage=voltage_per_station,
+                    voltage=voltage_per_station / 2,
                     phi_rf=0,
                     harmonic=harmonic,
                     local_wakefield=WakeField(
                         sources=(local_res,),
-                        solver=TimeDomainFftSolver(),
+                        solver=SingleTurnResonatorConvolutionSolver(),
                         profile=profile_list[-1],
                     )
                     if int_eff
                     else None,
                     section_index=cavity_i,
                 ),
-                # profile_list[-1],  # for CR beam
-                DriftSimple(  # for symmetry's sake for the CR bunch, we need to inject in the middle of a drift
-                    transition_gamma=gamma_transition,
-                    orbit_length=circumference / n_stations,
+                profile_list[-1],  # for CR beam
+                DriftSimple(
+                    transition_gamma=-gamma_transition,
+                    orbit_length=circumference / n_stations / 2,
                     section_index=cavity_i,
                 ),
-                # DriftSimple(
-                #     transition_gamma=-gamma_transition,
-                #     orbit_length=circumference / n_stations / 2,
+                # profile_list[-1],
+                # SingleHarmonicCavity(
+                #     voltage=voltage_per_station / 2,
+                #     phi_rf=0,
+                #     harmonic=harmonic,
+                #     local_wakefield=WakeField(
+                #         sources=(local_res,),
+                #         solver=SingleTurnResonatorConvolutionSolver(),
+                #         profile=profile_list[-1],
+                #     )
+                #     if int_eff
+                #     else None,
                 #     section_index=cavity_i,
                 # ),
+                # profile_list[-1],  # for CR beam
             ]
         )
     ring.add_elements(one_turn_model, reorder=False)
@@ -179,7 +194,7 @@ def setup_and_run(int_eff=False):
     #     beam=beam_CR,
     # )
     sim.run_simulation(
-        beams=([beam]),
+        beams=([beam, beam_CR]),
         turn_i_init=0,
         n_turns=None,
         observe=(
@@ -230,7 +245,7 @@ def plot_and_compare(
 
     plt.title("bunch centroid")
     plt.plot(bunch_observation.mean_dt * 1e9)
-    # plt.plot(bunch_observation_CR.mean_dt * 1e9, label="CR")
+    plt.plot(bunch_observation_CR.mean_dt * 1e9, label="CR")
     plt.plot(bunch_centroid_blond2[1:] * 1e9, label="blond2")
     plt.ylabel("bunch centroid [ns]")
     plt.legend()
@@ -246,14 +261,14 @@ def plot_and_compare(
 
     plt.title("energy centroid")
     plt.plot(bunch_observation.mean_dE)
-    # plt.plot(bunch_observation_CR.mean_dE, label="CR")
+    plt.plot(bunch_observation_CR.mean_dE, label="CR")
     plt.plot(energy_centroid_blond2[1:], label="blond2")
     plt.legend()
     plt.show()
 
     plt.title("emittance")
     plt.plot(bunch_observation.emittance_stat, label="emittance")
-    # plt.plot(bunch_observation_CR.emittance_stat, label="CR")
+    plt.plot(bunch_observation_CR.emittance_stat, label="CR")
     plt.plot(emittance_blond2[1:], label="blond2")
     plt.ylabel("statistical emittance (eVs)")
     plt.legend()
