@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess  # Used to run external commands (like f2py)
 import sys
+from pathlib import Path
 
 _filepath = os.path.realpath(__file__)
-_basepath = os.sep.join(_filepath.split(os.sep)[:-1])
+_basepath = os.path.dirname(_filepath)
 
 from typing import List
 
@@ -74,6 +76,10 @@ def compile_fortran_module(module_name: str, fortran_files: List[str]) -> bool:
         )
         print("Compilation successful.\n")
         print(result.stdout)  # Show compilation messages
+        # MOVE RESULT TO COMPILED SUBFOLDER
+        # This is done because the compile script was crashing with changed
+        # compilation target path. Probably can be fixed..
+        move_compiled_file_to_subfolder(module_name)
     except subprocess.CalledProcessError as e:
         # If the compilation fails, show the error message
         print("Compilation failed:")
@@ -81,6 +87,30 @@ def compile_fortran_module(module_name: str, fortran_files: List[str]) -> bool:
         return False
 
     return True  # Return True if compilation succeeds
+
+
+def move_compiled_file_to_subfolder(module_name: str):
+    from blond._generals._hashing import hash_in_folder
+
+    folder = os.path.dirname(os.path.abspath(__file__))
+    hash_ = hash_in_folder(
+        folder=folder,
+        extensions=(".py", ".f90"),
+        recursive=False,
+    )
+    target = os.path.join(folder, "compiled", hash_)
+    os.makedirs(target, exist_ok=True)
+    matching_files = [
+        f.name
+        for f in Path(_basepath).iterdir()
+        if f.is_file() and f.name.startswith(module_name)
+    ]
+    from_ = os.path.join(os.path.dirname(__file__), matching_files[0])
+    to_ = os.path.join(target, matching_files[0])
+    shutil.move(
+        from_,
+        to_,
+    )
 
 
 def main_cli() -> None:
