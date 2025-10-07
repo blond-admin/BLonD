@@ -859,10 +859,10 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         The time axis is chosen based on the profile in `_parent_wakefield.profile`
 
         """
-        if (
-            not self._wake_function_vals_needs_update
-        ):  # TODO: how do we set this automagically?
-            return
+        # if (
+        #     not self._wake_function_vals_needs_update
+        # ):  # TODO: how do we set this automagically?
+        #     return
 
         self._update_past_profile_times_wake_times(current_time)
         self._remove_fully_decayed_wake_profiles()
@@ -894,8 +894,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
-        if self._wake_function_vals_needs_update:
-            self._update_potential_sources(beam.reference_time)
+        # if self._wake_function_vals_needs_update:
+        self._update_potential_sources(beam.reference_time)
 
         _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
             beam.intensity / beam.n_macroparticles_partial()
@@ -904,7 +904,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             _charge_per_macroparticle
         )
 
-        wake_sum = 0
+        wake_sum = np.zeros_like(self._past_profiles[0])
         for prof_ind in range(
             len(self._past_profiles)
         ):  # TODO: speedgain through circular shifting with numpy arrays instead of dequeue --> deque not usable with numba
@@ -915,4 +915,5 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 self._past_profiles[prof_ind],
                 mode="valid",
             )
+        print(len(self._past_profiles))
         return wake_sum
