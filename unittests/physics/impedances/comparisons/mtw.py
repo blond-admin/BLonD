@@ -31,6 +31,9 @@ from blond.legacy.blond2.impedances.impedance import (
     InducedVoltageResonator as ind_volt_res_b2,
 )
 from blond.legacy.blond2.impedances.impedance import (
+    InducedVoltageTime as ind_volt_time_b2,
+)
+from blond.legacy.blond2.impedances.impedance import (
     TotalInducedVoltage as total_ind_volt_b2,
 )
 from blond.legacy.blond2.impedances.impedance_sources import (
@@ -59,14 +62,14 @@ backend.change_backend(
 backend.set_specials("numba")
 
 # RCS2
-phi_s = 148 * pi / 180  # deg
+phi_s = 120 * pi / 180  # deg
 inj_energy = 313.83e9
 ejection_energy = 750e9
 n_turns = 56
 alpha_p = 8.986e-4
 Q_factor = 1.76e6
 bunch_intensity = 2.4e12
-station_downscale = 8
+station_downscale = 80
 circumference = 5990
 harmonic = 25928
 voltage_per_cavity = 31140000.0
@@ -74,7 +77,8 @@ voltage_per_cavity = 31140000.0
 energy_gain_per_turn = (
     (ejection_energy - inj_energy) / n_turns / station_downscale
 )
-n_turns_downscale = 3
+
+n_turns_downscale = 2000
 ejection_energy = inj_energy + n_turns_downscale * energy_gain_per_turn
 total_voltage = energy_gain_per_turn / np.sin(phi_s)
 voltage_per_station = total_voltage
@@ -86,13 +90,17 @@ gamma_transition = 1 / np.sqrt(alpha_p)
 
 n_slices_profile = 2**9
 emittance = 0.025 * 4 * np.pi
-n_macroparticles = int(1e4)
+n_macroparticles = int(1e6)
+
+decay_fraction_threshold = 0.01
+
+from blond.legacy.blond2.utils import bmath as bm
+
+bm.use_numba()
+bm.use_precision("double")
 
 
-def setup_and_run_blond3(int_eff: bool = False, mtw: bool = False):
-    if mtw and not int_eff:
-        raise RuntimeError("mtw requires int_eff")
-
+def setup_and_run_blond3(mtw: bool = False):
     ring = Ring(circumference=circumference)
     magnetic_cycle = MagneticCyclePerTurn(
         value_init=inj_energy,
@@ -136,7 +144,7 @@ def setup_and_run_blond3(int_eff: bool = False, mtw: bool = False):
                 local_wakefield=WakeField(
                     sources=(local_res,),
                     solver=MultiPassResonatorSolver(
-                        decay_fraction_threshold=0.001
+                        decay_fraction_threshold=decay_fraction_threshold
                     )
                     if mtw
                     else SingleTurnResonatorConvolutionSolver(),
@@ -194,26 +202,6 @@ def setup_and_run_blond3(int_eff: bool = False, mtw: bool = False):
     )
 
 
-def plot_and_compare(
-    bunch_observation,
-    bunch_centroid_blond2,
-    energy_centroid_blond2,
-    mtw=False,
-):
-    plt.title("bunch centroid")
-    plt.plot(bunch_observation.mean_dt * 1e9)
-    plt.plot(bunch_centroid_blond2 * 1e9, label="blond2", ls="--")
-    plt.ylabel("bunch centroid [ns]")
-    plt.legend()
-    plt.show()
-
-    plt.title("energy centroid")
-    plt.plot(bunch_observation.mean_dE)
-    plt.plot(energy_centroid_blond2, label="blond2", ls="--")
-    plt.legend()
-    plt.show()
-
-
 def setup_and_run_blond2(mtw=False):
     energy = np.linspace(
         inj_energy, ejection_energy, n_turns_downscale + 1, endpoint=True
@@ -257,6 +245,7 @@ def setup_and_run_blond2(mtw=False):
         rf_station=rf_station,
         multi_turn_wake=mtw,
         mtw_mode="time",
+        time_decay_factor=decay_fraction_threshold,
     )
 
     total_ind_volt = total_ind_volt_b2(beam, profile, [ind_volt_res])
@@ -271,34 +260,40 @@ def setup_and_run_blond2(mtw=False):
     )  # without interpolation no ind voltage
     full_ring_and_rf_tracker = FullRingAndRF([long_tracker])
 
-    if not os.path.exists("initial_beam.npz"):
-        matching = matched_from_distribution_function(
-            beam,
-            full_ring_and_rf_tracker,
-            n_iterations=10,  # TotalInducedVoltage=total_ind_volt,
-            dt_margin_percent=0.01,
-            seed=1234,
-            distribution_exponent=2,
-            distribution_type="binomial",
-            emittance=2 * emittance,
-            distribution_variable="Hamiltonian",
-            process_pot_well=True,
-            turn_number=0,
-        )
-        np.savez("initial_beam.npz", dt=beam.dt, dE=beam.dE, id=beam.id)
-    else:
-        beam.dt = np.load("initial_beam.npz")["dt"]
-        beam.dE = np.load("initial_beam.npz")["dE"]
-        beam.id = np.load("initial_beam.npz")["id"]
+    # if not os.path.exists("initial_beam.npz"):
+    matching = matched_from_distribution_function(
+        beam,
+        full_ring_and_rf_tracker,
+        n_iterations=10,
+        TotalInducedVoltage=total_ind_volt,
+        dt_margin_percent=0.01,
+        seed=1234,
+        distribution_exponent=2,
+        distribution_type="binomial",
+        emittance=2 * emittance,
+        distribution_variable="Hamiltonian",
+        process_pot_well=True,
+        turn_number=0,
+    )
+    np.savez("initial_beam.npz", dt=beam.dt, dE=beam.dE, id=beam.id)
+    # else:
+    #     beam.dt = np.load("initial_beam.npz")["dt"]
+    #     beam.dE = np.load("initial_beam.npz")["dE"]
+    #     beam.id = np.load("initial_beam.npz")["id"]
 
     profile.track()
 
     save_bunch_centroid = []
     save_energy_centroid = []
 
-    for trn in range(ring.n_turns):
+    from tqdm import tqdm
+
+    iterator = range(ring.n_turns)
+    iterator = tqdm(iterator)
+
+    for trn in iterator:
         profile.track()
-        # profile.fwhm(beam.dt)
+        profile.fwhm()
 
         total_ind_volt.induced_voltage_sum()
 
@@ -312,8 +307,27 @@ def setup_and_run_blond2(mtw=False):
     return np.array(save_bunch_centroid), np.array(save_energy_centroid)
 
 
+def plot_and_compare(
+    bunch_observation,
+    bunch_centroid_blond2,
+    energy_centroid_blond2,
+):
+    plt.title("bunch centroid")
+    plt.plot(bunch_observation.mean_dt * 1e9)
+    plt.plot(bunch_centroid_blond2 * 1e9, label="blond2", ls="--")
+    plt.ylabel("bunch centroid [ns]")
+    plt.legend()
+    plt.show()
+
+    plt.title("energy centroid")
+    plt.plot(bunch_observation.mean_dE)
+    plt.plot(energy_centroid_blond2, label="blond2", ls="--")
+    plt.legend()
+    plt.show()
+
+
 if __name__ == "__main__":
-    mtw = False
+    mtw = True
     bunch_centroid_b2, energy_centroid_b2 = setup_and_run_blond2(mtw=mtw)
 
     bunch_observation, profile_observation = setup_and_run_blond3(mtw=mtw)
@@ -321,5 +335,4 @@ if __name__ == "__main__":
         bunch_observation,
         bunch_centroid_b2,
         energy_centroid_b2,
-        mtw=mtw,
     )

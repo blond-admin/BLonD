@@ -1162,9 +1162,9 @@ class InducedVoltageResonator(_InducedVoltage):
 
             # take the maximum of the resonators
             decay_time = 2 * np.max(resonators.Q / resonators.omega_R)
-            decay_turns = np.ceil(
+            decay_turns = -np.ceil(
                 np.log(time_decay_factor)
-                / np.log(e)
+                # / np.log(e)
                 * decay_time
                 / np.min(rf_station.t_rev)
             )
