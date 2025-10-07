@@ -7,19 +7,21 @@ import numpy as np
 from ..._core.backends.backend import backend
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Tuple
+
+    from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
     from blond._core.beam.base import BeamBaseClass
 
 
-def populate_beam(
-    beam: BeamBaseClass,
+def generate_particle_coordinates(
     time_grid: NumpyArray,
     deltaE_grid: NumpyArray,
     density_grid: NumpyArray,
     n_macroparticles: int,
     seed: int,
-) -> None:
+) -> Tuple[NumpyArray | CupyArray, NumpyArray | CupyArray]:
     """
     Fill bunch with macroparticles according to `density_distribution`
 
@@ -29,8 +31,6 @@ def populate_beam(
 
     Parameters
     ----------
-    beam
-        Simulation beam object
     time_grid
         2D grid of positions in time, in [s]
     deltaE_grid
@@ -74,5 +74,98 @@ def populate_beam(
         )
         * deltaE_step
     )
+    return dt, dE
+
+
+def populate_beam(
+    beam: BeamBaseClass,
+    time_grid: NumpyArray,
+    deltaE_grid: NumpyArray,
+    density_grid: NumpyArray,
+    n_macroparticles: int,
+    seed: int,
+) -> None:
+    """
+    Fill bunch with macroparticles according to `density_distribution`
+
+    Notes
+    -----
+    The beam coordinate `dt and` `dE` will be overwritten.
+
+    Parameters
+    ----------
+    beam
+        Simulation beam object
+    time_grid
+        2D grid of positions in time, in [s]
+    deltaE_grid
+        2D grid of energies, in [eV]
+    density_grid
+        2D grid of densities according to time vs. energy
+    n_macroparticles
+        Number of macroparticles to distribute, according to the grid
+    seed
+        Random seed, to make function with same seed
+        always return the same value
+    """
+    dt, dE = generate_particle_coordinates(
+        time_grid=time_grid,
+        deltaE_grid=deltaE_grid,
+        density_grid=density_grid,
+        n_macroparticles=n_macroparticles,
+        seed=seed,
+    )
 
     beam.setup_beam(dt=dt, dE=dE)
+
+
+def repopulate_beam(
+    beam: BeamBaseClass,
+    time_grid: NumpyArray,
+    deltaE_grid: NumpyArray,
+    density_grid: NumpyArray,
+    n_macroparticles_overwrite: int,
+    seed: int,
+) -> None:
+    """
+    Fill bunch with macroparticles according to `density_distribution`
+
+    Notes
+    -----
+    The beam coordinate `dt and` `dE` will be overwritten.
+
+    Parameters
+    ----------
+    beam
+        Simulation beam object
+    time_grid
+        2D grid of positions in time, in [s]
+    deltaE_grid
+        2D grid of energies, in [eV]
+    density_grid
+        2D grid of densities according to time vs. energy
+    n_macroparticles_overwrite
+        Number of macroparticles to distribute, according to the grid
+    seed
+        Random seed, to make function with same seed
+        always return the same value
+    """
+    dt, dE = generate_particle_coordinates(
+        time_grid=time_grid,
+        deltaE_grid=deltaE_grid,
+        density_grid=density_grid,
+        n_macroparticles=n_macroparticles_overwrite,
+        seed=seed,
+    )
+    indexes = np.random.choice(
+        np.arange(0, beam.n_macroparticles_partial()),
+        n_macroparticles_overwrite,
+    )
+    if beam._dE is not None:
+        beam._dE[indexes] = dE
+    else:
+        raise ValueError(f"{beam._dE=}")
+    if beam._dt is not None:
+        beam._dt[indexes] = dt
+    else:
+        raise ValueError(f"{beam._dt=}")

@@ -148,9 +148,9 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
                 n_macroparticles=1e6,
                 internal_grid_shape=(1024 - 1, 1024 - 1),
                 density_modifier=5,
-                increment_intensity_effects_until_iteration_i=0,
-                maxiter_intensity_effects=20,
-                tolerance=0.001,
+                increment_intensity_effects_until_iteration_i=10,
+                maxiter_intensity_effects=1000,
+                tolerance=0.0005,
                 animate=True,
             ),
         )

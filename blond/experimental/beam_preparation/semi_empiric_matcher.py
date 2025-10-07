@@ -12,7 +12,7 @@ from blond.beam_preparation.base import MatchingRoutine
 
 from ..._core.helpers import int_from_float_with_warning
 from ...physics.profiles import ProfileBaseClass
-from .helpers import populate_beam
+from .helpers import populate_beam, repopulate_beam
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Callable, Optional, Tuple
@@ -194,6 +194,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             before matching with the full beam intensity.
             This is intended to help with convergence of the algorithm
             and might be used when intensity effects are strong.
+            This is required to match to strong intensity effects.
         seed
             Random seed. Runs with the same seed will return the same
             distribution
@@ -231,8 +232,9 @@ class SemiEmpiricMatcher(MatchingRoutine):
         self.tolerance = tolerance
         self.verbose = verbose
 
-        self._previous_potential_well: NumpyArray | CupyArray | None = None
-        self._preprevious_potential_well: NumpyArray | CupyArray | None = None
+        # For error calculation and plotting during `prepare_beam`
+        self._last_potential_well: NumpyArray | CupyArray | None = None
+        self._prelast_potential_well: NumpyArray | CupyArray | None = None
 
     def prepare_beam(
         self,
@@ -309,15 +311,21 @@ class SemiEmpiricMatcher(MatchingRoutine):
                     plt.draw()
                     plt.pause(0.1)
 
-                error_calculable = hist_y_previous is not None
-                if error_calculable:
+                error_calculable = (
+                    self._last_potential_well is not None
+                ) and (self._prelast_potential_well is not None)
+                if error_calculable and i > 1:
                     # Root mean square deviation
-                    error = float(
-                        np.sqrt(np.mean((hist_y - hist_y_previous) ** 2))
-                    )
+                    obs = self._last_potential_well
+                    obs = obs / obs.max()
+                    obs_previous = self._prelast_potential_well
+                    obs_previous = obs_previous / obs_previous.max()
+                    error = float(np.sqrt(np.mean((obs - obs_previous) ** 2)))
                     if self.verbose:
                         print(
-                            f"Iteration: {i:<5} | Error: {error:.{tolerance_decimal_places}f}"
+                            f"Iteration: {i:<5}"
+                            f" | Intensity {(scalar * 100):3.1f}%"
+                            f" | Error: {error:.{tolerance_decimal_places}f}"
                         )
                     if (
                         error < self.tolerance
@@ -380,14 +388,12 @@ class SemiEmpiricMatcher(MatchingRoutine):
             ts=ts, particle_type=beam.particle_type, intensity=beam.intensity
         )
         potential_well = potential_well * factor
-        self._preprevious_potential_well = self._previous_potential_well
-        self._previous_potential_well = potential_well  # for debugging
-        if self._preprevious_potential_well is None:
+        self._prelast_potential_well = self._last_potential_well
+        self._last_potential_well = potential_well  # for debugging
+        if self._prelast_potential_well is None:
             avg_pot_well = potential_well
         else:
-            avg_pot_well = (
-                potential_well + self._preprevious_potential_well
-            ) / 2
+            avg_pot_well = (potential_well + self._prelast_potential_well) / 2
         deltaE_grid, time_grid, hamilton_2D = get_hamiltonian_semi_analytic(
             ts=ts,
             potential_well=avg_pot_well,
@@ -449,7 +455,9 @@ class SemiEmpiricMatcher(MatchingRoutine):
         plt.figure("SemiEmpiricMatcher")
         with AllowPlotting():
             plt.subplot(2, 1, 1)
-            plt.title(f"Iteration {i}, Intensity strength {scalar * 100} %")
+            plt.title(
+                f"Iteration {i}, Intensity strength {(scalar * 100):3.1f}%"
+            )
             plt.hist(
                 beam.read_partial_dt(),
                 bins=self.internal_grid_shape[0],
@@ -461,9 +469,9 @@ class SemiEmpiricMatcher(MatchingRoutine):
 
             plt.subplot(2, 1, 2)
             plt.axhline(self.hamilton_max, c="C1", linestyle="--")
-            if self._previous_potential_well is not None:
-                plt.plot(ts, self._previous_potential_well)
-            if self._preprevious_potential_well is not None:
-                plt.plot(ts, self._preprevious_potential_well)
+            if self._last_potential_well is not None:
+                plt.plot(ts, self._last_potential_well)
+            if self._prelast_potential_well is not None:
+                plt.plot(ts, self._prelast_potential_well)
             plt.xlabel("Time (s)")
             plt.ylabel("Potential (arb. unit)")
