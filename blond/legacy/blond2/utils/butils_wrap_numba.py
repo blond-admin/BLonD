@@ -161,7 +161,7 @@ def drift(
 
 
 # --------------- Similar to histogram.cpp -----------------
-@jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
+@jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=False)
 def slice_beam(
     dt: NumpyArray, profile: NumpyArray, cut_left: float, cut_right: float
 ):
