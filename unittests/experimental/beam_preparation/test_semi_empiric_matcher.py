@@ -3,11 +3,19 @@ import unittest
 import matplotlib.pyplot as plt
 import numpy as np
 
-from blond import Beam, Simulation, backend
+from blond import (
+    Beam,
+    MultiHarmonicCavity,
+    Simulation,
+    SingleHarmonicCavity,
+    WakeField,
+    backend,
+)
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
     SemiEmpiricMatcher,
     get_hamiltonian_semi_analytic,
 )
+from blond.physics.profiles import ProfileBaseClass
 
 
 class TestSemiEmpiricMatcher(unittest.TestCase):
@@ -29,12 +37,16 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
         sim = SimulationTwoRfStations()
         self._test_matching(sim)
 
-        DEV_PLOT = False
+        DEV_PLOT = True
         if DEV_PLOT:
 
             def my_callback(simulation: Simulation, beam: Beam):
+                if simulation.turn_i.value % 10 != 0:
+                    return
                 plt.clf()
-                beam.plot_hist2d()
+                beam.plot_hist2d(range=((0.7e-9, 1.8e-9), (-3.5e8, 3.5e8)))
+                plt.axhline(beam._dE.mean())
+                plt.axvline(beam._dt.mean())
                 plt.draw()
                 plt.pause(0.1)
 
@@ -62,6 +74,47 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
 
         sim = SimulationTwoRfStationsWithWake()
         self._test_matching(sim)
+        DEV_PLOT = True
+        if DEV_PLOT:
+
+            def my_callback(simulation: Simulation, beam: Beam):
+                if simulation.turn_i.value == 0:
+                    ts = np.linspace(0, 2.5e-9, 50)
+
+                    plt.figure("mega_debug")
+                    plt.subplot(2, 1, 1)
+                    prof = simulation.ring.elements.get_element(
+                        WakeField
+                    ).profile
+                    plt.plot(prof.hist_x, prof.hist_y)
+                    plt.subplot(2, 1, 2)
+                    simulation.intensity_effect_manager.set_profiles(
+                        active=False
+                    )
+
+                    potential_well, factor = (
+                        simulation.get_potential_well_empiric(
+                            ts=ts,
+                            particle_type=beam.particle_type,
+                            intensity=beam.intensity,
+                        )
+                    )
+                    plt.plot(ts, beam.intensity * potential_well * factor)
+                    plt.show()
+                if simulation.turn_i.value % 10 != 0:
+                    return
+                plt.clf()
+                beam.plot_hist2d(range=((0.7e-9, 1.8e-9), (-3.5e8, 3.5e8)))
+                plt.axhline(beam._dE.mean())
+                plt.axvline(beam._dt.mean())
+                plt.draw()
+                plt.pause(0.1)
+
+            sim.simulation.turn_i.value = 0
+            my_callback(simulation=sim.simulation, beam=sim.beam1)
+            sim.simulation.run_simulation(
+                beams=(sim.beam1,), callback=my_callback
+            )
         raise Exception()  # FIXME
 
     def _test_matching(self, sim):
@@ -79,6 +132,13 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
             )
             / 36540
         )
+        print(ts.min(), ts.max())
+        # actively change the harmonic off the revolution time.
+        # matching should still work
+        cav = sim.simulation.ring.elements.get_element(MultiHarmonicCavity)
+        cav.harmonic = 33000 * np.ones(len(cav.harmonic), backend.float)
+        cav = sim.simulation.ring.elements.get_element(SingleHarmonicCavity)
+        cav.harmonic = 33000
 
         sim.simulation.prepare_beam(
             beam=sim.beam1,
@@ -86,11 +146,12 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
                 time_limit=(ts.min(), ts.max()),
                 hamilton_max=50,
                 n_macroparticles=1e6,
-                internal_grid_shape=(512 - 1, 512 - 1),
+                internal_grid_shape=(1024 - 1, 1024 - 1),
                 density_modifier=5,
-                increment_intensity_effects_until_iteration_i=40,
-                maxiter_intensity_effects=50,
-                animate=False,
+                increment_intensity_effects_until_iteration_i=0,
+                maxiter_intensity_effects=20,
+                tolerance=0.001,
+                animate=True,
             ),
         )
 

@@ -244,7 +244,7 @@ class SimulationTwoRfStationsWithWake:
             sources=(
                 Resonators(
                     shunt_impedances=[
-                        512e5,
+                        512e8 * 2,
                     ],
                     center_frequencies=[
                         10 * 400e6,

@@ -130,7 +130,7 @@ class TestSimulation(unittest.TestCase):
         sim = SimulationTwoRfStations()
         ts = np.linspace(-2e-9, 2e-9, 100)
 
-        potential_well = sim.simulation.get_potential_well_empiric(
+        potential_well, factor = sim.simulation.get_potential_well_empiric(
             ts=ts,
             particle_type=proton,
         )
@@ -246,7 +246,7 @@ class TestSimulation(unittest.TestCase):
             beam_beta=self.beam.reference_beta,
             ring_circumference=self.simulation.ring.circumference,
         )
-        potential_well = self.simulation.get_potential_well_empiric(
+        potential_well, factor = self.simulation.get_potential_well_empiric(
             ts, particle_type=particle_type
         )
         DEV_PLOT = True  # TODO set false
@@ -259,14 +259,11 @@ class TestSimulation(unittest.TestCase):
             * (np.cos(phis) - np.cos(phi_s) + (phis - phi_s) * np.sin(phi_s))
         )
         if DEV_PLOT:
-            plt.subplot(2, 1, 1)
             plt.plot(
                 potential_well,
                 label="potential_well",
             )
-            plt.legend()
 
-            plt.subplot(2, 1, 2)
             plt.plot(
                 potential_well_analytic,
                 "--",

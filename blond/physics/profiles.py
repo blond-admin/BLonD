@@ -47,6 +47,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         )
         self._hist_x: LateInit[NumpyArray | CupyArray] = None
         self._hist_y: LateInit[NumpyArray | CupyArray] = None
+        self.histy_to_density_factor: LateInit[float] = None
 
         self._beam_spectrum_buffer: Dict[int, NumpyArray] = {}
 
@@ -177,6 +178,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
                 start=self.cut_left,
                 stop=self.cut_right,
             )
+            self.histy_to_density_factor = 1.0 / beam.common_array_size
         self.invalidate_cache()
 
     @staticmethod

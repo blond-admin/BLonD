@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from copy import deepcopy
 from functools import cached_property
 from pstats import SortKey
 from typing import TYPE_CHECKING, Callable
@@ -174,13 +175,63 @@ class Simulation(Preparable, HasPropertyCache):
         plt.xlabel("Time (s)")
         plt.ylabel("Amplitude (arb. unit)")
 
+    def get_drift_term_empiric(
+        self,
+        dE: NumpyArray,
+        particle_type: ParticleType,
+        intensity: int = 0,
+    ) -> NumpyArray:
+        """
+        Obtain the potential well by tracking a beam one turn
+
+        Notes
+        -----
+        This function internally obtains `dE_out` of `dt_in`.
+        During one turn with many drifts, the time coordinate will change
+        and sample different positions of dt, which is the expected
+        physical behaviour. The RF of successive station can thus appear
+        phase shifted/distorted due to the inherent drift in between RF
+        stations=.
+
+        Parameters
+        ----------
+        dE
+            Energy coordinates to probe the potential, in [eV]
+        particle_type
+            Type of particle to probe.
+            The particle charge influences the phase advance per station
+            and might exhibit different distortion of the potential well
+            due to the side effects described in `Notes`
+
+        Returns
+        -------
+        potential_well
+            The effective voltage that lead to a change of `dE` in one turn.
+        """
+        from ..._core.beam.beams import ProbeBeam
+
+        probe_bunch = ProbeBeam(
+            dE=dE,
+            particle_type=particle_type,
+            intensity=intensity,
+        )
+        self.run_simulation(
+            beams=(probe_bunch,),
+            n_turns=1,
+            turn_i_init=0,
+            show_progressbar=False,
+        )
+
+        dt = probe_bunch.read_partial_dt()
+        return dt
+
     def get_potential_well_empiric(
         self,
         ts: NumpyArray,
         particle_type: ParticleType,
         subtract_min: bool = True,
         intensity: int = 0,
-    ) -> NumpyArray:
+    ) -> Tuple[NumpyArray, float]:
         """
         Obtain the potential well by tracking a beam one turn
 
@@ -210,6 +261,10 @@ class Simulation(Preparable, HasPropertyCache):
         -------
         potential_well
             The effective voltage that lead to a change of `dE` in one turn.
+        factor
+            The fraction of the time span of `ts` relative to the
+            revolution time `t_rev`.
+            ``(ts[-1] - ts[0]) / t_rev``
         """
         from ..._core.beam.beams import ProbeBeam
 
@@ -219,7 +274,7 @@ class Simulation(Preparable, HasPropertyCache):
             intensity=intensity,
         )
         t_0 = probe_bunch.reference_time
-        self.run_simulation(
+        deepcopy(self).run_simulation(
             beams=(probe_bunch,),
             n_turns=1,
             turn_i_init=0,
@@ -227,13 +282,13 @@ class Simulation(Preparable, HasPropertyCache):
         )
         t_1 = probe_bunch.reference_time
         t_rev = t_1 - t_0
-
+        factor = (ts[-1] - ts[0]) / t_rev
         potential_well = -cumulative_trapezoid(
-            probe_bunch.read_partial_dE(), ts / t_rev, initial=0
-        )
+            probe_bunch.read_partial_dE(), initial=0
+        ) / len(ts)
         if subtract_min:
             potential_well -= potential_well.min()
-        return potential_well / particle_type.charge
+        return potential_well / particle_type.charge, factor
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called
