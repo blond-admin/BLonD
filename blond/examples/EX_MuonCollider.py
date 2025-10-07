@@ -28,6 +28,7 @@ from blond.handle_results.observables import (
     StaticProfileObservation,
 )
 from blond.physics.impedances.solvers import (
+    MultiPassResonatorSolver,
     SingleTurnResonatorConvolutionSolver,
     TimeDomainFftSolver,
 )
@@ -41,7 +42,7 @@ from blond.specifics.muon_collider.beam_matching.beam_matching_rountine import (
 
 
 backend.change_backend(
-    Numpy32Bit
+    Numpy64Bit
 )  # TODO: without these lines, it does not work, default should be set somewhere to be Numpy64bit python
 backend.set_specials("numba")
 
@@ -52,8 +53,10 @@ backend.set_specials("numba")
 # n_turns = 17
 # alpha_p = 4.68e-4
 # Q_factor = 0.96e6
-def setup_and_run(int_eff=False):
+def setup_and_run(int_eff=False, mtw=False):
     # RCS2
+    if mtw and not int_eff:
+        raise RuntimeError("mtw requires int_eff")
     phi_s = 148 * pi / 180  # deg
     inj_energy = 313.83e9
     ejection_energy = 750e9
@@ -108,33 +111,37 @@ def setup_and_run(int_eff=False):
         local_res = Resonators(
             center_frequencies=1 / t_rf,
             quality_factors=Q_factor,
-            shunt_impedances=R_over_Q * Q_factor * cav_per_station / 2,
+            shunt_impedances=R_over_Q * Q_factor * cav_per_station,
         )  # FM only
         one_turn_model.extend(
             [
-                DriftSimple(
-                    transition_gamma=-gamma_transition,
-                    orbit_length=circumference / n_stations / 2,
-                    section_index=cavity_i,
-                ),
+                # DriftSimple(
+                #     transition_gamma=-gamma_transition,
+                #     orbit_length=circumference / n_stations / 2,
+                #     section_index=cavity_i,
+                # ),
                 profile_list[-1],
                 SingleHarmonicCavity(
-                    voltage=voltage_per_station / 2,
+                    voltage=voltage_per_station,
                     phi_rf=0,
                     harmonic=harmonic,
                     local_wakefield=WakeField(
                         sources=(local_res,),
-                        solver=SingleTurnResonatorConvolutionSolver(),
+                        solver=MultiPassResonatorSolver(
+                            decay_fraction_threshold=0.001
+                        )
+                        if mtw
+                        else SingleTurnResonatorConvolutionSolver(),
                         profile=profile_list[-1],
                     )
                     if int_eff
                     else None,
                     section_index=cavity_i,
                 ),
-                profile_list[-1],  # for CR beam
+                # profile_list[-1],  # for CR beam
                 DriftSimple(
                     transition_gamma=-gamma_transition,
-                    orbit_length=circumference / n_stations / 2,
+                    orbit_length=circumference / n_stations,
                     section_index=cavity_i,
                 ),
                 # profile_list[-1],
@@ -168,20 +175,24 @@ def setup_and_run(int_eff=False):
     )
     sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
     # sim.print_one_turn_execution_order()
+    load_filename = (
+        str(Path(__file__).parent) + r"/RCS2_8_stations_mtw.npz"
+        if mtw
+        else str(Path(__file__).parent) + r"/RCS2_8_stations_ind_volt_time.npz"
+        if int_eff
+        else str(Path(__file__).parent) + r"/RCS2_8_stations_no_int_eff.npz"
+    )
     load_beam_data_counterrot_from_file(
-        str(Path(__file__).parent) + r"/RCS2_8_stations_no_int_eff.npz"
-        if not int_eff
-        else str(Path(__file__).parent)
-        + r"/RCS2_8_stations_ind_volt_time.npz",
+        load_filename,
         beam,
         beam_CR,
     )
 
     bunch_observation = BunchObservation_meta_params(
-        each_turn_i=1, obs_per_turn=n_cavities, beam=beam
+        each_turn_i=1, obs_per_turn=n_stations, beam=beam
     )
     bunch_observation_CR = BunchObservation_meta_params(
-        each_turn_i=1, obs_per_turn=n_cavities, beam=beam_CR
+        each_turn_i=1, obs_per_turn=n_stations, beam=beam_CR
     )
     profile_observation = StaticProfileObservation(
         each_turn_i=1, obs_per_turn=1, profile=profile_list[-1]
@@ -194,7 +205,7 @@ def setup_and_run(int_eff=False):
     #     beam=beam_CR,
     # )
     sim.run_simulation(
-        beams=([beam, beam_CR]),
+        beams=([beam]),
         turn_i_init=0,
         n_turns=None,
         observe=(
@@ -214,10 +225,18 @@ def setup_and_run(int_eff=False):
 
 
 def plot_and_compare(
-    bunch_observation, bunch_observation_CR, profile_observation, int_eff=False
+    bunch_observation,
+    bunch_observation_CR,
+    profile_observation,
+    int_eff=False,
+    mtw=False,
 ):
     json_filename = (
-        "results_int_eff.json" if int_eff else "results_no_int_eff.json"
+        "results_int_eff_mtw.json"
+        if mtw
+        else "results_int_eff.json"
+        if int_eff
+        else "results_no_int_eff.json"
     )
     with open(json_filename, "r") as jfile:
         jdict = json.load(jfile)
@@ -226,6 +245,9 @@ def plot_and_compare(
     bunch_centroid_blond2 = np.array(jdict["bunch_centroid"])
     energy_spread_blond2 = np.array(jdict["energy_spread_rms"])
     energy_centroid_blond2 = np.array(jdict["energy_mean"])
+
+    plot_from = 0
+    plot_until = 100
 
     # plt.title("bunch length")
     # plt.plot(bunch_observation.sigma_dt * 1e12)
@@ -244,9 +266,11 @@ def plot_and_compare(
     # plt.show()
 
     plt.title("bunch centroid")
-    plt.plot(bunch_observation.mean_dt * 1e9)
-    plt.plot(bunch_observation_CR.mean_dt * 1e9, label="CR")
-    plt.plot(bunch_centroid_blond2[1:] * 1e9, label="blond2")
+    plt.plot(bunch_observation.mean_dt[plot_from:plot_until] * 1e9)
+    # plt.plot(bunch_observation_CR.mean_dt * 1e9, label="CR")
+    plt.plot(
+        bunch_centroid_blond2[plot_from + 1 : plot_until] * 1e9, label="blond2"
+    )
     plt.ylabel("bunch centroid [ns]")
     plt.legend()
     plt.show()
@@ -260,16 +284,21 @@ def plot_and_compare(
     # plt.show()
 
     plt.title("energy centroid")
-    plt.plot(bunch_observation.mean_dE)
-    plt.plot(bunch_observation_CR.mean_dE, label="CR")
-    plt.plot(energy_centroid_blond2[1:], label="blond2")
+    plt.plot(bunch_observation.mean_dE[plot_from:plot_until])
+    # plt.plot(bunch_observation_CR.mean_dE, label="CR")
+    plt.plot(
+        energy_centroid_blond2[plot_from + 1 : plot_until], label="blond2"
+    )
     plt.legend()
     plt.show()
 
     plt.title("emittance")
-    plt.plot(bunch_observation.emittance_stat, label="emittance")
-    plt.plot(bunch_observation_CR.emittance_stat, label="CR")
-    plt.plot(emittance_blond2[1:], label="blond2")
+    plt.plot(
+        bunch_observation.emittance_stat[plot_from:plot_until],
+        label="emittance",
+    )
+    # plt.plot(bunch_observation_CR.emittance_stat, label="CR")
+    plt.plot(emittance_blond2[plot_from + 1 : plot_until], label="blond2")
     plt.ylabel("statistical emittance (eVs)")
     plt.legend()
     plt.show()
@@ -308,12 +337,14 @@ def plot_and_compare(
 
 if __name__ == "__main__":
     int_eff = True
+    mtw = True
     bunch_observation, bunch_observation_CR, profile_observation = (
-        setup_and_run(int_eff=int_eff)
+        setup_and_run(int_eff=int_eff, mtw=mtw)
     )
     plot_and_compare(
         bunch_observation,
         bunch_observation_CR,
         profile_observation,
         int_eff=int_eff,
+        mtw=mtw,
     )
