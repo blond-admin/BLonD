@@ -130,9 +130,11 @@ class TestSimulation(unittest.TestCase):
         sim = SimulationTwoRfStations()
         ts = np.linspace(-2e-9, 2e-9, 100)
 
-        potential_well, factor = sim.simulation.get_potential_well_empiric(
-            ts=ts,
-            particle_type=proton,
+        potential_well, factor, tilt_dt_per_dE = (
+            sim.simulation.get_potential_well_empiric(
+                ts=ts,
+                particle_type=proton,
+            )
         )
         SAVE_PINNED = False
         if SAVE_PINNED:
@@ -246,8 +248,10 @@ class TestSimulation(unittest.TestCase):
             beam_beta=self.beam.reference_beta,
             ring_circumference=self.simulation.ring.circumference,
         )
-        potential_well, factor = self.simulation.get_potential_well_empiric(
-            ts, particle_type=particle_type
+        potential_well, factor, tilt_dt_per_dE = (
+            self.simulation.get_potential_well_empiric(
+                ts, particle_type=particle_type
+            )
         )
         DEV_PLOT = True  # TODO set false
         phi_s = np.pi

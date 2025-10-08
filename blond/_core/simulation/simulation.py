@@ -238,7 +238,7 @@ class Simulation(Preparable, HasPropertyCache):
         particle_type: ParticleType,
         subtract_min: bool = True,
         intensity: int = 0,
-    ) -> Tuple[NumpyArray, float]:
+    ) -> Tuple[NumpyArray, float, float]:
         """
         Obtain the potential well by tracking a beam one turn
 
@@ -272,6 +272,10 @@ class Simulation(Preparable, HasPropertyCache):
             The fraction of the time span of `ts` relative to the
             revolution time `t_rev`.
             ``(ts[-1] - ts[0]) / t_rev``
+        tilt_dt_per_dE
+            Change of time coordinate in one turn (in [s/eV])
+            This shears the phase space because there is a change
+            of time despite the initial condition dE = 0 eV.
         """
         from ..._core.beam.beams import ProbeBeam
 
@@ -291,8 +295,7 @@ class Simulation(Preparable, HasPropertyCache):
         change_t = probe_bunch._dt - bunch_before._dt
         change_E = probe_bunch._dE - bunch_before._dE
         idx = np.argmax(change_t)
-        dt_per_dE = change_t[idx] / change_E[idx]
-        print(f"{(dt_per_dE)=}")
+        tilt_dt_per_dE = change_t[idx] / change_E[idx]
         t_1 = probe_bunch.reference_time
         t_rev = t_1 - t_0
         factor = (ts[-1] - ts[0]) / t_rev
@@ -301,7 +304,7 @@ class Simulation(Preparable, HasPropertyCache):
         ) / len(ts)
         if subtract_min:
             potential_well -= potential_well.min()
-        return potential_well / particle_type.charge, factor
+        return potential_well / particle_type.charge, factor, tilt_dt_per_dE
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called

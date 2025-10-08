@@ -7,7 +7,7 @@ import numpy as np
 from ..._core.backends.backend import backend
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Tuple
+    from typing import Optional, Tuple
 
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
@@ -20,7 +20,7 @@ def generate_particle_coordinates(
     deltaE_grid: NumpyArray,
     density_grid: NumpyArray,
     n_macroparticles: int,
-    seed: int,
+    seed: Optional[int],
 ) -> Tuple[NumpyArray | CupyArray, NumpyArray | CupyArray]:
     """
     Fill bunch with macroparticles according to `density_distribution`
@@ -44,7 +44,8 @@ def generate_particle_coordinates(
         always return the same value
     """
     # Initialise the random number generator
-    np.random.seed(seed=seed)
+    if seed is not None:
+        np.random.seed(seed=seed)
     # Generating particles randomly inside the grid cells according to the
     # provided density_grid
     indexes = np.random.choice(
@@ -83,7 +84,7 @@ def populate_beam(
     deltaE_grid: NumpyArray,
     density_grid: NumpyArray,
     n_macroparticles: int,
-    seed: int,
+    seed: Optional[int],
 ) -> None:
     """
     Fill bunch with macroparticles according to `density_distribution`

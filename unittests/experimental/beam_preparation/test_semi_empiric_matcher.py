@@ -23,23 +23,17 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
         # check if the mean and the 10% and 90% percentiles are correct
         from blond.testing.simulation import SimulationTwoRfStations
 
-        backend.set_specials("fortran")
-
         # pinned values
         expected_dt = {
-            10: 1.0517069437554483e-09,
-            50: 1.247751235666783e-09,
-            90: 1.4438786832826622e-09,
+            10: 9.37543820356268e-10,
+            50: 1.2491498946332058e-09,
+            90: 1.562897700146948e-09,
         }
-        expected_dE = {
-            10: -131473272.0,
-            50: -44513.6328125,
-            90: 131371752.0,
-        }
+        expected_dE = {10: -202464448.0, 50: -293050.1875, 90: 201786944.0}
         sim = SimulationTwoRfStations()
         self._test_matching(sim)
 
-        DEV_PLOT = True
+        DEV_PLOT = False
         if DEV_PLOT:
             idx = np.argmax(sim.beam1._dt)
             data = np.ones((1000, 2))
@@ -75,8 +69,6 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
         for percentile in (10, 50, 90):
             percentile_dt = float(np.percentile(sim.beam1._dt, percentile))
             percentile_dE = float(np.percentile(sim.beam1._dE, percentile))
-            # print(percentile, ":", percentile_dt,",")
-            # print(percentile, ":", percentile_dE,",")
             np.testing.assert_allclose(
                 expected_dt[percentile],
                 percentile_dt,
@@ -93,7 +85,7 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
 
         sim = SimulationTwoRfStationsWithWake()
         self._test_matching(sim)
-        DEV_PLOT = True
+        DEV_PLOT = False
         if DEV_PLOT:
 
             def my_callback(simulation: Simulation, beam: Beam):
@@ -105,7 +97,7 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
                 plt.axhline(beam._dE.mean())
                 plt.axvline(beam._dt.mean())
                 plt.subplot(2, 1, 2)
-                plt.hist(beam._dt, bins=256, histtype="step")
+                plt.hist(beam._dt, bins=256, histtype="step", density=True)
                 plt.draw()
                 plt.draw()
                 plt.pause(0.1)
@@ -115,7 +107,27 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
             sim.simulation.run_simulation(
                 beams=(sim.beam1,), callback=my_callback
             )
-        raise Exception()  # FIXME
+        # pinned values
+        expected_dt = {
+            10: 8.970654774564935e-10,
+            50: 1.1949868872207503e-09,
+            90: 1.4920272795038159e-09,
+        }
+        expected_dE = {10: -202186704.0, 50: -39554.51171875, 90: 201748736.0}
+        for percentile in (10, 50, 90):
+            percentile_dt = float(np.percentile(sim.beam1._dt, percentile))
+            percentile_dE = float(np.percentile(sim.beam1._dE, percentile))
+
+            np.testing.assert_allclose(
+                expected_dt[percentile],
+                percentile_dt,
+                rtol=1e-5 if backend.float == np.float32 else 1e-12,
+            )
+            np.testing.assert_allclose(
+                expected_dE[percentile],
+                percentile_dE,
+                rtol=1e-5 if backend.float == np.float32 else 1e-12,
+            )
 
     def _test_matching(self, sim):
         simulation = sim.simulation
@@ -132,7 +144,6 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
             )
             / 36540
         )
-        print(ts.min(), ts.max())
         # actively change the harmonic off the revolution time.
         # matching should still work
         # cav = sim.simulation.ring.elements.get_element(MultiHarmonicCavity)
@@ -144,14 +155,14 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
             beam=sim.beam1,
             preparation_routine=SemiEmpiricMatcher(
                 time_limit=(ts.min(), ts.max()),
-                hamilton_max=27e3 * 10,
-                n_macroparticles=1e6,
-                internal_grid_shape=(1024 - 1, 1024 - 1),
+                hamilton_max=100,
+                n_macroparticles=1e5,
+                internal_grid_shape=(512 - 1, 512 - 1),
                 density_modifier=4,
                 increment_intensity_effects_until_iteration_i=10,
                 maxiter_intensity_effects=1000,
                 tolerance=0.000001,
-                animate=True,
+                animate=False,
             ),
         )
 

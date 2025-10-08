@@ -160,7 +160,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         density_modifier: float
         | Callable[[NumpyArray | CupyArray], NumpyArray | CupyArray] = 1,
         internal_grid_shape: Tuple[int, int] = (1023, 1023),
-        seed: int = 0,
+        seed: Optional[int] = 0,
         tolerance: float = 1e-6,
         maxiter_intensity_effects=1000,
         increment_intensity_effects_until_iteration_i: int = 0,
@@ -222,9 +222,13 @@ class SemiEmpiricMatcher(MatchingRoutine):
         )
 
         self.internal_grid_shape = internal_grid_shape
-        self.seed = int_from_float_with_warning(
-            seed,
-            warning_stacklevel=2,
+        self.seed = (
+            int_from_float_with_warning(
+                seed,
+                warning_stacklevel=2,
+            )
+            if seed is not None
+            else None
         )
         self.time_limit = time_limit
         self.hamilton_max = hamilton_max
@@ -306,7 +310,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
 
                 error_calculable = (
                     self._last_potential_well is not None
-                ) and (self._prelast_potential_well is not None)
+                    and self._prelast_potential_well is not None
+                )
                 # calculate errors on wakes (not on beam profiles)
                 # because this will more stable as noise is smoothed out
                 if error_calculable and i > 1:
@@ -365,10 +370,12 @@ class SemiEmpiricMatcher(MatchingRoutine):
         ts
             Time coordinate, in [s] for observation of the potential well.
         """
-        potential_well, factor = simulation.get_potential_well_empiric(
-            ts=np.linspace(ts.min(), ts.max(), len(ts) * 10),
-            particle_type=beam.particle_type,
-            intensity=beam.intensity,
+        potential_well, factor, tilt_dt_per_dE = (
+            simulation.get_potential_well_empiric(
+                ts=np.linspace(ts.min(), ts.max(), len(ts) * 10),
+                particle_type=beam.particle_type,
+                intensity=beam.intensity,
+            )
         )
         potential_well = potential_well[::10] * factor
         self._prelast_potential_well = self._last_potential_well
@@ -377,7 +384,6 @@ class SemiEmpiricMatcher(MatchingRoutine):
             avg_pot_well = potential_well
         else:
             avg_pot_well = (potential_well + self._prelast_potential_well) / 2
-        dE__ = np.linspace(-2e8, 2e8)
         deltaE_grid, time_grid, hamilton_2D = get_hamiltonian_semi_analytic(
             ts=ts,
             potential_well=avg_pot_well,
