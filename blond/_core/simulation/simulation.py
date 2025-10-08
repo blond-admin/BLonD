@@ -9,7 +9,7 @@ from warnings import warn
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.integrate import cumulative_simpson, cumulative_trapezoid
+from scipy.integrate import cumulative_simpson
 from tqdm import tqdm  # type: ignore
 
 from ..._generals._warnings import PerformanceWarning
@@ -292,17 +292,25 @@ class Simulation(Preparable, HasPropertyCache):
             turn_i_init=0,
             show_progressbar=False,
         )
+        # Calculate passed time
+        t_1 = probe_bunch.reference_time
+        t_rev = t_1 - t_0
+        # Calculate scaling factor
+        factor = (ts[-1] - ts[0]) / t_rev
+
+        # Calculate tilt of phase space
         change_t = probe_bunch._dt - bunch_before._dt
         change_E = probe_bunch._dE - bunch_before._dE
         idx = np.argmax(change_t)
         tilt_dt_per_dE = change_t[idx] / change_E[idx]
-        t_1 = probe_bunch.reference_time
-        t_rev = t_1 - t_0
-        factor = (ts[-1] - ts[0]) / t_rev
+
+        # Derive potential well by integrating over energy change
         potential_well = -cumulative_simpson(
             probe_bunch.read_partial_dE(), initial=0
         ) / len(ts)
+
         if subtract_min:
+            # Align potential so that the visible minimum is 0
             potential_well -= potential_well.min()
         return potential_well / particle_type.charge, factor, tilt_dt_per_dE
 

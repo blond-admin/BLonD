@@ -109,11 +109,15 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
             )
         # pinned values
         expected_dt = {
-            10: 8.970654774564935e-10,
-            50: 1.1949868872207503e-09,
-            90: 1.4920272795038159e-09,
+            10: 8.9680923798241e-10,
+            50: 1.1946652556105164e-09,
+            90: 1.4922112434589963e-09,
         }
-        expected_dE = {10: -202186704.0, 50: -39554.51171875, 90: 201748736.0}
+        expected_dE = {
+            10: -202136960.0,
+            50: -297075.8125,
+            90: 201528752.0,
+        }
         for percentile in (10, 50, 90):
             percentile_dt = float(np.percentile(sim.beam1._dt, percentile))
             percentile_dE = float(np.percentile(sim.beam1._dE, percentile))

@@ -288,12 +288,20 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 simulation.intensity_effect_manager.set_wakefields(active=True)
                 simulation.intensity_effect_manager.set_profiles(active=True)
 
+                # this might get changed by the simulation
+                beam_reference_time = beam.reference_time
+                beam_reference_total_energy = beam.reference_total_energy
+
                 simulation.run_simulation(
                     beams=(beam,),
                     n_turns=1,
                     turn_i_init=0,
                     show_progressbar=False,
                 )
+                # reset to original value before simulation
+                beam.reference_time = beam_reference_time
+                beam.reference_total_energy = beam_reference_total_energy
+
                 # Prevent the profiles from updating.
                 simulation.intensity_effect_manager.set_profiles(active=False)
                 # This is intended as override, so that the line density
@@ -337,14 +345,6 @@ class SemiEmpiricMatcher(MatchingRoutine):
             simulation.intensity_effect_manager.set_wakefields(active=True)
             simulation.intensity_effect_manager.set_profiles(active=True)
             beam.intensity = intensity_org
-
-            simulation.run_simulation(
-                beams=(beam,),
-                n_turns=1,
-                turn_i_init=0,
-                show_progressbar=False,
-            )
-            simulation.intensity_effect_manager.set_profiles(active=False)
 
     def _match_beam(
         self,

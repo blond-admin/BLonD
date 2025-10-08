@@ -129,7 +129,7 @@ def repopulate_beam(
     seed: int,
 ) -> None:
     """
-    Fill bunch with macroparticles according to `density_distribution`
+    Partially overwrite bunch with macroparticles according to `density_distribution`
 
     Notes
     -----
@@ -151,6 +151,7 @@ def repopulate_beam(
         Random seed, to make function with same seed
         always return the same value
     """
+    assert n_macroparticles_overwrite <= (beam._dE)
     dt, dE = generate_particle_coordinates(
         time_grid=time_grid,
         deltaE_grid=deltaE_grid,
