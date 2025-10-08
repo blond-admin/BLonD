@@ -423,15 +423,7 @@ class BeamPhysicsRelevantElements(Preparable):
             f"{('section_index'):13s} {'filtered_dict'}\n"
         )
         for element in self.elements:
-            filtered_dict = {
-                k: pretty_string(v)
-                for k, v in element.__dict__.items()
-                if (not k.startswith("_")) and (k != "name")
-            }
-            content += (
-                f"{element.name:40s} {(type(element).__name__):20s} "
-                f"{str(element.section_index):13s} {filtered_dict}\n"
-            )
+            content += element.info_string() + "\n"
         content += sep
         return content
 
