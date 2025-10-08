@@ -8,7 +8,8 @@ from typing import TYPE_CHECKING, Callable
 from warnings import warn
 
 import matplotlib.pyplot as plt
-from scipy.integrate import cumulative_trapezoid
+import numpy as np
+from scipy.integrate import cumulative_simpson, cumulative_trapezoid
 from tqdm import tqdm  # type: ignore
 
 from ..._generals._warnings import PerformanceWarning
@@ -215,15 +216,21 @@ class Simulation(Preparable, HasPropertyCache):
             particle_type=particle_type,
             intensity=intensity,
         )
+        t0 = probe_bunch.reference_time
         self.run_simulation(
             beams=(probe_bunch,),
             n_turns=1,
             turn_i_init=0,
             show_progressbar=False,
         )
-
-        dt = probe_bunch.read_partial_dt()
-        return dt
+        t1 = probe_bunch.reference_time
+        T = t1 - t0
+        potential_well = (
+            cumulative_simpson(probe_bunch.read_partial_dt(), x=dE, initial=0)
+            / T
+        )
+        potential_well -= potential_well.min()
+        return potential_well
 
     def get_potential_well_empiric(
         self,
@@ -273,6 +280,7 @@ class Simulation(Preparable, HasPropertyCache):
             particle_type=particle_type,
             intensity=intensity,
         )
+        bunch_before = deepcopy(probe_bunch)
         t_0 = probe_bunch.reference_time
         deepcopy(self).run_simulation(
             beams=(probe_bunch,),
@@ -280,10 +288,15 @@ class Simulation(Preparable, HasPropertyCache):
             turn_i_init=0,
             show_progressbar=False,
         )
+        change_t = probe_bunch._dt - bunch_before._dt
+        change_E = probe_bunch._dE - bunch_before._dE
+        idx = np.argmax(change_t)
+        dt_per_dE = change_t[idx] / change_E[idx]
+        print(f"{(dt_per_dE)=}")
         t_1 = probe_bunch.reference_time
         t_rev = t_1 - t_0
         factor = (ts[-1] - ts[0]) / t_rev
-        potential_well = -cumulative_trapezoid(
+        potential_well = -cumulative_simpson(
             probe_bunch.read_partial_dE(), initial=0
         ) / len(ts)
         if subtract_min:

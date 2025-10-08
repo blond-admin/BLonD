@@ -23,6 +23,8 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
         # check if the mean and the 10% and 90% percentiles are correct
         from blond.testing.simulation import SimulationTwoRfStations
 
+        backend.set_specials("fortran")
+
         # pinned values
         expected_dt = {
             10: 1.0517069437554483e-09,
@@ -39,19 +41,36 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
 
         DEV_PLOT = True
         if DEV_PLOT:
+            idx = np.argmax(sim.beam1._dt)
+            data = np.ones((1000, 2))
+            data[:, :] = np.nan
 
             def my_callback(simulation: Simulation, beam: Beam):
-                if simulation.turn_i.value % 10 != 0:
+                if simulation.turn_i.value % 1 != 0:
                     return
-                plt.clf()
+                plt.subplot(2, 1, 1)
+                plt.cla()
                 beam.plot_hist2d(range=((0.7e-9, 1.8e-9), (-3.5e8, 3.5e8)))
+                data[simulation.turn_i.value % data.shape[0], 0] = (
+                    sim.beam1._dt[idx]
+                )
+                data[simulation.turn_i.value % data.shape[0], 1] = (
+                    sim.beam1._dE[idx]
+                )
+                plt.plot(data[:, 0], data[:, 1], ".")
                 plt.axhline(beam._dE.mean())
                 plt.axvline(beam._dt.mean())
+                plt.subplot(2, 1, 2)
+                if simulation.turn_i.value == 0:
+                    plt.cla()
+                plt.hist(beam._dt, bins=256, histtype="step", density=True)
                 plt.draw()
                 plt.pause(0.1)
 
             sim.simulation.run_simulation(
-                beams=(sim.beam1,), callback=my_callback
+                beams=(sim.beam1,),
+                callback=my_callback,
+                n_turns=1e6,
             )
         for percentile in (10, 50, 90):
             percentile_dt = float(np.percentile(sim.beam1._dt, percentile))
@@ -78,35 +97,16 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
         if DEV_PLOT:
 
             def my_callback(simulation: Simulation, beam: Beam):
-                if simulation.turn_i.value == 0:
-                    ts = np.linspace(0, 2.5e-9, 50)
-
-                    plt.figure("mega_debug")
-                    plt.subplot(2, 1, 1)
-                    prof = simulation.ring.elements.get_element(
-                        WakeField
-                    ).profile
-                    plt.plot(prof.hist_x, prof.hist_y)
-                    plt.subplot(2, 1, 2)
-                    simulation.intensity_effect_manager.set_profiles(
-                        active=False
-                    )
-
-                    potential_well, factor = (
-                        simulation.get_potential_well_empiric(
-                            ts=ts,
-                            particle_type=beam.particle_type,
-                            intensity=beam.intensity,
-                        )
-                    )
-                    plt.plot(ts, beam.intensity * potential_well * factor)
-                    plt.show()
                 if simulation.turn_i.value % 10 != 0:
                     return
-                plt.clf()
+                plt.subplot(2, 1, 1)
+                plt.cla()
                 beam.plot_hist2d(range=((0.7e-9, 1.8e-9), (-3.5e8, 3.5e8)))
                 plt.axhline(beam._dE.mean())
                 plt.axvline(beam._dt.mean())
+                plt.subplot(2, 1, 2)
+                plt.hist(beam._dt, bins=256, histtype="step")
+                plt.draw()
                 plt.draw()
                 plt.pause(0.1)
 
@@ -135,22 +135,22 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
         print(ts.min(), ts.max())
         # actively change the harmonic off the revolution time.
         # matching should still work
-        cav = sim.simulation.ring.elements.get_element(MultiHarmonicCavity)
-        cav.harmonic = 33000 * np.ones(len(cav.harmonic), backend.float)
-        cav = sim.simulation.ring.elements.get_element(SingleHarmonicCavity)
-        cav.harmonic = 33000
+        # cav = sim.simulation.ring.elements.get_element(MultiHarmonicCavity)
+        # cav.harmonic = 10*33000 * np.ones(len(cav.harmonic), backend.float)
+        # cav = sim.simulation.ring.elements.get_element(SingleHarmonicCavity)
+        # cav.harmonic = 10*33000
 
         sim.simulation.prepare_beam(
             beam=sim.beam1,
             preparation_routine=SemiEmpiricMatcher(
                 time_limit=(ts.min(), ts.max()),
-                hamilton_max=50,
+                hamilton_max=27e3 * 10,
                 n_macroparticles=1e6,
                 internal_grid_shape=(1024 - 1, 1024 - 1),
-                density_modifier=5,
+                density_modifier=4,
                 increment_intensity_effects_until_iteration_i=10,
                 maxiter_intensity_effects=1000,
-                tolerance=0.0005,
+                tolerance=0.000001,
                 animate=True,
             ),
         )

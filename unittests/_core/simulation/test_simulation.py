@@ -240,7 +240,7 @@ class TestSimulation(unittest.TestCase):
                 particle_type=particle_type,
             )
             / cavity.harmonic,
-            200,
+            20000,
         )
         phis = ts * cavity.calc_omega(
             beam_beta=self.beam.reference_beta,

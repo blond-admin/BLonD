@@ -113,7 +113,8 @@ def get_hamiltonian_semi_analytic(
     E0 = reference_total_energy  # [eV]
 
     # Compute kinetic energy term constant
-    drift_term = eta / (beta * beta * E0)  # [1/eV]
+    drift_term = eta / (np.square(beta) * E0)  # [1/eV]
+
     assert len(ts) == len(potential_well), (
         f"{len(ts)=}, but {len(potential_well)=}"
     )
@@ -145,7 +146,7 @@ def get_hamiltonian_semi_analytic(
     V = _potential_well[:, None]  # [V]
 
     # Compute the Hamiltonian hamilton_2D(t, ΔE) = 0.5 * const * ΔE² + V(t)
-    hamilton_2D = 0.5 * drift_term * deltaE_grid * deltaE_grid + V  # [eV]
+    hamilton_2D = 0.5 * drift_term * np.square(deltaE_grid) + V  # [eV]
 
     return deltaE_grid, time_grid, hamilton_2D
 
@@ -255,7 +256,6 @@ class SemiEmpiricMatcher(MatchingRoutine):
 
         # iterate solution with intensity effects
         intensity_org = beam.intensity
-        hist_y_previous = None
 
         # Get decimal places from the tolerance (e.g., 1e-6 → 6)
         tolerance_decimal_places = abs(
@@ -297,13 +297,6 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 # previously run with the full beam
                 self._match_beam(beam, simulation, ts)
 
-                hist_y, _ = np.histogram(
-                    beam.read_partial_dt(),
-                    bins=self.internal_grid_shape[0],
-                    range=self.time_limit,
-                )
-                hist_y = hist_y / np.max(hist_y)
-
                 if self.animate:
                     plt.figure("SemiEmpiricMatcher")
                     plt.clf()
@@ -314,6 +307,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 error_calculable = (
                     self._last_potential_well is not None
                 ) and (self._prelast_potential_well is not None)
+                # calculate errors on wakes (not on beam profiles)
+                # because this will more stable as noise is smoothed out
                 if error_calculable and i > 1:
                     # Root mean square deviation
                     obs = self._last_potential_well
@@ -334,8 +329,6 @@ class SemiEmpiricMatcher(MatchingRoutine):
                     ):
                         break
 
-                hist_y_previous = hist_y
-
             simulation.intensity_effect_manager.set_wakefields(active=True)
             simulation.intensity_effect_manager.set_profiles(active=True)
             beam.intensity = intensity_org
@@ -346,19 +339,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 turn_i_init=0,
                 show_progressbar=False,
             )
-            plt.figure("mega_debug")
-            plt.subplot(2, 1, 1)
-            prof = simulation.ring.elements.get_element(WakeField).profile
-            plt.plot(prof.hist_x, prof.hist_y)
-            plt.subplot(2, 1, 2)
             simulation.intensity_effect_manager.set_profiles(active=False)
-
-            potential_well, factor = simulation.get_potential_well_empiric(
-                ts=ts,
-                particle_type=beam.particle_type,
-                intensity=beam.intensity,
-            )
-            plt.plot(ts, beam.intensity * potential_well * factor)
 
     def _match_beam(
         self,
@@ -385,15 +366,18 @@ class SemiEmpiricMatcher(MatchingRoutine):
             Time coordinate, in [s] for observation of the potential well.
         """
         potential_well, factor = simulation.get_potential_well_empiric(
-            ts=ts, particle_type=beam.particle_type, intensity=beam.intensity
+            ts=np.linspace(ts.min(), ts.max(), len(ts) * 10),
+            particle_type=beam.particle_type,
+            intensity=beam.intensity,
         )
-        potential_well = potential_well * factor
+        potential_well = potential_well[::10] * factor
         self._prelast_potential_well = self._last_potential_well
         self._last_potential_well = potential_well  # for debugging
         if self._prelast_potential_well is None:
             avg_pot_well = potential_well
         else:
             avg_pot_well = (potential_well + self._prelast_potential_well) / 2
+        dE__ = np.linspace(-2e8, 2e8)
         deltaE_grid, time_grid, hamilton_2D = get_hamiltonian_semi_analytic(
             ts=ts,
             potential_well=avg_pot_well,
@@ -444,15 +428,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
 
 
         """
-        plt.figure("mega_debug")
-        plt.subplot(2, 1, 1)
-        plt.cla()
-        plt.hist(
-            beam.read_partial_dt(),
-            bins=self.internal_grid_shape[0],
-            range=self.time_limit,
-        )
-        plt.figure("SemiEmpiricMatcher")
+        # plt.figure("SemiEmpiricMatcher")
         with AllowPlotting():
             plt.subplot(2, 1, 1)
             plt.title(

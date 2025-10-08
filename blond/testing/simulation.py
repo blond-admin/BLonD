@@ -96,7 +96,7 @@ class SimulationTwoRfStations:
             SingleHarmonicCavity,
             proton,
         )
-        from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
+        from blond.cycles.magnetic_cycle import ConstantMagneticCycle
 
         circumference = 26658.883
         ring = Ring(circumference=circumference)
@@ -131,13 +131,8 @@ class SimulationTwoRfStations:
         cavity2.phi_rf = backend.float(0)
 
         N_TURNS = int(1e6)
-        energy_cycle = MagneticCyclePerTurn(
-            value_init=450e9,
-            values_after_turn=np.linspace(
-                450e9,
-                450e9,
-                N_TURNS,
-            ),
+        energy_cycle = ConstantMagneticCycle(
+            value=450e9,
             reference_particle=proton,
         )
 
