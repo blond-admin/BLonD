@@ -42,7 +42,7 @@ def hash_files(file_paths: list[str]) -> str:
 
 def hash_in_folder(
     folder: str | Path,
-    extensions: tuple[str],
+    extensions: tuple[str, ...],
     recursive: bool = True,
 ):
     """Load file contents of all files in folder and generate hash from it.

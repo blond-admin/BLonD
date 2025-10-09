@@ -9,7 +9,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 def get_files_with_extensions(
     folder: str | Path,
-    extensions: tuple[str],
+    extensions: tuple[str, ...],
     recursive: bool = True,
 ) -> list[Path]:
     """Retrieves all files in a folder that match a set of file extensions.
