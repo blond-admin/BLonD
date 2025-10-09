@@ -6,13 +6,13 @@ import subprocess
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import List, Literal
+    from typing import Literal
 
 _filepath = os.path.realpath(__file__)
 _basepath = os.sep.join(_filepath.split(os.sep)[:-1])
 
 
-def run_compile(command: List[str], libname: str) -> int:
+def run_compile(command: list[str], libname: str) -> int:
     if os.path.exists(libname):
         os.remove(libname)
     print(" ".join(command))
@@ -26,8 +26,7 @@ def run_compile(command: List[str], libname: str) -> int:
 def compile_cuda_library(
     compute_capability: int | Literal["discover"] = "discover",
 ) -> None:
-    """
-    Compile the GPU library
+    """Compile the GPU library
 
     Parameters
     ----------
@@ -36,7 +35,7 @@ def compile_cuda_library(
         see https://developer.nvidia.com/cuda-gpus.
 
     """
-    print(f"\nTrying to compile CUDA backend.")
+    print("\nTrying to compile CUDA backend.")
 
     cuda_files = [
         os.path.join(_basepath, "kernels.cu"),

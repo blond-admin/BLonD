@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 from typing import Any
-from typing import Optional
 from typing import Optional as LateInit
 
 import numpy as np
@@ -144,7 +143,6 @@ class LHCCavityLoopCommissioning:
 
     def generate_white_noise(self, n_points: int):
         r"""Generates white noise"""
-
         rnd.seed(self.seed1)
         r1 = rnd.random_sample(n_points)
         rnd.seed(self.seed2)
@@ -201,7 +199,7 @@ class LHCCavityLoop(BirksCavityFeedback):
         R_over_Q: float = 45,
         tau_loop: float = 650e-9,
         tau_otfb: float = 1472e-9,
-        RFFB: Optional[LHCCavityLoopCommissioning] = None,
+        RFFB: LHCCavityLoopCommissioning | None = None,
         harmonic_index: int = 0,
     ):
         super().__init__(
@@ -212,15 +210,15 @@ class LHCCavityLoop(BirksCavityFeedback):
             harmonic_index=harmonic_index,
         )
         # variables that are declared later
-        self.samples: LateInit[float] = None
-        self.n_delay: LateInit[int] = None
-        self.n_fir: LateInit[int] = None
-        self.n_otfb: LateInit[int] = None
-        self.ind: LateInit[int] = None
-        self.samples_fine: LateInit[float] = None
-        self.detuning: LateInit[float] = None
-        self.d_omega: LateInit[float] = None
-        self.omega_c: LateInit[float] = None
+        self.samples: float | None = None
+        self.n_delay: int | None = None
+        self.n_fir: int | None = None
+        self.n_otfb: int | None = None
+        self.ind: int | None = None
+        self.samples_fine: float | None = None
+        self.detuning: float | None = None
+        self.d_omega: float | None = None
+        self.omega_c: float | None = None
 
         # Set up logging
         self.logger = logging.getLogger(__class__.__name__)
@@ -362,7 +360,6 @@ class LHCCavityLoop(BirksCavityFeedback):
 
     def cavity_response(self, samples: float):
         r"""ACS cavity reponse model"""
-
         self.V_ANT_COARSE[self.ind] = (
             self.I_GEN_COARSE[self.ind - 1] * self.R_over_Q * samples
             + self.V_ANT_COARSE[self.ind - 1]
@@ -372,7 +369,6 @@ class LHCCavityLoop(BirksCavityFeedback):
 
     def cavity_response_fine_matrix(self):
         r"""ACS cavity response model in matrix form on the fine-grid"""
-
         # Number of samples on fine grid
         self.samples_fine = self.omega_rf * self.profile.hist_step
 
@@ -412,12 +408,11 @@ class LHCCavityLoop(BirksCavityFeedback):
     def generator_current(self):
         r"""Generator response
 
-        Attributes
+        Attributes:
         I_TEST : complex array
             Test point for open loop measurements (when injecting a generator
             offset)
         """
-
         # From V_swap_out in closed loop, constant in open loop
         # TODO: missing terms for changing voltage and beam current
         self.I_TEST[self.ind] = self.G_gen * self.V_SWAP_OUT[self.ind]
@@ -428,7 +423,6 @@ class LHCCavityLoop(BirksCavityFeedback):
 
     def generator_power(self) -> NumpyArray:
         r"""Calculation of generator power from generator current"""
-
         return (
             0.5
             * self.R_over_Q
@@ -438,7 +432,6 @@ class LHCCavityLoop(BirksCavityFeedback):
 
     def one_turn_feedback(self, T_s: float):
         r"""Apply effect of the OTFB on the analog branch"""
-
         # OTFB itself
         self.V_OTFB_INT[self.ind] = (
             self.alpha * self.V_OTFB_INT[self.ind - self.n_coarse]
@@ -465,7 +458,6 @@ class LHCCavityLoop(BirksCavityFeedback):
 
     def rf_feedback(self, T_s: float):
         r"""Analog and digital RF feedback response"""
-
         # Calculate voltage difference to act on
         self.V_FB_IN[self.ind] = (
             self.V_SET[self.ind - self.n_delay]
@@ -509,7 +501,8 @@ class LHCCavityLoop(BirksCavityFeedback):
 
     def update_set_point(self):
         r"""Updates the set point for the next turn based on the design RF
-        voltage."""
+        voltage.
+        """
         coeff = np.polyfit(
             [0, self.n_coarse + 1],
             [self.V_SET[-self.n_coarse], self.set_point_from_rfstation()[0]],
@@ -524,8 +517,8 @@ class LHCCavityLoop(BirksCavityFeedback):
 
     def swap(self):
         r"""Model of the Switch and Protect module: clamping of the output
-        power above a given input power."""
-
+        power above a given input power.
+        """
         # TODO: check implementation
         if self.clamping:
             self.V_SWAP_OUT[self.ind] = (
@@ -542,7 +535,6 @@ class LHCCavityLoop(BirksCavityFeedback):
 
     def tuner(self):
         r"""Model of the tuner algorithm."""
-
         # Compute the detuning factor for the current turn
         dtune = (
             -(self.mu / 2)
@@ -564,7 +556,6 @@ class LHCCavityLoop(BirksCavityFeedback):
 
     def tuner_input(self):
         r"""Gathering data for the detuning algorithm"""
-
         # Calculating input signal
         self.TUNER_INPUT[self.ind] = self.I_GEN_COARSE[self.ind] * np.conj(
             self.V_ANT_COARSE[self.ind]
@@ -584,7 +575,6 @@ class LHCCavityLoop(BirksCavityFeedback):
 
     def track_one_turn(self):
         r"""Single-turn tracking, index by index."""
-
         for i in range(self.n_coarse):
             T_s = self.T_s
             self.ind = i + self.n_coarse
@@ -596,8 +586,8 @@ class LHCCavityLoop(BirksCavityFeedback):
 
     def update_arrays(self):
         r"""Moves the array indices by one turn (n_coarse points) from the
-        present turn to prepare the next turn. All arrays except for V_SET."""
-
+        present turn to prepare the next turn. All arrays except for V_SET.
+        """
         self.V_ANT_COARSE = np.concatenate(
             (
                 self.V_ANT_COARSE[self.n_coarse :],
@@ -691,7 +681,6 @@ class LHCCavityLoop(BirksCavityFeedback):
 
     def update_fb_variables(self):
         r"""Update counter and frequency-dependent variables in a given turn"""
-
         # Delay time
         self.n_delay = round(self.tau_loop / self.T_s)
         self.n_fir = round(0.5 * (self.fir_n_taps - 1))
@@ -706,8 +695,8 @@ class LHCCavityLoop(BirksCavityFeedback):
 
     def update_set_point_excitation(self, excitation: NumpyArray, turn: int):
         r"""Updates the set point for the next turn based on the excitation to
-        be injected."""
-
+        be injected.
+        """
         self.V_SET = np.concatenate(
             (
                 self.V_SET[self.n_coarse :],
@@ -720,7 +709,7 @@ class LHCCavityLoop(BirksCavityFeedback):
         point from white noise. V_EXC_IN and V_EXC_OUT can be used to measure
         the transfer function of the system at set point.
 
-        Notes
+        Notes:
         -----
         V_EXC_IN : complex array
             Noise being played in set point; n_coarse * n_turns elements
@@ -728,7 +717,6 @@ class LHCCavityLoop(BirksCavityFeedback):
             System reaction to noise (accumulated from V_ANT); n_coarse * n_turns
             elements
         """
-
         self.V_EXC_IN = 1000 * self.RFFB.generate_white_noise(
             self.n_coarse * n_turns
         )
@@ -756,7 +744,7 @@ class LHCCavityLoop(BirksCavityFeedback):
         point from white noise. V_EXC_IN and V_EXC_OUT can be used to measure
         the transfer function of the system at otfb.
 
-        Notes
+        Notes:
         -----
         V_EXC_IN : complex array
             Noise being played in set point; n_coarse * n_turns elements
@@ -764,7 +752,6 @@ class LHCCavityLoop(BirksCavityFeedback):
             System reaction to noise (accumulated from V_ANT); n_coarse * n_turns
             elements
         """
-
         self.V_EXC_IN = 10000 * self.RFFB.generate_white_noise(
             self.n_coarse * n_turns
         )
@@ -823,12 +810,11 @@ class LHCCavityLoop(BirksCavityFeedback):
         voltage : float
             RF voltage amplitude in the cavity
 
-        Returns
+        Returns:
         -------
         float
             Optimum detuning (revolution) frequency in the half-detuning scheme
         """
-
         return (
             -0.25 * R_over_Q * imag_peak_beam_current / voltage * rf_frequency
         )
@@ -844,12 +830,11 @@ class LHCCavityLoop(BirksCavityFeedback):
         voltage : float
             Cavity voltage
 
-        Returns
+        Returns:
         -------
         float
             Optimum detuning (revolution) frequency in the half-detuning scheme
         """
-
         return 0.125 * peak_beam_current * voltage
 
     @staticmethod
@@ -863,12 +848,11 @@ class LHCCavityLoop(BirksCavityFeedback):
         rf_frequency : float
             RF frequency
 
-        Returns
+        Returns:
         -------
         float
             Optimum loaded Q
         """
-
         return np.fabs(0.5 * rf_frequency / detuning)
 
     @staticmethod
@@ -884,10 +868,9 @@ class LHCCavityLoop(BirksCavityFeedback):
         voltage : float
             Cavity voltage
 
-        Returns
+        Returns:
         -------
         float
             Optimum loaded Q
         """
-
         return voltage / (R_over_Q * real_peak_beam_current)

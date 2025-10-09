@@ -4,7 +4,7 @@ import warnings
 from abc import ABC, abstractmethod
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from scipy.constants import speed_of_light as c0  # type: ignore
@@ -15,8 +15,6 @@ from ..base import HasPropertyCache, Preparable
 from ..helpers import int_from_float_with_warning
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional
-
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
@@ -65,7 +63,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         self._dt: NumpyArray | CupyArray | None = None
         self._flags: NumpyArray | CupyArray | None = None
 
-        self.reference_time: np.float32 | np.float64 = backend.float(0.0)  #
+        self.reference_time: np.float32 | np.float64 = backend.float(0.0)
         # todo cached properties
         self._reference_total_energy = 0.0  # todo cached properties
 
@@ -76,7 +74,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
@@ -89,7 +87,6 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         turn_i_init
             Initial turn to execute simulation
         """
-
         super().on_run_simulation(
             beam=beam,
             simulation=simulation,
@@ -154,7 +151,6 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     @cached_property
     def reference_beta(self) -> float:
         """Beam reference fraction of speed of light (v/c0) []"""
-
         gamma = self.reference_gamma
         val = np.sqrt(1.0 - 1.0 / (gamma * gamma))
         return val
@@ -170,8 +166,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         flags: NumpyArray | CupyArray = None,
-        reference_time: Optional[float] = None,
-        reference_total_energy: Optional[float] = None,
+        reference_time: float | None = None,
+        reference_total_energy: float | None = None,
     ) -> None:
         """Sets beam array attributes for simulation
 
@@ -218,14 +214,12 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     @abstractmethod  # pragma: no cover  # as readonly attributes
     def dt_min(self) -> backend.float:
         """Minimum dt coordinate, in [s]"""
-
         pass
 
     @cached_property
     @abstractmethod  # pragma: no cover  # as readonly attributes
     def dt_max(self) -> backend.float:
         """Maximum dt coordinate, in [s]"""
-
         pass
 
     @cached_property
@@ -293,7 +287,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     def n_macroparticles_partial(self) -> int:
         """Size of the beam, ignoring that beam might be distributed
 
-        Note
+        Note:
         ----
         Depends on `is_distributed`
         If not distributed, returns all particles.
@@ -312,7 +306,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     def read_partial_dt(self) -> NumpyArray | CupyArray:
         """Returns dt-array on current node (distributed computing ready)
 
-        Note
+        Note:
         ----
         Depends on `is_distributed`
         If not distributed, returns all particles.
@@ -325,7 +319,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     def write_partial_dt(self) -> NumpyArray | CupyArray:
         """Returns dt-array on current node (distributed computing ready)
 
-        Note
+        Note:
         ----
         Depends on `is_distributed`
         If not distributed, returns all particles.
@@ -339,7 +333,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     def read_partial_dE(self) -> NumpyArray | CupyArray:
         """Returns dE-array on current node (distributed computing ready)
 
-        Note
+        Note:
         ----
         Depends on `is_distributed`
         If not distributed, returns all particles.
@@ -352,7 +346,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     def write_partial_dE(self) -> NumpyArray | CupyArray:
         """Returns dE-array on current node (distributed computing ready)
 
-        Note
+        Note:
         ----
         Depends on `is_distributed`
         If not distributed, returns all particles.
@@ -366,7 +360,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     def write_partial_flags(self) -> NumpyArray | CupyArray:
         """Returns flags-array on current node (distributed computing ready)
 
-        Note
+        Note:
         ----
         Depends on `is_distributed`
         If not distributed, returns all particles.

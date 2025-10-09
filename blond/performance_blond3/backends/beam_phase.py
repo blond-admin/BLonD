@@ -10,10 +10,10 @@ def main():  # pragma: no cover
     hist_y = np.random.randn(len(hist_x))
     hist_x_cp = cp.array(hist_x)
     hist_y_cp = cp.array(hist_y)
-    alpha = float(1.4)
-    omega_rf = float(1.4)
-    phi_rf = float(1.4)
-    bin_size = float(1.4)
+    alpha = 1.4
+    omega_rf = 1.4
+    phi_rf = 1.4
+    bin_size = 1.4
     from blond._core.backends.backend import Numpy64Bit, backend
 
     backend.change_backend(Numpy64Bit)

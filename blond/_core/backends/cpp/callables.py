@@ -11,7 +11,6 @@ from ...._core.backends.backend import Specials, backend
 
 if TYPE_CHECKING:  # pragma: no cover
     from ctypes import CDLL
-    from typing import Type
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
@@ -20,9 +19,9 @@ if TYPE_CHECKING:  # pragma: no cover
 class PrecisionClass:
     """Singleton class. Holds information about the floating point precision of the calculations."""
 
-    real_t: Type[np.float32 | np.float64]
-    c_real_t: Type[ct.c_float | ct.c_double]
-    complex_t: Type[np.complex64 | np.complex128]
+    real_t: type[np.float32 | np.float64]
+    c_real_t: type[ct.c_float | ct.c_double]
+    complex_t: type[np.complex64 | np.complex128]
 
     __instance = None
 
@@ -272,7 +271,6 @@ class CppSpecials(Specials):
             ct.c_int(len(dt)),
             c_real(acceleration_kick),
         )
-        return
 
     @staticmethod
     def kick_multi_harmonic(
@@ -296,7 +294,6 @@ class CppSpecials(Specials):
             _getLen(dt),
             c_real(acceleration_kick),
         )
-        return
 
     @staticmethod
     def drift_simple(
@@ -316,7 +313,6 @@ class CppSpecials(Specials):
             c_real(energy),
             _getLen(dt),
         )
-        return
 
     @staticmethod
     def drift_legacy(

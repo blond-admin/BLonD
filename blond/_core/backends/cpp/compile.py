@@ -7,10 +7,10 @@ import platform
 import subprocess
 import sys
 import warnings
-from typing import TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import List, Optional
+    pass
 
 _filepath = os.path.realpath(__file__)
 _basepath = os.sep.join(_filepath.split(os.sep)[:-1])
@@ -32,7 +32,7 @@ cpp_files = [
 cpp_files = [os.path.join(_basepath, f) for f in cpp_files]
 
 
-def run_compile(command: List[str], libname: str) -> int:
+def run_compile(command: list[str], libname: str) -> int:
     if os.path.exists(libname):
         os.remove(libname)
     print(" ".join(command))
@@ -47,18 +47,17 @@ def compile_cpp_library(
     with_fftw: bool = False,
     with_fftw_threads: bool = False,
     with_fftw_omp: bool = False,
-    with_fftw_lib: Optional[str] = None,
-    with_fftw_header: Optional[str] = None,
-    boost: Optional[str] = None,
+    with_fftw_lib: str | None = None,
+    with_fftw_header: str | None = None,
+    boost: str | None = None,
     compiler: str = "g++",
     libs: str = "",
     parallel: bool = False,
     flags: str = "",
     optimize: bool = False,
-    libname: Optional[str] = None,
+    libname: str | None = None,
 ) -> None:
-    """
-    Compile the BLonD C++ library with optional FFTW, OpenMP, and Boost support.
+    """Compile the BLonD C++ library with optional FFTW, OpenMP, and Boost support.
 
     Parameters
     ----------
@@ -87,17 +86,17 @@ def compile_cpp_library(
     libname : str
         Path and name of the output library (without file extension).
 
-    Returns
+    Returns:
     -------
     None
         The function performs compilation and does not return any value.
 
-    Notes
+    Notes:
     -----
     This function assumes the presence of a Makefile or equivalent build system
     capable of processing the supplied options.
     """
-    print(f"\nTrying to compile C++ backend.")
+    print("\nTrying to compile C++ backend.")
 
     if libname is None:
         from blond._generals._hashing import hash_in_folder
@@ -260,15 +259,12 @@ def compile_cpp_library(
             print(exception)
 
 
-from typing import List
-
-
 def prepare_cflags(
-    cflags: List[str],
+    cflags: list[str],
     compiler: str,
     libname: str,
     optimize: bool,
-) -> tuple[List[str], str, str]:
+) -> tuple[list[str], str, str]:
     if "posix" in os.name:
         cflags += ["-fPIC"]
         if optimize:
@@ -304,11 +300,11 @@ def prepare_cflags(
 
 def prepare_fftw(
     with_fftw: bool,
-    with_fftw_header: Optional[str] = None,
-    with_fftw_lib: Optional[str] = None,
-    with_fftw_omp: Optional[bool] = False,
-    with_fftw_threads: Optional[bool] = False,
-) -> Tuple[List[str], list[str]]:
+    with_fftw_header: str | None = None,
+    with_fftw_lib: str | None = None,
+    with_fftw_omp: bool | None = False,
+    with_fftw_threads: bool | None = False,
+) -> tuple[list[str], list[str]]:
     fftw_cflags = []
     fftw_libs = []
     if with_fftw:
@@ -330,7 +326,7 @@ def prepare_fftw(
     return fftw_cflags, fftw_libs
 
 
-def add_avx_flags(cflags: List[str], compiler: str) -> List[str]:
+def add_avx_flags(cflags: list[str], compiler: str) -> list[str]:
     # Check compiler defined directives
     # This is compatible with python3.6 - python 3.9
     # The universal_newlines argument transforms output to text (from binary)
@@ -341,7 +337,7 @@ def add_avx_flags(cflags: List[str], compiler: str) -> List[str]:
         ],
         shell=True,
         stdout=subprocess.PIPE,
-        universal_newlines=True,
+        text=True,
         check=False,
     )
     # If we have an error

@@ -11,8 +11,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def calc_beta(mass: float, momentum: T) -> T:
-    """
-    Relativistic beta factor (v = beta * c0)
+    """Relativistic beta factor (v = beta * c0)
 
     Parameters
     ----------
@@ -21,7 +20,7 @@ def calc_beta(mass: float, momentum: T) -> T:
     momentum : float or NDArray
         Particle momentum, in [eV/c]
 
-    Returns
+    Returns:
     -------
     beta : float or NDArray
         Relativistic beta factor (unitless), such that v = beta * c
@@ -30,8 +29,7 @@ def calc_beta(mass: float, momentum: T) -> T:
 
 
 def calc_gamma(mass: float, momentum: T) -> T:
-    """
-    Relativistic gamma factor (Lorentz factor)
+    """Relativistic gamma factor (Lorentz factor)
 
     Parameters
     ----------
@@ -40,7 +38,7 @@ def calc_gamma(mass: float, momentum: T) -> T:
     momentum : float or NDArray
         Particle momentum, in [eV/c]
 
-    Returns
+    Returns:
     -------
     gamma : float or NDArray
         Lorentz factor (unitless)
@@ -50,8 +48,7 @@ def calc_gamma(mass: float, momentum: T) -> T:
 
 
 def calc_total_energy(mass: float, momentum: T) -> T:
-    """
-    Total relativistic energy of the particle
+    """Total relativistic energy of the particle
 
     Parameters
     ----------
@@ -60,7 +57,7 @@ def calc_total_energy(mass: float, momentum: T) -> T:
     momentum : float or NDArray
         Particle momentum, in [eV/c]
 
-    Returns
+    Returns:
     -------
     energy : float or NDArray
         Total relativistic energy, in [eV]
@@ -69,8 +66,7 @@ def calc_total_energy(mass: float, momentum: T) -> T:
 
 
 def calc_energy_kin(mass: float, momentum: T) -> T:
-    """
-    Relativistic kinetic energy of the particle
+    """Relativistic kinetic energy of the particle
 
     Parameters
     ----------
@@ -79,7 +75,7 @@ def calc_energy_kin(mass: float, momentum: T) -> T:
     momentum : float or NDArray
         Particle momentum, in [eV/c]
 
-    Returns
+    Returns:
     -------
     kinetic_energy : float or NDArray
         Kinetic energy, in [eV], defined as total energy - rest energy

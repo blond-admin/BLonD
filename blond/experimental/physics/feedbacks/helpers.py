@@ -14,8 +14,6 @@ logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional
-
     from numpy.typing import NDArray as NumpyArray
 
     from blond.physics.profiles import StaticProfile
@@ -26,10 +24,9 @@ logger = logging.getLogger(__name__)
 def low_pass_filter(
     signal: NumpyArray, cutoff_frequency: float = 0.5
 ) -> NumpyArray:
-    """
-    Low-pass filter based on Butterworth 5th order digital filter
+    """Low-pass filter based on Butterworth 5th order digital filter
 
-    Notes
+    Notes:
     -----
     See `scipy`, https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html
 
@@ -41,13 +38,12 @@ def low_pass_filter(
         Cutoff frequency [1] corresponding to a 3 dB gain drop, relative to the
         Nyquist frequency of 1; default is 0.5
 
-    Returns
+    Returns:
     -------
     float array
         Low-pass filtered signal
 
     """
-
     b, a = scipy.signal.butter(5, cutoff_frequency, "low", analog=False)
 
     return scipy.signal.filtfilt(b, a, signal)
@@ -59,7 +55,7 @@ def rf_beam_current(
     omega_c: float,
     T_rev: float,
     use_lowpass_filter: bool = True,
-    downsample: Optional[dict] = None,
+    downsample: dict | None = None,
     external_reference: bool = True,
     dT: float = 0,
 ) -> NumpyArray | tuple[NumpyArray, NumpyArray]:
@@ -116,7 +112,7 @@ def rf_beam_current(
     dT : float
         The shift in time due to shifting reference frames
 
-    Returns
+    Returns:
     -------
     complex array
         RF beam charge array [C] at 'frequency' omega_c, with the sampling time
@@ -126,7 +122,6 @@ def rf_beam_current(
         on the coarse time grid
 
     """
-
     # Convert from dimensionless to Coulomb/Ampères
     # Take into account macro-particle charge with real-to-macro-particle ratio
     charges = (
@@ -202,7 +197,7 @@ def cartesian_to_polar(
     IQ_vector : complex array
         Signal with in-phase and quadrature (I,Q) components
 
-    Returns
+    Returns:
     -------
     amplitude
         Amplitude of signal
@@ -226,10 +221,9 @@ def polar_to_cartesian(
     phase
         Phase of signal, in [rad]
 
-    Returns
+    Returns:
     -------
     complex array
         Signal with in-phase and quadrature (I,Q) components
     """
-
     return amplitude * (np.cos(phase) + 1j * np.sin(phase))

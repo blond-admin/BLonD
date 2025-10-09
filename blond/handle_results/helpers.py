@@ -4,9 +4,7 @@ from datetime import datetime
 
 
 def filesafe_datetime() -> str:
-    """
-    Datetime string suitable as filename
-    """
+    """Datetime string suitable as filename"""
     # Get current datetime
     now = datetime.now()
 
@@ -16,8 +14,7 @@ def filesafe_datetime() -> str:
 
 
 def callers_relative_path(filename: str, stacklevel: int) -> str:
-    """
-    Absolute path according to filepath of the python script at given stacklevel
+    """Absolute path according to filepath of the python script at given stacklevel
 
     Parameters
     ----------
@@ -27,7 +24,7 @@ def callers_relative_path(filename: str, stacklevel: int) -> str:
         Use global filepath according to the file at the level of
         the python call stack
 
-    Returns
+    Returns:
     -------
     Absolute path according to filepath of the python script at given stacklevel
 

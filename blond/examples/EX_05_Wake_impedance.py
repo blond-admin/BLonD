@@ -8,8 +8,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""
-SPS simulation with intensity effects in time and frequency domains using
+"""SPS simulation with intensity effects in time and frequency domains using
 a table of resonators. The input beam has been cloned to show that the two
 methods are equivalent (compare the two figure folders). Note that to create an
 exact clone of the beam, the option seed=0 in the generation has been used.
@@ -167,7 +166,7 @@ def main():
         plt.plot(
             profile.hist_x,
             profile.hist_y,
-            label=f"analytical_gaussian_resonator",
+            label="analytical_gaussian_resonator",
         )
         plt.subplot(2, 1, 2)
         plt.plot(

@@ -20,7 +20,7 @@ def classname_to_varname(name):
 
 
 def load_coverage_data(path: str | os.PathLike):
-    with open(path, "r") as f:
+    with open(path) as f:
         return json.load(f)
 
 
@@ -44,7 +44,7 @@ def extract_untested_functions(cov_data):
         if not missing_lines:
             continue
 
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:
             source = f.read()
         tree = ast.parse(source, filename=filepath)
 
@@ -125,7 +125,7 @@ def write_boilerplate_tests(untested_functions):
         # Read existing content to avoid duplicate stubs
         existing = ""
         if os.path.exists(test_file):
-            with open(test_file, "r", encoding="utf-8") as f:
+            with open(test_file, encoding="utf-8") as f:
                 existing = f.read()
 
         content = ""

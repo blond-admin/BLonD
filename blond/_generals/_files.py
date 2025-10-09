@@ -4,16 +4,15 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import List, Set, Union
+    pass
 
 
 def get_files_with_extensions(
-    folder: Union[str, Path],
-    extensions: Set[str],
+    folder: str | Path,
+    extensions: set[str],
     recursive: bool = True,
-) -> List[Path]:
-    """
-    Retrieves all files in a folder that match a set of file extensions.
+) -> list[Path]:
+    """Retrieves all files in a folder that match a set of file extensions.
 
     Parameters
     ----------
@@ -24,7 +23,7 @@ def get_files_with_extensions(
     recursive
         Whether to search subdirectories recursively. Defaults to True.
 
-    Returns
+    Returns:
     -------
     files
         A list of Path objects for files that match the given extensions.

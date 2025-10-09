@@ -100,7 +100,7 @@ def main():
             observe=(phase_observation, bunch_observation),
         )
         print(f"Loaded {phase_observation.common_name}")
-    except (FileNotFoundError, AssertionError) as exc:
+    except (FileNotFoundError, AssertionError):
         sim.run_simulation(
             beams=(beam1,),
             turn_i_init=0,

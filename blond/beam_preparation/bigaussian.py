@@ -14,8 +14,6 @@ from ..acc_math.analytic.hammilton import (
 from .base import MatchingRoutine
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional, Tuple
-
     from .._core.beam.base import BeamBaseClass
     from .._core.simulation.simulation import Simulation
 
@@ -56,7 +54,7 @@ def _get_dE_from_dt(
     r"""A routine to evaluate the dE amplitude from dt following a single
     RF Hamiltonian.
 
-    Returns
+    Returns:
     -------
     dE_amplitude : float
         Full amplitude of the particle oscillation, in [eV]
@@ -116,7 +114,7 @@ def _get_dE_from_dt(
 
 def get_main_harmonic_attributes(
     beam: BeamBaseClass, simulation: Simulation
-) -> Tuple[float, float, float, float]:
+) -> tuple[float, float, float, float]:
     from .. import MultiHarmonicCavity
     from ..physics.cavities import SingleHarmonicCavity
 
@@ -176,7 +174,7 @@ class BiGaussian(MatchingRoutine):
         self,
         n_macroparticles: int | float,
         sigma_dt: float,
-        sigma_dE: Optional[float] = None,
+        sigma_dE: float | None = None,
         reinsertion: bool = False,
         seed: int = 0,
     ) -> None:
@@ -216,7 +214,6 @@ class BiGaussian(MatchingRoutine):
         simulation
             Simulation context manager
         """
-
         from ..physics.drifts import DriftSimple
 
         super().prepare_beam(

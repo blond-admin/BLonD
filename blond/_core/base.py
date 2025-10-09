@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Dict, Literal, Tuple
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 
 from .backends.backend import backend
 
 if TYPE_CHECKING:  # pragma: no cover
+    from collections.abc import Callable
     from os import PathLike
-    from typing import Any, Callable, List, Optional, TypeVar
+    from typing import Any, TypeVar
 
     from numpy.typing import NDArray as NumpyArray
 
@@ -39,7 +40,7 @@ class Preparable(ABC):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
@@ -56,10 +57,9 @@ class Preparable(ABC):
 
 
 class MainLoopRelevant(Preparable):
-    """
-    Base class for objects that are relevant for the simulation main loop
+    """Base class for objects that are relevant for the simulation main loop
 
-    Attributes
+    Attributes:
     ----------
     each_turn_i
         Value to control that the element is
@@ -83,10 +83,9 @@ class MainLoopRelevant(Preparable):
 
 
 class Schedulable:
-    """
-    Base class for objects with schedule parameters
+    """Base class for objects with schedule parameters
 
-    Attributes
+    Attributes:
     ----------
     schedules
         Dictionary to update a certain attribute by some value
@@ -101,13 +100,12 @@ class Schedulable:
     def schedule(
         self,
         attribute: str,
-        value: float | int | NumpyArray | Tuple[NumpyArray, NumpyArray],
+        value: float | int | NumpyArray | tuple[NumpyArray, NumpyArray],
         mode: Literal["per-turn", "constant"] | None = None,
     ) -> None:
-        """
-        Schedule a parameter to be changed during simulation
+        """Schedule a parameter to be changed during simulation
 
-        Notes
+        Notes:
         -----
         Can be constant, per turn or interpolated in time
 
@@ -137,10 +135,9 @@ class Schedulable:
         mode: Literal["per-turn", "constant"] | None = None,
         **kwargs_loadtxt,
     ) -> None:
-        """
-        Schedule a parameter to be changed during simulation
+        """Schedule a parameter to be changed during simulation
 
-        Notes
+        Notes:
         -----
         Can be constant, per turn or interpolated in time
 
@@ -188,8 +185,7 @@ class Schedulable:
 
 
 class BeamPhysicsRelevant(MainLoopRelevant):
-    """
-    Main loop element with relevance for beam physics
+    """Main loop element with relevance for beam physics
 
     Parameters
     ----------
@@ -198,7 +194,7 @@ class BeamPhysicsRelevant(MainLoopRelevant):
     name
         User given name of the element
 
-    Attributes
+    Attributes:
     ----------
     name
         User given name of the element
@@ -209,7 +205,7 @@ class BeamPhysicsRelevant(MainLoopRelevant):
     def __init__(
         self,
         section_index: int = 0,
-        name: Optional[str] = None,
+        name: str | None = None,
     ) -> None:
         super().__init__()
         self._section_index = section_index
@@ -252,7 +248,7 @@ class UserDefinedElement(BeamPhysicsRelevant, ABC):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
@@ -346,14 +342,12 @@ class ScheduledArray(_Scheduled):
         reference_time
             Current time, in [s]
         """
-
         return self.values[turn_i]
 
 
 class ScheduledInterpolation(_Scheduled):
     def __init__(self, times: NumpyArray, values: NumpyArray) -> None:
         """Schedule values that change along time"""
-
         super().__init__()
         self.times = times
         self.values = values  # TODO values.astype(backend.float)
@@ -376,7 +370,7 @@ class ScheduledInterpolation(_Scheduled):
 
 
 def get_scheduler(
-    value: float | int | NumpyArray | Tuple[NumpyArray, NumpyArray],
+    value: float | int | NumpyArray | tuple[NumpyArray, NumpyArray],
     mode: Literal["per-turn", "constant"] | None = None,
 ) -> _Scheduled:
     """Auto-select the correct class of the schedulers
@@ -415,7 +409,7 @@ class DynamicParameter:  # TODO add code generation for this method with type-hi
             Initial parameter that is set as parameter.value
         """
         self._value = value_init
-        self._observers: List[Callable[[Any], None]] = []
+        self._observers: list[Callable[[Any], None]] = []
 
     def on_change(self, callback: Callable[[Any], None]) -> None:
         """Subscribe to changes on a specific parameter.
@@ -443,10 +437,10 @@ class DynamicParameter:  # TODO add code generation for this method with type-hi
         self._value = new_val
 
 
-class HasPropertyCache(object):
+class HasPropertyCache:
     """Helper objet to use @cached_property() for class methods"""
 
-    def _invalidate_cache(self, props: Tuple[str, ...]) -> None:
+    def _invalidate_cache(self, props: tuple[str, ...]) -> None:
         """Delete the stored values of functions with @cached_property"""
         for prop in props:
             self.__dict__.pop(prop, None)

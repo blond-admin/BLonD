@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from functools import cached_property
 from pstats import SortKey
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 from warnings import warn
 
 from scipy.integrate import cumulative_trapezoid
@@ -23,14 +24,12 @@ from ..helpers import find_instances_with_method, int_from_float_with_warning
 from ..ring.helpers import get_elements, get_init_order
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, Dict, Optional, Tuple
+    from typing import Any
 
     from numpy.typing import NDArray as NumpyArray
 
     from blond import (
         Beam,
-        DriftSimple,
-        MagneticCyclePerTurn,
         SingleHarmonicCavity,
     )
     from blond.legacy.blond2.beam.beam import Beam as Blond2Beam
@@ -69,7 +68,7 @@ class Simulation(Preparable, HasPropertyCache):
         Container object to handle the scheduled energy gain
         per turn or by time
 
-    Attributes
+    Attributes:
     ----------
     turn_i
         Counter of the current turn during simulation,
@@ -103,7 +102,7 @@ class Simulation(Preparable, HasPropertyCache):
 
     def profiling(
         self,
-        beams: Tuple[BeamBaseClass],
+        beams: tuple[BeamBaseClass],
         turn_i_init: int,
         profile_start_turn_i: int,
         profile_n_turns: int,
@@ -155,7 +154,6 @@ class Simulation(Preparable, HasPropertyCache):
 
     def invalidate_cache(self):
         """Delete the stored values of functions with @cached_property"""
-
         pass  # TODO
 
     def get_potential_well_empiric(
@@ -164,10 +162,9 @@ class Simulation(Preparable, HasPropertyCache):
         particle_type: ParticleType,
         subtract_min: bool = True,
     ) -> NumpyArray:
-        """
-        Obtain the potential well by tracking a beam one turn
+        """Obtain the potential well by tracking a beam one turn
 
-        Notes
+        Notes:
         -----
         This function internally obtains `dE_out` of `dt_in`.
         During one turn with many drifts, the time coordinate will change
@@ -189,7 +186,7 @@ class Simulation(Preparable, HasPropertyCache):
             If True, will always return min(potential_well) = 0.
             If False, potential_well[0] = 0.
 
-        Returns
+        Returns:
         -------
         potential_well
             The effective voltage that lead to a change of `dE` in one turn.
@@ -225,7 +222,7 @@ class Simulation(Preparable, HasPropertyCache):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
@@ -309,7 +306,7 @@ class Simulation(Preparable, HasPropertyCache):
             Dictionary of elements that
             should be contained in the simulation.
 
-        Examples
+        Examples:
         --------
         >>> beam1 = Beam( ... )
         >>> ring = Ring( ... )
@@ -366,12 +363,10 @@ class Simulation(Preparable, HasPropertyCache):
     @cached_property
     def get_separatrix(self) -> None:
         raise NotImplementedError
-        return None
 
     @cached_property
     def get_potential_well(self) -> None:
         raise NotImplementedError
-        return None
 
     def print_one_turn_execution_order(self) -> None:
         """Prints the execution order of the main simulation loop"""
@@ -387,14 +382,13 @@ class Simulation(Preparable, HasPropertyCache):
         self,
         turn_i: int,  # required by `turn_i.on_change`
     ) -> None:
-        """
-        Reset cache of `cached_property` attributes
+        """Reset cache of `cached_property` attributes
 
         Parameters
         ----------
         Current turn
 
-        Notes
+        Notes:
         -----
         This method is subscribed to turn_i.on_change
 
@@ -425,16 +419,14 @@ class Simulation(Preparable, HasPropertyCache):
 
     def run_simulation(
         self,
-        beams: Tuple[BeamBaseClass],
-        n_turns: Optional[int] = None,
+        beams: tuple[BeamBaseClass],
+        n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: Tuple[Observables, ...] = tuple(),
+        observe: tuple[Observables, ...] = tuple(),
         show_progressbar: bool = True,
-        callback: Optional[Callable[[Simulation, Beam], None]] = None,
+        callback: Callable[[Simulation, Beam], None] | None = None,
     ) -> None:
-        """
-        Execute the beam dynamics simulation
-
+        """Execute the beam dynamics simulation
 
         Parameters
         ----------
@@ -501,15 +493,14 @@ class Simulation(Preparable, HasPropertyCache):
                     f"Max turn number is {self.magnetic_cycle.n_turns=}, "
                     f"but trying to simulate {(turn_i_init + _n_turns)} turns"
                 )
+        elif max_turns is None:
+            raise ValueError(
+                f"`n_turns` must be provided, because"
+                f" {type(self.magnetic_cycle)=} has"
+                f" unlimited turns."
+            )
         else:
-            if max_turns is None:
-                raise ValueError(
-                    f"`n_turns` must be provided, because"
-                    f" {type(self.magnetic_cycle)=} has"
-                    f" unlimited turns."
-                )
-            else:
-                _n_turns = max_turns
+            _n_turns = max_turns
         if backend.specials_mode == "python":
             particles_above_threshold = any(
                 [
@@ -549,13 +540,11 @@ class Simulation(Preparable, HasPropertyCache):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int = 0,
-        observe: Tuple[Observables, ...] = tuple(),
+        observe: tuple[Observables, ...] = tuple(),
         show_progressbar: bool = True,
-        callback: Optional[Callable[[Simulation, Beam], None]] = None,
+        callback: Callable[[Simulation, Beam], None] | None = None,
     ) -> None:
-        """
-        Execute the beam dynamics simulation for only one beam
-
+        """Execute the beam dynamics simulation for only one beam
 
         Parameters
         ----------
@@ -619,7 +608,6 @@ class Simulation(Preparable, HasPropertyCache):
         from ...physics.cavities import (  # prevent cyclic import
             CavityBaseClass,
             MultiHarmonicCavity,
-            SingleHarmonicCavity,
         )
 
         ring_length = self.ring.closed_orbit_length
@@ -717,16 +705,14 @@ class Simulation(Preparable, HasPropertyCache):
 
     def _run_simulation_counterrotating_beam(
         self,
-        beams: Tuple[BeamBaseClass],
+        beams: tuple[BeamBaseClass],
         n_turns: int,
         turn_i_init: int = 0,
-        observe: Tuple[Observables, ...] = tuple(),
+        observe: tuple[Observables, ...] = tuple(),
         show_progressbar: bool = True,
-        callback: Optional[Callable[[Simulation, Beam], None]] = None,
+        callback: Callable[[Simulation, Beam], None] | None = None,
     ) -> None:
-        """
-        Execute the beam dynamics simulation for only one beam
-
+        """Execute the beam dynamics simulation for only one beam
 
         Parameters
         ----------
@@ -750,11 +736,10 @@ class Simulation(Preparable, HasPropertyCache):
 
     def save_results(
         self,
-        observe: Tuple[Observables, ...] = tuple(),
-        common_name: Optional[str] = None,
+        observe: tuple[Observables, ...] = tuple(),
+        common_name: str | None = None,
     ) -> None:
-        """
-        Save the given observables to the disk
+        """Save the given observables to the disk
 
         Parameters
         ----------
@@ -772,14 +757,13 @@ class Simulation(Preparable, HasPropertyCache):
 
     def load_results(
         self,
-        beams: Tuple[BeamBaseClass],
-        n_turns: Optional[int] = None,
+        beams: tuple[BeamBaseClass],
+        n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: Tuple[Observables, ...] = tuple(),
-        common_name: Optional[str] = None,
+        observe: tuple[Observables, ...] = tuple(),
+        common_name: str | None = None,
     ) -> None:
-        """
-        Load the given observables from the disk
+        """Load the given observables from the disk
 
         Parameters
         ----------

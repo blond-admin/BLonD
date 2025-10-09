@@ -12,8 +12,7 @@ from .base import LocalFeedback
 from .helpers import cartesian_to_polar, polar_to_cartesian, rf_beam_current
 
 if TYPE_CHECKING:
-    from typing import Any, Dict
-    from typing import Optional
+    from typing import Any
     from typing import Optional as LateInit
 
     from numpy.typing import NDArray as NumpyArray
@@ -26,8 +25,7 @@ if TYPE_CHECKING:
 
 
 class BirksCavityFeedback(LocalFeedback):
-    """
-    Base class to design cavity feedbacks
+    """Base class to design cavity feedbacks
 
     Parameters
     ----------
@@ -46,7 +44,7 @@ class BirksCavityFeedback(LocalFeedback):
     name
         # TODO might be removed
 
-    Attributes
+    Attributes:
     ----------
     n_cavities
         Number of cavities the feedback is working on
@@ -110,10 +108,9 @@ class BirksCavityFeedback(LocalFeedback):
         harmonic_index: int,
         use_lowpass_filter: bool = False,
         section_index: int = 0,
-        name: Optional[str] = None,
+        name: str | None = None,
     ):
-        """
-        Base class to design cavity feedbacks
+        """Base class to design cavity feedbacks
 
         Parameters
         ----------
@@ -183,7 +180,7 @@ class BirksCavityFeedback(LocalFeedback):
 
         self.omega_rf = float(
             self._parent_cavity._omega_rf[self.harmonic_index]
-        )  #
+        )
         self.dT = 0
 
         # The least amount of arrays needed to feedback to the tracker object
@@ -211,14 +208,13 @@ class BirksCavityFeedback(LocalFeedback):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
         pass
 
     @abstractmethod  # pragma: no cover
     def update_fb_variables(self) -> None:
-        r"""
-        Method to update the variables specific to the feedback.
+        r"""Method to update the variables specific to the feedback.
 
         This is meant to be implemented in the child class by the user.
         """
@@ -226,7 +222,6 @@ class BirksCavityFeedback(LocalFeedback):
 
     def update_rf_variables(self) -> None:
         r"""Updating variables from the other BLonD classes"""
-
         # Present time step
 
         # Present RF angular frequency
@@ -268,10 +263,9 @@ class BirksCavityFeedback(LocalFeedback):
 
     @abstractmethod  # pragma: no cover
     def circuit_track(self, no_beam: bool = False) -> None:
-        r"""
-        Method to track circuit of the feedback.
+        r"""Method to track circuit of the feedback.
 
-        Notes
+        Notes:
         -----
         This is meant to be implemented in the child class by the user.
         The only requirement for this method is that it has to update the
@@ -284,19 +278,15 @@ class BirksCavityFeedback(LocalFeedback):
         """
         pass
 
-    def track_no_beam(self, n_pretrack: Optional[int] = 1) -> None:
-        r"""
-        Tracking method of the cavity feedback without beam in the accelerator
-        """
-
+    def track_no_beam(self, n_pretrack: int | None = 1) -> None:
+        r"""Tracking method of the cavity feedback without beam in the accelerator"""
         self.update_rf_variables()
         self.update_fb_variables()
         for i in range(n_pretrack):
             self.circuit_track(no_beam=True)
 
     def track(self, beam: BeamBaseClass) -> None:
-        r"""
-        Tracking method of the cavity feedback
+        r"""Tracking method of the cavity feedback
 
         Parameters
         ----------
@@ -367,7 +357,6 @@ class BirksCavityFeedback(LocalFeedback):
 
     def set_point_from_rfstation(self) -> NumpyArray:
         r"""Computes the setpoint in I/Q based on the RF voltage in the RFStation"""
-
         V_set = polar_to_cartesian(
             self._parent_cavity.voltage[self.harmonic_index] / self.n_cavities,
             0,

@@ -2,9 +2,6 @@ from __future__ import annotations
 
 import warnings
 from typing import TYPE_CHECKING
-from typing import Optional
-from typing import Optional as LateInit
-from typing import Tuple
 
 import numpy as np
 from scipy.constants import elementary_charge as e
@@ -32,11 +29,11 @@ class InductiveImpedanceSolver(WakeFieldSolver):
     def __init__(self):
         """Wakefield solver specialized for InductiveImpedance"""
         super().__init__()
-        self._beam: LateInit[BeamBaseClass] = None
-        self._Z_over_n: LateInit[float] = None
-        self._turn_i: LateInit[DynamicParameter] = None
-        self._parent_wakefield: LateInit[WakeField] = None
-        self._simulation: LateInit[Simulation] = None
+        self._beam: BeamBaseClass | None = None
+        self._Z_over_n: float | None = None
+        self._turn_i: DynamicParameter | None = None
+        self._parent_wakefield: WakeField | None = None
+        self._simulation: Simulation | None = None
 
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
@@ -57,7 +54,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
                 for o in parent_wakefield.sources
             ]
         )
-        impedances: Tuple[InductiveImpedance, ...] = parent_wakefield.sources
+        impedances: tuple[InductiveImpedance, ...] = parent_wakefield.sources
         self._Z_over_n = backend.float(
             np.sum(np.array([o.Z_over_n for o in impedances]))
         )
@@ -67,15 +64,14 @@ class InductiveImpedanceSolver(WakeFieldSolver):
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
-        """
-        Calculates the induced voltage based on the beam profile and beam parameters
+        """Calculates the induced voltage based on the beam profile and beam parameters
 
         Parameters
         ----------
         beam
             Simulation object of a particle beam
 
-        Returns
+        Returns:
         -------
         induced_voltage
             Induced voltage, in [V]
@@ -94,7 +90,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
 class PeriodicFreqSolver(WakeFieldSolver):
     """General wakefield solver to calculate wake-fields via frequency domain
 
-    Notes
+    Notes:
     -----
     This solver is intended for the case, that the
     length of the beam profile is in the order of time as one revolution
@@ -109,7 +105,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         Allow to slightly change `t_periodicity` for
         faster execution of fft via `scipy.fft.next_fast_len`
 
-    Attributes
+    Attributes:
     ----------
     allow_next_fast_len
         Allow to slightly change `t_periodicity` for
@@ -122,7 +118,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
 
     def __init__(
         self,
-        t_periodicity: Optional[float] = None,
+        t_periodicity: float | None = None,
         allow_next_fast_len: bool = False,
     ):
         """General wakefield solver to calculate wake-fields via frequency domain
@@ -139,20 +135,19 @@ class PeriodicFreqSolver(WakeFieldSolver):
             Allow to slightly change `t_periodicity` for
             faster execution of fft via `scipy.fft.next_fast_len`
         """
-
         super().__init__()
         self.allow_next_fast_len = allow_next_fast_len
         self.expect_profile_change: bool = False
         self.expect_impedance_change = False
 
         self._t_periodicity = t_periodicity
-        self._parent_wakefield: LateInit[WakeField] = None
-        self._n_time: LateInit[int] = None
-        self._n_freq: LateInit[int] = None
-        self._freq_x: LateInit[NumpyArray] = None
-        self._freq_y: LateInit[NumpyArray] = None
+        self._parent_wakefield: WakeField | None = None
+        self._n_time: int | None = None
+        self._n_freq: int | None = None
+        self._freq_x: NumpyArray | None = None
+        self._freq_y: NumpyArray | None = None
 
-        self._simulation: LateInit[Simulation] = None
+        self._simulation: Simulation | None = None
 
         self._freq_y_needs_update = True  # at least one update
 
@@ -258,8 +253,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         self._freq_y_needs_update = True
 
     def _update_impedance_sources(self, beam: BeamBaseClass) -> None:
-        """
-        Updates `_freq_y` array if `self._freq_y_needs_update=True`
+        """Updates `_freq_y` array if `self._freq_y_needs_update=True`
 
         Parameters
         ----------
@@ -289,7 +283,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
                 )
                 assert not np.any(np.isnan(freq_y)), f"{type(source).__name__}"
 
-                self._freq_y += backend.array(freq_y, dtype=backend.complex)  #
+                self._freq_y += backend.array(freq_y, dtype=backend.complex)
                 # potentially on gpu
             else:
                 raise Exception(
@@ -303,15 +297,14 @@ class PeriodicFreqSolver(WakeFieldSolver):
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
-        """
-        Calculates the induced voltage based on the beam profile and beam parameters
+        """Calculates the induced voltage based on the beam profile and beam parameters
 
         Parameters
         ----------
         beam
             Simulation object of a particle beam
 
-        Returns
+        Returns:
         -------
         induced_voltage
             Induced voltage, in [V]
@@ -375,10 +368,9 @@ class PeriodicFreqSolver(WakeFieldSolver):
 
 class TimeDomainFftSolver(WakeFieldSolver):
     def __init__(self):
-        """
-        Solver to calculate induced voltage using fftconvolve(wake,profile)
+        """Solver to calculate induced voltage using fftconvolve(wake,profile)
 
-        Notes
+        Notes:
         -----
         This method is intended for beam profiles that are only a fraction of
         the synchrotron revolution time (short profiles).
@@ -387,9 +379,9 @@ class TimeDomainFftSolver(WakeFieldSolver):
         super().__init__()
         self.expect_impedance_change = False
 
-        self._parent_wakefield: LateInit[WakeField] = None
-        self._wake_imp_y: LateInit[NumpyArray] = None
-        self._simulation: LateInit[Simulation] = None
+        self._parent_wakefield: WakeField | None = None
+        self._wake_imp_y: NumpyArray | None = None
+        self._simulation: Simulation | None = None
 
         self._wake_imp_y_needs_update = True  # update at least once
 
@@ -446,8 +438,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
                 break
 
     def _update_impedance_sources(self, beam: BeamBaseClass) -> None:
-        """
-        Updates `_wake_imp_y` array if `self.__wake_imp_y_needs_update=True`
+        """Updates `_wake_imp_y` array if `self.__wake_imp_y_needs_update=True`
 
         Parameters
         ----------
@@ -497,15 +488,14 @@ class TimeDomainFftSolver(WakeFieldSolver):
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
-        """
-        Calculates the induced voltage based on the beam profile and beam parameters
+        """Calculates the induced voltage based on the beam profile and beam parameters
 
         Parameters
         ----------
         beam
             Simulation object of a particle beam
 
-        Returns
+        Returns:
         -------
         induced_voltage
             Induced voltage, in [V]

@@ -83,10 +83,7 @@ class PythonSpecials(Specials):
         n_rf: int,
         acceleration_kick: float,
     ) -> None:
-        """
-        Function to apply RF kick on the particles with sin function
-        """
-
+        """Function to apply RF kick on the particles with sin function"""
         voltage_kick = charge * voltage
 
         for j in range(n_rf):
@@ -103,10 +100,7 @@ class PythonSpecials(Specials):
         beta: np.float32 | np.float64,
         energy: np.float32 | np.float64,
     ) -> None:
-        """
-        Function to apply drift equation of motion
-        """
-
+        """Function to apply drift equation of motion"""
         # solver_decoded = solver.decode(encoding='utf_8')
 
         coeff = eta_0 / (beta * beta * energy)
@@ -124,10 +118,7 @@ class PythonSpecials(Specials):
         beta: float,
         energy: float,
     ) -> None:  # pragma: no cover # TODO
-        """
-        Function to apply drift equation of motion
-        """
-
+        """Function to apply drift equation of motion"""
         # solver_decoded = solver.decode(encoding='utf_8')
 
         coeff = 1.0 / (beta * beta * energy)
@@ -156,10 +147,7 @@ class PythonSpecials(Specials):
         beta: float,
         energy: float,
     ) -> None:  # pragma: no cover # TODO
-        """
-        Function to apply drift equation of motion
-        """
-
+        """Function to apply drift equation of motion"""
         # solver_decoded = solver.decode(encoding='utf_8')
 
         invbetasq = 1 / (beta * beta)

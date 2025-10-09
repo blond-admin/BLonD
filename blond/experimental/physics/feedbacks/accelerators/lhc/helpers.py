@@ -21,7 +21,7 @@ def smooth_step(x: NumpyArray, x_min: float = 0, x_max: float = 1, N: int = 1):
     N : int
         Order of smoothness
 
-    Returns
+    Returns:
     -------
     float array
         Smooth step of input signal
@@ -76,13 +76,12 @@ def cavity_response_sparse_matrix(
     detuning : float
         The detuning of the cavity in frequency divided by the rf frequency
 
-    Returns
+    Returns:
     -------
     complex array
         The antenna voltage evaluated for the same period as I_beam and I_gen of length n_samples + 1
 
     """
-
     # TODO MOVE
     # TODO TESTCASE
 
@@ -127,7 +126,7 @@ def fir_filter_lhc_otfb_coeff(
     n_taps : int
         Number of taps. 63 for 40 MS/s or 15 for 10 MS/s
 
-    Returns
+    Returns:
     -------
     double array
         Coefficients of LHC-type FIR filter

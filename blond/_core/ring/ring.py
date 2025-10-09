@@ -10,7 +10,8 @@ import numpy as np
 from ..base import BeamPhysicsRelevant, Preparable, Schedulable
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, Dict, Iterable, List, Optional, Type
+    from collections.abc import Iterable
+    from typing import Any
 
     from numpy.typing import NDArray as NumpyArray
 
@@ -25,8 +26,7 @@ class Ring(Preparable, Schedulable):
         self,
         circumference: float,
     ) -> None:
-        """
-        Ring a.k.a. synchrotron
+        """Ring a.k.a. synchrotron
 
         Parameters
         ----------
@@ -47,8 +47,7 @@ class Ring(Preparable, Schedulable):
         self._circumference = circumference
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called
 
         simulation
             Simulation context manager
@@ -79,10 +78,9 @@ class Ring(Preparable, Schedulable):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called
+        """Lateinit method when `simulation.run_simulation` is called
 
         Parameters
         ----------
@@ -99,10 +97,9 @@ class Ring(Preparable, Schedulable):
 
     @property
     def circumference(self) -> float:
-        """
-        Constant synchrotron reference circumference, in [m].
+        """Constant synchrotron reference circumference, in [m].
 
-        Notes
+        Notes:
         -----
         The orbit length might change during simulation,
         but the circumference is used to determine the RF frequency.
@@ -126,9 +123,7 @@ class Ring(Preparable, Schedulable):
 
     @property
     def n_cavities(self) -> int:
-        """
-        Total number of cavities in this synchrotron
-        """
+        """Total number of cavities in this synchrotron"""
         from ...physics.cavities import CavityBaseClass
 
         return self.elements.count(CavityBaseClass)
@@ -136,14 +131,11 @@ class Ring(Preparable, Schedulable):
     @property  # as readonly attributes
     def elements(self) -> BeamPhysicsRelevantElements:
         """Bending radius, in [m]"""
-
         return self._elements
 
     @property  # as readonly attributes
     def closed_orbit_length(self) -> float:
-        """
-        Length of the closed orbit, in [m]
-        """
+        """Length of the closed orbit, in [m]"""
         from ...physics.drifts import DriftBaseClass
 
         all_drifts = self.elements.get_elements(DriftBaseClass)
@@ -152,24 +144,21 @@ class Ring(Preparable, Schedulable):
 
     @property
     def section_lengths(self) -> NumpyArray:
-        """
-        Length of each section, in [m]
-        """
+        """Length of each section, in [m]"""
         return self.elements.get_sections_orbit_length()
 
     def assert_circumference(
         self,
         atol: float = 1e-6,
     ) -> None:
-        """
-        Checks that the sum of all drifts is equal to the circumference
+        """Checks that the sum of all drifts is equal to the circumference
 
         Parameters
         ----------
         atol
             The tolerance of the check, in [m]
 
-        Raises
+        Raises:
         ------
         AssertionError
             If circumference != circumference
@@ -187,11 +176,10 @@ class Ring(Preparable, Schedulable):
         self,
         n_drifts_per_section: int,
         n_sections: int,
-        driftclass: Type[DriftBaseClass] | None = None,
+        driftclass: type[DriftBaseClass] | None = None,
         **kwargs_drift,
     ) -> None:
-        """
-        Add several drifts to the different sections
+        """Add several drifts to the different sections
 
         Parameters
         ----------
@@ -227,10 +215,9 @@ class Ring(Preparable, Schedulable):
         element: BeamPhysicsRelevant,
         reorder: bool = False,
         deepcopy: bool = False,
-        section_index: Optional[int] = None,
+        section_index: int | None = None,
     ):
-        """
-        Append a beam physics-relevant element to the ring.
+        """Append a beam physics-relevant element to the ring.
 
         This method appends the given element to the
         internal sequence of elements, maintaining insertion order if
@@ -251,7 +238,7 @@ class Ring(Preparable, Schedulable):
             Add element to section
             (overwrites section index of element)
 
-        Raises
+        Raises:
         ------
         AssertionError
             If `element.section_index` is not an integer.
@@ -270,10 +257,9 @@ class Ring(Preparable, Schedulable):
         elements: Iterable[BeamPhysicsRelevant],
         reorder: bool = False,
         deepcopy: bool = False,
-        section_index: Optional[int] = None,
+        section_index: int | None = None,
     ):
-        """
-        Append beam physics-relevant elements to the ring.
+        """Append beam physics-relevant elements to the ring.
 
         This method appends the given elements to the
         internal sequence of elements, maintaining
@@ -292,7 +278,7 @@ class Ring(Preparable, Schedulable):
             Add elements to section
             (overwrites section index of elements)
 
-        Raises
+        Raises:
         ------
         AssertionError
             If `element.section_index` is not an integer.
@@ -313,9 +299,8 @@ class Ring(Preparable, Schedulable):
         insert_at: int | list[int],
         deepcopy: bool = True,
         allow_section_index_overwrite: bool = False,
-    ) -> List[int]:
-        """
-        Insert a single element at the specified locations in the ring.
+    ) -> list[int]:
+        """Insert a single element at the specified locations in the ring.
 
         This function inserts the element at the specified locations in the
         ring, ensuring ``ring.elements.elements[location] == element``
@@ -337,12 +322,12 @@ class Ring(Preparable, Schedulable):
         allow_section_index_overwrite
             Automatic handling of section indexes.
 
-        Returns
+        Returns:
         ------
         locations_in_the_new_ring
             Location(s) of the inserted element in the new ring
 
-        Raises
+        Raises:
         ------
         AssertionError
             If ``element.section_index`` is not an integer.
@@ -379,13 +364,12 @@ class Ring(Preparable, Schedulable):
 
     def insert_elements(
         self,
-        elements: List[BeamPhysicsRelevant],
+        elements: list[BeamPhysicsRelevant],
         insert_at: int,
         deepcopy: bool = True,
         allow_section_index_overwrite: bool = False,
     ):
-        """
-        Insert the elements at the specified location in the ring.
+        """Insert the elements at the specified location in the ring.
 
         This function inserts the list of elements at the specified locations
         in the ring, respecting the element order in list:
@@ -410,7 +394,7 @@ class Ring(Preparable, Schedulable):
         allow_section_index_overwrite
             Automatic handling of section indexes.
 
-        Raises
+        Raises:
         ------
         AssertionError
             If `element.section_index` is not an integer.
@@ -419,7 +403,6 @@ class Ring(Preparable, Schedulable):
             If insert_at is not within [0:len(ring.elements.elements)]
             If allow_section_index_overwrite is enabled without deepcopy
         """
-
         # The elements are inserted one by one, from the last to the first
         # to preserve the input insertion order.
         elements.reverse()
@@ -434,8 +417,7 @@ class Ring(Preparable, Schedulable):
     def _force_section_index_compatibility(
         self, element: BeamPhysicsRelevant, insert_at: int
     ) -> BeamPhysicsRelevant:
-        """
-        Internal method to ensure section index compatibility.
+        """Internal method to ensure section index compatibility.
 
         This method overwrites the section index of the element, to ensure
         section index compatibility in the ring. The element section index

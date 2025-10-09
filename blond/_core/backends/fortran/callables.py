@@ -19,15 +19,14 @@ logger = logging.getLogger(__name__)
 
 
 def _add_dll_directory(command):
-    """
-    Add the bin directory of some executable to the DLL search path
+    """Add the bin directory of some executable to the DLL search path
 
     Parameters
     ----------
     command
         A command line command, e.g. gcc or gfortran
 
-    Returns
+    Returns:
     -------
 
     """
@@ -188,10 +187,7 @@ class FortranSpecials(Specials):
         beta: np.float32 | np.float64,
         energy: np.float32 | np.float64,
     ) -> None:
-        """
-        Function to apply drift equation of motion
-        """
-
+        """Function to apply drift equation of motion"""
         libblond_fortran.drift_simple(
             dt=dt,
             de=dE,

@@ -7,19 +7,17 @@ from blond._core.base import BeamPhysicsRelevant
 from blond._core.beam.base import BeamBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, Dict
-    from typing import Optional
-    from typing import Optional as LateInit
+    from typing import Any
 
 
 class SynchrotronRadiation(BeamPhysicsRelevant):
-    def __init__(self, section_index: int = 0, name: Optional[str] = None):
+    def __init__(self, section_index: int = 0, name: str | None = None):
         super().__init__(
             section_index=section_index,
             name=name,
         )
         raise NotImplementedError("For Lina")
-        self._simulation: LateInit[DriftSimple] = None
+        self._simulation: DriftSimple | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         self._simulation = simulation
@@ -30,7 +28,7 @@ class SynchrotronRadiation(BeamPhysicsRelevant):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called
 
