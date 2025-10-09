@@ -158,6 +158,12 @@ class TestSimulation(unittest.TestCase):
     def test_invalidate_cache(self):
         self.simulation.invalidate_cache()
 
+    def test_plot_potential_well_empiric(self):
+        self.simulation.plot_potential_well_empiric(
+            ts=np.linspace(0, 1e-9),
+            particle_type=proton,
+        )
+
     def test_load_results(self):
         observation = BunchObservation(each_turn_i=10)
         kwargs = dict(
@@ -279,6 +285,37 @@ class TestSimulation(unittest.TestCase):
             potential_well_analytic / potential_well_analytic.max() + 1,
             potential_well / potential_well.max() + 1,
             rtol=1e-4,
+        )
+
+    def test_get_drift_term_empiric(self):
+        from blond.testing.simulation import SimulationTwoRfStations
+
+        sim = SimulationTwoRfStations()
+        simulation = sim.simulation
+        de = np.linspace(-1e9, 1e9)
+        beam = sim.beam1
+        beam.reference_total_energy = 450e9
+        drift_term = simulation.get_drift_term_empiric(
+            dE=de,
+            particle_type=proton,
+        )
+        E0 = beam.reference_total_energy
+        beta = beam.reference_beta
+
+        eta = float(simulation.ring.calc_average_eta_0(beam.reference_gamma))
+        drift_term_analytic = (
+            0.5 * eta / (np.square(beta) * E0) * de**2
+        )  # [1/eV]
+        DEV_DRAW = False
+        if DEV_DRAW:
+            plt.figure()
+
+            print(drift_term - drift_term_analytic)
+            plt.plot(drift_term)
+            plt.plot(drift_term_analytic, "--")
+            plt.show()
+        np.testing.assert_allclose(
+            drift_term_analytic + 1, drift_term + 1, atol=400
         )
 
 
