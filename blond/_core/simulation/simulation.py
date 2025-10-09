@@ -167,7 +167,7 @@ class Simulation(Preparable, HasPropertyCache):
         particle_type: ParticleType,
         subtract_min: bool = True,
     ) -> None:
-        potential_well = self.get_potential_well_empiric(
+        potential_well, _, _ = self.get_potential_well_empiric(
             ts=ts,
             particle_type=particle_type,
             subtract_min=subtract_min,
