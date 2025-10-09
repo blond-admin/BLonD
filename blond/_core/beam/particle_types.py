@@ -68,17 +68,17 @@ class ParticleType:
 
     @property
     def classical_particle_radius(self) -> float32 | float64:
-        """Classical particle radius [m]"""
+        """Classical particle radius [m]."""
         return self._classical_particle_radius
 
     @property
     def sands_radiation_constant(self) -> float32 | float64:
-        """Sand's radiation constant [ m / eV^3]"""
+        """Sand's radiation constant [ m / eV^3]."""
         return self._sands_radiation_constant
 
     @property
     def quantum_radiation_constant(self) -> float32 | float64:
-        """Quantum radiation constant [m]"""
+        """Quantum radiation constant [m]."""
         return self._quantum_radiation_constant
 
 

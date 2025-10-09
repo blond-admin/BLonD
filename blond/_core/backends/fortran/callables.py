@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import importlib.util
-import inspect
 import logging
 import os
 import shutil
@@ -19,8 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 def _add_dll_directory(command):
-    """
-    Add the bin directory of some executable to the DLL search path
+    """Add the bin directory of some executable to the DLL search path.
 
     Parameters
     ----------
@@ -50,8 +48,6 @@ if _using_windows:
 
 
 def find_module_so(file: str) -> str:
-    # Get the file where this function is defined
-    current_file = inspect.getfile(find_module_so)
     # Get the directory of that file
     this_folder = os.path.dirname(os.path.abspath(__file__))
     hash_ = hash_in_folder(
@@ -193,10 +189,7 @@ class FortranSpecials(Specials):
         beta: np.float32 | np.float64,
         energy: np.float32 | np.float64,
     ) -> None:
-        """
-        Function to apply drift equation of motion
-        """
-
+        """Function to apply drift equation of motion."""
         libblond_fortran.drift_simple(
             dt=dt,
             de=dE,

@@ -3,8 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional, Dict, Any
-    from typing import Optional as LateInit
+    from typing import Any
 
 from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant
@@ -20,10 +19,10 @@ class LossesBaseClass(BeamPhysicsRelevant):
 class BoxLosses(LossesBaseClass):
     def __init__(
         self,
-        t_min: Optional[backend.float] = None,
-        t_max: Optional[backend.float] = None,
-        e_min: Optional[backend.float] = None,
-        e_max: Optional[backend.float] = None,
+        t_min: backend.float | None = None,
+        t_max: backend.float | None = None,
+        e_min: backend.float | None = None,
+        e_max: backend.float | None = None,
     ) -> None:
         super().__init__()
 
@@ -33,7 +32,7 @@ class BoxLosses(LossesBaseClass):
         self.e_max = backend.float(e_max)
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
@@ -46,12 +45,12 @@ class BoxLosses(LossesBaseClass):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
         pass
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop
+        """Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------
@@ -70,10 +69,10 @@ class BoxLosses(LossesBaseClass):
 class SeparatrixLosses(LossesBaseClass):
     def __init__(self) -> None:
         super().__init__()
-        self._simulation: LateInit[Simulation] = None
+        self._simulation: Simulation | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
@@ -86,12 +85,12 @@ class SeparatrixLosses(LossesBaseClass):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
         pass
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop
+        """Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------

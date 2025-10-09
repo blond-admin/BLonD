@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,8 +11,6 @@ from ..backends.backend import backend
 from .base import BeamBaseClass, BeamFlags
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional
-
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
@@ -27,8 +25,7 @@ class Beam(BeamBaseClass):
         particle_type: ParticleType,
         is_counter_rotating: bool = False,
     ) -> None:
-        """
-        Base class to host particle coordinates and timing information
+        """Base class to host particle coordinates and timing information.
 
         Parameters
         ----------
@@ -48,7 +45,7 @@ class Beam(BeamBaseClass):
         )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
@@ -59,11 +56,11 @@ class Beam(BeamBaseClass):
         self,
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
-        flags: Optional[NumpyArray | CupyArray] = None,
-        reference_time: Optional[float] = None,
-        reference_total_energy: Optional[float] = None,
+        flags: NumpyArray | CupyArray | None = None,
+        reference_time: float | None = None,
+        reference_total_energy: float | None = None,
     ) -> None:
-        """Sets beam array attributes for simulation
+        """Sets beam array attributes for simulation.
 
         Parameters
         ----------
@@ -107,9 +104,9 @@ class Beam(BeamBaseClass):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called
+        """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
@@ -129,7 +126,7 @@ class Beam(BeamBaseClass):
 
     @property
     def ratio(self) -> float:
-        """Ratio of the intensity vs. the sum of weights"""
+        """Ratio of the intensity vs. the sum of weights."""
         # As there are no weights, lets assume all weights are 1,
         # The sum over all macro-particles with weight 1
         # is thus `common_array_size`.
@@ -137,36 +134,31 @@ class Beam(BeamBaseClass):
 
     @cached_property
     def dt_min(self) -> np.int32 | np.int64:
-        """Minimum dt coordinate, in [s]"""
-
+        """Minimum dt coordinate, in [s]."""
         return self._dt.min()
 
     @cached_property
     def dt_max(self) -> np.int32 | np.int64:
-        """Maximum dt coordinate, in [s]"""
-
+        """Maximum dt coordinate, in [s]."""
         return self._dt.max()
 
     @cached_property
     def dE_min(self) -> np.int32 | np.int64:
-        """Minimum dE coordinate, in [eV]"""
-
+        """Minimum dE coordinate, in [eV]."""
         return self._dE.min()
 
     @cached_property
     def dE_max(self) -> np.int32 | np.int64:
-        """Maximum dE coordinate, in [eV]"""
-
+        """Maximum dE coordinate, in [eV]."""
         return self._dE.max()
 
     @cached_property
     def common_array_size(self) -> int:
-        """Size of the beam, considering distributed beams"""
-
+        """Size of the beam, considering distributed beams."""
         return len(self._dt)
 
     def plot_hist2d(self, **kwargs) -> None:
-        """Plot 2D histogram of beam coordinates"""
+        """Plot 2D histogram of beam coordinates."""
         if self._dt is None or self._dE is None:
             raise ValueError(
                 "Beam `dt` and `dE` coordinates are not initialized!"
@@ -215,14 +207,13 @@ class ProbeBeam(Beam):
     def __init__(
         self,
         particle_type: ParticleType,
-        dt: Optional[NumpyArray] = None,
-        dE: Optional[NumpyArray] = None,
-        reference_time: Optional[float] = None,
-        reference_total_energy: Optional[float] = None,
+        dt: NumpyArray | None = None,
+        dE: NumpyArray | None = None,
+        reference_time: float | None = None,
+        reference_total_energy: float | None = None,
         intensity: int = 0,
     ) -> None:
-        """
-        Test Bunch without intensity effects.
+        """Test Bunch without intensity effects.
 
         This is intended to probe the simulation with peculiar bunches,
         that might only feature ``dt`` or ``dE``
