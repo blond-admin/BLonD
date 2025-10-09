@@ -37,8 +37,6 @@ def hamilton_to_density_by_max(
     ----------
     hamilton_2D
         2D representation of the Hamiltonian
-        with 1 representing the limit between particles/no-particles.
-        Smaller 1 means there should be particles.
     density_modifier
         H**density_modifier shapes the density distribution.
     hamilton_max
@@ -51,11 +49,18 @@ def hamilton_to_density_by_max(
 
     """
 
-    _density = hamilton_2D.copy()
+    _density = hamilton_2D.copy()  # So the changes stay in this scope
+
     _density /= hamilton_max
-    _density[_density > 1] = 1
+    # Now 1 representing the limit between particles/no-particles.
+    # Smaller 1 means there should be particles.
+
+    _density[_density > 1] = 1  # Truncate
+    # Flip max with min
     _density *= -1
     _density -= _density.min()
+
+    # Modify the shape of the density.
     _density **= density_modifier
     return _density
 
