@@ -79,8 +79,8 @@ class CudaSpecials(Specials):
         voltage: float,
         omega_rf: float,
         phi_rf: float,
-        charge: np.flaot32 | np.float64,
-        acceleration_kick: np.flaot32 | np.float64,
+        charge: np.float32 | np.float64,
+        acceleration_kick: np.float32 | np.float64,
     ) -> None:
         assert dt.dtype == backend.float
         assert dE.dtype == backend.float
@@ -202,8 +202,8 @@ class CudaSpecials(Specials):
         dE: CupyArray,
         voltage: CupyArray,
         bin_centers: CupyArray,
-        charge: np.flaot32 | np.float64,
-        acceleration_kick: np.flaot32 | np.float64,
+        charge: np.float32 | np.float64,
+        acceleration_kick: np.float32 | np.float64,
     ) -> None:
         assert dt.dtype == backend.float
         assert dE.dtype == backend.float
