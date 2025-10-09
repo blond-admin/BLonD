@@ -361,8 +361,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         simulation: Simulation,
         ts: NumpyArray | CupyArray,
     ) -> None:
-        """
-        Matches the beam coordinates to the current potential well
+        """Matches the beam coordinates to the current potential well.
 
         Notes
         -----
@@ -424,8 +423,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         scalar: float,
         ts: NumpyArray | CupyArray,
     ) -> None:
-        """
-        Make a plot of the current state of the matcher
+        """Make a plot of the current state of the matcher.
 
         Parameters
         ----------
