@@ -27,7 +27,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 class InductiveImpedanceSolver(WakeFieldSolver):
     def __init__(self):
-        """Wakefield solver specialized for InductiveImpedance"""
+        """Wakefield solver specialized for InductiveImpedance."""
         super().__init__()
         self._beam: BeamBaseClass | None = None
         self._Z_over_n: float | None = None
@@ -38,7 +38,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ):
-        """Lateinit method when WakeField is late-initialized
+        """Lateinit method when WakeField is late-initialized.
 
         Parameters
         ----------
@@ -64,7 +64,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
-        """Calculates the induced voltage based on the beam profile and beam parameters
+        """Calculates the induced voltage based on the beam profile and beam parameters.
 
         Parameters
         ----------
@@ -88,7 +88,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
 
 
 class PeriodicFreqSolver(WakeFieldSolver):
-    """General wakefield solver to calculate wake-fields via frequency domain
+    """General wakefield solver to calculate wake-fields via frequency domain.
 
     Notes:
     -----
@@ -121,7 +121,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         t_periodicity: float | None = None,
         allow_next_fast_len: bool = False,
     ):
-        """General wakefield solver to calculate wake-fields via frequency domain
+        """General wakefield solver to calculate wake-fields via frequency domain.
 
         Parameters
         ----------
@@ -156,7 +156,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ):
-        """Lateinit method when WakeField is late-initialized
+        """Lateinit method when WakeField is late-initialized.
 
         Parameters
         ----------
@@ -217,7 +217,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
 
     @property
     def t_periodicity(self) -> float:
-        """Periodicity that is assumed for fast fourier transform in  [s]"""
+        """Periodicity that is assumed for fast fourier transform in  [s]."""
         return self._t_periodicity
 
     @t_periodicity.setter
@@ -227,7 +227,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         self._freq_y_needs_update = True
 
     def _update_internal_data(self):
-        """Rebuild internal data model"""
+        """Rebuild internal data model."""
         self._n_time = int(
             round(
                 self._t_periodicity / self._parent_wakefield.profile.hist_step,
@@ -253,7 +253,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         self._freq_y_needs_update = True
 
     def _update_impedance_sources(self, beam: BeamBaseClass) -> None:
-        """Updates `_freq_y` array if `self._freq_y_needs_update=True`
+        """Updates `_freq_y` array if `self._freq_y_needs_update=True`.
 
         Parameters
         ----------
@@ -297,7 +297,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
-        """Calculates the induced voltage based on the beam profile and beam parameters
+        """Calculates the induced voltage based on the beam profile and beam parameters.
 
         Parameters
         ----------
@@ -368,7 +368,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
 
 class TimeDomainFftSolver(WakeFieldSolver):
     def __init__(self):
-        """Solver to calculate induced voltage using fftconvolve(wake,profile)
+        """Solver to calculate induced voltage using fftconvolve(wake,profile).
 
         Notes:
         -----
@@ -389,7 +389,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ):
-        """Lateinit method when WakeField is late-initialized
+        """Lateinit method when WakeField is late-initialized.
 
         Parameters
         ----------
@@ -438,7 +438,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
                 break
 
     def _update_impedance_sources(self, beam: BeamBaseClass) -> None:
-        """Updates `_wake_imp_y` array if `self.__wake_imp_y_needs_update=True`
+        """Updates `_wake_imp_y` array if `self.__wake_imp_y_needs_update=True`.
 
         Parameters
         ----------
@@ -488,7 +488,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
-        """Calculates the induced voltage based on the beam profile and beam parameters
+        """Calculates the induced voltage based on the beam profile and beam parameters.
 
         Parameters
         ----------

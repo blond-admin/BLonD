@@ -5,7 +5,7 @@ import numpy as np
 
 
 def main():  # pragma: no cover
-    dt = np.linspace(-5, 5, int(1e6))
+    np.linspace(-5, 5, int(1e6))
     hist_x = np.linspace(0, 1, 1024)
     hist_y = np.random.randn(len(hist_x))
     hist_x_cp = cp.array(hist_x)
@@ -34,8 +34,8 @@ def main():  # pragma: no cover
     runtimes = {}
     for beam_phase in functions:
         runtimes[str(beam_phase)] = 0.0
-    for iter in range(10000):
-        for i, beam_phase in enumerate(functions):
+    for _iter in range(10000):
+        for _i, beam_phase in enumerate(functions):
             CUDA = beam_phase == CudaSpecials().beam_phase
             t0 = time.perf_counter()
             beam_phase(
@@ -53,9 +53,9 @@ def main():  # pragma: no cover
     print()
     for beam_phase in functions:
         runtimes[str(beam_phase)] = 0.0
-    for i, beam_phase in enumerate(functions):
+    for _i, beam_phase in enumerate(functions):
         CUDA = beam_phase == CudaSpecials().beam_phase
-        for iter in range(10000):
+        for _iter in range(10000):
             t0 = time.perf_counter()
             beam_phase(
                 hist_x=hist_x if not CUDA else hist_x_cp,

@@ -14,7 +14,7 @@ class IntensityEffectManager:
         self._parent_simulation = simulation
 
     def set_wakefields(self, active: bool) -> None:
-        """Activate/deactivate `WakeField`
+        """Activate/deactivate `WakeField`.
 
         Parameters
         ----------
@@ -28,7 +28,7 @@ class IntensityEffectManager:
             wakefield.active = active
 
     def set_profiles(self, active: bool) -> None:
-        """Activate/deactivate `ProfileBaseClass`
+        """Activate/deactivate `ProfileBaseClass`.
 
         Parameters
         ----------

@@ -26,7 +26,7 @@ class Preparable(ABC):
 
     @abstractmethod  # pragma: no cover
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
@@ -42,7 +42,7 @@ class Preparable(ABC):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called
+        """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
@@ -57,7 +57,7 @@ class Preparable(ABC):
 
 
 class MainLoopRelevant(Preparable):
-    """Base class for objects that are relevant for the simulation main loop
+    """Base class for objects that are relevant for the simulation main loop.
 
     Attributes:
     ----------
@@ -75,7 +75,7 @@ class MainLoopRelevant(Preparable):
         self.active = True
 
     def is_active_this_turn(self, turn_i: int) -> bool:
-        """Whether the element is active or not"""
+        """Whether the element is active or not."""
         if self.active:
             return turn_i % self.each_turn_i == 0
         else:
@@ -83,7 +83,7 @@ class MainLoopRelevant(Preparable):
 
 
 class Schedulable:
-    """Base class for objects with schedule parameters
+    """Base class for objects with schedule parameters.
 
     Attributes:
     ----------
@@ -103,7 +103,7 @@ class Schedulable:
         value: float | int | NumpyArray | tuple[NumpyArray, NumpyArray],
         mode: Literal["per-turn", "constant"] | None = None,
     ) -> None:
-        """Schedule a parameter to be changed during simulation
+        """Schedule a parameter to be changed during simulation.
 
         Notes:
         -----
@@ -135,7 +135,7 @@ class Schedulable:
         mode: Literal["per-turn", "constant"] | None = None,
         **kwargs_loadtxt,
     ) -> None:
-        """Schedule a parameter to be changed during simulation
+        """Schedule a parameter to be changed during simulation.
 
         Notes:
         -----
@@ -166,7 +166,7 @@ class Schedulable:
         turn_i: int,
         reference_time: np.float32 | np.float64,
     ) -> None:
-        """Set value of schedule to the target parameter for current turn/time
+        """Set value of schedule to the target parameter for current turn/time.
 
         Parameters
         ----------
@@ -185,7 +185,7 @@ class Schedulable:
 
 
 class BeamPhysicsRelevant(MainLoopRelevant):
-    """Main loop element with relevance for beam physics
+    """Main loop element with relevance for beam physics.
 
     Parameters
     ----------
@@ -218,12 +218,12 @@ class BeamPhysicsRelevant(MainLoopRelevant):
 
     @property  # as readonly attributes
     def section_index(self) -> int:
-        """Section index to group elements into sections"""
+        """Section index to group elements into sections."""
         return self._section_index
 
     @abstractmethod  # pragma: no cover
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop
+        """Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------
@@ -235,7 +235,7 @@ class BeamPhysicsRelevant(MainLoopRelevant):
 
 class UserDefinedElement(BeamPhysicsRelevant, ABC):
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
@@ -250,7 +250,7 @@ class UserDefinedElement(BeamPhysicsRelevant, ABC):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called
+        """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
@@ -271,7 +271,7 @@ class _Scheduled:
         turn_i: int,
         reference_time: np.float32 | np.float64,
     ):
-        """Get the value of the schedule for the current turn/time
+        """Get the value of the schedule for the current turn/time.
 
         Parameters
         ----------
@@ -285,7 +285,7 @@ class _Scheduled:
 
 class ScheduledConstant(_Scheduled):
     def __init__(self, value: float | int | NumpyArray) -> None:
-        """Schedule a value that never changes
+        """Schedule a value that never changes.
 
         Parameters
         ----------
@@ -303,7 +303,7 @@ class ScheduledConstant(_Scheduled):
         turn_i: int,
         reference_time: float,
     ) -> float | int | NumpyArray:
-        """Get the constant value
+        """Get the constant value.
 
         Parameters
         ----------
@@ -317,7 +317,7 @@ class ScheduledConstant(_Scheduled):
 
 class ScheduledArray(_Scheduled):
     def __init__(self, values: NumpyArray) -> None:
-        """Schedule values that change per turn
+        """Schedule values that change per turn.
 
         Parameters
         ----------
@@ -333,7 +333,7 @@ class ScheduledArray(_Scheduled):
         turn_i: int,
         reference_time: float,
     ) -> NumpyArray:
-        """Get the value of the schedule for the current turn
+        """Get the value of the schedule for the current turn.
 
         Parameters
         ----------
@@ -347,7 +347,7 @@ class ScheduledArray(_Scheduled):
 
 class ScheduledInterpolation(_Scheduled):
     def __init__(self, times: NumpyArray, values: NumpyArray) -> None:
-        """Schedule values that change along time"""
+        """Schedule values that change along time."""
         super().__init__()
         self.times = times
         self.values = values  # TODO values.astype(backend.float)
@@ -357,7 +357,7 @@ class ScheduledInterpolation(_Scheduled):
         turn_i: int,
         reference_time: float,
     ):
-        """Get the value of the schedule for the current time
+        """Get the value of the schedule for the current time.
 
         Parameters
         ----------
@@ -373,7 +373,7 @@ def get_scheduler(
     value: float | int | NumpyArray | tuple[NumpyArray, NumpyArray],
     mode: Literal["per-turn", "constant"] | None = None,
 ) -> _Scheduled:
-    """Auto-select the correct class of the schedulers
+    """Auto-select the correct class of the schedulers.
 
     Parameters
     ----------
@@ -401,7 +401,7 @@ def get_scheduler(
 
 class DynamicParameter:  # TODO add code generation for this method with type-hints
     def __init__(self, value_init: Any) -> None:
-        """Changeable parameter tact can be subscribed on_change
+        """Changeable parameter tact can be subscribed on_change.
 
         Parameters
         ----------
@@ -422,7 +422,7 @@ class DynamicParameter:  # TODO add code generation for this method with type-hi
         self._observers.append(callback)
 
     def _notify(self, value: Any) -> None:
-        """Execute all callbacks of subscribed observers"""
+        """Execute all callbacks of subscribed observers."""
         for callback in self._observers:
             callback(value)
 
@@ -438,14 +438,14 @@ class DynamicParameter:  # TODO add code generation for this method with type-hi
 
 
 class HasPropertyCache:
-    """Helper objet to use @cached_property() for class methods"""
+    """Helper objet to use @cached_property() for class methods."""
 
     def _invalidate_cache(self, props: tuple[str, ...]) -> None:
-        """Delete the stored values of functions with @cached_property"""
+        """Delete the stored values of functions with @cached_property."""
         for prop in props:
             self.__dict__.pop(prop, None)
 
     @abstractmethod  # pragma: no cover
     def invalidate_cache(self):
-        """Delete the stored values of functions with @cached_property"""
+        """Delete the stored values of functions with @cached_property."""
         pass

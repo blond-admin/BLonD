@@ -375,7 +375,7 @@ def add_avx_flags(cflags: list[str], compiler: str) -> list[str]:
 
 
 def main_cli() -> None:
-    """Parse arguments from command line"""
+    """Parse arguments from command line."""
     parser = argparse.ArgumentParser(
         description="Script used to compile the C++ libraries needed by BLonD.",
     )

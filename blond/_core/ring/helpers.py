@@ -15,7 +15,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def requires(argument: list[str]) -> Callable:
-    """Decorator to manage execution order of decorated functions
+    """Decorator to manage execution order of decorated functions.
 
     Parameters
     ----------
@@ -38,7 +38,7 @@ def requires(argument: list[str]) -> Callable:
 
 
 def get_elements(elements: Iterable, _class: type[T]) -> tuple[T, ...]:
-    """Find all elements of a certain type
+    """Find all elements of a certain type.
 
     Parameters
     ----------
@@ -59,7 +59,7 @@ def get_elements(elements: Iterable, _class: type[T]) -> tuple[T, ...]:
 def get_init_order(
     instances: Iterable[Any], dependency_attribute: str
 ) -> list[Any]:
-    """Get order to be initialized elements
+    """Get order to be initialized elements.
 
     Notes:
     -----
@@ -94,7 +94,7 @@ def get_init_order(
 def _build_dependency_graph(
     instances: Iterable[Any], dependency_attribute: str
 ) -> tuple[defaultdict[Any, list], defaultdict[Any, int], set]:
-    """Function to build a dependency graph
+    """Function to build a dependency graph.
 
     Parameters
     ----------
@@ -133,7 +133,7 @@ def _build_dependency_graph(
 
 
 def get_dependencies(cls_: type, dependency_attribute: str) -> list:
-    """Investigate on which classes this class depends
+    """Investigate on which classes this class depends.
 
     Parameters
     ----------
@@ -175,7 +175,7 @@ def _topological_sort(
     in_degree: defaultdict[Any, int],
     all_classes: set,
 ) -> list[Any]:
-    """Function to perform topological sort on the dependency graph"""
+    """Function to perform topological sort on the dependency graph."""
     # Initialize queue with classes that have no dependencies (in-degree 0)
     queue = deque([cls for cls in all_classes if in_degree[cls] == 0])
     sorted_classes = []  # List to store the sorted order

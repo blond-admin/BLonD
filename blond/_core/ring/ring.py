@@ -26,7 +26,7 @@ class Ring(Preparable, Schedulable):
         self,
         circumference: float,
     ) -> None:
-        """Ring a.k.a. synchrotron
+        """Ring a.k.a. synchrotron.
 
         Parameters
         ----------
@@ -47,7 +47,7 @@ class Ring(Preparable, Schedulable):
         self._circumference = circumference
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
@@ -80,7 +80,7 @@ class Ring(Preparable, Schedulable):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called
+        """Lateinit method when `simulation.run_simulation` is called.
 
         Parameters
         ----------
@@ -123,19 +123,19 @@ class Ring(Preparable, Schedulable):
 
     @property
     def n_cavities(self) -> int:
-        """Total number of cavities in this synchrotron"""
+        """Total number of cavities in this synchrotron."""
         from ...physics.cavities import CavityBaseClass
 
         return self.elements.count(CavityBaseClass)
 
     @property  # as readonly attributes
     def elements(self) -> BeamPhysicsRelevantElements:
-        """Bending radius, in [m]"""
+        """Bending radius, in [m]."""
         return self._elements
 
     @property  # as readonly attributes
     def closed_orbit_length(self) -> float:
-        """Length of the closed orbit, in [m]"""
+        """Length of the closed orbit, in [m]."""
         from ...physics.drifts import DriftBaseClass
 
         all_drifts = self.elements.get_elements(DriftBaseClass)
@@ -144,14 +144,14 @@ class Ring(Preparable, Schedulable):
 
     @property
     def section_lengths(self) -> NumpyArray:
-        """Length of each section, in [m]"""
+        """Length of each section, in [m]."""
         return self.elements.get_sections_orbit_length()
 
     def assert_circumference(
         self,
         atol: float = 1e-6,
     ) -> None:
-        """Checks that the sum of all drifts is equal to the circumference
+        """Checks that the sum of all drifts is equal to the circumference.
 
         Parameters
         ----------
@@ -179,7 +179,7 @@ class Ring(Preparable, Schedulable):
         driftclass: type[DriftBaseClass] | None = None,
         **kwargs_drift,
     ) -> None:
-        """Add several drifts to the different sections
+        """Add several drifts to the different sections.
 
         Parameters
         ----------
@@ -202,7 +202,7 @@ class Ring(Preparable, Schedulable):
         n_drifts = n_drifts_per_section * n_sections
         length_per_drift = self.circumference / n_drifts
         for section_i in range(n_sections):
-            for drift_i in range(n_drifts_per_section):
+            for _drift_i in range(n_drifts_per_section):
                 drift = driftclass(
                     orbit_length=length_per_drift,
                     section_index=section_i,

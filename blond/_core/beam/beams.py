@@ -25,7 +25,7 @@ class Beam(BeamBaseClass):
         particle_type: ParticleType,
         is_counter_rotating: bool = False,
     ) -> None:
-        """Base class to host particle coordinates and timing information
+        """Base class to host particle coordinates and timing information.
 
         Parameters
         ----------
@@ -45,7 +45,7 @@ class Beam(BeamBaseClass):
         )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
@@ -60,7 +60,7 @@ class Beam(BeamBaseClass):
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
     ) -> None:
-        """Sets beam array attributes for simulation
+        """Sets beam array attributes for simulation.
 
         Parameters
         ----------
@@ -106,7 +106,7 @@ class Beam(BeamBaseClass):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called
+        """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
@@ -126,7 +126,7 @@ class Beam(BeamBaseClass):
 
     @property
     def ratio(self) -> float:
-        """Ratio of the intensity vs. the sum of weights"""
+        """Ratio of the intensity vs. the sum of weights."""
         # As there are no weights, lets assume all weights are 1,
         # The sum over all macro-particles with weight 1
         # is thus `common_array_size`.
@@ -134,31 +134,31 @@ class Beam(BeamBaseClass):
 
     @cached_property
     def dt_min(self) -> np.int32 | np.int64:
-        """Minimum dt coordinate, in [s]"""
+        """Minimum dt coordinate, in [s]."""
         return self._dt.min()
 
     @cached_property
     def dt_max(self) -> np.int32 | np.int64:
-        """Maximum dt coordinate, in [s]"""
+        """Maximum dt coordinate, in [s]."""
         return self._dt.max()
 
     @cached_property
     def dE_min(self) -> np.int32 | np.int64:
-        """Minimum dE coordinate, in [eV]"""
+        """Minimum dE coordinate, in [eV]."""
         return self._dE.min()
 
     @cached_property
     def dE_max(self) -> np.int32 | np.int64:
-        """Maximum dE coordinate, in [eV]"""
+        """Maximum dE coordinate, in [eV]."""
         return self._dE.max()
 
     @cached_property
     def common_array_size(self) -> int:
-        """Size of the beam, considering distributed beams"""
+        """Size of the beam, considering distributed beams."""
         return len(self._dt)
 
     def plot_hist2d(self, **kwargs) -> None:
-        """Plot 2D histogram of beam coordinates"""
+        """Plot 2D histogram of beam coordinates."""
         if "cmap" not in kwargs.keys():
             kwargs["cmap"] = "viridis"
         if "bins" not in kwargs.keys():
@@ -181,7 +181,7 @@ class ProbeBeam(Beam):
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
     ) -> None:
-        """Test Bunch without intensity effects
+        """Test Bunch without intensity effects.
 
         Parameters
         ----------

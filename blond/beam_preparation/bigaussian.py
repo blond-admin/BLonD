@@ -178,7 +178,7 @@ class BiGaussian(MatchingRoutine):
         reinsertion: bool = False,
         seed: int = 0,
     ) -> None:
-        """Beam matching routine to generate a 2D Gaussian particle distribution
+        """Beam matching routine to generate a 2D Gaussian particle distribution.
 
         Parameters
         ----------
@@ -207,7 +207,7 @@ class BiGaussian(MatchingRoutine):
         simulation: Simulation,
         beam: BeamBaseClass,
     ) -> None:
-        """Populates the `Beam` object with macro-particles
+        """Populates the `Beam` object with macro-particles.
 
         Parameters
         ----------
@@ -302,7 +302,7 @@ class BiGaussian(MatchingRoutine):
                         dt=dt,
                         dE=dE,
                     )
-                    == False
+                    is False
                 )
 
                 n_new = int(backend.sum(sel))

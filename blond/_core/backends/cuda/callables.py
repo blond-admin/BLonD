@@ -122,7 +122,7 @@ class CudaSpecials(Specials):
         assert voltage.dtype == backend.float
         assert omega_rf.dtype == backend.float
         assert isinstance(charge, backend.float)
-        assert isinstance(acceleration_kick, backend.float)
+        assert isinstance(acceleration_kick, backend.float).
         """
         _kick_multi_harmonic(
             args=(
@@ -304,7 +304,7 @@ class CudaSpecials(Specials):
         assert isinstance(alpha, backend.float), type(alpha)
         assert isinstance(omega_rf, backend.float), type(alpha)
         assert isinstance(phi_rf, backend.float), type(alpha)
-        assert isinstance(bin_size, backend.float), type(alpha)
+        assert isinstance(bin_size, backend.float), type(alpha).
         """
         result = cp.zeros(2, dtype=backend.float)
         _beam_phase(

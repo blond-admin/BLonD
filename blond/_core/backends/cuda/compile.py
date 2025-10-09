@@ -26,7 +26,7 @@ def run_compile(command: list[str], libname: str) -> int:
 def compile_cuda_library(
     compute_capability: int | Literal["discover"] = "discover",
 ) -> None:
-    """Compile the GPU library
+    """Compile the GPU library.
 
     Parameters
     ----------
@@ -145,7 +145,7 @@ def compile_cuda_library(
 
 
 def main_cli() -> None:
-    """Parse arguments from command line"""
+    """Parse arguments from command line."""
     parser = argparse.ArgumentParser(
         description="Script used to compile the CUDA libraries needed by BLonD.",
     )

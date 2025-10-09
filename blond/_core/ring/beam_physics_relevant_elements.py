@@ -20,14 +20,14 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class BeamPhysicsRelevantElements(Preparable):
-    """Container object to manage all beam interactions in `Ring`"""
+    """Container object to manage all beam interactions in `Ring`."""
 
     def __init__(self) -> None:
         super().__init__()
         self.elements: list[BeamPhysicsRelevant] = []
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         Parameters
         ----------
@@ -37,7 +37,7 @@ class BeamPhysicsRelevantElements(Preparable):
         self._check_section_indexing()
 
     def _check_section_indexing(self) -> None:
-        """Verify that indices have been set correctly"""
+        """Verify that indices have been set correctly."""
         from ...physics.cavities import CavityBaseClass
         from ...physics.drifts import DriftBaseClass
 
@@ -85,7 +85,7 @@ class BeamPhysicsRelevantElements(Preparable):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called
+        """Lateinit method when `simulation.run_simulation` is called.
 
         Parameters
         ----------
@@ -101,14 +101,14 @@ class BeamPhysicsRelevantElements(Preparable):
         pass
 
     def get_sections_indices(self) -> tuple[int, ...]:
-        """Get all unique section indices"""
+        """Get all unique section indices."""
         unique_section_indices = set()
         for e in self.elements:
             unique_section_indices.add(e.section_index)
         return tuple(sorted(unique_section_indices))
 
     def get_sections_orbit_length(self) -> NumpyArray:
-        """Get `share_of_circumference` per section
+        """Get `share_of_circumference` per section.
 
         Notes:
         -----
@@ -245,18 +245,18 @@ class BeamPhysicsRelevantElements(Preparable):
 
     @property  # as readonly attributes
     def n_sections(self) -> int:
-        """Number of sections that are mentioned by elements"""
+        """Number of sections that are mentioned by elements."""
         return len(np.unique([e.section_index for e in self.elements]))
 
     @property  # as readonly attributes
     def n_elements(self) -> int:
-        """Number of elements contained in this class"""
+        """Number of elements contained in this class."""
         return len(self.elements)
 
     def get_elements(
         self, class_: type[T], section_i: int | None = None
     ) -> tuple[T, ...]:
-        """Get all elements of specified type (potentially filtered by section)
+        """Get all elements of specified type (potentially filtered by section).
 
         Parameters
         ----------
@@ -314,7 +314,7 @@ class BeamPhysicsRelevantElements(Preparable):
         return elements[0]
 
     def reorder(self) -> None:
-        """Reorder each section by `natural_order`"""
+        """Reorder each section by `natural_order`."""
         for section_index in range(self.n_sections):
             self.reorder_section(
                 section_index=section_index,
@@ -323,7 +323,7 @@ class BeamPhysicsRelevantElements(Preparable):
         self._check_section_indexing()
 
     def reorder_section(self, section_index: int) -> None:
-        """Reorder section by `natural_order`
+        """Reorder section by `natural_order`.
 
         Parameters
         ----------
@@ -377,7 +377,7 @@ class BeamPhysicsRelevantElements(Preparable):
         )
 
     def count(self, class_: type[T], section_i: int | None = None) -> int:
-        """Count instances in this class that match class-type
+        """Count instances in this class that match class-type.
 
         Parameters
         ----------
@@ -390,11 +390,11 @@ class BeamPhysicsRelevantElements(Preparable):
         return len(self.get_elements(class_=class_, section_i=section_i))
 
     def print_order(self) -> None:
-        """Print current execution order"""
+        """Print current execution order."""
         print(self.get_order_info())
 
     def get_order_info(self) -> str:
-        """Generate execution order string
+        """Generate execution order string.
 
         Notes:
         -----
@@ -424,7 +424,7 @@ class BeamPhysicsRelevantElements(Preparable):
 
 
 def pretty_string(v: NumpyArray | Any) -> Any:
-    """Pretty print an array"""
+    """Pretty print an array."""
     if isinstance(v, np.ndarray):
         return f"array(min={v.min()}, max={v.max()}, shape={v.shape})"
     else:

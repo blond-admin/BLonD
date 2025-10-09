@@ -50,7 +50,8 @@ class LocalFeedback(FeedbackBaseClass):
 
     @abstractmethod  # pragma: no cover
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop
+        """
+        Main simulation routine to be called in the mainloop
 
         Parameters
         ----------

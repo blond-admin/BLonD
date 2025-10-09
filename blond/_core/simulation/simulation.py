@@ -58,7 +58,7 @@ logger = logging.getLogger(__name__)
 
 
 class Simulation(Preparable, HasPropertyCache):
-    """Context manager to perform beam physics simulations of synchrotrons
+    """Context manager to perform beam physics simulations of synchrotrons.
 
     Parameters
     ----------
@@ -108,7 +108,7 @@ class Simulation(Preparable, HasPropertyCache):
         profile_n_turns: int,
         sortby: SortKey = SortKey.CUMULATIVE,
     ) -> None:
-        """Executes the python profiler
+        """Executes the python profiler.
 
         Parameters
         ----------
@@ -153,7 +153,7 @@ class Simulation(Preparable, HasPropertyCache):
         print(s.getvalue())
 
     def invalidate_cache(self):
-        """Delete the stored values of functions with @cached_property"""
+        """Delete the stored values of functions with @cached_property."""
         pass  # TODO
 
     def get_potential_well_empiric(
@@ -162,7 +162,7 @@ class Simulation(Preparable, HasPropertyCache):
         particle_type: ParticleType,
         subtract_min: bool = True,
     ) -> NumpyArray:
-        """Obtain the potential well by tracking a beam one turn
+        """Obtain the potential well by tracking a beam one turn.
 
         Notes:
         -----
@@ -209,7 +209,7 @@ class Simulation(Preparable, HasPropertyCache):
         return potential_well
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
@@ -224,7 +224,7 @@ class Simulation(Preparable, HasPropertyCache):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called
+        """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
@@ -238,7 +238,7 @@ class Simulation(Preparable, HasPropertyCache):
         pass
 
     def _exec_all_in_tree(self, method: str, **kwargs) -> None:
-        """Execute all methods that are somewhere in the attribute hierarchy of `Simulation`
+        """Execute all methods that are somewhere in the attribute hierarchy of `Simulation`.
 
         Parameters
         ----------
@@ -268,7 +268,7 @@ class Simulation(Preparable, HasPropertyCache):
                 getattr(element, method)(**kwargs)
 
     def _exec_on_init_simulation(self) -> None:
-        """Execute all `on_init_simulation` in the attribute hierarchy of `Simulation`"""
+        """Execute all `on_init_simulation` in the attribute hierarchy of `Simulation`."""
         self._exec_all_in_tree("on_init_simulation", simulation=self)
 
     def _exec_on_run_simulation(
@@ -277,7 +277,7 @@ class Simulation(Preparable, HasPropertyCache):
         n_turns: int,
         turn_i_init: int,
     ) -> None:
-        """Execute all `on_run_simulation` in the attribute hierarchy of `Simulation`
+        """Execute all `on_run_simulation` in the attribute hierarchy of `Simulation`.
 
         Parameters
         ----------
@@ -298,7 +298,7 @@ class Simulation(Preparable, HasPropertyCache):
     def from_locals(
         locals: dict[str, Any], verbose: bool = False
     ) -> Simulation:
-        """Automatically instance simulation from all locals of where its called
+        """Automatically instance simulation from all locals of where its called.
 
         Parameters
         ----------
@@ -352,12 +352,12 @@ class Simulation(Preparable, HasPropertyCache):
 
     @property  # as readonly attributes
     def ring(self) -> Ring:
-        """Ring a.k.a. synchrotron"""
+        """Ring a.k.a. synchrotron."""
         return self._ring
 
     @property  # as readonly attributes
     def magnetic_cycle(self) -> MagneticCycleBase:
-        """Programmed energy program of the synchrotron"""
+        """Programmed energy program of the synchrotron."""
         return self._magnetic_cycle
 
     @cached_property
@@ -369,7 +369,7 @@ class Simulation(Preparable, HasPropertyCache):
         raise NotImplementedError
 
     def print_one_turn_execution_order(self) -> None:
-        """Prints the execution order of the main simulation loop"""
+        """Prints the execution order of the main simulation loop."""
         self._ring.elements.print_order()
 
     #  properties that have the @cached_property decorator
@@ -382,7 +382,7 @@ class Simulation(Preparable, HasPropertyCache):
         self,
         turn_i: int,  # required by `turn_i.on_change`
     ) -> None:
-        """Reset cache of `cached_property` attributes
+        """Reset cache of `cached_property` attributes.
 
         Parameters
         ----------
@@ -401,7 +401,7 @@ class Simulation(Preparable, HasPropertyCache):
         preparation_routine: BeamPreparationRoutine,
         turn_i: int = 0,
     ) -> None:
-        """Run the routine to prepare the beam
+        """Run the routine to prepare the beam.
 
         Parameters
         ----------
@@ -426,7 +426,7 @@ class Simulation(Preparable, HasPropertyCache):
         show_progressbar: bool = True,
         callback: Callable[[Simulation, Beam], None] | None = None,
     ) -> None:
-        """Execute the beam dynamics simulation
+        """Execute the beam dynamics simulation.
 
         Parameters
         ----------
@@ -544,7 +544,7 @@ class Simulation(Preparable, HasPropertyCache):
         show_progressbar: bool = True,
         callback: Callable[[Simulation, Beam], None] | None = None,
     ) -> None:
-        """Execute the beam dynamics simulation for only one beam
+        """Execute the beam dynamics simulation for only one beam.
 
         Parameters
         ----------
@@ -712,7 +712,7 @@ class Simulation(Preparable, HasPropertyCache):
         show_progressbar: bool = True,
         callback: Callable[[Simulation, Beam], None] | None = None,
     ) -> None:
-        """Execute the beam dynamics simulation for only one beam
+        """Execute the beam dynamics simulation for only one beam.
 
         Parameters
         ----------
@@ -739,7 +739,7 @@ class Simulation(Preparable, HasPropertyCache):
         observe: tuple[Observables, ...] = tuple(),
         common_name: str | None = None,
     ) -> None:
-        """Save the given observables to the disk
+        """Save the given observables to the disk.
 
         Parameters
         ----------
@@ -763,7 +763,7 @@ class Simulation(Preparable, HasPropertyCache):
         observe: tuple[Observables, ...] = tuple(),
         common_name: str | None = None,
     ) -> None:
-        """Load the given observables from the disk
+        """Load the given observables from the disk.
 
         Parameters
         ----------

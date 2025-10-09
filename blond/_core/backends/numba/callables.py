@@ -266,7 +266,7 @@ class NumbaSpecials(Specials):  # pragma: no cover
         beta: np.float32 | np.float64,
         energy: np.float32 | np.float64,
     ) -> None:
-        """Function to apply drift equation of motion"""
+        """Function to apply drift equation of motion."""
         # solver_decoded = solver.decode(encoding='utf_8')
 
         coeff = T * eta_0 / (beta * beta * energy)

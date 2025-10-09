@@ -18,7 +18,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class Specials(ABC):
-    """Abstract listing of functions that need implementation for a new backend"""
+    """Abstract listing of functions that need implementation for a new backend."""
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -201,7 +201,7 @@ class BackendBaseClass(ABC):
         self,
         new_backend: type[Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit],
     ) -> None:
-        """Changes the backend precision
+        """Changes the backend precision.
 
         Parameters
         ----------
@@ -223,7 +223,7 @@ class BackendBaseClass(ABC):
 
     @abstractmethod  # pragma: no cover
     def set_specials(self, mode: Any) -> None:
-        """Set the special compiled functions
+        """Set the special compiled functions.
 
         Parameters
         ----------
@@ -235,7 +235,7 @@ class BackendBaseClass(ABC):
 
     @property
     def is_gpu(self) -> bool:
-        """Whether the backend is using the GPU"""
+        """Whether the backend is using the GPU."""
         return self._is_gpu
 
     def apply_environment_variables(self) -> None:
@@ -326,7 +326,7 @@ class BackendBaseClass(ABC):
 
 
 def fresh_import(module_location: str, class_name: str) -> type:
-    """To freshly do `from module_location import ClassName`
+    """To freshly do `from module_location import ClassName`.
 
     Parameters
     ----------
@@ -356,7 +356,7 @@ class NumpyBackend(BackendBaseClass):
         int_: type[np.int32 | np.int64],
         complex_: type[np.complex128 | np.complex64],
     ) -> None:
-        """Base class for Numpy based backends
+        """Base class for Numpy based backends.
 
         Parameters
         ----------
@@ -397,7 +397,7 @@ class NumpyBackend(BackendBaseClass):
             "fortran",
         ],
     ) -> None:
-        """Set the special compiled functions
+        """Set the special compiled functions.
 
         Parameters
         ----------
@@ -471,7 +471,7 @@ class CupyBackend(BackendBaseClass):
         int_: type[np.int32 | np.int64],
         complex_: type[np.complex128 | np.complex64],
     ) -> None:
-        """Base class for Cupy based backends
+        """Base class for Cupy based backends.
 
         Parameters
         ----------
@@ -510,7 +510,7 @@ class CupyBackend(BackendBaseClass):
         self._finalize()
 
     def set_specials(self, mode: Literal["cuda"]) -> None:
-        """Set the special compiled functions
+        """Set the special compiled functions.
 
         Parameters
         ----------

@@ -19,7 +19,7 @@ class ImpedanceReader(ABC):
 
 class CsvReader(ImpedanceReader):
     def __init__(self, **kwargs) -> None:
-        """Simple CSV file reader for two rows of data
+        """Simple CSV file reader for two rows of data.
 
         Parameters
         ----------

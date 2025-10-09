@@ -26,7 +26,7 @@ class PrecisionClass:
     __instance = None
 
     def __init__(self, _precision: str = "double") -> None:
-        """Constructor
+        """Constructor.
 
         Args:
             _precision (str, optional): _description_. Defaults to 'double'.
@@ -61,13 +61,13 @@ class PrecisionClass:
 
 
 class c_complex128(ct.Structure):
-    """128-bit (64+64) Complex number, compatible with std::complex layout"""
+    """128-bit (64+64) Complex number, compatible with std::complex layout."""
 
     real: ct.c_double
     imag: ct.c_double
 
     def __init__(self, pycomplex: complex) -> None:
-        """Init from Python complex
+        """Init from Python complex.
 
         Args:
             pycomplex (_type_): _description_
@@ -77,7 +77,7 @@ class c_complex128(ct.Structure):
         self.imag = pycomplex.imag.astype(np.float64, order="C")  # type: ignore
 
     def to_complex(self) -> complex:
-        """Convert to Python complex
+        """Convert to Python complex.
 
         Returns:
             _type_: _description_
@@ -86,12 +86,12 @@ class c_complex128(ct.Structure):
 
 
 class c_complex64(ct.Structure):
-    """64-bit (32+32) Complex number, compatible with std::complex layout"""
+    """64-bit (32+32) Complex number, compatible with std::complex layout."""
 
     _fields_ = [("real", ct.c_float), ("imag", ct.c_float)]
 
     def __init__(self, pycomplex: complex) -> None:
-        """Init from Python complex
+        """Init from Python complex.
 
         Args:
             pycomplex (_type_): _description_
@@ -101,7 +101,7 @@ class c_complex64(ct.Structure):
         self.imag = pycomplex.imag.astype(np.float32, order="C")  # type: ignore
 
     def to_complex(self) -> complex:
-        """Convert to Python complex
+        """Convert to Python complex.
 
         Returns:
             _type_: _description_

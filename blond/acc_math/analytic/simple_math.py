@@ -11,7 +11,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def calc_beta(mass: float, momentum: T) -> T:
-    """Relativistic beta factor (v = beta * c0)
+    """Relativistic beta factor (v = beta * c0).
 
     Parameters
     ----------
@@ -29,7 +29,7 @@ def calc_beta(mass: float, momentum: T) -> T:
 
 
 def calc_gamma(mass: float, momentum: T) -> T:
-    """Relativistic gamma factor (Lorentz factor)
+    """Relativistic gamma factor (Lorentz factor).
 
     Parameters
     ----------
@@ -48,7 +48,7 @@ def calc_gamma(mass: float, momentum: T) -> T:
 
 
 def calc_total_energy(mass: float, momentum: T) -> T:
-    """Total relativistic energy of the particle
+    """Total relativistic energy of the particle.
 
     Parameters
     ----------
@@ -66,7 +66,7 @@ def calc_total_energy(mass: float, momentum: T) -> T:
 
 
 def calc_energy_kin(mass: float, momentum: T) -> T:
-    """Relativistic kinetic energy of the particle
+    """Relativistic kinetic energy of the particle.
 
     Parameters
     ----------

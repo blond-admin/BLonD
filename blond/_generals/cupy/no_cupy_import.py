@@ -1,5 +1,5 @@
 """This file should not have any dependency to Cupy
-to allow cupy agnostic code
+to allow cupy agnostic code.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def is_cupy_array(arr: NumpyArray | CupyArray | Any) -> bool:
-    """Checks if the array is a Cupy array
+    """Checks if the array is a Cupy array.
 
     Parameters
     ----------
@@ -48,7 +48,7 @@ _numpy_asarray_original = np.asarray
 
 class _AsarrayOverrideManager:
     def __init__(self) -> None:
-        """Override functionality for 'np.asarray' to handle Cupy"""
+        """Override functionality for 'np.asarray' to handle Cupy."""
         self.cache: dict[int, np.ndarray] = {}
 
     def asarray_override(
@@ -102,7 +102,7 @@ class AllowPlotting:
         self.asarray_override_manager = _AsarrayOverrideManager()
 
     def __enter__(self) -> None:
-        """Override np.asarray with own function to handle .get() for Cupy arrays"""
+        """Override np.asarray with own function to handle .get() for Cupy arrays."""
         if not backend.is_gpu:
             return
         # override numpy "asarray" function with own function
@@ -115,7 +115,7 @@ class AllowPlotting:
         exc_val: BaseException | None,
         exc_tb: Any | None,
     ):
-        """Reset np.asarray to original Numpy function"""
+        """Reset np.asarray to original Numpy function."""
         if not backend.is_gpu:
             return  # do nothing
         # reset to original numpy function

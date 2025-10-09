@@ -41,7 +41,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         name: str | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
-        """Base class to implement beam-rf interactions in synchrotrons
+        """Base class to implement beam-rf interactions in synchrotrons.
 
         Parameters
         ----------
@@ -96,7 +96,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         self.phi_s: NumpyArray | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
@@ -114,7 +114,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called
+        """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
@@ -129,17 +129,17 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
 
     @abstractmethod  # pragma: no cover
     def get_main_harmonic(self) -> float:
-        """Returns the harmonic number of the main harmonic"""
+        """Returns the harmonic number of the main harmonic."""
         pass
 
     @abstractmethod  # pragma: no cover
     def get_main_harmonic_voltage(self) -> float:
-        """Returns the voltage of the main harmonic, in [V]"""
+        """Returns the voltage of the main harmonic, in [V]."""
         pass
 
     @abstractmethod  # pragma: no cover
     def get_main_harmonic_phi_rf(self) -> float:
-        """Returns the phi_rf of the main harmonic, in [rad]"""
+        """Returns the phi_rf of the main harmonic, in [rad]."""
         pass
 
     @abstractmethod  # pragma: no cover
@@ -148,11 +148,11 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         beam_beta: float,
         ring_circumference: float,
     ) -> float:
-        """Returns the omega_rf of the main harmonic, in [rad/s]"""
+        """Returns the omega_rf of the main harmonic, in [rad/s]."""
         pass
 
     def calc_phi_s_single_harmonic(self, beam: BeamBaseClass) -> float:
-        """Calculates the main harmonic synchronous phase
+        """Calculates the main harmonic synchronous phase.
 
         Parameters
         ----------
@@ -192,7 +192,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
 
     @property  # as readonly attributes
     def n_rf(self) -> int:
-        """Number of different rf waves for interaction"""
+        """Number of different rf waves for interaction."""
         return self._n_rf
 
     @abstractmethod  # pragma: no cover
@@ -200,7 +200,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         pass
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop
+        """Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------
@@ -278,7 +278,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
 
     @abstractmethod  # pragma: no cover
     def voltage_waveform_tmp(self, ts: NumpyArray):
-        """Calculate voltage of cavity for current turn
+        """Calculate voltage of cavity for current turn.
 
         Parameters
         ----------
@@ -294,7 +294,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         beam_beta: float,
         closed_orbit_length: float,
     ):
-        """Calculate angular frequency of cavity, in [rad/s]
+        """Calculate angular frequency of cavity, in [rad/s].
 
         Parameters
         ----------
@@ -312,7 +312,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
 
 
 class SingleHarmonicCavity(CavityBaseClass):
-    """Cavity with only one RF wave for beam interaction
+    """Cavity with only one RF wave for beam interaction.
 
     Parameters
     ----------
@@ -360,15 +360,15 @@ class SingleHarmonicCavity(CavityBaseClass):
         self.delta_phi_rf: NumpyArray | None = backend.float(0)
 
     def get_main_harmonic(self) -> float:
-        """Returns the harmonic number of the main harmonic"""
+        """Returns the harmonic number of the main harmonic."""
         return self.harmonic
 
     def get_main_harmonic_voltage(self) -> float:
-        """Returns the voltage of the main harmonic, in [V]"""
+        """Returns the voltage of the main harmonic, in [V]."""
         return self.voltage
 
     def get_main_harmonic_phi_rf(self) -> float:
-        """Returns the phi_rf of the main harmonic, in [rad]"""
+        """Returns the phi_rf of the main harmonic, in [rad]."""
         return self.phi_rf
 
     def get_main_harmonic_omega_rf(
@@ -376,14 +376,14 @@ class SingleHarmonicCavity(CavityBaseClass):
         beam_beta: float,
         ring_circumference: float,
     ) -> float:
-        """Returns the omega_rf of the main harmonic, in [rad/s]"""
+        """Returns the omega_rf of the main harmonic, in [rad/s]."""
         return self.calc_omega(
             beam_beta=beam_beta,
             ring_circumference=ring_circumference,
         )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
@@ -419,7 +419,7 @@ class SingleHarmonicCavity(CavityBaseClass):
             self.phi_s = np.nan"""
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop
+        """Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------
@@ -453,7 +453,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         beam_beta: float,
         ring_circumference: float,
     ) -> float:
-        """Calculate angular frequency of cavity, in [rad/s]
+        """Calculate angular frequency of cavity, in [rad/s].
 
         Parameters
         ----------
@@ -470,7 +470,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         return self.harmonic * TWOPI_C0 * beam_beta / ring_circumference
 
     def voltage_waveform_tmp(self, ts: NumpyArray):
-        """Calculate voltage of cavity for current turn
+        """Calculate voltage of cavity for current turn.
 
         Note:
         ----
@@ -504,7 +504,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
     ) -> SingleHarmonicCavity:
-        """Initialize object without simulation context
+        """Initialize object without simulation context.
 
         Parameters
         ----------
@@ -567,7 +567,7 @@ class SingleHarmonicCavity(CavityBaseClass):
 
 
 class MultiHarmonicCavity(CavityBaseClass):
-    """Cavity with several RF wave for beam interaction
+    """Cavity with several RF wave for beam interaction.
 
     Parameters
     ----------
@@ -629,7 +629,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         self._t_rev: float | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
@@ -672,7 +672,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         beam_beta: float,
         ring_circumference: float,
     ) -> NumpyArray:
-        """Calculate angular frequency of cavity in [rad/s]
+        """Calculate angular frequency of cavity in [rad/s].
 
         Parameters
         ----------
@@ -692,28 +692,28 @@ class MultiHarmonicCavity(CavityBaseClass):
         )
 
     def get_main_harmonic(self) -> float:
-        """Returns the harmonic number of the main harmonic"""
+        """Returns the harmonic number of the main harmonic."""
         return self.harmonic[self.main_harmonic_idx]
 
     def get_main_harmonic_voltage(self) -> float:
-        """Returns the voltage of the main harmonic, in [V]"""
+        """Returns the voltage of the main harmonic, in [V]."""
         return self.voltage[self.main_harmonic_idx]
 
     def get_main_harmonic_phi_rf(self) -> float:
-        """Returns the phi_rf of the main harmonic, in [rad]"""
+        """Returns the phi_rf of the main harmonic, in [rad]."""
         return self.phi_rf[self.main_harmonic_idx]
 
     def get_main_harmonic_omega_rf(
         self, beam_beta: float, ring_circumference: float
     ) -> float:
-        """Returns the omega_rf of the main harmonic, in [rad/s]"""
+        """Returns the omega_rf of the main harmonic, in [rad/s]."""
         return self.calc_omega(
             beam_beta=beam_beta,
             ring_circumference=ring_circumference,
         )[self.main_harmonic_idx]
 
     def voltage_waveform_tmp(self, ts: NumpyArray):
-        """Calculate voltage of cavity for current turn
+        """Calculate voltage of cavity for current turn.
 
         Note:
         ----
@@ -752,7 +752,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         cavity_feedback: LocalFeedback | None = None,
         beam_feedback: Blond2BeamFeedback | None = None,
     ) -> MultiHarmonicCavity:
-        """Initialize object without simulation context
+        """Initialize object without simulation context.
 
         Parameters
         ----------
@@ -817,7 +817,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         return mhc
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop
+        """Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------

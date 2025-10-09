@@ -109,7 +109,7 @@ class DenseArrayRecorder(ArrayRecorder):
 
     def get_valid_entries(self) -> NumpyArray:
         if self._write_idx == 0:
-            ValueError(
+            raise ValueError(
                 "Cannot retrieve results:"
                 " no data has been written to memory yet."
             )
