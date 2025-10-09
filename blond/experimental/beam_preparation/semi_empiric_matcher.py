@@ -7,15 +7,14 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import numpy as np
 
-from blond import AllowPlotting, WakeField, backend
+from blond import AllowPlotting, backend
 from blond.beam_preparation.base import MatchingRoutine
 
 from ..._core.helpers import int_from_float_with_warning
-from ...physics.profiles import ProfileBaseClass
-from .helpers import populate_beam, repopulate_beam
+from .helpers import populate_beam
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Callable, Optional, Tuple
+    from typing import Any, Callable, Dict, Optional, Tuple
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
@@ -26,9 +25,10 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond._core.beam.base import BeamBaseClass
 
 
-def _apply_density_function(
+def hamilton_to_density_by_max(
     hamilton_2D: NumpyArray | CupyArray,
     density_modifier: float,
+    hamilton_max: float,
 ) -> NumpyArray | CupyArray:
     """
     Converts Hamiltonian to a density distribution
@@ -40,7 +40,9 @@ def _apply_density_function(
         with 1 representing the limit between particles/no-particles.
         Smaller 1 means there should be particles.
     density_modifier
-        Exponent that modifies the denisity distribution.
+        H**density_modifier shapes the density distribution.
+    hamilton_max
+        Maximum value of the Hamilton, in [arb. unit]
 
     Returns
     -------
@@ -48,7 +50,9 @@ def _apply_density_function(
         The density according to the Hamiltonian
 
     """
+
     _density = hamilton_2D.copy()
+    _density /= hamilton_max
     _density[_density > 1] = 1
     _density *= -1
     _density -= _density.min()
@@ -155,10 +159,9 @@ class SemiEmpiricMatcher(MatchingRoutine):
     def __init__(
         self,
         time_limit: Tuple[float, float],
-        hamilton_max: float,
         n_macroparticles: int | float,
-        density_modifier: float
-        | Callable[[NumpyArray | CupyArray], NumpyArray | CupyArray] = 1,
+        hamilton_to_density_kwargs: Dict[str, Any],
+        hamilton_to_density_function: Callable = hamilton_to_density_by_max,
         internal_grid_shape: Tuple[int, int] = (1023, 1023),
         seed: Optional[int] = 0,
         tolerance: float = 1e-6,
@@ -175,16 +178,17 @@ class SemiEmpiricMatcher(MatchingRoutine):
 
         time_limit
             Start and stop of time, in [s]
-        hamilton_max
-            Maximum value of the Hamilton, in [arb. unit]
         n_macroparticles
             Number of macroparticles to inject into the beam.
-        density_modifier
-            H**density_modifier shapes the density distribution.
-
-            If Callable, should be a function that maps the 2D Hamiltonian to
-            a density. The Hamiltonian is 1 at the user-given maximum
-            contour (given by `h_max`). and 0 at the potential minimum.
+        hamilton_to_density_kwargs
+            Keyword arguments used to call the ``hamilton_to_density_function``.
+            For the default function, there can be
+            ``density_modifier``: H**density_modifier shapes the density
+            distribution.
+            ``hamilton_max``: Maximum value of the Hamilton, in [arb. unit].
+        hamilton_to_density_function
+            A function that converts the 2D Hamiltonian array to a density
+            function.
         internal_grid_shape
             Shape (n_time, t_energy) of the internal grid, which will be
             used to generate the beam particle coordinates.
@@ -231,8 +235,9 @@ class SemiEmpiricMatcher(MatchingRoutine):
             else None
         )
         self.time_limit = time_limit
-        self.hamilton_max = hamilton_max
-        self.density_modifier = density_modifier
+        assert callable(hamilton_to_density_function)
+        self.hamilton_to_density_function = hamilton_to_density_function
+        self.hamilton_to_density_kwargs = hamilton_to_density_kwargs
         self.animate = animate
         self.tolerance = tolerance
         self.verbose = verbose
@@ -394,14 +399,11 @@ class SemiEmpiricMatcher(MatchingRoutine):
             ),
             shape=self.internal_grid_shape,
         )
-        hamilton_2D /= self.hamilton_max
-        if callable(self.density_modifier):
-            density = self.density_modifier(hamilton_2D=hamilton_2D)  # type: ignore
-        else:
-            density = _apply_density_function(
-                hamilton_2D=hamilton_2D,
-                density_modifier=float(self.density_modifier),
-            )
+        density = self.hamilton_to_density_function(
+            hamilton_2D=hamilton_2D, **self.hamilton_to_density_kwargs
+        )  #
+        # type: ignore
+
         populate_beam(
             beam=beam,
             time_grid=time_grid.T,

@@ -155,10 +155,12 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
             beam=sim.beam1,
             preparation_routine=SemiEmpiricMatcher(
                 time_limit=(ts.min(), ts.max()),
-                hamilton_max=100,
+                hamilton_to_density_kwargs=dict(
+                    hamilton_max=100,
+                    density_modifier=4,
+                ),
                 n_macroparticles=1e5,
                 internal_grid_shape=(512 - 1, 512 - 1),
-                density_modifier=4,
                 increment_intensity_effects_until_iteration_i=10,
                 maxiter_intensity_effects=1000,
                 tolerance=0.000001,
