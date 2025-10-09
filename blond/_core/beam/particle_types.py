@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-
 import numpy as np
 from numpy import float32, float64
 from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants

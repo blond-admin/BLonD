@@ -5,23 +5,19 @@ from collections import defaultdict, deque
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
+    from collections.abc import Callable, Iterable
     from typing import (
         Any,
-        Callable,
-        DefaultDict,
-        Dict,
-        Iterable,
-        List,
-        Tuple,
-        Type,
         TypeVar,
     )
 
+    # To reference a function that has the same output type
+    # like an input type
     T = TypeVar("T")
 
 
-def requires(argument: List[str]) -> Callable:
-    """Decorator to manage execution order of decorated functions
+def requires(argument: list[str]) -> Callable:
+    """Decorator to manage execution order of decorated functions.
 
     Parameters
     ----------
@@ -32,7 +28,7 @@ def requires(argument: List[str]) -> Callable:
     """
 
     def decorator(function: Callable) -> Callable:
-        def wrapper(*args: List[Any], **kwargs: Dict[Any, Any]) -> Any:
+        def wrapper(*args: list[Any], **kwargs: dict[Any, Any]) -> Any:
             return function(*args, **kwargs)
 
         # allow strings to prevent cyclic imports
@@ -43,9 +39,8 @@ def requires(argument: List[str]) -> Callable:
     return decorator
 
 
-def get_elements(elements: Iterable, _class: Type[T]) -> Tuple[T, ...]:
-    """
-    Find all elements of a certain type
+def get_elements(elements: Iterable, _class: type[T]) -> tuple[T, ...]:
+    """Find all elements of a certain type.
 
     Parameters
     ----------
@@ -66,8 +61,7 @@ def get_elements(elements: Iterable, _class: Type[T]) -> Tuple[T, ...]:
 def get_init_order(
     instances: Iterable[Any], dependency_attribute: str
 ) -> list[Any]:
-    """
-    Get order to be initialized elements
+    """Get order to be initialized elements.
 
     Notes
     -----
@@ -101,8 +95,8 @@ def get_init_order(
 
 def _build_dependency_graph(
     instances: Iterable[Any], dependency_attribute: str
-) -> Tuple[defaultdict[Any, list], defaultdict[Any, int], set]:
-    """Function to build a dependency graph
+) -> tuple[defaultdict[Any, list], defaultdict[Any, int], set]:
+    """Function to build a dependency graph.
 
     Parameters
     ----------
@@ -112,11 +106,10 @@ def _build_dependency_graph(
         Attribute that is used for sorting
         e.g. "on_init_simulation.requires"
     """
-
     graph = defaultdict(
         list
     )  # Directed graph: dependency -> list of dependent classes
-    in_degree: DefaultDict = defaultdict(
+    in_degree: defaultdict = defaultdict(
         int
     )  # Count of incoming edges (dependencies) for each class
     all_classes = set()  # Set to keep track of all involved classes
@@ -141,9 +134,8 @@ def _build_dependency_graph(
     return graph, in_degree, all_classes
 
 
-def get_dependencies(cls_: type, dependency_attribute: str) -> List:
-    """
-    Investigate on which classes this class depends
+def get_dependencies(cls_: type, dependency_attribute: str) -> list:
+    """Investigate on which classes this class depends.
 
     Parameters
     ----------
@@ -185,7 +177,7 @@ def _topological_sort(
     in_degree: defaultdict[Any, int],
     all_classes: set,
 ) -> list[Any]:
-    """Function to perform topological sort on the dependency graph"""
+    """Function to perform topological sort on the dependency graph."""
     # Initialize queue with classes that have no dependencies (in-degree 0)
     queue = deque([cls for cls in all_classes if in_degree[cls] == 0])
     sorted_classes = []  # List to store the sorted order

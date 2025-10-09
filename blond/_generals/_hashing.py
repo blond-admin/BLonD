@@ -5,13 +5,10 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
     from pathlib import Path
-    from typing import List, Set, Union
 
 
-def hash_files(file_paths: List[str]) -> str:
-    """
-    Computes a SHA-256 hash from the contents of a list of files.
-
+def hash_files(file_paths: list[str]) -> str:
+    """Computes a SHA-256 hash from the contents of a list of files.
 
     Each file is read in binary mode and processed in chunks.
     The file paths are sorted to ensure consistent ordering,
@@ -44,19 +41,18 @@ def hash_files(file_paths: List[str]) -> str:
 
 
 def hash_in_folder(
-    folder: Union[str, Path],
-    extensions: Set[str],
+    folder: str | Path,
+    extensions: tuple[str, ...],
     recursive: bool = True,
 ):
-    """
-    Load file contents of all files in folder and generate hash from it.
+    """Load file contents of all files in folder and generate hash from it.
 
     Parameters
     ----------
     folder
         The path to the folder to search.
     extensions
-        A set of file extensions to match (e.g., {'.txt', '.md'}).
+        File extensions to match (e.g., {'.txt', '.md'}).
     recursive
         Whether to search subdirectories recursively. Defaults to True.
 

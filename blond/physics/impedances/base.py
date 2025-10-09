@@ -8,10 +8,7 @@ from ..._core.base import BeamPhysicsRelevant
 from ..._core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, Dict
-    from typing import Optional
-    from typing import Optional as LateInit
-    from typing import Tuple
+    from typing import Any
 
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
@@ -49,9 +46,7 @@ class TimeDomain(ABC):
         beam: BeamBaseClass,
         n_fft: int,
     ) -> NumpyArray:
-        """
-        Get impedance equivalent to the partial wake in time domain
-
+        """Get impedance equivalent to the partial wake in time domain.
 
         Parameters
         ----------
@@ -78,8 +73,7 @@ class FreqDomain(ABC):
         simulation: Simulation,
         beam: BeamBaseClass,
     ) -> NumpyArray | CupyArray:
-        """
-        Return the impedance in the frequency domain.
+        """Return the impedance in the frequency domain.
 
         Parameters
         ----------
@@ -110,7 +104,7 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
     def __init__(
         self,
         section_index: int = 0,
-        profile: LateInit[ProfileBaseClass] = None,
+        profile: ProfileBaseClass | None = None,
     ):
         super().__init__(section_index=section_index)
         self._profile = profile
@@ -131,9 +125,9 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called
+        """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
@@ -152,7 +146,7 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         ]
     )
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
@@ -175,8 +169,7 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
 
 
 class WakeField(ImpedanceBaseClass):
-    """
-    Manager class to calculate wake-fields
+    """Manager class to calculate wake-fields.
 
     Parameters
     ----------
@@ -199,13 +192,12 @@ class WakeField(ImpedanceBaseClass):
 
     def __init__(
         self,
-        sources: Tuple[WakeFieldSource, ...],
-        solver: Optional[WakeFieldSolver],
+        sources: tuple[WakeFieldSource, ...],
+        solver: WakeFieldSolver | None,
         section_index: int = 0,
-        profile: LateInit[ProfileBaseClass] = None,
+        profile: ProfileBaseClass | None = None,
     ):
-        """
-        Manager class to calculate wake-fields
+        """Manager class to calculate wake-fields.
 
         Parameters
         ----------
@@ -232,17 +224,14 @@ class WakeField(ImpedanceBaseClass):
 
     @property
     def induced_voltage(self) -> NumpyArray | CupyArray:
-        """
-        Induced voltage in [V] from given beam profile and sources
-        """
+        """Induced voltage in [V] from given beam profile and sources."""
         if self._induced_voltage is None:
             raise AttributeError("Use `calc_induced_voltage` first!")
         return self._induced_voltage
 
     @requires(["EnergyCycleBase", "BeamBaseClass", "Beam"])  # because
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
@@ -258,7 +247,7 @@ class WakeField(ImpedanceBaseClass):
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
-        """
+        """Calculation of induced voltage from all sources.
 
         Parameters
         ----------
@@ -275,8 +264,7 @@ class WakeField(ImpedanceBaseClass):
         return self.induced_voltage[: self.profile.n_bins]
 
     def track(self, beam: BeamBaseClass) -> None:
-        """
-        Calculate induced voltage and apply this voltage to the beam
+        """Calculate induced voltage and apply this voltage to the beam.
 
         Parameters
         ----------
@@ -303,10 +291,10 @@ class WakeField(ImpedanceBaseClass):
 
     @staticmethod
     def headless(
-        sources: Tuple[WakeFieldSource, ...],
+        sources: tuple[WakeFieldSource, ...],
         solver: WakeFieldSolver,
         section_index: int = 0,
-        profile: LateInit[ProfileBaseClass] = None,
+        profile: ProfileBaseClass | None = None,
     ):
         wf = WakeField(
             sources=sources,

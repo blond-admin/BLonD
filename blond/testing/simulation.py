@@ -6,7 +6,7 @@ from blond.physics.impedances.solvers import (
     TimeDomainFftSolver,
 )
 from blond.physics.impedances.sources import Resonators
-from blond.physics.profiles import ProfileBaseClass, StaticProfile
+from blond.physics.profiles import StaticProfile
 
 
 class ExampleSimulation01:

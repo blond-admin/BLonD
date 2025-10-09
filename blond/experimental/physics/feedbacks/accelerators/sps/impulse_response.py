@@ -1,4 +1,3 @@
-# coding: utf8
 # Copyright 2014-2020 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
@@ -7,8 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""
-**Filters and methods for control loops**
+"""**Filters and methods for control loops**
 
 :Authors: **Birk Emil Karlsen-Bæck**, **Helga Timko**
 """
@@ -24,8 +22,6 @@ from scipy.sparse import diags
 from scipy.sparse.linalg import spsolve
 
 if TYPE_CHECKING:
-    from typing import Optional
-
     from numpy.typing import NDArray as NumpyArray
 
 logger = logging.getLogger(__name__)
@@ -73,7 +69,6 @@ def cavity_response_sparse_matrix(
         The antenna voltage evaluated for the same period as I_beam and I_gen of length n_samples + 1
 
     """
-
     # Add a zero at the start of RF beam current
     if len(I_beam) != n_samples + 1:
         I_beam = np.concatenate((np.zeros(1, dtype=complex), I_beam))
@@ -127,7 +122,6 @@ def rectangle(t: NumpyArray, tau: float) -> NumpyArray:
         Rectangular function for given time array
 
     """
-
     dt = t[1] - t[0]
     llimit = np.where(np.fabs(t + tau / 2) < dt / 2)[0]
     ulimit = np.where(np.fabs(t - tau / 2) < dt / 2)[0]
@@ -178,7 +172,6 @@ def triangle(t: NumpyArray, tau: float) -> NumpyArray:
         Triangular function for given time array
 
     """
-
     dt = t[1] - t[0]
     llimit = np.where(np.fabs(t) < dt / 2)[0]
     logger.debug("In triangle(), index of rising edge is %d" % llimit[0])
@@ -278,7 +271,7 @@ class TravellingWaveCavity:
         Series impedance [Ohms/m^2] of the cavity
     v_g : float
         Group velocity [c] in units of the speed of light
-    omega_r : flaot
+    omega_r : float
         Central (resonance) revolution frequency [1/s] of the cavity
 
     Attributes
@@ -359,7 +352,6 @@ class TravellingWaveCavity:
         h_gen : complex array
             :math:`h_{s,b}(t) + i*h_{c,b}(t)` [\Omega/s] as defined above
         """
-
         self.omega_c = float(omega_c)
         self.d_omega = self.omega_c - self.omega_r
         if np.fabs((self.d_omega) / self.omega_r) > 0.1:
@@ -390,7 +382,7 @@ class TravellingWaveCavity:
         self,
         omega_c: float,
         time_fine: NumpyArray,
-        time_coarse: Optional[NumpyArray] = None,
+        time_coarse: NumpyArray | None = None,
     ):
         r"""Impulse response from the cavity towards the beam. For a signal
         that is I,Q demodulated at a given carrier
@@ -419,7 +411,6 @@ class TravellingWaveCavity:
         h_beam_coarse : complex array
             Impulse response evaluated on the coarse grid
         """
-
         self.omega_c = float(omega_c)
         self.d_omega = self.omega_c - self.omega_r
         if np.fabs((self.d_omega) / self.omega_r) > 0.1:
@@ -465,7 +456,6 @@ class TravellingWaveCavity:
         r"""Computes the wake fields towards the beam and generator on the
         central cavity frequency.
         """
-
         t_beam = time - time[0]
         t_gen = time - time[0] - 0.5 * self.tau
 
