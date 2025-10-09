@@ -1,6 +1,8 @@
 import unittest
 
-from blond.synchrotron_radiation.synchrotron_radiation import SynchrotronRadiation
+from blond.synchrotron_radiation.synchrotron_radiation import (
+    SynchrotronRadiation,
+)
 
 
 class TestSynchrotronRadiation(unittest.TestCase):

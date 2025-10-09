@@ -13,17 +13,18 @@ from blond.llrf.rf_noise import LHCNoiseFB, CallEveryNTurns, FlatSpectrum
 # Dummy cfwhm if it’s used as a global constant
 cfwhm = 1.0  # Adjust if there's a specific constant you're using
 
+
 class DummyProfile:
     def __init__(self, bin_centers, n_macroparticles):
         self.bin_centers = bin_centers
         self.n_macroparticles = n_macroparticles
+
 
 # -- Import class under test --
 # from your_module import LHCNoiseFB  # adjust import path accordingly
 
 
 class TestLHCNoiseFB(unittest.TestCase):
-
     def setUp(self):
         # Machine and RF parameters
         C = 26658.883  # Machine circumference [m]
@@ -60,7 +61,9 @@ class TestLHCNoiseFB(unittest.TestCase):
 
     def test_track_no_delay(self):
         # Simulate turn update
-        fb = LHCNoiseFB(self.rf, self.profile, self.f_rev, self.bl_target, no_delay=True)
+        fb = LHCNoiseFB(
+            self.rf, self.profile, self.f_rev, self.bl_target, no_delay=True
+        )
         self.rf.counter[0] = fb.n_update  # Trigger condition
         fb.fwhm = MagicMock()  # Mock the fwhm method
         fb.track()
@@ -72,7 +75,9 @@ class TestLHCNoiseFB(unittest.TestCase):
         fb.timers[1].counter = fb.delay  # Simulate initial delay pass
         fb.bl_meas = 1.23e-9
         fb.update_bqm_measurement()
-        np.testing.assert_array_equal(fb.last_bqm_measurements, np.full(5, 1.23e-9))
+        np.testing.assert_array_equal(
+            fb.last_bqm_measurements, np.full(5, 1.23e-9)
+        )
 
     def test_update_noise_amplitude_before_delay(self):
         fb = LHCNoiseFB(self.rf, self.profile, self.f_rev, self.bl_target)
@@ -85,13 +90,14 @@ class TestLHCNoiseFB(unittest.TestCase):
         fb.update_x = True
         fb.timers[0].counter = 3 * int(self.f_rev)  # timestamp
         fb.time_array = np.array([0, 1000, 2000, 3000, 4000])
-        fb.last_bqm_measurements = np.array([1.0e-9, 1.05e-9, 1.1e-9, 1.2e-9, 1.3e-9])
+        fb.last_bqm_measurements = np.array(
+            [1.0e-9, 1.05e-9, 1.1e-9, 1.2e-9, 1.3e-9]
+        )
         fb.g = np.ones(fb.rf_params.n_turns + 1)
         fb.rf_params.counter[0] = 0
         fb.x = 0.2
         fb.update_noise_amplitude()
         self.assertTrue(0 <= fb.x <= 1)
-
 
 
 class TestCallEveryNTurns(unittest.TestCase):
@@ -103,10 +109,13 @@ class TestCallEveryNTurns(unittest.TestCase):
     @unittest.skip
     def setUp(self):
         # TODO: implement test for `__init__`
-        self.call_every_n_turns = CallEveryNTurns(n_turns=None, function=None, delay=None)
+        self.call_every_n_turns = CallEveryNTurns(
+            n_turns=None, function=None, delay=None
+        )
+
     @unittest.skip
     def test___init__(self):
-        pass # calls __init__ in  self.setUp
+        pass  # calls __init__ in  self.setUp
 
     @unittest.skip
     def test_tick(self):
@@ -118,10 +127,26 @@ class TestFlatSpectrum(unittest.TestCase):
     @unittest.skip
     def setUp(self):
         # TODO: implement test for `__init__`
-        self.flat_spectrum = FlatSpectrum(Ring=None, RFStation=None, delta_f=None, corr_time=None, fmin_s0=None, fmax_s0=None, initial_amplitude=None, seed1=None, seed2=None, predistortion=None, continuous_phase=None, folder_plots=None, print_option=None, initial_final_turns=None)
+        self.flat_spectrum = FlatSpectrum(
+            Ring=None,
+            RFStation=None,
+            delta_f=None,
+            corr_time=None,
+            fmin_s0=None,
+            fmax_s0=None,
+            initial_amplitude=None,
+            seed1=None,
+            seed2=None,
+            predistortion=None,
+            continuous_phase=None,
+            folder_plots=None,
+            print_option=None,
+            initial_final_turns=None,
+        )
+
     @unittest.skip
     def test___init__(self):
-        pass # calls __init__ in  self.setUp
+        pass  # calls __init__ in  self.setUp
 
     @unittest.skip
     def test_generate(self):
@@ -131,15 +156,31 @@ class TestFlatSpectrum(unittest.TestCase):
     @unittest.skip
     def test_spectrum_to_phase_noise(self):
         # TODO: implement test for `spectrum_to_phase_noise`
-        self.flat_spectrum.spectrum_to_phase_noise(freq=None, spectrum=None, transform=None)
+        self.flat_spectrum.spectrum_to_phase_noise(
+            freq=None, spectrum=None, transform=None
+        )
 
     @unittest.skip
     def setUp(self):
         # TODO: implement test for `__init__`
-        self.lhc_noise_fb = LHCNoiseFB(RFStation_=None, Profile_=None, f_rev=None, bl_target=None, gain=None, factor=None, update_frequency=None, variable_gain=None, bunch_pattern=None, old_FESA_class=None, no_delay=None, seed=None)
+        self.lhc_noise_fb = LHCNoiseFB(
+            RFStation_=None,
+            Profile_=None,
+            f_rev=None,
+            bl_target=None,
+            gain=None,
+            factor=None,
+            update_frequency=None,
+            variable_gain=None,
+            bunch_pattern=None,
+            old_FESA_class=None,
+            no_delay=None,
+            seed=None,
+        )
+
     @unittest.skip
     def test___init__(self):
-        pass # calls __init__ in  self.setUp
+        pass  # calls __init__ in  self.setUp
 
     @unittest.skip
     def test_fwhm_multi_bunch(self):

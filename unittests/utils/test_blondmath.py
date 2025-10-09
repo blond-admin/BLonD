@@ -31,12 +31,12 @@ else:
 
 # import inspect
 
+
 def test_verify_installation():
     np.testing.assert_equal(blond.test(), 0)
 
 
 class TestFastResonator(unittest.TestCase):
-
     # Run before every test
     def setUp(self):
         np.random.seed(0)
@@ -58,14 +58,16 @@ class TestFastResonator(unittest.TestCase):
         freq_R = np.random.randn(n_resonators)
         impedance_py = np.zeros(len(freq_a), complex)
         for i in range(0, n_resonators):
-            impedance_py[1:] += R_S[i] / (1 + 1j * Q[i] *
-                                          (freq_a[1:] / freq_R[i] -
-                                           freq_R[i] / freq_a[1:]))
+            impedance_py[1:] += R_S[i] / (
+                1
+                + 1j * Q[i] * (freq_a[1:] / freq_R[i] - freq_R[i] / freq_a[1:])
+            )
 
         impedance_c = bm.fast_resonator(R_S, Q, freq_a, freq_R)
 
         np.testing.assert_almost_equal(
-            impedance_py, impedance_c, decimal=decimal)
+            impedance_py, impedance_c, decimal=decimal
+        )
 
     def test_fast_resonator_py_V_C_2(self):
         n_resonators = 5
@@ -78,14 +80,16 @@ class TestFastResonator(unittest.TestCase):
         freq_R = np.random.randn(n_resonators)
         impedance_py = np.zeros(len(freq_a), complex)
         for i in range(0, n_resonators):
-            impedance_py[1:] += R_S[i] / (1 + 1j * Q[i] *
-                                          (freq_a[1:] / freq_R[i] -
-                                           freq_R[i] / freq_a[1:]))
+            impedance_py[1:] += R_S[i] / (
+                1
+                + 1j * Q[i] * (freq_a[1:] / freq_R[i] - freq_R[i] / freq_a[1:])
+            )
 
         impedance_c = bm.fast_resonator(R_S, Q, freq_a, freq_R)
 
         np.testing.assert_almost_equal(
-            impedance_py, impedance_c, decimal=decimal)
+            impedance_py, impedance_c, decimal=decimal
+        )
 
     def test_fast_resonator_py_V_C_3(self):
         n_resonators = 20
@@ -98,14 +102,16 @@ class TestFastResonator(unittest.TestCase):
         freq_R = np.random.randn(n_resonators)
         impedance_py = np.zeros(len(freq_a), complex)
         for i in range(0, n_resonators):
-            impedance_py[1:] += R_S[i] / (1 + 1j * Q[i] *
-                                          (freq_a[1:] / freq_R[i] -
-                                           freq_R[i] / freq_a[1:]))
+            impedance_py[1:] += R_S[i] / (
+                1
+                + 1j * Q[i] * (freq_a[1:] / freq_R[i] - freq_R[i] / freq_a[1:])
+            )
 
         impedance_c = bm.fast_resonator(R_S, Q, freq_a, freq_R)
 
         np.testing.assert_almost_equal(
-            impedance_py, impedance_c, decimal=decimal)
+            impedance_py, impedance_c, decimal=decimal
+        )
 
     def test_fast_resonator_py2_V_C_4(self):
         n_resonators = 20
@@ -120,12 +126,17 @@ class TestFastResonator(unittest.TestCase):
         for res in range(0, n_resonators):
             Qsquare = Q[res] * Q[res]
             for freq in range(1, len(freq_a)):
-                commonTerm = (freq_a[freq] / freq_R[res]
-                              - freq_R[res] / freq_a[freq])
-                impedance_py.real[freq] += R_S[res] \
-                                           / (1. + Qsquare * commonTerm * commonTerm)
-                impedance_py.imag[freq] -= R_S[res] * (Q[res] * commonTerm) \
-                                           / (1. + Qsquare * commonTerm * commonTerm)
+                commonTerm = (
+                    freq_a[freq] / freq_R[res] - freq_R[res] / freq_a[freq]
+                )
+                impedance_py.real[freq] += R_S[res] / (
+                    1.0 + Qsquare * commonTerm * commonTerm
+                )
+                impedance_py.imag[freq] -= (
+                    R_S[res]
+                    * (Q[res] * commonTerm)
+                    / (1.0 + Qsquare * commonTerm * commonTerm)
+                )
             # impedance_py[1:] += R_S[i] / (1 + 1j * Q[i] *
             #                               (freq_a[1:] / freq_R[i] -
             #                                  freq_R[i] / freq_a[1:]))
@@ -133,7 +144,8 @@ class TestFastResonator(unittest.TestCase):
         impedance_c = bm.fast_resonator(R_S, Q, freq_a, freq_R)
 
         np.testing.assert_almost_equal(
-            impedance_py, impedance_c, decimal=decimal)
+            impedance_py, impedance_c, decimal=decimal
+        )
 
     def test_fast_resonator_py_V_C_5(self):
         n_resonators = 100
@@ -146,14 +158,16 @@ class TestFastResonator(unittest.TestCase):
         freq_R = np.random.randn(n_resonators)
         impedance_py = np.zeros(len(freq_a), complex)
         for i in range(0, n_resonators):
-            impedance_py[1:] += R_S[i] / (1 + 1j * Q[i] *
-                                          (freq_a[1:] / freq_R[i] -
-                                           freq_R[i] / freq_a[1:]))
+            impedance_py[1:] += R_S[i] / (
+                1
+                + 1j * Q[i] * (freq_a[1:] / freq_R[i] - freq_R[i] / freq_a[1:])
+            )
 
         impedance_c = bm.fast_resonator(R_S, Q, freq_a, freq_R)
 
         np.testing.assert_almost_equal(
-            impedance_py, impedance_c, decimal=decimal)
+            impedance_py, impedance_c, decimal=decimal
+        )
 
     def test_fast_resonator_py_V_py_1(self):
         n_resonators = 20
@@ -169,28 +183,36 @@ class TestFastResonator(unittest.TestCase):
         for res in range(0, n_resonators):
             Qsquare = Q[res] * Q[res]
             for freq in range(1, len(freq_a)):
-                commonTerm = (freq_a[freq] / freq_R[res]
-                              - freq_R[res] / freq_a[freq])
-                impedance_py1.real[freq] += R_S[res] \
-                                            / (1. + Qsquare * commonTerm * commonTerm)
-                impedance_py1.imag[freq] -= R_S[res] * (Q[res] * commonTerm) \
-                                            / (1. + Qsquare * commonTerm * commonTerm)
+                commonTerm = (
+                    freq_a[freq] / freq_R[res] - freq_R[res] / freq_a[freq]
+                )
+                impedance_py1.real[freq] += R_S[res] / (
+                    1.0 + Qsquare * commonTerm * commonTerm
+                )
+                impedance_py1.imag[freq] -= (
+                    R_S[res]
+                    * (Q[res] * commonTerm)
+                    / (1.0 + Qsquare * commonTerm * commonTerm)
+                )
 
         for i in range(n_resonators):
-            impedance_py2[1:] += R_S[i] / (1 + 1j * Q[i]
-                                           * (freq_a[1:] / freq_R[i]
-                                              - freq_R[i] / freq_a[1:]))
+            impedance_py2[1:] += R_S[i] / (
+                1
+                + 1j * Q[i] * (freq_a[1:] / freq_R[i] - freq_R[i] / freq_a[1:])
+            )
 
         np.testing.assert_almost_equal(
-            impedance_py1, impedance_py2, decimal=decimal)
+            impedance_py1, impedance_py2, decimal=decimal
+        )
 
 
 class TestWhere(unittest.TestCase):
-
     # Run before every test
     def setUp(self):
-        if bm.device != 'CPU_CPP':
-            raise unittest.SkipTest('Compiled blond library not found, skipping test.')
+        if bm.device != "CPU_CPP":
+            raise unittest.SkipTest(
+                "Compiled blond library not found, skipping test."
+            )
         np.random.seed(0)
         pass
 
@@ -221,7 +243,9 @@ class TestWhere(unittest.TestCase):
         less_than = np.random.rand()
         more_than = np.random.rand()
         real = np.where(np.logical_and(a < less_than, a > more_than))[0]
-        testing = np.nonzero(bm.where_cpp(a, less_than=less_than, more_than=more_than))[0]
+        testing = np.nonzero(
+            bm.where_cpp(a, less_than=less_than, more_than=more_than)
+        )[0]
         np.testing.assert_equal(real, testing)
 
     @unittest.skip("no attribute 'where_cpp'")
@@ -230,7 +254,9 @@ class TestWhere(unittest.TestCase):
         less_than = np.random.rand()
         more_than = less_than
         real = np.where(np.logical_and(a < less_than, a > more_than))[0]
-        testing = np.nonzero(bm.where_cpp(a, less_than=less_than, more_than=more_than))[0]
+        testing = np.nonzero(
+            bm.where_cpp(a, less_than=less_than, more_than=more_than)
+        )[0]
         np.testing.assert_equal(real, testing)
 
     @unittest.skip("no attribute 'where_cpp'")
@@ -239,14 +265,18 @@ class TestWhere(unittest.TestCase):
         less_than = 0
         more_than = 1
         real = np.where(np.logical_and(a < less_than, a > more_than))[0]
-        testing = np.nonzero(bm.where_cpp(a, less_than=less_than, more_than=more_than))[0]
+        testing = np.nonzero(
+            bm.where_cpp(a, less_than=less_than, more_than=more_than)
+        )[0]
         np.testing.assert_equal(real, testing)
 
     @unittest.skip("no attribute 'where_cpp'")
     def test_where_6(self):
         a = np.arange(100).reshape(10, 10)
         testing = bm.where_cpp(a, less_than=0)
-        np.testing.assert_equal(a.shape, testing.shape, err_msg='Shapes do not match.')
+        np.testing.assert_equal(
+            a.shape, testing.shape, err_msg="Shapes do not match."
+        )
 
     @unittest.skip("no attribute 'where_cpp'")
     def test_where_7(self):
@@ -258,12 +288,12 @@ class TestWhere(unittest.TestCase):
 
 
 class TestSin(unittest.TestCase):
-
     # Run before every test
     def setUp(self):
-        if bm.device != 'CPU_CPP':
+        if bm.device != "CPU_CPP":
             raise unittest.SkipTest(
-                'Compiled blond library not found, skipping test.')
+                "Compiled blond library not found, skipping test."
+            )
 
     # Run after every test
 
@@ -278,7 +308,8 @@ class TestSin(unittest.TestCase):
     @unittest.skip("no attribute 'sin_cpp'")
     def test_sin_scalar_2(self):
         np.testing.assert_almost_equal(
-            bm.sin_cpp(-np.pi), np.sin(-np.pi), decimal=8)
+            bm.sin_cpp(-np.pi), np.sin(-np.pi), decimal=8
+        )
 
     @unittest.skip("no attribute 'sin_cpp'")
     def test_sin_vector_1(self):
@@ -287,12 +318,12 @@ class TestSin(unittest.TestCase):
 
 
 class TestCos(unittest.TestCase):
-
     # Run before every test
     def setUp(self):
-        if bm.device != 'CPU_CPP':
+        if bm.device != "CPU_CPP":
             raise unittest.SkipTest(
-                'Compiled blond library not found, skipping test.')
+                "Compiled blond library not found, skipping test."
+            )
 
     # Run after every test
 
@@ -307,7 +338,8 @@ class TestCos(unittest.TestCase):
     @unittest.skip("no attribute 'cos_cpp'")
     def test_cos_scalar_2(self):
         np.testing.assert_almost_equal(
-            bm.cos_cpp(-2 * np.pi), np.cos(-2 * np.pi), decimal=8)
+            bm.cos_cpp(-2 * np.pi), np.cos(-2 * np.pi), decimal=8
+        )
 
     @unittest.skip("no attribute 'cos_cpp'")
     def test_cos_vector_1(self):
@@ -316,12 +348,12 @@ class TestCos(unittest.TestCase):
 
 
 class TestExp(unittest.TestCase):
-
     # Run before every test
     def setUp(self):
-        if bm.device != 'CPU_CPP':
+        if bm.device != "CPU_CPP":
             raise unittest.SkipTest(
-                'Compiled blond library not found, skipping test.')
+                "Compiled blond library not found, skipping test."
+            )
 
     # Run after every test
 
@@ -340,12 +372,12 @@ class TestExp(unittest.TestCase):
 
 
 class TestMean(unittest.TestCase):
-
     # Run before every test
     def setUp(self):
-        if bm.device != 'CPU_CPP':
+        if bm.device != "CPU_CPP":
             raise unittest.SkipTest(
-                'Compiled blond library not found, skipping test.')
+                "Compiled blond library not found, skipping test."
+            )
 
     # Run after every test
 
@@ -364,12 +396,12 @@ class TestMean(unittest.TestCase):
 
 
 class TestStd(unittest.TestCase):
-
     # Run before every test
     def setUp(self):
-        if bm.device != 'CPU_CPP':
+        if bm.device != "CPU_CPP":
             raise unittest.SkipTest(
-                'Compiled blond library not found, skipping test.')
+                "Compiled blond library not found, skipping test."
+            )
 
     # Run after every test
 
@@ -388,12 +420,12 @@ class TestStd(unittest.TestCase):
 
 
 class TestSum(unittest.TestCase):
-
     # Run before every test
     def setUp(self):
-        if bm.device != 'CPU_CPP':
+        if bm.device != "CPU_CPP":
             raise unittest.SkipTest(
-                'Compiled blond library not found, skipping test.')
+                "Compiled blond library not found, skipping test."
+            )
 
     # Run after every test
 
@@ -412,12 +444,12 @@ class TestSum(unittest.TestCase):
 
 
 class TestLinspace(unittest.TestCase):
-
     # Run before every test
     def setUp(self):
-        if bm.device != 'CPU_CPP':
+        if bm.device != "CPU_CPP":
             raise unittest.SkipTest(
-                'Compiled blond library not found, skipping test.')
+                "Compiled blond library not found, skipping test."
+            )
 
     # Run after every test
 
@@ -426,43 +458,53 @@ class TestLinspace(unittest.TestCase):
 
     @unittest.skip("no attribute 'linspace_cpp'")
     def test_linspace_1(self):
-        start = 0.
-        stop = 10.
+        start = 0.0
+        stop = 10.0
         num = 33
-        np.testing.assert_almost_equal(bm.linspace_cpp(start, stop, num),
-                                       np.linspace(start, stop, num), decimal=8)
+        np.testing.assert_almost_equal(
+            bm.linspace_cpp(start, stop, num),
+            np.linspace(start, stop, num),
+            decimal=8,
+        )
 
     @unittest.skip("no attribute 'linspace_cpp'")
     def test_linspace_2(self):
         start = 0
         stop = 10
         num = 33
-        np.testing.assert_almost_equal(bm.linspace_cpp(start, stop, num),
-                                       np.linspace(start, stop, num), decimal=8)
+        np.testing.assert_almost_equal(
+            bm.linspace_cpp(start, stop, num),
+            np.linspace(start, stop, num),
+            decimal=8,
+        )
 
     @unittest.skip("no attribute 'linspace_cpp'")
     def test_linspace_3(self):
         start = 12.234
         stop = -10.456
-        np.testing.assert_almost_equal(bm.linspace_cpp(start, stop),
-                                       np.linspace(start, stop), decimal=8)
+        np.testing.assert_almost_equal(
+            bm.linspace_cpp(start, stop), np.linspace(start, stop), decimal=8
+        )
 
     @unittest.skip("no attribute 'linspace_cpp'")
     def test_linspace_4(self):
         start = np.random.rand()
         stop = np.random.rand()
         num = int(np.random.rand())
-        np.testing.assert_almost_equal(bm.linspace_cpp(start, stop, num),
-                                       np.linspace(start, stop, num), decimal=8)
+        np.testing.assert_almost_equal(
+            bm.linspace_cpp(start, stop, num),
+            np.linspace(start, stop, num),
+            decimal=8,
+        )
 
 
 class TestArange(unittest.TestCase):
-
     # Run before every test
     def setUp(self):
-        if bm.device != 'CPU_CPP':
+        if bm.device != "CPU_CPP":
             raise unittest.SkipTest(
-                'Compiled blond library not found, skipping test.')
+                "Compiled blond library not found, skipping test."
+            )
 
     # Run after every test
 
@@ -471,45 +513,57 @@ class TestArange(unittest.TestCase):
 
     @unittest.skip("no attribute 'arange_cpp'")
     def test_arange_1(self):
-        start = 0.
-        stop = 1000.
+        start = 0.0
+        stop = 1000.0
         step = 33
-        np.testing.assert_almost_equal(bm.arange_cpp(start, stop, step),
-                                       np.arange(start, stop, step), decimal=8)
+        np.testing.assert_almost_equal(
+            bm.arange_cpp(start, stop, step),
+            np.arange(start, stop, step),
+            decimal=8,
+        )
 
     @unittest.skip("no attribute 'arange_cpp'")
     def test_arange_2(self):
         start = 0
         stop = 1000
         step = 33
-        np.testing.assert_almost_equal(bm.arange_cpp(start, stop, step),
-                                       np.arange(start, stop, step), decimal=8)
+        np.testing.assert_almost_equal(
+            bm.arange_cpp(start, stop, step),
+            np.arange(start, stop, step),
+            decimal=8,
+        )
 
     @unittest.skip("no attribute 'arange_cpp'")
     def test_arange_3(self):
         start = 12.234
         stop = -10.456
         step = -0.067
-        np.testing.assert_almost_equal(bm.arange_cpp(start, stop, step),
-                                       np.arange(start, stop, step), decimal=8)
+        np.testing.assert_almost_equal(
+            bm.arange_cpp(start, stop, step),
+            np.arange(start, stop, step),
+            decimal=8,
+        )
 
     @unittest.skip("no attribute 'arange_cpp'")
     def test_arange_4(self):
         start = np.random.rand()
         stop = np.random.rand()
         start, stop = min(start, stop), max(start, stop)
-        step = np.random.random() * (stop - start) / 60.
-        np.testing.assert_almost_equal(bm.arange_cpp(start, stop, step),
-                                       np.arange(start, stop, step), decimal=8)
+        step = np.random.random() * (stop - start) / 60.0
+        np.testing.assert_almost_equal(
+            bm.arange_cpp(start, stop, step),
+            np.arange(start, stop, step),
+            decimal=8,
+        )
 
 
 class TestArgMin(unittest.TestCase):
-
     # Run before every test
     def setUp(self):
-        if bm.device != 'CPU_CPP':
+        if bm.device != "CPU_CPP":
             raise unittest.SkipTest(
-                'Compiled blond library not found, skipping test.')
+                "Compiled blond library not found, skipping test."
+            )
 
     # Run after every test
 
@@ -528,12 +582,12 @@ class TestArgMin(unittest.TestCase):
 
 
 class TestArgMax(unittest.TestCase):
-
     # Run before every test
     def setUp(self):
-        if bm.device != 'CPU_CPP':
+        if bm.device != "CPU_CPP":
             raise unittest.SkipTest(
-                'Compiled blond library not found, skipping test.')
+                "Compiled blond library not found, skipping test."
+            )
 
     # Run after every test
 
@@ -552,12 +606,12 @@ class TestArgMax(unittest.TestCase):
 
 
 class TestConvolve(unittest.TestCase):
-
     # Run before every test
     def setUp(self):
-        if bm.device != 'CPU_CPP':
+        if bm.device != "CPU_CPP":
             raise unittest.SkipTest(
-                'Compiled blond library not found, skipping test.')
+                "Compiled blond library not found, skipping test."
+            )
 
     # Run after every test
 
@@ -567,26 +621,32 @@ class TestConvolve(unittest.TestCase):
     def test_convolve_1(self):
         s = np.random.randn(100)
         k = np.random.randn(100)
-        np.testing.assert_almost_equal(bm.convolve(s, k, mode='full'),
-                                       np.convolve(s, k, mode='full'),
-                                       decimal=8)
+        np.testing.assert_almost_equal(
+            bm.convolve(s, k, mode="full"),
+            np.convolve(s, k, mode="full"),
+            decimal=8,
+        )
 
     def test_convolve_2(self):
         s = np.random.randn(200)
         k = np.random.randn(200)
         with self.assertRaises(RuntimeError):
-            bm.convolve(s, k, mode='same', )
+            bm.convolve(
+                s,
+                k,
+                mode="same",
+            )
         with self.assertRaises(RuntimeError):
-            bm.convolve(s, k, mode='valid')
+            bm.convolve(s, k, mode="valid")
 
 
 class TestInterp(unittest.TestCase):
-
     # Run before every test
     def setUp(self):
-        if bm.device != 'CPU_CPP':
+        if bm.device != "CPU_CPP":
             raise unittest.SkipTest(
-                'Compiled blond library not found, skipping test.')
+                "Compiled blond library not found, skipping test."
+            )
 
     # Run after every test
 
@@ -599,8 +659,9 @@ class TestInterp(unittest.TestCase):
         xp = np.random.randn(100)
         xp.sort()
         yp = np.random.randn(100)
-        np.testing.assert_almost_equal(bm.interp_cpp(x, xp, yp),
-                                       np.interp(x, xp, yp), decimal=8)
+        np.testing.assert_almost_equal(
+            bm.interp_cpp(x, xp, yp), np.interp(x, xp, yp), decimal=8
+        )
 
     @unittest.skip("no attribute 'interp_cpp'")
     def test_interp_2(self):
@@ -609,8 +670,9 @@ class TestInterp(unittest.TestCase):
         xp = np.random.randn(50)
         xp.sort()
         yp = np.random.randn(50)
-        np.testing.assert_almost_equal(bm.interp_cpp(x, xp, yp),
-                                       np.interp(x, xp, yp), decimal=8)
+        np.testing.assert_almost_equal(
+            bm.interp_cpp(x, xp, yp), np.interp(x, xp, yp), decimal=8
+        )
 
     @unittest.skip("no attribute 'interp_cpp'")
     def test_interp_3(self):
@@ -618,8 +680,9 @@ class TestInterp(unittest.TestCase):
         xp = np.random.randn(50)
         xp.sort()
         yp = np.random.randn(50)
-        np.testing.assert_almost_equal(bm.interp_cpp(x, xp, yp),
-                                       np.interp(x, xp, yp), decimal=8)
+        np.testing.assert_almost_equal(
+            bm.interp_cpp(x, xp, yp), np.interp(x, xp, yp), decimal=8
+        )
 
     @unittest.skip("no attribute 'interp_cpp'")
     def test_interp_4(self):
@@ -627,17 +690,20 @@ class TestInterp(unittest.TestCase):
         xp = np.random.randn(50)
         xp.sort()
         yp = np.random.randn(50)
-        np.testing.assert_almost_equal(bm.interp_cpp(x, xp, yp, 0., 1.),
-                                       np.interp(x, xp, yp, 0., 1.), decimal=8)
+        np.testing.assert_almost_equal(
+            bm.interp_cpp(x, xp, yp, 0.0, 1.0),
+            np.interp(x, xp, yp, 0.0, 1.0),
+            decimal=8,
+        )
 
 
 class TestTrapz(unittest.TestCase):
-
     # Run before every test
     def setUp(self):
-        if bm.device != 'CPU_CPP':
+        if bm.device != "CPU_CPP":
             raise unittest.SkipTest(
-                'Compiled blond library not found, skipping test.')
+                "Compiled blond library not found, skipping test."
+            )
 
     # Run after every test
 
@@ -647,29 +713,33 @@ class TestTrapz(unittest.TestCase):
     @unittest.skip("no attribute 'trapezoid'")
     def test_trapz_1(self):
         y = np.random.randn(100)
-        np.testing.assert_almost_equal(bm.trapz_cpp(y), np.trapezoid(y), decimal=8)
+        np.testing.assert_almost_equal(
+            bm.trapz_cpp(y), np.trapezoid(y), decimal=8
+        )
 
     @unittest.skip("no attribute 'trapezoid'")
     def test_trapz_2(self):
         y = np.random.randn(100)
         x = np.random.rand(100)
-        np.testing.assert_almost_equal(bm.trapz_cpp(y, x=x),
-                                       np.trapezoid(y, x=x), decimal=8)
+        np.testing.assert_almost_equal(
+            bm.trapz_cpp(y, x=x), np.trapezoid(y, x=x), decimal=8
+        )
 
     @unittest.skip("no attribute 'trapezoid'")
     def test_trapz_3(self):
         y = np.random.randn(100)
-        np.testing.assert_almost_equal(bm.trapz_cpp(y, dx=0.1),
-                                       np.trapezoid(y, dx=0.1), decimal=8)
+        np.testing.assert_almost_equal(
+            bm.trapz_cpp(y, dx=0.1), np.trapezoid(y, dx=0.1), decimal=8
+        )
 
 
 class TestCumTrapz(unittest.TestCase):
-
     # Run before every test
     def setUp(self):
-        if bm.device != 'CPU_CPP':
+        if bm.device != "CPU_CPP":
             raise unittest.SkipTest(
-                'Compiled blond library not found, skipping test.')
+                "Compiled blond library not found, skipping test."
+            )
 
     # Run after every test
 
@@ -677,47 +747,55 @@ class TestCumTrapz(unittest.TestCase):
         pass
 
     def test_cumtrapz_1(self):
-        self.skipTest("scipy.integrate.cumulative_trapezoid behaviour differs from cumtrapz")
+        self.skipTest(
+            "scipy.integrate.cumulative_trapezoid behaviour differs from cumtrapz"
+        )
         y = np.random.randn(100)
         initial = np.random.rand()
-        np.testing.assert_almost_equal(bm.cumtrapz(y, initial=initial),
-                                       cumtrapz(
-                                           y, initial=initial),
-                                       decimal=8)
+        np.testing.assert_almost_equal(
+            bm.cumtrapz(y, initial=initial),
+            cumtrapz(y, initial=initial),
+            decimal=8,
+        )
 
     def test_cumtrapz_2(self):
-        self.skipTest("scipy.integrate.cumulative_trapezoid behaviour differs from cumtrapz")
+        self.skipTest(
+            "scipy.integrate.cumulative_trapezoid behaviour differs from cumtrapz"
+        )
         y = np.random.randn(100)
-        np.testing.assert_almost_equal(bm.cumtrapz(y),
-                                       cumtrapz(y),
-                                       decimal=8)
+        np.testing.assert_almost_equal(bm.cumtrapz(y), cumtrapz(y), decimal=8)
 
     def test_cumtrapz_3(self):
-        self.skipTest("scipy.integrate.cumulative_trapezoid behaviour differs from cumtrapz")
+        self.skipTest(
+            "scipy.integrate.cumulative_trapezoid behaviour differs from cumtrapz"
+        )
         y = np.random.randn(100)
         dx = np.random.rand()
-        np.testing.assert_almost_equal(bm.cumtrapz(y, dx=dx),
-                                       cumtrapz(y, dx=dx),
-                                       decimal=8)
+        np.testing.assert_almost_equal(
+            bm.cumtrapz(y, dx=dx), cumtrapz(y, dx=dx), decimal=8
+        )
 
     def test_cumtrapz_4(self):
-        self.skipTest("scipy.integrate.cumulative_trapezoid behaviour differs from cumtrapz")
+        self.skipTest(
+            "scipy.integrate.cumulative_trapezoid behaviour differs from cumtrapz"
+        )
         y = np.random.randn(100)
         dx = np.random.rand()
         initial = np.random.rand()
-        np.testing.assert_almost_equal(bm.cumtrapz(y, initial=initial, dx=dx),
-                                       cumtrapz(
-                                           y, initial=initial, dx=dx),
-                                       decimal=8)
+        np.testing.assert_almost_equal(
+            bm.cumtrapz(y, initial=initial, dx=dx),
+            cumtrapz(y, initial=initial, dx=dx),
+            decimal=8,
+        )
 
 
 class TestSort(unittest.TestCase):
-
     # Run before every test
     def setUp(self):
-        if bm.device != 'CPU_CPP':
+        if bm.device != "CPU_CPP":
             raise unittest.SkipTest(
-                'Compiled blond library not found, skipping test.')
+                "Compiled blond library not found, skipping test."
+            )
 
     # Run after every test
 
@@ -735,8 +813,9 @@ class TestSort(unittest.TestCase):
     def test_sort_2(self):
         y = np.random.randn(200)
         y2 = np.copy(y)
-        np.testing.assert_equal(bm.sort_cpp(y, reverse=True),
-                                sorted(y2, reverse=True))
+        np.testing.assert_equal(
+            bm.sort_cpp(y, reverse=True), sorted(y2, reverse=True)
+        )
 
     @unittest.skip("no attribute 'sort_cpp'")
     def test_sort_3(self):
@@ -751,8 +830,9 @@ class TestSort(unittest.TestCase):
 
     @unittest.skip("no attribute 'sort_cpp'")
     def test_sort_4(self):
-        y = np.array([np.random.randint(100)
-                      for i in range(100)], dtype=np.int32)
+        y = np.array(
+            [np.random.randint(100) for i in range(100)], dtype=np.int32
+        )
         y2 = np.copy(y)
         bm.sort_cpp(y)
         y2.sort()
@@ -763,8 +843,7 @@ class TestSort(unittest.TestCase):
 
     @unittest.skip("no attribute 'sort_cpp'")
     def test_sort_5(self):
-        y = np.array([np.random.randint(100)
-                      for i in range(100)], dtype=int)
+        y = np.array([np.random.randint(100) for i in range(100)], dtype=int)
         y2 = np.copy(y)
         bm.sort_cpp(y)
         y2.sort()
@@ -775,23 +854,33 @@ class TestSort(unittest.TestCase):
 
 
 class TestRandomNormal:
-
     # Run before every test
     def setup_method(self):
-        if bm.device != 'CPU_CPP':
+        if bm.device != "CPU_CPP":
             raise unittest.SkipTest(
-                'Compiled blond library not found, skipping test.')
+                "Compiled blond library not found, skipping test."
+            )
 
     # Run after every test
 
     def teardown_method(self):
         pass
+
     @unittest.skip("no attribute 'random_normal'")
-    @pytest.mark.parametrize('size,loc,scale',
-                             [(100000, 0, 1), (1000000, 0, 1), (10000000, 0, 1),
-                              (100000, 100, 5), (1000000, 100, 5), (10000000, 100, 5),
-                              (100000, -100, 10), (1000000, -100, 10), (10000000, -100, 10)
-                              ])
+    @pytest.mark.parametrize(
+        "size,loc,scale",
+        [
+            (100000, 0, 1),
+            (1000000, 0, 1),
+            (10000000, 0, 1),
+            (100000, 100, 5),
+            (1000000, 100, 5),
+            (10000000, 100, 5),
+            (100000, -100, 10),
+            (1000000, -100, 10),
+            (10000000, -100, 10),
+        ],
+    )
     def test_vs_numpy(self, size, loc, scale):
         np.random.seed(0)
         y_npy = np.random.normal(loc=loc, scale=scale, size=size)
@@ -810,11 +899,17 @@ class TestRandomNormal:
         np.testing.assert_allclose(sigma_npy, sigma_cpp, atol=1e-2)
 
     @unittest.skip("no attribute 'random_normal'")
-    @pytest.mark.parametrize('size,loc,scale',
-                             [(1000000, 0, 1), (10000000, 0, 1),
-                              (1000000, 100, 5), (10000000, 100, 5),
-                              (1000000, -100, 10), (10000000, -100, 10)
-                              ])
+    @pytest.mark.parametrize(
+        "size,loc,scale",
+        [
+            (1000000, 0, 1),
+            (10000000, 0, 1),
+            (1000000, 100, 5),
+            (10000000, 100, 5),
+            (1000000, -100, 10),
+            (10000000, -100, 10),
+        ],
+    )
     def test_different_seed(self, size, loc, scale):
         y_cpp1 = bm.random_normal(loc=loc, scale=scale, size=size, seed=0)
         y_cpp2 = bm.random_normal(loc=loc, scale=scale, size=size, seed=1)
@@ -832,10 +927,10 @@ class TestRandomNormal:
         np.testing.assert_allclose(sigma_npy, sigma_cpp, atol=1e-2)
 
     @unittest.skip("no attribute 'interp_const_bin'")
-    @pytest.mark.parametrize('size,left,right',
-                             [(100, 0, 1), (10000, 0, 1),
-                              (100, 0.1, 0.9), (10000, 0.1, 0.9)
-                              ])
+    @pytest.mark.parametrize(
+        "size,left,right",
+        [(100, 0, 1), (10000, 0, 1), (100, 0.1, 0.9), (10000, 0.1, 0.9)],
+    )
     def test_interp_const_bin_1(self, size, left, right):
         x = np.random.uniform(0, 1, size)
         xp = np.linspace(0, 1, size)
@@ -849,10 +944,10 @@ class TestRandomNormal:
         np.testing.assert_allclose(y_cpp, y_npy, rtol=1e-6)
 
     @unittest.skip("no attribute 'interp_const_bin'")
-    @pytest.mark.parametrize('size,left,right',
-                             [(100, 0, 1), (10000, 0, 1),
-                              (100, 0.1, 0.9), (10000, 0.1, 0.9)
-                              ])
+    @pytest.mark.parametrize(
+        "size,left,right",
+        [(100, 0, 1), (10000, 0, 1), (100, 0.1, 0.9), (10000, 0.1, 0.9)],
+    )
     def test_interp_const_bin_2(self, size, left, right):
         x = np.random.uniform(0, 1, size)
         xp = np.linspace(0, 1, 10)
@@ -866,5 +961,5 @@ class TestRandomNormal:
         np.testing.assert_allclose(y_cpp, y_npy, rtol=1e-6)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

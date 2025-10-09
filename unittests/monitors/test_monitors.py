@@ -1,6 +1,10 @@
 import unittest
 
-from blond.monitors.monitors import BunchMonitor, MultiBunchMonitor, SlicesMonitor
+from blond.monitors.monitors import (
+    BunchMonitor,
+    MultiBunchMonitor,
+    SlicesMonitor,
+)
 
 
 class TestBunchMonitor(unittest.TestCase):
@@ -97,7 +101,9 @@ class TestSlicesMonitor(unittest.TestCase):
     @unittest.skip
     def setUp(self):
         # TODO: implement test for `__init__`
-        self.slices_monitor = SlicesMonitor(filename=None, n_turns=None, profile=None)
+        self.slices_monitor = SlicesMonitor(
+            filename=None, n_turns=None, profile=None
+        )
 
     @unittest.skip
     def test___init__(self):

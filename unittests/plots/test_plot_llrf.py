@@ -70,49 +70,77 @@ class TestFunctions(unittest.TestCase):
     def test_plot_PL_RF_freq(self):
         # TODO: implement test for `plot_PL_RF_freq`
         plot_PL_RF_freq(
-            RFStation=None, h5data=None, output_freq=None, dirname=None, show_plot=None
+            RFStation=None,
+            h5data=None,
+            output_freq=None,
+            dirname=None,
+            show_plot=None,
         )
 
     @unittest.skip
     def test_plot_PL_RF_phase(self):
         # TODO: implement test for `plot_PL_RF_phase`
         plot_PL_RF_phase(
-            RFStation=None, h5data=None, output_freq=None, dirname=None, show_plot=None
+            RFStation=None,
+            h5data=None,
+            output_freq=None,
+            dirname=None,
+            show_plot=None,
         )
 
     @unittest.skip
     def test_plot_PL_bunch_phase(self):
         # TODO: implement test for `plot_PL_bunch_phase`
         plot_PL_bunch_phase(
-            RFStation=None, h5data=None, output_freq=None, dirname=None, show_plot=None
+            RFStation=None,
+            h5data=None,
+            output_freq=None,
+            dirname=None,
+            show_plot=None,
         )
 
     @unittest.skip
     def test_plot_PL_freq_corr(self):
         # TODO: implement test for `plot_PL_freq_corr`
         plot_PL_freq_corr(
-            RFStation=None, h5data=None, output_freq=None, dirname=None, show_plot=None
+            RFStation=None,
+            h5data=None,
+            output_freq=None,
+            dirname=None,
+            show_plot=None,
         )
 
     @unittest.skip
     def test_plot_PL_phase_corr(self):
         # TODO: implement test for `plot_PL_phase_corr`
         plot_PL_phase_corr(
-            RFStation=None, h5data=None, output_freq=None, dirname=None, show_plot=None
+            RFStation=None,
+            h5data=None,
+            output_freq=None,
+            dirname=None,
+            show_plot=None,
         )
 
     @unittest.skip
     def test_plot_RF_phase_error(self):
         # TODO: implement test for `plot_RF_phase_error`
         plot_RF_phase_error(
-            RFStation=None, h5data=None, output_freq=None, dirname=None, show_plot=None
+            RFStation=None,
+            h5data=None,
+            output_freq=None,
+            dirname=None,
+            show_plot=None,
         )
 
     @unittest.skip
     def test_plot_RL_radial_error(self):
         # TODO: implement test for `plot_RL_radial_error`
         plot_RL_radial_error(
-            RFStation=None, h5data=None, output_freq=None, dirname=None, show_plot=None
+            RFStation=None,
+            h5data=None,
+            output_freq=None,
+            dirname=None,
+            show_plot=None,
         )
 
     @unittest.skip

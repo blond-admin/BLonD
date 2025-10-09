@@ -1,6 +1,12 @@
 import unittest
 
-from blond.utils import c_complex, c_real, PrecisionClass, c_complex128, c_complex64
+from blond.utils import (
+    c_complex,
+    c_real,
+    PrecisionClass,
+    c_complex128,
+    c_complex64,
+)
 
 
 class TestFunctions(unittest.TestCase):
@@ -29,6 +35,7 @@ class TestPrecisionClass(unittest.TestCase):
     def test_set(self):
         # TODO: implement test for `set`
         self.precision_class.set(_precision=None)
+
 
 class Testc_complex128(unittest.TestCase):
     @unittest.skip
@@ -60,4 +67,3 @@ class Testc_complex64(unittest.TestCase):
     def test_to_complex(self):
         # TODO: implement test for `to_complex`
         self.c_complex64.to_complex()
-

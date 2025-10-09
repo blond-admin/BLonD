@@ -1,6 +1,10 @@
 import unittest
 
-from blond.input_parameters.ring_options import load_data, convert_data, RingOptions
+from blond.input_parameters.ring_options import (
+    load_data,
+    convert_data,
+    RingOptions,
+)
 
 
 class TestFunctions(unittest.TestCase):

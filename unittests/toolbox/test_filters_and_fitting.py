@@ -12,7 +12,9 @@ class TestFunctions(unittest.TestCase):
     @unittest.skip
     def test_beam_profile_filter_chebyshev(self):
         # TODO: implement test for `beam_profile_filter_chebyshev`
-        beam_profile_filter_chebyshev(Y_array=None, X_array=None, filter_option=None)
+        beam_profile_filter_chebyshev(
+            Y_array=None, X_array=None, filter_option=None
+        )
 
     @unittest.skip
     def test_fwhm(self):

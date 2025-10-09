@@ -40,6 +40,7 @@ class TestCutOptions(unittest.TestCase):
         # TODO: implement test for `convert_coordinates`
         self.cut_options.convert_coordinates(value=None, input_unit_type=None)
 
+
 class TestProfile(unittest.TestCase):
     @unittest.skip
     def setUp(self):

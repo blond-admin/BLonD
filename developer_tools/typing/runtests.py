@@ -1,6 +1,7 @@
 import unittest
+
 loader = unittest.TestLoader()
-start_dir = '../../unittests/'
+start_dir = "../../unittests/"
 suite = loader.discover(start_dir)
 
 runner = unittest.TextTestRunner()

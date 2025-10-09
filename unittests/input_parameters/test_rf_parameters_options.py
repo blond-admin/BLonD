@@ -11,7 +11,11 @@ class TestFunctions(unittest.TestCase):
     def test_combine_rf_functions(self):
         # TODO: implement test for `combine_rf_functions`
         combine_rf_functions(
-            function_list=None, merge_type=None, resolution=None, Ring=None, main_h=None
+            function_list=None,
+            merge_type=None,
+            resolution=None,
+            Ring=None,
+            main_h=None,
         )
 
 
@@ -36,5 +40,9 @@ class TestRFStationOptions(unittest.TestCase):
     def test_reshape_data(self):
         # TODO: implement test for `reshape_data`
         self.rf_station_options.reshape_data(
-            input_data=None, n_turns=None, n_rf=None, interp_time=None, t_start=None
+            input_data=None,
+            n_turns=None,
+            n_rf=None,
+            interp_time=None,
+            t_start=None,
         )

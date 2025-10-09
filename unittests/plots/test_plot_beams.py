@@ -15,7 +15,11 @@ class TestFunctions(unittest.TestCase):
     def test_plot_bunch_length_evol(self):
         # TODO: implement test for `plot_bunch_length_evol`
         plot_bunch_length_evol(
-            RFStation=None, h5data=None, output_freq=None, dirname=None, show_plot=None
+            RFStation=None,
+            h5data=None,
+            output_freq=None,
+            dirname=None,
+            show_plot=None,
         )
 
     @unittest.skip

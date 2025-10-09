@@ -17,8 +17,9 @@ class TestFunctions(unittest.TestCase):
     @unittest.skip
     def test_sequential_wrap(self):
         # TODO: implement test for `sequential_wrap`
-        sequential_wrap(func=None, beam=None, split_args=None, gather_args=None)
-
+        sequential_wrap(
+            func=None, beam=None, split_args=None, gather_args=None
+        )
 
 
 class TestMPILog(unittest.TestCase):
@@ -26,9 +27,10 @@ class TestMPILog(unittest.TestCase):
     def setUp(self):
         # TODO: implement test for `__init__`
         self.mpi_log = MPILog(rank=None, log_dir=None)
+
     @unittest.skip
     def test___init__(self):
-        pass # calls __init__ in  self.setUp
+        pass  # calls __init__ in  self.setUp
 
     @unittest.skip
     def test_critical(self):
@@ -56,9 +58,10 @@ class TestWorker(unittest.TestCase):
     def setUp(self):
         # TODO: implement test for `__init__`
         self.worker = Worker()
+
     @unittest.skip
     def test___init__(self):
-        pass # calls __init__ in  self.setUp
+        pass  # calls __init__ in  self.setUp
 
     @unittest.skip
     def test_allgather(self):
@@ -68,7 +71,9 @@ class TestWorker(unittest.TestCase):
     @unittest.skip
     def test_allreduce(self):
         # TODO: implement test for `allreduce`
-        self.worker.allreduce(sendbuf=None, recvbuf=None, dtype=None, operator=None, comm=None)
+        self.worker.allreduce(
+            sendbuf=None, recvbuf=None, dtype=None, operator=None, comm=None
+        )
 
     @unittest.skip
     def test_assign_gpus(self):
@@ -108,7 +113,9 @@ class TestWorker(unittest.TestCase):
     @unittest.skip
     def test_reduce(self):
         # TODO: implement test for `reduce`
-        self.worker.reduce(sendbuf=None, recvbuf=None, dtype=None, operator=None, comm=None)
+        self.worker.reduce(
+            sendbuf=None, recvbuf=None, dtype=None, operator=None, comm=None
+        )
 
     @unittest.skip
     def test_scatter(self):

@@ -16,14 +16,24 @@ class TestFunctions(unittest.TestCase):
     def test_hamiltonian(self):
         # TODO: implement test for `hamiltonian`
         hamiltonian(
-            Ring=None, RFStation=None, Beam=None, dt=None, dE=None, total_voltage=None
+            Ring=None,
+            RFStation=None,
+            Beam=None,
+            dt=None,
+            dE=None,
+            total_voltage=None,
         )
 
     @unittest.skip
     def test_is_in_separatrix(self):
         # TODO: implement test for `is_in_separatrix`
         is_in_separatrix(
-            Ring=None, RFStation=None, Beam=None, dt=None, dE=None, total_voltage=None
+            Ring=None,
+            RFStation=None,
+            Beam=None,
+            dt=None,
+            dE=None,
+            total_voltage=None,
         )
 
     @unittest.skip

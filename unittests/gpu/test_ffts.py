@@ -22,21 +22,31 @@ from blond.utils import bmath as bm
 
 
 class TestFFTS:
-
     # Run before every test
     def setup_method(self):
         # Try to import cupy, skip if not found
-        self.cp = pytest.importorskip('cupy')
+        self.cp = pytest.importorskip("cupy")
 
     # Run after every test
     def teardown_method(self):
         pass
 
-    @pytest.mark.parametrize('size,n',
-                             [(10, None), (100, None), (93, None),
-                              (17, None), (10000, None), (100, 50),
-                              (100, 51), (100, 151), (100, 100),
-                              (100, 1000), (100, 1)])
+    @pytest.mark.parametrize(
+        "size,n",
+        [
+            (10, None),
+            (100, None),
+            (93, None),
+            (17, None),
+            (10000, None),
+            (100, 50),
+            (100, 51),
+            (100, 151),
+            (100, 100),
+            (100, 1000),
+            (100, 1),
+        ],
+    )
     def test_rfft(self, size, n):
         bm.use_cpu()
         s = np.random.randn(size)
@@ -47,11 +57,21 @@ class TestFFTS:
         res_gpu = bm.rfft(s_gpu, n=n)
         self.cp.testing.assert_array_almost_equal(res_gpu, res, decimal=8)
 
-    @pytest.mark.parametrize('size,n',
-                             [(10, None), (100, None), (93, None),
-                              (17, None), (10000, None), (100, 100),
-                              (100, 10), (100, 200), (100, 1),
-                              (100, 101)])
+    @pytest.mark.parametrize(
+        "size,n",
+        [
+            (10, None),
+            (100, None),
+            (93, None),
+            (17, None),
+            (10000, None),
+            (100, 100),
+            (100, 10),
+            (100, 200),
+            (100, 1),
+            (100, 101),
+        ],
+    )
     def test_irfft(self, size, n):
         bm.use_cpu()
         s = np.random.randn(size)
@@ -65,7 +85,7 @@ class TestFFTS:
 
         self.cp.testing.assert_array_almost_equal(res_gpu, res, decimal=8)
 
-    @pytest.mark.parametrize('size', [10, 18, 100, 1000])
+    @pytest.mark.parametrize("size", [10, 18, 100, 1000])
     def test_front_back(self, size):
         bm.use_gpu()
 
@@ -74,9 +94,10 @@ class TestFFTS:
 
         self.cp.testing.assert_array_almost_equal(res, s, decimal=8)
 
-    @pytest.mark.parametrize('n_points,delta_t',
-                             [(10, 1.0), (10000, 1.0), (1000, 1.5),
-                              (1000, -0.1), (1000, -100)])
+    @pytest.mark.parametrize(
+        "n_points,delta_t",
+        [(10, 1.0), (10000, 1.0), (1000, 1.5), (1000, -0.1), (1000, -100)],
+    )
     def test_rfftfreq(self, n_points, delta_t):
         bm.use_cpu()
         res = bm.rfftfreq(n_points, delta_t)
@@ -95,21 +116,21 @@ class TestFFTS:
             _ = bm.rfftfreq(n_points, delta_t)
         except ZeroDivisionError:
             self.assertTrue(
-                True, 'This testcase should raise a ZeroDivisionError')
+                True, "This testcase should raise a ZeroDivisionError"
+            )
 
 
 class TestCupyConvolve:
-
     # Run before every test
     def setup_method(self):
         # Try to import cupy, skip if not found
-        self.cp = pytest.importorskip('cupy')
+        self.cp = pytest.importorskip("cupy")
 
     # Run after every test
     def teardown_method(self):
         bm.use_cpu()
 
-    @pytest.mark.parametrize('mode', ['full', 'same', 'valid'])
+    @pytest.mark.parametrize("mode", ["full", "same", "valid"])
     def test_convolve_1(self, mode):
         s = np.random.randn(100)
         k = np.random.randn(100)
@@ -121,7 +142,7 @@ class TestCupyConvolve:
         res_gpu = bm.convolve(s, k, mode=mode)
         self.cp.testing.assert_array_almost_equal(res_gpu, res, decimal=8)
 
-    @pytest.mark.parametrize('mode', ['full', 'same', 'valid'])
+    @pytest.mark.parametrize("mode", ["full", "same", "valid"])
     def test_convolve_2(self, mode):
         s = np.random.randn(200)
         k = np.random.randn(200)
@@ -133,7 +154,7 @@ class TestCupyConvolve:
         res_gpu = bm.convolve(s, k, mode=mode)
         self.cp.testing.assert_array_almost_equal(res_gpu, res, decimal=8)
 
-    @pytest.mark.parametrize('mode', ['full', 'same', 'valid'])
+    @pytest.mark.parametrize("mode", ["full", "same", "valid"])
     def test_convolve_3(self, mode):
         s = np.random.randn(200)
         k = np.random.randn(300)
@@ -145,7 +166,7 @@ class TestCupyConvolve:
         res_gpu = bm.convolve(s, k, mode=mode)
         self.cp.testing.assert_array_almost_equal(res_gpu, res, decimal=8)
 
-    @pytest.mark.parametrize('mode', ['full', 'same', 'valid'])
+    @pytest.mark.parametrize("mode", ["full", "same", "valid"])
     def test_convolve_4(self, mode):
         s = np.random.randn(11)
         k = np.random.randn(13)
@@ -158,6 +179,5 @@ class TestCupyConvolve:
         self.cp.testing.assert_array_almost_equal(res_gpu, res, decimal=8)
 
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     unittest.main()

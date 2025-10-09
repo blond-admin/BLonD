@@ -12,7 +12,9 @@ class TestHandleLegacyKwargs(unittest.TestCase):
         execute(1, 1)  # not crashing
         execute(1, untouched=1)  # not crashing
         execute(new=1, untouched=1)  # not crashing
-        self.assertWarns(DeprecationWarning, lambda: execute(old=1, untouched=1))
+        self.assertWarns(
+            DeprecationWarning, lambda: execute(old=1, untouched=1)
+        )
 
     def test_handle_legacy_kwargs_class(self):
         class Foo(object):
@@ -31,10 +33,14 @@ class TestHandleLegacyKwargs(unittest.TestCase):
         def execute(new):
             return new
 
-        val = execute(2, )  # not crashing
-        execute(new=1, )  # not crashing
+        val = execute(
+            2,
+        )  # not crashing
+        execute(
+            new=1,
+        )  # not crashing
         self.assertWarns(DeprecationWarning, lambda: execute(old=1))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

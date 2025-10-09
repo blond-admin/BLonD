@@ -1,7 +1,6 @@
 import unittest
 
 
-
 class TestFunctions(unittest.TestCase):
     @unittest.skip
     def test_slice_beam(self):
