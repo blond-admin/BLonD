@@ -142,7 +142,7 @@ class LHCCavityLoopCommissioning:
         self.clamping = clamping
 
     def generate_white_noise(self, n_points: int):
-        r"""Generates white noise"""
+        r"""Generates white noise."""
         rnd.seed(self.seed1)
         r1 = rnd.random_sample(n_points)
         rnd.seed(self.seed2)
@@ -359,7 +359,7 @@ class LHCCavityLoop(BirksCavityFeedback):
             self.tuner()
 
     def cavity_response(self, samples: float):
-        r"""ACS cavity reponse model"""
+        r"""ACS cavity reponse model."""
         self.V_ANT_COARSE[self.ind] = (
             self.I_GEN_COARSE[self.ind - 1] * self.R_over_Q * samples
             + self.V_ANT_COARSE[self.ind - 1]
@@ -368,7 +368,7 @@ class LHCCavityLoop(BirksCavityFeedback):
         )
 
     def cavity_response_fine_matrix(self):
-        r"""ACS cavity response model in matrix form on the fine-grid"""
+        r"""ACS cavity response model in matrix form on the fine-grid."""
         # Number of samples on fine grid
         self.samples_fine = self.omega_rf * self.profile.hist_step
 
@@ -555,7 +555,7 @@ class LHCCavityLoop(BirksCavityFeedback):
         self.omega_c = self.omega_rf + self.d_omega
 
     def tuner_input(self):
-        r"""Gathering data for the detuning algorithm"""
+        r"""Gathering data for the detuning algorithm."""
         # Calculating input signal
         self.TUNER_INPUT[self.ind] = self.I_GEN_COARSE[self.ind] * np.conj(
             self.V_ANT_COARSE[self.ind]
@@ -680,7 +680,7 @@ class LHCCavityLoop(BirksCavityFeedback):
         )
 
     def update_fb_variables(self):
-        r"""Update counter and frequency-dependent variables in a given turn"""
+        r"""Update counter and frequency-dependent variables in a given turn."""
         # Delay time
         self.n_delay = round(self.tau_loop / self.T_s)
         self.n_fir = round(0.5 * (self.fir_n_taps - 1))
@@ -813,7 +813,7 @@ class LHCCavityLoop(BirksCavityFeedback):
         Returns
         -------
         float
-            Optimum detuning (revolution) frequency in the half-detuning scheme
+            Optimum detuning (revolution) frequency in the half-detuning scheme.
         """
         return (
             -0.25 * R_over_Q * imag_peak_beam_current / voltage * rf_frequency
@@ -833,7 +833,7 @@ class LHCCavityLoop(BirksCavityFeedback):
         Returns
         -------
         float
-            Optimum detuning (revolution) frequency in the half-detuning scheme
+            Optimum detuning (revolution) frequency in the half-detuning scheme.
         """
         return 0.125 * peak_beam_current * voltage
 

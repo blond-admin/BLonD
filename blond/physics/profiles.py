@@ -295,7 +295,7 @@ class StaticProfile(ProfileBaseClass):
     def from_cutoff(
         cut_left: float, cut_right: float, cutoff_frequency: float
     ) -> StaticProfile:
-        """Initialization method from `cutoff_frequency` in Hz.
+        """Initialization method from `cutoff_frequency` in [Hz].
 
         Parameters
         ----------
@@ -322,7 +322,7 @@ class StaticProfile(ProfileBaseClass):
     def from_rad(
         cut_left_rad: float, cut_right_rad: float, n_bins: int, t_period: float
     ) -> StaticProfile:
-        """Initialization method in radian.
+        """Initialization method in [rad].
 
         Parameters
         ----------

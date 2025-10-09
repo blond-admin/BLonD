@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 def low_pass_filter(
     signal: NumpyArray, cutoff_frequency: float = 0.5
 ) -> NumpyArray:
-    """Low-pass filter based on Butterworth 5th order digital filter
+    """Low-pass filter based on Butterworth 5th order digital filter.
 
     Notes
     -----

@@ -78,7 +78,7 @@ def populate_beam(
 
 
 def _normalize_as_density(hamilton_2D: NumpyArray):
-    """Convert 2D Hamiltonian to density
+    """Convert 2D Hamiltonian to density.
 
     Parameters
     ----------
@@ -116,7 +116,7 @@ class EmpiricMatcher(MatchingRoutine):
         maxiter_hammiltonian=20,
         atol_hammiltonian=1e-4,
     ):
-        """Matching routine based on the particle movement within one turn
+        """Matching routine based on the particle movement within one turn.
 
         Notes
         -----
@@ -161,7 +161,7 @@ class EmpiricMatcher(MatchingRoutine):
         simulation: Simulation,
         beam: BeamBaseClass,
     ) -> None:
-        """Carries out the empiric matching
+        """Carries out the empiric matching.
 
         Notes
         -----

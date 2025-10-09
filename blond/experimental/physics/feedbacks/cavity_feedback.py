@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 
 class BirksCavityFeedback(LocalFeedback):
-    """Base class to design cavity feedbacks
+    """Base class to design cavity feedbacks.
 
     Parameters
     ----------
@@ -110,7 +110,7 @@ class BirksCavityFeedback(LocalFeedback):
         section_index: int = 0,
         name: str | None = None,
     ):
-        """Base class to design cavity feedbacks
+        """Base class to design cavity feedbacks.
 
         Parameters
         ----------
@@ -221,7 +221,7 @@ class BirksCavityFeedback(LocalFeedback):
         pass
 
     def update_rf_variables(self) -> None:
-        r"""Updating variables from the other BLonD classes"""
+        r"""Updating variables from the other BLonD classes."""
         # Present time step
 
         # Present RF angular frequency
@@ -279,14 +279,14 @@ class BirksCavityFeedback(LocalFeedback):
         pass
 
     def track_no_beam(self, n_pretrack: int | None = 1) -> None:
-        r"""Tracking method of the cavity feedback without beam in the accelerator"""
+        r"""Tracking method of the cavity feedback without beam in the accelerator."""
         self.update_rf_variables()
         self.update_fb_variables()
         for i in range(n_pretrack):
             self.circuit_track(no_beam=True)
 
     def track(self, beam: BeamBaseClass) -> None:
-        r"""Tracking method of the cavity feedback
+        r"""Tracking method of the cavity feedback.
 
         Parameters
         ----------

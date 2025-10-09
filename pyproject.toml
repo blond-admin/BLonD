@@ -83,7 +83,8 @@ select = [
 
 ignore = [
     "E501", #  Line too long
-     "PLR0913", # Too many arguments in function definition
+    "E501", #  Line too long
+    "PLR0913", # Too many arguments in function definition
 ]
 
 [tool.ruff.lint.pydocstyle]

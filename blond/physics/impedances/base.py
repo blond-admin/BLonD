@@ -242,7 +242,9 @@ class WakeField(ImpedanceBaseClass):
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
-        """Parameters
+        """Calculation of induced voltage from all sources.
+
+        Parameters
         ----------
         beam
             Simulation object of a particle beam
