@@ -249,17 +249,17 @@ class Simulation(Preparable, HasPropertyCache):
         and sample different positions of dt, which is the expected
         physical behaviour. The RF of successive station can thus appear
         phase shifted/distorted due to the inherent drift in between RF
-        stations=.
+        stations.
 
         Parameters
         ----------
         ts
-            Time coordinates to probe the potential, in [s]
+            Time coordinates to probe the potential, in [s].
         particle_type
             Type of particle to probe.
             The particle charge influences the phase advance per station
             and might exhibit different distortion of the potential well
-            due to the side effects described in `Notes`
+            due to the side effects described in `Notes`.
         subtract_min
             If True, will always return min(potential_well) = 0.
             If False, potential_well[0] = 0.
@@ -510,16 +510,16 @@ class Simulation(Preparable, HasPropertyCache):
         preparation_routine: BeamPreparationRoutine,
         turn_i: int = 0,
     ) -> None:
-        """Run the routine to prepare the beam
+        """Run the routine to prepare the beam.
 
         Parameters
         ----------
         beam
             Simulation beam object
         preparation_routine
-            Algorithm to prepare the beam `dt` and `dE` coorinates
+            Algorithm to prepare the beam `dt` and `dE` coordinates.
         turn_i
-            Turn to prepare the beam for
+            Turn at which to prepare the beam
 
         """
         logger.info("Running `prepare_beam`")

@@ -175,8 +175,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         animate: bool = False,
         verbose: bool = True,
     ) -> None:
-        """
-        Match distribution to ``potential_well_empiric`` with analytic drift term
+        """Match distribution to ``potential_well_empiric`` with analytic drift term
 
         Parameters
         ----------
