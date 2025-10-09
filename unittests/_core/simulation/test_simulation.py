@@ -253,7 +253,7 @@ class TestSimulation(unittest.TestCase):
                 ts, particle_type=particle_type
             )
         )
-        DEV_PLOT = True  # TODO set false
+        DEV_PLOT = False
         phi_s = np.pi
 
         potential_well_analytic = (

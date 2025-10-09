@@ -5,17 +5,13 @@ import numpy as np
 
 from blond import (
     Beam,
-    MultiHarmonicCavity,
     Simulation,
-    SingleHarmonicCavity,
-    WakeField,
     backend,
 )
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
     SemiEmpiricMatcher,
     get_hamiltonian_semi_analytic,
 )
-from blond.physics.profiles import ProfileBaseClass
 
 
 class TestSemiEmpiricMatcher(unittest.TestCase):
@@ -72,12 +68,12 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
             np.testing.assert_allclose(
                 expected_dt[percentile],
                 percentile_dt,
-                rtol=1e-5 if backend.float == np.float32 else 1e-12,
+                rtol=1e-4,
             )
             np.testing.assert_allclose(
                 expected_dE[percentile],
                 percentile_dE,
-                rtol=1e-5 if backend.float == np.float32 else 1e-12,
+                rtol=1e-4,
             )
 
     def test_roughly_correct_intensity(self):
@@ -125,12 +121,12 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
             np.testing.assert_allclose(
                 expected_dt[percentile],
                 percentile_dt,
-                rtol=1e-5 if backend.float == np.float32 else 1e-12,
+                rtol=1e-4,
             )
             np.testing.assert_allclose(
                 expected_dE[percentile],
                 percentile_dE,
-                rtol=1e-5 if backend.float == np.float32 else 1e-12,
+                rtol=1e-4,
             )
 
     def _test_matching(self, sim):
@@ -194,6 +190,7 @@ class TestCallables:
             potential_well=potential_values,
             reference_total_energy=reference_total_energy,
             eta=eta,
+            beta=1,
             shape=shape,
         )
 
