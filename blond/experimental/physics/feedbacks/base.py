@@ -1,15 +1,12 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 from blond._core.base import BeamPhysicsRelevant
 from blond._core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional
-    from typing import Optional as LateInit
-
     from blond._core.beam.base import BeamBaseClass
     from blond._core.simulation.simulation import Simulation
     from blond.physics.cavities import (
@@ -24,7 +21,7 @@ class FeedbackBaseClass(BeamPhysicsRelevant):
     def __init__(
         self,
         section_index: int = 0,
-        name: Optional[str] = None,
+        name: str | None = None,
     ):
         super().__init__(section_index=section_index, name=name)
 
@@ -34,7 +31,7 @@ class LocalFeedback(FeedbackBaseClass):
         self,
         profile: ProfileBaseClass,
         section_index: int = 0,
-        name: Optional[str] = None,
+        name: str | None = None,
     ):
         super().__init__(
             section_index=section_index,
@@ -53,7 +50,8 @@ class LocalFeedback(FeedbackBaseClass):
 
     @abstractmethod  # pragma: no cover
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop
+        """
+        Main simulation routine to be called in the mainloop
 
         Parameters
         ----------
@@ -71,14 +69,14 @@ class GlobalFeedback(FeedbackBaseClass):
         self,
         profile: ProfileBaseClass,
         section_index: int = 0,
-        name: Optional[str] = None,
+        name: str | None = None,
     ):
         super().__init__(
             section_index=section_index,
             name=name,
         )
         self.profile = profile
-        self.cavities: LateInit[List[CavityBaseClass]] = None
+        self.cavities: list[CavityBaseClass] | None = None
 
     # Use `requires` to automatically sort execution order of
     # `element.on_init_simulation` for all elements
@@ -101,9 +99,9 @@ class GroupedFeedback(FeedbackBaseClass):
     def __init__(
         self,
         profile: ProfileBaseClass,
-        cavities: List[SingleHarmonicCavity | MultiHarmonicCavity],
+        cavities: list[SingleHarmonicCavity | MultiHarmonicCavity],
         section_index: int = 0,
-        name: Optional[str] = None,
+        name: str | None = None,
     ):
         super().__init__(
             section_index=section_index,

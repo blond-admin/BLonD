@@ -241,8 +241,8 @@ class NumbaSpecials(Specials):  # pragma: no cover
         voltage: float,
         omega_rf: float,
         phi_rf: float,
-        charge: np.flaot32 | np.float64,
-        acceleration_kick: np.flaot32 | np.float64,
+        charge: np.float32 | np.float64,
+        acceleration_kick: np.float32 | np.float64,
     ) -> None:
         voltage_kick = charge * voltage
         for i in prange(len(dt)):
@@ -266,10 +266,7 @@ class NumbaSpecials(Specials):  # pragma: no cover
         beta: np.float32 | np.float64,
         energy: np.float32 | np.float64,
     ) -> None:
-        """
-        Function to apply drift equation of motion
-        """
-
+        """Function to apply drift equation of motion."""
         # solver_decoded = solver.decode(encoding='utf_8')
 
         coeff = T * eta_0 / (beta * beta * energy)
@@ -392,8 +389,8 @@ class NumbaSpecials(Specials):  # pragma: no cover
         dE: NumpyArray,
         voltage: NumpyArray,
         bin_centers: NumpyArray,
-        charge: np.flaot32 | np.float64,
-        acceleration_kick: np.flaot32 | np.float64,
+        charge: np.float32 | np.float64,
+        acceleration_kick: np.float32 | np.float64,
     ) -> None:
         dx = (bin_centers[-1] - bin_centers[0]) / (len(bin_centers) - 1)
         inv_dx = 1 / dx

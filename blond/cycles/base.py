@@ -10,7 +10,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class ProgrammedCycle(Preparable, ABC):
-    """Programmed cycle of parameters"""
+    """Programmed cycle of parameters."""
 
     def __init__(self):
         super().__init__()

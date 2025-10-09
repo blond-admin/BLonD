@@ -1,6 +1,5 @@
-"""
-This file should not have any dependency to Cupy
-to allow cupy agnostic code
+"""This file should not have any dependency to Cupy
+to allow cupy agnostic code.
 """
 
 from __future__ import annotations
@@ -13,15 +12,14 @@ from numpy import ndarray
 from ..._core.backends.backend import backend
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, Optional, Type
+    from typing import Any
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
 
 def is_cupy_array(arr: NumpyArray | CupyArray | Any) -> bool:
-    """
-    Checks if the array is a Cupy array
+    """Checks if the array is a Cupy array.
 
     Parameters
     ----------
@@ -50,14 +48,14 @@ _numpy_asarray_original = np.asarray
 
 class _AsarrayOverrideManager:
     def __init__(self) -> None:
-        """Override functionality for 'np.asarray' to handle Cupy"""
+        """Override functionality for 'np.asarray' to handle Cupy."""
         self.cache: dict[int, np.ndarray] = {}
 
     def asarray_override(
         self,
         a: NumpyArray | CupyArray,
         dtype: Any = None,
-        order: Optional[str] = None,
+        order: str | None = None,
         *args: Any,
         **kwargs: Any,
     ) -> ndarray:
@@ -104,9 +102,7 @@ class AllowPlotting:
         self.asarray_override_manager = _AsarrayOverrideManager()
 
     def __enter__(self) -> None:
-        """
-        Override np.asarray with own function to handle .get() for Cupy arrays
-        """
+        """Override np.asarray with own function to handle .get() for Cupy arrays."""
         if not backend.is_gpu:
             return
         # override numpy "asarray" function with own function
@@ -115,14 +111,11 @@ class AllowPlotting:
 
     def __exit__(
         self,
-        exc_type: Optional[Type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[Any],
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any | None,
     ):
-        """
-        Reset np.asarray to original Numpy function
-        """
-
+        """Reset np.asarray to original Numpy function."""
         if not backend.is_gpu:
             return  # do nothing
         # reset to original numpy function

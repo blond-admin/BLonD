@@ -9,7 +9,6 @@ from pathlib import Path
 _filepath = os.path.realpath(__file__)
 _basepath = os.path.dirname(_filepath)
 
-from typing import List
 
 # Name of the Python module to generate from Fortran code
 _module_name32 = "libblond32"
@@ -27,17 +26,15 @@ _fortran_files32 = [
 _fortran_files32 = [os.path.join(_basepath, f) for f in _fortran_files32]
 
 
-def compile_fortran_module(module_name: str, fortran_files: List[str]) -> bool:
-    """
-    Compile the Fortran source files into a Python module using f2py.
+def compile_fortran_module(module_name: str, fortran_files: list[str]) -> bool:
+    """Compile the Fortran source files into a Python module using f2py.
 
     Notes
     -----
     Applies high-performance compilation flags.
 
     """
-
-    print(f"\nTrying to compile Fortran backend.")
+    print("\nTrying to compile Fortran backend.")
     from numpy import f2py  # NOQA must be installed to be compiled / force exception
 
     # Optimization and parallelization flags for the Fortran compiler
@@ -114,8 +111,7 @@ def move_compiled_file_to_subfolder(module_name: str):
 
 
 def main_cli() -> None:
-    """
-    Entry point for running from the command line.
+    """Entry point for running from the command line.
     Calls the Fortran compilation function.
     """
     sucess = compile_fortran_module(_module_name32, _fortran_files32)

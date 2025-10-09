@@ -5,15 +5,14 @@ import numpy as np
 
 
 def main():  # pragma: no cover
-    dt = np.linspace(-5, 5, int(1e6))
     hist_x = np.linspace(0, 1, 1024)
     hist_y = np.random.randn(len(hist_x))
     hist_x_cp = cp.array(hist_x)
     hist_y_cp = cp.array(hist_y)
-    alpha = float(1.4)
-    omega_rf = float(1.4)
-    phi_rf = float(1.4)
-    bin_size = float(1.4)
+    alpha = 1.4
+    omega_rf = 1.4
+    phi_rf = 1.4
+    bin_size = 1.4
     from blond._core.backends.backend import Numpy64Bit, backend
 
     backend.change_backend(Numpy64Bit)
@@ -34,8 +33,8 @@ def main():  # pragma: no cover
     runtimes = {}
     for beam_phase in functions:
         runtimes[str(beam_phase)] = 0.0
-    for iter in range(10000):
-        for i, beam_phase in enumerate(functions):
+    for _ in range(10000):
+        for _, beam_phase in enumerate(functions):
             CUDA = beam_phase == CudaSpecials().beam_phase
             t0 = time.perf_counter()
             beam_phase(
@@ -53,9 +52,9 @@ def main():  # pragma: no cover
     print()
     for beam_phase in functions:
         runtimes[str(beam_phase)] = 0.0
-    for i, beam_phase in enumerate(functions):
+    for _i, beam_phase in enumerate(functions):
         CUDA = beam_phase == CudaSpecials().beam_phase
-        for iter in range(10000):
+        for _ in range(10000):
             t0 = time.perf_counter()
             beam_phase(
                 hist_x=hist_x if not CUDA else hist_x_cp,
