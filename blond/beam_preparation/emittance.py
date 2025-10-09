@@ -21,7 +21,7 @@ class EmittanceMatcher(MatchingRoutine):
         simulation: Simulation,
         beam: BeamBaseClass,
     ) -> None:
-        """Populates the `Beam` object with macro-particles
+        """Populates the `Beam` object with macro-particles.
 
         Parameters
         ----------

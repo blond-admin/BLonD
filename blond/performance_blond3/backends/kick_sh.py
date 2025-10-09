@@ -11,7 +11,6 @@ def main():  # pragma: no cover
 
     dt = backend.linspace(-5, 5, int(1e6), dtype=backend.float)
     dE = backend.zeros(len(dt), dtype=backend.float)
-    n_rf = 2
     voltage = backend.float(5)
     omega_rf = backend.float(5)
     phi_rf = backend.float(5)
@@ -37,8 +36,8 @@ def main():  # pragma: no cover
     runtimes = {}
     for kick_single_harmonic in functions:
         runtimes[str(kick_single_harmonic)] = 0.0
-    for iter in range(1000):
-        for i, kick_single_harmonic in enumerate(functions):
+    for _iter in range(1000):
+        for _i, kick_single_harmonic in enumerate(functions):
             CUDA = kick_single_harmonic == CudaSpecials().kick_single_harmonic
             t0 = time.perf_counter()
             kick_single_harmonic(
@@ -58,11 +57,11 @@ def main():  # pragma: no cover
         print(runtimes[key], key)
 
     print()
-    for i, kick_single_harmonic in enumerate(functions):
+    for _i, kick_single_harmonic in enumerate(functions):
         runtimes[str(kick_single_harmonic)] = 0.0
         CUDA = kick_single_harmonic == CudaSpecials().kick_single_harmonic
         t0 = time.perf_counter()
-        for iter in range(1000):
+        for _iter in range(1000):
             kick_single_harmonic(
                 dt=dt_cp if CUDA else dt,
                 dE=dE_cp if CUDA else dE,

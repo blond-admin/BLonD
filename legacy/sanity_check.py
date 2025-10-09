@@ -35,7 +35,7 @@ sphinx
 def get_modified_files():
     """Returns a list containing all the modified or commited files tracked by git.
 
-    Returns:
+    Returns
         list: list of file names
     """
     output = b""

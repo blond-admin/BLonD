@@ -9,17 +9,16 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
+    from collections.abc import Callable
     from types import ModuleType
-    from typing import TYPE_CHECKING, Any, Callable, Literal, Type, Union
+    from typing import TYPE_CHECKING, Any, Literal
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
 
 class Specials(ABC):
-    """
-    Abstract listing of functions that need implementation for a new backend
-    """
+    """Abstract listing of functions that need implementation for a new backend."""
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -36,8 +35,8 @@ class Specials(ABC):
         voltage: float,
         omega_rf: float,
         phi_rf: float,
-        charge: np.flaot32 | np.float64,
-        acceleration_kick: np.flaot32 | np.float64,
+        charge: np.float32 | np.float64,
+        acceleration_kick: np.float32 | np.float64,
     ) -> None:
         pass
 
@@ -103,8 +102,8 @@ class Specials(ABC):
         dE: NumpyArray,
         voltage: NumpyArray,
         bin_centers: NumpyArray,
-        charge: np.flaot32 | np.float64,
-        acceleration_kick: np.flaot32 | np.float64,
+        charge: np.float32 | np.float64,
+        acceleration_kick: np.float32 | np.float64,
     ) -> None:
         pass
 
@@ -133,15 +132,15 @@ class Specials(ABC):
 
 class BackendBaseClass(ABC):
     # type annotations for MyPy
-    float: Type[Union[np.float32, np.float64]]
-    int: Type[np.int32] | Type[np.int64]
-    complex: Type[np.complex128 | np.complex64]
+    float: type[np.float32 | np.float64]
+    int: type[np.int32] | type[np.int64]
+    complex: type[np.complex128 | np.complex64]
 
     def __init__(
         self,
-        float_: Type[Union[np.float32, np.float64]],
-        int_: Type[np.int32] | Type[np.int64],
-        complex_: Type[Union[np.complex128, np.complex64]],
+        float_: type[np.float32 | np.float64],
+        int_: type[np.int32] | type[np.int64],
+        complex_: type[np.complex128 | np.complex64],
         specials_mode: Literal[
             "python",
             "cpp",
@@ -152,8 +151,7 @@ class BackendBaseClass(ABC):
         is_gpu: bool,
         verbose: bool = False,
     ) -> None:
-        """
-        Base class for a backend.
+        """Base class for a backend.
 
         Parameters
         ----------
@@ -201,10 +199,9 @@ class BackendBaseClass(ABC):
 
     def change_backend(
         self,
-        new_backend: Type[Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit],
+        new_backend: type[Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit],
     ) -> None:
-        """
-        Changes the backend precision
+        """Changes the backend precision.
 
         Parameters
         ----------
@@ -226,8 +223,7 @@ class BackendBaseClass(ABC):
 
     @abstractmethod  # pragma: no cover
     def set_specials(self, mode: Any) -> None:
-        """
-        Set the special compiled functions
+        """Set the special compiled functions.
 
         Parameters
         ----------
@@ -239,14 +235,11 @@ class BackendBaseClass(ABC):
 
     @property
     def is_gpu(self) -> bool:
-        """
-        Whether the backend is using the GPU
-        """
+        """Whether the backend is using the GPU."""
         return self._is_gpu
 
     def apply_environment_variables(self) -> None:
-        """
-        Load the environment variables and set up the backend accordingly.
+        """Load the environment variables and set up the backend accordingly.
 
         Notes
         -----
@@ -264,8 +257,7 @@ class BackendBaseClass(ABC):
         ).lower()
         if _backend_mode_raw != "numba":
             print(
-                f"Using environment variable BLOND_BACKEND_MODE"
-                f"={_backend_mode_raw}"
+                f"Using environment variable BLOND_BACKEND_MODE={_backend_mode_raw}"
             )
         _allowed_backend_modes = (
             "python",
@@ -295,8 +287,7 @@ class BackendBaseClass(ABC):
         )
         if _backend_bits_raw != "32":
             print(
-                f"Using  environment variable BLOND_BACKEND_BITS ="
-                f" {_backend_bits_raw}"
+                f"Using  environment variable BLOND_BACKEND_BITS = {_backend_bits_raw}"
             )
         _allowed_backend_bits_flag = (
             "32",
@@ -333,10 +324,7 @@ class BackendBaseClass(ABC):
 
 
 def fresh_import(module_location: str, class_name: str) -> type:
-    """
-    To freshly do `from module_location import ClassName`
-
-
+    """To freshly do `from module_location import ClassName`.
 
     Parameters
     ----------
@@ -362,12 +350,11 @@ def fresh_import(module_location: str, class_name: str) -> type:
 class NumpyBackend(BackendBaseClass):
     def __init__(
         self,
-        float_: Type[Union[np.float32 | np.float64]],
-        int_: Type[np.int32 | np.int64],
-        complex_: Type[Union[np.complex128 | np.complex64]],
+        float_: type[np.float32 | np.float64],
+        int_: type[np.int32 | np.int64],
+        complex_: type[np.complex128 | np.complex64],
     ) -> None:
-        """
-        Base class for Numpy based backends
+        """Base class for Numpy based backends.
 
         Parameters
         ----------
@@ -408,8 +395,7 @@ class NumpyBackend(BackendBaseClass):
             "fortran",
         ],
     ) -> None:
-        """
-        Set the special compiled functions
+        """Set the special compiled functions.
 
         Parameters
         ----------
@@ -456,9 +442,7 @@ class Numpy32Bit(NumpyBackend):
     def __init__(
         self,
     ) -> None:
-        """
-        Numpy backend with 32 bit precision.
-        """
+        """Numpy backend with 32 bit precision."""
         super().__init__(
             np.float32,
             np.int32,
@@ -470,9 +454,7 @@ class Numpy64Bit(NumpyBackend):
     def __init__(
         self,
     ) -> None:
-        """
-        Numpy backend with 64 bit precision.
-        """
+        """Numpy backend with 64 bit precision."""
         super().__init__(
             np.float64,
             np.int64,
@@ -483,12 +465,11 @@ class Numpy64Bit(NumpyBackend):
 class CupyBackend(BackendBaseClass):
     def __init__(
         self,
-        float_: Type[Union[np.float32 | np.float64]],
-        int_: Type[np.int32 | np.int64],
-        complex_: Type[Union[np.complex128 | np.complex64]],
+        float_: type[np.float32 | np.float64],
+        int_: type[np.int32 | np.int64],
+        complex_: type[np.complex128 | np.complex64],
     ) -> None:
-        """
-        Base class for Cupy based backends
+        """Base class for Cupy based backends.
 
         Parameters
         ----------
@@ -527,8 +508,7 @@ class CupyBackend(BackendBaseClass):
         self._finalize()
 
     def set_specials(self, mode: Literal["cuda"]) -> None:
-        """
-        Set the special compiled functions
+        """Set the special compiled functions.
 
         Parameters
         ----------
@@ -551,9 +531,7 @@ class CupyBackend(BackendBaseClass):
 
 class Cupy32Bit(CupyBackend):
     def __init__(self) -> None:
-        """
-        Cupy backend with 64 bit precision.
-        """
+        """Cupy backend with 64 bit precision."""
         super().__init__(
             np.float32,
             np.int32,
@@ -563,9 +541,7 @@ class Cupy32Bit(CupyBackend):
 
 class Cupy64Bit(CupyBackend):
     def __init__(self) -> None:
-        """
-        Cupy backend with 32 bit precision.
-        """
+        """Cupy backend with 32 bit precision."""
         super().__init__(
             np.float64,
             np.int64,

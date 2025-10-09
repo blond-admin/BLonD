@@ -7,8 +7,6 @@ import numpy as np
 from ...beam_feedback import Blond2BeamFeedback
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional
-
     from blond._core.beam.base import BeamBaseClass
     from blond.physics.profiles import ProfileBaseClass
 
@@ -20,10 +18,10 @@ class LhcBeamFeedback(Blond2BeamFeedback):
         PL_gain: float,
         window_coefficient: float = 0.0,
         SL_gain=0.0,
-        time_offset: Optional[float] = None,
+        time_offset: float | None = None,
         delay: int = 0,
         section_index: int = 0,
-        name: Optional[str] = None,
+        name: str | None = None,
     ):
         super().__init__(
             profile=profile,
@@ -58,8 +56,7 @@ class LhcBeamFeedback(Blond2BeamFeedback):
             self.lhc_t = np.zeros(self._parent_cavity.n_turns + 1)
 
     def track(self, beam: BeamBaseClass) -> None:
-        """
-        Calculation of the LHC RF frequency correction from the phase difference
+        """Calculation of the LHC RF frequency correction from the phase difference
         between beam and RF (actual synchronous phase). The transfer function is
 
         .. math::
@@ -87,7 +84,6 @@ class LhcBeamFeedback(Blond2BeamFeedback):
         .. math::
             \\tau(f_s) \\equiv 2 \\pi Q_s \\sqrt{ \\frac{a}{1 + \\frac{g_{PL}}{g_{SL}} \\sqrt{\\frac{1 + 1/a}{1 + a}} }}
         """
-
         self.update_domega_rf(beam=beam)
 
     def update_domega_rf(self, beam: BeamBaseClass) -> None:
@@ -111,10 +107,10 @@ class LhcFBeamFeedback(Blond2BeamFeedback):
         PL_gain: float,
         FL_gain: float = 0.0,
         window_coefficient: float = 0.0,
-        time_offset: Optional[float] = None,
+        time_offset: float | None = None,
         delay: int = 0,
         section_index: int = 0,
-        name: Optional[str] = None,
+        name: str | None = None,
     ):
         super().__init__(
             profile=profile,
@@ -130,8 +126,7 @@ class LhcFBeamFeedback(Blond2BeamFeedback):
         self.gain2 = FL_gain
 
     def track(self, beam: BeamBaseClass) -> None:
-        """
-        Calculation of the LHC RF frequency correction from the phase difference
+        """Calculation of the LHC RF frequency correction from the phase difference
         between beam and RF (actual synchronous phase). The transfer function is
 
         .. math::
@@ -145,7 +140,6 @@ class LhcFBeamFeedback(Blond2BeamFeedback):
         .. math::
             \\Delta \\omega_{rf}^{FL} = - g_{FL} (\\omega_{rf} - h \\omega_{0})
         """
-
         self.update_domega_rf(beam=beam)
 
     def update_domega_rf(self, beam: BeamBaseClass) -> None:
