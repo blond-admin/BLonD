@@ -237,7 +237,23 @@ class BeamPhysicsRelevant(MainLoopRelevant):
         pass
 
     def info_string(self, prefix="") -> str:
-        from .ring.beam_physics_relevant_elements import pretty_string
+        """
+        Prints the state of the object
+
+        Parameters
+        ----------
+        prefix
+            Add this to the start of the line
+
+        Returns
+        -------
+        info_string
+            The state of the object
+
+        """
+        from .ring.beam_physics_relevant_elements import (
+            pretty_string,  # prevent circular import
+        )
 
         filtered_dict = {
             k: pretty_string(v)

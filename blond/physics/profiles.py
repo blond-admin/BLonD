@@ -26,6 +26,26 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class ProfileBaseClass(BeamPhysicsRelevant):
+    """
+    Base class to implement calculation of beam profiles
+
+
+    Parameters
+    ----------
+    section_index
+        Section index to group elements into sections
+    name
+        User given name of the element
+
+    Attributes
+    ----------
+    hist_y_to_density_factor
+        This factor is used to reproduce the behaviour
+        of np.hist(..., density=True).
+        Intended use: ``density = hist_y * hist_y_to_density_factor``
+
+    """
+
     def __init__(
         self, section_index: int = 0, name: Optional[str] = None
     ) -> None:
@@ -47,7 +67,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         )
         self._hist_x: LateInit[NumpyArray | CupyArray] = None
         self._hist_y: LateInit[NumpyArray | CupyArray] = None
-        self.histy_to_density_factor: LateInit[float] = None
+        self.hist_y_to_density_factor: LateInit[float] = None
 
         self._beam_spectrum_buffer: Dict[int, NumpyArray] = {}
 
@@ -178,7 +198,9 @@ class ProfileBaseClass(BeamPhysicsRelevant):
                 start=self.cut_left,
                 stop=self.cut_right,
             )
-            self.histy_to_density_factor = 1.0 / beam.common_array_size
+            # this factor is used to reproduce the behaviour
+            # of np.hist(..., density=True)
+            self.hist_y_to_density_factor = 1.0 / beam.common_array_size
         self.invalidate_cache()
 
     @staticmethod

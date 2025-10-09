@@ -15,7 +15,7 @@ class IntensityEffectManager:
 
     def has_wakefields(self):
         """
-        Checks if there are any WakeFields in the Simulation
+        Checks if there are any `WakeField` instances in the `Simulation`.
 
         Returns
         -------
@@ -56,7 +56,8 @@ class IntensityEffectManager:
         )
         for profile in profiles:
             profile.active = active
-
+        # Deactivate the `Profiles` of the WakeFields.
+        # The frozen wakefields can still affect the beam.
         wakefields = self._parent_simulation.ring.elements.get_elements(
             WakeField
         )

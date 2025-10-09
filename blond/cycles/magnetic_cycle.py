@@ -180,7 +180,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         Parameters
         ----------
         circumference
-                Constant synchrotron reference circumference, in [m].
+            Constant synchrotron reference circumference, in [m].
         turn_i_init
             Initial turn to start simulation.
         t_init

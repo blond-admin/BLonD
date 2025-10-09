@@ -164,7 +164,7 @@ class TestInductiveImpedanceSolver(unittest.TestCase):
         self.inductive_impedance_solver._Z_over_n = 12
         _parent_wakefield = Mock(WakeField)
         static_profile = StaticProfile(-5, 5, n_bins=128)
-        static_profile.histy_to_density_factor = beam.ratio
+        static_profile.hist_y_to_density_factor = beam.ratio
         static_profile._hist_y = hist_y
         _parent_wakefield.profile = static_profile
         self.inductive_impedance_solver._parent_wakefield = _parent_wakefield
@@ -214,7 +214,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         )
         self.periodic_freq_solver._parent_wakefield.profile.hist_step = 1
         self.periodic_freq_solver._parent_wakefield.profile.n_bins = int(8)
-        self.periodic_freq_solver._parent_wakefield.profile.histy_to_density_factor = beam.ratio
+        self.periodic_freq_solver._parent_wakefield.profile.hist_y_to_density_factor = beam.ratio
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp

@@ -10,7 +10,7 @@ from blond import (
 )
 from blond.experimental.beam_preparation.semi_empiric_matcher import (
     SemiEmpiricMatcher,
-    get_hamiltonian_semi_analytic,
+    get_hamilton_semi_analytic,
 )
 
 
@@ -187,7 +187,7 @@ class TestCallables:
         reference_total_energy = 1.0  # Placeholder
 
         # Call the function
-        deltaE_grid, time_grid, hamilton_2D = get_hamiltonian_semi_analytic(
+        deltaE_grid, time_grid, hamilton_2D = get_hamilton_semi_analytic(
             ts=ts,
             potential_well=potential_values,
             reference_total_energy=reference_total_energy,

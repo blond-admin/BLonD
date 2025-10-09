@@ -226,7 +226,7 @@ class WakeField(ImpedanceBaseClass):
         self._induced_voltage = None
 
     def info_string(self) -> str:
-        # inform that the profile is also executed within the track method
+        """Inform that the profile is also executed within the track method"""
         content = f"{self.profile.info_string(prefix=' ↓ ')}\n{super().info_string()}"
         return content
 

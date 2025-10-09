@@ -22,12 +22,11 @@ def generate_particle_coordinates(
     n_macroparticles: int,
     seed: Optional[int],
 ) -> Tuple[NumpyArray | CupyArray, NumpyArray | CupyArray]:
-    """
-    Fill bunch with macroparticles according to `density_distribution`
+    """Fill bunch with macroparticles according to `density_distribution`
 
     Notes
     -----
-    The beam coordinate `dt and` `dE` will be overwritten.
+    The beam coordinate `dt` and `dE` will be overwritten.
 
     Parameters
     ----------
@@ -95,7 +94,7 @@ def populate_beam(
 
     Notes
     -----
-    The beam coordinate `dt and` `dE` will be overwritten.
+    The beam coordinate `dt` and `dE` will be overwritten.
 
     Parameters
     ----------
@@ -132,12 +131,11 @@ def repopulate_beam(
     n_macroparticles_overwrite: int,
     seed: int,
 ) -> None:
-    """
-    Partially overwrite bunch with macroparticles according to `density_distribution`
+    """Partially overwrite bunch with macroparticles according to `density_distribution`
 
     Notes
     -----
-    The beam coordinate `dt and` `dE` will be overwritten.
+    The beam coordinate `dt` and `dE` will be overwritten.
 
     Parameters
     ----------
@@ -155,7 +153,9 @@ def repopulate_beam(
         Random seed, to make function with same seed
         always return the same value
     """
-    assert n_macroparticles_overwrite <= (beam._dE)
+    assert n_macroparticles_overwrite <= (beam._dE), (
+        "Number of particles to be overwritten is larger than number of macroparticles."
+    )
     dt, dE = generate_particle_coordinates(
         time_grid=time_grid,
         deltaE_grid=deltaE_grid,

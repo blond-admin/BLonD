@@ -85,7 +85,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
             / (2 * np.pi)
             * (
                 beam.intensity  # this used to be ratio
-                * self._parent_wakefield.profile.histy_to_density_factor
+                * self._parent_wakefield.profile.hist_y_to_density_factor
             )
             * (self._simulation.ring.circumference / beam.reference_velocity)
             / self._parent_wakefield.profile.hist_step
@@ -334,7 +334,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
             # TODO this might be a problem with MPI
             (
                 beam.intensity  # this used to be ratio
-                * self._parent_wakefield.profile.histy_to_density_factor
+                * self._parent_wakefield.profile.hist_y_to_density_factor
             )
         )
 
@@ -525,7 +525,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
             # TODO this might be a problem with MPI
             (
                 beam.intensity  # this used to be ratio
-                * self._parent_wakefield.profile.histy_to_density_factor
+                * self._parent_wakefield.profile.hist_y_to_density_factor
             )
         )
         # Calculate the convolution of the wake and the beam

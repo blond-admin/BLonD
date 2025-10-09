@@ -169,7 +169,7 @@ class Simulation(Preparable, HasPropertyCache):
         **kwargs_plot,
     ) -> None:
         """
-        Plot the potential well by tracking a beam one turn
+        Plot the potential well by tracking a beam one turn.
 
         Notes
         -----
@@ -211,7 +211,7 @@ class Simulation(Preparable, HasPropertyCache):
         intensity: int = 0,
     ) -> NumpyArray:
         """
-        Obtain the potential well by tracking a beam one turn
+        Obtain the potential well by tracking a beam one turn.
 
         Notes
         -----
@@ -271,7 +271,7 @@ class Simulation(Preparable, HasPropertyCache):
         intensity: int = 0,
     ) -> Tuple[NumpyArray, float, float]:
         """
-        Obtain the potential well by tracking a beam one turn
+        Obtain the potential well by tracking a beam for one turn.
 
         Notes
         -----
