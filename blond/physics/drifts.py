@@ -172,7 +172,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         section_index
             Section index to group elements into sections
 
-        Returns:
+        Returns
         -------
         drift_simple
         """

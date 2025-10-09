@@ -159,7 +159,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         beam
             Beam class to interact with this element
 
-        Returns:
+        Returns
         -------
         phi_s
             Synchronous phase for the current RF parameters, in [rad]
@@ -303,7 +303,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         closed_orbit_length
             Length of the closed orbit, in [m]
 
-        Returns:
+        Returns
         -------
         omega
             Angular frequency (2 PI f) of cavity, in [rad/s]
@@ -323,7 +323,7 @@ class SingleHarmonicCavity(CavityBaseClass):
     cavity_feedback
         Optional cavity feedback to change cavity parameters
 
-    Attributes:
+    Attributes
     ----------
     voltage
         Cavity's effective voltage, in [V]
@@ -462,7 +462,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         ring_circumference
             Reference synchrotron circumference, in [m].
 
-        Returns:
+        Returns
         -------
         omega
             Angular frequency (2 PI f) of cavity, in [rad/s]
@@ -483,7 +483,7 @@ class SingleHarmonicCavity(CavityBaseClass):
             Time array, in [s]
             to calculate voltage
 
-        Returns:
+        Returns
         -------
         voltages
             Cavity voltage in [V] at time `ts`
@@ -525,7 +525,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         cavity_feedback
             Optional cavity feedback to change cavity parameters
 
-        Returns:
+        Returns
         -------
         single_harmonic_cavity
         """
@@ -583,7 +583,7 @@ class MultiHarmonicCavity(CavityBaseClass):
     cavity_feedback
         Optional cavity feedback to change cavity parameters
 
-    Attributes:
+    Attributes
     ----------
     voltage
         Cavity's effective voltages (per harmonic) in [V]
@@ -682,7 +682,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         ring_circumference
             Reference synchrotron circumference, in [m].
 
-        Returns:
+        Returns
         -------
         omega
             Angular frequency (2 PI f) of cavity in [rad/s]
@@ -773,7 +773,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         cavity_feedback
             Optional cavity feedback to change cavity parameters
 
-        Returns:
+        Returns
         -------
         multi_harmonic_cavity
         """

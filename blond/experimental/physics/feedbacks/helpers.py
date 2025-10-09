@@ -26,7 +26,7 @@ def low_pass_filter(
 ) -> NumpyArray:
     """Low-pass filter based on Butterworth 5th order digital filter
 
-    Notes:
+    Notes
     -----
     See `scipy`, https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html
 
@@ -38,7 +38,7 @@ def low_pass_filter(
         Cutoff frequency [1] corresponding to a 3 dB gain drop, relative to the
         Nyquist frequency of 1; default is 0.5
 
-    Returns:
+    Returns
     -------
     float array
         Low-pass filtered signal
@@ -112,7 +112,7 @@ def rf_beam_current(
     dT : float
         The shift in time due to shifting reference frames
 
-    Returns:
+    Returns
     -------
     complex array
         RF beam charge array [C] at 'frequency' omega_c, with the sampling time
@@ -197,7 +197,7 @@ def cartesian_to_polar(
     IQ_vector : complex array
         Signal with in-phase and quadrature (I,Q) components
 
-    Returns:
+    Returns
     -------
     amplitude
         Amplitude of signal
@@ -221,7 +221,7 @@ def polar_to_cartesian(
     phase
         Phase of signal, in [rad]
 
-    Returns:
+    Returns
     -------
     complex array
         Signal with in-phase and quadrature (I,Q) components

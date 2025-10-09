@@ -20,7 +20,7 @@ def hash_files(file_paths: list[str]) -> str:
     file_paths
         A list of file paths to include in the hash.
 
-    Returns:
+    Returns
     -------
     hash_
         The resulting SHA-256 hexadecimal digest.
@@ -42,7 +42,7 @@ def hash_files(file_paths: list[str]) -> str:
 
 def hash_in_folder(
     folder: str | Path,
-    extensions: set[str],
+    extensions: tuple[str],
     recursive: bool = True,
 ):
     """Load file contents of all files in folder and generate hash from it.
@@ -52,11 +52,11 @@ def hash_in_folder(
     folder
         The path to the folder to search.
     extensions
-        A set of file extensions to match (e.g., {'.txt', '.md'}).
+        File extensions to match (e.g., {'.txt', '.md'}).
     recursive
         Whether to search subdirectories recursively. Defaults to True.
 
-    Returns:
+    Returns
     -------
     hash_
         The resulting SHA-256 hexadecimal digest.

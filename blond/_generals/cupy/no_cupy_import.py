@@ -26,7 +26,7 @@ def is_cupy_array(arr: NumpyArray | CupyArray | Any) -> bool:
     arr
         A Numpy or Cupy array
 
-    Returns:
+    Returns
     -------
     True, if it's an GPU array
 
@@ -83,12 +83,12 @@ class AllowPlotting:
     def __init__(self) -> None:
         """Allows implicitly casting of Cupy arrays to Numpy arrays .
 
-        Notes:
+        Notes
         -----
         This is only intended for plotting of arrays.
         The function temporarily overrides the numpy.asarray function.
 
-        Examples:
+        Examples
         --------
         >>> y = cupy.ones(12)
         >>> with AllowPlotting():

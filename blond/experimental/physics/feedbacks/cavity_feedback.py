@@ -265,7 +265,7 @@ class BirksCavityFeedback(LocalFeedback):
     def circuit_track(self, no_beam: bool = False) -> None:
         r"""Method to track circuit of the feedback.
 
-        Notes:
+        Notes
         -----
         This is meant to be implemented in the child class by the user.
         The only requirement for this method is that it has to update the

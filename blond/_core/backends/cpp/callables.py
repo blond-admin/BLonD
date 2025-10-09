@@ -79,7 +79,8 @@ class c_complex128(ct.Structure):
     def to_complex(self) -> complex:
         """Convert to Python complex.
 
-        Returns:
+        Returns
+        -------
             _type_: _description_
         """
         return self.real + 1.0j * self.imag  # type: ignore
@@ -103,7 +104,8 @@ class c_complex64(ct.Structure):
     def to_complex(self) -> complex:
         """Convert to Python complex.
 
-        Returns:
+        Returns
+        -------
             _type_: _description_
         """
         return self.real + 1.0j * self.imag

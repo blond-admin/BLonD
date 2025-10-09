@@ -63,7 +63,7 @@ def cavity_response_sparse_matrix(
     detuning : float
         The detuning of the cavity in frequency divided by the rf frequency
 
-    Returns:
+    Returns
     -------
     complex array
         The antenna voltage evaluated for the same period as I_beam and I_gen of length n_samples + 1
@@ -116,7 +116,7 @@ def rectangle(t: NumpyArray, tau: float) -> NumpyArray:
     tau : float
         Time window of rectangular function
 
-    Returns:
+    Returns
     -------
     float array
         Rectangular function for given time array
@@ -166,7 +166,7 @@ def triangle(t: NumpyArray, tau: float) -> NumpyArray:
     tau : float
         Time window of rectangular function
 
-    Returns:
+    Returns
     -------
     float array
         Triangular function for given time array

@@ -9,7 +9,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 def get_files_with_extensions(
     folder: str | Path,
-    extensions: set[str],
+    extensions: tuple[str],
     recursive: bool = True,
 ) -> list[Path]:
     """Retrieves all files in a folder that match a set of file extensions.
@@ -19,11 +19,11 @@ def get_files_with_extensions(
     folder
         The path to the folder to search.
     extensions
-        A set of file extensions to match (e.g., {'.txt', '.md'}).
+        File extensions to match (e.g., {'.txt', '.md'}).
     recursive
         Whether to search subdirectories recursively. Defaults to True.
 
-    Returns:
+    Returns
     -------
     files
         A list of Path objects for files that match the given extensions.

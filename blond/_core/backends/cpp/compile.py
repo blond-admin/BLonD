@@ -86,12 +86,12 @@ def compile_cpp_library(
     libname : str
         Path and name of the output library (without file extension).
 
-    Returns:
+    Returns
     -------
     None
         The function performs compilation and does not return any value.
 
-    Notes:
+    Notes
     -----
     This function assumes the presence of a Makefile or equivalent build system
     capable of processing the supplied options.
@@ -407,8 +407,7 @@ def main_cli() -> None:
         "--compiler",
         type=str,
         default="g++",
-        help="C++ compiler that will be used to compile the"
-        " source files. Default: g++",
+        help="C++ compiler that will be used to compile the source files. Default: g++",
     )
 
     parser.add_argument(

@@ -57,7 +57,7 @@ class TimeDomain(ABC):
         beam
             Simulation beam object
 
-        Returns:
+        Returns
         -------
         wake_impedance
 
@@ -84,7 +84,7 @@ class FreqDomain(ABC):
         beam
             Simulation beam object
 
-        Returns:
+        Returns
         -------
         impedance
             Complex impedance array.
@@ -182,7 +182,7 @@ class WakeField(ImpedanceBaseClass):
     profile
         Object for calculation of beam profiles
 
-    Attributes:
+    Attributes
     ----------
     sources
         List of sources that cause wake-fields
@@ -247,7 +247,7 @@ class WakeField(ImpedanceBaseClass):
         beam
             Simulation object of a particle beam
 
-        Returns:
+        Returns
         -------
         induced_voltage
         """

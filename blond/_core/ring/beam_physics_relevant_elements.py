@@ -110,7 +110,7 @@ class BeamPhysicsRelevantElements(Preparable):
     def get_sections_orbit_length(self) -> NumpyArray:
         """Get `share_of_circumference` per section.
 
-        Notes:
+        Notes
         -----
         This is different from per-drift listing
         """
@@ -140,7 +140,7 @@ class BeamPhysicsRelevantElements(Preparable):
             relevant to beam physics. Must have a valid  `section_index`
             attribute of type `int`.
 
-        Raises:
+        Raises
         ------
         AssertionError
             If `element.section_index` is not an integer.
@@ -178,8 +178,8 @@ class BeamPhysicsRelevantElements(Preparable):
         insert_at
             Single location index.
 
-        Raises:
-        -------
+        Raises
+        ------
         AssertionError
             If 'element.section_index' is inconsistent with the section of
             insertion.
@@ -229,7 +229,7 @@ class BeamPhysicsRelevantElements(Preparable):
         insert_at:
             Location of the element to be inserted.
 
-        Raises:
+        Raises
         ------
         AssertionError
             If `element.section_index` is not an integer.
@@ -281,7 +281,7 @@ class BeamPhysicsRelevantElements(Preparable):
         `section_i` is provided, only elements in that section are
         considered.
 
-        Notes:
+        Notes
         -----
         An assertion error is raised if the number of matching
         elements is not exactly one.
@@ -293,12 +293,12 @@ class BeamPhysicsRelevantElements(Preparable):
         section_i
             Optional section index to restrict the search to a specific section.
 
-        Returns:
+        Returns
         -------
         signle_element
             The single element of the specified type (and section, if provided).
 
-        Raises:
+        Raises
         ------
         AssertionError
             If the number of matching elements is not exactly one.
@@ -396,7 +396,7 @@ class BeamPhysicsRelevantElements(Preparable):
     def get_order_info(self) -> str:
         """Generate execution order string.
 
-        Notes:
+        Notes
         -----
         Intended for logging and printing
         """

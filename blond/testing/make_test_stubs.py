@@ -36,6 +36,7 @@ def get_function_end_lineno(node):
 
 
 def extract_untested_functions(cov_data):
+    """Get all functions that are untested."""
     untested = {}
     files = cov_data.get("files", {})
 

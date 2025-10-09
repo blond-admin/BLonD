@@ -132,7 +132,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         particle_type
             Type of particles, e.g. protons
 
-        Returns:
+        Returns
         -------
 
         """
@@ -278,7 +278,7 @@ class ConstantMagneticCycle(MagneticCycleBase):
         particle_type
             Type of particles, e.g. protons
 
-        Returns:
+        Returns
         -------
 
         """
@@ -317,7 +317,7 @@ class ConstantMagneticCycle(MagneticCycleBase):
         bending_radius
             Bending radius, in [m]
 
-        Returns:
+        Returns
         -------
         constant_magnetic_cycle
 
@@ -464,7 +464,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         particle_type
             Type of particles, e.g. protons
 
-        Returns:
+        Returns
         -------
 
         """
@@ -508,7 +508,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         bending_radius
             Bending radius, in [m]
 
-        Returns:
+        Returns
         -------
         magnetic_cycle_per_turn
 
@@ -653,7 +653,7 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
         particle_type
             Type of particles, e.g. protons
 
-        Returns:
+        Returns
         -------
 
         """
@@ -697,7 +697,7 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
         bending_radius
             Bending radius, in [m]
 
-        Returns:
+        Returns
         -------
 
         """
@@ -821,7 +821,7 @@ class MagneticCycleByTime(MagneticCycleBase):
         particle_type
             Type of particles, e.g. protons
 
-        Returns:
+        Returns
         -------
 
         """
@@ -869,7 +869,7 @@ class MagneticCycleByTime(MagneticCycleBase):
             Interpolation routine to get time in between the base values
             Default: `numpy.interp`
 
-        Returns:
+        Returns
         -------
         Magnetic_cycle_by_time
         """
@@ -930,7 +930,7 @@ def _to_magnetic_rigidity(
     bending_radius
         Bending radius in [m] in case `convert_from` is 'bending field'
 
-    Returns:
+    Returns
     -------
     momentum : float array
         The data in units of momentum [eV/c]

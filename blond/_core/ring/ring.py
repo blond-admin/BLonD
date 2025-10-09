@@ -99,7 +99,7 @@ class Ring(Preparable, Schedulable):
     def circumference(self) -> float:
         """Constant synchrotron reference circumference, in [m].
 
-        Notes:
+        Notes
         -----
         The orbit length might change during simulation,
         but the circumference is used to determine the RF frequency.
@@ -158,7 +158,7 @@ class Ring(Preparable, Schedulable):
         atol
             The tolerance of the check, in [m]
 
-        Raises:
+        Raises
         ------
         AssertionError
             If circumference != circumference
@@ -238,7 +238,7 @@ class Ring(Preparable, Schedulable):
             Add element to section
             (overwrites section index of element)
 
-        Raises:
+        Raises
         ------
         AssertionError
             If `element.section_index` is not an integer.
@@ -278,7 +278,7 @@ class Ring(Preparable, Schedulable):
             Add elements to section
             (overwrites section index of elements)
 
-        Raises:
+        Raises
         ------
         AssertionError
             If `element.section_index` is not an integer.
@@ -322,12 +322,12 @@ class Ring(Preparable, Schedulable):
         allow_section_index_overwrite
             Automatic handling of section indexes.
 
-        Returns:
-        ------
+        Returns
+        -------
         locations_in_the_new_ring
             Location(s) of the inserted element in the new ring
 
-        Raises:
+        Raises
         ------
         AssertionError
             If ``element.section_index`` is not an integer.
@@ -394,7 +394,7 @@ class Ring(Preparable, Schedulable):
         allow_section_index_overwrite
             Automatic handling of section indexes.
 
-        Raises:
+        Raises
         ------
         AssertionError
             If `element.section_index` is not an integer.

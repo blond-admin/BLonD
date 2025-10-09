@@ -59,7 +59,7 @@ class Preparable(ABC):
 class MainLoopRelevant(Preparable):
     """Base class for objects that are relevant for the simulation main loop.
 
-    Attributes:
+    Attributes
     ----------
     each_turn_i
         Value to control that the element is
@@ -75,7 +75,13 @@ class MainLoopRelevant(Preparable):
         self.active = True
 
     def is_active_this_turn(self, turn_i: int) -> bool:
-        """Whether the element is active or not."""
+        """Whether the element is active or not.
+
+        Parameters
+        ----------
+        turn_i
+            Current index of turn
+        """
         if self.active:
             return turn_i % self.each_turn_i == 0
         else:
@@ -85,7 +91,7 @@ class MainLoopRelevant(Preparable):
 class Schedulable:
     """Base class for objects with schedule parameters.
 
-    Attributes:
+    Attributes
     ----------
     schedules
         Dictionary to update a certain attribute by some value
@@ -105,7 +111,7 @@ class Schedulable:
     ) -> None:
         """Schedule a parameter to be changed during simulation.
 
-        Notes:
+        Notes
         -----
         Can be constant, per turn or interpolated in time
 
@@ -137,7 +143,7 @@ class Schedulable:
     ) -> None:
         """Schedule a parameter to be changed during simulation.
 
-        Notes:
+        Notes
         -----
         Can be constant, per turn or interpolated in time
 
@@ -194,7 +200,7 @@ class BeamPhysicsRelevant(MainLoopRelevant):
     name
         User given name of the element
 
-    Attributes:
+    Attributes
     ----------
     name
         User given name of the element

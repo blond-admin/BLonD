@@ -71,7 +71,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         beam
             Simulation object of a particle beam
 
-        Returns:
+        Returns
         -------
         induced_voltage
             Induced voltage, in [V]
@@ -90,7 +90,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
 class PeriodicFreqSolver(WakeFieldSolver):
     """General wakefield solver to calculate wake-fields via frequency domain.
 
-    Notes:
+    Notes
     -----
     This solver is intended for the case, that the
     length of the beam profile is in the order of time as one revolution
@@ -105,7 +105,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         Allow to slightly change `t_periodicity` for
         faster execution of fft via `scipy.fft.next_fast_len`
 
-    Attributes:
+    Attributes
     ----------
     allow_next_fast_len
         Allow to slightly change `t_periodicity` for
@@ -304,7 +304,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         beam
             Simulation object of a particle beam
 
-        Returns:
+        Returns
         -------
         induced_voltage
             Induced voltage, in [V]
@@ -370,7 +370,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
     def __init__(self):
         """Solver to calculate induced voltage using fftconvolve(wake,profile).
 
-        Notes:
+        Notes
         -----
         This method is intended for beam profiles that are only a fraction of
         the synchrotron revolution time (short profiles).
@@ -495,7 +495,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
         beam
             Simulation object of a particle beam
 
-        Returns:
+        Returns
         -------
         induced_voltage
             Induced voltage, in [V]

@@ -26,6 +26,7 @@ def is_in_separatrix(
     r"""Function checking whether coordinate `dt` & `dE` are inside the separatrix.
 
     Uses the single-RF sinusoidal Hamiltonian.
+
     Parameters
     ----------
     charge
@@ -53,7 +54,7 @@ def is_in_separatrix(
     dE
         Macro-particle energy coordinates, in [eV]
 
-    Returns:
+    Returns
     -------
 
     """
@@ -101,7 +102,7 @@ def phase_modulo_above_transition(phi: NumpyArray) -> NumpyArray:
     phi
         Phase, in [rad]
 
-    Returns:
+    Returns
     -------
     phi_corrected
          Phase array into the range -Pi/2 to +3*Pi/2.
@@ -118,7 +119,7 @@ def phase_modulo_below_transition(phi: NumpyArray) -> NumpyArray:
     phi
         Phase, in [rad]
 
-    Returns:
+    Returns
     -------
     phi_corrected
          Phase array into the range -Pi/2 to +3*Pi/2.
@@ -170,7 +171,7 @@ def single_rf_sin_hamiltonian(
     dE
         Macro-particle energy coordinates, in [eV]
 
-    Returns:
+    Returns
     -------
     hamiltonians
         Hamiltonian values at dt and dE

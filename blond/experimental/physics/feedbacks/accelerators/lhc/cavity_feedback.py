@@ -709,7 +709,7 @@ class LHCCavityLoop(BirksCavityFeedback):
         point from white noise. V_EXC_IN and V_EXC_OUT can be used to measure
         the transfer function of the system at set point.
 
-        Notes:
+        Notes
         -----
         V_EXC_IN : complex array
             Noise being played in set point; n_coarse * n_turns elements
@@ -744,7 +744,7 @@ class LHCCavityLoop(BirksCavityFeedback):
         point from white noise. V_EXC_IN and V_EXC_OUT can be used to measure
         the transfer function of the system at otfb.
 
-        Notes:
+        Notes
         -----
         V_EXC_IN : complex array
             Noise being played in set point; n_coarse * n_turns elements
@@ -810,7 +810,7 @@ class LHCCavityLoop(BirksCavityFeedback):
         voltage : float
             RF voltage amplitude in the cavity
 
-        Returns:
+        Returns
         -------
         float
             Optimum detuning (revolution) frequency in the half-detuning scheme
@@ -830,7 +830,7 @@ class LHCCavityLoop(BirksCavityFeedback):
         voltage : float
             Cavity voltage
 
-        Returns:
+        Returns
         -------
         float
             Optimum detuning (revolution) frequency in the half-detuning scheme
@@ -848,7 +848,7 @@ class LHCCavityLoop(BirksCavityFeedback):
         rf_frequency : float
             RF frequency
 
-        Returns:
+        Returns
         -------
         float
             Optimum loaded Q
@@ -868,7 +868,7 @@ class LHCCavityLoop(BirksCavityFeedback):
         voltage : float
             Cavity voltage
 
-        Returns:
+        Returns
         -------
         float
             Optimum loaded Q

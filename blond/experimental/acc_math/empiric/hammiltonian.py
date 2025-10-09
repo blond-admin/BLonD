@@ -47,7 +47,7 @@ def calc_hamiltonian(
     maxiter
         Maximum number of refinement passes to reach atol
 
-    Returns:
+    Returns
     -------
     hamilton_2D
         2D Hamiltonian

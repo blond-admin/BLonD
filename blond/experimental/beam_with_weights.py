@@ -27,7 +27,8 @@ class WeightenedBeam(Beam):
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
     ) -> None:
-        """Sets beam array attributes for simulation
+        """
+        Sets beam array attributes for simulation
 
         Parameters
         ----------

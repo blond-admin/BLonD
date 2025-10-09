@@ -118,7 +118,7 @@ class Observables(MainLoopRelevant):
     def rename(self, common_name: str) -> None:
         """Change the common save name of all internal arrays.
 
-        Notes:
+        Notes
         -----
         This has no effect on files that are already saved to the disk.
 
@@ -543,7 +543,7 @@ class WakeFieldObservation(Observables):
     def induced_voltage(self):
         """Induced voltage, in [V] from given beam profile and sources.
 
-        Returns:
+        Returns
         -------
         induced_voltage
 

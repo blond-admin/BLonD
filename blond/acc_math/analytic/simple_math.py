@@ -20,7 +20,7 @@ def calc_beta(mass: float, momentum: T) -> T:
     momentum : float or NDArray
         Particle momentum, in [eV/c]
 
-    Returns:
+    Returns
     -------
     beta : float or NDArray
         Relativistic beta factor (unitless), such that v = beta * c
@@ -38,7 +38,7 @@ def calc_gamma(mass: float, momentum: T) -> T:
     momentum : float or NDArray
         Particle momentum, in [eV/c]
 
-    Returns:
+    Returns
     -------
     gamma : float or NDArray
         Lorentz factor (unitless)
@@ -57,7 +57,7 @@ def calc_total_energy(mass: float, momentum: T) -> T:
     momentum : float or NDArray
         Particle momentum, in [eV/c]
 
-    Returns:
+    Returns
     -------
     energy : float or NDArray
         Total relativistic energy, in [eV]
@@ -75,7 +75,7 @@ def calc_energy_kin(mass: float, momentum: T) -> T:
     momentum : float or NDArray
         Particle momentum, in [eV/c]
 
-    Returns:
+    Returns
     -------
     kinetic_energy : float or NDArray
         Kinetic energy, in [eV], defined as total energy - rest energy

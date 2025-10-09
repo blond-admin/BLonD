@@ -47,7 +47,7 @@ def get_elements(elements: Iterable, _class: type[T]) -> tuple[T, ...]:
     _class
         Return only elements that are instance of this class
 
-    Returns:
+    Returns
     -------
     filtered_elements
         List of filtered elements that match _class
@@ -61,7 +61,7 @@ def get_init_order(
 ) -> list[Any]:
     """Get order to be initialized elements.
 
-    Notes:
+    Notes
     -----
     To be used in combination with `@requires(["ClassName1", "ClassName2"])`
 
@@ -73,7 +73,7 @@ def get_init_order(
         Attribute that is used for sorting
         e.g. "on_init_simulation.requires"
 
-    Returns:
+    Returns
     -------
     sorted_classes_filtered
         Sorted `instances`
@@ -144,7 +144,7 @@ def get_dependencies(cls_: type, dependency_attribute: str) -> list:
         e.g. "on_init_simulation.requires"
 
 
-    Returns:
+    Returns
     -------
     # TODO
     """

@@ -12,22 +12,22 @@ def all_equal(iterable: Iterable[T]) -> bool:
     iterable : Iterable[T]
         An iterable containing elements to be compared.
 
-    Returns:
+    Returns
     -------
-    bool
+    all_equal
         True if all elements are equal or the iterable is empty,
         False otherwise.
 
-    Examples:
+    Examples
     --------
     >>> all_equal([1, 1, 1])
-    True
+    >>> True
 
     >>> all_equal([1, 2, 1])
-    False
+    >>> False
 
     >>> all_equal([])
-    True
+    >>> True
     """
     iterator = iter(iterable)
     try:

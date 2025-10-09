@@ -241,7 +241,7 @@ class BackendBaseClass(ABC):
     def apply_environment_variables(self) -> None:
         """Load the environment variables and set up the backend accordingly.
 
-        Notes:
+        Notes
         -----
         Following environment variables can be set:
 
@@ -257,8 +257,7 @@ class BackendBaseClass(ABC):
         ).lower()
         if _backend_mode_raw != "numba":
             print(
-                f"Using environment variable BLOND_BACKEND_MODE"
-                f"={_backend_mode_raw}"
+                f"Using environment variable BLOND_BACKEND_MODE={_backend_mode_raw}"
             )
         _allowed_backend_modes = (
             "python",
@@ -288,8 +287,7 @@ class BackendBaseClass(ABC):
         )
         if _backend_bits_raw != "32":
             print(
-                f"Using  environment variable BLOND_BACKEND_BITS ="
-                f" {_backend_bits_raw}"
+                f"Using  environment variable BLOND_BACKEND_BITS = {_backend_bits_raw}"
             )
         _allowed_backend_bits_flag = (
             "32",
@@ -335,7 +333,7 @@ def fresh_import(module_location: str, class_name: str) -> type:
     class_name
         Class to re-import
 
-    Returns:
+    Returns
     -------
     Newly imported class
 

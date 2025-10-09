@@ -185,7 +185,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         n_bins
             Number of bins in the histogram
 
-        Returns:
+        Returns
         -------
         hist_x
             x-axis of histogram, in [s], i.e. `bin_centers`
@@ -306,7 +306,7 @@ class StaticProfile(ProfileBaseClass):
         cutoff_frequency
             Cutoff frequency if the profile is fourier transformed, in [Hz]
 
-        Returns:
+        Returns
         -------
         static_profile
             Profile that doesn't change its parameters
@@ -335,7 +335,7 @@ class StaticProfile(ProfileBaseClass):
         t_period
             Period according to radian, in [s]
 
-        Returns:
+        Returns
         -------
         static_profile
             Profile that doesn't change its parameters

@@ -29,7 +29,7 @@ _fortran_files32 = [os.path.join(_basepath, f) for f in _fortran_files32]
 def compile_fortran_module(module_name: str, fortran_files: list[str]) -> bool:
     """Compile the Fortran source files into a Python module using f2py.
 
-    Notes:
+    Notes
     -----
     Applies high-performance compilation flags.
 

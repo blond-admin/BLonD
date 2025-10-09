@@ -68,7 +68,7 @@ class Simulation(Preparable, HasPropertyCache):
         Container object to handle the scheduled energy gain
         per turn or by time
 
-    Attributes:
+    Attributes
     ----------
     turn_i
         Counter of the current turn during simulation,
@@ -164,7 +164,7 @@ class Simulation(Preparable, HasPropertyCache):
     ) -> NumpyArray:
         """Obtain the potential well by tracking a beam one turn.
 
-        Notes:
+        Notes
         -----
         This function internally obtains `dE_out` of `dt_in`.
         During one turn with many drifts, the time coordinate will change
@@ -186,7 +186,7 @@ class Simulation(Preparable, HasPropertyCache):
             If True, will always return min(potential_well) = 0.
             If False, potential_well[0] = 0.
 
-        Returns:
+        Returns
         -------
         potential_well
             The effective voltage that lead to a change of `dE` in one turn.
@@ -306,7 +306,7 @@ class Simulation(Preparable, HasPropertyCache):
             Dictionary of elements that
             should be contained in the simulation.
 
-        Examples:
+        Examples
         --------
         >>> beam1 = Beam( ... )
         >>> ring = Ring( ... )
@@ -388,7 +388,7 @@ class Simulation(Preparable, HasPropertyCache):
         ----------
         Current turn
 
-        Notes:
+        Notes
         -----
         This method is subscribed to turn_i.on_change
 

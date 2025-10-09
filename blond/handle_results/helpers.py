@@ -24,7 +24,7 @@ def callers_relative_path(filename: str, stacklevel: int) -> str:
         Use global filepath according to the file at the level of
         the python call stack
 
-    Returns:
+    Returns
     -------
     Absolute path according to filepath of the python script at given stacklevel
 

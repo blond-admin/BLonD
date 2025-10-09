@@ -54,7 +54,7 @@ def _get_dE_from_dt(
     r"""A routine to evaluate the dE amplitude from dt following a single
     RF Hamiltonian.
 
-    Returns:
+    Returns
     -------
     dE_amplitude : float
         Full amplitude of the particle oscillation, in [eV]
@@ -302,7 +302,7 @@ class BiGaussian(MatchingRoutine):
                         dt=dt,
                         dE=dE,
                     )
-                    is False
+                    == False  # noqa: E712
                 )
 
                 n_new = int(backend.sum(sel))

@@ -30,7 +30,7 @@ def populate_beam(
 ) -> None:
     """Fill bunch with macroparticles according to density_distribution
 
-    Notes:
+    Notes
     -----
     The beam coordinate dt and dE will be overwritten.
 
@@ -85,7 +85,7 @@ def _normalize_as_density(hamilton_2D: NumpyArray):
     hamilton_2D
         2D array containing the Hamiltonian
 
-    Returns:
+    Returns
     -------
     density
 
@@ -118,7 +118,7 @@ class EmpiricMatcher(MatchingRoutine):
     ):
         """Matching routine based on the particle movement within one turn
 
-        Notes:
+        Notes
         -----
         This routine only works properly if the phase advance is low enough
 
@@ -163,7 +163,7 @@ class EmpiricMatcher(MatchingRoutine):
     ) -> None:
         """Carries out the empiric matching
 
-        Notes:
+        Notes
         -----
         The beam coordinate dt and dE will be overwritten.
 

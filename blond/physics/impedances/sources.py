@@ -63,7 +63,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
     ) -> NumpyArray:
         """Return the impedance in the frequency domain.
 
-        Notes:
+        Notes
         -----
         In algebraic math, multiplying in frequency domain with -1j Z f
         will correspond to the derivative in time domain.
@@ -86,7 +86,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         beam
             Simulation beam object
 
-        Returns:
+        Returns
         -------
         impedance
             Complex impedance array.
@@ -97,9 +97,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         return derivative_kernel[:] / (2 * np.pi) * z_over_n * T
 
     def _get_derivative_impedance(self, freq_x: NumpyArray) -> NumpyArray:
-        """Get the equivalent of np.gradient(x) in frequency domain ifft(
-        derivative*fft(x)).
-        """
+        """Get the equivalent of np.gradient(x) in frequency domain ifft(derivative*fft(x))."""
         # Recalculate only of `freq_x` is changed
         hash_ = get_hash(freq_x)
         if hash_ is self._cache_derivative_hash:
@@ -140,7 +138,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         beam
             Simulation beam object
 
-        Returns:
+        Returns
         -------
         wake_impedance
 
@@ -178,7 +176,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         quality_factors : array-like
             Quality factors (Q) of the resonances, dimensionless.
 
-        Notes:
+        Notes
         -----
         Ensure that all input arrays have the same length, with each entry
         corresponding to a separate resonance.
@@ -213,9 +211,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         beam: BeamBaseClass,
         n_fft: int,
     ) -> NumpyArray | CupyArray:  # Fixme all get_wake_impedance same
-        """Get impedance equivalent to the partial single-particle-wake in
-        time domain.
-
+        """Get impedance equivalent to the partial single-particle-wake in time domain.
 
         Parameters
         ----------
@@ -226,7 +222,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         beam
             Simulation beam object
 
-        Returns:
+        Returns
         -------
         wake_impedance
 
@@ -274,7 +270,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         beam
             Simulation beam object
 
-        Returns:
+        Returns
         -------
         impedance
             Complex impedance array.
@@ -355,7 +351,7 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
         beam
             Simulation beam object
 
-        Returns:
+        Returns
         -------
         impedance
             Complex impedance array.
@@ -386,7 +382,7 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
         reader
             `ImpedanceReader` to interpret what's written in the file
 
-        Returns:
+        Returns
         -------
         impedance_table_freq
 
@@ -432,7 +428,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         reader
             `ImpedanceReader` to interpret what's written in the file
 
-        Returns:
+        Returns
         -------
         impedance_table_time
 
@@ -447,9 +443,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         beam: BeamBaseClass,
         n_fft: int,
     ) -> NumpyArray:
-        """Get impedance equivalent to the partial single-particle-wake in
-        time domain.
-
+        """Get impedance equivalent to the partial single-particle-wake in time domain.
 
         Parameters
         ----------
@@ -460,7 +454,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         beam
             Simulation beam object
 
-        Returns:
+        Returns
         -------
         wake_impedance
 
@@ -483,7 +477,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
 class TravelingWaveCavity(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
     r"""Impedance of travelling wave cavities.
 
-    Notes:
+    Notes
     -----
     Impedance contribution from travelling wave cavities,
     analytic formulas for both wake and impedance. The resonance modes (and
@@ -513,7 +507,7 @@ class TravelingWaveCavity(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
     a_factor
         Damping time `a`, in [s]
 
-    Attributes:
+    Attributes
     ----------
     R_S
         Shunt impepdance, in [Ω]
@@ -522,8 +516,8 @@ class TravelingWaveCavity(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
     a_factor
         Damping time `a`, in [s]
 
-    Examples:
-    ----------
+    Examples
+    --------
     >>> R_S = [1, 2, 3]
     >>> frequency_R = [1, 2, 3]
     >>> a_factor = [1, 2, 3]
@@ -592,9 +586,7 @@ class TravelingWaveCavity(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         beam: BeamBaseClass,
         n_fft: int,
     ) -> NumpyArray:
-        """Get impedance equivalent to the partial single-particle-wake in
-        time domain.
-
+        """Get impedance equivalent to the partial single-particle-wake in time domain.
 
         Parameters
         ----------
@@ -605,7 +597,7 @@ class TravelingWaveCavity(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         beam
             Simulation beam object
 
-        Returns:
+        Returns
         -------
         wake_impedance
 
@@ -631,7 +623,7 @@ class TravelingWaveCavity(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         beam
             Simulation beam object
 
-        Returns:
+        Returns
         -------
         impedance
             Complex impedance array.

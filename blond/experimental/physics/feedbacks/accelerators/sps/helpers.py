@@ -14,7 +14,7 @@ def get_power_gen_i(I_gen_per_cav: NumpyArray, Z_0: float) -> float:
         Generator current for a single cavity
     Z_0 : float
 
-    Returns:
+    Returns
     -------
     float array
         Absolute value of the generator power
@@ -38,7 +38,7 @@ def moving_average(
     x_prev : float array
         Data to pad with in front
 
-    Returns:
+    Returns
     -------
     float array
         Smoothed data array of size
@@ -63,7 +63,7 @@ def comb_filter(
 ) -> NumpyArray:
     """Feedback comb filter.
 
-    Notes:
+    Notes
     -----
     See https://en.wikipedia.org/wiki/Comb_filter
 
@@ -105,7 +105,7 @@ def modulator(
     dt: float
         # todo
 
-    Returns:
+    Returns
     -------
     float array
         Demodulated signal at f_final
