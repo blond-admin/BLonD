@@ -1,4 +1,3 @@
-
 # Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
@@ -12,7 +11,6 @@ Test case to show how to use phase loop (CERN PS Booster context).
 
 :Authors: **Danilo Quartullo**
 """
-
 
 from blond.utils.mpi_config import mpiprint, WORKER
 from blond.utils import bmath as bm
@@ -35,15 +33,15 @@ from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
 DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 # To check if executing correctly, rather than to run the full simulation
 
-mpl.use('Agg')
+mpl.use("Agg")
 
 
 bm.use_mpi()
 print = mpiprint
 
-this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
+this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 
-os.makedirs(this_directory + '../mpi_output_files/EX_08_fig', exist_ok=True)
+os.makedirs(this_directory + "../mpi_output_files/EX_08_fig", exist_ok=True)
 
 
 # Beam parameters
@@ -56,45 +54,60 @@ gamma_transition = 4.076750841
 alpha = 1 / gamma_transition**2
 C = 2 * np.pi * radius  # [m]
 n_turns = 500
-general_params = Ring(C, alpha, 310891054.809,
-                      Proton(), n_turns)
+general_params = Ring(C, alpha, 310891054.809, Proton(), n_turns)
 
 # Cavities parameters
 n_rf_systems = 1
 harmonic_numbers_1 = 1
 voltage_1 = 8000  # [V]
-phi_offset_1 = np.pi   # [rad]
-rf_params = RFStation(general_params, [harmonic_numbers_1], [voltage_1],
-                      [phi_offset_1], n_rf_systems)
+phi_offset_1 = np.pi  # [rad]
+rf_params = RFStation(
+    general_params,
+    [harmonic_numbers_1],
+    [voltage_1],
+    [phi_offset_1],
+    n_rf_systems,
+)
 
 my_beam = Beam(general_params, n_macroparticles, n_particles)
 
 
-cut_options = CutOptions(cut_left=0, cut_right=2 * np.pi, n_slices=200,
-                         rf_station=rf_params, cuts_unit='rad')
+cut_options = CutOptions(
+    cut_left=0,
+    cut_right=2 * np.pi,
+    n_slices=200,
+    rf_station=rf_params,
+    cuts_unit="rad",
+)
 slices_ring = Profile(my_beam, cut_options)
 
 # Phase loop
-configuration = {'machine': 'PSB', 'PL_gain': 1. / 25.e-6, 'period': 10.e-6}
-phase_loop = BeamFeedback(general_params, rf_params, slices_ring, configuration)
+configuration = {"machine": "PSB", "PL_gain": 1.0 / 25.0e-6, "period": 10.0e-6}
+phase_loop = BeamFeedback(
+    general_params, rf_params, slices_ring, configuration
+)
 
 
 # Long tracker
-long_tracker = RingAndRFTracker(rf_params, my_beam, periodicity=False,
-                                beam_feedback=phase_loop
-                                )
+long_tracker = RingAndRFTracker(
+    rf_params, my_beam, periodicity=False, beam_feedback=phase_loop
+)
 
 full_ring = FullRingAndRF([long_tracker])
 
 
-distribution_type = 'gaussian'
+distribution_type = "gaussian"
 bunch_length = 200.0e-9
-distribution_variable = 'Action'
+distribution_variable = "Action"
 
-matched_from_distribution_function(my_beam, full_ring,
-                                   bunch_length=bunch_length,
-                                   distribution_type=distribution_type,
-                                   distribution_variable=distribution_variable, seed=1222)
+matched_from_distribution_function(
+    my_beam,
+    full_ring,
+    bunch_length=bunch_length,
+    distribution_type=distribution_type,
+    distribution_variable=distribution_variable,
+    seed=1222,
+)
 
 my_beam.dE += 90.0e3
 slices_ring.track()
@@ -104,23 +117,48 @@ map_ = [full_ring] + [slices_ring]
 
 if WORKER.is_master:
     # Monitor
-    bunch_monitor = BunchMonitor(general_params, rf_params, my_beam,
-                                 this_directory + '../mpi_output_files/EX_08_output_data',
-                                 profile=slices_ring, phase_loop=phase_loop)
+    bunch_monitor = BunchMonitor(
+        general_params,
+        rf_params,
+        my_beam,
+        this_directory + "../mpi_output_files/EX_08_output_data",
+        profile=slices_ring,
+        phase_loop=phase_loop,
+    )
 
     # Plots
-    format_options = {'dirname': this_directory + '../mpi_output_files/EX_08_fig'}
-    plots = Plot(general_params, rf_params, my_beam, 50, n_turns, 0.0, 2 * np.pi,
-                 -1e6, 1e6, xunit='rad', separatrix_plot=True, profile=slices_ring,
-                 format_options=format_options,
-                 h5file=this_directory + '../mpi_output_files/EX_08_output_data', phase_loop=phase_loop)
+    format_options = {
+        "dirname": this_directory + "../mpi_output_files/EX_08_fig"
+    }
+    plots = Plot(
+        general_params,
+        rf_params,
+        my_beam,
+        50,
+        n_turns,
+        0.0,
+        2 * np.pi,
+        -1e6,
+        1e6,
+        xunit="rad",
+        separatrix_plot=True,
+        profile=slices_ring,
+        format_options=format_options,
+        h5file=this_directory + "../mpi_output_files/EX_08_output_data",
+        phase_loop=phase_loop,
+    )
     map_ += [bunch_monitor, plots]
     # For testing purposes
-    test_string = ''
-    test_string += '{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
-        'mean_dE', 'std_dE', 'mean_dt', 'std_dt')
-    test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
-        np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt))
+    test_string = ""
+    test_string += "{:<17}\t{:<17}\t{:<17}\t{:<17}\n".format(
+        "mean_dE", "std_dE", "mean_dt", "std_dt"
+    )
+    test_string += "{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n".format(
+        np.mean(my_beam.dE),
+        np.std(my_beam.dE),
+        np.mean(my_beam.dt),
+        np.std(my_beam.dt),
+    )
 
 
 my_beam.split()
@@ -136,9 +174,15 @@ my_beam.gather()
 WORKER.finalize()
 
 # For testing purposes
-test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
-    np.mean(my_beam.dE), np.std(my_beam.dE), np.mean(my_beam.dt), np.std(my_beam.dt))
-with open(this_directory + '../mpi_output_files/EX_08_test_data.txt', 'w') as f:
+test_string += "{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n".format(
+    np.mean(my_beam.dE),
+    np.std(my_beam.dE),
+    np.mean(my_beam.dt),
+    np.std(my_beam.dt),
+)
+with open(
+    this_directory + "../mpi_output_files/EX_08_test_data.txt", "w"
+) as f:
     f.write(test_string)
 
 print("Done!")

@@ -18,10 +18,11 @@ from ..utils import bmath as bm
 from ..utils import data_check as dc
 
 
-if TYPE_CHECKING: # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Iterable, Optional
 
     from numpy.typing import NDArray as NumpyArray
+
     if _CUPY_AVAILABLE:
         from cupy.typing import NDArray as CupyArray
 
@@ -52,16 +53,19 @@ class BarrierGenerator:
             [time, amplitude].
     """
 
-    def __init__(self, t_center: float | Iterable[Iterable[float]],
-                 t_width: float | Iterable[Iterable[float]],
-                 peak: float | Iterable[Iterable[float]]):
-
+    def __init__(
+        self,
+        t_center: float | Iterable[Iterable[float]],
+        t_width: float | Iterable[Iterable[float]],
+        peak: float | Iterable[Iterable[float]],
+    ):
         self._input_t_center = t_center
         self._input_t_width = t_width
         self._input_peak = peak
 
-    def waveform_at_time(self, time: float, bin_centers: Iterable[float])\
-                                                     -> NumpyArray | CupyArray:
+    def waveform_at_time(
+        self, time: float, bin_centers: Iterable[float]
+    ) -> NumpyArray | CupyArray:
         """
         Construct the ideal barrier waveform at the specified time on
         the given bin_centers
@@ -84,11 +88,13 @@ class BarrierGenerator:
 
         return compute_sin_barrier(cent, width, peak, bin_centers)
 
-    def for_rf_station(self, times: Iterable[float], t_rev: Iterable[float],
-                       harmonics: Iterable[int], m: int = 1)\
-                                                   -> tuple[list[int],
-                                                            list[NumpyArray],
-                                                            list[NumpyArray]]:
+    def for_rf_station(
+        self,
+        times: Iterable[float],
+        t_rev: Iterable[float],
+        harmonics: Iterable[int],
+        m: int = 1,
+    ) -> tuple[list[int], list[NumpyArray], list[NumpyArray]]:
         """
         Converts the barrier definition into a form that can be input to
         the RFStation object.  The barrier will be constructed at all
@@ -120,8 +126,10 @@ class BarrierGenerator:
         max_h = bm.max(harmonics)
 
         if len(times) != len(t_rev):
-            raise ValueError("Input times and t_rev must have the same"
-                             + " number of elements")
+            raise ValueError(
+                "Input times and t_rev must have the same"
+                + " number of elements"
+            )
 
         voltages = []
         phases = []
@@ -136,16 +144,17 @@ class BarrierGenerator:
             phases.append(p)
 
         for i, (time, tr) in enumerate(zip(times, t_rev)):
-            bin_width = tr/(10*max_h)
-            n_bins = int(tr/bin_width)
+            bin_width = tr / (10 * max_h)
+            n_bins = int(tr / bin_width)
             bin_cents = bm.linspace(0, tr, n_bins)
             barrier = self.waveform_at_time(time, bin_cents)
 
             amps, phis = waveform_to_harmonics(barrier, harmonics)
             amps = sinc_filtering(amps, m)
 
-            g_comp = _gain_compensation(bin_cents, barrier,
-                                        harmonics, amps, phis)
+            g_comp = _gain_compensation(
+                bin_cents, barrier, harmonics, amps, phis
+            )
 
             amps /= g_comp
 
@@ -156,10 +165,13 @@ class BarrierGenerator:
         return harmonics, voltages, phases
 
 
-
-def compute_sin_barrier(center: float, width: float, amplitude: float,
-                        bin_centers: Iterable[float],
-                        periodic: bool = True) -> NumpyArray | CupyArray:
+def compute_sin_barrier(
+    center: float,
+    width: float,
+    amplitude: float,
+    bin_centers: Iterable[float],
+    periodic: bool = True,
+) -> NumpyArray | CupyArray:
     """
     Computes a single-period sinusoidal barrier.
 
@@ -185,46 +197,58 @@ def compute_sin_barrier(center: float, width: float, amplitude: float,
     barrier_waveform = bm.zeros_like(bin_centers)
 
     t_step = bin_centers[1] - bin_centers[0]
-    n_bins = int(width/t_step)
-    barr_time = np.linspace(center-width/2, center+width/2, n_bins)
+    n_bins = int(width / t_step)
+    barr_time = np.linspace(center - width / 2, center + width / 2, n_bins)
 
     if barr_time[-1] - barr_time[0] > bin_centers[-1] - bin_centers[0]:
         raise ValueError("Given barrier width is too large and will overflow")
 
-    barrier = amplitude * bm.sin(2*np.pi * (barr_time-center)/width)
+    barrier = amplitude * bm.sin(2 * np.pi * (barr_time - center) / width)
 
-    barrier_waveform += bm.interp(bin_centers, barr_time, barrier,
-                                  left = 0, right = 0)
+    barrier_waveform += bm.interp(
+        bin_centers, barr_time, barrier, left=0, right=0
+    )
     if periodic:
         if barr_time[-1] > bin_centers[-1]:
-            barrier_waveform += bm.interp(bin_centers,
-                                          barr_time-bin_centers[-1], barrier,
-                                          left = 0, right = 0)
+            barrier_waveform += bm.interp(
+                bin_centers,
+                barr_time - bin_centers[-1],
+                barrier,
+                left=0,
+                right=0,
+            )
         if barr_time[0] < bin_centers[0]:
-            barrier_waveform += bm.interp(bin_centers,
-                                          barr_time+bin_centers[-1], barrier,
-                                          left = 0, right = 0)
+            barrier_waveform += bm.interp(
+                bin_centers,
+                barr_time + bin_centers[-1],
+                barrier,
+                left=0,
+                right=0,
+            )
 
     return barrier_waveform
 
-def harmonics_to_waveform(bin_centers: Iterable[float],
-                          harmonic_numbers: Iterable[int],
-                          harmonic_amplitudes: Iterable[float],
-                          harmonic_phases: Iterable[float],
-                          t_rev: Optional[float] = None) -> NumpyArray:
 
+def harmonics_to_waveform(
+    bin_centers: Iterable[float],
+    harmonic_numbers: Iterable[int],
+    harmonic_amplitudes: Iterable[float],
+    harmonic_phases: Iterable[float],
+    t_rev: Optional[float] = None,
+) -> NumpyArray:
     if t_rev is None:
         t_rev = bin_centers[-1] - bin_centers[0]
 
     waveform = np.zeros_like(bin_centers)
     for h, a, p in zip(harmonic_numbers, harmonic_amplitudes, harmonic_phases):
-        waveform += a * np.sin(h*2*np.pi * bin_centers/t_rev + p)
+        waveform += a * np.sin(h * 2 * np.pi * bin_centers / t_rev + p)
 
     return waveform
 
-def waveform_to_harmonics(waveform: NumpyArray | CupyArray,
-                          harmonics: Optional[Iterable[int]] = None)\
-                                -> tuple[tuple[float, ...], tuple[float, ...]]:
+
+def waveform_to_harmonics(
+    waveform: NumpyArray | CupyArray, harmonics: Optional[Iterable[int]] = None
+) -> tuple[tuple[float, ...], tuple[float, ...]]:
     """
     Converts an arbitrary waveform to a fourier series in amplitude and
     phase.  Waveform is assumed to be 1 revolution period in length.
@@ -251,13 +275,15 @@ def waveform_to_harmonics(waveform: NumpyArray | CupyArray,
     if harmonics is not None:
         harm_series = np.array([harm_series[h] for h in harmonics])
 
-    harm_amps = np.abs(harm_series)/(len(waveform)/2)
+    harm_amps = np.abs(harm_series) / (len(waveform) / 2)
     harm_phases = np.arctan2(harm_series.real, harm_series.imag) + np.pi
 
     return harm_amps, harm_phases
 
-def sinc_filtering(harmonic_amplitudes: Iterable[float], m: int=1)\
-                                                                 -> NumpyArray:
+
+def sinc_filtering(
+    harmonic_amplitudes: Iterable[float], m: int = 1
+) -> NumpyArray:
     """
     Filters the fourier components with a sinc function window as
     described in PhD thesis:
@@ -282,19 +308,24 @@ def sinc_filtering(harmonic_amplitudes: Iterable[float], m: int=1)\
     n_harm = len(harmonic_amplitudes)
 
     for i, a in enumerate(harmonic_amplitudes):
-
-        filtered_amplitudes[i] = a * np.sinc(((i+1)*np.pi) / (2*(n_harm+1)))**m
+        filtered_amplitudes[i] = (
+            a * np.sinc(((i + 1) * np.pi) / (2 * (n_harm + 1))) ** m
+        )
 
     return filtered_amplitudes
 
-def _gain_compensation(barrier_time: NumpyArray, barrier_waveform: NumpyArray,
-                       harmonics: NumpyArray, harmonic_amplitudes: NumpyArray,
-                       harmonic_phases: NumpyArray,
-                       t_rev: Optional[float] = None) -> NumpyArray:
 
-    reconstructed = harmonics_to_waveform(barrier_time, harmonics,
-                                          harmonic_amplitudes, harmonic_phases,
-                                          t_rev)
+def _gain_compensation(
+    barrier_time: NumpyArray,
+    barrier_waveform: NumpyArray,
+    harmonics: NumpyArray,
+    harmonic_amplitudes: NumpyArray,
+    harmonic_phases: NumpyArray,
+    t_rev: Optional[float] = None,
+) -> NumpyArray:
+    reconstructed = harmonics_to_waveform(
+        barrier_time, harmonics, harmonic_amplitudes, harmonic_phases, t_rev
+    )
 
     ratio_max = np.max(reconstructed) / np.max(barrier_waveform)
     ratio_min = np.abs(np.min(reconstructed) / np.min(barrier_waveform))

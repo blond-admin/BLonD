@@ -6,11 +6,12 @@
 # Intergovernmental Organization or submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 *Class to compute synchrotron radiation damping and quantum excitation*
 
 :Authors: **Juan F. Esteban Mueller, L. Valle**
-'''
+"""
+
 from __future__ import annotations
 import warnings
 
@@ -24,7 +25,7 @@ from ..input_parameters.rf_parameters import RFStation
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
 
-if TYPE_CHECKING:   # pragma: no cover
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Callable, Optional
 
     from ..beam.beam import Beam
@@ -34,12 +35,13 @@ if TYPE_CHECKING:   # pragma: no cover
 
     from numpy.typing import NDArray
 
+
 class SynchrotronRadiation:
-    ''' Class to compute synchrotron radiation effects, including
+    """Class to compute synchrotron radiation effects, including
     radiation damping and quantum excitation.
     For multiple RF section, instantiate one object per RF section and
     call the track() method after tracking each section.
-    '''
+    """
 
     # TO DO list:
     # - multi-turn radiation integrals handling (momentum compaction
@@ -50,13 +52,19 @@ class SynchrotronRadiation:
     # - multiple RF sections
 
     @handle_legacy_kwargs
-    def __init__(self, ring: Ring, rf_station: RFStation, beam: Beam,
-                 bending_radius: Optional[float] = None,
-                 radiation_integrals : Optional[NDArray | list] = None,
-                 n_kicks:Optional[int] =1, quantum_excitation: Optional[
-                bool]=True,
-                 python: Optional[bool]=True, seed: Optional[int]=None,
-                 shift_beam:Optional[bool]=True):
+    def __init__(
+        self,
+        ring: Ring,
+        rf_station: RFStation,
+        beam: Beam,
+        bending_radius: Optional[float] = None,
+        radiation_integrals: Optional[NDArray | list] = None,
+        n_kicks: Optional[int] = 1,
+        quantum_excitation: Optional[bool] = True,
+        python: Optional[bool] = True,
+        seed: Optional[int] = None,
+        shift_beam: Optional[bool] = True,
+    ):
         """
         Synchrotron radiation tracker
         Calculates the energy losses per turn and longitudinal damping
@@ -100,7 +108,7 @@ class SynchrotronRadiation:
         Returns
         -------
         None
-            """
+        """
         self.ring = ring
         self.rf_params = rf_station
         self.beam = beam
@@ -122,8 +130,9 @@ class SynchrotronRadiation:
         self.assign_radiation_integrals(radiation_integrals, bending_radius)
         self.calculate_SR_params()
         self.shift_beam_function(shift_beam=shift_beam)
-        self.tracker_choice(python=python,
-                            quantum_excitation=quantum_excitation, seed=seed)
+        self.tracker_choice(
+            python=python, quantum_excitation=quantum_excitation, seed=seed
+        )
 
     def shift_beam_function(self, shift_beam):
         """
@@ -134,13 +143,20 @@ class SynchrotronRadiation:
         """
         #
         if shift_beam and (self.rf_params.section_index == 0):
-            self.beam_phase_to_compensate_SR =\
-                np.abs(np.arcsin(self.U0 /
-                                 (self.ring.particle.charge *
-                                  self.rf_params.voltage[0][0])))
+            self.beam_phase_to_compensate_SR = np.abs(
+                np.arcsin(
+                    self.U0
+                    / (
+                        self.ring.particle.charge
+                        * self.rf_params.voltage[0][0]
+                    )
+                )
+            )
             self.beam_position_to_compensate_SR = (
-                    self.beam_phase_to_compensate_SR
-                * self.rf_params.t_rf[0, 0] / (2.0 * np.pi))
+                self.beam_phase_to_compensate_SR
+                * self.rf_params.t_rf[0, 0]
+                / (2.0 * np.pi)
+            )
 
             self.beam.dt -= self.beam_position_to_compensate_SR
 
@@ -181,38 +197,49 @@ class SynchrotronRadiation:
         """
         if radiation_integrals is None:
             if bending_radius is None:
-                if hasattr(self.ring, 'I2'):
+                if hasattr(self.ring, "I2"):
                     self.I2 = self.ring.I2
                     self.I3 = self.ring.I3
                     self.I4 = self.ring.I4
                     self.jz = 2.0 + self.I4 / self.I2
-                else :
-                    raise MissingParameterError("Synchrotron radiation damping "
-                                                "and quantum excitation require"
-                                                " either the bending radius "+
-                                            "for an isomagnetic ring, or the "
-                                            "first five synchrotron radiation "
-                                            "integrals.")
-            else :
+                else:
+                    raise MissingParameterError(
+                        "Synchrotron radiation damping "
+                        "and quantum excitation require"
+                        " either the bending radius "
+                        + "for an isomagnetic ring, or the "
+                        "first five synchrotron radiation "
+                        "integrals."
+                    )
+            else:
                 self.rho = bending_radius
                 self.I2 = 2.0 * np.pi / self.rho
-                self.I3 = 2.0 * np.pi / self.rho ** 2.0
-                self.I4 = (self.ring.ring_circumference *
-                           self.ring.alpha_0[0, 0] / self.rho ** 2.0)
+                self.I3 = 2.0 * np.pi / self.rho**2.0
+                self.I4 = (
+                    self.ring.ring_circumference
+                    * self.ring.alpha_0[0, 0]
+                    / self.rho**2.0
+                )
                 self.jz = 2.0 + self.I4 / self.I2
-        else :
-            if not isinstance(radiation_integrals,(np.ndarray, list)):
-                raise TypeError(f"Expected a list or a NDArray as an input. "
-                                f"Received type(radiation_integrals)="
-                                f"{type(radiation_integrals)}.")
-            else :
+        else:
+            if not isinstance(radiation_integrals, (np.ndarray, list)):
+                raise TypeError(
+                    f"Expected a list or a NDArray as an input. "
+                    f"Received type(radiation_integrals)="
+                    f"{type(radiation_integrals)}."
+                )
+            else:
                 integrals = np.array(radiation_integrals)
                 if len(integrals) < 5:
-                    raise ValueError(f"Length of radiation integrals must be "
-                                     f"> 5, but is {len(integrals)}")
+                    raise ValueError(
+                        f"Length of radiation integrals must be "
+                        f"> 5, but is {len(integrals)}"
+                    )
                 if bending_radius is not None:
-                    warnings.warn('Synchrotron radiation integrals prevail. '
-                                  '\'bending radius\' is ignored.')
+                    warnings.warn(
+                        "Synchrotron radiation integrals prevail. "
+                        "'bending radius' is ignored."
+                    )
                 self.I2 = integrals[1]
                 self.I3 = integrals[2]
                 self.I4 = integrals[3]
@@ -223,42 +250,61 @@ class SynchrotronRadiation:
         i_turn = self.rf_params.counter[0]
 
         # Energy loss per turn/RF section [eV]
-        self.U0 = (self.c_gamma * self.ring.energy[0, i_turn]**4.0
-                   * self.I2 / (2.0 * np.pi)
-                   * self.rf_params.section_length
-                   / self.ring.ring_circumference)
+        self.U0 = (
+            self.c_gamma
+            * self.ring.energy[0, i_turn] ** 4.0
+            * self.I2
+            / (2.0 * np.pi)
+            * self.rf_params.section_length
+            / self.ring.ring_circumference
+        )
 
         # Damping time [turns]
-        self.tau_z = (2.0 / self.jz * self.ring.energy[0, i_turn]
-                      / self.U0)
+        self.tau_z = 2.0 / self.jz * self.ring.energy[0, i_turn] / self.U0
 
         # Equilibrium energy spread
-        self.sigma_dE = np.sqrt(self.c_q * self.ring.gamma[0, i_turn]**2.0
-                                * self.I3 / (self.jz * self.I2))
+        self.sigma_dE = np.sqrt(
+            self.c_q
+            * self.ring.gamma[0, i_turn] ** 2.0
+            * self.I3
+            / (self.jz * self.I2)
+        )
 
     # Print SR parameters
     def print_SR_params(self):
         i_turn = self.rf_params.counter[0]
 
-        print('------- Synchrotron radiation parameters -------')
-        print(f'jz = {self.jz:1.8f}')
-        if (self.rf_params.section_length
-                == self.ring.ring_circumference):
-            print(f'Energy loss per turn = {self.U0 / 1e9:1.4f} GeV/turn')
-            print(f'Damping time = {self.tau_z:1.4f} turns')
+        print("------- Synchrotron radiation parameters -------")
+        print(f"jz = {self.jz:1.8f}")
+        if self.rf_params.section_length == self.ring.ring_circumference:
+            print(f"Energy loss per turn = {self.U0 / 1e9:1.4f} GeV/turn")
+            print(f"Damping time = {self.tau_z:1.4f} turns")
         else:
-            print('Energy loss per RF section = {0:1.4f} GeV/section'.format(
-                self.U0 * 1e-9))
-            print('Energy loss per turn = {0:1.4f} GeV/turn'.format(
-                self.U0 * 1e-9 * self.ring.ring_circumference
-                / self.rf_params.section_length))
-            print('Damping time = '
-                  '{0:1.4f} turns'.format(self.tau_z *
-                                          self.rf_params.section_length
-                                          / self.ring.ring_circumference))
-        print(f'Equilibrium energy spread = {self.sigma_dE * 100:1.4f}%'
-              + f'({self.sigma_dE*self.ring.energy[0, i_turn]*1e-6:1.4f}) MeV')
-        print('------------------------------------------------')
+            print(
+                "Energy loss per RF section = {0:1.4f} GeV/section".format(
+                    self.U0 * 1e-9
+                )
+            )
+            print(
+                "Energy loss per turn = {0:1.4f} GeV/turn".format(
+                    self.U0
+                    * 1e-9
+                    * self.ring.ring_circumference
+                    / self.rf_params.section_length
+                )
+            )
+            print(
+                "Damping time = {0:1.4f} turns".format(
+                    self.tau_z
+                    * self.rf_params.section_length
+                    / self.ring.ring_circumference
+                )
+            )
+        print(
+            f"Equilibrium energy spread = {self.sigma_dE * 100:1.4f}%"
+            + f"({self.sigma_dE * self.ring.energy[0, i_turn] * 1e-6:1.4f}) MeV"
+        )
+        print("------------------------------------------------")
 
     def track_SR_python(self):
         """
@@ -267,12 +313,16 @@ class SynchrotronRadiation:
         """
         i_turn = self.rf_params.counter[0]
         # Recalculate SR parameters if energy changes
-        if (i_turn != 0 and self.ring.energy[0, i_turn] !=
-                self.ring.energy[0, i_turn - 1]):
+        if (
+            i_turn != 0
+            and self.ring.energy[0, i_turn] != self.ring.energy[0, i_turn - 1]
+        ):
             self.calculate_SR_params()
         for i in range(self.n_kicks):
-            self.beam.dE += -(2.0 / self.tau_z / self.n_kicks * self.beam.dE
-                              + self.U0 / self.n_kicks)
+            self.beam.dE += -(
+                2.0 / self.tau_z / self.n_kicks * self.beam.dE
+                + self.U0 / self.n_kicks
+            )
 
     def track_full_python(self):
         """
@@ -281,19 +331,24 @@ class SynchrotronRadiation:
         """
         i_turn = self.rf_params.counter[0]
         # Recalculate SR parameters if energy changes
-        if (i_turn != 0 and self.ring.energy[0, i_turn] !=
-                self.ring.energy[0, i_turn - 1]):
+        if (
+            i_turn != 0
+            and self.ring.energy[0, i_turn] != self.ring.energy[0, i_turn - 1]
+        ):
             self.calculate_SR_params()
         for i in range(self.n_kicks):
-            self.beam.dE += -(2.0 / self.tau_z / self.n_kicks * self.beam.dE
-                              # synchrotron radiation damping
-                             + self.U0 / self.n_kicks
-                              # energy lost due to synchrotron radiation
-                              - 2.0 * self.sigma_dE /
-                              np.sqrt(self.tau_z * self.n_kicks)
-                              * self.beam.energy * np.random.normal
-                              (size=self.beam.n_macroparticles))
-                            # quantum excitation kick
+            self.beam.dE += -(
+                2.0 / self.tau_z / self.n_kicks * self.beam.dE
+                # synchrotron radiation damping
+                + self.U0 / self.n_kicks
+                # energy lost due to synchrotron radiation
+                - 2.0
+                * self.sigma_dE
+                / np.sqrt(self.tau_z * self.n_kicks)
+                * self.beam.energy
+                * np.random.normal(size=self.beam.n_macroparticles)
+            )
+            # quantum excitation kick
 
     # Track particles with SR only (without quantum excitation)
     # C implementation
@@ -304,12 +359,15 @@ class SynchrotronRadiation:
         """
         i_turn = self.rf_params.counter[0]
         # Recalculate SR parameters if energy changes
-        if (i_turn != 0 and self.ring.energy[0, i_turn]
-                            != self.ring.energy[0, i_turn - 1]):
+        if (
+            i_turn != 0
+            and self.ring.energy[0, i_turn] != self.ring.energy[0, i_turn - 1]
+        ):
             self.calculate_SR_params()
 
-        bm.synchrotron_radiation(self.beam.dE, self.U0,
-                                 self.n_kicks, self.tau_z)
+        bm.synchrotron_radiation(
+            self.beam.dE, self.U0, self.n_kicks, self.tau_z
+        )
 
     # Track particles with SR and quantum excitation. C implementation
     def track_full_C(self):
@@ -319,36 +377,43 @@ class SynchrotronRadiation:
         """
         i_turn = self.rf_params.counter[0]
         # Recalculate SR parameters if energy changes
-        if (i_turn != 0 and self.ring.energy[0, i_turn] !=
-                self.ring.energy[0, i_turn - 1]):
+        if (
+            i_turn != 0
+            and self.ring.energy[0, i_turn] != self.ring.energy[0, i_turn - 1]
+        ):
             self.calculate_SR_params()
 
-        bm.synchrotron_radiation_full(self.beam.dE, self.U0, self.n_kicks,
-                                      self.tau_z, self.sigma_dE,
-                                      self.ring.energy[0, i_turn])
+        bm.synchrotron_radiation_full(
+            self.beam.dE,
+            self.U0,
+            self.n_kicks,
+            self.tau_z,
+            self.sigma_dE,
+            self.ring.energy[0, i_turn],
+        )
 
     def to_gpu(self, recursive=True):
         """
         Transfer all necessary arrays to the GPU
         """
         # Check if to_gpu has been invoked already
-        if hasattr(self, '_device') and self._device == 'GPU':
+        if hasattr(self, "_device") and self._device == "GPU":
             return
 
         # No arrays need to be transfered
 
         # to make sure it will not be called again
-        self._device: DeviceType = 'GPU'
+        self._device: DeviceType = "GPU"
 
     def to_cpu(self, recursive=True):
         """
         Transfer all necessary arrays back to the CPU
         """
         # Check if to_cpu has been invoked already
-        if hasattr(self, '_device') and self._device == 'CPU':
+        if hasattr(self, "_device") and self._device == "CPU":
             return
 
         # No arrays need to be transfered
 
         # to make sure it will not be called again
-        self._device: DeviceType = 'CPU'
+        self._device: DeviceType = "CPU"

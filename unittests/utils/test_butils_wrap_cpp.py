@@ -2,12 +2,34 @@ import unittest
 
 import numpy as np
 
+from blond.utils import butils_wrap_cpp, butils_wrap_python
 from blond.utils import butils_wrap_cpp
 
-
 class TestFunctions(unittest.TestCase):
+
     def setUp(self):
         butils_wrap_cpp.load_libblond("double")
+
+    def _rf_volt_comp_n_rf(self, n_rf):
+        np.random.seed(0)
+        voltages = 1e6 * np.ones(n_rf, dtype=float)
+        omega_rf = 2 * np.pi * 400e6 * np.ones(n_rf, dtype=float)
+        phi_rf = 1.5 * np.pi * np.ones(n_rf, dtype=float)
+        bin_centers = np.linspace(1e-5, 1e-6, 64)
+        actual = butils_wrap_cpp.rf_volt_comp(
+            voltages=voltages, omega_rf=omega_rf, phi_rf=phi_rf, bin_centers=bin_centers
+        )
+        desired = butils_wrap_python.rf_volt_comp(
+            voltages=voltages, omega_rf=omega_rf, phi_rf=phi_rf, bin_centers=bin_centers
+        )
+        np.testing.assert_allclose(actual, desired, atol=1e-12)
+
+    def test_rf_volt_comp_n_rf_1(self):
+        self._rf_volt_comp_n_rf(n_rf=1)
+
+    def test_rf_volt_comp_n_rf_2(self):
+        self._rf_volt_comp_n_rf(n_rf=2)
+
 
     def test_add_cpp(self):
         a = np.array([1.0, 2.0, 3.0], dtype=np.float64)
@@ -141,7 +163,6 @@ class TestFunctions(unittest.TestCase):
         # retstep is a placeholder output for the step size (ignored here)
         butils_wrap_cpp.linspace_cpp(
             start=start, stop=stop, num=num, retstep=None, result=result
-        )
         np.testing.assert_allclose(result, expected, atol=1e-12)
 
     def test_load_libblond(self):
@@ -233,9 +254,7 @@ class TestFunctions(unittest.TestCase):
         result = np.empty_like(x)
         butils_wrap_cpp.interp_cpp(
             x=x, xp=xp, yp=yp, left=None, right=None, result=result
-        )
         np.testing.assert_allclose(result, expected, atol=1e-12)
-
     @unittest.skip
     def test_kick(self):
         # TODO: implement test for `kick`
@@ -249,7 +268,6 @@ class TestFunctions(unittest.TestCase):
             n_rf=None,
             acceleration_kick=None,
         )
-
     def test_random_normal(self):
         seed = 42
         size = 1000
@@ -296,7 +314,6 @@ class TestFunctions(unittest.TestCase):
         result = butils_wrap_cpp.trapz_cpp(y=y, x=x, dx=0.1)
 
         self.assertAlmostEqual(result, expected, places=10)
-
 
 if __name__ == "__main__":
     unittest.main()
