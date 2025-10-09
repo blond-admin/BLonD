@@ -222,7 +222,10 @@ class ProbeBeam(Beam):
         intensity: int = 0,
     ) -> None:
         """
-        Test Bunch without intensity effects
+        Test Bunch without intensity effects.
+
+        This is intended to probe the simulation with peculiar bunches,
+        that might only feature ``dt`` or ``dE``
 
         Parameters
         ----------
@@ -230,8 +233,10 @@ class ProbeBeam(Beam):
             Type of particles, e.g. protons
         dt
             Macro-particle time coordinates, in [s]
+            Will be all zero if not provided.
         dE
             Macro-particle energy coordinates, in [eV]
+            Will be all zero if not provided.
         reference_time
             Time of the reference frame (global time), in [s]
         reference_total_energy

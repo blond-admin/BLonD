@@ -163,16 +163,44 @@ class Simulation(Preparable, HasPropertyCache):
 
     def plot_potential_well_empiric(
         self,
-        ts: NumpyArray,
+        dt: NumpyArray,
         particle_type: ParticleType,
         subtract_min: bool = True,
+        **kwargs_plot,
     ) -> None:
+        """
+        Plot the potential well by tracking a beam one turn
+
+        Notes
+        -----
+        This function internally obtains `dE_out` of `dt_in`.
+        During one turn with many drifts, the time coordinate will change
+        and sample different positions of dt, which is the expected
+        physical behaviour. The RF of successive station can thus appear
+        phase shifted/distorted due to the inherent drift in between RF
+        stations=.
+
+        Parameters
+        ----------
+        dt
+            Time coordinates to probe the potential, in [s]
+        particle_type
+            Type of particle to probe.
+            The particle charge influences the phase advance per station
+            and might exhibit different distortion of the potential well
+            due to the side effects described in `Notes`
+        subtract_min
+            If True, will always return min(potential_well) = 0.
+            If False, potential_well[0] = 0.
+        kwargs_plot
+            Keyword arguments for ``pyplot.plot``
+        """
         potential_well, _, _ = self.get_potential_well_empiric(
-            ts=ts,
+            dt=dt,
             particle_type=particle_type,
             subtract_min=subtract_min,
         )
-        plt.plot(ts, potential_well)
+        plt.plot(dt, potential_well, **kwargs_plot)
         plt.xlabel("Time (s)")
         plt.ylabel("Amplitude (arb. unit)")
 
@@ -203,6 +231,9 @@ class Simulation(Preparable, HasPropertyCache):
             The particle charge influences the phase advance per station
             and might exhibit different distortion of the potential well
             due to the side effects described in `Notes`
+        intensity
+            Actual/real number of particles
+            a.k.a. beam intensity
 
         Returns
         -------
@@ -234,7 +265,7 @@ class Simulation(Preparable, HasPropertyCache):
 
     def get_potential_well_empiric(
         self,
-        ts: NumpyArray,
+        dt: NumpyArray,
         particle_type: ParticleType,
         subtract_min: bool = True,
         intensity: int = 0,
@@ -253,7 +284,7 @@ class Simulation(Preparable, HasPropertyCache):
 
         Parameters
         ----------
-        ts
+        dt
             Time coordinates to probe the potential, in [s]
         particle_type
             Type of particle to probe.
@@ -263,6 +294,9 @@ class Simulation(Preparable, HasPropertyCache):
         subtract_min
             If True, will always return min(potential_well) = 0.
             If False, potential_well[0] = 0.
+        intensity
+            Actual/real number of particles
+            a.k.a. beam intensity
 
         Returns
         -------
@@ -277,10 +311,10 @@ class Simulation(Preparable, HasPropertyCache):
             This shears the phase space because there is a change
             of time despite the initial condition dE = 0 eV.
         """
-        from ..._core.beam.beams import ProbeBeam
+        from ..._core.beam.beams import ProbeBeam  # prevent circular import
 
         probe_bunch = ProbeBeam(
-            dt=ts,
+            dt=dt,
             particle_type=particle_type,
             intensity=intensity,
         )
@@ -296,7 +330,7 @@ class Simulation(Preparable, HasPropertyCache):
         t_1 = probe_bunch.reference_time
         t_rev = t_1 - t_0
         # Calculate scaling factor
-        factor = (ts[-1] - ts[0]) / t_rev
+        factor = (dt[-1] - dt[0]) / t_rev
 
         # Calculate tilt of phase space
         change_t = probe_bunch._dt - bunch_before._dt
@@ -307,7 +341,7 @@ class Simulation(Preparable, HasPropertyCache):
         # Derive potential well by integrating over energy change
         potential_well = -cumulative_simpson(
             probe_bunch.read_partial_dE(), initial=0
-        ) / len(ts)
+        ) / len(dt)
 
         if subtract_min:
             # Align potential so that the visible minimum is 0

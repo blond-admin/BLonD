@@ -118,15 +118,14 @@ def get_hamiltonian_semi_analytic(
         time vs. energy difference. Same device (NumPy or CuPy) as inputs.
         Units: [eV]
     """
+    assert len(ts) == len(potential_well), (
+        f"{len(ts)=}, but {len(potential_well)=}"
+    )
 
     E0 = reference_total_energy  # [eV]
 
     # Compute kinetic energy term constant
     drift_term = eta / (np.square(beta) * E0)  # [1/eV]
-
-    assert len(ts) == len(potential_well), (
-        f"{len(ts)=}, but {len(potential_well)=}"
-    )
 
     # Auto-estimate ΔE range if not provided
     if energy_range is None:
@@ -138,11 +137,9 @@ def get_hamiltonian_semi_analytic(
     else:
         _energy_range = energy_range
 
-    assert _energy_range[1] > _energy_range[0], f"{_energy_range=}"
-
-    # Uniformly sample time and interpolate potential well to that grid
-    _ts = backend.linspace(ts.min(), ts.max(), shape[0])  # [s]
-    _potential_well = backend.interp(_ts, ts, potential_well)  # [V]
+    assert _energy_range[1] > _energy_range[0], (
+        f"``energy_range`` must be increasing, but got, {_energy_range=}"
+    )
 
     # Uniformly sample energy differences ΔE
     _dE_base = backend.linspace(
@@ -150,12 +147,12 @@ def get_hamiltonian_semi_analytic(
     )  # [eV]
 
     # Create 2D meshgrid: time_grid is time [s], deltaE_grid is ΔE [eV]
-    time_grid, deltaE_grid = backend.meshgrid(_ts, _dE_base, indexing="ij")
+    time_grid, deltaE_grid = backend.meshgrid(ts, _dE_base, indexing="ij")
     # Expand potential V(t) to 2D grid
-    V = _potential_well[:, None]  # [V]
+    V = potential_well[:, None]  # [V]
 
     # Compute the Hamiltonian hamilton_2D(t, ΔE) = 0.5 * const * ΔE² + V(t)
-    hamilton_2D = 0.5 * drift_term * np.square(deltaE_grid) + V  # [eV]
+    hamilton_2D = 0.5 * drift_term * backend.square(deltaE_grid) + V  # [eV]
 
     return deltaE_grid, time_grid, hamilton_2D
 
@@ -182,7 +179,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
         ----------
 
         time_limit
-            Start and stop of time, in [s]
+            Start and stop of time, in [s].
+            The Hamilton will be calculated within this time range.
         n_macroparticles
             Number of macroparticles to inject into the beam.
         hamilton_to_density_kwargs
@@ -193,7 +191,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             ``hamilton_max``: Maximum value of the Hamilton, in [arb. unit].
         hamilton_to_density_function
             A function that converts the 2D Hamiltonian array to a density
-            function.
+            function. See ``hamilton_to_density_by_max``.
         internal_grid_shape
             Shape (n_time, t_energy) of the internal grid, which will be
             used to generate the beam particle coordinates.
@@ -281,13 +279,19 @@ class SemiEmpiricMatcher(MatchingRoutine):
             self._plot_current_state(beam, 0, 0, ts)
             plt.draw()
             plt.pause(0.1)
+
         if simulation.intensity_effect_manager.has_wakefields():
-            for i in range(self.maxiter_intensity_effects):
+            simulation.intensity_effect_manager.set_wakefields(active=True)
+            for i_intensity in range(self.maxiter_intensity_effects):
                 # Change the strength of intensity effects to allow
                 # convergence to a stable solution (if there is any?)
-                if i < self.increment_intensity_effects_until_iteration_i:
+                if (
+                    i_intensity
+                    < self.increment_intensity_effects_until_iteration_i
+                ):
                     scalar = (
-                        i / self.increment_intensity_effects_until_iteration_i
+                        i_intensity
+                        / self.increment_intensity_effects_until_iteration_i
                     )  # t
                 else:
                     scalar = 1.0
@@ -295,7 +299,6 @@ class SemiEmpiricMatcher(MatchingRoutine):
 
                 # run simulation with beam to collect the actual profiles
                 # that cause the wake-fields
-                simulation.intensity_effect_manager.set_wakefields(active=True)
                 simulation.intensity_effect_manager.set_profiles(active=True)
 
                 # this might get changed by the simulation
@@ -322,7 +325,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 if self.animate:
                     plt.figure("SemiEmpiricMatcher")
                     plt.clf()
-                    self._plot_current_state(beam, i, scalar, ts)
+                    self._plot_current_state(beam, i_intensity, scalar, ts)
                     plt.draw()
                     plt.pause(0.1)
 
@@ -332,29 +335,32 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 )
                 # calculate errors on wakes (not on beam profiles)
                 # because this will more stable as noise is smoothed out
-                if error_calculable and i > 1:
+                if error_calculable and i_intensity > 1:
                     # Root mean square deviation
                     obs = self._last_potential_well
                     obs = obs / obs.max()
                     obs_previous = self._prelast_potential_well
                     obs_previous = obs_previous / obs_previous.max()
-                    error = float(np.sqrt(np.mean((obs - obs_previous) ** 2)))
+                    error = float(
+                        np.sqrt(backend.mean((obs - obs_previous) ** 2))
+                    )
                     if self.verbose:
                         print(
-                            f"Iteration: {i:<5}"
+                            f"Iteration: {i_intensity:<5}"
                             f" | Intensity {(scalar * 100):3.1f}%"
                             f" | Error: {error:.{tolerance_decimal_places}f}"
                         )
                     if (
                         error < self.tolerance
-                        and i
+                        and i_intensity
                         > self.increment_intensity_effects_until_iteration_i
                     ):
                         break
 
-            simulation.intensity_effect_manager.set_wakefields(active=True)
-            simulation.intensity_effect_manager.set_profiles(active=True)
             beam.intensity = intensity_org
+
+        simulation.intensity_effect_manager.set_wakefields(active=True)
+        simulation.intensity_effect_manager.set_profiles(active=True)
 
     def _match_beam(
         self,
@@ -382,7 +388,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         """
         potential_well, factor, tilt_dt_per_dE = (
             simulation.get_potential_well_empiric(
-                ts=np.linspace(ts.min(), ts.max(), len(ts) * 10),
+                dt=np.linspace(ts.min(), ts.max(), len(ts) * 10),
                 particle_type=beam.particle_type,
                 intensity=beam.intensity,
             )

@@ -127,7 +127,7 @@ class Ring(Preparable, Schedulable):
         return transition_gamma_average
 
     def calc_average_eta_0(self, gamma: float) -> np.float32 | np.float64:
-        from ...physics.drifts import DriftBaseClass
+        from ...physics.drifts import DriftBaseClass  # prevent circular import
 
         drifts = self.elements.get_elements(DriftBaseClass)
         weights = [d.orbit_length for d in drifts]

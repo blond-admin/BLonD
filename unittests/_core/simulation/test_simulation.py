@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import unittest
-from copy import deepcopy
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 from unittest.mock import Mock, create_autospec
 
 import matplotlib.pyplot as plt
@@ -10,26 +9,19 @@ import numpy as np
 
 from blond import (
     Beam,
-    BiGaussian,
     DriftSimple,
     Ring,
     Simulation,
     SingleHarmonicCavity,
-    backend,
     proton,
 )
 from blond._core.beam.base import BeamBaseClass
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
-from blond.examples.EX_MuonCollider import cavity
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import BunchObservation, Observables
-from unittests.handle_results.test_observables import simulation
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Tuple
-
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from numpy.typing import NDArray as NumpyArray
 
 
 class TestSimulation(unittest.TestCase):
@@ -132,7 +124,7 @@ class TestSimulation(unittest.TestCase):
 
         potential_well, factor, tilt_dt_per_dE = (
             sim.simulation.get_potential_well_empiric(
-                ts=ts,
+                dt=ts,
                 particle_type=proton,
             )
         )
@@ -160,7 +152,7 @@ class TestSimulation(unittest.TestCase):
 
     def test_plot_potential_well_empiric(self):
         self.simulation.plot_potential_well_empiric(
-            ts=np.linspace(0, 1e-9),
+            dt=np.linspace(0, 1e-9),
             particle_type=proton,
         )
 
@@ -315,7 +307,9 @@ class TestSimulation(unittest.TestCase):
             plt.plot(drift_term_analytic, "--")
             plt.show()
         np.testing.assert_allclose(
-            drift_term_analytic + 1, drift_term + 1, atol=400
+            drift_term_analytic + 1,
+            drift_term + 1,
+            atol=0.15,
         )
 
 
