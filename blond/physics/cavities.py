@@ -831,7 +831,7 @@ class MultiHarmonicCavity(CavityBaseClass):
             reference_time=beam.reference_time,
             particle_type=beam.particle_type,
         )
-        reference_energy_change = (
+        reference_energy_change = backend.float(
             target_total_energy - beam.reference_total_energy
         )
 
