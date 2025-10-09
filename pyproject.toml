@@ -61,7 +61,10 @@ src = ["blond"]  # Source directories
 line-length = 79
 target-version = "py310"  # Minimum supported version (no quotes)
 fix = true  # Enable autofix
-
+exclude = [
+    "blond/legacy",
+    "blond/experimental",
+]
 [tool.ruff.lint]
 # Enable broad set of useful lint rules
 select = [
