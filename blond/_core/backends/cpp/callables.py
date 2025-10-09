@@ -235,8 +235,8 @@ class CppSpecials(Specials):
         dE: NumpyArray,
         voltage: NumpyArray,
         bin_centers: NumpyArray,
-        charge: np.flaot32 | np.float64,
-        acceleration_kick: np.flaot32 | np.float64,
+        charge: np.float32 | np.float64,
+        acceleration_kick: np.float32 | np.float64,
     ) -> None:
         _LIBBLOND.linear_interp_kick(
             dt.ctypes.data_as(ct.c_void_p),
@@ -260,8 +260,8 @@ class CppSpecials(Specials):
         voltage: float,
         omega_rf: float,
         phi_rf: float,
-        charge: np.flaot32 | np.float64,
-        acceleration_kick: np.flaot32 | np.float64,
+        charge: np.float32 | np.float64,
+        acceleration_kick: np.float32 | np.float64,
     ) -> None:
         _LIBBLOND.kick_single_harmonic(
             dt.ctypes.data_as(ct.c_void_p),

@@ -279,7 +279,7 @@ class TravellingWaveCavity:
         Series impedance [Ohms/m^2] of the cavity
     v_g : float
         Group velocity [c] in units of the speed of light
-    omega_r : flaot
+    omega_r : float
         Central (resonance) revolution frequency [1/s] of the cavity
 
     Attributes
