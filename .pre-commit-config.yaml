@@ -12,7 +12,6 @@ repos:
       - id: check-added-large-files  # Prevent giant files from being committed.
         args: [ '--maxkb=5000' ]
 
-  # Sorts the python import statements
   - repo: https://github.com/PyCQA/isort
     rev: 6.0.1
     hooks:
@@ -20,6 +19,7 @@ repos:
         args: ["--profile", "black"] # otherwise not compatible with Ruff
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.11  # Replace with the latest version
+    rev: v0.12.11  # You can use the latest version if desired
     hooks:
-      - id: ruff-format  # This runs `ruff format`
+      - id: ruff-check  # <-- This is for `ruff check`
+      - id: ruff-format  # <-- This is for `ruff format`
