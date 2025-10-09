@@ -18,12 +18,6 @@ import unittest
 import numpy as np
 import pytest
 
-from blond.beam.beam import Beam, Proton
-from blond.beam.distributions import bigaussian
-from blond.beam.profile import CutOptions, FitOptions, Profile
-from blond.input_parameters.rf_parameters import RFStation
-from blond.input_parameters.ring import Ring
-from blond.trackers.tracker import RingAndRFTracker
 from blond.utils import bmath as bm
 
 

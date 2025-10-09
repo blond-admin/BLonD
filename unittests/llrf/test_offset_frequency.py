@@ -72,14 +72,10 @@ class TestOffsetFrequency(unittest.TestCase):
                                places=5, msg='System 1 end phase wrong')
 
     def test_exceptions(self):
-
         with self.assertRaises(TypeError, msg='Non-integer systems should raise TypeError'):
             offFreq._FrequencyOffset(self.ring, self.rf_params, 1.)
         with self.assertRaises(TypeError, msg='Non-integer memebered iterables should raise TypeError'):
             offFreq._FrequencyOffset(self.ring, self.rf_params, ['a'])
-
-
-
 
 
 class TestFixedFrequency(unittest.TestCase):

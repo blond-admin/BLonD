@@ -170,9 +170,6 @@ class TestCoherentSynchrotronRadiation(unittest.TestCase):
                               -2.86820828e-01, -2.03095038e-01])
 
         np.testing.assert_allclose(W_fs, W_fs_test)
-
-
-class TestCoherentSynchrotronRadiation2(unittest.TestCase):
     @unittest.skip
     def setUp(self):
         # TODO: implement test for `__init__`
@@ -200,6 +197,8 @@ class TestCoherentSynchrotronRadiation2(unittest.TestCase):
     def test__pp_spectrum(self):
         # TODO: implement test for `_pp_spectrum`
         self.coherent_synchrotron_radiation._pp_spectrum(frequency_array=None, zeta_max=None)
+
+
 
 
 class TestInputTable(unittest.TestCase):

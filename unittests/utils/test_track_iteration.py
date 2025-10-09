@@ -3,7 +3,6 @@ import unittest
 from blond.utils.track_iteration import TrackIteration
 
 
-
 class TestTrackIteration(unittest.TestCase):
     @unittest.skip
     def setUp(self):

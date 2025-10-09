@@ -1,7 +1,6 @@
 import unittest
 
 
-
 class TestGPUDev(unittest.TestCase):
     @unittest.skip
     def setUp(self):

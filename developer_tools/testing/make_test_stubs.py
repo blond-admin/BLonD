@@ -43,7 +43,7 @@ class FunctionVisitor(ast.NodeVisitor):
         self.results = []  # List of (func_name, class_name, args)
         self.class_methods = {}  # class_name -> list of (func_name, args)
         self.class_missing = (
-            set()
+            set() # Dont allow duplicates
         )  # classes with at least one missing method (not __init__)
         self.missing_lines = None
 

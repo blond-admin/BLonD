@@ -362,7 +362,18 @@ class TestSPSCavityFeedback(unittest.TestCase):
                                    rtol=rtol, atol=atol,
                                    err_msg='In TestCavityFeedback test_Vsum_IQ: total voltage ' +
                                    'is different from expected values!')
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.sps_cavity_feedback = SPSCavityFeedback(RFStation=None, Profile=None, G_ff=None, G_llrf=None, G_tx=None, a_comb=None, turns=None, post_LS2=None, V_part=None, df=None, commissioning=None, n_h=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
 
+    @unittest.skip
+    def test_track_init(self):
+        # TODO: implement test for `track_init`
+        self.sps_cavity_feedback.track_init(debug=None)
 
 class TestSPSOneTurnFeedback(unittest.TestCase):
 
@@ -584,6 +595,48 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
                    "mismatch in imaginary part of generator response"
         )
 
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.sps_one_turn_feedback = SPSOneTurnFeedback(RFStation=None, Profile=None, n_sections=None, n_cavities=None, V_part=None, G_ff=None, G_llrf=None, G_tx=None, a_comb=None, df=None, commissioning=None, n_h=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
+    @unittest.skip
+    def test_beam_model(self):
+        # TODO: implement test for `beam_model`
+        self.sps_one_turn_feedback.beam_model()
+
+    @unittest.skip
+    def test_calc_power(self):
+        # TODO: implement test for `calc_power`
+        self.sps_one_turn_feedback.calc_power()
+
+    @unittest.skip
+    def test_call_conv(self):
+        # TODO: implement test for `call_conv`
+        self.sps_one_turn_feedback.call_conv(signal=None, kernel=None)
+
+    @unittest.skip
+    def test_set_point_mod(self):
+        # TODO: implement test for `set_point_mod`
+        self.sps_one_turn_feedback.set_point_mod()
+
+    @unittest.skip
+    def test_update_fb_variables(self):
+        # TODO: implement test for `update_fb_variables`
+        self.sps_one_turn_feedback.update_fb_variables()
+
+    @unittest.skip
+    def test_w_clamping(self):
+        # TODO: implement test for `w_clamping`
+        self.sps_one_turn_feedback.w_clamping()
+
+    @unittest.skip
+    def test_wo_clamping(self):
+        # TODO: implement test for `wo_clamping`
+        self.sps_one_turn_feedback.wo_clamping()
 
 class TestSPSTransmitterGain(unittest.TestCase):
 
@@ -844,63 +897,8 @@ class TestLHCCavityLoopCommissioning(unittest.TestCase):
         # TODO: implement test for `generate_white_noise`
         self.lhc_cavity_loop_commissioning.generate_white_noise(n_points=None)
 
-class TestSPSCavityFeedback2(unittest.TestCase):
-    @unittest.skip
-    def setUp(self):
-        # TODO: implement test for `__init__`
-        self.sps_cavity_feedback = SPSCavityFeedback(RFStation=None, Profile=None, G_ff=None, G_llrf=None, G_tx=None, a_comb=None, turns=None, post_LS2=None, V_part=None, df=None, commissioning=None, n_h=None)
-    @unittest.skip
-    def test___init__(self):
-        pass # calls __init__ in  self.setUp
 
-    @unittest.skip
-    def test_track_init(self):
-        # TODO: implement test for `track_init`
-        self.sps_cavity_feedback.track_init(debug=None)
 
-class TestSPSOneTurnFeedback2(unittest.TestCase):
-    @unittest.skip
-    def setUp(self):
-        # TODO: implement test for `__init__`
-        self.sps_one_turn_feedback = SPSOneTurnFeedback(RFStation=None, Profile=None, n_sections=None, n_cavities=None, V_part=None, G_ff=None, G_llrf=None, G_tx=None, a_comb=None, df=None, commissioning=None, n_h=None)
-    @unittest.skip
-    def test___init__(self):
-        pass # calls __init__ in  self.setUp
-
-    @unittest.skip
-    def test_beam_model(self):
-        # TODO: implement test for `beam_model`
-        self.sps_one_turn_feedback.beam_model()
-
-    @unittest.skip
-    def test_calc_power(self):
-        # TODO: implement test for `calc_power`
-        self.sps_one_turn_feedback.calc_power()
-
-    @unittest.skip
-    def test_call_conv(self):
-        # TODO: implement test for `call_conv`
-        self.sps_one_turn_feedback.call_conv(signal=None, kernel=None)
-
-    @unittest.skip
-    def test_set_point_mod(self):
-        # TODO: implement test for `set_point_mod`
-        self.sps_one_turn_feedback.set_point_mod()
-
-    @unittest.skip
-    def test_update_fb_variables(self):
-        # TODO: implement test for `update_fb_variables`
-        self.sps_one_turn_feedback.update_fb_variables()
-
-    @unittest.skip
-    def test_w_clamping(self):
-        # TODO: implement test for `w_clamping`
-        self.sps_one_turn_feedback.w_clamping()
-
-    @unittest.skip
-    def test_wo_clamping(self):
-        # TODO: implement test for `wo_clamping`
-        self.sps_one_turn_feedback.wo_clamping()
 
 
 if __name__ == '__main__':

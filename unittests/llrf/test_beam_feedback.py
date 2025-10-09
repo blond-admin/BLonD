@@ -174,7 +174,6 @@ class TestBeamFeedback(unittest.TestCase):
                                    err_msg='In TestBeamFeedback test_SPS_RL: difference between simulated and analytic result different than expected')
 
 
-class TestBeamFeedback2(unittest.TestCase):
     @unittest.skip
     def test_LHC(self):
         # TODO: implement test for `LHC`

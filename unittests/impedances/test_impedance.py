@@ -87,6 +87,28 @@ class TestInducedVoltageFreq(unittest.TestCase):
             test_object.frequency_resolution,
             test_object.freq[1] - test_object.freq[0])
 
+    @unittest.skip
+    def setUp(self):
+        # TODO: implement test for `__init__`
+        self.induced_voltage_freq = InducedVoltageFreq(Beam=None, Profile=None, impedance_source_list=None, frequency_resolution=None, multi_turn_wake=None, front_wake_length=None, RFParams=None, mtw_mode=None, use_regular_fft=None)
+    @unittest.skip
+    def test___init__(self):
+        pass # calls __init__ in  self.setUp
+
+    @unittest.skip
+    def test_process(self):
+        # TODO: implement test for `process`
+        self.induced_voltage_freq.process()
+
+    @unittest.skip
+    def test_to_cpu(self):
+        # TODO: implement test for `to_cpu`
+        self.induced_voltage_freq.to_cpu(recursive=None)
+
+    @unittest.skip
+    def test_to_gpu(self):
+        # TODO: implement test for `to_gpu`
+        self.induced_voltage_freq.to_gpu(recursive=None)
 
 class TestInducedVoltageTime(unittest.TestCase):
 
@@ -125,30 +147,7 @@ class TestInducedVoltageTime(unittest.TestCase):
         np.testing.assert_allclose(test_object.wake_length_input, 11e-9)
 
 
-class TestInducedVoltageFreq2(unittest.TestCase):
-    @unittest.skip
-    def setUp(self):
-        # TODO: implement test for `__init__`
-        self.induced_voltage_freq = InducedVoltageFreq(Beam=None, Profile=None, impedance_source_list=None, frequency_resolution=None, multi_turn_wake=None, front_wake_length=None, RFParams=None, mtw_mode=None, use_regular_fft=None)
-    @unittest.skip
-    def test___init__(self):
-        pass # calls __init__ in  self.setUp
-
-    @unittest.skip
-    def test_process(self):
-        # TODO: implement test for `process`
-        self.induced_voltage_freq.process()
-
-    @unittest.skip
-    def test_to_cpu(self):
-        # TODO: implement test for `to_cpu`
-        self.induced_voltage_freq.to_cpu(recursive=None)
-
-    @unittest.skip
-    def test_to_gpu(self):
-        # TODO: implement test for `to_gpu`
-        self.induced_voltage_freq.to_gpu(recursive=None)
-
+ 
 
 class TestInducedVoltageResonator(unittest.TestCase):
     @unittest.skip

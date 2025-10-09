@@ -661,9 +661,6 @@ class TestTravelingWaveCavity(unittest.TestCase):
                                    atol=0, err_msg="In TestTravelingWaveCavity test_beam_fine_coarse,"
                                    "mismatch in beam-induced voltage on coarse grid")
 
-
-
-
 class TestFunctions(unittest.TestCase):
     @unittest.skip
     def test_cavity_response_sparse_matrix(self):

@@ -115,7 +115,7 @@ class TestFunctions(unittest.TestCase):
         time_data = np.array([1.0, 2.0, 1.0, 0.0], dtype=np.float64)
         freq_data = np.fft.rfft(time_data)
         n = time_data.size
-        result = np.empty(n, dtype=np.float64)
+        result = np.empty_like(time_data)
 
         butils_wrap_cpp.irfft(a=freq_data, n=n, result=result)
         np.testing.assert_allclose(result, time_data, atol=1e-12)
@@ -179,7 +179,7 @@ class TestFunctions(unittest.TestCase):
         np.testing.assert_allclose(result, expected, atol=1e-12)
 
     def test_sin_cpp(self):
-        x = np.linspace(0, 2 * np.pi, 5)
+        x = np.linspace(0, 2 * np.pi, 5, dtype=np.float64)
         expected = np.sin(x)
         result = np.empty_like(x)
         butils_wrap_cpp.sin_cpp(x=x, result=result)
@@ -202,7 +202,7 @@ class TestFunctions(unittest.TestCase):
         x = np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float64)
         expected = np.std(x)
         result = butils_wrap_cpp.std_cpp(x=x)
-        self.assertAlmostEqual(result, expected, places=12)
+        np.testing.assert_allclose(result, expected, atol=1e-12)
 
     @unittest.skip("TODO")
     def test_where_cpp(self):
