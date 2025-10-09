@@ -10,14 +10,14 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class BeamPreparationRoutine(ABC):
-    """Base class to write beam preparation routines"""
+    """Base class to write beam preparation routines."""
 
     def prepare_beam(
         self,
         simulation: Simulation,
         beam: BeamBaseClass,
     ) -> None:
-        """Populates the `Beam` object with macro-particles
+        """Populates the `Beam` object with macro-particles.
 
         Parameters
         ----------

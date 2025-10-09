@@ -8,7 +8,32 @@
 # Developer Guide for BLonD
 > A guide on how to maintain and extend BLonD 3
 
-A full installation and test, with optional deployment is done via the [GitLab Continuous Integration (CI) Pipeline](.gitlab-ci.yml)
+To ensure consistent code quality and releases,
+a full installation and test, with optional deployment, is done using the [GitLab Continuous Integration (CI) Pipeline](.gitlab-ci.yml).
+All relevant commands can be found there.
+
+Code that is not mature enough to be inside the standard codebase should be developed in the folder [blond/experimental](blond/experimental), this folder is excluded from test coverage and pre-commit hooks.
+
+## Project Structure
+
+```
+blond/
+├── __doc/                    # Sphinx documentation
+├── blond/                    # Core Python package
+├──── experimental/           # Untested/unstable code
+├──── legacy/                 # The recent version of BLonD 2
+├── integrationtests/         # Long-running integration tests
+├── legacy/                   # Legacy scripts from BLonD 2
+├── unittests/                # Fast-running unit tests
+├── .gitlab-ci.yml            # GitLab CI configuration
+├── .pre-commit-config.yaml   # Pre-commit hook definitions
+├── MANIFEST.in               # Package include/exclude rules
+├── pyproject.toml            # Project configuration for pip
+└── setup.py                  # Build script for installation
+```
+
+---
+
 ## Dependencies
 
 Ensure the following tools are installed:
@@ -86,23 +111,6 @@ blond-compile-fortran # Compile the Fortran backend
 
 ---
 
-## Project Structure
-
-```
-blond/
-├── __doc/                    # Sphinx documentation
-├── blond/                    # Core Python package
-├── integrationtests/         # Long-running integration tests
-├── legacy/                   # Legacy scripts from BLonD 2
-├── unittests/                # Fast-running unit tests
-├── .gitlab-ci.yml            # GitLab CI configuration
-├── .pre-commit-config.yaml   # Pre-commit hook definitions
-├── MANIFEST.in               # Package include/exclude rules
-├── pyproject.toml            # Project configuration for pip
-└── setup.py                  # Build script for installation
-```
-
----
 
 ## Running Tests
 > Automatically done in GitLab CI Pipeline
@@ -126,6 +134,10 @@ To run hooks on **all files**:
 
 ```bash
 pre-commit run --all-files
+```
+An optional check of the code can be done using the command
+```bash
+ruff check
 ```
 
 ---
@@ -176,7 +188,8 @@ Then, [index.html](__doc/_build/html/index.html) can be opened with a web browse
 ---
 
 ## Release Process
-> NOTE: As long as BLonD 3 is not the main BLonD Version, it will not be available on PyPi and the docuemntation website.
+> [!WARNING]
+> As long as BLonD 3 is not the main BLonD Version, it will not be available on PyPi and the docuemntation website.
 
 > Automatically done in GitLab CI Pipeline
 

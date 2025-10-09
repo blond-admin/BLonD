@@ -57,8 +57,38 @@ dependencies = { file = ["requirements.txt"] }
 optional-dependencies = { all = { file = ["requirements.txt", "requirements-gpu.txt", "requirements-dev.txt", "requirements-fortran.txt", "requirements-doc.txt"] }, gpu = { file = ["requirements-gpu.txt"] }, fortran = { file = ["requirements-fortran.txt"] }, dev = { file = ["requirements-dev.txt"] }, legacy = { file = ["legacy/requirements.txt"] }, doc = { file = "requirements-doc.txt" } }
 
 [tool.ruff]
+src = ["blond"]  # Source directories
 line-length = 79
+target-version = "py310"  # Minimum supported version (no quotes)
+fix = true  # Enable autofix
+exclude = [
+    "blond/legacy",
+    "blond/experimental",
+]
+[tool.ruff.lint]
+# Enable broad set of useful lint rules
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "B",    # flake8-bugbear (catch common bugs)
+    # "I",  # isort (import sorting)
+    # "N",  # pep8-naming
+    "UP",   # pyupgrade
+    # "C4", # flake8-comprehensions
+    "D",    # pydocstyle
+    # "SIM",# flake8-simplify
+    "NPY",  # numpy-specific rules
+    "PL",   # pylint rules
+]
 
+ignore = [
+    "E501", #  Line too long
+    "E501", #  Line too long
+    "PLR0913", # Too many arguments in function definition
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
 [tool.pytest.ini_options]
 minversion = "8.4"
 addopts = "--import-mode=importlib --cov --cov-config=.coveragerc"

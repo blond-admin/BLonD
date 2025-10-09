@@ -1,26 +1,21 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:  # pragma: no cover
-    from typing import List, Set, Union
 
 
 def get_files_with_extensions(
-    folder: Union[str, Path],
-    extensions: Set[str],
+    folder: str | Path,
+    extensions: tuple[str, ...],
     recursive: bool = True,
-) -> List[Path]:
-    """
-    Retrieves all files in a folder that match a set of file extensions.
+) -> list[Path]:
+    """Retrieves all files in a folder that match a set of file extensions.
 
     Parameters
     ----------
     folder
         The path to the folder to search.
     extensions
-        A set of file extensions to match (e.g., {'.txt', '.md'}).
+        File extensions to match (e.g., {'.txt', '.md'}).
     recursive
         Whether to search subdirectories recursively. Defaults to True.
 

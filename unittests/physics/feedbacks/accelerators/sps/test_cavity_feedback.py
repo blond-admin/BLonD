@@ -41,7 +41,7 @@ def rf_volt_comp(
         phi_rf (NumpyArray): _description_
         bin_centers (NumpyArray): _description_
 
-    Returns:
+    Returns
         NumpyArray: _description_
     """
     rf_voltage = np.zeros(len(bin_centers))
