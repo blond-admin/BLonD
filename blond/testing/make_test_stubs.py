@@ -1,3 +1,10 @@
+"""Collection of functions to automatically generate (empty) missing testcases.
+
+This is intended to reduce the overhead of writing unittests.
+
+:Authors: Simon Lauber
+"""
+
 import ast
 import json
 import os
@@ -11,7 +18,7 @@ PROJECT_ROOT = (Path(__file__).parent / Path("../")).resolve()
 TEST_ROOT = (Path(__file__).parent / Path("../../unittests")).resolve()
 
 
-def classname_to_varname(name):
+def _classname_to_varname(name):
     # Insert underscore before each uppercase letter that follows a lowercase letter or number
     s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
     # Insert underscore before uppercase letters followed by lowercase letters or end of string
@@ -19,12 +26,12 @@ def classname_to_varname(name):
     return s2.lower()
 
 
-def load_coverage_data(path: str | os.PathLike):
+def _load_coverage_data(path: str | os.PathLike):
     with open(path) as f:
         return json.load(f)
 
 
-def get_function_end_lineno(node):
+def _get_function_end_lineno(node):
     """Estimate the last line number of a function."""
     if hasattr(node, "end_lineno"):
         return node.end_lineno
@@ -35,7 +42,7 @@ def get_function_end_lineno(node):
     return max_lineno
 
 
-def extract_untested_functions(cov_data):
+def _extract_untested_functions(cov_data):
     """Get all functions that are untested."""
     untested = {}
     files = cov_data.get("files", {})
@@ -66,7 +73,7 @@ def extract_untested_functions(cov_data):
 
             def visit_FunctionDef(self, node):
                 start = node.lineno
-                end = get_function_end_lineno(node)
+                end = _get_function_end_lineno(node)
                 class_name = self.stack[-1] if self.stack else None
                 args = [arg.arg for arg in node.args.args]
                 if class_name and args and args[0] == "self":
@@ -108,9 +115,17 @@ def extract_untested_functions(cov_data):
     return untested
 
 
-def write_boilerplate_tests(untested_functions):
+def _write_boilerplate_tests(untested_functions) -> None:
+    """Create the files with the test stubs inside.
+
+    Parameters
+    ----------
+    untested_functions
+        The functions for which the tests should be created.
+
+    """
     for src_path, functions in untested_functions.items():
-        functions = list(
+        functions_ = list(
             sorted(
                 functions,
                 key=lambda x: ("", x[0]) if x[1] is None else (x[1], x[0]),
@@ -135,7 +150,7 @@ def write_boilerplate_tests(untested_functions):
 
         classes = {}
 
-        for func_name, class_name, args in functions:
+        for func_name, class_name, args in functions_:
             test_func = f"test_{func_name}"
             if test_func in existing:
                 continue
@@ -143,7 +158,7 @@ def write_boilerplate_tests(untested_functions):
             # Build function call string with keyword args set to None
             call_args = ", ".join([f"{arg}=None" for arg in args])
             if class_name:
-                var_name = classname_to_varname(class_name)
+                var_name = _classname_to_varname(class_name)
                 if test_func == "test___init__":
                     call_line = (
                         f"        self.{var_name} = {class_name}({call_args})\n"
@@ -188,9 +203,10 @@ def write_boilerplate_tests(untested_functions):
 
 
 def main():
-    cov_data = load_coverage_data(COVERAGE_JSON_PATH)
-    untested_funcs = extract_untested_functions(cov_data)
-    write_boilerplate_tests(untested_funcs)
+    """Create the test stubs."""
+    cov_data = _load_coverage_data(COVERAGE_JSON_PATH)
+    untested_funcs = _extract_untested_functions(cov_data)
+    _write_boilerplate_tests(untested_funcs)
     print("✅ Boilerplate test cases generated with mirrored structure.")
 
 

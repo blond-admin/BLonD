@@ -15,13 +15,13 @@ from ..acc_math.analytic.simple_math import calc_total_energy
 from .base import ProgrammedCycle
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, Literal, TypeVar, Union
+    from typing import Any, Literal, TypeVar
 
     from numpy.typing import NDArray as NumpyArray
 
     from .._core.simulation.simulation import Simulation
 
-    FloatOrArray = Union[float, NumpyArray]
+    FloatOrArray = float | NumpyArray
 
     T = TypeVar("T")
 
@@ -134,7 +134,8 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
 
         Returns
         -------
-
+        reference_total_energy
+            The new energy, in [eV]
         """
         pass
 

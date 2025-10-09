@@ -5,7 +5,7 @@ import pytest  # type: ignore
 
 
 def run_pytest(folder_path: str) -> None:
-    """Run pytest on the specified folder with importlib import mode"""
+    """Run pytest on the specified folder with importlib import mode."""
     pytest.main(["--import-mode=importlib", folder_path])
 
 

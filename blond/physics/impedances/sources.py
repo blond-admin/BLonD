@@ -312,20 +312,21 @@ class ImpedanceTable(DiscreteWakeFieldSource):
 
 
 class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
+    """Impedance table in frequency domain.
+
+    Parameters
+    ----------
+    freq_x
+        Frequency axis, in [Hz].
+    freq_y
+        Complex amplitudes in frequency domain
+    """
+
     def __init__(
         self,
         freq_x: NumpyArray,
         freq_y: NumpyArray,
     ):
-        """Impedance table in frequency domain.
-
-        Parameters
-        ----------
-        freq_x
-            Frequency axis, in [Hz].
-        freq_y
-            Complex amplitudes in frequency domain
-        """
         super().__init__(is_dynamic=False)
 
         self._freq_x = freq_x

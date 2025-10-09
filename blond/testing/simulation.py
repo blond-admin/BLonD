@@ -5,6 +5,8 @@ from blond._core.backends.backend import backend
 
 
 class ExampleSimulation01:
+    """Simulation with only one drift, one RF."""
+
     def __init__(self):
         import numpy as np
 
@@ -80,6 +82,8 @@ class ExampleSimulation01:
 
 
 class SimulationTwoRfStations:
+    """A simulation with two RF stations and according drifts."""
+
     def __init__(self):
         import numpy as np
 

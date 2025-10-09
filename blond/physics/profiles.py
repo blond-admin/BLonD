@@ -22,19 +22,20 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class ProfileBaseClass(BeamPhysicsRelevant):
+    """Base class to implement calculation of beam profiles.
+
+    Parameters
+    ----------
+    section_index
+        Section index to group elements into sections
+    name
+        User given name of the element
+
+    """
+
     def __init__(
         self, section_index: int = 0, name: str | None = None
     ) -> None:
-        """Base class to implement calculation of beam profiles.
-
-        Parameters
-        ----------
-        section_index
-            Section index to group elements into sections
-        name
-            User given name of the element
-
-        """
         super().__init__(
             section_index=section_index,
             name=name,
@@ -257,6 +258,22 @@ class ProfileBaseClass(BeamPhysicsRelevant):
 
 
 class StaticProfile(ProfileBaseClass):
+    """Calculation of beam profile that doesn't change its parameters.
+
+    Parameters
+    ----------
+    cut_left
+        Left outer edge of the histogram, in [s]
+    cut_right
+        Right outer edge of the histogram, in [s]
+    n_bins
+        Number of bins in the histogram
+    section_index
+        Section index to group elements into sections
+    name
+        User given name of the element
+    """
+
     def __init__(
         self,
         cut_left: float,
@@ -265,21 +282,6 @@ class StaticProfile(ProfileBaseClass):
         section_index: int = 0,
         name: str | None = None,
     ) -> None:
-        """Calculation of beam profile that doesn't change its parameters.
-
-        Parameters
-        ----------
-        cut_left
-            Left outer edge of the histogram, in [s]
-        cut_right
-            Right outer edge of the histogram, in [s]
-        n_bins
-            Number of bins in the histogram
-        section_index
-            Section index to group elements into sections
-        name
-            User given name of the element
-        """
         super().__init__(
             section_index=section_index,
             name=name,
@@ -350,18 +352,19 @@ class StaticProfile(ProfileBaseClass):
 
 
 class DynamicProfile(ProfileBaseClass):
+    """Profile that can change its parameters during runtime.
+
+    Parameters
+    ----------
+    section_index
+        Section index to group elements into sections
+    name
+        User given name of the element
+    """
+
     def __init__(
         self, section_index: int = 0, name: str | None = None
     ) -> None:
-        """Profile that can change its parameters during runtime.
-
-        Parameters
-        ----------
-        section_index
-            Section index to group elements into sections
-        name
-            User given name of the element
-        """
         super().__init__(
             section_index=section_index,
             name=name,
@@ -398,7 +401,13 @@ class DynamicProfile(ProfileBaseClass):
 
     @abstractmethod  # pragma: no cover
     def update_attributes(self, beam: BeamBaseClass) -> None:
-        """Method to update the attributes."""
+        """Update the histogram limits and according arrays.
+
+        Parameters
+        ----------
+        beam
+            Simulation beam object
+        """
         pass
 
     def track(self, beam: BeamBaseClass) -> None:
@@ -414,23 +423,24 @@ class DynamicProfile(ProfileBaseClass):
 
 
 class DynamicProfileConstCutoff(DynamicProfile):
+    """Profile that changes its width, keeping a constant cutoff frequency.
+
+    Parameters
+    ----------
+    timestep
+        Time step, in [s] to keep the cutoff constant
+    section_index
+        Section index to group elements into sections
+    name
+        User given name of the element
+    """
+
     def __init__(
         self,
         timestep: float,
         section_index: int = 0,
         name: str | None = None,
     ) -> None:
-        """Profile that changes its width, keeping a constant cutoff frequency.
-
-        Parameters
-        ----------
-        timestep
-            Time step, in [s] to keep the cutoff constant
-        section_index
-            Section index to group elements into sections
-        name
-            User given name of the element
-        """
         super().__init__(
             section_index=section_index,
             name=name,
@@ -438,6 +448,13 @@ class DynamicProfileConstCutoff(DynamicProfile):
         self.timestep = timestep
 
     def update_attributes(self, beam: BeamBaseClass) -> None:
+        """Update the histogram limits and according arrays.
+
+        Parameters
+        ----------
+        beam
+            Simulation beam object
+        """
         cut_left = beam.dt_min  # TODO caching of attribute access
         cut_right = beam.dt_max  # TODO caching of attribute access
         n_bins = int(math.ceil((cut_right - cut_left) / self.timestep))
@@ -447,20 +464,21 @@ class DynamicProfileConstCutoff(DynamicProfile):
 
 
 class DynamicProfileConstNBins(DynamicProfile):
+    """Profile that changes its width, keeping a constant bin number.
+
+    Parameters
+    ----------
+    n_bins
+        Number of bins in the histogram
+    section_index
+        Section index to group elements into sections
+    name
+        User given name of the element
+    """
+
     def __init__(
         self, n_bins: int, section_index: int = 0, name: str | None = None
     ) -> None:
-        """Profile that changes its width, keeping a constant bin number.
-
-        Parameters
-        ----------
-        n_bins
-            Number of bins in the histogram
-        section_index
-            Section index to group elements into sections
-        name
-            User given name of the element
-        """
         super().__init__(
             section_index=section_index,
             name=name,
@@ -468,6 +486,13 @@ class DynamicProfileConstNBins(DynamicProfile):
         self.n_bins = int_from_float_with_warning(n_bins, warning_stacklevel=2)
 
     def update_attributes(self, beam: BeamBaseClass) -> None:
+        """Update the histogram limits and according arrays.
+
+        Parameters
+        ----------
+        beam
+            Simulation beam object
+        """
         cut_left = beam.dt_min  # TODO caching of attribute access
         cut_right = beam.dt_max  # TODO caching of attribute access
         self._hist_x, self._hist_y = ProfileBaseClass.get_arrays(

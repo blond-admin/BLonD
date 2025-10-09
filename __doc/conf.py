@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # BLonD documentation build configuration file, created by
 # sphinx-quickstart on Fri Mar 10 19:37:27 2017.
