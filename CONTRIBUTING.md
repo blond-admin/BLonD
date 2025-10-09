@@ -188,7 +188,8 @@ Then, [index.html](__doc/_build/html/index.html) can be opened with a web browse
 ---
 
 ## Release Process
-> NOTE: As long as BLonD 3 is not the main BLonD Version, it will not be available on PyPi and the docuemntation website.
+> [!WARNING]
+> As long as BLonD 3 is not the main BLonD Version, it will not be available on PyPi and the docuemntation website.
 
 > Automatically done in GitLab CI Pipeline
 

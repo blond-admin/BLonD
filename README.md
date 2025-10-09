@@ -24,6 +24,7 @@
 
 
 ## Installation
+> [!WARNING]
 > This does not work until BLonD3 is the main version!
 >
 > Follow the [Developer Guide](CONTRIBUTING.md) to get BLonD3.
