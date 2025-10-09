@@ -21,5 +21,7 @@ Submodules
 .. toctree::
    :maxdepth: 5
 
+   blond._generals._files
+   blond._generals._hashing
    blond._generals._iterables
    blond._generals._warnings

@@ -69,6 +69,11 @@ author = "BLonD-admin"
 
 autodoc_mock_imports = ["mpi4py"]
 
+autodoc_default_options = {
+    "undoc-members": False,
+    "special-members": "__init__",
+}
+
 # The version info for the project you"re documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
@@ -95,7 +100,7 @@ exclude_patterns = [
     ".DS_Store",
     "*/blond.legacy.*",
     "*/blond.performance_blond3.*",
-    "*/blond.experimental.*",
+    "*/blond.experimental.physics.*",
     "*/blond.examples.*",
     "*/blond._versio*",
     "*/blond._core.backends.cuda.call*",

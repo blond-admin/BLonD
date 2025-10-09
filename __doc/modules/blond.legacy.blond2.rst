@@ -3,6 +3,7 @@ blond.legacy.blond2 package
 
 .. automodule:: blond.legacy.blond2
    :members:
+   :private-members:
    :show-inheritance:
    :undoc-members:
 
@@ -10,7 +11,7 @@ Subpackages
 -----------
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 5
 
    blond.legacy.blond2.beam
    blond.legacy.blond2.gpu
@@ -29,6 +30,6 @@ Submodules
 ----------
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 5
 
    blond.legacy.blond2.compile

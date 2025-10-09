@@ -3,6 +3,7 @@ blond.legacy.blond2.utils package
 
 .. automodule:: blond.legacy.blond2.utils
    :members:
+   :private-members:
    :show-inheritance:
    :undoc-members:
 
@@ -10,7 +11,7 @@ Submodules
 ----------
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 5
 
    blond.legacy.blond2.utils.bmath_backends
    blond.legacy.blond2.utils.butils_wrap_cpp

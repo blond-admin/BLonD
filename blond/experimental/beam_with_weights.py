@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from typing import Optional
 from typing import Optional as LateInit
 
-from cupy.typing import NDArray as CupyArray
-from numpy._typing import NDArray as NumpyArray
+if TYPE_CHECKING:
+    from cupy.typing import NDArray as CupyArray
+    from numpy._typing import NDArray as NumpyArray
 
 from blond import Beam
 from blond._core.backends.backend import backend
