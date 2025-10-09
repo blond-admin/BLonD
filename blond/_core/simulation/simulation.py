@@ -298,7 +298,7 @@ class Simulation(Preparable, HasPropertyCache):
     def from_locals(
         locals: dict[str, Any], verbose: bool = False
     ) -> Simulation:
-        """Automatically instance simulation from all locals of where its called.
+        """Automatically instantiate simulation from all locals where it's called.
 
         Parameters
         ----------

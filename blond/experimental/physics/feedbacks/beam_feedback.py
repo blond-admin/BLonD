@@ -216,8 +216,8 @@ class Blond2BeamFeedback(LocalFeedback):
         self.phi_beam = np.arctan(coeff) + np.pi
 
     def update_dphi(self, beam: BeamBaseClass):
-        """*Phase difference between beam and RF phase of the main RF system.
-        Optional: add RF phase noise through dphi directly.*
+        """Phase difference between beam and RF phase of the main RF system.
+        Optional: add RF phase noise through dphi directly.
         """
         # Correct for design stable phase
         self.dphi = self.phi_beam - self._parent_cavity.phi_s

@@ -11,6 +11,8 @@ if TYPE_CHECKING:  # pragma: no cover
         TypeVar,
     )
 
+    # To reference a function that has the same output type
+    # like an input type
     T = TypeVar("T")
 
 

@@ -101,7 +101,7 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         self.domega_rf = self.domega_dphi + self.domega_dR
 
     def radial_difference(self, beam: BeamBaseClass):
-        """*Radial difference between beam and design orbit.*"""
+        """Radial difference between beam and design orbit."""
         self.average_dE = np.mean(
             beam._dE[:: self.sample_dE]
         )  # todo other access
@@ -115,7 +115,7 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         )
 
     def radial_steering_from_freq(self):
-        """*Frequency and phase change for the current turn due to the radial steering program.*"""
+        """Frequency and phase change for the current turn due to the radial steering program."""
         raise NotImplementedError(
             "BLonD2 port that was already broken."
             " Who wants to use"
@@ -195,10 +195,10 @@ class SpsFBeamFeedback(Blond2BeamFeedback):
         self.domega_rf = self.domega_dphi + self.domega_df
 
     def beam_phase_sharpWindow(self):
-        """*Beam phase measured at the main RF frequency and phase. The beam is
+        """Beam phase measured at the main RF frequency and phase. The beam is
         averaged over a window. The coefficients of sine and cosine components
         determine the beam phase, projected to the range -Pi/2 to 3/2 Pi.
-        Note that this beam phase is already w.r.t. the instantaneous RF phase.*
+        Note that this beam phase is already w.r.t. the instantaneous RF phase.
         """
         # Main RF frequency at the present turn
         omega_rf = (

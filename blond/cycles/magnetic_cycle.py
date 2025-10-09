@@ -739,8 +739,7 @@ class MagneticCycleByTime(MagneticCycleBase):
         bending_radius: float | None = None,
         interpolator=np.interp,
     ):
-        """Magnetic cycle defined as B vs. Time, interpolated just in
-        time.
+        """Magnetic cycle defined as B vs. time, interpolated just in time.
 
         Parameters
         ----------

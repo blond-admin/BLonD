@@ -7,10 +7,6 @@ import platform
 import subprocess
 import sys
 import warnings
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:  # pragma: no cover
-    pass
 
 _filepath = os.path.realpath(__file__)
 _basepath = os.sep.join(_filepath.split(os.sep)[:-1])

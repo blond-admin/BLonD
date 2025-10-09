@@ -79,8 +79,8 @@ class PsbBeamFeedback(Blond2BeamFeedback):
         self.dR_over_R = 0
 
     def precalculate_time(self, ring: Ring):
-        """*For machines like the PSB, where the PL acts only in certain time
-        intervals, pre-calculate on which turns to act.*
+        """For machines like the PSB, where the PL acts only in certain time
+        intervals, pre-calculate on which turns to act.
         """
         if self.dt > 0:
             n = self.delay + 1

@@ -28,7 +28,7 @@ def populate_beam(
     n_macroparticles: int,
     seed: int,
 ) -> None:
-    """Fill bunch with macroparticles according to density_distribution
+    """Fill bunch with macroparticles according to density_distribution.
 
     Notes
     -----

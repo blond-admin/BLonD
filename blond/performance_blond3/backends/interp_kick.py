@@ -25,7 +25,7 @@ def main():  # pragma: no cover
     runtimes = {}
     for kick_induced_voltage in functions:
         runtimes[str(kick_induced_voltage)] = 0.0
-    for _iter in range(10000):
+    for _ in range(10000):
         for kick_induced_voltage in functions:
             t0 = time.perf_counter()
             kick_induced_voltage(
@@ -44,7 +44,7 @@ def main():  # pragma: no cover
     for kick_induced_voltage in functions:
         runtimes[str(kick_induced_voltage)] = 0.0
     for kick_induced_voltage in functions:
-        for _iter in range(10000):
+        for _ in range(10000):
             t0 = time.perf_counter()
             kick_induced_voltage(
                 dt=dt,
