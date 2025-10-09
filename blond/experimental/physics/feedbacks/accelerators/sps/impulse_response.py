@@ -274,7 +274,7 @@ class TravellingWaveCavity:
     omega_r : flaot
         Central (resonance) revolution frequency [1/s] of the cavity
 
-    Attributes:
+    Attributes
     ----------
     Z_0 : float
         Shunt impedance of generator current measurement; assumed to be 50 Ohms
@@ -342,7 +342,7 @@ class TravellingWaveCavity:
         time_coarse : float
             Time array of the LLRF to act on
 
-        Attributes:
+        Attributes
         ----------
         d_omega : float
             :math:`\omega_c - \omega_r` [1/s]
@@ -400,7 +400,7 @@ class TravellingWaveCavity:
         time_coarse : NumpyArray
             Time array of the LLRF to act on; default is None
 
-        Attributes:
+        Attributes
         ----------
         d_omega : float
             :math:`\omega_c - \omega_r` [1/s]

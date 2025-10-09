@@ -77,7 +77,7 @@ class Blond2BeamFeedback(LocalFeedback):
     name
         User given name of the element
 
-    Attributes:
+    Attributes
     ----------
     profile
         Base class to calculate the beam profile

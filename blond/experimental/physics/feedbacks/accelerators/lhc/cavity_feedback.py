@@ -408,7 +408,7 @@ class LHCCavityLoop(BirksCavityFeedback):
     def generator_current(self):
         r"""Generator response
 
-        Attributes:
+        Attributes
         I_TEST : complex array
             Test point for open loop measurements (when injecting a generator
             offset)

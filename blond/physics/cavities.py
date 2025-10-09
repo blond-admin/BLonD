@@ -472,7 +472,7 @@ class SingleHarmonicCavity(CavityBaseClass):
     def voltage_waveform_tmp(self, ts: NumpyArray):
         """Calculate voltage of cavity for current turn.
 
-        Note:
+        Note
         ----
         This function is intended for small `ts` arrays
         and not executed in parallel.
@@ -715,7 +715,7 @@ class MultiHarmonicCavity(CavityBaseClass):
     def voltage_waveform_tmp(self, ts: NumpyArray):
         """Calculate voltage of cavity for current turn.
 
-        Note:
+        Note
         ----
         This function is intended for small ts arrays
         and not executed in parallel.

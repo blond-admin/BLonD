@@ -44,7 +44,7 @@ class BirksCavityFeedback(LocalFeedback):
     name
         # TODO might be removed
 
-    Attributes:
+    Attributes
     ----------
     n_cavities
         Number of cavities the feedback is working on

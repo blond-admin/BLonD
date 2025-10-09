@@ -287,7 +287,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     def n_macroparticles_partial(self) -> int:
         """Size of the beam, ignoring that beam might be distributed.
 
-        Note:
+        Note
         ----
         Depends on `is_distributed`
         If not distributed, returns all particles.
@@ -306,7 +306,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     def read_partial_dt(self) -> NumpyArray | CupyArray:
         """Returns dt-array on current node (distributed computing ready).
 
-        Note:
+        Note
         ----
         Depends on `is_distributed`
         If not distributed, returns all particles.
@@ -319,7 +319,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     def write_partial_dt(self) -> NumpyArray | CupyArray:
         """Returns dt-array on current node (distributed computing ready).
 
-        Note:
+        Note
         ----
         Depends on `is_distributed`
         If not distributed, returns all particles.
@@ -333,7 +333,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     def read_partial_dE(self) -> NumpyArray | CupyArray:
         """Returns dE-array on current node (distributed computing ready).
 
-        Note:
+        Note
         ----
         Depends on `is_distributed`
         If not distributed, returns all particles.
@@ -346,7 +346,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     def write_partial_dE(self) -> NumpyArray | CupyArray:
         """Returns dE-array on current node (distributed computing ready).
 
-        Note:
+        Note
         ----
         Depends on `is_distributed`
         If not distributed, returns all particles.
@@ -360,7 +360,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     def write_partial_flags(self) -> NumpyArray | CupyArray:
         """Returns flags-array on current node (distributed computing ready).
 
-        Note:
+        Note
         ----
         Depends on `is_distributed`
         If not distributed, returns all particles.
