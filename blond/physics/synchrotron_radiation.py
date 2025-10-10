@@ -1,3 +1,11 @@
+"""Collection of implementations to calculate the synchrotron radiation.
+
+Authors
+-------
+Simon Lauber
+Lina Valle
+"""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -11,6 +19,16 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class SynchrotronRadiation(BeamPhysicsRelevant):
+    """Synchrotron radiation module.
+
+    Parameters
+    ----------
+    section_index
+        Section index to group elements into sections
+    name
+        User given name of the element
+    """
+
     def __init__(self, section_index: int = 0, name: str | None = None):
         super().__init__(
             section_index=section_index,
@@ -20,6 +38,11 @@ class SynchrotronRadiation(BeamPhysicsRelevant):
         self._simulation: DriftSimple | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called.
+
+        simulation
+            Simulation context manager
+        """
         self._simulation = simulation
 
     def on_run_simulation(

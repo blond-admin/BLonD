@@ -1,3 +1,10 @@
+"""Collection of implementations to handle movement in bent synchrotron sections.
+
+Authors
+-------
+Simon Lauber
+"""
+
 from __future__ import annotations
 
 from abc import ABC

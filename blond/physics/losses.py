@@ -1,3 +1,10 @@
+"""Collection of implementations to handle beam losses in synchrotrons..
+
+Authors
+-------
+Simon Lauber
+"""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -12,11 +19,27 @@ from .._core.simulation.simulation import Simulation
 
 
 class LossesBaseClass(BeamPhysicsRelevant):
+    """Abstract class to group/implement losses."""
+
     def __init__(self) -> None:
         super().__init__()
 
 
 class BoxLosses(LossesBaseClass):
+    """Label particles that are outside a box.
+
+    Parameters
+    ----------
+    t_min
+        Minimum of the bounding box, in [s].
+    t_max
+        Maximum of the bounding box, in [s].
+    e_min
+        Minimum of the bounding box, in [eV].
+    e_max
+        Maximum of the bounding box, in [eV].
+    """
+
     def __init__(
         self,
         t_min: backend.float | None = None,
@@ -47,6 +70,17 @@ class BoxLosses(LossesBaseClass):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
+        """Lateinit method when `simulation.run_simulation` is called.
+
+        simulation
+            Simulation context manager
+        beam
+            Simulation beam object
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
         pass
 
     def track(self, beam: BeamBaseClass) -> None:
@@ -67,6 +101,8 @@ class BoxLosses(LossesBaseClass):
 
 
 class SeparatrixLosses(LossesBaseClass):
+    """Label particles that are outside of a separatrix."""
+
     def __init__(self) -> None:
         super().__init__()
         self._simulation: Simulation | None = None
@@ -87,6 +123,19 @@ class SeparatrixLosses(LossesBaseClass):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
+        """Lateinit method when `simulation.run_simulation` is called.
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+        beam
+            Simulation beam object
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
         pass
 
     def track(self, beam: BeamBaseClass) -> None:

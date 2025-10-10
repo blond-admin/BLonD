@@ -26,8 +26,9 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class InductiveImpedanceSolver(WakeFieldSolver):
+    """Wakefield solver specialized for InductiveImpedance."""
+
     def __init__(self):
-        """Wakefield solver specialized for InductiveImpedance."""
         super().__init__()
         self._beam: BeamBaseClass | None = None
         self._Z_over_n: float | None = None
@@ -121,20 +122,6 @@ class PeriodicFreqSolver(WakeFieldSolver):
         t_periodicity: float | None = None,
         allow_next_fast_len: bool = False,
     ):
-        """General wakefield solver to calculate wake-fields via frequency domain.
-
-        Parameters
-        ----------
-        t_periodicity
-            Periodicity that is assumed for fast fourier transform, in [s]
-
-            If None, it will be automatically set during `on_init_simulation`
-            to the revolution time of the initial turn of the magnetic cycle
-            with respect to the reference particle.
-        allow_next_fast_len
-            Allow to slightly change `t_periodicity` for
-            faster execution of fft via `scipy.fft.next_fast_len`
-        """
         super().__init__()
         self.allow_next_fast_len = allow_next_fast_len
         self.expect_profile_change: bool = False
@@ -367,15 +354,16 @@ class PeriodicFreqSolver(WakeFieldSolver):
 
 
 class TimeDomainFftSolver(WakeFieldSolver):
+    """Solver to calculate induced voltage using fftconvolve(wake,profile).
+
+    Notes
+    -----
+    This method is intended for beam profiles that are only a fraction of
+    the synchrotron revolution time (short profiles).
+
+    """
+
     def __init__(self):
-        """Solver to calculate induced voltage using fftconvolve(wake,profile).
-
-        Notes
-        -----
-        This method is intended for beam profiles that are only a fraction of
-        the synchrotron revolution time (short profiles).
-
-        """
         super().__init__()
         self.expect_impedance_change = False
 

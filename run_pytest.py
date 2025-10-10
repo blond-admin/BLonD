@@ -1,3 +1,10 @@
+"""Executing pytest using Python instead of shell commands.
+
+Authors
+-------
+Simon Lauber
+"""
+
 import os
 from pathlib import Path
 

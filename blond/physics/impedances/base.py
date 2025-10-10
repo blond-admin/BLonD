@@ -289,6 +289,24 @@ class WakeField(ImpedanceBaseClass):
         section_index: int = 0,
         profile: ProfileBaseClass | None = None,
     ):
+        """Initialize the full class.
+
+        Parameters
+        ----------
+        sources
+            List of sources that cause wake-fields
+        solver
+            Solver to calculate the induced voltage from the sources
+        section_index
+            Section index to group elements into sections
+        profile
+            Object for calculation of beam profiles
+
+        Returns
+        -------
+        Instance with lateinit methods executed .
+
+        """
         wf = WakeField(
             sources=sources,
             solver=solver,

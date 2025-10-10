@@ -1,3 +1,10 @@
+"""Collection of implementations to handle lumped RF cavities in synchrotrons.
+
+Authors
+-------
+Simon Lauber
+"""
+
 from __future__ import annotations
 
 import warnings

@@ -1,3 +1,10 @@
+"""Several setups of simulations that are intended for testcases.
+
+Authors
+-------
+Simon Lauber
+"""
+
 from matplotlib import pyplot as plt
 
 from blond import MultiHarmonicCavity

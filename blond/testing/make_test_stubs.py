@@ -85,7 +85,7 @@ def _extract_untested_functions(cov_data):
                         (node.name, args)
                     )
 
-                if any(start <= line <= end for line in missing_lines):
+                if any(start <= line <= end for line in missing_lines):  # NOQA B023
                     # Mark class as having missing methods (except __init__)
                     if class_name and node.name != "__init__":
                         self.class_missing.add(class_name)

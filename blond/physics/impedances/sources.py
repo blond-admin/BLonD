@@ -1,3 +1,17 @@
+"""Implementations of beam impedance sources.
+
+Module to describe classes for the calculation of wakes and impedances.
+
+
+Authors
+-------
+Alexandre Lasheen
+Danilo Quartullo
+Juan F. Esteban Mueller,
+Markus Schwarz
+Simon Lauber
+"""
+
 from __future__ import annotations
 
 import warnings
@@ -26,6 +40,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def get_hash(array1d: NumpyArray) -> int:
+    """Calculate the hash value of a numpy array."""
     return hash(
         (
             float(array1d[0]),
@@ -37,15 +52,16 @@ def get_hash(array1d: NumpyArray) -> int:
 
 
 class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
-    def __init__(self, Z_over_n: float):
-        """Inductive impedance, i.e. only complex component in frequency domain.
+    """Inductive impedance, i.e. only complex component in frequency domain.
 
-        Parameters
-        ----------
-        Z_over_n : float or array-like
-            Constant imaginary Z/n = (Z * f /f0) impedance, in [Ω].
-            Can be a scalar or a turn-indexed array.
-        """
+    Parameters
+    ----------
+    Z_over_n : float or array-like
+        Constant imaginary Z/n = (Z * f /f0) impedance, in [Ω].
+        Can be a scalar or a turn-indexed array.
+    """
+
+    def __init__(self, Z_over_n: float):
         super().__init__(is_dynamic=True)
         self.Z_over_n = Z_over_n
 
@@ -159,28 +175,29 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
 
 
 class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
+    """Multiple resonances of RLC circuits for impedance calculations.
+
+    Parameters
+    ----------
+    shunt_impedances : array-like
+        Shunt impedances of the resonant circuits, in [Ω].
+    center_frequencies : array-like
+        Center frequencies of the resonances, in [Hz].
+    quality_factors : array-like
+        Quality factors (Q) of the resonances, dimensionless.
+
+    Notes
+    -----
+    Ensure that all input arrays have the same length, with each entry
+    corresponding to a separate resonance.
+    """
+
     def __init__(
         self,
         shunt_impedances: NumpyArray,
         center_frequencies: NumpyArray,
         quality_factors: NumpyArray,
     ):
-        """Multiple resonances of RLC circuits for impedance calculations.
-
-        Parameters
-        ----------
-        shunt_impedances : array-like
-            Shunt impedances of the resonant circuits, in [Ω].
-        center_frequencies : array-like
-            Center frequencies of the resonances, in [Hz].
-        quality_factors : array-like
-            Quality factors (Q) of the resonances, dimensionless.
-
-        Notes
-        -----
-        Ensure that all input arrays have the same length, with each entry
-        corresponding to a separate resonance.
-        """
         super().__init__(is_dynamic=False)
         assert len(shunt_impedances) == len(center_frequencies), (
             f"{len(shunt_impedances)} != {len(center_frequencies)}"
@@ -193,7 +210,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         self._quality_factors = quality_factors
 
         # Test if one or more quality factors is smaller than 0.5.
-        if np.sum(self._quality_factors < 0.5) > 0:
+        if np.sum(self._quality_factors < 0.5) > 0:  # NOQA PLR2004
             raise RuntimeError(
                 "All quality factors Q must be greater or equal 0.5"
             )
@@ -308,6 +325,21 @@ class ImpedanceTable(DiscreteWakeFieldSource):
     def from_file(
         filepath: PathLike, reader: ImpedanceReader
     ) -> ImpedanceTable:
+        """Instance table from a file on the disk.
+
+        Parameters
+        ----------
+        filepath
+            path of the file to lead
+        reader
+            `ImpedanceReader` to interpret what's written in the file
+
+        Returns
+        -------
+        impedance_table
+            The loaded table
+
+        """
         pass
 
 
@@ -395,20 +427,21 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
 
 
 class ImpedanceTableTime(ImpedanceTable, TimeDomain):
+    """Impedance table in frequency domain.
+
+    Parameters
+    ----------
+    wake_x
+        Wake time axis, in [s]
+    wake_y
+        Wake amplitude, in [V]
+    """
+
     def __init__(
         self,
         wake_x: NumpyArray,
         wake_y: NumpyArray,
     ):
-        """Impedance table in frequency domain.
-
-        Parameters
-        ----------
-        wake_x
-            Wake time axis, in [s]
-        wake_y
-            Wake amplitude, in [V]
-        """
         super().__init__(is_dynamic=False)
         self._wake_x = wake_x
         self._wake_y = wake_y
@@ -464,9 +497,15 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         if hash_ is self._cache_wake_impedance_hash:
             return self._cache_wake_impedance
         if time.min() < self._wake_x.min():
-            warnings.warn("Interpolation of wake outside boundaries")
+            warnings.warn(
+                "Interpolation of wake outside boundaries",
+                stacklevel=1,
+            )
         if time.max() > self._wake_x.max():
-            warnings.warn("Interpolation of wake outside boundaries")
+            warnings.warn(
+                "Interpolation of wake outside boundaries",
+                stacklevel=1,
+            )
         wake = np.interp(time, self._wake_x, self._wake_y)
         wake_impedance = np.fft.rfft(wake, n=n_fft)
         self._cache_wake_impedance_hash = hash_

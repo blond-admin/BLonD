@@ -1,3 +1,10 @@
+"""Collection of implementations to calculate the beam profile.
+
+Authors
+-------
+Simon Lauber
+"""
+
 from __future__ import annotations
 
 import math
@@ -207,10 +214,12 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         return backend.float(1 / (2 * self.hist_step))
 
     def _calc_gauss(self) -> None:
+        """Gaussian fit for the beam profile."""
         raise NotImplementedError
 
     @cached_property
     def gauss_fit_params(self) -> None:
+        """Gaussian fit for the beam profile."""
         raise NotImplementedError
         return self._calc_gauss()
 

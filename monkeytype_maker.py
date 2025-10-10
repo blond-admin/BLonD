@@ -1,3 +1,10 @@
+"""Helper script to apply monkeytype stubs.
+
+Authors
+-------
+Simon Lauber
+"""
+
 import subprocess
 
 # RUN IN TERMINAL: "monkeytype run run_pytest.py"
