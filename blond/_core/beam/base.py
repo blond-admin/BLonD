@@ -212,25 +212,25 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     @cached_property
     @abstractmethod  # pragma: no cover  # as readonly attributes
-    def dt_min(self) -> backend.float:
+    def dt_min(self) -> np.float32 | np.float64:
         """Minimum dt coordinate, in [s]."""
         pass
 
     @cached_property
     @abstractmethod  # pragma: no cover  # as readonly attributes
-    def dt_max(self) -> backend.float:
+    def dt_max(self) -> np.float32 | np.float64:
         """Maximum dt coordinate, in [s]."""
         pass
 
     @cached_property
     @abstractmethod  # pragma: no cover  # as readonly attributes
-    def dE_min(self) -> backend.float:
+    def dE_min(self) -> np.float32 | np.float64:
         """Minimum dE coordinate, in [eV]."""
         pass
 
     @cached_property
     @abstractmethod  # pragma: no cover  # as readonly attributes
-    def dE_max(self) -> backend.float:
+    def dE_max(self) -> np.float32 | np.float64:
         """Maximum dE coordinate, in [eV]."""
         pass
 

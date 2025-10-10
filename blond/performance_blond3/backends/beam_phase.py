@@ -1,3 +1,10 @@
+"""Testing the performance of `beam_phase`.
+
+Authors
+-------
+Simon Lauber
+"""
+
 import time
 
 import cupy as cp
@@ -5,8 +12,10 @@ import numpy as np
 
 
 def main():  # pragma: no cover
+    """Testing the performance of `beam_phase`."""
     hist_x = np.linspace(0, 1, 1024)
-    hist_y = np.random.randn(len(hist_x))
+    rng = np.random.default_rng()
+    hist_y = rng.standard_normal(len(hist_x))
     hist_x_cp = cp.array(hist_x)
     hist_y_cp = cp.array(hist_y)
     alpha = 1.4

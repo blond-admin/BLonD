@@ -384,23 +384,24 @@ class CavityPhaseObservation(Observables):
 
 
 class StaticProfileObservation(Observables):
+    """Observation of a static beam profile.
+
+    Parameters
+    ----------
+    each_turn_i
+        Value to control that the element is
+        callable each n-th turn.
+    profile
+        Class for the calculation of beam profile
+        that doesn't change its parameters
+    """
+
     def __init__(
         self,
         each_turn_i: int,
         profile: StaticProfile,
         folder: str = "",
     ):
-        """Observation of a static beam profile.
-
-        Parameters
-        ----------
-        each_turn_i
-            Value to control that the element is
-            callable each n-th turn.
-        profile
-            Class for the calculation of beam profile
-            that doesn't change its parameters
-        """
         super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._profile = profile
         self._hist_y: DenseArrayRecorder | None = None
@@ -463,22 +464,23 @@ class StaticProfileObservation(Observables):
 
 
 class WakeFieldObservation(Observables):
+    """Observe the calculation of wake-fields.
+
+    Parameters
+    ----------
+    each_turn_i
+        Value to control that the element is
+        callable each n-th turn.
+    wakefield
+        Manager class to calculate wake-fields
+    """
+
     def __init__(
         self,
         each_turn_i: int,
         wakefield: WakeField,
         folder: str = "",
     ):
-        """Observe the calculation of wake-fields.
-
-        Parameters
-        ----------
-        each_turn_i
-            Value to control that the element is
-            callable each n-th turn.
-        wakefield
-            Manager class to calculate wake-fields
-        """
         super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._wakefield = wakefield
         self._induced_voltage: DenseArrayRecorder | None = None

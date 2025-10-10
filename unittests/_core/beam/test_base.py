@@ -69,16 +69,16 @@ class BeamBaseClassTester(BeamBaseClass):
     def plot_hist2d(self):
         pass
 
-    def dE_max(self) -> backend.float:
+    def dE_max(self) -> np.float32 | np.float64:
         pass
 
-    def dt_min(self) -> backend.float:
+    def dt_min(self) -> np.float32 | np.float64:
         pass
 
-    def dt_max(self) -> backend.float:
+    def dt_max(self) -> np.float32 | np.float64:
         pass
 
-    def dE_min(self) -> backend.float:
+    def dE_min(self) -> np.float32 | np.float64:
         pass
 
     def common_array_size(self) -> int:

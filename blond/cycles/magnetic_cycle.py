@@ -7,7 +7,6 @@ from unittest.mock import Mock
 import numpy as np
 from scipy.constants import speed_of_light as c0
 
-from .._core.backends.backend import backend
 from .._core.base import HasPropertyCache
 from .._core.beam.base import BeamBaseClass
 from .._core.beam.particle_types import ParticleType, proton
@@ -144,7 +143,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         turn_i_init: int,
         t_init: float,
         particle_type: ParticleType,
-    ) -> backend.float:
+    ) -> np.float32 | np.float64:
         index = turn_i_init - 1
         if index < 0:
             total_energy_init = calc_total_energy(
@@ -170,7 +169,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         turn_i_init: int,
         t_init: float,
         particle_type: ParticleType,
-    ) -> backend.float:
+    ) -> np.float32 | np.float64:
         reference_total_energy = self.get_total_energy_init(
             turn_i_init=turn_i_init,
             t_init=t_init,

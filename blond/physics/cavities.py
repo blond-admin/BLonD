@@ -38,6 +38,20 @@ TWOPI_C0 = 2.0 * np.pi * c0
 
 
 class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
+    """Base class to implement beam-rf interactions in synchrotrons.
+
+    Parameters
+    ----------
+    n_rf
+        Number of different rf waves for interaction
+    section_index
+        Section index to group elements into sections
+    local_wakefield
+        Optional wakefield to interact with beam
+    cavity_feedback
+        Optional cavity feedback to change cavity parameters
+    """
+
     def __init__(
         self,
         n_rf: int,
@@ -48,19 +62,6 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         name: str | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
-        """Base class to implement beam-rf interactions in synchrotrons.
-
-        Parameters
-        ----------
-        n_rf
-            Number of different rf waves for interaction
-        section_index
-            Section index to group elements into sections
-        local_wakefield
-            Optional wakefield to interact with beam
-        cavity_feedback
-            Optional cavity feedback to change cavity parameters
-        """
         from blond.experimental.physics.feedbacks.base import LocalFeedback
 
         # prevent cyclic import
@@ -671,7 +672,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         try:
             self.phi_s = self.calc_phi_s_single_harmonic(beam=beam)
         except Exception as exc:
-            warnings.warn(str(exc))
+            warnings.warn(str(exc), stacklevel=1)
             self.phi_s = np.nan
 
     def calc_omega(

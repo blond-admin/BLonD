@@ -1,9 +1,17 @@
+"""Testing the performance of `kick_induced_voltage`.
+
+Authors
+-------
+Simon Lauber
+"""
+
 import time
 
 import numpy as np
 
 
 def main():  # pragma: no cover
+    """Testing the performance of `kick_induced_voltage`."""
     dt = np.linspace(-5, 5, int(1e6))
     dE = np.zeros_like(dt)
     bin_centers = np.linspace(-4, 4, 20)
