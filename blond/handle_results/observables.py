@@ -54,7 +54,7 @@ class Observables(MainLoopRelevant):
         logger.info(f"Will save {self} to {self.common_name}_,,,")
 
         self._n_turns: int | None = None
-        self._section_index_to_observe: int | None = None
+        self._section_indices_to_observe: NumpyArray | None = None
         self._turn_i_init: int | None = None
         self._turns_array: NumpyArray | None = None
 
@@ -134,7 +134,7 @@ class Observables(MainLoopRelevant):
                 UserWarning,
             )
 
-        self._section_index_to_observe = np.arange(
+        self._section_indices_to_observe = np.arange(
             0,
             simulation.ring.n_cavities,
             step=np.ceil(simulation.ring.n_cavities / self._obs_per_turn),
@@ -146,7 +146,7 @@ class Observables(MainLoopRelevant):
             np.array(
                 [
                     np.sum(simulation.ring.section_lengths[0:ind])
-                    for ind in self._section_index_to_observe
+                    for ind in self._section_indices_to_observe
                 ]
             )
             / simulation.ring.circumference
@@ -435,7 +435,7 @@ class BunchObservation_meta_params(Observables):  # TODO rework class
             return
         self._last_turn_i_observed = simulation.turn_i.value
         self._last_section_i_observed = simulation.section_i.value
-        if simulation.section_i.value in self._section_index_to_observe:
+        if simulation.section_i.value in self._section_indices_to_observe:
             self._sigma_dt.write(np.std(self._beam._dt))
             self._sigma_dE.write(np.std(self._beam._dE))
             self._mean_dt.write(np.mean(self._beam._dt))
@@ -661,7 +661,7 @@ class StaticProfileObservation(Observables):
             Simulation context manager
 
         """
-        if simulation.section_i.value in self._section_index_to_observe:
+        if simulation.section_i.value in self._section_indices_to_observe:
             if (
                 self._last_turn_i_observed == simulation.turn_i.value
                 and self._last_section_i_observed == simulation.section_i
@@ -833,7 +833,7 @@ class WakeFieldObservation(Observables):
             Simulation context manager
 
         """
-        if simulation.section_i.value in self._section_index_to_observe:
+        if simulation.section_i.value in self._section_indices_to_observe:
             try:
                 self._induced_voltage.write(
                     self._wakefield.induced_voltage,
