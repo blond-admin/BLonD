@@ -66,7 +66,7 @@ class TestBackendBaseClass(unittest.TestCase):
                         # Compiled backends might not be available locally --> skip.
                         # On the CI, these will always be available, as the before_script builds them
                         # or otherwise fails the CI
-                        if backend_mode == "fortran" or backend_mode == "cpp":
+                        if backend_mode == "fortran" or backend_mode == "cpp":  # TODO better handling
                             continue
                         else:
                             raise error
@@ -126,7 +126,10 @@ class TestNumpyBackend(unittest.TestCase):
         self.numpy_backend.set_specials(mode="python")
 
     def test_set_specials_cpp(self) -> None:
-        self.numpy_backend.set_specials(mode="cpp")
+        try:
+            self.numpy_backend.set_specials(mode="cpp")
+        except FileNotFoundError:
+            self.skipTest(f"cpp not available!")
 
     def test_set_specials_numba(self) -> None:
         self.numpy_backend.set_specials(mode="numba")
