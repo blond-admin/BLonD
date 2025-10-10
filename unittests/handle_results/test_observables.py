@@ -74,6 +74,71 @@ class TestObservables(unittest.TestCase):
 
         self.observables.from_disk()
 
+    def test_on_run_simulation(self) -> None:
+        self.observables.on_init_simulation(
+            simulation=simulation,
+        )
+        self.observables.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            turn_i_init=0,
+            n_turns=100,
+            obs_per_turn=1,
+        )
+
+        assert len(self.observables._turns_array) == self.observables._n_turns
+        assert np.all(np.where(np.diff(self.observables._turns_array) <= 0) == np.array([])) # monotonic increase
+        assert np.mean(np.diff(self.observables._turns_array)) == 1
+        assert np.all(self.observables._index_list == np.array([0]))  # only first one is selected
+
+        self.observables.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            turn_i_init=0,
+            n_turns=100,
+            obs_per_turn=2,
+        )
+
+        assert len(self.observables._turns_array) == self.observables._n_turns * 2
+        assert np.all(np.where(np.diff(self.observables._turns_array) <= 0) == np.array([]))  # monotonic increase
+        assert np.isclose(np.mean(np.diff(self.observables._turns_array)), 0.5)
+        assert np.all(self.observables._index_list == np.array([0, 1]))  # only first one is selected
+
+        self.observables.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            turn_i_init=50,
+            n_turns=100,
+            obs_per_turn=2,
+        )
+
+        assert len(self.observables._turns_array) == self.observables._n_turns * 2
+        assert np.all(np.where(np.diff(self.observables._turns_array) <= 0) == np.array([]))  # monotonic increase
+        assert np.isclose(np.mean(np.diff(self.observables._turns_array)), 0.5)
+        assert np.all(self.observables._index_list == np.array([0, 1]))  # only first one is selected
+
+    def test_on_run_simulation_warnings(self):
+        self.observables.on_init_simulation(
+            simulation=simulation,
+        )
+
+        with self.assertWarnsRegex(UserWarning, "obs_per_turn must be greater"):
+            self.observables.on_run_simulation(
+                simulation=simulation,
+                beam=beam,
+                turn_i_init=0,
+                n_turns=100,
+                obs_per_turn=-1,
+            )
+        with self.assertWarnsRegex(UserWarning, "obs_per_turn must be smaller"):
+            self.observables.on_run_simulation(
+                simulation=simulation,
+                beam=beam,
+                turn_i_init=0,
+                n_turns=100,
+                obs_per_turn=3,
+            )
+
 
 class TestBunchObservation(unittest.TestCase):
     def setUp(self) -> None:

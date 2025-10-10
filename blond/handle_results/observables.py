@@ -111,6 +111,8 @@ class Observables(MainLoopRelevant):
             Number of turns to simulate
         turn_i_init
             Initial turn to execute simulation
+        obs_per_turn
+            Number of observations per turn. Default is 1
         """
         self._n_turns = int(n_turns)
         self._turn_i_init = int(turn_i_init)
@@ -119,12 +121,15 @@ class Observables(MainLoopRelevant):
         else:
             self._obs_per_turn = 1
             warnings.warn(
-                f"obs_per_turn must be greater than 0, got {obs_per_turn}, value was set to 1."
+                f"obs_per_turn must be greater than 0, got {obs_per_turn}, value was set to 1.",
+                UserWarning,
             )
         if obs_per_turn > simulation.ring.n_cavities:
             self._obs_per_turn = simulation.ring.n_cavities
             warnings.warn(
-                f"obs_per_turn must be smaller than n_cavities ({simulation.ring.n_cavities}), got {obs_per_turn}, value was set to {simulation.ring.n_cavities}."
+                f"obs_per_turn must be smaller than n_cavities ({simulation.ring.n_cavities}), "
+                f"got {obs_per_turn}, value was set to {simulation.ring.n_cavities}.",
+                UserWarning,
             )
 
         self._index_list = np.arange(
@@ -147,13 +152,6 @@ class Observables(MainLoopRelevant):
             self._turns_array = np.append(
                 self._turns_array, turn + section_distances
             )
-        # TODo cleanup and test
-        # self._turns_array = np.linspace(
-        #     turn_i_init,
-        #     turn_i_init + n_turns,
-        #     int(n_turns * self._obs_per_turn + 1),
-        #     endpoint=False,
-        # )  # TODO: this assumes equidistant spacing, which is not correct with mutiple obs per turn, needs to check actual turn distances between obs
 
     def assert_lateinit(self):
         for parameter, value in self.__dict__.items():
