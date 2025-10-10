@@ -394,23 +394,23 @@ class BunchObservation_meta_params(Observables):  # TODO rework class
         shape = n_entries
 
         self._mean_dt = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_mean_dt",
+            f"{self.common_name}_mean_dt",
             shape,
         )
         self._mean_dE = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_mean_dE",
+            f"{self.common_name}_mean_dE",
             shape,
         )
         self._sigma_dt = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_sigma_dt",
+            f"{self.common_name}_sigma_dt",
             shape,
         )
         self._sigma_dE = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_sigma_dE",
+            f"{self.common_name}_sigma_dE",
             shape,
         )
         self._emittance_stat = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_emittance_stat",
+            f"{self.common_name}_emittance_stat",
             shape,
         )
 
@@ -717,7 +717,7 @@ class StaticMultiProfileObservation(Observables):
         n_entries = len(self._turns_array) * len(self._profiles)
         n_bins = self._profiles[0].n_bins
         self._hist_y = DenseArrayRecorder(
-            f"{'simulation.get_hash'}_hist_y",
+            f"{self.common_name}_hist_y",
             (n_entries, n_bins),
         )
 
