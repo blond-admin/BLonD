@@ -1,5 +1,3 @@
-import os
-
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.constants import pi
@@ -31,9 +29,6 @@ from blond.legacy.blond2.impedances.impedance import (
     InducedVoltageResonator as ind_volt_res_b2,
 )
 from blond.legacy.blond2.impedances.impedance import (
-    InducedVoltageTime as ind_volt_time_b2,
-)
-from blond.legacy.blond2.impedances.impedance import (
     TotalInducedVoltage as total_ind_volt_b2,
 )
 from blond.legacy.blond2.impedances.impedance_sources import (
@@ -52,7 +47,7 @@ from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
 )
 from blond.physics.impedances.sources import Resonators
-from blond.specifics.muon_collider.beam_matching.beam_matching_rountine import (
+from blond.specifics.muon_collider.beam_preparation import (
     load_beam_data_counterrot_from_file,
 )
 
