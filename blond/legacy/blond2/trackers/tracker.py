@@ -581,27 +581,42 @@ class RingAndRFTracker:
 
         else:
             if self.rf_params.empty is False:
-                if self.interpolation:
-                    self.rf_voltage_calculation()
-                    if self.totalInducedVoltage is not None:
-                        self.total_voltage = (
-                            self.rf_voltage
-                            + self.totalInducedVoltage.induced_voltage
-                        )
-                    else:
-                        self.total_voltage = self.rf_voltage
-
+                # TODO: extract for test
+                # if self.interpolation:
+                #     self.rf_voltage_calculation()
+                #     if self.totalInducedVoltage is not None:
+                #         self.total_voltage = (
+                #             self.rf_voltage
+                #             + self.totalInducedVoltage.induced_voltage
+                #         )
+                #     else:
+                #         self.total_voltage = self.rf_voltage
+                #
+                #     bm.linear_interp_kick(
+                #         dt=self.beam.dt,
+                #         dE=self.beam.dE,
+                #         voltage=self.total_voltage,
+                #         bin_centers=self.profile.bin_centers,
+                #         charge=self.beam.particle.charge,
+                #         acceleration_kick=self.acceleration_kick[turn],
+                #     )
+                if self.totalInducedVoltage is not None:
                     bm.linear_interp_kick(
                         dt=self.beam.dt,
                         dE=self.beam.dE,
-                        voltage=self.total_voltage,
+                        voltage=self.totalInducedVoltage.induced_voltage,
                         bin_centers=self.profile.bin_centers,
                         charge=self.beam.particle.charge,
-                        acceleration_kick=self.acceleration_kick[turn],
+                        acceleration_kick=0,
                     )
+                    # import matplotlib.pyplot as plt
+                    # if turn > 2:
+                    #     plt.figure("blond_2_ind_voltage")
+                    #     plt.title(f"blond_2 ind_volt_turn {turn}")
+                    #     plt.plot(self.totalInducedVoltage.induced_voltage)
+                    #     plt.show()
 
-                else:
-                    self.kick(self.beam.dt, self.beam.dE, turn)
+                self.kick(self.beam.dt, self.beam.dE, turn)
 
             self.drift(self.beam.dt, self.beam.dE, turn + 1)
 
