@@ -583,8 +583,7 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
                 )
 
     def _update_potential_sources(self, zero_pinning: bool = False) -> None:
-        """
-        Updates `_wake_function_time`  and `_wake_function_vals` arrays if `self._wake_function_vals_needs_update=True`
+        """Updates `_wake_function_time`  and `_wake_function_vals` arrays if `self._wake_function_vals_needs_update=True`
 
         The time axis is chosen based on the profile in `_parent_wakefield.profile`
 
