@@ -245,10 +245,6 @@ class TestBothBlonds(unittest.TestCase):
                             ls="dashdot",
                         )
                         plt.legend()
-                        plt.savefig(
-                            f"{n_macroparticles}_{n_slices}_{bunch_length}.png",
-                            dpi=400,
-                        )
                         plt.show()
 
                     for blond2_ind_volt in self.blond3.blond2.induced_voltage:
