@@ -144,21 +144,6 @@ def setup_and_run(int_eff=False, mtw=False):
                     orbit_length=circumference / n_stations,
                     section_index=cavity_i,
                 ),
-                # profile_list[-1],
-                # SingleHarmonicCavity(
-                #     voltage=voltage_per_station / 2,
-                #     phi_rf=0,
-                #     harmonic=harmonic,
-                #     local_wakefield=WakeField(
-                #         sources=(local_res,),
-                #         solver=SingleTurnResonatorConvolutionSolver(),
-                #         profile=profile_list[-1],
-                #     )
-                #     if int_eff
-                #     else None,
-                #     section_index=cavity_i,
-                # ),
-                # profile_list[-1],  # for CR beam
             ]
         )
     ring.add_elements(one_turn_model, reorder=False)
@@ -178,7 +163,7 @@ def setup_and_run(int_eff=False, mtw=False):
     load_filename = (
         str(Path(__file__).parent) + r"/RCS2_8_stations_mtw.npz"
         if mtw
-        else str(Path(__file__).parent) + r"/RCS2_8_stations_ind_volt_time.npz"
+        else str(Path(__file__).parent) + r"/RCS2_8_stations_ind_volt_res.npz"
         if int_eff
         else str(Path(__file__).parent) + r"/RCS2_8_stations_no_int_eff.npz"
     )
@@ -234,7 +219,7 @@ def plot_and_compare(
     json_filename = (
         "results_int_eff_mtw.json"
         if mtw
-        else "results_int_eff.json"
+        else "results_int_eff_resonator.json"
         if int_eff
         else "results_no_int_eff.json"
     )
@@ -269,7 +254,9 @@ def plot_and_compare(
     plt.plot(bunch_observation.mean_dt[plot_from:plot_until] * 1e9)
     # plt.plot(bunch_observation_CR.mean_dt * 1e9, label="CR")
     plt.plot(
-        bunch_centroid_blond2[plot_from + 1 : plot_until] * 1e9, label="blond2"
+        bunch_centroid_blond2[plot_from + 1 : plot_until] * 1e9,
+        label="blond2",
+        ls="--",
     )
     plt.ylabel("bunch centroid [ns]")
     plt.legend()
@@ -287,7 +274,9 @@ def plot_and_compare(
     plt.plot(bunch_observation.mean_dE[plot_from:plot_until])
     # plt.plot(bunch_observation_CR.mean_dE, label="CR")
     plt.plot(
-        energy_centroid_blond2[plot_from + 1 : plot_until], label="blond2"
+        energy_centroid_blond2[plot_from + 1 : plot_until],
+        label="blond2",
+        ls="--",
     )
     plt.legend()
     plt.show()
@@ -298,7 +287,9 @@ def plot_and_compare(
         label="emittance",
     )
     # plt.plot(bunch_observation_CR.emittance_stat, label="CR")
-    plt.plot(emittance_blond2[plot_from + 1 : plot_until], label="blond2")
+    plt.plot(
+        emittance_blond2[plot_from + 1 : plot_until], label="blond2", ls="--"
+    )
     plt.ylabel("statistical emittance (eVs)")
     plt.legend()
     plt.show()
