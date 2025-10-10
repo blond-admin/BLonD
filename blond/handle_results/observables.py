@@ -604,7 +604,6 @@ class StaticProfileObservation(Observables):
         profile
             Class for the calculation of beam profile
             that doesn't change its parameters
-
         obs_per_turn
             Number of observations per turn, default is 1
         """
@@ -681,7 +680,6 @@ class StaticProfileObservation(Observables):
 
 
 class StaticMultiProfileObservation(Observables):
-    # get from simulation elements
     def __init__(
         self,
         each_turn_i: int,
@@ -689,6 +687,19 @@ class StaticMultiProfileObservation(Observables):
         folder: str = "",  # TODO docstring
         obs_per_turn: int = 1,
     ):
+        """Observation of multiple profiles in one observation object. The profiles need to have the same n_bins.
+
+        Parameters
+        ----------
+        each_turn_i
+            Value to control that the element is
+            callable each n-th turn.
+        profiles
+            Class for the calculation of beam profile
+            that doesn't change its parameters
+        obs_per_turn
+            Number of observations per turn, default is 1
+        """
         super().__init__(
             each_turn_i=each_turn_i, obs_per_turn=obs_per_turn, folder=folder
         )
@@ -696,7 +707,7 @@ class StaticMultiProfileObservation(Observables):
         self._profiles = profiles
         assert all(
             prof.n_bins == self._profiles[0].n_bins for prof in self._profiles
-        )
+        ), "n_bins should be equal for all given profiles"
 
     def on_run_simulation(
         self,
@@ -738,8 +749,7 @@ class StaticMultiProfileObservation(Observables):
 
     @property  # as readonly attributes
     def hist_y(self):
-        """
-        Histogram of given profiles
+        """Histogram of given profiles
 
         Returns
         -------

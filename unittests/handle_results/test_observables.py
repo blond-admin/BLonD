@@ -1,4 +1,5 @@
 import unittest
+from copy import deepcopy
 from unittest.mock import Mock
 
 import numpy as np
@@ -11,6 +12,7 @@ from blond.handle_results.observables import (
     BunchObservation,
     CavityPhaseObservation,
     Observables,
+    StaticMultiProfileObservation,
     StaticProfileObservation,
     WakeFieldObservation,
 )
@@ -290,6 +292,39 @@ class TestWakeFieldObservation(unittest.TestCase):
         self.wake_field_observation.to_disk()
         self.wake_field_observation.from_disk()
 
+
+class TestStaticMultiProfileObservation(unittest.TestCase):
+    def setUp(self) -> None:
+        self.profile = Mock(StaticProfile)
+        self.profile.n_bins = 12
+        self.profile._hist_y = np.ones(self.profile.n_bins, dtype=float)
+
+        self.profile_2 = Mock(StaticProfile)
+        self.profile_2.n_bins = 12
+        self.profile_2._hist_y = np.ones(self.profile_2.n_bins, dtype=float)
+
+        self.static_profile_observation = StaticMultiProfileObservation(
+            each_turn_i=1,
+            profiles=[self.profile, self.profile_2],
+            folder=callers_relative_path("results/", stacklevel=1),
+        )
+
+    def test___init__(self) -> None:
+        self.static_profile_observation = StaticMultiProfileObservation(
+            each_turn_i=1,
+            profiles=[self.profile, self.profile_2],
+            folder=callers_relative_path("results/", stacklevel=1),
+        )
+
+    def test__error_throwing_wrong_length(self) -> None:
+        wrong_profile = deepcopy(self.profile_2)
+        wrong_profile.n_bins += 1
+        with self.assertRaisesRegex(AssertionError, "n_bins"):
+            self.static_profile_observation = StaticMultiProfileObservation(
+                each_turn_i=1,
+                profiles=[self.profile, wrong_profile],
+                folder=callers_relative_path("results/", stacklevel=1),
+            )
 
 if __name__ == "__main__":
     unittest.main()
