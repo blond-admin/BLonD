@@ -1,3 +1,14 @@
+"""Solvers to calculate the wake potential from impedance sources.
+
+Authors
+-------
+Alexandre Lasheen
+Danilo Quartullo,
+Juan F. Esteban Mueller
+Markus Schwarz
+Simon Lauber
+"""
+
 from __future__ import annotations
 
 import warnings
@@ -514,13 +525,3 @@ class TimeDomainFftSolver(WakeFieldSolver):
         # The profile and corresponding induced voltage is only a part of
         # the full periodicity and must be thus truncated
         return induced_voltage
-
-
-class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
-    def __init__(self):  # TODO
-        raise NotImplementedError()
-
-
-class MutliTurnResonatorSolver(WakeFieldSolver):
-    def __init__(self):  # TODO
-        raise NotImplementedError()

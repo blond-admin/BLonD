@@ -19,25 +19,52 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class WakeFieldSolver:
+    """Abstract class for a solver that generates wake fields based on beam profiles."""
+
     @abstractmethod  # pragma: no cover
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:
+        """Lateinit method when WakeField is late-initialized.
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+        parent_wakefield
+            Wakefield that this solver affiliated to
+        """
         pass
 
     @abstractmethod  # pragma: no cover
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
+        """Calculates the induced voltage based on the beam profile and beam parameters.
+
+        Parameters
+        ----------
+        beam
+            Simulation object of a particle beam
+
+        Returns
+        -------
+        induced_voltage
+            Induced voltage, in [V]
+        """
         pass
 
 
 class WakeFieldSource(ABC):
+    """General abstract class for wakefields."""
+
     def __init__(self, is_dynamic: bool):
         self.is_dynamic = is_dynamic
 
 
 class TimeDomain(ABC):
+    """Indication of a source is defined in time or frequency domain."""
+
     @abstractmethod  # pragma: no cover
     def get_wake_impedance(
         self,
@@ -66,6 +93,8 @@ class TimeDomain(ABC):
 
 
 class FreqDomain(ABC):
+    """Indication of a source is defined in time or frequency domain."""
+
     @abstractmethod  # pragma: no cover
     def get_impedance(
         self,
@@ -93,14 +122,30 @@ class FreqDomain(ABC):
 
 
 class AnalyticWakeFieldSource(WakeFieldSource):
+    """Indication on which calculation method a WakeFieldSolver uses.
+
+    Notes
+    -----
+    This is intended for ``isinstance`` checks.
+    """
+
     pass
 
 
 class DiscreteWakeFieldSource(WakeFieldSource):
+    """Indication on which calculation method a WakeFieldSolver uses.
+
+    Notes
+    -----
+    This is intended for ``isinstance`` checks.
+    """
+
     pass
 
 
 class ImpedanceBaseClass(BeamPhysicsRelevant):
+    """Abstract class on how to calculate induced voltages."""
+
     def __init__(
         self,
         section_index: int = 0,
@@ -111,12 +156,25 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
 
     @property  # as readonly attributes
     def profile(self) -> ProfileBaseClass:
+        """The reference profile that is causing the wake."""
         return self._profile
 
     @abstractmethod  # pragma: no cover
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
+        """Calculates the induced voltage based on the beam profile and beam parameters.
+
+        Parameters
+        ----------
+        beam
+            Simulation object of a particle beam
+
+        Returns
+        -------
+        induced_voltage
+            Induced voltage, in [V]
+        """
         pass
 
     def on_run_simulation(

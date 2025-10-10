@@ -1,3 +1,5 @@
+"""Implementations to handle the readout of impedance files on the disk."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -9,36 +11,83 @@ from numpy.typing import NDArray as NumpyArray
 
 
 class ImpedanceReader(ABC):
+    """Abstract class of how to implement an `ImpedanceReader`."""
+
     def __init__(self):
         super().__init__()
 
     @abstractmethod  # pragma: no cover
     def load_file(self, filepath: PathLike) -> tuple[NumpyArray, NumpyArray]:
+        """Load a textfile from a file on the disk.
+
+        Parameters
+        ----------
+        filepath
+            path of the file to lead
+
+        Returns
+        -------
+        freq
+            Frequency axis
+        amplitude
+            Amplitude axis
+        """
         return freq, amplitude  # NOQA
 
 
 class CsvReader(ImpedanceReader):
-    def __init__(self, **kwargs) -> None:
-        """Simple CSV file reader for two rows of data.
+    """Simple CSV file reader for two rows of data.
 
-        Parameters
-        ----------
-        **kwargs:
-            Additional keyword arguments for `numpy.loadtxt`
-        """
+    Parameters
+    ----------
+    **kwargs:
+        Additional keyword arguments for `numpy.loadtxt`
+    """
+
+    def __init__(self, **kwargs) -> None:
         super().__init__()
         self.kwargs = kwargs
 
     def load_file(self, filepath: PathLike) -> tuple[NumpyArray, NumpyArray]:
+        """Load a textfile from a file on the disk.
+
+        Parameters
+        ----------
+        filepath
+            path of the file to lead
+
+        Returns
+        -------
+        freq
+            Frequency axis
+        amplitude
+            Amplitude axis
+        """
         data = np.loadtxt(filepath, **self.kwargs)
         return data[:, 0], data[:, 1]
 
 
 class ExampleImpedanceReader1(ImpedanceReader):
+    """Example of how to implement a ImpedanceReader."""
+
     def __init__(self):
         super().__init__()
 
     def load_file(self, filepath: PathLike) -> tuple[NumpyArray, NumpyArray]:
+        """Load a textfile from a file on the disk.
+
+        Parameters
+        ----------
+        filepath
+            path of the file to lead
+
+        Returns
+        -------
+        freq
+            Frequency axis
+        amplitude
+            Amplitude axis
+        """
         table = np.loadtxt(
             filepath,
             skiprows=1,
@@ -62,12 +111,16 @@ class ExampleImpedanceReader1(ImpedanceReader):
 
 
 class ModesExampleReader2(str, Enum):
+    """Example modes of how to process a impedance table."""
+
     OPEN_LOOP = "open loop"
     CLOSED_LOOP = "closed loop"
     SHORTED = "shorted"
 
 
 class ExampleImpedanceReader2(ImpedanceReader):
+    """Example of how to implement a ImpedanceReader."""
+
     def __init__(
         self, mode: ModesExampleReader2 = ModesExampleReader2.CLOSED_LOOP
     ):
@@ -75,6 +128,20 @@ class ExampleImpedanceReader2(ImpedanceReader):
         self._mode = mode
 
     def load_file(self, filepath: PathLike) -> tuple[NumpyArray, NumpyArray]:
+        """Load a textfile from a file on the disk.
+
+        Parameters
+        ----------
+        filepath
+            path of the file to lead
+
+        Returns
+        -------
+        freq_x
+            Frequency axis
+        freq_y
+            Amplitude axis
+        """
         data = np.loadtxt(filepath, dtype=float, skiprows=1)
         data[:, 3] = np.deg2rad(data[:, 3])
         data[:, 5] = np.deg2rad(data[:, 5])
