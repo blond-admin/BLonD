@@ -25,6 +25,8 @@ simulation.ring.section_lengths = [250, 250]
 simulation.ring.circumference = 500
 simulation.section_i = DynamicParameter(None)
 simulation.section_i.current_group = 0
+simulation.turn_i = DynamicParameter(None)
+simulation.turn_i.value = 0
 beam = Mock(BeamBaseClass)
 beam.common_array_size = 128
 beam.reference_time = 0.8
@@ -303,14 +305,14 @@ class TestStaticMultiProfileObservation(unittest.TestCase):
         self.profile_2.n_bins = 12
         self.profile_2._hist_y = np.ones(self.profile_2.n_bins, dtype=float)
 
-        self.static_profile_observation = StaticMultiProfileObservation(
+        self.static_multi_profile_observation = StaticMultiProfileObservation(
             each_turn_i=1,
             profiles=[self.profile, self.profile_2],
             folder=callers_relative_path("results/", stacklevel=1),
         )
 
     def test___init__(self) -> None:
-        self.static_profile_observation = StaticMultiProfileObservation(
+        self.static_multi_profile_observation = StaticMultiProfileObservation(
             each_turn_i=1,
             profiles=[self.profile, self.profile_2],
             folder=callers_relative_path("results/", stacklevel=1),
@@ -320,11 +322,30 @@ class TestStaticMultiProfileObservation(unittest.TestCase):
         wrong_profile = deepcopy(self.profile_2)
         wrong_profile.n_bins += 1
         with self.assertRaisesRegex(AssertionError, "n_bins"):
-            self.static_profile_observation = StaticMultiProfileObservation(
+            self.static_multi_profile_observation = StaticMultiProfileObservation(
                 each_turn_i=1,
                 profiles=[self.profile, wrong_profile],
                 folder=callers_relative_path("results/", stacklevel=1),
             )
+
+    def test_from_disk(self) -> None:
+        self.static_multi_profile_observation.on_init_simulation(
+            simulation=simulation
+        )
+        self.static_multi_profile_observation.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            turn_i_init=0,
+            obs_per_turn=2,
+            n_turns=100,
+        )
+        self.static_multi_profile_observation.update(
+            simulation=simulation,
+        )
+        self.static_multi_profile_observation.to_disk()
+
+        self.static_multi_profile_observation.from_disk()
+
 
 if __name__ == "__main__":
     unittest.main()
