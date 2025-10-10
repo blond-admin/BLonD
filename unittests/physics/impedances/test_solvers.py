@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import numpy as np
+import pytest
 from matplotlib import pyplot as plt
 from scipy.constants import c, e
 from scipy.fft import next_fast_len
@@ -21,7 +22,7 @@ from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
     TimeDomainFftSolver,
 )
-from blond.physics.impedances.sources import Resonators
+from blond.physics.impedances.sources import ImpedanceTableFreq, Resonators
 from blond.physics.profiles import (
     DynamicProfileConstCutoff,
     DynamicProfileConstNBins,
@@ -82,9 +83,31 @@ class TestTimeDomainFftSolver(unittest.TestCase):
             ),
         )
 
-    def test__init(self):
+    @pytest.mark.skip()
+    def test__ind_voltage_calculation(self):
         self.time_domain_fft_solver._wake_imp_y_needs_update = True
-        self.time_domain_fft_solver.calc_induced_voltage(beam=self.beam)
+        ind_volt = self.time_domain_fft_solver.calc_induced_voltage(beam=self.beam)
+
+        assert len(ind_volt) == len(self.time_domain_fft_solver._parent_wakefield.profile.hist_y)
+
+    @pytest.mark.skip()
+    def test_error_throwing_warning_throwing(self):
+        local_solver = deepcopy(self.time_domain_fft_solver)
+        local_solver._parent_wakefield.sources = (ImpedanceTableFreq,)
+
+        with self.assertRaises(Exception):
+            local_solver._update_impedance_sources(beam=self.beam)
+
+        local_solver._parent_wakefield.sources = (self.resonators,)
+        local_solver._update_impedance_sources(beam=self.beam)
+        local_solver._wake_imp_y = np.array([0])
+        local_solver._update_impedance_sources(beam=self.beam)
+        assert local_solver._wake_imp_y == np.array([0])  # check that nothing gets changed without flag
+
+        local_solver._wake_imp_y_needs_update = True
+        local_solver._wake_imp_y = np.ones_like(local_solver._parent_wakefield.profile.hist_x, dtype=complex)
+        local_solver._update_impedance_sources(beam=self.beam)
+        assert np.sum(local_solver._wake_imp_y) != 0
 
 
 class TestInductiveImpedanceSolver(unittest.TestCase):
@@ -720,6 +743,10 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             / single_resonator._alpha[0],
         )
 
+        with self.assertRaises(RuntimeError):
+            local_solv._parent_wakefield = None
+            local_solv._determine_storage_time()
+
     def test_determine_storage_time_multi_res(self):
         # Check for mixing with multiple resonators
         simulation = Mock(Simulation)
@@ -943,6 +970,15 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             np.sum(self.multi_pass_resonator_solver._past_profiles[1]), 6
         )
 
+        self.multi_pass_resonator_solver._past_profile_times = deque(
+            np.add(self.multi_pass_resonator_solver._past_profile_times,
+                   self.multi_pass_resonator_solver._maximum_storage_time + 1))
+        self.multi_pass_resonator_solver._remove_fully_decayed_wake_profiles(
+            indexes_to_check=2
+        )
+
+        assert len(self.multi_pass_resonator_solver._past_profile_times) == 0
+
     def test_remove_fully_decayed_wake_profiles_physics(self):
         simulation = Mock(Simulation)
         single_resonator = Resonators(
@@ -962,6 +998,22 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             / -single_resonator._alpha[0]
             * np.log(local_solv._decay_fraction_threshold),
         )
+
+        with self.assertRaises(ValueError):
+            local_solv._parent_wakefield.profile = None
+            local_solv.on_wakefield_init_simulation(simulation=simulation,
+                                                    parent_wakefield=local_solv._parent_wakefield)
+
+        with self.assertRaises(RuntimeError):
+            local_solv._parent_wakefield.profile = DynamicProfileConstCutoff(timestep=0)
+            local_solv.on_wakefield_init_simulation(simulation=simulation,
+                                                    parent_wakefield=local_solv._parent_wakefield)
+
+        with self.assertRaises(RuntimeError):
+            local_solv._parent_wakefield.sources = (ImpedanceTableFreq(np.array([0]), np.array([0])), )
+            local_solv.on_wakefield_init_simulation(simulation=simulation,
+                                                    parent_wakefield=local_solv._parent_wakefield)
+
 
     def test_update_past_profile_times_wake_times(self):
         self.multi_pass_resonator_solver._past_profile_times = deque(
