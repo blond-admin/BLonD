@@ -466,36 +466,6 @@ class BunchObservation_meta_params(Observables):  # TODO rework class
     def emittance_stat(self):
         return self._emittance_stat.get_valid_entries()
 
-    def to_disk(self) -> None:
-        super().to_disk()
-        self._sigma_dt.to_disk()
-        self._sigma_dE.to_disk()
-        self._mean_dt.to_disk()
-        self._mean_dE.to_disk()
-        self._emittance_stat.to_disk()
-
-    def from_disk(self) -> None:
-        super().from_disk()
-
-        self._sigma_dt = DenseArrayRecorder.from_disk(
-            self._sigma_dt.filepath,
-        )
-        self._sigma_dE = DenseArrayRecorder.from_disk(
-            self._sigma_dE.filepath,
-        )
-
-        self._mean_dt = DenseArrayRecorder.from_disk(
-            self._mean_dt.filepath,
-        )
-
-        self._mean_dE = DenseArrayRecorder.from_disk(
-            self._mean_dE.filepath,
-        )
-
-        self._emittance_stat = DenseArrayRecorder.from_disk(
-            self._emittance_stat.filepath,
-        )
-
 
 # class MultiCavityObservation(Observables):
 #     def __init__(self,
