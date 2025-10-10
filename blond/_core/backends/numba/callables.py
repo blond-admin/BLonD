@@ -161,10 +161,10 @@ class NumbaSpecials(Specials):  # pragma: no cover
     def beam_phase(
         hist_x: NumpyArray,
         hist_y: NumpyArray,
-        alpha: float,
-        omega_rf: float,
-        phi_rf: float,
-        bin_size: float,
+        alpha: np.float32 | np.float64,
+        omega_rf: np.float32 | np.float64,
+        phi_rf: np.float32 | np.float64,
+        bin_size: np.float32 | np.float64,
     ) -> float:
         n = len(hist_x)
 
@@ -225,7 +225,12 @@ class NumbaSpecials(Specials):  # pragma: no cover
         array_write[:] = array_tmp[:]
 
     @staticmethod
-    def loss_box(top: float, bottom: float, left: float, right: float) -> None:
+    def loss_box(
+        top: np.float32 | np.float64,
+        bottom: np.float32 | np.float64,
+        left: np.float32 | np.float64,
+        right: float,
+    ) -> None:
         pass
 
     @staticmethod
@@ -238,11 +243,11 @@ class NumbaSpecials(Specials):  # pragma: no cover
     def kick_single_harmonic(
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
-        voltage: float,
-        omega_rf: float,
-        phi_rf: float,
-        charge: np.flaot32 | np.float64,
-        acceleration_kick: np.flaot32 | np.float64,
+        voltage: np.float32 | np.float64,
+        omega_rf: np.float32 | np.float64,
+        phi_rf: np.float32 | np.float64,
+        charge: np.float32 | np.float64,
+        acceleration_kick: np.float32 | np.float64,
     ) -> None:
         voltage_kick = charge * voltage
         for i in prange(len(dt)):
@@ -266,10 +271,7 @@ class NumbaSpecials(Specials):  # pragma: no cover
         beta: np.float32 | np.float64,
         energy: np.float32 | np.float64,
     ) -> None:
-        """
-        Function to apply drift equation of motion
-        """
-
+        """Function to apply drift equation of motion."""
         # solver_decoded = solver.decode(encoding='utf_8')
 
         coeff = T * eta_0 / (beta * beta * energy)
@@ -284,9 +286,9 @@ class NumbaSpecials(Specials):  # pragma: no cover
         voltage: NumpyArray,
         omega_rf: NumpyArray,
         phi_rf: NumpyArray,
-        charge: float,
+        charge: np.float32 | np.float64,
         n_rf: int,
-        acceleration_kick: float,
+        acceleration_kick: np.float32 | np.float64,
     ) -> None:
         for i in prange(len(dt)):
             dti = dt[i]
@@ -392,8 +394,8 @@ class NumbaSpecials(Specials):  # pragma: no cover
         dE: NumpyArray,
         voltage: NumpyArray,
         bin_centers: NumpyArray,
-        charge: np.flaot32 | np.float64,
-        acceleration_kick: np.flaot32 | np.float64,
+        charge: np.float32 | np.float64,
+        acceleration_kick: np.float32 | np.float64,
     ) -> None:
         dx = (bin_centers[-1] - bin_centers[0]) / (len(bin_centers) - 1)
         inv_dx = 1 / dx

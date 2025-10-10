@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import importlib.util
-import inspect
 import logging
 import os
 import shutil
@@ -19,8 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 def _add_dll_directory(command):
-    """
-    Add the bin directory of some executable to the DLL search path
+    """Add the bin directory of some executable to the DLL search path.
 
     Parameters
     ----------
@@ -50,8 +48,6 @@ if _using_windows:
 
 
 def find_module_so(file: str) -> str:
-    # Get the file where this function is defined
-    current_file = inspect.getfile(find_module_so)
     # Get the directory of that file
     this_folder = os.path.dirname(os.path.abspath(__file__))
     hash_ = hash_in_folder(
@@ -115,10 +111,10 @@ class FortranSpecials(Specials):
     def beam_phase(
         hist_x: NumpyArray,
         hist_y: NumpyArray,
-        alpha: float,
-        omega_rf: float,
-        phi_rf: float,
-        bin_size: float,
+        alpha: np.float32 | np.float64,
+        omega_rf: np.float32 | np.float64,
+        phi_rf: np.float32 | np.float64,
+        bin_size: np.float32 | np.float64,
     ) -> np.float32 | np.float64:
         return libblond_fortran.beam_phase_module.beam_phase(
             bin_centers=hist_x,
@@ -147,18 +143,23 @@ class FortranSpecials(Specials):
         )
 
     @staticmethod
-    def loss_box(top: float, bottom: float, left: float, right: float) -> None:
+    def loss_box(
+        top: np.float32 | np.float64,
+        bottom: np.float32 | np.float64,
+        left: np.float32 | np.float64,
+        right: float,
+    ) -> None:
         pass
 
     @staticmethod
     def kick_single_harmonic(
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
-        voltage: float,
-        omega_rf: float,
-        phi_rf: float,
-        charge: np.flaot32 | np.float64,
-        acceleration_kick: np.flaot32 | np.float64,
+        voltage: np.float32 | np.float64,
+        omega_rf: np.float32 | np.float64,
+        phi_rf: np.float32 | np.float64,
+        charge: np.float32 | np.float64,
+        acceleration_kick: np.float32 | np.float64,
     ) -> None:
         assert dt.dtype == backend.float
         assert dE.dtype == backend.float
@@ -188,10 +189,7 @@ class FortranSpecials(Specials):
         beta: np.float32 | np.float64,
         energy: np.float32 | np.float64,
     ) -> None:
-        """
-        Function to apply drift equation of motion
-        """
-
+        """Function to apply drift equation of motion."""
         libblond_fortran.drift_simple(
             dt=dt,
             de=dE,
@@ -210,9 +208,9 @@ class FortranSpecials(Specials):
         voltage: NumpyArray,
         omega_rf: NumpyArray,
         phi_rf: NumpyArray,
-        charge: float,
+        charge: np.float32 | np.float64,
         n_rf: int,
-        acceleration_kick: float,
+        acceleration_kick: np.float32 | np.float64,
     ) -> None:
         libblond_fortran.kick_multi_harmonic(
             dt=dt,
@@ -230,11 +228,11 @@ class FortranSpecials(Specials):
     def drift_legacy(
         dt: NumpyArray,
         dE: NumpyArray,
-        t_rev: float,
-        length_ratio: float,
+        t_rev: np.float32 | np.float64,
+        length_ratio: np.float32 | np.float64,
         alpha_order: int,
-        eta_0: float,
-        eta_1: float,
+        eta_0: np.float32 | np.float64,
+        eta_1: np.float32 | np.float64,
         eta_2: float,
         beta: float,
         energy: float,
@@ -311,8 +309,8 @@ class FortranSpecials(Specials):
         dE: NumpyArray,
         voltage: NumpyArray,
         bin_centers: NumpyArray,
-        charge: np.flaot32 | np.float64,
-        acceleration_kick: np.flaot32 | np.float64,
+        charge: np.float32 | np.float64,
+        acceleration_kick: np.float32 | np.float64,
     ) -> None:
         libblond_fortran.linear_interp_kick(
             beam_dt=dt,

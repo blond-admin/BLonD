@@ -1,4 +1,3 @@
-# coding: utf8
 # Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
@@ -7,8 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""
-**Various beam phase loops with optional synchronisation/frequency/radial loops
+"""**Various beam phase loops with optional synchronisation/frequency/radial loops
 for the CERN machines**
 
 :Authors: **Helga Timko**, **Alexandre Lasheen**
@@ -26,8 +24,6 @@ from blond._core.backends.backend import backend
 from .base import LocalFeedback
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional
-
     from blond._core.beam.base import BeamBaseClass
     from blond.physics.cavities import CavityBaseClass
     from blond.physics.profiles import ProfileBaseClass
@@ -110,10 +106,10 @@ class Blond2BeamFeedback(LocalFeedback):
         profile: ProfileBaseClass,
         PL_gain: float,
         window_coefficient: float = 0.0,
-        time_offset: Optional[float] = None,
+        time_offset: float | None = None,
         delay: int = 0,
         section_index: int = 0,
-        name: Optional[str] = None,
+        name: str | None = None,
     ):
         """One-turn beam phase loop base class
 
@@ -187,7 +183,6 @@ class Blond2BeamFeedback(LocalFeedback):
         beam phase, projected to the range -Pi/2 to 3/2 Pi. Note that this beam
         phase is already w.r.t. the instantaneous RF phase.
         """
-
         # Main RF frequency at the present turn
         omega_rf = (
             self._parent_cavity._omega_rf[0]
@@ -221,11 +216,9 @@ class Blond2BeamFeedback(LocalFeedback):
         self.phi_beam = np.arctan(coeff) + np.pi
 
     def update_dphi(self, beam: BeamBaseClass):
+        """Phase difference between beam and RF phase of the main RF system.
+        Optional: add RF phase noise through dphi directly.
         """
-        *Phase difference between beam and RF phase of the main RF system.
-        Optional: add RF phase noise through dphi directly.*
-        """
-
         # Correct for design stable phase
         self.dphi = self.phi_beam - self._parent_cavity.phi_s
 
@@ -234,8 +227,7 @@ class Blond2BeamFeedback(LocalFeedback):
         if self.RFnoise is not None:
             if self.noiseFB is not None:
                 self.dphi += self.noiseFB.x * self.RFnoise.dphi[current_turn]
+            elif self.machine == "PSB":
+                self.dphi = self.dphi
             else:
-                if self.machine == "PSB":
-                    self.dphi = self.dphi
-                else:
-                    self.dphi += self.RFnoise.dphi[current_turn]
+                self.dphi += self.RFnoise.dphi[current_turn]

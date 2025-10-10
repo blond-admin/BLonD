@@ -15,7 +15,6 @@ from blond._core.beam.beams import Beam
 from blond._core.ring.ring import Ring
 from blond.cycles.magnetic_cycle import MagneticCycleBase, MagneticCyclePerTurn
 from blond.physics.cavities import MultiHarmonicCavity
-from blond.physics.drifts import DriftXSuite
 from blond.physics.impedances.solvers import InductiveImpedanceSolver
 from blond.physics.impedances.sources import InductiveImpedance
 
@@ -100,7 +99,7 @@ class Main:
         my_beam: Beam,
     ) -> None:
         # Full simulation. everything here should be optimized
-        results = simulation.run_simulation(
+        simulation.run_simulation(
             turn_i_init=10, n_turns=100, beams=(my_beam,)
         )
 

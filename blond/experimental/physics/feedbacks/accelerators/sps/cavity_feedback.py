@@ -3,8 +3,6 @@ from __future__ import annotations
 import logging
 import sys
 from typing import TYPE_CHECKING, Any
-from typing import Optional
-from typing import Optional as LateInit
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -64,7 +62,7 @@ class SPSCavityLoopCommissioning:
         open_fb: bool = False,
         open_drive: bool = False,
         open_ff: bool = True,
-        v_set: Optional[NumpyArray] = None,
+        v_set: NumpyArray | None = None,
         cpp_conv: bool = False,
         pwr_clamp: bool = False,
         rot_iq: complex = 1,
@@ -124,11 +122,11 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
         G_tx: float = 1,
         a_comb: float = 63 / 64,
         df: float = 0,
-        commissioning: Optional[SPSCavityLoopCommissioning] = None,
+        commissioning: SPSCavityLoopCommissioning | None = None,
         harmonic_index: int = 0,
     ):
-        self.V_set: LateInit[NumpyArray] = None
-        self.n_delay: LateInit[int] = None
+        self.V_set: NumpyArray | None = None
+        self.n_delay: int | None = None
 
         super().__init__(
             _parent_cavity=_parent_cavity,
@@ -228,9 +226,9 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
         # Switch between convolution methods
         if self.cpp_conv:
-            self.conv = getattr(self, "call_conv")
+            self.conv = self.call_conv
         else:
-            self.conv = getattr(self, "matr_conv")
+            self.conv = self.matr_conv
 
         # TWC resonant frequency
         self.omega_c = self.TWC.omega_r
@@ -245,9 +243,9 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
                 raise RuntimeError(
                     "V_SET length should be %d" % (2 * self.n_coarse)
                 )
-            self.set_point = getattr(self, "set_point_mod")
+            self.set_point = self.set_point_mod
         else:
-            self.set_point = getattr(self, "set_point_std")
+            self.set_point = self.set_point_std
             self.V_SET = np.zeros(2 * self.n_coarse, dtype=complex)
 
         # Array to hold the bucket-by-bucket voltage with length LLRF
@@ -315,16 +313,15 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
         self.update_fb_variables()
         self.logger.info("Class initialized")
 
-        self.V_ANT_START: LateInit[NumpyArray] = None
-        self.V_ANT_FINE_START: LateInit[NumpyArray] = None
-        self.phi_mod_0: LateInit[Any] = None
+        self.V_ANT_START: NumpyArray | None = None
+        self.V_ANT_FINE_START: NumpyArray | None = None
+        self.phi_mod_0: Any | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         pass
 
     def circuit_track(self, no_beam: bool = False):
         r"""Tracking the SPS CL internally."""
-
         # Update the impulse response at present carrier frequency
         self.TWC.impulse_response_gen(self.omega_carrier, self.rf_centers)
         self.TWC.impulse_response_beam(
@@ -369,8 +366,8 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
     def llrf_model(self):
         r"""The LLRF model of the SPSOneTurnFeedback. This function calles the functions related
-        to the LLRF part of the model in the correct order."""
-
+        to the LLRF part of the model in the correct order.
+        """
         # Track all the modules of the LLRF-part of the model
         self.set_point()
         self.error_and_gain()
@@ -381,8 +378,8 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
     def gen_model(self):
         r"""The Generator model of the SPSOneTurnFeedback. This function calles the functions related
-        to the generator part of the model in the correct order."""
-
+        to the generator part of the model in the correct order.
+        """
         # Track all the modules for the generator part of the model
         self.mod_to_frf()
         self.sum_and_gain()
@@ -392,7 +389,6 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
         r"""The Beam model of the SPSOneTurnFeedback. This function find the RF beam current from the Profile-
         object, applies the cavity response towards the beam and the feed-forward correction if engaged.
         """
-
         # Rotate the RF beam current
         self.I_BEAM_FINE = self.rot_iq * self.I_BEAM_FINE
         self.I_BEAM_COARSE[-self.n_coarse :] = (
@@ -477,7 +473,8 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
     def beam_response(self, coarse: bool = False):
         r"""Computes the beam-induced voltage on the fine- and coarse-grid by convolving
         the RF beam current with the cavity response towards the beam. The voltage is
-        multiplied by the number of cavities to find the total."""
+        multiplied by the number of cavities to find the total.
+        """
         self.logger.debug("Matrix convolution for V_ind")
 
         if coarse:
@@ -505,7 +502,6 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
     def set_point_std(self):
         r"""Computes the desired set point voltage in I/Q."""
-
         self.logger.debug(
             "Entering %s function" % sys._getframe(0).f_code.co_name
         )
@@ -525,7 +521,6 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
         r"""This function is called instead of set_point_std if a modulated set point is used.
         That is, if the set point is non-constant over a turn with the periodicity of a turn.
         """
-
         self.logger.debug(
             "Entering %s function" % sys._getframe(0).f_code.co_name
         )
@@ -533,8 +528,8 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
     def error_and_gain(self):
         r"""This function computes the difference between the set point and the antenna voltage
-        and amplifies it with the LLRF gain."""
-
+        and amplifies it with the LLRF gain.
+        """
         # Store last turn error signal and update for current turn
         self.DV_GEN[: self.n_coarse] = self.DV_GEN[-self.n_coarse :]
         self.DV_GEN[-self.n_coarse :] = self.G_llrf * (
@@ -564,7 +559,6 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
     def comb(self):
         r"""This function applies the comb filter to the error signal."""
-
         # Shuffle present data to previous data
         self.DV_COMB_OUT[: self.n_coarse] = self.DV_COMB_OUT[-self.n_coarse :]
         # Update present data
@@ -576,8 +570,8 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
     def one_turn_delay(self):
         r"""This function applies the complementary delay such that the correction is applied
-        with exactly the delay of one turn."""
-
+        with exactly the delay of one turn.
+        """
         # Store last turn delayed signal and compute current turn error signal
         self.DV_DELAYED[: self.n_coarse] = self.DV_DELAYED[-self.n_coarse :]
         self.DV_DELAYED[-self.n_coarse :] = self.DV_COMB_OUT[
@@ -586,7 +580,6 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
     def mod_to_fr(self):
         r"""This function modulates the error signal to the resonant frequency of the cavity."""
-
         # Store last turn modulated signal
         self.DV_MOD_FR[: self.n_coarse] = self.DV_MOD_FR[-self.n_coarse :]
         # Note here that dphi_rf is already accumulated somewhere else (i.e. in the tracker).
@@ -601,8 +594,8 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
     def mov_avg(self):
         r"""This function applies the cavity filter, modelled as a moving average, to the modulated
-        error signal."""
-
+        error signal.
+        """
         # Store last turn moving average signal
         self.DV_MOV_AVG[: self.n_coarse] = self.DV_MOV_AVG[-self.n_coarse :]
         # Apply moving average filter for current turn
@@ -615,8 +608,8 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
     def mod_to_frf(self):
         r"""This function modulates the error signal from the resonant frequency of the cavity to the
-        original carrier frequency, the RF frequency."""
-
+        original carrier frequency, the RF frequency.
+        """
         # Store last turn modulated signal
         self.DV_MOD_FRF[: self.n_coarse] = self.DV_MOD_FRF[-self.n_coarse :]
         # Note here that dphi_rf is already accumulated somewhere else (i.e. in the tracker).
@@ -633,8 +626,8 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
     def sum_and_gain(self):
         r"""Summing of the error signal from the LLRF-part of the model and the set point voltage.
         The generator current is then found by multiplying by the transmitter gain and R_gen. The feed-forward
-        current will also be added to the generator current if enabled."""
-
+        current will also be added to the generator current if enabled.
+        """
         # Store generator current signal from the last turn
         self.I_GEN_COARSE[: self.n_coarse] = self.I_GEN_COARSE[
             -self.n_coarse :
@@ -658,8 +651,8 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
     def gen_response(self):
         r"""Generator current is convolved with cavity response towards the generator to get the
         generator-induced voltage. Multiplied by the number of cavities to find the total generator-
-        induced voltage."""
-
+        induced voltage.
+        """
         # Store generator-induced from last turn
         self.V_IND_COARSE_GEN[: self.n_coarse] = self.V_IND_COARSE_GEN[
             -self.n_coarse :
@@ -672,13 +665,12 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
     def matr_conv(self, I: NumpyArray, h: NumpyArray) -> NumpyArray:
         r"""Convolution of beam current with impulse response; uses a complete
-        matrix with off-diagonal elements."""
-
+        matrix with off-diagonal elements.
+        """
         return fftconvolve(I, h, mode="full")[: I.shape[0]]
 
     def call_conv(self, signal, kernel):
         r"""Routine to call optimised C++ convolution"""
-
         # Make sure that the buffers are stored contiguously
         signal = np.ascontiguousarray(signal)
         kernel = np.ascontiguousarray(kernel)
@@ -690,7 +682,6 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
     def update_fb_variables(self):
         r"""Update variables in the feedback"""
-
         # TODO REMWORK/REMOVE
         t_rev = float(
             (2 * np.pi * self._parent_cavity.harmonic[self.harmonic_index])
@@ -720,7 +711,6 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
     # Power related functions
     def calc_power(self):
         r"""Method to compute the generator power"""
-
         return get_power_gen_i(np.copy(self.I_GEN_COARSE), 50)
 
     def wo_clamping(self):
@@ -781,18 +771,18 @@ class SPSCavityFeedback:
         G_ff: float | list = 1,
         G_llrf: float | list = 10,
         G_tx: list[float, list] = 0.5,
-        a_comb: Optional[float] = None,
+        a_comb: float | None = None,
         turns: int = 1000,
         post_LS2: bool = True,
-        V_part: Optional[float] = None,
+        V_part: float | None = None,
         df: list[float] = 0,
-        commissioning: Optional[list | SPSCavityLoopCommissioning] = None,
+        commissioning: list | SPSCavityLoopCommissioning | None = None,
         n_h: int = 0,
     ):
         # Options for commissioning the feedback
-        self.alpha_sum: LateInit[NumpyArray] = None
-        self.V_sum: LateInit[NumpyArray] = None
-        self.V_corr: LateInit[NumpyArray] = None
+        self.alpha_sum: NumpyArray | None = None
+        self.V_sum: NumpyArray | None = None
+        self.V_corr: NumpyArray | None = None
 
         if commissioning is None:
             commissioning = SPSCavityLoopCommissioning()
@@ -927,8 +917,8 @@ class SPSCavityFeedback:
 
     def track(self, beam: BeamBaseClass):
         r"""Main tracking method for the SPSCavityFeedback. This tracks both cavity types
-        with beam."""
-
+        with beam.
+        """
         # Track the feedbacks for the two TWC types
         self.OTFB_1.track(beam=beam)
         self.OTFB_2.track(beam=beam)
@@ -956,7 +946,6 @@ class SPSCavityFeedback:
 
     def track_init(self, debug: bool = False):
         r"""Tracking of the SPSCavityFeedback without beam."""
-
         if debug:
             cmap = plt.get_cmap("jet")
             colors = cmap(np.linspace(0, 1, self.turns))

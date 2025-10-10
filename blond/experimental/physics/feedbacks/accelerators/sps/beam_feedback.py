@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional, Dict, Any
+    from typing import Any
 
 import numpy as np
 
@@ -23,10 +23,10 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         window_coefficient: float = 0.0,
         RL_gain: float = 0.0,
         sample_dE: int = 1,
-        time_offset: Optional[float] = None,
+        time_offset: float | None = None,
         delay: int = 0,
         section_index: int = 0,
-        name: Optional[str] = None,
+        name: str | None = None,
     ):
         super().__init__(
             profile=profile,
@@ -49,7 +49,6 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         simulation
             Simulation context manager
         """
-
         from blond.physics.drifts import DriftSimple
 
         self._simulation = simulation  # todo declare
@@ -61,15 +60,14 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
         self.alpha_0 = self._drift.alpha_0
         self.beta = beam.reference_beta
         self.energy = beam.reference_total_energy
 
     def track(self, beam: BeamBaseClass) -> None:
-        """
-        Calculation of the SPS RF frequency correction from the phase difference
+        """Calculation of the SPS RF frequency correction from the phase difference
         between beam and RF (actual synchronous phase). The transfer function is
 
         .. math::
@@ -80,7 +78,6 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         Using 'gain2', a radial loop can be activated in addition to remove
         long-term frequency drifts
         """
-
         self.update_domega_rf(beam=beam)
 
     def update_domega_rf(self, beam: BeamBaseClass) -> None:
@@ -104,9 +101,7 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         self.domega_rf = self.domega_dphi + self.domega_dR
 
     def radial_difference(self, beam: BeamBaseClass):
-        """
-        *Radial difference between beam and design orbit.*
-        """
+        """Radial difference between beam and design orbit."""
         self.average_dE = np.mean(
             beam._dE[:: self.sample_dE]
         )  # todo other access
@@ -120,9 +115,7 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         )
 
     def radial_steering_from_freq(self):
-        """
-        *Frequency and phase change for the current turn due to the radial steering program.*
-        """
+        """Frequency and phase change for the current turn due to the radial steering program."""
         raise NotImplementedError(
             "BLonD2 port that was already broken."
             " Who wants to use"
@@ -167,10 +160,10 @@ class SpsFBeamFeedback(Blond2BeamFeedback):
         PL_gain: float,
         FL_gain: float = 0.0,
         window_coefficient: float = 0.0,
-        time_offset: Optional[float] = None,
+        time_offset: float | None = None,
         delay: int = 0,
         section_index: int = 0,
-        name: Optional[str] = None,
+        name: str | None = None,
     ):
         super().__init__(
             profile=profile,
@@ -185,12 +178,10 @@ class SpsFBeamFeedback(Blond2BeamFeedback):
         self.gain2 = FL_gain
 
     def track(self, beam: BeamBaseClass) -> None:
-        """
-        Calculation of the SPS RF frequency correction from the phase
+        """Calculation of the SPS RF frequency correction from the phase
         difference between beam and RF (actual synchronous phase). Same as
         LHC_F, except the calculation of the beam phase.
         """
-
         self.update_domega_rf(beam=beam)
 
     def update_domega_rf(self, beam: BeamBaseClass) -> None:
@@ -204,13 +195,11 @@ class SpsFBeamFeedback(Blond2BeamFeedback):
         self.domega_rf = self.domega_dphi + self.domega_df
 
     def beam_phase_sharpWindow(self):
-        """
-        *Beam phase measured at the main RF frequency and phase. The beam is
+        """Beam phase measured at the main RF frequency and phase. The beam is
         averaged over a window. The coefficients of sine and cosine components
         determine the beam phase, projected to the range -Pi/2 to 3/2 Pi.
-        Note that this beam phase is already w.r.t. the instantaneous RF phase.*
+        Note that this beam phase is already w.r.t. the instantaneous RF phase.
         """
-
         # Main RF frequency at the present turn
         omega_rf = (
             self._parent_cavity._omega_rf[0]

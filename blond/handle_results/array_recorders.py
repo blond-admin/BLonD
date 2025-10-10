@@ -10,11 +10,10 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from .._generals.cupy.no_cupy_import import is_cupy_array
-from .helpers import callers_relative_path
 
 if TYPE_CHECKING:  # pragma: no cover
     from os import PathLike
-    from typing import Literal, Optional, Tuple
+    from typing import Literal
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import DTypeLike
@@ -44,8 +43,8 @@ class DenseArrayRecorder(ArrayRecorder):
     def __init__(
         self,
         filepath: str | PathLike,
-        shape: int | Tuple[int, ...],
-        dtype: Optional[DTypeLike] = None,
+        shape: int | tuple[int, ...],
+        dtype: DTypeLike | None = None,
         order: Literal["C", "F"] = "C",
         overwrite: bool = True,
     ):
@@ -96,7 +95,7 @@ class DenseArrayRecorder(ArrayRecorder):
         assert isfile(dense_recorder.filepath_array)
         _memory: NumpyArray = np.load(dense_recorder.filepath_array)
         dense_recorder._memory = _memory
-        with open(dense_recorder.filepath_attributes, "r") as f:
+        with open(dense_recorder.filepath_attributes) as f:
             loaded_data = json.load(f)
         dense_recorder._write_idx = loaded_data["_write_idx"]
         dense_recorder.overwrite = loaded_data["overwrite"]
@@ -109,11 +108,6 @@ class DenseArrayRecorder(ArrayRecorder):
         self._write_idx += 1
 
     def get_valid_entries(self) -> NumpyArray:
-        if self._write_idx == 0:
-            ValueError(
-                "Cannot retrieve results:"
-                " no data has been written to memory yet."
-            )
         return self._memory[: self._write_idx]
 
 

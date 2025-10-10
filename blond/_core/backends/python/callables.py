@@ -16,10 +16,10 @@ class PythonSpecials(Specials):
     def beam_phase(
         hist_x: NumpyArray,
         hist_y: NumpyArray,
-        alpha: float,
-        omega_rf: float,
-        phi_rf: float,
-        bin_size: float,
+        alpha: np.float32 | np.float64,
+        omega_rf: np.float32 | np.float64,
+        phi_rf: np.float32 | np.float64,
+        bin_size: np.float32 | np.float64,
     ) -> np.float32 | np.float64:
         scoeff = np.trapezoid(  # type: ignore
             np.exp(alpha * hist_x)
@@ -51,7 +51,10 @@ class PythonSpecials(Specials):
 
     @staticmethod
     def loss_box(
-        top: float, bottom: float, left: float, right: float
+        top: np.float32 | np.float64,
+        bottom: np.float32 | np.float64,
+        left: np.float32 | np.float64,
+        right: float,
     ) -> None:  # TODO
         raise NotImplementedError
 
@@ -59,11 +62,11 @@ class PythonSpecials(Specials):
     def kick_single_harmonic(
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
-        voltage: float,
-        omega_rf: float,
-        phi_rf: float,
-        charge: np.flaot32 | np.float64,
-        acceleration_kick: np.flaot32 | np.float64,
+        voltage: np.float32 | np.float64,
+        omega_rf: np.float32 | np.float64,
+        phi_rf: np.float32 | np.float64,
+        charge: np.float32 | np.float64,
+        acceleration_kick: np.float32 | np.float64,
     ) -> None:
         voltage_kick = charge * voltage
 
@@ -79,14 +82,11 @@ class PythonSpecials(Specials):
         voltage: NumpyArray,
         omega_rf: NumpyArray,
         phi_rf: NumpyArray,
-        charge: float,
+        charge: np.float32 | np.float64,
         n_rf: int,
-        acceleration_kick: float,
+        acceleration_kick: np.float32 | np.float64,
     ) -> None:
-        """
-        Function to apply RF kick on the particles with sin function
-        """
-
+        """Function to apply RF kick on the particles with sin function."""
         voltage_kick = charge * voltage
 
         for j in range(n_rf):
@@ -103,10 +103,7 @@ class PythonSpecials(Specials):
         beta: np.float32 | np.float64,
         energy: np.float32 | np.float64,
     ) -> None:
-        """
-        Function to apply drift equation of motion
-        """
-
+        """Function to apply drift equation of motion."""
         # solver_decoded = solver.decode(encoding='utf_8')
 
         coeff = eta_0 / (beta * beta * energy)
@@ -116,18 +113,15 @@ class PythonSpecials(Specials):
     def drift_legacy(
         dt: NumpyArray,
         dE: NumpyArray,
-        T: float,
+        T: np.float32 | np.float64,
         alpha_order: int,
-        eta_0: float,
-        eta_1: float,
-        eta_2: float,
-        beta: float,
-        energy: float,
+        eta_0: np.float32 | np.float64,
+        eta_1: np.float32 | np.float64,
+        eta_2: np.float32 | np.float64,
+        beta: np.float32 | np.float64,
+        energy: np.float32 | np.float64,
     ) -> None:  # pragma: no cover # TODO
-        """
-        Function to apply drift equation of motion
-        """
-
+        """Function to apply drift equation of motion."""
         # solver_decoded = solver.decode(encoding='utf_8')
 
         coeff = 1.0 / (beta * beta * energy)
@@ -149,17 +143,14 @@ class PythonSpecials(Specials):
     def drift_exact(
         dt: NumpyArray,
         dE: NumpyArray,
-        T: float,
-        alpha_0: float,
-        alpha_1: float,
-        alpha_2: float,
-        beta: float,
-        energy: float,
+        T: np.float32 | np.float64,
+        alpha_0: np.float32 | np.float64,
+        alpha_1: np.float32 | np.float64,
+        alpha_2: np.float32 | np.float64,
+        beta: np.float32 | np.float64,
+        energy: np.float32 | np.float64,
     ) -> None:  # pragma: no cover # TODO
-        """
-        Function to apply drift equation of motion
-        """
-
+        """Function to apply drift equation of motion."""
         # solver_decoded = solver.decode(encoding='utf_8')
 
         invbetasq = 1 / (beta * beta)
@@ -189,8 +180,8 @@ class PythonSpecials(Specials):
         dE: NumpyArray,
         voltage: NumpyArray,
         bin_centers: NumpyArray,
-        charge: np.flaot32 | np.float64,
-        acceleration_kick: np.flaot32 | np.float64,
+        charge: np.float32 | np.float64,
+        acceleration_kick: np.float32 | np.float64,
     ) -> None:
         """Interpolated kick method.
 

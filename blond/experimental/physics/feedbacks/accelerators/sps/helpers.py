@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 import numpy as np
 from numpy._typing import NDArray as NumpyArray
 
@@ -26,7 +24,7 @@ def get_power_gen_i(I_gen_per_cav: NumpyArray, Z_0: float) -> float:
 
 
 def moving_average(
-    x: NumpyArray, N: int, x_prev: Optional[NumpyArray] = None
+    x: NumpyArray, N: int, x_prev: NumpyArray | None = None
 ) -> NumpyArray:
     """Function to calculate the moving average (or running mean) of the input
     data.
@@ -48,7 +46,6 @@ def moving_average(
             * len(x) + len(x_prev) - N + 1, if x_prev given
 
     """
-
     if x_prev is not None:
         # Pad in front with x_prev signal
         x = np.concatenate((x_prev, x))
@@ -64,8 +61,7 @@ def comb_filter(
     x: NumpyArray,
     a: float,
 ) -> NumpyArray:
-    """
-    Feedback comb filter.
+    """Feedback comb filter.
 
     Notes
     -----
@@ -80,7 +76,6 @@ def comb_filter(
     a
         scaling factor
     """
-
     return a * y + (1 - a) * x
 
 
@@ -109,13 +104,13 @@ def modulator(
         # todo
     dt: float
         # todo
+
     Returns
     -------
     float array
         Demodulated signal at f_final
 
     """
-
     if len(signal) < 2:
         # TypeError
         raise RuntimeError(

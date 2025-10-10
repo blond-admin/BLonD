@@ -61,8 +61,8 @@ def main():  # pragma: no cover
     runtimes = {}
     for kick_multi_harmonic in functions:
         runtimes[str(kick_multi_harmonic)] = 0.0
-    for iter in range(1000):
-        for i, kick_multi_harmonic in enumerate(functions):
+    for _iter in range(1000):
+        for _i, kick_multi_harmonic in enumerate(functions):
             CUDA = kick_multi_harmonic == CudaSpecials().kick_multi_harmonic
             t0 = time.perf_counter()
             kick_multi_harmonic(
@@ -83,11 +83,11 @@ def main():  # pragma: no cover
         print(runtimes[key], key)
 
     print()
-    for i, kick_multi_harmonic in enumerate(functions):
+    for _i, kick_multi_harmonic in enumerate(functions):
         runtimes[str(kick_multi_harmonic)] = 0.0
         CUDA = kick_multi_harmonic == CudaSpecials().kick_multi_harmonic
         t0 = time.perf_counter()
-        for iter in range(1000):
+        for _iter in range(1000):
             kick_multi_harmonic(
                 dt=dt_cp if CUDA else dt,
                 dE=dE_cp if CUDA else dE,

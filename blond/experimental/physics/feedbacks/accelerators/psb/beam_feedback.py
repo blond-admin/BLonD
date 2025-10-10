@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional, Tuple
-
 import numpy as np
 
 from blond._core.beam.base import BeamBaseClass
@@ -16,9 +14,9 @@ class PsbBeamFeedback(Blond2BeamFeedback):
         self,
         profile: ProfileBaseClass,
         PL_gain: float,
-        RL_gain: Tuple[float, float] = (0.0, 0.0),
+        RL_gain: tuple[float, float] = (0.0, 0.0),
         period: float = 10.0e-6,
-        coefficients: Tuple[float, ...] = (
+        coefficients: tuple[float, ...] = (
             0.999019,
             -0.999019,
             0.0,
@@ -27,10 +25,10 @@ class PsbBeamFeedback(Blond2BeamFeedback):
             0.0,
         ),
         window_coefficient: float = 0.0,
-        time_offset: Optional[float] = None,
+        time_offset: float | None = None,
         delay: int = 0,
         section_index: int = 0,
-        name: Optional[str] = None,
+        name: str | None = None,
     ):
         super().__init__(
             profile=profile,
@@ -81,11 +79,9 @@ class PsbBeamFeedback(Blond2BeamFeedback):
         self.dR_over_R = 0
 
     def precalculate_time(self, ring: Ring):
+        """For machines like the PSB, where the PL acts only in certain time
+        intervals, pre-calculate on which turns to act.
         """
-        *For machines like the PSB, where the PL acts only in certain time
-        intervals, pre-calculate on which turns to act.*
-        """
-
         if self.dt > 0:
             n = self.delay + 1
             while n < ring.t_rev.size:
@@ -154,8 +150,5 @@ class PsbBeamFeedback(Blond2BeamFeedback):
         self.domega_rf = -self.domega_PL - self.domega_RL
 
     def track(self, beam: BeamBaseClass) -> None:
-        """
-        Phase and radial loops for PSB. See documentation on-line for details.
-        """
-
+        """Phase and radial loops for PSB. See documentation on-line for details."""
         self.update_domega_rf(beam=beam)

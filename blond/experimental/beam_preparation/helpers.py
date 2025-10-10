@@ -22,12 +22,11 @@ def generate_particle_coordinates(
     n_macroparticles: int,
     seed: Optional[int],
 ) -> Tuple[NumpyArray | CupyArray, NumpyArray | CupyArray]:
-    """
-    Fill bunch with macroparticles according to `density_distribution`
+    """Fill bunch with macroparticles according to `density_distribution`
 
     Notes
     -----
-    The beam coordinate `dt and` `dE` will be overwritten.
+    The beam coordinate `dt` and `dE` will be overwritten.
 
     Parameters
     ----------
@@ -44,6 +43,8 @@ def generate_particle_coordinates(
         always return the same value
     """
     # Initialise the random number generator
+    # DEv NOTE (2025) It might be checked at a later time,
+    # if cupy and numpy provide for the exact same random generators.
     if seed is not None:
         np.random.seed(seed=seed)
     # Generating particles randomly inside the grid cells according to the
@@ -55,12 +56,14 @@ def generate_particle_coordinates(
     )
     indexes = backend.array(
         indexes
-    )  # to always use the same random seed/choice
+    )  # finally convert to the correct backend. See above why.
     time_step = time_grid[0, 1] - time_grid[0, 0]
     assert time_step > 0, f"{time_step=}"
     deltaE_step = deltaE_grid[1, 0] - deltaE_grid[0, 0]
     assert deltaE_step > 0, f"{deltaE_step=}"
     # Randomize particles inside each grid cell (uniform distribution)
+    # ``backend.random.triangular`` has rotational symmetry, but is
+    # distributed within a square.
     dt = (
         time_grid.flatten()[indexes]
         + backend.random.triangular(
@@ -91,7 +94,7 @@ def populate_beam(
 
     Notes
     -----
-    The beam coordinate `dt and` `dE` will be overwritten.
+    The beam coordinate `dt` and `dE` will be overwritten.
 
     Parameters
     ----------
@@ -128,12 +131,11 @@ def repopulate_beam(
     n_macroparticles_overwrite: int,
     seed: int,
 ) -> None:
-    """
-    Partially overwrite bunch with macroparticles according to `density_distribution`
+    """Partially overwrite bunch with macroparticles according to `density_distribution`
 
     Notes
     -----
-    The beam coordinate `dt and` `dE` will be overwritten.
+    The beam coordinate `dt` and `dE` will be overwritten.
 
     Parameters
     ----------
@@ -151,7 +153,9 @@ def repopulate_beam(
         Random seed, to make function with same seed
         always return the same value
     """
-    assert n_macroparticles_overwrite <= (beam._dE)
+    assert n_macroparticles_overwrite <= (beam._dE), (
+        "Number of particles to be overwritten is larger than number of macroparticles."
+    )
     dt, dE = generate_particle_coordinates(
         time_grid=time_grid,
         deltaE_grid=deltaE_grid,
@@ -163,11 +167,6 @@ def repopulate_beam(
         np.arange(0, beam.n_macroparticles_partial()),
         n_macroparticles_overwrite,
     )
-    if beam._dE is not None:
-        beam._dE[indexes] = dE
-    else:
-        raise ValueError(f"{beam._dE=}")
-    if beam._dt is not None:
-        beam._dt[indexes] = dt
-    else:
-        raise ValueError(f"{beam._dt=}")
+    beam._dE[indexes] = dE
+
+    beam._dt[indexes] = dt

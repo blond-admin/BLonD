@@ -1,11 +1,11 @@
-from typing import Iterable, TypeVar
+from collections.abc import Iterable
+from typing import TypeVar
 
 T = TypeVar("T")
 
 
 def all_equal(iterable: Iterable[T]) -> bool:
-    """
-    Check if all elements in the iterable are equal.
+    """Check if all elements in the iterable are equal.
 
     Parameters
     ----------
@@ -14,20 +14,20 @@ def all_equal(iterable: Iterable[T]) -> bool:
 
     Returns
     -------
-    bool
+    all_equal
         True if all elements are equal or the iterable is empty,
         False otherwise.
 
     Examples
     --------
     >>> all_equal([1, 1, 1])
-    True
+    >>> True
 
     >>> all_equal([1, 2, 1])
-    False
+    >>> False
 
     >>> all_equal([])
-    True
+    >>> True
     """
     iterator = iter(iterable)
     try:

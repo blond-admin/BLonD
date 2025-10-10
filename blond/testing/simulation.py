@@ -6,7 +6,7 @@ from blond.physics.impedances.solvers import (
     TimeDomainFftSolver,
 )
 from blond.physics.impedances.sources import Resonators
-from blond.physics.profiles import ProfileBaseClass, StaticProfile
+from blond.physics.profiles import StaticProfile
 
 
 class ExampleSimulation01:
@@ -32,7 +32,7 @@ class ExampleSimulation01:
         cavity1.voltage = 6e6
         cavity1.phi_rf = 0
 
-        N_TURNS = int(10)
+        N_TURNS = 10
         energy_cycle = MagneticCyclePerTurn(
             value_init=450e9,
             values_after_turn=np.linspace(450e9, 450e9, N_TURNS),
