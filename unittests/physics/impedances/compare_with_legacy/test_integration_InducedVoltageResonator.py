@@ -2,7 +2,6 @@ import unittest
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.constants import c, e, m_p
 
 from blond import (
     Beam,
@@ -50,7 +49,7 @@ class Blond2:
 
         for solver in (
             InducedVoltageTime,
-            # InducedVoltageResonator,
+            InducedVoltageResonator,
             # InducedVoltageFreq,
         ):
             ring = Ring(
@@ -190,7 +189,7 @@ class TestBothBlonds(unittest.TestCase):
 
     def test_integration(self):
         n_macroparticles = int(1e6)
-        n_slices = 1024
+        n_slices = 1024  # this falls apart at low n_slices as the fftconvolve becomes inaccurate (BLonD2)
         bunch_length = 1e-9
         self.blond3 = Blond3(n_macroparticles, n_slices, bunch_length)
 
@@ -214,57 +213,48 @@ class TestBothBlonds(unittest.TestCase):
                     blond2_ind_volt, self.blond3.induced_voltage, rtol=1e-6
                 )
 
-    def diff_params(self):
-        resgrid = np.zeros((3, 4, 4, 3))
+    def test_diff_params(self):
         for mac_ind, n_macroparticles in enumerate(
-            [int(1e4), int(1e6), int(1e8)]
+            [int(1e4), int(1e5), int(1e6)]
         ):
             # for slic_ind, n_slices in enumerate([64, 128, 256, 512]):
-            for slic_ind, n_slices in enumerate([32]):
-                for b_ind, bunch_length in enumerate([1e-9 / 4, 1e-9, 4e-9]):
+            for slic_ind, n_slices in enumerate([1024]):
+                # for b_ind, bunch_length in enumerate([1e-9 / 4, 1e-9, 4e-9]):
+                for b_ind, bunch_length in enumerate([1e-8 / 12, 1e-9 / 8,  1e-9 / 4, ]):
                     self.blond3 = Blond3(
                         n_macroparticles, n_slices, bunch_length
                     )
-                    plt.title(f"{n_macroparticles} {n_slices} {bunch_length}")
-                    plt.plot(
-                        self.blond3.blond2.induced_voltage[0],
-                        label="blond2 ind_volt time",
-                    )
-                    plt.plot(
-                        self.blond3.blond2.induced_voltage[1],
-                        label="blond2 ind volt freq",
-                        ls=":",
-                    )
-                    # plt.plot(self.blond3.blond2.induced_voltage[2], label="blond2 ind volt res", ls="--")
-                    plt.plot(
-                        self.blond3.induced_voltage,
-                        label="blond3",
-                        ls="dashdot",
-                    )
-                    plt.legend()
-                    plt.savefig(
-                        f"{n_macroparticles}_{n_slices}_{bunch_length}.png",
-                        dpi=400,
-                    )
-                    plt.show()
+                    DEBUG_PLOT = False
+                    if DEBUG_PLOT:
+                        plt.title(f"{n_macroparticles} {n_slices} {bunch_length}")
+                        plt.plot(
+                            self.blond3.blond2.induced_voltage[0],
+                            label="blond2 ind_volt time",
+                        )
+                        plt.plot(
+                            self.blond3.blond2.induced_voltage[1],
+                            label="blond2 ind volt res",
+                            ls=":",
+                        )
+                        # plt.plot(self.blond3.blond2.induced_voltage[2], label="blond2 ind volt res", ls="--")
+                        plt.plot(
+                            self.blond3.induced_voltage,
+                            label="blond3",
+                            ls="dashdot",
+                        )
+                        plt.legend()
+                        plt.savefig(
+                            f"{n_macroparticles}_{n_slices}_{bunch_length}.png",
+                            dpi=400,
+                        )
+                        plt.show()
 
-                    # for blond2_ind_volt in self.blond3.blond2.induced_voltage:
-                    resgrid[mac_ind, slic_ind, b_ind, 0] = self.close_in_norm(
-                        self.blond3.blond2.induced_voltage[0],
-                        self.blond3.induced_voltage,
-                    )
-                    resgrid[mac_ind, slic_ind, b_ind, 1] = self.close_in_norm(
-                        self.blond3.blond2.induced_voltage[1],
-                        self.blond3.induced_voltage,
-                    )
-                    resgrid[mac_ind, slic_ind, b_ind, 2] = self.close_in_norm(
-                        self.blond3.blond2.induced_voltage[2],
-                        self.blond3.induced_voltage,
-                    )
-
-                    # TODO: fix tests, only align under certain circumstances with certain solvers
-                    #     assert self.close_in_norm(blond2_ind_volt, self.blond3.induced_voltage)
-                    # except AssertionError:
-                    #     np.testing.assert_allclose(
-                    #         blond2_ind_volt, self.blond3.induced_voltage, rtol=1e-6
-                    #     )
+                    for blond2_ind_volt in self.blond3.blond2.induced_voltage:
+                        try:
+                            assert self.close_in_norm(
+                                blond2_ind_volt, self.blond3.induced_voltage
+                            )
+                        except AssertionError:
+                            np.testing.assert_allclose(
+                                blond2_ind_volt, self.blond3.induced_voltage, rtol=1e-2, atol=200
+                            )
