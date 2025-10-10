@@ -224,7 +224,7 @@ class NumbaSpecials(Specials):  # pragma: no cover
                 continue
             else:
                 array_tmp[curr_thread, idx] += 1
-        array_write = np.sum(array_tmp, axis=0)
+        array_write[:] = np.sum(array_tmp, axis=0)
 
     @staticmethod
     def loss_box(top: float, bottom: float, left: float, right: float) -> None:
