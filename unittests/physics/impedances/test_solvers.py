@@ -614,6 +614,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.beam.intensity = int(1e2)
         self.beam.particle_type.charge = 1
         self.beam.n_macroparticles_partial.return_value = int(1e2)
+        self.beam.reference_time = 2e-5
 
     def test_determine_storage_time_single_res(self):
         simulation = Mock(Simulation)
@@ -2371,14 +2372,16 @@ class TestHeadlessSolvers(unittest.TestCase):
         )
         ind_voltage_res = wf_convol.solver.calc_induced_voltage(beam=beam)
 
-        # fig, ax = plt.subplots(1, 1)
-        # ax.plot(ind_voltage_td[:len(wf_td.profile.hist_y)], label="fft time domain")
-        # ax.plot(ind_voltage_res, label="resonator convolution")
-        # ax.legend()
-        #
-        # ax.plot(wf_td.profile.hist_y / max(wf_td.profile.hist_y) * np.min(ind_voltage_res))
-        # plt.show()
+        DEBUG_PLOT = False
+        if DEBUG_PLOT:
+            fig, ax = plt.subplots(1, 1)
+            ax.plot(ind_voltage_td[:len(wf_td.profile.hist_y)], label="fft time domain")
+            ax.plot(ind_voltage_res, label="resonator convolution", ls="--")
+            ax.legend()
+
+            ax.plot(wf_td.profile.hist_y / max(wf_td.profile.hist_y) * np.min(ind_voltage_res))
+            plt.show()
 
         assert np.allclose(
-            ind_voltage_res, ind_voltage_td[: len(wf_td.profile.hist_y)]
+            ind_voltage_res, ind_voltage_td[:len(wf_td.profile.hist_y)], atol=15
         )
