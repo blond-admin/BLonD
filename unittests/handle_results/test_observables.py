@@ -93,7 +93,7 @@ class TestObservables(unittest.TestCase):
         assert len(self.observables._turns_array) == self.observables._n_turns
         assert np.all(np.where(np.diff(self.observables._turns_array) <= 0) == np.array([])) # monotonic increase
         assert np.mean(np.diff(self.observables._turns_array)) == 1
-        assert np.all(self.observables._section_index_to_observe == np.array([0]))  # only first one is selected
+        assert np.all(self.observables._section_indices_to_observe == np.array([0]))  # only first one is selected
 
         self.observables.on_run_simulation(
             simulation=simulation,
@@ -106,7 +106,7 @@ class TestObservables(unittest.TestCase):
         assert len(self.observables._turns_array) == self.observables._n_turns * 2
         assert np.all(np.where(np.diff(self.observables._turns_array) <= 0) == np.array([]))  # monotonic increase
         assert np.isclose(np.mean(np.diff(self.observables._turns_array)), 0.5)
-        assert np.all(self.observables._section_index_to_observe == np.array([0, 1]))  # only first one is selected
+        assert np.all(self.observables._section_indices_to_observe == np.array([0, 1]))  # only first one is selected
 
         self.observables.on_run_simulation(
             simulation=simulation,
@@ -119,7 +119,7 @@ class TestObservables(unittest.TestCase):
         assert len(self.observables._turns_array) == self.observables._n_turns * 2
         assert np.all(np.where(np.diff(self.observables._turns_array) <= 0) == np.array([]))  # monotonic increase
         assert np.isclose(np.mean(np.diff(self.observables._turns_array)), 0.5)
-        assert np.all(self.observables._section_index_to_observe == np.array([0, 1]))  # only first one is selected
+        assert np.all(self.observables._section_indices_to_observe == np.array([0, 1]))  # only first one is selected
 
     def test_on_run_simulation_warnings(self):
         self.observables.on_init_simulation(
@@ -255,6 +255,26 @@ class TestStaticProfileObservation(unittest.TestCase):
         self.static_profile_observation.to_disk()
 
         self.static_profile_observation.from_disk()
+
+    def test_update(self):
+        self.static_profile_observation.on_init_simulation(
+            simulation=simulation
+        )
+        self.static_profile_observation.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            turn_i_init=0,
+            n_turns=100,
+        )
+        self.static_profile_observation._section_indices_to_observe = np.array([0])
+        self.static_profile_observation.update(simulation=simulation)
+
+        prof = deepcopy(self.static_profile_observation)
+        before_len = len(prof.hist_y)
+        prof._profile._hist_y += 1
+        prof.update(simulation=simulation)
+
+        assert len(prof.hist_y) == before_len  # no update since we already had this turn
 
 
 class TestWakeFieldObservation(unittest.TestCase):

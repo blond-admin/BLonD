@@ -194,6 +194,14 @@ class TestResonators(unittest.TestCase):
                 quality_factors=np.array([0.49]),
             )
 
+    def test___init__float_values(self):
+        with self.assertRaises(RuntimeError):
+            self.resonators = Resonators(
+                shunt_impedances=float(1),
+                center_frequencies=float(400e6),
+                quality_factors=float(0.49),
+            )
+
     def test_get_impedance_pinned(self):
         simulation = Mock(Simulation)
         beam = Mock(BeamBaseClass)

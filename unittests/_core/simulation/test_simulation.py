@@ -69,6 +69,10 @@ class TestSimulation(unittest.TestCase):
             beam=self.beam,
         )
 
+    def test_error_throwing(self):
+        with self.assertRaises(NotImplementedError):
+            self.simulation.run_simulation(beams=(self.beam, self.beam, self.beam))
+
     def test__run_simulation_counterrotating_beam_no_int_effects(self):
         beam = Beam(intensity=1e9, particle_type=mu_plus)
         beam.setup_beam(
