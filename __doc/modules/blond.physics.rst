@@ -22,7 +22,6 @@ Submodules
 
    blond.physics.cavities
    blond.physics.drifts
-   blond.physics.fused
    blond.physics.losses
    blond.physics.profiles
    blond.physics.synchrotron_radiation
