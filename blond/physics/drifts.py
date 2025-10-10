@@ -289,6 +289,8 @@ class DriftSpecial(DriftBaseClass):
 
 
 class DriftXSuite(DriftBaseClass):
+    """Wrapper to execute complicated drifts with `XSuite`"""
+
     def track(self, beam: BeamBaseClass) -> None:
         """Main simulation routine to be called in the mainloop.
 

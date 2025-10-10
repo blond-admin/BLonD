@@ -1,3 +1,10 @@
+"""Collection of abstract classes to handle the calculation of wake potentials.
+
+Authors
+-------
+Simon Lauber
+"""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -56,7 +63,7 @@ class WakeFieldSolver:
 
 
 class WakeFieldSource(ABC):
-    """General abstract class for wakefields."""
+    """General abstract class for wake fields."""
 
     def __init__(self, is_dynamic: bool):
         self.is_dynamic = is_dynamic

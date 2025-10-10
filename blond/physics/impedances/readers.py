@@ -1,4 +1,9 @@
-"""Implementations to handle the readout of impedance files on the disk."""
+"""Implementations to handle the readout of impedance files on the disk.
+
+Authors
+-------
+Simon Lauber
+"""
 
 from __future__ import annotations
 

@@ -5,6 +5,7 @@ Authors
 Alexandre Lasheen
 Danilo Quartullo,
 Juan F. Esteban Mueller
+Leonard Thiele
 Markus Schwarz
 Simon Lauber
 """
