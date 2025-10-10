@@ -214,7 +214,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         self.single_turn_resonator_convolution_solver = (
             SingleTurnResonatorConvolutionSolver()
         )
-        self.left_edge, self.right_edge, self.hist_step = -2e-9, 1e-9, 1e-10
+        self.left_edge, self.right_edge, self.hist_step = -2e-9, 1e-9, .1e-10
         self.hist_x = np.linspace(
             self.left_edge,
             self.right_edge,
@@ -323,10 +323,6 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
 
         # extend profile with 0s towards the back, should not change the values, which are before the 0s
         new_right_edge = 2.0e-9
-        self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y = np.append(
-            self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y,
-            np.zeros(10),
-        )
         self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_x = np.append(
             self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_x,
             np.arange(
@@ -334,6 +330,11 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
                 new_right_edge + self.hist_step,
                 self.hist_step,
             ),
+        )
+        num_to_append = len(self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_x) - len(self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y)
+        self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y = np.append(
+            self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y,
+            np.zeros(int(num_to_append)),
         )
 
         self.single_turn_resonator_convolution_solver._wake_function_vals_needs_update = True
@@ -1190,7 +1191,6 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             simulation=sim,
             parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield,
         )
-        local_res._update_potential_sources()
         ind_volt = local_res.calc_induced_voltage(beam=self.beam)
 
         assert len(ind_volt) == len(local_res._parent_wakefield.profile.hist_x)
@@ -1209,7 +1209,6 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             simulation=sim,
             parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield,
         )
-        local_res._update_potential_sources()
         ind_volt = local_res.calc_induced_voltage(beam=self.beam)
 
         assert len(ind_volt) == len(local_res._parent_wakefield.profile.hist_x)
@@ -1251,23 +1250,23 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         local_res.on_wakefield_init_simulation(
             simulation=sim, parent_wakefield=local_res._parent_wakefield
         )
-        local_res._update_potential_sources()  # does this correctly not throw out the first one?
+        beam = deepcopy(self.beam)
+        beam.reference_time = 0
+        ind_volt_init = local_res.calc_induced_voltage(beam=beam)
 
-        ind_volt_init = local_res.calc_induced_voltage(beam=self.beam)
-
-        local_res._wake_function_vals_needs_update = True
         t_rf = 1 / resonators._center_frequencies[0]
         delay_time = (
             np.floor((1 / resonators._alpha[0]) / t_rf) * t_rf
-        )  # multiple of t_r
-        local_res._update_potential_sources(
-            delay_time
-        )  # first one should've fallen to 1/e by this time
-        ind_volt = local_res.calc_induced_voltage(beam=self.beam)
+        )  # multiple of t_r to ensure in-phase correctness
+        beam = deepcopy(self.beam)
+        beam.reference_time = delay_time
+
+        ind_volt = local_res.calc_induced_voltage(beam=beam)
 
         # ensure perfect addition of in-phase component
         assert not np.allclose(ind_volt, ind_volt_init)
         assert np.argmax(ind_volt) == np.argmax(ind_volt_init)
+        assert not np.isclose(ind_volt[0], 0)
         assert np.isclose(
             np.min(ind_volt), np.min(ind_volt_init) * (1 + 1 / np.exp(1))
         )
@@ -1280,10 +1279,10 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         delay_time = (
             np.floor((1 / resonators._alpha[0]) / t_rf) * t_rf * 100
         )  # multiple of t_r
-        local_res._update_potential_sources(
-            delay_time
-        )  # first one should be 0
-        ind_volt = local_res.calc_induced_voltage(beam=self.beam)
+
+        beam = deepcopy(self.beam)
+        beam.reference_time = delay_time
+        ind_volt = local_res.calc_induced_voltage(beam=beam)
 
         # ensure perfect addition of in-phase component
         assert np.allclose(ind_volt, ind_volt_init)
@@ -1324,7 +1323,6 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             local_res.on_wakefield_init_simulation(
                 simulation=sim, parent_wakefield=local_res._parent_wakefield
             )
-            local_res._update_potential_sources()
 
             local_res_analy = SingleTurnResonatorConvolutionSolver()
             local_res_analy._parent_wakefield = Mock(WakeField)
