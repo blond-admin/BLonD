@@ -9,6 +9,7 @@ from unittest.mock import Mock
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.constants import c, e
+from scipy.fft import next_fast_len
 
 from blond import Simulation, WakeField, mu_plus
 from blond._core.beam.base import BeamBaseClass
@@ -26,6 +27,64 @@ from blond.physics.profiles import (
     DynamicProfileConstNBins,
     StaticProfile,
 )
+
+
+class TestTimeDomainFftSolver(unittest.TestCase):
+    def setUp(self):
+        self.resonators = Resonators(
+            shunt_impedances=np.array([1, 2, 3]),
+            center_frequencies=np.array([500e6, 750e6, 1.5e9]),
+            quality_factors=np.array([5, 5, 5]),
+        )
+        self.time_domain_fft_solver = (
+            TimeDomainFftSolver()
+        )
+        self.left_edge, self.right_edge, self.hist_step = -2e-9, 1e-9, .01e-10
+        self.hist_x = np.linspace(
+            self.left_edge,
+            self.right_edge,
+            int(np.round((self.right_edge - self.left_edge) / self.hist_step))
+            + 1,
+            endpoint=True,
+        )
+
+        self.time_domain_fft_solver._parent_wakefield = Mock(
+            WakeField
+        )
+        self.time_domain_fft_solver._parent_wakefield.profile = Mock(
+            spec=StaticProfile
+        )
+        self.time_domain_fft_solver._parent_wakefield.profile.hist_step = self.hist_step
+        self.time_domain_fft_solver._parent_wakefield.profile.hist_x = self.hist_x
+
+        profile = np.zeros_like(
+            self.time_domain_fft_solver._parent_wakefield.profile.hist_x
+        )
+        profile[9:12] = 1  # symmetric profile around centerpoint
+        profile /= np.sum(profile)
+        self.time_domain_fft_solver._parent_wakefield.profile.hist_y = profile
+
+        self.time_domain_fft_solver._parent_wakefield.sources = (
+            self.resonators,
+        )
+
+        self.beam = Mock(BeamBaseClass)
+
+        self.beam.intensity = int(1e9)
+        self.beam.particle_type.charge = 1
+        self.beam.n_macroparticles_partial.return_value = int(1e3)
+        self.beam.ratio = self.beam.intensity / self.beam.n_macroparticles_partial()
+
+        self.time_domain_fft_solver._parent_wakefield.profile.beam_spectrum.return_value = np.fft.rfft(
+            self.time_domain_fft_solver._parent_wakefield.profile.hist_y,
+            n=next_fast_len(
+                len(self.time_domain_fft_solver._parent_wakefield.profile.hist_y) * 2
+            ),
+        )
+
+    def test__init(self):
+        self.time_domain_fft_solver._wake_imp_y_needs_update = True
+        self.time_domain_fft_solver.calc_induced_voltage(beam=self.beam)
 
 
 class TestInductiveImpedanceSolver(unittest.TestCase):
