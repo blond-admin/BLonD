@@ -209,9 +209,6 @@ class TestSimulation(unittest.TestCase):
         # TODO: implement test for `get_separatrix`
         self.simulation.get_separatrix()
 
-    def test_invalidate_cache(self):
-        self.simulation.invalidate_cache()
-
     def test_load_results(self):
         observation = BunchObservation(each_turn_i=10, beam=self.beam)
         kwargs = dict(
