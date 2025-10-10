@@ -30,8 +30,7 @@ class SynchrotronRadiation(BeamPhysicsRelevant):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
+        """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             Simulation context manager

@@ -96,8 +96,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         self.phi_s: NumpyArray | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
@@ -115,8 +114,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
+        """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
@@ -387,8 +385,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
@@ -635,8 +632,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         self._t_rev: float | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called.
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager

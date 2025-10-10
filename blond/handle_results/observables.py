@@ -54,7 +54,7 @@ class Observables(MainLoopRelevant):
         logger.info(f"Will save {self} to {self.common_name}_,,,")
 
         self._n_turns: int | None = None
-        self._index_list: LateInit[int] = None
+        self._index_list: int | None = None
         self._turn_i_init: int | None = None
         self._turns_array: NumpyArray | None = None
 
@@ -365,11 +365,11 @@ class BunchObservation_meta_params(Observables):  # TODO rework class
         )
         self._beam = beam
 
-        self._sigma_dt: LateInit[DenseArrayRecorder] = None
-        self._sigma_dE: LateInit[DenseArrayRecorder] = None
-        self._mean_dt: LateInit[DenseArrayRecorder] = None
-        self._mean_dE: LateInit[DenseArrayRecorder] = None
-        self._emittance_stat: LateInit[DenseArrayRecorder] = None
+        self._sigma_dt: DenseArrayRecorder | None = None
+        self._sigma_dE: DenseArrayRecorder | None = None
+        self._mean_dt: DenseArrayRecorder | None = None
+        self._mean_dE: DenseArrayRecorder | None = None
+        self._emittance_stat: DenseArrayRecorder | None = None
 
     def on_run_simulation(
         self,
@@ -543,8 +543,7 @@ class CavityPhaseObservation(Observables):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
+        """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
@@ -714,7 +713,7 @@ class StaticMultiProfileObservation(Observables):
     def __init__(
         self,
         each_turn_i: int,
-        profiles: List[StaticProfile],
+        profiles: list[StaticProfile],
         folder: str = "",  # TODO docstring
         obs_per_turn: int = 1,
     ):

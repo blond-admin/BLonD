@@ -267,16 +267,13 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         return wake_impedance
 
     def get_wake_impedance_freq(self, time):
-        """
-        Get frequency array corresponding to time used in :func:`get_wake_impedance`
-        """
+        """Get frequency array corresponding to time used in :func:`get_wake_impedance`."""
         return backend.fft.rfftfreq(
             len(self._cache_wake_impedance), time[1] - time[0]
         )
 
     def get_wake(self, time: NumpyArray) -> NumpyArray:
-        """
-        Computes the wake function of all resonators in time domain for the given time and returns the summed potential.
+        """Computes the wake function of all resonators in time domain for the given time and returns the summed potential.
 
         Parameters
         ----------
@@ -302,10 +299,8 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
             )
         return wake
 
-    def calculate_envelope(self) -> Tuple[NumpyArray, NumpyArray]:
-        """
-        Calculates the normalized envelope of all resonators.
-        """
+    def calculate_envelope(self) -> tuple[NumpyArray, NumpyArray]:
+        """Calculates the normalized envelope of all resonators."""
         time_axis = np.linspace(
             0, np.max(self._quality_factors / self._omega) * 20, 100000
         )

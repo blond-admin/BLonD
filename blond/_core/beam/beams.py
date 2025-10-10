@@ -76,10 +76,10 @@ class Beam(BeamBaseClass):
             Time of the reference frame (global total energy), in [eV]
         """
         assert len(dt) == len(dE), f"{len(dt)} != {len(dE)}"
-        intensity = len(dt)
+        n_macroparticles = len(dt)
         if flags is None:
             flags = backend.int(BeamFlags.ACTIVE.value) * backend.ones(
-                intensity, dtype=backend.int
+                n_macroparticles, dtype=backend.int
             )
         else:
             assert flags.max() <= BeamFlags.ACTIVE.value

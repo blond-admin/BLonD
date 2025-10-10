@@ -40,8 +40,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ):
-        """
-        Lateinit method when WakeField is late-initialized.
+        """Lateinit method when WakeField is late-initialized.
 
         Parameters
         ----------
@@ -159,8 +158,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ):
-        """
-        Lateinit method when WakeField is late-initialized.
+        """Lateinit method when WakeField is late-initialized.
 
         Parameters
         ----------
@@ -393,8 +391,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:
-        """
-        Lateinit method when WakeField is late-initialized.
+        """Lateinit method when WakeField is late-initialized.
 
         Parameters
         ----------
@@ -559,8 +556,7 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:
-        """
-        Lateinit method when WakeField is late-initialized
+        """Lateinit method when WakeField is late-initialized
 
         Parameters
         ----------
@@ -626,8 +622,7 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
-        """
-        Calculates the induced voltage based on the beam profile and beam parameters
+        """Calculates the induced voltage based on the beam profile and beam parameters
 
         Parameters
         ----------
@@ -656,8 +651,7 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
 
 
 class MultiPassResonatorSolver(WakeFieldSolver):
-    """
-    Solver, which saves the profiles of past passes and sums the
+    """Solver, which saves the profiles of past passes and sums the
     wakefields of all previous and the current pass together.
 
     Attributes
@@ -701,8 +695,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._parent_wakefield: WakeField | None = None
 
     def _determine_storage_time(self):
-        """
-        Sum up the contributions of all resonators and
+        """Sum up the contributions of all resonators and
         determine how long they should be stored in time.
         """
         if self._parent_wakefield is None:
@@ -721,8 +714,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:
-        """
-        Lateinit method when WakeField is late-initialized
+        """Lateinit method when WakeField is late-initialized
 
         Parameters
         ----------
@@ -762,8 +754,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
     def _remove_fully_decayed_wake_profiles(
         self, indexes_to_check: int = 2
     ) -> None:
-        """
-        Goes through _wake_function_time from the back (oldest profile) and removes all arrays from it, which are beyond
+        """Goes through _wake_function_time from the back (oldest profile) and removes all arrays from it, which are beyond
         self._maximum_storage_time. only the last indexes_to_check entries are checked.
         """
         if len(self._past_profiles) == 0:
@@ -781,8 +772,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 self._wake_function_vals.pop()
 
     def _update_past_profile_times_wake_times(self, current_time):
-        """
-        Advances the times in the past profile arrays by delta_t = current_time - self._last_reference_time and
+        """Advances the times in the past profile arrays by delta_t = current_time - self._last_reference_time and
         sets self._last_reference_time to current_time afterwards.
         """
         delta_t = current_time - self._last_reference_time
@@ -794,8 +784,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._last_reference_time = current_time
 
     def _update_past_profile_wake_functions(self, zero_pinning: bool = False):
-        """
-        Updates the wake functions according to the new timestamps.
+        """Updates the wake functions according to the new timestamps.
         the arrays are expected to be cleaned before, such that they don't
         include arrays past self._maximum_storage_time.
 
@@ -874,6 +863,13 @@ class MultiPassResonatorSolver(WakeFieldSolver):
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
+        """The function will call :func:`_update_potential_sources` and then compute the induced voltage based on all profiles which are in the `_past_profiles` array
+
+        Parameters
+        ----------
+        beam:
+            instance on which the induced voltage is to be calculated, important for reference time
+        """
         self._update_potential_sources(beam.reference_time)
 
         _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
