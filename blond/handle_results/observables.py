@@ -65,7 +65,9 @@ class Observables(MainLoopRelevant):
 
     @property  # as readonly attributes
     def turns_array(self) -> NumpyArray | None:
-        """Helper method to get x-axis array with turn-number and decimal places in case observations are performed more than once per turn."""
+        """Helper method to get x-axis array with turn-number and decimal places in case
+        observations are performed more than once per turn.
+        """
         return self._turns_array
 
     @abstractmethod  # pragma: no cover
