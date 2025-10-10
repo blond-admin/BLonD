@@ -54,7 +54,7 @@ class Observables(MainLoopRelevant):
         logger.info(f"Will save {self} to {self.common_name}_,,,")
 
         self._n_turns: int | None = None
-        self._index_list: int | None = None
+        self._section_index_to_observe: int | None = None
         self._turn_i_init: int | None = None
         self._turns_array: NumpyArray | None = None
 
@@ -65,7 +65,7 @@ class Observables(MainLoopRelevant):
 
     @property  # as readonly attributes
     def turns_array(self) -> NumpyArray | None:
-        """Helper method to get x-axis array with turn-number."""
+        """Helper method to get x-axis array with turn-number and decimal places in case observations are performed more than once per turn."""
         return self._turns_array
 
     @abstractmethod  # pragma: no cover
@@ -132,17 +132,19 @@ class Observables(MainLoopRelevant):
                 UserWarning,
             )
 
-        self._index_list = np.arange(
+        self._section_index_to_observe = np.arange(
             0,
             simulation.ring.n_cavities,
             step=np.ceil(simulation.ring.n_cavities / self._obs_per_turn),
             dtype=int,
         )
-        section_distances = (
+        # To get the decimal point for the turns array, the distances of the individual sections in the ring
+        # need to be taken into account
+        section_lengths = (
             np.array(
                 [
                     np.sum(simulation.ring.section_lengths[0:ind])
-                    for ind in self._index_list
+                    for ind in self._section_index_to_observe
                 ]
             )
             / simulation.ring.circumference
@@ -150,7 +152,7 @@ class Observables(MainLoopRelevant):
         self._turns_array = np.zeros(0)
         for turn in range(turn_i_init, turn_i_init + n_turns):
             self._turns_array = np.append(
-                self._turns_array, turn + section_distances
+                self._turns_array, turn + section_lengths
             )
 
     def assert_lateinit(self):
@@ -431,7 +433,7 @@ class BunchObservation_meta_params(Observables):  # TODO rework class
             return
         self._last_turn_i_observed = simulation.turn_i.value
         self._last_section_i_observed = simulation.section_i.value
-        if simulation.section_i.value in self._index_list:
+        if simulation.section_i.value in self._section_index_to_observe:
             self._sigma_dt.write(np.std(self._beam._dt))
             self._sigma_dE.write(np.std(self._beam._dE))
             self._mean_dt.write(np.mean(self._beam._dt))
@@ -658,7 +660,7 @@ class StaticProfileObservation(Observables):
             Simulation context manager
 
         """
-        if simulation.section_i.value in self._index_list:
+        if simulation.section_i.value in self._section_index_to_observe:
             if (
                 self._last_turn_i_observed == simulation.turn_i.value
                 and self._last_section_i_observed == simulation.section_i
@@ -819,7 +821,7 @@ class WakeFieldObservation(Observables):
             Simulation context manager
 
         """
-        if simulation.section_i.value in self._index_list:
+        if simulation.section_i.value in self._section_index_to_observe:
             try:
                 self._induced_voltage.write(
                     self._wakefield.induced_voltage,

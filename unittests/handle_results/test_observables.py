@@ -89,7 +89,7 @@ class TestObservables(unittest.TestCase):
         assert len(self.observables._turns_array) == self.observables._n_turns
         assert np.all(np.where(np.diff(self.observables._turns_array) <= 0) == np.array([])) # monotonic increase
         assert np.mean(np.diff(self.observables._turns_array)) == 1
-        assert np.all(self.observables._index_list == np.array([0]))  # only first one is selected
+        assert np.all(self.observables._section_index_to_observe == np.array([0]))  # only first one is selected
 
         self.observables.on_run_simulation(
             simulation=simulation,
@@ -102,7 +102,7 @@ class TestObservables(unittest.TestCase):
         assert len(self.observables._turns_array) == self.observables._n_turns * 2
         assert np.all(np.where(np.diff(self.observables._turns_array) <= 0) == np.array([]))  # monotonic increase
         assert np.isclose(np.mean(np.diff(self.observables._turns_array)), 0.5)
-        assert np.all(self.observables._index_list == np.array([0, 1]))  # only first one is selected
+        assert np.all(self.observables._section_index_to_observe == np.array([0, 1]))  # only first one is selected
 
         self.observables.on_run_simulation(
             simulation=simulation,
@@ -115,7 +115,7 @@ class TestObservables(unittest.TestCase):
         assert len(self.observables._turns_array) == self.observables._n_turns * 2
         assert np.all(np.where(np.diff(self.observables._turns_array) <= 0) == np.array([]))  # monotonic increase
         assert np.isclose(np.mean(np.diff(self.observables._turns_array)), 0.5)
-        assert np.all(self.observables._index_list == np.array([0, 1]))  # only first one is selected
+        assert np.all(self.observables._section_index_to_observe == np.array([0, 1]))  # only first one is selected
 
     def test_on_run_simulation_warnings(self):
         self.observables.on_init_simulation(
