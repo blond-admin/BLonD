@@ -915,5 +915,4 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 self._past_profiles[prof_ind],
                 mode="valid",
             )
-        print(len(self._past_profiles))
         return wake_sum
