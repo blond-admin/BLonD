@@ -556,7 +556,7 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:
-        """Lateinit method when WakeField is late-initialized
+        """Lateinit method when WakeField is late-initialized.
 
         Parameters
         ----------
@@ -612,7 +612,7 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
                 * len(self._wake_function_time)
             ] = 0.0
         self._wake_function_vals = np.zeros_like(self._wake_function_time)
-        for source in self._parent_wakefield.sources:  # TODO: do we ever need multiple resonstors objects in here --> probably not, resonators are defined in the Sources
+        for source in self._parent_wakefield.sources:
             self._wake_function_vals += source.get_wake(
                 self._wake_function_time
             )
@@ -634,14 +634,12 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
         induced_voltage
             Induced voltage in [V]
         """
-        # if self._wake_function_vals_needs_update:
-        self._update_potential_sources()
+        if self._wake_function_vals_needs_update:
+            self._update_potential_sources()
 
         _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
             beam.intensity / beam.n_macroparticles_partial()
         )
-        # assert len(self._wake_function_vals) == 2 * len(self._parent_wakefield.profile.hist_x) ,(
-        # f"{len(self._wake_function_vals)}, {len(self._parent_wakefield.profile.hist_x)}")
 
         return _charge_per_macroparticle * np.convolve(
             self._wake_function_vals,
@@ -669,7 +667,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         time axes corresponding to _past_profiles.
     """
 
-    def __init__(self, decay_fraction_threshold: float = 0.001):  # TODO
+    def __init__(self, decay_fraction_threshold: float = 0.001):
         """
         Parameters
         ----------
