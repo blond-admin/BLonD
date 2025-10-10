@@ -278,10 +278,9 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
 
         td_fft_solver._parent_wakefield.profile.beam_spectrum.return_value = np.fft.rfft(
             self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y,
-            n=len(
-                self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y
-            )
-            * 2,
+            n=next_fast_len(
+                len(self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y) * 2
+            ),
         )
 
         td_solver = td_fft_solver.calc_induced_voltage(beam=beam)
