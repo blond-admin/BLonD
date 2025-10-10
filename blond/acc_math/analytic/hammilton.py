@@ -6,8 +6,6 @@ import numpy as np
 from scipy.constants import speed_of_light as c
 
 if TYPE_CHECKING:
-    from typing import List
-
     from numpy.typing import NDArray as NumpyArray
 
 
@@ -18,17 +16,17 @@ def is_in_separatrix(
     omega_rf: float,
     phi_rf_d: float,
     phi_s: float,
-    etas: List[float],
+    etas: list[float],
     beta: float,
     total_energy: float,
     ring_circumference: float,
     dt: NumpyArray,
     dE: NumpyArray,
 ) -> NumpyArray:
-    r"""
-    Function checking whether coordinate `dt` & `dE` are inside the separatrix.
+    r"""Function checking whether coordinate `dt` & `dE` are inside the separatrix.
 
     Uses the single-RF sinusoidal Hamiltonian.
+
     Parameters
     ----------
     charge
@@ -60,7 +58,6 @@ def is_in_separatrix(
     -------
 
     """
-
     dt_sep = (np.pi - phi_s - phi_rf_d) / omega_rf
 
     Hsep = single_rf_sin_hamiltonian(
@@ -98,8 +95,7 @@ def is_in_separatrix(
 
 
 def phase_modulo_above_transition(phi: NumpyArray) -> NumpyArray:
-    """
-    Projects a phase array into the range -Pi/2 to +3*Pi/2.
+    """Projects a phase array into the range -Pi/2 to +3*Pi/2.
 
     Parameters
     ----------
@@ -112,13 +108,11 @@ def phase_modulo_above_transition(phi: NumpyArray) -> NumpyArray:
          Phase array into the range -Pi/2 to +3*Pi/2.
 
     """
-
     return phi - 2.0 * np.pi * np.floor(phi / (2.0 * np.pi))
 
 
 def phase_modulo_below_transition(phi: NumpyArray) -> NumpyArray:
-    """
-    Projects a phase array into the range -Pi/2 to +3*Pi/2.
+    """Projects a phase array into the range -Pi/2 to +3*Pi/2.
 
     Parameters
     ----------
@@ -131,7 +125,6 @@ def phase_modulo_below_transition(phi: NumpyArray) -> NumpyArray:
          Phase array into the range -Pi/2 to +3*Pi/2.
 
     """
-
     return phi - 2.0 * np.pi * (np.floor(phi / (2.0 * np.pi) + 0.5))
 
 
@@ -142,15 +135,14 @@ def single_rf_sin_hamiltonian(
     omega_rf: float,
     phi_rf_d: float,
     phi_s: float,
-    etas: List[float],
+    etas: list[float],
     beta: float,
     total_energy: float,
     ring_circumference: float,
     dt: float | NumpyArray,
     dE: float | NumpyArray,
 ) -> float | NumpyArray:
-    """
-    Single RF sinusoidal Hamiltonian.
+    """Single RF sinusoidal Hamiltonian.
 
     Parameters
     ----------

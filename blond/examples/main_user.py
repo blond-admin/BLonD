@@ -100,7 +100,7 @@ class Main:
         my_beam: Beam,
     ) -> None:
         # Full simulation. everything here should be optimized
-        results = simulation.run_simulation(
+        simulation.run_simulation(
             turn_i_init=10, n_turns=100, beams=(my_beam,)
         )
 

@@ -82,7 +82,6 @@ def cavity_response_sparse_matrix(
         The antenna voltage evaluated for the same period as I_beam and I_gen of length n_samples + 1
 
     """
-
     # TODO MOVE
     # TODO TESTCASE
 

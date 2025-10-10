@@ -2,9 +2,6 @@ from __future__ import annotations
 
 from collections import deque
 from typing import TYPE_CHECKING
-from typing import Optional
-from typing import Optional as LateInit
-from typing import Tuple
 from warnings import warn
 
 import numpy as np
@@ -32,19 +29,19 @@ if TYPE_CHECKING:  # pragma: no cover
 
 class InductiveImpedanceSolver(WakeFieldSolver):
     def __init__(self):
-        """Wakefield solver specialized for InductiveImpedance"""
+        """Wakefield solver specialized for InductiveImpedance."""
         super().__init__()
-        self._beam: LateInit[BeamBaseClass] = None
-        self._Z_over_n: LateInit[float] = None
-        self._turn_i: LateInit[DynamicParameter] = None
-        self._parent_wakefield: LateInit[WakeField] = None
-        self._simulation: LateInit[Simulation] = None
+        self._beam: BeamBaseClass | None = None
+        self._Z_over_n: float | None = None
+        self._turn_i: DynamicParameter | None = None
+        self._parent_wakefield: WakeField | None = None
+        self._simulation: Simulation | None = None
 
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ):
         """
-        Lateinit method when WakeField is late-initialized
+        Lateinit method when WakeField is late-initialized.
 
         Parameters
         ----------
@@ -60,7 +57,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
                 for o in parent_wakefield.sources
             ]
         )
-        impedances: Tuple[InductiveImpedance, ...] = parent_wakefield.sources
+        impedances: tuple[InductiveImpedance, ...] = parent_wakefield.sources
         self._Z_over_n = backend.float(
             np.sum(np.array([o.Z_over_n for o in impedances]))
         )
@@ -70,8 +67,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
-        """
-        Calculates the induced voltage based on the beam profile and beam parameters
+        """Calculates the induced voltage based on the beam profile and beam parameters.
 
         Parameters
         ----------
@@ -95,7 +91,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
 
 
 class PeriodicFreqSolver(WakeFieldSolver):
-    """General wakefield solver to calculate wake-fields via frequency domain
+    """General wakefield solver to calculate wake-fields via frequency domain.
 
     Notes
     -----
@@ -125,10 +121,10 @@ class PeriodicFreqSolver(WakeFieldSolver):
 
     def __init__(
         self,
-        t_periodicity: Optional[float] = None,
+        t_periodicity: float | None = None,
         allow_next_fast_len: bool = False,
     ):
-        """General wakefield solver to calculate wake-fields via frequency domain
+        """General wakefield solver to calculate wake-fields via frequency domain.
 
         Parameters
         ----------
@@ -142,20 +138,19 @@ class PeriodicFreqSolver(WakeFieldSolver):
             Allow to slightly change `t_periodicity` for
             faster execution of fft via `scipy.fft.next_fast_len`
         """
-
         super().__init__()
         self.allow_next_fast_len = allow_next_fast_len
         self.expect_profile_change: bool = False
         self.expect_impedance_change = False
 
         self._t_periodicity = t_periodicity
-        self._parent_wakefield: LateInit[WakeField] = None
-        self._n_time: LateInit[int] = None
-        self._n_freq: LateInit[int] = None
-        self._freq_x: LateInit[NumpyArray] = None
-        self._freq_y: LateInit[NumpyArray] = None
+        self._parent_wakefield: WakeField | None = None
+        self._n_time: int | None = None
+        self._n_freq: int | None = None
+        self._freq_x: NumpyArray | None = None
+        self._freq_y: NumpyArray | None = None
 
-        self._simulation: LateInit[Simulation] = None
+        self._simulation: Simulation | None = None
 
         self._freq_y_needs_update = True  # at least one update
 
@@ -165,7 +160,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         self, simulation: Simulation, parent_wakefield: WakeField
     ):
         """
-        Lateinit method when WakeField is late-initialized
+        Lateinit method when WakeField is late-initialized.
 
         Parameters
         ----------
@@ -226,7 +221,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
 
     @property
     def t_periodicity(self) -> float:
-        """Periodicity that is assumed for fast fourier transform in  [s]"""
+        """Periodicity that is assumed for fast fourier transform in  [s]."""
         return self._t_periodicity
 
     @t_periodicity.setter
@@ -236,7 +231,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         self._freq_y_needs_update = True
 
     def _update_internal_data(self):
-        """Rebuild internal data model"""
+        """Rebuild internal data model."""
         self._n_time = int(
             round(
                 self._t_periodicity / self._parent_wakefield.profile.hist_step,
@@ -262,8 +257,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         self._freq_y_needs_update = True
 
     def _update_impedance_sources(self, beam: BeamBaseClass) -> None:
-        """
-        Updates `_freq_y` array if `self._freq_y_needs_update=True`
+        """Updates `_freq_y` array if `self._freq_y_needs_update=True`.
 
         Parameters
         ----------
@@ -293,7 +287,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
                 )
                 assert not np.any(np.isnan(freq_y)), f"{type(source).__name__}"
 
-                self._freq_y += backend.array(freq_y, dtype=backend.complex)  #
+                self._freq_y += backend.array(freq_y, dtype=backend.complex)
                 # potentially on gpu
             else:
                 raise Exception(
@@ -307,8 +301,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
-        """
-        Calculates the induced voltage based on the beam profile and beam parameters
+        """Calculates the induced voltage based on the beam profile and beam parameters.
 
         Parameters
         ----------
@@ -379,8 +372,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
 
 class TimeDomainFftSolver(WakeFieldSolver):
     def __init__(self):
-        """
-        Solver to calculate induced voltage using fftconvolve(wake,profile)
+        """Solver to calculate induced voltage using fftconvolve(wake,profile).
 
         Notes
         -----
@@ -391,9 +383,9 @@ class TimeDomainFftSolver(WakeFieldSolver):
         super().__init__()
         self.expect_impedance_change = False
 
-        self._parent_wakefield: LateInit[WakeField] = None
-        self._wake_imp_y: LateInit[NumpyArray] = None
-        self._simulation: LateInit[Simulation] = None
+        self._parent_wakefield: WakeField | None = None
+        self._wake_imp_y: NumpyArray | None = None
+        self._simulation: Simulation | None = None
 
         self._wake_imp_y_needs_update = True  # update at least once
 
@@ -402,7 +394,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
         self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:
         """
-        Lateinit method when WakeField is late-initialized
+        Lateinit method when WakeField is late-initialized.
 
         Parameters
         ----------
@@ -451,8 +443,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
                 break
 
     def _update_impedance_sources(self, beam: BeamBaseClass) -> None:
-        """
-        Updates `_wake_imp_y` array if `self.__wake_imp_y_needs_update=True`
+        """Updates `_wake_imp_y` array if `self.__wake_imp_y_needs_update=True`.
 
         Parameters
         ----------
@@ -502,8 +493,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
-        """
-        Calculates the induced voltage based on the beam profile and beam parameters
+        """Calculates the induced voltage based on the beam profile and beam parameters.
 
         Parameters
         ----------
@@ -559,12 +549,12 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
         """
         warn("Untested code", NotTestedWarning)
         super().__init__()
-        self._wake_function_vals: LateInit[NumpyArray] = None
-        self._wake_function_time: LateInit[NumpyArray] = None
+        self._wake_function_vals: NumpyArray | None = None
+        self._wake_function_time: NumpyArray | None = None
         self._wake_function_vals_needs_update = True  # initialization
 
-        self._simulation: LateInit[Simulation] = None
-        self._parent_wakefield: LateInit[WakeField] = None
+        self._simulation: Simulation | None = None
+        self._parent_wakefield: WakeField | None = None
 
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
@@ -696,20 +686,20 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         warn("Untested code", NotTestedWarning)
         super().__init__()
         # define wake function values and corresponding time axis
-        self._wake_function_vals: LateInit[deque[NumpyArray]] = None
-        self._wake_function_time: LateInit[deque[NumpyArray]] = None
+        self._wake_function_vals: deque[NumpyArray] | None = None
+        self._wake_function_time: deque[NumpyArray] | None = None
         self._wake_function_vals_needs_update = True  # initialization
 
-        self._past_profiles: LateInit[deque[NumpyArray]] = None
-        self._past_profile_times: LateInit[deque[NumpyArray]] = None
-        self._last_reference_time: LateInit[float] = None
-        self._past_charge_per_macroparticle: LateInit[deque[float]] = None
+        self._past_profiles: deque[NumpyArray] | None = None
+        self._past_profile_times: deque[NumpyArray] | None = None
+        self._last_reference_time: float | None = None
+        self._past_charge_per_macroparticle: deque[float] | None = None
 
-        self._maximum_storage_time: LateInit[float] = None
+        self._maximum_storage_time: float | None = None
         self._decay_fraction_threshold = decay_fraction_threshold
 
-        self._simulation: LateInit[Simulation] = None
-        self._parent_wakefield: LateInit[WakeField] = None
+        self._simulation: Simulation | None = None
+        self._parent_wakefield: WakeField | None = None
 
     def _determine_storage_time(self):
         """

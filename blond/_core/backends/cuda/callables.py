@@ -6,15 +6,25 @@ from typing import TYPE_CHECKING
 import cupy as cp  # type: ignore
 import numpy as np
 
-from blond._core.backends.backend import Specials, backend
+from ...._core.backends.backend import Specials, backend
+from ...._generals._hashing import hash_in_folder
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as CupyArray
 
 _filepath = os.path.realpath(__file__)
-_basepath = os.sep.join(_filepath.split(os.sep)[:-1])
 _compute_capability = cp.cuda.Device(0).compute_capability
+
+
+folder = os.path.dirname(os.path.abspath(__file__))
+
+hash_ = hash_in_folder(
+    folder=folder,
+    extensions=(".py", ".cu"),
+    recursive=False,
+)
+_basepath = os.path.join(folder, "compiled", hash_)
 
 if backend.float == np.float32:
     path = os.path.join(
@@ -69,8 +79,8 @@ class CudaSpecials(Specials):
         voltage: float,
         omega_rf: float,
         phi_rf: float,
-        charge: np.flaot32 | np.float64,
-        acceleration_kick: np.flaot32 | np.float64,
+        charge: np.float32 | np.float64,
+        acceleration_kick: np.float32 | np.float64,
     ) -> None:
         assert dt.dtype == backend.float
         assert dE.dtype == backend.float
@@ -106,13 +116,13 @@ class CudaSpecials(Specials):
         n_rf: int,
         acceleration_kick: float,
     ) -> None:
-        """assert dt.dtype == backend.float
+        assert dt.dtype == backend.float
         assert dE.dtype == backend.float
         assert phi_rf.dtype == backend.float
         assert voltage.dtype == backend.float
         assert omega_rf.dtype == backend.float
         assert isinstance(charge, backend.float)
-        assert isinstance(acceleration_kick, backend.float)"""
+        assert isinstance(acceleration_kick, backend.float)
 
         _kick_multi_harmonic(
             args=(
@@ -192,8 +202,8 @@ class CudaSpecials(Specials):
         dE: CupyArray,
         voltage: CupyArray,
         bin_centers: CupyArray,
-        charge: np.flaot32 | np.float64,
-        acceleration_kick: np.flaot32 | np.float64,
+        charge: np.float32 | np.float64,
+        acceleration_kick: np.float32 | np.float64,
     ) -> None:
         assert dt.dtype == backend.float
         assert dE.dtype == backend.float
@@ -289,12 +299,13 @@ class CudaSpecials(Specials):
         phi_rf: float,
         bin_size: float,
     ) -> np.float32 | np.float64:
-        """assert hist_x.dtype == backend.float
+        assert hist_x.dtype == backend.float
         assert hist_y.dtype == backend.float
         assert isinstance(alpha, backend.float), type(alpha)
         assert isinstance(omega_rf, backend.float), type(alpha)
         assert isinstance(phi_rf, backend.float), type(alpha)
-        assert isinstance(bin_size, backend.float), type(alpha)"""
+        assert isinstance(bin_size, backend.float), type(alpha)
+
         result = cp.zeros(2, dtype=backend.float)
         _beam_phase(
             args=(

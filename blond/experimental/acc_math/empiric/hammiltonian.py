@@ -30,8 +30,7 @@ def calc_hamiltonian(
     atol: float = 1e-5,
     maxiter: int = 1000,
 ):
-    """
-    Calculate Hamiltonian from set of points in turn 0 and turn 1
+    """Calculate Hamiltonian from set of points in turn 0 and turn 1
 
     Parameters
     ----------

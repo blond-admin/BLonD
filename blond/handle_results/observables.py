@@ -12,9 +12,7 @@ from .._core.base import MainLoopRelevant
 from .array_recorders import DenseArrayRecorder
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, Dict, List
-    from typing import Optional as LateInit
-    from typing import Tuple
+    from typing import Any
 
     from .. import WakeField
     from .._core.beam.base import BeamBaseClass
@@ -32,8 +30,7 @@ class Observables(MainLoopRelevant):
         folder: str,
         obs_per_turn: int = 1,
     ):
-        """
-        Base class to observe attributes during simulation
+        """Base class to observe attributes during simulation.
 
         Parameters
         ----------
@@ -56,10 +53,10 @@ class Observables(MainLoopRelevant):
         )
         logger.info(f"Will save {self} to {self.common_name}_,,,")
 
-        self._n_turns: LateInit[int] = None
+        self._n_turns: int | None = None
         self._index_list: LateInit[int] = None
-        self._turn_i_init: LateInit[int] = None
-        self._turns_array: LateInit[NumpyArray] = None
+        self._turn_i_init: int | None = None
+        self._turns_array: NumpyArray | None = None
 
         self._last_turn_i_observed = (
             -1
@@ -68,9 +65,7 @@ class Observables(MainLoopRelevant):
 
     @property  # as readonly attributes
     def turns_array(self) -> NumpyArray | None:
-        """
-        Helper method to get x-axis array with turn-number
-        """
+        """Helper method to get x-axis array with turn-number."""
         return self._turns_array
 
     @abstractmethod  # pragma: no cover
@@ -78,8 +73,7 @@ class Observables(MainLoopRelevant):
         self,
         simulation: Simulation,
     ) -> None:
-        """
-        Update memory with new values
+        """Update memory with new values.
 
         Parameters
         ----------
@@ -90,7 +84,7 @@ class Observables(MainLoopRelevant):
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
-        Lateinit method when `simulation.__init__` is called
+        Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
@@ -104,10 +98,10 @@ class Observables(MainLoopRelevant):
         n_turns: int,
         turn_i_init: int,
         obs_per_turn: int = 1,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
         """
-        Lateinit method when `simulation.run_simulation` is called
+        Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
@@ -166,7 +160,7 @@ class Observables(MainLoopRelevant):
             if value is None:  # uninitialized
                 assert value is not None, f"`{parameter}` was not initialized."
 
-    def get_recorders(self) -> List[Tuple[str, DenseArrayRecorder]]:
+    def get_recorders(self) -> list[tuple[str, DenseArrayRecorder]]:
         self.assert_lateinit()
         recorders = [
             (attribute, instance)
@@ -176,8 +170,7 @@ class Observables(MainLoopRelevant):
         return recorders
 
     def rename(self, common_name: str) -> None:
-        """
-        Change the common save name of all internal arrays
+        """Change the common save name of all internal arrays.
 
         Notes
         -----
@@ -189,7 +182,7 @@ class Observables(MainLoopRelevant):
             The new common name of all internal arrays.
 
         """
-        for attribute_name, instance in self.get_recorders():
+        for _attribute_name, instance in self.get_recorders():
             if self.common_name not in instance.filepath:
                 raise NameError(
                     f"'{instance.filepath} does not include"
@@ -204,18 +197,14 @@ class Observables(MainLoopRelevant):
         logger.info(f"Changed save target of {self} to {self.common_name}_,,,")
 
     def to_disk(self) -> None:
-        """
-        Save data to disk
-        """
-        for attribute_name, instance in self.get_recorders():
+        """Save data to disk."""
+        for _attribute_name, instance in self.get_recorders():
             array_recorder: DenseArrayRecorder = instance
             logger.info(f"Saved {array_recorder.filepath_array}")
             array_recorder.to_disk()
 
     def from_disk(self) -> None:
-        """
-        Load data from disk
-        """
+        """Load data from disk."""
         for attribute_name, instance in self.get_recorders():
             array_recorder: DenseArrayRecorder = instance
             logger.info(f"Loaded {array_recorder.filepath_array}")
@@ -235,8 +224,7 @@ class BunchObservation(Observables):
         beam: BeamBaseClass,
         folder: str = "",  # TODO docstring
     ):
-        """
-        Observe the bunch coordinates during simulation execution
+        """Observe the bunch coordinates during simulation execution.
 
         Parameters
         ----------
@@ -251,11 +239,11 @@ class BunchObservation(Observables):
             folder=folder,
         )
         self._beam = beam
-        self._dts: LateInit[DenseArrayRecorder] = None
-        self._dEs: LateInit[DenseArrayRecorder] = None
-        self._flags: LateInit[DenseArrayRecorder] = None
-        self._reference_time: LateInit[DenseArrayRecorder] = None
-        self._reference_total_energy: LateInit[DenseArrayRecorder] = None
+        self._dts: DenseArrayRecorder | None = None
+        self._dEs: DenseArrayRecorder | None = None
+        self._flags: DenseArrayRecorder | None = None
+        self._reference_time: DenseArrayRecorder | None = None
+        self._reference_total_energy: DenseArrayRecorder | None = None
 
     def on_run_simulation(
         self,
@@ -263,10 +251,10 @@ class BunchObservation(Observables):
         beam: BeamBaseClass,  # not used in this context
         n_turns: int,
         turn_i_init: int,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
         """
-        Lateinit method when `simulation.run_simulation` is called
+        Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
@@ -313,8 +301,7 @@ class BunchObservation(Observables):
         self,
         simulation: Simulation,
     ) -> None:
-        """
-        Update memory with new values
+        """Update memory with new values.
 
         Parameters
         ----------
@@ -532,8 +519,7 @@ class CavityPhaseObservation(Observables):
         cavity: SingleHarmonicCavity,
         folder: str = "",
     ):
-        """
-        Observe the cavity rf parameters during simulation execution
+        """Observe the cavity rf parameters during simulation execution.
 
         Parameters
         ----------
@@ -545,9 +531,9 @@ class CavityPhaseObservation(Observables):
         """
         super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._cavity = cavity
-        self._phases: LateInit[DenseArrayRecorder] = None
-        self._omegas: LateInit[DenseArrayRecorder] = None
-        self._voltages: LateInit[DenseArrayRecorder] = None
+        self._phases: DenseArrayRecorder | None = None
+        self._omegas: DenseArrayRecorder | None = None
+        self._voltages: DenseArrayRecorder | None = None
 
     def on_run_simulation(
         self,
@@ -555,10 +541,10 @@ class CavityPhaseObservation(Observables):
         beam: BeamBaseClass,  # not used in this context
         n_turns: int,
         turn_i_init: int,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
         """
-        Lateinit method when `simulation.run_simulation` is called
+        Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
@@ -594,8 +580,7 @@ class CavityPhaseObservation(Observables):
         self,
         simulation: Simulation,
     ) -> None:
-        """
-        Update memory with new values
+        """Update memory with new values.
 
         Parameters
         ----------
@@ -638,8 +623,7 @@ class StaticProfileObservation(Observables):
         obs_per_turn: int = 1,
         folder: str = "",  # TODO docstring everywhere
     ):
-        """
-        Observation of a static beam profile
+        """Observation of a static beam profile.
 
         Parameters
         ----------
@@ -659,7 +643,7 @@ class StaticProfileObservation(Observables):
             folder=folder,
         )
         self._profile = profile
-        self._hist_y: LateInit[DenseArrayRecorder] = None
+        self._hist_y: DenseArrayRecorder | None = None
 
     def on_run_simulation(
         self,
@@ -667,10 +651,10 @@ class StaticProfileObservation(Observables):
         beam: BeamBaseClass,  # not used in this context
         n_turns: int,
         turn_i_init: int,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
         """
-        Lateinit method when `simulation.run_simulation` is called
+        Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
@@ -699,8 +683,7 @@ class StaticProfileObservation(Observables):
         self,
         simulation: Simulation,
     ) -> None:
-        """
-        Update memory with new values
+        """Update memory with new values.
 
         Parameters
         ----------
@@ -722,7 +705,7 @@ class StaticProfileObservation(Observables):
 
     @property  # as readonly attributes
     def hist_y(self):
-        """Histogram amplitude"""
+        """Histogram amplitude."""
         return self._hist_y.get_valid_entries()
 
 
@@ -803,8 +786,7 @@ class WakeFieldObservation(Observables):
         obs_per_turn: int = 1,
         folder: str = "",
     ):
-        """
-        Observe the calculation of wake-fields
+        """Observe the calculation of wake-fields.
 
         Parameters
         ----------
@@ -822,7 +804,7 @@ class WakeFieldObservation(Observables):
             folder=folder,
         )
         self._wakefield = wakefield
-        self._induced_voltage: LateInit[DenseArrayRecorder] = None
+        self._induced_voltage: DenseArrayRecorder | None = None
 
     def on_run_simulation(
         self,
@@ -830,10 +812,10 @@ class WakeFieldObservation(Observables):
         beam: BeamBaseClass,  # not used in this context
         n_turns: int,
         turn_i_init: int,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
         """
-        Lateinit method when `simulation.run_simulation` is called
+        Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
@@ -862,8 +844,7 @@ class WakeFieldObservation(Observables):
         self,
         simulation: Simulation,
     ) -> None:
-        """
-        Update memory with new values
+        """Update memory with new values.
 
         Parameters
         ----------
@@ -883,8 +864,7 @@ class WakeFieldObservation(Observables):
 
     @property  # as readonly attributes
     def induced_voltage(self):
-        """
-        Induced voltage, in [V] from given beam profile and sources
+        """Induced voltage, in [V] from given beam profile and sources.
 
         Returns
         -------
