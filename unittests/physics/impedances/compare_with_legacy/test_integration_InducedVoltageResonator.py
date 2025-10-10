@@ -54,7 +54,7 @@ class Blond2:
             # InducedVoltageFreq,
         ):
             ring = Ring(
-                6911.56, 1 / (1 / np.sqrt(0.00192)) ** 2, 25.92e9, Proton(), 10
+                6911.56, 0.00192, 25.92e9, Proton(), 10
             )
             rf_station = RFStation(ring, [4620], [0.9e6], [0.0], 1)
             beam = Beam(ring, n_macroparticles, 1e10)
@@ -190,7 +190,7 @@ class TestBothBlonds(unittest.TestCase):
 
     def test_integration(self):
         n_macroparticles = int(1e6)
-        n_slices = 256
+        n_slices = 1024
         bunch_length = 1e-9
         self.blond3 = Blond3(n_macroparticles, n_slices, bunch_length)
 
