@@ -752,16 +752,13 @@ class Simulation(Preparable, HasPropertyCache):
         self.turn_i.on_change(self._invalidate_cache_on_turn)
         self.turn_i.value = 0
 
-        num_elements = len(
-            self._ring.elements.elements
-        )  # TODO: can this change between different turns?
+        num_elements = len(self._ring.elements.elements)
 
         for turn_i in iterator:
-            self.turn_i.value = turn_i  # invaliade cache
             for element_ind, element in enumerate(
                 self._ring.elements.elements
             ):
-                # TODO: invalidation of cache?
+                self.turn_i.value = turn_i
                 self.section_i.value = element.section_index
 
                 if element.is_active_this_turn(turn_i=self.turn_i.value):
