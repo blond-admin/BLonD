@@ -421,7 +421,7 @@ class Simulation(Preparable, HasPropertyCache):
 
     def run_simulation(
         self,
-        beams: tuple[BeamBaseClass],
+        beams: tuple[BeamBaseClass, ...],
         n_turns: int | None = None,
         turn_i_init: int = 0,
         observe: tuple[Observables, ...] = tuple(),
@@ -717,7 +717,7 @@ class Simulation(Preparable, HasPropertyCache):
 
     def _run_simulation_counterrotating_beam(
         self,
-        beams: tuple[BeamBaseClass],
+        beams: tuple[BeamBaseClass, BeamBaseClass],
         n_turns: int,
         turn_i_init: int = 0,
         observe: tuple[Observables, ...] = tuple(),
