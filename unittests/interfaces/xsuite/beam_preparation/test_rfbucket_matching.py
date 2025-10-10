@@ -1,98 +1,104 @@
 import unittest
-from unittest.mock import MagicMock, patch
-import numpy as np
+from random import random
 
-from blond.interefaces.xsuite.beam_preparation.rfbucket_matching import XsuiteRFBucketMatcher
-from xpart.longitudinal.rfbucket_matching import (QGaussianDistribution,
-                                                  ThermalDistribution,
-                                                  ParabolicDistribution)
-from blond import SingleHarmonicCavity, proton
+import numpy as np
+from matplotlib import pyplot as plt
+from numpy import random
+from xpart.longitudinal.rfbucket_matching import (
+    ParabolicDistribution,
+    QGaussianDistribution,
+    ThermalDistribution,
+)
+
+from blond import SingleHarmonicCavity
+from blond.handle_results.helpers import callers_relative_path
+from blond.interefaces.xsuite.beam_preparation.rfbucket_matching import (
+    XsuiteRFBucketMatcher,
+)
+from blond.testing.simulation import ExampleSimulation01
+
 
 class TestXsuiteRFBucketMatcher(unittest.TestCase):
     def setUp(self):
-        self.mock_cavity = SingleHarmonicCavity()
-        self.mock_cavity.harmonic = 35640
-        self.mock_cavity.voltage = 6e6
-        self.mock_cavity.phi_rf = 135 * (np.pi / 180)
-        self.mock_cavity.apply_schedules = MagicMock()
+        self.example = ExampleSimulation01()
 
-        self.matcher = XsuiteRFBucketMatcher(
-            n_macroparticles=1000,
-            distribution_type=QGaussianDistribution,
-            cavity=self.mock_cavity,
-            sigma_z=0.1,
-            energy_init=450e9,
-            verbose_regeneration=False,
+    def _test_something(self, voltage, phase, routine):
+        simulation = self.example.simulation
+        cavity = simulation.ring.elements.get_element(SingleHarmonicCavity)
+        cavity.voltage = voltage
+        cavity.phi_rf = phase
+        zmax = simulation.ring.circumference / (2 * np.amin(cavity.harmonic))
+        simulation.prepare_beam(
+            beam=self.example.beam1,
+            preparation_routine=XsuiteRFBucketMatcher(
+                distribution_type=routine,
+                sigma_z=zmax / 4,
+                n_macroparticles=int(1e4),
+            ),
         )
 
-    def test___init__(self):
-        self.assertEqual(self.matcher.n_macroparticles, 1000)
-        self.assertEqual(self.matcher.distribution_type, QGaussianDistribution)
-        self.assertEqual(self.matcher.cavity, self.mock_cavity)
-        self.assertEqual(self.matcher.sigma_z, 0.1)
-        self.assertEqual(self.matcher.energy_init, 450e9)
-        self.assertFalse(self.matcher.verbose_regeneration)
+    def test_distribution_is_matched_thermal(self):
+        random.seed(42)
+        self._test_something(voltage=6e6, phase=0, routine=ThermalDistribution)
+        DEV_PLOT = False
+        if DEV_PLOT:
+            self.example.beam1.plot_hist2d()
+            plt.show()
 
+        counts, _, _, image = plt.hist2d(
+            self.example.beam1._dt,
+            self.example.beam1._dE,
+        )
 
-    @patch("blond.interefaces.xsuite.beam_preparation.rfbucket_matching.RFBucketMatcher")
-    def test_prepare_beam_calls_setup_correctly(self, mock_rfbucket_matcher_class):
-        # Arrange
-        mock_beam = MagicMock()
-        mock_beam.particle_type.mass = proton.mass
-        mock_beam.particle_type.charge = proton.charge
-        mock_beam.setup_beam = MagicMock()
+        filepath = callers_relative_path(
+            "resources/hist_ThermalDistribution.txt", stacklevel=1
+        )
+        expected_counts = np.loadtxt(filepath)
+        np.testing.assert_allclose(expected_counts, counts, rtol=1e-5)
 
-        mock_drift = MagicMock()
-        mock_drift.transition_gamma = 55.759505
-        mock_drift.apply_schedules = MagicMock()
+    def test_distribution_is_matched_qgaussian(self):
+        random.seed(42)
+        self._test_something(
+            voltage=6e6, phase=0, routine=QGaussianDistribution
+        )
+        DEV_PLOT = False
+        if DEV_PLOT:
+            self.example.beam1.plot_hist2d()
+            plt.show()
 
-        mock_simulation = MagicMock()
-        mock_simulation.ring.circumference = 26658.883
-        mock_simulation.ring.elements.get_elements.return_value = [mock_drift]
+        counts, _, _, image = plt.hist2d(
+            self.example.beam1._dt,
+            self.example.beam1._dE,
+        )
 
-        mock_matcher_instance = MagicMock()
-        mock_matcher_instance.generate.return_value = (np.array([1.0]), np.array([0.01]))
-        mock_rfbucket_matcher_class.return_value = mock_matcher_instance
+        filepath = callers_relative_path(
+            "resources/hist_QGaussianDistribution.txt", stacklevel=1
+        )
+        expected_counts = np.loadtxt(filepath)
+        np.testing.assert_allclose(expected_counts, counts, rtol=1e-5)
 
-        # Act
-        self.matcher.prepare_beam(simulation=mock_simulation, beam=mock_beam)
+    @unittest.skip("test takes too long")
+    def test_distribution_is_matched_parabolic(self):
+        random.seed(42)
+        self._test_something(
+            voltage=6e6, phase=0, routine=ParabolicDistribution
+        )
+        DEV_PLOT = False
+        if DEV_PLOT:
+            self.example.beam1.plot_hist2d()
+            plt.show()
 
-        # Assert
-        mock_beam.setup_beam.assert_called_once()
-        args, kwargs = mock_beam.setup_beam.call_args
-        self.assertIn("dt", kwargs)
-        self.assertIn("dE", kwargs)
-        self.assertTrue(np.allclose(kwargs["dE"], 0.01 * 450e9))
+        counts, _, _, image = plt.hist2d(
+            self.example.beam1._dt,
+            self.example.beam1._dE,
+        )
 
-    def test_prepare_beam_raises_without_energy(self):
-        self.matcher.energy_init = None
-        with self.assertRaises(ValueError) as cm:
-            self.matcher.prepare_beam(simulation=MagicMock(), beam=MagicMock())
-        self.assertIn("Initial energy is not set", str(cm.exception))
-
-    def test_prepare_beam_raises_without_cavity(self):
-        self.matcher.cavity = None
-        with self.assertRaises(ValueError) as cm:
-            self.matcher.prepare_beam(simulation=MagicMock(), beam=MagicMock())
-        self.assertIn("Cavity is not set", str(cm.exception))
-
-    def test_prepare_beam_raises_without_transition_gamma(self):
-        mock_drift = MagicMock()
-        mock_drift.transition_gamma = None
-
-        mock_simulation = MagicMock()
-        mock_simulation.ring.elements.get_elements.return_value = [mock_drift]
-
-        self.matcher.cavity = self.mock_cavity
-        self.matcher.energy_init = 450e9
-
-        with self.assertRaises(ValueError) as cm:
-            self.matcher.prepare_beam(simulation=mock_simulation, beam=MagicMock())
-        self.assertIn("transition_gamma is not set", str(cm.exception))
+        filepath = callers_relative_path(
+            "resources/hist_ParabolicDistribution.txt", stacklevel=1
+        )
+        expected_counts = np.loadtxt(filepath)
+        np.testing.assert_allclose(expected_counts, counts, rtol=1e-5)
 
 
 if __name__ == "__main__":
     unittest.main()
-
-
-

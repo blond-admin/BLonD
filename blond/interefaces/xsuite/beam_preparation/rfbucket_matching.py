@@ -9,10 +9,9 @@ from xpart.longitudinal.rfbucket_matching import (
     RFBucketMatcher,
 )
 
-from blond._core.helpers import int_from_float_with_warning
 from blond import SingleHarmonicCavity
+from blond._core.helpers import int_from_float_with_warning
 from blond.beam_preparation.base import MatchingRoutine
-from examples.EX_MuonCollider import cavity
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional, Tuple
@@ -139,9 +138,7 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             beam=beam,
         )
 
-        drift: DriftSimple = (
-            simulation.ring.elements.get_element(DriftSimple)
-        )
+        drift: DriftSimple = simulation.ring.elements.get_element(DriftSimple)
         drift.apply_schedules(
             turn_i=0,
             reference_time=0,
@@ -151,7 +148,6 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
         )
 
         cavity.apply_schedules(turn_i=0, reference_time=0.0)
-
 
         if drift.transition_gamma is None:
             raise ValueError(
