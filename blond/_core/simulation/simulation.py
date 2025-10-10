@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from functools import cached_property
 from pstats import SortKey
 from typing import TYPE_CHECKING
 from warnings import warn
@@ -18,7 +17,6 @@ from ..backends.backend import backend
 from ..base import (
     BeamPhysicsRelevant,
     DynamicParameter,
-    HasPropertyCache,
     Preparable,
 )
 from ..helpers import find_instances_with_method, int_from_float_with_warning
@@ -59,7 +57,7 @@ from ...physics.cavities import CavityBaseClass
 logger = logging.getLogger(__name__)
 
 
-class Simulation(Preparable, HasPropertyCache):
+class Simulation(Preparable):
     """Context manager to perform beam physics simulations of synchrotrons.
 
     Parameters
@@ -153,10 +151,6 @@ class Simulation(Preparable, HasPropertyCache):
         ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
         ps.print_stats()
         print(s.getvalue())
-
-    def invalidate_cache(self):
-        """Delete the stored values of functions with @cached_property."""
-        pass  # TODO
 
     def get_potential_well_empiric(
         self,
@@ -362,40 +356,9 @@ class Simulation(Preparable, HasPropertyCache):
         """Programmed energy program of the synchrotron."""
         return self._magnetic_cycle
 
-    @cached_property
-    def get_separatrix(self) -> None:
-        raise NotImplementedError
-
-    @cached_property
-    def get_potential_well(self) -> None:
-        raise NotImplementedError
-
     def print_one_turn_execution_order(self) -> None:
         """Prints the execution order of the main simulation loop."""
         self._ring.elements.print_order()
-
-    #  properties that have the @cached_property decorator
-    cached_properties = (
-        "get_separatrix",
-        "get_potential_well",
-    )
-
-    def _invalidate_cache_on_turn(
-        self,
-        turn_i: int,  # required by `turn_i.on_change`
-    ) -> None:
-        """Reset cache of `cached_property` attributes.
-
-        Parameters
-        ----------
-        Current turn
-
-        Notes
-        -----
-        This method is subscribed to turn_i.on_change
-
-        """
-        self._invalidate_cache(Simulation.cached_properties)
 
     def prepare_beam(
         self,
@@ -575,7 +538,6 @@ class Simulation(Preparable, HasPropertyCache):
         iterator = range(turn_i_init, turn_i_init + n_turns)
         if show_progressbar:
             iterator = tqdm(iterator)  # Add TQDM display to iteration
-        self.turn_i.on_change(self._invalidate_cache_on_turn)
         self.turn_i.value = 0
         for observable in observe:
             observable.update(
@@ -584,7 +546,6 @@ class Simulation(Preparable, HasPropertyCache):
         for turn_i in iterator:
             self.turn_i.value = turn_i
             for element in self._ring.elements.elements:
-                # TODO: do we need to invalidate the cache here as well?
                 self.section_i.value = element.section_index
                 if element.is_active_this_turn(turn_i=self.turn_i.value):
                     element.track(beam)
@@ -749,7 +710,6 @@ class Simulation(Preparable, HasPropertyCache):
         iterator = range(turn_i_init, turn_i_init + n_turns)
         if show_progressbar:
             iterator = tqdm(iterator)  # Add TQDM display to iteration
-        self.turn_i.on_change(self._invalidate_cache_on_turn)
         self.turn_i.value = 0
 
         num_elements = len(self._ring.elements.elements)
