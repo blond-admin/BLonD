@@ -688,7 +688,6 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         # define wake function values and corresponding time axis
         self._wake_function_vals: deque[NumpyArray] | None = None
         self._wake_function_time: deque[NumpyArray] | None = None
-        self._wake_function_vals_needs_update = True  # initialization
 
         self._past_profiles: deque[NumpyArray] | None = None
         self._past_profile_times: deque[NumpyArray] | None = None
@@ -736,7 +735,6 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         if parent_wakefield.profile is None:
             raise ValueError(f"Parent wakefield needs to have a profile.")
         self._parent_wakefield = parent_wakefield
-        self._wake_function_vals_needs_update = True
 
         self._past_profiles = deque()
         self._past_profile_times = deque()
@@ -843,17 +841,11 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 )
 
     def _update_potential_sources(self, current_time: float = 0) -> None:
-        """
-        Updates `_wake_function_time`  and `_wake_function_vals` arrays if `self._wake_function_vals_needs_update=True`
+        """Updates `_wake_function_time`  and `_wake_function_vals` arrays
 
         The time axis is chosen based on the profile in `_parent_wakefield.profile`
 
         """
-        # if (
-        #     not self._wake_function_vals_needs_update
-        # ):  # TODO: how do we set this automagically?
-        #     return
-
         self._update_past_profile_times_wake_times(current_time)
         self._remove_fully_decayed_wake_profiles()
 
@@ -879,12 +871,9 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
         self._update_past_profile_wake_functions()
 
-        self._wake_function_vals_needs_update = False  # avoid repeated update
-
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
-        # if self._wake_function_vals_needs_update:
         self._update_potential_sources(beam.reference_time)
 
         _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
