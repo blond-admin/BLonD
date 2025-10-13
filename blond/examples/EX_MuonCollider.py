@@ -92,12 +92,12 @@ sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
 sim.print_one_turn_execution_order()
 ####################################################################
 beam1 = Beam(
-    n_particles=1e9,
+    intensity=1e9,
     particle_type=proton,
     is_counter_rotating=False,
 )
 beam2 = Beam(
-    n_particles=1e9,
+    intensity=1e9,
     particle_type=proton,
     is_counter_rotating=True,
 )

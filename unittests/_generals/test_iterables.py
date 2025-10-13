@@ -1,6 +1,6 @@
 import unittest
 
-from blond._generals.iterables import all_equal
+from blond._generals._iterables import all_equal
 
 
 class TestFunctions(unittest.TestCase):
@@ -19,6 +19,9 @@ class TestFunctions(unittest.TestCase):
                     all_equal(iterable_type((a, a))),
                     msg=f"{iterable_type=} {comparison_type=}",
                 )
+
+    def test_all_equal_empty(self):
+        self.assertTrue(all_equal([]))
 
 
 if __name__ == "__main__":

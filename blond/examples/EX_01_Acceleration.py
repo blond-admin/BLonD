@@ -42,7 +42,7 @@ def main():
     )
     drift1.transition_gamma = 55.759505
     beam1 = Beam(
-        n_particles=1e9,
+        intensity=1e9,
         particle_type=proton,
     )
 
@@ -60,7 +60,7 @@ def main():
                 n_macroparticles=1e3,
             ),
         )
-    else:
+    else:  # pragma: no cover
         sim.prepare_beam(
             beam=beam1,
             preparation_routine=EmpiricMatcher(
@@ -80,13 +80,13 @@ def main():
     )
     bunch_observation = BunchObservation(each_turn_i=1)
 
-    def custom_action(simulation: Simulation):
+    def custom_action(simulation: Simulation, beam: Beam):  # pragma: no cover
         if simulation.turn_i.value % 10 != 0:
             return
 
         plt.scatter(
-            simulation.beams[0].read_partial_dt(),
-            simulation.beams[0].read_partial_dE(),
+            beam.read_partial_dt(),
+            beam.read_partial_dE(),
         )
         plt.draw()
         plt.pause(0.1)
@@ -94,20 +94,22 @@ def main():
 
     try:
         sim.load_results(
+            beams=(beam1,),
             turn_i_init=0,
             n_turns=N_TURNS,
-            observe=[phase_observation],
+            observe=(phase_observation, bunch_observation),
         )
-    except FileNotFoundError as exc:
+        print(f"Loaded {phase_observation.common_name}")
+    except (FileNotFoundError, AssertionError):
         sim.run_simulation(
             beams=(beam1,),
             turn_i_init=0,
             n_turns=N_TURNS,
-            observe=[phase_observation, bunch_observation],
+            observe=(phase_observation, bunch_observation),
             # callback=custom_action,
         )
-    ANIMATE = True
-    if ANIMATE:
+    ANIMATE = False
+    if ANIMATE:  # pragma: no cover
         plt.plot(phase_observation.phases)
         plt.figure()
         for i in range(N_TURNS):

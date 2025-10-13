@@ -3,7 +3,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from enum import Enum
 from os import PathLike
-from typing import Tuple
 
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
@@ -14,15 +13,32 @@ class ImpedanceReader(ABC):
         super().__init__()
 
     @abstractmethod  # pragma: no cover
-    def load_file(self, filepath: PathLike) -> Tuple[NumpyArray, NumpyArray]:
+    def load_file(self, filepath: PathLike) -> tuple[NumpyArray, NumpyArray]:
         return freq, amplitude  # NOQA
+
+
+class CsvReader(ImpedanceReader):
+    def __init__(self, **kwargs) -> None:
+        """Simple CSV file reader for two rows of data.
+
+        Parameters
+        ----------
+        **kwargs:
+            Additional keyword arguments for `numpy.loadtxt`
+        """
+        super().__init__()
+        self.kwargs = kwargs
+
+    def load_file(self, filepath: PathLike) -> tuple[NumpyArray, NumpyArray]:
+        data = np.loadtxt(filepath, **self.kwargs)
+        return data[:, 0], data[:, 1]
 
 
 class ExampleImpedanceReader1(ImpedanceReader):
     def __init__(self):
         super().__init__()
 
-    def load_file(self, filepath: PathLike) -> Tuple[NumpyArray, NumpyArray]:
+    def load_file(self, filepath: PathLike) -> tuple[NumpyArray, NumpyArray]:
         table = np.loadtxt(
             filepath,
             skiprows=1,
@@ -58,7 +74,7 @@ class ExampleImpedanceReader2(ImpedanceReader):
         super().__init__()
         self._mode = mode
 
-    def load_file(self, filepath: PathLike) -> Tuple[NumpyArray, NumpyArray]:
+    def load_file(self, filepath: PathLike) -> tuple[NumpyArray, NumpyArray]:
         data = np.loadtxt(filepath, dtype=float, skiprows=1)
         data[:, 3] = np.deg2rad(data[:, 3])
         data[:, 5] = np.deg2rad(data[:, 5])

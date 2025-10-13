@@ -31,11 +31,11 @@ from blond import (
     proton,
 )
 from blond._core.backends.backend import Numpy32Bit, Numpy64Bit, backend
-from blond.physics.feedbacks.accelerators.sps.cavity_feedback import (
+from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback import (
     SPSCavityLoopCommissioning,
     SPSOneTurnFeedback,
 )
-from blond.physics.feedbacks.accelerators.sps.impulse_response import (
+from blond.experimental.physics.feedbacks.accelerators.sps.impulse_response import (
     SPS4Section200MHzTWC,
     rectangle,
     triangle,
@@ -234,7 +234,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         )
         # beam = Beam(ring, N_m, N_b)
         beam = Beam(
-            n_particles=N_b,
+            intensity=N_b,
             particle_type=proton,
         )
         sim.prepare_beam(
@@ -331,7 +331,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         bunches = 100
         buckets = 5 * bunches
         beam = Beam(
-            n_particles=N_b,
+            intensity=N_b,
             particle_type=proton,
         )
         t_rf = (
@@ -366,7 +366,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         )
 
         beam2 = Beam(
-            n_particles=bunches * N_b,
+            intensity=bunches * N_b,
             particle_type=proton,
         )
 

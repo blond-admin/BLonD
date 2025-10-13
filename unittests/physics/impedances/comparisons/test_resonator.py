@@ -70,7 +70,7 @@ class TestResonatorImpedances(unittest.TestCase):
             distr = np.random.randn(10000, 2)
 
             beam = Beam(
-                n_particles=1e10,
+                intensity=1e10,
                 particle_type=proton,
             )
             beam.setup_beam(dt=distr[:, 0] + 5, dE=distr[:, 1])

@@ -66,7 +66,7 @@ class Main:
         )
 
         my_beam = Beam(
-            n_particles=1e6,
+            intensity=1e6,
             particle_type=proton,
         )
 
@@ -100,7 +100,7 @@ class Main:
         my_beam: Beam,
     ) -> None:
         # Full simulation. everything here should be optimized
-        results = simulation.run_simulation(
+        simulation.run_simulation(
             turn_i_init=10, n_turns=100, beams=(my_beam,)
         )
 

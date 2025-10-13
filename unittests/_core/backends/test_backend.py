@@ -16,7 +16,7 @@ try:
     import cupy as _  # type: ignore
 
     cupy_available = True
-except ImportError:
+except ModuleNotFoundError:
     cupy_available = False
 
 
@@ -39,32 +39,53 @@ class TestBackendBaseClass(unittest.TestCase):
     def tearDown(self) -> None:
         self.backend_base_class.set_specials(mode="numba")
 
+    def test_apply_environment_variables(self):
+        import os
+
+        backend_modes = ["python", "cpp", "numba", "fortran", "fail"]
+        backend_bits = ["32", "64", "fail"]
+        try:
+            import cupy
+
+            backend_modes = ["cuda"] + backend_modes
+        except ModuleNotFoundError:
+            pass
+        for backend_mode in backend_modes:
+            os.environ["BLOND_BACKEND_MODE"] = backend_mode
+            for backend_bit in backend_bits:
+                os.environ["BLOND_BACKEND_BITS"] = backend_bit
+                if (backend_mode is "fail") or (backend_bit is "fail"):
+                    with self.assertRaises(ValueError):
+                        self.backend_base_class.apply_environment_variables()
+                else:
+                    self.backend_base_class.apply_environment_variables()
+
 
 class TestCupy32Bit(unittest.TestCase):
     def test___init__(self) -> None:
         if not cupy_available:
-            unittest.skip(f"{cupy_available=}")
+            self.skipTest(f"{cupy_available=}")
         self.cupy32_bit = Cupy32Bit()
 
 
 class TestCupy64Bit(unittest.TestCase):
     def test___init__(self) -> None:
         if not cupy_available:
-            unittest.skip(f"{cupy_available=}")
+            self.skipTest(f"{cupy_available=}")
         self.cupy64_bit = Cupy64Bit()
 
 
 class TestCupyBackend(unittest.TestCase):
     def test___init__(self) -> None:
         if not cupy_available:
-            unittest.skip(f"{cupy_available=}")
+            self.skipTest(f"{cupy_available=}")
         self.cupy_backend = CupyBackend(
             float_=np.float32, int_=np.float32, complex_=np.complex64
         )
 
     def test_set_specials(self) -> None:
         if not cupy_available:
-            unittest.skip(f"{cupy_available=}")
+            self.skipTest(f"{cupy_available=}")
         self.cupy_backend = CupyBackend(
             float_=np.float32, int_=np.float32, complex_=np.complex64
         )
@@ -108,7 +129,7 @@ class TestSpecials(unittest.TestCase):
         self.n_voltages = 3
         self.special_modes = [
             "python",
-            "cuda",
+            "cpp",
             "numba",
             "fortran",
         ]
@@ -440,16 +461,48 @@ class TestSpecials(unittest.TestCase):
                 except (FileNotFoundError, OSError):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
-                array_write = backend.zeros(21, dtype=backend.float)
+                array_write = backend.ones(21, dtype=backend.float)
+                for _ in range(2):
+                    backend.specials.histogram(
+                        array_read=backend.linspace(
+                            -10, 10, 21, dtype=backend.float
+                        ),
+                        array_write=array_write,
+                        start=backend.float(-12),
+                        stop=backend.float(8.0),
+                    )
+                result = array_write
 
-                backend.specials.histogram(
-                    array_read=backend.linspace(
-                        -10, 10, 21, dtype=backend.float
-                    ),
-                    array_write=array_write,
-                    start=backend.float(-12),
-                    stop=backend.float(8.0),
-                )
+                if special == "cuda":
+                    result = result.get()
+                if i == 0:
+                    result_python = result
+                else:
+                    np.testing.assert_allclose(
+                        result,
+                        result_python,
+                        rtol=self.rtol,
+                        err_msg=f"{special=} {dtype=}",
+                    )
+
+    def test_histogram_short_profile(self) -> None:
+        for dtype in (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                array_write = backend.ones(21, dtype=backend.float)
+                for _ in range(2):
+                    backend.specials.histogram(
+                        array_read=backend.linspace(
+                            -5, 5, 51, dtype=backend.float
+                        ),
+                        array_write=array_write,
+                        start=backend.float(-10),
+                        stop=backend.float(10),
+                    )
                 result = array_write
 
                 if special == "cuda":

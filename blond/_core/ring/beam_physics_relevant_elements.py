@@ -10,7 +10,7 @@ from ..beam.base import BeamBaseClass
 from ..ring.helpers import get_elements
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar
+    from typing import Any, TypeVar
 
     from numpy.typing import NDArray as NumpyArray
 
@@ -20,24 +20,24 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class BeamPhysicsRelevantElements(Preparable):
-    """Container object to manage all beam interactions in `Ring`"""
+    """Container object to manage all beam interactions in `Ring`."""
 
     def __init__(self) -> None:
         super().__init__()
-        self.elements: List[BeamPhysicsRelevant] = []
+        self.elements: list[BeamPhysicsRelevant] = []
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """
-        Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         Parameters
         ----------
         simulation
-            Simulation context manager"""
+            Simulation context manager
+        """
         self._check_section_indexing()
 
     def _check_section_indexing(self) -> None:
-        """Verify that indices have been set correctly"""
+        """Verify that indices have been set correctly."""
         from ...physics.cavities import CavityBaseClass
         from ...physics.drifts import DriftBaseClass
 
@@ -58,17 +58,24 @@ class BeamPhysicsRelevantElements(Preparable):
                 f"{[(cav.name, cav.section_index) for cav in cavities]}"
             )
 
-        for section_index in np.sort(np.unique(elem_section_indices)):
-            cavities = self.get_elements(
-                CavityBaseClass, section_i=section_index
-            )
-            drifts = self.get_elements(DriftBaseClass, section_i=section_index)
-            if len(cavities) == 0:
-                raise RuntimeError(
-                    f"Missing cavity in section {section_index}"
+        unique_section_indices = np.unique(elem_section_indices)
+        if len(unique_section_indices) > 1:
+            for section_index in np.sort(unique_section_indices):
+                cavities = self.get_elements(
+                    CavityBaseClass,
+                    section_i=section_index,  # type: ignore
                 )
-            if len(drifts) == 0:
-                raise RuntimeError(f"Missing drift in section {section_index}")
+                drifts = self.get_elements(
+                    DriftBaseClass, section_i=section_index
+                )
+                if len(cavities) == 0:
+                    raise RuntimeError(
+                        f"Missing cavity in section {section_index}"
+                    )
+                if len(drifts) == 0:
+                    raise RuntimeError(
+                        f"Missing drift in section {section_index}"
+                    )
 
     def on_run_simulation(
         self,
@@ -76,10 +83,9 @@ class BeamPhysicsRelevantElements(Preparable):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called
+        """Lateinit method when `simulation.run_simulation` is called.
 
         Parameters
         ----------
@@ -92,19 +98,17 @@ class BeamPhysicsRelevantElements(Preparable):
         turn_i_init
             Initial turn to execute simulation
         """
-
         pass
 
-    def get_sections_indices(self) -> Tuple[int, ...]:
-        """Get all unique section indices"""
+    def get_sections_indices(self) -> tuple[int, ...]:
+        """Get all unique section indices."""
         unique_section_indices = set()
         for e in self.elements:
             unique_section_indices.add(e.section_index)
         return tuple(sorted(unique_section_indices))
 
     def get_sections_orbit_length(self) -> NumpyArray:
-        """
-        Get `share_of_circumference` per section
+        """Get `share_of_circumference` per section.
 
         Notes
         -----
@@ -123,8 +127,7 @@ class BeamPhysicsRelevantElements(Preparable):
         return result
 
     def add_element(self, element: BeamPhysicsRelevant) -> None:
-        """
-        Append a beam physics-relevant element to the container.
+        """Append a beam physics-relevant element to the container.
 
         This method appends the given element to the
         internal sequence of elements, maintaining insertion order.
@@ -160,8 +163,7 @@ class BeamPhysicsRelevantElements(Preparable):
         element: BeamPhysicsRelevant,
         insert_at: int,
     ) -> None:
-        """
-        Method to check the element can be inserted in the defined section.
+        """Method to check the element can be inserted in the defined section.
 
         The method checks the input location is in [0 : len(
         ring.elements.elements)], then assesses the element section index is
@@ -177,7 +179,7 @@ class BeamPhysicsRelevantElements(Preparable):
             Single location index.
 
         Raises
-        -------
+        ------
         AssertionError
             If 'element.section_index' is inconsistent with the section of
             insertion.
@@ -215,8 +217,7 @@ class BeamPhysicsRelevantElements(Preparable):
             )
 
     def insert(self, element: BeamPhysicsRelevant, insert_at: int) -> None:
-        """
-        Insert a beam physics-relevant element to the container at the
+        """Insert a beam physics-relevant element to the container at the
         specified index.
 
         Parameters
@@ -244,19 +245,18 @@ class BeamPhysicsRelevantElements(Preparable):
 
     @property  # as readonly attributes
     def n_sections(self) -> int:
-        """Number of sections that are mentioned by elements"""
+        """Number of sections that are mentioned by elements."""
         return len(np.unique([e.section_index for e in self.elements]))
 
     @property  # as readonly attributes
     def n_elements(self) -> int:
-        """Number of elements contained in this class"""
+        """Number of elements contained in this class."""
         return len(self.elements)
 
     def get_elements(
-        self, class_: Type[T], section_i: Optional[int] = None
-    ) -> Tuple[T, ...]:
-        """
-        Get all elements of specified type (potentially filtered by section)
+        self, class_: type[T], section_i: int | None = None
+    ) -> tuple[T, ...]:
+        """Get all elements of specified type (potentially filtered by section).
 
         Parameters
         ----------
@@ -265,18 +265,17 @@ class BeamPhysicsRelevantElements(Preparable):
         section_i
             Optional filter to get instances only in one section
         """
+
+        def is_in_section(element: T) -> bool:
+            return element.section_index == section_i
+
         elements = get_elements(self.elements, class_)
         if section_i is not None:
-            elements = tuple(
-                filter(lambda x: x.section_index == section_i, elements)
-            )
+            elements = tuple(filter(is_in_section, elements))
         return elements
 
-    def get_element(
-        self, class_: Type[T], section_i: Optional[int] = None
-    ) -> T:
-        """
-        Retrieve a single element of the specified type, optionally filtered by section.
+    def get_element(self, class_: type[T], section_i: int | None = None) -> T:
+        """Retrieve a single element of the specified type, optionally filtered by section.
 
         This method returns exactly one element of the given type. If
         `section_i` is provided, only elements in that section are
@@ -315,7 +314,7 @@ class BeamPhysicsRelevantElements(Preparable):
         return elements[0]
 
     def reorder(self) -> None:
-        """Reorder each section by `natural_order`"""
+        """Reorder each section by `natural_order`."""
         for section_index in range(self.n_sections):
             self.reorder_section(
                 section_index=section_index,
@@ -324,19 +323,18 @@ class BeamPhysicsRelevantElements(Preparable):
         self._check_section_indexing()
 
     def reorder_section(self, section_index: int) -> None:
-        """
-        Reorder section by `natural_order`
+        """Reorder section by `natural_order`.
 
         Parameters
         ----------
         section_index
             Section index to restrict the ordering to a specific section.
         """
-
         assert isinstance(section_index, int)
+        from blond.experimental.physics.feedbacks.base import FeedbackBaseClass
+
         from ...physics.cavities import CavityBaseClass
         from ...physics.drifts import DriftBaseClass
-        from ...physics.feedbacks.base import FeedbackBaseClass
         from ...physics.impedances.base import ImpedanceBaseClass
         from ...physics.losses import LossesBaseClass
         from ...physics.profiles import ProfileBaseClass
@@ -378,9 +376,8 @@ class BeamPhysicsRelevantElements(Preparable):
             elements_before_section + ordered_elements + elements_after_section
         )
 
-    def count(self, class_: Type[T], section_i: Optional[int] = None) -> int:
-        """
-        Count instances in this class that match class-type
+    def count(self, class_: type[T], section_i: int | None = None) -> int:
+        """Count instances in this class that match class-type.
 
         Parameters
         ----------
@@ -393,11 +390,11 @@ class BeamPhysicsRelevantElements(Preparable):
         return len(self.get_elements(class_=class_, section_i=section_i))
 
     def print_order(self) -> None:
-        """Print current execution order"""
+        """Print current execution order."""
         print(self.get_order_info())
 
     def get_order_info(self) -> str:
-        """Generate execution order string
+        """Generate execution order string.
 
         Notes
         -----
@@ -427,7 +424,7 @@ class BeamPhysicsRelevantElements(Preparable):
 
 
 def pretty_string(v: NumpyArray | Any) -> Any:
-    """Pretty print an array"""
+    """Pretty print an array."""
     if isinstance(v, np.ndarray):
         return f"array(min={v.min()}, max={v.max()}, shape={v.shape})"
     else:

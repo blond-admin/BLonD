@@ -9,30 +9,22 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""
-Example input for simulating a ring with multiple RF stations
-No intensity effects
+"""Example input for simulating a ring with multiple RF stations
+No intensity effects.
 
 :Authors: **Helga Timko**
 """
 
-import matplotlib.pyplot as plt
-import numpy as np
-from scipy.constants import c, e, m_p
-
 from blond import (
     Beam,
     BiGaussian,
-    BoxLosses,
     ConstantMagneticCycle,
     DriftSimple,
     Ring,
     Simulation,
     SingleHarmonicCavity,
-    StaticProfileObservation,
     proton,
 )
-from blond.physics.losses import SeparatrixLosses
 from blond.physics.profiles import DynamicProfileConstNBins
 
 
@@ -53,7 +45,7 @@ def main():
         circumference=26658.883,
     )
     beam = Beam(
-        n_particles=1.0e9,
+        intensity=1.0e9,
         particle_type=proton,
     )
     profile = DynamicProfileConstNBins(

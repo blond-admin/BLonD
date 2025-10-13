@@ -1,26 +1,69 @@
 from __future__ import annotations
 
 import importlib.util
-import inspect
+import logging
 import os
+import shutil
 import sys
+import warnings
 from types import ModuleType
 from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond._core.backends.backend import Specials, backend
+from ...._core.backends.backend import Specials, backend
+from ...._generals._hashing import hash_in_folder
+
+logger = logging.getLogger(__name__)
+
+
+def _add_dll_directory(command):
+    """Add the bin directory of some executable to the DLL search path.
+
+    Parameters
+    ----------
+    command
+        A command line command, e.g. gcc or gfortran
+
+    Returns
+    -------
+
+    """
+    _gfortran_path = shutil.which(command)
+    if not _gfortran_path:
+        raise RuntimeError(f'shutil.which("{command}") = {_gfortran_path}')
+    gfortran_bin_directory = os.path.dirname(_gfortran_path)
+    logger.debug(f"Added {gfortran_bin_directory=} to the DLL search path.")
+    os.add_dll_directory(gfortran_bin_directory)
+
+
+_using_windows = os.name == "nt"
+if _using_windows:
+    try:
+        # this is implemented to prevent
+        # add_backend(..) from crashing on windows
+        _add_dll_directory("gfortran")
+    except RuntimeError as exc:
+        warnings.warn(str(exc), stacklevel=1)
 
 
 def find_module_so(file: str) -> str:
-    # Get the file where this function is defined
-    current_file = inspect.getfile(find_module_so)
     # Get the directory of that file
-    folder = os.path.dirname(current_file)
+    this_folder = os.path.dirname(os.path.abspath(__file__))
+    hash_ = hash_in_folder(
+        folder=this_folder,
+        extensions=(".py", ".f90"),
+        recursive=False,
+    )
+    folder = os.path.join(this_folder, "compiled", hash_)
 
     # List all files in the directory and filter
     for filename in os.listdir(folder):
-        if filename.endswith(".so") and file in filename:
+        is_lib = (
+            filename.endswith(".so")  # linux
+            or filename.endswith(".pyd")  # windows
+        )
+        if is_lib and file in filename:
             return os.path.join(folder, filename)
     raise FileNotFoundError(file)
 
@@ -110,8 +153,8 @@ class FortranSpecials(Specials):
         voltage: float,
         omega_rf: float,
         phi_rf: float,
-        charge: np.flaot32 | np.float64,
-        acceleration_kick: np.flaot32 | np.float64,
+        charge: np.float32 | np.float64,
+        acceleration_kick: np.float32 | np.float64,
     ) -> None:
         assert dt.dtype == backend.float
         assert dE.dtype == backend.float
@@ -141,10 +184,7 @@ class FortranSpecials(Specials):
         beta: np.float32 | np.float64,
         energy: np.float32 | np.float64,
     ) -> None:
-        """
-        Function to apply drift equation of motion
-        """
-
+        """Function to apply drift equation of motion."""
         libblond_fortran.drift_simple(
             dt=dt,
             de=dE,
@@ -264,8 +304,8 @@ class FortranSpecials(Specials):
         dE: NumpyArray,
         voltage: NumpyArray,
         bin_centers: NumpyArray,
-        charge: np.flaot32 | np.float64,
-        acceleration_kick: np.flaot32 | np.float64,
+        charge: np.float32 | np.float64,
+        acceleration_kick: np.float32 | np.float64,
     ) -> None:
         libblond_fortran.linear_interp_kick(
             beam_dt=dt,
