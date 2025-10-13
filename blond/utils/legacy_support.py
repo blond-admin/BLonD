@@ -25,7 +25,7 @@ def _handle_legacy_kwargs(new_by_old: dict[str, str]):
                         f"Keyword argument '{key_potentially_old}' when calling "
                         f"'{func.__name__}' is deprecated. Use '{new_by_old[key_potentially_old]}' instead.",
                         DeprecationWarning,
-                        stacklevel=2
+                        stacklevel=2,
                     )
                 kwargs_fixed[
                     new_by_old.get(key_potentially_old, key_potentially_old)
@@ -45,6 +45,7 @@ __new_by_old = {
     "OtherSlicesOptions": "other_slices_options",
     "Ring": "ring",
     "GeneralParameters": "ring",
+    "rf_parameters": "rf_station",
     "RFStation": "rf_station",
     "RFParams": "rf_station",
     "RFSectionParameters": "rf_station",

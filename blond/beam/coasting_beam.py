@@ -11,6 +11,7 @@
 
 :Authors: **Simon Albright**
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -29,12 +30,20 @@ if TYPE_CHECKING:
 
 
 def generate_coasting_beam(
-        beam: Beam, t_start: float, t_stop: float, spread: float = 1E-3,
-        spread_type: Literal['dp/p', 'dE/E', 'dp', 'dE',] = 'dp/p',
-        energy_offset: float = 0,
-        distribution: Literal['gaussian', 'parabolic', 'user'] = 'gaussian',
-        user_distribution: Optional[NumpyArray] = None,
-        user_probability: Optional[NumpyArray] = None
+    beam: Beam,
+    t_start: float,
+    t_stop: float,
+    spread: float = 1e-3,
+    spread_type: Literal[
+        "dp/p",
+        "dE/E",
+        "dp",
+        "dE",
+    ] = "dp/p",
+    energy_offset: float = 0,
+    distribution: Literal["gaussian", "parabolic", "user"] = "gaussian",
+    user_distribution: Optional[NumpyArray] = None,
+    user_probability: Optional[NumpyArray] = None,
 ):
     """
     energy_offset represents the absolute energy difference between the center
@@ -68,47 +77,57 @@ def generate_coasting_beam(
     :raises blond_exceptions.DistributionError: _description_
     """
     # todo docstring
-    if spread_type == 'dp/p':
-        energy_spread = beam.energy * beam.beta ** 2 * spread
-    elif spread_type == 'dE/E':
+    if spread_type == "dp/p":
+        energy_spread = beam.energy * beam.beta**2 * spread
+    elif spread_type == "dE/E":
         energy_spread = spread * beam.energy
-    elif spread_type == 'dp':
-        energy_spread = beam.energy * beam.beta ** 2 * spread / beam.momentum
-    elif spread_type == 'dE':
+    elif spread_type == "dp":
+        energy_spread = beam.energy * beam.beta**2 * spread / beam.momentum
+    elif spread_type == "dE":
         energy_spread = spread
     else:
-        raise blond_exceptions.DistributionError("spread_type " + str(spread_type) +
-                                                 " not recognised")
+        raise blond_exceptions.DistributionError(
+            "spread_type " + str(spread_type) + " not recognised"
+        )
 
-    if distribution == 'gaussian':
-        beam.dE = rand.normal(loc=energy_offset, scale=energy_spread,
-                              size=beam.n_macroparticles)
+    if distribution == "gaussian":
+        beam.dE = rand.normal(
+            loc=energy_offset, scale=energy_spread, size=beam.n_macroparticles
+        )
 
-    elif distribution == 'parabolic':
+    elif distribution == "parabolic":
         energy_range = np.linspace(-energy_spread, energy_spread, 10000)
         probability_distribution = 1 - (energy_range / energy_spread) ** 2
         probability_distribution /= np.cumsum(probability_distribution)[-1]
-        beam.dE = rand.choice(energy_range, size=beam.n_macroparticles,
-                              p=probability_distribution) \
-                  + (rand.rand(beam.n_macroparticles) - 0.5) \
-                  * (energy_range[1] - energy_range[0]) \
-                  + energy_offset
+        beam.dE = (
+            rand.choice(
+                energy_range,
+                size=beam.n_macroparticles,
+                p=probability_distribution,
+            )
+            + (rand.rand(beam.n_macroparticles) - 0.5)
+            * (energy_range[1] - energy_range[0])
+            + energy_offset
+        )
 
     # If distribution == 'user' is selected the user must supply a uniformly
     # spaced distribution and the associated probability for each bin
     # momentum_spread and energy_offset are not used in this instance.
-    elif distribution == 'user':
+    elif distribution == "user":
         if user_distribution is None or user_probability is None:
             raise blond_exceptions.DistributionError("""Distribution 'user' requires
                                              'user_distribution' and 
                                              'user_probability' to be defined""")
 
-        beam.dE = rand.choice(user_distribution, size=beam.n_macroparticles,
-                              p=user_probability) \
-                  + (rand.rand(beam.n_macroparticles) - 0.5) \
-                  * (user_distribution[1] - user_distribution[0])
+        beam.dE = rand.choice(
+            user_distribution, size=beam.n_macroparticles, p=user_probability
+        ) + (rand.rand(beam.n_macroparticles) - 0.5) * (
+            user_distribution[1] - user_distribution[0]
+        )
 
     else:
-        raise blond_exceptions.DistributionError("distribution type not recognised")
+        raise blond_exceptions.DistributionError(
+            "distribution type not recognised"
+        )
 
     beam.dt = rand.rand(beam.n_macroparticles) * (t_stop - t_start) + t_start

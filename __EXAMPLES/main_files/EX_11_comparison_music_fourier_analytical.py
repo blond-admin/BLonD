@@ -1,4 +1,3 @@
-
 # Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
@@ -14,7 +13,6 @@ FFT, time domain with MuSiC, time domain with analytical formula.
 
 :Authors: **Danilo Quartullo**
 """
-
 
 import os
 
@@ -35,11 +33,11 @@ import blond.input_parameters.ring as genparClass
 DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 # To check if executing correctly, rather than to run the full simulation
 
-mpl.use('Agg')
+mpl.use("Agg")
 
-this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
+this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 
-fig_directory = this_directory + '../output_files/EX_11_fig/'
+fig_directory = this_directory + "../output_files/EX_11_fig/"
 os.makedirs(fig_directory, exist_ok=True)
 
 
@@ -65,56 +63,97 @@ Q = 1
 mode = impSClass.Resonators(R_S, frequency_R, Q)
 
 # DEFINE MAIN CLASSES
-general_params = genparClass.Ring(C, alpha, momentum,
-                                  beamClass.Proton(), n_turns)
+general_params = genparClass.Ring(
+    C, alpha, momentum, beamClass.Proton(), n_turns
+)
 
-rf_params = rfparClass.RFStation(general_params, [h_1], [V_1],
-                                 [phi_1], n_rf_systems)
+rf_params = rfparClass.RFStation(
+    general_params, [h_1], [V_1], [phi_1], n_rf_systems
+)
 
 # DEFINE FIRST BEAM TO BE USED WITH SLICES (t AND f DOMAINS), AND VOLTAGE CALCULATION
 n_macroparticles = 1001 if DRAFT_MODE else 10000000
 my_beam = beamClass.Beam(general_params, n_macroparticles, n_particles)
 np.random.seed(1000)
 sigma_gaussian = 3e-8
-my_beam.dt = sigma_gaussian * np.random.randn(n_macroparticles) + general_params.t_rev[0] / 2
+my_beam.dt = (
+    sigma_gaussian * np.random.randn(n_macroparticles)
+    + general_params.t_rev[0] / 2
+)
 my_beam.dE = sigma_gaussian * np.random.randn(n_macroparticles)
 n_slices = 10000
-cut_options = slicesClass.CutOptions(cut_left=0, cut_right=general_params.t_rev[0], n_slices=n_slices)
+cut_options = slicesClass.CutOptions(
+    cut_left=0, cut_right=general_params.t_rev[0], n_slices=n_slices
+)
 slices_ring = slicesClass.Profile(my_beam, cut_options)
 slices_ring.track()
 ind_volt = impClass.InducedVoltageTime(my_beam, slices_ring, [mode])
-total_induced_voltage = impClass.TotalInducedVoltage(my_beam, slices_ring, [ind_volt])
+total_induced_voltage = impClass.TotalInducedVoltage(
+    my_beam, slices_ring, [ind_volt]
+)
 total_induced_voltage.track()
 ind_volt2 = impClass.InducedVoltageFreq(my_beam, slices_ring, [mode], None)
-total_induced_voltage2 = impClass.TotalInducedVoltage(my_beam, slices_ring, [ind_volt2])
+total_induced_voltage2 = impClass.TotalInducedVoltage(
+    my_beam, slices_ring, [ind_volt2]
+)
 total_induced_voltage2.track()
 
 # DEFINE SECOND BEAM TO BE USED WITH MUSIC, AND VOLTAGE CALCULATION
 n_macroparticles2 = n_macroparticles
 if n_macroparticles2 == n_macroparticles:
-    music = musClass.Music(my_beam, [R_S, 2 * np.pi * frequency_R, Q], n_macroparticles, n_particles, rf_params.t_rev[0])
+    music = musClass.Music(
+        my_beam,
+        [R_S, 2 * np.pi * frequency_R, Q],
+        n_macroparticles,
+        n_particles,
+        rf_params.t_rev[0],
+    )
 else:
     my_beam2 = beamClass.Beam(general_params, n_macroparticles2, n_particles)
     np.random.seed(1000)
-    my_beam2.dt = sigma_gaussian * np.random.randn(n_macroparticles2) + general_params.t_rev[0] / 2
+    my_beam2.dt = (
+        sigma_gaussian * np.random.randn(n_macroparticles2)
+        + general_params.t_rev[0] / 2
+    )
     my_beam2.dE = sigma_gaussian * np.random.randn(n_macroparticles2)
-    music = musClass.Music(my_beam2, [R_S, 2 * np.pi * frequency_R, Q], n_macroparticles2, n_particles, rf_params.t_rev[0])
+    music = musClass.Music(
+        my_beam2,
+        [R_S, 2 * np.pi * frequency_R, Q],
+        n_macroparticles2,
+        n_particles,
+        rf_params.t_rev[0],
+    )
 music.track_cpp_multi_turn()
 
 # ANALYTICAL VOLTAGE CALCULATION
 time_array = np.linspace(0, general_params.t_rev[0], 1000000)
-induced_voltage_analytical = indVoltAn.analytical_gaussian_resonator(sigma_gaussian, Q, R_S, 2 * np.pi * frequency_R, time_array - general_params.t_rev[0] / 2, n_particles)
+induced_voltage_analytical = indVoltAn.analytical_gaussian_resonator(
+    sigma_gaussian,
+    Q,
+    R_S,
+    2 * np.pi * frequency_R,
+    time_array - general_params.t_rev[0] / 2,
+    n_particles,
+)
 
 # PLOTS
 if n_macroparticles2 == n_macroparticles:
-    plt.plot(my_beam.dt * 1e9, music.induced_voltage, label='MuSiC')
+    plt.plot(my_beam.dt * 1e9, music.induced_voltage, label="MuSiC")
 else:
-    plt.plot(my_beam2.dt * 1e9, music.induced_voltage, label='MuSiC')
-plt.plot(slices_ring.bin_centers * 1e9, total_induced_voltage.induced_voltage, label='convolution')
+    plt.plot(my_beam2.dt * 1e9, music.induced_voltage, label="MuSiC")
+plt.plot(
+    slices_ring.bin_centers * 1e9,
+    total_induced_voltage.induced_voltage,
+    label="convolution",
+)
 
-plt.plot(slices_ring.bin_centers * 1e9, total_induced_voltage2.induced_voltage, label='FFT')
-plt.plot(time_array * 1e9, induced_voltage_analytical, label='analytical')
-plt.legend(loc='upper left')
-plt.savefig(fig_directory + 'output.png')
+plt.plot(
+    slices_ring.bin_centers * 1e9,
+    total_induced_voltage2.induced_voltage,
+    label="FFT",
+)
+plt.plot(time_array * 1e9, induced_voltage_analytical, label="analytical")
+plt.legend(loc="upper left")
+plt.savefig(fig_directory + "output.png")
 
 print("Done!")

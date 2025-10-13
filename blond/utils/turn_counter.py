@@ -9,9 +9,7 @@ if TYPE_CHECKING:
 
 
 class TurnCounter:
-
     def __init__(self, name: str):
-
         self.name = name
 
         self.current_turn = 0
@@ -23,12 +21,12 @@ class TurnCounter:
         self.initialised = False
 
     def __next__(self):
-
-        if (self.current_turn == (self._max_turns)
-            and self.current_section == (self._n_sections-1)):
+        if self.current_turn == (self._max_turns) and self.current_section == (
+            self._n_sections - 1
+        ):
             raise StopIteration
 
-        if self.current_section == (self._n_sections-1):
+        if self.current_section == (self._n_sections - 1):
             self.current_section = 0
             self.current_turn += 1
         else:
@@ -40,15 +38,15 @@ class TurnCounter:
         return self
 
     def __str__(self):
-        return (f"{self.name} - Turn {self.current_turn}/{self._max_turns}"
-                f" - Section {self.current_section}/{self._n_sections}")
+        return (
+            f"{self.name} - Turn {self.current_turn}/{self._max_turns}"
+            f" - Section {self.current_section}/{self._n_sections}"
+        )
 
     def __repr__(self):
         return self.__str__()
 
-
     def initialise(self, max_turns: int, n_sections: int):
-
         if self.initialised:
             raise RuntimeError("Counter already initialised")
 
@@ -57,13 +55,12 @@ class TurnCounter:
         self.initialised = True
 
 
-_DEFINED_COUNTERS : dict[str, TurnCounter] = {}
+_DEFINED_COUNTERS: dict[str, TurnCounter] = {}
 
 
 def get_turn_counter(name: Optional[str] = None) -> TurnCounter:
-
     if name is None:
-        name = 'BLonD'
+        name = "BLonD"
 
     if name in _DEFINED_COUNTERS:
         return _DEFINED_COUNTERS[name]

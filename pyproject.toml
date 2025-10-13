@@ -54,13 +54,8 @@ write_to = 'blond/_version.py' # autogenerates version string using git
 dependencies = { file = ["requirements.txt"] }
 optional-dependencies = { all = { file = ["requirements-doc.txt","requirements-lint.txt","requirements-test.txt","requirements-gpu.txt", "requirements-dev.txt"] }, gpu = { file = ["requirements-gpu.txt"] }, doc = { file = ["requirements-doc.txt"] }, lint = { file = ["requirements-lint.txt"] }, test = { file = ["requirements-test.txt"] } , dev = { file = ["requirements-dev.txt"] }}
 
-[tool.flake8]
-ignore = [
-    'E501', # Line too long (82 > 79 characters) (E501)
-    'W503', # Line break occurred before a binary operator (W503)
-    'W504', # Line break occurred after a binary operator (W504)
-    'W291', # Trailing whitespace (W291)
-]
+[tool.ruff]
+line-length = 79
 
 [tool.pylint.reports]
 output-format = 'colorized'

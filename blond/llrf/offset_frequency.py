@@ -13,6 +13,7 @@ and frequency offsets**
 
 :Authors: **Simon Albright**
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterable
@@ -36,10 +37,13 @@ class _FrequencyOffset:
     """
 
     @handle_legacy_kwargs
-    def __init__(self, ring: Ring, rf_station: RFStation,
-                 system: Optional[int, Iterable[int]] = None,
-                 main_harmonic: Optional[float] = None):
-
+    def __init__(
+        self,
+        ring: Ring,
+        rf_station: RFStation,
+        system: Optional[int, Iterable[int]] = None,
+        main_harmonic: Optional[float] = None,
+    ):
         #: | *Import Ring*
         self.ring = ring
 
@@ -51,13 +55,15 @@ class _FrequencyOffset:
 
         if isinstance(system, int):
             self.system.append(system)
-        elif hasattr(system, '__iter__'):
+        elif hasattr(system, "__iter__"):
             for s in system:
                 self.system.append(s)
         elif system is None:
             pass
         else:
-            raise TypeError(f"System must be int, iterable of ints or None, not {type(system)} !")
+            raise TypeError(
+                f"System must be int, iterable of ints or None, not {type(system)} !"
+            )
 
         if self.system and not all((isinstance(s, int) for s in self.system)):
             raise TypeError("System must be int, iterable of ints or None")
@@ -72,13 +78,23 @@ class _FrequencyOffset:
     @property
     def mainH(self):
         from warnings import warn
-        warn("mainH is deprecated, use main_harmonic", DeprecationWarning, stacklevel=2)
+
+        warn(
+            "mainH is deprecated, use main_harmonic",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self.main_harmonic
 
     @mainH.setter
     def mainH(self, val):
         from warnings import warn
-        warn("mainH is deprecated, use main_harmonic", DeprecationWarning, stacklevel=2)
+
+        warn(
+            "mainH is deprecated, use main_harmonic",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.main_harmonic = val
 
     def set_frequency(self, new_frequency_program: NumpyArray):
@@ -90,19 +106,24 @@ class _FrequencyOffset:
         #: | *Check of frequency is passed as array of [time, freq]*
         if isinstance(new_frequency_program, np.ndarray):
             if new_frequency_program.shape[0] == 2:
-                end_turn = np.where(self.ring.cycle_time
-                                    >= new_frequency_program[0][-1])[0][0]
-                new_frequency_program = np.interp(self.ring.cycle_time[:end_turn],
-                                                  new_frequency_program[0],
-                                                  new_frequency_program[1])
+                end_turn = np.where(
+                    self.ring.cycle_time >= new_frequency_program[0][-1]
+                )[0][0]
+                new_frequency_program = np.interp(
+                    self.ring.cycle_time[:end_turn],
+                    new_frequency_program[0],
+                    new_frequency_program[1],
+                )
 
         #: | *Store new frequency as numpy array relative to the main harmonic*
-        self.new_frequency = np.array(new_frequency_program) / self.main_harmonic
+        self.new_frequency = (
+            np.array(new_frequency_program) / self.main_harmonic
+        )
 
         self.end_turn = len(self.new_frequency)
 
         #: | *Store design frequency during offset*
-        self.design_frequency = self.rf_station.omega_rf_d[:, :self.end_turn]
+        self.design_frequency = self.rf_station.omega_rf_d[:, : self.end_turn]
 
     def calculate_phase_slip(self):
         """
@@ -110,11 +131,17 @@ class _FrequencyOffset:
         each RF system
         """
 
-        delta_phi = (2 * np.pi * self.rf_station.harmonic[:, :self.end_turn]
-                     * (self.rf_station.harmonic[:, :self.end_turn]
-                        * self.new_frequency
-                        - self.design_frequency)
-                     / self.design_frequency)
+        delta_phi = (
+            2
+            * np.pi
+            * self.rf_station.harmonic[:, : self.end_turn]
+            * (
+                self.rf_station.harmonic[:, : self.end_turn]
+                * self.new_frequency
+                - self.design_frequency
+            )
+            / self.design_frequency
+        )
         self.phase_slippage = np.cumsum(delta_phi, axis=1)
 
     def apply_new_frequency(self):
@@ -123,25 +150,30 @@ class _FrequencyOffset:
         """
 
         if self.system is None:
-            self.rf_station.omega_rf[:, :self.end_turn] = \
-                (self.rf_station.harmonic[:, :self.end_turn]
-                 * self.new_frequency)
+            self.rf_station.omega_rf[:, : self.end_turn] = (
+                self.rf_station.harmonic[:, : self.end_turn]
+                * self.new_frequency
+            )
 
-            self.rf_station.phi_rf[:, :self.end_turn] += self.phase_slippage
+            self.rf_station.phi_rf[:, : self.end_turn] += self.phase_slippage
 
             for n in range(self.rf_station.n_rf):
-                self.rf_station.phi_rf[n, self.end_turn:] \
-                    += self.phase_slippage[n, -1]
+                self.rf_station.phi_rf[n, self.end_turn :] += (
+                    self.phase_slippage[n, -1]
+                )
 
         else:
             for system in self.system:
-                self.rf_station.omega_rf[system, :self.end_turn] \
-                    = (self.rf_station.harmonic[system, :self.end_turn]
-                       * self.new_frequency)
-                self.rf_station.phi_rf[system, :self.end_turn] \
-                    += self.phase_slippage[system]
-                self.rf_station.phi_rf[system, self.end_turn:] \
-                    += self.phase_slippage[system, -1]
+                self.rf_station.omega_rf[system, : self.end_turn] = (
+                    self.rf_station.harmonic[system, : self.end_turn]
+                    * self.new_frequency
+                )
+                self.rf_station.phi_rf[system, : self.end_turn] += (
+                    self.phase_slippage[system]
+                )
+                self.rf_station.phi_rf[system, self.end_turn :] += (
+                    self.phase_slippage[system, -1]
+                )
 
 
 class FixedFrequency(_FrequencyOffset):
@@ -151,10 +183,15 @@ class FixedFrequency(_FrequencyOffset):
     """
 
     @handle_legacy_kwargs
-    def __init__(self, ring: Ring, rf_station: RFStation,
-                 fixed_frequency: float, fixed_duration: float,
-                 transition_duration: float, transition: bool = True):
-
+    def __init__(
+        self,
+        ring: Ring,
+        rf_station: RFStation,
+        fixed_frequency: float,
+        fixed_duration: float,
+        transition_duration: float,
+        transition: bool = True,
+    ):
         super().__init__(ring, rf_station)
 
         #: | *Set value of fixed frequency*
@@ -166,12 +203,17 @@ class FixedFrequency(_FrequencyOffset):
         #: | *Duration of transition to design frequency*
         self.transition_duration = transition_duration
 
-        self.end_fixed_turn = np.where(self.ring.cycle_time >=
-                                       self.fixed_duration)[0][0]
-        self.end_transition_turn = np.where(self.ring.cycle_time >=
-                                            (self.fixed_duration + self.transition_duration))[0][0]
+        self.end_fixed_turn = np.where(
+            self.ring.cycle_time >= self.fixed_duration
+        )[0][0]
+        self.end_transition_turn = np.where(
+            self.ring.cycle_time
+            >= (self.fixed_duration + self.transition_duration)
+        )[0][0]
 
-        self.end_frequency = self.rf_station.omega_rf_d[0, self.end_transition_turn]
+        self.end_frequency = self.rf_station.omega_rf_d[
+            0, self.end_transition_turn
+        ]
 
         if transition:
             self.calculate_frequency_prog = self.transition_1
@@ -189,30 +231,49 @@ class FixedFrequency(_FrequencyOffset):
         Calculate the fixed and transition frequency programs turn by turn
         """
 
-        fixed_frequency_prog = np.ones(self.end_fixed_turn) * self.fixed_frequency
-        transition_frequency_prog = np.linspace(float(self.fixed_frequency),
-                                                float(self.end_frequency),
-                                                (self.end_transition_turn
-                                                 - self.end_fixed_turn))
+        fixed_frequency_prog = (
+            np.ones(self.end_fixed_turn) * self.fixed_frequency
+        )
+        transition_frequency_prog = np.linspace(
+            float(self.fixed_frequency),
+            float(self.end_frequency),
+            (self.end_transition_turn - self.end_fixed_turn),
+        )
 
-        self.frequency_prog = np.concatenate((fixed_frequency_prog,
-                                              transition_frequency_prog))
+        self.frequency_prog = np.concatenate(
+            (fixed_frequency_prog, transition_frequency_prog)
+        )
 
     def transition_1(self):
-        t1 = (self.ring.cycle_time[self.end_transition_turn]
-              - self.ring.cycle_time[self.end_fixed_turn])
+        t1 = (
+            self.ring.cycle_time[self.end_transition_turn]
+            - self.ring.cycle_time[self.end_fixed_turn]
+        )
         f1 = self.end_frequency
-        f1Prime = (np.gradient(self.rf_station.omega_rf_d[0])
-                   / np.gradient(self.ring.cycle_time))[self.end_transition_turn]
+        f1Prime = (
+            np.gradient(self.rf_station.omega_rf_d[0])
+            / np.gradient(self.ring.cycle_time)
+        )[self.end_transition_turn]
 
-        constA = (t1 * f1Prime - 2 * (f1 - self.fixed_frequency)) / t1 ** 3
-        constB = - (t1 * f1Prime - 3 * (f1 - self.fixed_frequency)) / t1 ** 2
+        constA = (t1 * f1Prime - 2 * (f1 - self.fixed_frequency)) / t1**3
+        constB = -(t1 * f1Prime - 3 * (f1 - self.fixed_frequency)) / t1**2
 
-        transTime = (self.ring.cycle_time[self.end_fixed_turn:self.end_transition_turn]
-                     - self.ring.cycle_time[self.end_fixed_turn])
+        transTime = (
+            self.ring.cycle_time[
+                self.end_fixed_turn : self.end_transition_turn
+            ]
+            - self.ring.cycle_time[self.end_fixed_turn]
+        )
 
-        transition_freq = (constA * transTime ** 3 + constB * transTime ** 2
-                           + self.fixed_frequency)
+        transition_freq = (
+            constA * transTime**3
+            + constB * transTime**2
+            + self.fixed_frequency
+        )
 
-        self.frequency_prog = np.concatenate((np.ones(self.end_fixed_turn)
-                                              * self.fixed_frequency, transition_freq))
+        self.frequency_prog = np.concatenate(
+            (
+                np.ones(self.end_fixed_turn) * self.fixed_frequency,
+                transition_freq,
+            )
+        )

@@ -22,7 +22,12 @@ from . import GPU_DEV
 
 # TODO all typing
 
-def rf_volt_comp(voltages: CupyArray, omega_rf: CupyArray, phi_rf: CupyArray, bin_centers: CupyArray
+
+def rf_volt_comp(
+    voltages: CupyArray,
+    omega_rf: CupyArray,
+    phi_rf: CupyArray,
+    bin_centers: CupyArray,
 ) -> CupyArray:
     """Calculate the rf voltage at each profile bin
 
@@ -90,23 +95,27 @@ def kick(
         voltage = voltage.astype(dtype=precision.real_t, order="C", copy=False)
     if not (omega_rf.flags.f_contiguous or omega_rf.flags.c_contiguous):
         warnings.warn("omega_rf must be contigous!")
-        omega_rf = omega_rf.astype(dtype=precision.real_t, order="C", copy=False)
+        omega_rf = omega_rf.astype(
+            dtype=precision.real_t, order="C", copy=False
+        )
     if not (phi_rf.flags.f_contiguous or phi_rf.flags.c_contiguous):
         warnings.warn("phi_rf must be contigous!")
         phi_rf = phi_rf.astype(dtype=precision.real_t, order="C", copy=False)
 
-
-    kick_kernel(args=(dt,
-                      dE,
-                      np.int32(n_rf),
-                      precision.real_t(charge),
-                      voltage,
+    kick_kernel(
+        args=(
+            dt,
+            dE,
+            np.int32(n_rf),
+            precision.real_t(charge),
+            voltage,
             omega_rf,
             phi_rf,
             np.int32(dt.size),
             precision.real_t(acceleration_kick),
-                      ),
-                block=GPU_DEV.block_size, grid=GPU_DEV.grid_size,
+        ),
+        block=GPU_DEV.block_size,
+        grid=GPU_DEV.grid_size,
     )
 
 
@@ -155,7 +164,7 @@ def drift(
 
     if not isinstance(t_rev, precision.real_t):
         try:
-            t_rev = precision.real_t(t_rev.get()) # relevant for cupy
+            t_rev = precision.real_t(t_rev.get())  # relevant for cupy
         except:
             t_rev = precision.real_t(t_rev)
 
@@ -245,7 +254,9 @@ def linear_interp_kick(
     )
 
 
-def slice_beam(dt: NumpyArray, profile: NumpyArray, cut_left: float, cut_right: float):
+def slice_beam(
+    dt: NumpyArray, profile: NumpyArray, cut_left: float, cut_right: float
+):
     """Constant space slicing with a constant frame.
 
     Args:
@@ -291,12 +302,16 @@ def slice_beam(dt: NumpyArray, profile: NumpyArray, cut_left: float, cut_right: 
                 np.uint32(n_slices),
                 np.uint32(dt.size),
                 np.int32(GPU_DEV.attributes["MaxSharedMemoryPerBlock"] / 4),
-                         ),grid=GPU_DEV.grid_size, block=GPU_DEV.block_size,
-                         shared_mem=GPU_DEV.attributes["MaxSharedMemoryPerBlock"],
+            ),
+            grid=GPU_DEV.grid_size,
+            block=GPU_DEV.block_size,
+            shared_mem=GPU_DEV.attributes["MaxSharedMemoryPerBlock"],
         )
 
 
-def synchrotron_radiation(dE: CupyArray, U0: float, n_kicks: int, tau_z: float):
+def synchrotron_radiation(
+    dE: CupyArray, U0: float, n_kicks: int, tau_z: float
+):
     """Track particles with SR only (without quantum excitation)
 
     Args:
@@ -412,7 +427,9 @@ def beam_phase(
     assert bin_centers.dtype == precision.real_t
     assert profile.dtype == precision.real_t
 
-    array1, array2 = __beam_phase_helper(bin_centers, profile, alpha, omega_rf, phi_rf)
+    array1, array2 = __beam_phase_helper(
+        bin_centers, profile, alpha, omega_rf, phi_rf
+    )
     # due to the division, the bin_size is not needed
     scoeff = cp.trapz(array1, dx=1)
     ccoeff = cp.trapz(array2, dx=1)
@@ -464,7 +481,9 @@ def beam_phase_fast(
     assert bin_centers.dtype == precision.real_t
     assert profile.dtype == precision.real_t
 
-    array1, array2 = __beam_phase_fast_helper(bin_centers, profile, omega_rf, phi_rf)
+    array1, array2 = __beam_phase_fast_helper(
+        bin_centers, profile, omega_rf, phi_rf
+    )
     # due to the division, the bin_size is not needed
     scoeff = cp.trapz(array1, dx=1)
     ccoeff = cp.trapz(array2, dx=1)

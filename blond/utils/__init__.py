@@ -4,7 +4,8 @@ Basic methods and objects related to the computational core.
 @author: Konstantinos Iliakis
 @date: 25.05.2023
 """
-from  __future__ import annotations
+
+from __future__ import annotations
 import ctypes as ct
 from typing import TYPE_CHECKING
 
@@ -15,11 +16,11 @@ if TYPE_CHECKING:
 
 
 class PrecisionClass:
-    """Singleton class. Holds information about the floating point precision of the calculations.
-    """
+    """Singleton class. Holds information about the floating point precision of the calculations."""
+
     __instance = None
 
-    def __init__(self, _precision: str = 'double'):
+    def __init__(self, _precision: str = "double"):
         """Constructor
 
         Args:
@@ -31,20 +32,20 @@ class PrecisionClass:
         PrecisionClass.__instance = self
         self.set(_precision)
 
-    def set(self, _precision: str = 'double'):
+    def set(self, _precision: str = "double"):
         """Set the precision to single or double.
 
         Args:
             _precision (str, optional): _description_. Defaults to 'double'.
         """
-        if _precision in ['single', 's', '32', 'float32', 'float', 'f']:
-            self.str = 'single'
+        if _precision in ["single", "s", "32", "float32", "float", "f"]:
+            self.str = "single"
             self.real_t = np.float32
             self.c_real_t = ct.c_float
             self.complex_t = np.complex64
             self.num = 1
-        elif _precision in ['double', 'd', '64', 'float64']:
-            self.str = 'double'
+        elif _precision in ["double", "d", "64", "float64"]:
+            self.str = "double"
             self.real_t = np.float64
             self.c_real_t = ct.c_double
             self.complex_t = np.complex128
@@ -55,8 +56,8 @@ class PrecisionClass:
 
 
 class c_complex128(ct.Structure):
-    """128-bit (64+64) Complex number, compatible with std::complex layout
-    """
+    """128-bit (64+64) Complex number, compatible with std::complex layout"""
+
     _fields_ = [("real", ct.c_double), ("imag", ct.c_double)]
 
     def __init__(self, pycomplex: NumpyArray):
@@ -65,8 +66,8 @@ class c_complex128(ct.Structure):
         Args:
             pycomplex (_type_): _description_
         """
-        self.real = pycomplex.real.astype(np.float64, order='C')
-        self.imag = pycomplex.imag.astype(np.float64, order='C')
+        self.real = pycomplex.real.astype(np.float64, order="C")
+        self.imag = pycomplex.imag.astype(np.float64, order="C")
 
     def to_complex(self):
         """Convert to Python complex
@@ -74,13 +75,12 @@ class c_complex128(ct.Structure):
         Returns:
             _type_: _description_
         """
-        return self.real + (1.j) * self.imag
+        return self.real + (1.0j) * self.imag
 
 
 class c_complex64(ct.Structure):
-    """64-bit (32+32) Complex number, compatible with std::complex layout
+    """64-bit (32+32) Complex number, compatible with std::complex layout"""
 
-    """
     _fields_ = [("real", ct.c_float), ("imag", ct.c_float)]
 
     def __init__(self, pycomplex: NumpyArray):
@@ -89,8 +89,8 @@ class c_complex64(ct.Structure):
         Args:
             pycomplex (_type_): _description_
         """
-        self.real = pycomplex.real.astype(np.float32, order='C')
-        self.imag = pycomplex.imag.astype(np.float32, order='C')
+        self.real = pycomplex.real.astype(np.float32, order="C")
+        self.imag = pycomplex.imag.astype(np.float32, order="C")
 
     def to_complex(self):
         """Convert to Python complex
@@ -98,29 +98,27 @@ class c_complex64(ct.Structure):
         Returns:
             _type_: _description_
         """
-        return self.real + (1.j) * self.imag
+        return self.real + (1.0j) * self.imag
 
 
 def c_real(scalar: float) -> ct.c_float | ct.c_double:
-    """Convert input to default precision.
-    """
+    """Convert input to default precision."""
     if precision.num == 1:
         return ct.c_float(scalar)
     return ct.c_double(scalar)
 
 
 def c_complex(scalar: complex):
-    """Convert input to default precision.
-    """
+    """Convert input to default precision."""
     if precision.num == 1:
         return c_complex64(scalar)
     return c_complex128(scalar)
 
 
 # By default, use double precision
-precision = PrecisionClass('double')
+precision = PrecisionClass("double")
 
 from .bmath_backends import BlondMathBackend
-bmath = BlondMathBackend() # this line controls static type hints of bmath
-bmath.use_cpu() # this line changes the backend to the most suitable one
 
+bmath = BlondMathBackend()  # this line controls static type hints of bmath
+bmath.use_cpu()  # this line changes the backend to the most suitable one

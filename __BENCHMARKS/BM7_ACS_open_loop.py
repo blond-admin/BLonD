@@ -13,6 +13,7 @@ Benchmarking open loop gain
 
 :Authors: **Birk Emil Karlsen-Bæck**, **Helga Timko**
 """
+
 from matplotlib.pyplot import tight_layout
 
 from blond.toolbox.logger import Logger
@@ -20,7 +21,10 @@ from blond.input_parameters.ring import Ring
 from blond.input_parameters.rf_parameters import RFStation
 from blond.beam.beam import Beam, Proton
 from blond.beam.profile import Profile, CutOptions, FitOptions
-from blond.llrf.cavity_feedback import LHCCavityLoop, LHCCavityLoopCommissioning
+from blond.llrf.cavity_feedback import (
+    LHCCavityLoop,
+    LHCCavityLoopCommissioning,
+)
 from blond.llrf.transfer_function import TransferFunction
 
 import logging
@@ -30,28 +34,28 @@ import matplotlib.pyplot as plt
 
 # Simulation parameters -------------------------------------------------------
 # Bunch parameters
-N_b = 1e9            # Intensity
-N_p = 50000          # Macro-particles
-tau_0 = 0.4e-9       # Initial bunch length, 4 sigma [s]
+N_b = 1e9  # Intensity
+N_p = 50000  # Macro-particles
+tau_0 = 0.4e-9  # Initial bunch length, 4 sigma [s]
 
 # Machine and RF parameters
-C = 26658.883        # Machine circumference [m]
-p_s = 450e9          # Synchronous momentum [eV/c]
-h = 35640            # Harmonic number
-V = 4e6              # RF voltage [V]
-dphi = 0             # Phase modulation/offset
-gamma_t = 53.8       # Transition gamma
-alpha = 1./gamma_t/gamma_t        # First order mom. comp. factor
+C = 26658.883  # Machine circumference [m]
+p_s = 450e9  # Synchronous momentum [eV/c]
+h = 35640  # Harmonic number
+V = 4e6  # RF voltage [V]
+dphi = 0  # Phase modulation/offset
+gamma_t = 53.8  # Transition gamma
+alpha = 1.0 / gamma_t / gamma_t  # First order mom. comp. factor
 
 # Tracking details
-N_t = 1           # Number of turns to track
+N_t = 1  # Number of turns to track
 # -----------------------------------------------------------------------------
 
 # Plot settings
-plt.rc('axes', labelsize=16, labelweight='normal')
-plt.rc('lines', linewidth=1.5, markersize=6)
-plt.rc('font', family='sans-serif')
-plt.rc('legend', fontsize=12)
+plt.rc("axes", labelsize=16, labelweight="normal")
+plt.rc("lines", linewidth=1.5, markersize=6)
+plt.rc("font", family="sans-serif")
+plt.rc("legend", fontsize=12)
 
 
 # Logger for messages on console & in file
@@ -62,46 +66,67 @@ ring = Ring(C, alpha, p_s, particle=Proton(), n_turns=1)
 rf = RFStation(ring, [h], [V], [dphi])
 
 beam = Beam(ring, N_p, N_b)
-profile = Profile(beam, CutOptions(n_slices=100),
-                  FitOptions(fit_option='gaussian'))
+profile = Profile(
+    beam, CutOptions(n_slices=100), FitOptions(fit_option="gaussian")
+)
 
-logging.info('Initialising LHCCavityLoop, tuned to injection (with no beam current)')
-CL = LHCCavityLoop(rf, profile, G_gen=1, f_c=rf.omega_rf[0, 0] / (2 * np.pi),
-                   I_gen_offset=0.2778, n_cavities=8, Q_L=20000, R_over_Q=45,
-                   tau_loop=650e-9, n_pretrack=100,
-                   RFFB=LHCCavityLoopCommissioning(open_drive=True, G_a=0.00001))
-logging.info('Initial generator current is %.4f A', np.mean(np.absolute(CL.I_GEN_COARSE[0:10])))
-logging.info('Samples (omega x T_s) is %.4f', CL.samples)
-logging.info('Cavity response to generator current')
-logging.info('Antenna voltage is %.10f MV', np.mean(np.absolute(CL.V_ANT_COARSE[-10:]))*1.e-6)
+logging.info(
+    "Initialising LHCCavityLoop, tuned to injection (with no beam current)"
+)
+CL = LHCCavityLoop(
+    rf,
+    profile,
+    G_gen=1,
+    f_c=rf.omega_rf[0, 0] / (2 * np.pi),
+    I_gen_offset=0.2778,
+    n_cavities=8,
+    Q_L=20000,
+    R_over_Q=45,
+    tau_loop=650e-9,
+    n_pretrack=100,
+    RFFB=LHCCavityLoopCommissioning(open_drive=True, G_a=0.00001),
+)
+logging.info(
+    "Initial generator current is %.4f A",
+    np.mean(np.absolute(CL.I_GEN_COARSE[0:10])),
+)
+logging.info("Samples (omega x T_s) is %.4f", CL.samples)
+logging.info("Cavity response to generator current")
+logging.info(
+    "Antenna voltage is %.10f MV",
+    np.mean(np.absolute(CL.V_ANT_COARSE[-10:])) * 1.0e-6,
+)
 
-plt.figure('Generator current (to cav)')
-plt.plot(np.real(CL.I_GEN_COARSE), label='real')
-plt.plot(np.imag(CL.I_GEN_COARSE), label='imag')
-plt.xlabel('Samples [at 40 MS/s]')
-plt.ylabel('Generator current [A]')
+plt.figure("Generator current (to cav)")
+plt.plot(np.real(CL.I_GEN_COARSE), label="real")
+plt.plot(np.imag(CL.I_GEN_COARSE), label="imag")
+plt.xlabel("Samples [at 40 MS/s]")
+plt.ylabel("Generator current [A]")
 plt.tight_layout()
 
-plt.figure('Generator current (to gen)')
-plt.plot(np.real(CL.I_TEST), label='real')
-plt.plot(np.imag(CL.I_TEST), label='imag')
-plt.xlabel('Samples [at 40 MS/s]')
-plt.ylabel('Generator current [A]')
+plt.figure("Generator current (to gen)")
+plt.plot(np.real(CL.I_TEST), label="real")
+plt.plot(np.imag(CL.I_TEST), label="imag")
+plt.xlabel("Samples [at 40 MS/s]")
+plt.ylabel("Generator current [A]")
 plt.tight_layout()
 
-plt.figure('Antenna voltage')
-plt.plot(np.real(CL.V_ANT_COARSE) * 1e-6, label='real')
-plt.plot(np.imag(CL.V_ANT_COARSE) * 1e-6, label='imag')
-plt.xlabel('Samples [at 40 MS/s]')
-plt.ylabel('Antenna voltage [MV]')
+plt.figure("Antenna voltage")
+plt.plot(np.real(CL.V_ANT_COARSE) * 1e-6, label="real")
+plt.plot(np.imag(CL.V_ANT_COARSE) * 1e-6, label="imag")
+plt.xlabel("Samples [at 40 MS/s]")
+plt.ylabel("Antenna voltage [MV]")
 plt.legend()
 plt.tight_layout()
 
 plt.show()
-logging.info('RF feedback action')
-logging.info('Updated generator current is %.10f A', np.mean(np.absolute(CL.I_GEN_COARSE)))
+logging.info("RF feedback action")
+logging.info(
+    "Updated generator current is %.10f A",
+    np.mean(np.absolute(CL.I_GEN_COARSE)),
+)
 P_gen = CL.generator_power()
-logging.info('Generator power is %.10f kW', np.mean(P_gen[-10:]) * 1e-3)
+logging.info("Generator power is %.10f kW", np.mean(P_gen[-10:]) * 1e-3)
 
-#TF = TransferFunction(CL.I_GEN, CL.I_TEST, CL.T_s, plot=True)
-#TF.analyse(data_cut=CL.n_coarse)
+# TF = TransferFunction(CL.I_GEN, CL.I_TEST, CL.T_s, plot=True)
+# TF.analyse(data_cut=CL.n_coarse)

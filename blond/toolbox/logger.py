@@ -17,7 +17,7 @@ import logging
 
 
 class Logger:
-    """Class to log messages coming from other classes. Messages contain 
+    """Class to log messages coming from other classes. Messages contain
     {Time stamp} {Class name} {Log level} {Message}. Errors, warnings and info
     are logged into the console. To disable logging, call Logger().disable()
 
@@ -29,7 +29,6 @@ class Logger:
     """
 
     def __init__(self, debug=False):
-
         # Root logger on DEBUG level
         root_logger = logging.getLogger()
         root_logger.setLevel(logging.DEBUG)
@@ -38,13 +37,14 @@ class Logger:
         console_handler = logging.StreamHandler()
         console_handler.setLevel(logging.INFO)
         log_format = logging.Formatter(
-            "%(asctime)s %(name)-25s %(levelname)-9s %(message)s")
+            "%(asctime)s %(name)-25s %(levelname)-9s %(message)s"
+        )
         console_handler.setFormatter(log_format)
         root_logger.addHandler(console_handler)
 
         # File logger on DEBUG level
         if debug:
-            file_handler = logging.FileHandler('debug.log', mode='w')
+            file_handler = logging.FileHandler("debug.log", mode="w")
             file_handler.setLevel(logging.DEBUG)
             file_handler.setFormatter(log_format)
             root_logger.addHandler(file_handler)

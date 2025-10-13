@@ -14,7 +14,6 @@ No intensity effects
 :Authors: **Helga Timko**
 """
 
-
 import os
 
 import matplotlib as mpl
@@ -33,34 +32,34 @@ from blond.trackers.utilities import total_voltage
 DRAFT_MODE = bool(int(os.environ.get("BLOND_EXAMPLES_DRAFT_MODE", False)))
 # To check if executing correctly, rather than to run the full simulation
 
-mpl.use('Agg')
+mpl.use("Agg")
 
-this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
+this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 
 
-os.makedirs(this_directory + '../output_files/EX_04_fig', exist_ok=True)
+os.makedirs(this_directory + "../output_files/EX_04_fig", exist_ok=True)
 
 
 # Simulation parameters -------------------------------------------------------
 # Bunch parameters
-N_b = 1.e9           # Intensity
+N_b = 1.0e9  # Intensity
 N_p = 1001 if DRAFT_MODE else 10001  # Macro-particles
 
-tau_0 = 0.4e-9          # Initial bunch length, 4 sigma [s]
+tau_0 = 0.4e-9  # Initial bunch length, 4 sigma [s]
 
 # Machine and RF parameters
-C = 26658.883        # Machine circumference [m]
-p_s = 450.e9         # Synchronous momentum [eV]
-h = 35640            # Harmonic number
-V1 = 2e6           # RF voltage, station 1 [eV]
-V2 = 4e6           # RF voltage, station 1 [eV]
-dphi = 0             # Phase modulation/offset
+C = 26658.883  # Machine circumference [m]
+p_s = 450.0e9  # Synchronous momentum [eV]
+h = 35640  # Harmonic number
+V1 = 2e6  # RF voltage, station 1 [eV]
+V2 = 4e6  # RF voltage, station 1 [eV]
+dphi = 0  # Phase modulation/offset
 gamma_t = 55.759505  # Transition gamma
-alpha = 1. / gamma_t / gamma_t        # First order mom. comp. factor
+alpha = 1.0 / gamma_t / gamma_t  # First order mom. comp. factor
 
 # Tracking details
-N_t = 2000           # Number of turns to track
-dt_plt = 200         # Time steps between plots
+N_t = 2000  # Number of turns to track
+dt_plt = 200  # Time steps between plots
 
 
 # Simulation setup ------------------------------------------------------------
@@ -69,19 +68,22 @@ print("")
 
 
 # Define general parameters containing data for both RF stations
-general_params = Ring([0.3 * C, 0.7 * C], [[alpha], [alpha]],
-                      [p_s * np.ones(N_t + 1), p_s * np.ones(N_t + 1)],
-                      Proton(), N_t, n_sections=2)
+general_params = Ring(
+    [0.3 * C, 0.7 * C],
+    [[alpha], [alpha]],
+    [p_s * np.ones(N_t + 1), p_s * np.ones(N_t + 1)],
+    Proton(),
+    N_t,
+    n_sections=2,
+)
 
 
 # Define RF station parameters and corresponding tracker
 beam = Beam(general_params, N_p, N_b)
-rf_params_1 = RFStation(general_params, [h], [V1], [dphi],
-                        section_index=1)
+rf_params_1 = RFStation(general_params, [h], [V1], [dphi], section_index=1)
 long_tracker_1 = RingAndRFTracker(rf_params_1, beam)
 
-rf_params_2 = RFStation(general_params, [h], [V2], [dphi],
-                        section_index=2)
+rf_params_2 = RFStation(general_params, [h], [V2], [dphi], section_index=2)
 long_tracker_2 = RingAndRFTracker(rf_params_2, beam)
 
 # Define full voltage over one turn and a corresponding "overall" set of
@@ -96,45 +98,74 @@ print("General and RF parameters set...")
 
 # Define beam and distribution
 
-bigaussian(general_params, rf_params_tot, beam, tau_0 / 4,
-           reinsertion='on', seed=1)
+bigaussian(
+    general_params, rf_params_tot, beam, tau_0 / 4, reinsertion="on", seed=1
+)
 
 print("Beam set and distribution generated...")
 
 
 # Need slices for the Gaussian fit; slice for the first plot
-slice_beam = Profile(beam, CutOptions(n_slices=100),
-                     FitOptions(fit_option='gaussian'))
+slice_beam = Profile(
+    beam, CutOptions(n_slices=100), FitOptions(fit_option="gaussian")
+)
 # Define what to save in file
-bunchmonitor = BunchMonitor(general_params, rf_params_tot, beam,
-                            this_directory + '../output_files/EX_04_output_data',
-                            profile=slice_beam, buffer_time=1)
+bunchmonitor = BunchMonitor(
+    general_params,
+    rf_params_tot,
+    beam,
+    this_directory + "../output_files/EX_04_output_data",
+    profile=slice_beam,
+    buffer_time=1,
+)
 
 # PLOTS
-format_options = {'dirname': this_directory + '../output_files/EX_04_fig', 'linestyle': '.'}
-plots = Plot(general_params, rf_params_tot, beam, dt_plt, dt_plt, 0,
-             0.0001763 * h, -450e6, 450e6, xunit='rad',
-             separatrix_plot=True, profile=slice_beam,
-             h5file=this_directory + '../output_files/EX_04_output_data',
-             histograms_plot=True, format_options=format_options)
+format_options = {
+    "dirname": this_directory + "../output_files/EX_04_fig",
+    "linestyle": ".",
+}
+plots = Plot(
+    general_params,
+    rf_params_tot,
+    beam,
+    dt_plt,
+    dt_plt,
+    0,
+    0.0001763 * h,
+    -450e6,
+    450e6,
+    xunit="rad",
+    separatrix_plot=True,
+    profile=slice_beam,
+    h5file=this_directory + "../output_files/EX_04_output_data",
+    histograms_plot=True,
+    format_options=format_options,
+)
 
 # For testing purposes
-test_string = ''
-test_string += '{:<17}\t{:<17}\t{:<17}\t{:<17}\n'.format(
-    'mean_dE', 'std_dE', 'mean_dt', 'std_dt')
-test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
-    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
+test_string = ""
+test_string += "{:<17}\t{:<17}\t{:<17}\t{:<17}\n".format(
+    "mean_dE", "std_dE", "mean_dt", "std_dt"
+)
+test_string += "{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n".format(
+    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt)
+)
 
 # Accelerator map
-map_ = [long_tracker_1] + [long_tracker_2] + [slice_beam] + [bunchmonitor] + \
-       [plots]
+map_ = (
+    [long_tracker_1]
+    + [long_tracker_2]
+    + [slice_beam]
+    + [bunchmonitor]
+    + [plots]
+)
 print("Map set")
 print("")
 
 # Tracking --------------------------------------------------------------------
 if DRAFT_MODE:
-    N_t = 20           # Number of turns to track
-    dt_plt = 20         # Time steps between plots
+    N_t = 20  # Number of turns to track
+    dt_plt = 20  # Time steps between plots
 for i in np.arange(1, N_t + 1):
     print(i)
 
@@ -146,12 +177,13 @@ for i in np.arange(1, N_t + 1):
 
     # Define losses according to separatrix and/or longitudinal position
     beam.losses_separatrix(general_params, rf_params_tot)
-    beam.losses_longitudinal_cut(0., 2.5e-9)
+    beam.losses_longitudinal_cut(0.0, 2.5e-9)
 
 # For testing purposes
-test_string += '{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n'.format(
-    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt))
-with open(this_directory + '../output_files/EX_04_test_data.txt', 'w') as f:
+test_string += "{:+10.10e}\t{:+10.10e}\t{:+10.10e}\t{:+10.10e}\n".format(
+    np.mean(beam.dE), np.std(beam.dE), np.mean(beam.dt), np.std(beam.dt)
+)
+with open(this_directory + "../output_files/EX_04_test_data.txt", "w") as f:
     f.write(test_string)
 
 
