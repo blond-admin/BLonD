@@ -53,7 +53,7 @@ from blond.specifics.muon_collider.beam_preparation import (
 
 backend.change_backend(
     Numpy64Bit
-)  # TODO: without these lines, it does not work, default should be set somewhere to be Numpy64bit python
+)
 backend.set_specials("numba")
 
 # RCS2
@@ -73,7 +73,7 @@ energy_gain_per_turn = (
     (ejection_energy - inj_energy) / n_turns / station_downscale
 )
 
-n_turns_downscale = 2000
+n_turns_downscale = 100
 ejection_energy = inj_energy + n_turns_downscale * energy_gain_per_turn
 total_voltage = energy_gain_per_turn / np.sin(phi_s)
 voltage_per_station = total_voltage
@@ -302,32 +302,29 @@ def setup_and_run_blond2(mtw=False):
     return np.array(save_bunch_centroid), np.array(save_energy_centroid)
 
 
-def plot_and_compare(
-    bunch_observation,
-    bunch_centroid_blond2,
-    energy_centroid_blond2,
-):
-    plt.title("bunch centroid")
-    plt.plot(bunch_observation.mean_dt * 1e9)
-    plt.plot(bunch_centroid_blond2 * 1e9, label="blond2", ls="--")
-    plt.ylabel("bunch centroid [ns]")
-    plt.legend()
-    plt.show()
-
-    plt.title("energy centroid")
-    plt.plot(bunch_observation.mean_dE)
-    plt.plot(energy_centroid_blond2, label="blond2", ls="--")
-    plt.legend()
-    plt.show()
-
-
-if __name__ == "__main__":
+def test_plot_and_compare():
     mtw = True
     bunch_centroid_b2, energy_centroid_b2 = setup_and_run_blond2(mtw=mtw)
 
     bunch_observation, profile_observation = setup_and_run_blond3(mtw=mtw)
-    plot_and_compare(
-        bunch_observation,
-        bunch_centroid_b2,
-        energy_centroid_b2,
-    )
+
+    DEBUG_PLOTTING = True
+    if DEBUG_PLOTTING:
+        plt.title("bunch centroid")
+        plt.plot(bunch_observation.mean_dt * 1e9)
+        plt.plot(bunch_centroid_b2 * 1e9, label="blond2", ls="--")
+        plt.ylabel("bunch centroid [ns]")
+        plt.legend()
+        plt.show()
+
+        plt.title("energy centroid")
+        plt.plot(bunch_observation.mean_dE)
+        plt.plot(energy_centroid_b2, label="blond2", ls="--")
+        plt.legend()
+        plt.show()
+
+    np.testing.assert_allclose(energy_centroid_b2, bunch_observation.mean_dE, rtol=1e-4)
+    np.testing.assert_allclose(bunch_centroid_b2, bunch_observation.mean_dt, rtol=1e-4)
+
+if __name__ == "__main__":
+    test_plot_and_compare()
