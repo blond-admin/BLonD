@@ -290,21 +290,23 @@ class SynchrotronRadiation:
         self.U0 = (
             self.c_gamma
             * self.ring.energy[0, i_turn] ** 4.0
-            * self.I2
+            * self.I2[i_turn]
             / (2.0 * np.pi)
             * self.rf_station.section_length
             / self.ring.ring_circumference
         )
 
         # Damping time [turns]
-        self.tau_z = 2.0 / self.jz * self.ring.energy[0, i_turn] / self.U0
+        self.tau_z = (
+            2.0 / self.jz[i_turn] * self.ring.energy[0, i_turn] / self.U0
+        )
 
         # Equilibrium energy spread
         self.sigma_dE = np.sqrt(
             self.c_q
             * self.ring.gamma[0, i_turn] ** 2.0
-            * self.I3
-            / (self.jz * self.I2)
+            * self.I3[i_turn]
+            / (self.jz[i_turn] * self.I2[i_turn])
         )
 
     # Print synchrotron_radiation parameters
