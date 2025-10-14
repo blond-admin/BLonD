@@ -12,6 +12,7 @@ Unit-test for input_parameters.ring.py
 :Authors: **Markus Schwarz**, **Alexandre Lasheen**
 """
 
+import random
 import sys
 import unittest
 
@@ -20,22 +21,23 @@ import numpy as np
 from blond.beam.beam import Electron
 from blond.input_parameters.ring import Ring
 from blond.input_parameters.ring_options import convert_data
+from blond.utils.exceptions import MissingParameterError
 
 
 class TestGeneralParameters(unittest.TestCase):
-
     # Initialization ----------------------------------------------------------
 
     def setUp(self):
-
         self.n_turns = 10
         self.C = [13000, 13659]
         self.num_sections = 2
         self.alpha_0 = [[3.21e-4], [2.89e-4]]
-        self.alpha_1 = [[2.e-5], [1.e-5]]
-        self.alpha_2 = [[5.e-7], [5.e-7]]
-        self.momentum = [450e9 * (np.ones(self.n_turns + 1)),
-                         450e9 * (np.ones(self.n_turns + 1))]
+        self.alpha_1 = [[2.0e-5], [1.0e-5]]
+        self.alpha_2 = [[5.0e-7], [5.0e-7]]
+        self.momentum = [
+            450e9 * (np.ones(self.n_turns + 1)),
+            450e9 * (np.ones(self.n_turns + 1)),
+        ]
         self.particle = Electron()
 
         if int(sys.version[0]) == 2:
@@ -59,24 +61,41 @@ class TestGeneralParameters(unittest.TestCase):
         num_sections = 1  # only one rf-section!
 
         with self.assertRaisesRegex(
-                RuntimeError, 'ERROR in Ring: Number of sections and ring ' +
-                              'length size do not match!',
-                msg='No RuntimeError for wrong n_sections!'):
-            Ring(self.C, self.alpha_0, self.momentum,
-                 self.particle, self.n_turns, n_sections=num_sections,
-                 alpha_1=self.alpha_1, alpha_2=self.alpha_2)
+            RuntimeError,
+            "ERROR in Ring: Number of sections and ring "
+            + "length size do not match!",
+            msg="No RuntimeError for wrong n_sections!",
+        ):
+            Ring(
+                self.C,
+                self.alpha_0,
+                self.momentum,
+                self.particle,
+                self.n_turns,
+                n_sections=num_sections,
+                alpha_1=self.alpha_1,
+                alpha_2=self.alpha_2,
+            )
 
     def test_alpha_shape_exception(self):
         # Test if 'momentum compaction' RuntimeError gets thrown for wrong
         # shape of alpha
-        alpha = [[3.21e-4, 2.e-5, 5.e-7]]  # only one array!
+        alpha = [[3.21e-4, 2.0e-5, 5.0e-7]]  # only one array!
 
         with self.assertRaisesRegex(
-                RuntimeError, "ERROR in Ring: the input data " +
-                              "does not match the number of sections",
-                msg='No RuntimeError for wrong shape of alpha!'):
-            Ring(self.C, alpha, self.momentum, self.particle, self.n_turns,
-                 n_sections=self.num_sections)
+            RuntimeError,
+            "ERROR in Ring: the input data "
+            + "does not match the number of sections",
+            msg="No RuntimeError for wrong shape of alpha!",
+        ):
+            Ring(
+                self.C,
+                alpha,
+                self.momentum,
+                self.particle,
+                self.n_turns,
+                n_sections=self.num_sections,
+            )
 
     def test_synchronous_data_exception(self):
         # What to do when user wants momentum programme for multiple sections?
@@ -88,12 +107,19 @@ class TestGeneralParameters(unittest.TestCase):
         cycle_time = np.linspace(0, 1, self.n_turns)  # wrong length
 
         with self.assertRaisesRegex(
-                RuntimeError, "ERROR in Ring: synchronous data does " +
-                              "not match the time data",
-                msg='No RuntimeError for wrong synchronous_data!'):
-            Ring(self.C, self.alpha_0,
-                 ((cycle_time, self.momentum), (cycle_time, self.momentum)),
-                 self.particle, self.n_turns, n_sections=self.num_sections)
+            RuntimeError,
+            "ERROR in Ring: synchronous data does "
+            + "not match the time data",
+            msg="No RuntimeError for wrong synchronous_data!",
+        ):
+            Ring(
+                self.C,
+                self.alpha_0,
+                ((cycle_time, self.momentum), (cycle_time, self.momentum)),
+                self.particle,
+                self.n_turns,
+                n_sections=self.num_sections,
+            )
 
     def test_momentum_shape_exception(self):
         # Test if RuntimeError gets thrown for wrong shape of momentum
@@ -102,93 +128,142 @@ class TestGeneralParameters(unittest.TestCase):
         momentum = [[450e9], [450e9]]  # only one momentum!
 
         with self.assertRaisesRegex(
-                RuntimeError, "ERROR in Ring: synchronous data " +
-                              "does not match the time data",
-                msg='No RuntimeError for wrong shape of momentum!'):
-            Ring(self.C, self.alpha_0,
-                 ((cycle_time, momentum[0]), (cycle_time, momentum[1])),
-                 self.particle, self.n_turns, n_sections=self.num_sections)
+            RuntimeError,
+            "ERROR in Ring: synchronous data "
+            + "does not match the time data",
+            msg="No RuntimeError for wrong shape of momentum!",
+        ):
+            Ring(
+                self.C,
+                self.alpha_0,
+                ((cycle_time, momentum[0]), (cycle_time, momentum[1])),
+                self.particle,
+                self.n_turns,
+                n_sections=self.num_sections,
+            )
 
     def test_momentum_length_exception(self):
         # Test if RuntimeError gets thrown for wrong length of momentum
         # Only n_turns elements per section!
 
-        momentum = [np.linspace(450e9, 450e9, self.n_turns),
-                    np.linspace(450e9, 450e9, self.n_turns)]
+        momentum = [
+            np.linspace(450e9, 450e9, self.n_turns),
+            np.linspace(450e9, 450e9, self.n_turns),
+        ]
 
         with self.assertRaises(RuntimeError):
-            Ring(self.C, self.alpha_0, momentum, self.particle,
-                 self.n_turns, n_sections=self.num_sections)
+            Ring(
+                self.C,
+                self.alpha_0,
+                momentum,
+                self.particle,
+                self.n_turns,
+                n_sections=self.num_sections,
+            )
 
     # Other tests -------------------------------------------------------------
 
     def test_kinetic_energy_positive(self):
         # Kinetic energy must be greater or equal 0 for all turns
-        general_parameters = Ring(self.C, self.alpha_0, self.momentum,
-                                  self.particle, self.n_turns,
-                                  n_sections=self.num_sections)
+        general_parameters = Ring(
+            self.C,
+            self.alpha_0,
+            self.momentum,
+            self.particle,
+            self.n_turns,
+            n_sections=self.num_sections,
+        )
 
-        self.assertTrue((general_parameters.kin_energy >= 0.0).all(),
-                        msg='In TestGeneralParameters kinetic energy is ' +
-                            'negative!')
+        self.assertTrue(
+            (general_parameters.kin_energy >= 0.0).all(),
+            msg="In TestGeneralParameters kinetic energy is " + "negative!",
+        )
 
     def test_cycle_time_turn1(self):
         # Cycle_time[0] must be equal to t_rev[0]
-        general_parameters = Ring(self.C, self.alpha_0, self.momentum,
-                                  self.particle, self.n_turns,
-                                  n_sections=self.num_sections)
+        general_parameters = Ring(
+            self.C,
+            self.alpha_0,
+            self.momentum,
+            self.particle,
+            self.n_turns,
+            n_sections=self.num_sections,
+        )
 
-        self.assertEqual(general_parameters.cycle_time[0],
-                         general_parameters.t_rev[0],
-                         msg='In TestGeneralParameters cycle_time at first ' +
-                             'turn not equal to revolution time at first turn!')
+        self.assertEqual(
+            general_parameters.cycle_time[0],
+            general_parameters.t_rev[0],
+            msg="In TestGeneralParameters cycle_time at first "
+            + "turn not equal to revolution time at first turn!",
+        )
 
     def test_convert_data_exception(self):
         with self.assertRaisesRegex(
-                RuntimeError,
-                'ERROR in Ring: Synchronous data type not recognized!',
-                msg='No RuntimeError for wrong synchronous data type!'):
-            convert_data(25e9, self.particle.mass, self.particle.charge,
-                         synchronous_data_type='somethingCompletelyDifferent')
+            RuntimeError,
+            "ERROR in Ring: Synchronous data type not recognized!",
+            msg="No RuntimeError for wrong synchronous data type!",
+        ):
+            convert_data(
+                25e9,
+                self.particle.mass,
+                self.particle.charge,
+                synchronous_data_type="somethingCompletelyDifferent",
+            )
 
     def test_convert_data_value_rest_mass(self):
-
         self.assertEqual(
             convert_data(
-                Electron().mass, Electron().mass, Electron().charge,
-                synchronous_data_type='total energy'),
+                Electron().mass,
+                Electron().mass,
+                Electron().charge,
+                synchronous_data_type="total energy",
+            ),
             0.0,
-            msg='Momentum not zero for total engery equal rest mass!')
+            msg="Momentum not zero for total engery equal rest mass!",
+        )
 
     def test_convert_data_wrong_total_energy(self):
         # use energy 25 instead of 25e9
 
         self.assertIsNaN(
-            convert_data(25, self.particle.mass, self.particle.charge,
-                         synchronous_data_type='total energy'),
-            msg='No NaN for total energy less than rest mass!')
+            convert_data(
+                25,
+                self.particle.mass,
+                self.particle.charge,
+                synchronous_data_type="total energy",
+            ),
+            msg="No NaN for total energy less than rest mass!",
+        )
 
     def test_convert_data_wrong_kinetic_energy(self):
         # use negative kinetic energy
 
         self.assertIsNaN(
-            convert_data(-25, self.particle.mass, self.particle.charge,
-                         synchronous_data_type='kinetic energy'),
-            msg='No NaN for total energy less than rest mass!')
+            convert_data(
+                -25,
+                self.particle.mass,
+                self.particle.charge,
+                synchronous_data_type="kinetic energy",
+            ),
+            msg="No NaN for total energy less than rest mass!",
+        )
 
     def test_bug_floattype(self):
         from blond.beam.beam import Proton
+
         # Different treatment of python float and numpy float
         C = 2 * np.pi * 1100.009  # Ring circumference [m]
         gamma_t = 18.0  # Gamma at transition
-        alpha = 1 / gamma_t ** 2  # Momentum compaction factor
+        alpha = 1 / gamma_t**2  # Momentum compaction factor
         n_turns = 10
-        momentum = ([0, 0.1, 0.2], [1., 2., 3.])  # valid input parameters
+        momentum = ([0, 0.1, 0.2], [1.0, 2.0, 3.0])  # valid input parameters
         Ring(C, alpha, momentum, Proton(), n_turns)  # should work
         # When giving the momentum to the ring object in the format ([time0, time1, ...], [momentum0, momentum1, ...])
         # a TypeError is raised if momentumX is of type np.float64. The traceback is:
-        momentum = ([np.float64(0.0), np.float64(0.1), np.float64(0.2)],  # might crash
-                    [np.float64(1.0), np.float64(2.0), np.float64(3.0)])  # might crash
+        momentum = (
+            [np.float64(0.0), np.float64(0.1), np.float64(0.2)],  # might crash
+            [np.float64(1.0), np.float64(2.0), np.float64(3.0)],
+        )  # might crash
         Ring(C, alpha, momentum, Proton(), n_turns)  # might crash
 
     def test_multi_RF_dE(self):
@@ -199,12 +274,24 @@ class TestGeneralParameters(unittest.TestCase):
         # the shape of momentum should be (n_sections, n_turns+1)
         mom_gain = 1e10
         mom_program = np.zeros(self.num_sections * (self.n_turns + 1))
-        mom_program[self.num_sections - 1:] = np.arange(1, self.num_sections * self.n_turns + 2)
-        mom_program = mom_program.reshape(self.n_turns + 1, self.num_sections).transpose() * mom_gain
-        ring = Ring(ring_length=section_lengths, alpha_0=self.alpha_0,
-                    synchronous_data=mom_program, particle=self.particle,
-                    n_turns=self.n_turns, n_sections=self.num_sections,
-                    synchronous_data_type='momentum')
+        mom_program[self.num_sections - 1 :] = np.arange(
+            1, self.num_sections * self.n_turns + 2
+        )
+        mom_program = (
+            mom_program.reshape(
+                self.n_turns + 1, self.num_sections
+            ).transpose()
+            * mom_gain
+        )
+        ring = Ring(
+            ring_length=section_lengths,
+            alpha_0=self.alpha_0,
+            synchronous_data=mom_program,
+            particle=self.particle,
+            n_turns=self.n_turns,
+            n_sections=self.num_sections,
+            synchronous_data_type="momentum",
+        )
         delta_E_values = ring.delta_E.flatten()
         np.testing.assert_allclose(delta_E_values, mom_gain)
 
@@ -213,13 +300,239 @@ class TestGeneralParameters(unittest.TestCase):
         num_sections = 1
         mom_gain = 1e10
         mom_program = np.arange(1, num_sections * self.n_turns + 2) * mom_gain
-        ring = Ring(ring_length=self.C[0], alpha_0=self.alpha_0[0],
-                    synchronous_data=mom_program, particle=self.particle,
-                    n_turns=self.n_turns, n_sections=num_sections,
-                    synchronous_data_type='momentum')
+        ring = Ring(
+            ring_length=self.C[0],
+            alpha_0=self.alpha_0[0],
+            synchronous_data=mom_program,
+            particle=self.particle,
+            n_turns=self.n_turns,
+            n_sections=num_sections,
+            synchronous_data_type="momentum",
+        )
         delta_E_values = ring.delta_E.flatten()
         np.testing.assert_allclose(delta_E_values, mom_gain)
 
+    # Synchrotron radiation integrals -------------------------------------------------------------
 
-if __name__ == '__main__':
+    def test_assign_radiation_integrals(self):
+        rad_int = [random.random() for k in range(5)]
+
+        ring_srflag = Ring(
+            self.C,
+            self.alpha_0,
+            self.momentum,
+            self.particle,
+            self.n_turns,
+            n_sections=self.num_sections,
+            radiation_integrals=rad_int,
+        )
+        self.assertTrue(not ring_srflag._use_synchrotron_radiation)
+
+        # Missing parameter if synchrotron radiation enabled but no bending
+        # radius nor synchrotron radiation integrals were provided
+        with self.assertRaisesRegex(
+            MissingParameterError,
+            expected_regex="Synchrotron radiation damping and quantum "
+            "excitation require either the bending radius "
+            "for an isomagnetic ring, or the first five "
+            "synchrotron radiation integrals.",
+        ):
+            Ring(
+                self.C,
+                self.alpha_0,
+                self.momentum,
+                self.particle,
+                self.n_turns,
+                n_sections=self.num_sections,
+                use_synchrotron_radiation=True,
+            )
+        # Length check for the synchrotron radiation integrals
+        with self.assertRaises(ValueError):
+            Ring(
+                self.C,
+                self.alpha_0,
+                self.momentum,
+                self.particle,
+                self.n_turns,
+                n_sections=self.num_sections,
+                use_synchrotron_radiation=True,
+                radiation_integrals=rad_int[0:3],
+            )
+        # Type check for the synchrotron radiation integrals
+        with self.assertRaises(TypeError):
+            Ring(
+                self.C,
+                self.alpha_0,
+                self.momentum,
+                self.particle,
+                self.n_turns,
+                n_sections=self.num_sections,
+                use_synchrotron_radiation=True,
+                radiation_integrals=float(5),
+            )
+        # Checks the synchrotron radiation integrals prevail.
+        ring_srflag = Ring(
+            self.C,
+            self.alpha_0,
+            self.momentum,
+            self.particle,
+            self.n_turns,
+            n_sections=self.num_sections,
+            use_synchrotron_radiation=True,
+            radiation_integrals=rad_int,
+            bending_radius=10,
+        )
+
+        np.testing.assert_array_almost_equal(
+            ring_srflag.I2,
+            [
+                [
+                    rad_int[1] * self.C[0] / (self.C[0] + self.C[1])
+                    for k in range(self.n_turns + 1)
+                ],
+                [
+                    rad_int[1] * self.C[1] / (self.C[0] + self.C[1])
+                    for k in range(self.n_turns + 1)
+                ],
+            ],
+            decimal=6,
+        )
+
+        np.testing.assert_array_almost_equal(
+            ring_srflag.I3,
+            [
+                [
+                    rad_int[2] * self.C[0] / (self.C[0] + self.C[1])
+                    for k in range(self.n_turns + 1)
+                ],
+                [
+                    rad_int[2] * self.C[1] / (self.C[0] + self.C[1])
+                    for k in range(self.n_turns + 1)
+                ],
+            ],
+            decimal=6,
+        )
+        np.testing.assert_array_almost_equal(
+            ring_srflag.I4,
+            [
+                [
+                    rad_int[3] * self.C[0] / (self.C[0] + self.C[1])
+                    for k in range(self.n_turns + 1)
+                ],
+                [
+                    rad_int[3] * self.C[1] / (self.C[0] + self.C[1])
+                    for k in range(self.n_turns + 1)
+                ],
+            ],
+            decimal=6,
+        )
+        # Checks the synchrotron radiation integrals are passed in the ring.
+        ring_srflag = Ring(
+            self.C,
+            self.alpha_0,
+            self.momentum,
+            self.particle,
+            self.n_turns,
+            n_sections=self.num_sections,
+            use_synchrotron_radiation=True,
+            radiation_integrals=rad_int,
+        )
+        np.testing.assert_array_almost_equal(
+            ring_srflag.I2,
+            [
+                [
+                    rad_int[1] * self.C[0] / (self.C[0] + self.C[1])
+                    for k in range(self.n_turns + 1)
+                ],
+                [
+                    rad_int[1] * self.C[1] / (self.C[0] + self.C[1])
+                    for k in range(self.n_turns + 1)
+                ],
+            ],
+            decimal=6,
+        )
+        np.testing.assert_array_almost_equal(
+            ring_srflag.I3,
+            [
+                [
+                    rad_int[2] * self.C[0] / (self.C[0] + self.C[1])
+                    for k in range(self.n_turns + 1)
+                ],
+                [
+                    rad_int[2] * self.C[1] / (self.C[0] + self.C[1])
+                    for k in range(self.n_turns + 1)
+                ],
+            ],
+            decimal=6,
+        )
+        np.testing.assert_array_almost_equal(
+            ring_srflag.I4,
+            [
+                [
+                    rad_int[3] * self.C[0] / (self.C[0] + self.C[1])
+                    for k in range(self.n_turns + 1)
+                ],
+                [
+                    rad_int[3] * self.C[1] / (self.C[0] + self.C[1])
+                    for k in range(self.n_turns + 1)
+                ],
+            ],
+            decimal=6,
+        )
+        # Checks the isomagnetic radiation integrals are passed in the ring.
+        ring_srflag = Ring(
+            self.C,
+            self.alpha_0,
+            self.momentum,
+            self.particle,
+            self.n_turns,
+            n_sections=self.num_sections,
+            use_synchrotron_radiation=True,
+            bending_radius=10,
+        )
+        np.testing.assert_array_almost_equal(
+            ring_srflag.I2,
+            [
+                [
+                    2 * np.pi / 10 * self.C[0] / (self.C[0] + self.C[1])
+                    for k in range(self.n_turns + 1)
+                ],
+                [
+                    2 * np.pi / 10 * self.C[1] / (self.C[0] + self.C[1])
+                    for k in range(self.n_turns + 1)
+                ],
+            ],
+            decimal=6,
+        )
+        np.testing.assert_array_almost_equal(
+            ring_srflag.I3,
+            [
+                [
+                    2 * np.pi / 10**2 * self.C[0] / (self.C[0] + self.C[1])
+                    for k in range(self.n_turns + 1)
+                ],
+                [
+                    2 * np.pi / 10**2 * self.C[1] / (self.C[0] + self.C[1])
+                    for k in range(self.n_turns + 1)
+                ],
+            ],
+            decimal=6,
+        )
+        np.testing.assert_array_almost_equal(
+            ring_srflag.I4,
+            [
+                [
+                    self.C[0] * self.alpha_0[0][0] / 10**2
+                    for k in range(self.n_turns + 1)
+                ],
+                [
+                    self.C[1] * self.alpha_0[1][0] / 10**2
+                    for k in range(self.n_turns + 1)
+                ],
+            ],
+            decimal=6,
+        )
+
+
+if __name__ == "__main__":
     unittest.main()
