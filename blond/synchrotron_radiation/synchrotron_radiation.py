@@ -45,7 +45,7 @@ class SynchrotronRadiation:
 
     # TO DO list:
     # - multi-turn radiation integrals handling (momentum compaction
-    # factor variation, input of SR integrals TBT,
+    # factor variation, input of synchrotron_radiation integrals TBT,
     # update of the integrals during tracking, ...),
     # - inclusion of damping wigglers,
     # - handling of lost particles during tracking,
@@ -110,13 +110,15 @@ class SynchrotronRadiation:
         None
         """
         self.ring = ring
-        self.rf_params = rf_station
+        self.rf_station = rf_station
         self.beam = beam
         self.track = None
-        self.beam_position_to_compensate_SR = None
-        self.beam_phase_to_compensate_SR = None
+        self.beam_position_to_compensate_synchrotron_radiation = None
+        self.beam_phase_to_compensate_synchrotron_radiation = None
 
-        self.n_kicks = n_kicks  # To apply SR in several kicks
+        self.n_kicks = (
+            n_kicks  # To apply synchrotron_radiation in several kicks
+        )
         np.random.seed(seed=seed)
 
         # Calculate static parameters
@@ -125,10 +127,10 @@ class SynchrotronRadiation:
         # Initialize the random number array if quantum excitation
         if quantum_excitation:
             self.random_array = np.zeros(self.beam.n_macroparticles)
-        # Computes the radiation integrals and initializes the SR
+        # Computes the radiation integrals and initializes the synchrotron_radiation
         # parameters
         self.assign_radiation_integrals(radiation_integrals, bending_radius)
-        self.calculate_SR_params()
+        self.calculate_synchrotron_radiation_params()
         self.shift_beam_function(shift_beam=shift_beam)
         self.tracker_choice(
             python=python, quantum_excitation=quantum_excitation, seed=seed
@@ -142,23 +144,25 @@ class SynchrotronRadiation:
         shift_beam: bool
         """
         #
-        if shift_beam and (self.rf_params.section_index == 0):
-            self.beam_phase_to_compensate_SR = np.abs(
+        if shift_beam and (self.rf_station.section_index == 0):
+            self.beam_phase_to_compensate_synchrotron_radiation = np.abs(
                 np.arcsin(
                     self.U0
                     / (
                         self.ring.particle.charge
-                        * self.rf_params.voltage[0][0]
+                        * self.rf_station.voltage[0][0]
                     )
                 )
             )
-            self.beam_position_to_compensate_SR = (
-                self.beam_phase_to_compensate_SR
-                * self.rf_params.t_rf[0, 0]
+            self.beam_position_to_compensate_synchrotron_radiation = (
+                self.beam_phase_to_compensate_synchrotron_radiation
+                * self.rf_station.t_rf[0, 0]
                 / (2.0 * np.pi)
             )
 
-            self.beam.dt -= self.beam_position_to_compensate_SR
+            self.beam.dt -= (
+                self.beam_position_to_compensate_synchrotron_radiation
+            )
 
     def tracker_choice(self, python, quantum_excitation, seed):
         """
@@ -169,18 +173,18 @@ class SynchrotronRadiation:
             if quantum_excitation:
                 self.track = self.track_full_python
             else:
-                self.track = self.track_SR_python
+                self.track = self.track_synchrotron_radiation_python
         else:
             if quantum_excitation:
                 if seed is not None:
                     bm.set_random_seed(seed)
                 self.track = self.track_full_C
             else:
-                self.track = self.track_SR_C
+                self.track = self.track_synchrotron_radiation_C
         self.track_models: dict[str, Callable] = {
-            "track_SR_python": self.track_SR_python,
+            "track_synchrotron_radiation_python": self.track_synchrotron_radiation_python,
             "track_full_python": self.track_full_python,
-            "track_SR_C": self.track_SR_C,
+            "track_synchrotron_radiation_C": self.track_synchrotron_radiation_C,
             "track_full_C": self.track_full_C,
         }
         self.track_mode: str | None = None
@@ -197,9 +201,9 @@ class SynchrotronRadiation:
         """
 
         if self.ring.use_synchrotron_radiation:
-            self.I2 = self.ring.I2[self.rf_params.section_index]
-            self.I3 = self.ring.I3[self.rf_params.section_index]
-            self.I4 = self.ring.I4[self.rf_params.section_index]
+            self.I2 = self.ring.I2[self.rf_station.section_index]
+            self.I3 = self.ring.I3[self.rf_station.section_index]
+            self.I4 = self.ring.I4[self.rf_station.section_index]
             self.jz = 2.0 + self.I4 / self.I2
         else:
             if radiation_integrals is None:
@@ -222,8 +226,8 @@ class SynchrotronRadiation:
                         for k in range(self.ring.n_turns + 1)
                     ]
                     self.I4 = (
-                        self.ring.ring_length[self.rf_params.section_index]
-                        * self.ring.alpha_0[self.rf_params.section_index]
+                        self.ring.ring_length[self.rf_station.section_index]
+                        * self.ring.alpha_0[self.rf_station.section_index]
                         / bending_radius**2
                     )
                     self.jz = 2.0 + self.I4 / self.I2
@@ -250,9 +254,7 @@ class SynchrotronRadiation:
                         [
                             integrals[1]
                             * (
-                                self.ring.ring_length[
-                                    self.rf_params.section_index
-                                ]
+                                self.rf_station.section_length
                                 / self.ring.ring_circumference
                             )
                             for k in range(self.ring.n_turns + 1)
@@ -262,9 +264,7 @@ class SynchrotronRadiation:
                         [
                             integrals[2]
                             * (
-                                self.ring.ring_length[
-                                    self.rf_params.section_index
-                                ]
+                                self.rf_station.section_length
                                 / self.ring.ring_circumference
                             )
                             for k in range(self.ring.n_turns + 1)
@@ -274,9 +274,7 @@ class SynchrotronRadiation:
                         [
                             integrals[3]
                             * (
-                                self.ring.ring_length[
-                                    self.rf_params.section_index
-                                ]
+                                self.rf_station.section_length
                                 / self.ring.ring_circumference
                             )
                             for k in range(self.ring.n_turns + 1)
@@ -284,17 +282,17 @@ class SynchrotronRadiation:
                     )
                     self.jz = 2.0 + self.I4 / self.I2
 
-    # Method to compute the SR parameters
-    def calculate_SR_params(self):
-        i_turn = self.rf_params.counter[0]
+    # Method to compute the synchrotron_radiation parameters
+    def calculate_synchrotron_radiation_params(self):
+        i_turn = self.rf_station.counter[0]
 
-        # Energy loss per turn/RF section [eV]
+        # Energy loss per turn per RF section [eV per turn]
         self.U0 = (
             self.c_gamma
             * self.ring.energy[0, i_turn] ** 4.0
             * self.I2
             / (2.0 * np.pi)
-            * self.rf_params.section_length
+            * self.rf_station.section_length
             / self.ring.ring_circumference
         )
 
@@ -309,13 +307,13 @@ class SynchrotronRadiation:
             / (self.jz * self.I2)
         )
 
-    # Print SR parameters
-    def print_SR_params(self):
-        i_turn = self.rf_params.counter[0]
+    # Print synchrotron_radiation parameters
+    def print_synchrotron_radiation_params(self):
+        i_turn = self.rf_station.counter[0]
 
         print("------- Synchrotron radiation parameters -------")
         print(f"jz = {self.jz:1.8f}")
-        if self.rf_params.section_length == self.ring.ring_circumference:
+        if self.rf_station.section_length == self.ring.ring_circumference:
             print(f"Energy loss per turn = {self.U0 / 1e9:1.4f} GeV/turn")
             print(f"Damping time = {self.tau_z:1.4f} turns")
         else:
@@ -329,13 +327,13 @@ class SynchrotronRadiation:
                     self.U0
                     * 1e-9
                     * self.ring.ring_circumference
-                    / self.rf_params.section_length
+                    / self.rf_station.section_length
                 )
             )
             print(
                 "Damping time = {0:1.4f} turns".format(
                     self.tau_z
-                    * self.rf_params.section_length
+                    * self.rf_station.section_length
                     / self.ring.ring_circumference
                 )
             )
@@ -345,18 +343,18 @@ class SynchrotronRadiation:
         )
         print("------------------------------------------------")
 
-    def track_SR_python(self):
+    def track_synchrotron_radiation_python(self):
         """
         Adds the effect of synchrotron radiation damping on the beam
         coordinates. Quantum excitation ignored.
         """
-        i_turn = self.rf_params.counter[0]
-        # Recalculate SR parameters if energy changes
+        i_turn = self.rf_station.counter[0]
+        # Recalculate synchrotron_radiation parameters if energy changes
         if (
             i_turn != 0
             and self.ring.energy[0, i_turn] != self.ring.energy[0, i_turn - 1]
         ):
-            self.calculate_SR_params()
+            self.calculate_synchrotron_radiation_params()
         for i in range(self.n_kicks):
             self.beam.dE += -(
                 2.0 / self.tau_z / self.n_kicks * self.beam.dE
@@ -368,13 +366,13 @@ class SynchrotronRadiation:
         Adds the effect of synchrotron radiation damping and quantum
         excitation on the beam coordinates.
         """
-        i_turn = self.rf_params.counter[0]
-        # Recalculate SR parameters if energy changes
+        i_turn = self.rf_station.counter[0]
+        # Recalculate synchrotron_radiation parameters if energy changes
         if (
             i_turn != 0
             and self.ring.energy[0, i_turn] != self.ring.energy[0, i_turn - 1]
         ):
-            self.calculate_SR_params()
+            self.calculate_synchrotron_radiation_params()
         for i in range(self.n_kicks):
             self.beam.dE += -(
                 2.0 / self.tau_z / self.n_kicks * self.beam.dE
@@ -389,38 +387,38 @@ class SynchrotronRadiation:
             )
             # quantum excitation kick
 
-    # Track particles with SR only (without quantum excitation)
+    # Track particles with synchrotron_radiation only (without quantum excitation)
     # C implementation
-    def track_SR_C(self):
+    def track_synchrotron_radiation_C(self):
         """
         Adds the effect of synchrotron radiation damping on the beam
         coordinates. Quantum excitation ignored.
         """
-        i_turn = self.rf_params.counter[0]
-        # Recalculate SR parameters if energy changes
+        i_turn = self.rf_station.counter[0]
+        # Recalculate synchrotron_radiation parameters if energy changes
         if (
             i_turn != 0
             and self.ring.energy[0, i_turn] != self.ring.energy[0, i_turn - 1]
         ):
-            self.calculate_SR_params()
+            self.calculate_synchrotron_radiation_params()
 
         bm.synchrotron_radiation(
             self.beam.dE, self.U0, self.n_kicks, self.tau_z
         )
 
-    # Track particles with SR and quantum excitation. C implementation
+    # Track particles with synchrotron_radiation and quantum excitation. C implementation
     def track_full_C(self):
         """
         Adds the effect of synchrotron radiation damping and quantum
         excitation on the beam coordinates.
         """
-        i_turn = self.rf_params.counter[0]
-        # Recalculate SR parameters if energy changes
+        i_turn = self.rf_station.counter[0]
+        # Recalculate synchrotron_radiation parameters if energy changes
         if (
             i_turn != 0
             and self.ring.energy[0, i_turn] != self.ring.energy[0, i_turn - 1]
         ):
-            self.calculate_SR_params()
+            self.calculate_synchrotron_radiation_params()
 
         bm.synchrotron_radiation_full(
             self.beam.dE,
