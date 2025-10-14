@@ -316,7 +316,8 @@ class TestGeneralParameters(unittest.TestCase):
 
     def test_assign_radiation_integrals(self):
         rad_int = [random.random() for k in range(5)]
-
+        # TODO: write test for the warning if use_SR false but radiation integrals is
+        # not None
         ring_srflag = Ring(
             self.C,
             self.alpha_0,
