@@ -239,6 +239,7 @@ class SynchrotronRadiation:
                         f"{type(radiation_integrals)}."
                     )
                 else:
+                    # TODO: multi-turn radiation integrals as input...
                     integrals = np.array(radiation_integrals)
                     if len(integrals) < 5:
                         raise ValueError(
