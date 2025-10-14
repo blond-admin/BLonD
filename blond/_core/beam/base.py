@@ -81,7 +81,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -116,7 +116,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
                 f" {new_reference_total_energy} eV."
                 f" The energy is overwritten according to simulation."
             )
-            warnings.warn(msg)
+            warnings.warn(msg, stacklevel=1)
         self.reference_total_energy = new_reference_total_energy
 
     @property

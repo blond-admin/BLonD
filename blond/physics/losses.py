@@ -75,7 +75,7 @@ class BoxLosses(LossesBaseClass):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -130,7 +130,7 @@ class SeparatrixLosses(LossesBaseClass):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init

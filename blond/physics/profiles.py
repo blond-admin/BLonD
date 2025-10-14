@@ -73,7 +73,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -400,7 +400,7 @@ class DynamicProfile(ProfileBaseClass):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -415,7 +415,7 @@ class DynamicProfile(ProfileBaseClass):
         Parameters
         ----------
         beam
-            Simulation beam object
+            Simulation `Beam` object
         """
         pass
 
@@ -462,7 +462,7 @@ class DynamicProfileConstCutoff(DynamicProfile):
         Parameters
         ----------
         beam
-            Simulation beam object
+            Simulation `Beam` object
         """
         cut_left = beam.dt_min  # TODO caching of attribute access
         cut_right = beam.dt_max  # TODO caching of attribute access
@@ -500,7 +500,7 @@ class DynamicProfileConstNBins(DynamicProfile):
         Parameters
         ----------
         beam
-            Simulation beam object
+            Simulation `Beam` object
         """
         cut_left = beam.dt_min  # TODO caching of attribute access
         cut_right = beam.dt_max  # TODO caching of attribute access

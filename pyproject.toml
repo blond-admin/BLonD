@@ -67,6 +67,7 @@ exclude = [
     "unittests",
     "legacy",
     "integrationtests_blond3",
+    "__doc/",
 ]
 [tool.ruff.lint]
 # Enable broad set of useful lint rules
@@ -90,7 +91,13 @@ ignore = [
     "PLR0913", # Too many arguments in function definition
     "PLC0415", # `import` should be at the top-level of a file
     "D401", # First line of docstring should be in imperative mood
+    "B024", # ... is an abstract base class, but it has no abstract methods or properties
+    "E712", #  Avoid equality comparisons to `False`; use `if not ...:` for false checks
 
+]
+exclude = [
+    "blond/handle_results/observables.py",
+    "blond/examples/*",
 ]
 
 [tool.ruff.lint.pydocstyle]

@@ -112,6 +112,7 @@ def move_compiled_file_to_subfolder(module_name: str):
 
 def main_cli() -> None:
     """Entry point for running from the command line.
+
     Calls the Fortran compilation function.
     """
     sucess = compile_fortran_module(_module_name32, _fortran_files32)

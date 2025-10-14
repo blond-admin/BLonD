@@ -92,7 +92,7 @@ class BeamPhysicsRelevantElements(Preparable):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -204,12 +204,12 @@ class BeamPhysicsRelevantElements(Preparable):
                         <= element.section_index
                         <= self.elements[insert_at - 1].section_index + 1
                     )
-            except:
+            except AssertionError as exc:
                 raise AssertionError(
                     "The element section index is incompatible "
                     "with the requested location. Please allow "
                     "overwrite for automatic handling."
-                )
+                ) from exc
         else:
             raise AssertionError(
                 f"The element must be inserted within ["
@@ -217,8 +217,7 @@ class BeamPhysicsRelevantElements(Preparable):
             )
 
     def insert(self, element: BeamPhysicsRelevant, insert_at: int) -> None:
-        """Insert a beam physics-relevant element to the container at the
-        specified index.
+        """Insert an element to the container at the specified index.
 
         Parameters
         ----------

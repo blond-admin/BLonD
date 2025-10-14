@@ -17,16 +17,13 @@ from ...._generals._hashing import hash_in_folder
 logger = logging.getLogger(__name__)
 
 
-def _add_dll_directory(command):
+def _add_dll_directory(command: str):
     """Add the bin directory of some executable to the DLL search path.
 
     Parameters
     ----------
     command
         A command line command, e.g. gcc or gfortran
-
-    Returns
-    -------
 
     """
     _gfortran_path = shutil.which(command)
@@ -239,7 +236,7 @@ class FortranSpecials(Specials):
         eta0 = eta_0 * coeff
         eta1 = eta_1 * coeff * coeff
         eta2 = eta_2 * coeff * coeff * coeff
-        for i in prange(len(dt)):
+        for i in range(len(dt)):
             dEi = dE[i]
             if alpha_order == 0:
                 dt[i] += T * (1.0 / (1.0 - eta0 * dEi) - 1.0)
@@ -276,7 +273,7 @@ class FortranSpecials(Specials):
         invbetasq = 1 / (beta * beta)
         invenesq = 1 / (energy * energy)
         # double beam_delta;
-        for i in prange(len(dt)):
+        for i in range(len(dt)):
             beam_delta = (
                 np.sqrt(
                     1.0

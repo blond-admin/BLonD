@@ -100,7 +100,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         Returns
         -------
@@ -152,7 +152,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         Returns
         -------
@@ -237,7 +237,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         Returns
         -------
@@ -285,7 +285,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         Returns
         -------
@@ -382,7 +382,7 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         Returns
         -------
@@ -486,7 +486,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         Returns
         -------
@@ -635,7 +635,7 @@ class TravelingWaveCavity(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         Returns
         -------
@@ -661,7 +661,7 @@ class TravelingWaveCavity(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         Returns
         -------

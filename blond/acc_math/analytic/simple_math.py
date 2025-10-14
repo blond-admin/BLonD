@@ -1,3 +1,5 @@
+"""Collection of relativistic equations."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -84,4 +86,19 @@ def calc_energy_kin(mass: float, momentum: T) -> T:
 
 
 def beta_by_momentum(momentum: T, mass: float) -> T:
+    """Calculate fraction of velocity over speed of light.
+
+    Parameters
+    ----------
+    momentum : float or NDArray
+        Particle momentum, in [eV/c]
+    mass : float
+        Particle mass, in [eV/c²]
+
+    Returns
+    -------
+    beta
+        Fraction of velocity over speed of light.
+
+    """
     return np.sqrt(1 / (1 + (mass / momentum) ** 2))

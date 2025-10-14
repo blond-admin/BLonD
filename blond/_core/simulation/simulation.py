@@ -63,7 +63,7 @@ class Simulation(Preparable, HasPropertyCache):
     Parameters
     ----------
     ring
-        Ring a.k.a. synchrotron
+        `Ring` a.k.a. synchrotron
     magnetic_cycle
         Container object to handle the scheduled energy gain
         per turn or by time
@@ -229,7 +229,7 @@ class Simulation(Preparable, HasPropertyCache):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -352,7 +352,7 @@ class Simulation(Preparable, HasPropertyCache):
 
     @property  # as readonly attributes
     def ring(self) -> Ring:
-        """Ring a.k.a. synchrotron."""
+        """`Ring` a.k.a. synchrotron."""
         return self._ring
 
     @property  # as readonly attributes
@@ -406,7 +406,7 @@ class Simulation(Preparable, HasPropertyCache):
         Parameters
         ----------
         beam
-            Simulation beam object
+            Simulation `Beam` object
         preparation_routine
             Algorithm to prepare the beam dt and dE coorinates
         turn_i
@@ -455,7 +455,7 @@ class Simulation(Preparable, HasPropertyCache):
             turn_i_init=turn_i_init,
         )
 
-        if len(beams) == 1:
+        if len(beams) == 1:  # NOQA: PLR2004
             self._run_simulation_single_beam(
                 beam=beams[0],
                 n_turns=_n_turns,
@@ -464,7 +464,7 @@ class Simulation(Preparable, HasPropertyCache):
                 show_progressbar=show_progressbar,
                 callback=callback,
             )
-        elif len(beams) == 2:
+        elif len(beams) == 2:  # NOQA: PLR2004
             assert (
                 beams[0].is_counter_rotating,
                 beams[1].is_counter_rotating,
@@ -607,6 +607,7 @@ class Simulation(Preparable, HasPropertyCache):
         raise NotImplementedError
         from ...physics.cavities import (  # prevent cyclic import
             CavityBaseClass,
+            DriftBaseClass,
             MultiHarmonicCavity,
         )
 

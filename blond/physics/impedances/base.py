@@ -89,7 +89,7 @@ class TimeDomain(ABC):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         Returns
         -------
@@ -118,7 +118,7 @@ class FreqDomain(ABC):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         Returns
         -------
@@ -197,7 +197,7 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init

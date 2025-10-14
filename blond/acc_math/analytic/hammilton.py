@@ -1,3 +1,5 @@
+"""Collection of equations to deal with a single RF Hamiltonian."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -56,7 +58,8 @@ def is_in_separatrix(
 
     Returns
     -------
-
+    is_in_separatrix
+        An array mask, where 1 means that a particle is inside the separatrix.
     """
     dt_sep = (np.pi - phi_s - phi_rf_d) / omega_rf
 
@@ -186,7 +189,7 @@ def single_rf_sin_hamiltonian(
     c1 = eta_tracking * c * np.pi / (ring_circumference * beta * total_energy)
     c2 = c * beta * V0 / (h0 * ring_circumference)
 
-    phi_s = phi_s
+    phi_s_ = phi_s
     phi_b = omega_rf * dt + phi_rf_d
 
     eta0 = etas[0]
@@ -198,7 +201,7 @@ def single_rf_sin_hamiltonian(
         phi_b = phase_modulo_above_transition(phi_b)
 
     return c1 * dE**2 + c2 * (
-        np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) * np.sin(phi_s)
+        np.cos(phi_b) - np.cos(phi_s_) + (phi_b - phi_s_) * np.sin(phi_s_)
     )
 
 
@@ -209,6 +212,27 @@ def calc_phi_s_single_harmonic(
     energy_gain: float,
     above_transition: bool,
 ) -> float:
+    """Derive the analytical synchronous phase for a single harmonic RF.
+
+    Parameters
+    ----------
+    charge
+        Particle charge, i.e. number of elementary charges `e`
+        Example: For an electron `charge=-1`.
+    voltage
+        RF voltage of the cavity, in [V].
+    phase
+        phi_rf of the main harmonic, in [rad].
+    energy_gain
+        Energy gain per turn, in [eV].
+    above_transition
+        Weather the beam energy is below or above transition.
+
+    Returns
+    -------
+    phi_s
+        The synchronous phase, in [rad].
+    """
     phi = np.arcsin(energy_gain / (voltage * charge))
     if above_transition:
         phi = np.pi - phi

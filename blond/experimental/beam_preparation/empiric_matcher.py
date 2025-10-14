@@ -37,7 +37,7 @@ def populate_beam(
     Parameters
     ----------
     beam
-        Simulation beam object
+        Simulation `Beam` object
     time_grid
         2D grid of positions in time, in [s]
     deltaE_grid

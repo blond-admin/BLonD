@@ -136,8 +136,13 @@ else:
 
 
 def load_libblond(precision: str = "single") -> CDLL:
-    """Locates and initializes the blond compiled library
-    @param precision: The floating point precision of the calculations. Can be 'single' or 'double'.
+    """Locates and initializes the blond compiled library.
+
+    Parameters
+    ----------
+    precision
+        The floating point precision of the calculations.
+        Can be 'single' or 'double'.
     """
     libblond_path = os.environ.get("LIBBLOND", None)
     from ...._generals._hashing import hash_in_folder

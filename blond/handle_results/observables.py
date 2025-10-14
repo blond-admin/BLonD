@@ -23,16 +23,20 @@ logger = logging.getLogger(__name__)
 
 
 class Observables(MainLoopRelevant):
+    """Base class to observe attributes during simulation.
+
+    Parameters
+    ----------
+    each_turn_i
+        Value to control that the element is
+        callable each n-th turn.
+    folder
+        Path to the target folder used for
+        saving or loading files.
+
+    """
+
     def __init__(self, each_turn_i: int, folder: str):
-        """Base class to observe attributes during simulation.
-
-        Parameters
-        ----------
-        each_turn_i
-            Value to control that the element is
-            callable each n-th turn.
-
-        """
         super().__init__()
         self.each_turn_i = each_turn_i
         if len(folder) > 0:
@@ -64,7 +68,7 @@ class Observables(MainLoopRelevant):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         """
         pass
@@ -90,7 +94,7 @@ class Observables(MainLoopRelevant):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -164,19 +168,23 @@ class Observables(MainLoopRelevant):
 
 
 class BunchObservation(Observables):
+    """Observe the bunch coordinates during simulation execution.
+
+    Parameters
+    ----------
+    each_turn_i
+        Value to control that the element is
+        callable each n-th turn.
+    folder
+        Path to the target folder used for
+        saving or loading files.
+    """
+
     def __init__(
         self,
         each_turn_i: int,
         folder: str = "",
     ):
-        """Observe the bunch coordinates during simulation execution.
-
-        Parameters
-        ----------
-        each_turn_i
-            Value to control that the element is
-            callable each n-th turn.
-        """
         super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._dts: DenseArrayRecorder | None = None
         self._dEs: DenseArrayRecorder | None = None
@@ -197,7 +205,7 @@ class BunchObservation(Observables):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -247,7 +255,7 @@ class BunchObservation(Observables):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         """
         # TODO allow several bunches
@@ -279,22 +287,26 @@ class BunchObservation(Observables):
 
 
 class CavityPhaseObservation(Observables):
+    """Observe the cavity rf parameters during simulation execution.
+
+    Parameters
+    ----------
+    each_turn_i
+        Value to control that the element is
+        callable each n-th turn.
+    cavity
+        Class that implements beam-rf interactions in a synchrotron
+    folder
+        Path to the target folder used for
+        saving or loading files.
+    """
+
     def __init__(
         self,
         each_turn_i: int,
         cavity: SingleHarmonicCavity,
         folder: str = "",
     ):
-        """Observe the cavity rf parameters during simulation execution.
-
-        Parameters
-        ----------
-        each_turn_i
-            Value to control that the element is
-            callable each n-th turn.
-        cavity
-            Class that implements beam-rf interactions in a synchrotron
-        """
         super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._cavity = cavity
         self._phases: DenseArrayRecorder | None = None
@@ -314,7 +326,7 @@ class CavityPhaseObservation(Observables):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -353,7 +365,7 @@ class CavityPhaseObservation(Observables):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         """
         self._phases.write(
@@ -372,14 +384,17 @@ class CavityPhaseObservation(Observables):
 
     @property  # as readonly attributes
     def phases(self) -> NumpyArray:
+        """Cavity's effective phase, in [deg]."""
         return self._phases.get_valid_entries()
 
     @property  # as readonly attributes
     def omegas(self) -> NumpyArray:
+        """Cavity's angular frequency, in [Hz]."""
         return self._omegas.get_valid_entries()
 
     @property  # as readonly attributes
     def voltages(self) -> NumpyArray:
+        """Cavity's effective voltage, in [V]."""
         return self._voltages.get_valid_entries()
 
 
@@ -394,6 +409,9 @@ class StaticProfileObservation(Observables):
     profile
         Class for the calculation of beam profile
         that doesn't change its parameters
+    folder
+        Path to the target folder used for
+        saving or loading files.
     """
 
     def __init__(
@@ -419,7 +437,7 @@ class StaticProfileObservation(Observables):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -450,7 +468,7 @@ class StaticProfileObservation(Observables):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         """
         self._hist_y.write(
@@ -473,6 +491,9 @@ class WakeFieldObservation(Observables):
         callable each n-th turn.
     wakefield
         Manager class to calculate wake-fields
+    folder
+        Path to the target folder used for
+        saving or loading files.
     """
 
     def __init__(
@@ -498,7 +519,7 @@ class WakeFieldObservation(Observables):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -529,7 +550,7 @@ class WakeFieldObservation(Observables):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         """
         try:
