@@ -100,6 +100,10 @@ exclude_patterns = [
     "*/blond._core.backends.cuda.call*",
     "*/blond._core.backends.fortran.call*",
     "*/blond._core.backends.cpp.call*",
+    "*/blond._core.backends.cpp.lib*",
+    "*/blond._generals._files*",
+    "*/blond._generals._hashing*",
+    "*vari_noise*",
 ]
 # callables are only importable with cupy/fortran compiled
 
