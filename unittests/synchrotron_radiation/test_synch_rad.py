@@ -223,7 +223,7 @@ class TestSynchtrotronRadiation(unittest.TestCase):
 
         rad_int = [random.random() for k in range(5)]
         SR_noflag = SynchrotronRadiation(
-            ring,
+            self.ring,
             self.rf_station,
             self.beam,
             radiation_integrals=rad_int,
