@@ -383,6 +383,14 @@ class Ring:
                 bending_radius=bending_radius,
                 interp_time=interp_time,
             )
+        else:
+            if radiation_integrals is not None:
+                warnings.warn(
+                    "Synchrotron radiation integrals were "
+                    "provided, but synchrotron radiation is "
+                    "disabled. Please set "
+                    '"use_synchrotron_radiation = True".'
+                )
 
     @property
     def Particle(self):
@@ -647,3 +655,7 @@ class Ring:
         )
 
         return parameters
+
+    @property
+    def use_synchrotron_radiation(self):
+        return self._use_synchrotron_radiation
