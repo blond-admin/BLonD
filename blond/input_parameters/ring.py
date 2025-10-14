@@ -362,9 +362,10 @@ class Ring:
         # Synchrotron radiation handler
         self._use_synchrotron_radiation = use_synchrotron_radiation
         if self._use_synchrotron_radiation:
-            self.assign_radiation_integrals(
+            self._assign_radiation_integrals(
                 radiation_integrals=radiation_integrals,
                 bending_radius=bending_radius,
+                interp_time=interp_time,
             )
 
     @property
@@ -472,10 +473,31 @@ class Ring:
                 / (2 * self.gamma[i] ** 2)
             )
 
-    def assign_radiation_integrals(self, radiation_integrals, bending_radius):
+    def _assign_radiation_integrals(
+        self, radiation_integrals, bending_radius, interp_time
+    ):
         """
+        Assign and reformat the synchrotron radiation integrals input.
+
         Function to handle the synchrotron radiation integrals from an
-        input array or a bending radius input.
+        input array or a bending radius input, with an automatic
+        reformatting of the relevant array per section and per turn.
+
+        Parameters
+        ----------
+            radiation_integrals
+                Synchrotron radiation integrals input
+            bending_radius
+                Bending radius of the beam
+            interp_time
+                Interpolation time for data reformatting
+
+        Returns
+        ----------
+            Ring object with I2, I3 and I4 parameters as
+            float matrices [n_sections, n_turns+1]
+
+
         For more about synchrotron radiation damping and integrals
         definition, please refer to (non-exhaustive list):
         A. Wolski, CAS Advanced Accelerator Physics, 19-29 August 2013
@@ -493,13 +515,26 @@ class Ring:
                     "integrals."
                 )
             else:
-                self.I2 = 2.0 * np.pi / self.bending_radius
-                self.I3 = 2.0 * np.pi / self.bending_radius**2.0
-                self.I4 = (
-                    self.ring_circumference
-                    * self.alpha_0[0, 0]
+                I2_section = [
+                    2.0
+                    * np.pi
+                    / self.bending_radius
+                    * (self.ring_length[k] / self.ring_circumference)
+                    for k in range(self.n_sections)
+                ]
+                I3_section = [
+                    2.0
+                    * np.pi
+                    / self.bending_radius**2
+                    * (self.ring_length[k] / self.ring_circumference)
+                    for k in range(self.n_sections)
+                ]
+                I4_section = [
+                    self.ring_length[k]
+                    * self.alpha_0[k, 0]
                     / self.bending_radius**2.0
-                )
+                    for k in range(self.n_sections)
+                ]
         else:
             if not isinstance(radiation_integrals, (np.ndarray, list)):
                 raise TypeError(
@@ -519,9 +554,31 @@ class Ring:
                         "Synchrotron radiation integrals prevail. "
                         "'bending radius' is ignored."
                     )
-                self.I2 = integrals[1]
-                self.I3 = integrals[2]
-                self.I4 = integrals[3]
+                I2_section = [
+                    integrals[1]
+                    * (self.ring_length[k] / self.ring_circumference)
+                    for k in range(self.n_sections)
+                ]
+                I3_section = [
+                    integrals[2]
+                    * (self.ring_length[k] / self.ring_circumference)
+                    for k in range(self.n_sections)
+                ]
+                I4_section = [
+                    integrals[3]
+                    * (self.ring_length[k] / self.ring_circumference)
+                    for k in range(self.n_sections)
+                ]
+
+        self.I2 = self.ring_options.reshape_data(
+            I2_section, self.n_turns, self.n_sections, interp_time=interp_time
+        )
+        self.I3 = self.ring_options.reshape_data(
+            I3_section, self.n_turns, self.n_sections, interp_time=interp_time
+        )
+        self.I4 = self.ring_options.reshape_data(
+            I4_section, self.n_turns, self.n_sections, interp_time=interp_time
+        )
 
     def parameters_at_time(self, cycle_moments: Iterable[float] | float):
         """Function to return various cycle parameters at a specific moment in
