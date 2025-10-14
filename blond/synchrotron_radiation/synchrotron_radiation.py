@@ -189,20 +189,21 @@ class SynchrotronRadiation:
         """
         Function to handle the synchrotron radiation integrals from an
         input array or a bending radius input.
-        For more about synchrotron radiation damping and integral
+        For more about synchrotron radiation damping and integrals
         definition, please refer to (non-exhaustive list):
         A. Wolski, CAS Advanced Accelerator Physics, 19-29 August 2013
         H. Wiedemann, Particle Accelerator Physics, Chapter Equilibrium
         Particle Distribution, p. 384, Third Edition, Springer, 2007
         """
-        if radiation_integrals is None:
-            if bending_radius is None:
-                if hasattr(self.ring, "I2"):
-                    self.I2 = self.ring.I2
-                    self.I3 = self.ring.I3
-                    self.I4 = self.ring.I4
-                    self.jz = 2.0 + self.I4 / self.I2
-                else:
+
+        if self.ring.use_synchrotron_radiation:
+            self.I2 = self.ring.I2[self.rf_params.section_index]
+            self.I3 = self.ring.I3[self.rf_params.section_index]
+            self.I4 = self.ring.I4[self.rf_params.section_index]
+            self.jz = 2.0 + self.I4 / self.I2
+        else:
+            if radiation_integrals is None:
+                if bending_radius is None:
                     raise MissingParameterError(
                         "Synchrotron radiation damping "
                         "and quantum excitation require"
@@ -211,39 +212,77 @@ class SynchrotronRadiation:
                         "first five synchrotron radiation "
                         "integrals."
                     )
-            else:
-                self.rho = bending_radius
-                self.I2 = 2.0 * np.pi / self.rho
-                self.I3 = 2.0 * np.pi / self.rho**2.0
-                self.I4 = (
-                    self.ring.ring_circumference
-                    * self.ring.alpha_0[0, 0]
-                    / self.rho**2.0
-                )
-                self.jz = 2.0 + self.I4 / self.I2
-        else:
-            if not isinstance(radiation_integrals, (np.ndarray, list)):
-                raise TypeError(
-                    f"Expected a list or a NDArray as an input. "
-                    f"Received type(radiation_integrals)="
-                    f"{type(radiation_integrals)}."
-                )
-            else:
-                integrals = np.array(radiation_integrals)
-                if len(integrals) < 5:
-                    raise ValueError(
-                        f"Length of radiation integrals must be "
-                        f"> 5, but is {len(integrals)}"
+                else:
+                    self.I2 = [
+                        2.0 * np.pi / bending_radius
+                        for k in range(self.ring.n_turns + 1)
+                    ]
+                    self.I3 = [
+                        2.0 * np.pi / bending_radius**2.0
+                        for k in range(self.ring.n_turns + 1)
+                    ]
+                    self.I4 = (
+                        self.ring.ring_length[self.rf_params.section_index]
+                        * self.ring.alpha_0[self.rf_params.section_index]
+                        / bending_radius**2
                     )
-                if bending_radius is not None:
-                    warnings.warn(
-                        "Synchrotron radiation integrals prevail. "
-                        "'bending radius' is ignored."
+                    self.jz = 2.0 + self.I4 / self.I2
+            else:
+                if not isinstance(radiation_integrals, (np.ndarray, list)):
+                    raise TypeError(
+                        f"Expected a list or a NDArray as an input. "
+                        f"Received type(radiation_integrals)="
+                        f"{type(radiation_integrals)}."
                     )
-                self.I2 = integrals[1]
-                self.I3 = integrals[2]
-                self.I4 = integrals[3]
-                self.jz = 2.0 + self.I4 / self.I2
+                else:
+                    integrals = np.array(radiation_integrals)
+                    if len(integrals) < 5:
+                        raise ValueError(
+                            f"Length of radiation integrals must be "
+                            f"> 5, but is {len(integrals)}"
+                        )
+                    if bending_radius is not None:
+                        warnings.warn(
+                            "Synchrotron radiation integrals prevail. "
+                            "'bending radius' is ignored."
+                        )
+                    self.I2 = np.array(
+                        [
+                            integrals[1]
+                            * (
+                                self.ring.ring_length[
+                                    self.rf_params.section_index
+                                ]
+                                / self.ring.ring_circumference
+                            )
+                            for k in range(self.ring.n_turns + 1)
+                        ]
+                    )
+                    self.I3 = np.array(
+                        [
+                            integrals[2]
+                            * (
+                                self.ring.ring_length[
+                                    self.rf_params.section_index
+                                ]
+                                / self.ring.ring_circumference
+                            )
+                            for k in range(self.ring.n_turns + 1)
+                        ]
+                    )
+                    self.I4 = np.array(
+                        [
+                            integrals[3]
+                            * (
+                                self.ring.ring_length[
+                                    self.rf_params.section_index
+                                ]
+                                / self.ring.ring_circumference
+                            )
+                            for k in range(self.ring.n_turns + 1)
+                        ]
+                    )
+                    self.jz = 2.0 + self.I4 / self.I2
 
     # Method to compute the SR parameters
     def calculate_SR_params(self):
