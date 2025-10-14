@@ -142,6 +142,12 @@ test_documentation_building:
   script:
     - cd ${project_root}
     - python3 -m sphinx build -b html -W -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=5 --keep-going __doc __doc/_build/html
+  artifacts:
+    paths:
+      - ${project_root}/__doc/_build/html
+    expire_in: 1 week
+    when: always
+
 
 #pages_blond3:  # adjusted for BLonD3, not active yet
 #  image: gitlab-registry.cern.ch/blond/blond/python310
