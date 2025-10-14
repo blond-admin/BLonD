@@ -99,6 +99,10 @@ class Ring:
         This object defines the interpolation scheme, plotting options, etc.
         The options for this object can be adjusted and passed to the Ring
         object.
+    use_synchrotron_radiation : bool
+        Enables synchrotron radiation considerations
+    radiation_integrals: NumpyArray
+        Synchrotron radiation integrals
 
     Attributes
     ----------
@@ -169,6 +173,18 @@ class Ring:
     ring_options : RingOptions()
         The RingOptions is kept as an attribute of the Ring object for further
         usage.
+    _use_synchrotron_radiation: Bool
+        Enables synchrotron radiation considerations
+    I2 : float matrix [n_sections, n_turns+1]
+        Second synchrotron radiation integral, used in the calculation
+        of the energy lost per turn
+    I3 : float matrix [n_sections, n_turns+1]
+        Third synchrotron radiation integral, used in the calculation of
+        the natural energy spread
+    I4 : float matrix [n_sections, n_turns+1]
+        Fourth synchrotron radiation integral to compute the longitudinal
+        damping time
+
 
     Examples
     --------
