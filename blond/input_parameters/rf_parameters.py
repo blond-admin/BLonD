@@ -249,6 +249,11 @@ class RFStation:
         phi_modulation=None,
         rf_station_options: Optional[RFStationOptions] = None,
     ):
+        self._use_synchrotron_radiation = ring.use_synchrotron_radiation
+        if self._use_synchrotron_radiation:
+            self.I2 = ring.I2
+            self.I3 = ring.I3
+            self.I4 = ring.I4
         if rf_station_options is None:
             rf_station_options = RFStationOptions()
 
@@ -605,6 +610,10 @@ class RFStation:
         # to make sure it will not be called again
         self._device: DeviceType = "CPU"
 
+    @property
+    def use_synchrotron_radiation(self):
+        return self._use_synchrotron_radiation
+
 
 @handle_legacy_kwargs
 def calculate_Q_s(rf_station: RFStation, particle: Optional[Particle] = None):
@@ -683,9 +692,28 @@ def calculate_phi_s(
 
     if accelerating_systems == "as_single":
         denergy = np.append(rf_station.delta_E, rf_station.delta_E[-1])
-        acceleration_ratio = denergy / (
-            particle.charge * rf_station.voltage[0, :]
-        )
+        if rf_station.use_synchrotron_radiation:
+            U0 = (
+                particle.c_gamma
+                / (2 * np.pi)
+                * np.append(rf_station.momentum[1:], rf_station.momentum[0])
+                ** 4
+                * rf_station.I2
+            )
+            # TODO check indexing
+            U0 = (
+                particle.c_gamma
+                / (2 * np.pi)
+                * rf_station.momentum**4
+                * rf_station.I2
+            )  # eV per turn
+            acceleration_ratio = (denergy + U0) / (
+                particle.charge * rf_station.voltage[0, :]
+            )
+        else:
+            acceleration_ratio = denergy / (
+                particle.charge * rf_station.voltage[0, :]
+            )
         acceleration_test = (
             (acceleration_ratio > -1) & (acceleration_ratio < 1)
         ) == 0
