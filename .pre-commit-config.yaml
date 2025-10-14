@@ -23,3 +23,5 @@ repos:
     rev: v0.12.11  # Replace with the latest version
     hooks:
       - id: ruff-format  # This runs `ruff format`
+      - id: ruff-check  # This runs `ruff format`
+        args: ["--fix"] # otherwise not compatible with Ruff

@@ -8,7 +8,7 @@ from ._core.beam.particle_types import mu_minus  # NOQA
 from ._core.beam.particle_types import mu_plus  # NOQA
 from ._core.beam.particle_types import positron  # NOQA
 from ._core.beam.particle_types import proton  # NOQA
-from ._core.beam.particle_types import uranium_29  # NOQA; NOQA
+from ._core.beam.particle_types import uranium_29  # NOQA
 from ._core.ring.ring import Ring  # NOQA
 from ._core.simulation.simulation import Simulation  # NOQA
 from ._generals.cupy.no_cupy_import import AllowPlotting  # NOQA
@@ -16,10 +16,10 @@ from .beam_preparation.bigaussian import BiGaussian  # NOQA
 from .cycles.magnetic_cycle import ConstantMagneticCycle  # NOQA
 from .cycles.magnetic_cycle import MagneticCycleByTime  # NOQA
 from .cycles.magnetic_cycle import MagneticCyclePerTurn  # NOQA
-from .cycles.magnetic_cycle import MagneticCyclePerTurnAllCavities  # NOQA; NOQA
+from .cycles.magnetic_cycle import MagneticCyclePerTurnAllCavities  # NOQA
 from .handle_results.observables import BunchObservation  # NOQA
 from .handle_results.observables import CavityPhaseObservation  # NOQA
-from .handle_results.observables import StaticProfileObservation  # NOQA; NOQA
+from .handle_results.observables import StaticProfileObservation  # NOQA
 from .physics.cavities import MultiHarmonicCavity, SingleHarmonicCavity  # NOQA
 from .physics.drifts import DriftSimple  # NOQA
 from .physics.impedances.base import WakeField  # NOQA
