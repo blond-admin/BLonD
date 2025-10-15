@@ -26,7 +26,13 @@ from blond.legacy.blond2.beam.distributions import (
 from blond.legacy.blond2.beam.profile import CutOptions as cut_options_b2
 from blond.legacy.blond2.beam.profile import Profile as profile_b2
 from blond.legacy.blond2.impedances.impedance import (
+    InducedVoltageFreq,
+)
+from blond.legacy.blond2.impedances.impedance import (
     InducedVoltageResonator as ind_volt_res_b2,
+)
+from blond.legacy.blond2.impedances.impedance import (
+    InducedVoltageTime,
 )
 from blond.legacy.blond2.impedances.impedance import (
     TotalInducedVoltage as total_ind_volt_b2,
@@ -64,7 +70,7 @@ n_turns = 56
 alpha_p = 8.986e-4
 Q_factor = 1.76e6
 bunch_intensity = 2.4e12
-station_downscale = 80
+station_downscale = 40
 circumference = 5990
 harmonic = 25928
 voltage_per_cavity = 31140000.0
@@ -73,7 +79,7 @@ energy_gain_per_turn = (
     (ejection_energy - inj_energy) / n_turns / station_downscale
 )
 
-n_turns_downscale = 100
+n_turns_downscale = 1000
 ejection_energy = inj_energy + n_turns_downscale * energy_gain_per_turn
 total_voltage = energy_gain_per_turn / np.sin(phi_s)
 voltage_per_station = total_voltage
@@ -243,6 +249,18 @@ def setup_and_run_blond2(mtw=False):
         time_decay_factor=decay_fraction_threshold,
     )
 
+    # frequency_resolution_input = 0.5 * ring.f_rev[0] / 1 * harmonic
+    #
+    # ind_volt_time = InducedVoltageTime(
+    #     beam,
+    #     profile,
+    #     [res_fund],
+    #     rf_station=rf_station,
+    #     multi_turn_wake=mtw,
+    #     # frequency_resolution=frequency_resolution_input,
+    #     mtw_mode="time",
+    # )
+
     total_ind_volt = total_ind_volt_b2(beam, profile, [ind_volt_res])
     total_ind_volt.induced_voltage_sum()
 
@@ -255,12 +273,11 @@ def setup_and_run_blond2(mtw=False):
     )  # without interpolation no ind voltage
     full_ring_and_rf_tracker = FullRingAndRF([long_tracker])
 
-    # if not os.path.exists("initial_beam.npz"):
     matching = matched_from_distribution_function(
         beam,
         full_ring_and_rf_tracker,
         n_iterations=10,
-        TotalInducedVoltage=total_ind_volt,
+        total_induced_voltage=total_ind_volt,
         dt_margin_percent=0.01,
         seed=1234,
         distribution_exponent=2,
@@ -269,12 +286,9 @@ def setup_and_run_blond2(mtw=False):
         distribution_variable="Hamiltonian",
         process_pot_well=True,
         turn_number=0,
+        # n_points_grid=profile.n_slices
     )
     np.savez("initial_beam.npz", dt=beam.dt, dE=beam.dE, id=beam.id)
-    # else:
-    #     beam.dt = np.load("initial_beam.npz")["dt"]
-    #     beam.dE = np.load("initial_beam.npz")["dE"]
-    #     beam.id = np.load("initial_beam.npz")["id"]
 
     profile.track()
 
@@ -302,7 +316,7 @@ def setup_and_run_blond2(mtw=False):
     return np.array(save_bunch_centroid), np.array(save_energy_centroid)
 
 
-def test_plot_and_compare():
+def plot_and_compare():
     mtw = True
     bunch_centroid_b2, energy_centroid_b2 = setup_and_run_blond2(mtw=mtw)
 
@@ -327,4 +341,4 @@ def test_plot_and_compare():
     np.testing.assert_allclose(bunch_centroid_b2, bunch_observation.mean_dt, rtol=1e-4)
 
 if __name__ == "__main__":
-    test_plot_and_compare()
+    plot_and_compare()

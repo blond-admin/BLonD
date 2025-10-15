@@ -773,7 +773,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         sets self._last_reference_time to current_time afterwards.
         """
         delta_t = current_time - self._last_reference_time
-        assert delta_t > 0  # TODO: performance = ?
+        # assert delta_t > 0  # TODO: performance = ?
         for prof_ind, profile_time in enumerate(self._past_profile_times):
             profile_time += delta_t
             self._wake_function_time[prof_ind] += delta_t
