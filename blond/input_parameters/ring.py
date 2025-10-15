@@ -324,18 +324,30 @@ class Ring:
         self.f_rev: NumpyArray = 1 / self.t_rev
         self.omega_rev: NumpyArray = 2 * np.pi * self.f_rev
 
-        # TODO:  Revisit and improve multi-section interpolation
+        # TODO:  Check the implementation and compare with previous one
         if self.n_sections == 1:
-            self.delta_E: NumpyArray = np.diff(self.energy, axis=1)
+            self.delta_E = np.diff(self.energy, axis=1)
         else:
             # when there is more than 1 RF station, self.energy has shape (n_sections, n_turns+1)
-            # where all turns have the same initial energy, the injection energy in column 0
-            # Order="F" for column flattening
-            self.delta_E = np.diff(self.energy.flatten(order="F"))[
-                n_sections - 1 :
-            ].reshape((n_sections, n_turns))
-            # skipping of first n_section elements due to the same initial energy in the arrays,
-            # one less is required due to the length reduction of diff
+            self.delta_E = np.zeros((n_sections, n_turns))
+            self.delta_E[0, :] = (
+                self.energy[0, 1 : n_turns + 1] - self.energy[-1, 0:n_turns]
+            )
+            self.delta_E[1:, :] = (
+                self.energy[1:, 1 : n_turns + 1]
+                - self.energy[:-1, 1 : n_turns + 1]
+            )
+        # if self.n_sections == 1:
+        #     self.delta_E: NumpyArray = np.diff(self.energy, axis=1)
+        # else:
+        #     # when there is more than 1 RF station, self.energy has shape (n_sections, n_turns+1)
+        #     # where all turns have the same initial energy, the injection energy in column 0
+        #     # Order="F" for column flattening
+        #     self.delta_E = np.diff(self.energy.flatten(order="F"))[
+        #         n_sections - 1 :
+        #     ].reshape((n_sections, n_turns))
+        #     # skipping of first n_section elements due to the same initial energy in the arrays,
+        #     # one less is required due to the length reduction of diff
 
         # Momentum compaction, checks, and derived slippage factors
         if ring_options.t_start is None:
