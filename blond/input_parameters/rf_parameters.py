@@ -522,7 +522,6 @@ def calculate_phi_s(RFStation, Particle=Proton(),
         if RFStation.sr_flag:
             U0 = Particle.c_gamma / (2 * np.pi) * np.append(RFStation.momentum[1:],
                                                             RFStation.momentum[0]) ** 4 * RFStation.I2
-            U0 = Particle.c_gamma / (2 * np.pi) * RFStation.momentum** 4 * RFStation.I2 # eV per turn
             acceleration_ratio = (denergy + U0) / (Particle.charge * RFStation.voltage[0, :])
         else :
             acceleration_ratio = denergy / (Particle.charge * RFStation.voltage[0, :])
