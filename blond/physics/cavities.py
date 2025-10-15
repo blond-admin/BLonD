@@ -177,7 +177,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             target_total_energy - beam.reference_total_energy
         )
 
-        from blond.acc_math.analytic.hammilton import (
+        from blond.acc_math.analytic.hamilton import (
             calc_phi_s_single_harmonic,
         )
 

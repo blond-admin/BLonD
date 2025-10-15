@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 from matplotlib import pyplot as plt
 
-from blond.acc_math.analytic.hammilton import (
+from blond.acc_math.analytic.hamilton import (
     calc_phi_s_single_harmonic,
     is_in_separatrix,
     phase_modulo_above_transition,
