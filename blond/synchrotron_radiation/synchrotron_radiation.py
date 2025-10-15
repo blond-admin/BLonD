@@ -315,7 +315,7 @@ class SynchrotronRadiation:
         i_turn = self.rf_station.counter[0]
 
         print("------- Synchrotron radiation parameters -------")
-        print(f"jz = {self.jz:1.8f}")
+        print(f"jz = {self.jz[i_turn]:1.8f}")
         if self.rf_station.section_length == self.ring.ring_circumference:
             print(f"Energy loss per turn = {self.U0 / 1e9:1.4f} GeV/turn")
             print(f"Damping time = {self.tau_z:1.4f} turns")
