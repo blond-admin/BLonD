@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
@@ -98,7 +99,7 @@ def _normalize_as_density(hamilton_2D: NumpyArray):
 
     density[density > h_max] = h_max
     density -= h_max
-    density = (density ** 2)
+    density = density**2
     # density *= -1
     density /= np.sum(density)
 
@@ -107,17 +108,41 @@ def _normalize_as_density(hamilton_2D: NumpyArray):
 
 class EmpiricMatcher(MatchingRoutine):
     def __init__(
-            self,
-            grid_base_dt: NumpyArray,
-            grid_base_dE: NumpyArray,
-            n_macroparticles: int | float,
-            seed: int = 0,
-            maxiter_intensity_effects=10,
-            maxiter_hamiltonian=20,
-            atol_hamiltonian=1e-4,
-            animate=False,
+        self,
+        grid_base_dt: NumpyArray,
+        grid_base_dE: NumpyArray,
+        n_macroparticles: int | float,
+        seed: int = 0,
+        maxiter_intensity_effects=10,
+        maxiter_hamiltonian=20,
+        atol_hamiltonian=1e-4,
+        animate=False,
     ):
         """Matching routine based on the particle movement within one turn.
+
+        Step 1:
+        This routine uses a 2D grid (dt vs dE) and executes one turn
+        of the simulation with this grid as `Beam`. After one turn,
+        the movement of the particles are used to derive the 2D Hamiltonian
+        by the equations dH/dp = do/dt and dH/dq = -dq/dt,
+        because do/dt and dH/dq are observed within one turn.
+
+        Step 2:
+        The obtained 2D Hamilton is converted to a density distribution
+        via `_normalize_as_density` # TODO make this method selectable by the user.
+
+        Step 3:
+        The 2D density distribution is converted to beam dt and dE coordinates.
+
+        Step 4 - For Intensity effects
+        Repeat 1-3 until the shape of the beam converges to a stable solution.
+
+        Notes
+        -----
+        Due to using an internal 2D grid, this method can be very demanding
+        in terms of runtime and memory. It is better to use
+        `SemiEmpiricMatcher`, as it works on a 1D data format.
+
 
         Notes
         -----
@@ -127,8 +152,12 @@ class EmpiricMatcher(MatchingRoutine):
         ----------
         grid_base_dt
             Base axis for a 2D grid of positions in time, in [s]
+            This defines the boundaries of observation,
+            i.e. where the bunch is going to be defined.
         grid_base_dE
-            Base axis for a 2D grid of energies, in [eV]
+            Base axis for a 2D grid of energies, in [eV].
+            This defines the boundaries of observation,
+            i.e. where the bunch is going to be defined.
         n_macroparticles
             Number of macroparticles to distribute, according to the grid
         seed
@@ -138,6 +167,12 @@ class EmpiricMatcher(MatchingRoutine):
             Maximum number of iterations to refine the matched beam
             for intensity effects
         """
+        warnings.warn(
+            "This method is still in development and subject to changes. "
+            "Expect bugs!",
+            UserWarning,
+            stacklevel=1,
+        )
         self._grid_base_dt = grid_base_dt
         self._grid_base_dE = grid_base_dE
 
@@ -232,7 +267,9 @@ class EmpiricMatcher(MatchingRoutine):
         simulation.intensity_effect_manager.set_wakefields(active=True)
         if self.animate:
             plt.figure("EmpiricMatcher")
-        for i in tqdm(range(self._maxiter_intensity_effects), desc="EmpiricMatcher:"):
+        for i in tqdm(
+            range(self._maxiter_intensity_effects), desc="EmpiricMatcher:"
+        ):
             simulation.intensity_effect_manager.set_profiles(active=True)
             simulation.run_simulation(
                 beams=(users_beam,),
@@ -282,13 +319,16 @@ class EmpiricMatcher(MatchingRoutine):
                 plt.figure("EmpiricMatcher")
                 plt.clf()
                 plt.title(f"Iteration {i}")
-                plt.hist2d(users_beam._dt, users_beam._dE, bins=len(self._grid_base_dt))
+                plt.hist2d(
+                    users_beam._dt,
+                    users_beam._dE,
+                    bins=len(self._grid_base_dt),
+                )
                 plt.draw()
-                plt.pause(.1)
+                plt.pause(0.1)
                 plt.clf()
 
         simulation.intensity_effect_manager.set_wakefields(active=True)
         simulation.intensity_effect_manager.set_profiles(active=True)
-
 
         plt.close("EmpiricMatcher")
