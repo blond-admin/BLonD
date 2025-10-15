@@ -40,7 +40,9 @@ class Observables(MainLoopRelevant):
         obs_per_turn
             Number of observations per turn. Default is 1,
             cannot be higher than number of cavities in turn map
-
+        folder
+            Path to the target folder used for
+            saving or loading files.
 
         """
         super().__init__()
@@ -224,7 +226,7 @@ class BunchObservation(Observables):
         self,
         each_turn_i: int,
         beam: BeamBaseClass,
-        folder: str = "",  # TODO docstring
+        folder: str = "",
     ):
         """Observe the bunch coordinates during simulation execution.
 
@@ -235,6 +237,9 @@ class BunchObservation(Observables):
             callable each n-th turn.
         beam
             Simulation beam object
+        folder
+            Path to the target folder used for
+            saving or loading files.
         """
         super().__init__(
             each_turn_i=each_turn_i,
@@ -348,7 +353,7 @@ class BunchObservation_meta_params(Observables):  # TODO rework class
         self,
         each_turn_i: int,
         beam: BeamBaseClass,
-        folder: str = "",  # TODO docstring
+        folder: str = "",
         obs_per_turn: int = 1,
     ):
         """
@@ -361,6 +366,9 @@ class BunchObservation_meta_params(Observables):  # TODO rework class
             cannot be more than number of cavities in turn map
         beam
             Simulation beam object
+        folder
+            Path to the target folder used for
+            saving or loading files.
         """
         super().__init__(
             each_turn_i=each_turn_i, obs_per_turn=obs_per_turn, folder=folder
@@ -388,7 +396,6 @@ class BunchObservation_meta_params(Observables):  # TODO rework class
             turn_i_init=turn_i_init,
             obs_per_turn=self._obs_per_turn,
         )
-        # TODO: check if the obs_per_turn is larger than the number of sections --> not possible
 
         n_entries = int(n_turns * self._obs_per_turn + 1)
         shape = n_entries
@@ -499,6 +506,9 @@ class CavityPhaseObservation(Observables):
             callable each n-th turn.
         cavity
             Class that implements beam-rf interactions in a synchrotron
+        folder
+            Path to the target folder used for
+            saving or loading files.
         """
         super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._cavity = cavity
@@ -591,7 +601,7 @@ class StaticProfileObservation(Observables):
         each_turn_i: int,
         profile: StaticProfile,
         obs_per_turn: int = 1,
-        folder: str = "",  # TODO docstring everywhere
+        folder: str = "",
     ):
         """Observation of a static beam profile.
 
@@ -605,6 +615,9 @@ class StaticProfileObservation(Observables):
             that doesn't change its parameters
         obs_per_turn
             Number of observations per turn, default is 1
+        folder
+            Path to the target folder used for
+            saving or loading files.
         """
         super().__init__(
             each_turn_i=each_turn_i,
@@ -684,7 +697,7 @@ class StaticMultiProfileObservation(Observables):
         self,
         each_turn_i: int,
         profiles: list[StaticProfile],
-        folder: str = "",  # TODO docstring
+        folder: str = "",
         obs_per_turn: int = 1,
     ):
         """Observation of multiple profiles in one observation object. The profiles need to have the same n_bins.
@@ -699,6 +712,9 @@ class StaticMultiProfileObservation(Observables):
             that doesn't change its parameters
         obs_per_turn
             Number of observations per turn, default is 1
+        folder
+            Path to the target folder used for
+            saving or loading files.
         """
         super().__init__(
             each_turn_i=each_turn_i, obs_per_turn=obs_per_turn, folder=folder
