@@ -12,4 +12,4 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
-   blond.experimental.acc_math.empiric.hammiltonian
+   blond.experimental.acc_math.empiric.hamiltonian

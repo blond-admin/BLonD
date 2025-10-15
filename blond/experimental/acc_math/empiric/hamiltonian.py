@@ -107,9 +107,6 @@ def calc_hamiltonian(
         H /= np.max(H)
         err1_rel = err1.max() * (pi[1] - pi[0])
         err2_rel = err2.max() * (xi[1] - xi[0])
-        print(atol)
-        print(err1_rel, err2_rel)
-        print((err1_rel < atol) and (err2_rel < atol))
         if (err1_rel < atol) and (err2_rel < atol) and iteration > 1:
             print(f"breaking with {(err1_rel, err2_rel)}")
             break
