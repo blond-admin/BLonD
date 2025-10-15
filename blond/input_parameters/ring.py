@@ -202,7 +202,7 @@ class Ring:
 
     def __init__(self, ring_length, alpha_0, synchronous_data, Particle,
                  n_turns=1, synchronous_data_type='momentum',
-                 bending_radius=None, n_sections=1, alpha_1=None, alpha_2=None, rad_int = None,
+                 bending_radius=None, n_sections=1, alpha_1=None, alpha_2=None, radiation_integrals = None,
                  RingOptions=RingOptions()):
 
         # Conversion of initial inputs to expected types
@@ -312,11 +312,11 @@ class Ring:
 
         #Radiation integrals integration
         self.sr_flag = False
-        if rad_int is not None:
+        if radiation_integrals is not None:
             integrals = [0]
-            if type(rad_int) in {np.ndarray, list}:
+            if type(radiation_integrals) in {np.ndarray, list}:
                 try :
-                    integrals = np.array(rad_int)
+                    integrals = np.array(radiation_integrals)
                 except ValueError as ve:
                     raise ValueError(ve)
 
@@ -355,7 +355,7 @@ class Ring:
                                       "radiation integrals are requires " +
                                       "Ignoring input.")
             else:
-                raise TypeError(f"Expected a list or numpy.ndarray as an input. Received {type(rad_int)}.")
+                raise TypeError(f"Expected a list or numpy.ndarray as an input. Received {type(radiation_integrals)}.")
 
 
     def eta_generation(self):
