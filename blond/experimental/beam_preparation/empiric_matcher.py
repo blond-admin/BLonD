@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
+from tqdm import tqdm
 
 from blond import Simulation
 from blond._core.helpers import int_from_float_with_warning
@@ -96,9 +97,8 @@ def _normalize_as_density(hamilton_2D: NumpyArray):
     density = hamilton_2D.copy()  # TODO better inplace for memory?
 
     density[density > h_max] = h_max
-    density[density > h_max] -= h_max
-    density = -(density**2)
-    density -= np.min(density)
+    density -= h_max
+    density = (density ** 2)
     # density *= -1
     density /= np.sum(density)
 
@@ -107,14 +107,15 @@ def _normalize_as_density(hamilton_2D: NumpyArray):
 
 class EmpiricMatcher(MatchingRoutine):
     def __init__(
-        self,
-        grid_base_dt: NumpyArray,
-        grid_base_dE: NumpyArray,
-        n_macroparticles: int | float,
-        seed: int = 0,
-        maxiter_intensity_effects=10,
-        maxiter_hammiltonian=20,
-        atol_hammiltonian=1e-4,
+            self,
+            grid_base_dt: NumpyArray,
+            grid_base_dE: NumpyArray,
+            n_macroparticles: int | float,
+            seed: int = 0,
+            maxiter_intensity_effects=10,
+            maxiter_hammiltonian=20,
+            atol_hammiltonian=1e-4,
+            animate=False,
     ):
         """Matching routine based on the particle movement within one turn.
 
@@ -155,6 +156,8 @@ class EmpiricMatcher(MatchingRoutine):
         )
         self._maxiter_hammiltonian = maxiter_hammiltonian
         self._atol_hammiltonian = atol_hammiltonian
+
+        self.animate = animate
 
     def prepare_beam(
         self,
@@ -227,7 +230,9 @@ class EmpiricMatcher(MatchingRoutine):
         )
 
         simulation.intensity_effect_manager.set_wakefields(active=True)
-        for i in range(self._maxiter_intensity_effects):
+        if self.animate:
+            plt.figure("EmpiricMatcher")
+        for i in tqdm(range(self._maxiter_intensity_effects), desc="EmpiricMatcher:"):
             simulation.intensity_effect_manager.set_profiles(active=True)
             simulation.run_simulation(
                 beams=(users_beam,),
@@ -273,8 +278,17 @@ class EmpiricMatcher(MatchingRoutine):
                 n_macroparticles=self._n_macroparticles,
                 seed=self._seed,
             )
-            plt.hist2d(users_beam._dt, users_beam._dE, bins=100)
-            plt.show()
+            if self.animate:
+                plt.figure("EmpiricMatcher")
+                plt.clf()
+                plt.title(f"Iteration {i}")
+                plt.hist2d(users_beam._dt, users_beam._dE, bins=len(self._grid_base_dt))
+                plt.draw()
+                plt.pause(.1)
+                plt.clf()
 
         simulation.intensity_effect_manager.set_wakefields(active=True)
         simulation.intensity_effect_manager.set_profiles(active=True)
+
+
+        plt.close("EmpiricMatcher")
