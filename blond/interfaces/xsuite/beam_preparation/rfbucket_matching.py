@@ -4,14 +4,11 @@ from typing import TYPE_CHECKING, Type, Union
 
 import numpy as np
 from scipy.constants import c, e
-from xpart.longitudinal.rf_bucket import RFBucket
-from xpart.longitudinal.rfbucket_matching import (
-    RFBucketMatcher,
-)
 
 from blond import SingleHarmonicCavity
 from blond._core.helpers import int_from_float_with_warning
 from blond.beam_preparation.base import MatchingRoutine
+from blond.physics.drifts import DriftSimple
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional, Tuple
@@ -92,6 +89,7 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
         verbose_regeneration: bool = False,
     ) -> None:
         super().__init__()
+
         self.distribution_type = distribution_type
         self.sigma_z = sigma_z
         self.n_macroparticles = int_from_float_with_warning(
@@ -131,7 +129,9 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             - `transition_gamma` is not defined in the first drift element.
 
         """
-        from blond.physics.drifts import DriftSimple
+        # prevent crash if xpart not installed
+        from xpart.longitudinal.rf_bucket import RFBucket
+        from xpart.longitudinal.rfbucket_matching import RFBucketMatcherb
 
         super().prepare_beam(
             simulation=simulation,

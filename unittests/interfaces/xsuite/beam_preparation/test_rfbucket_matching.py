@@ -2,16 +2,8 @@ import unittest
 from random import random
 
 import numpy as np
-from interfaces.xsuite.beam_preparation.rfbucket_matching import (
-    XsuiteRFBucketMatcher,
-)
 from matplotlib import pyplot as plt
 from numpy import random
-from xpart.longitudinal.rfbucket_matching import (
-    ParabolicDistribution,
-    QGaussianDistribution,
-    ThermalDistribution,
-)
 
 from blond import SingleHarmonicCavity
 from blond.handle_results.helpers import callers_relative_path
@@ -23,6 +15,13 @@ class TestXsuiteRFBucketMatcher(unittest.TestCase):
         self.example = ExampleSimulation01()
 
     def _test_something(self, voltage, phase, routine):
+        try:
+            from interfaces.xsuite.beam_preparation.rfbucket_matching import (
+                XsuiteRFBucketMatcher,
+            )
+        except ImportError:
+            self.skipTest("xpart or xsuite interface not installed")
+
         simulation = self.example.simulation
         cavity = simulation.ring.elements.get_element(SingleHarmonicCavity)
         cavity.voltage = voltage
@@ -38,6 +37,11 @@ class TestXsuiteRFBucketMatcher(unittest.TestCase):
         )
 
     def test_distribution_is_matched_thermal(self):
+        try:
+            from xpart.longitudinal.rfbucket_matching import ThermalDistribution
+        except ImportError:
+            self.skipTest("xpart not installed")
+
         random.seed(42)
         self._test_something(voltage=6e6, phase=0, routine=ThermalDistribution)
         DEV_PLOT = False
@@ -57,6 +61,11 @@ class TestXsuiteRFBucketMatcher(unittest.TestCase):
         np.testing.assert_allclose(expected_counts, counts, rtol=1e-5)
 
     def test_distribution_is_matched_qgaussian(self):
+        try:
+            from xpart.longitudinal.rfbucket_matching import QGaussianDistribution
+        except ImportError:
+            self.skipTest("xpart not installed")
+
         random.seed(42)
         self._test_something(
             voltage=6e6, phase=0, routine=QGaussianDistribution
@@ -79,6 +88,11 @@ class TestXsuiteRFBucketMatcher(unittest.TestCase):
 
     @unittest.skip("test takes too long")
     def test_distribution_is_matched_parabolic(self):
+        try:
+            from xpart.longitudinal.rfbucket_matching import ParabolicDistribution
+        except ImportError:
+            self.skipTest("xpart not installed")
+
         random.seed(42)
         self._test_something(
             voltage=6e6, phase=0, routine=ParabolicDistribution
