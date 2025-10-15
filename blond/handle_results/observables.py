@@ -434,7 +434,7 @@ class BunchObservation_meta_params(Observables):  # TODO rework class
             Simulation context manager
 
         """
-        #TODO check if this value was already recorded, avoid double recording in the same section
+        # TODO check if this value was already recorded, avoid double recording in the same section
         if (
             self._last_section_i_observed == simulation.section_i.value
             and self._last_turn_i_observed == simulation.turn_i.value
@@ -477,10 +477,11 @@ class BunchObservation_meta_params(Observables):  # TODO rework class
 
 
 class MultiCavityObservation(Observables):
-    def __init__(self,
-                 each_turn_i: int,
-                 cavities: list[SingleHarmonicCavity],
-                 folder: str = "",
+    def __init__(
+        self,
+        each_turn_i: int,
+        cavities: list[SingleHarmonicCavity],
+        folder: str = "",
     ):
         raise NotImplementedError("To be implemented")
         # super().__init__(each_turn_i=each_turn_i, folder=folder)
