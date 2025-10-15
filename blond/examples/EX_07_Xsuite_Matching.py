@@ -2,6 +2,9 @@
 import logging
 
 import numpy as np
+from interfaces.xsuite.beam_preparation.rfbucket_matching import (
+    XsuiteRFBucketMatcher,
+)
 from matplotlib import pyplot as plt
 from xpart.longitudinal.rfbucket_matching import (  # ThermalDistribution,; ParabolicDistribution,
     QGaussianDistribution,
@@ -18,9 +21,6 @@ from blond import (
     proton,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
-from blond.interefaces.xsuite.beam_preparation.rfbucket_matching import (
-    XsuiteRFBucketMatcher,
-)
 
 logging.basicConfig(level=logging.INFO)
 

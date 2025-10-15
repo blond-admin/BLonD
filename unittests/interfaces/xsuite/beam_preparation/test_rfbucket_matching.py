@@ -2,6 +2,9 @@ import unittest
 from random import random
 
 import numpy as np
+from interfaces.xsuite.beam_preparation.rfbucket_matching import (
+    XsuiteRFBucketMatcher,
+)
 from matplotlib import pyplot as plt
 from numpy import random
 from xpart.longitudinal.rfbucket_matching import (
@@ -12,9 +15,6 @@ from xpart.longitudinal.rfbucket_matching import (
 
 from blond import SingleHarmonicCavity
 from blond.handle_results.helpers import callers_relative_path
-from blond.interefaces.xsuite.beam_preparation.rfbucket_matching import (
-    XsuiteRFBucketMatcher,
-)
 from blond.testing.simulation import ExampleSimulation01
 
 
