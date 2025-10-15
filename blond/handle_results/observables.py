@@ -39,7 +39,7 @@ class Observables(MainLoopRelevant):
             callable each n-th turn.
         obs_per_turn
             Number of observations per turn. Default is 1,
-            cannot be more than number of cavities in turn map
+            cannot be higher than number of cavities in turn map
 
 
         """
@@ -341,7 +341,7 @@ class BunchObservation(Observables):
 
 class BunchObservation_meta_params(Observables):  # TODO rework class
     """
-    Records mean and sigma of both energy and time bunch coordinates
+    Records mean and standard deviation of both energy and time coordinates and estimates the bunch emittance
     """
 
     def __init__(
@@ -427,7 +427,7 @@ class BunchObservation_meta_params(Observables):  # TODO rework class
             Simulation context manager
 
         """
-        # check if this value was already recorded, avoid double recording in the same section
+        #TODO check if this value was already recorded, avoid double recording in the same section
         if (
             self._last_section_i_observed == simulation.section_i.value
             and self._last_turn_i_observed == simulation.turn_i.value
