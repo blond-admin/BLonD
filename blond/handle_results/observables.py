@@ -469,19 +469,18 @@ class BunchObservation_meta_params(Observables):  # TODO rework class
         return self._emittance_stat.get_valid_entries()
 
 
-# class MultiCavityObservation(Observables):
-#     def __init__(self,
-#                  each_turn_i: int,
-#                  cavities: List[SingleHarmonicCavity],
-#                  folder: str = "",
-#     ):
-#         super().__init__(each_turn_i=each_turn_i, folder=folder)
-#         self._cavities = cavities
-#         self._phases: LateInit[DenseArrayRecorder] = None
-#         self._omegas: LateInit[DenseArrayRecorder] = None
-#         self._voltages: LateInit[DenseArrayRecorder] = None
-#
-#
+class MultiCavityObservation(Observables):
+    def __init__(self,
+                 each_turn_i: int,
+                 cavities: list[SingleHarmonicCavity],
+                 folder: str = "",
+    ):
+        raise NotImplementedError("To be implemented")
+        # super().__init__(each_turn_i=each_turn_i, folder=folder)
+        # self._cavities = cavities
+        # self._phases: DenseArrayRecorder | None = None
+        # self._omegas: DenseArrayRecorder | None = None
+        # self._voltages: DenseArrayRecorder | None = None
 
 
 class CavityPhaseObservation(Observables):
@@ -672,6 +671,7 @@ class StaticProfileObservation(Observables):
             self._hist_y.write(
                 self._profile._hist_y,
             )
+        # else return without recording
 
     @property  # as readonly attributes
     def hist_y(self):
