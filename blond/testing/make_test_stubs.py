@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 
 COVERAGE_JSON_PATH = (
-    Path(__file__).parent / Path("../../unittests/coverage.json")
+    Path(__file__).parent / Path("../../unittests/coverage.jsonsdlkfjhasdlkjfh")
 ).resolve()
 PROJECT_ROOT = (Path(__file__).parent / Path("../")).resolve()
 TEST_ROOT = (Path(__file__).parent / Path("../../unittests")).resolve()
