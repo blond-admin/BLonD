@@ -10,7 +10,7 @@ from tqdm import tqdm
 from blond import Simulation
 from blond._core.helpers import int_from_float_with_warning
 from blond.beam_preparation.base import MatchingRoutine
-from blond.experimental.acc_math.empiric.hammiltonian import (
+from blond.experimental.acc_math.empiric.hamiltonian import (
     calc_hamiltonian,
     separatrixes,
 )
@@ -113,8 +113,8 @@ class EmpiricMatcher(MatchingRoutine):
             n_macroparticles: int | float,
             seed: int = 0,
             maxiter_intensity_effects=10,
-            maxiter_hammiltonian=20,
-            atol_hammiltonian=1e-4,
+            maxiter_hamiltonian=20,
+            atol_hamiltonian=1e-4,
             animate=False,
     ):
         """Matching routine based on the particle movement within one turn.
@@ -154,8 +154,8 @@ class EmpiricMatcher(MatchingRoutine):
             maxiter_intensity_effects,
             warning_stacklevel=2,
         )
-        self._maxiter_hammiltonian = maxiter_hammiltonian
-        self._atol_hammiltonian = atol_hammiltonian
+        self._maxiter_hamiltonian = maxiter_hamiltonian
+        self._atol_hamiltonian = atol_hamiltonian
 
         self.animate = animate
 
@@ -214,8 +214,8 @@ class EmpiricMatcher(MatchingRoutine):
             beam_gridded._dE.reshape(shape_2d),
             time_grid,
             beam_gridded._dt.reshape(shape_2d),
-            maxiter=self._maxiter_hammiltonian,
-            atol=self._atol_hammiltonian,
+            maxiter=self._maxiter_hamiltonian,
+            atol=self._atol_hamiltonian,
         )
         hamilton_2D = _normalize_as_density(hamilton_2D)
         users_beam.reference_total_energy = reference_total_energy
@@ -264,8 +264,8 @@ class EmpiricMatcher(MatchingRoutine):
                 beam_gridded._dE.reshape(shape_2d),
                 time_grid,
                 beam_gridded._dt.reshape(shape_2d),
-                maxiter=self._maxiter_hammiltonian,
-                atol=self._atol_hammiltonian,
+                maxiter=self._maxiter_hamiltonian,
+                atol=self._atol_hamiltonian,
             )
             hamilton_2D = _normalize_as_density(hamilton_2D)
             users_beam.reference_total_energy = reference_total_energy
