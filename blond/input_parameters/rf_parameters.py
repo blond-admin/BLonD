@@ -693,20 +693,15 @@ def calculate_phi_s(
     if accelerating_systems == "as_single":
         denergy = np.append(rf_station.delta_E, rf_station.delta_E[-1])
         if rf_station.use_synchrotron_radiation:
+            # following the BLonD philosophy: energy gain = E[n+1]-E[n]
+            # The synchrotron radiation losses are calculated for E[n+1]
             U0 = (
                 particle.c_gamma
                 / (2 * np.pi)
                 * np.append(rf_station.momentum[1:], rf_station.momentum[0])
                 ** 4
-                * rf_station.I2
+                * rf_station.I2[0]
             )
-            # TODO check indexing
-            U0 = (
-                particle.c_gamma
-                / (2 * np.pi)
-                * rf_station.momentum**4
-                * rf_station.I2
-            )  # eV per turn
             acceleration_ratio = (denergy + U0) / (
                 particle.charge * rf_station.voltage[0, :]
             )
