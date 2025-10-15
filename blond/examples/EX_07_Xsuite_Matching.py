@@ -3,10 +3,8 @@ import logging
 
 import numpy as np
 from matplotlib import pyplot as plt
-from xpart.longitudinal.rfbucket_matching import (
-QGaussianDistribution,
-#ThermalDistribution,
-#ParabolicDistribution,
+from xpart.longitudinal.rfbucket_matching import (  # ThermalDistribution,; ParabolicDistribution,
+    QGaussianDistribution,
 )
 
 from blond import (
@@ -33,8 +31,7 @@ def main():
     cavity1 = SingleHarmonicCavity()
     cavity1.harmonic = 35640
     cavity1.voltage = 6e6
-    cavity1.phi_rf = 85 #45*(np.pi/180)
-
+    cavity1.phi_rf = 85  # 45*(np.pi/180)
 
     N_TURNS = int(1)
     energy_init = 450e9
@@ -99,17 +96,12 @@ def main():
             observe=[phase_observation, bunch_observation],
         )
 
-
     ANIMATE = True
     if ANIMATE:
         plt.figure()
         for i in range(N_TURNS):
             plt.clf()
-            plt.hist(
-                bunch_observation.dts[i, :],
-                bins=20,
-                density=True
-            )
+            plt.hist(bunch_observation.dts[i, :], bins=20, density=True)
             plt.title(f"Turn {i}")
             plt.xlabel("Time deviation dt [s]")
             plt.ylabel("Number of macroparticles")
