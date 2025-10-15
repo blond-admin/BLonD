@@ -789,7 +789,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         ----------
         zero_pinning: bool
             causes values <= self._parent_wakefield.profile.hist_step * np.finfo(float).eps * len(self._wake_function_time)
-            to be pinned to exactly zero. This prevents issues with the heaviside function around the 0 timestamp
+            to be pinned to exactly zero. This prevents issues with the heaviside function around the 0 timestamp.
 
         """
         for prof_ind in range(len(self._past_profiles)):
