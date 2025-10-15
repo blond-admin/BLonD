@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, Literal, Tuple
+from typing import TYPE_CHECKING
 
 import numpy as np
 from scipy.constants import c
@@ -201,7 +201,7 @@ def calculate_damping_times_in_seconds(
     energy_loss_per_turn
         Energy lost per turn, in [eV per turn]
     revolution_frequency
-        Revolution frequency [Hz]
+        Revolution frequency, in [Hz]
 
     Returns
     -------
@@ -229,8 +229,6 @@ def calculate_damping_times_in_seconds(
         ]
     )
 
-    return np.array([tau_x_s, tau_y_s, tau_z_s])
-
 
 def calculate_horizontal_damping_time_in_seconds(
     energy: float | NumpyArray,
@@ -256,6 +254,7 @@ def calculate_horizontal_damping_time_in_seconds(
     -------
         Horizontal damping time in seconds.
     """
+
     horizontal_damping_partition_number = (
         calculate_horizontal_damping_partition_number(
             synchrotron_radiation_integrals
