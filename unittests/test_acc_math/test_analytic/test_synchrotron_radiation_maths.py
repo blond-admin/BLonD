@@ -238,8 +238,20 @@ class TestSynchrotronRadiationMaths_array_inputs(unittest.TestCase):
         )
 
     def test_calculate_damping_times_in_seconds(self):
-        # todo: test assert identical lengths for revolution frequency and
-        # energy arrays
+        with self.assertRaises(AssertionError):
+            calculate_damping_times_in_seconds(
+                energy=self.beam_energy,
+                synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+                energy_loss_per_turn=self.energy_lost_per_turn,
+                revolution_frequency=self.revolution_frequency[0:2],
+            )
+        damping_times_in_second = calculate_damping_times_in_seconds(
+            energy=self.beam_energy,
+            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+            energy_loss_per_turn=self.energy_lost_per_turn,
+            revolution_frequency=self.revolution_frequency,
+        )
+
         damping_times_in_second = calculate_damping_times_in_seconds(
             energy=self.beam_energy,
             synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
