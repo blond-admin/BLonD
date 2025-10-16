@@ -24,6 +24,8 @@ class BeamPreparationRoutine(ABC):
         simulation
             Simulation context manager
         """
+        from .._core.base import Schedulable
+
         beam.reference_total_energy = (
             simulation.magnetic_cycle.get_total_energy_init(
                 turn_i_init=simulation.turn_i.value,
@@ -32,6 +34,13 @@ class BeamPreparationRoutine(ABC):
             )
         )
         beam.reference_time = 0  # FIXME
+
+        schedulables = simulation.ring.elements.get_elements(Schedulable)
+        for s in schedulables:
+            s.apply_schedules(
+                turn_i=simulation.turn_i.value,
+                reference_time=beam.reference_time,
+            )
 
 
 class MatchingRoutine(BeamPreparationRoutine, ABC):

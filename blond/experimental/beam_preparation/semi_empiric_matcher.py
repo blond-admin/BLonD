@@ -75,6 +75,7 @@ def hamilton_to_density_by_max(
 
     _density = hamilton_2D.copy()  # So the changes stay in this scope
 
+    _density -= _density.min()
     _density /= hamilton_max
     # Now 1 representing the limit between particles/no-particles.
     # Smaller 1 means there should be particles.
@@ -175,7 +176,7 @@ def get_hamilton_semi_analytic(
     V = potential_well[:, None]  # [V]
 
     # Compute the Hamiltonian hamilton_2D(t, ΔE) = 0.5 * const * ΔE² + V(t)
-    hamilton_2D = 0.5 * drift_term * backend.square(deltaE_grid) + V  # [eV]
+    hamilton_2D = np.sign(eta) * (0.5 * drift_term * backend.square(deltaE_grid) + V)  # [eV]
 
     return deltaE_grid, time_grid, hamilton_2D
 
@@ -444,6 +445,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
             time_grid = time_grid, deltaE_grid = deltaE_grid,
             hamilton_2D=hamilton_2D, **self.hamilton_to_density_kwargs
         )  # type: ignore
+        self._plot_hamilton_2D =hamilton_2D
+        self._plot_density =density
 
         populate_beam(
             beam=beam,
@@ -478,7 +481,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         """
         plt.figure("SemiEmpiricMatcher")
         with AllowPlotting():
-            plt.subplot(2, 1, 1)
+            plt.subplot(3, 1, 1)
             plt.title(
                 f"Iteration {i}, Intensity strength {(scalar * 100):3.1f}%"
             )
@@ -491,11 +494,20 @@ class SemiEmpiricMatcher(MatchingRoutine):
             plt.xlabel("Time (s)")
             plt.ylabel("Density (arb. unit)")
 
-            plt.subplot(2, 1, 2)
-            plt.axhline(self.hamilton_to_density_kwargs["hamilton_max"], c="C1", linestyle="--")
+            plt.subplot(3, 1, 2)
             if self._last_potential_well is not None:
                 plt.plot(ts, self._last_potential_well)
             if self._prelast_potential_well is not None:
                 plt.plot(ts, self._prelast_potential_well)
             plt.xlabel("Time (s)")
             plt.ylabel("Potential (arb. unit)")
+            ax = plt.subplot(3, 2, 5)
+            ax.imshow(self._plot_hamilton_2D.T) # todo more beautiful
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.set_xlabel("semi empiric hamiltonian")
+            ax = plt.subplot(3, 2, 6)
+            ax.imshow(self._plot_density.T) # todo more beautiful
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.set_xlabel("density distribution")
