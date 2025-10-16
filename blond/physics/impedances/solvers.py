@@ -807,11 +807,13 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                     )
                 )  # necessary for boundary effects
                 if zero_pinning:
+                    near_floating_point_precision_mask = np.abs(
+                        self._wake_function_time[prof_ind]
+                    ) <= hist_step * np.finfo(float).eps * len(
+                        self._wake_function_time[prof_ind]
+                    )
                     self._wake_function_time[prof_ind][
-                        np.abs(self._wake_function_time[prof_ind])
-                        <= hist_step
-                        * np.finfo(float).eps
-                        * len(self._wake_function_time[prof_ind])
+                        near_floating_point_precision_mask
                     ] = 0.0
                 self._wake_function_vals.appendleft(
                     np.zeros_like(self._wake_function_time[prof_ind])
