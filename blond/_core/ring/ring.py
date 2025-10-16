@@ -3,7 +3,7 @@ from __future__ import annotations
 import copy
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
@@ -25,6 +25,7 @@ class Ring(Preparable, Schedulable):
     def __init__(
         self,
         circumference: float,
+        radiation_integrals: NumpyArray | None = None,
     ) -> None:
         """Ring a.k.a. synchrotron.
 
@@ -36,6 +37,19 @@ class Ring(Preparable, Schedulable):
             but the circumference is used to determine the RF frequency.
             Changes of orbit length thus lead to delays, but do not alter
             the derived frequency program.
+        radiation_integrals
+            Synchrotron radiation integrals.
+            First five synchrotron radiation integrals are required:
+            'I_1' = \int, related to the momentum compaction factor,
+            'I_2' = , related to the energy loss per turn,
+            'I_3' = , related to the natural energy spread,
+            'I_4' =  , required for the damping times,
+            'I_5' =  , required for the natural horizontal emittance
+            with '\rho' the bending radius of bending elements, 'D' the
+            horizontal dispersion function, 'K' the focusing strength and 'H =
+            \beta_x D^2 + \alpha_x D {D'} + \gamma_x {D'}^2 ' the
+            H-function
+
         """
         from .beam_physics_relevant_elements import BeamPhysicsRelevantElements
 
@@ -45,6 +59,7 @@ class Ring(Preparable, Schedulable):
             f"`circumference` must be bigger 0, but is {circumference}"
         )
         self._circumference = circumference
+        self._radiation_integrals = radiation_integrals
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called.
@@ -107,6 +122,13 @@ class Ring(Preparable, Schedulable):
         the derived frequency program.
         """
         return self._circumference
+
+    def radiation_integrals(self) -> NumpyArray | None:
+        """
+        Synchrotron radiation integrals integrated along the full
+        circumference of the ring.
+        """
+        return self._radiation_integrals
 
     @cached_property
     def average_transition_gamma(self):
