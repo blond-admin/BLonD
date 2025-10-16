@@ -302,7 +302,13 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
     def calculate_envelope(
         self, time_axis: NumpyArray | None = None
     ) -> tuple[NumpyArray, NumpyArray]:
-        """Calculates the normalized envelope of all resonators."""
+        """Calculates the normalized envelope of all resonators.
+
+        Parameters
+        ----------
+        time_axis
+            time axis on which to calculate the envelope [s]
+        """
         if time_axis is None:
             time_axis = np.linspace(
                 0, np.max(self._quality_factors / self._omega) * 20, 100000

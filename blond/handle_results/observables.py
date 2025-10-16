@@ -344,11 +344,7 @@ class BunchObservation(Observables):
         return self._flags.get_valid_entries()
 
 
-class BunchObservation_meta_params(Observables):  # TODO rework class
-    """
-    Records mean and standard deviation of both energy and time coordinates and estimates the bunch emittance
-    """
-
+class BunchObservation_meta_params(Observables):
     def __init__(
         self,
         each_turn_i: int,
@@ -356,8 +352,10 @@ class BunchObservation_meta_params(Observables):  # TODO rework class
         folder: str = "",
         obs_per_turn: int = 1,
     ):
-        """
+        """Records mean and standard deviation of both energy and time coordinates and estimates the bunch emittance.
+
         Parameters
+        ----------
         each_turn_i
             Value to control that the element is
             callable each n-th turn.
@@ -389,6 +387,19 @@ class BunchObservation_meta_params(Observables):  # TODO rework class
         turn_i_init: int,
         **kwargs,
     ) -> None:
+        """Lateinit method when :func:`blond._core.simulation.simulation.Simulation.run_simulation` is called.
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+        beam
+            Simulation beam object
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
         super().on_run_simulation(
             simulation=simulation,
             beam=beam,
@@ -425,8 +436,7 @@ class BunchObservation_meta_params(Observables):  # TODO rework class
         self,
         simulation: Simulation,
     ) -> None:
-        """
-        Update memory with new values
+        """Update memory with new values.
 
         Parameters
         ----------
@@ -434,7 +444,6 @@ class BunchObservation_meta_params(Observables):  # TODO rework class
             Simulation context manager
 
         """
-        # TODO check if this value was already recorded, avoid double recording in the same section
         if (
             self._last_section_i_observed == simulation.section_i.value
             and self._last_turn_i_observed == simulation.turn_i.value
@@ -457,22 +466,28 @@ class BunchObservation_meta_params(Observables):  # TODO rework class
 
     @property  # as readonly attributes
     def sigma_dt(self):
+        """Standard deviation of the time coordinate."""
         return self._sigma_dt.get_valid_entries()
 
     @property  # as readonly attributes
     def sigma_dE(self):
+        """Standard deviation of the energy coordinate."""
         return self._sigma_dE.get_valid_entries()
 
     @property  # as readonly attributes
     def mean_dt(self):
+        """Mean of the time coordinate."""
         return self._mean_dt.get_valid_entries()
 
     @property  # as readonly attributes
     def mean_dE(self):
+        """Mean of the time coordinate."""
         return self._mean_dE.get_valid_entries()
 
     @property  # as readonly attributes
     def emittance_stat(self):
+        """Statistical emittance calculated with
+        :math:`\epsilon = \sqrt{\langle \Delta t^2 \rangle \langle \Delta E^2 \rangle - \langle \Delta t \Delta E \rangle^2}`."""
         return self._emittance_stat.get_valid_entries()
 
 
@@ -636,8 +651,7 @@ class StaticProfileObservation(Observables):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
+        """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
@@ -688,7 +702,7 @@ class StaticProfileObservation(Observables):
         # else return without recording
 
     @property  # as readonly attributes
-    def hist_y(self):
+    def hist_y(self) -> NumpyArray:
         """Histogram amplitude."""
         return self._hist_y.get_valid_entries()
 
@@ -709,7 +723,7 @@ class StaticMultiProfileObservation(Observables):
             Value to control that the element is
             callable each n-th turn.
         profiles
-            Class for the calculation of beam profile
+            List of class for the calculation of beam profile
             that doesn't change its parameters
         obs_per_turn
             Number of observations per turn, default is 1
@@ -735,6 +749,21 @@ class StaticMultiProfileObservation(Observables):
         obs_per_turn: int = 1,
         **kwargs,
     ) -> None:
+        """Lateinit method when `simulation.run_simulation` is called.
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+        beam
+            Simulation beam object
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        obs_per_turn
+            Number of observations per turn, default is 1
+        """
         super().on_run_simulation(
             simulation=simulation,
             beam=beam,
@@ -753,6 +782,13 @@ class StaticMultiProfileObservation(Observables):
         self,
         simulation: Simulation,
     ) -> None:
+        """Updates the data in case the function has not been called on the current section and turn already.
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+        """
         if (
             self._last_turn_i_observed == simulation.turn_i.value
             and self._last_section_i_observed == simulation.section_i
@@ -765,14 +801,8 @@ class StaticMultiProfileObservation(Observables):
                 self._hist_y.write(prof.hist_y)
 
     @property  # as readonly attributes
-    def hist_y(self):
-        """Histogram of given profiles
-
-        Returns
-        -------
-        induced_voltage
-
-        """
+    def hist_y(self) -> NumpyArray:
+        """Histogram of given profiles."""
         return self._hist_y.get_valid_entries()
 
 

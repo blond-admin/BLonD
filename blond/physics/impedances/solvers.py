@@ -772,6 +772,11 @@ class MultiPassResonatorSolver(WakeFieldSolver):
     def _update_past_profile_times_wake_times(self, current_time):
         """Advances the times in the past profile arrays by delta_t = current_time - self._last_reference_time and
         sets self._last_reference_time to current_time afterwards.
+
+        Parameters
+        ----------
+        current_time
+            simulation time at the moment of calling, has to be > self._last_reference_time
         """
         delta_t = current_time - self._last_reference_time
         assert delta_t > 0  # TODO: performance = ?
@@ -833,6 +838,11 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         """Updates `_wake_function_time`  and `_wake_function_vals` arrays
 
         The time axis is chosen based on the profile in `_parent_wakefield.profile`
+
+        Parameters
+        ----------
+        current_time
+            simulation time at the moment of calling, default is 0
 
         """
         self._update_past_profile_times_wake_times(current_time)
