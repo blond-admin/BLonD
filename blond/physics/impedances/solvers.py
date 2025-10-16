@@ -676,20 +676,22 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         """
         warn("Untested code", NotTestedWarning)
         super().__init__()
-        # define wake function values and corresponding time axis
-        self._wake_function_vals: deque[NumpyArray] | None = None
-        self._wake_function_time: deque[NumpyArray] | None = None
 
-        self._past_profiles: deque[NumpyArray] | None = None
-        self._past_profile_times: deque[NumpyArray] | None = None
         self._last_reference_time: float | None = None
-        self._past_charge_per_macroparticle: deque[float] | None = None
 
         self._maximum_storage_time: float | None = None
         self._decay_fraction_threshold = decay_fraction_threshold
 
         self._simulation: Simulation | None = None
         self._parent_wakefield: WakeField | None = None
+
+        # define wake function values and corresponding time axis
+        self._past_profiles: deque[NumpyArray] = deque()
+        self._past_profile_times: deque[NumpyArray] = deque()
+        self._past_charge_per_macroparticle: deque[float] = deque()
+
+        self._wake_function_vals: deque[NumpyArray] = deque()
+        self._wake_function_time: deque[NumpyArray] = deque()
 
     def _determine_storage_time(self):
         """Sum up the contributions of all resonators and
@@ -700,6 +702,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 "Parent wakefield must be present before this function can be called."
             )
         for source in self._parent_wakefield.sources:
+            # Guarding against non-resonator sources is done in on_wakefield_init_simulation
             time_axis, envelope = source.calculate_envelope()
 
             storage_time = time_axis[
@@ -725,13 +728,6 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             raise ValueError(f"Parent wakefield needs to have a profile.")
         self._parent_wakefield = parent_wakefield
 
-        self._past_profiles = deque()
-        self._past_profile_times = deque()
-        self._past_charge_per_macroparticle = deque()
-
-        self._wake_function_vals = deque()
-        self._wake_function_time = deque()
-
         self._maximum_storage_time = 0
         self._last_reference_time = -np.finfo(float).eps
 
@@ -753,6 +749,11 @@ class MultiPassResonatorSolver(WakeFieldSolver):
     ) -> None:
         """Goes through _wake_function_time from the back (oldest profile) and removes all arrays from it, which are beyond
         self._maximum_storage_time. only the last indexes_to_check entries are checked.
+
+        Parameters
+        ----------
+        indexes_to_check: int
+            number of indices in the list, that get checked. this is the number of indices, which starts from the back
         """
         if len(self._past_profiles) == 0:
             return
