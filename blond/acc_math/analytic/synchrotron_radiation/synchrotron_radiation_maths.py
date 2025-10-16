@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.constants import c
 
-from ...._core.beam.particle_types import ParticleType, electron
+from ...._core.beam.particle_types import ParticleType
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
@@ -469,50 +469,4 @@ def calculate_natural_bunch_length(
         * c
         / angular_synchrotron_frequency
         * natural_energy_spread
-    )
-
-
-def gather_longitudinal_synchrotron_radiation_parameters(
-    energy: float | NumpyArray,
-    synchrotron_radiation_integrals: NumpyArray,
-    particle_type: ParticleType = electron,
-) -> float | NumpyArray:
-    """
-    Calculates the relevant synchrotron radiation parameters for tracking.
-
-    Parameters
-    ----------
-    energy
-        Total energy, in [eV]
-    synchrotron_radiation_integrals
-        Synchrotron radiation integrals
-    particle_type
-        ParticleType class object
-
-    Returns
-    -------
-        Energy loss per turn, in [eV per turn]
-        Longitudinal damping time, in [turn]
-        Natural energy spread, [dimensionless]
-
-    """
-    energy_lost_from_synchrotron_radiation = calculate_energy_loss_per_turn(
-        particle_type=particle_type,
-        energy=energy,
-        synchrotron_radiation_integrals=synchrotron_radiation_integrals,
-    )
-    longitudinal_damping_time = calculate_longitudinal_damping_time_in_turns(
-        energy=energy,
-        synchrotron_radiation_integrals=synchrotron_radiation_integrals,
-        particle_type=particle_type,
-    )
-    natural_energy_spread = calculate_natural_energy_spread(
-        particle_type=particle_type,
-        energy=energy,
-        synchrotron_radiation_integrals=synchrotron_radiation_integrals,
-    )
-    return (
-        energy_lost_from_synchrotron_radiation,
-        longitudinal_damping_time,
-        natural_energy_spread,
     )
