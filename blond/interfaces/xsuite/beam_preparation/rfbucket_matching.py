@@ -131,7 +131,7 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
         """
         # prevent crash if xpart not installed
         from xpart.longitudinal.rf_bucket import RFBucket
-        from xpart.longitudinal.rfbucket_matching import RFBucketMatcherb
+        from xpart.longitudinal.rfbucket_matching import RFBucketMatcher
 
         super().prepare_beam(
             simulation=simulation,

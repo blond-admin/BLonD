@@ -16,7 +16,7 @@ class TestXsuiteRFBucketMatcher(unittest.TestCase):
 
     def _test_something(self, voltage, phase, routine):
         try:
-            from interfaces.xsuite.beam_preparation.rfbucket_matching import (
+            from blond.interfaces.xsuite.beam_preparation.rfbucket_matching import (
                 XsuiteRFBucketMatcher,
             )
         except ImportError:
