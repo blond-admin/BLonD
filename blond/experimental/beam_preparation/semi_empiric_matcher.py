@@ -26,6 +26,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def hamilton_to_density_by_max(
+    time_grid: NumpyArray | CupyArray,
+    deltaE_grid: NumpyArray | CupyArray,
     hamilton_2D: NumpyArray | CupyArray,
     density_modifier: float,
     hamilton_max: float,
@@ -44,6 +46,12 @@ def hamilton_to_density_by_max(
 
     Parameters
     ----------
+    time_grid : NumpyArray or CupyArray
+        A 2D array representing the time axis of the phase space
+
+    deltaE_grid : NumpyArray or CupyArray
+        A 2D array representing the energy axis of the phase space
+
     hamilton_2D : NumpyArray or CupyArray
         A 2D array representing the spatial Hamilton field.
 
@@ -433,6 +441,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             shape=self.internal_grid_shape,
         )
         density = self.hamilton_to_density_function(
+            time_grid = time_grid, deltaE_grid = deltaE_grid,
             hamilton_2D=hamilton_2D, **self.hamilton_to_density_kwargs
         )  # type: ignore
 
