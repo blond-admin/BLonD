@@ -9,10 +9,12 @@ from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
     BunchObservation,
     CavityPhaseObservation,
+    DynamicProfileConstNBinsObservation,
     Observables,
     StaticProfileObservation,
     WakeFieldObservation,
 )
+from blond.physics.profiles import DynamicProfileConstNBins
 
 simulation = Mock(
     Simulation,
@@ -221,6 +223,44 @@ class TestWakeFieldObservation(unittest.TestCase):
         )
         self.wake_field_observation.to_disk()
         self.wake_field_observation.from_disk()
+
+class TestDynamicProfileConstNBinsObservation(unittest.TestCase):
+    def setUp(self) -> None:
+        profile = Mock(DynamicProfileConstNBins)
+        profile.n_bins = 12
+        profile._hist_y = np.ones(profile.n_bins, dtype=float)
+        profile._hist_x = np.arange(profile.n_bins, dtype=float)
+
+        self.dynamic_profile_observation = DynamicProfileConstNBinsObservation(
+            each_turn_i=1,
+            profile=profile,
+            folder=callers_relative_path("results/", stacklevel=1),
+        )
+
+    def test___init__(self) -> None:
+        self.dynamic_profile_observation = DynamicProfileConstNBinsObservation(
+            each_turn_i=1,
+            profile=Mock(DynamicProfileConstNBins),
+            folder=callers_relative_path("results/", stacklevel=1),
+        )
+
+    def test_from_disk(self) -> None:
+        self.dynamic_profile_observation.on_init_simulation(
+            simulation=simulation
+        )
+        self.dynamic_profile_observation.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            turn_i_init=0,
+            n_turns=100,
+        )
+        self.dynamic_profile_observation.update(
+            simulation=simulation,
+            beam=beam,
+        )
+        self.dynamic_profile_observation.to_disk()
+
+        self.dynamic_profile_observation.from_disk()
 
 
 if __name__ == "__main__":
