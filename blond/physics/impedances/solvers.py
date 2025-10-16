@@ -763,11 +763,15 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             if (
                 np.min(self._past_profile_times[-1])
                 > self._maximum_storage_time
-            ):
+            ):  # this assumes, that the time is increasing
+                # throughout the array, which is ensured, when
+                # the time is shifted
                 self._past_profile_times.pop()
                 self._past_profiles.pop()
                 self._wake_function_time.pop()
                 self._wake_function_vals.pop()
+            else:
+                return
 
     def _update_past_profile_times_wake_times(self, current_time):
         """Advances the times in the past profile arrays by delta_t = current_time - self._last_reference_time and
