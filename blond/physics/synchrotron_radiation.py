@@ -1,3 +1,31 @@
+"""
+Collection of implementations to simulate the effect of synchrotron
+radiation damping and quantum excitation effect.
+
+First five synchrotron radiation integrals are required as an input of the
+simulated ring:
+            'I_1' = \int, related to the momentum compaction factor,
+            'I_2' = , related to the energy loss per turn,
+            'I_3' = , related to the natural energy spread,
+            'I_4' =  , required for the damping times,
+            'I_5' =  , required for the natural horizontal emittance
+            with '\rho' the bending radius of bending elements, 'D' the
+            horizontal dispersion function, 'K' the focusing strength and 'H =
+            \beta_x D^2 + \alpha_x D {D'} + \gamma_x {D'}^2 ' the
+            H-function
+
+Further information on synchrotron radiation damping and quantum excitation
+can be found in:
+- H. Wiedemann, Synchrotron Radiation, Springer, 2003
+- S.Y. Lee, Accelerator Physics, World Scientific, Third edition,
+2014 #check date
+- A. Wolski, Introduction to Beam Dynamics in High-Energy Electron Storage
+Rings, Morgan & Claypool Publishers, 2018
+
+Author:
+L. Valle
+"""
+
 from __future__ import annotations
 
 from abc import ABC
@@ -34,7 +62,9 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
     """
     Master class for handling synchrotron radiation along the ring.
 
-
+    This element is to be added in the ring object prior to the simulation.
+    On initialisation, it inserts subclasses along the ring after the
+    specified elements (either drifts or section.)
     To be described better #fixme
     """
 
@@ -62,9 +92,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
 
         self._longitudinal_damping_time = None
         self._energy_loss_per_turn = None
-        self.is_isomagnetic: Optional[bool] = (
-            False  # FIXME Optional means  bool | None, but is never none
-        )
+        self.is_isomagnetic: Optional[bool] = False
         self.get_synchrotron_radiation_info_turn_by_turn: Optional[bool] = True
         self.synchrotron_radiation_integrals: LateInit[NumpyArray] = None
         self._simulation: LateInit[Simulation] = None
@@ -220,6 +248,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
 
         # Get the turn-by-turn data if requested, from the synchrotron
         # radiation integrals
+        # TODO create observable
         if self.get_synchrotron_radiation_info_turn_by_turn:
             self._energy_loss_per_turn[self._turn_i] = (
                 calculate_energy_loss_per_turn(
