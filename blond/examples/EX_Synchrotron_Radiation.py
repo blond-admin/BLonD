@@ -1,5 +1,6 @@
 import numpy as np
-from blond3 import (
+
+from blond import (
     Beam,
     BiGaussian,
     DriftSimple,
@@ -59,14 +60,3 @@ class SynchrotronRadiationSimulation:
             ),
             turn_i=1,
         )
-
-        # dt[:] += np.load(
-        #     'Users/lvalle/cernbox/FCC-ee/BLonD_simulations'
-        #     '/damped_distribution_dt_4mm'
-        #     '.npy')
-        # dE[:] += np.load(
-        #     'Users/lvalle/cernbox/FCC-ee/BLonD_simulations'
-        #     '/damped_distribution_dE_4mm'
-        #     '.npy')
-        # self.simulation = simulation
-        # self.simulation.run_simulation()
