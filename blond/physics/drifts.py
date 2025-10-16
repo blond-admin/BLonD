@@ -10,10 +10,7 @@ from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant, HasPropertyCache, Schedulable
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, Dict
-    from typing import Optional
-    from typing import Optional as LateInit
-    from typing import Tuple
+    from typing import Any
 
     from numpy.typing import NDArray as NumpyArray
 
@@ -26,10 +23,9 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         self,
         orbit_length: float,
         section_index: int = 0,
-        **kwargs: Dict[str, Any],  # for MRO of fused elements
+        **kwargs: dict[str, Any],  # for MRO of fused elements
     ) -> None:
-        """
-        Base class of a drift
+        """Base class of a drift.
 
         Parameters
         ----------
@@ -48,10 +44,10 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         self.orbit_length = orbit_length
 
     def __str__(self) -> str:
-        return f""
+        return ""
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop
+        """Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------
@@ -61,7 +57,7 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         super().track(beam=beam)
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
@@ -74,9 +70,9 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called
+        """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
@@ -91,8 +87,7 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
 
 
 class DriftSimple(DriftBaseClass, HasPropertyCache):
-    """
-    Base class to implement beam drifts in synchrotrons
+    """Base class to implement beam drifts in synchrotrons.
 
     Parameters
     ----------
@@ -108,11 +103,10 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         self,
         orbit_length: float,
         section_index: int = 0,
-        transition_gamma: Optional[float] = None,
-        **kwargs: Dict[str, Any],  # for MRO of fused elements
+        transition_gamma: float | None = None,
+        **kwargs: dict[str, Any],  # for MRO of fused elements
     ) -> None:
-        """
-        Base class to implement beam drifts in synchrotrons
+        """Base class to implement beam drifts in synchrotrons.
 
         Parameters
         ----------
@@ -125,7 +119,6 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             Gamma of transition crossing
 
         """
-
         super().__init__(
             orbit_length=orbit_length,
             section_index=section_index,
@@ -135,24 +128,24 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         self._transition_gamma: np.float64 | np.float32 | None = None
         self._momentum_compaction_factor: np.float64 | np.float32 | None = None
 
-        self._simulation: LateInit[Simulation] = None
+        self._simulation: Simulation | None = None
 
         if transition_gamma is not None:
             self.transition_gamma = transition_gamma  # use setter method
 
     @property  # read only, set by `transition_gamma`
     def momentum_compaction_factor(self) -> np.float64 | np.float32 | None:
-        """Momentum compaction factor"""
+        """Momentum compaction factor."""
         return self._momentum_compaction_factor
 
     @property
     def transition_gamma(self) -> np.float64 | np.float32 | None:
-        """Gamma of transition crossing"""
+        """Gamma of transition crossing."""
         return self._transition_gamma
 
     @transition_gamma.setter
     def transition_gamma(self, transition_gamma: float) -> None:
-        """Gamma of transition crossing"""
+        """Gamma of transition crossing."""
         self._momentum_compaction_factor = backend.float(
             1.0 / (transition_gamma * transition_gamma)
         )
@@ -163,13 +156,11 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         transition_gamma: float
         | int
         | NumpyArray
-        | Tuple[NumpyArray, NumpyArray],
+        | tuple[NumpyArray, NumpyArray],
         orbit_length: float,
         section_index: int = 0,
     ) -> DriftSimple:
-        """
-        Initialize object without simulation context
-
+        """Initialize object without simulation context.
 
         Parameters
         ----------
@@ -211,7 +202,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         return d
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
@@ -227,7 +218,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             )
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop
+        """Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------
@@ -259,18 +250,18 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
     # alias of momentum_compaction_factor
     @property  # as readonly attributes
     def alpha_0(self) -> backend.float:
-        """Momentum compaction factor"""
+        """Momentum compaction factor."""
         return self.momentum_compaction_factor
 
     def invalidate_cache(self):
-        """Delete the stored values of functions with @cached_property"""
+        """Delete the stored values of functions with @cached_property."""
         # super()._invalidate_cache(DriftSimple.cached_props)
         pass
 
 
 class DriftSpecial(DriftBaseClass):
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop
+        """Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------
@@ -280,7 +271,7 @@ class DriftSpecial(DriftBaseClass):
         pass
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
@@ -292,7 +283,7 @@ class DriftSpecial(DriftBaseClass):
 
 class DriftXSuite(DriftBaseClass):
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop
+        """Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------
@@ -302,7 +293,7 @@ class DriftXSuite(DriftBaseClass):
         pass
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager

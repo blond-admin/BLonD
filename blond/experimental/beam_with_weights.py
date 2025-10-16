@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-from typing import Optional as LateInit
-
 from cupy.typing import NDArray as CupyArray
 from numpy._typing import NDArray as NumpyArray
 
@@ -14,23 +11,24 @@ from blond._core.beam.particle_types import ParticleType
 class WeightenedBeam(Beam):
     def __init__(
         self,
-        n_particles: int | float,
+        intensity: int | float,
         particle_type: ParticleType,
     ) -> None:
         raise NotImplementedError  # todo
-        super().__init__(n_particles, particle_type)
-        self._weights: LateInit[NumpyArray] = None
+        super().__init__(intensity, particle_type)
+        self._weights: NumpyArray | None = None
 
     def setup_beam(
         self,
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
-        flags: Optional[NumpyArray | CupyArray] = None,
+        flags: NumpyArray | CupyArray | None = None,
         weights: NumpyArray | CupyArray = None,
-        reference_time: Optional[float] = None,
-        reference_total_energy: Optional[float] = None,
+        reference_time: float | None = None,
+        reference_total_energy: float | None = None,
     ) -> None:
-        """Sets beam array attributes for simulation
+        """
+        Sets beam array attributes for simulation
 
         Parameters
         ----------

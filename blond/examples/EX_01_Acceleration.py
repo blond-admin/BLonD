@@ -42,7 +42,7 @@ def main():
     )
     drift1.transition_gamma = 55.759505
     beam1 = Beam(
-        n_particles=1e9,
+        intensity=1e9,
         particle_type=proton,
     )
 
@@ -100,7 +100,7 @@ def main():
             observe=(phase_observation, bunch_observation),
         )
         print(f"Loaded {phase_observation.common_name}")
-    except (FileNotFoundError, AssertionError) as exc:
+    except (FileNotFoundError, AssertionError):
         sim.run_simulation(
             beams=(beam1,),
             turn_i_init=0,

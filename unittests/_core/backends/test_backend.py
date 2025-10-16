@@ -461,16 +461,48 @@ class TestSpecials(unittest.TestCase):
                 except (FileNotFoundError, OSError):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
-                array_write = backend.zeros(21, dtype=backend.float)
+                array_write = backend.ones(21, dtype=backend.float)
+                for _ in range(2):
+                    backend.specials.histogram(
+                        array_read=backend.linspace(
+                            -10, 10, 21, dtype=backend.float
+                        ),
+                        array_write=array_write,
+                        start=backend.float(-12),
+                        stop=backend.float(8.0),
+                    )
+                result = array_write
 
-                backend.specials.histogram(
-                    array_read=backend.linspace(
-                        -10, 10, 21, dtype=backend.float
-                    ),
-                    array_write=array_write,
-                    start=backend.float(-12),
-                    stop=backend.float(8.0),
-                )
+                if special == "cuda":
+                    result = result.get()
+                if i == 0:
+                    result_python = result
+                else:
+                    np.testing.assert_allclose(
+                        result,
+                        result_python,
+                        rtol=self.rtol,
+                        err_msg=f"{special=} {dtype=}",
+                    )
+
+    def test_histogram_short_profile(self) -> None:
+        for dtype in (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                array_write = backend.ones(21, dtype=backend.float)
+                for _ in range(2):
+                    backend.specials.histogram(
+                        array_read=backend.linspace(
+                            -5, 5, 51, dtype=backend.float
+                        ),
+                        array_write=array_write,
+                        start=backend.float(-10),
+                        stop=backend.float(10),
+                    )
                 result = array_write
 
                 if special == "cuda":

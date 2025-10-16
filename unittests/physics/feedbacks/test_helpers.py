@@ -52,7 +52,7 @@ class TestRfBeamCurrent(unittest.TestCase):
         alpha = 1 / gamma_t**2  # Momentum compaction factor
         p_s = 25.92e9  # Synchronous momentum at injection [eV]
 
-        N_m = 1e5  # Number of macro-particles for tracking
+        N_m = int(1e5)  # Number of macro-particles for tracking
         N_b = 1.0e11  # Bunch intensity [ppb]
         self.n_macroparticles = N_m
 
@@ -83,19 +83,17 @@ class TestRfBeamCurrent(unittest.TestCase):
 
         # Create Gaussian beam
         self.beam = Beam(
-            n_particles=N_b,
+            intensity=N_b,
             particle_type=proton,
         )
-        # FIXME beam has no ratio, just set here
-        #  for backwads compatibility
-        self.beam.ratio = N_b / N_m
+
         self.profile = StaticProfile(
             cut_left=-2e-9,
             cut_right=8e-9,
             n_bins=100,
         )
-        simulatuion = Simulation(ring=self.ring, magnetic_cycle=magnetic_cycle)
-        self.simulatuion = simulatuion
+        simulation = Simulation(ring=self.ring, magnetic_cycle=magnetic_cycle)
+        self.simulation = simulation
         self.beam.reference_total_energy = (
             magnetic_cycle.get_total_energy_init(
                 0,
@@ -106,6 +104,7 @@ class TestRfBeamCurrent(unittest.TestCase):
         self.omega_rf = self.rf.calc_omega(
             self.beam.reference_beta, self.ring.circumference
         )
+        self.beam.setup_beam(dt=np.zeros(N_m), dE=np.zeros(N_m))
 
     def test_setup(self):
         pass  # see if setup works
@@ -167,7 +166,7 @@ class TestRfBeamCurrent(unittest.TestCase):
     # Test charge distribution of a bigaussian profile, without LPF
     # Compare to simulation data
     def test_2(self):
-        self.simulatuion.prepare_beam(
+        self.simulation.prepare_beam(
             beam=self.beam,
             preparation_routine=BiGaussian(
                 n_macroparticles=self.n_macroparticles,
@@ -415,7 +414,7 @@ class TestRfBeamCurrent(unittest.TestCase):
     # Test charge distribution of a bigaussian profile, with LPF
     # Compare to simulation data
     def test_3(self):
-        self.simulatuion.prepare_beam(
+        self.simulation.prepare_beam(
             beam=self.beam,
             preparation_routine=BiGaussian(
                 n_macroparticles=self.n_macroparticles,
@@ -685,7 +684,7 @@ class TestRfBeamCurrent(unittest.TestCase):
         T_s = 5 * t_rev / self.rf.harmonic
         N_m = int(1e5)
         N_b = 2.3e11
-        self.simulatuion.prepare_beam(
+        self.simulation.prepare_beam(
             beam=self.beam,
             preparation_routine=BiGaussian(
                 n_macroparticles=self.n_macroparticles,
@@ -696,7 +695,6 @@ class TestRfBeamCurrent(unittest.TestCase):
             ),
         )
         beam2 = Beam(bunches * N_b, particle_type=self.beam.particle_type)
-        beam2.ratio = N_b / N_m  # FIXME
         beam2.setup_beam(
             dt=np.zeros(bunches * N_m),
             dE=np.zeros(bunches * N_m),
@@ -717,9 +715,7 @@ class TestRfBeamCurrent(unittest.TestCase):
         profile2.track(beam2)
 
         tot_charges = (
-            np.sum(profile2.hist_y)
-            / beam2.common_array_size
-            * beam2.n_particles
+            np.sum(profile2.hist_y) / beam2.common_array_size * beam2.intensity
         )
         self.assertAlmostEqual(tot_charges, 2.3000000000e13, 9)
 

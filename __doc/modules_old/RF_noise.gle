@@ -1,0 +1,52 @@
+size 16 4
+
+set font texcmss hei 0.35
+set just center
+
+!set lwidth 0.2 color gray20
+amove 0.6 0.7 
+
+begin graph
+      size 5.5 3.5
+      xtitle "Frequency [Hz]" hei 0.35
+      ytitle "S_{\varphi}^{DS}(f) [rad^2/Hz]" hei 0.35
+      xaxis hei 0.35 nticks 5
+      yaxis min 0 max 1.2e-6 hei 0.35 nticks 6 format "sci 1" nolast
+      xsubticks off
+      ysubticks off
+
+      data "sample.dat" d1=c1,c2
+      d1 line lstyle 1 lwidth 0.04 color blue
+end graph
+
+amove 8.6 0.7
+begin graph
+      size 5.5 3.5
+      xtitle "Frequency [Hz]" hei 0.35 
+      ytitle "S_{\varphi}^{DS}(f) [rad^2/Hz]" hei 0.35 
+      xaxis hei 0.35 nticks 5 
+      yaxis min 0 max 1.2e-6 hei 0.35 nticks 6 format "sci 1" nolast 
+      xsubticks off
+      ysubticks off
+
+      data "sample2.dat" d1=c1,c2
+      d1 line lstyle 1 lwidth 0.04 color red
+end graph
+
+amove 6.7 2.7
+set hei 0.3
+text real part of
+rmove 0 -0.3
+text hermitian spectrum
+rmove 0. -0.6
+set color blue
+text transform = 'r'
+
+amove 14.7 2.7
+set color black
+text real part of
+rmove 0 -0.3
+text complex spectrum
+rmove 0. -0.6
+set color red
+text transform = 'c'

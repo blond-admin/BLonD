@@ -22,13 +22,13 @@ if TYPE_CHECKING:
 class BeamBaseClassTester(BeamBaseClass):
     def __init__(
         self,
-        n_particles: int | float,
+        intensity: int | float,
         particle_type: ParticleType,
         is_counter_rotating: bool = False,
         is_distributed=False,
     ):
         super().__init__(
-            n_particles=n_particles,
+            intensity=intensity,
             particle_type=particle_type,
             is_counter_rotating=is_counter_rotating,
             is_distributed=is_distributed,
@@ -39,7 +39,7 @@ class BeamBaseClassTester(BeamBaseClass):
 
     @cached_property
     def ratio(self) -> float:
-        return self.n_particles / self.common_array_size
+        return self.intensity / self.common_array_size
 
     def setup_beam(
         self,
@@ -88,7 +88,7 @@ class BeamBaseClassTester(BeamBaseClass):
 class TestBeamBaseClass(unittest.TestCase):
     def setUp(self):
         self.beam_base_class = BeamBaseClassTester(
-            n_particles=1e12,
+            intensity=1e12,
             particle_type=proton,
             is_counter_rotating=False,
             is_distributed=False,

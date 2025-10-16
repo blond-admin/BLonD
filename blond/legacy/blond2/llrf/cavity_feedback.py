@@ -42,6 +42,9 @@ from .impulse_response import (  # noqa
 # Import SPS3Section and feedforward_filter for eval(..) below
 # noqa statement is used to block autoformatter from
 # removing seemingly unused import statements
+# Import SPS3Section and feedforward_filter for eval(..) below
+# noqa statement is used to block autoformatter from
+# removing seemingly unused import statements
 from .signal_processing import (  # noqa
     cartesian_to_polar,
     comb_filter,

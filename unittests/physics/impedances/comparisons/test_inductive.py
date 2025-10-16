@@ -74,7 +74,7 @@ class TestInductiveImpedances(unittest.TestCase):
                 reorder=True,
             )
             beam = Beam(
-                n_particles=1e11,
+                intensity=1e11,
                 particle_type=proton,
             )
             np.random.seed(1)

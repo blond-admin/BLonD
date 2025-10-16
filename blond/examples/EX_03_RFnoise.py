@@ -9,9 +9,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""
-Example input for simulation with RF noise
-No intensity effects
+"""Example input for simulation with RF noise
+No intensity effects.
 
 :Authors: **Helga Timko**
 """
@@ -52,7 +51,7 @@ def main():
         reference_particle=proton,
     )
     beam = Beam(
-        n_particles=1.0e9,
+        intensity=1.0e9,
         particle_type=proton,
     )
     profile = DynamicProfileConstNBins(n_bins=100)

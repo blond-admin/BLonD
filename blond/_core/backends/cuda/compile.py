@@ -6,13 +6,13 @@ import subprocess
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import List, Literal
+    from typing import Literal
 
 _filepath = os.path.realpath(__file__)
 _basepath = os.sep.join(_filepath.split(os.sep)[:-1])
 
 
-def run_compile(command: List[str], libname: str) -> int:
+def run_compile(command: list[str], libname: str) -> int:
     if os.path.exists(libname):
         os.remove(libname)
     print(" ".join(command))
@@ -26,8 +26,7 @@ def run_compile(command: List[str], libname: str) -> int:
 def compile_cuda_library(
     compute_capability: int | Literal["discover"] = "discover",
 ) -> None:
-    """
-    Compile the GPU library
+    """Compile the GPU library.
 
     Parameters
     ----------
@@ -36,7 +35,7 @@ def compile_cuda_library(
         see https://developer.nvidia.com/cuda-gpus.
 
     """
-    print(f"\nTrying to compile CUDA backend.")
+    print("\nTrying to compile CUDA backend.")
 
     cuda_files = [
         os.path.join(_basepath, "kernels.cu"),
@@ -49,8 +48,20 @@ def compile_cuda_library(
         "32",
     ]
 
+    from blond._generals._hashing import hash_in_folder
+
+    folder = os.path.dirname(os.path.abspath(__file__))
+
+    hash_ = hash_in_folder(
+        folder=folder,
+        extensions=(".py", ".cu"),
+        recursive=False,
+    )
+    target = os.path.join(folder, "compiled", hash_)
+    os.makedirs(target, exist_ok=True)
+
     # The CUDA library name, without the file extension.
-    cuda_libname = os.path.join(_basepath, "kernels")
+    cuda_libname = os.path.join(target, "kernels")
 
     nvcc = "nvcc"
 
@@ -134,7 +145,7 @@ def compile_cuda_library(
 
 
 def main_cli() -> None:
-    """Parse arguments from command line"""
+    """Parse arguments from command line."""
     parser = argparse.ArgumentParser(
         description="Script used to compile the CUDA libraries needed by BLonD.",
     )

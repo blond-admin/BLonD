@@ -9,9 +9,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""
-Example input for simulating a ring with multiple RF stations
-No intensity effects
+"""Example input for simulating a ring with multiple RF stations
+No intensity effects.
 
 :Authors: **Helga Timko**
 """
@@ -46,7 +45,7 @@ def main():
         circumference=26658.883,
     )
     beam = Beam(
-        n_particles=1.0e9,
+        intensity=1.0e9,
         particle_type=proton,
     )
     profile = DynamicProfileConstNBins(
