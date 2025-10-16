@@ -492,7 +492,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             plt.ylabel("Density (arb. unit)")
 
             plt.subplot(2, 1, 2)
-            plt.axhline(self.hamilton_max, c="C1", linestyle="--")
+            plt.axhline(self.hamilton_to_density_kwargs["hamilton_max"], c="C1", linestyle="--")
             if self._last_potential_well is not None:
                 plt.plot(ts, self._last_potential_well)
             if self._prelast_potential_well is not None:
