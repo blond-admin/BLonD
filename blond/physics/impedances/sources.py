@@ -299,11 +299,16 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
             )
         return wake
 
-    def calculate_envelope(self) -> tuple[NumpyArray, NumpyArray]:
+    def calculate_envelope(
+        self, time_axis: NumpyArray | None = None
+    ) -> tuple[NumpyArray, NumpyArray]:
         """Calculates the normalized envelope of all resonators."""
-        time_axis = np.linspace(
-            0, np.max(self._quality_factors / self._omega) * 20, 100000
-        )
+        if time_axis is None:
+            time_axis = np.linspace(
+                0, np.max(self._quality_factors / self._omega) * 20, 100000
+            )
+            # Should be sufficient, as the time between turns is
+            # usually larger than the required time stepping in here, only gets called on init
         envelope = np.zeros_like(time_axis)
         for res_ind in range(len(self._quality_factors)):
             envelope += (
