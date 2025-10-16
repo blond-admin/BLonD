@@ -167,7 +167,9 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         # TODO rewrite for efficiency
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,
-            section_i=self.section_index,
+            section_i=self.section_index
+            if not beam.is_counter_rotating
+            else len(self._ring.section_lengths) - self.section_index - 1,
             reference_time=beam.reference_time,
             particle_type=beam.particle_type,
         )
@@ -427,10 +429,11 @@ class SingleHarmonicCavity(CavityBaseClass):
             Beam class to interact with this element
         """
         super().track(beam=beam)
-
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,
-            section_i=self.section_index,
+            section_i=self.section_index
+            if not beam.is_counter_rotating
+            else len(self._ring.section_lengths) - self.section_index - 1,
             reference_time=beam.reference_time,
             particle_type=beam.particle_type,
         )
@@ -827,7 +830,9 @@ class MultiHarmonicCavity(CavityBaseClass):
         super().track(beam=beam)
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,
-            section_i=self.section_index,
+            section_i=self.section_index
+            if not beam.is_counter_rotating
+            else len(self._ring.section_lengths) - self.section_index - 1,
             reference_time=beam.reference_time,
             particle_type=beam.particle_type,
         )

@@ -36,6 +36,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             total_energy=939,
             main_harmonic_idx=0,
         )
+        self.multi_harmonic_cavity._ring.section_lengths = [1, 2, 3]
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
@@ -124,6 +125,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
             cavity_feedback=None,
             total_energy=939,
         )
+        self.single_harmonic_cavity._ring.section_lengths = [1, 2, 3]
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
