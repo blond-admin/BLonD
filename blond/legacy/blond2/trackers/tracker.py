@@ -601,8 +601,8 @@ class RingAndRFTracker:
                         charge=self.beam.particle.charge,
                         acceleration_kick=self.acceleration_kick[turn],
                     )
-            else:
-                self.kick(self.beam.dt, self.beam.dE, turn)
+                else:
+                    self.kick(self.beam.dt, self.beam.dE, turn)
 
             self.drift(self.beam.dt, self.beam.dE, turn + 1)
 
