@@ -48,6 +48,8 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
 from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.physics.synchrotron_radiation.elements import (
     SynchrotronRadiationBaseClass,
+    SynchrotronRadiationDrift,
+    SynchrotronRadiationSection,
 )
 
 if TYPE_CHECKING:
@@ -101,12 +103,9 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         self.get_synchrotron_radiation_info_turn_by_turn: Optional[bool] = True
         self.synchrotron_radiation_integrals: LateInit[NumpyArray] = None
         self._simulation: LateInit[Simulation] = None
-        self._damping_times: LateInit[NumpyArray] = (
-            None  # TODO why duplicate `_damping_times_in_seconds`, could this be property?
-        )
-        self._damping_times_in_seconds: LateInit[NumpyArray] = None
-        self._natural_energy_spread: LateInit[NumpyArray] = None
+        self._damping_times: LateInit[NumpyArray] = None
 
+        self._natural_energy_spread: LateInit[NumpyArray] = None
         self._turn_i: LateInit[DynamicParameter] = 0
         self._magnetic_cycle: LateInit[MagneticCycleBase] = None
         self._ring: LateInit[Ring] = None
@@ -120,10 +119,6 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
     @cached_property  # TODO property enough?
     def damping_times(self) -> NumpyArray:
         return self._damping_times
-
-    @cached_property  # TODO property enough?
-    def damping_times_in_seconds(self) -> NumpyArray:
-        return self._damping_times_in_seconds
 
     # TODO : Add a function to calculate the length of the sections/ drifts
     # before the children and store it for later SR integrals update.
@@ -141,13 +136,14 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         ] = None,
     ):
         """
+        Function which creates, inserts and initialises the synchrotron
+        radiation elements in the ring.
 
         Parameters
         ----------
         element_list
-
-        Returns
-        -------
+            List of elements before which a synchrotron radiation element
+            will be inserted.
 
         """  # FIXME SR tracker BEFORE Drifts and AFTER Cavity -- do I agree now?
         if not empty(self.generated_children):
