@@ -219,9 +219,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
                 calculate_damping_times_in_turns(
                     energy=beam.reference_total_energy,
                     synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
-                    energy_loss_per_turn=self._energy_loss_per_turn[
-                        self._turn_i
-                    ],
+                    particle_type=beam.particle_type,
                 )
             )
             self._natural_energy_spread[self._turn_i] = (
