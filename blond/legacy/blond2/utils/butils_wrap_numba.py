@@ -177,7 +177,7 @@ def slice_beam(
     n_slices = len(profile)
     n_parts = len(dt)
     inv_bin_width = n_slices / (cut_right - cut_left)
-    n_threads = get_num_threads()
+    n_threads = get_num_threads()  # this prevents caching
 
     # Per thread private profile to avoid cross-thread synchronization
     local_profile = np.zeros((n_threads, n_slices), dtype=np.int32)
