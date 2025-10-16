@@ -33,7 +33,10 @@ class ProfileBaseClass(BeamPhysicsRelevant):
             Section index to group elements into sections
         name
             User given name of the element
-
+        hist_x
+            timestamps of the histogram
+        hist_y
+            histogram values at specified timestamps
         """
         super().__init__(
             section_index=section_index,
@@ -60,7 +63,8 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """
+        Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
@@ -320,7 +324,11 @@ class StaticProfile(ProfileBaseClass):
 
     @staticmethod
     def from_rad(
-        cut_left_rad: float, cut_right_rad: float, n_bins: int, t_period: float
+        cut_left_rad: float,
+        cut_right_rad: float,
+        n_bins: int,
+        t_period: float,
+        **static_profile_kwargs,
     ) -> StaticProfile:
         """Initialization method in [rad].
 
@@ -345,7 +353,10 @@ class StaticProfile(ProfileBaseClass):
         cut_left = cut_left_rad * rad_to_frac * t_period
         cut_right = cut_right_rad * rad_to_frac * t_period
         return StaticProfile(
-            cut_left=cut_left, cut_right=cut_right, n_bins=n_bins
+            cut_left=cut_left,
+            cut_right=cut_right,
+            n_bins=n_bins,
+            **static_profile_kwargs,
         )
 
 

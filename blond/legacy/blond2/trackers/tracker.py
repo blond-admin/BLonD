@@ -302,8 +302,8 @@ class RingAndRFTracker:
     periodicity : bool (optional)
         Option to switch periodic solver on/off; default is False (off)
     interpolation : bool (optional)
-        Option to use sliced and interpolated voltage for the kicker; default
-        is False
+        Option to use sliced and interpolated voltage for the kicker. This option is required for the usage of
+        induced voltages; default is False
 
     """
 
@@ -322,6 +322,8 @@ class RingAndRFTracker:
         profile: Optional[Profile] = None,
         total_induced_voltage: Optional[TotalInducedVoltage] = None,
     ):
+        if not interpolation and total_induced_voltage is not None:
+            raise RuntimeError("Total induced voltage is not usable without interpolation")
         # Set up logging
         # self.logger = logging.getLogger(__class__.__name__)
         # self.logger.info("Class initialized")
@@ -599,7 +601,6 @@ class RingAndRFTracker:
                         charge=self.beam.particle.charge,
                         acceleration_kick=self.acceleration_kick[turn],
                     )
-
                 else:
                     self.kick(self.beam.dt, self.beam.dE, turn)
 

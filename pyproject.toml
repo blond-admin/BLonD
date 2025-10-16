@@ -68,6 +68,7 @@ exclude = [
     "legacy",
     "integrationtests_blond3",
 ]
+
 [tool.ruff.lint]
 # Enable broad set of useful lint rules
 select = [
@@ -85,16 +86,17 @@ select = [
 ]
 
 ignore = [
-    "E501", #  Line too long
+    "I",
     "E501", #  Line too long
     "PLR0913", # Too many arguments in function definition
     "PLC0415", # `import` should be at the top-level of a file
     "D401", # First line of docstring should be in imperative mood
-
 ]
+unfixable = ["I"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
+
 [tool.pytest.ini_options]
 minversion = "8.4"
-addopts = "--import-mode=importlib --cov --cov-config=.coveragerc"
+addopts = "--import-mode=importlib"

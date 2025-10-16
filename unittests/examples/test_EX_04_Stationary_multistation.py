@@ -13,7 +13,9 @@ class TestEX_04_Stationary_multistation(unittest.TestCase):
     def test_executable_numba32(self):
         backend.change_backend(Numpy32Bit)
         backend.set_specials("numba")
-        from blond.examples import EX_04_Stationary_multistation  # NOQA will run the
+        from blond.examples import (
+            EX_04_Stationary_multistation,  # NOQA will run the
+        )
 
         # full script. just checking if it crashes
         EX_04_Stationary_multistation.main()
@@ -21,7 +23,9 @@ class TestEX_04_Stationary_multistation(unittest.TestCase):
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
-        from blond.examples import EX_04_Stationary_multistation  # NOQA will run the
+        from blond.examples import (
+            EX_04_Stationary_multistation,  # NOQA will run the
+        )
 
         # full script. just checking if it crashes
         EX_04_Stationary_multistation.main()
@@ -34,7 +38,9 @@ class TestEX_04_Stationary_multistation(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy32Bit)
         backend.set_specials("cuda")
-        from blond.examples import EX_04_Stationary_multistation  # NOQA will run the
+        from blond.examples import (
+            EX_04_Stationary_multistation,  # NOQA will run the
+        )
 
         # full script. just checking if it crashes
 
@@ -49,7 +55,9 @@ class TestEX_04_Stationary_multistation(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
-        from blond.examples import EX_04_Stationary_multistation  # NOQA will run the
+        from blond.examples import (
+            EX_04_Stationary_multistation,  # NOQA will run the
+        )
 
         # full script. just checking if it crashes
         EX_04_Stationary_multistation.main()
