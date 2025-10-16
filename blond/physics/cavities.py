@@ -14,6 +14,9 @@ from blond.experimental.physics.feedbacks.beam_feedback import (
 
 from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
+from ..acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
+    calculate_energy_loss_per_turn,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -54,6 +57,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         cavity_feedback
             Optional cavity feedback to change cavity parameters
         """
+
         from blond.experimental.physics.feedbacks.base import LocalFeedback
 
         # prevent cyclic import
@@ -95,6 +99,8 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         self.harmonic: NumpyArray | None = None
         self.phi_s: NumpyArray | None = None
 
+        self._use_synchrotron_radiation: bool | None = None
+
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called.
 
@@ -105,6 +111,10 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         self._turn_i = simulation.turn_i
         self._magnetic_cycle = simulation.magnetic_cycle
         self._ring = simulation.ring
+
+        self._use_synchrotron_radiation = (
+            False if (self._ring.radiation_integrals()) is None else True
+        )
 
     def on_run_simulation(
         self,
@@ -171,9 +181,22 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             reference_time=beam.reference_time,
             particle_type=beam.particle_type,
         )
-        reference_energy_change = (
-            target_total_energy - beam.reference_total_energy
-        )
+        if self._use_synchrotron_radiation:
+            energy_loss_per_turn = calculate_energy_loss_per_turn(
+                energy=target_total_energy,
+                synchrotron_radiation_integrals=self._ring.radiation_integrals(),
+                particle_type=beam.particle_type,
+            )  # TODO: check the indexing (using target total_energy or
+            # beam.reference_energy?)
+            reference_energy_change = (
+                target_total_energy
+                - beam.reference_total_energy
+                + energy_loss_per_turn
+            )
+        else:
+            reference_energy_change = (
+                target_total_energy - beam.reference_total_energy
+            )
 
         from blond.acc_math.analytic.hamilton import (
             calc_phi_s_single_harmonic,
