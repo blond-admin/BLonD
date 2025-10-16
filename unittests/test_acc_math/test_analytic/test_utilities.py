@@ -7,7 +7,6 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     calculate_isomagnetic_radiation_integrals,
     gather_longitudinal_synchrotron_radiation_parameters,
 )
-from unittests.physics.test_drift_integration import circumference
 
 
 class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
