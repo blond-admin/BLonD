@@ -7,7 +7,7 @@ from scipy.constants import e
 
 from ..._core.beam.particle_types import ParticleType
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 
