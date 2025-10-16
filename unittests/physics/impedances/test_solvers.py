@@ -1372,11 +1372,11 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             quality_factors=np.array([10e5, 10e4]),
         )
 
-        local_res = MultiPassResonatorSolver()
+        local_res = MultiPassResonatorSolver(decay_fraction_threshold=0.999)
 
         sigma_z = 40e-3
         sigma_length = 8.54
-        for delta_t in [0, 0.5e-8, -0.5e-8]:
+        for delta_t in [0, 0.5e-9, -0.5e-9]:
             bunch_time = np.linspace(
                 -sigma_z * sigma_length / c + delta_t,
                 sigma_length * sigma_z / c + delta_t,
@@ -1414,8 +1414,12 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
             local_res_analy._wake_function_vals_needs_update = True
 
-            assert np.allclose(
-                local_res.calc_induced_voltage(beam=self.beam),
+            local_res._last_reference_time = -np.finfo(float).eps
+
+            ind_volt_mtw = local_res.calc_induced_voltage(beam=self.beam)
+
+            np.testing.assert_allclose(
+                ind_volt_mtw,
                 local_res_analy.calc_induced_voltage(beam=self.beam),
             )
 
