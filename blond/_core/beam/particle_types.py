@@ -36,15 +36,15 @@ class ParticleType:
 
         # classical particle radius [m]
         radius_cl = 0.25 / (np.pi * epsilon_0) * e**2 * charge**2 / (mass * e)
-        self._classical_particle_radius = backend.float(radius_cl)
+        self._classical_particle_radius = radius_cl
 
         # Sand's radiation constant [m / eV^3]
         c_gamma = 4 * np.pi / 3 * self._classical_particle_radius / mass**3
-        self._sands_radiation_constant = backend.float(c_gamma)
+        self._sands_radiation_constant = c_gamma
 
         # Quantum radiation constant [m]
         c_q = 55.0 / (32.0 * np.sqrt(3.0)) * hbar * c / (mass * e)
-        self._quantum_radiation_constant = backend.float(c_q)
+        self._quantum_radiation_constant = c_q
 
     @property
     def mass(self) -> float:
