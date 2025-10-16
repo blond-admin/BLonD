@@ -1,7 +1,6 @@
 # pragma: no cover
 
 import numpy as np
-from interfaces.xsuite.physics import DriftXSuite
 
 from blond import (
     BiGaussian,
@@ -18,6 +17,8 @@ from blond.cycles.magnetic_cycle import MagneticCycleBase, MagneticCyclePerTurn
 from blond.physics.cavities import MultiHarmonicCavity
 from blond.physics.impedances.solvers import InductiveImpedanceSolver
 from blond.physics.impedances.sources import InductiveImpedance
+
+# from blond.interfaces.xsuite.physics import DriftXSuite # todo
 
 
 class Main:
@@ -56,7 +57,7 @@ class Main:
             profile1,
             # LocalFeedback(cavity1, profile1),
             # GlobalFeedback(profile1),
-            DriftXSuite(orbit_length=0.1 * my_ring.circumference),
+            # DriftXSuite(orbit_length=0.1 * my_ring.circumference), # TODO
         )
 
         my_cycle = MagneticCyclePerTurn(
