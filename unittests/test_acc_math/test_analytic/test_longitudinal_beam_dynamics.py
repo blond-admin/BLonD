@@ -2,7 +2,6 @@ import unittest
 
 import numpy as np
 from numpy.ma.testutils import assert_equal
-from scipy.constants import c
 
 from blond import backend, electron
 from blond.acc_math.analytic.longitudinal_beam_dynamics import (
