@@ -1,4 +1,5 @@
 import unittest
+import warnings
 
 import numpy as np
 
@@ -67,7 +68,7 @@ class TestBackendBaseClass(unittest.TestCase):
                         # On the CI, these will always be available, as the before_script builds them
                         # or otherwise fails the CI
                         if backend_mode == "fortran" or backend_mode == "cpp":  # TODO better handling
-                            continue
+                            warnings.warn(f"{backend_mode} backend was not supported for {backend_bit}, compilation missing?")
                         else:
                             raise error
 
