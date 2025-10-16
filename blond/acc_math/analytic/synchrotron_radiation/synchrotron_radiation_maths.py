@@ -87,9 +87,8 @@ def calculate_longitudinal_damping_partition_number(
 def calculate_damping_times_in_turns(
     energy: float | NumpyArray,
     synchrotron_radiation_integrals: NumpyArray,
-    energy_loss_per_turn: float | NumpyArray,
+    particle_type: ParticleType,
 ) -> NumpyArray:
-    # todo: energy and energy loss per turn interdependency
     """
     Calculate the damping times in turns.
 
@@ -99,8 +98,8 @@ def calculate_damping_times_in_turns(
         Energy of the reference particle, in [eV]
     synchrotron_radiation_integrals
         Synchrotron radiation integrals
-    energy_loss_per_turn
-        Energy lost per turn, in [eV per turn]
+    particle_type
+        ParticleType class object
 
     Returns
     -------
@@ -108,6 +107,11 @@ def calculate_damping_times_in_turns(
     """
     damping_partition_numbers = calculate_partition_numbers(
         synchrotron_radiation_integrals
+    )
+    energy_loss_per_turn = calculate_energy_loss_per_turn(
+        energy,
+        synchrotron_radiation_integrals,
+        particle_type,
     )
 
     return np.array(
@@ -121,7 +125,7 @@ def calculate_damping_times_in_turns(
 def calculate_horizontal_damping_time_in_turns(
     energy: float | NumpyArray,
     synchrotron_radiation_integrals: NumpyArray,
-    energy_loss_per_turn: float,
+    particle_type: ParticleType,
 ) -> float | NumpyArray:
     """
     Calculate the horizontal damping time in turns.
@@ -132,8 +136,8 @@ def calculate_horizontal_damping_time_in_turns(
         Energy of the reference particle, in [eV]
     synchrotron_radiation_integrals
         Synchrotron radiation integrals
-    energy_loss_per_turn
-        Energy lost per turn, in [eV per turn]
+    particle_type
+        ParticleType class object
 
     Returns
     -------
@@ -144,6 +148,11 @@ def calculate_horizontal_damping_time_in_turns(
             synchrotron_radiation_integrals
         )
     )
+    energy_loss_per_turn = calculate_energy_loss_per_turn(
+        energy,
+        synchrotron_radiation_integrals,
+        particle_type,
+    )
     return (
         2 * energy / horizontal_damping_partition_number / energy_loss_per_turn
     )
@@ -152,7 +161,7 @@ def calculate_horizontal_damping_time_in_turns(
 def calculate_longitudinal_damping_time_in_turns(
     energy: float | NumpyArray,
     synchrotron_radiation_integrals: NumpyArray,
-    energy_loss_per_turn: float,
+    particle_type: ParticleType,
 ) -> float | NumpyArray:
     """
     Calculate the longitudinal damping time in turns.
@@ -163,8 +172,8 @@ def calculate_longitudinal_damping_time_in_turns(
         Energy of the reference particle, in [eV]
     synchrotron_radiation_integrals
         Synchrotron radiation integrals
-    energy_loss_per_turn
-        Energy lost per turn, in [eV per turn]
+    particle_type
+        ParticleType class object
 
     Returns
     -------
@@ -174,6 +183,11 @@ def calculate_longitudinal_damping_time_in_turns(
         calculate_longitudinal_damping_partition_number(
             synchrotron_radiation_integrals
         )
+    )
+    energy_loss_per_turn = calculate_energy_loss_per_turn(
+        energy,
+        synchrotron_radiation_integrals,
+        particle_type,
     )
     return (
         2
@@ -186,7 +200,7 @@ def calculate_longitudinal_damping_time_in_turns(
 def calculate_damping_times_in_seconds(
     energy: float | NumpyArray,
     synchrotron_radiation_integrals: NumpyArray,
-    energy_loss_per_turn: float,
+    particle_type: ParticleType,
     revolution_frequency: float | NumpyArray,
 ) -> NumpyArray:
     """
@@ -198,8 +212,8 @@ def calculate_damping_times_in_seconds(
         Energy of the reference particle, in [eV]
     synchrotron_radiation_integrals
         Synchrotron radiation integrals
-    energy_loss_per_turn
-        Energy lost per turn, in [eV per turn]
+    particle_type
+        ParticleType class object
     revolution_frequency
         Revolution frequency, in [Hz]
 
@@ -215,6 +229,11 @@ def calculate_damping_times_in_seconds(
 
     damping_partition_numbers = calculate_partition_numbers(
         synchrotron_radiation_integrals
+    )
+    energy_loss_per_turn = calculate_energy_loss_per_turn(
+        energy,
+        synchrotron_radiation_integrals,
+        particle_type,
     )
     return np.array(
         [
@@ -233,7 +252,7 @@ def calculate_damping_times_in_seconds(
 def calculate_horizontal_damping_time_in_seconds(
     energy: float | NumpyArray,
     synchrotron_radiation_integrals: NumpyArray,
-    energy_loss_per_turn: float,
+    particle_type: ParticleType,
     revolution_frequency: float | NumpyArray,
 ) -> float | NumpyArray:
     """
@@ -245,8 +264,8 @@ def calculate_horizontal_damping_time_in_seconds(
         Energy of the reference particle, in [eV]
     synchrotron_radiation_integrals
         Synchrotron radiation integrals
-    energy_loss_per_turn
-        Energy lost per turn, in [eV per turn]
+    particle_type
+        ParticleType class object
     revolution_frequency
         Revolution frequency [Hz]
 
@@ -260,6 +279,11 @@ def calculate_horizontal_damping_time_in_seconds(
             synchrotron_radiation_integrals
         )
     )
+    energy_loss_per_turn = calculate_energy_loss_per_turn(
+        energy,
+        synchrotron_radiation_integrals,
+        particle_type,
+    )
     return (
         2
         * energy
@@ -272,7 +296,7 @@ def calculate_horizontal_damping_time_in_seconds(
 def calculate_longitudinal_damping_time_in_seconds(
     energy: float | NumpyArray,
     synchrotron_radiation_integrals: NumpyArray,
-    energy_loss_per_turn: float,
+    particle_type: ParticleType,
     revolution_frequency: float | NumpyArray,
 ) -> float | NumpyArray:
     """
@@ -284,8 +308,8 @@ def calculate_longitudinal_damping_time_in_seconds(
         Energy of the reference particle, in [eV]
     synchrotron_radiation_integrals
         Synchrotron radiation integrals
-    energy_loss_per_turn
-        Energy lost per turn, in [eV per turn]
+    particle_type
+        ParticleType class object
     revolution_frequency
         Revolution frequency [Hz]
 
@@ -297,6 +321,11 @@ def calculate_longitudinal_damping_time_in_seconds(
         calculate_longitudinal_damping_partition_number(
             synchrotron_radiation_integrals
         )
+    )
+    energy_loss_per_turn = calculate_energy_loss_per_turn(
+        energy,
+        synchrotron_radiation_integrals,
+        particle_type,
     )
     return (
         2
@@ -310,7 +339,7 @@ def calculate_longitudinal_damping_time_in_seconds(
 def calculate_energy_loss_per_turn(
     energy: float | NumpyArray,
     synchrotron_radiation_integrals: NumpyArray,
-    particle_type: ParticleType = electron,
+    particle_type: ParticleType,
 ) -> float | NumpyArray:
     """
     Function to calculate the expected energy loss per turn due to synchrotron
@@ -341,7 +370,7 @@ def calculate_energy_loss_per_turn(
 def calculate_natural_horizontal_emittance(
     energy: float | NumpyArray,
     synchrotron_radiation_integrals: NumpyArray,
-    particle_type: ParticleType = electron,
+    particle_type: ParticleType,
 ) -> float | NumpyArray:
     """
     Computes the natural horizontal emittance from the total energy.
@@ -374,7 +403,7 @@ def calculate_natural_horizontal_emittance(
 def calculate_natural_energy_spread(
     energy: float | NumpyArray,
     synchrotron_radiation_integrals: NumpyArray,
-    particle_type: ParticleType = electron,
+    particle_type: ParticleType,
 ) -> float | NumpyArray:
     """
     Computes the natural energy spread from the total energy.
@@ -408,7 +437,7 @@ def calculate_natural_bunch_length(
     synchrotron_radiation_integrals: NumpyArray,
     angular_synchrotron_frequency: (float | NumpyArray),
     momentum_compaction_factor: float | NumpyArray,
-    particle_type: ParticleType = electron,
+    particle_type: ParticleType,
 ) -> float | NumpyArray:
     """
     Computes the natural bunch length from the total energy.
@@ -448,7 +477,6 @@ def gather_longitudinal_synchrotron_radiation_parameters(
     synchrotron_radiation_integrals: NumpyArray,
     particle_type: ParticleType = electron,
 ) -> float | NumpyArray:
-    # todo: test case
     """
     Calculates the relevant synchrotron radiation parameters for tracking.
 
@@ -476,7 +504,7 @@ def gather_longitudinal_synchrotron_radiation_parameters(
     longitudinal_damping_time = calculate_longitudinal_damping_time_in_turns(
         energy=energy,
         synchrotron_radiation_integrals=synchrotron_radiation_integrals,
-        energy_loss_per_turn=energy_lost_from_synchrotron_radiation,
+        particle_type=particle_type,
     )
     natural_energy_spread = calculate_natural_energy_spread(
         particle_type=particle_type,
