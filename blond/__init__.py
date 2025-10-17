@@ -24,9 +24,10 @@ from .handle_results.observables import (
     CavityPhaseObservation,
     StaticProfileObservation,
 )
+from .handle_results.observables_as_elements import BeamLoggerElement
 from .physics.cavities import MultiHarmonicCavity, SingleHarmonicCavity
 from .physics.drifts import DriftSimple
+from .physics.energy_reference_kick import EnergyReferenceKick
 from .physics.impedances.base import WakeField
 from .physics.losses import BoxLosses
 from .physics.profiles import StaticProfile
-from .physics.energy_reference_kick import EnergyReferenceKick

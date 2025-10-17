@@ -1,23 +1,24 @@
-from .._core.base import Schedulable, BeamPhysicsRelevant, DynamicParameter
+from typing import TYPE_CHECKING, Any
+
 from .._core.backends.backend import backend
+from .._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
 from .._core.beam.base import BeamBaseClass
 from .._core.simulation.simulation import Simulation
 
-from typing import TYPE_CHECKING, Any
-#test
+# test
 if TYPE_CHECKING:  # pragma: no cover
-
     from .. import Ring, Simulation
     from ..cycles.magnetic_cycle import MagneticCycleBase
 
+
 class EnergyReferenceKick(BeamPhysicsRelevant, Schedulable):
-
-    def __init__(self,
-                 n_rf: int,
-                 section_index: int,
-                 name: str | None = None,
-                 **kwargs: dict[str, Any],):  # for MRO of fused elements
-
+    def __init__(
+        self,
+        n_rf: int,
+        section_index: int,
+        name: str | None = None,
+        **kwargs: dict[str, Any],
+    ):  # for MRO of fused elements
         super().__init__(
             section_index=section_index,
             name=name,
@@ -89,32 +90,3 @@ class EnergyReferenceKick(BeamPhysicsRelevant, Schedulable):
         #     charge=backend.float(beam.particle_type.charge),
         #     acceleration_kick=+reference_energy_change,
         # )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
