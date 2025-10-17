@@ -191,8 +191,11 @@ class EmpiricMatcher(MatchingRoutine):
         )
         self._grid_base_dt = grid_base_dt
 
-        _freqs = np.fft.rfftfreq(3, grid_base_dt)
-        print(f"Cutoff frequency of the grid is {_freqs[-1]} Hz")
+        # Print cutoff if grid points are equidistant
+        _time_diffs = np.diff(grid_base_dt)
+        if np.all(_time_diffs == _time_diffs[0]):
+            _freqs = np.fft.rfftfreq(3, _time_diffs[0])
+            print(f"Cutoff frequency of the grid is {_freqs[-1]} Hz")
 
         self._grid_base_dE = grid_base_dE
 
