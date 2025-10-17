@@ -923,6 +923,10 @@ class DynamicProfileConstNBinsObservation(Observables):
         profile
             Class for the calculation of beam profile
             with a change in width, but a constant bin number
+        folder
+            Path to the target folder used for
+            saving or loading files.
+
         """
 
         super().__init__(each_turn_i=each_turn_i, folder=folder)
