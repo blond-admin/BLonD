@@ -5,27 +5,45 @@ from .._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
 from .._core.beam.base import BeamBaseClass
 from .._core.simulation.simulation import Simulation
 
-# test
 if TYPE_CHECKING:  # pragma: no cover
-    from .. import Ring, Simulation
+    from .. import Ring
     from ..cycles.magnetic_cycle import MagneticCycleBase
 
 
 class EnergyReferenceKick(BeamPhysicsRelevant, Schedulable):
+    """
+    This is typically used in simulations where RF ramping is asynchronous with respect to the
+    beam’s energy—for example, during mismatched injection or ramping scenarios. The resulting
+    offset affects the beam's `dE` (energy deviation) and simulates the physics of an energy
+    mismatch relative to the reference trajectory.
+
+    Parameters:
+        section_index (int): Index of the ring section where this element is placed.
+        name (str, optional): An optional name for the element.
+        **kwargs (dict): Additional keyword arguments for compatibility with fused or composite elements.
+
+    Attributes:
+        _turn_i (DynamicParameter | None): Current simulation turn number (initialized during simulation).
+        _magnetic_cycle (MagneticCycleBase | None): Reference to the simulation’s magnetic cycle.
+        _ring (Ring | None): Reference to the ring being simulated.
+
+    Example:
+        >>> elem = EnergyReferenceKick(section_index=1, name="energy_reference_kick")
+        >>> # Add to element map before simulation
+    """
+
     def __init__(
         self,
-        n_rf: int,
         section_index: int,
         name: str | None = None,
         **kwargs: dict[str, Any],
-    ):  # for MRO of fused elements
+    ):
         super().__init__(
             section_index=section_index,
             name=name,
-            **kwargs,  # for MRO of fused elements
+            **kwargs,
         )
 
-        self._n_rf = n_rf
         self._turn_i: DynamicParameter | None = None
         self._magnetic_cycle: MagneticCycleBase | None = None
         self._ring: Ring | None = None
@@ -76,17 +94,5 @@ class EnergyReferenceKick(BeamPhysicsRelevant, Schedulable):
             target_total_energy - beam.reference_total_energy
         )
 
-        # alternative 1
         beam._dE -= reference_energy_change
         beam.reference_total_energy += reference_energy_change
-
-        # #alternative 2
-        # backend.specials.kick_single_harmonic(
-        #     dt=beam.read_partial_dt(),
-        #     dE=beam.write_partial_dE(),
-        #     voltage=backend.float(0),
-        #     phi_rf=backend.float(0),
-        #     omega_rf=backend.float(0),
-        #     charge=backend.float(beam.particle_type.charge),
-        #     acceleration_kick=+reference_energy_change,
-        # )

@@ -68,4 +68,3 @@ class BeamLoggerElement(UserDefinedElement):
             "de": self._de_log[turn_i],
             "dt": self._dt_log[turn_i],
         }
-
