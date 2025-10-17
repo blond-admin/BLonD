@@ -102,29 +102,6 @@ class TestSimulation(unittest.TestCase):
         harmonic = 25900
         transition_gamma = 1 / np.sqrt(11.4e-4)
         one_turn_model = []
-        for cavity_i in range(n_cavities):
-            one_turn_model.extend(
-                [
-                    DriftSimple(  # for symmetry's sake for the CR bunch, we need to inject in the middle of a drift
-                        transition_gamma=transition_gamma,
-                        orbit_length=circumference / n_cavities / 2,
-                        section_index=cavity_i,
-                    ),
-                    SingleHarmonicCavity(
-                        voltage=total_voltage / n_cavities,
-                        phi_rf=0,
-                        harmonic=harmonic,
-                        section_index=cavity_i,
-                    ),
-                    DriftSimple(
-                        transition_gamma=transition_gamma,
-                        orbit_length=circumference / n_cavities / 2,
-                        section_index=cavity_i,
-                    ),
-                ]
-            )
-        ring.add_elements(one_turn_model, reorder=False)
-        sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
 
         bunch_observation = BunchObservationMetaParams(
             each_turn_i=1, obs_per_turn=n_cavities, beam=beam
@@ -133,11 +110,38 @@ class TestSimulation(unittest.TestCase):
             each_turn_i=1, obs_per_turn=n_cavities, beam=beam_CR
         )
 
+        for cavity_i in range(n_cavities):
+            one_turn_model.extend(
+                [
+                    DriftSimple(  # for symmetry's sake for the CR bunch, we need to inject in the middle of a drift
+                        transition_gamma=transition_gamma,
+                        orbit_length=circumference / n_cavities / 2,
+                        section_index=cavity_i,
+                    ),
+                    bunch_observation,
+                    bunch_observation_CR,
+                    SingleHarmonicCavity(
+                        voltage=total_voltage / n_cavities,
+                        phi_rf=0,
+                        harmonic=harmonic,
+                        section_index=cavity_i,
+                    ),
+                    bunch_observation_CR,
+                    DriftSimple(
+                        transition_gamma=transition_gamma,
+                        orbit_length=circumference / n_cavities / 2,
+                        section_index=cavity_i,
+                    ),
+                    bunch_observation,
+                ]
+            )
+        ring.add_elements(one_turn_model, reorder=False)
+        sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
+
         sim.run_simulation(
             beams=(beam, beam_CR),
             n_turns=n_turns,
             turn_i_init=0,
-            observe=(bunch_observation, bunch_observation_CR),
         )
         for member in ["mean_dE", "mean_dt", "sigma_dE", "sigma_dt"]:
             assert np.allclose(
@@ -147,16 +151,17 @@ class TestSimulation(unittest.TestCase):
 
     def test__run_simulation_single_beam(self):
         observe = Mock(spec=Observables)
-
+        observe.section_index = 0
+        observe.__class__ = Observables  # for type check
         def my_callback(simulation: Simulation, beam: Beam) -> None:
             return
 
         mock_func = create_autospec(my_callback, return_value=True)
+        self.simulation.ring.add_element(observe)
         self.simulation._run_simulation_single_beam(
             beam=self.beam,
             n_turns=10,
             turn_i_init=0,
-            observe=(observe,),
             show_progressbar=True,
             callback=mock_func,
         )
@@ -219,7 +224,6 @@ class TestSimulation(unittest.TestCase):
             beams=(self.beam,),
             n_turns=10,
             turn_i_init=0,
-            observe=(observation,),
         )
         self.simulation.run_simulation(**kwargs)
         de_before_save = observation.dEs.copy()
@@ -275,7 +279,6 @@ class TestSimulation(unittest.TestCase):
         self.simulation.run_simulation(
             n_turns=10,
             turn_i_init=0,
-            observe=(observe,),
             show_progressbar=True,
             callback=mock_func,
             beams=(self.beam,),

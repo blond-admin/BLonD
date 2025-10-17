@@ -11,6 +11,7 @@ from tqdm import tqdm  # type: ignore
 
 from ..._generals._warnings import NotTestedWarning, PerformanceWarning
 from ...cycles.magnetic_cycle import MagneticCycleBase
+from ...handle_results.observables import Observables
 from ...physics.drifts import DriftBaseClass
 from ...physics.profiles import ProfileBaseClass
 from ..backends.backend import backend
@@ -48,10 +49,10 @@ if TYPE_CHECKING:  # pragma: no cover
     )
 
     from ...beam_preparation.base import BeamPreparationRoutine
-    from ...handle_results.observables import Observables
     from ..beam.base import BeamBaseClass
     from ..beam.particle_types import ParticleType
     from ..ring.ring import Ring
+
 from ...physics.cavities import CavityBaseClass
 
 logger = logging.getLogger(__name__)
@@ -387,7 +388,6 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass, ...],
         n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: tuple[Observables, ...] = tuple(),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, Beam], None] | None = None,
     ) -> None:
@@ -402,8 +402,6 @@ class Simulation(Preparable):
             Number of turns to simulate
         turn_i_init
             Initial turn to start with simulation
-        observe
-            List of observables to protocol of whats happening inside
             the simulation
         show_progressbar
             If True, will show a progress bar indicating how many turns have
@@ -417,7 +415,6 @@ class Simulation(Preparable):
         _n_turns = self.finalize(
             beams=beams,
             n_turns=n_turns,
-            observe=observe,
             turn_i_init=turn_i_init,
         )
 
@@ -426,7 +423,6 @@ class Simulation(Preparable):
                 beam=beams[0],
                 n_turns=_n_turns,
                 turn_i_init=turn_i_init,
-                observe=observe,
                 show_progressbar=show_progressbar,
                 callback=callback,
             )
@@ -443,7 +439,6 @@ class Simulation(Preparable):
             self._run_simulation_counterrotating_beam(
                 n_turns=_n_turns,
                 turn_i_init=turn_i_init,
-                observe=observe,
                 show_progressbar=show_progressbar,
                 callback=callback,
                 beams=beams,
@@ -453,7 +448,7 @@ class Simulation(Preparable):
                 f"Up to two beam supported, but got {len(beams)}"
             )
 
-    def finalize(self, beams, n_turns, observe, turn_i_init):
+    def finalize(self, beams, n_turns, turn_i_init):
         max_turns = self.magnetic_cycle.n_turns
         if n_turns is not None:
             _n_turns = int_from_float_with_warning(
@@ -492,9 +487,6 @@ class Simulation(Preparable):
                     stacklevel=2,
                 )
         # temporarily pin attributes
-        self._observe = (
-            observe  # to find `on_run_simulation` within `simulation`
-        )
         self._beams = beams  # to find `on_run_simulation` within `simulation`
         self._exec_on_run_simulation(
             beam=beams[0],
@@ -502,7 +494,6 @@ class Simulation(Preparable):
             turn_i_init=turn_i_init,
         )
         # unpin temporary attributes
-        del self._observe
         del self._beams
         return _n_turns
 
@@ -511,7 +502,6 @@ class Simulation(Preparable):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int = 0,
-        observe: tuple[Observables, ...] = tuple(),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, Beam], None] | None = None,
     ) -> None:
@@ -523,9 +513,6 @@ class Simulation(Preparable):
             Number of turns to simulate
         turn_i_init
             Initial turn to start with simulation
-        observe
-            List of observables to protocol of whats happening inside
-            the simulation
         show_progressbar
             If True, will show a progress bar indicating how many turns have
             been completed and other metrics
@@ -539,26 +526,25 @@ class Simulation(Preparable):
         if show_progressbar:
             iterator = tqdm(iterator)  # Add TQDM display to iteration
         self.turn_i.value = 0
-        for observable in observe:
-            observable.update(
-                simulation=self,
-            )
         for turn_i in iterator:
             self.turn_i.value = turn_i
             for element in self._ring.elements.elements:
                 self.section_i.value = element.section_index
                 if element.is_active_this_turn(turn_i=self.turn_i.value):
-                    element.track(beam)
-                if isinstance(
-                    element, DriftBaseClass
-                ):  # only observe after drifts
-                    for observable in observe:
-                        if observable.is_active_this_turn(
-                            turn_i=self.turn_i.value
-                        ):
-                            observable.update(
-                                simulation=self,
-                            )
+                    if issubclass(type(element), Observables):
+                        element.update(simulation=self)
+                    elif issubclass(type(element), BeamPhysicsRelevant):
+                        element.track(beam)
+                # if isinstance(
+                #     element, DriftBaseClass
+                # ):  # only observe after drifts
+                #     for observable in observe:
+                #         if observable.is_active_this_turn(
+                #             turn_i=self.turn_i.value
+                #         ):
+                #             observable.update(
+                #                 simulation=self,
+                #             )
             if callback is not None:
                 callback(simulation=self, beam=beam)
 

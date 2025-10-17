@@ -18,7 +18,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from ...physics.drifts import DriftBaseClass
     from ..beam.base import BeamBaseClass
     from ..simulation.simulation import Simulation
-    from .beam_physics_relevant_elements import BeamPhysicsRelevantElements
+    from .beam_physics_relevant_elements import MainLoopRelevantElements
 
 
 class Ring(Preparable, Schedulable):
@@ -37,10 +37,10 @@ class Ring(Preparable, Schedulable):
             Changes of orbit length thus lead to delays, but do not alter
             the derived frequency program.
         """
-        from .beam_physics_relevant_elements import BeamPhysicsRelevantElements
+        from .beam_physics_relevant_elements import MainLoopRelevantElements
 
         super().__init__()
-        self._elements = BeamPhysicsRelevantElements()
+        self._elements = MainLoopRelevantElements()
         assert circumference > 0, (
             f"`circumference` must be bigger 0, but is {circumference}"
         )
@@ -129,7 +129,7 @@ class Ring(Preparable, Schedulable):
         return self.elements.count(CavityBaseClass)
 
     @property  # as readonly attributes
-    def elements(self) -> BeamPhysicsRelevantElements:
+    def elements(self) -> MainLoopRelevantElements:
         """Bending radius, in [m]."""
         return self._elements
 

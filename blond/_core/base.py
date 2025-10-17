@@ -69,10 +69,23 @@ class MainLoopRelevant(Preparable):
 
     """
 
-    def __init__(self) -> None:
+    n_instances = 0
+
+    def __init__(
+        self, section_index: int = 0, name: str | None = None
+    ) -> None:
         super().__init__()
         self.each_turn_i = 1
+        self._section_index = section_index
         self.active = True
+
+        if name is None:
+            name = (
+                f"Unnamed-{type(self).__name__}-{type(self).n_instances:03d}"
+            )
+        self.name = name
+
+        type(self).n_instances += 1
 
     def is_active_this_turn(self, turn_i: int) -> bool:
         """Whether the element is active or not.
@@ -86,6 +99,11 @@ class MainLoopRelevant(Preparable):
             return turn_i % self.each_turn_i == 0
         else:
             return False
+
+    @property  # as readonly attributes
+    def section_index(self) -> int:
+        """Section index to group elements into sections."""
+        return self._section_index
 
 
 class Schedulable:
@@ -206,26 +224,12 @@ class BeamPhysicsRelevant(MainLoopRelevant):
         User given name of the element
     """
 
-    n_instances = 0
-
     def __init__(
         self,
         section_index: int = 0,
         name: str | None = None,
     ) -> None:
-        super().__init__()
-        self._section_index = section_index
-        if name is None:
-            name = (
-                f"Unnamed-{type(self).__name__}-{type(self).n_instances:03d}"
-            )
-        self.name = name
-        type(self).n_instances += 1
-
-    @property  # as readonly attributes
-    def section_index(self) -> int:
-        """Section index to group elements into sections."""
-        return self._section_index
+        super().__init__(section_index=section_index, name=name)
 
     @abstractmethod  # pragma: no cover
     def track(self, beam: BeamBaseClass) -> None:

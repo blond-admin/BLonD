@@ -4,8 +4,10 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from blond._core.base import BeamPhysicsRelevant, MainLoopRelevant, Preparable
+
 from ... import Simulation
-from ..base import Preparable
+from ...handle_results.observables import Observables
 from ..beam.base import BeamBaseClass
 from ..ring.helpers import get_elements
 
@@ -14,17 +16,19 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from numpy.typing import NDArray as NumpyArray
 
-    from ..base import BeamPhysicsRelevant
+    # from blond._core.base import BeamPhysicsRelevant
 
     T = TypeVar("T")
 
 
-class BeamPhysicsRelevantElements(Preparable):
+class MainLoopRelevantElements(Preparable):
     """Container object to manage all beam interactions in `Ring`."""
 
     def __init__(self) -> None:
         super().__init__()
-        self.elements: list[BeamPhysicsRelevant] = []
+        self.elements: list[
+            Observables | BeamPhysicsRelevant | MainLoopRelevant
+        ] = []
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called.
@@ -126,7 +130,7 @@ class BeamPhysicsRelevantElements(Preparable):
                 result[section_i] = 0
         return result
 
-    def add_element(self, element: BeamPhysicsRelevant) -> None:
+    def add_element(self, element: MainLoopRelevant) -> None:
         """Append a beam physics-relevant element to the container.
 
         This method appends the given element to the
@@ -160,7 +164,7 @@ class BeamPhysicsRelevantElements(Preparable):
 
     def check_section_index_compatibility(
         self,
-        element: BeamPhysicsRelevant,
+        element: MainLoopRelevant,
         insert_at: int,
     ) -> None:
         """Method to check the element can be inserted in the defined section.
@@ -216,7 +220,7 @@ class BeamPhysicsRelevantElements(Preparable):
                 f"0:{len(self.elements)}] indexes. "
             )
 
-    def insert(self, element: BeamPhysicsRelevant, insert_at: int) -> None:
+    def insert(self, element: MainLoopRelevant, insert_at: int) -> None:
         """Insert a beam physics-relevant element to the container at the
         specified index.
 

@@ -7,7 +7,7 @@ from blond import Simulation
 from blond._core.base import BeamPhysicsRelevant
 from blond._core.beam.base import BeamBaseClass
 from blond._core.ring.beam_physics_relevant_elements import (
-    BeamPhysicsRelevantElements,
+    MainLoopRelevantElements,
     pretty_string,
 )
 from blond.physics.cavities import CavityBaseClass
@@ -21,7 +21,7 @@ class TestFunctions(unittest.TestCase):
 
 class TestBeamPhysicsRelevantElements(unittest.TestCase):
     def setUp(self):
-        self.beam_physics_relevant_elements = BeamPhysicsRelevantElements()
+        self.beam_physics_relevant_elements = MainLoopRelevantElements()
         element1 = Mock(spec=DriftBaseClass)
         element1.orbit_length = 0.5
         element1.section_index = 0

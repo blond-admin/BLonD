@@ -344,7 +344,9 @@ class BunchObservation(Observables):
         return self._flags.get_valid_entries()
 
 
-class BunchObservationMetaParams(Observables):
+class BunchObservationMetaParams(
+    Observables,
+):
     def __init__(
         self,
         each_turn_i: int,
