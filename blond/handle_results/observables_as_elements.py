@@ -11,7 +11,7 @@ class BeamLoggerElement(UserDefinedElement):
 
     Parameters:
         beam (BeamBaseClass): The beam object to be monitored.
-        n_turns (int): Number of turns to log.
+        n_turns (int): Number of turns in simulation
 
     Example:
         >>> beam_monitor = BeamLoggerElement(beam=BeamBaseClass, n_turns=N_TURNS)
