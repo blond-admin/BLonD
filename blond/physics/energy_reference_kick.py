@@ -4,6 +4,7 @@ from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
 from .._core.beam.base import BeamBaseClass
 from .._core.simulation.simulation import Simulation
+from ..cycles.magnetic_cycle import MagneticCycleByTime
 
 if TYPE_CHECKING:  # pragma: no cover
     from .. import Ring
@@ -53,6 +54,11 @@ class EnergyReferenceKick(BeamPhysicsRelevant, Schedulable):
         self._turn_i = simulation.turn_i
         self._magnetic_cycle = simulation.magnetic_cycle
         self._ring = simulation.ring
+
+        if not isinstance(self._magnetic_cycle, MagneticCycleByTime):
+            raise TypeError(
+                f"Expected MagneticCycleByTime, got {type(self._magnetic_cycle).__name__}"
+            )
 
     def on_run_simulation(
         self,
