@@ -348,7 +348,6 @@ class TestDynamicProfileConstNBinsObservation(unittest.TestCase):
         )
         self.dynamic_profile_observation.update(
             simulation=simulation,
-            beam=beam,
         )
         self.dynamic_profile_observation.to_disk()
 
