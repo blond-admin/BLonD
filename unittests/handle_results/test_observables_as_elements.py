@@ -1,11 +1,11 @@
 import unittest
+
 import numpy as np
 
-from blond.handle_results.observables_as_elements import BeamLoggerElement
-from blond._core.simulation.simulation import Simulation
 from blond._core.beam.beams import Beam
 from blond._core.beam.particle_types import proton
-
+from blond._core.simulation.simulation import Simulation
+from blond.handle_results.observables_as_elements import BeamLoggerElement
 
 n_particles = 10
 beam = Beam(intensity=1e11, particle_type=proton)  # or appropriate params
@@ -13,10 +13,8 @@ dt = np.linspace(-1e-9, 1e-9, n_particles)
 dE = np.linspace(-1e6, 1e6, n_particles)
 beam.setup_beam(dt=dt, dE=dE)
 
-
 class DummySimulation(Simulation):
     pass
-
 
 class TestBeamLoggerElement(unittest.TestCase):
     def setUp(self):
@@ -77,4 +75,3 @@ class TestBeamLoggerElement(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
