@@ -913,13 +913,13 @@ class DynamicProfileConstNBinsObservation(Observables):
         profile: DynamicProfileConstNBins,
         folder: str = "",
     ):
-        """Observation of a dynamic beam profile with changing width, while keeping a constant bin number
+        """Observation of a dynamic beam profile with changing width, while keeping a constant bin number.
 
         Parameters
         -------
          each_turn_i
             Value to control that the element is
-            callable each n-th turn.
+            callable each n-th turn
         profile
             Class for the calculation of beam profile
             with a change in width, but a constant bin number
@@ -937,7 +937,7 @@ class DynamicProfileConstNBinsObservation(Observables):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """Lateinit method when :func:`blond._core.simulation.simulation.Simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
@@ -968,7 +968,6 @@ class DynamicProfileConstNBinsObservation(Observables):
     def update(
         self,
         simulation: Simulation,
-        beam: BeamBaseClass,
     ) -> None:
         """Update memory with new values.
 
@@ -976,13 +975,8 @@ class DynamicProfileConstNBinsObservation(Observables):
         ----------
         simulation
             Simulation context manager
-        beam
-            Simulation beam object
-
         """
-        self._hist_y.write(
-            self._profile._hist_y,
-        )
+        self._hist_y.write(self._profile._hist_y)
         self._hist_x.write(self._profile._hist_x)
 
     @property  # as readonly attributes
@@ -992,5 +986,5 @@ class DynamicProfileConstNBinsObservation(Observables):
 
     @property  # as readonly attributes
     def hist_x(self):
-        """ "x-axis of histogram, in [s], i.e. `bin_centers`."""
+        """x-axis of histogram, in [s], i.e. `bin_centers`."""
         return self._hist_x.get_valid_entries()
