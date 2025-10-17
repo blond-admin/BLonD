@@ -153,7 +153,7 @@ for i in range(n_sections):
         )
     )
 
-SR[0].print_SR_params()
+SR[0].print_synchrotron_radiation_params()
 
 # ACCELERATION MAP-------------------------------------------------------------
 
