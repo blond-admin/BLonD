@@ -197,7 +197,7 @@ class NumbaSpecials(Specials):  # pragma: no cover
         sig_histogram,
         parallel=True,
         fastmath=True,
-        cache=True,
+        cache=False,
     )
     def histogram(
         array_read: NumpyArray,
@@ -205,14 +205,17 @@ class NumbaSpecials(Specials):  # pragma: no cover
         start: np.float32 | np.float64,
         stop: np.float32 | np.float64,
     ) -> None:
+        n_threads = numba.get_num_threads()  # this prevents caching
         width = stop - start
         n_bins = len(array_write)
         bin_step = width / n_bins
         inv_bin_step = 1 / bin_step
-        array_tmp = np.zeros(n_bins)
-        for i in range(len(array_read)):
+        array_tmp = np.zeros((n_threads, n_bins))
+        array_write[:] = 0
+        for i in prange(len(array_read)):
+            curr_thread = numba.get_thread_id()
             if array_read[i] == stop:
-                array_tmp[-1] += 1
+                array_tmp[curr_thread, -1] += 1
                 continue
             idx = int((array_read[i] - start) * inv_bin_step)
             if idx < 0:
@@ -220,9 +223,8 @@ class NumbaSpecials(Specials):  # pragma: no cover
             elif idx >= n_bins:
                 continue
             else:
-                array_tmp[idx] += 1
-
-        array_write[:] = array_tmp[:]
+                array_tmp[curr_thread, idx] += 1
+        array_write[:] = np.sum(array_tmp, axis=0)
 
     @staticmethod
     def loss_box(top: float, bottom: float, left: float, right: float) -> None:
