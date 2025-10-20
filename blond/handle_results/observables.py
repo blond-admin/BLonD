@@ -287,7 +287,7 @@ class BunchObservation(Observables):
 
 
 class CavityPhaseObservation(Observables):
-    """Observe the cavity rf parameters during simulation execution.
+    """Observe the RF cavity parameters during the execution of the simulation.
 
     Parameters
     ----------

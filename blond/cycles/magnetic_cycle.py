@@ -2,7 +2,7 @@
 
 Notes
 -----
-Following classes are currently available:
+The following classes are currently available:
 - :class:`~blond.cycles.magnetic_cycles.ConstantMagneticCycle`
 - :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurn`
 - :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllCavities`

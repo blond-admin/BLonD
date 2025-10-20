@@ -38,7 +38,7 @@ class ArrayRecorder(ABC):
         Parameters
         ----------
         newdata
-            An new array to save into the internal array
+            A new array to save into the internal array
         """
         pass
 

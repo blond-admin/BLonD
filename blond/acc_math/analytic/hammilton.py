@@ -212,7 +212,7 @@ def calc_phi_s_single_harmonic(
     energy_gain: float,
     above_transition: bool,
 ) -> float:
-    """Derive the analytical synchronous phase for a single harmonic RF.
+    """Derives the analytical synchronous phase for a single harmonic RF.
 
     Parameters
     ----------
@@ -226,7 +226,7 @@ def calc_phi_s_single_harmonic(
     energy_gain
         Energy gain per turn, in [eV].
     above_transition
-        Weather the beam energy is below or above transition.
+        Whether the beam energy is below or above transition.
 
     Returns
     -------
