@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import unittest
-from copy import deepcopy
+from typing import TYPE_CHECKING
 from unittest.mock import Mock, create_autospec
 
 import matplotlib.pyplot as plt
@@ -23,6 +25,10 @@ from blond.handle_results.observables import (
     BunchObservationMetaParams,
     Observables,
 )
+
+if TYPE_CHECKING:  # pragma: no cover
+    from cupy.typing import NDArray as CupyArray  # type: ignore
+
 
 
 class TestSimulation(unittest.TestCase):
@@ -51,7 +57,7 @@ class TestSimulation(unittest.TestCase):
             dt=np.linspace(1, 10, 10),
             dE=np.linspace(11, 20, 10),
             reference_time=0,
-            reference_total_energy=1,
+            reference_total_energy=450e9,
         )
         self.simulation = Simulation.from_locals(locals())
         self.beam = beam1
@@ -190,14 +196,18 @@ class TestSimulation(unittest.TestCase):
         from blond.testing.simulation import SimulationTwoRfStations
 
         sim = SimulationTwoRfStations()
-        potential_well = sim.simulation.get_potential_well_empiric(
-            ts=np.linspace(-1e-9, 1e-9, 100),
-            particle_type=proton,
+        ts = np.linspace(-2e-9, 2e-9, 100)
+
+        potential_well, factor, tilt_dt_per_dE = (
+            sim.simulation.get_potential_well_empiric(
+                dt=ts,
+                particle_type=proton,
+            )
         )
         SAVE_PINNED = False
         if SAVE_PINNED:
             np.savetxt(
-                "resources/potential_well.csv",
+                callers_relative_path("resources/potential_well.csv", 1),
                 potential_well,
             )
         potential_well_pinned = np.loadtxt(
@@ -212,6 +222,15 @@ class TestSimulation(unittest.TestCase):
     def test_get_separatrix(self):
         # TODO: implement test for `get_separatrix`
         self.simulation.get_separatrix()
+
+    def test_invalidate_cache(self):
+        self.simulation.invalidate_cache()
+
+    def test_plot_potential_well_empiric(self):
+        self.simulation.plot_potential_well_empiric(
+            dt=np.linspace(0, 1e-9),
+            particle_type=proton,
+        )
 
     def test_load_results(self):
         observation = BunchObservation(each_turn_i=10, beam=self.beam)
@@ -281,6 +300,93 @@ class TestSimulation(unittest.TestCase):
             beams=(self.beam,),
         )
         mock_func.assert_called()
+
+    def test_get_potential_well_empiric_shape(self):
+        cavity = self.simulation.ring.elements.get_element(
+            SingleHarmonicCavity
+        )
+        particle_type = proton
+
+        ts = np.linspace(
+            0,
+            self.simulation.magnetic_cycle.get_t_rev_init(
+                circumference=self.simulation.ring.circumference,
+                t_init=0,
+                turn_i_init=0,
+                particle_type=particle_type,
+            )
+            / cavity.harmonic,
+            20000,
+        )
+        phis = ts * cavity.calc_omega(
+            beam_beta=self.beam.reference_beta,
+            ring_circumference=self.simulation.ring.circumference,
+        )
+        potential_well, factor, tilt_dt_per_dE = (
+            self.simulation.get_potential_well_empiric(
+                ts, particle_type=particle_type
+            )
+        )
+        DEV_PLOT = False
+        phi_s = np.pi
+
+        potential_well_analytic = (
+            particle_type.charge
+            * cavity.voltage
+            / (2 * np.pi)
+            * (np.cos(phis) - np.cos(phi_s) + (phis - phi_s) * np.sin(phi_s))
+        )
+        if DEV_PLOT:
+            plt.plot(
+                potential_well,
+                label="potential_well",
+            )
+
+            plt.plot(
+                potential_well_analytic,
+                "--",
+                label="potential_well_analytic",
+            )
+            plt.legend()
+            plt.show()
+        np.testing.assert_allclose(
+            potential_well_analytic / potential_well_analytic.max() + 1,
+            potential_well / potential_well.max() + 1,
+            rtol=1e-4,
+        )
+
+    def test_get_drift_term_empiric(self):
+        from blond.testing.simulation import SimulationTwoRfStations
+
+        sim = SimulationTwoRfStations()
+        simulation = sim.simulation
+        de = np.linspace(-1e9, 1e9)
+        beam = sim.beam1
+        beam.reference_total_energy = 450e9
+        drift_term = simulation.get_drift_term_empiric(
+            dE=de,
+            particle_type=proton,
+        )
+        E0 = beam.reference_total_energy
+        beta = beam.reference_beta
+
+        eta = float(simulation.ring.calc_average_eta_0(beam.reference_gamma))
+        drift_term_analytic = (
+            0.5 * eta / (np.square(beta) * E0) * de**2
+        )  # [1/eV]
+        DEV_DRAW = False
+        if DEV_DRAW:
+            plt.figure()
+
+            print(drift_term - drift_term_analytic)
+            plt.plot(drift_term)
+            plt.plot(drift_term_analytic, "--")
+            plt.show()
+        np.testing.assert_allclose(
+            drift_term_analytic + 1,
+            drift_term + 1,
+            atol=0.15,
+        )
 
 
 if __name__ == "__main__":

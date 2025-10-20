@@ -698,7 +698,7 @@ class CavityPhaseObservation(Observables):
         cavity: SingleHarmonicCavity,
         folder: str = "",
     ):
-        """Observe the cavity rf parameters during simulation execution.
+        """Observe the cavity RF parameters during simulation execution.
 
         Parameters
         ----------
@@ -706,7 +706,7 @@ class CavityPhaseObservation(Observables):
             Value to control that the element is
             callable each n-th turn.
         cavity
-            Class that implements beam-rf interactions in a synchrotron
+            Class that implements beam-RF interactions in a synchrotron
         folder
             Path to the target folder used for
             saving or loading files.

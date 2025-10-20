@@ -16,6 +16,8 @@ from blond.experimental.acc_math.empiric.hamiltonian import (
     separatrixes,
 )
 
+from .helpers import populate_beam
+
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
 

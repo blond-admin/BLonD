@@ -172,6 +172,8 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         assert len(elements) == 2
 
     def test_get_order_info(self):
+        for mock_element in self.beam_physics_relevant_elements.elements:
+            mock_element.info_string.return_value = ""
         self.beam_physics_relevant_elements.get_order_info()
 
     def test_get_section_circumference_orbit_lengths(self):
@@ -206,6 +208,8 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         )
 
     def test_print_order(self):
+        for mock_element in self.beam_physics_relevant_elements.elements:
+            mock_element.info_string.return_value = ""
         self.beam_physics_relevant_elements.print_order()
 
     def test_reorder(self):

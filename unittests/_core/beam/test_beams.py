@@ -124,6 +124,10 @@ class TestBeam(unittest.TestCase):
         self.beam.plot_hist2d()
         plt.gcf().clf()
 
+    def test_plot_hist(self):
+        self.beam.plot_hist()
+        plt.gcf().clf()
+
     def test_plot_hist2d_executes_gpu(self) -> None:
         try:
             import cupy as cp  # type: ignore

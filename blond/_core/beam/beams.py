@@ -159,6 +159,10 @@ class Beam(BeamBaseClass):
 
     def plot_hist2d(self, **kwargs) -> None:
         """Plot 2D histogram of beam coordinates."""
+        if self._dt is None or self._dE is None:
+            raise ValueError(
+                "Beam `dt` and `dE` coordinates are not initialized!"
+            )
         if "cmap" not in kwargs.keys():
             kwargs["cmap"] = "viridis"
         if "bins" not in kwargs.keys():
@@ -171,6 +175,33 @@ class Beam(BeamBaseClass):
         else:
             plt.hist2d(self._dt, self._dE, **kwargs)
 
+    def plot_hist(self, axis=0, **kwargs) -> None:
+        """Plot 2D histogram of beam coordinates"""
+        if self._dt is None or self._dE is None:
+            raise ValueError(
+                "Beam `dt` and `dE` coordinates are not initialized!"
+            )
+        if "bins" not in kwargs.keys():
+            kwargs["bins"] = 256
+        if is_cupy_array(self._dt):
+            # variables below are just for the type hints to function correctly
+            dE: CupyArray = self._dE
+            dt: CupyArray = self._dt
+            if axis == 0:
+                xs = dt.get()
+            elif axis == 1:
+                xs = dE.get()
+            else:
+                raise ValueError(f"{axis=}")
+        else:
+            if axis == 0:
+                xs = self._dt
+            elif axis == 1:
+                xs = self._dE
+            else:
+                raise ValueError(f"{axis=}")
+        plt.hist(xs, **kwargs)
+
 
 class ProbeBeam(Beam):
     def __init__(
@@ -180,8 +211,12 @@ class ProbeBeam(Beam):
         dE: NumpyArray | None = None,
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
+        intensity: int = 0,
     ) -> None:
         """Test Bunch without intensity effects.
+
+        This is intended to probe the simulation with peculiar bunches,
+        that might only feature ``dt`` or ``dE``
 
         Parameters
         ----------
@@ -189,17 +224,26 @@ class ProbeBeam(Beam):
             Type of particles, e.g. protons
         dt
             Macro-particle time coordinates, in [s]
+            Will be all zero if not provided.
         dE
             Macro-particle energy coordinates, in [eV]
+            Will be all zero if not provided.
+        reference_time
+            Time of the reference frame (global time), in [s]
+        reference_total_energy
+            Time of the reference frame (global total energy), in [eV]
+        intensity
+            Actual/real number of particles
+            a.k.a. beam intensity
         """
         super().__init__(
-            intensity=0,
+            intensity=intensity,
             particle_type=particle_type,
         )
         if dt is not None:
-            dE = np.zeros_like(dt)
+            dE = backend.zeros_like(dt)
         elif dE is not None:
-            dt = np.zeros_like(dE)
+            dt = backend.zeros_like(dE)
         elif (dE is None) and (dt is None):
             raise ValueError("dE or dt must be given!")
         else:

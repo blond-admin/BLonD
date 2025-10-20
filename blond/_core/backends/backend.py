@@ -23,7 +23,10 @@ class Specials(ABC):
     @staticmethod
     @abstractmethod  # pragma: no cover
     def loss_box(
-        top: float, bottom: float, left: float, right: float
+        top: np.float32 | np.float64,
+        bottom: np.float32 | np.float64,
+        left: np.float32 | np.float64,
+        right: float,
     ) -> None:  # TODO
         pass
 
@@ -32,9 +35,9 @@ class Specials(ABC):
     def kick_single_harmonic(
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
-        voltage: float,
-        omega_rf: float,
-        phi_rf: float,
+        voltage: np.float32 | np.float64,
+        omega_rf: np.float32 | np.float64,
+        phi_rf: np.float32 | np.float64,
         charge: np.float32 | np.float64,
         acceleration_kick: np.float32 | np.float64,
     ) -> None:
@@ -48,9 +51,9 @@ class Specials(ABC):
         voltage: NumpyArray,
         omega_rf: NumpyArray,
         phi_rf: NumpyArray,
-        charge: float,
+        charge: np.float32 | np.float64,
         n_rf: int,
-        acceleration_kick: float,
+        acceleration_kick: np.float32 | np.float64,
     ) -> None:
         pass
 
@@ -71,13 +74,13 @@ class Specials(ABC):
     def drift_legacy(
         dt: NumpyArray,
         dE: NumpyArray,
-        T: float,
+        T: np.float32 | np.float64,
         alpha_order: int,
-        eta_0: float,
-        eta_1: float,
-        eta_2: float,
-        beta: float,
-        energy: float,
+        eta_0: np.float32 | np.float64,
+        eta_1: np.float32 | np.float64,
+        eta_2: np.float32 | np.float64,
+        beta: np.float32 | np.float64,
+        energy: np.float32 | np.float64,
     ) -> None:
         pass
 
@@ -86,12 +89,12 @@ class Specials(ABC):
     def drift_exact(
         dt: NumpyArray,
         dE: NumpyArray,
-        T: float,
-        alpha_0: float,
-        alpha_1: float,
-        alpha_2: float,
-        beta: float,
-        energy: float,
+        T: np.float32 | np.float64,
+        alpha_0: np.float32 | np.float64,
+        alpha_1: np.float32 | np.float64,
+        alpha_2: np.float32 | np.float64,
+        beta: np.float32 | np.float64,
+        energy: np.float32 | np.float64,
     ) -> None:
         pass
 
@@ -122,10 +125,10 @@ class Specials(ABC):
     def beam_phase(
         hist_x: NumpyArray,
         hist_y: NumpyArray,
-        alpha: float,
-        omega_rf: float,
-        phi_rf: float,
-        bin_size: float,
+        alpha: np.float32 | np.float64,
+        omega_rf: np.float32 | np.float64,
+        phi_rf: np.float32 | np.float64,
+        bin_size: np.float32 | np.float64,
     ) -> np.float32 | np.float64:
         pass
 
@@ -191,6 +194,10 @@ class BackendBaseClass(ABC):
         self.random: ModuleType = None  # type: ignore
         self.isnan: Callable = None  # type: ignore
         self.sum: Callable = None  # type: ignore
+        self.sqrt: Callable = None  # type: ignore
+        self.meshgrid: Callable = None  # type: ignore
+        self.square: Callable = None  # type: ignore
+        self.mean: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -383,6 +390,11 @@ class NumpyBackend(BackendBaseClass):
         self.random = np.random
         self.isnan = np.isnan
         self.sum = np.sum
+        self.sqrt = np.sqrt
+        self.interp = np.interp
+        self.meshgrid = np.meshgrid
+        self.square = np.square
+        self.mean = np.mean
 
         self._finalize()
 
@@ -403,6 +415,7 @@ class NumpyBackend(BackendBaseClass):
             One of the available backend modes
 
         """
+        onchange = self.specials_mode != mode
         if mode == "python":
             from .python.callables import PythonSpecials
 
@@ -434,7 +447,7 @@ class NumpyBackend(BackendBaseClass):
             self.specials_mode = mode
         else:
             raise ValueError(mode)
-        if self.verbose:
+        if self.verbose and onchange:
             print(f"Set special to `{self.specials.__class__.__name__}`")
 
 
@@ -500,6 +513,11 @@ class CupyBackend(BackendBaseClass):
         self.random = cp.random
         self.isnan = cp.isnan
         self.sum = cp.sum
+        self.sqrt = cp.sqrt
+        self.interp = cp.interp
+        self.meshgrid = cp.meshgrid
+        self.square = cp.square
+        self.mean = cp.mean
 
         from .cuda.callables import CudaSpecials
 

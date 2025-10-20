@@ -238,6 +238,36 @@ class BeamPhysicsRelevant(MainLoopRelevant):
         """
         pass
 
+    def info_string(self, prefix="") -> str:
+        """
+        Prints the state of the object
+
+        Parameters
+        ----------
+        prefix
+            Add this to the start of the line
+
+        Returns
+        -------
+        info_string
+            The state of the object
+
+        """
+        from .ring.beam_physics_relevant_elements import (
+            pretty_string,  # prevent circular import
+        )
+
+        filtered_dict = {
+            k: pretty_string(v)
+            for k, v in self.__dict__.items()
+            if (not k.startswith("_")) and (k != "name")
+        }
+        content = (
+            f"{prefix}{self.name:{40 - len(prefix)}s} {(type(self).__name__):20s} "
+            f"{str(self.section_index):13s} {filtered_dict}"
+        )
+        return content
+
 
 class UserDefinedElement(BeamPhysicsRelevant, ABC):
     def on_init_simulation(self, simulation: Simulation) -> None:

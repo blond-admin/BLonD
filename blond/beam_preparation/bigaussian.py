@@ -185,13 +185,24 @@ class BiGaussian(MatchingRoutine):
         n_macroparticles
             Number of macroparticles to be generated
         sigma_dt
-            Normal distribution length, in [s]
+            Normal distribution length, in [s].
+            Effective `sigma_dt` might be smaller, if `reinsertion=True `
         sigma_dE
-            Normal distribution height, in [eV]
+            Normal distribution height, in [eV].
+            Effective `sigma_dE` might be smaller, if `reinsertion=True `
         reinsertion
-            If True, only particles within the separatrix are generated
+            If True, only particles within the separatrix are generated.
+            This affects the effective `sigma_dt` and `sigma_dE`
         seed
             Random seed parameter
+
+        Examples
+        --------
+        >>> simulation = Simulation( ... )
+        >>> simulation.prepare_beam(
+        >>>     beam= ... ,
+        >>>     preparation_routine=BiGaussian( ... ),
+        >>> )
         """
         super().__init__()
         self.n_macroparticles = int_from_float_with_warning(
