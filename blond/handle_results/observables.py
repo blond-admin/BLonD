@@ -495,6 +495,187 @@ class BunchObservation_meta_params(Observables):
         return self._emittance_stat.get_valid_entries()
 
 
+class MultiBunchObservationMetaParams(Observables):
+    def __init__(
+        self,
+        each_turn_i: int,
+        beam: BeamBaseClass,
+        t_rf: float,
+        n_bunches: int = 1,
+        folder: str = "",
+        obs_per_turn: int = 1,
+    ):
+        """Records mean and standard deviation of both energy and time coordinates and estimates the bunch emittance.
+        This is done by slicing the beam array into segments, which belong to the different buckets, defined with t_rf.
+
+        Parameters
+        ----------
+        each_turn_i
+            Value to control that the element is
+            callable each n-th turn.
+        t_rf
+            Required to determine which bucket to check for the statistics
+        n_bunches
+            Number of bunches to record
+        obs_per_turn
+            Number of observations per turn. Default is 1,
+            cannot be more than number of cavities in turn map
+        beam
+            Simulation beam object
+        folder
+            Path to the target folder used for
+            saving or loading files.
+        """
+        super().__init__(
+            each_turn_i=each_turn_i, obs_per_turn=obs_per_turn, folder=folder
+        )
+        self._beam = beam
+
+        assert n_bunches >= 1, "Number of bunches to record needs to be >= 1"
+        self.n_bunches: int = n_bunches
+
+        assert t_rf > 0, "t_rf needs to be > 0"
+        self.t_rf: float = t_rf
+
+        self._sigma_dt: DenseArrayRecorder | None = None
+        self._sigma_dE: DenseArrayRecorder | None = None
+        self._mean_dt: DenseArrayRecorder | None = None
+        self._mean_dE: DenseArrayRecorder | None = None
+        self._emittance_stat: DenseArrayRecorder | None = None
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs,
+    ) -> None:
+        """Lateinit method when :func:`blond._core.simulation.simulation.Simulation.run_simulation` is called.
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+        beam
+            Simulation beam object
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
+        super().on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=n_turns,
+            turn_i_init=turn_i_init,
+            obs_per_turn=self._obs_per_turn,
+        )
+
+        n_entries = int(n_turns * self._obs_per_turn + 1)
+        shape = (n_entries, self.n_bunches)
+
+        self._mean_dt_buffer = np.zeros(self.n_bunches)
+        self._mean_dE_buffer = np.zeros(self.n_bunches)
+        self._emittance_stat_buffer = np.zeros(self.n_bunches)
+        self._sigma_dt_buffer = np.zeros(self.n_bunches)
+        self._sigma_dE_buffer = np.zeros(self.n_bunches)
+
+        self._mean_dt = DenseArrayRecorder(
+            f"{self.common_name}_mean_dt",
+            shape,
+        )
+        self._mean_dE = DenseArrayRecorder(
+            f"{self.common_name}_mean_dE",
+            shape,
+        )
+        self._sigma_dt = DenseArrayRecorder(
+            f"{self.common_name}_sigma_dt",
+            shape,
+        )
+        self._sigma_dE = DenseArrayRecorder(
+            f"{self.common_name}_sigma_dE",
+            shape,
+        )
+        self._emittance_stat = DenseArrayRecorder(
+            f"{self.common_name}_emittance_stat",
+            shape,
+        )
+
+    def update(
+        self,
+        simulation: Simulation,
+    ) -> None:
+        """Update memory with new values.
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+
+        """
+        if (
+            self._last_section_i_observed == simulation.section_i.value
+            and self._last_turn_i_observed == simulation.turn_i.value
+        ):
+            return
+        self._last_turn_i_observed = simulation.turn_i.value
+        self._last_section_i_observed = simulation.section_i.value
+        if simulation.section_i.value in self._section_indices_to_observe:
+            for bucket in range(self.n_bunches):
+                mask = np.argwhere(
+                    self._beam._dt < self.t_rf * (bucket + 1)
+                    and self._beam._dt > self.t_rf * bucket
+                )
+                # mask_upper = np.argwhere(self._beam._dt > self.t_rf * bucket)
+                # mask = mask_lower * mask_upper
+                self._sigma_dt_buffer[bucket] = np.std(self._beam._dt[mask])
+                self._sigma_dE_buffer[bucket] = np.std(self._beam._dE[mask])
+                self._mean_dt_buffer[bucket] = np.mean(self._beam._dt[mask])
+                self._mean_dE_buffer[bucket] = np.mean(self._beam._dE[mask])
+                self._emittance_stat_buffer[bucket] = np.sqrt(
+                    np.average(self._beam._dE[mask] ** 2)
+                    * np.average(self._beam._dt[mask] ** 2)
+                    - np.average(self._beam._dE[mask] * self._beam._dt[mask])
+                    ** 2
+                )
+            self._sigma_dt.write(self._sigma_dt_buffer)
+            self._sigma_dE.write(self._sigma_dE_buffer)
+            self._mean_dt.write(self._mean_dt_buffer)
+            self._mean_dE.write(self._mean_dE_buffer)
+            self._emittance_stat.write(self._emittance_stat_buffer)
+
+    @property  # as readonly attributes
+    def sigma_dt(self):
+        """Standard deviation of the time coordinate."""
+        return self._sigma_dt.get_valid_entries()
+
+    @property  # as readonly attributes
+    def sigma_dE(self):
+        """Standard deviation of the energy coordinate."""
+        return self._sigma_dE.get_valid_entries()
+
+    @property  # as readonly attributes
+    def mean_dt(self):
+        """Mean of the time coordinate."""
+        return self._mean_dt.get_valid_entries()
+
+    @property  # as readonly attributes
+    def mean_dE(self):
+        """Mean of the time coordinate."""
+        return self._mean_dE.get_valid_entries()
+
+    @property  # as readonly attributes
+    def emittance_stat(self):
+        """Statistical emittance calculated with
+
+        .. math::
+            \epsilon = \sqrt{\langle \Delta t^2 \\rangle \langle \Delta E^2 \\rangle - \langle \Delta t \Delta E \\rangle^2}
+
+        """
+        return self._emittance_stat.get_valid_entries()
+
+
 class MultiCavityObservation(Observables):
     def __init__(
         self,
