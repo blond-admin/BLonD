@@ -31,16 +31,15 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         return f"Synchrotron radiation section element."
 
     def __init__(
-        self, name: Optional[str] = None, section_index: Optional[int] = None
+        self,
+        fractional_radiation_integrals: NumpyArray,
+        name: Optional[str] = None,
+        section_index: Optional[int] = None,
     ):
         super().__init__(name=name, section_index=section_index)
 
         self._simulation: LateInit[Simulation] = None
-        self._energy_lost_due_to_synchrotron_radiation = None
-        self._synchrotron_radiation_integrals: LateInit[NumpyArray] = None
-        self._damping_partition_number: float = None
-        self._damping_time: NumpyArray = None
-        self._natural_energy_spread: NumpyArray = None
+        self._fractional_radiation_integrals = fractional_radiation_integrals
         self._turn_i: LateInit[DynamicParameter] = 0
 
     def _calculate_kick(self, beam: BeamBaseClass) -> NumpyArray:
@@ -61,7 +60,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
             gather_longitudinal_synchrotron_radiation_parameters(
                 particle_type=beam.particle_type,
                 energy=beam.reference_total_energy,
-                synchrotron_radiation_integrals=self._synchrotron_radiation_integrals,
+                synchrotron_radiation_integrals=self._fractional_radiation_integrals,
             )
         )
         self._natural_energy_spread[self._turn_i] = np.average(sigma0)
