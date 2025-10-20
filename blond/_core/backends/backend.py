@@ -416,13 +416,9 @@ class NumpyBackend(BackendBaseClass):
             self.specials = CppSpecials()
             self.specials_mode = mode
         elif mode == "numba":
-            # like
-            # from .numba.callables import NumbaSpecials
-            # but reimport, so that dtypes are in line with the current backend
-            NumbaSpecials = fresh_import(
-                "blond._core.backends.numba.callables",
-                "NumbaSpecials",
-            )
+            from .numba.callables import recompile_numba_backend
+
+            NumbaSpecials = recompile_numba_backend(self.float)
             self.specials = NumbaSpecials()
             self.specials_mode = mode
         elif mode == "fortran":
