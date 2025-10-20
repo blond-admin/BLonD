@@ -60,7 +60,7 @@ class ArrayRecorder(ABC):
 
 
 class DenseArrayRecorder(ArrayRecorder):
-    """Record all data in a single array that is held entirely in the RAM.
+    """Record all data in a single array that is held entirely in the memory.
 
     Notes
     -----
@@ -85,7 +85,7 @@ class DenseArrayRecorder(ArrayRecorder):
         if not self.overwrite:
             if os.path.exists(self.filepath_array):
                 warnings.warn(
-                    f"{self.filepath_array} exists already!",
+                    f"{self.filepath_array} already exists!",
                     stacklevel=1,
                 )
 

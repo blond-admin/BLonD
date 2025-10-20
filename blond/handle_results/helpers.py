@@ -1,4 +1,4 @@
-"""Helper functions to deal with files read/write."""
+"""Helper functions to deal with file read/write operations."""
 
 import inspect
 import os

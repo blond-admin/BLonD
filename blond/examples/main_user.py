@@ -28,7 +28,7 @@ class Main:
 
     @staticmethod
     def describe_accelerator() -> tuple[Ring, MagneticCyclePerTurn, Beam]:
-        """Describes the hardware that is simulated within the `Ring`."""
+        """Describes the hardware that is simulated within the :class:`blond._core.ring.ring.Ring`."""
         # Description of accelerator
         my_ring = Ring(circumference=20)
 
@@ -86,7 +86,7 @@ class Main:
         my_cycle: MagneticCycleBase,
         my_beam: Beam,
     ) -> tuple:
-        """Assembles the `Simulation` object. and matches the beam.
+        """Assembles the :class:`blond._core.simulation.simulation.Simulation` object. and matches the beam.
 
         Parameters
         ----------

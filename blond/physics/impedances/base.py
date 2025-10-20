@@ -32,7 +32,7 @@ class WakeFieldSolver:
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:
-        """Lateinit method when WakeField is late-initialized.
+        """Lateinit method when :class:`blond.physics.impedances.base.WakeField` is late-initialized.
 
         Parameters
         ----------
@@ -369,7 +369,7 @@ class WakeField(ImpedanceBaseClass):
 
         Returns
         -------
-        Instance with lateinit methods executed .
+        Instance with lateinit methods executed.
 
         """
         wf = WakeField(

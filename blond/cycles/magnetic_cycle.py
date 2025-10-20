@@ -1,12 +1,12 @@
-"""Several classes to manage describe the ramp of the magnets.
+"""Several classes to manage and describe the ramp of the magnets.
 
 Notes
 -----
 Following classes are currently available:
-- `ConstantMagneticCycle`
-- `MagneticCyclePerTurn`
-- `MagneticCyclePerTurnAllCavities`
-- `MagneticCycleByTime`
+- :class:`~blond.cycles.magnetic_cycles.ConstantMagneticCycle`
+- :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurn`
+- :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllCavities`
+- :class:`~blond.cycles.magnetic_cycles.MagneticCycleByTime`
 
 Authors
 -------
@@ -99,7 +99,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         simulation
             Simulation context manager
         beam
-            Simulation `Beam` object
+            Simulation :class:`~blond._cycles_core.beam.beam.Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -160,12 +160,12 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         t_init: float,
         particle_type: ParticleType,
     ) -> np.float32 | np.float64:
-        """Compute the initial the total energy [eV] for the initial turn..
+        """Compute the initial the total energy [eV] for the initial turn.
 
         Parameters
         ----------
         turn_i_init
-            Currently turn index.
+            Current turn index.
             (Eventually needed for array accessing)
         t_init
             Current reference time, in [s].
@@ -239,8 +239,8 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
 
         .. math::
 
-            \gamma = \\frac{E_{\mathrm{tot}}}{mc^2}, \quad
-            \beta = \sqrt{1 - \\frac{1}{\gamma^2}}
+            \gamma = \frac{E_{\mathrm{tot}}}{mc^2}, \quad
+            \beta = \sqrt{1 - \frac{1}{\gamma^2}}
         """
         reference_total_energy = self.get_total_energy_init(
             turn_i_init=turn_i_init,
@@ -784,7 +784,7 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
         Returns
         -------
         magnetic_cycle
-            Fully initialized `MagneticCyclePerTurnAllCavities`.
+            Fully initialized :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllCavities`.
 
         """
         ret = MagneticCyclePerTurnAllCavities(
@@ -1053,7 +1053,7 @@ def magnetic_rigidity_to_momentum(
     Parameters
     ----------
     magnetic_rigidity : float or array-like
-        Magnetic rigidity \( B \rho \), in tesla-meters, in [Tm].
+        Magnetic rigidity :math:`B \rho`, in [Tm].
     charge : float
         Particle charge, i.e. number of elementary charges `e`
         Example: For an electron `charge=-1`
@@ -1072,10 +1072,10 @@ def magnetic_rigidity_to_momentum(
         p = B \rho \cdot |q| \cdot c
 
     where:
-        - \( p \) is the momentum,
-        - \( B \rho \) is the magnetic rigidity,
-        - \( q \) is the particle charge in units of \( e \),
-        - \( c \) is the speed of light in vacuum.
+        - :math:`p`  is the momentum,
+        - :math:`B \rho` is the magnetic rigidity,
+        - :math:`q`  is the particle charge in units of `e`,
+        - :math:`c` is the speed of light in vacuum.
 
     """
     return magnetic_rigidity * np.abs(charge) * c0

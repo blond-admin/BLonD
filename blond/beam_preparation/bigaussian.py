@@ -1,4 +1,4 @@
-"""Functions needed for `BiGaussian`.
+"""Functions needed for :class:`~blond.blond.beam_preparation.bigaussian.BiGaussian`.
 
 Authors
 -------
@@ -121,21 +121,21 @@ def _get_dE_from_dt(
 def get_main_harmonic_attributes(
     beam: BeamBaseClass, simulation: Simulation
 ) -> tuple[float, float, float, float]:
-    """Relevant main harmonic attribuites of all RF stations in `Ring`.
+    """Relevant main harmonic attribuites of all RF stations in :class:`~blond._core.ring.ring.Ring`.
 
     Parameters
     ----------
     simulation
         Simulation context manager
     beam
-        Simulation `Beam` object
+        Simulation :class:`~blond._core.beam.beam.Beam` object
 
     Returns
     -------
     harmonic
         Main harmonic.
     omega_rf
-        Main angluar frequencz, in [Hz}.
+        Main angular frequency, in [Hz].
     phi_rf
         Main phase, in [rad].
     voltage

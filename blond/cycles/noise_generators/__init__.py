@@ -1,1 +1,1 @@
-"""Module for noise generators`."""
+"""Module for noise generators."""

@@ -1,4 +1,4 @@
-"""Example input for simulation with RF noise
+"""Example input for simulation with RF noise.
 
 Notes
 -----

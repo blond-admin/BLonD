@@ -1,4 +1,4 @@
-"""Implementations to handle the readout of impedance files on the disk.
+"""Implementations to handle the readout of impedance files from the disk.
 
 Authors
 -------

@@ -1,4 +1,4 @@
-"""Base classes for `NoiseGenerator`.
+"""Base classes for :class:`~blond.cycles.noise_generators.base.NoiseGenerator`.
 
 Authors
 -------

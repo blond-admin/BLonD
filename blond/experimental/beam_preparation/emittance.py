@@ -12,7 +12,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class EmittanceMatcher(MatchingRoutine):
-    """Matches the beam coordinates to an given emittance."""
+    """Matches the beam coordinates to a given emittance."""
     def __init__(self, some_emittance: float, n_macroparticles: int):
         raise NotImplementedError("To be developed")  # TODO
         super().__init__()
