@@ -73,7 +73,7 @@ class CsvReader(ImpedanceReader):
 
 
 class ExampleImpedanceReader1(ImpedanceReader):
-    """Example of how to implement a ImpedanceReader."""
+    """Example of how to implement an ImpedanceReader."""
 
     def __init__(self):
         super().__init__()

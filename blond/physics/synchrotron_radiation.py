@@ -38,7 +38,7 @@ class SynchrotronRadiation(BeamPhysicsRelevant):
         self._simulation: DriftSimple | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """Lateinit method when :func:`blond._core.simulation.simulation.Simulation.__init__` is called.
 
         simulation
             Simulation context manager

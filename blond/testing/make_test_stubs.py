@@ -2,7 +2,9 @@
 
 This is intended to reduce the overhead of writing unittests.
 
-:Authors: Simon Lauber
+Authors
+-------
+Simon Lauber
 """
 
 import ast

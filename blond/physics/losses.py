@@ -1,4 +1,4 @@
-"""Collection of implementations to handle beam losses in synchrotrons..
+"""Collection of implementations to handle beam losses in synchrotrons.
 
 Authors
 -------
@@ -70,7 +70,7 @@ class BoxLosses(LossesBaseClass):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """Lateinit method when :func:`blond._core.simulation.simulation.Simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
@@ -123,7 +123,7 @@ class SeparatrixLosses(LossesBaseClass):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """Lateinit method when :func:`blond._core.simulation.simulation.Simulation.run_simulation` is called.
 
         Parameters
         ----------

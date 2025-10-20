@@ -38,7 +38,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class InductiveImpedanceSolver(WakeFieldSolver):
-    """Wakefield solver specialized for InductiveImpedance."""
+    """Wakefield solver specialized for :class:`blond.physics.impedances.sources.InductiveImpedance`."""
 
     def __init__(self):
         super().__init__()

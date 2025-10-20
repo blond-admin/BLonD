@@ -330,7 +330,7 @@ class ImpedanceTable(DiscreteWakeFieldSource):
         Parameters
         ----------
         filepath
-            path of the file to lead
+            Path of the file to lead
         reader
             `ImpedanceReader` to interpret what's written in the file
 
