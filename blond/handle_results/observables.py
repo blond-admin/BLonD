@@ -18,7 +18,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from .._core.beam.base import BeamBaseClass
     from .._core.simulation.simulation import Simulation
     from ..physics.cavities import SingleHarmonicCavity
-    from ..physics.profiles import StaticProfile
+    from ..physics.profiles import DynamicProfileConstNBins, StaticProfile
 
 logger = logging.getLogger(__name__)
 
@@ -344,7 +344,7 @@ class BunchObservation(Observables):
         return self._flags.get_valid_entries()
 
 
-class BunchObservation_meta_params(Observables):
+class BunchObservationMetaParams(Observables):
     def __init__(
         self,
         each_turn_i: int,
@@ -1085,3 +1085,91 @@ class WakeFieldObservation(Observables):
 
         """
         return self._induced_voltage.get_valid_entries()
+
+
+class DynamicProfileConstNBinsObservation(Observables):
+    def __init__(
+        self,
+        each_turn_i: int,
+        profile: DynamicProfileConstNBins,
+        folder: str = "",
+    ):
+        """Observation of a dynamic beam profile with changing width, while keeping a constant bin number.
+
+        Parameters
+        -------
+         each_turn_i
+            Value to control that the element is
+            callable each n-th turn
+        profile
+            Class for the calculation of beam profile
+            with a change in width, but a constant bin number
+        folder
+            Path to the target folder used for
+            saving or loading files.
+
+        """
+
+        super().__init__(each_turn_i=each_turn_i, folder=folder)
+        self._profile = profile
+        self._hist_y: DenseArrayRecorder | None = None
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        """Lateinit method when :func:`blond._core.simulation.simulation.Simulation.run_simulation` is called.
+
+        simulation
+            Simulation context manager
+        beam
+            Simulation beam object
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
+        super().on_run_simulation(
+            simulation=simulation,
+            n_turns=n_turns,
+            turn_i_init=turn_i_init,
+            beam=beam,
+        )
+        n_entries = n_turns // self.each_turn_i + 2
+        n_bins = int(self._profile.n_bins)
+        self._hist_y = DenseArrayRecorder(
+            f"{self.common_name}_hist_y",
+            (n_entries, n_bins),
+        )
+        self._hist_x = DenseArrayRecorder(
+            f"{self.common_name}_hist_x",
+            (n_entries, n_bins),
+        )
+
+    def update(
+        self,
+        simulation: Simulation,
+    ) -> None:
+        """Update memory with new values.
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+        """
+        self._hist_y.write(self._profile._hist_y)
+        self._hist_x.write(self._profile._hist_x)
+
+    @property  # as readonly attributes
+    def hist_y(self):
+        """Histogram amplitude."""
+        return self._hist_y.get_valid_entries()
+
+    @property  # as readonly attributes
+    def hist_x(self):
+        """x-axis of histogram, in [s], i.e. `bin_centers`."""
+        return self._hist_x.get_valid_entries()
