@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
+from blond._core.backends.backend import backend
+
 from .._core.base import MainLoopRelevant
 from .array_recorders import DenseArrayRecorder
 
@@ -501,6 +503,7 @@ class MultiBunchObservationMetaParams(Observables):
         each_turn_i: int,
         beam: BeamBaseClass,
         t_rf: float,
+        recompute_mask: bool = True,
         n_bunches: int = 1,
         folder: str = "",
         obs_per_turn: int = 1,
@@ -536,6 +539,10 @@ class MultiBunchObservationMetaParams(Observables):
 
         assert t_rf > 0, "t_rf needs to be > 0"
         self.t_rf: float = t_rf
+
+        self.recompute_mask = recompute_mask
+
+        self._mask: NumpyArray = np.array([[]])
 
         self._sigma_dt: DenseArrayRecorder | None = None
         self._sigma_dE: DenseArrayRecorder | None = None
@@ -621,24 +628,30 @@ class MultiBunchObservationMetaParams(Observables):
             return
         self._last_turn_i_observed = simulation.turn_i.value
         self._last_section_i_observed = simulation.section_i.value
+
         if simulation.section_i.value in self._section_indices_to_observe:
-            for bucket in range(self.n_bunches):
-                mask = np.argwhere(
-                    self._beam._dt < self.t_rf * (bucket + 1)
-                    and self._beam._dt > self.t_rf * bucket
-                )
-                # mask_upper = np.argwhere(self._beam._dt > self.t_rf * bucket)
-                # mask = mask_lower * mask_upper
-                self._sigma_dt_buffer[bucket] = np.std(self._beam._dt[mask])
-                self._sigma_dE_buffer[bucket] = np.std(self._beam._dE[mask])
-                self._mean_dt_buffer[bucket] = np.mean(self._beam._dt[mask])
-                self._mean_dE_buffer[bucket] = np.mean(self._beam._dE[mask])
-                self._emittance_stat_buffer[bucket] = np.sqrt(
-                    np.average(self._beam._dE[mask] ** 2)
-                    * np.average(self._beam._dt[mask] ** 2)
-                    - np.average(self._beam._dE[mask] * self._beam._dt[mask])
-                    ** 2
-                )
+            if self.recompute_mask or len(self._mask[0]) == 0:
+                self._mask = []
+                for bucket in range(self.n_bunches):
+                    self._mask.append(
+                        (self._beam._dt < self.t_rf * (bucket + 1))
+                        & (self._beam._dt > self.t_rf * bucket)
+                    )
+
+                self._mask = np.array(self._mask, dtype=bool)
+
+            backend.specials.meta_params_multibunch(
+                self._beam._dt,
+                self._beam._dE,
+                self._mask,
+                self._sigma_dt_buffer,
+                self._sigma_dE_buffer,
+                self._mean_dt_buffer,
+                self._mean_dE_buffer,
+                self._emittance_stat_buffer,
+                self.t_rf,
+            )
+
             self._sigma_dt.write(self._sigma_dt_buffer)
             self._sigma_dE.write(self._sigma_dE_buffer)
             self._mean_dt.write(self._mean_dt_buffer)
@@ -648,22 +661,22 @@ class MultiBunchObservationMetaParams(Observables):
     @property  # as readonly attributes
     def sigma_dt(self):
         """Standard deviation of the time coordinate."""
-        return self._sigma_dt.get_valid_entries()
+        return self._sigma_dt.get_valid_entries().T
 
     @property  # as readonly attributes
     def sigma_dE(self):
         """Standard deviation of the energy coordinate."""
-        return self._sigma_dE.get_valid_entries()
+        return self._sigma_dE.get_valid_entries().T
 
     @property  # as readonly attributes
     def mean_dt(self):
         """Mean of the time coordinate."""
-        return self._mean_dt.get_valid_entries()
+        return self._mean_dt.get_valid_entries().T
 
     @property  # as readonly attributes
     def mean_dE(self):
         """Mean of the time coordinate."""
-        return self._mean_dE.get_valid_entries()
+        return self._mean_dE.get_valid_entries().T
 
     @property  # as readonly attributes
     def emittance_stat(self):
@@ -673,7 +686,7 @@ class MultiBunchObservationMetaParams(Observables):
             \epsilon = \sqrt{\langle \Delta t^2 \\rangle \langle \Delta E^2 \\rangle - \langle \Delta t \Delta E \\rangle^2}
 
         """
-        return self._emittance_stat.get_valid_entries()
+        return self._emittance_stat.get_valid_entries().T
 
 
 class MultiCavityObservation(Observables):
