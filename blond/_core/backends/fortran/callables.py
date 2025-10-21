@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from ...._core.backends.backend import Specials, backend
 from ...._generals._hashing import hash_in_folder
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -95,19 +96,19 @@ def add_backend(module_name: str) -> ModuleType:
     return loaded_module
 
 
-def reload_fortran_backend() -> FortranSpecials:
-    from ...._core.backends.backend import Specials, backend
+def reload_fortran_backend(
+    floattype: type[np.float32] | type[np.float64],
+) -> FortranSpecials:
+    logger.info(f"Loading Fortran backend for {floattype}")
 
-    logger.info(f"Loading Fortran backend for {backend.float}")
-
-    if backend.float == np.float32:
+    if floattype == np.float32:
         libblond_fortran = add_backend(module_name="libblond32")
 
-    elif backend.float == np.float64:
+    elif floattype == np.float64:
         libblond_fortran = add_backend(module_name="libblond64")
 
     else:
-        raise TypeError(backend.float)
+        raise TypeError(floattype)
 
     class FortranSpecials(Specials):
         @staticmethod
@@ -161,13 +162,13 @@ def reload_fortran_backend() -> FortranSpecials:
             charge: np.float32 | np.float64,
             acceleration_kick: np.float32 | np.float64,
         ) -> None:
-            assert dt.dtype == backend.float
-            assert dE.dtype == backend.float
-            assert isinstance(voltage, backend.float)
-            assert isinstance(omega_rf, backend.float)
-            assert isinstance(phi_rf, backend.float)
-            assert isinstance(charge, backend.float)
-            assert isinstance(acceleration_kick, backend.float)
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
+            assert isinstance(voltage, floattype)
+            assert isinstance(omega_rf, floattype)
+            assert isinstance(phi_rf, floattype)
+            assert isinstance(charge, floattype)
+            assert isinstance(acceleration_kick, floattype)
             libblond_fortran.kick_single_harmonic(
                 dt=dt,
                 de=dE,
@@ -326,4 +327,4 @@ def reload_fortran_backend() -> FortranSpecials:
     return FortranSpecials
 
 
-FortranSpecials = reload_fortran_backend()
+FortranSpecials = reload_fortran_backend(floattype=backend.float)
