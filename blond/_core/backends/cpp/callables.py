@@ -31,8 +31,6 @@ class PrecisionClass:
         Args:
             _precision (str, optional): _description_. Defaults to 'double'.
         """
-        if PrecisionClass.__instance is not None:
-            return
 
         PrecisionClass.__instance = self
         self.set(_precision)
