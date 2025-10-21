@@ -101,8 +101,7 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
         simulation: Simulation,
         beam: BeamBaseClass,
     ) -> None:
-        """
-        Generate and apply a matched longitudinal beam distribution.
+        """Generate and apply a matched longitudinal beam distribution.
 
         This method constructs an RF bucket from the simulation and cavity
         parameters, computes a stationary longitudinal distribution using
