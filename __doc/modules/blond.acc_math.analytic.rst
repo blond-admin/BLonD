@@ -13,5 +13,5 @@ Submodules
 .. toctree::
    :maxdepth: 5
 
-   blond.acc_math.analytic.hammilton
+   blond.acc_math.analytic.hamilton
    blond.acc_math.analytic.simple_math

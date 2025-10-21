@@ -16,7 +16,7 @@ import subprocess
 
 # result of list-modules, might need to be updated
 targets = """
-unittests.test_acc_math.test_analytic.test_hammilton
+unittests.test_acc_math.test_analytic.test_hamilton
 unittests.physics.test_drifts
 unittests.physics.test_cavities
 unittests.physics.impedances.test_sovlers
@@ -102,7 +102,7 @@ blond.cycles.base
 blond.beam_preparation.bigaussian
 blond.beam_preparation.base
 blond.acc_math.analytic.simple_math
-blond.acc_math.analytic.hammilton
+blond.acc_math.analytic.hamilton
 blond._generals.iterables
 blond._core.simulation.simulation
 blond._core.simulation.intensity_effect_manager

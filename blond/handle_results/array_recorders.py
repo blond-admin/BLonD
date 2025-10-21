@@ -77,7 +77,8 @@ class DenseArrayRecorder(ArrayRecorder):
         order: Literal["C", "F"] = "C",
         overwrite: bool = True,
     ):
-        self._memory = np.empty(shape=shape, dtype=dtype, order=order)
+        # reserve full memory at init to avoid memory overflow during runtime
+        self._memory = np.zeros(shape=shape, dtype=dtype, order=order)
         self._write_idx = 0
 
         self.filepath = filepath
@@ -138,7 +139,7 @@ class DenseArrayRecorder(ArrayRecorder):
         dense_recorder.overwrite = loaded_data["overwrite"]
         return dense_recorder
 
-    def write(self, newdata: NumpyArray | CupyArray):
+    def write(self, newdata: NumpyArray | CupyArray | float):
         """Write new data to the internal array.
 
         Parameters

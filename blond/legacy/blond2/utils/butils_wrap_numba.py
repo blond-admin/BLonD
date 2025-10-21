@@ -161,7 +161,7 @@ def drift(
 
 
 # --------------- Similar to histogram.cpp -----------------
-@jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=True)
+@jit(nopython=True, nogil=True, fastmath=True, parallel=True, cache=False)
 def slice_beam(
     dt: NumpyArray, profile: NumpyArray, cut_left: float, cut_right: float
 ):
@@ -177,7 +177,7 @@ def slice_beam(
     n_slices = len(profile)
     n_parts = len(dt)
     inv_bin_width = n_slices / (cut_right - cut_left)
-    n_threads = get_num_threads()
+    n_threads = get_num_threads()  # this prevents caching
 
     # Per thread private profile to avoid cross-thread synchronization
     local_profile = np.zeros((n_threads, n_slices), dtype=np.int32)

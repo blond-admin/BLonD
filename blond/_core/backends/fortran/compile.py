@@ -29,13 +29,20 @@ _fortran_files32 = [os.path.join(_basepath, f) for f in _fortran_files32]
 def compile_fortran_module(module_name: str, fortran_files: list[str]) -> bool:
     """Compile the Fortran source files into a Python module using f2py.
 
+    See Also
+    --------
+    https://numpy.org/doc/stable/f2py/index.html
+
     Notes
     -----
     Applies high-performance compilation flags.
+    Use the command `f2py` in your terminal to debug problems with your compiler setup.
 
     """
     print("\nTrying to compile Fortran backend.")
-    from numpy import f2py  # NOQA must be installed to be compiled / force exception
+    from numpy import (
+        f2py,  # NOQA must be installed to be compiled / force exception
+    )
 
     # Optimization and parallelization flags for the Fortran compiler
     f90flags = (

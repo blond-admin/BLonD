@@ -349,6 +349,7 @@ class WakeField(ImpedanceBaseClass):
 
     @staticmethod
     def headless(
+        beam: BeamBaseClass,
         sources: tuple[WakeFieldSource, ...],
         solver: WakeFieldSolver,
         section_index: int = 0,
@@ -384,4 +385,7 @@ class WakeField(ImpedanceBaseClass):
 
         simulation = Mock(Simulation)
         wf.on_init_simulation(simulation=simulation)
+        wf.on_run_simulation(
+            simulation=simulation, beam=beam, n_turns=1, turn_i_init=0
+        )
         return wf

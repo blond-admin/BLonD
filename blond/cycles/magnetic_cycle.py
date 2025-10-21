@@ -94,7 +94,8 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """
+        Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
@@ -475,11 +476,6 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         **kwargs: dict[str, Any],
     ) -> None:
         """Lateinit method when `simulation.__init__` is called.
-
-        simulation
-            Simulation context manager
-        """
-        """Lateinit method when `simulation.run` is called
 
         simulation
             Simulation context manager
