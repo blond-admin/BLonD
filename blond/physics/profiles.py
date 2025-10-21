@@ -37,10 +37,6 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         Section index to group elements into sections
     name
         User given name of the element
-        hist_x
-            timestamps of the histogram
-        hist_y
-            histogram values at specified timestamps
     """
 
     def __init__(
