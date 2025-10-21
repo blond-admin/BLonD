@@ -64,10 +64,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         """
         self._parent_wakefield = parent_wakefield
         assert all(
-            [
-                isinstance(o, InductiveImpedance)
-                for o in parent_wakefield.sources
-            ]
+            isinstance(o, InductiveImpedance) for o in parent_wakefield.sources
         )
         impedances: tuple[InductiveImpedance, ...] = parent_wakefield.sources
         self._Z_over_n = backend.float(

@@ -79,7 +79,7 @@ select = [
     # "I",  # isort (import sorting)
     # "N",  # pep8-naming
     "UP",   # pyupgrade
-    # "C4", # flake8-comprehensions
+    "C4", # flake8-comprehensions
     "D",    # pydocstyle
     "SIM",# flake8-simplify
     "NPY",  # numpy-specific rules

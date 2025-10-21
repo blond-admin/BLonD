@@ -115,10 +115,10 @@ class DenseArrayRecorder(ArrayRecorder):
         if not self.overwrite:
             assert not os.path.exists(self.filepath_array)
         np.save(self.filepath_array, self._memory)
-        attributes = dict(
-            _write_idx=self._write_idx,
-            overwrite=self.overwrite,
-        )
+        attributes = {
+            "_write_idx": self._write_idx,
+            "overwrite": self.overwrite,
+        }
         with open(self.filepath_attributes, "w") as f:
             json.dump(attributes, f)
 
