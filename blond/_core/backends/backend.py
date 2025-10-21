@@ -511,10 +511,9 @@ class CupyBackend(BackendBaseClass):
 
         """
         if mode == "cuda":
-            CudaSpecials = fresh_import(
-                "blond._core.backends.cuda.callables",
-                "CudaSpecials",
-            )
+            from .cuda.callables import reload_cuda_backend
+
+            CudaSpecials = reload_cuda_backend(self.float)
 
             self.specials = CudaSpecials()
         else:
