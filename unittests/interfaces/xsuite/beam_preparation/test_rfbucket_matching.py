@@ -38,7 +38,9 @@ class TestXsuiteRFBucketMatcher(unittest.TestCase):
 
     def test_distribution_is_matched_thermal(self):
         try:
-            from xpart.longitudinal.rfbucket_matching import ThermalDistribution
+            from xpart.longitudinal.rfbucket_matching import (
+                ThermalDistribution,
+            )
         except ImportError:
             self.skipTest("xpart not installed")
 
@@ -62,7 +64,9 @@ class TestXsuiteRFBucketMatcher(unittest.TestCase):
 
     def test_distribution_is_matched_qgaussian(self):
         try:
-            from xpart.longitudinal.rfbucket_matching import QGaussianDistribution
+            from xpart.longitudinal.rfbucket_matching import (
+                QGaussianDistribution,
+            )
         except ImportError:
             self.skipTest("xpart not installed")
 
@@ -89,7 +93,9 @@ class TestXsuiteRFBucketMatcher(unittest.TestCase):
     @unittest.skip("test takes too long")
     def test_distribution_is_matched_parabolic(self):
         try:
-            from xpart.longitudinal.rfbucket_matching import ParabolicDistribution
+            from xpart.longitudinal.rfbucket_matching import (
+                ParabolicDistribution,
+            )
         except ImportError:
             self.skipTest("xpart not installed")
 
