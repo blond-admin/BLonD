@@ -201,7 +201,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         center_frequencies: NumpyArray | float,
         quality_factors: NumpyArray | float,
     ):
-        warn("Untested code", NotTestedWarning)
+        warn("Untested code", NotTestedWarning, stacklevel=1)
         super().__init__(is_dynamic=False)
         if (
             isinstance(shunt_impedances, float)

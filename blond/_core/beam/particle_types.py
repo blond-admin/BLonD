@@ -49,7 +49,7 @@ class ParticleType:
 
     @property
     def charge(self) -> float:
-        """Number of electrons of the particle, in []"""
+        """Number of electrons of the particle, unitless."""
         return self._charge
 
     @property

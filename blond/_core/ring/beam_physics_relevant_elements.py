@@ -39,7 +39,7 @@ class BeamPhysicsRelevantElements(Preparable):
         self._on_init_simulation_passed = True
 
     def _assert_no_init(self, msg: str) -> None:
-        """Raises AssertionError, if simulation was already initialized"""
+        """Raises `AssertionError`, if simulation was already initialized."""
         assert not self._on_init_simulation_passed, msg
 
     def _check_section_indexing(self) -> None:

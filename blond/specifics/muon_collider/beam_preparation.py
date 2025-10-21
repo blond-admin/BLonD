@@ -2,7 +2,7 @@
 
 Authors
 -------
-Leonard Thiele
+§
 """
 
 from os import PathLike
