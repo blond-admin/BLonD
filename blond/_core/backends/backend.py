@@ -409,11 +409,9 @@ class NumpyBackend(BackendBaseClass):
             self.specials = PythonSpecials()
             self.specials_mode = mode
         elif mode == "cpp":
-            CppSpecials = fresh_import(
-                "blond._core.backends.cpp.callables",
-                "CppSpecials",
-            )
-            self.specials = CppSpecials()
+            from .cpp.callables import reload_cpp_backend
+
+            self.specials = reload_cpp_backend(self.float)
             self.specials_mode = mode
         elif mode == "numba":
             from .numba.callables import recompile_numba_backend
