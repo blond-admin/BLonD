@@ -86,6 +86,7 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
         distribution_type: distribution_hints,
         sigma_z: float,
         verbose_regeneration: bool = False,
+        seed: int = 42,
     ) -> None:
         super().__init__()
 
@@ -95,6 +96,7 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             n_macroparticles, warning_stacklevel=2
         )
         self.verbose_regeneration = verbose_regeneration
+        self.seed = seed
 
     def prepare_beam(
         self,
