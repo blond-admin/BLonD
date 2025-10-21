@@ -18,8 +18,6 @@ from blond.physics.cavities import MultiHarmonicCavity
 from blond.physics.impedances.solvers import InductiveImpedanceSolver
 from blond.physics.impedances.sources import InductiveImpedance
 
-# from blond.interfaces.xsuite.physics import DriftXSuite # todo
-
 
 class Main:
     @staticmethod

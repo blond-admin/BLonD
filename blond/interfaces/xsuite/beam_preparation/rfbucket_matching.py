@@ -35,7 +35,7 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
     """
     Beam preparation routine that matches a longitudinal beam distribution
     using the Xsuite RFBucketMatcher and populates the beam with macroparticles.
-    REF:
+    REF: https://github.com/xsuite/xsuite
 
     This class constructs an RF bucket using the given machine parameters and
     applies a stationary distribution (e.g., Q-Gaussian, Thermal) to initialize
