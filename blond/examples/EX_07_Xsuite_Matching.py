@@ -2,9 +2,6 @@
 import logging
 
 import numpy as np
-from interfaces.xsuite.beam_preparation.rfbucket_matching import (
-    XsuiteRFBucketMatcher,
-)
 from matplotlib import pyplot as plt
 from xpart.longitudinal.rfbucket_matching import (  # ThermalDistribution,; ParabolicDistribution,
     QGaussianDistribution,
@@ -21,6 +18,9 @@ from blond import (
     proton,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
+from blond.interfaces.xsuite.beam_preparation.rfbucket_matching import (
+    XsuiteRFBucketMatcher,
+)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -46,7 +46,7 @@ def main():
     )
     drift1.transition_gamma = 55.759505
     beam1 = Beam(
-        n_particles=1e6,
+        intensity=1e6,
         particle_type=proton,
     )
 
@@ -68,7 +68,7 @@ def main():
         each_turn_i=1,
         cavity=cavity1,
     )
-    bunch_observation = BunchObservation(each_turn_i=1)
+    bunch_observation = BunchObservation(beam=beam1, each_turn_i=1)
 
     def custom_action(simulation: Simulation):
         if simulation.turn_i.value % 10 != 0:
@@ -87,8 +87,9 @@ def main():
             turn_i_init=0,
             n_turns=N_TURNS,
             observe=[phase_observation],
+            beams=[beam1],
         )
-    except FileNotFoundError as exc:
+    except AssertionError as exc:
         sim.run_simulation(
             beams=(beam1,),
             turn_i_init=0,
@@ -96,7 +97,7 @@ def main():
             observe=[phase_observation, bunch_observation],
         )
 
-    ANIMATE = True
+    ANIMATE = False
     if ANIMATE:
         plt.figure()
         for i in range(N_TURNS):
