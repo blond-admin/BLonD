@@ -32,8 +32,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class XsuiteRFBucketMatcher(MatchingRoutine):
-    """
-    Beam preparation routine that matches a longitudinal beam distribution
+    """Beam preparation routine that matches a longitudinal beam distribution
     using the Xsuite RFBucketMatcher and populates the beam with macroparticles.
     REF:
 
