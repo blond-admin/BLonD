@@ -159,9 +159,9 @@ class Beam(BeamBaseClass):
 
     def plot_hist2d(self, **kwargs) -> None:
         """Plot 2D histogram of beam coordinates."""
-        if "cmap" not in kwargs.keys():
+        if "cmap" not in kwargs:
             kwargs["cmap"] = "viridis"
-        if "bins" not in kwargs.keys():
+        if "bins" not in kwargs:
             kwargs["bins"] = 256
         if is_cupy_array(self._dt):
             # variables below are just for the type hints to function correctly

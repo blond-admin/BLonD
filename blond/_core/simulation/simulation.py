@@ -258,7 +258,7 @@ class Simulation(Preparable):
 
         for cls in ordered_classes:
             for element in instances:
-                if not type(element).__name__ == cls:
+                if type(element).__name__ != cls:
                     continue
                 logger.info(f"Running `{method}` of {element}")
                 getattr(element, method)(**kwargs)
