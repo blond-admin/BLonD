@@ -323,30 +323,6 @@ class BackendBaseClass(ABC):
             self.set_specials(mode=_backend_mode)  # type: ignore
 
 
-def fresh_import(module_location: str, class_name: str) -> type:
-    """To freshly do `from module_location import ClassName`.
-
-    Parameters
-    ----------
-    module_location
-        Import location where the module resides
-    class_name
-        Class to re-import
-
-    Returns
-    -------
-    Newly imported class
-
-    """
-    # TODO Refactor given files as classes, so that only reinstancing of a
-    #  class is needed instead of reloading a module path.
-    #  This function is only intended to reload backend specials.
-    if module_location in sys.modules:
-        del sys.modules[module_location]
-    module = importlib.import_module(module_location)
-    return getattr(module, class_name)
-
-
 class NumpyBackend(BackendBaseClass):
     def __init__(
         self,
