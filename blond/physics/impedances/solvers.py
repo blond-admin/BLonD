@@ -621,7 +621,7 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
-        """Calculates the induced voltage with the  beam profile and parameters.
+        """Calculates the induced voltage with the beam profile and parameters.
 
         Parameters
         ----------
