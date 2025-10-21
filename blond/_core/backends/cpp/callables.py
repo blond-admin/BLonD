@@ -143,6 +143,7 @@ def load_libblond(precision: str = "single") -> CDLL:
     precision
         The floating point precision of the calculations.
         Can be 'single' or 'double'.
+        Default is  "single".
     """
     libblond_path = os.environ.get("LIBBLOND", None)
     from ...._generals._hashing import hash_in_folder

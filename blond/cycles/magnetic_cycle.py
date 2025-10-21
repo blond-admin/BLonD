@@ -928,7 +928,7 @@ class MagneticCycleByTime(MagneticCycleBase):
         base_values: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
         bending_radius: float | None = None,
-        interpolator=np.interp,
+        interpolator=np.interp,  # todo type hint, also below
     ) -> MagneticCycleByTime:
         """Initialize object without simulation context.
 

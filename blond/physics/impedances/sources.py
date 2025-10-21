@@ -176,12 +176,12 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
 
 
 class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
-    """Multiple resonances of RLC circuits for impedance calculations.
+    r"""Multiple resonances of RLC circuits for impedance calculations.
 
     Parameters
     ----------
     shunt_impedances : array-like or float
-        Shunt impedances of the resonant circuits, in [Ω].
+        Shunt impedances of the resonant circuits, in [:math:`\omega`].
     center_frequencies : array-like or float
         Center frequencies of the resonances, in [Hz].
     quality_factors : array-like or float

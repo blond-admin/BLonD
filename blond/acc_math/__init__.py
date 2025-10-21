@@ -1,1 +1,1 @@
-"""A collection of equations."""
+"""A collection of analytical equations."""

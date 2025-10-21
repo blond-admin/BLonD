@@ -121,7 +121,7 @@ def _get_dE_from_dt(
 def get_main_harmonic_attributes(
     beam: BeamBaseClass, simulation: Simulation
 ) -> tuple[float, float, float, float]:
-    """Relevant main harmonic attribuites of all RF stations in :class:`~blond._core.ring.ring.Ring`.
+    """Relevant main harmonic attributes of all RF stations in :class:`~blond._core.ring.ring.Ring`.
 
     Parameters
     ----------

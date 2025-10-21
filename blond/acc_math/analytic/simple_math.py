@@ -88,12 +88,17 @@ def calc_energy_kin(mass: float, momentum: T) -> T:
 def beta_by_momentum(momentum: T, mass: float) -> T:
     """Calculate fraction of velocity over speed of light.
 
+    Notes
+    -----
+    Internal assumption is :math:`c_0=1`.
+
     Parameters
     ----------
-    momentum : float or NDArray
-        Particle momentum, in [eV/c]
-    mass : float
-        Particle mass, in [eV/c²]
+    momentum
+        Particle momentum, in [eV/c].
+        float or NDArray expected.
+    mass
+        Particle mass, in [eV/c²].
 
     Returns
     -------
