@@ -23,7 +23,7 @@ from blond import (
     proton,
 )
 from blond._core.backends.backend import Numpy32Bit, Numpy64Bit, backend
-from blond.physics.feedbacks.accelerators.sps.beam_feedback import (
+from blond.experimental.physics.feedbacks.accelerators.sps.beam_feedback import (
     SpsRlBeamFeedback,
 )
 
@@ -172,7 +172,7 @@ class TestBeamFeedback(unittest.TestCase):
 
         # Beam setup
         self.beam = Beam(
-            n_particles=intensity_pb,
+            intensity=intensity_pb,
             particle_type=proton,
         )
         self.simulation = Simulation(
@@ -203,7 +203,7 @@ class TestBeamFeedback(unittest.TestCase):
         backend.change_backend(Numpy32Bit)
 
     def test_setup(self):
-        obs_bunch = BunchObservation(each_turn_i=1)
+        obs_bunch = BunchObservation(each_turn_i=1, beam=self.beam)
         cav_obs = CavityPhaseObservation(
             each_turn_i=1,
             cavity=self.cavity,

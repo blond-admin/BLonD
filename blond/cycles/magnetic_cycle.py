@@ -15,10 +15,7 @@ from ..acc_math.analytic.simple_math import calc_total_energy
 from .base import ProgrammedCycle
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, Dict, Literal
-    from typing import Optional
-    from typing import Optional as LateInit
-    from typing import TypeVar, Union
+    from typing import Any, Literal, TypeVar, Union
 
     from numpy.typing import NDArray as NumpyArray
 
@@ -37,7 +34,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
-    """Programmed magnetic cycle of the synchrotron
+    """Programmed magnetic cycle of the synchrotron.
 
     Parameters
     ----------
@@ -62,9 +59,9 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
     def on_init_simulation(
         self,
         simulation: Simulation,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
@@ -80,9 +77,10 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called
+        """
+        Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
@@ -103,12 +101,12 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
 
     @property
     def reference_particle(self) -> ParticleType:
-        """Reference particle type for the magnetic cycle"""
+        """Reference particle type for the magnetic cycle."""
         return self._reference_particle
 
     @property
     def n_turns(self) -> None | int:
-        """Number of turns that are defined by this cycle"""
+        """Number of turns that are defined by this cycle."""
         return self._n_turns_max
 
     @abstractmethod  # pragma: no cover
@@ -119,8 +117,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         reference_time: float,
         particle_type: ParticleType,
     ):
-        """
-        Calculate the total energy [eV] that is foreseen by the magnetic cycle
+        """Calculate the total energy [eV] that is foreseen by the magnetic cycle.
 
         Parameters
         ----------
@@ -191,13 +188,13 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
     @staticmethod
     @abstractmethod  # pragma: no cover
     def headless(*args, **kwargs):
-        """Initialize object without simulation context"""
+        """Initialize object without simulation context."""
         pass
 
     cached_props = ()
 
     def invalidate_cache(self):
-        """Delete the stored values of functions with @cached_property"""
+        """Delete the stored values of functions with @cached_property."""
         super()._invalidate_cache(MagneticCycleBase.cached_props)
 
 
@@ -207,10 +204,9 @@ class ConstantMagneticCycle(MagneticCycleBase):
         reference_particle: ParticleType,
         value: float,
         in_unit: SynchronousDataTypes = "momentum",
-        bending_radius: Optional[float] = None,
+        bending_radius: float | None = None,
     ):
-        """
-        Magnetic cycle for a non-changing magnetic field
+        """Magnetic cycle for a non-changing magnetic field.
 
         Parameters
         ----------
@@ -243,19 +239,18 @@ class ConstantMagneticCycle(MagneticCycleBase):
         self._in_unit = in_unit
         self._bending_radius = bending_radius
 
-        self._total_energy_cache: LateInit[Dict[int, float]] = {}
+        self._total_energy_cache: dict[int, float] | None = {}
 
     def on_init_simulation(
         self,
         simulation: Simulation,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
         """
-
         super().on_init_simulation(
             simulation=simulation,
             n_turns_max=None,
@@ -268,8 +263,7 @@ class ConstantMagneticCycle(MagneticCycleBase):
         reference_time: float,
         particle_type: ParticleType,
     ) -> float:
-        """
-        Calculate the total energy [eV] that is foreseen by the magnetic cycle
+        """Calculate the total energy [eV] that is foreseen by the magnetic cycle.
 
         Parameters
         ----------
@@ -289,7 +283,6 @@ class ConstantMagneticCycle(MagneticCycleBase):
         -------
 
         """
-
         # constant because ConstantMagneticCycle
         key = hash(particle_type)
         if key not in self._total_energy_cache:
@@ -307,10 +300,9 @@ class ConstantMagneticCycle(MagneticCycleBase):
         value: float,
         particle_type: ParticleType,
         in_unit: SynchronousDataTypes = "momentum",
-        bending_radius: Optional[float] = None,
+        bending_radius: float | None = None,
     ) -> ConstantMagneticCycle:
-        """
-        Initialize object without simulation context
+        """Initialize object without simulation context.
 
         Parameters
         ----------
@@ -352,10 +344,9 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         value_init: float,
         values_after_turn: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
-        bending_radius: Optional[float] = None,
+        bending_radius: float | None = None,
     ):
-        """
-        Magnetic cycle per turn. Assumes each cavity has the same increment
+        """Magnetic cycle per turn. Assumes each cavity has the same increment
         of beam energy.
 
         Parameters
@@ -397,20 +388,15 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         self._in_unit = in_unit
         self._bending_radius = bending_radius
 
-        self._magnetic_rigidity: LateInit[NumpyArray] = None
-        self._momentum_cached: Dict[int, NumpyArray] = {}
+        self._magnetic_rigidity: NumpyArray | None = None
+        self._momentum_cached: dict[int, NumpyArray] = {}
 
     def on_init_simulation(
         self,
         simulation: Simulation,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.__init__` is called
-
-        simulation
-            Simulation context manager
-        """
-        """Lateinit method when `simulation.run` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
@@ -458,8 +444,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         reference_time: float,
         particle_type: ParticleType,
     ) -> float:
-        """
-        Calculate the total energy [eV] that is foreseen by the magnetic cycle
+        """Calculate the total energy [eV] that is foreseen by the magnetic cycle.
 
         Parameters
         ----------
@@ -497,10 +482,9 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         values_after_turn: NumpyArray,
         n_cavities: int,
         in_unit: SynchronousDataTypes = "momentum",
-        bending_radius: Optional[float] = None,
+        bending_radius: float | None = None,
     ) -> MagneticCyclePerTurn:
-        """
-        Initialize object without simulation context
+        """Initialize object without simulation context.
 
         Parameters
         ----------
@@ -561,10 +545,9 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
         value_init: float,
         values_after_cavity_per_turn: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
-        bending_radius: Optional[float] = None,
+        bending_radius: float | None = None,
     ):
-        """
-        Magnetic program per turn, defined for each cavity
+        """Magnetic program per turn, defined for each cavity.
 
         Parameters
         ----------
@@ -602,22 +585,19 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
         self._in_unit = in_unit
         self._bending_radius = bending_radius
 
-        self._magnetic_rigidity_after_cavity_per_turn: LateInit[NumpyArray] = (
-            None
-        )
-        self._momentum_cached: Dict[int, NumpyArray] = {}
+        self._magnetic_rigidity_after_cavity_per_turn: NumpyArray | None = None
+        self._momentum_cached: dict[int, NumpyArray] = {}
 
     def on_init_simulation(
         self,
         simulation: Simulation,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
         """
-
         magnetic_rigidity_after_cavity_per_turn = _to_magnetic_rigidity(
             data=self._values_after_cavity_per_turn[:, :],
             mass=self._reference_particle.mass,
@@ -653,8 +633,7 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
         reference_time: float,
         particle_type: ParticleType,
     ):
-        """
-        Calculate the total energy [eV] that is foreseen by the magnetic cycle
+        """Calculate the total energy [eV] that is foreseen by the magnetic cycle.
 
         Parameters
         ----------
@@ -674,7 +653,6 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
         -------
 
         """
-
         key = hash(particle_type)
         if key not in self._momentum_cached:
             self._momentum_cached[key] = magnetic_rigidity_to_momentum(
@@ -694,10 +672,9 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
         value_init: float,
         values_after_cavity_per_turn: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
-        bending_radius: Optional[float] = None,
+        bending_radius: float | None = None,
     ) -> MagneticCyclePerTurnAllCavities:
-        """
-        Initialize object without simulation context
+        """Initialize object without simulation context.
 
         Parameters
         ----------
@@ -755,12 +732,10 @@ class MagneticCycleByTime(MagneticCycleBase):
         base_time: NumpyArray,
         base_values: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
-        bending_radius: Optional[float] = None,
+        bending_radius: float | None = None,
         interpolator=np.interp,
     ):
-        """
-        Magnetic cycle defined as B vs. Time, interpolated just in
-        time
+        """Magnetic cycle defined as B vs. time, interpolated just in time.
 
         Parameters
         ----------
@@ -805,14 +780,13 @@ class MagneticCycleByTime(MagneticCycleBase):
     def on_init_simulation(
         self,
         simulation: Simulation,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
         """
-
         super().on_init_simulation(
             simulation=simulation,
             n_turns_max=None,
@@ -826,8 +800,7 @@ class MagneticCycleByTime(MagneticCycleBase):
         reference_time: float,
         particle_type: ParticleType,
     ):
-        """
-        Calculate the total energy [eV] that is foreseen by the magnetic cycle
+        """Calculate the total energy [eV] that is foreseen by the magnetic cycle.
 
         Parameters
         ----------
@@ -866,12 +839,10 @@ class MagneticCycleByTime(MagneticCycleBase):
         base_time: NumpyArray,
         base_values: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
-        bending_radius: Optional[float] = None,
+        bending_radius: float | None = None,
         interpolator=np.interp,
     ) -> MagneticCycleByTime:
-        """
-        Initialize object without simulation context
-
+        """Initialize object without simulation context.
 
         Parameters
         ----------
@@ -932,9 +903,9 @@ def _to_magnetic_rigidity(
     mass: float,
     charge: float,
     convert_from: SynchronousDataTypes = "momentum",
-    bending_radius: Optional[float] = None,
+    bending_radius: float | None = None,
 ) -> NumpyArray | float:
-    """Unit conversion for different input data types
+    """Unit conversion for different input data types.
 
     Parameters
     ----------
@@ -959,7 +930,6 @@ def _to_magnetic_rigidity(
     momentum : float array
         The data in units of momentum [eV/c]
     """
-
     if convert_from == "momentum":
         momentum = data
     elif convert_from == "total energy":
@@ -983,7 +953,7 @@ def _to_magnetic_rigidity(
 
 
 def magnetic_rigidity_to_momentum(
-    magnetic_rigidity: Union[float, NumpyArray],
+    magnetic_rigidity: float | NumpyArray,
     charge: float,
-) -> Union[float, NumpyArray]:
+) -> float | NumpyArray:
     return magnetic_rigidity * np.abs(charge) * c0

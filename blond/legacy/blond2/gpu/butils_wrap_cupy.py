@@ -163,7 +163,7 @@ def drift(
 
     if not isinstance(t_rev, precision.real_t):
         try:
-            t_rev = precision.real_t(t_rev.get())
+            t_rev = precision.real_t(t_rev.get())  # relevant for cupy
         except:
             t_rev = precision.real_t(t_rev)
 

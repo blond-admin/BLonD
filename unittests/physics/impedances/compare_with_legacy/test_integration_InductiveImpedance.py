@@ -111,7 +111,7 @@ class Blond3:
             profile=profile,
         )
         ring.add_elements((drift, cavity, profile, wake), reorder=True)
-        beam = Beam(n_particles=1e11, particle_type=proton)
+        beam = Beam(intensity=1e11, particle_type=proton)
 
         E_0 = m_p * c**2 / e  # [eV]
 

@@ -1,4 +1,4 @@
-exclude: ^(legacy|__doc|blond3/legacy/)
+exclude: ^(legacy|__doc|blond3/legacy/|builds)
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -17,7 +17,7 @@ repos:
     rev: 6.0.1
     hooks:
       - id: isort
-        args: ["--profile", "black"] # otherwise not compatible with Ruff
+        args: ["--profile", "black", "--line-length", "79"] # otherwise not compatible with Ruf
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.12.11  # Replace with the latest version

@@ -1,35 +1,36 @@
 from __future__ import annotations
 
 import logging
-from functools import cached_property
+from collections.abc import Callable
 from pstats import SortKey
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 from warnings import warn
 
-import numpy as np
-from tqdm import tqdm
+from scipy.integrate import cumulative_trapezoid
+from tqdm import tqdm  # type: ignore
 
-from blond.handle_results.results import SimulationResults
-
-from ..._warnings import PerformanceWarning
-from ...cycles.magnetic_cycle import MagneticCycleBase, MagneticCyclePerTurn
-from ...physics.cavities import CavityBaseClass
+from ..._generals._warnings import NotTestedWarning, PerformanceWarning
+from ...cycles.magnetic_cycle import MagneticCycleBase
+from ...physics.drifts import DriftBaseClass
 from ...physics.profiles import ProfileBaseClass
 from ..backends.backend import backend
 from ..base import (
     BeamPhysicsRelevant,
     DynamicParameter,
-    HasPropertyCache,
     Preparable,
 )
 from ..helpers import find_instances_with_method, int_from_float_with_warning
 from ..ring.helpers import get_elements, get_init_order
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, Dict, Optional, Tuple
+    from typing import Any
 
     from numpy.typing import NDArray as NumpyArray
 
+    from blond import (
+        Beam,
+        SingleHarmonicCavity,
+    )
     from blond.legacy.blond2.beam.beam import Beam as Blond2Beam
     from blond.legacy.blond2.beam.profile import Profile as Blond2Profile
     from blond.legacy.blond2.impedances.impedance import (
@@ -51,12 +52,13 @@ if TYPE_CHECKING:  # pragma: no cover
     from ..beam.base import BeamBaseClass
     from ..beam.particle_types import ParticleType
     from ..ring.ring import Ring
+from ...physics.cavities import CavityBaseClass
 
 logger = logging.getLogger(__name__)
 
 
-class Simulation(Preparable, HasPropertyCache):
-    """Context manager to perform beam physics simulations of synchrotrons
+class Simulation(Preparable):
+    """Context manager to perform beam physics simulations of synchrotrons.
 
     Parameters
     ----------
@@ -79,15 +81,15 @@ class Simulation(Preparable, HasPropertyCache):
     def __init__(
         self,
         ring: Ring,
-        magnetic_cycle: NumpyArray | MagneticCycleBase,
+        magnetic_cycle: MagneticCycleBase,
     ) -> None:
+        assert ring.elements.n_elements > 0, f"{ring.elements.n_elements=}"
+
         from .intensity_effect_manager import IntensityEffectManager
 
         super().__init__()
         self._ring: Ring = ring
 
-        if isinstance(magnetic_cycle, np.ndarray):
-            magnetic_cycle = MagneticCyclePerTurn(magnetic_cycle)
         self._magnetic_cycle: MagneticCycleBase = magnetic_cycle
 
         self.turn_i = DynamicParameter(None)
@@ -100,16 +102,18 @@ class Simulation(Preparable, HasPropertyCache):
 
     def profiling(
         self,
-        beams: Tuple[BeamBaseClass],
+        beams: tuple[BeamBaseClass],
         turn_i_init: int,
         profile_start_turn_i: int,
         profile_n_turns: int,
         sortby: SortKey = SortKey.CUMULATIVE,
     ) -> None:
-        """Executes the python profiler
+        """Executes the python profiler.
 
         Parameters
         ----------
+        beams
+            Beams that are used to perform the simulation
         turn_i_init
             Initial turn to start simulation
         profile_start_turn_i
@@ -129,7 +133,7 @@ class Simulation(Preparable, HasPropertyCache):
         pr = cProfile.Profile()
 
         # trigger profiling later than turn 0
-        def start_profiling(simulation: Simulation):
+        def start_profiling(simulation: Simulation, beam: BeamBaseClass):
             if simulation.turn_i.value == profile_start_turn_i:
                 pr.enable()
 
@@ -148,44 +152,60 @@ class Simulation(Preparable, HasPropertyCache):
         ps.print_stats()
         print(s.getvalue())
 
-    def invalidate_cache(self):
-        """Delete the stored values of functions with @cached_property"""
+    def get_potential_well_empiric(
+        self,
+        ts: NumpyArray,
+        particle_type: ParticleType,
+        subtract_min: bool = True,
+    ) -> NumpyArray:
+        """Obtain the potential well by tracking a beam one turn.
 
-        pass  # TODO
-
-    def calc_cavity_voltage_sum(self, ts: NumpyArray) -> NumpyArray:
-        """
-        Sum of all cavity voltages, ignoring drifts between cavities
+        Notes
+        -----
+        This function internally obtains `dE_out` of `dt_in`.
+        During one turn with many drifts, the time coordinate will change
+        and sample different positions of dt, which is the expected
+        physical behaviour. The RF of successive station can thus appear
+        phase shifted/distorted due to the inherent drift in between RF
+        stations=.
 
         Parameters
         ----------
         ts
-            Time array, in [s]
-            to calculate voltage
-        """
-        cavities = self.ring.elements.get_elements(CavityBaseClass)
-        total_voltage = 0.0  # will be an array later
-        for cavity in cavities:
-            total_voltage += cavity.voltage_waveform_tmp(ts=ts)
-        return total_voltage[:]
+            Time coordinates to probe the potential, in [s]
+        particle_type
+            Type of particle to probe.
+            The particle charge influences the phase advance per station
+            and might exhibit different distortion of the potential well
+            due to the side effects described in `Notes`
+        subtract_min
+            If True, will always return min(potential_well) = 0.
+            If False, potential_well[0] = 0.
 
-    def get_potential_well_empiric(
-        self, ts: NumpyArray, particle_type: ParticleType
-    ) -> NumpyArray:
+        Returns
+        -------
+        potential_well
+            The effective voltage that lead to a change of `dE` in one turn.
+        """
         from ..._core.beam.beams import ProbeBeam
 
-        bunch = ProbeBeam(
+        probe_bunch = ProbeBeam(
             dt=ts,
-            particle_type=self.beams[0].particle_type,
+            particle_type=particle_type,
         )
-        for element in self.ring.elements.elements:
-            element.track(beam=bunch)
-        potential_well = np.trapezoid(bunch.read_partial_dE())
-        potential_well -= potential_well.min()
+        self.run_simulation(
+            beams=(probe_bunch,),
+            n_turns=1,
+            turn_i_init=0,
+            show_progressbar=False,
+        )
+        potential_well = cumulative_trapezoid(probe_bunch.read_partial_dE())
+        if subtract_min:
+            potential_well -= potential_well.min()
         return potential_well
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
@@ -198,9 +218,9 @@ class Simulation(Preparable, HasPropertyCache):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called
+        """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
@@ -214,7 +234,7 @@ class Simulation(Preparable, HasPropertyCache):
         pass
 
     def _exec_all_in_tree(self, method: str, **kwargs) -> None:
-        """Execute all methods that are somewhere in the attribute hierarchy of `Simulation`
+        """Execute all methods that are somewhere in the attribute hierarchy of `Simulation`.
 
         Parameters
         ----------
@@ -244,7 +264,7 @@ class Simulation(Preparable, HasPropertyCache):
                 getattr(element, method)(**kwargs)
 
     def _exec_on_init_simulation(self) -> None:
-        """Execute all `on_init_simulation` in the attribute hierarchy of `Simulation`"""
+        """Execute all `on_init_simulation` in the attribute hierarchy of `Simulation`."""
         self._exec_all_in_tree("on_init_simulation", simulation=self)
 
     def _exec_on_run_simulation(
@@ -253,7 +273,7 @@ class Simulation(Preparable, HasPropertyCache):
         n_turns: int,
         turn_i_init: int,
     ) -> None:
-        """Execute all `on_run_simulation` in the attribute hierarchy of `Simulation`
+        """Execute all `on_run_simulation` in the attribute hierarchy of `Simulation`.
 
         Parameters
         ----------
@@ -271,32 +291,48 @@ class Simulation(Preparable, HasPropertyCache):
         )
 
     @staticmethod
-    def from_locals(locals: dict) -> Simulation:
-        """Automatically instance simulation from all locals of where its called
+    def from_locals(
+        locals: dict[str, Any], verbose: bool = False
+    ) -> Simulation:
+        """Automatically instantiate simulation from all locals where it's called.
 
         Parameters
         ----------
         locals
-            Just hand `locals()` over
+            Dictionary of elements that
+            should be contained in the simulation.
+
+        Examples
+        --------
+        >>> beam1 = Beam( ... )
+        >>> ring = Ring( ... )
+        >>> energy_cycle = MagneticCyclePerTurn( ... )
+        >>> cavity1 = SingleHarmonicCavity( ... )
+        >>> drift1 = DriftSimple( ... )
+        >>> Simulation.from_locals(locals=locals(), verbose=True)
+
         """
         from ..beam.base import BeamBaseClass  # prevent cyclic import
         from ..ring.ring import Ring  # prevent cyclic import
 
         locals_list = locals.values()
-        logger.debug(f"Found {locals.keys()}")
+        msg1 = f"Found locals: {locals.keys()}"
+        logger.debug(msg=msg1)
+        if verbose:
+            print(msg1)
         _rings = get_elements(locals_list, Ring)
         assert len(_rings) == 1, f"Found {len(_rings)} rings"
         ring = _rings[0]
 
-        beams = get_elements(locals_list, BeamBaseClass)
+        beams = get_elements(locals_list, BeamBaseClass)  # type: ignore
 
-        _magnetic_cycle = get_elements(locals_list, MagneticCycleBase)
+        _magnetic_cycle = get_elements(locals_list, MagneticCycleBase)  # type: ignore
         assert len(_magnetic_cycle) == 1, (
             f"Found {len(_magnetic_cycle)} energy cycles"
         )
         magnetic_cycle = _magnetic_cycle[0]
 
-        elements = get_elements(locals_list, BeamPhysicsRelevant)
+        elements = get_elements(locals_list, BeamPhysicsRelevant)  # type: ignore
         ring.add_elements(elements=elements, reorder=True)
 
         logger.debug(f"{ring=}")
@@ -304,53 +340,25 @@ class Simulation(Preparable, HasPropertyCache):
         logger.debug(f"{elements=}")
 
         sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
-        logger.info(sim.ring.elements.get_order_info())
+        order_info = sim.ring.elements.get_order_info()
+        logger.info(order_info)
+        if verbose:
+            print(order_info)
         return sim
 
     @property  # as readonly attributes
     def ring(self) -> Ring:
-        """Ring a.k.a. synchrotron"""
+        """Ring a.k.a. synchrotron."""
         return self._ring
 
     @property  # as readonly attributes
     def magnetic_cycle(self) -> MagneticCycleBase:
-        """Programmed energy program of the synchrotron"""
+        """Programmed energy program of the synchrotron."""
         return self._magnetic_cycle
 
-    @cached_property
-    def get_separatrix(self) -> None:
-        raise NotImplementedError
-        return None
-
-    @cached_property
-    def get_potential_well(self) -> None:
-        raise NotImplementedError
-        return None
-
-    @cached_property
-    def get_hash(self) -> None:
-        raise NotImplementedError
-        return None
-
     def print_one_turn_execution_order(self) -> None:
-        """Prints the execution order of the main simulation loop"""
+        """Prints the execution order of the main simulation loop."""
         self._ring.elements.print_order()
-
-    #  properties that have the @cached_property decorator
-    cached_properties = (
-        "get_separatrix",
-        "get_potential_well",
-        "get_hash",
-    )
-
-    def _invalidate_cache(
-        self,
-        # turn i needed to be
-        # compatible with subscription
-        turn_i: int,
-    ) -> None:
-        """Reset cache of `cached_property` attributes"""
-        super()._invalidate_cache(Simulation.cached_properties)
 
     def prepare_beam(
         self,
@@ -358,7 +366,7 @@ class Simulation(Preparable, HasPropertyCache):
         preparation_routine: BeamPreparationRoutine,
         turn_i: int = 0,
     ) -> None:
-        """Run the routine to prepare the beam
+        """Run the routine to prepare the beam.
 
         Parameters
         ----------
@@ -370,25 +378,26 @@ class Simulation(Preparable, HasPropertyCache):
             Turn to prepare the beam for
 
         """
-        logger.info("Running `on_prepare_beam`")
+        logger.info("Running `prepare_beam`")
         self.turn_i.value = turn_i
         preparation_routine.prepare_beam(simulation=self, beam=beam)
 
     def run_simulation(
         self,
-        beams: Tuple[BeamBaseClass],
-        n_turns: Optional[int] = None,
+        beams: tuple[BeamBaseClass, ...],
+        n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: Tuple[Observables, ...] = tuple(),
+        observe: tuple[Observables, ...] = tuple(),
         show_progressbar: bool = True,
-        callback: Optional[Callable[[Simulation], None]] = None,
+        callback: Callable[[Simulation, Beam], None] | None = None,
     ) -> None:
-        """
-        Execute the beam dynamics simulation
-
+        """Execute the beam dynamics simulation.
 
         Parameters
         ----------
+        beams
+            Beams to be simulated, in case of two beams, the first must be
+            co-rotating and the second counter-rotating
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -405,7 +414,64 @@ class Simulation(Preparable, HasPropertyCache):
 
         """
         logger.info(f"Running `run_simulation` with {locals()}")
-        n_turns = int_from_float_with_warning(n_turns, warning_stacklevel=2)
+        _n_turns = self.finalize(
+            beams=beams,
+            n_turns=n_turns,
+            observe=observe,
+            turn_i_init=turn_i_init,
+        )
+
+        if len(beams) == 1:
+            self._run_simulation_single_beam(
+                beam=beams[0],
+                n_turns=_n_turns,
+                turn_i_init=turn_i_init,
+                observe=observe,
+                show_progressbar=show_progressbar,
+                callback=callback,
+            )
+        elif len(beams) == 2:
+            assert (
+                beams[0].is_counter_rotating,
+                beams[1].is_counter_rotating,
+            ) == (
+                False,
+                True,
+            ), (
+                "First beam must be normal, second beam must be counter-rotating"
+            )
+            self._run_simulation_counterrotating_beam(
+                n_turns=_n_turns,
+                turn_i_init=turn_i_init,
+                observe=observe,
+                show_progressbar=show_progressbar,
+                callback=callback,
+                beams=beams,
+            )
+        else:
+            raise NotImplementedError(
+                f"Up to two beam supported, but got {len(beams)}"
+            )
+
+    def finalize(self, beams, n_turns, observe, turn_i_init):
+        max_turns = self.magnetic_cycle.n_turns
+        if n_turns is not None:
+            _n_turns = int_from_float_with_warning(
+                n_turns, warning_stacklevel=2
+            )
+            if max_turns is not None:
+                assert (turn_i_init + _n_turns) <= max_turns, (
+                    f"Max turn number is {self.magnetic_cycle.n_turns=}, "
+                    f"but trying to simulate {(turn_i_init + _n_turns)} turns"
+                )
+        elif max_turns is None:
+            raise ValueError(
+                f"`n_turns` must be provided, because"
+                f" {type(self.magnetic_cycle)=} has"
+                f" unlimited turns."
+            )
+        else:
+            _n_turns = max_turns
         if backend.specials_mode == "python":
             particles_above_threshold = any(
                 [
@@ -425,68 +491,31 @@ class Simulation(Preparable, HasPropertyCache):
                     PerformanceWarning,
                     stacklevel=2,
                 )
-        max_turns = self.magnetic_cycle.n_turns
-        if max_turns is not None:
-            assert (turn_i_init + n_turns) <= max_turns, (
-                f"Max turn number is {self.magnetic_cycle.n_turns=}, "
-                f"but trying to simulate {(turn_i_init + n_turns)} turns"
-            )
-
         # temporarily pin attributes
-        self.observe = (
+        self._observe = (
             observe  # to find `on_run_simulation` within `simulation`
         )
-        self.beams = beams  # to find `on_run_simulation` within `simulation`
-
+        self._beams = beams  # to find `on_run_simulation` within `simulation`
         self._exec_on_run_simulation(
             beam=beams[0],
-            n_turns=n_turns,
+            n_turns=_n_turns,
             turn_i_init=turn_i_init,
         )
-
         # unpin temporary attributes
-        del self.observe
-        del self.beams
-
-        if len(beams) == 1:
-            self._run_simulation_single_beam(
-                beam=beams[0],
-                n_turns=n_turns,
-                turn_i_init=turn_i_init,
-                observe=observe,
-                show_progressbar=show_progressbar,
-                callback=callback,
-            )
-        elif len(beams) == 2:
-            assert (
-                beams[0].is_counter_rotating,
-                beams[1].is_counter_rotating,
-            ) == (
-                False,
-                True,
-            ), (
-                "First beam must be normal, second beam must be counter-rotating"
-            )
-            self._run_simulation_counterrotating_beam(
-                n_turns=n_turns,
-                turn_i_init=turn_i_init,
-                observe=observe,
-                show_progressbar=show_progressbar,
-                callback=callback,
-            )
+        del self._observe
+        del self._beams
+        return _n_turns
 
     def _run_simulation_single_beam(
         self,
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int = 0,
-        observe: Tuple[Observables, ...] = tuple(),
+        observe: tuple[Observables, ...] = tuple(),
         show_progressbar: bool = True,
-        callback: Optional[Callable[[Simulation], None]] = None,
+        callback: Callable[[Simulation, Beam], None] | None = None,
     ) -> None:
-        """
-        Execute the beam dynamics simulation for only one beam
-
+        """Execute the beam dynamics simulation for only one beam.
 
         Parameters
         ----------
@@ -509,27 +538,29 @@ class Simulation(Preparable, HasPropertyCache):
         iterator = range(turn_i_init, turn_i_init + n_turns)
         if show_progressbar:
             iterator = tqdm(iterator)  # Add TQDM display to iteration
-        self.turn_i.on_change(self._invalidate_cache)
         self.turn_i.value = 0
         for observable in observe:
             observable.update(
                 simulation=self,
-                beam=beam,
             )
         for turn_i in iterator:
             self.turn_i.value = turn_i
             for element in self._ring.elements.elements:
-                self.section_i.current_group = element.section_index
+                self.section_i.value = element.section_index
                 if element.is_active_this_turn(turn_i=self.turn_i.value):
                     element.track(beam)
-            for observable in observe:
-                if observable.is_active_this_turn(turn_i=self.turn_i.value):
-                    observable.update(
-                        simulation=self,
-                        beam=beam,
-                    )
+                if isinstance(
+                    element, DriftBaseClass
+                ):  # only observe after drifts
+                    for observable in observe:
+                        if observable.is_active_this_turn(
+                            turn_i=self.turn_i.value
+                        ):
+                            observable.update(
+                                simulation=self,
+                            )
             if callback is not None:
-                callback(self)
+                callback(simulation=self, beam=beam)
 
         # reset counters to uninitialized again
         self.turn_i.value = None
@@ -550,12 +581,11 @@ class Simulation(Preparable, HasPropertyCache):
         from ...physics.cavities import (  # prevent cyclic import
             CavityBaseClass,
             MultiHarmonicCavity,
-            SingleHarmonicCavity,
         )
 
         ring_length = self.ring.closed_orbit_length
         bending_radius = self.ring.bending_radius
-        drift = self.ring.elements.get_element(DriftBaseClass)
+        drift = self.ring.elements.get_element(DriftBaseClass)  # type: ignore
         alpha_0 = drift.alpha_0
         synchronous_data = self.magnetic_cycle._synchronous_data
         synchronous_data_type = self.magnetic_cycle._synchronous_data_type
@@ -590,7 +620,7 @@ class Simulation(Preparable, HasPropertyCache):
         beam_blond2 = Beam(
             ring=ring_blond2,
             n_macroparticles=self.beams[0]._n_macroparticles__init,
-            intensity=self.beams[0]._n_particles__init,
+            intensity=self.beams[0]._intensity__init,
         )
         # todo handle multiple RF stations
         cavity_blond3: SingleHarmonicCavity | MultiHarmonicCavity = (
@@ -648,16 +678,14 @@ class Simulation(Preparable, HasPropertyCache):
 
     def _run_simulation_counterrotating_beam(
         self,
-        beams: Tuple[BeamBaseClass],
+        beams: tuple[BeamBaseClass, BeamBaseClass],
         n_turns: int,
         turn_i_init: int = 0,
-        observe: Tuple[Observables, ...] = tuple(),
+        observe: tuple[Observables, ...] = tuple(),
         show_progressbar: bool = True,
-        callback: Optional[Callable[[Simulation], None]] = None,
+        callback: Callable[[Simulation, Beam], None] | None = None,
     ) -> None:
-        """
-        Execute the beam dynamics simulation for only one beam
-
+        """Execute the beam dynamics simulation for only one beam.
 
         Parameters
         ----------
@@ -676,15 +704,99 @@ class Simulation(Preparable, HasPropertyCache):
             that is called each turn.
 
         """
-        raise NotImplementedError()
-        pass  # todo
+        warn("Untested code", NotTestedWarning)
+
+        logger.info("Starting simulation mainloop...")
+        iterator = range(turn_i_init, turn_i_init + n_turns)
+        if show_progressbar:
+            iterator = tqdm(iterator)  # Add TQDM display to iteration
+        self.turn_i.value = 0
+
+        num_elements = len(self._ring.elements.elements)
+
+        for turn_i in iterator:
+            for element_ind, element in enumerate(
+                self._ring.elements.elements
+            ):
+                self.turn_i.value = turn_i
+                self.section_i.value = element.section_index
+
+                if element.is_active_this_turn(turn_i=self.turn_i.value):
+                    element.track(beams[0])  # [0] is expected to be corotating
+                element_counterrot = self.ring.elements.elements[
+                    num_elements - element_ind - 1
+                ]
+                if element_counterrot.is_active_this_turn(
+                    turn_i=self.turn_i.value
+                ):
+                    element_counterrot.track(beams[1])
+                if isinstance(
+                    element_counterrot, DriftBaseClass
+                ):  # only observe after drifts
+                    for observable in observe:
+                        if observable.is_active_this_turn(
+                            turn_i=self.turn_i.value
+                        ):
+                            observable.update(
+                                simulation=self,
+                            )
+        # reset counters to uninitialized again
+        self.turn_i.value = None
+        self.section_i.value = None
+
+    def save_results(
+        self,
+        observe: tuple[Observables, ...] = tuple(),
+        common_name: str | None = None,
+    ) -> None:
+        """Save the given observables to the disk.
+
+        Parameters
+        ----------
+        observe
+            List of observables to protocol of whats happening inside
+            the simulation
+        common_name
+            A common filename for the files/arrays to save.
+
+        """
+        for observable in observe:
+            if common_name is not None:
+                observable.rename(common_name=common_name)
+            observable.to_disk()
 
     def load_results(
         self,
-        n_turns: int,
+        beams: tuple[BeamBaseClass],
+        n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: Tuple[Observables, ...] = tuple(),
-        callback: Callable[[Simulation], None] = None,
-    ) -> SimulationResults:
-        raise FileNotFoundError()
-        return
+        observe: tuple[Observables, ...] = tuple(),
+        common_name: str | None = None,
+    ) -> None:
+        """Load the given observables from the disk.
+
+        Parameters
+        ----------
+        beams
+            Beams that are used to perform the simulation
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to start with simulation
+        observe
+            List of observables to protocol of whats happening inside
+            the simulation
+        common_name
+            A common filename for the files/arrays to save.
+
+        """
+        self.finalize(
+            beams=beams,
+            n_turns=n_turns,
+            observe=observe,
+            turn_i_init=turn_i_init,
+        )
+        for observable in observe:
+            if common_name is not None:
+                observable.rename(common_name=common_name)
+            observable.from_disk()

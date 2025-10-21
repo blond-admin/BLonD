@@ -3,7 +3,6 @@ import unittest
 from copy import deepcopy
 from typing import List
 
-import matplotlib.pyplot as plt
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
@@ -19,7 +18,7 @@ from blond import (
     proton,
 )
 from blond._core.backends.backend import Numpy32Bit, Numpy64Bit, backend
-from blond.physics.feedbacks.accelerators.sps.cavity_feedback import (
+from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback import (
     SPSCavityFeedback,
     SPSCavityLoopCommissioning,
     SPSOneTurnFeedback,
@@ -42,7 +41,7 @@ def rf_volt_comp(
         phi_rf (NumpyArray): _description_
         bin_centers (NumpyArray): _description_
 
-    Returns:
+    Returns
         NumpyArray: _description_
     """
     rf_voltage = np.zeros(len(bin_centers))
@@ -153,7 +152,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
         # Gaussian beam profile
         self.beam = Beam(
-            n_particles=N_b,
+            intensity=N_b,
             particle_type=proton,
         )
 
@@ -766,7 +765,7 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         sim = Simulation(ring=self.ring, magnetic_cycle=self.magnetic_cycle)
 
         # Beam
-        self.beam = Beam(n_particles=N_b, particle_type=proton)
+        self.beam = Beam(intensity=N_b, particle_type=proton)
         self.beam.setup_beam(
             dt=np.zeros(N_m),
             dE=np.zeros(N_m),
@@ -1100,7 +1099,7 @@ class TestSPSTransmitterGain(unittest.TestCase):
             in_unit="momentum",
         )
         self.beam = Beam(
-            n_particles=1.0e11,
+            intensity=1.0e11,
             particle_type=proton,
         )
         sim = Simulation(

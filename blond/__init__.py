@@ -1,3 +1,5 @@
+from ._core.backends.backend import backend
+from ._core.base import UserDefinedElement
 from ._core.beam.beams import Beam
 from ._core.beam.particle_types import (
     electron,

@@ -9,9 +9,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""
-Example input for simulation with RF noise
-No intensity effects
+"""Example input for simulation with RF noise
+No intensity effects.
 
 :Authors: **Helga Timko**
 """
@@ -23,7 +22,6 @@ import numpy as np
 from blond import (
     Beam,
     BiGaussian,
-    BoxLosses,
     DriftSimple,
     MagneticCyclePerTurn,
     Ring,
@@ -32,7 +30,6 @@ from blond import (
     proton,
 )
 from blond.cycles.noise_generators.vari_noise import VariNoise
-from blond.physics.losses import SeparatrixLosses
 from blond.physics.profiles import DynamicProfileConstNBins
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
@@ -54,7 +51,7 @@ def main():
         reference_particle=proton,
     )
     beam = Beam(
-        n_particles=1.0e9,
+        intensity=1.0e9,
         particle_type=proton,
     )
     profile = DynamicProfileConstNBins(n_bins=100)

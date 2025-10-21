@@ -12,10 +12,7 @@ from .._core.base import BeamPhysicsRelevant
 from .._core.helpers import int_from_float_with_warning
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, Dict
-    from typing import Optional
-    from typing import Optional as LateInit
-    from typing import Tuple
+    from typing import Any
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
@@ -26,11 +23,9 @@ if TYPE_CHECKING:  # pragma: no cover
 
 class ProfileBaseClass(BeamPhysicsRelevant):
     def __init__(
-        self, section_index: int = 0, name: Optional[str] = None
+        self, section_index: int = 0, name: str | None = None
     ) -> None:
-        """
-        Base class to implement calculation of beam profiles
-
+        """Base class to implement calculation of beam profiles.
 
         Parameters
         ----------
@@ -38,19 +33,22 @@ class ProfileBaseClass(BeamPhysicsRelevant):
             Section index to group elements into sections
         name
             User given name of the element
-
+        hist_x
+            timestamps of the histogram
+        hist_y
+            histogram values at specified timestamps
         """
         super().__init__(
             section_index=section_index,
             name=name,
         )
-        self._hist_x: LateInit[NumpyArray | CupyArray] = None
-        self._hist_y: LateInit[NumpyArray | CupyArray] = None
+        self._hist_x: NumpyArray | CupyArray | None = None
+        self._hist_y: NumpyArray | CupyArray | None = None
 
-        self._beam_spectrum_buffer: Dict[int, NumpyArray] = {}
+        self._beam_spectrum_buffer: dict[int, NumpyArray] = {}
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
@@ -63,9 +61,10 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called
+        """
+        Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
@@ -82,17 +81,17 @@ class ProfileBaseClass(BeamPhysicsRelevant):
 
     @property  # as readonly attributes
     def hist_x(self) -> NumpyArray | CupyArray:
-        """x-axis of histogram, in [s], i.e. `bin_centers`"""
+        """x-axis of histogram, in [s], i.e. `bin_centers`."""
         return self._hist_x
 
     @property  # as readonly attributes
     def hist_y(self) -> NumpyArray | CupyArray:
-        """y-axis of histogram"""
+        """y-axis of histogram."""
         return self._hist_y
 
     @cached_property  # as readonly attributes
     def n_bins(self) -> int:
-        """Number of bins in the histogram"""
+        """Number of bins in the histogram."""
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
         # This is intentionally ignored, we want to get an exception.
@@ -100,12 +99,12 @@ class ProfileBaseClass(BeamPhysicsRelevant):
 
     @cached_property
     def diff_hist_y(self) -> NumpyArray | CupyArray:
-        """Derivative of the histogram"""
+        """Derivative of the histogram."""
         return backend.gradient(self._hist_y, self.hist_step, edge_order=2)
 
     @cached_property
     def hist_step(self) -> np.float32 | np.float64:
-        """Size of a single histogram bin"""
+        """Size of a single histogram bin."""
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
         # This is intentionally ignored, we want to get an exception.
@@ -118,7 +117,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
 
     @cached_property
     def cut_left(self) -> np.float32 | np.float64:
-        """Left outer edge of the histogram"""
+        """Left outer edge of the histogram."""
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
         # This is intentionally ignored, we want to get an exception.
@@ -129,7 +128,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
 
     @cached_property
     def cut_right(self) -> np.float32 | np.float64:
-        """Right outer edge of the histogram"""
+        """Right outer edge of the histogram."""
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
         # This is intentionally ignored, we want to get an exception.
@@ -140,7 +139,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
 
     @cached_property
     def bin_edges(self) -> NumpyArray | CupyArray:
-        """Get the edges from cut_left to cut_right of the histogram"""
+        """Get the edges from cut_left to cut_right of the histogram."""
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
         # This is intentionally ignored, we want to get an exception.
@@ -152,7 +151,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         )
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop
+        """Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------
@@ -178,9 +177,8 @@ class ProfileBaseClass(BeamPhysicsRelevant):
     @staticmethod
     def get_arrays(
         cut_left: float, cut_right: float, n_bins: int
-    ) -> Tuple[NumpyArray, NumpyArray] | Tuple[CupyArray, CupyArray]:
-        """
-        Helper method to initialize beam profiles
+    ) -> tuple[NumpyArray, NumpyArray] | tuple[CupyArray, CupyArray]:
+        """Helper method to initialize beam profiles.
 
         Parameters
         ----------
@@ -208,12 +206,11 @@ class ProfileBaseClass(BeamPhysicsRelevant):
 
     @property  # as readonly attributes
     def cutoff_frequency(self) -> np.float32 | np.float64:
-        """Cutoff frequency if the profile is fourier transformed, in [Hz]"""
+        """Cutoff frequency if the profile is fourier transformed, in [Hz]."""
         return backend.float(1 / (2 * self.hist_step))
 
     def _calc_gauss(self) -> None:
         raise NotImplementedError
-        return
 
     @cached_property
     def gauss_fit_params(self) -> None:
@@ -221,35 +218,36 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         return self._calc_gauss()
 
     def beam_spectrum(self, n_fft: int) -> NumpyArray:
-        """Calculate fourier transform of the profile"""
+        """Calculate fourier transform of the profile."""
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
         # This is intentionally ignored, we want to get an exception.
 
-        if n_fft not in self._beam_spectrum_buffer.keys():
+        no_array_buffer = n_fft not in self._beam_spectrum_buffer.keys()
+        if no_array_buffer:
             self._beam_spectrum_buffer[n_fft] = np.fft.rfft(
                 self._hist_y,  # type: ignore
                 n_fft,
             )
+        # recycle array, but overwrite data (preventing new array allocation)
+        elif backend.is_gpu:
+            # At the time of writing (2025), out is not a keyword argument
+            # of cp.fft.rfft, but might be in future.
+            self._beam_spectrum_buffer[n_fft] = backend.fft.rfft(
+                self._hist_y,
+                n_fft,
+            )
         else:
-            if backend.is_gpu:
-                # At the time of writing (2025), out is not a keyword argument
-                # of cp.fft.rfft, but might be in future.
-                self._beam_spectrum_buffer[n_fft] = backend.fft.rfft(
-                    self._hist_y,
-                    n_fft,
-                )
-            else:
-                backend.fft.rfft(
-                    self._hist_y,
-                    n_fft,
-                    out=self._beam_spectrum_buffer[n_fft],  # type: ignore
-                )
+            backend.fft.rfft(
+                self._hist_y,
+                n_fft,
+                out=self._beam_spectrum_buffer[n_fft],  # type: ignore
+            )
 
         return self._beam_spectrum_buffer[n_fft]
 
     def invalidate_cache(self) -> None:
-        """Delete the stored values of functions with @cached_property"""
+        """Delete the stored values of functions with @cached_property."""
         for attribute in (
             "gauss_fit_params",
             "beam_spectrum",
@@ -269,10 +267,9 @@ class StaticProfile(ProfileBaseClass):
         cut_right: float,
         n_bins: int,
         section_index: int = 0,
-        name: Optional[str] = None,
+        name: str | None = None,
     ) -> None:
-        """
-        Calculation of beam profile that doesn't change its parameters
+        """Calculation of beam profile that doesn't change its parameters.
 
         Parameters
         ----------
@@ -302,8 +299,7 @@ class StaticProfile(ProfileBaseClass):
     def from_cutoff(
         cut_left: float, cut_right: float, cutoff_frequency: float
     ) -> StaticProfile:
-        """
-        Initialization method from `cutoff_frequency` in Hz
+        """Initialization method from `cutoff_frequency` in [Hz].
 
         Parameters
         ----------
@@ -328,10 +324,13 @@ class StaticProfile(ProfileBaseClass):
 
     @staticmethod
     def from_rad(
-        cut_left_rad: float, cut_right_rad: float, n_bins: int, t_period: float
+        cut_left_rad: float,
+        cut_right_rad: float,
+        n_bins: int,
+        t_period: float,
+        **static_profile_kwargs,
     ) -> StaticProfile:
-        """
-        Initialization method in radian
+        """Initialization method in [rad].
 
         Parameters
         ----------
@@ -354,16 +353,18 @@ class StaticProfile(ProfileBaseClass):
         cut_left = cut_left_rad * rad_to_frac * t_period
         cut_right = cut_right_rad * rad_to_frac * t_period
         return StaticProfile(
-            cut_left=cut_left, cut_right=cut_right, n_bins=n_bins
+            cut_left=cut_left,
+            cut_right=cut_right,
+            n_bins=n_bins,
+            **static_profile_kwargs,
         )
 
 
 class DynamicProfile(ProfileBaseClass):
     def __init__(
-        self, section_index: int = 0, name: Optional[str] = None
+        self, section_index: int = 0, name: str | None = None
     ) -> None:
-        """
-        Profile that can change its parameters during runtime
+        """Profile that can change its parameters during runtime.
 
         Parameters
         ----------
@@ -378,7 +379,7 @@ class DynamicProfile(ProfileBaseClass):
         )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
@@ -391,9 +392,9 @@ class DynamicProfile(ProfileBaseClass):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called
+        """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
@@ -408,11 +409,11 @@ class DynamicProfile(ProfileBaseClass):
 
     @abstractmethod  # pragma: no cover
     def update_attributes(self, beam: BeamBaseClass) -> None:
-        """Method to update the attributes"""
+        """Method to update the attributes."""
         pass
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop
+        """Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------
@@ -428,10 +429,9 @@ class DynamicProfileConstCutoff(DynamicProfile):
         self,
         timestep: float,
         section_index: int = 0,
-        name: Optional[str] = None,
+        name: str | None = None,
     ) -> None:
-        """
-        Profile that changes its width, keeping a constant cutoff frequency
+        """Profile that changes its width, keeping a constant cutoff frequency.
 
         Parameters
         ----------
@@ -459,10 +459,9 @@ class DynamicProfileConstCutoff(DynamicProfile):
 
 class DynamicProfileConstNBins(DynamicProfile):
     def __init__(
-        self, n_bins: int, section_index: int = 0, name: Optional[str] = None
+        self, n_bins: int, section_index: int = 0, name: str | None = None
     ) -> None:
-        """
-        Profile that changes its width, keeping a constant bin number
+        """Profile that changes its width, keeping a constant bin number.
 
         Parameters
         ----------
