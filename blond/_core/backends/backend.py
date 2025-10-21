@@ -253,7 +253,7 @@ class BackendBaseClass(ABC):
         """
         _backend_mode_raw: str = os.environ.get(
             "BLOND_BACKEND_MODE",
-            "numba",  # default
+            "python",  # default
         ).lower()
         if _backend_mode_raw != "numba":
             print(
