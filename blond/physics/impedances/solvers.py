@@ -98,7 +98,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
             * (self._simulation.ring.circumference / beam.reference_velocity)
             / self._parent_wakefield.profile.hist_step
         )
-        diff = self._parent_wakefield.profile.diff_hist_y
+        diff = self._parent_wakefield.profile.gradient_hist_y
         return factor * diff * self._Z_over_n
 
 
