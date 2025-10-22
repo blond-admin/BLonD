@@ -21,7 +21,7 @@ class BeamLoggerElement(UserDefinedElement):
     """
 
     def __init__(
-        self, beam: BeamBaseClass, n_turns: int, section_index=0, name=None
+        self, beam: BeamBaseClass, n_turns: int, section_index: int=0, name: str=None
     ):
         super().__init__(section_index=section_index, name=name)
         self._beam = beam
@@ -36,7 +36,7 @@ class BeamLoggerElement(UserDefinedElement):
         simulation
             Simulation context manager
         """
-        pass
+        super().__init__(simulation)
 
     def track(self, beam: BeamBaseClass) -> None:
         # Log a copy of the beam state at this turn

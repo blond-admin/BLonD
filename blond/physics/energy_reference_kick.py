@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
@@ -7,6 +7,8 @@ from .._core.simulation.simulation import Simulation
 from ..cycles.magnetic_cycle import MagneticCycleByTime
 
 if TYPE_CHECKING:  # pragma: no cover
+    from typing import Any
+
     from .. import Ring
     from ..cycles.magnetic_cycle import MagneticCycleBase
 
@@ -79,7 +81,7 @@ class EnergyReferenceKick(BeamPhysicsRelevant, Schedulable):
         turn_i_init
             Initial turn to execute simulation
         """
-        pass
+        super().on_run_simulation([insert arguments here])
 
     def track(self, beam: BeamBaseClass):
         super().track(beam=beam)
