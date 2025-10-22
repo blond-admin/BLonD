@@ -230,7 +230,7 @@ def bucket_fill_by_emittance_gaussian(
         n_buckets,
         density_function = gaussian_density,
         metric_function = rms_emittance,
-        max_metric_guess = None,
+        max_value_guess = None,
     )
 
     return _density
