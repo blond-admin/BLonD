@@ -45,6 +45,7 @@ class BeamPreparationRoutine(ABC):
             )
         )
         beam.reference_time = 0  # FIXME
+        # assign beams?
 
 
 class MatchingRoutine(BeamPreparationRoutine, ABC):
