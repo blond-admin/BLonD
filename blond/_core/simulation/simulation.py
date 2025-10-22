@@ -267,6 +267,7 @@ class Simulation(Preparable, HasPropertyCache):
         particle_type: ParticleType,
         subtract_min: bool = True,
         intensity: int = 0,
+        below_transition: bool = False,
     ) -> Tuple[NumpyArray, float, float]:
         """
         Obtain the potential well by tracking a beam for one turn.
@@ -340,6 +341,10 @@ class Simulation(Preparable, HasPropertyCache):
         potential_well = -cumulative_simpson(
             probe_bunch.read_partial_dE(), initial=0
         ) / len(dt)
+
+        if below_transition:
+            # peaks and troughs are flipped when below transition
+            potential_well *= -1
 
         if subtract_min:
             # Align potential so that the visible minimum is 0

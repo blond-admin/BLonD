@@ -14,7 +14,7 @@ from ..._core.helpers import int_from_float_with_warning
 from .helpers import populate_beam
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, Callable, Dict, Tuple
+    from typing import Any, Callable, Dict, Iterable, Tuple
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
@@ -24,6 +24,99 @@ if TYPE_CHECKING:  # pragma: no cover
     )
     from blond._core.beam.base import BeamBaseClass
 
+def calc_rms_emittance(density, dt, dE):
+    y_matrix_tomo1, x_matrix_tomo1 = np.meshgrid(np.arange(density.shape[1]),
+                                                 np.arange(density.shape[0]))
+    xbar = np.sum(density * x_matrix_tomo1)
+    xms = np.sum(density * x_matrix_tomo1**2.)
+    ybar = np.sum(density * y_matrix_tomo1)
+    yms = np.sum(density * y_matrix_tomo1**2.)
+    xybar = np.sum(density * x_matrix_tomo1 * y_matrix_tomo1)
+
+    rmsemittance = np.pi*dt*dE*np.sqrt((xms - xbar**2.)
+                                       * (yms - ybar**2.)
+                                       - (xybar - xbar*ybar)**2.)
+
+    return rmsemittance
+
+def gaussian_density_by_rms_emittance(hamilton: NumpyArray | CupyArray, dt, dE, emittance : float, max_search_fraction : float = 1, iterations: int = 10) -> NumpyArray | CupyArray:
+    std = max_search_fraction/2*np.max(hamilton) # start the search by setting the standard deviation in the middle of our search area
+    branching_factor = std/2 # We make the step size a fourth of our search area, decreasing it after each iteration.
+
+    for iteration in range(iterations):
+        density = np.exp(-hamilton**2/(2*std**2))
+        density /= np.sum(density)
+
+        if emittance > calc_rms_emittance(density, dt, dE):
+            std += branching_factor
+        else:
+            std -= branching_factor
+        branching_factor /= 2
+
+    return density
+
+
+def bucket_fill_by_emittance_gaussian(
+    time_grid: NumpyArray | CupyArray,
+    deltaE_grid: NumpyArray | CupyArray,
+    hamilton_2D: NumpyArray | CupyArray,
+    emittance_list: list[float],
+    intensity_frac_list: list[float],
+    n_buckets: int
+) -> NumpyArray | CupyArray:
+
+
+    _hamilton = hamilton_2D.copy()  # So the changes stay in this scope
+    _time = time_grid.copy()
+    _energy = deltaE_grid.copy()
+    _density = np.zeros(_hamilton.shape)
+
+    dt = _time[1,0] - _time[0,0]
+    dE = _energy[0,1] - _energy[0,0]
+
+    n_slices_per_bucket = int(_time.shape[1]/n_buckets)
+    min_hamilton = np.min(_hamilton)
+    _hamilton -= min_hamilton
+
+    for bucket in range(n_buckets):
+
+        min_bucket_index = bucket*n_slices_per_bucket
+        max_bucket_index = (bucket+1)*n_slices_per_bucket
+
+        #sliced_time = _time[:, min_bucket_index:max_bucket_index]
+        #sliced_energy = _energy[:, min_bucket_index:max_bucket_index]
+        sliced_hamilton = _hamilton[min_bucket_index:max_bucket_index,:]
+
+        sliced_hamilton -= np.min(sliced_hamilton) + min_hamilton
+
+        if intensity_frac_list[bucket] == 0:
+            sliced_density = np.zeros(sliced_hamilton.shape)
+        else:
+            sliced_density = gaussian_density_by_rms_emittance(sliced_hamilton, dt, dE, emittance_list[bucket], max_search_fraction=0.5)
+            sliced_density *= intensity_frac_list[bucket]
+
+        _density[ min_bucket_index:max_bucket_index,:] = sliced_density
+
+    return _density
+
+
+def gaussian_density(hamilton, std):
+    density = np.exp(-hamilton ** 2 / (2 * std ** 2))
+    density /= np.sum(density)
+    return density
+
+# def rms_emittance
+#
+# def generalized_bucket_filler(
+#     time_grid: NumpyArray | CupyArray,
+#     deltaE_grid: NumpyArray | CupyArray,
+#     hamilton_2D: NumpyArray | CupyArray,
+#     metric_list: list[float],
+#     intensity_frac_list: list[float],
+#     n_buckets: int,
+#     pure_density : callable = gaussian_density
+#     fitting_metric : callable = rms
+# ) -> NumpyArray | CupyArray:
 
 def hamilton_to_density_by_max(
     time_grid: NumpyArray | CupyArray,
@@ -149,7 +242,7 @@ def get_hamilton_semi_analytic(
     E0 = reference_total_energy  # [eV]
 
     # Compute kinetic energy term constant
-    drift_term = eta / (np.square(beta) * E0)  # [1/eV]
+    drift_term = np.abs(eta) / (np.square(beta) * E0)  # [1/eV]
 
     # Auto-estimate ΔE range if not provided
     if energy_range is None:
@@ -176,7 +269,7 @@ def get_hamilton_semi_analytic(
     V = potential_well[:, None]  # [V]
 
     # Compute the Hamiltonian hamilton_2D(t, ΔE) = 0.5 * const * ΔE² + V(t)
-    hamilton_2D = np.sign(eta) * (0.5 * drift_term * backend.square(deltaE_grid) + V)  # [eV]
+    hamilton_2D =  0.5 * drift_term * backend.square(deltaE_grid) + V  # [eV]
 
     return deltaE_grid, time_grid, hamilton_2D
 
@@ -417,11 +510,18 @@ class SemiEmpiricMatcher(MatchingRoutine):
         ts
             Time coordinate, in [s] for observation of the potential well.
         """
+
+        if float(simulation.ring.calc_average_eta_0(beam.reference_gamma)) < 0:
+            below_transition = True
+        else:
+            below_transition = False
+
         potential_well, factor, tilt_dt_per_dE = (
             simulation.get_potential_well_empiric(
                 dt=np.linspace(ts.min(), ts.max(), len(ts) * 10),
                 particle_type=beam.particle_type,
                 intensity=beam.intensity,
+                below_transition = below_transition
             )
         )
         potential_well = potential_well[::10] * factor
