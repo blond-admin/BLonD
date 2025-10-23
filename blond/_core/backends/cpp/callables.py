@@ -19,6 +19,7 @@ if TYPE_CHECKING:  # pragma: no cover
 class PrecisionClass:
     """Singleton class. Holds information about the floating point precision of the calculations."""
 
+    int_t: type[np.float32 | np.float64]
     real_t: type[np.float32 | np.float64]
     c_real_t: type[ct.c_float | ct.c_double]
     complex_t: type[np.complex64 | np.complex128]
@@ -45,12 +46,14 @@ class PrecisionClass:
         """
         if _precision in ["single", "s", "32", "float32", "float", "f"]:
             self.str = "single"
+            self.int_t = np.int32
             self.real_t = np.float32
             self.c_real_t = ct.c_float
             self.complex_t = np.complex64
             self.num = 1
         elif _precision in ["double", "d", "64", "float64"]:
             self.str = "double"
+            self.int_t = np.int64
             self.real_t = np.float64
             self.c_real_t = ct.c_double
             self.complex_t = np.complex128
@@ -109,6 +112,13 @@ class c_complex64(ct.Structure):
             _type_: _description_
         """
         return self.real + 1.0j * self.imag
+
+
+def c_int(scalar: int) -> ct.c_int32 | ct.c_int64:
+    """Convert input to default precision."""
+    if precision.num == 1:
+        return ct.c_int32(scalar)
+    return ct.c_int64(scalar)
 
 
 def c_real(scalar: float) -> ct.c_float | ct.c_double:
@@ -344,3 +354,28 @@ class CppSpecials(Specials):
         energy: float,
     ):
         pass
+
+    @staticmethod
+    def purge4(
+        flag: int,
+        flags: NumpyArray | CupyArray,  # also purged
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        ids: NumpyArray | CupyArray,
+    ):
+        n_new = _LIBBLOND.purge4(
+            ct.c_int32(flag),
+            flags.ctypes.data_as(ct.c_void_p),
+            dt.ctypes.data_as(ct.c_void_p),
+            dE.ctypes.data_as(ct.c_void_p),
+            ids.ctypes.data_as(ct.c_void_p),
+            ct.c_int(len(dt)),  # n_macroparticles
+        )
+        n_new = int(n_new)
+        # this changes the arrays in all references.
+        # This means that every position, that holds this array,
+        # is changed.
+        flags.resize(n_new, refcheck=False)
+        dt.resize(n_new, refcheck=False)
+        dE.resize(n_new, refcheck=False)
+        ids.resize(n_new, refcheck=False)

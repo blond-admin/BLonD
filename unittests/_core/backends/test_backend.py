@@ -67,8 +67,12 @@ class TestBackendBaseClass(unittest.TestCase):
                         # Compiled backends might not be available locally --> skip.
                         # On the CI, these will always be available, as the before_script builds them
                         # or otherwise fails the CI
-                        if backend_mode == "fortran" or backend_mode == "cpp":  # TODO better handling
-                            warnings.warn(f"{backend_mode} backend was not supported for {backend_bit}, compilation missing?")
+                        if (
+                            backend_mode == "fortran" or backend_mode == "cpp"
+                        ):  # TODO better handling
+                            warnings.warn(
+                                f"{backend_mode} backend was not supported for {backend_bit}, compilation missing?"
+                            )
                         else:
                             raise error
 
@@ -410,7 +414,45 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
 
-    @unittest.skip
+    def test_purge4(self):
+        for dtype in (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+
+                flag = backend.int(0)
+                flags = backend.ones(10, dtype=np.int32)
+                flags[[0, 1, -1]] = 0
+                dt = backend.array(backend.linspace(0, 10, 10), backend.float)
+                dE = backend.array(backend.linspace(0, 10, 10), backend.float)
+                ids = backend.array(backend.arange(0, 10), backend.int)
+                backend.specials.purge4(
+                    flag=flag,
+                    flags=flags,
+                    dt=dt,
+                    dE=dE,
+                    ids=ids,
+                )
+                result = dt  # could be any of the 4 arrays
+                self.assertEqual(7, len(flags))
+                self.assertEqual(7, len(dt))
+                self.assertEqual(7, len(dE))
+                self.assertEqual(7, len(ids))
+                if special == "cuda":
+                    result = result.get()
+                if i == 0:
+                    result_python = result
+                else:
+                    np.testing.assert_allclose(
+                        result,
+                        result_python,
+                        rtol=self.rtol,
+                        err_msg=f"Failed test `{special}` with {dtype}",
+                    )
+
     def test_loss_box(self) -> None:
         # TODO: implement test for `loss_box`
         for dtype in (np.float32, np.float64):

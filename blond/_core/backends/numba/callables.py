@@ -8,7 +8,9 @@ import numba  # type: ignore
 import numpy as np
 from numba import njit, prange, void
 
+from ...beam.base import BeamFlags
 from ..backend import Specials, backend
+from ..python.callables import _purge4_py
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -149,6 +151,19 @@ sig_beam_phase = nb_f(
     sig_bin_size,
 )
 
+
+sig_flag = numba.int32
+sig_flags = numba.int32[:]
+sig_ids = nb_i[:]
+sig_purge4 = nb_i(
+    sig_flag,
+    sig_flags,
+    sig_dt,
+    sig_dE,
+    sig_ids,
+)
+
+_purge4_nb = njit(sig_purge4)(_purge4_py)
 
 class NumbaSpecials(Specials):  # pragma: no cover
     @staticmethod
@@ -415,3 +430,26 @@ class NumbaSpecials(Specials):  # pragma: no cover
                 # Linear interpolation
                 v = y0 + (y1 - y0) * inv_dx * (x - x0)
                 dE[i] += charge * v + acceleration_kick
+
+    @staticmethod
+    def purge4(
+        flag: np.int32,
+        flags: NumpyArray | CupyArray,  # also purged
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        ids: NumpyArray | CupyArray,
+    ):
+        n_new = _purge4_nb(
+            flag=flag,
+            flags=flags,
+            dt=dt,
+            dE=dE,
+            ids=ids,
+        )
+        # this changes the arrays in all references.
+        # This means that every position, that holds this array,
+        # is changed.
+        flags.resize(n_new, refcheck=False)
+        dt.resize(n_new, refcheck=False)
+        dE.resize(n_new, refcheck=False)
+        ids.resize(n_new, refcheck=False)

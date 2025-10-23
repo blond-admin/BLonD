@@ -79,7 +79,7 @@ class Beam(BeamBaseClass):
         n_macroparticles = len(dt)
         if flags is None:
             flags = backend.int(BeamFlags.ACTIVE.value) * backend.ones(
-                n_macroparticles, dtype=backend.int
+                n_macroparticles, dtype=np.int32
             )
         else:
             assert flags.max() <= BeamFlags.ACTIVE.value

@@ -394,3 +394,28 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         self.invalidate_cache_dt()
         self.invalidate_cache_dE()
         return self._flags
+
+    def purge_flagged_entries(self, flag: int = BeamFlags.LOST.value) -> None:
+        """Delete flagged array entries from the array.
+
+        Side Effect
+        -----------
+        The attributes `_dt`, `_dE`, `_flags` are modified inplace.
+        All references that hold those arrays will see the modification.
+
+        Parameters
+        ----------
+        flag
+            The flag to be used as a selector what to remove.
+            Default is to remove lost particles ``flag=0``.
+
+        """
+        from ..._core.backends.backend import backend  # prevent cyclic import
+
+        backend.specials.purge4(
+            flag=backend.int(flag),
+            flags=self._flags,
+            dt=self._dt,
+            dE=self._dE,
+            ids=self._ids,
+        )
