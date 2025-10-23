@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from scipy.constants import speed_of_light as c0  # type: ignore
 
-from ..._core.backends.backend import backend
 from ..._core.ring.helpers import requires
 from ..base import HasPropertyCache, Preparable
 from ..helpers import int_from_float_with_warning
@@ -49,6 +48,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         is_distributed
             Developer option to allow distributed computing
         """
+        from ..._core.backends.backend import backend  # prevent cyclic import
+
         super().__init__()
 
         self.intensity = int_from_float_with_warning(
@@ -62,6 +63,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         self._dE: NumpyArray | CupyArray | None = None
         self._dt: NumpyArray | CupyArray | None = None
         self._flags: NumpyArray | CupyArray | None = None
+        self._ids: NumpyArray | CupyArray | None = None
 
         self.reference_time: np.float32 | np.float64 = backend.float(0.0)
         # todo cached properties
@@ -101,6 +103,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         assert self._dt is not None, msg
         assert self._dE is not None, msg
         assert self._flags is not None, msg
+        assert self._ids is not None, msg
         new_reference_total_energy = (
             simulation.magnetic_cycle.get_total_energy_init(
                 turn_i_init=turn_i_init,
@@ -291,9 +294,10 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         ----
         Depends on `is_distributed`
         If not distributed, returns all particles.
+        Using `_dt` and `_dE` will result in the same behaviour.
+
         If distributed, returns only the particles
         visible to the current node.
-        Using `_dt` and `_dE` will result in the same behaviour.
         """
         if self._dE is not None:
             return len(self._dE)
@@ -303,6 +307,20 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
                 f"...)` for initialisation."
             )
 
+    def read_partial_ids(self) -> NumpyArray | CupyArray:
+        """Returns id-array on current node (distributed computing ready).
+
+        Note
+        ----
+        Depends on `is_distributed`
+        If not distributed, returns all particles.
+        Using `_dt` and `_dE` will result in the same behaviour
+
+        If distributed, returns only the particles
+        visible to the current node.
+        """
+        return self._ids
+
     def read_partial_dt(self) -> NumpyArray | CupyArray:
         """Returns dt-array on current node (distributed computing ready).
 
@@ -310,9 +328,10 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         ----
         Depends on `is_distributed`
         If not distributed, returns all particles.
+        Using `_dt` and `_dE` will result in the same behaviour
+
         If distributed, returns only the particles
         visible to the current node.
-        Using `_dt` and `_dE` will result in the same behaviour
         """
         return self._dt
 
@@ -323,9 +342,10 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         ----
         Depends on `is_distributed`
         If not distributed, returns all particles.
+        Using `_dt` and `_dE` will result in the same behaviour.
+
         If distributed, returns only the particles
         visible to the current node.
-        Using `_dt` and `_dE` will result in the same behaviour.
         """
         self.invalidate_cache_dt()
         return self._dt
@@ -337,9 +357,10 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         ----
         Depends on `is_distributed`
         If not distributed, returns all particles.
+        Using `_dt` and `_dE` will result in the same behaviour.
+
         If distributed, returns only the particles
         visible to the current node.
-        Using `_dt` and `_dE` will result in the same behaviour.
         """
         return self._dE
 
@@ -350,9 +371,10 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         ----
         Depends on `is_distributed`
         If not distributed, returns all particles.
+        Using `_dt` and `_dE` will result in the same behaviour.
+
         If distributed, returns only the particles
         visible to the current node.
-        Using `_dt` and `_dE` will result in the same behaviour.
         """
         self.invalidate_cache_dE()
         return self._dE
@@ -364,9 +386,10 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         ----
         Depends on `is_distributed`
         If not distributed, returns all particles.
+        Using `_dt` and `_dE` will result in the same behaviour.
+
         If distributed, returns only the particles
         visible to the current node.
-        Using `_dt` and `_dE` will result in the same behaviour.
         """
         self.invalidate_cache_dt()
         self.invalidate_cache_dE()

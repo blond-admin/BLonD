@@ -36,6 +36,7 @@ class BeamBaseClassTester(BeamBaseClass):
         self._dE = np.linspace(1, 10, 10)
         self._dt = np.linspace(20, 30, 10)
         self._flags = np.zeros(10, dtype=int)
+        self._ids = np.arange(10, dtype=int)
 
     @cached_property
     def ratio(self) -> float:
@@ -163,6 +164,11 @@ class TestBeamBaseClass(unittest.TestCase):
     def test_read_partial_dt(self):
         self.assertTrue(
             isinstance(self.beam_base_class.read_partial_dt(), np.ndarray)
+        )
+
+    def test_read_partial_ids(self):
+        self.assertTrue(
+            isinstance(self.beam_base_class.read_partial_ids(), np.ndarray)
         )
 
     @unittest.skip("Abstract method")
