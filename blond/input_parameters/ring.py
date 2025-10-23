@@ -224,8 +224,8 @@ class Ring:
         n_turns: int = 1,
         synchronous_data_type: SynchronousDataTypes = "momentum",
         bending_radius: Optional[float] = None,
-       radiation_integrals = None,
-        n_sections: int = 1,
+            radiation_integrals=None,
+            n_sections: int = 1,
         alpha_1: None | float | list | tuple | NumpyArray = None,
         alpha_2: None | float | list | tuple | NumpyArray = None,
         ring_options: Optional[RingOptions] = None,
@@ -313,9 +313,10 @@ class Ring:
         else:
             # when there is more than 1 RF station, self.energy has shape (n_sections, n_turns+1)
             self.delta_E = np.zeros((n_sections, n_turns))
-            self.delta_E[0, :] = self.energy[0, 1:n_turns + 1] - self.energy[-1, 0:n_turns]
-            self.delta_E[1:, :] = self.energy[1:, 1:n_turns + 1] - self.energy[:-1, 1:n_turns + 1]
-
+            self.delta_E[0, :] = self.energy[0, 1:n_turns + 1] - self.energy[
+                -1, 0:n_turns]
+            self.delta_E[1:, :] = self.energy[1:, 1:n_turns + 1] - self.energy[
+                :-1, 1:n_turns + 1]
 
         # Momentum compaction, checks, and derived slippage factors
         if ring_options.t_start is None:
