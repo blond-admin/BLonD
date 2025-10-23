@@ -278,13 +278,13 @@ class RFStation:
         self.alpha_order = ring.alpha_order
         self.charge = self.particle.charge
         self.sr_flag = False
-        if ring.sr_flag:
+        if Ring.sr_flag:
             self.sr_flag = True
-            self.I1 = ring.I1
-            self.I2 = ring.I2
-            self.I3 = ring.I3
-            self.I4 = ring.I4
-            self.I5 = ring.I5
+            self.I1 = Ring.I1
+            self.I2 = Ring.I2
+            self.I3 = Ring.I3
+            self.I4 = Ring.I4
+            self.I5 = Ring.I5
 
 
         # The order alpha_order used here can be replaced by Ring.alpha_order
