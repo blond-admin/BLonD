@@ -79,7 +79,7 @@ class Beam(BeamBaseClass):
         n_macroparticles = len(dt)
         if flags is None:
             flags = backend.int(BeamFlags.ACTIVE.value) * backend.ones(
-                n_macroparticles, dtype=backend.int
+                n_macroparticles, dtype=np.int32
             )
         else:
             assert flags.max() <= BeamFlags.ACTIVE.value
@@ -92,10 +92,13 @@ class Beam(BeamBaseClass):
             dt, dtype=backend.float
         )
         self._flags: NumpyArray | CupyArray = flags.astype(backend.int)
+        self._ids: NumpyArray | CupyArray = backend.arange(len(dt))
+
         if reference_time:
             self.reference_time = backend.float(reference_time)
         if reference_total_energy:
             self.reference_total_energy = reference_total_energy
+
         self.invalidate_cache()
 
     def on_run_simulation(

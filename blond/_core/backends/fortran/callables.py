@@ -317,3 +317,27 @@ class FortranSpecials(Specials):
             n_macroparticles=np.int32(len(dt)),
             acc_kick=acceleration_kick,
         )
+
+    @staticmethod
+    def purge4(
+        flag: int,
+        flags: NumpyArray | CupyArray,  # also purged
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        ids: NumpyArray | CupyArray,
+    ):
+        n_new = libblond_fortran.purge4(
+            flag=flag,
+            flags=flags,
+            dt=dt,
+            dE=dE,
+            ids=ids,
+            n=np.int32(len(dt)),
+        )
+        # this changes the arrays in all references.
+        # This means that every position, that holds this array,
+        # is changed.
+        flags.resize(n_new, refcheck=False)
+        dt.resize(n_new, refcheck=False)
+        dE.resize(n_new, refcheck=False)
+        ids.resize(n_new, refcheck=False)

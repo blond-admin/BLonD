@@ -129,6 +129,17 @@ class Specials(ABC):
     ) -> np.float32 | np.float64:
         pass
 
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def purge4(
+        flag: int,
+        flags: NumpyArray | CupyArray,  # also purged
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        ids: NumpyArray | CupyArray,
+    ):
+        pass
+
 
 class BackendBaseClass(ABC):
     # type annotations for MyPy
@@ -191,6 +202,7 @@ class BackendBaseClass(ABC):
         self.random: ModuleType = None  # type: ignore
         self.isnan: Callable = None  # type: ignore
         self.sum: Callable = None  # type: ignore
+        self.arange: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -383,6 +395,7 @@ class NumpyBackend(BackendBaseClass):
         self.random = np.random
         self.isnan = np.isnan
         self.sum = np.sum
+        self.arange = np.arange
 
         self._finalize()
 
@@ -500,6 +513,7 @@ class CupyBackend(BackendBaseClass):
         self.random = cp.random
         self.isnan = cp.isnan
         self.sum = cp.sum
+        self.arange = cp.arange
 
         from .cuda.callables import CudaSpecials
 
