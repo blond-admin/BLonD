@@ -486,7 +486,7 @@ class BunchObservationMetaParams(Observables):
 
     @property  # as readonly attributes
     def emittance_stat(self):
-        """Statistical emittance calculated with
+        r"""Statistical emittance calculated with
 
         .. math::
             \epsilon = \sqrt{\langle \Delta t^2 \\rangle \langle \Delta E^2 \\rangle - \langle \Delta t \Delta E \\rangle^2}
@@ -916,7 +916,7 @@ class DynamicProfileConstNBinsObservation(Observables):
         """Observation of a dynamic beam profile with changing width, while keeping a constant bin number.
 
         Parameters
-        -------
+        ----------
          each_turn_i
             Value to control that the element is
             callable each n-th turn
@@ -928,7 +928,6 @@ class DynamicProfileConstNBinsObservation(Observables):
             saving or loading files.
 
         """
-
         super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._profile = profile
         self._hist_y: DenseArrayRecorder | None = None
