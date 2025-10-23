@@ -165,6 +165,7 @@ sig_purge4 = nb_i(
 
 _purge4_nb = njit(sig_purge4)(_purge4_py)
 
+
 class NumbaSpecials(Specials):  # pragma: no cover
     @staticmethod
     @njit(
