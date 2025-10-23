@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import numba  # type: ignore
 import numpy as np
-from numba import njit, prange
+from numba import njit, prange, void
 
 from ..backend import Specials, backend
 
@@ -58,7 +58,7 @@ sig_voltage = nb_f[:]
 sig_bin_centers = nb_f[:]
 
 # function signatures
-sig_kick_single_harmonic = (
+sig_kick_single_harmonic = void(
     sig_dt,
     sig_dE,
     sig_singleharmonic_voltage,
@@ -69,7 +69,7 @@ sig_kick_single_harmonic = (
 )
 
 
-sig_kick_multi_harmonic = (
+sig_kick_multi_harmonic = void(
     sig_dt,
     sig_dE,
     sig_voltage_multi_harmonic,
@@ -80,7 +80,7 @@ sig_kick_multi_harmonic = (
     sig_acceleration_kick,
 )
 
-sig_drift_simple = (
+sig_drift_simple = void(
     sig_dt,
     sig_dE,
     sig_T,
@@ -88,7 +88,7 @@ sig_drift_simple = (
     sig_beta,
     sig_energy,
 )
-sig_drift_legacy = (
+sig_drift_legacy = void(
     sig_dt,
     sig_dE,
     sig_t_rev,
@@ -101,7 +101,7 @@ sig_drift_legacy = (
     sig_energy,
 )
 
-sig_drift_exact = (
+sig_drift_exact = void(
     sig_dt,
     sig_dE,
     sig_t_rev,
@@ -114,7 +114,7 @@ sig_drift_exact = (
 )
 
 
-sig_kick_induced_voltage = (
+sig_kick_induced_voltage = void(
     sig_dt,
     sig_dE,
     sig_voltage,
@@ -140,7 +140,7 @@ sig_omega_rf = nb_f
 sig_phi_rf = nb_f
 sig_bin_size = nb_f
 
-sig_beam_phase = (
+sig_beam_phase = nb_f(
     sig_hist_x,
     sig_hist_y,
     sig_alpha,
