@@ -231,13 +231,13 @@ class NumbaSpecials(Specials):  # pragma: no cover
             if array_read[i] == stop:
                 array_tmp[curr_thread, -1] += 1
                 continue
-            idx = int((array_read[i] - start) * inv_bin_step)
+            idx = (array_read[i] - start) * inv_bin_step
             if idx < 0:
                 continue
             elif idx >= n_bins:
                 continue
             else:
-                array_tmp[curr_thread, idx] += 1
+                array_tmp[curr_thread, int(idx)] += 1
         array_write[:] = np.sum(array_tmp, axis=0)
 
     @staticmethod
