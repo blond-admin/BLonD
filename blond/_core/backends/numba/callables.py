@@ -163,6 +163,21 @@ sig_purge4 = nb_i(
     sig_ids,
 )
 
+sig_top = nb_f
+sig_bottom = nb_f
+sig_left = nb_f
+sig_right = nb_f
+
+sig_loss_box = (
+    sig_top,
+    sig_bottom,
+    sig_left,
+    sig_right,
+    sig_dt,
+    sig_dE,
+    sig_flags,
+)
+
 
 _purge4_nb = njit(sig_purge4)(_purge4_py)
 
