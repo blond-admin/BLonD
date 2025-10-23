@@ -22,6 +22,7 @@ cpp_files = [
     # "blondmath.cpp",
     # "fast_resonator.cpp",
     "beam_phase.cpp",
+    "loss_box.cpp",
     "purge4.cpp",
     # "fft.cpp",
     "openmp.cpp",  # required for single core compilation without parallel flag

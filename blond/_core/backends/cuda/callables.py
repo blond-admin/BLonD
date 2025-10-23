@@ -69,8 +69,37 @@ block_size = (threads, 1, 1)
 
 class CudaSpecials(Specials):
     @staticmethod
-    def loss_box(top: float, bottom: float, left: float, right: float) -> None:
-        raise NotImplementedError()
+    def loss_box(
+        top: float,
+        bottom: float,
+        left: float,
+        right: float,
+        dt: CupyArray,
+        dE: CupyArray,
+        flags: CupyArray,
+    ) -> None:
+        assert dt.dtype == backend.float
+        assert dE.dtype == backend.float
+        assert dE.dtype == backend.float
+        assert isinstance(top, backend.float)
+        assert isinstance(bottom, backend.float)
+        assert isinstance(left, backend.float)
+        assert isinstance(right, backend.float)
+
+        _kick_single_harmonic(
+            args=(
+                top,
+                bottom,
+                left,
+                right,
+                dt,
+                dE,
+                flags,
+                np.int32(len(dE)),  # n_macroparticles
+            ),
+            block=block_size,
+            grid=grid_size,
+        )
 
     @staticmethod
     def kick_single_harmonic(
@@ -323,3 +352,13 @@ class CudaSpecials(Specials):
             shared_mem=2 * block_size[0] * np.dtype(backend.float).itemsize,
         )
         return backend.float(result[0].get() / result[1].get())
+
+    @staticmethod
+    def purge4(
+        flag: int,
+        flags: NumpyArray | CupyArray,  # also purged
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        ids: NumpyArray | CupyArray,
+    ):
+        raise NotImplementedError()  # TODO

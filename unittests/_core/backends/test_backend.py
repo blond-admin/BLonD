@@ -454,7 +454,6 @@ class TestSpecials(unittest.TestCase):
                     )
 
     def test_loss_box(self) -> None:
-        # TODO: implement test for `loss_box`
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 try:
@@ -462,7 +461,25 @@ class TestSpecials(unittest.TestCase):
                 except (FileNotFoundError, OSError):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
-                backend.specials.loss_box(a=None, b=None, c=None, d=None)
+
+                top = backend.float(1)
+                bottom = backend.float(-1)
+                left = backend.float(-10)
+                right = backend.float(10)
+                dt = backend.linspace(-20, 20, dtype=backend.float)
+                dE = backend.linspace(-2, 2, dtype=backend.float)
+                flags = backend.arange(len(dt), dtype=np.int32)
+                result = flags
+
+                backend.specials.loss_box(
+                    top=top,
+                    bottom=bottom,
+                    left=left,
+                    right=right,
+                    dt=dt,
+                    dE=dE,
+                    flags=flags,
+                )
                 if special == "cuda":
                     result = result.get()
                 if i == 0:

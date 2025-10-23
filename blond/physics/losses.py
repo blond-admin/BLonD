@@ -15,6 +15,9 @@ class LossesBaseClass(BeamPhysicsRelevant):
     def __init__(self) -> None:
         super().__init__()
 
+    def track(self, beam: BeamBaseClass) -> None:
+        beam.purge_flagged_entries()
+
 
 class BoxLosses(LossesBaseClass):
     def __init__(
@@ -64,6 +67,7 @@ class BoxLosses(LossesBaseClass):
             self.e_min,
             self.e_max,
         )
+        super().track(beam=beam)
 
 
 class SeparatrixLosses(LossesBaseClass):
@@ -98,3 +102,4 @@ class SeparatrixLosses(LossesBaseClass):
             Beam class to interact with this element
         """
         self._simulation.get_separatrix()  # TODO
+        super().track(beam=beam)

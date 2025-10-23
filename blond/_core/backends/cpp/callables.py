@@ -260,8 +260,25 @@ class CppSpecials(Specials):
         )
 
     @staticmethod
-    def loss_box(top: float, bottom: float, left: float, right: float) -> None:
-        pass
+    def loss_box(
+        top: float,
+        bottom: float,
+        left: float,
+        right: float,
+        dt: CupyArray,
+        dE: CupyArray,
+        flags: CupyArray,
+    ) -> None:
+        _LIBBLOND.loss_box(
+            c_real(top),
+            c_real(bottom),
+            c_real(left),
+            c_real(right),
+            _getPointer(dt),
+            _getPointer(dE),
+            _getPointer(flags),
+            _getLen(dt),
+        )
 
     @staticmethod
     def kick_single_harmonic(
