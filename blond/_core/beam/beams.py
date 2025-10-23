@@ -91,8 +91,13 @@ class Beam(BeamBaseClass):
         self._dt: NumpyArray | CupyArray = backend.array(
             dt, dtype=backend.float
         )
-        self._flags: NumpyArray | CupyArray = flags.astype(backend.int)
-        self._ids: NumpyArray | CupyArray = backend.arange(len(dt))
+
+        # intentionally 32 bit, this should be enough for all thinkable flags
+        self._flags: NumpyArray | CupyArray = flags.astype(np.int32)
+
+        self._ids: NumpyArray | CupyArray = backend.arange(
+            len(dt), dtype=backend.int
+        )
 
         if reference_time:
             self.reference_time = backend.float(reference_time)
