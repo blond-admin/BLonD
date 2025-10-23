@@ -18,9 +18,18 @@ from __future__ import division
 
 import itertools as itl
 import warnings
-
+from typing import TYPE_CHECKING
 import numpy as np
 from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
+if TYPE_CHECKING:
+    from typing import Iterable, Self, Optional
+
+    from numpy.typing import NDArray as NumpyArray
+    import cupy as cp
+
+    from ..input_parameters.ring import Ring
+    from ..input_parameters.rf_parameters import RFStation
+    from ..utils.types import DeviceType
 
 from ..trackers.utilities import is_in_separatrix
 from ..utils import bmath as bm
@@ -244,9 +253,10 @@ class Beam:
         self.mean_dE = 0.
         self.sigma_dt = 0.
         self.sigma_dE = 0.
-        self.intensity = float(intensity)
-        self.n_macroparticles = int(n_macroparticles)
-        self.ratio = self.intensity / self.n_macroparticles
+
+        self._set_beam_info(n_macroparticles=int(n_macroparticles),
+                            intensity=float(intensity))
+
         self.id = np.arange(1, self.n_macroparticles + 1, dtype=int)
         self.epsn_rms_l = 0.
         self.n_macroparticles_eliminated = 0
@@ -259,6 +269,22 @@ class Beam:
         self._mpi_sumsq_dE = 0.
         # For handling arrays on CPU/GPU
         self._device = 'CPU'
+
+    def __iadd__(self, other: Self | Iterable[float]) -> Self:
+        """
+        Initialisation of in place addition calls add_beam(other) if other
+        is a blond beam object, calls add_particles(other) otherwise
+
+        Parameters
+        ----------
+        other : blond beam object or (2, n) array
+        """
+
+        if isinstance(other, type(self)):
+            self.add_beam(other)
+        else:
+            self.add_particles(other)
+        return self
 
     @property
     def n_total_macroparticles_lost(self):
@@ -345,6 +371,71 @@ class Beam:
         '''
 
         return self.n_macroparticles - self.n_macroparticles_alive
+
+    @property
+    def ratio(self) -> float:
+        return self._ratio
+
+    @ratio.setter
+    def ratio(self, value: float):
+        self._set_beam_info(ratio=value)
+
+    @property
+    def intensity(self) -> float:
+        return self._intensity
+
+    @intensity.setter
+    def intensity(self, value: float):
+        self._set_beam_info(intensity=value)
+
+    @property
+    def n_macroparticles(self) -> int:
+        return self._n_macroparticles
+
+    @n_macroparticles.setter
+    def n_macroparticles(self, value: int):
+        self._set_beam_info(n_macroparticles=value)
+
+    def _set_beam_info(self, *, n_macroparticles: Optional[int] = None,
+                       intensity: Optional[float] = None,
+                       ratio: Optional[float] = None):
+
+        input = (n_macroparticles, intensity, ratio)
+
+        match input:
+            case (None, None, None):
+                raise ValueError("All input None is not a valid option")
+            case (None, inten, rat) if inten is not None and rat is not None:
+                raise ValueError("Setting both intensity and ratio is not a"
+                                 + " valid option")
+            case (n_mac, None, None):
+                self._set_n_macroparticles(n_mac)
+
+            case (None, inten, None):
+                self._set_intensity(inten)
+
+            case (None, None, rat):
+                self._set_ratio(rat)
+
+            case (n_mac, inten, None):
+                self._n_macroparticles = n_mac
+                self._set_intensity(inten)
+
+            case (n_mac, None, rat):
+                self._n_macroparticles = n_mac
+                self._set_ratio(rat)
+
+    def _set_n_macroparticles(self, n_macroparticles: int):
+        self._n_macroparticles = n_macroparticles
+        self._ratio = self._intensity / self._n_macroparticles
+
+    def _set_intensity(self, intensity: float):
+        self._intensity = intensity
+        self._ratio = intensity / self._n_macroparticles
+
+    def _set_ratio(self, ratio: float):
+        self._ratio = ratio
+        self._intensity = ratio * self._n_macroparticles
 
     def eliminate_lost_particles(self):
         """Eliminate lost particles from the beam coordinate arrays
