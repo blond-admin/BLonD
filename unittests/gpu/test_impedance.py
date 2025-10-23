@@ -111,12 +111,12 @@ class TestImpedanceBigaussianData:
         import cupy as cp
 
         cut_options = CutOptions(cut_left=0, cut_right=2 * np.pi, n_slices=number_slices,
-                                 RFSectionParameters=self.rf, cuts_unit='rad')
+                                 rf_station=self.rf, cuts_unit='rad')
         slice_beam = Profile(self.beam, cut_options,
                              FitOptions(fit_option='gaussian'))
 
         cut_options_gpu = CutOptions(cut_left=0, cut_right=2 * np.pi, n_slices=number_slices,
-                                     RFSectionParameters=self.rf_gpu, cuts_unit='rad')
+                                     rf_station=self.rf_gpu, cuts_unit='rad')
         slice_beam_gpu = Profile(
             self.beam_gpu, cut_options_gpu, FitOptions(fit_option='gaussian'))
 
@@ -179,12 +179,12 @@ class TestImpedanceBigaussianData:
         import cupy as cp
 
         cut_options = CutOptions(cut_left=0, cut_right=2 * np.pi, n_slices=number_slices,
-                                 RFSectionParameters=self.rf, cuts_unit='rad')
+                                 rf_station=self.rf, cuts_unit='rad')
         slice_beam = Profile(self.beam, cut_options,
                              FitOptions(fit_option='gaussian'))
 
         cut_options_gpu = CutOptions(cut_left=0, cut_right=2 * np.pi, n_slices=number_slices,
-                                     RFSectionParameters=self.rf_gpu, cuts_unit='rad')
+                                     rf_station=self.rf_gpu, cuts_unit='rad')
         slice_beam_gpu = Profile(
             self.beam_gpu, cut_options_gpu, FitOptions(fit_option='gaussian'))
 
@@ -353,21 +353,21 @@ class TestImpedanceMTW:
         if mode == 'time':
             ind_volt = InducedVoltageTime(
                 self.beam, slice_beam, [self.resonator],
-                RFParams=self.rf, multi_turn_wake=True, mtw_mode=mtw_mode,
+                rf_station=self.rf, multi_turn_wake=True, mtw_mode=mtw_mode,
                 wake_length=self.n_turns * self.bucket_length)
             ind_volt_gpu = InducedVoltageTime(
                 self.beam_gpu, slice_beam_gpu, [self.resonator],
-                RFParams=self.rf_gpu, multi_turn_wake=True, mtw_mode=mtw_mode,
+                rf_station=self.rf_gpu, multi_turn_wake=True, mtw_mode=mtw_mode,
                 wake_length=self.n_turns * self.bucket_length)
 
         elif mode == 'frequency':
             ind_volt = InducedVoltageFreq(
                 self.beam, slice_beam, [self.resonator],
-                RFParams=self.rf, frequency_resolution=1e3,
+                rf_station=self.rf, frequency_resolution=1e3,
                 multi_turn_wake=True, mtw_mode=mtw_mode)
             ind_volt_gpu = InducedVoltageFreq(
                 self.beam_gpu, slice_beam_gpu, [self.resonator],
-                RFParams=self.rf_gpu, frequency_resolution=1e3,
+                rf_station=self.rf_gpu, frequency_resolution=1e3,
                 multi_turn_wake=True, mtw_mode=mtw_mode)
 
         tot_volt = TotalInducedVoltage(self.beam, slice_beam, [ind_volt])

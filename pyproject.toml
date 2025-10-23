@@ -14,7 +14,7 @@ name = "blond"
 dynamic = ["dependencies", "optional-dependencies", "version"]
 description = "CERN code for simulating longitudinal beam dynamics in synchrotrons."
 readme = "README.md"
-license = {file= "LICENSE.txt" }
+license = "GPL-3.0"
 requires-python = ">=3.9"
 authors = [
     { name = "Helga Timko", email = "helga.timko@cern.ch" },
@@ -26,7 +26,6 @@ maintainers = [
 ]
 classifiers = [
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3.10",
@@ -36,7 +35,7 @@ classifiers = [
 ]
 
 [tool.setuptools]
-packages = ["blond"]
+packages = { find = {} }
 include-package-data = true
 
 [project.urls]
@@ -53,15 +52,10 @@ write_to = 'blond/_version.py' # autogenerates version string using git
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
-optional-dependencies = { all = { file = ["requirements-doc.txt","requirements-lint.txt","requirements-test.txt","requirements-gpu.txt"] }, gpu = { file = ["requirements-gpu.txt"] }, doc = { file = ["requirements-doc.txt"] }, lint = { file = ["requirements-lint.txt"] }, test = { file = ["requirements-test.txt"] } }
+optional-dependencies = { all = { file = ["requirements-doc.txt","requirements-lint.txt","requirements-test.txt","requirements-gpu.txt", "requirements-dev.txt"] }, gpu = { file = ["requirements-gpu.txt"] }, doc = { file = ["requirements-doc.txt"] }, lint = { file = ["requirements-lint.txt"] }, test = { file = ["requirements-test.txt"] } , dev = { file = ["requirements-dev.txt"] }}
 
-[tool.flake8]
-ignore = [
-    'E501', # Line too long (82 > 79 characters) (E501)
-    'W503', # Line break occurred before a binary operator (W503)
-    'W504', # Line break occurred after a binary operator (W504)
-    'W291', # Trailing whitespace (W291)
-]
+[tool.ruff]
+line-length = 79
 
 [tool.pylint.reports]
 output-format = 'colorized'

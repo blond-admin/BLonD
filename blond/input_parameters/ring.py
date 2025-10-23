@@ -7,24 +7,36 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-'''
+"""
 **Module gathering all general input parameters used for the simulation.**
     :Authors: **Alexandre Lasheen**, **Danilo Quartullo**, **Helga Timko**
-'''
+"""
 
-from __future__ import division
+from __future__ import annotations
 
 import warnings
-from builtins import range, str
+from typing import TYPE_CHECKING
 
 import numpy as np
 from scipy.constants import c
 
-from ..input_parameters.ring_options import RingOptions
+from .ring_options import RingOptions
+from ..utils.legacy_support import handle_legacy_kwargs
+
+if TYPE_CHECKING:  # only for Python type hints
+    from typing import Literal, Any, Optional, Iterable
+
+    from numpy.typing import NDArray as NumpyArray
+
+    from ..beam.beam import Particle
+
+    SynchronousDataTypes = Literal[
+        "momentum", "total energy", "kinetic energy", "bending field"
+    ]
 
 
 class Ring:
-    r""" Class containing the general properties of the synchrotron that are
+    r"""Class containing the general properties of the synchrotron that are
     independent of the RF system or the beam.
 
     The index :math:`n` denotes time steps, :math:`k` ring segments/sections
@@ -53,7 +65,7 @@ class Ring:
         [momentum_program_section_1, momentum_program_section_2, etc.]. Can
         be input also as a tuple of time and momentum, see also
         'cycle_time' and 'PreprocessRamp'
-    Particle : class
+    particle : class
         A Particle-based class defining the primary, synchronous particle (mass
         and charge) that is reference for the momentum/energy in the ring.
     n_turns : int
@@ -81,7 +93,7 @@ class Ring:
         program of (n_turns + 1) turns (should be of the same size as
         synchronous_data and alpha_0).
     rad_int : float array [5,1] or [5, n_turns]
-    RingOptions : class
+    ring_options : class
         Optional : A RingOptions-based class with default options to check the
         input and initialize the momentum program for the simulation.
         This object defines the interpolation scheme, plotting options, etc.
@@ -124,6 +136,8 @@ class Ring:
         - \frac{3\beta_{s,k,n}^2\alpha_{0,k,n}}{2\gamma_{s,k,n}^2}` [1]
     momentum : float matrix [n_sections, n_turns+1]
         Synchronous relativistic momentum on the design orbit :math:`p_{s,k,n}`
+        With more than one section, it is expected that column 0 holds the
+        initial momentum for all rows.
     beta : float matrix [n_sections, n_turns+1]
         Synchronous relativistic beta program for each segment of the
         ring :math:`\beta_{s,k}^n = \frac{1}{\sqrt{1
@@ -152,7 +166,7 @@ class Ring:
         Cumulative cycle time, turn by turn, :math:`t_n = \sum_n T_{0,n}` [s].
         Possibility to extract cycle parameters at these moments using
         'parameters_at_time'.
-    RingOptions : RingOptions()
+    ring_options : RingOptions()
         The RingOptions is kept as an attribute of the Ring object for further
         usage.
 
@@ -200,64 +214,100 @@ class Ring:
 
     """
 
-    def __init__(self, ring_length, alpha_0, synchronous_data, Particle,
-                 n_turns=1, synchronous_data_type='momentum',
-                 bending_radius=None, n_sections=1, alpha_1=None, alpha_2=None, radiation_integrals = None,
-                 RingOptions=RingOptions()):
-
+    @handle_legacy_kwargs
+    def __init__(
+        self,
+        ring_length: float | list | tuple | NumpyArray,
+        alpha_0: float | list | tuple | NumpyArray,
+        synchronous_data: Any,  # todo type hint
+        particle: Particle,
+        n_turns: int = 1,
+        synchronous_data_type: SynchronousDataTypes = "momentum",
+        bending_radius: Optional[float] = None,
+       radiation_integrals = None,
+        n_sections: int = 1,
+        alpha_1: None | float | list | tuple | NumpyArray = None,
+        alpha_2: None | float | list | tuple | NumpyArray = None,
+        ring_options: Optional[RingOptions] = None,
+    ):
+        if ring_options is None:
+            ring_options = RingOptions()
         # Conversion of initial inputs to expected types
         self.n_turns = int(n_turns)
         self.n_sections = int(n_sections)
 
         # Ring length and checks
-        self.ring_length = np.array(ring_length, ndmin=1, dtype=float)
-        self.ring_circumference = np.sum(self.ring_length)
-        self.ring_radius = self.ring_circumference / (2 * np.pi)
+        self.ring_length: NumpyArray = np.array(
+            ring_length, ndmin=1, dtype=float
+        )
+        self.ring_circumference: float = np.sum(self.ring_length)
+        self.ring_radius: float = self.ring_circumference / (2 * np.pi)
 
-        if bending_radius is not None:
-            self.bending_radius = float(bending_radius)
-        else:
-            self.bending_radius = bending_radius
+        self.bending_radius: Optional[float] = (
+            float(bending_radius) if bending_radius is not None else None
+        )
 
         if self.n_sections != len(self.ring_length):
             # InputDataError
-            raise RuntimeError("ERROR in Ring: Number of sections and ring " +
-                               "length size do not match!")
+            raise RuntimeError(
+                "ERROR in Ring: Number of sections and ring "
+                + "length size do not match!"
+            )
 
         # Primary particle mass and charge used for energy calculations
-        self.Particle = Particle
+        self.particle: Particle = particle
 
         # Keeps RingOptions as an attribute
-        self.RingOptions = RingOptions
+        self.ring_options: RingOptions = ring_options
 
         # Reshaping the input synchronous data to the adequate format and
         # get back the momentum program from RingOptions
-        self.momentum = RingOptions.reshape_data(
+        self.momentum: NumpyArray = ring_options.reshape_data(
             synchronous_data,
             self.n_turns,
             self.n_sections,
             input_to_momentum=True,
             synchronous_data_type=synchronous_data_type,
-            mass=self.Particle.mass,
-            charge=self.Particle.charge,
+            mass=self.particle.mass,
+            charge=self.particle.charge,
             circumference=self.ring_circumference,
-            bending_radius=self.bending_radius)
+            bending_radius=self.bending_radius,
+        )
 
         # Updating the number of turns in case it was changed after ramp
         # interpolation
         if self.momentum.shape[1] != (self.n_turns + 1):
             self.n_turns = self.momentum.shape[1] - 1
-            warnings.warn("WARNING in Ring: The number of turns for the " +
-                          "simulation was changed by passing a momentum " +
-                          "program.")
+            warnings.warn(
+                "WARNING in Ring: The number of turns for the "
+                "simulation was changed by passing a momentum "
+                "program.",
+                stacklevel=2,
+            )
 
         # Derived from momentum
-        self.beta = np.sqrt(1 / (1 + (self.Particle.mass / self.momentum)**2))
-        self.gamma = np.sqrt(1 + (self.momentum / self.Particle.mass)**2)
-        self.energy = np.sqrt(self.momentum**2 + self.Particle.mass**2)
-        self.kin_energy = np.sqrt(self.momentum**2 + self.Particle.mass**2) - \
-            self.Particle.mass
-        #self.delta_E = np.diff(self.energy, axis=1)/self.n_sections
+        # todo this should be attributes?
+        self.beta: NumpyArray = np.sqrt(
+            1 / (1 + (self.particle.mass / self.momentum) ** 2)
+        )
+        self.gamma: NumpyArray = np.sqrt(
+            1 + (self.momentum / self.particle.mass) ** 2
+        )
+        self.energy: NumpyArray = np.sqrt(
+            self.momentum**2 + self.particle.mass**2
+        )
+        self.kin_energy: NumpyArray = (
+            np.sqrt(self.momentum**2 + self.particle.mass**2)
+            - self.particle.mass
+        )
+        self.t_rev: NumpyArray = np.dot(self.ring_length, 1 / (self.beta * c))
+        self.cycle_time: NumpyArray = np.cumsum(
+            self.t_rev
+        )  # Always starts with zero
+        self.f_rev: NumpyArray = 1 / self.t_rev
+        self.omega_rev: NumpyArray = 2 * np.pi * self.f_rev
+
+        # TODO:  Revisit and improve multi-section interpolation
         if self.n_sections == 1:
             self.delta_E = np.diff(self.energy, axis=1)
         else:
@@ -266,26 +316,22 @@ class Ring:
             self.delta_E[0, :] = self.energy[0, 1:n_turns + 1] - self.energy[-1, 0:n_turns]
             self.delta_E[1:, :] = self.energy[1:, 1:n_turns + 1] - self.energy[:-1, 1:n_turns + 1]
 
-        self.t_rev = np.dot(self.ring_length, 1 / (self.beta * c))
-        self.cycle_time = np.cumsum(self.t_rev)  # Always starts with zero
-        self.f_rev = 1 / self.t_rev
-        self.omega_rev = 2 * np.pi * self.f_rev
 
         # Momentum compaction, checks, and derived slippage factors
-        if RingOptions.t_start is None:
+        if ring_options.t_start is None:
             interp_time = self.cycle_time
         else:
-            interp_time = self.cycle_time + RingOptions.t_start
+            interp_time = self.cycle_time + ring_options.t_start
 
-        self.alpha_0 = RingOptions.reshape_data(
-            alpha_0, self.n_turns, self.n_sections,
-            interp_time=interp_time)
+        self.alpha_0 = ring_options.reshape_data(
+            alpha_0, self.n_turns, self.n_sections, interp_time=interp_time
+        )
         self.alpha_order = 0
 
         if alpha_1 is not None:
-            self.alpha_1 = RingOptions.reshape_data(
-                alpha_1, self.n_turns, self.n_sections,
-                interp_time=interp_time)
+            self.alpha_1 = ring_options.reshape_data(
+                alpha_1, self.n_turns, self.n_sections, interp_time=interp_time
+            )
             self.alpha_order = 1
         else:
             # Filling alpha_1 with zeros
@@ -295,9 +341,9 @@ class Ring:
             self.alpha_1 = np.zeros(self.alpha_0.shape)
 
         if alpha_2 is not None:
-            self.alpha_2 = RingOptions.reshape_data(
-                alpha_2, self.n_turns, self.n_sections,
-                interp_time=interp_time)
+            self.alpha_2 = ring_options.reshape_data(
+                alpha_2, self.n_turns, self.n_sections, interp_time=interp_time
+            )
             self.alpha_order = 2
         else:
             # Filling alpha_2 with zeros
@@ -358,8 +404,52 @@ class Ring:
                 raise TypeError(f"Expected a list or numpy.ndarray as an input. Received {type(radiation_integrals)}.")
 
 
+    @property
+    def Particle(self):
+        from warnings import warn
+
+        warn(
+            "Particle is deprecated, use particle",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.particle
+
+    @Particle.setter
+    def Particle(self, val):
+        from warnings import warn
+
+        warn(
+            "Particle is deprecated, use particle",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.particle = val
+
+    @property
+    def RingOptions(self):
+        from warnings import warn
+
+        warn(
+            "RingOptions is deprecated, use ring_options",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.ring_options
+
+    @RingOptions.setter
+    def RingOptions(self, val):
+        from warnings import warn
+
+        warn(
+            "RingOptions is deprecated, use ring_options",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.ring_options = val
+
     def eta_generation(self):
-        """ Function to generate the slippage factors (zeroth, first, and
+        """Function to generate the slippage factors (zeroth, first, and
         second orders, see [1]_) from the momentum compaction and the
         relativistic beta and gamma program through the cycle.
 
@@ -368,46 +458,59 @@ class Ring:
         .. [1] "Accelerator Physics," S. Y. Lee, World Scientific,
                 Third Edition, 2012.
         """
+        # TODO fix get\set methods
 
         for i in range(self.alpha_order + 1):
-            getattr(self, '_eta' + str(i))()
+            getattr(self, f"_eta{i}")()
 
         # Fill unused eta arrays with zeros
         # This can be removed when the BLonD assembler is in place
         # to avoid high order momentum compaction programs filled
         # with zeros (should be propagated in RFStation.__init__())
         for i in range(self.alpha_order + 1, 3):
-            setattr(self, "eta_%s" % i, np.zeros([self.n_sections,
-                                                  self.n_turns + 1]))
+            setattr(
+                self, f"eta_{i}", np.zeros([self.n_sections, self.n_turns + 1])
+            )
 
     def _eta0(self):
-        """ Function to calculate the zeroth order slippage factor eta_0 """
+        """Function to calculate the zeroth order slippage factor eta_0"""
 
         self.eta_0 = np.empty([self.n_sections, self.n_turns + 1])
         for i in range(0, self.n_sections):
-            self.eta_0[i] = self.alpha_0[i] - self.gamma[i]**(-2.)
+            self.eta_0[i] = self.alpha_0[i] - self.gamma[i] ** (-2.0)
 
     def _eta1(self):
-        """ Function to calculate the first order slippage factor eta_1 """
+        """Function to calculate the first order slippage factor eta_1"""
 
         self.eta_1 = np.empty([self.n_sections, self.n_turns + 1])
         for i in range(0, self.n_sections):
-            self.eta_1[i] = 3 * self.beta[i]**2 / (2 * self.gamma[i]**2) + \
-                self.alpha_1[i] - self.alpha_0[i] * self.eta_0[i]
+            self.eta_1[i] = (
+                3 * self.beta[i] ** 2 / (2 * self.gamma[i] ** 2)
+                + self.alpha_1[i]
+                - self.alpha_0[i] * self.eta_0[i]
+            )
 
     def _eta2(self):
-        """ Function to calculate the second order slippage factor eta_2 """
+        """Function to calculate the second order slippage factor eta_2"""
 
         self.eta_2 = np.empty([self.n_sections, self.n_turns + 1])
         for i in range(0, self.n_sections):
-            self.eta_2[i] = - self.beta[i]**2 * (5 * self.beta[i]**2 - 1) / \
-                (2 * self.gamma[i]**2) + self.alpha_2[i] - 2 * self.alpha_0[i] *\
-                self.alpha_1[i] + self.alpha_1[i] / self.gamma[i]**2 + \
-                self.alpha_0[i]**2 * self.eta_0[i] - 3 * self.beta[i]**2 * \
-                self.alpha_0[i] / (2 * self.gamma[i]**2)
+            self.eta_2[i] = (
+                -(self.beta[i] ** 2)
+                * (5 * self.beta[i] ** 2 - 1)
+                / (2 * self.gamma[i] ** 2)
+                + self.alpha_2[i]
+                - 2 * self.alpha_0[i] * self.alpha_1[i]
+                + self.alpha_1[i] / self.gamma[i] ** 2
+                + self.alpha_0[i] ** 2 * self.eta_0[i]
+                - 3
+                * self.beta[i] ** 2
+                * self.alpha_0[i]
+                / (2 * self.gamma[i] ** 2)
+            )
 
-    def parameters_at_time(self, cycle_moments):
-        """ Function to return various cycle parameters at a specific moment in
+    def parameters_at_time(self, cycle_moments: Iterable[float] | float):
+        """Function to return various cycle parameters at a specific moment in
         time. The cycle time is defined to start at zero in turn zero.
 
         Parameters
@@ -426,26 +529,35 @@ class Ring:
         # INCLUDE SR losses
 
         parameters = {}
-        parameters['momentum'] = np.interp(cycle_moments, self.cycle_time,
-                                           self.momentum[0])
-        parameters['beta'] = np.interp(cycle_moments, self.cycle_time,
-                                       self.beta[0])
-        parameters['gamma'] = np.interp(cycle_moments, self.cycle_time,
-                                        self.gamma[0])
-        parameters['energy'] = np.interp(cycle_moments, self.cycle_time,
-                                         self.energy[0])
-        parameters['kin_energy'] = np.interp(cycle_moments, self.cycle_time,
-                                             self.kin_energy[0])
-        parameters['f_rev'] = np.interp(cycle_moments, self.cycle_time,
-                                        self.f_rev)
-        parameters['t_rev'] = np.interp(cycle_moments, self.cycle_time,
-                                        self.t_rev)
-        parameters['omega_rev'] = np.interp(cycle_moments, self.cycle_time,
-                                            self.omega_rev)
-        parameters['eta_0'] = np.interp(cycle_moments, self.cycle_time,
-                                        self.eta_0[0])
-        parameters['delta_E'] = np.interp(cycle_moments,
-                                          self.cycle_time[1:],
-                                          np.diff(self.energy[0]))
+        parameters["momentum"] = np.interp(
+            cycle_moments, self.cycle_time, self.momentum[0]
+        )
+        parameters["beta"] = np.interp(
+            cycle_moments, self.cycle_time, self.beta[0]
+        )
+        parameters["gamma"] = np.interp(
+            cycle_moments, self.cycle_time, self.gamma[0]
+        )
+        parameters["energy"] = np.interp(
+            cycle_moments, self.cycle_time, self.energy[0]
+        )
+        parameters["kin_energy"] = np.interp(
+            cycle_moments, self.cycle_time, self.kin_energy[0]
+        )
+        parameters["f_rev"] = np.interp(
+            cycle_moments, self.cycle_time, self.f_rev
+        )
+        parameters["t_rev"] = np.interp(
+            cycle_moments, self.cycle_time, self.t_rev
+        )
+        parameters["omega_rev"] = np.interp(
+            cycle_moments, self.cycle_time, self.omega_rev
+        )
+        parameters["eta_0"] = np.interp(
+            cycle_moments, self.cycle_time, self.eta_0[0]
+        )
+        parameters["delta_E"] = np.interp(
+            cycle_moments, self.cycle_time[1:], np.diff(self.energy[0])
+        )
 
         return parameters

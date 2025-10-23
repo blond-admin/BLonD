@@ -13,88 +13,66 @@ Integration tests, execute all example GPU main files.
 """
 
 import os
-import subprocess
 import sys
 import unittest
 
 import pytest
-os.environ["BLOND_EXAMPLES_DRAFT_MODE"] = "1"
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 main_files_dir = os.path.join(this_directory, '../../__EXAMPLES/gpu_main_files')
-exec_args = [sys.executable]
-timeout = 90    # Timeout in seconds
+
+os.environ["BLOND_EXAMPLES_DRAFT_MODE"] = "1"
+
 
 
 class TestGPUExamples(unittest.TestCase):
 
-    def _runExample(self, example, timeout=timeout):
-        file = os.path.join(main_files_dir, example)
-        env = os.environ.copy()
-        env['USE_GPU'] = '1'
-        try:
-            ret = subprocess.run(exec_args + [file], timeout=timeout, env=env)
-            self.assertEqual(ret.returncode, 0)
-        except subprocess.TimeoutExpired as e:
-            raise unittest.SkipTest(
-                '[{}] Timed out (timeout={}s)'.format(example, e.timeout))
-
-    # Run before every test
 
     def setUp(self):
         pytest.importorskip('cupy')
+
+        if main_files_dir not in sys.path:
+            sys.path.append(main_files_dir)
 
     # Run after every test
     def tearDown(self):
         pass
 
     def test_EX_01_Acceleration(self):
-        example = 'EX_01_Acceleration.py'
-        self._runExample(example)
+        import EX_01_Acceleration # NOQA, see main_files_dir
 
     def test_EX_02_Main_long_ps_booster(self):
-        example = 'EX_02_Main_long_ps_booster.py'
-        self._runExample(example)
+        import EX_02_Main_long_ps_booster # NOQA, see main_files_dir
 
     def test_EX_03_RFnoise(self):
-        example = 'EX_03_RFnoise.py'
-        self._runExample(example)
+        import EX_03_RFnoise # NOQA, see main_files_dir
 
     def test_EX_04_Stationary_multistation(self):
-        example = 'EX_04_Stationary_multistation.py'
-        self._runExample(example)
+        import EX_04_Stationary_multistation # NOQA, see main_files_dir
 
     def test_EX_05_Wake_impedance(self):
-        example = 'EX_05_Wake_impedance.py'
-        self._runExample(example)
+        import EX_05_Wake_impedance # NOQA, see main_files_dir
 
     def test_EX_07_Ions(self):
-        example = 'EX_07_Ions.py'
-        self._runExample(example)
+        import EX_07_Ions # NOQA, see main_files_dir
 
     def test_EX_08_Phase_Loop(self):
-        example = 'EX_08_Phase_Loop.py'
-        self._runExample(example)
+        import EX_08_Phase_Loop # NOQA, see main_files_dir
 
     def test_EX_09_Radial_Loop(self):
-        example = 'EX_09_Radial_Loop.py'
-        self._runExample(example)
+        import EX_09_Radial_Loop # NOQA, see main_files_dir
 
     def test_EX_10_Fixed_frequency(self):
-        example = 'EX_10_Fixed_frequency.py'
-        self._runExample(example)
+        import EX_10_Fixed_frequency # NOQA, see main_files_dir
 
     def test_EX_16_impedance_test(self):
-        example = 'EX_16_impedance_test.py'
-        self._runExample(example)
+        import EX_16_impedance_test # NOQA, see main_files_dir
 
     def test_EX_17_multi_turn_wake(self):
-        example = 'EX_17_multi_turn_wake.py'
-        self._runExample(example)
+        import EX_17_multi_turn_wake # NOQA, see main_files_dir
 
     def test_EX_18_robinson_instability(self):
-        example = 'EX_18_robinson_instability.py'
-        self._runExample(example)
+        import EX_18_robinson_instability # NOQA, see main_files_dir
 
 
 if __name__ == '__main__':

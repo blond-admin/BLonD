@@ -10,7 +10,7 @@ import unittest
 import numpy as np
 
 import blond.llrf.rf_modulation as rfMod
-import blond.utils.exceptions as blExcept
+import blond.utils.exceptions as blond_exceptions
 
 
 class TestRFModulation(unittest.TestCase):
@@ -20,36 +20,36 @@ class TestRFModulation(unittest.TestCase):
         timebase = np.linspace(0, 1, 100)
 
         stringMsg = "Integer input should raise an InputDataError exception"
-        with self.assertRaises(blExcept.InputDataError, msg=stringMsg):
+        with self.assertRaises(blond_exceptions.InputDataError, msg=stringMsg):
             rfMod.PhaseModulation(1, 1, 1, 1, 1)
 
         stringMsg = "String input should raise an InputDataError exception"
-        with self.assertRaises(blExcept.InputDataError, msg=stringMsg):
+        with self.assertRaises(blond_exceptions.InputDataError, msg=stringMsg):
             rfMod.PhaseModulation('a', 1, 1, 1, 1)
 
-        with self.assertRaises(blExcept.InputDataError, msg=stringMsg):
+        with self.assertRaises(blond_exceptions.InputDataError, msg=stringMsg):
             rfMod.PhaseModulation(timebase, 'a', 1, 1, 1)
 
-        with self.assertRaises(blExcept.InputDataError, msg=stringMsg):
+        with self.assertRaises(blond_exceptions.InputDataError, msg=stringMsg):
             rfMod.PhaseModulation(timebase, 1, 'a', 1, 1)
 
-        with self.assertRaises(blExcept.InputDataError, msg=stringMsg):
+        with self.assertRaises(blond_exceptions.InputDataError, msg=stringMsg):
             rfMod.PhaseModulation(timebase, 1, 1, 'a', 1)
 
-        with self.assertRaises(blExcept.InputDataError, msg=stringMsg):
+        with self.assertRaises(blond_exceptions.InputDataError, msg=stringMsg):
             rfMod.PhaseModulation(timebase, 1, 1, 1, 'a')
 
-        with self.assertRaises(blExcept.InputDataError, msg=stringMsg):
+        with self.assertRaises(blond_exceptions.InputDataError, msg=stringMsg):
             rfMod.PhaseModulation(timebase, 1, 1, 1, 1, 'a')
 
         stringMsg = "Wrong shape input should raise an InputDataError exception"
-        with self.assertRaises(blExcept.InputDataError, msg=stringMsg):
+        with self.assertRaises(blond_exceptions.InputDataError, msg=stringMsg):
             rfMod.PhaseModulation(np.zeros([2, 2]), 1, 1, 1, 1)
 
-        with self.assertRaises(blExcept.InputDataError, msg=stringMsg):
+        with self.assertRaises(blond_exceptions.InputDataError, msg=stringMsg):
             rfMod.PhaseModulation(np.zeros(2), [1, 2, 3], 1, 1, 1)
 
-        with self.assertRaises(blExcept.InputDataError, msg=stringMsg):
+        with self.assertRaises(blond_exceptions.InputDataError, msg=stringMsg):
             rfMod.PhaseModulation(np.zeros(2), 1, np.zeros([3, 100]), 1, 1, 1)
 
         modulator = rfMod.PhaseModulation(timebase, 1, 1, 1, 1)
@@ -117,7 +117,7 @@ class TestRFModulation(unittest.TestCase):
             + [np.pi / 2] * 500 \
             + np.linspace(np.pi / 2, 0, 250).tolist()
 
-        with self.assertRaises(blExcept.InputDataError,
+        with self.assertRaises(blond_exceptions.InputDataError,
                                msg='wrong shape frequency should raise Error'):
             modulator.calc_delta_omega(np.zeros([3, 100]))
 

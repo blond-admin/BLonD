@@ -51,7 +51,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
         N_t = 1                     # Number of turns to track
 
-        self.ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=N_t)
+        self.ring = Ring(C, alpha, p_s, particle=Proton(), n_turns=N_t)
         self.rf = RFStation(self.ring, h, V, phi)
 
         N_m = int(1e6)                   # Number of macro-particles for tracking
@@ -67,7 +67,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
         self.beam.dt += n_shift * self.rf.t_rf[0, 0]
 
         self.profile = Profile(
-            self.beam, CutOptions=CutOptions(
+            self.beam, cut_options=CutOptions(
                 cut_left=(n_shift - 1.5) * self.rf.t_rf[0, 0],
                 cut_right=(n_shift + 2.5) * self.rf.t_rf[0, 0],
                 n_slices=4 * 64))
@@ -95,8 +95,8 @@ class TestSPSCavityFeedback(unittest.TestCase):
         self.induced_voltage.induced_voltage_sum()
 
         self.cavity_tracker = RingAndRFTracker(
-            self.rf, self.beam, Profile=self.profile, interpolation=True,
-            TotalInducedVoltage=self.induced_voltage)
+            self.rf, self.beam, profile=self.profile, interpolation=True,
+            total_induced_voltage=self.induced_voltage)
 
         self.OTFB = SPSCavityFeedback(
             self.rf, self.profile, G_llrf=20, G_tx=[1.0355739238973907, 1.078403005653143],
@@ -104,9 +104,9 @@ class TestSPSCavityFeedback(unittest.TestCase):
             commissioning=SPSCavityLoopCommissioning(open_ff=True, rot_iq=-1))
 
         self.OTFB_tracker = RingAndRFTracker(self.rf, self.beam,
-                                             Profile=self.profile,
-                                             TotalInducedVoltage=None,
-                                             CavityFeedback=self.OTFB,
+                                             profile=self.profile,
+                                             total_induced_voltage=None,
+                                             cavity_feedback=self.OTFB,
                                              interpolation=True)
 
     def test_FB_pre_tracking(self):
@@ -390,8 +390,8 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
 
         # Beam
         self.beam = Beam(self.ring, N_m, N_b)
-        self.profile = Profile(self.beam, CutOptions=CutOptions(cut_left=0.e-9,
-                                                                cut_right=self.rfstation.t_rev[0], n_slices=4620))
+        self.profile = Profile(self.beam, cut_options=CutOptions(cut_left=0.e-9,
+                                                                 cut_right=self.rfstation.t_rev[0], n_slices=4620))
         self.profile.track()
 
         # Cavity
@@ -588,8 +588,8 @@ class TestSPSTransmitterGain(unittest.TestCase):
 
     def setUp(self):
         # Set up machine parameters
-        self.ring = Ring(2 * np.pi * 1100.009, 1/18.0**2, 25.92e9, Particle=Proton(),
-                    n_turns=1)
+        self.ring = Ring(2 * np.pi * 1100.009, 1 / 18.0 ** 2, 25.92e9, particle=Proton(),
+                         n_turns=1)
         # Set up RF parameters
         self.rf = RFStation(self.ring, [4620], [4.5e6], [0.], n_rf=1)
         self.rf.omega_rf[0, 0] = 200.222e6 * 2 * np.pi
@@ -597,8 +597,8 @@ class TestSPSTransmitterGain(unittest.TestCase):
         self.beam = Beam(self.ring, int(1e5), 1.e11)
         bigaussian(self.ring, self.rf, self.beam, 3.2e-9/4, seed=1234,
                    reinsertion=True)
-        self.profile = Profile(self.beam, CutOptions=CutOptions(cut_left=0.e-9,
-            cut_right=self.rf.t_rev[0], n_slices=4620))
+        self.profile = Profile(self.beam, cut_options=CutOptions(cut_left=0.e-9,
+                                                                 cut_right=self.rf.t_rev[0], n_slices=4620))
         self.profile.track()
         # Commissioning options for the cavity feedback
         self.commissioning = SPSCavityLoopCommissioning(debug=True,
@@ -666,7 +666,7 @@ class TestLHCOpenDrive(unittest.TestCase):
         alpha = 1/gamma_t**2  # First order mom. comp. factor
 
         # Initialise necessary classes
-        ring = Ring(C, alpha, p_s, Particle=Proton(), n_turns=1)
+        ring = Ring(C, alpha, p_s, particle=Proton(), n_turns=1)
         self.rf = RFStation(ring, [h], [V], [dphi])
         beam = Beam(ring, N_p, N_b)
         self.profile = Profile(beam)
