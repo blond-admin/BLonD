@@ -33,10 +33,10 @@ class BeamBaseClassTester(BeamBaseClass):
             is_counter_rotating=is_counter_rotating,
             is_distributed=is_distributed,
         )
-        self._dE = np.linspace(1, 10, 10)
-        self._dt = np.linspace(20, 30, 10)
-        self._flags = np.zeros(10, dtype=int)
-        self._ids = np.arange(10, dtype=int)
+        self._dE = np.linspace(1, 10, 10,dtype=backend.float)
+        self._dt = np.linspace(20, 30, 10,dtype=backend.float)
+        self._flags = np.zeros(10, dtype=np.int32)
+        self._ids = np.arange(10, dtype=backend.int)
 
     @cached_property
     def ratio(self) -> float:

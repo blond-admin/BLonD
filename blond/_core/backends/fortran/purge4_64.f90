@@ -2,7 +2,8 @@
 subroutine purge4(flag, flags, dt, dE, ids, n) result(j)
    implicit none
    integer(kind=4), intent(in) :: n, flag
-   real(8), intent(inout) :: dE(n), dt(n), ids(n)
+   real(8), intent(inout) :: dE(n), dt(n)
+   integer(8), intent(inout) :: ids(n)
    integer(kind=4), intent(in) :: flags(n)
    integer :: i, j
 
