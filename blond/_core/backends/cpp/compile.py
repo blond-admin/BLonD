@@ -21,6 +21,7 @@ cpp_files = [
     # "music_track.cpp",
     # "blondmath.cpp",
     # "fast_resonator.cpp",
+    "loss_box.cpp",
     "beam_phase.cpp",
     "purge4.cpp",
     # "fft.cpp",

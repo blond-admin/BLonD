@@ -296,3 +296,24 @@ __global__ void lik_only_gm_comp(
             beam_dE[i] += beam_dt[i] * glob_vkick_factor[2*fbin] + glob_vkick_factor[2*fbin+1];
     }
 }
+
+
+extern "C"
+__global__ void loss_box(
+                     const real_t top,
+                     const real_t bottom,
+                     const real_t left,
+                     const real_t right,
+                     const real_t * dt,
+                     const real_t * dE,
+                     int * __restrict__ flags,
+                     const int n_macroparticles
+                     )
+{
+    int tid = threadIdx.x + blockDim.x * blockIdx.x;
+    for (int i=tid; i<n_macroparticles; i=i+blockDim.x*gridDim.x)
+        const bool outside = (dE[i] > top) || (dE[i] < bottom) || (dt[i] < left) || (dt[i] > right);
+        if (outside){
+            flags[i] =  0; // assume that lost = 0
+        }
+}

@@ -261,8 +261,30 @@ class NumbaSpecials(Specials):  # pragma: no cover
         array_write[:] = np.sum(array_tmp, axis=0)
 
     @staticmethod
-    def loss_box(top: float, bottom: float, left: float, right: float) -> None:
-        pass
+    @njit(
+        sig_loss_box,
+        parallel=True,
+        fastmath=True,
+        cache=True,
+    )
+    def loss_box(
+        top: np.float32 | np.float64,
+        bottom: np.float32 | np.float64,
+        left: np.float32 | np.float64,
+        right: np.float32 | np.float64,
+        dt: NumpyArray,
+        dE: NumpyArray,
+        flags: NumpyArray,
+    ) -> None:
+        for i in prange(len(dt)):
+            select = (
+                (dE[i] > top)
+                | (dE[i] < bottom)
+                | (dt[i] < left)
+                | (dt[i] > right)
+            )
+            if select:
+                flags[i] = _lost
 
     @staticmethod
     @njit(

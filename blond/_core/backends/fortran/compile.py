@@ -19,6 +19,7 @@ _fortran_files32 = [
     "drift_32.f90",
     "histogram_32.f90",
     "kick_32.f90",
+    "loss_box_32.f90",
     "kick_induced_32.f90",
     "purge4_32.f90",
 ]

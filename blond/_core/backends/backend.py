@@ -23,8 +23,14 @@ class Specials(ABC):
     @staticmethod
     @abstractmethod  # pragma: no cover
     def loss_box(
-        top: float, bottom: float, left: float, right: float
-    ) -> None:  # TODO
+        top: float,
+        bottom: float,
+        left: float,
+        right: float,
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        flags: NumpyArray | CupyArray,
+    ) -> None:
         pass
 
     @staticmethod

@@ -143,8 +143,32 @@ class FortranSpecials(Specials):
         )
 
     @staticmethod
-    def loss_box(top: float, bottom: float, left: float, right: float) -> None:
-        pass
+    def loss_box(
+        top: float,
+        bottom: float,
+        left: float,
+        right: float,
+        dt: NumpyArray,
+        dE: NumpyArray,
+        flags: NumpyArray,
+    ) -> None:
+        assert dt.dtype == backend.float
+        assert dE.dtype == backend.float
+        assert flags.dtype == np.int32
+        assert isinstance(top, backend.float)
+        assert isinstance(bottom, backend.float)
+        assert isinstance(left, backend.float)
+        assert isinstance(right, backend.float)
+        libblond_fortran.loss_box(
+            top=top,
+            bottom=bottom,
+            left=left,
+            right=right,
+            dt=dt,
+            dE=dE,
+            flags=flags,
+            n=np.int32(len(dt)),
+        )
 
     @staticmethod
     def kick_single_harmonic(
@@ -173,7 +197,6 @@ class FortranSpecials(Specials):
             acceleration_kick=acceleration_kick,
             n=np.int32(len(dt)),
         )
-        pass
 
     @staticmethod
     def drift_simple(
