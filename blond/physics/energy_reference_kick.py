@@ -13,10 +13,10 @@ if TYPE_CHECKING:  # pragma: no cover
     from ..cycles.magnetic_cycle import MagneticCycleBase
 
 
-class EnergyReferenceKick(BeamPhysicsRelevant, Schedulable):
+class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
     """
-    This is typically used in simulations where RF ramping is asynchronous with respect to the
-    beam’s energy—for example, during mismatched injection or ramping scenarios. The resulting
+    This can be used in simulations where RF ramping is asynchronous with respect to the
+    beam’s energy. The resulting
     offset affects the beam's `dE` (energy deviation) and simulates the physics of an energy
     mismatch relative to the reference trajectory.
 
@@ -31,7 +31,7 @@ class EnergyReferenceKick(BeamPhysicsRelevant, Schedulable):
         _ring (Ring | None): Reference to the ring being simulated.
 
     Example:
-        >>> elem = EnergyReferenceKick(section_index=1, name="energy_reference_kick")
+        >>> elem = ReferenceEnergyChange(section_index=1, name="energy_reference_kick")
         >>> # Add to element map before simulation
     """
 
@@ -81,7 +81,7 @@ class EnergyReferenceKick(BeamPhysicsRelevant, Schedulable):
         turn_i_init
             Initial turn to execute simulation
         """
-        super().on_run_simulation([insert arguments here])
+        # super().on_run_simulation()
 
     def track(self, beam: BeamBaseClass):
         super().track(beam=beam)

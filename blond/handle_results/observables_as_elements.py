@@ -21,7 +21,11 @@ class BeamLoggerElement(UserDefinedElement):
     """
 
     def __init__(
-        self, beam: BeamBaseClass, n_turns: int, section_index: int=0, name: str=None
+        self,
+        beam: BeamBaseClass,
+        n_turns: int,
+        section_index: int = 0,
+        name: str = None,
     ):
         super().__init__(section_index=section_index, name=name)
         self._beam = beam
