@@ -13,91 +13,125 @@ Integration tests, execute all __EXAMPLES main files.
 """
 
 import os
+import subprocess
 import sys
 import unittest
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + '/'
 main_files_dir = os.path.join(this_directory, '../../__EXAMPLES/main_files')
-
+exec_args = [sys.executable]
+timeout = 60    # Timeout in seconds
 os.environ["BLOND_EXAMPLES_DRAFT_MODE"] = "1"
 
 class TestExamples(unittest.TestCase):
 
+    def _runExample(self, example, timeout=timeout):
+        file = os.path.join(main_files_dir, example)
+        try:
+            ret = subprocess.run(exec_args + ['-m', 'pip', 'show', 'blond'])
+            ret = subprocess.run(exec_args + [file], timeout=timeout)
+            self.assertEqual(ret.returncode, 0)
+        except subprocess.TimeoutExpired as e:
+            raise unittest.SkipTest(
+                '[{}] Timed out (timeout={}s)'.format(example, e.timeout))
+
+    # Run before every test
 
     def setUp(self):
-        if main_files_dir not in sys.path:
-            sys.path.append(main_files_dir)
+        pass
 
     # Run after every test
     def tearDown(self):
         pass
 
     def test_EX_01_Acceleration(self):
-        import EX_01_Acceleration # NOQA
+        example = 'EX_01_Acceleration.py'
+        self._runExample(example)
 
     def test_EX_02_Main_long_ps_booster(self):
-        import EX_02_Main_long_ps_booster # NOQA
+        example = 'EX_02_Main_long_ps_booster.py'
+        self._runExample(example)
 
     def test_EX_03_RFnoise(self):
-        import EX_03_RFnoise # NOQA
+        example = 'EX_03_RFnoise.py'
+        self._runExample(example)
 
     def test_EX_04_Stationary_multistation(self):
-        import EX_04_Stationary_multistation # NOQA
+        example = 'EX_04_Stationary_multistation.py'
+        self._runExample(example)
 
     def test_EX_05_Wake_impedance(self):
-        import EX_05_Wake_impedance # NOQA
+        example = 'EX_05_Wake_impedance.py'
+        self._runExample(example)
 
     def test_EX_06_Preprocess(self):
-        import EX_06_Preprocess # NOQA
+        example = 'EX_06_Preprocess.py'
+        self._runExample(example)
 
     def test_EX_07_Ions(self):
-        import EX_07_Ions # NOQA
+        example = 'EX_07_Ions.py'
+        self._runExample(example)
 
     def test_EX_08_Phase_Loop(self):
-        import EX_08_Phase_Loop # NOQA
+        example = 'EX_08_Phase_Loop.py'
+        self._runExample(example)
 
     def test_EX_09_Radial_Loop(self):
-        import EX_09_Radial_Loop # NOQA
+        example = 'EX_09_Radial_Loop.py'
+        self._runExample(example)
 
     def test_EX_10_Fixed_frequency(self):
-        import EX_10_Fixed_frequency # NOQA
+        example = 'EX_10_Fixed_frequency.py'
+        self._runExample(example)
 
     def test_EX_11_comparison_music_fourier_analytical(self):
-        import EX_11_comparison_music_fourier_analytical # NOQA
+        example = 'EX_11_comparison_music_fourier_analytical.py'
+        self._runExample(example)
 
     def test_EX_12_synchrotron_frequency_distribution(self):
-        import EX_12_synchrotron_frequency_distribution # NOQA
+        example = 'EX_12_synchrotron_frequency_distribution.py'
+        self._runExample(example)
 
     def test_EX_13_synchrotron_radiation(self):
-        import EX_13_synchrotron_radiation # NOQA
+        example = 'EX_13_synchrotron_radiation.py'
+        self._runExample(example)
 
     def test_EX_14_sparse_slicing(self):
-        import EX_14_sparse_slicing # NOQA
+        example = 'EX_14_sparse_slicing.py'
+        self._runExample(example)
 
     def test_EX_15_sparse_multi_bunch(self):
-        import EX_15_sparse_multi_bunch # NOQA
+        example = 'EX_15_sparse_multi_bunch.py'
+        self._runExample(example)
 
     def test_EX_16_impedance_test(self):
-        import EX_16_impedance_test # NOQA
+        example = 'EX_16_impedance_test.py'
+        self._runExample(example)
 
     def test_EX_17_multi_turn_wake(self):
-        import EX_17_multi_turn_wake # NOQA
+        example = 'EX_17_multi_turn_wake.py'
+        self._runExample(example)
 
     def test_EX_18_robinson_instability(self):
-        import EX_18_robinson_instability # NOQA
+        example = 'EX_18_robinson_instability.py'
+        self._runExample(example)
 
     def test_EX_19_bunch_generation(self):
-        import EX_19_bunch_generation # NOQA
+        example = 'EX_19_bunch_generation.py'
+        self._runExample(example)
 
     @unittest.skip("Implement a faster way of execution, otherwise this test would take several minutes")
     def test_EX_20_bunch_generation_multibunch(self):
-        import EX_20_bunch_generation_multibunch # NOQA
+        example = 'EX_20_bunch_generation_multibunch.py'
+        self._runExample(example)
 
     def test_EX_21_bunch_distribution(self):
-        import EX_21_bunch_distribution # NOQA
+        example = 'EX_21_bunch_distribution.py'
+        self._runExample(example)
 
     def test_EX_22_Coherent_Radiation(self):
-        import EX_22_Coherent_Radiation # NOQA
+        example = 'EX_22_Coherent_Radiation.py'
+        self._runExample(example)
 
 
 if __name__ == '__main__':

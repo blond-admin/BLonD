@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import division, print_function
 
 import unittest
 
@@ -30,10 +31,7 @@ class TestOffsetFrequency(unittest.TestCase):
     def test_fixed_freq(self):
 
         self.injection_frequency = offFreq.FixedFrequency(self.ring,
-                                                          self.rf_params,
-                                                          self.rf_params.omega_rf_d[0][0],
-                                                          2E-3,
-                                                          1.5E-3)
+                                                          self.rf_params, self.rf_params.omega_rf_d[0][0], 2E-3, 1.5E-3)
 
         self.assertEqual(len(self.injection_frequency.frequency_prog),
                          self.injection_frequency.end_transition_turn,

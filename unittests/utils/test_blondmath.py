@@ -199,7 +199,6 @@ class TestWhere(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @unittest.skip("no attribute 'where_cpp'")
     def test_where_1(self):
         a = np.random.randn(100)
         less_than = np.random.rand()
@@ -207,7 +206,6 @@ class TestWhere(unittest.TestCase):
         testing = np.nonzero(bm.where_cpp(a, less_than=less_than))[0]
         np.testing.assert_equal(real, testing)
 
-    @unittest.skip("no attribute 'where_cpp'")
     def test_where_2(self):
         a = np.random.randn(100)
         more_than = np.random.rand()
@@ -215,7 +213,6 @@ class TestWhere(unittest.TestCase):
         testing = np.nonzero(bm.where_cpp(a, more_than=more_than))[0]
         np.testing.assert_equal(real, testing)
 
-    @unittest.skip("no attribute 'where_cpp'")
     def test_where_3(self):
         a = np.random.randn(100)
         less_than = np.random.rand()
@@ -224,7 +221,6 @@ class TestWhere(unittest.TestCase):
         testing = np.nonzero(bm.where_cpp(a, less_than=less_than, more_than=more_than))[0]
         np.testing.assert_equal(real, testing)
 
-    @unittest.skip("no attribute 'where_cpp'")
     def test_where_4(self):
         a = np.random.randn(100)
         less_than = np.random.rand()
@@ -233,7 +229,6 @@ class TestWhere(unittest.TestCase):
         testing = np.nonzero(bm.where_cpp(a, less_than=less_than, more_than=more_than))[0]
         np.testing.assert_equal(real, testing)
 
-    @unittest.skip("no attribute 'where_cpp'")
     def test_where_5(self):
         a = np.random.randn(100)
         less_than = 0
@@ -242,13 +237,11 @@ class TestWhere(unittest.TestCase):
         testing = np.nonzero(bm.where_cpp(a, less_than=less_than, more_than=more_than))[0]
         np.testing.assert_equal(real, testing)
 
-    @unittest.skip("no attribute 'where_cpp'")
     def test_where_6(self):
         a = np.arange(100).reshape(10, 10)
         testing = bm.where_cpp(a, less_than=0)
         np.testing.assert_equal(a.shape, testing.shape, err_msg='Shapes do not match.')
 
-    @unittest.skip("no attribute 'where_cpp'")
     def test_where_7(self):
         a = np.arange(9, dtype=float).reshape(3, 3)
         threshold = 4
@@ -270,17 +263,14 @@ class TestSin(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @unittest.skip("no attribute 'sin_cpp'")
     def test_sin_scalar_1(self):
         a = np.random.rand()
         np.testing.assert_almost_equal(bm.sin_cpp(a), np.sin(a), decimal=8)
 
-    @unittest.skip("no attribute 'sin_cpp'")
     def test_sin_scalar_2(self):
         np.testing.assert_almost_equal(
             bm.sin_cpp(-np.pi), np.sin(-np.pi), decimal=8)
 
-    @unittest.skip("no attribute 'sin_cpp'")
     def test_sin_vector_1(self):
         a = np.random.randn(100)
         np.testing.assert_almost_equal(bm.sin_cpp(a), np.sin(a), decimal=8)
@@ -299,17 +289,14 @@ class TestCos(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @unittest.skip("no attribute 'cos_cpp'")
     def test_cos_scalar_1(self):
         a = np.random.rand()
         np.testing.assert_almost_equal(bm.cos_cpp(a), np.cos(a), decimal=8)
 
-    @unittest.skip("no attribute 'cos_cpp'")
     def test_cos_scalar_2(self):
         np.testing.assert_almost_equal(
             bm.cos_cpp(-2 * np.pi), np.cos(-2 * np.pi), decimal=8)
 
-    @unittest.skip("no attribute 'cos_cpp'")
     def test_cos_vector_1(self):
         a = np.random.randn(100)
         np.testing.assert_almost_equal(bm.cos_cpp(a), np.cos(a), decimal=8)
@@ -328,12 +315,10 @@ class TestExp(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @unittest.skip("no attribute 'exp_cpp'")
     def test_exp_scalar_1(self):
         a = np.random.rand()
         np.testing.assert_almost_equal(bm.exp_cpp(a), np.exp(a), decimal=8)
 
-    @unittest.skip("no attribute 'exp_cpp'")
     def test_exp_vector_1(self):
         a = np.random.randn(100)
         np.testing.assert_almost_equal(bm.exp_cpp(a), np.exp(a), decimal=8)
@@ -352,12 +337,10 @@ class TestMean(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @unittest.skip("no attribute 'mean_cpp'")
     def test_mean_1(self):
         a = np.random.randn(100)
         np.testing.assert_almost_equal(bm.mean_cpp(a), np.mean(a), decimal=8)
 
-    @unittest.skip("no attribute 'mean_cpp'")
     def test_mean_2(self):
         a = np.random.randn(1)
         np.testing.assert_almost_equal(bm.mean_cpp(a), np.mean(a), decimal=8)
@@ -376,12 +359,10 @@ class TestStd(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @unittest.skip("no attribute 'std_cpp'")
     def test_std_1(self):
         a = np.random.randn(100)
         np.testing.assert_almost_equal(bm.std_cpp(a), np.std(a), decimal=8)
 
-    @unittest.skip("no attribute 'std_cpp'")
     def test_std_2(self):
         a = np.random.randn(1)
         np.testing.assert_almost_equal(bm.std_cpp(a), np.std(a), decimal=8)
@@ -400,12 +381,10 @@ class TestSum(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @unittest.skip("no attribute 'sum_cpp'")
     def test_sum_1(self):
         a = np.random.randn(100)
         np.testing.assert_almost_equal(bm.sum_cpp(a), np.sum(a), decimal=8)
 
-    @unittest.skip("no attribute 'sum_cpp'")
     def test_sum_2(self):
         a = np.random.randn(1)
         np.testing.assert_almost_equal(bm.sum_cpp(a), np.sum(a), decimal=8)
@@ -424,7 +403,6 @@ class TestLinspace(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @unittest.skip("no attribute 'linspace_cpp'")
     def test_linspace_1(self):
         start = 0.
         stop = 10.
@@ -432,7 +410,6 @@ class TestLinspace(unittest.TestCase):
         np.testing.assert_almost_equal(bm.linspace_cpp(start, stop, num),
                                        np.linspace(start, stop, num), decimal=8)
 
-    @unittest.skip("no attribute 'linspace_cpp'")
     def test_linspace_2(self):
         start = 0
         stop = 10
@@ -440,14 +417,12 @@ class TestLinspace(unittest.TestCase):
         np.testing.assert_almost_equal(bm.linspace_cpp(start, stop, num),
                                        np.linspace(start, stop, num), decimal=8)
 
-    @unittest.skip("no attribute 'linspace_cpp'")
     def test_linspace_3(self):
         start = 12.234
         stop = -10.456
         np.testing.assert_almost_equal(bm.linspace_cpp(start, stop),
                                        np.linspace(start, stop), decimal=8)
 
-    @unittest.skip("no attribute 'linspace_cpp'")
     def test_linspace_4(self):
         start = np.random.rand()
         stop = np.random.rand()
@@ -469,7 +444,6 @@ class TestArange(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @unittest.skip("no attribute 'arange_cpp'")
     def test_arange_1(self):
         start = 0.
         stop = 1000.
@@ -477,7 +451,6 @@ class TestArange(unittest.TestCase):
         np.testing.assert_almost_equal(bm.arange_cpp(start, stop, step),
                                        np.arange(start, stop, step), decimal=8)
 
-    @unittest.skip("no attribute 'arange_cpp'")
     def test_arange_2(self):
         start = 0
         stop = 1000
@@ -485,7 +458,6 @@ class TestArange(unittest.TestCase):
         np.testing.assert_almost_equal(bm.arange_cpp(start, stop, step),
                                        np.arange(start, stop, step), decimal=8)
 
-    @unittest.skip("no attribute 'arange_cpp'")
     def test_arange_3(self):
         start = 12.234
         stop = -10.456
@@ -493,7 +465,6 @@ class TestArange(unittest.TestCase):
         np.testing.assert_almost_equal(bm.arange_cpp(start, stop, step),
                                        np.arange(start, stop, step), decimal=8)
 
-    @unittest.skip("no attribute 'arange_cpp'")
     def test_arange_4(self):
         start = np.random.rand()
         stop = np.random.rand()
@@ -516,12 +487,10 @@ class TestArgMin(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @unittest.skip("no attribute 'argmin_cpp'")
     def test_min_idx_1(self):
         a = np.random.randn(100)
         np.testing.assert_equal(bm.argmin_cpp(a), np.argmin(a))
 
-    @unittest.skip("no attribute 'argmin_cpp'")
     def test_min_idx_2(self):
         a = np.random.randn(1000)
         np.testing.assert_equal(bm.argmin_cpp(a), np.argmin(a))
@@ -540,12 +509,10 @@ class TestArgMax(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @unittest.skip("no attribute 'argmax_cpp'")
     def test_max_idx_1(self):
         a = np.random.randn(100)
         np.testing.assert_equal(bm.argmax_cpp(a), np.argmax(a))
 
-    @unittest.skip("no attribute 'argmax_cpp'")
     def test_max_idx_2(self):
         a = np.random.randn(1000)
         np.testing.assert_equal(bm.argmax_cpp(a), np.argmax(a))
@@ -593,7 +560,6 @@ class TestInterp(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @unittest.skip("no attribute 'interp_cpp'")
     def test_interp_1(self):
         x = np.random.randn(100)
         xp = np.random.randn(100)
@@ -602,7 +568,6 @@ class TestInterp(unittest.TestCase):
         np.testing.assert_almost_equal(bm.interp_cpp(x, xp, yp),
                                        np.interp(x, xp, yp), decimal=8)
 
-    @unittest.skip("no attribute 'interp_cpp'")
     def test_interp_2(self):
         x = np.random.randn(200)
         x.sort()
@@ -612,7 +577,6 @@ class TestInterp(unittest.TestCase):
         np.testing.assert_almost_equal(bm.interp_cpp(x, xp, yp),
                                        np.interp(x, xp, yp), decimal=8)
 
-    @unittest.skip("no attribute 'interp_cpp'")
     def test_interp_3(self):
         x = np.random.randn(1)
         xp = np.random.randn(50)
@@ -621,7 +585,6 @@ class TestInterp(unittest.TestCase):
         np.testing.assert_almost_equal(bm.interp_cpp(x, xp, yp),
                                        np.interp(x, xp, yp), decimal=8)
 
-    @unittest.skip("no attribute 'interp_cpp'")
     def test_interp_4(self):
         x = np.random.randn(1)
         xp = np.random.randn(50)
@@ -644,23 +607,20 @@ class TestTrapz(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @unittest.skip("no attribute 'trapezoid'")
     def test_trapz_1(self):
         y = np.random.randn(100)
-        np.testing.assert_almost_equal(bm.trapz_cpp(y), np.trapezoid(y), decimal=8)
+        np.testing.assert_almost_equal(bm.trapz_cpp(y), np.trapz(y), decimal=8)
 
-    @unittest.skip("no attribute 'trapezoid'")
     def test_trapz_2(self):
         y = np.random.randn(100)
         x = np.random.rand(100)
         np.testing.assert_almost_equal(bm.trapz_cpp(y, x=x),
-                                       np.trapezoid(y, x=x), decimal=8)
+                                       np.trapz(y, x=x), decimal=8)
 
-    @unittest.skip("no attribute 'trapezoid'")
     def test_trapz_3(self):
         y = np.random.randn(100)
         np.testing.assert_almost_equal(bm.trapz_cpp(y, dx=0.1),
-                                       np.trapezoid(y, dx=0.1), decimal=8)
+                                       np.trapz(y, dx=0.1), decimal=8)
 
 
 class TestCumTrapz(unittest.TestCase):
@@ -724,21 +684,18 @@ class TestSort(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @unittest.skip("no attribute 'sort_cpp'")
     def test_sort_1(self):
         y = np.random.randn(100)
         y2 = np.copy(y)
         y2.sort()
         np.testing.assert_equal(bm.sort_cpp(y), y2)
 
-    @unittest.skip("no attribute 'sort_cpp'")
     def test_sort_2(self):
         y = np.random.randn(200)
         y2 = np.copy(y)
         np.testing.assert_equal(bm.sort_cpp(y, reverse=True),
                                 sorted(y2, reverse=True))
 
-    @unittest.skip("no attribute 'sort_cpp'")
     def test_sort_3(self):
         y = np.random.randn(200)
         y2 = np.copy(y)
@@ -749,7 +706,6 @@ class TestSort(unittest.TestCase):
         y2 = sorted(y2, reverse=True)
         np.testing.assert_equal(y, y2)
 
-    @unittest.skip("no attribute 'sort_cpp'")
     def test_sort_4(self):
         y = np.array([np.random.randint(100)
                       for i in range(100)], dtype=np.int32)
@@ -761,7 +717,6 @@ class TestSort(unittest.TestCase):
         y2 = sorted(y2, reverse=True)
         np.testing.assert_equal(y, y2)
 
-    @unittest.skip("no attribute 'sort_cpp'")
     def test_sort_5(self):
         y = np.array([np.random.randint(100)
                       for i in range(100)], dtype=int)
@@ -786,7 +741,7 @@ class TestRandomNormal:
 
     def teardown_method(self):
         pass
-    @unittest.skip("no attribute 'random_normal'")
+
     @pytest.mark.parametrize('size,loc,scale',
                              [(100000, 0, 1), (1000000, 0, 1), (10000000, 0, 1),
                               (100000, 100, 5), (1000000, 100, 5), (10000000, 100, 5),
@@ -809,7 +764,6 @@ class TestRandomNormal:
         np.testing.assert_allclose(mu_npy, mu_cpp, atol=1e-2)
         np.testing.assert_allclose(sigma_npy, sigma_cpp, atol=1e-2)
 
-    @unittest.skip("no attribute 'random_normal'")
     @pytest.mark.parametrize('size,loc,scale',
                              [(1000000, 0, 1), (10000000, 0, 1),
                               (1000000, 100, 5), (10000000, 100, 5),
@@ -831,7 +785,6 @@ class TestRandomNormal:
         np.testing.assert_allclose(mu_npy, mu_cpp, atol=1e-2)
         np.testing.assert_allclose(sigma_npy, sigma_cpp, atol=1e-2)
 
-    @unittest.skip("no attribute 'interp_const_bin'")
     @pytest.mark.parametrize('size,left,right',
                              [(100, 0, 1), (10000, 0, 1),
                               (100, 0.1, 0.9), (10000, 0.1, 0.9)
@@ -848,7 +801,6 @@ class TestRandomNormal:
 
         np.testing.assert_allclose(y_cpp, y_npy, rtol=1e-6)
 
-    @unittest.skip("no attribute 'interp_const_bin'")
     @pytest.mark.parametrize('size,left,right',
                              [(100, 0, 1), (10000, 0, 1),
                               (100, 0.1, 0.9), (10000, 0.1, 0.9)

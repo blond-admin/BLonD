@@ -7,30 +7,18 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""
+'''
 **Function(s) for pre-processing input data**
 
 :Authors: **Simon Albright**
-"""
-
-from __future__ import annotations
-
-import numbers
-from typing import TYPE_CHECKING
+'''
 
 import numpy as np
 
-from . import exceptions as blond_exceptions
-from . import bmath as bm
-
-if TYPE_CHECKING:
-    from numpy.typing import NDArray as NumpyArray
-    from typing import Any, Iterable, TypeVar
-
-    T = TypeVar("T")
+import blond.utils.exceptions as blExcept
 
 
-def check_input(variable: Any, msg: str, *args) -> tuple[bool, Any]:
+def check_input(variable, msg, *args):
     """Check input and return InputDataError exception with user defined
     message if False
 
@@ -39,7 +27,7 @@ def check_input(variable: Any, msg: str, *args) -> tuple[bool, Any]:
         msg (_type_): _description_
 
     Raises:
-        blond_exceptions.InputDataError: _description_
+        blExcept.InputDataError: _description_
 
     Returns:
         _type_: _description_
@@ -48,10 +36,10 @@ def check_input(variable: Any, msg: str, *args) -> tuple[bool, Any]:
 
     if result[0]:
         return result
-    raise blond_exceptions.InputDataError(msg)
+    raise blExcept.InputDataError(msg)
 
 
-def check_data_dimensions(input_data: Any, *args) -> tuple[bool, Any]:
+def check_data_dimensions(input_data, *args):
     """
     General function to check if input_data is number, or nD array
     for each member of args the input_data is checked
@@ -87,7 +75,7 @@ def check_data_dimensions(input_data: Any, *args) -> tuple[bool, Any]:
     return success, type(input_data)
 
 
-def _check_number(input_data: Any) -> bool:
+def _check_number(input_data):
     """returns True if input_data can be cast to int
 
     Args:
@@ -108,8 +96,8 @@ def _check_number(input_data: Any) -> bool:
         return False
 
 
-def _check_length(input_data: NumpyArray | list | tuple, length: int) -> bool:
-    """Returns True if len(input_data) == length
+def _check_length(input_data, length):
+    """ Returns True if len(input_data) == length
     Should this return True if n-dim > 1?
 
     Args:
@@ -131,9 +119,7 @@ def _check_length(input_data: NumpyArray | list | tuple, length: int) -> bool:
         return False
 
 
-def _check_dimensions(
-    input_data: NumpyArray | list | tuple, dim: Iterable[int]
-) -> bool:
+def _check_dimensions(input_data, dim):
     """
     Casts input_data to numpy array and dimensions to tuple
     compares shape of array to tuple and returns True if equal.
@@ -149,7 +135,6 @@ def _check_dimensions(
     Returns:
         _type_: _description_
     """
-
     try:
         iter(dim)
     except TypeError:
@@ -160,33 +145,11 @@ def _check_dimensions(
     try:
         if -1 in dim:
             try:
-                dim = [
-                    input_shape[i] if dim[i] == -1 else dim[i]
-                    for i in range(len(dim))
-                ]
+                dim = [input_shape[i] if dim[i] == -1
+                       else dim[i] for i in range(len(dim))]
             except IndexError:
                 return False
     except TypeError as exc:
         raise TypeError("dim must be number or iterable of numbers") from exc
 
     return input_shape == tuple(dim)
-
-
-def interp_if_array(new_x: float, value: T | Iterable[Iterable[T]]) -> T:
-    """
-    Interpolate value at new_x if it is a 2-array.  If it is a number,
-    return the same value
-
-    Args:
-        new_x (float): The new x at which to interpolate
-        value (T | Iterable[Iterable[T]]): Either a number or an array
-                                           to be interpolated.
-
-    Returns:
-        T: The interpolated value
-    """
-
-    if isinstance(value, numbers.Number):
-        return value
-    else:
-        return bm.interp(new_x, value[0], value[1])

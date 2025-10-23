@@ -1,3 +1,4 @@
+
 # Copyright 2016 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
 # copied verbatim in the file LICENCE.md.
@@ -6,29 +7,19 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""
+'''
 **Functions to plot general and RF paramaters**
 
 :Authors: **Helga Timko**
-"""
-from __future__ import annotations
-from typing import TYPE_CHECKING
+'''
+
+from __future__ import division
 
 import matplotlib.pyplot as plt
 
-if TYPE_CHECKING:
-    from os import PathLike
 
-    from numpy.typing import NDArray as NumpyArray
-
-
-def plot_voltage_programme(
-    time: NumpyArray,
-    voltage: NumpyArray,
-    sampling: int = 1,
-    dirname: str | PathLike[str] = "fig",
-    figno: int = 0,
-):
+def plot_voltage_programme(time, voltage, sampling=1, dirname='fig',
+                           figno=0):
     """
     Plot of the RF voltage as a function of time.
     For large amount of data, use "sampling" to plot a fraction of the data.
@@ -43,6 +34,6 @@ def plot_voltage_programme(
     ax.set_ylabel(r"RF voltage [V]")
 
     # Save figure
-    fign = dirname + "/RF_voltage_%d" % figno + ".png"
+    fign = dirname + '/RF_voltage_' "%d" % figno + '.png'
     plt.savefig(fign)
     plt.clf()

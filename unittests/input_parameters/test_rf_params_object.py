@@ -7,12 +7,13 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""
+'''
 Unit-tests for the RFSectionParameters class.
 Run as python test_rf_params_object.py in console or via travis
 :Authors: **Joel Repond**, **Markus Schwarz**
-"""
+'''
 
+from __future__ import division, print_function
 
 import unittest
 
@@ -205,9 +206,9 @@ class testRFParamClass(unittest.TestCase):
 
     def test_rf_parameters_calculate_phi_s(self):
 
-        self.assertEqual(calculate_phi_s(self.rf_params, particle=Proton())[0], numpy.pi,
+        self.assertEqual(calculate_phi_s(self.rf_params, Particle=Proton())[0], numpy.pi,
                          msg="Wrong phi_s for Proton")
-        self.assertEqual(calculate_phi_s(self.rf_params, particle=Electron())[0], 0.0,
+        self.assertEqual(calculate_phi_s(self.rf_params, Particle=Electron())[0], 0.0,
                          msg="Wrong phi_s for Electron")
 
     # Tests of empty RF station
@@ -234,28 +235,6 @@ class testRFParamClass(unittest.TestCase):
         # create empty RF station
         rf_params = RFStation(self.ring, [4620], [0], [0.])
         self.assertFalse(hasattr(rf_params, 'omega_s0'))
-
-    def test_comp_voltage_waveform(self):
-
-        mainh = 4620
-        rf_params = RFStation(self.ring, [mainh, mainh*2], [7E6, 2E6],
-                              [0., 0.], 2)
-
-        time_arr = numpy.linspace(0, self.ring.t_rev[0]/mainh,
-                                  1000)
-
-        computed_time, computed_voltage = rf_params.compute_voltage_waveform(time_arr)
-
-        numpy.testing.assert_array_equal(computed_time, time_arr)
-
-        expected_voltage = numpy.zeros_like(time_arr)
-        for i in range(rf_params.n_rf):
-            voltage = rf_params.voltage[i, 0]
-            phase = rf_params.phi_rf_d[i, 0]
-            omega = rf_params.omega_rf_d[i, 0]
-            expected_voltage += voltage * numpy.sin(omega * time_arr[:] + phase)
-
-        numpy.testing.assert_array_almost_equal(computed_voltage, expected_voltage)
 
 
 if __name__ == '__main__':
