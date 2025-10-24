@@ -54,7 +54,8 @@ write_to = 'blond/_version.py' # autogenerates version string using git
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
-optional-dependencies = { all = { file = ["requirements.txt", "requirements-gpu.txt", "requirements-dev.txt", "requirements-fortran.txt", "requirements-doc.txt"] }, gpu = { file = ["requirements-gpu.txt"] }, fortran = { file = ["requirements-fortran.txt"] }, dev = { file = ["requirements-dev.txt"] }, legacy = { file = ["legacy/requirements.txt"] }, doc = { file = "requirements-doc.txt" } }
+optional-dependencies = { all = { file = ["requirements.txt","requirements-gpu.txt","requirements-dev.txt", "requirements-fortran.txt", "requirements-doc.txt", "blond/interfaces/xsuite/requirements.txt"] }, gpu = { file = ["requirements-gpu.txt"] }, fortran = { file = ["requirements-fortran.txt"] },  dev = { file = ["requirements-dev.txt"]},  legacy = { file = ["legacy/requirements.txt"]}, doc = { file = "requirements-doc.txt" }, xsuite = { file = "blond/interfaces/xsuite/requirements.txt" } }
+
 
 [tool.ruff]
 src = ["blond"]  # Source directories
@@ -68,7 +69,6 @@ exclude = [
     "legacy",
     "integrationtests_blond3",
 ]
-
 [tool.ruff.lint]
 # Enable broad set of useful lint rules
 select = [
@@ -86,17 +86,16 @@ select = [
 ]
 
 ignore = [
-    "I",
+    "E501", #  Line too long
     "E501", #  Line too long
     "PLR0913", # Too many arguments in function definition
     "PLC0415", # `import` should be at the top-level of a file
     "D401", # First line of docstring should be in imperative mood
+
 ]
-unfixable = ["I"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
-
 [tool.pytest.ini_options]
 minversion = "8.4"
-addopts = "--import-mode=importlib"
+addopts = "--import-mode=importlib --cov --cov-config=.coveragerc"

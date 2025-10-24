@@ -4,11 +4,12 @@ import math
 from abc import abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import numpy as np
 
 from .._core.backends.backend import backend
-from .._core.base import BeamPhysicsRelevant
+from .._core.base import BeamPhysicsRelevant, HasPropertyCache
 from .._core.helpers import int_from_float_with_warning
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -21,7 +22,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from .._core.simulation.simulation import Simulation
 
 
-class ProfileBaseClass(BeamPhysicsRelevant):
+class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
     def __init__(
         self, section_index: int = 0, name: str | None = None
     ) -> None:
@@ -98,7 +99,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         return len(self._hist_x)  # type: ignore
 
     @cached_property
-    def diff_hist_y(self) -> NumpyArray | CupyArray:
+    def gradient_hist_y(self) -> NumpyArray | CupyArray:
         """Derivative of the histogram."""
         return backend.gradient(self._hist_y, self.hist_step, edge_order=2)
 
@@ -217,7 +218,7 @@ class ProfileBaseClass(BeamPhysicsRelevant):
         raise NotImplementedError
         return self._calc_gauss()
 
-    def beam_spectrum(self, n_fft: int) -> NumpyArray:
+    def beam_spectrum(self, n_fft: int | None) -> NumpyArray:
         """Calculate fourier transform of the profile."""
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
@@ -248,16 +249,17 @@ class ProfileBaseClass(BeamPhysicsRelevant):
 
     def invalidate_cache(self) -> None:
         """Delete the stored values of functions with @cached_property."""
-        for attribute in (
-            "gauss_fit_params",
-            "beam_spectrum",
-            "hist_step",
-            "cut_left",
-            "cut_right",
-            "bin_edges",
-            "n_bins",
-        ):
-            self.__dict__.pop(attribute, None)
+        self._invalidate_cache(
+            props=(
+                "gauss_fit_params",
+                "beam_spectrum",
+                "hist_step",
+                "cut_left",
+                "cut_right",
+                "bin_edges",
+                "n_bins",
+            )
+        )
 
 
 class StaticProfile(ProfileBaseClass):
@@ -297,7 +299,10 @@ class StaticProfile(ProfileBaseClass):
 
     @staticmethod
     def from_cutoff(
-        cut_left: float, cut_right: float, cutoff_frequency: float
+        cut_left: float,
+        cut_right: float,
+        cutoff_frequency: float,
+        **static_profile_kwargs,
     ) -> StaticProfile:
         """Initialization method from `cutoff_frequency` in [Hz].
 
@@ -319,7 +324,10 @@ class StaticProfile(ProfileBaseClass):
         dt = 1 / (2 * cutoff_frequency)
         n_bins = int(math.ceil((cut_right - cut_left) / dt))
         return StaticProfile(
-            cut_left=cut_left, cut_right=cut_right, n_bins=n_bins
+            cut_left=cut_left,
+            cut_right=cut_right,
+            n_bins=n_bins,
+            **static_profile_kwargs,
         )
 
     @staticmethod
@@ -377,14 +385,6 @@ class DynamicProfile(ProfileBaseClass):
             section_index=section_index,
             name=name,
         )
-
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
-
-        simulation
-            Simulation context manager
-        """
-        super().on_init_simulation(simulation=simulation)
 
     def on_run_simulation(
         self,
