@@ -7,9 +7,6 @@ from matplotlib import pyplot as plt
 
 from blond import (
     Beam,
-    BiGaussian,
-    BunchObservation,
-    CavityPhaseObservation,
     DriftXSuite,
     Ring,
     Simulation,
@@ -36,7 +33,6 @@ def main():
     line["actcse.31632"].voltage = 0  # xsuite cavity =0, only use drift
 
     ring = Ring(2 * np.pi * 1100.009)
-
     momentum = 1.4e12
 
     slip_factor = -0.017166999
@@ -71,69 +67,6 @@ def main():
 
     sim = Simulation.from_locals(locals())
     sim.print_one_turn_execution_order()
-
-    BIGAUS = True
-    if BIGAUS:
-        sim.prepare_beam(
-            beam=beam1,
-            preparation_routine=BiGaussian(
-                sigma_dt=3e-9 / 2,
-                sigma_dE=0.1e-8,
-                reinsertion=False,
-                seed=1,
-                n_macroparticles=1e3,
-            ),
-        )
-    phase_observation = CavityPhaseObservation(
-        each_turn_i=1,
-        cavity=cavity1,
-    )
-    bunch_observation = BunchObservation(each_turn_i=1, beam=beam1)
-
-    def custom_action(simulation: Simulation, beam: Beam):  # pragma: no cover
-        if simulation.turn_i.value % 10 != 0:
-            return
-
-        plt.scatter(
-            beam.read_partial_dt(),
-            beam.read_partial_dE(),
-        )
-        plt.draw()
-        plt.pause(0.1)
-        plt.clf()
-
-    try:
-        sim.load_results(
-            beams=(beam1,),
-            turn_i_init=0,
-            n_turns=N_TURNS,
-            observe=(phase_observation, bunch_observation),
-        )
-        print(f"Loaded {phase_observation.common_name}")
-    except (FileNotFoundError, AssertionError):
-        sim.run_simulation(
-            beams=(beam1,),
-            turn_i_init=0,
-            n_turns=N_TURNS,
-            observe=(phase_observation, bunch_observation),
-            # callback=custom_action,
-        )
-    ANIMATE = False
-    if ANIMATE:  # pragma: no cover
-        plt.plot(phase_observation.phases)
-        plt.figure()
-        for i in range(N_TURNS):
-            plt.clf()
-            plt.hist2d(
-                bunch_observation.dts[i, :],
-                bunch_observation.dEs[i, :],
-                bins=256,
-                range=[[0, 2.5e-9], [-4e8, 4e8]],
-            )
-            plt.draw()
-            plt.pause(0.1)
-
-        plt.show()
 
 
 if __name__ == "__main__":  # pragma: no cover
