@@ -15,7 +15,7 @@ from blond import (
 )
 from blond._core.backends.backend import Numpy64Bit, backend
 from blond.handle_results.observables import (
-    BunchObservation_meta_params,
+    BunchObservationMetaParams,
     StaticProfileObservation,
 )
 from blond.legacy.blond2.beam.beam import Beam as beam_b2
@@ -181,7 +181,7 @@ def setup_and_run_blond3(mtw: bool = False):
         beam_CR,
     )
 
-    bunch_observation = BunchObservation_meta_params(
+    bunch_observation = BunchObservationMetaParams(
         each_turn_i=1, obs_per_turn=1, beam=beam
     )
     profile_observation = StaticProfileObservation(

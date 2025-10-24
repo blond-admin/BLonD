@@ -20,7 +20,7 @@ from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
     BunchObservation,
-    BunchObservation_meta_params,
+    BunchObservationMetaParams,
     Observables,
 )
 
@@ -126,10 +126,10 @@ class TestSimulation(unittest.TestCase):
         ring.add_elements(one_turn_model, reorder=False)
         sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
 
-        bunch_observation = BunchObservation_meta_params(
+        bunch_observation = BunchObservationMetaParams(
             each_turn_i=1, obs_per_turn=n_cavities, beam=beam
         )
-        bunch_observation_CR = BunchObservation_meta_params(
+        bunch_observation_CR = BunchObservationMetaParams(
             each_turn_i=1, obs_per_turn=n_cavities, beam=beam_CR
         )
 
