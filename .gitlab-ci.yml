@@ -45,6 +45,7 @@ workflow:
     # Run all unittests + the examples
     - python3 -m pytest
       -v unittests/
+      -x
       --import-mode=importlib
       --cov
       --cov-config=.coveragerc
