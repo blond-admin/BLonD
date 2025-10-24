@@ -201,7 +201,9 @@ def bucket_fill_by_emittance_gaussian(
         hamilton_2D: NumpyArray | CupyArray,
         emittance_list: list[float],
         intensity_frac_list: list[float],
-        n_buckets: int
+        n_buckets: int,
+        max_emittance_diff: float = 0.01,
+
 ) -> NumpyArray | CupyArray:
     """Method for generating gaussian distributed bunches of specific emittances. Makes use of the generalized bucket filler method
         This is just an example of how the general method can be utilized.
@@ -226,6 +228,8 @@ def bucket_fill_by_emittance_gaussian(
                 fraction of total intensity for each bunch to have.
             n_buckets
                 number of buckets spanned by the time axis.
+            max_emittance_diff
+                the maximum allowed difference between the desired emittance and the generated emittance, in [eVs]
 
 
             Returns
@@ -241,6 +245,7 @@ def bucket_fill_by_emittance_gaussian(
         emittance_list,
         intensity_frac_list,
         n_buckets,
+        max_metric_diff=max_emittance_diff,
         density_function = gaussian_density,
         metric_function = rms_emittance,
         free_parameter_max = None,
