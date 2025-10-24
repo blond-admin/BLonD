@@ -120,7 +120,7 @@ exclude_patterns = [
     "*/blond._core.backends.cpp.call*",
     "*/blond.testing.*",
     "*/blond.interfaces.xsuite.*",
-    "*/blond.specifics.cern.*",
+    "*/blond.specifics.cern.*",  # empty at the moment
 ]
 # callables are only importable with cupy/fortran compiled
 
@@ -231,9 +231,9 @@ suppress_warnings = [
     "ref.python",
     "docutils",
     "python.duplicate_object",
-    "autosummary.*"
-    "autodoc.*",
-    "python.*"
+    # "autosummary.*"
+    # "autodoc.*",
+    # "python.*"
 ]  # remove warning for multiple mentions of the same item
 html_static_path = ["_static"]
 html_css_files = ["css/wide.css"]
