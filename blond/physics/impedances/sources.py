@@ -7,16 +7,16 @@ from warnings import warn
 
 import numpy as np
 
-from ... import Simulation
-from ..._core.backends.backend import backend
-from ..._generals._warnings import NotTestedWarning
-from ..impedances.base import (
+from blond._core.backends.backend import backend
+from blond._core.simulation.simulation import Simulation
+from blond._generals._warnings import NotTestedWarning
+from blond.physics.impedances.base import (
     AnalyticWakeFieldSource,
     DiscreteWakeFieldSource,
     FreqDomain,
     TimeDomain,
 )
-from .readers import ImpedanceReader
+from blond.physics.impedances.readers import ImpedanceReader
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
