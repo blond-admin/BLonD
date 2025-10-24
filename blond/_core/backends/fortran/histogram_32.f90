@@ -11,7 +11,7 @@ subroutine histogram(array_in, array_out, cut_left, cut_right, n_slices, n_macro
    real(4), intent(inout) :: array_out(:)
 
    ! Constants and derived values
-   real(4)              :: inv_bin_width
+   real(4)              :: inv_bin_width, binf
    integer              :: i, j, t, tid, nthreads, bin, loop_count
 
    ! Arrays
@@ -35,8 +35,10 @@ subroutine histogram(array_in, array_out, cut_left, cut_right, n_slices, n_macro
 
       ! Compute bin indices only if in range
       do j = 1, loop_count
-         bin = int((array_in(i + j - 1) - cut_left)*inv_bin_width)
-         if (bin >= 0 .and. bin < n_slices) then
+         binf = (array_in(i + j - 1) - cut_left)*inv_bin_width
+         bin = int(binf)
+
+         if (binf >= 0 .and. bin < n_slices) then
             histo(bin + 1, tid + 1) = histo(bin + 1, tid + 1) + 1
          end if
          if (bin == n_slices) then
