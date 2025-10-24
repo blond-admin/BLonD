@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import warnings
 from typing import Callable  # NOQA
 from typing import TYPE_CHECKING
 
@@ -9,6 +10,8 @@ import numpy as np
 
 from blond import AllowPlotting, backend
 from blond.beam_preparation.base import MatchingRoutine
+from blond.experimental.beam_preparation.density_functions import gaussian_density
+from blond.experimental.beam_preparation.metric_functions import rms_emittance
 
 from ..._core.helpers import int_from_float_with_warning
 from .helpers import populate_beam
@@ -25,134 +28,18 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond._core.beam.base import BeamBaseClass
 
 
-def gaussian_density(hamilton: NumpyArray | CupyArray, sigma: float) -> NumpyArray | CupyArray:
-    """Turns a hamiltonian into a gaussian density distribution with some standard deviation sigma
-
-            Parameters
-            ----------
-            hamilton
-                2D hamiltonian, in [eV]
-            sigma
-                standard deviation of distribution, in [eV]
-
-
-            Returns
-            -------
-            density
-                2D density distribution
-            """
-    density = np.exp(-hamilton ** 2 / (2 * sigma ** 2))
-    density /= np.sum(density) #Normalize density mass function
-    return density
-
-def binomial_density(hamilton: NumpyArray | CupyArray, bunch_length: float, exponent: float) -> NumpyArray | CupyArray:
-    """Turns a hamiltonian into a binomial density distribution with some bunch length and form factor
-
-            Parameters
-            ----------
-            hamilton
-                2D hamiltonian, in [eV]
-            bunch_length
-                length of distribution, in [eV]
-            exponent
-                exponent of the distribution
-
-
-            Returns
-            -------
-            density
-                2D density distribution
-            """
-    density = (1 - (2.0 * (hamilton) / bunch_length) ** 2) ** (exponent + 0.5)
-    density = np.where(np.isnan(density), 0, density) #binomial distribution is nan where there is no particles
-    #density = density - np.min(density)
-    density = density / np.sum(density) #normalize
-    return density
-
-def rms_emittance(density: NumpyArray | CupyArray, dt_grid: NumpyArray | CupyArray, dE_grid: NumpyArray | CupyArray):
-    """Calculates the RMS emittance of a single bunch, based on its density in phase space
-        Notes
-        -----
-        The basic calculation is the same as in the LongitudinalTomography/tomographyv3 library to ensure consistency
-
-        Parameters
-        ----------
-        density
-            2D phase space mass distribution.
-        dt_grid
-            Time coordinates of the distribution, in [s].
-        dE_grid
-            Energy coordinates of the distribution, in [eV].
-
-
-        Returns
-        -------
-        rmsemittance
-            The calculated emittance
-        """
-    #extract sampling of time and energy axes
-    dt = dt_grid[1,0] - dt_grid[0,0]
-    dE = dE_grid[0,1] - dE_grid[0,0]
-
-    #calculate means and variances along axes
-    y_matrix_tomo1, x_matrix_tomo1 = np.meshgrid(np.arange(density.shape[1]),
-                                                 np.arange(density.shape[0]))
-    xbar = np.sum(density * x_matrix_tomo1)
-    xms = np.sum(density * x_matrix_tomo1**2.)
-    ybar = np.sum(density * y_matrix_tomo1)
-    yms = np.sum(density * y_matrix_tomo1**2.)
-    xybar = np.sum(density * x_matrix_tomo1 * y_matrix_tomo1)
-
-    #combine into rms emittance and scale by dt and dE resolution
-    rmsemittance = np.pi*dt*dE*np.sqrt((xms - xbar**2.)
-                                       * (yms - ybar**2.)
-                                       - (xybar - xbar*ybar)**2.)
-
-    return rmsemittance
-
-def ninety_percent_emittance(density: NumpyArray | CupyArray, dt_grid: NumpyArray | CupyArray, dE_grid: NumpyArray | CupyArray) -> float:
-    """ Calculates the 90% emittance of a single bunch, based on its density in phase space
-        Notes
-        -----
-        The basic calculation is the same as in the LongitudinalTomography/tomographyv3 library to ensure consistency
-
-        Parameters
-        ----------
-        density
-            2D phase space mass distribution.
-        dt_grid
-            Time coordinates of the distribution, in [s].
-        dE_grid
-            Energy coordinates of the distribution, in [eV].
-
-
-        Returns
-        -------
-        emittance
-            The calculated emittance
-    """
-
-    #extract sampling of time and energy axes
-    dt = dt_grid[1,0] - dt_grid[0,0]
-    dE = dE_grid[0,1] - dE_grid[0,0]
-
-    cumulative_array = np.cumsum(np.flip(np.sort(density.flatten())))
-    n_bins_90 = np.argmin(np.abs(cumulative_array-0.9)) #figure out how many bins are necessary to contain 90% of distribution
-
-    emittance = n_bins_90*dE*dt
-
-    return emittance
 
 
 
 def monotonic_metric_fitter(hamilton: NumpyArray | CupyArray,
                             dt_grid : NumpyArray | CupyArray,
                             dE_grid : NumpyArray | CupyArray,
-                            metric : float,
+                            desired_metric : float,
                             free_parameter_max: float,
                             metric_function : callable([NumpyArray | CupyArray, NumpyArray | CupyArray, NumpyArray | CupyArray]),
                             density_function: callable([NumpyArray | CupyArray, float]),
-                            iterations: int = 10,
+                            max_metric_diff: float,
+                            iterations_max: int = 100,
                             )-> NumpyArray | CupyArray:
     """fits a density distribution with one free parameter to a metric of interest, then returns the resulting density
             Notes
@@ -177,6 +64,8 @@ def monotonic_metric_fitter(hamilton: NumpyArray | CupyArray,
                 function that takes a density mass function and outputs a metric to be fitted to an ideal value
             density_function
                 function to convert a hamiltonian to density with one free parameter e.g. rho(H, parameter)
+            max_metric_diff
+                The allowed difference between the desired metric and the metric of the generated bunch
             iterations
                 number of iterations to search. Search space gets halved for each iteration
 
@@ -191,19 +80,27 @@ def monotonic_metric_fitter(hamilton: NumpyArray | CupyArray,
     guess = free_parameter_max/2 #start search in middle of search area
     branching_factor = guess/2 # We make the step size a fourth of our search area, decreasing it after each iteration.
 
-
-    for iteration in range(iterations):
+    iteration = 0
+    metric_diff = 0
+    while (iteration < iterations_max and metric_diff > max_metric_diff) or (iteration == 0): #run until the metric is as close as desired
         #find density using current best guess on the free parameter
         density = density_function(hamilton, guess)
 
         #move in direction of real answer
         #this works if metric and guess variable scale monotonically. E.g. gaussian standard deviation and emittance.
-        if metric > metric_function(density, dt_grid, dE_grid):
+        calculated_metric = metric_function(density, dt_grid, dE_grid)
+        metric_diff = np.abs(calculated_metric - desired_metric)
+
+        if desired_metric > calculated_metric:
             guess += branching_factor #increase guess value if metric is too low
         else:
             guess -= branching_factor #decrease guess value if metric is too high
 
+        iteration += 1
         branching_factor /= 2 #decrease step size as search area shrinks
+
+    if metric_diff > max_metric_diff:
+        warnings.warn("The metric did not converge to the desired precision!")
 
     return density
 
@@ -214,9 +111,10 @@ def generalized_bucket_filler(
     metric_list: list[float],
     intensity_frac_list: list[float],
     n_buckets: int,
+    max_metric_diff : float,
     density_function : callable([NumpyArray | CupyArray, float]) = gaussian_density,
     metric_function : callable([NumpyArray | CupyArray, NumpyArray | CupyArray, NumpyArray | CupyArray]) = rms_emittance,
-    max_value_guess : float = None
+    free_parameter_max : float = None
 ) -> NumpyArray | CupyArray:
     """Generalized method for generating density distributions for a hamiltonian.
         Notes
@@ -244,12 +142,14 @@ def generalized_bucket_filler(
             fraction of total intensity for each bunch to have.
         n_buckets
             number of buckets spanned by the time axis.
+        max_metric_diff
+            the maximum allowed difference between the desired metric and the metric of the generated bunch
         density_function
             simplistic function for the density with one free parameter rho(H, value). Value and metric must scale monotonically.
         metric_function
             function of a hamiltonian. Must take the density, time and energy as 2d arrays
-        max_value_guess
-            The maximum value the free parameter in the density function can take. Optimal value is found between 0 and max_value_guess
+        free_parameter_max
+            The maximum value the free parameter in the density function can take. Optimal value is found between 0 and free_parameter_max
 
 
         Returns
@@ -260,8 +160,8 @@ def generalized_bucket_filler(
     _hamilton = hamilton_2D.copy()
     density = np.zeros(hamilton_2D.shape)
 
-    if max_value_guess is None:
-        max_value_guess = np.max(_hamilton)
+    if free_parameter_max is None: #typically the free parameter is in units of eV so setting it to max of hamiltonian makes sense in most cases
+        free_parameter_max = np.max(_hamilton)
 
     n_slices_per_bucket = int(time_grid.shape[1] / n_buckets)
     min_hamilton = np.min(_hamilton)
@@ -269,22 +169,28 @@ def generalized_bucket_filler(
 
     for bucket in range(n_buckets):
 
+        #split phase space into each bucket
         min_bucket_index = bucket * n_slices_per_bucket
         max_bucket_index = (bucket + 1) * n_slices_per_bucket
 
-        sliced_time = time_grid[:, min_bucket_index:max_bucket_index]
-        sliced_energy = deltaE_grid[:, min_bucket_index:max_bucket_index]
-        sliced_hamilton = _hamilton[min_bucket_index:max_bucket_index, :]
+        select_bucket = slice(min_bucket_index, max_bucket_index)
 
+        sliced_time = time_grid[:, select_bucket]
+        sliced_energy = deltaE_grid[:, select_bucket]
+        sliced_hamilton = _hamilton[select_bucket, :]
+
+
+        #ensure the minimum hamilton in each slice is equal
         sliced_hamilton -= np.min(sliced_hamilton) + min_hamilton
 
-        if intensity_frac_list[bucket] == 0:
+
+        if intensity_frac_list[bucket] == 0: #if no intensity in bucket, just set density to zero
             sliced_density = np.zeros(sliced_hamilton.shape)
-        else:
-            sliced_density = monotonic_metric_fitter(sliced_hamilton, sliced_time, sliced_energy, metric_list[bucket], max_value_guess, metric_function, density_function)
+        else: #otherwise fill bucket with a density that satisfies a desired metric
+            sliced_density = monotonic_metric_fitter(sliced_hamilton, sliced_time, sliced_energy, metric_list[bucket], free_parameter_max, metric_function, density_function, max_metric_diff)
             sliced_density *= intensity_frac_list[bucket]
 
-        density[min_bucket_index:max_bucket_index, :] = sliced_density
+        density[select_bucket, :] = sliced_density #concatenate density of each bucket
 
     return density
 
@@ -337,7 +243,7 @@ def bucket_fill_by_emittance_gaussian(
         n_buckets,
         density_function = gaussian_density,
         metric_function = rms_emittance,
-        max_value_guess = None,
+        free_parameter_max = None,
     )
 
     return _density
