@@ -4,21 +4,9 @@ import numpy
 import numpy as np
 
 from blond.handle_results.array_recorders import (
-    ChunkedArrayRecorder,
     DenseArrayRecorder,
 )
 from blond.handle_results.helpers import callers_relative_path
-
-
-class TestChunkedArrayRecorder(unittest.TestCase):
-    @unittest.skip
-    def setUp(self):
-        # TODO: implement test for `__init__`
-        self.chunked_array_recorder = ChunkedArrayRecorder()
-
-    @unittest.skip
-    def test___init__(self):
-        pass  # calls __init__ in  self.setUp
 
 
 class TestDenseArrayRecorder(unittest.TestCase):

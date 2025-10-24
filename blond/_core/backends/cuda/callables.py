@@ -11,7 +11,6 @@ from ...._generals._hashing import hash_in_folder
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from numpy.typing import NDArray as CupyArray
 
 _filepath = os.path.realpath(__file__)
 _compute_capability = cp.cuda.Device(0).compute_capability

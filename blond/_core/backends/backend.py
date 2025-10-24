@@ -239,7 +239,7 @@ class BackendBaseClass(ABC):
         """Whether the backend is using the GPU."""
         return self._is_gpu
 
-    def apply_environment_variables(self) -> None:
+    def apply_environment_variables(self) -> None:  # NOQA PLR0912
         """Load the environment variables and set up the backend accordingly.
 
         Notes

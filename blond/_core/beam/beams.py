@@ -119,7 +119,7 @@ class Beam(BeamBaseClass):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init

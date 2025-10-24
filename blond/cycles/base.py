@@ -1,3 +1,5 @@
+"""Base class to manage preprogrammed cycles."""
+
 from __future__ import annotations
 
 from abc import ABC

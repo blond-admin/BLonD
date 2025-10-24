@@ -63,7 +63,7 @@ class Simulation(Preparable):
     Parameters
     ----------
     ring
-        Ring a.k.a. synchrotron
+        `Ring` a.k.a. synchrotron
     magnetic_cycle
         Container object to handle the scheduled energy gain
         per turn or by time
@@ -225,7 +225,7 @@ class Simulation(Preparable):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -348,7 +348,7 @@ class Simulation(Preparable):
 
     @property  # as readonly attributes
     def ring(self) -> Ring:
-        """Ring a.k.a. synchrotron."""
+        """`Ring` a.k.a. synchrotron."""
         return self._ring
 
     @property  # as readonly attributes
@@ -371,7 +371,7 @@ class Simulation(Preparable):
         Parameters
         ----------
         beam
-            Simulation beam object
+            Simulation `Beam` object
         preparation_routine
             Algorithm to prepare the beam dt and dE coorinates
         turn_i
@@ -421,7 +421,7 @@ class Simulation(Preparable):
             turn_i_init=turn_i_init,
         )
 
-        if len(beams) == 1:
+        if len(beams) == 1:  # NOQA: PLR2004
             self._run_simulation_single_beam(
                 beam=beams[0],
                 n_turns=_n_turns,
@@ -430,7 +430,7 @@ class Simulation(Preparable):
                 show_progressbar=show_progressbar,
                 callback=callback,
             )
-        elif len(beams) == 2:
+        elif len(beams) == 2:  # NOQA: PLR2004
             assert (
                 beams[0].is_counter_rotating,
                 beams[1].is_counter_rotating,
@@ -579,7 +579,7 @@ class Simulation(Preparable):
     ]:
         raise NotImplementedError
         from ...physics.cavities import (  # prevent cyclic import
-            CavityBaseClass,
+            DriftBaseClass,
             MultiHarmonicCavity,
         )
 
@@ -704,7 +704,7 @@ class Simulation(Preparable):
             that is called each turn.
 
         """
-        warn("Untested code", NotTestedWarning)
+        warn("Untested code", NotTestedWarning, stacklevel=1)
 
         logger.info("Starting simulation mainloop...")
         iterator = range(turn_i_init, turn_i_init + n_turns)

@@ -67,7 +67,7 @@ def find_instances_with_method(root: Any, method_name: str) -> Any:
             for key, value in obj.items():
                 walk(key)
                 walk(value)
-        elif isinstance(obj, (list, tuple, set)):
+        elif isinstance(obj, (list, tuple, set)):  # NOQA: UP038
             for item in obj:
                 walk(item)
         elif hasattr(obj, "__dict__"):  # checks if is python class

@@ -83,7 +83,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -119,7 +119,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
                 f" {new_reference_total_energy} eV."
                 f" The energy is overwritten according to simulation."
             )
-            warnings.warn(msg)
+            warnings.warn(msg, stacklevel=1)
         self.reference_total_energy = new_reference_total_energy
 
     @property
@@ -215,25 +215,25 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     @cached_property
     @abstractmethod  # pragma: no cover  # as readonly attributes
-    def dt_min(self) -> backend.float:
+    def dt_min(self) -> np.float32 | np.float64:
         """Minimum dt coordinate, in [s]."""
         pass
 
     @cached_property
     @abstractmethod  # pragma: no cover  # as readonly attributes
-    def dt_max(self) -> backend.float:
+    def dt_max(self) -> np.float32 | np.float64:
         """Maximum dt coordinate, in [s]."""
         pass
 
     @cached_property
     @abstractmethod  # pragma: no cover  # as readonly attributes
-    def dE_min(self) -> backend.float:
+    def dE_min(self) -> np.float32 | np.float64:
         """Minimum dE coordinate, in [eV]."""
         pass
 
     @cached_property
     @abstractmethod  # pragma: no cover  # as readonly attributes
-    def dE_max(self) -> backend.float:
+    def dE_max(self) -> np.float32 | np.float64:
         """Maximum dE coordinate, in [eV]."""
         pass
 
