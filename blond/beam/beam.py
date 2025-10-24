@@ -32,8 +32,7 @@ if TYPE_CHECKING:
 
 from ..trackers.utilities import is_in_separatrix
 from ..utils import bmath as bm
-from ..utils import exceptions as blExcept
-
+from ..utils import exceptions as blond_exceptions
 m_mu = physical_constants['muon mass'][0]
 
 
@@ -286,8 +285,34 @@ class Beam:
         return self
 
     @property
+    def Particle(self):
+        from warnings import warn
+
+        warn(
+            "Particle is deprecated, use particle",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.particle
+
+    @Particle.setter
+    def Particle(self, val):
+        from warnings import warn
+
+        warn(
+            "Particle is deprecated, use particle",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.particle = val
+
+    @property
     def n_total_macroparticles_lost(self):
-        warnings.warn("Use '_mpi_n_total_macroparticles_lost' instead !", DeprecationWarning)
+        warnings.warn(
+            "Use '_mpi_n_total_macroparticles_lost' instead !",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self._mpi_n_total_macroparticles_lost
 
     @n_total_macroparticles_lost.setter
@@ -296,7 +321,11 @@ class Beam:
 
     @property
     def n_total_macroparticles(self):
-        warnings.warn("Use '_mpi_n_total_macroparticles' instead !", DeprecationWarning)
+        warnings.warn(
+            "Use '_mpi_n_total_macroparticles' instead !",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self._mpi_n_total_macroparticles
 
     @n_total_macroparticles.setter
@@ -305,7 +334,11 @@ class Beam:
 
     @property
     def is_splitted(self):
-        warnings.warn("Use '_mpi_is_splitted' instead !", DeprecationWarning)
+        warnings.warn(
+            "Use '_mpi_is_splitted' instead !",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self._mpi_is_splitted
 
     @is_splitted.setter
@@ -314,7 +347,9 @@ class Beam:
 
     @property
     def _sumsq_dt(self):
-        warnings.warn("Use '_mpi_sumsq_dt' instead !", DeprecationWarning)
+        warnings.warn(
+            "Use '_mpi_sumsq_dt' instead !", DeprecationWarning, stacklevel=2
+        )
         return self._mpi_sumsq_dt
 
     @_sumsq_dt.setter
@@ -323,7 +358,9 @@ class Beam:
 
     @property
     def _sumsq_dE(self):
-        warnings.warn("Use '_mpi_sumsq_dE' instead !", DeprecationWarning)
+        warnings.warn(
+            "Use '_mpi_sumsq_dE' instead !", DeprecationWarning, stacklevel=2
+        )
         return self._mpi_sumsq_dE
 
     @_sumsq_dE.setter
@@ -331,43 +368,47 @@ class Beam:
         self._mpi_sumsq_dE = val
 
     @property
-    def n_macroparticles_lost(self):
-        '''Number of macro-particles marked as not alive
+    def n_macroparticles_lost(self) -> int:
+        """Number of macro-particles marked as not alive
 
         Returns
         -------
         n_macroparticles_lost : int
             number of macroparticles where 'id' is 'lost' (i.e. 0).
 
-        '''
-        warnings.warn("Use 'n_macroparticles_not_alive' instead of 'n_macroparticles_lost' for readability",
-                      DeprecationWarning)
+        """
+        warnings.warn(
+            "Use 'n_macroparticles_not_alive' instead of "
+            "'n_macroparticles_lost' for readability",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
         return self.n_macroparticles - self.n_macroparticles_alive
 
     @property
-    def n_macroparticles_alive(self):
-        '''Number of macro-particles marked as alive
+    def n_macroparticles_alive(self) -> int:
+        """Number of macro-particles marked as alive
 
         Returns
         -------
         n_macroparticles_alive : int
             number of macroparticles not lost.
 
-        '''
+        """
 
         return bm.count_nonzero(self.id)
 
     @property
-    def n_macroparticles_not_alive(self):
-        '''Number of macro-particles marked as not-alive
+    def n_macroparticles_not_alive(self) -> int:
+        """Number of macro-particles marked as not-alive
 
         Returns
         -------
         n_macroparticles_not_alive : int
             number of macroparticles marked as lost.
 
-        '''
+        """
 
         return self.n_macroparticles - self.n_macroparticles_alive
 
@@ -562,8 +603,8 @@ class Beam:
         '''
         self.ratio *= np.exp(-time * self.Particle.decay_rate / (self.gamma))
 
-    def add_particles(self, new_particles):
-        '''
+    def add_particles(self, new_particles: NumpyArray | list[list[float]]):
+        """
         Method to add array of new particles to beam object
         New particles are given id numbers sequential from last id of this beam
 
@@ -571,30 +612,40 @@ class Beam:
         ----------
         new_particles : array-like
             (2, n) array of (dt, dE) for new particles
-        '''
+        """
 
         try:
             newdt = new_particles[0]
             newdE = new_particles[1]
             if len(newdt) != len(newdE):
-                raise blExcept.ParticleAdditionError(
-                    "new_particles must have equal number of time and energy coordinates")
+                raise blond_exceptions.ParticleAdditionError(
+                    "new_particles must have equal number of time and energy coordinates"
+                )
         except TypeError:
-            raise blExcept.ParticleAdditionError(
-                "new_particles shape must be (2, n)")
+            raise blond_exceptions.ParticleAdditionError(
+                "new_particles shape must be (2, n)"
+            )
 
-        nNew = len(newdt)
+        n_new = len(newdt)
 
-        self.id = bm.concatenate((self.id, bm.arange(self.n_macroparticles + 1,
-                                                     self.n_macroparticles
-                                                     + nNew + 1, dtype=int)))
-        self.n_macroparticles += nNew
+        self.id = bm.concatenate(
+            (
+                self.id,
+                bm.arange(
+                    self.n_macroparticles + 1,
+                    self.n_macroparticles + n_new + 1,
+                    dtype=int,
+                ),
+            )
+        )
+        self._set_beam_info(n_macroparticles=self._n_macroparticles + n_new,
+                            ratio=self.ratio)
 
         self.dt = bm.concatenate((self.dt, newdt))
         self.dE = bm.concatenate((self.dE, newdE))
 
-    def add_beam(self, other_beam):
-        '''
+    def add_beam(self, other_beam: Self):
+        """
         Method to add the particles from another beam to this beam
         New particles are given id numbers sequential from last id of this beam
         Particles with id == 0 keep id == 0 and are included in addition
@@ -602,26 +653,37 @@ class Beam:
         Parameters
         ----------
         other_beam : blond beam object
-        '''
+
+        Raises
+        ------
+        TypeError:
+            If other_beam is not an instance of Beam, a TypeError is raised.
+        ValueError:
+            If other_beam.ratio != self.ratio, a ValueError is raised.
+        """
 
         if not isinstance(other_beam, type(self)):
             raise TypeError("add_beam method requires a beam object as input")
 
+        if other_beam.ratio != self.ratio:
+            raise ValueError("The other beam must have the same ratio as this"
+                             + " beam.")
+
         self.dt = bm.concatenate((self.dt, other_beam.dt))
         self.dE = bm.concatenate((self.dE, other_beam.dE))
 
-        counter = itl.count(self.n_macroparticles + 1)
-        newids = bm.zeros(other_beam.n_macroparticles)
+        counter = bm.arange(self.n_macroparticles + 1,
+                            self.n_macroparticles + 1
+                            + other_beam.n_macroparticles,
+                            dtype=int)
 
-        for i in range(other_beam.n_macroparticles):
-            if other_beam.id[i]:
-                newids[i] = next(counter)
-            else:
-                next(counter)
+        newids = counter * (other_beam.id != 0).astype(int)
 
         self.id = bm.concatenate((self.id, newids))
-        self.n_macroparticles += other_beam.n_macroparticles
 
+        self._set_beam_info(n_macroparticles=self.n_macroparticles
+                                             + other_beam.n_macroparticles,
+                            ratio=self.ratio)
     def __iadd__(self, other):
         '''
         Initialisation of in place addition calls add_beam(other) if other
@@ -677,7 +739,8 @@ class Beam:
 
         assert (len(self.dt) == len(self.dE) and len(self.dt) == len(self.id))
 
-        self.n_macroparticles = len(self.dt)
+        self._set_beam_info(n_macroparticles=len(self.dt), ratio=self.ratio)
+        # ratio needs to be kept constant for induced voltage calculations
         self._mpi_is_splitted = True
 
     def gather(self, all_gather=False):
@@ -707,7 +770,8 @@ class Beam:
             if WORKER.is_master:
                 self._mpi_is_splitted = False
 
-        self.n_macroparticles = len(self.dt)
+        self._set_beam_info(n_macroparticles=len(self.dt), ratio=self.ratio)
+        # ratio needs to be kept constant for induced voltage calculations
 
     def gather_statistics(self, all_gather=False):
         '''
