@@ -18,12 +18,11 @@ from __future__ import division
 
 import itertools as itl
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable, Self, Optional
 import numpy as np
 from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
 if TYPE_CHECKING:
     from typing import Iterable, Self, Optional
-
     from numpy.typing import NDArray as NumpyArray
     import cupy as cp
 
@@ -215,18 +214,18 @@ class Beam:
 
     Examples
     --------
-    >>> from input_parameters.ring import Ring
-    >>> from beam.beam import Beam
-    >>>
-    >>> n_turns = 10
-    >>> C = 100
-    >>> eta = 0.03
-    >>> momentum = 26e9
-    >>> ring = Ring(n_turns, C, eta, momentum, 'proton')
-    >>> n_macroparticle = 1e6
-    >>> intensity = 1e11
-    >>>
-    >>> my_beam = Beam(ring, n_macroparticle, intensity)
+    # >>> from input_parameters.ring import Ring
+    # >>> from beam.beam import Beam
+    # >>>
+    # >>> n_turns = 10
+    # >>> C = 100
+    # >>> eta = 0.03
+    # >>> momentum = 26e9
+    # >>> ring = Ring(n_turns, C, eta, momentum, 'proton')
+    # >>> n_macroparticle = 1e6
+    # >>> intensity = 1e11
+    # >>>
+    # >>> my_beam = Beam(ring, n_macroparticle, intensity)
     """
 
     def __init__(self, Ring, n_macroparticles, intensity, dE=None, dt=None):
