@@ -4,6 +4,17 @@ variables:
   project_root: ./
   PYPI_UPLOAD_URL: "https://upload.pypi.org/legacy/"
 
+default:
+  interruptible: true
+
+# Automatically cancel older  running
+# pipelines when a new one starts on the same branch
+workflow:
+  rules:
+    - when: always
+  auto_cancel:
+    on_new_commit: interruptible
+
 .on_tag:
   # Rules to run a job only on a git tagged commit
   rules:
@@ -69,6 +80,7 @@ variables:
 precommit-check:
   image: python:3.12
   stage: test
+  interruptible: true
   before_script:
     - pip install pre-commit
   script:
@@ -138,6 +150,7 @@ release_sdist_310:
 
 test_documentation_building:
   image: gitlab-registry.cern.ch/blond/blond/python310
+  interruptible: true
   before_script:
     - cd ${project_root}
     - python3 -m pip install --upgrade pip
@@ -171,6 +184,7 @@ test_documentation_building:
 
 pages:  # BLonD2 scripts
   image: gitlab-registry.cern.ch/blond/blond/python310
+  interruptible: true
   script:
     - cd ${project_root}
     - mkdir public
