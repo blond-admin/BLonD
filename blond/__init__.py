@@ -3,6 +3,7 @@ from ._core.base import UserDefinedElement
 from ._core.beam.beams import Beam
 from ._core.beam.particle_types import (
     electron,
+    lead_ion,
     mu_minus,
     mu_plus,
     positron,
@@ -24,6 +25,7 @@ from .handle_results.observables import (
     CavityPhaseObservation,
     StaticProfileObservation,
 )
+from .interfaces.xsuite.physics.xsuite_drift import DriftXSuite
 from .physics.cavities import MultiHarmonicCavity, SingleHarmonicCavity
 from .physics.drifts import DriftSimple
 from .physics.impedances.base import WakeField

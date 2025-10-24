@@ -102,6 +102,9 @@ positron = ParticleType(
     charge=1,
 )
 
+lead_ion = ParticleType(mass=193.7 * m_p * c**2 / e, charge=82)
+
+
 _muon_decay_rate = float(1 / 2.1969811e-6)
 
 mu_plus = ParticleType(
