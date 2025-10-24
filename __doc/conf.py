@@ -231,9 +231,6 @@ suppress_warnings = [
     "ref.python",
     "docutils",
     "python.duplicate_object",
-    # "autosummary.*"
-    # "autodoc.*",
-    # "python.*"
 ]  # remove warning for multiple mentions of the same item
 html_static_path = ["_static"]
 html_css_files = ["css/wide.css"]
