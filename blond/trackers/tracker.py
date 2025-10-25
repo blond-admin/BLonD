@@ -447,6 +447,17 @@ class RingAndRFTracker:
                                           acceleration_kick=self.acceleration_kick[turn])
 
                 else:
+                    self.rf_voltage_calculation()
+                    # import matplotlib.pyplot as plt
+                    # plt.clf()
+                    # plt.plot(self.totalInducedVoltage.induced_voltage)
+                    # plt.show()
+                    bm.linear_interp_kick(dt=self.beam.dt, dE=self.beam.dE,
+                                          voltage=self.totalInducedVoltage.induced_voltage,
+                                          bin_centers=self.profile.bin_centers,
+                                          charge=self.beam.Particle.charge,
+                                          acceleration_kick=0)
+                    # print(self.acceleration_kick[turn])
                     self.kick(self.beam.dt, self.beam.dE, turn)
 
             self.drift(self.beam.dt, self.beam.dE, turn + 1)
