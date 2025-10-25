@@ -16,7 +16,7 @@ from tqdm import tqdm  # type: ignore
 from ..._generals._warnings import NotTestedWarning, PerformanceWarning
 from ...cycles.magnetic_cycle import MagneticCycleBase
 from ...physics.drifts import DriftBaseClass
-from ...physics.profiles import ProfileBaseClass
+from ...physics.profiles import ProfileBaseClass, StaticProfile
 from ..backends.backend import backend
 from ..base import (
     BeamPhysicsRelevant,
@@ -34,6 +34,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond import (
         Beam,
         SingleHarmonicCavity,
+        StaticProfile,
     )
     from blond.legacy.blond2.beam.beam import Beam as Blond2Beam
     from blond.legacy.blond2.beam.profile import Profile as Blond2Profile
@@ -690,6 +691,8 @@ class Simulation(Preparable):
                 self.section_i.value = element.section_index
                 if element.is_active_this_turn(turn_i=self.turn_i.value):
                     element.track(beam)
+                if isinstance(element, StaticProfile):
+                    print(np.sum(element.hist_y))
                 if isinstance(
                     element, DriftBaseClass
                 ):  # only observe after drifts
