@@ -296,11 +296,16 @@ class RingAndRFTracker:
             \\delta = \\frac{\\Delta E}{\\beta_s^2 E_s} \quad \\text{(simple, legacy)}
 
         """
-        bm.drift(beam_dt, beam_dE, self.solver, self.rf_params.t_rev[index],
-                 self.rf_params.length_ratio, self.rf_params.alpha_order, self.rf_params.eta_0[index],
-                 self.rf_params.eta_1[index], self.rf_params.eta_2[index], self.rf_params.alpha_0[index],
+        energy = self.rf_params.energy[index] + self.rf_params.delta_E[index]
+        beta = np.sqrt(1 - (self.beam.Particle.mass / energy)**2)
+        gamma = energy / self.beam.Particle.mass
+        eta = self.rf_params.alpha_0[index] - 1 / gamma**2
+        t_section = self.rf_params.section_length / (beta * scipy.constants.c)
+        bm.drift(beam_dt, beam_dE, self.solver, t_section,
+                 1, self.rf_params.alpha_order, eta,
+                 0, 0, self.rf_params.alpha_0[index],
                  self.rf_params.alpha_1[index], self.rf_params.alpha_2[index],
-                 self.rf_params.beta[index], self.rf_params.energy[index])
+                 beta, self.rf_params.energy[index] + self.rf_params.delta_E[index])
 
     def rf_voltage_calculation(self):
         """Function calculating the total, discretised RF voltage seen by the
@@ -460,7 +465,7 @@ class RingAndRFTracker:
                     # print(self.acceleration_kick[turn])
                     self.kick(self.beam.dt, self.beam.dE, turn)
 
-            self.drift(self.beam.dt, self.beam.dE, turn + 1)
+            self.drift(self.beam.dt, self.beam.dE, turn)
 
         # Updating the beam synchronous momentum etc.
         self.beam.beta = self.rf_params.beta[turn + 1]
