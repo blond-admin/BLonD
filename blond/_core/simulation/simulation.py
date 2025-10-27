@@ -691,8 +691,6 @@ class Simulation(Preparable):
                 self.section_i.value = element.section_index
                 if element.is_active_this_turn(turn_i=self.turn_i.value):
                     element.track(beam)
-                if isinstance(element, StaticProfile):
-                    print(np.sum(element.hist_y))
                 if isinstance(
                     element, DriftBaseClass
                 ):  # only observe after drifts
