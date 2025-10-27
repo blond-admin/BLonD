@@ -373,7 +373,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         if hash_ is self._cache_impedance_hash:
             return self._cache_impedance
 
-        impedance = np.zeros(len(freq_x), dtype=complex)
+        impedance = np.zeros(len(freq_x), dtype=backend.complex)
         n_centers = len(self._center_frequencies)
 
         for i in range(n_centers):

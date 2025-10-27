@@ -26,7 +26,7 @@ class Specials(ABC):
         top: np.float32 | np.float64,
         bottom: np.float32 | np.float64,
         left: np.float32 | np.float64,
-        right: float,
+        right: np.float32 | np.float64,
     ) -> None:  # TODO
         pass
 

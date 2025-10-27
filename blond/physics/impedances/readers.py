@@ -14,6 +14,8 @@ from os import PathLike
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
+from blond._core.backends.backend import backend
+
 
 class ImpedanceReader(ABC):
     """Abstract class of how to implement an `ImpedanceReader`."""
@@ -96,15 +98,15 @@ class ExampleImpedanceReader1(ImpedanceReader):
         table = np.loadtxt(
             filepath,
             skiprows=1,
-            dtype=complex,
+            dtype=np.complex64 | np.complex128,
             encoding="utf-8",
             converters={
-                0: lambda s: complex(
+                0: lambda s: backend.complex(
                     bytes(s, encoding="utf-8")
                     .decode("UTF-8")
                     .replace("i", "j")
                 ),
-                1: lambda y: complex(
+                1: lambda y: backend.complex(
                     bytes(y, encoding="utf-8")
                     .decode("UTF-8")
                     .replace("i", "j")
