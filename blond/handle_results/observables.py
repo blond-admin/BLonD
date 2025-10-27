@@ -158,7 +158,7 @@ class Observables(MainLoopRelevant):
         )
         self._turns_array = np.zeros((n_turns, len(section_lengths)))
         for turn in range(turn_i_init, turn_i_init + n_turns):
-            self._turns_array[turn] = turn + section_lengths
+            self._turns_array[turn - turn_i_init] = turn + section_lengths
         self._turns_array = self._turns_array.flatten()
 
     def assert_lateinit(self):
