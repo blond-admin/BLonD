@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from copy import deepcopy
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, create_autospec
 
