@@ -42,3 +42,28 @@ def load_beam_data_counterrot_from_file(
         dt=np.load(filename)["dt"],
         dE=np.load(filename)["dE"],
     )
+
+
+def load_beam_data_from_file(
+    filename: PathLike | str,
+    beam: BeamBaseClass,
+) -> None:
+    """Load single file to initialize beam coordinates.
+
+    Notes
+    -----
+    Both beams will be initialized with the same coordinates.
+
+    Parameters
+    ----------
+    filename
+        File that was saved with ``np.save(...)``
+        that holds the dt and dE coordinates
+    beam
+        Simulation :class:`~blond._cycles_core.beam.beam.Beam` object
+
+    """
+    beam.setup_beam(
+        dt=np.load(filename)["dt"],
+        dE=np.load(filename)["dE"],
+    )
