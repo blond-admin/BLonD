@@ -10,6 +10,8 @@ from scipy.constants import speed_of_light as c
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
 
+from blond._core.backends.backend import backend
+
 
 def is_in_separatrix(
     charge: np.float32 | np.float64,
@@ -181,7 +183,7 @@ def single_rf_sin_hamiltonian(
 
     """
     h0 = harmonic
-    V0 = float(voltage * charge)
+    V0 = backend.float(voltage * charge)
 
     delta = dE / (beta**2 * total_energy)
     eta_tracking = sum([eta_i * (delta**i) for i, eta_i in enumerate(etas)])

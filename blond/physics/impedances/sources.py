@@ -44,9 +44,9 @@ def get_hash(array1d: NumpyArray) -> int:
     """Calculate the hash value of a numpy array."""
     return hash(
         (
-            float(array1d[0]),
-            float(array1d[1]),
-            float(array1d[-1]),
+            backend.float(array1d[0]),
+            backend.float(array1d[1]),
+            backend.float(array1d[-1]),
             len(array1d),
         )
     )
