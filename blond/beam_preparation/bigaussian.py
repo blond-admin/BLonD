@@ -1,3 +1,10 @@
+"""Functions needed for :class:`~blond.blond.beam_preparation.bigaussian.BiGaussian`.
+
+Authors
+-------
+Simon Lauber
+"""  # TODO add original author of bigaussian()
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -51,8 +58,7 @@ def _get_dE_from_dt(
     beam: BeamBaseClass,
     dt_amplitude: float,
 ) -> float:
-    r"""A routine to evaluate the dE amplitude from dt following a single
-    RF Hamiltonian.
+    r"""Evaluates the dE amplitude from dt following a single RF Hamiltonian.
 
     Returns
     -------
@@ -115,6 +121,28 @@ def _get_dE_from_dt(
 def get_main_harmonic_attributes(
     beam: BeamBaseClass, simulation: Simulation
 ) -> tuple[float, float, float, float]:
+    """Relevant main harmonic attributes of all RF stations in :class:`~blond._core.ring.ring.Ring`.
+
+    Parameters
+    ----------
+    simulation
+        Simulation context manager
+    beam
+        Simulation :class:`~blond._core.beam.beam.Beam` object
+
+    Returns
+    -------
+    harmonic
+        Main harmonic.
+    omega_rf
+        Main angular frequency, in [Hz].
+    phi_rf
+        Main phase, in [rad].
+    voltage
+        Main voltage, in [V].
+
+    """
+    # TODO move this into ring.
     from .. import MultiHarmonicCavity
     from ..physics.cavities import SingleHarmonicCavity
 
@@ -170,6 +198,33 @@ def get_main_harmonic_attributes(
 
 
 class BiGaussian(MatchingRoutine):
+    """Beam matching routine to generate a 2D Gaussian particle distribution.
+
+    Parameters
+    ----------
+    n_macroparticles
+        Number of macroparticles to be generated
+    sigma_dt
+        Normal distribution length, in [s].
+        Effective `sigma_dt` might be smaller, if `reinsertion=True `
+    sigma_dE
+        Normal distribution height, in [eV].
+        Effective `sigma_dE` might be smaller, if `reinsertion=True `
+    reinsertion
+        If True, only particles within the separatrix are generated.
+        This affects the effective `sigma_dt` and `sigma_dE`
+    seed
+        Random seed parameter
+
+    Examples
+    --------
+    >>> simulation = Simulation( ... )
+    >>> simulation.prepare_beam(
+    >>>     beam= ... ,
+    >>>     preparation_routine=BiGaussian( ... ),
+    >>> )
+    """
+
     def __init__(
         self,
         n_macroparticles: int | float,
@@ -178,32 +233,6 @@ class BiGaussian(MatchingRoutine):
         reinsertion: bool = False,
         seed: int = 0,
     ) -> None:
-        """Beam matching routine to generate a 2D Gaussian particle distribution.
-
-        Parameters
-        ----------
-        n_macroparticles
-            Number of macroparticles to be generated
-        sigma_dt
-            Normal distribution length, in [s].
-            Effective `sigma_dt` might be smaller, if `reinsertion=True `
-        sigma_dE
-            Normal distribution height, in [eV].
-            Effective `sigma_dE` might be smaller, if `reinsertion=True `
-        reinsertion
-            If True, only particles within the separatrix are generated.
-            This affects the effective `sigma_dt` and `sigma_dE`
-        seed
-            Random seed parameter
-
-        Examples
-        --------
-        >>> simulation = Simulation( ... )
-        >>> simulation.prepare_beam(
-        >>>     beam= ... ,
-        >>>     preparation_routine=BiGaussian( ... ),
-        >>> )
-        """
         super().__init__()
         self.n_macroparticles = int_from_float_with_warning(
             n_macroparticles, warning_stacklevel=2
@@ -313,7 +342,7 @@ class BiGaussian(MatchingRoutine):
                         dt=dt,
                         dE=dE,
                     )
-                    == False  # noqa: E712
+                    == False
                 )
 
                 n_new = int(backend.sum(sel))

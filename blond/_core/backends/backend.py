@@ -198,6 +198,7 @@ class BackendBaseClass(ABC):
         self.meshgrid: Callable = None  # type: ignore
         self.square: Callable = None  # type: ignore
         self.mean: Callable = None  # type: ignore
+        self.arange: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -245,7 +246,7 @@ class BackendBaseClass(ABC):
         """Whether the backend is using the GPU."""
         return self._is_gpu
 
-    def apply_environment_variables(self) -> None:
+    def apply_environment_variables(self) -> None:  # NOQA PLR0912
         """Load the environment variables and set up the backend accordingly.
 
         Notes
@@ -395,6 +396,7 @@ class NumpyBackend(BackendBaseClass):
         self.meshgrid = np.meshgrid
         self.square = np.square
         self.mean = np.mean
+        self.arange = np.arange
 
         self._finalize()
 
@@ -415,7 +417,6 @@ class NumpyBackend(BackendBaseClass):
             One of the available backend modes
 
         """
-        onchange = self.specials_mode != mode
         if mode == "python":
             from .python.callables import PythonSpecials
 
@@ -447,7 +448,7 @@ class NumpyBackend(BackendBaseClass):
             self.specials_mode = mode
         else:
             raise ValueError(mode)
-        if self.verbose and onchange:
+        if self.verbose:
             print(f"Set special to `{self.specials.__class__.__name__}`")
 
 
@@ -518,6 +519,7 @@ class CupyBackend(BackendBaseClass):
         self.meshgrid = cp.meshgrid
         self.square = cp.square
         self.mean = cp.mean
+        self.arange = cp.arange
 
         from .cuda.callables import CudaSpecials
 

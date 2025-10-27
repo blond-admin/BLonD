@@ -47,7 +47,7 @@ class Preparable(ABC):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -240,7 +240,7 @@ class BeamPhysicsRelevant(MainLoopRelevant):
 
     def info_string(self, prefix="") -> str:
         """
-        Prints the state of the object
+        Prints the state of the object.
 
         Parameters
         ----------
@@ -291,7 +291,7 @@ class UserDefinedElement(BeamPhysicsRelevant, ABC):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init

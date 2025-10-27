@@ -1,3 +1,17 @@
+"""Implementations of beam impedance sources.
+
+Module to describe classes for the calculation of wakes and impedances.
+
+
+Authors
+-------
+Alexandre Lasheen
+Danilo Quartullo
+Juan F. Esteban Mueller,
+Markus Schwarz
+Simon Lauber
+"""
+
 from __future__ import annotations
 
 from abc import abstractmethod
@@ -27,6 +41,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def get_hash(array1d: NumpyArray) -> int:
+    """Calculate the hash value of a numpy array."""
     return hash(
         (
             float(array1d[0]),
@@ -38,15 +53,16 @@ def get_hash(array1d: NumpyArray) -> int:
 
 
 class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
-    def __init__(self, Z_over_n: float):
-        """Inductive impedance, i.e. only complex component in frequency domain.
+    """Inductive impedance, i.e. only complex component in frequency domain.
 
-        Parameters
-        ----------
-        Z_over_n : float or array-like
-            Constant imaginary Z/n = (Z * f /f0) impedance in [Ω].
-            Can be a scalar or a turn-indexed array.
-        """
+    Parameters
+    ----------
+    Z_over_n : float or array-like
+        Constant imaginary Z/n = (Z * f /f0) impedance in [Ω].
+        Can be a scalar or a turn-indexed array.
+    """
+
+    def __init__(self, Z_over_n: float):
         super().__init__(is_dynamic=True)
         self.Z_over_n = Z_over_n
 
@@ -85,7 +101,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         Returns
         -------
@@ -137,7 +153,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         Returns
         -------
@@ -160,6 +176,27 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
 
 
 class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
+    r"""Multiple resonances of RLC circuits for impedance calculations.
+
+    Parameters
+    ----------
+    shunt_impedances : array-like or float
+        Shunt impedances of the resonant circuits, in [:math:`\omega`].
+    center_frequencies : array-like or float
+        Center frequencies of the resonances, in [Hz].
+    quality_factors : array-like or float
+        Quality factors (Q) of the resonances, dimensionless.
+
+
+
+    Notes
+    -----
+    All values must be float, if one is given as float.
+
+    Ensure that all input arrays have the same length, with each entry
+    corresponding to a separate resonance.
+    """
+
     def __init__(
         self,
         shunt_impedances: NumpyArray | float | ArrayLike,
@@ -170,28 +207,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         | ArrayLike
         | None = None,
     ):
-        """Multiple resonances of RLC circuits for impedance calculations.
-
-        Parameters
-        ----------
-        shunt_impedances : array-like or float
-            Shunt impedances of the resonant circuits, in [Ω].
-        center_frequencies : array-like or float
-            Center frequencies of the resonances, in [Hz].
-        quality_factors : array-like or float
-            Quality factors (Q) of the resonances, dimensionless.
-        shunt_impedances_counter_rotating:
-            Shunt impedances in the counter-rotating case. If this is not set,
-            the assumption is made, that the values are equivalent for the counter-rotating case
-
-        all values must be float, if one is given as float
-
-        Notes
-        -----
-        Ensure that all input arrays have the same length, with each entry
-        corresponding to a separate resonance.
-        """
-        warn("Untested code", NotTestedWarning)
+        warn("Untested code", NotTestedWarning, stacklevel=2)
         super().__init__(is_dynamic=False)
         if (
             isinstance(shunt_impedances, float)
@@ -242,7 +258,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         self._omega_bar = np.sqrt(self._omega**2 - self._alpha**2)
 
         # Test if one or more quality factors is smaller than 0.5.
-        if np.sum(self._quality_factors < 0.5) > 0:
+        if np.sum(self._quality_factors < 0.5) > 0:  # NOQA PLR2004
             raise RuntimeError(
                 "All quality factors Q must be greater or equal 0.5"
             )
@@ -264,8 +280,10 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         beam: BeamBaseClass,
         n_fft: int,
     ) -> NumpyArray | CupyArray:  # Fixme all get_wake_impedance same
-        """Get impedance  computed via fft from time domain analytical formula equivalent
-        to the partial single-particle-wake.
+        """Get the wake function, but converted to frequency domain.
+
+        Get impedance  computed via ``fft(...)`` from time domain
+        analytical formula equivalent to the partial single-particle-wake.
 
         Parameters
         ----------
@@ -274,7 +292,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_fft
             Number of fft bins to use
 
@@ -374,7 +392,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         Returns
         -------
@@ -414,24 +432,40 @@ class ImpedanceTable(DiscreteWakeFieldSource):
     def from_file(
         filepath: PathLike, reader: ImpedanceReader
     ) -> ImpedanceTable:
+        """Instance table from a file on the disk.
+
+        Parameters
+        ----------
+        filepath
+            Path of the file to lead
+        reader
+            `ImpedanceReader` to interpret what's written in the file
+
+        Returns
+        -------
+        impedance_table
+            The loaded table
+
+        """
         pass
 
 
 class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
+    """Impedance table in frequency domain.
+
+    Parameters
+    ----------
+    freq_x
+        Frequency axis, in [Hz].
+    freq_y
+        Complex amplitudes in frequency domain
+    """
+
     def __init__(
         self,
         freq_x: NumpyArray,
         freq_y: NumpyArray,
     ):
-        """Impedance table in frequency domain.
-
-        Parameters
-        ----------
-        freq_x
-            Frequency axis, in [Hz].
-        freq_y
-            Complex amplitudes in frequency domain
-        """
         super().__init__(is_dynamic=False)
 
         self._freq_x = freq_x
@@ -455,7 +489,7 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         Returns
         -------
@@ -500,20 +534,21 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
 
 
 class ImpedanceTableTime(ImpedanceTable, TimeDomain):
+    """Impedance table in frequency domain.
+
+    Parameters
+    ----------
+    wake_x
+        Wake time axis, in [s]
+    wake_y
+        Wake amplitude, in [V]
+    """
+
     def __init__(
         self,
         wake_x: NumpyArray,
         wake_y: NumpyArray,
     ):
-        """Impedance table in frequency domain.
-
-        Parameters
-        ----------
-        wake_x
-            Wake time axis, in [s]
-        wake_y
-            Wake amplitude, in [V]
-        """
         super().__init__(is_dynamic=False)
         self._wake_x = wake_x
         self._wake_y = wake_y
@@ -558,7 +593,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         Returns
         -------
@@ -569,9 +604,15 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         if hash_ is self._cache_wake_impedance_hash:
             return self._cache_wake_impedance
         if time.min() < self._wake_x.min():
-            warn("Interpolation of wake outside boundaries")
+            warn(
+                "Interpolation of wake outside boundaries",
+                stacklevel=1,
+            )
         if time.max() > self._wake_x.max():
-            warn("Interpolation of wake outside boundaries")
+            warn(
+                "Interpolation of wake outside boundaries",
+                stacklevel=1,
+            )
         wake = np.interp(time, self._wake_x, self._wake_y)
         wake_impedance = np.fft.rfft(wake, n=n_fft)
         self._cache_wake_impedance_hash = hash_
@@ -701,7 +742,7 @@ class TravelingWaveCavity(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         Returns
         -------
@@ -727,7 +768,7 @@ class TravelingWaveCavity(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         Returns
         -------

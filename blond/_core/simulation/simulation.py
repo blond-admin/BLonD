@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from copy import deepcopy
-from functools import cached_property
 from pstats import SortKey
 from typing import TYPE_CHECKING
 from warnings import warn
@@ -16,7 +15,7 @@ from tqdm import tqdm  # type: ignore
 from ..._generals._warnings import NotTestedWarning, PerformanceWarning
 from ...cycles.magnetic_cycle import MagneticCycleBase
 from ...physics.drifts import DriftBaseClass
-from ...physics.profiles import ProfileBaseClass, StaticProfile
+from ...physics.profiles import ProfileBaseClass
 from ..backends.backend import backend
 from ..base import (
     BeamPhysicsRelevant,
@@ -34,7 +33,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond import (
         Beam,
         SingleHarmonicCavity,
-        StaticProfile,
     )
     from blond.legacy.blond2.beam.beam import Beam as Blond2Beam
     from blond.legacy.blond2.beam.profile import Profile as Blond2Profile
@@ -68,7 +66,7 @@ class Simulation(Preparable):
     Parameters
     ----------
     ring
-        Ring a.k.a. synchrotron
+        `Ring` a.k.a. synchrotron
     magnetic_cycle
         Container object to handle the scheduled energy gain
         per turn or by time
@@ -265,7 +263,7 @@ class Simulation(Preparable):
         particle_type: ParticleType,
         subtract_min: bool = True,
         intensity: int = 0,
-    ) -> Tuple[NumpyArray, float, float]:
+    ) -> tuple[NumpyArray, float, float]:
         """
         Obtain the potential well by tracking a beam for one turn.
 
@@ -365,7 +363,7 @@ class Simulation(Preparable):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -488,7 +486,7 @@ class Simulation(Preparable):
 
     @property  # as readonly attributes
     def ring(self) -> Ring:
-        """Ring a.k.a. synchrotron."""
+        """`Ring` a.k.a. synchrotron."""
         return self._ring
 
     @property  # as readonly attributes
@@ -511,7 +509,7 @@ class Simulation(Preparable):
         Parameters
         ----------
         beam
-            Simulation beam object
+            Simulation `Beam` object
         preparation_routine
             Algorithm to prepare the beam `dt` and `dE` coordinates.
         turn_i
@@ -563,7 +561,7 @@ class Simulation(Preparable):
             turn_i_init=turn_i_init,
         )
 
-        if len(beams) == 1:
+        if len(beams) == 1:  # NOQA: PLR2004
             self._run_simulation_single_beam(
                 beam=beams[0],
                 n_turns=_n_turns,
@@ -572,7 +570,7 @@ class Simulation(Preparable):
                 show_progressbar=show_progressbar,
                 callback=callback,
             )
-        elif len(beams) == 2:
+        elif len(beams) == 2:  # NOQA: PLR2004
             assert (
                 beams[0].is_counter_rotating,
                 beams[1].is_counter_rotating,
@@ -721,7 +719,7 @@ class Simulation(Preparable):
     ]:
         raise NotImplementedError
         from ...physics.cavities import (  # prevent cyclic import
-            CavityBaseClass,
+            DriftBaseClass,
             MultiHarmonicCavity,
         )
 
@@ -846,7 +844,7 @@ class Simulation(Preparable):
             that is called each turn.
 
         """
-        warn("Untested code", NotTestedWarning)
+        warn("Untested code", NotTestedWarning, stacklevel=1)
 
         logger.info("Starting simulation mainloop...")
         iterator = range(turn_i_init, turn_i_init + n_turns)

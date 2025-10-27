@@ -33,9 +33,10 @@ class BeamBaseClassTester(BeamBaseClass):
             is_counter_rotating=is_counter_rotating,
             is_distributed=is_distributed,
         )
-        self._dE = np.linspace(1, 10, 10)
-        self._dt = np.linspace(20, 30, 10)
-        self._flags = np.zeros(10, dtype=int)
+        self._dE = np.linspace(1, 10, 10,dtype=backend.float)
+        self._dt = np.linspace(20, 30, 10,dtype=backend.float)
+        self._flags = np.zeros(10, dtype=np.int32)
+        self._ids = np.arange(10, dtype=backend.int)
 
     @cached_property
     def ratio(self) -> float:
@@ -69,16 +70,16 @@ class BeamBaseClassTester(BeamBaseClass):
     def plot_hist2d(self):
         pass
 
-    def dE_max(self) -> backend.float:
+    def dE_max(self) -> np.float32 | np.float64:
         pass
 
-    def dt_min(self) -> backend.float:
+    def dt_min(self) -> np.float32 | np.float64:
         pass
 
-    def dt_max(self) -> backend.float:
+    def dt_max(self) -> np.float32 | np.float64:
         pass
 
-    def dE_min(self) -> backend.float:
+    def dE_min(self) -> np.float32 | np.float64:
         pass
 
     def common_array_size(self) -> int:
@@ -163,6 +164,11 @@ class TestBeamBaseClass(unittest.TestCase):
     def test_read_partial_dt(self):
         self.assertTrue(
             isinstance(self.beam_base_class.read_partial_dt(), np.ndarray)
+        )
+
+    def test_read_partial_ids(self):
+        self.assertTrue(
+            isinstance(self.beam_base_class.read_partial_ids(), np.ndarray)
         )
 
     @unittest.skip("Abstract method")
