@@ -610,6 +610,9 @@ class MultiHarmonicCavity(CavityBaseClass):
         self,
         n_harmonics: int,
         main_harmonic_idx: int,
+        voltage: NumpyArray,
+        phi_rf: NumpyArray,
+        harmonic: NumpyArray,
         section_index: int = 0,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
@@ -631,14 +634,28 @@ class MultiHarmonicCavity(CavityBaseClass):
 
         self.main_harmonic_idx = main_harmonic_idx
 
-        self.voltage: NumpyArray | None = None
-        self.phi_rf: NumpyArray | None = None
-        self.harmonic: NumpyArray | None = None
+        assert len(voltage) == n_harmonics, (
+            f"length of voltage array must equal {n_harmonics}, was {len(voltage)}"
+        )
+        assert len(phi_rf) == n_harmonics, (
+            f"length of voltage array must equal {n_harmonics}, was {len(phi_rf)}"
+        )
+        assert len(harmonic) == n_harmonics, (
+            f"length of voltage array must equal {n_harmonics}, was {len(harmonic)}"
+        )
+
+        assert main_harmonic_idx < n_harmonics, (
+            f"main_harmonic_index was {main_harmonic_idx}, but needs to be smaller than {n_harmonics}"
+        )
+
+        self.voltage: NumpyArray | None = voltage
+        self.phi_rf: NumpyArray | None = phi_rf
+        self.harmonic: NumpyArray | None = harmonic
         self.delta_phi_rf: NumpyArray | None = backend.zeros(
             1, dtype=backend.float
         )
 
-        self._t_rf: NumpyArray | None = None
+        self._t_rf: float | None = None
         self._t_rev: float | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -670,9 +687,9 @@ class MultiHarmonicCavity(CavityBaseClass):
             ring_circumference=self._ring.circumference,
         )
 
-        self._t_rf = (2 * np.pi) / self._omega_rf
+        self._t_rf = 2 * np.pi / self._omega_rf[self.main_harmonic_idx]
         self._t_rev = (
-            self._t_rf[0] * self.harmonic[0]
+            self._t_rf * self.harmonic[self.main_harmonic_idx]
         )  # todo this should be main harmonic idx??
         try:
             self.phi_s = self.calc_phi_s_single_harmonic(beam=beam)
