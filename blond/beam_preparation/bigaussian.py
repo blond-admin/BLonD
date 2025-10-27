@@ -206,10 +206,10 @@ class BiGaussian(MatchingRoutine):
         Number of macroparticles to be generated
     sigma_dt
         Normal distribution length, in [s].
-        Effective `sigma_dt` might be smaller, if `reinsertion=True `
+        Effective `sigma_dt` might be smaller, if `reinsertion=True`
     sigma_dE
         Normal distribution height, in [eV].
-        Effective `sigma_dE` might be smaller, if `reinsertion=True `
+        Effective `sigma_dE` might be smaller, if `reinsertion=True`
     reinsertion
         If True, only particles within the separatrix are generated.
         This affects the effective `sigma_dt` and `sigma_dE`
