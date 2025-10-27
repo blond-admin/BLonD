@@ -683,7 +683,7 @@ class MultiBunchObservationMetaParams(Observables):
 
     @property  # as readonly attributes
     def emittance_stat(self):
-        """Statistical emittance calculated with
+        r"""Statistical emittance calculated with
 
         .. math::
             \epsilon = \sqrt{\langle \Delta t^2 \\rangle \langle \Delta E^2 \\rangle - \langle \Delta t \Delta E \\rangle^2}
