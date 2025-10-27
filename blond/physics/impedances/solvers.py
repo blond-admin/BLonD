@@ -699,6 +699,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._past_profiles: deque[NumpyArray] = deque()
         self._past_profile_times: deque[NumpyArray] = deque()
         self._past_charge_per_macroparticle: deque[float] = deque()
+        self._past_profile_counter_rotation: deque[bool] = deque()
 
         self._wake_function_vals: deque[NumpyArray] = deque()
         self._wake_function_time: deque[NumpyArray] = deque()
@@ -778,6 +779,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 # the time is shifted
                 self._past_profile_times.pop()
                 self._past_profiles.pop()
+                self._past_profile_counter_rotation.pop()
                 self._wake_function_time.pop()
                 self._wake_function_vals.pop()
             else:
@@ -845,10 +847,14 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             # now that everything is initialized, same operation for all arrays
             for source in self._parent_wakefield.sources:  # TODO: do we ever need multiple resonstors objects in here --> probably not, resonators are defined in the Sources
                 self._wake_function_vals[prof_ind] += source.get_wake(
-                    self._wake_function_time[prof_ind]
+                    self._wake_function_time[prof_ind],
+                    self._past_profile_counter_rotation[prof_ind]
+                    ^ self._past_profile_counter_rotation[0],
                 )
+                # exclusive OR, only if directionality of current profile and past profile differ,
+                # its actually counter-rotating
 
-    def _update_potential_sources(self, current_time: float = 0) -> None:
+    def _update_potential_sources(self, beam: BeamBaseClass) -> None:
         """Updates `_wake_function_time`  and `_wake_function_vals` arrays
 
         The time axis is chosen based on the profile in `_parent_wakefield.profile`
@@ -859,7 +865,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             simulation time at the moment of calling, default is 0
 
         """
-        self._update_past_profile_times_wake_times(current_time)
+        self._update_past_profile_times_wake_times(beam.reference_time)
         self._remove_fully_decayed_wake_profiles()
 
         if len(self._past_profiles) != 0:  # ensure same time axis for profiles
@@ -880,6 +886,9 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         )
         self._past_profiles.appendleft(
             np.copy(self._parent_wakefield.profile.hist_y)
+        )
+        self._past_profile_counter_rotation.appendleft(
+            beam.is_counter_rotating
         )
 
         self._update_past_profile_wake_functions()

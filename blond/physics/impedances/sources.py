@@ -165,6 +165,10 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         shunt_impedances: NumpyArray | float | ArrayLike,
         center_frequencies: NumpyArray | float | ArrayLike,
         quality_factors: NumpyArray | float | ArrayLike,
+        shunt_impedances_counter_rotating: NumpyArray
+        | float
+        | ArrayLike
+        | None = None,
     ):
         """Multiple resonances of RLC circuits for impedance calculations.
 
@@ -176,6 +180,9 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
             Center frequencies of the resonances, in [Hz].
         quality_factors : array-like or float
             Quality factors (Q) of the resonances, dimensionless.
+        shunt_impedances_counter_rotating:
+            Shunt impedances in the counter-rotating case. If this is not set,
+            the assumption is made, that the values are equivalent for the counter-rotating case
 
         all values must be float, if one is given as float
 
@@ -206,6 +213,28 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
             self._center_frequencies = np.array(center_frequencies)
             self._quality_factors = np.array(quality_factors)
             self._n_resonators = len(shunt_impedances)
+
+        if shunt_impedances_counter_rotating is not None:
+            if isinstance(shunt_impedances_counter_rotating, float):
+                self._shunt_impedances_counter_rotating = np.array(
+                    [shunt_impedances_counter_rotating]
+                )
+            else:
+                assert len(shunt_impedances_counter_rotating) == len(
+                    shunt_impedances
+                ), (
+                    "Array lengths between co- and counterrotating impedances need to match."
+                )
+                self._shunt_impedances_counter_rotating = np.array(
+                    shunt_impedances_counter_rotating
+                )
+        else:
+            self._shunt_impedances_counter_rotating = self._shunt_impedances
+
+        for imp_ind, imp in enumerate(self._shunt_impedances_counter_rotating):
+            assert np.isclose(np.abs(imp), self._shunt_impedances[imp_ind]), (
+                "Absolute value of co- and counter-rotating impedances mismatch, no energy conservation."
+            )
 
         # secondary quantities for wake calculation
         self._omega = 2 * np.pi * self._center_frequencies
@@ -272,7 +301,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
             len(self._cache_wake_impedance), time[1] - time[0]
         )
 
-    def get_wake(self, time: NumpyArray) -> NumpyArray:
+    def get_wake(self, time: NumpyArray, counter_rotating=False) -> NumpyArray:
         """Computes the wake function of all resonators in time domain for the given time and returns the summed potential.
 
         Parameters
@@ -281,12 +310,16 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
             time array at which the wake is calculated [V]
         """
         wake = backend.zeros(len(time), dtype=backend.float, order="C")
-
+        shunt_imp = (
+            self._shunt_impedances_counter_rotating
+            if counter_rotating
+            else self._shunt_impedances
+        )
         for res_ind in range(self._n_resonators):
             wake += (
                 (np.sign(time) + 1)  # heaviside
                 * (
-                    self._shunt_impedances[res_ind]
+                    shunt_imp[res_ind]
                     * self._alpha[res_ind]
                     * np.exp(-self._alpha[res_ind] * time)
                 )
