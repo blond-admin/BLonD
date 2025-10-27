@@ -113,7 +113,7 @@ class EmpiricMatcher(MatchingRoutine):
         self,
         grid_base_dt: NumpyArray,
         grid_base_dE: NumpyArray,
-        n_macroparticles: int | float,
+        n_macroparticles: int | np.float32 | np.float64,
         seed: int = 0,
         maxiter_intensity_effects=10,
         maxiter_hamiltonian=20,

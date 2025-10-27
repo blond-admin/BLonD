@@ -12,7 +12,7 @@ if TYPE_CHECKING:  # pragma: no cover
     T = TypeVar("T")
 
 
-def calc_beta(mass: float, momentum: T) -> T:
+def calc_beta(mass: np.float32 | np.float64, momentum: T) -> T:
     """Relativistic beta factor (v = beta * c0).
 
     Parameters
@@ -30,7 +30,7 @@ def calc_beta(mass: float, momentum: T) -> T:
     return np.sqrt(1 / (1 + (mass / momentum) ** 2))
 
 
-def calc_gamma(mass: float, momentum: T) -> T:
+def calc_gamma(mass: np.float32 | np.float64, momentum: T) -> T:
     """Relativistic gamma factor (Lorentz factor).
 
     Parameters
@@ -49,7 +49,7 @@ def calc_gamma(mass: float, momentum: T) -> T:
     return np.sqrt(1 + (my_fraction * my_fraction))
 
 
-def calc_total_energy(mass: float, momentum: T) -> T:
+def calc_total_energy(mass: np.float32 | np.float64, momentum: T) -> T:
     """Total relativistic energy of the particle.
 
     Parameters
@@ -67,7 +67,7 @@ def calc_total_energy(mass: float, momentum: T) -> T:
     return np.sqrt(momentum * momentum + mass * mass)
 
 
-def calc_energy_kin(mass: float, momentum: T) -> T:
+def calc_energy_kin(mass: np.float32 | np.float64, momentum: T) -> T:
     """Relativistic kinetic energy of the particle.
 
     Parameters
@@ -85,7 +85,7 @@ def calc_energy_kin(mass: float, momentum: T) -> T:
     return calc_total_energy(mass, momentum) - mass
 
 
-def beta_by_momentum(momentum: T, mass: float) -> T:
+def beta_by_momentum(momentum: T, mass: np.float32 | np.float64) -> T:
     """Calculate fraction of velocity over speed of light.
 
     Notes

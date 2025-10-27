@@ -68,16 +68,21 @@ block_size = (threads, 1, 1)
 
 class CudaSpecials(Specials):
     @staticmethod
-    def loss_box(top: float, bottom: float, left: float, right: float) -> None:
+    def loss_box(
+        top: np.float32 | np.float64,
+        bottom: np.float32 | np.float64,
+        left: np.float32 | np.float64,
+        right: float,
+    ) -> None:
         raise NotImplementedError()
 
     @staticmethod
     def kick_single_harmonic(
         dt: CupyArray | CupyArray,
         dE: CupyArray | CupyArray,
-        voltage: float,
-        omega_rf: float,
-        phi_rf: float,
+        voltage: np.float32 | np.float64,
+        omega_rf: np.float32 | np.float64,
+        phi_rf: np.float32 | np.float64,
         charge: np.float32 | np.float64,
         acceleration_kick: np.float32 | np.float64,
     ) -> None:
@@ -111,9 +116,9 @@ class CudaSpecials(Specials):
         voltage: CupyArray,
         omega_rf: CupyArray,
         phi_rf: CupyArray,
-        charge: float,
+        charge: np.float32 | np.float64,
         n_rf: int,
-        acceleration_kick: float,
+        acceleration_kick: np.float32 | np.float64,
     ) -> None:
         assert dt.dtype == backend.float
         assert dE.dtype == backend.float
@@ -172,13 +177,13 @@ class CudaSpecials(Specials):
     def drift_legacy(
         dt: CupyArray,
         dE: CupyArray,
-        T: float,
+        T: np.float32 | np.float64,
         alpha_order: int,
-        eta_0: float,
-        eta_1: float,
-        eta_2: float,
-        beta: float,
-        energy: float,
+        eta_0: np.float32 | np.float64,
+        eta_1: np.float32 | np.float64,
+        eta_2: np.float32 | np.float64,
+        beta: np.float32 | np.float64,
+        energy: np.float32 | np.float64,
     ) -> None:
         raise NotImplementedError()
 
@@ -186,12 +191,12 @@ class CudaSpecials(Specials):
     def drift_exact(
         dt: CupyArray,
         dE: CupyArray,
-        T: float,
-        alpha_0: float,
-        alpha_1: float,
-        alpha_2: float,
-        beta: float,
-        energy: float,
+        T: np.float32 | np.float64,
+        alpha_0: np.float32 | np.float64,
+        alpha_1: np.float32 | np.float64,
+        alpha_2: np.float32 | np.float64,
+        beta: np.float32 | np.float64,
+        energy: np.float32 | np.float64,
     ) -> None:
         raise NotImplementedError()
 
@@ -293,10 +298,10 @@ class CudaSpecials(Specials):
     def beam_phase(
         hist_x: CupyArray,
         hist_y: CupyArray,
-        alpha: float,
-        omega_rf: float,
-        phi_rf: float,
-        bin_size: float,
+        alpha: np.float32 | np.float64,
+        omega_rf: np.float32 | np.float64,
+        phi_rf: np.float32 | np.float64,
+        bin_size: np.float32 | np.float64,
     ) -> np.float32 | np.float64:
         assert hist_x.dtype == backend.float
         assert hist_y.dtype == backend.float

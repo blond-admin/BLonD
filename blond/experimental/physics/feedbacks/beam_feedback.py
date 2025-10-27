@@ -104,9 +104,9 @@ class Blond2BeamFeedback(LocalFeedback):
     def __init__(
         self,
         profile: ProfileBaseClass,
-        PL_gain: float,
-        window_coefficient: float = 0.0,
-        time_offset: float | None = None,
+        PL_gain: np.float32 | np.float64,
+        window_coefficient: np.float32 | np.float64 = 0.0,
+        time_offset: np.float32 | np.float64 | None = None,
         delay: int = 0,
         section_index: int = 0,
         name: str | None = None,

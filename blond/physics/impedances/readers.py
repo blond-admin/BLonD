@@ -147,7 +147,7 @@ class ExampleImpedanceReader2(ImpedanceReader):
         freq_y
             Amplitude axis
         """
-        data = np.loadtxt(filepath, dtype=float, skiprows=1)
+        data = np.loadtxt(filepath, dtype=np.float32 | np.float64, skiprows=1)
         data[:, 3] = np.deg2rad(data[:, 3])
         data[:, 5] = np.deg2rad(data[:, 5])
         data[:, 7] = np.deg2rad(data[:, 7])

@@ -96,8 +96,8 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         # TODO MOVE
         self._omega_rf: NumpyArray | None = None
         self.delta_omega_rf = backend.float(0.0)
-        self._t_rf: float | None = None
-        self._t_rev: float | None = None
+        self._t_rf: np.float32 | np.float64 | None = None
+        self._t_rev: np.float32 | np.float64 | None = None
         self.voltage: NumpyArray | None = None
         self.phi_rf: NumpyArray | None = None
         self.harmonic: NumpyArray | None = None
@@ -136,30 +136,32 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         pass
 
     @abstractmethod  # pragma: no cover
-    def get_main_harmonic(self) -> float:
+    def get_main_harmonic(self) -> np.float32 | np.float64:
         """Returns the harmonic number of the main harmonic."""
         pass
 
     @abstractmethod  # pragma: no cover
-    def get_main_harmonic_voltage(self) -> float:
+    def get_main_harmonic_voltage(self) -> np.float32 | np.float64:
         """Returns the voltage of the main harmonic, in [V]."""
         pass
 
     @abstractmethod  # pragma: no cover
-    def get_main_harmonic_phi_rf(self) -> float:
+    def get_main_harmonic_phi_rf(self) -> np.float32 | np.float64:
         """Returns the phi_rf of the main harmonic, in [rad]."""
         pass
 
     @abstractmethod  # pragma: no cover
     def get_main_harmonic_omega_rf(
         self,
-        beam_beta: float,
-        ring_circumference: float,
-    ) -> float:
+        beam_beta: np.float32 | np.float64,
+        ring_circumference: np.float32 | np.float64,
+    ) -> np.float32 | np.float64:
         """Returns the omega_rf of the main harmonic, in [rad/s]."""
         pass
 
-    def calc_phi_s_single_harmonic(self, beam: BeamBaseClass) -> float:
+    def calc_phi_s_single_harmonic(
+        self, beam: BeamBaseClass
+    ) -> np.float32 | np.float64:
         """Calculates the main harmonic synchronous phase.
 
         Parameters
@@ -301,8 +303,8 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
     @abstractmethod  # pragma: no cover
     def calc_omega(
         self,
-        beam_beta: float,
-        closed_orbit_length: float,
+        beam_beta: np.float32 | np.float64,
+        closed_orbit_length: np.float32 | np.float64,
     ):
         """Calculate angular frequency of cavity, in [rad/s].
 
@@ -350,9 +352,9 @@ class SingleHarmonicCavity(CavityBaseClass):
         cavity_feedback: LocalFeedback | None = None,
         beam_feedback: Blond2BeamFeedback | None = None,
         name: str | None = None,
-        voltage: float | None = None,
-        phi_rf: float | None = None,
-        harmonic: float | None = None,
+        voltage: np.float32 | np.float64 | None = None,
+        phi_rf: np.float32 | np.float64 | None = None,
+        harmonic: np.float32 | np.float64 | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
         super().__init__(
@@ -364,28 +366,28 @@ class SingleHarmonicCavity(CavityBaseClass):
             name=name,
             **kwargs,  # for MRO of fused elements
         )
-        self.voltage: float | None = voltage
-        self.phi_rf: float | None = phi_rf
-        self.harmonic: float | None = harmonic
+        self.voltage: np.float32 | np.float64 | None = voltage
+        self.phi_rf: np.float32 | np.float64 | None = phi_rf
+        self.harmonic: np.float32 | np.float64 | None = harmonic
         self.delta_phi_rf: NumpyArray | None = backend.float(0)
 
-    def get_main_harmonic(self) -> float:
+    def get_main_harmonic(self) -> np.float32 | np.float64:
         """Returns the harmonic number of the main harmonic."""
         return self.harmonic
 
-    def get_main_harmonic_voltage(self) -> float:
+    def get_main_harmonic_voltage(self) -> np.float32 | np.float64:
         """Returns the voltage of the main harmonic, in [V]."""
         return self.voltage
 
-    def get_main_harmonic_phi_rf(self) -> float:
+    def get_main_harmonic_phi_rf(self) -> np.float32 | np.float64:
         """Returns the phi_rf of the main harmonic, in [rad]."""
         return self.phi_rf
 
     def get_main_harmonic_omega_rf(
         self,
-        beam_beta: float,
-        ring_circumference: float,
-    ) -> float:
+        beam_beta: np.float32 | np.float64,
+        ring_circumference: np.float32 | np.float64,
+    ) -> np.float32 | np.float64:
         """Returns the omega_rf of the main harmonic, in [rad/s]."""
         return self.calc_omega(
             beam_beta=beam_beta,
@@ -461,9 +463,9 @@ class SingleHarmonicCavity(CavityBaseClass):
 
     def calc_omega(
         self,
-        beam_beta: float,
-        ring_circumference: float,
-    ) -> float:
+        beam_beta: np.float32 | np.float64,
+        ring_circumference: np.float32 | np.float64,
+    ) -> np.float32 | np.float64:
         """Calculate angular frequency of cavity, in [rad/s].
 
         Parameters
@@ -507,11 +509,11 @@ class SingleHarmonicCavity(CavityBaseClass):
     @staticmethod
     def headless(
         section_index: int,
-        voltage: float,
-        phi_rf: float,
-        harmonic: float,
-        circumference: float,
-        total_energy: float,
+        voltage: np.float32 | np.float64,
+        phi_rf: np.float32 | np.float64,
+        harmonic: np.float32 | np.float64,
+        circumference: np.float32 | np.float64,
+        total_energy: np.float32 | np.float64,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
     ) -> SingleHarmonicCavity:
@@ -637,7 +639,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         )
 
         self._t_rf: NumpyArray | None = None
-        self._t_rev: float | None = None
+        self._t_rev: np.float32 | np.float64 | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called.
@@ -680,8 +682,8 @@ class MultiHarmonicCavity(CavityBaseClass):
 
     def calc_omega(
         self,
-        beam_beta: float,
-        ring_circumference: float,
+        beam_beta: np.float32 | np.float64,
+        ring_circumference: np.float32 | np.float64,
     ) -> NumpyArray:
         """Calculate angular frequency of cavity in [rad/s].
 
@@ -702,21 +704,21 @@ class MultiHarmonicCavity(CavityBaseClass):
             TWOPI_C0 * beam_beta / ring_circumference
         )
 
-    def get_main_harmonic(self) -> float:
+    def get_main_harmonic(self) -> np.float32 | np.float64:
         """Returns the harmonic number of the main harmonic."""
         return self.harmonic[self.main_harmonic_idx]
 
-    def get_main_harmonic_voltage(self) -> float:
+    def get_main_harmonic_voltage(self) -> np.float32 | np.float64:
         """Returns the voltage of the main harmonic, in [V]."""
         return self.voltage[self.main_harmonic_idx]
 
-    def get_main_harmonic_phi_rf(self) -> float:
+    def get_main_harmonic_phi_rf(self) -> np.float32 | np.float64:
         """Returns the phi_rf of the main harmonic, in [rad]."""
         return self.phi_rf[self.main_harmonic_idx]
 
     def get_main_harmonic_omega_rf(
-        self, beam_beta: float, ring_circumference: float
-    ) -> float:
+        self, beam_beta: np.float32 | np.float64, ring_circumference: float
+    ) -> np.float32 | np.float64:
         """Returns the omega_rf of the main harmonic, in [rad/s]."""
         return self.calc_omega(
             beam_beta=beam_beta,
@@ -756,9 +758,9 @@ class MultiHarmonicCavity(CavityBaseClass):
         voltage: NumpyArray,
         phi_rf: NumpyArray,
         harmonic: NumpyArray,
-        circumference: float,
-        total_energy: float,
-        main_harmonic_idx: float,
+        circumference: np.float32 | np.float64,
+        total_energy: np.float32 | np.float64,
+        main_harmonic_idx: np.float32 | np.float64,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
         beam_feedback: Blond2BeamFeedback | None = None,

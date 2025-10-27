@@ -26,17 +26,17 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def _get_dE_from_dt_core(
-    beta: float,
-    dt_amplitude: float,
-    energy: float,
-    eta0: float,
-    harmonic: float,
-    omega_rf: float,
-    particle_charge: float,
-    phi_rf: float,
-    phi_s: float,
-    voltage: float,
-) -> float:
+    beta: np.float32 | np.float64,
+    dt_amplitude: np.float32 | np.float64,
+    energy: np.float32 | np.float64,
+    eta0: np.float32 | np.float64,
+    harmonic: np.float32 | np.float64,
+    omega_rf: np.float32 | np.float64,
+    particle_charge: np.float32 | np.float64,
+    phi_rf: np.float32 | np.float64,
+    phi_s: np.float32 | np.float64,
+    voltage: np.float32 | np.float64,
+) -> np.float32 | np.float64:
     # RF wave is shifted by Pi below transition
     if eta0 < 0:
         phi_rf -= np.pi
@@ -56,8 +56,8 @@ def _get_dE_from_dt_core(
 def _get_dE_from_dt(
     simulation: Simulation,
     beam: BeamBaseClass,
-    dt_amplitude: float,
-) -> float:
+    dt_amplitude: np.float32 | np.float64,
+) -> np.float32 | np.float64:
     r"""Evaluates the dE amplitude from dt following a single RF Hamiltonian.
 
     Returns
@@ -105,22 +105,27 @@ def _get_dE_from_dt(
     particle_charge = beam.particle_type.charge
 
     return _get_dE_from_dt_core(
-        beta=float(beta),
+        beta=backend.float(beta),
         dt_amplitude=dt_amplitude,
-        energy=float(energy),
+        energy=backend.float(energy),
         eta0=eta0,
-        harmonic=float(harmonic),
-        omega_rf=float(omega_rf),
+        harmonic=backend.float(harmonic),
+        omega_rf=backend.float(omega_rf),
         particle_charge=particle_charge,
-        phi_rf=float(phi_rf),
-        phi_s=float(phi_s),
-        voltage=float(voltage),
+        phi_rf=backend.float(phi_rf),
+        phi_s=backend.float(phi_s),
+        voltage=backend.float(voltage),
     )
 
 
 def get_main_harmonic_attributes(
     beam: BeamBaseClass, simulation: Simulation
-) -> tuple[float, float, float, float]:
+) -> tuple[
+    np.float32 | np.float64,
+    np.float32 | np.float64,
+    np.float32 | np.float64,
+    float,
+]:
     """Relevant main harmonic attributes of all RF stations in :class:`~blond._core.ring.ring.Ring`.
 
     Parameters
@@ -165,7 +170,7 @@ def get_main_harmonic_attributes(
     assert all_equal(omega_rf), (
         f"Expected all `omega_rf` to be the same, but got {omega_rf}."
     )
-    omega_rf = float(omega_rf[0])
+    omega_rf = backend.float(omega_rf[0])
 
     # phi_rf should be all same
     try:
@@ -182,14 +187,14 @@ def get_main_harmonic_attributes(
     assert all_equal(phi_rf), (
         f"Expected all `phi_rf` to be the same, but got {phi_rf}."
     )
-    phi_rf = float(phi_rf[0])
+    phi_rf = backend.float(phi_rf[0])
 
     # harmonic should be all same
     harmonic = [rf.get_main_harmonic() for rf in rf_stations]
     assert all_equal(harmonic), (
         f"Expected all `harmonic` to be the same, but got {harmonic}."
     )
-    harmonic = float(harmonic[0])
+    harmonic = backend.float(harmonic[0])
 
     # voltage sum
     voltage = sum([rf.get_main_harmonic_voltage() for rf in rf_stations])
@@ -216,9 +221,9 @@ class BiGaussian(MatchingRoutine):
 
     def __init__(
         self,
-        n_macroparticles: int | float,
-        sigma_dt: float,
-        sigma_dE: float | None = None,
+        n_macroparticles: int | np.float32 | np.float64,
+        sigma_dt: np.float32 | np.float64,
+        sigma_dE: np.float32 | np.float64 | None = None,
         reinsertion: bool = False,
         seed: int = 0,
     ) -> None:
@@ -305,7 +310,7 @@ class BiGaussian(MatchingRoutine):
         dt = (
             self._sigma_dt
             * rng_dt.standard_normal(size=self.n_macroparticles).astype(
-                dtype=backend.float, order="C", copy=False
+                dtype=backend.np.float32 | np.float64, order="C", copy=False
             )
             + (phi_s - phi_rf) / omega_rf
         )

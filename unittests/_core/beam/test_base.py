@@ -13,8 +13,6 @@ from blond._core.beam.base import BeamBaseClass
 from blond._core.beam.particle_types import ParticleType
 
 if TYPE_CHECKING:
-    from typing import Optional
-
     from cupy.typing import NDArray as CupyArray
     from numpy._typing import NDArray as NumpyArray
 
@@ -22,7 +20,7 @@ if TYPE_CHECKING:
 class BeamBaseClassTester(BeamBaseClass):
     def __init__(
         self,
-        intensity: int | float,
+        intensity: int | np.float32 | np.float64,
         particle_type: ParticleType,
         is_counter_rotating: bool = False,
         is_distributed=False,
@@ -39,7 +37,7 @@ class BeamBaseClassTester(BeamBaseClass):
         self._ids = np.arange(10, dtype=backend.int)
 
     @cached_property
-    def ratio(self) -> float:
+    def ratio(self) -> np.float32 | np.float64:
         return self.intensity / self.common_array_size
 
     def setup_beam(
@@ -47,8 +45,8 @@ class BeamBaseClassTester(BeamBaseClass):
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         flags: NumpyArray | CupyArray = None,
-        reference_time: Optional[float] = None,
-        reference_total_energy: Optional[float] = None,
+        reference_time: np.float32 | np.float64 | None = None,
+        reference_total_energy: np.float32 | np.float64 | None = None,
     ):
         """Sets beam array attributes for simulation
 

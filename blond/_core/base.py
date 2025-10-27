@@ -106,7 +106,11 @@ class Schedulable:
     def schedule(
         self,
         attribute: str,
-        value: float | int | NumpyArray | tuple[NumpyArray, NumpyArray],
+        value: np.float32
+        | np.float64
+        | int
+        | NumpyArray
+        | tuple[NumpyArray, NumpyArray],
         mode: Literal["per-turn", "constant"] | None = None,
     ) -> None:
         """Schedule a parameter to be changed during simulation.
@@ -290,7 +294,9 @@ class _Scheduled:
 
 
 class ScheduledConstant(_Scheduled):
-    def __init__(self, value: float | int | NumpyArray) -> None:
+    def __init__(
+        self, value: np.float32 | np.float64 | int | NumpyArray
+    ) -> None:
         """Schedule a value that never changes.
 
         Parameters
@@ -307,8 +313,8 @@ class ScheduledConstant(_Scheduled):
     def get_scheduled(
         self,
         turn_i: int,
-        reference_time: float,
-    ) -> float | int | NumpyArray:
+        reference_time: np.float32 | np.float64,
+    ) -> np.float32 | np.float64 | int | NumpyArray:
         """Get the constant value.
 
         Parameters
@@ -337,7 +343,7 @@ class ScheduledArray(_Scheduled):
     def get_scheduled(
         self,
         turn_i: int,
-        reference_time: float,
+        reference_time: np.float32 | np.float64,
     ) -> NumpyArray:
         """Get the value of the schedule for the current turn.
 
@@ -361,7 +367,7 @@ class ScheduledInterpolation(_Scheduled):
     def get_scheduled(
         self,
         turn_i: int,
-        reference_time: float,
+        reference_time: np.float32 | np.float64,
     ):
         """Get the value of the schedule for the current time.
 
@@ -376,7 +382,11 @@ class ScheduledInterpolation(_Scheduled):
 
 
 def get_scheduler(
-    value: float | int | NumpyArray | tuple[NumpyArray, NumpyArray],
+    value: np.float32
+    | np.float64
+    | int
+    | NumpyArray
+    | tuple[NumpyArray, NumpyArray],
     mode: Literal["per-turn", "constant"] | None = None,
 ) -> _Scheduled:
     """Auto-select the correct class of the schedulers.

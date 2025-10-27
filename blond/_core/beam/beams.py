@@ -21,7 +21,7 @@ if TYPE_CHECKING:  # pragma: no cover
 class Beam(BeamBaseClass):
     def __init__(
         self,
-        intensity: int | float,
+        intensity: int | np.float32 | np.float64,
         particle_type: ParticleType,
         is_counter_rotating: bool = False,
     ) -> None:
@@ -57,8 +57,8 @@ class Beam(BeamBaseClass):
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         flags: NumpyArray | CupyArray | None = None,
-        reference_time: float | None = None,
-        reference_total_energy: float | None = None,
+        reference_time: np.float32 | np.float64 | None = None,
+        reference_total_energy: np.float32 | np.float64 | None = None,
     ) -> None:
         """Sets beam array attributes for simulation.
 
@@ -133,7 +133,7 @@ class Beam(BeamBaseClass):
         )
 
     @property
-    def ratio(self) -> float:
+    def ratio(self) -> np.float32 | np.float64:
         """Ratio of the intensity vs. the sum of weights."""
         # As there are no weights, lets assume all weights are 1,
         # The sum over all macro-particles with weight 1
@@ -186,8 +186,8 @@ class ProbeBeam(Beam):
         particle_type: ParticleType,
         dt: NumpyArray | None = None,
         dE: NumpyArray | None = None,
-        reference_time: float | None = None,
-        reference_total_energy: float | None = None,
+        reference_time: np.float32 | np.float64 | None = None,
+        reference_total_energy: np.float32 | np.float64 | None = None,
     ) -> None:
         """Test Bunch without intensity effects.
 

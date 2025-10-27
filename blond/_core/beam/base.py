@@ -29,7 +29,7 @@ class BeamFlags(int, Enum):
 class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     def __init__(
         self,
-        intensity: int | float,
+        intensity: int | np.float32 | np.float64,
         particle_type: ParticleType,
         is_counter_rotating: bool = False,
         is_distributed: bool = False,
@@ -124,7 +124,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     @property
     @abstractmethod  # pragma: no cover
-    def ratio(self) -> float:
+    def ratio(self) -> np.float32 | np.float64:
         """Ratio of the intensity vs. the sum of weights."""
         pass
 
@@ -134,32 +134,34 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         return self._particle_type
 
     @property
-    def reference_total_energy(self) -> float:
+    def reference_total_energy(self) -> np.float32 | np.float64:
         """Total beam energy [eV]."""
         return self._reference_total_energy
 
     @reference_total_energy.setter
-    def reference_total_energy(self, reference_total_energy: float) -> None:
+    def reference_total_energy(
+        self, reference_total_energy: np.float32 | np.float64
+    ) -> None:
         """Total beam energy [eV]."""
         self.invalidate_cache_reference()
         self._reference_total_energy = reference_total_energy
 
     @cached_property
-    def reference_gamma(self) -> float:
+    def reference_gamma(self) -> np.float32 | np.float64:
         """Beam reference gamma a.k.a. Lorentz factor []."""
         # reference_total_energy in eV and mass_inv in [c²/eV]
         val = self._reference_total_energy * self._particle_type.mass_inv
         return val
 
     @cached_property
-    def reference_beta(self) -> float:
+    def reference_beta(self) -> np.float32 | np.float64:
         """Beam reference fraction of speed of light (v/c0) []."""
         gamma = self.reference_gamma
         val = np.sqrt(1.0 - 1.0 / (gamma * gamma))
         return val
 
     @cached_property
-    def reference_velocity(self) -> float:
+    def reference_velocity(self) -> np.float32 | np.float64:
         """Beam reference speed [m/s]."""
         return self.reference_beta * c0
 
@@ -169,8 +171,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         flags: NumpyArray | CupyArray = None,
-        reference_time: float | None = None,
-        reference_total_energy: float | None = None,
+        reference_time: np.float32 | np.float64 | None = None,
+        reference_total_energy: np.float32 | np.float64 | None = None,
     ) -> None:
         """Sets beam array attributes for simulation.
 

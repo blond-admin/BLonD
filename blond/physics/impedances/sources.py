@@ -197,9 +197,9 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
 
     def __init__(
         self,
-        shunt_impedances: NumpyArray | float,
-        center_frequencies: NumpyArray | float,
-        quality_factors: NumpyArray | float,
+        shunt_impedances: NumpyArray | np.float32 | np.float64,
+        center_frequencies: NumpyArray | np.float32 | np.float64,
+        quality_factors: NumpyArray | np.float32 | np.float64,
     ):
         warn("Untested code", NotTestedWarning, stacklevel=1)
         super().__init__(is_dynamic=False)
@@ -645,9 +645,9 @@ class TravelingWaveCavity(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
 
     def __init__(
         self,
-        R_S: float | ArrayLike,
-        frequency_R: float | ArrayLike,
-        a_factor: float | ArrayLike,
+        R_S: np.float32 | np.float64 | ArrayLike,
+        frequency_R: np.float32 | np.float64 | ArrayLike,
+        a_factor: np.float32 | np.float64 | ArrayLike,
     ):
         if hasattr(R_S, "__len__"):
             assert len(R_S) == len(frequency_R), (
@@ -657,19 +657,19 @@ class TravelingWaveCavity(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
                 f"{len(R_S)=}, but {len(a_factor)=}."
             )
         else:
-            R_S = float(R_S)
-            frequency_R = float(frequency_R)
-            a_factor = float(a_factor)
+            R_S = backend.float(R_S)
+            frequency_R = backend.float(frequency_R)
+            a_factor = backend.float(a_factor)
         super().__init__(is_dynamic=False)
 
         # Shunt impedance in :math:`\Omega`
-        self.R_S = np.array(R_S, dtype=float).flatten()
+        self.R_S = np.array(R_S, dtype=backend.float).flatten()
 
         # Resonant frequency in Hz
-        self.frequency_R = np.array(frequency_R, dtype=float).flatten()
+        self.frequency_R = np.array(frequency_R, dtype=backend.float).flatten()
 
         # Damping time a in s
-        self.a_factor = np.array(a_factor, dtype=float).flatten()
+        self.a_factor = np.array(a_factor, dtype=backend.float).flatten()
 
     def wake_calc(self, time: NumpyArray) -> NumpyArray:
         r"""Wake calculation method as a function of time.

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from ..backends.backend import backend
 from ..base import BeamPhysicsRelevant, Preparable, Schedulable
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -24,7 +25,7 @@ if TYPE_CHECKING:  # pragma: no cover
 class Ring(Preparable, Schedulable):
     def __init__(
         self,
-        circumference: float,
+        circumference: np.float32 | np.float64,
     ) -> None:
         """`Ring` a.k.a. synchrotron.
 
@@ -96,7 +97,7 @@ class Ring(Preparable, Schedulable):
         pass
 
     @property
-    def circumference(self) -> float:
+    def circumference(self) -> np.float32 | np.float64:
         """Constant synchrotron reference circumference, in [m].
 
         Notes
@@ -134,12 +135,14 @@ class Ring(Preparable, Schedulable):
         return self._elements
 
     @property  # as readonly attributes
-    def closed_orbit_length(self) -> float:
+    def closed_orbit_length(self) -> np.float32 | np.float64:
         """Length of the closed orbit, in [m]."""
         from ...physics.drifts import DriftBaseClass
 
         all_drifts = self.elements.get_elements(DriftBaseClass)
-        orbit_length = float(sum([drift.orbit_length for drift in all_drifts]))
+        orbit_length = backend.float(
+            sum([drift.orbit_length for drift in all_drifts])
+        )
         return orbit_length
 
     @property

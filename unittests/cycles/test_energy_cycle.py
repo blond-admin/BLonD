@@ -44,11 +44,11 @@ simulation_ex1 = ExampleSimulation01().simulation
 
 
 def _to_momentum(
-    data: int | float | NumpyArray,
-    mass: float,
-    charge: float,
+    data: int | np.float32 | np.float64 | NumpyArray,
+    mass: np.float32 | np.float64,
+    charge: np.float32 | np.float64,
     convert_from: SynchronousDataTypes = "momentum",
-    bending_radius: Optional[float] = None,
+    bending_radius: Optional[np.float32 | np.float64] = None,
 ) -> NumpyArray:
     magnetic_rigidity = _to_magnetic_rigidity(
         data=data,
@@ -229,7 +229,7 @@ class MagneticCycleBaseHelper(MagneticCycleBase):
         self,
         turn_i: int,
         section_i: int,
-        reference_time: float,
+        reference_time: np.float32 | np.float64,
         particle_type: ParticleType,
     ):
         pass

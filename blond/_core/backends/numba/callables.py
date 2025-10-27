@@ -161,11 +161,11 @@ class NumbaSpecials(Specials):  # pragma: no cover
     def beam_phase(
         hist_x: NumpyArray,
         hist_y: NumpyArray,
-        alpha: float,
-        omega_rf: float,
-        phi_rf: float,
-        bin_size: float,
-    ) -> float:
+        alpha: np.float32 | np.float64,
+        omega_rf: np.float32 | np.float64,
+        phi_rf: np.float32 | np.float64,
+        bin_size: np.float32 | np.float64,
+    ) -> np.float32 | np.float64:
         n = len(hist_x)
 
         f_sin = np.zeros_like(hist_x)
@@ -227,7 +227,12 @@ class NumbaSpecials(Specials):  # pragma: no cover
         array_write[:] = np.sum(array_tmp, axis=0)
 
     @staticmethod
-    def loss_box(top: float, bottom: float, left: float, right: float) -> None:
+    def loss_box(
+        top: np.float32 | np.float64,
+        bottom: np.float32 | np.float64,
+        left: np.float32 | np.float64,
+        right: float,
+    ) -> None:
         pass
 
     @staticmethod
@@ -240,9 +245,9 @@ class NumbaSpecials(Specials):  # pragma: no cover
     def kick_single_harmonic(
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
-        voltage: float,
-        omega_rf: float,
-        phi_rf: float,
+        voltage: np.float32 | np.float64,
+        omega_rf: np.float32 | np.float64,
+        phi_rf: np.float32 | np.float64,
         charge: np.float32 | np.float64,
         acceleration_kick: np.float32 | np.float64,
     ) -> None:
@@ -283,9 +288,9 @@ class NumbaSpecials(Specials):  # pragma: no cover
         voltage: NumpyArray,
         omega_rf: NumpyArray,
         phi_rf: NumpyArray,
-        charge: float,
+        charge: np.float32 | np.float64,
         n_rf: int,
-        acceleration_kick: float,
+        acceleration_kick: np.float32 | np.float64,
     ) -> None:
         for i in prange(len(dt)):
             dti = dt[i]
@@ -301,14 +306,14 @@ class NumbaSpecials(Specials):  # pragma: no cover
     def drift_legacy(
         dt: NumpyArray,
         dE: NumpyArray,
-        t_rev: float,
-        length_ratio: float,
+        t_rev: np.float32 | np.float64,
+        length_ratio: np.float32 | np.float64,
         alpha_order: int,
-        eta_0: float,
-        eta_1: float,
-        eta_2: float,
-        beta: float,
-        energy: float,
+        eta_0: np.float32 | np.float64,
+        eta_1: np.float32 | np.float64,
+        eta_2: np.float32 | np.float64,
+        beta: np.float32 | np.float64,
+        energy: np.float32 | np.float64,
     ) -> None:  # pragma: no cover # TODO
         T = t_rev * length_ratio
         coeff = 1.0 / (beta * beta * energy)
@@ -345,13 +350,13 @@ class NumbaSpecials(Specials):  # pragma: no cover
     def drift_exact(
         dt: NumpyArray,
         dE: NumpyArray,
-        t_rev: float,
-        length_ratio: float,
-        alpha_0: float,
-        alpha_1: float,
-        alpha_2: float,
-        beta: float,
-        energy: float,
+        t_rev: np.float32 | np.float64,
+        length_ratio: np.float32 | np.float64,
+        alpha_0: np.float32 | np.float64,
+        alpha_1: np.float32 | np.float64,
+        alpha_2: np.float32 | np.float64,
+        beta: np.float32 | np.float64,
+        energy: np.float32 | np.float64,
     ) -> None:  # pragma: no cover # TODO
         T = t_rev * length_ratio
         invbetasq = 1 / (beta * beta)

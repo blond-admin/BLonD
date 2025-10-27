@@ -8,6 +8,7 @@ import scipy
 from numpy._typing import NDArray as NumpyArray
 from scipy.constants import e
 
+from blond._core.backends.backend import backend
 from blond._core.beam.base import BeamBaseClass
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 def low_pass_filter(
-    signal: NumpyArray, cutoff_frequency: float = 0.5
+    signal: NumpyArray, cutoff_frequency: np.float32 | np.float64 = 0.5
 ) -> NumpyArray:
     """Low-pass filter based on Butterworth 5th order digital filter.
 
@@ -52,12 +53,12 @@ def low_pass_filter(
 def rf_beam_current(
     beam: BeamBaseClass,
     profile: StaticProfile,
-    omega_c: float,
-    T_rev: float,
+    omega_c: np.float32 | np.float64,
+    T_rev: np.float32 | np.float64,
     use_lowpass_filter: bool = True,
     downsample: dict | None = None,
     external_reference: bool = True,
-    dT: float = 0,
+    dT: np.float32 | np.float64 = 0,
 ) -> NumpyArray | tuple[NumpyArray, NumpyArray]:
     r"""Calculates the beam charge at the (RF) frequency slice by slice
 
@@ -159,7 +160,7 @@ def rf_beam_current(
 
     if downsample:
         try:
-            T_s = float(downsample["Ts"])
+            T_s = backend.float(downsample["Ts"])
             n_points = int(downsample["points"])
         except Exception:
             raise RuntimeError(
@@ -209,8 +210,8 @@ def cartesian_to_polar(
 
 
 def polar_to_cartesian(
-    amplitude: float | NumpyArray,
-    phase: float | NumpyArray,
+    amplitude: np.float32 | np.float64 | NumpyArray,
+    phase: np.float32 | np.float64 | NumpyArray,
 ) -> NumpyArray | complex:
     """Convert data from polar to cartesian (I,Q) coordinates.
 

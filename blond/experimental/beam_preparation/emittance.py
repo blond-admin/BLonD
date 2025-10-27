@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from blond._core.beam.base import BeamBaseClass
 from blond._core.simulation.simulation import Simulation
 from blond.beam_preparation.base import MatchingRoutine
@@ -13,7 +15,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 class EmittanceMatcher(MatchingRoutine):
     """Matches the beam coordinates to a given emittance."""
-    def __init__(self, some_emittance: float, n_macroparticles: int):
+    def __init__(self, some_emittance: np.float32 | np.float64, n_macroparticles: int):
         raise NotImplementedError("To be developed")  # TODO
         super().__init__()
         self.some_emittance = some_emittance

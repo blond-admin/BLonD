@@ -12,16 +12,16 @@ if TYPE_CHECKING:
 
 
 def is_in_separatrix(
-    charge: float,
-    harmonic: float,
-    voltage: float,
-    omega_rf: float,
-    phi_rf_d: float,
-    phi_s: float,
-    etas: list[float],
-    beta: float,
-    total_energy: float,
-    ring_circumference: float,
+    charge: np.float32 | np.float64,
+    harmonic: np.float32 | np.float64,
+    voltage: np.float32 | np.float64,
+    omega_rf: np.float32 | np.float64,
+    phi_rf_d: np.float32 | np.float64,
+    phi_s: np.float32 | np.float64,
+    etas: list[np.float32 | np.float64],
+    beta: np.float32 | np.float64,
+    total_energy: np.float32 | np.float64,
+    ring_circumference: np.float32 | np.float64,
     dt: NumpyArray,
     dE: NumpyArray,
 ) -> NumpyArray:
@@ -132,19 +132,19 @@ def phase_modulo_below_transition(phi: NumpyArray) -> NumpyArray:
 
 
 def single_rf_sin_hamiltonian(
-    charge: float,
-    harmonic: float,
-    voltage: float,
-    omega_rf: float,
-    phi_rf_d: float,
-    phi_s: float,
-    etas: list[float],
-    beta: float,
-    total_energy: float,
-    ring_circumference: float,
-    dt: float | NumpyArray,
-    dE: float | NumpyArray,
-) -> float | NumpyArray:
+    charge: np.float32 | np.float64,
+    harmonic: np.float32 | np.float64,
+    voltage: np.float32 | np.float64,
+    omega_rf: np.float32 | np.float64,
+    phi_rf_d: np.float32 | np.float64,
+    phi_s: np.float32 | np.float64,
+    etas: list[np.float32 | np.float64],
+    beta: np.float32 | np.float64,
+    total_energy: np.float32 | np.float64,
+    ring_circumference: np.float32 | np.float64,
+    dt: np.float32 | np.float64 | NumpyArray,
+    dE: np.float32 | np.float64 | NumpyArray,
+) -> np.float32 | np.float64 | NumpyArray:
     """Single RF sinusoidal Hamiltonian.
 
     Parameters
@@ -206,12 +206,12 @@ def single_rf_sin_hamiltonian(
 
 
 def calc_phi_s_single_harmonic(
-    charge: float,
-    voltage: float,
-    phase: float,
-    energy_gain: float,
+    charge: np.float32 | np.float64,
+    voltage: np.float32 | np.float64,
+    phase: np.float32 | np.float64,
+    energy_gain: np.float32 | np.float64,
     above_transition: bool,
-) -> float:
+) -> np.float32 | np.float64:
     """Derives the analytical synchronous phase for a single harmonic RF.
 
     Parameters

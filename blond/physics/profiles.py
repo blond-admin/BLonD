@@ -151,7 +151,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             self.cut_left,
             self.cut_right,
             len(self._hist_x) + 1,
-            backend.float,  # type: ignore
+            backend.np.float32 | np.float64,  # type: ignore
         )
 
     def track(self, beam: BeamBaseClass) -> None:
@@ -180,7 +180,9 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
 
     @staticmethod
     def get_arrays(
-        cut_left: float, cut_right: float, n_bins: int
+        cut_left: np.float32 | np.float64,
+        cut_right: np.float32 | np.float64,
+        n_bins: int,
     ) -> tuple[NumpyArray, NumpyArray] | tuple[CupyArray, CupyArray]:
         """Helper method to initialize beam profiles.
 
@@ -286,8 +288,8 @@ class StaticProfile(ProfileBaseClass):
 
     def __init__(
         self,
-        cut_left: float,
-        cut_right: float,
+        cut_left: np.float32 | np.float64,
+        cut_right: np.float32 | np.float64,
         n_bins: int,
         section_index: int = 0,
         name: str | None = None,
@@ -305,9 +307,9 @@ class StaticProfile(ProfileBaseClass):
 
     @staticmethod
     def from_cutoff(
-        cut_left: float,
-        cut_right: float,
-        cutoff_frequency: float,
+        cut_left: np.float32 | np.float64,
+        cut_right: np.float32 | np.float64,
+        cutoff_frequency: np.float32 | np.float64,
         **static_profile_kwargs,
     ) -> StaticProfile:
         """Initialization method from `cutoff_frequency` in [Hz].
@@ -338,10 +340,10 @@ class StaticProfile(ProfileBaseClass):
 
     @staticmethod
     def from_rad(
-        cut_left_rad: float,
-        cut_right_rad: float,
+        cut_left_rad: np.float32 | np.float64,
+        cut_right_rad: np.float32 | np.float64,
         n_bins: int,
-        t_period: float,
+        t_period: np.float32 | np.float64,
         **static_profile_kwargs,
     ) -> StaticProfile:
         """Initialization method in [rad].
@@ -452,7 +454,7 @@ class DynamicProfileConstCutoff(DynamicProfile):
 
     def __init__(
         self,
-        timestep: float,
+        timestep: np.float32 | np.float64,
         section_index: int = 0,
         name: str | None = None,
     ) -> None:

@@ -19,7 +19,7 @@ class CavityBaseClassHelper(CavityBaseClass):
     def voltage_waveform_tmp(self, ts: NumpyArray):
         pass
 
-    def calc_omega(self, beam_beta: float, ring_circumference: float):
+    def calc_omega(self, beam_beta: np.float32 | np.float64, ring_circumference: np.float32 | np.float64):
         pass
 
 

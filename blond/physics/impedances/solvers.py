@@ -45,7 +45,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
     def __init__(self):
         super().__init__()
         self._beam: BeamBaseClass | None = None
-        self._Z_over_n: float | None = None
+        self._Z_over_n: np.float32 | np.float64 | None = None
         self._turn_i: DynamicParameter | None = None
         self._parent_wakefield: WakeField | None = None
         self._simulation: Simulation | None = None
@@ -133,7 +133,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
 
     def __init__(
         self,
-        t_periodicity: float | None = None,
+        t_periodicity: np.float32 | np.float64 | None = None,
         allow_next_fast_len: bool = False,
     ):
         super().__init__()
@@ -141,7 +141,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         self.expect_profile_change: bool = False
         self.expect_impedance_change = False
 
-        self._t_periodicity = t_periodicity
+        self._t_periodicity: np.float32 | np.float64 = t_periodicity
         self._parent_wakefield: WakeField | None = None
         self._n_time: int | None = None
         self._n_freq: int | None = None
@@ -217,12 +217,12 @@ class PeriodicFreqSolver(WakeFieldSolver):
                 break
 
     @property
-    def t_periodicity(self) -> float:
+    def t_periodicity(self) -> np.float32 | np.float64:
         """Periodicity that is assumed for fast fourier transform in  [s]."""
         return self._t_periodicity
 
     @t_periodicity.setter
-    def t_periodicity(self, t_periodicity: float):
+    def t_periodicity(self, t_periodicity: np.float32 | np.float64):
         self._t_periodicity = t_periodicity
         self._update_internal_data()
         self._freq_y_needs_update = True
@@ -674,13 +674,15 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         time axes corresponding to _past_profiles.
     """
 
-    def __init__(self, decay_fraction_threshold: float = 0.001):
+    def __init__(
+        self, decay_fraction_threshold: np.float32 | np.float64 = 0.001
+    ):
         warn("Untested code", NotTestedWarning, stacklevel=1)
         super().__init__()
 
-        self._last_reference_time: float | None = None
+        self._last_reference_time: np.float32 | np.float64 | None = None
 
-        self._maximum_storage_time: float | None = None
+        self._maximum_storage_time: np.float32 | np.float64 | None = None
         self._decay_fraction_threshold = decay_fraction_threshold
 
         self._simulation: Simulation | None = None
@@ -689,7 +691,9 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         # define wake function values and corresponding time axis
         self._past_profiles: deque[NumpyArray] = deque()
         self._past_profile_times: deque[NumpyArray] = deque()
-        self._past_charge_per_macroparticle: deque[float] = deque()
+        self._past_charge_per_macroparticle: deque[np.float32 | np.float64] = (
+            deque()
+        )
 
         self._wake_function_vals: deque[NumpyArray] = deque()
         self._wake_function_time: deque[NumpyArray] = deque()
@@ -853,7 +857,9 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                     self._wake_function_time[prof_ind]
                 )
 
-    def _update_potential_sources(self, current_time: float = 0) -> None:
+    def _update_potential_sources(
+        self, current_time: np.float32 | np.float64 = 0
+    ) -> None:
         """Updates `_wake_function_time`  and `_wake_function_vals` arrays.
 
         The time axis is chosen based on

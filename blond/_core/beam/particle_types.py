@@ -22,7 +22,10 @@ class ParticleType:
     """
 
     def __init__(
-        self, mass: float, charge: float, user_decay_rate: float = 0.0
+        self,
+        mass: np.float32 | np.float64,
+        charge: np.float32 | np.float64,
+        user_decay_rate: np.float32 | np.float64 = 0.0,
     ):
         self._mass = mass
         self._charge = charge
@@ -43,22 +46,22 @@ class ParticleType:
         self._quantum_radiation_constant = c_q
 
     @property
-    def mass(self) -> float:
+    def mass(self) -> np.float32 | np.float64:
         """Rest mass energy of the particle, in [eV]."""
         return self._mass
 
     @property
-    def charge(self) -> float:
+    def charge(self) -> np.float32 | np.float64:
         """Number of electrons of the particle, unitless."""
         return self._charge
 
     @property
-    def user_decay_rate(self) -> float:
+    def user_decay_rate(self) -> np.float32 | np.float64:
         """Optional user-specified decay rate. Default is 0.0."""
         return self._user_decay_rate
 
     @property
-    def mass_inv(self) -> float:
+    def mass_inv(self) -> np.float32 | np.float64:
         """Inverse of the mass (1/mass), in [1/eV]."""
         return self._mass_inv
 

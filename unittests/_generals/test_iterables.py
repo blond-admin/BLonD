@@ -1,12 +1,14 @@
 import unittest
 
+import numpy as np
+
 from blond._generals._iterables import all_equal
 
 
 class TestFunctions(unittest.TestCase):
     def test_all_equal_tuple(self):
         for iterable_type in (tuple, list, set):
-            for comparison_type in (int, float, str):
+            for comparison_type in (int, np.float32 | np.float64, str):
                 a = comparison_type(1)
                 b = comparison_type(2)
                 self.assertEqual(

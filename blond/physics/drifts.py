@@ -40,7 +40,7 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
 
     def __init__(
         self,
-        orbit_length: float,
+        orbit_length: np.float32 | np.float64,
         section_index: int = 0,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ) -> None:
@@ -106,9 +106,9 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
 
     def __init__(
         self,
-        orbit_length: float,
+        orbit_length: np.float32 | np.float64,
         section_index: int = 0,
-        transition_gamma: float | None = None,
+        transition_gamma: np.float32 | np.float64 | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ) -> None:
         """Base class to implement beam drifts in synchrotrons.
@@ -158,11 +158,12 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
 
     @staticmethod
     def headless(
-        transition_gamma: float
+        transition_gamma: np.float32
+        | np.float64
         | int
         | NumpyArray
         | tuple[NumpyArray, NumpyArray],
-        orbit_length: float,
+        orbit_length: np.float32 | np.float64,
         section_index: int = 0,
     ) -> DriftSimple:
         """Initialize object without simulation context.
@@ -187,7 +188,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             orbit_length=orbit_length,
             section_index=section_index,
         )
-        if isinstance(transition_gamma, float):
+        if isinstance(transition_gamma, np.float32 | np.float64):
             d.transition_gamma = backend.float(transition_gamma)
         else:
             d.schedule("transition_gamma", transition_gamma, mode="per-turn")

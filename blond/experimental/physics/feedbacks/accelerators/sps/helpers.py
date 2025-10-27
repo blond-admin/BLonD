@@ -4,7 +4,7 @@ import numpy as np
 from numpy._typing import NDArray as NumpyArray
 
 
-def get_power_gen_i(I_gen_per_cav: NumpyArray, Z_0: float) -> float:
+def get_power_gen_i(I_gen_per_cav: NumpyArray, Z_0: np.float32 | np.float64) -> np.float32 | np.float64:
     """RF generator power from generator current (physical, in [A]), for any
     f_r (and thus any tau)
 

@@ -3,6 +3,8 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, TypeVar
 
@@ -10,7 +12,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def int_from_float_with_warning(
-    value: float | int, warning_stacklevel: int
+    value: np.float32 | np.float64 | int, warning_stacklevel: int
 ) -> int:
     """Make int from float, warn if there are fractional digits.
 
@@ -23,7 +25,7 @@ def int_from_float_with_warning(
     """
     if isinstance(value, int):
         return value
-    elif isinstance(value, float):
+    elif isinstance(value, np.float32 | np.float64):
         return_value = int(value)
         if value != return_value:
             warnings.warn(

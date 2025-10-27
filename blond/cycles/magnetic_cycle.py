@@ -36,7 +36,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from .._core.simulation.simulation import Simulation
 
-    FloatOrArray = float | NumpyArray
+    FloatOrArray = np.float32 | np.float64 | NumpyArray
 
     T = TypeVar("T")
 
@@ -60,7 +60,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
     def __init__(
         self,
         reference_particle: ParticleType,
-        magnetic_rigidity_init: float,
+        magnetic_rigidity_init: np.float32 | np.float64,
     ):
         super().__init__()
         assert isinstance(reference_particle, ParticleType), (
@@ -129,7 +129,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         self,
         turn_i: int,
         section_i: int,
-        reference_time: float,
+        reference_time: np.float32 | np.float64,
         particle_type: ParticleType,
     ):
         """Calculate the total energy [eV] that is foreseen by the magnetic cycle.
@@ -158,7 +158,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
     def get_total_energy_init(
         self,
         turn_i_init: int,
-        t_init: float,
+        t_init: np.float32 | np.float64,
         particle_type: ParticleType,
     ) -> np.float32 | np.float64:
         """Compute the initial the total energy [eV] for the initial turn.
@@ -200,9 +200,9 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
 
     def get_t_rev_init(
         self,
-        circumference: float,
+        circumference: np.float32 | np.float64,
         turn_i_init: int,
-        t_init: float,
+        t_init: np.float32 | np.float64,
         particle_type: ParticleType,
     ) -> np.float32 | np.float64:
         r"""Compute the initial revolution period of a reference particle, in [s].
@@ -291,9 +291,9 @@ class ConstantMagneticCycle(MagneticCycleBase):
     def __init__(
         self,
         reference_particle: ParticleType,
-        value: float,
+        value: np.float32 | np.float64,
         in_unit: SynchronousDataTypes = "momentum",
-        bending_radius: float | None = None,
+        bending_radius: np.float32 | np.float64 | None = None,
     ):
         self._magnetic_rigidity: float = _to_magnetic_rigidity(
             data=value,
@@ -312,7 +312,9 @@ class ConstantMagneticCycle(MagneticCycleBase):
         self._in_unit = in_unit
         self._bending_radius = bending_radius
 
-        self._total_energy_cache: dict[int, float] | None = {}
+        self._total_energy_cache: (
+            dict[int, np.float32 | np.float64] | None
+        ) = {}
 
     def on_init_simulation(
         self,
@@ -333,9 +335,9 @@ class ConstantMagneticCycle(MagneticCycleBase):
         self,
         turn_i: int,
         section_i: int,
-        reference_time: float,
+        reference_time: np.float32 | np.float64,
         particle_type: ParticleType,
-    ) -> float:
+    ) -> np.float32 | np.float64:
         """Calculate the total energy [eV] that is foreseen by the magnetic cycle.
 
         Parameters
@@ -372,10 +374,10 @@ class ConstantMagneticCycle(MagneticCycleBase):
 
     @staticmethod
     def headless(
-        value: float,
+        value: np.float32 | np.float64,
         particle_type: ParticleType,
         in_unit: SynchronousDataTypes = "momentum",
-        bending_radius: float | None = None,
+        bending_radius: np.float32 | np.float64 | None = None,
     ) -> ConstantMagneticCycle:
         """Initialize object without simulation context.
 
@@ -439,10 +441,10 @@ class MagneticCyclePerTurn(MagneticCycleBase):
     def __init__(
         self,
         reference_particle: ParticleType,
-        value_init: float,
+        value_init: np.float32 | np.float64,
         values_after_turn: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
-        bending_radius: float | None = None,
+        bending_radius: np.float32 | np.float64 | None = None,
     ):
         magnetic_rigidity_init = _to_magnetic_rigidity(
             data=value_init,
@@ -520,9 +522,9 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         self,
         turn_i: int,
         section_i: int,
-        reference_time: float,
+        reference_time: np.float32 | np.float64,
         particle_type: ParticleType,
-    ) -> float:
+    ) -> np.float32 | np.float64:
         """Calculate the total energy [eV] that is foreseen by the magnetic cycle.
 
         Parameters
@@ -559,11 +561,11 @@ class MagneticCyclePerTurn(MagneticCycleBase):
     @staticmethod
     def headless(
         reference_particle: ParticleType,
-        value_init: float,
+        value_init: np.float32 | np.float64,
         values_after_turn: NumpyArray,
         n_cavities: int,
         in_unit: SynchronousDataTypes = "momentum",
-        bending_radius: float | None = None,
+        bending_radius: np.float32 | np.float64 | None = None,
     ) -> MagneticCyclePerTurn:
         """Initialize object without simulation context.
 
@@ -643,10 +645,10 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
     def __init__(
         self,
         reference_particle: ParticleType,
-        value_init: float,
+        value_init: np.float32 | np.float64,
         values_after_cavity_per_turn: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
-        bending_radius: float | None = None,
+        bending_radius: np.float32 | np.float64 | None = None,
     ):
         magnetic_rigidity_init = _to_magnetic_rigidity(
             data=value_init,
@@ -712,7 +714,7 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
         self,
         turn_i: int,
         section_i: int,
-        reference_time: float,
+        reference_time: np.float32 | np.float64,
         particle_type: ParticleType,
     ):
         """Calculate the total energy [eV] that is foreseen by the magnetic cycle.
@@ -753,10 +755,10 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
     @staticmethod
     def headless(
         reference_particle: ParticleType,
-        value_init: float,
+        value_init: np.float32 | np.float64,
         values_after_cavity_per_turn: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
-        bending_radius: float | None = None,
+        bending_radius: np.float32 | np.float64 | None = None,
     ) -> MagneticCyclePerTurnAllCavities:
         """Initialize object without simulation context.
 
@@ -840,7 +842,7 @@ class MagneticCycleByTime(MagneticCycleBase):
         base_time: NumpyArray,
         base_values: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
-        bending_radius: float | None = None,
+        bending_radius: np.float32 | np.float64 | None = None,
         interpolator=np.interp,
     ):
         base_magnetic_rigidity = _to_magnetic_rigidity(
@@ -884,7 +886,7 @@ class MagneticCycleByTime(MagneticCycleBase):
         self,
         turn_i: int,
         section_i: int,
-        reference_time: float,
+        reference_time: np.float32 | np.float64,
         particle_type: ParticleType,
     ):
         """Calculate the total energy [eV] that is foreseen by the magnetic cycle.
@@ -927,7 +929,7 @@ class MagneticCycleByTime(MagneticCycleBase):
         base_time: NumpyArray,
         base_values: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
-        bending_radius: float | None = None,
+        bending_radius: np.float32 | np.float64 | None = None,
         interpolator=np.interp,  # todo type hint, also below
     ) -> MagneticCycleByTime:
         """Initialize object without simulation context.
@@ -987,12 +989,12 @@ class MagneticCycleByTime(MagneticCycleBase):
 
 
 def _to_magnetic_rigidity(
-    data: int | float | NumpyArray,
-    mass: float,
-    charge: float,
+    data: int | np.float32 | np.float64 | NumpyArray,
+    mass: np.float32 | np.float64,
+    charge: np.float32 | np.float64,
     convert_from: SynchronousDataTypes = "momentum",
-    bending_radius: float | None = None,
-) -> NumpyArray | float:
+    bending_radius: np.float32 | np.float64 | None = None,
+) -> NumpyArray | np.float32 | np.float64:
     """Unit conversion for different input data types.
 
     Parameters
@@ -1041,9 +1043,9 @@ def _to_magnetic_rigidity(
 
 
 def magnetic_rigidity_to_momentum(
-    magnetic_rigidity: float | NumpyArray,
-    charge: float,
-) -> float | NumpyArray:
+    magnetic_rigidity: np.float32 | np.float64 | NumpyArray,
+    charge: np.float32 | np.float64,
+) -> np.float32 | np.float64 | NumpyArray:
     r"""Convert magnetic rigidity to momentum.
 
     Parameters

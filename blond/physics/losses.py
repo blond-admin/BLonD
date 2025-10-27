@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
@@ -42,10 +44,10 @@ class BoxLosses(LossesBaseClass):
 
     def __init__(
         self,
-        t_min: backend.float | None = None,
-        t_max: backend.float | None = None,
-        e_min: backend.float | None = None,
-        e_max: backend.float | None = None,
+        t_min: np.float32 | np.float64 | None = None,
+        t_max: np.float32 | np.float64 | None = None,
+        e_min: np.float32 | np.float64 | None = None,
+        e_max: np.float32 | np.float64 | None = None,
     ) -> None:
         super().__init__()
 

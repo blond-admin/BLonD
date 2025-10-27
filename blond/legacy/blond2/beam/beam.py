@@ -81,7 +81,7 @@ class Particle:
     """
 
     def __init__(
-        self, user_mass: float, user_charge: float, user_decay_rate: float = 0
+        self, user_mass: np.float32 | np.float64, user_charge: np.float32 | np.float64, user_decay_rate: np.float32 | np.float64 = 0
     ):
         if user_mass > 0.0:
             self.mass = float(user_mass)
@@ -232,7 +232,7 @@ class Beam:
         self,
         ring: Ring,
         n_macroparticles: int,
-        intensity: float,
+        intensity: np.float32 | np.float64,
         dt: Optional[NumpyArray] = None,
         dE: Optional[NumpyArray] = None,
     ):
@@ -477,7 +477,7 @@ class Beam:
 
         self.id[lost_index] = 0
 
-    def losses_longitudinal_cut(self, dt_min: float, dt_max: float):
+    def losses_longitudinal_cut(self, dt_min: np.float32 | np.float64, dt_max: float):
         """Beam losses based on longitudinal cuts.
 
         Set to 0 all the particle's id with dt not in the interval
@@ -494,7 +494,7 @@ class Beam:
         lost_index = (self.dt < dt_min) | (self.dt > dt_max)
         self.id[lost_index] = 0
 
-    def losses_energy_cut(self, dE_min: float, dE_max: float):
+    def losses_energy_cut(self, dE_min: np.float32 | np.float64, dE_max: np.float32 | np.float64):
         """Beam losses based on energy cuts, e.g. on collimators.
 
         Set to 0 all the particle's id with dE not in the interval (dE_min, dE_max).
