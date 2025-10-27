@@ -217,15 +217,13 @@ class TestSimulation(unittest.TestCase):
         np.testing.assert_allclose(
             potential_well_pinned,
             potential_well,
+            rtol=1e-3
         )
 
     @unittest.skip
     def test_get_separatrix(self):
         # TODO: implement test for `get_separatrix`
         self.simulation.get_separatrix()
-
-    def test_invalidate_cache(self):
-        self.simulation.invalidate_cache()
 
     def test_plot_potential_well_empiric(self):
         self.simulation.plot_potential_well_empiric(

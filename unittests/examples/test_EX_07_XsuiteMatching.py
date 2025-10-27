@@ -8,7 +8,14 @@ from blond._core.backends.backend import (
     backend,
 )
 
+try:
+    import xpart
+    HAS_XSUITE = True
+except ImportError:
+    HAS_XSUITE = False
 
+
+@unittest.skipUnless(HAS_XSUITE, "XSUITE is not available")
 class TestEX_07_Xsuite_Matching(unittest.TestCase):
     def test_executable_numba32(self):
         backend.change_backend(Numpy32Bit)
