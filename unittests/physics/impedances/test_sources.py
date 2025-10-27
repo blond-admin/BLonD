@@ -363,12 +363,14 @@ class TestResonators(unittest.TestCase):
             time=time, simulation=simulation, beam=beam, n_fft=len(time)
         )
         wake_freq = self.resonators.get_wake_impedance_freq(time=time)
-        DEV_DEBBUG = False
-        if DEV_DEBBUG:
+        DEV_DEBUG = False
+        pinned_result = np.load(callers_relative_path("resources/get_wake_impedance_pinning.npz", stacklevel=1))
+        np.testing.assert_allclose(wake_imp, pinned_result["wake_imp"])
+        np.testing.assert_allclose(wake_freq, pinned_result["wake_freq"])
+        if DEV_DEBUG:
             plt.plot(wake_freq, np.abs(wake_imp))
             plt.xlim(0, 1.5e9)
             plt.show()
-        # TODO PIN VALUE!
 
 
 class TestTravelingWaveCavity(unittest.TestCase):
