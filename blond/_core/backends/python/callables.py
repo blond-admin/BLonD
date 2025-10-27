@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ..backend import Specials
+from ..backend import Specials, backend
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -45,7 +45,7 @@ class PythonSpecials(Specials):
     ) -> None:
         array_write[:], _ = np.histogram(
             array_read,
-            range=(float(start), float(stop)),
+            range=(backend.float(start), backend.float(stop)),
             bins=len(array_write),
         )
 
@@ -54,7 +54,7 @@ class PythonSpecials(Specials):
         top: np.float32 | np.float64,
         bottom: np.float32 | np.float64,
         left: np.float32 | np.float64,
-        right: float,
+        right: np.float32 | np.float64,
     ) -> None:  # TODO
         raise NotImplementedError
 
