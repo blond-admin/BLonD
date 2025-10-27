@@ -279,6 +279,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_fft: int,
+        counter_rotating: bool = False,
     ) -> NumpyArray | CupyArray:  # Fixme all get_wake_impedance same
         """Get the wake function, but converted to frequency domain.
 
@@ -295,6 +296,8 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
             Simulation `Beam` object
         n_fft
             Number of fft bins to use
+        counter_rotating
+            selector whether the corotating or counter-rotating impedance should be used
 
         Returns
         -------
@@ -302,11 +305,11 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
 
         """
         # Recalculate only if `time` has changed
-        hash = get_hash(time)
+        hash = get_hash(time + counter_rotating)
         if hash is self._cache_wake_impedance_hash:
             return self._cache_wake_impedance
 
-        wake = self.get_wake(time)
+        wake = self.get_wake(time, counter_rotating=counter_rotating)
         wake_impedance = np.fft.rfft(wake, n=n_fft)
 
         self._cache_wake_impedance_hash = hash
@@ -326,6 +329,8 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         ----------
         time : NumpyArray
             time array at which the wake is calculated [V]
+        counter_rotating
+            selector whether the corotating or counterrotating impedance should be used
         """
         wake = backend.zeros(len(time), dtype=backend.float, order="C")
         shunt_imp = (
@@ -382,8 +387,9 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         freq_x: NumpyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
+        counter_rotation: bool = False,
     ) -> NumpyArray:
-        """Return the impedance in the frequency domain.
+        """Return analytically calculated impedance in the frequency domain.
 
         Parameters
         ----------
@@ -393,6 +399,8 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
             Simulation object containing turn index and RF info.
         beam
             Simulation `Beam` object
+        counter_rotation
+            checkbox if the counter-rotating or corotating impedance should be used
 
         Returns
         -------
@@ -401,15 +409,20 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         """
         # Recalculate only if `freq_x` is changed
 
-        hash_ = get_hash(freq_x)
+        hash_ = get_hash(freq_x + counter_rotation)
         if hash_ is self._cache_impedance_hash:
             return self._cache_impedance
 
         impedance = np.zeros(len(freq_x), dtype=complex)
         n_centers = len(self._center_frequencies)
 
+        shunt_impedance = (
+            self._shunt_impedances_counter_rotating
+            if counter_rotation
+            else self._shunt_impedances
+        )
         for i in range(n_centers):
-            impedance[1:] += self._shunt_impedances[i] / (
+            impedance[1:] += shunt_impedance[i] / (
                 1
                 + (
                     (1j * self._quality_factors[i])
