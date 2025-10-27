@@ -634,7 +634,8 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
             self._update_potential_sources()
 
         _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
-            beam.intensity / beam.n_macroparticles_partial()
+            beam.intensity
+            * self._parent_wakefield.profile.hist_y_to_density_factor
         )
 
         return _charge_per_macroparticle * np.convolve(
@@ -910,10 +911,11 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         beam:
             instance on which the induced voltage is to be calculated, important for reference time
         """
-        self._update_potential_sources(beam.reference_time)
+        self._update_potential_sources(beam)
 
         _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
-            beam.intensity / beam.n_macroparticles_partial()
+            beam.intensity
+            * self._parent_wakefield.profile.hist_y_to_density_factor
         )
         self._past_charge_per_macroparticle.appendleft(
             _charge_per_macroparticle
