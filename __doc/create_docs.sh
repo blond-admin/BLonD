@@ -1,10 +1,8 @@
-PKG="../blond"                       # your top-level import name
-OUT="./modules"         # wherever you want the RST
-
 rm modules/*.rst
+rm -r _build/*
 
 shopt -s globstar nullglob
-sphinx-apidoc --implicit-namespaces -o modules "$PKG " "$PKG"/*/*/__init__.py -f -e -M -d 5 -P
+sphinx-apidoc --implicit-namespaces -o modules ../blond ../blond/*/*/__init__.py -f -e -M -d 5 -P
 
 rm modules/modules.rst
 
