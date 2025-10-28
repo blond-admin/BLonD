@@ -57,6 +57,17 @@ Afterwards the content of the file `modules/blond.rst` is replaced with
 5. If you want to have the inheritance diagrams, you should afterwards add this to each .rst file. 
    Run the following command from bash to make this automatically. 
    This will adjust all files in the `modules` folder. 
+   ```bash
+   for f in ./modules/blond.*.rst; do
+       modname="${f##*/}"       # strip path
+       modname="${modname%.rst}" # strip .rst
+       cat >> "$f" <<EOF
+
+   .. inheritance-diagram:: $modname
+      :parts: 4
+   EOF
+   done
+   ```
    If you run it twice it will do the adding twice. 
 
 6. The actual documentation can then be build with  
