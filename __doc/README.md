@@ -7,7 +7,7 @@ Requirements
 ------------
 - sphinx - `pip install sphinx`
 - sphinx-rtd-theme - `pip install sphinx-rtd-theme`
-- graphviz - visualisation of inheritance graphs `sudo apt install graphviz` or windows installation from https://graphviz.org/download/ --> verify if `dot` is executable from path
+- graphviz - visualisation of inheritance graphs `sudo apt install graphviz`, or `sudo dnf install graphviz` or windows installation from https://graphviz.org/download/ --> verify if `dot` is executable from path
 
 Structure
 ---------
