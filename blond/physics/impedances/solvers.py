@@ -856,6 +856,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 )
                 # exclusive OR, only if directionality of current profile and past profile differ,
                 # its actually counter-rotating
+                # first one is always corotating, as it's the one of the current turn
 
     def _update_potential_sources(self, beam: BeamBaseClass) -> None:
         """Updates `_wake_function_time`  and `_wake_function_vals` arrays.
