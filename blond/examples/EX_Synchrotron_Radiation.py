@@ -60,3 +60,7 @@ class SynchrotronRadiationSimulation:
             ),
             turn_i=1,
         )
+
+
+def main():
+    raise ValueError("Synchrotron Radiation example is not ready")
