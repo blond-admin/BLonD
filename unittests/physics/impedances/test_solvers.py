@@ -13,6 +13,7 @@ from scipy.constants import c, e
 from scipy.fft import next_fast_len
 
 from blond import Simulation, WakeField, mu_plus
+from blond._core.backends.backend import backend
 from blond._core.beam.base import BeamBaseClass
 from blond.physics.impedances.solvers import (
     InductiveImpedance,
@@ -688,6 +689,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             shunt_impedances=np.array([1, 2, 3]),
             center_frequencies=np.array([500e6, 750e6, 1.5e9]),
             quality_factors=np.array([10e3, 10e3, 10e3]),
+            shunt_impedances_counter_rotating=np.array([-1, -2, -3])
         )
         self.multi_pass_resonator_solver = MultiPassResonatorSolver()
         self.hist_step, self.hist_x = (
@@ -1312,6 +1314,105 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         local_res._update_potential_sources(beam=beam)
 
         assert len(ind_volt) == len(local_res._parent_wakefield.profile.hist_x)
+
+    def test_calc_induced_voltage_counter_rotation(self):
+        sim = Mock(Simulation)
+
+        local_res_corot = deepcopy(self.multi_pass_resonator_solver)
+        local_res_corot.on_wakefield_init_simulation(
+            simulation=sim,
+            parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield,
+        )
+        beam = deepcopy(self.beam)
+        beam.is_counter_rotating = False
+        ind_volt_corot = local_res_corot.calc_induced_voltage(beam=beam)
+
+        assert len(ind_volt_corot) == len(local_res_corot._parent_wakefield.profile.hist_x)
+
+        local_res_counterrot = deepcopy(self.multi_pass_resonator_solver)
+        local_res_counterrot.on_wakefield_init_simulation(
+            simulation=sim,
+            parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield,
+        )
+        beam = deepcopy(self.beam)
+        beam.is_counter_rotating = True
+        ind_volt_corot = local_res_counterrot.calc_induced_voltage(beam=beam)
+        np.testing.assert_allclose(ind_volt_corot, ind_volt_corot)  # first one needs to be the same as this is the self-field
+
+        local_res_counterrot._parent_wakefield.profile.hist_y = np.zeros_like(local_res_counterrot._parent_wakefield.profile.hist_y)
+        # avoid interference from current profile
+        local_res_counterrot_corot = deepcopy(local_res_counterrot)
+        local_res_counterrot_counterrot = deepcopy(local_res_counterrot)
+        beam.is_counter_rotating = False
+        beam.reference_time += np.finfo(float).eps
+        counterrot_corot_ind_volt = local_res_counterrot_corot.calc_induced_voltage(beam)
+        beam.is_counter_rotating = True
+        counterrot_counterrot_ind_volt = local_res_counterrot_counterrot.calc_induced_voltage(beam)
+
+        np.testing.assert_allclose(counterrot_corot_ind_volt, -counterrot_counterrot_ind_volt)
+        # should be inverted as all shunt impedances are inverted
+
+
+    def test_calc_induced_voltage_counter_rotation_opposite_charge(self):
+        sim = Mock(Simulation)
+
+        local_res_counterrot = deepcopy(self.multi_pass_resonator_solver)
+        local_res_counterrot.on_wakefield_init_simulation(
+            simulation=sim,
+            parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield,
+        )
+        beam = deepcopy(self.beam)
+        beam.particle_type.charge = -1
+        beam.is_counter_rotating = True
+        ind_volt_corot = local_res_counterrot.calc_induced_voltage(beam=beam)
+        np.testing.assert_allclose(ind_volt_corot, ind_volt_corot)  # first one needs to be the same as this is the self-field
+
+        local_res_counterrot._parent_wakefield.profile.hist_y = np.zeros_like(local_res_counterrot._parent_wakefield.profile.hist_y)
+        # avoid interference from current profile
+        local_res_counterrot_corot = deepcopy(local_res_counterrot)
+        local_res_counterrot_counterrot = deepcopy(local_res_counterrot)
+        beam.is_counter_rotating = False
+        beam.reference_time += np.finfo(float).eps
+        beam.read_partial_dt.return_value = np.linspace(local_res_counterrot._parent_wakefield.profile.hist_x[0], local_res_counterrot._parent_wakefield.profile.hist_x[-1], num=100)
+        beam.dE = np.zeros_like(beam.read_partial_dt())
+
+        beam_corot = deepcopy(beam)
+        counterrot_corot_ind_volt = local_res_counterrot_corot.calc_induced_voltage(beam_corot)
+        backend.set_specials("python")
+        backend.specials.kick_induced_voltage(
+            dt=beam_corot.read_partial_dt(),
+            dE=beam_corot.dE,
+            voltage=counterrot_corot_ind_volt,
+            bin_centers=self.hist_x,  # base for induced voltage
+            charge=backend.float(beam.particle_type.charge),
+            acceleration_kick=backend.float(
+                0.0
+            ),  # TODO was this ever required??
+        )
+
+        beam_corot_dt = beam_corot.read_partial_dt()
+        beam_corot_dE = beam_corot.dE
+
+        beam.is_counter_rotating = True
+        beam.particle_type.charge = 1
+        counterrot_counterrot_ind_volt = local_res_counterrot_counterrot.calc_induced_voltage(beam)
+
+        # opposite charge and opposite direction --> should be same kick but not same voltage
+        np.testing.assert_allclose(counterrot_corot_ind_volt, -counterrot_counterrot_ind_volt)
+
+        backend.specials.kick_induced_voltage(
+            dt=beam.read_partial_dt(),
+            dE=beam.dE,
+            voltage=counterrot_counterrot_ind_volt,
+            bin_centers=self.hist_x,  # base for induced voltage
+            charge=beam.particle_type.charge,
+            acceleration_kick=backend.float(
+                0.0
+            ),
+        )
+        np.testing.assert_allclose(beam.read_partial_dt(), beam_corot_dt)
+        np.testing.assert_allclose(beam.dE, beam_corot_dE)
+        # the resulting kick should be the same
 
     def test_calc_induced_voltage_vals(self):
         resonators = Resonators(
