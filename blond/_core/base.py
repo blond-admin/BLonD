@@ -190,52 +190,86 @@ class Schedulable:
             )
 
 
-class BeamPhysicsRelevant(MainLoopRelevant):
-    """Main loop element with relevance for beam physics.
+class SimulationElementBase(MainLoopRelevant, ABC):
+    """Base class for all elements participating in the main simulation loop.
 
-    Parameters
-    ----------
-    section_index
-        Section index to group elements into sections
-    name
-        User given name of the element
-
-    Attributes
-    ----------
-    name
-        User given name of the element
+    This includes both elements that modify the beam state (physics relevant)
+    and elements that merely observe or record beam information.
     """
 
-    n_instances = 0
-
     def __init__(
-        self,
-        section_index: int = 0,
-        name: str | None = None,
+        self, section_index: int = 0, name: str | None = None
     ) -> None:
         super().__init__()
         self._section_index = section_index
         if name is None:
             name = (
                 f"Unnamed-{type(self).__name__}-{type(self).n_instances:03d}"
+                if hasattr(type(self), "n_instances")
+                else f"Unnamed-{type(self).__name__}"
             )
         self.name = name
-        type(self).n_instances += 1
 
-    @property  # as readonly attributes
+    @property
     def section_index(self) -> int:
         """Section index to group elements into sections."""
         return self._section_index
 
-    @abstractmethod  # pragma: no cover
-    def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop.
+    @abstractmethod
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        """Hook called when simulation initializes."""
+        pass
 
-        Parameters
-        ----------
-        beam
-            Beam class to interact with this element
-        """
+    @abstractmethod
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs,
+    ) -> None:
+        """Hook called when simulation.run_simulation starts."""
+        pass
+
+
+class BeamPhysicsRelevant(SimulationElementBase):
+    """Element that modifies the beam state during tracking."""
+
+    n_instances = 0
+
+    def __init__(
+        self, section_index: int = 0, name: str | None = None
+    ) -> None:
+        super().__init__(section_index, name)
+        type(self).n_instances += 1
+
+    @abstractmethod
+    def track(self, beam: BeamBaseClass) -> None:
+        """Main simulation routine to modify the beam state."""
+        pass
+
+
+class BeamObservationElement(SimulationElementBase):
+    """Observe something but dont change the beam.
+
+    Examples
+    --------
+    to observe the beam phase at a certain point in the ring
+
+    """
+
+    n_instances = 0
+
+    def __init__(
+        self, section_index: int = 0, name: str | None = None
+    ) -> None:
+        super().__init__(section_index, name)
+        type(self).n_instances += 1
+
+    @abstractmethod
+    def observe(self, beam: BeamBaseClass) -> None:
+        """Inspect the beam state without modifying it."""
         pass
 
 
