@@ -19,6 +19,7 @@ from __future__ import division
 import itertools as itl
 import warnings
 from typing import TYPE_CHECKING, Iterable, Self, Optional
+from numpy.typing import NDArray as NumpyArray
 import numpy as np
 from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
 if TYPE_CHECKING:

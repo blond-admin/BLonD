@@ -20,6 +20,7 @@ from builtins import range
 
 import numpy as np
 
+from .beam import Beam
 from ..beam.profile import CutOptions, Profile
 from ..utils import bmath as bm
 
@@ -62,6 +63,7 @@ class SparseSlices:
         # (for C++ track).
         self.n_macroparticles_array = np.zeros((self.n_filled_buckets,
                                                 n_slices_bucket))
+
         # Group bin_centers from all objects in a single array (for impedance)
         self.bin_centers_array = np.zeros((self.n_filled_buckets, n_slices_bucket))
         self.edges_array = np.zeros((self.n_filled_buckets, n_slices_bucket + 1))
@@ -71,12 +73,17 @@ class SparseSlices:
             self.profiles_list.append(Profile(Beam, CutOptions(cut_left=self.cut_left_array[i],
                                                                cut_right=self.cut_right_array[i],
                                                                n_slices=n_slices_bucket)))
-
-            self.profiles_list[i].n_macroparticles = self.n_macroparticles_array[i, :]
+            self.n_macroparticles_array[i,:] = self.profiles_list[
+            i].n_macroparticles
             self.bin_centers_array[i, :] = self.profiles_list[i].bin_centers
             self.edges_array[i, :] = self.profiles_list[i].edges
             self.profiles_list[i].bin_centers = self.bin_centers_array[i, :]
 
+        #Total parameters
+        self.n_macroparticles = np.concatenate(self.n_macroparticles_array, axis = 0)
+        self.n_slices = int(n_slices_bucket * filling_pattern.sum())
+        self.bin_centers = np.concatenate(self.bin_centers_array, axis = 0)
+        self.bin_size = self.profiles_list[0].bin_size
         # Select the tracker
         if tracker == 'C':
             self.track = self._histogram_c
@@ -124,3 +131,32 @@ class SparseSlices:
 
         for i in range(self.n_filled_buckets):
             self.profiles_list[i].track()
+
+    def update_from_injection(self, beam: Beam,
+                              updated_filling_pattern: list[int],
+                              ):
+
+        self.filling_pattern = updated_filling_pattern
+        # Bunch index for each filled bucket (-1 if empty). Only for C++ track
+        self.bunch_indexes = np.cumsum(updated_filling_pattern) * updated_filling_pattern - 1
+
+        #: *Number of buckets to be sliced*
+
+        self.n_filled_buckets = int(np.sum(updated_filling_pattern))
+
+        self.profiles_list = []
+        for i in range(self.n_filled_buckets):
+            # Only valid for cut_edges='edges'
+            self.profiles_list.append(Profile(beam, CutOptions(cut_left=self.cut_left_array[i],
+                                                               cut_right=self.cut_right_array[i],
+                                                               n_slices=self.n_slices_bucket)))
+            self.profiles_list[i].n_macroparticles = (
+                self.n_macroparticles_array)[i, :]# array with zeros
+            self.bin_centers_array[i, :] = self.profiles_list[i].bin_centers
+            self.edges_array[i, :] = self.profiles_list[i].edges
+            self.profiles_list[i].bin_centers = self.bin_centers_array[i, :]
+
+        self.n_macroparticles = self.Beam.n_macroparticles
+        self.n_slices = int(self.n_slices_bucket * updated_filling_pattern.sum())
+        self.bin_centers = np.concatenate(self.bin_centers_array, axis=0)
+        self.bin_size = self.profiles_list[0].bin_size
