@@ -1,7 +1,7 @@
 Documentation
 =============
 
-All steps are automaticlly performed from within the `create_docs.sh` in this folder
+All steps are automatically performed from within the `create_docs.sh` in this folder
 
 Requirements
 ------------
@@ -36,7 +36,7 @@ Afterwards the content of the file `modules/blond.rst` is replaced with
     =================
     
     .. toctree::
-        :maxdepth: 5
+        :maxdepth: 10
     
        blond._core
        blond._generals
@@ -72,5 +72,5 @@ Afterwards the content of the file `modules/blond.rst` is replaced with
 
 6. The actual documentation can then be build with  
     ```bash
-    sphinx-build -b html -c . -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=5 . .\_build\html
+    sphinx-build -b html -c . -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=10 . .\_build\html
     ```
