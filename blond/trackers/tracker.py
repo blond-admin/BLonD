@@ -490,7 +490,7 @@ class RingAndRFTracker:
                     # print(self.acceleration_kick[turn])
                     self.kick(self.beam.dt, self.beam.dE, turn)
 
-            self.drift(self.beam.dt, self.beam.dE, turn)
+            self.drift(self.beam.dt, self.beam.dE, turn + 1)
 
         # Updating the beam synchronous momentum etc.
         self.beam.beta = self.rf_params.beta[turn + 1]
