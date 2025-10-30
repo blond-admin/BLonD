@@ -175,10 +175,10 @@ class NumbaSpecials(Specials):  # pragma: no cover
     def beam_phase(
         hist_x: NumpyArray,
         hist_y: NumpyArray,
-        alpha: np.float32 | np.float64,
-        omega_rf: np.float32 | np.float64,
-        phi_rf: np.float32 | np.float64,
-        bin_size: np.float32 | np.float64,
+        alpha: float,
+        omega_rf: float,
+        phi_rf: float,
+        bin_size: float,
     ) -> float:
         n = len(hist_x)
 
@@ -241,12 +241,7 @@ class NumbaSpecials(Specials):  # pragma: no cover
         array_write[:] = np.sum(array_tmp, axis=0)
 
     @staticmethod
-    def loss_box(
-        top: np.float32 | np.float64,
-        bottom: np.float32 | np.float64,
-        left: np.float32 | np.float64,
-        right: float,
-    ) -> None:
+    def loss_box(top: float, bottom: float, left: float, right: float) -> None:
         pass
 
     @staticmethod
@@ -259,9 +254,9 @@ class NumbaSpecials(Specials):  # pragma: no cover
     def kick_single_harmonic(
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
-        voltage: np.float32 | np.float64,
-        omega_rf: np.float32 | np.float64,
-        phi_rf: np.float32 | np.float64,
+        voltage: float,
+        omega_rf: float,
+        phi_rf: float,
         charge: np.float32 | np.float64,
         acceleration_kick: np.float32 | np.float64,
     ) -> None:
