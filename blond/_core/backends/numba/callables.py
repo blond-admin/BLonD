@@ -322,9 +322,9 @@ class NumbaSpecials(Specials):  # pragma: no cover
         voltage: NumpyArray,
         omega_rf: NumpyArray,
         phi_rf: NumpyArray,
-        charge: np.float32 | np.float64,
+        charge: float,
         n_rf: int,
-        acceleration_kick: np.float32 | np.float64,
+        acceleration_kick: float,
     ) -> None:
         for i in prange(len(dt)):
             dti = dt[i]

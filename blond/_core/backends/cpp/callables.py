@@ -263,7 +263,7 @@ class CppSpecials(Specials):
     def kick_single_harmonic(
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
-        voltage: np.float32 | np.float64,
+        voltage: float,
         omega_rf: float,
         phi_rf: float,
         charge: np.float32 | np.float64,
