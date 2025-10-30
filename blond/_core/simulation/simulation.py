@@ -9,13 +9,15 @@ from warnings import warn
 from scipy.integrate import cumulative_trapezoid
 from tqdm import tqdm  # type: ignore
 
+from blond._core.base import SimulationElementBase
+
 from ..._generals._warnings import NotTestedWarning, PerformanceWarning
 from ...cycles.magnetic_cycle import MagneticCycleBase
 from ...physics.drifts import DriftBaseClass
 from ...physics.profiles import ProfileBaseClass
 from ..backends.backend import backend
 from ..base import (
-    BeamPhysicsRelevant,
+    BeamObservationElement,
     DynamicParameter,
     Preparable,
 )
@@ -52,6 +54,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from ..beam.base import BeamBaseClass
     from ..beam.particle_types import ParticleType
     from ..ring.ring import Ring
+
 from ...physics.cavities import CavityBaseClass
 
 logger = logging.getLogger(__name__)
@@ -332,7 +335,10 @@ class Simulation(Preparable):
         )
         magnetic_cycle = _magnetic_cycle[0]
 
-        elements = get_elements(locals_list, BeamPhysicsRelevant)  # type: ignore
+        elements = get_elements(
+            locals_list, (SimulationElementBase, BeamObservationElement)
+        )
+        print("here", elements)  # type: ignore
         ring.add_elements(elements=elements, reorder=True)
 
         logger.debug(f"{ring=}")

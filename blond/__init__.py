@@ -20,6 +20,9 @@ from .cycles.magnetic_cycle import MagneticCyclePerTurnAllCavities  # NOQA
 from .handle_results.observables import BunchObservation  # NOQA
 from .handle_results.observables import CavityPhaseObservation  # NOQA
 from .handle_results.observables import StaticProfileObservation  # NOQA
+from .handle_results.observables_as_elements import (
+    BeamEnergyTimeLogger,  # NOQA
+)
 from .physics.cavities import MultiHarmonicCavity, SingleHarmonicCavity  # NOQA
 from .physics.drifts import DriftSimple  # NOQA
 from .physics.impedances.base import WakeField  # NOQA

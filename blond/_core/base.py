@@ -272,6 +272,11 @@ class BeamObservationElement(SimulationElementBase):
         """Inspect the beam state without modifying it."""
         pass
 
+    @abstractmethod
+    def track(self, beam: BeamBaseClass) -> None:
+        """Inspect the beam state without modifying it."""
+        pass
+
 
 class UserDefinedElement(BeamPhysicsRelevant, ABC):
     def on_init_simulation(self, simulation: Simulation) -> None:
