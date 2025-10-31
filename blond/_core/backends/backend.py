@@ -138,6 +138,31 @@ class Specials(ABC):
         dE: NumpyArray | CupyArray,
         ids: NumpyArray | CupyArray,
     ):
+        """Purges entries from arrays where ``flags == flag``.
+
+        Notes
+        -----
+        The flagged macroparticles are removed from the array in place.
+        The order and size of the array changes, finding a single particle
+        by its position is potentially not possible anymore.
+        Use `ids` instead to identify a single particle.
+
+        Parameters
+        ----------
+        flag
+            The flag to be used as a selector what to remove.
+        flags
+            Macro-particle flags
+        dt
+            Macro-particle time coordinates [s]
+        dE
+            Macro-particle energy coordinates [eV]
+        ids
+            Macro-particle ids.
+            This allows to identify single particles,
+            even if the array indexing is changed.
+
+        """
         pass
 
 
