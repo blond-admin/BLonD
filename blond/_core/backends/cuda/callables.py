@@ -55,6 +55,7 @@ _sm_histogram = gpu_module.get_function("sm_histogram")
 _hybrid_histogram = gpu_module.get_function("hybrid_histogram")
 _gm_linear_interp_kick_help = gpu_module.get_function("lik_only_gm_copy")
 _gm_linear_interp_kick_comp = gpu_module.get_function("lik_only_gm_comp")
+_loss_box = gpu_module.get_function("loss_box")
 
 default_blocks = 2 * cp.cuda.Device(0).attributes["MultiProcessorCount"]
 default_threads = cp.cuda.Device(0).attributes["MaxThreadsPerBlock"]
@@ -86,7 +87,7 @@ class CudaSpecials(Specials):
         assert isinstance(left, backend.float)
         assert isinstance(right, backend.float)
 
-        _kick_single_harmonic(
+        _loss_box(
             args=(
                 top,
                 bottom,
