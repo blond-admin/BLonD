@@ -1,6 +1,4 @@
-"""This file should not have any dependency to Cupy
-to allow cupy agnostic code.
-"""
+"""Module without dependency to Cupy."""
 
 from __future__ import annotations
 
@@ -74,7 +72,7 @@ class _AsarrayOverrideManager:
             a,
             dtype=dtype,
             order=order,
-            *args,
+            *args,  # NOQA: B026
             **kwargs,
         )
 

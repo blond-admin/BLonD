@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ..._core.backends.backend import backend
-from .base import NoiseGenerator
+from blond._core.backends.backend import backend
+from blond.cycles.noise_generators.base import NoiseGenerator
 
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray

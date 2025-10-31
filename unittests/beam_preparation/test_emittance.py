@@ -1,6 +1,6 @@
 import unittest
 
-from blond.beam_preparation.emittance import EmittanceMatcher
+from blond.experimental.beam_preparation.emittance import EmittanceMatcher
 
 
 class TestEmittanceMatcher(unittest.TestCase):

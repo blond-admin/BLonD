@@ -91,11 +91,19 @@ class Beam(BeamBaseClass):
         self._dt: NumpyArray | CupyArray = backend.array(
             dt, dtype=backend.float
         )
-        self._flags: NumpyArray | CupyArray = flags.astype(backend.int)
+
+        # intentionally 32 bit, this should be enough for all thinkable flags
+        self._flags: NumpyArray | CupyArray = flags.astype(np.int32)
+
+        self._ids: NumpyArray | CupyArray = backend.arange(
+            len(dt), dtype=backend.int
+        )
+
         if reference_time:
             self.reference_time = backend.float(reference_time)
         if reference_total_energy:
             self.reference_total_energy = reference_total_energy
+
         self.invalidate_cache()
 
     def on_run_simulation(
@@ -111,7 +119,7 @@ class Beam(BeamBaseClass):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init

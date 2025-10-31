@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import importlib
 import os
-import sys
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
@@ -191,6 +189,7 @@ class BackendBaseClass(ABC):
         self.random: ModuleType = None  # type: ignore
         self.isnan: Callable = None  # type: ignore
         self.sum: Callable = None  # type: ignore
+        self.arange: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -238,7 +237,7 @@ class BackendBaseClass(ABC):
         """Whether the backend is using the GPU."""
         return self._is_gpu
 
-    def apply_environment_variables(self) -> None:
+    def apply_environment_variables(self) -> None:  # NOQA PLR0912
         """Load the environment variables and set up the backend accordingly.
 
         Notes
@@ -359,6 +358,7 @@ class NumpyBackend(BackendBaseClass):
         self.random = np.random
         self.isnan = np.isnan
         self.sum = np.sum
+        self.arange = np.arange
 
         self._finalize()
 
@@ -470,6 +470,7 @@ class CupyBackend(BackendBaseClass):
         self.random = cp.random
         self.isnan = cp.isnan
         self.sum = cp.sum
+        self.arange = cp.arange
 
         from .cuda.callables import CudaSpecials
 

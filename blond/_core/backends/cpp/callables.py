@@ -31,7 +31,6 @@ class PrecisionClass:
         Args:
             _precision (str, optional): _description_. Defaults to 'double'.
         """
-
         PrecisionClass.__instance = self
         self.set(_precision)
 
@@ -140,8 +139,14 @@ def reload_cpp_backend(
         raise TypeError(floattype)
 
     def load_libblond(precision: str = "single") -> CDLL:
-        """Locates and initializes the blond compiled library
-        @param precision: The floating point precision of the calculations. Can be 'single' or 'double'.
+        """Locates and initializes the blond compiled library.
+
+        Parameters
+        ----------
+        precision
+            The floating point precision of the calculations.
+            Can be 'single' or 'double'.
+            Default is  "single".
         """
         libblond_path_ = os.environ.get("LIBBLOND", None)
 

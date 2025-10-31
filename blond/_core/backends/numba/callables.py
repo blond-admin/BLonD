@@ -18,22 +18,19 @@ if TYPE_CHECKING:  # pragma: no cover
 logger = logging.getLogger(__name__)
 
 
-def recompile_numba_backend(
+def recompile_numba_backend(  # NOQA PLR0915
     floattype: np.float32 | np.float64,
 ) -> NumbaSpecials:
     """Helper to recompile `NumbaSpecials` when the backend changed."""
-
     logger.info(f"Compiling numba for {floattype}")
 
     if floattype == np.float32:
         nb_f = numba.float32
         nb_i = numba.int32
-        nb_c = numba.complex64
 
     elif floattype == np.float64:
         nb_f = numba.float64
         nb_i = numba.int64
-        nb_c = numba.complex128
 
     else:
         raise TypeError(floattype)
@@ -225,13 +222,13 @@ def recompile_numba_backend(
                 if array_read[i] == stop:
                     array_tmp[curr_thread, -1] += 1
                     continue
-                idx = int((array_read[i] - start) * inv_bin_step)
+                idx = (array_read[i] - start) * inv_bin_step
                 if idx < 0:
                     continue
                 elif idx >= n_bins:
                     continue
                 else:
-                    array_tmp[curr_thread, idx] += 1
+                    array_tmp[curr_thread, int(idx)] += 1
             array_write[:] = np.sum(array_tmp, axis=0)
 
         @staticmethod
