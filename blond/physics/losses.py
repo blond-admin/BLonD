@@ -112,6 +112,13 @@ class BoxLosses(LossesBaseClass):
             # for easier implementation of kernels.
             e_max = np.finfo(backend.float).max
 
+        assert t_min < t_max, (
+            f"`t_min` must be smaller than `t_max`, but got {t_min=} and {t_max=}."
+        )
+        assert e_min < e_max, (
+            f"`e_min` must be smaller than `e_max`, but got {e_min=} and {e_max=}."
+        )
+
         self.t_min = backend.float(t_min)
         self.t_max = backend.float(t_max)
         self.e_min = backend.float(e_min)
@@ -155,10 +162,12 @@ class BoxLosses(LossesBaseClass):
             Beam class to interact with this element
         """
         backend.specials.loss_box(
-            beam.write_partial_flags(),
-            self.t_min,
-            self.t_max,
-            self.e_min,
-            self.e_max,
+            top=self.e_max,
+            bottom=self.e_min,
+            left=self.t_min,
+            right=self.t_max,
+            dt=beam.read_partial_dt(),
+            dE=beam.read_partial_dE(),
+            flags=beam.write_partial_flags(),
         )
         super().track(beam=beam)

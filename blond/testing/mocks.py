@@ -2,6 +2,6 @@ from unittest.mock import Mock
 
 from blond import Beam, Simulation
 
-simulation = Mock(Simulation)
+simulation_mock = Mock(Simulation)
 
-beam = Mock(Beam)
+beam_mock = Mock(Beam)
