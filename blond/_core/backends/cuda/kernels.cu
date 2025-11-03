@@ -1,7 +1,9 @@
 #ifdef USEFLOAT
     typedef float real_t;
+    typedef int32_t int_t;
 #else
     typedef double real_t;
+    typedef int64_t int_t;
 #endif
 
 extern "C"
@@ -295,61 +297,4 @@ __global__ void lik_only_gm_comp(
         if ((fbin < n_slices - 1) && (fbin >= 0))
             beam_dE[i] += beam_dt[i] * glob_vkick_factor[2*fbin] + glob_vkick_factor[2*fbin+1];
     }
-}
-
-__device__ int purge4_j; \\ set externally in python, to n_macroparticles - 1
-
-extern "C"
-__global__ void purge4(
-    const int flag,
-    int * __restrict__ flags,
-    real_t *__restrict__ dt,
-    real_t *__restrict__ dE,
-    int_t *__restrict__ ids,
-    const int n_macroparticles
-)
-{
-
-    int tid = threadIdx.x + blockDim.x * blockIdx.x;
-
-    int j; \\ target index to write to.
-
-    \\ tmp memory to flip array entries at two indices.
-    int flags_tmp;
-    real_t dt_tmp;
-    real_t dE_tmp;
-    int_t ids_tmp;
-
-    \\ make sure all indices are processed.
-    for (int i = tid; i < n_macroparticles; i += blockDim.x * gridDim.x) {
-        while (flags[i] == flag) {
-
-          \\ update global write target index.
-          \\ j is the previous value, for the first write
-          \\ it should be  (n_macroparticles - 1).
-          j = atomicAdd(&purge4_j, -1);
-
-          \\ flip dt
-          dt_tmp = dt[i];
-          dt[i] = dt[j];
-          dt[j] = dt_tmp;
-
-          \\ flip dE
-          dE_tmp = dE[i];
-          dE[i] = dE[j];
-          dE[j] = dE_tmp;
-
-          \\ flip flags
-          flags_tmp = flags[i];
-          flags[i] = flags[j];
-          flags[j] = flags_tmp;
-
-          \\ flip ids
-          ids_tmp = ids[i];
-          ids[i] = ids[j];
-          ids[j] = ids_tmp;
-        }
-    }
-    }
-  \\ return j; TODO
 }

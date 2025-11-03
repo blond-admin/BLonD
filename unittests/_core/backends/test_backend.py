@@ -157,6 +157,7 @@ class TestSpecials(unittest.TestCase):
         ]
         if cupy_available:
             self.special_modes.append("cuda")
+        print(f"Testing {self.special_modes}")
         set_num_threads(8)
 
     def _setUp(self, dtype, special_mode) -> None:
@@ -422,27 +423,51 @@ class TestSpecials(unittest.TestCase):
                 except (FileNotFoundError, OSError):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
-
                 flag = backend.int(0)
                 flags = backend.ones(10, dtype=np.int32)
                 flags[[0, 1, -1]] = 0
                 dt = backend.array(backend.linspace(0, 10, 10), backend.float)
                 dE = backend.array(backend.linspace(0, 10, 10), backend.float)
                 ids = backend.array(backend.arange(0, 10), backend.int)
-                backend.specials.purge4(
+                n_new = backend.specials.purge4(
                     flag=flag,
                     flags=flags,
                     dt=dt,
                     dE=dE,
                     ids=ids,
                 )
+                flags = flags[:n_new]
+                dt = dt[:n_new]
+                dE = dE[:n_new]
+                ids = ids[:n_new]
+
                 result = dt  # could be any of the 4 arrays
-                self.assertEqual(7, len(flags))
-                self.assertEqual(7, len(dt))
-                self.assertEqual(7, len(dE))
-                self.assertEqual(7, len(ids))
+                self.assertEqual(
+                    7,
+                    len(flags),
+                    msg=f"Failed test `{special}` with {dtype}",
+                )
+                self.assertEqual(
+                    7,
+                    len(dt),
+                    msg=f"Failed test `{special}` with {dtype}",
+                )
+                self.assertEqual(
+                    7,
+                    len(dE),
+                    msg=f"Failed test `{special}` with {dtype}",
+                )
+                self.assertEqual(
+                    7,
+                    len(ids),
+                    msg=f"Failed test `{special}` with {dtype}",
+                )
                 if special == "cuda":
                     result = result.get()
+
+                result = np.sort(result)  # because of race conditions in
+                # parallel execution, the order can not be guaranteed
+
                 if i == 0:
                     result_python = result
                 else:
@@ -453,6 +478,94 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
 
+    def test_purge4_none_flagged(self):
+        for dtype in (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                flag = backend.int(0)
+                flags = backend.ones(10, dtype=np.int32)
+
+                dt = backend.array(backend.linspace(0, 10, 10), backend.float)
+                dE = backend.array(backend.linspace(0, 10, 10), backend.float)
+                ids = backend.array(backend.arange(0, 10), backend.int)
+                n_new = backend.specials.purge4(
+                    flag=flag,
+                    flags=flags,
+                    dt=dt,
+                    dE=dE,
+                    ids=ids,
+                )
+
+                self.assertEqual(
+                    10,
+                    n_new,
+                    msg=f"Failed test `{special}` with {dtype}",
+                )
+
+    def test_purge4_all_but_one_flagged(self):
+        for dtype in (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError) as exc:
+                    if True:
+                        raise exc
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                flag = backend.int(0)
+                flags = backend.zeros(10, dtype=np.int32)
+                flags[1] = 1
+
+                dt = backend.array(backend.linspace(0, 10, 10), backend.float)
+                dE = backend.array(backend.linspace(0, 10, 10), backend.float)
+                ids = backend.array(backend.arange(0, 10), backend.int)
+                n_new = backend.specials.purge4(
+                    flag=flag,
+                    flags=flags,
+                    dt=dt,
+                    dE=dE,
+                    ids=ids,
+                )
+
+                self.assertEqual(
+                    1,
+                    n_new,
+                    msg=f"Failed test `{special}` with {dtype}",
+                )
+
+    def test_purge4_all_flagged(self):
+        for dtype in (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                flag = backend.int(0)
+                flags = backend.zeros(10, dtype=np.int32)
+
+                dt = backend.array(backend.linspace(0, 10, 10), backend.float)
+                dE = backend.array(backend.linspace(0, 10, 10), backend.float)
+                ids = backend.array(backend.arange(0, 10), backend.int)
+                n_new = backend.specials.purge4(
+                    flag=flag,
+                    flags=flags,
+                    dt=dt,
+                    dE=dE,
+                    ids=ids,
+                )
+
+                self.assertEqual(
+                    0,
+                    n_new,
+                    msg=f"Failed test `{special}` with {dtype}",
+                )
+
+    @unittest.skip
     def test_loss_box(self) -> None:
         # TODO: implement test for `loss_box`
         for dtype in (np.float32, np.float64):

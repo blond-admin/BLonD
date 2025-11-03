@@ -412,10 +412,14 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """
         from ..._core.backends.backend import backend  # prevent cyclic import
 
-        backend.specials.purge4(
-            flag=backend.int(flag),
+        n_new = backend.specials.purge4(
+            flag=flag,
             flags=self._flags,
             dt=self._dt,
             dE=self._dE,
             ids=self._ids,
         )
+        self._flags = self._flags[:n_new]
+        self._dt = self._dt[:n_new]
+        self._dE = self._dE[:n_new]
+        self._ids = self._ids[:n_new]

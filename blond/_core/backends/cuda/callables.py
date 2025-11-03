@@ -11,7 +11,7 @@ from ...._generals._hashing import hash_in_folder
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from numpy.typing import NDArray as CupyArray
+    from numpy.typing import NDArray as NumpyArray
 
 _filepath = os.path.realpath(__file__)
 _compute_capability = cp.cuda.Device(0).compute_capability
@@ -31,7 +31,10 @@ if backend.float == np.float32:
         _basepath,
         f"kernels_sm_{_compute_capability}_single.cubin",
     )
-    assert os.path.isfile(path), f"{path=}"
+    if not os.path.isfile(path):
+        raise FileNotFoundError(
+            f"The compiled CUDA backend was notfound at {path=}"
+        )
     gpu_module = cp.RawModule(
         path=path,
     )
@@ -40,7 +43,10 @@ elif backend.float == np.float64:
         _basepath,
         f"kernels_sm_{_compute_capability}_double.cubin",
     )
-    assert os.path.isfile(path), f"{path=}"
+    if not os.path.isfile(path):
+        raise FileNotFoundError(
+            f"The compiled CUDA backend was notfound at {path=}"
+        )
     gpu_module = cp.RawModule(
         path=path,
     )
@@ -323,3 +329,30 @@ class CudaSpecials(Specials):
             shared_mem=2 * block_size[0] * np.dtype(backend.float).itemsize,
         )
         return backend.float(result[0].get() / result[1].get())
+
+    @staticmethod
+    def purge4(
+        flag: int,
+        flags: CupyArray,
+        dt: CupyArray,
+        dE: CupyArray,
+        ids: CupyArray,
+    ):
+        assert len(flags) == len(dt)
+        assert len(flags) == len(dE)
+        assert len(flags) == len(ids)
+        assert flags.dtype == np.int32
+        assert dt.dtype == backend.float
+        assert dE.dtype == backend.float
+        assert ids.dtype == backend.int
+
+        select = flags == flag
+        order = cp.argsort(select)
+
+        flags[:] = flags[order]
+        dt[:] = dt[order]
+        dE[:] = dE[order]
+        ids[:] = ids[order]
+
+        n_new = len(ids) - cp.sum(select)
+        return n_new

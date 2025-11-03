@@ -372,10 +372,4 @@ class CppSpecials(Specials):
             ct.c_int(len(dt)),  # n_macroparticles
         )
         n_new = int(n_new)
-        # this changes the arrays in all references.
-        # This means that every position, that holds this array,
-        # is changed.
-        flags.resize(n_new, refcheck=False)
-        dt.resize(n_new, refcheck=False)
-        dE.resize(n_new, refcheck=False)
-        ids.resize(n_new, refcheck=False)
+        return n_new

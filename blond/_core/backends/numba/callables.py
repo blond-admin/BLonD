@@ -447,10 +447,4 @@ class NumbaSpecials(Specials):  # pragma: no cover
             dE=dE,
             ids=ids,
         )
-        # this changes the arrays in all references.
-        # This means that every position, that holds this array,
-        # is changed.
-        flags.resize(n_new, refcheck=False)
-        dt.resize(n_new, refcheck=False)
-        dE.resize(n_new, refcheck=False)
-        ids.resize(n_new, refcheck=False)
+        return n_new
