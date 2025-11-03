@@ -2,7 +2,7 @@ rm -f modules/*.rst
 rm -rf _build/*
 
 shopt -s globstar nullglob
-python -m sphinx-apidoc --implicit-namespaces -o modules ../blond ../blond/*/*/__init__.py -f -e -M -d 5 -P
+sphinx-apidoc --implicit-namespaces -o modules ../blond ../blond/*/*/__init__.py -f -e -M -d 5 -P
 
 rm -f modules/modules.rst
 
