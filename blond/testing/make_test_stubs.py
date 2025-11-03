@@ -126,11 +126,9 @@ def _write_boilerplate_tests(untested_functions) -> None:
 
     """
     for src_path, functions in untested_functions.items():
-        functions_ = list(
-            sorted(
-                functions,
-                key=lambda x: ("", x[0]) if x[1] is None else (x[1], x[0]),
-            )
+        functions_ = sorted(
+            functions,
+            key=lambda x: ("", x[0]) if x[1] is None else (x[1], x[0]),
         )
         rel_path = os.path.relpath(src_path, PROJECT_ROOT)
         test_path_dir = os.path.join(TEST_ROOT, os.path.dirname(rel_path))

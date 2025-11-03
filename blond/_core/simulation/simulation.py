@@ -387,7 +387,7 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass, ...],
         n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: tuple[Observables, ...] = tuple(),
+        observe: tuple[Observables, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, Beam], None] | None = None,
     ) -> None:
@@ -474,11 +474,9 @@ class Simulation(Preparable):
             _n_turns = max_turns
         if backend.specials_mode == "python":
             particles_above_threshold = any(
-                [
-                    b.common_array_size
-                    > self._particle_performance_waning_threshold
-                    for b in beams
-                ]
+                b.common_array_size
+                > self._particle_performance_waning_threshold
+                for b in beams
             )
             if particles_above_threshold:
                 warn(
@@ -511,7 +509,7 @@ class Simulation(Preparable):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int = 0,
-        observe: tuple[Observables, ...] = tuple(),
+        observe: tuple[Observables, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, Beam], None] | None = None,
     ) -> None:
@@ -681,7 +679,7 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass, BeamBaseClass],
         n_turns: int,
         turn_i_init: int = 0,
-        observe: tuple[Observables, ...] = tuple(),
+        observe: tuple[Observables, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, Beam], None] | None = None,
     ) -> None:
@@ -746,7 +744,7 @@ class Simulation(Preparable):
 
     def save_results(
         self,
-        observe: tuple[Observables, ...] = tuple(),
+        observe: tuple[Observables, ...] = (),
         common_name: str | None = None,
     ) -> None:
         """Save the given observables to the disk.
@@ -770,7 +768,7 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass],
         n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: tuple[Observables, ...] = tuple(),
+        observe: tuple[Observables, ...] = (),
         common_name: str | None = None,
     ) -> None:
         """Load the given observables from the disk.
