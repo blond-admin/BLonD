@@ -223,9 +223,7 @@ def recompile_numba_backend(  # NOQA PLR0915
                     array_tmp[curr_thread, -1] += 1
                     continue
                 idx = (array_read[i] - start) * inv_bin_step
-                if idx < 0:
-                    continue
-                elif idx >= n_bins:
+                if idx < 0 or idx >= n_bins:
                     continue
                 else:
                     array_tmp[curr_thread, int(idx)] += 1
@@ -410,9 +408,7 @@ def recompile_numba_backend(  # NOQA PLR0915
             for i in prange(len(dE)):
                 x = dt[i]
 
-                if x <= x_min:
-                    continue
-                elif x >= x_max:
+                if x <= x_min or x >= x_max:
                     continue
                 else:
                     idx = int((x - x_min) * inv_dx)
