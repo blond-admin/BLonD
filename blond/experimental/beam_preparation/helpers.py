@@ -57,9 +57,9 @@ def generate_particle_coordinates(
     indexes = backend.array(
         indexes
     )  # finally convert to the correct backend. See above why.
-    time_step = time_grid[0, 1] - time_grid[0, 0]
+    time_step = time_grid[1, 0] - time_grid[0, 0]
     assert time_step > 0, f"{time_step=}"
-    deltaE_step = deltaE_grid[1, 0] - deltaE_grid[0, 0]
+    deltaE_step = deltaE_grid[0, 1] - deltaE_grid[0, 0]
     assert deltaE_step > 0, f"{deltaE_step=}"
     # Randomize particles inside each grid cell (uniform distribution)
     # ``backend.random.triangular`` has rotational symmetry, but is

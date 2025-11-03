@@ -5,6 +5,7 @@ from typing import Callable  # NOQA
 from typing import TYPE_CHECKING
 
 import numpy as np
+from scipy.optimize import newton
 
 from blond.experimental.beam_preparation.density_functions import gaussian_density
 from blond.experimental.beam_preparation.metric_functions import rms_emittance
@@ -15,22 +16,17 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 
-def monotonic_metric_fitter(hamilton: NumpyArray | CupyArray,
+def metric_fitter(hamilton: NumpyArray | CupyArray,
                             dt_grid : NumpyArray | CupyArray,
                             dE_grid : NumpyArray | CupyArray,
                             desired_metric : float,
-                            free_parameter_max: float,
+                            free_parameter_guess: float,
                             metric_function : callable([NumpyArray | CupyArray, NumpyArray | CupyArray, NumpyArray | CupyArray]),
                             density_function: callable([NumpyArray | CupyArray, float]),
                             max_metric_diff: float,
                             iterations_max: int = 100,
                             )-> NumpyArray | CupyArray:
     """fits a density distribution with one free parameter to a metric of interest, then returns the resulting density
-            Notes
-            -----
-            The free parameter and metric of interest MUST scale monotonically. Search space is halved with each iteration
-            leading to a max error in the free parameter of free_parameter_max * 0.5 ** (iterations+1) provided the true best
-            value is within the search space.
 
             Parameters
             ----------
@@ -40,52 +36,37 @@ def monotonic_metric_fitter(hamilton: NumpyArray | CupyArray,
                 time array corresponding to hamiltonian, in [s]
             dE_grid
                 energy array corresponding to hamiltonian, in [eV]
-            metric
+            desired_metric
                 metric value to fit the distribution to
-            free_parameter_max
-                upper bound for where to search for the ideal free parameter. Lower bound is always zero.
+            free_parameter_guess
+                initial guess for the free parameter.
             metric_function
                 function that takes a density mass function and outputs a metric to be fitted to an ideal value
             density_function
                 function to convert a hamiltonian to density with one free parameter e.g. rho(H, parameter)
             max_metric_diff
                 The allowed difference between the desired metric and the metric of the generated bunch
-            iterations
-                number of iterations to search. Search space gets halved for each iteration
-
-
-
+            iterations_max
+                maximum number of iterations to search before the search loop gets interrupted.
 
             Returns
             -------
             density
                 the density mass function, fitted to give the right metric of interest
             """
-    guess = free_parameter_max/2 #start search in middle of search area
-    branching_factor = guess/2 # We make the step size a fourth of our search area, decreasing it after each iteration.
+    #Make a lambda expression for the absolute difference between desired and metric parameter for any free parameter
+    minimization_function = lambda x: np.abs(metric_function(density_function(hamilton, x), dt_grid, dE_grid)
+                                             - desired_metric)
 
-    iteration = 0
-    metric_diff = 0
-    while (iteration < iterations_max and metric_diff > max_metric_diff) or (iteration == 0): #run until the metric is as close as desired
-        #find density using current best guess on the free parameter
-        density = density_function(hamilton, guess)
+    #minimize
+    ideal_free_parameter, is_converged = newton(minimization_function,
+                                                free_parameter_guess,
+                                                tol=max_metric_diff,
+                                                maxiter = iterations_max,
+                                                full_output=True)
 
-        #move in direction of real answer
-        #this works if metric and guess variable scale monotonically. E.g. gaussian standard deviation and emittance.
-        calculated_metric = metric_function(density, dt_grid, dE_grid)
-        metric_diff = np.abs(calculated_metric - desired_metric)
-
-        if desired_metric > calculated_metric:
-            guess += branching_factor #increase guess value if metric is too low
-        else:
-            guess -= branching_factor #decrease guess value if metric is too high
-
-        iteration += 1
-        branching_factor /= 2 #decrease step size as search area shrinks
-
-    if metric_diff > max_metric_diff:
-        warnings.warn("The metric did not converge to the desired precision!")
-
+    #return best matching distribution density
+    density = density_function(hamilton, ideal_free_parameter)
     return density
 
 def generalized_bucket_filler(
@@ -98,7 +79,7 @@ def generalized_bucket_filler(
     max_metric_diff : float,
     density_function : callable([NumpyArray | CupyArray, float]) = gaussian_density,
     metric_function : callable([NumpyArray | CupyArray, NumpyArray | CupyArray, NumpyArray | CupyArray]) = rms_emittance,
-    free_parameter_max : float = None
+    free_parameter_guess : float = None
 ) -> NumpyArray | CupyArray:
     """Generalized method for generating density distributions for a hamiltonian.
         Notes
@@ -118,7 +99,7 @@ def generalized_bucket_filler(
             Time coordinates of the hamiltonian, in [s].
         deltaE_grid
             Energy coordinate of the hamiltonian, in [eV].
-        hamiltonian
+        hamiltonn_2D
             hamiltonian value, in [eV].
         metric_list
             list of values to for the metric to have for each bunch. Metric definition specified by metric function
@@ -132,7 +113,7 @@ def generalized_bucket_filler(
             simplistic function for the density with one free parameter rho(H, value). Value and metric must scale monotonically.
         metric_function
             function of a hamiltonian. Must take the density, time and energy as 2d arrays
-        free_parameter_max
+        free_parameter_guess
             The maximum value the free parameter in the density function can take. Optimal value is found between 0 and free_parameter_max
 
 
@@ -144,8 +125,8 @@ def generalized_bucket_filler(
     _hamilton = hamilton_2D.copy()
     density = np.zeros(hamilton_2D.shape)
 
-    if free_parameter_max is None: #typically the free parameter is in units of eV so setting it to max of hamiltonian makes sense in most cases
-        free_parameter_max = np.max(_hamilton)
+    if free_parameter_guess is None: #typically the free parameter is in units of eV so setting it to max of hamiltonian makes sense in most cases
+        free_parameter_guess = np.max(_hamilton)/100
 
     n_slices_per_bucket = int(time_grid.shape[1] / n_buckets)
     min_hamilton = np.min(_hamilton)
@@ -161,7 +142,7 @@ def generalized_bucket_filler(
 
         sliced_time = time_grid[:, select_bucket]
         sliced_energy = deltaE_grid[:, select_bucket]
-        sliced_hamilton = _hamilton[select_bucket, :]
+        sliced_hamilton = _hamilton[:, select_bucket]
 
 
         #ensure the minimum hamilton in each slice is equal
@@ -171,10 +152,10 @@ def generalized_bucket_filler(
         if intensity_frac_list[bucket] == 0: #if no intensity in bucket, just set density to zero
             sliced_density = np.zeros(sliced_hamilton.shape)
         else: #otherwise fill bucket with a density that satisfies a desired metric
-            sliced_density = monotonic_metric_fitter(sliced_hamilton, sliced_time, sliced_energy, metric_list[bucket], free_parameter_max, metric_function, density_function, max_metric_diff)
+            sliced_density = metric_fitter(sliced_hamilton, sliced_time, sliced_energy, metric_list[bucket], free_parameter_guess, metric_function, density_function, max_metric_diff)
             sliced_density *= intensity_frac_list[bucket]
 
-        density[select_bucket, :] = sliced_density #concatenate density of each bucket
+        density[:, select_bucket] = sliced_density #concatenate density of each bucket
 
     return density
 
@@ -232,7 +213,7 @@ def bucket_fill_by_emittance_gaussian(
         max_metric_diff=max_emittance_diff,
         density_function = gaussian_density,
         metric_function = rms_emittance,
-        free_parameter_max = None,
+        free_parameter_guess = None,
     )
 
     return _density

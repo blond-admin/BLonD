@@ -50,7 +50,7 @@ def binomial_density(hamilton: NumpyArray | CupyArray, bunch_length: float, expo
                 2D density distribution
             """
     density = (1 - (2.0 * (hamilton) / bunch_length) ** 2) ** (exponent + 0.5)
-    density = np.where(np.isnan(density), 0, density) #binomial distribution is nan where there is no particles
-    #density = density - np.min(density)
+    select = np.isnan(density)
+    density[select] = 0.0 #binomial distribution is nan where there is no particles
     density = density / np.sum(density) #normalize
     return density

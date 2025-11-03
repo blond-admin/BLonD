@@ -114,9 +114,9 @@ def get_hamilton_semi_analytic(
     )  # [eV]
 
     # Create 2D meshgrid: time_grid is time [s], deltaE_grid is ΔE [eV]
-    time_grid, deltaE_grid = backend.meshgrid(ts, _dE_base, indexing="ij")
+    deltaE_grid, time_grid = backend.meshgrid(_dE_base, ts, indexing="ij")
     # Expand potential V(t) to 2D grid
-    V = potential_well[:, None]  # [V]
+    V = potential_well[None, :]  # [V]
 
     # Compute the Hamiltonian hamilton_2D(t, ΔE) = 0.5 * const * ΔE² + V(t)
     hamilton_2D =  0.5 * drift_term * backend.square(deltaE_grid) + V  # [eV]
@@ -459,12 +459,12 @@ class SemiEmpiricMatcher(MatchingRoutine):
             plt.ylabel("Potential (arb. unit)")
 
             ax = plt.subplot(3, 2, 5)
-            ax.imshow(self._plot_hamilton_2D.T) # todo more beautiful
+            ax.imshow(self._plot_hamilton_2D) # todo more beautiful
             ax.set_xticks([])
             ax.set_yticks([])
             ax.set_xlabel("semi empiric hamiltonian")
             ax = plt.subplot(3, 2, 6)
-            ax.imshow(self._plot_density.T) # todo more beautiful
+            ax.imshow(self._plot_density) # todo more beautiful
             ax.set_xticks([])
             ax.set_yticks([])
             ax.set_xlabel("density distribution")
