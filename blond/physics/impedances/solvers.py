@@ -178,8 +178,9 @@ class PeriodicFreqSolver(WakeFieldSolver):
         if parent_wakefield.profile is not None:
             is_static = isinstance(parent_wakefield.profile, StaticProfile)
             is_dynamic = isinstance(
-                parent_wakefield.profile, DynamicProfileConstCutoff
-            ) or isinstance(parent_wakefield.profile, DynamicProfileConstNBins)
+                parent_wakefield.profile,
+                DynamicProfileConstCutoff | DynamicProfileConstNBins,
+            )
             self._parent_wakefield = parent_wakefield
             self._update_internal_data()
 
@@ -403,8 +404,9 @@ class TimeDomainFftSolver(WakeFieldSolver):
         self._simulation = simulation
         if parent_wakefield.profile is not None:
             is_dynamic = isinstance(
-                parent_wakefield.profile, DynamicProfileConstCutoff
-            ) or isinstance(parent_wakefield.profile, DynamicProfileConstNBins)
+                parent_wakefield.profile,
+                DynamicProfileConstCutoff | DynamicProfileConstNBins,
+            )
             self._parent_wakefield = parent_wakefield
             self._wake_imp_y_needs_update = True
 

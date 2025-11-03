@@ -103,13 +103,12 @@ def _extract_untested_functions(cov_data):
         for cls in visitor.class_missing:
             methods = visitor.class_methods.get(cls, [])
             for func_name, args in methods:
-                if func_name == "__init__":
-                    # Only add if not already in results
-                    if not any(
-                        rn == "__init__" and rcls == cls
-                        for rn, rcls, _ in visitor.results
-                    ):
-                        visitor.results.append(("__init__", cls, args))
+                # Only add if not already in results
+                if func_name == "__init__" and not any(
+                    rn == "__init__" and rcls == cls
+                    for rn, rcls, _ in visitor.results
+                ):
+                    visitor.results.append(("__init__", cls, args))
 
         if visitor.results:
             untested[filepath] = visitor.results

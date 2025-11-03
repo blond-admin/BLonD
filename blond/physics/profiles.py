@@ -229,7 +229,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         # causes a MyPy type error,
         # This is intentionally ignored, we want to get an exception.
 
-        no_array_buffer = n_fft not in self._beam_spectrum_buffer.keys()
+        no_array_buffer = n_fft not in self._beam_spectrum_buffer
         if no_array_buffer:
             self._beam_spectrum_buffer[n_fft] = np.fft.rfft(
                 self._hist_y,  # type: ignore

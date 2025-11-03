@@ -83,12 +83,11 @@ class DenseArrayRecorder(ArrayRecorder):
 
         self.filepath = filepath
         self.overwrite = overwrite
-        if not self.overwrite:
-            if os.path.exists(self.filepath_array):
-                warnings.warn(
-                    f"{self.filepath_array} already exists!",
-                    stacklevel=1,
-                )
+        if not self.overwrite and os.path.exists(self.filepath_array):
+            warnings.warn(
+                f"{self.filepath_array} already exists!",
+                stacklevel=1,
+            )
 
     @property
     def filepath_array(self) -> str:

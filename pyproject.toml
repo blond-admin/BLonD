@@ -81,7 +81,7 @@ select = [
     "UP",   # pyupgrade
     # "C4", # flake8-comprehensions
     "D",    # pydocstyle
-    # "SIM",# flake8-simplify
+    "SIM",# flake8-simplify
     "NPY",  # numpy-specific rules
     "PL",   # pylint rules
 ]

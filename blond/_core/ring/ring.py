@@ -66,7 +66,7 @@ class Ring(Preparable, Schedulable):
             )
 
         assert np.all(
-            0 <= np.diff([e.section_index for e in self.elements.elements])
+            np.diff([e.section_index for e in self.elements.elements]) >= 0
         ), (
             "Section indices must be ascending, but section order:"
             f" {[e.section_index for e in self.elements.elements]=}"
@@ -340,8 +340,7 @@ class Ring(Preparable, Schedulable):
         locations_in_the_new_ring = []
         if isinstance(insert_at, int):
             insert_at = [insert_at]
-        already_inserted = 0
-        for k in insert_at:
+        for already_inserted, k in enumerate(insert_at):
             if deepcopy:
                 element = copy.deepcopy(element)
                 if allow_section_index_overwrite:
@@ -358,7 +357,6 @@ class Ring(Preparable, Schedulable):
                 insert_at=k + already_inserted,
             )
             locations_in_the_new_ring.append(k + already_inserted)
-            already_inserted += 1
 
         return locations_in_the_new_ring
 
