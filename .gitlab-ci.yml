@@ -162,7 +162,7 @@ test_documentation_building:
     - python3 -m pip install sphinx
   script:
     - cd ${project_root}/__doc
-    - ./create_docs.sh
+    - . ./create_docs.sh
   artifacts:
     paths:
       - ${project_root}/__doc/_build/html
