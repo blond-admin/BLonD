@@ -1,10 +1,10 @@
-rm modules/*.rst
-rm -r _build/*
+rm -f modules/*.rst
+rm -rf _build/*
 
 shopt -s globstar nullglob
-sphinx-apidoc --implicit-namespaces -o modules ../blond ../blond/*/*/__init__.py -f -e -M -d 5 -P
+python -m sphinx-apidoc --implicit-namespaces -o modules ../blond ../blond/*/*/__init__.py -f -e -M -d 5 -P
 
-rm modules/modules.rst
+rm -f modules/modules.rst
 
 cat > ./modules/blond.rst <<'EOF'
 API Documentation
