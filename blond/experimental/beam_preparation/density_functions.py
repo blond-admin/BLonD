@@ -13,7 +13,8 @@ if TYPE_CHECKING:  # pragma: no cover
 def gaussian_density(
     hamilton: NumpyArray | CupyArray, sigma: float
 ) -> NumpyArray | CupyArray:
-    """Turns a hamiltonian into a gaussian density distribution with some standard deviation sigma
+    """Turns a hamiltonian into a gaussian density distribution
+     with some standard deviation sigma
 
     Parameters
     ----------
@@ -36,7 +37,8 @@ def gaussian_density(
 def binomial_density(
     hamilton: NumpyArray | CupyArray, bunch_length: float, exponent: float
 ) -> NumpyArray | CupyArray:
-    """Turns a hamiltonian into a binomial density distribution with some bunch length and form factor
+    """Turns a hamiltonian into a binomial density distribution
+    with some bunch length and form factor
 
     Parameters
     ----------

@@ -14,11 +14,10 @@ def rms_emittance(
     density: NumpyArray | CupyArray,
     dt_grid: NumpyArray | CupyArray,
     dE_grid: NumpyArray | CupyArray,
+    multiply_by_pi: bool = False,
 ):
-    """Calculates the RMS emittance of a single bunch, based on its density in phase space
-    Notes
-    -----
-    The basic calculation is the same as in the LongitudinalTomography/tomographyv3 library to ensure consistency
+    """Calculates the RMS emittance of a single bunch,
+     based on its density in phase space
 
     Parameters
     ----------
@@ -28,6 +27,9 @@ def rms_emittance(
         Time coordinates of the distribution, in [s].
     dE_grid
         Energy coordinates of the distribution, in [eV].
+    multiply_by_pi
+        whether to multiply the rms emittance by a factor pi.
+        This is how rms emittance is defined in some tomography codes
 
 
     Returns
@@ -44,9 +46,12 @@ def rms_emittance(
     xybar = np.sum(density * dt_grid * dE_grid)
 
     # combine into rms emittance and scale by dt and dE resolution
-    rms_emittance = np.pi * np.sqrt(
+    rms_emittance = np.sqrt(
         (xms - xbar**2.0) * (yms - ybar**2.0) - (xybar - xbar * ybar) ** 2.0
     )
+
+    if multiply_by_pi:
+        rms_emittance *= np.pi
 
     return rms_emittance
 
@@ -57,10 +62,13 @@ def q_percent_emittance(
     dE_grid: NumpyArray | CupyArray,
     q: float = 0.9,
 ) -> float:
-    """Calculates the phase space area occupied by a fraction q of a distribution
+    """Calculates the phase space area occupied
+     by a fraction q of a distribution
+
     Notes
     -----
-    The basic calculation is the same as in the LongitudinalTomography/tomographyv3 library to ensure consistency
+    The basic calculation is the same as
+    in the LongitudinalTomography/tomographyv3 library
 
     Parameters
     ----------

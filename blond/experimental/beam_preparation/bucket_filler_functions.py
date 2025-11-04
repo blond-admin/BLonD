@@ -34,7 +34,8 @@ def metric_fitter(
     max_metric_diff: float,
     iterations_max: int = 100,
 ) -> NumpyArray | CupyArray:
-    """fits a density distribution with one free parameter to a metric of interest, then returns the resulting density
+    """fits a density distribution with one free parameter to a metric of interest,
+    then returns the resulting density
 
     Parameters
     ----------
@@ -49,20 +50,25 @@ def metric_fitter(
     free_parameter_guess
         initial guess for the free parameter.
     metric_function
-        function that takes a density mass function and outputs a metric to be fitted to an ideal value
+        function that takes a density mass function
+        and outputs a metric to be fitted to an ideal value
     density_function
-        function to convert a hamiltonian to density with one free parameter e.g. rho(H, parameter)
+        function to convert a hamiltonian to density
+        with one free parameter e.g. rho(H, parameter)
     max_metric_diff
-        The allowed difference between the desired metric and the metric of the generated bunch
+        The allowed difference between the desired metric
+        and the metric of the generated bunch
     iterations_max
-        maximum number of iterations to search before the search loop gets interrupted.
+        maximum number of iterations to search
+        before the search loop gets interrupted.
 
     Returns
     -------
     density
-        the density mass function, fitted to give the right metric of interest
+        the density mass function,
+        fitted to give the right metric of interest
     """
-    # Make a lambda expression for the absolute difference between desired and metric parameter for any free parameter
+    # Make a lambda expression for the absolute difference between desired and calculated metrics for any free parameter
     minimization_function = lambda x: np.abs(
         metric_function(density_function(hamilton, x), dt_grid, dE_grid)
         - desired_metric
@@ -105,14 +111,14 @@ def generalized_bucket_filler(
     """Generalized method for generating density distributions for a hamiltonian.
     Notes
     -----
-    Allows for a density distribution rho(H, value) with a free parameters value. This value is then automatically
-    selected to make the generated bunches satisfy some metric that is also user defined. The free parameter in the
-    density function and the metric of interest must scale monotonically for the routine to work.
+    Allows for a density distribution rho(H, value) with a free parameters value. This value is then
+    automatically selected to make the generated bunches
+    satisfy some metric that is also user defined.
 
     This method does not have functionality for identifying the wells. When the number of buckets is specified the time
     axis is simply split into n_buckets equal sized pieces. If the edges of these slices do not neatly align with the
-    maxima of the potential, bunches may not be generated correctly. These bounds can be changed by setting different
-    bounds in the matcher.
+    maxima of the potential, bunches may not be generated correctly. These bounds can be changed by setting
+    different bounds in the matcher.
 
     Parameters
     ----------
@@ -123,19 +129,23 @@ def generalized_bucket_filler(
     hamiltonn_2D
         hamiltonian value, in [eV].
     metric_list
-        list of values to for the metric to have for each bunch. Metric definition specified by metric function
+        list of values to for the metric to have for each bunch.
+        Metric definition specified by metric function
     intensity_frac_list
         fraction of total intensity for each bunch to have.
     n_buckets
         number of buckets spanned by the time axis.
     max_metric_diff
-        the maximum allowed difference between the desired metric and the metric of the generated bunch
+        the maximum allowed difference between the desired
+        metric and the metric of the generated bunch
     density_function
-        simplistic function for the density with one free parameter rho(H, value). Value and metric must scale monotonically.
+        simplistic function for the density with one free parameter
+        rho(H, value). Value and metric must scale monotonically.
     metric_function
-        function of a hamiltonian. Must take the density, time and energy as 2d arrays
+        function of a hamiltonian. Must take the density,
+        time and energy as 2d arrays
     free_parameter_guess
-        The maximum value the free parameter in the density function can take. Optimal value is found between 0 and free_parameter_max
+        The initial guess for the free parameter
 
 
     Returns
@@ -204,12 +214,7 @@ def bucket_fill_by_emittance_gaussian(
 ) -> NumpyArray | CupyArray:
     """Method for generating gaussian distributed bunches of specific emittances. Makes use of the generalized bucket filler method
     This is just an example of how the general method can be utilized.
-        Notes
-        -----
-        This method does not have functionality for identifying the wells. When the number of buckets is specified the time
-        axis is simply split into n_buckets equal sized pieces. If the edges of these slices do not neatly align with the
-        maxima of the potential, bunches may not be generated correctly. These bounds can be changed by setting different
-        bounds in the matcher.
+
 
         Parameters
         ----------
@@ -226,7 +231,8 @@ def bucket_fill_by_emittance_gaussian(
         n_buckets
             number of buckets spanned by the time axis.
         max_emittance_diff
-            the maximum allowed difference between the desired emittance and the generated emittance, in [eVs]
+            the maximum allowed difference between the desired
+            emittance and the generated emittance, in [eVs]
 
 
         Returns
