@@ -156,10 +156,11 @@ test_documentation_building:
   image: gitlab-registry.cern.ch/blond/blond/python310
   interruptible: true
   script:
-    - cd ${project_root}/__doc
+    - cd ${project_root}
     - whoami
     - python3 -m pip install --upgrade pip
     - python3 -m pip install .[doc]
+    - cd ${project_root}/__doc
     - echo $PATH
     - export PATH=$HOME/.local/bin:$PATH
     - echo $PATH
