@@ -153,9 +153,9 @@ def repopulate_beam(
         Random seed, to make function with same seed
         always return the same value
     """
-    assert n_macroparticles_overwrite <= (beam._dE), (
-        "Number of particles to be overwritten is larger than number of macroparticles."
-    )
+    assert (
+        n_macroparticles_overwrite <= (beam._dE)
+    ), "Number of particles to be overwritten is larger than number of macroparticles."
     dt, dE = generate_particle_coordinates(
         time_grid=time_grid,
         deltaE_grid=deltaE_grid,
