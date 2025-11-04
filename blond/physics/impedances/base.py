@@ -282,6 +282,14 @@ class WakeField(ImpedanceBaseClass):
         self.sources = sources
         self._induced_voltage = None
 
+    def info_string(self, prefix="") -> str:
+        """Inform that the profile is also executed within the track method."""
+        content = (
+            f"{self.profile.info_string(prefix=' ↓ ')}\n"
+            f"{super().info_string(prefix=prefix)}"
+        )
+        return content
+
     @property
     def induced_voltage(self) -> NumpyArray | CupyArray:
         """Induced voltage in [V] from given beam profile and sources."""
@@ -331,6 +339,8 @@ class WakeField(ImpedanceBaseClass):
         beam
             Beam class to interact with this element
         """
+        if self.profile.active:
+            self.profile.track(beam=beam)
         induced_voltage = self.calc_induced_voltage(beam=beam)
         assert (beam.read_partial_dt()).dtype == backend.float
         assert (beam.write_partial_dE()).dtype == backend.float
