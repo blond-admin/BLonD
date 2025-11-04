@@ -166,7 +166,17 @@ class Beam(BeamBaseClass):
         return len(self._dt)
 
     def plot_hist2d(self, **kwargs) -> None:
-        """Plot 2D histogram of beam coordinates."""
+        """Plot 2D histogram of beam coordinates.
+
+        Parameters
+        ----------
+        kwargs
+            Keyword arguments for ``matplotlib.pyplot.hist2d``
+        """
+        if self._dt is None or self._dE is None:
+            raise ValueError(
+                "Beam `dt` and `dE` coordinates are not initialized!"
+            )
         if "cmap" not in kwargs:
             kwargs["cmap"] = "viridis"
         if "bins" not in kwargs:
