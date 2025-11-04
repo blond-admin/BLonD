@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ...._core.backends.backend import Specials, backend
+from blond._core.backends.backend import Specials, backend
 
 if TYPE_CHECKING:  # pragma: no cover
     from ctypes import CDLL
@@ -150,7 +150,7 @@ def reload_cpp_backend(
         """
         libblond_path_ = os.environ.get("LIBBLOND", None)
 
-        from ...._generals._hashing import hash_in_folder
+        from blond._generals._hashing import hash_in_folder
 
         folder = os.path.dirname(os.path.abspath(__file__))
 

@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy import ndarray
 
 from ..._core.backends.backend import backend
 
@@ -56,7 +55,7 @@ class _AsarrayOverrideManager:
         order: str | None = None,
         *args: Any,
         **kwargs: Any,
-    ) -> ndarray:
+    ) -> NumpyArray:
         import cupy as cp  # type: ignore
 
         if isinstance(a, cp.ndarray):

@@ -32,12 +32,15 @@ print(">>> Sphinx loaded THIS conf.py:", __file__)
 import sys
 import os
 
+os.environ["SPHINX_SHOW_WARNING_TYPES"] = "1"  # force categories in output
+
+
 
 folder = os.path.abspath("modules")
 sys.path.insert(0, folder)
 extensions = [
-    "sphinx.ext.autodoc",
-    "sphinx.ext.autosummary",
+    # "sphinx.ext.autodoc",
+    # "sphinx.ext.autosummary",
     #    "sphinx.ext.doctest",
     #    "sphinx.ext.intersphinx",
     #    "sphinx.ext.todo",
@@ -46,8 +49,18 @@ extensions = [
     #    "sphinx.ext.viewcode",
     #    "sphinx.ext.githubpages",
     # "sphinxcontrib.napoleon"
+    "sphinx.ext.inheritance_diagram",
     "sphinx.ext.napoleon",
 ]
+
+inheritance_graph_attrs = dict(
+    rankdir="TB",   # "TB" = Top → Bottom (vertical)
+    size='"12.0, 10.0"',  # adjust as needed (width,height in inches)
+    fontsize=14,
+    ranksep="0.4",
+    nodesep="0.2",
+    layout="dot"
+)
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -108,6 +121,9 @@ exclude_patterns = [
     "*/blond._generals._files*",
     "*/blond._generals._hashing*",
     "*vari_noise*",
+    "*/blond.testing.*",
+    "*/blond.interfaces.xsuite.*",
+    "*/blond.specifics.cern.*",  # empty at the moment
 ]
 # callables are only importable with cupy/fortran compiled
 
@@ -215,9 +231,42 @@ rst_prolog = """
 suppress_warnings = [
     "autodoc.duplicate_object",
     "toc.excluded",
+    "ref.python",
+    "docutils",
+    "python.duplicate_object",
 ]  # remove warning for multiple mentions of the same item
 html_static_path = ["_static"]
 html_css_files = ["css/wide.css"]
 
+autodoc_default_options = {
+    # Avoid pulling in names that are only imported into __init__.py
+    "imported-members": False,
+}
+
+show_warning_types = True
+
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {"https://docs.python.org/": None}
+
+
+# This section checks if a system module has been reported already
+_seen_targets = set()
+
+def _fqname_for(obj, name):
+    # Build a stable fully-qualified name for indexing decisions
+    mod = getattr(obj, "__module__", "") or ""
+    qual = getattr(obj, "__qualname__", "") or name
+    return f"{mod}.{qual}"
+
+def autodoc_skip_if_duplicate(app, what, name, obj, skip, options):
+    fq = _fqname_for(obj, name)
+
+    # only treat as duplicate if we've already seen the exact fqname.
+    if fq in _seen_targets:
+        return True  # skip this duplicate -> prevents duplicate-object warnings
+
+    _seen_targets.add(fq)
+    return skip  # keep default decision for the first time we see it
+
+def setup(app):
+    app.connect("autodoc-skip-member", autodoc_skip_if_duplicate)

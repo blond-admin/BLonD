@@ -4,10 +4,10 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ... import Simulation
-from ..base import Preparable
-from ..beam.base import BeamBaseClass
-from ..ring.helpers import get_elements
+from blond._core.base import Preparable
+from blond._core.beam.base import BeamBaseClass
+from blond._core.ring.helpers import get_elements
+from blond._core.simulation.simulation import Simulation
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, TypeVar
