@@ -141,7 +141,7 @@ class Specials(ABC):
         Parameters
         ----------
         flag
-            The flag to be used as a selector what to remove.
+            The flag to be used as a selector what to place at the end.
         flags
             Macro-particle flags
         dt

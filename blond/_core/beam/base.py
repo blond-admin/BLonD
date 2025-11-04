@@ -401,7 +401,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         Parameters
         ----------
         flag
-            The flag to be used as a selector what to remove.
+            The flag to be used as a selector what to place at the end.
             Default is to remove lost particles ``flag=0``.
 
         """
