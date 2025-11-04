@@ -2,7 +2,7 @@ rm -f modules/*.rst
 rm -rf _build/*
 
 shopt -s globstar nullglob
-python3 -m sphinx-apidoc --implicit-namespaces -o modules ../blond ../blond/*/*/__init__.py -f -e -M -d 5 -P
+sphinx-apidoc --implicit-namespaces -o modules ../blond ../blond/*/*/__init__.py -f -e -M -d 5 -P
 
 rm -f modules/modules.rst
 
@@ -37,4 +37,4 @@ for f in ./modules/blond.*.rst; do
 EOF
 done
 
-python3 -m sphinx-build -b html -c . -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=10 . ./_build/html -W
+sphinx-build -b html -c . -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=10 . ./_build/html -W
