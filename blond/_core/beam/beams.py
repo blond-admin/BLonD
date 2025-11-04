@@ -189,6 +189,42 @@ class Beam(BeamBaseClass):
         else:
             plt.hist2d(self._dt, self._dE, **kwargs)
 
+    def plot_hist(self, axis=0, **kwargs) -> None:
+        """Plot 2D histogram of beam coordinates.
+
+        Parameters
+        ----------
+        axis
+            0: Plot dt axis
+            1: Plot dE axis
+        kwargs
+            Keyword arguments for ``matplotlib.pyplot.hist``
+
+        """
+        if self._dt is None or self._dE is None:
+            raise ValueError(
+                "Beam `dt` and `dE` coordinates are not initialized!"
+            )
+        if "bins" not in kwargs:
+            kwargs["bins"] = 256
+        if is_cupy_array(self._dt):
+            # variables below are just for the type hints to function correctly
+            dE: CupyArray = self._dE
+            dt: CupyArray = self._dt
+            if axis == 0:
+                xs = dt.get()
+            elif axis == 1:
+                xs = dE.get()
+            else:
+                raise ValueError(f"{axis=}")
+        elif axis == 0:
+            xs = self._dt
+        elif axis == 1:
+            xs = self._dE
+        else:
+            raise ValueError(f"{axis=}")
+        plt.hist(xs, **kwargs)
+
 
 class ProbeBeam(Beam):
     def __init__(
