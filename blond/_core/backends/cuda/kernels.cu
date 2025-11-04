@@ -313,9 +313,10 @@ __global__ void loss_box(
                      )
 {
     int tid = threadIdx.x + blockDim.x * blockIdx.x;
-    for (int i=tid; i<n_macroparticles; i=i+blockDim.x*gridDim.x)
+    for (int i=tid; i<n_macroparticles; i=i+blockDim.x*gridDim.x){
         const bool outside = (dE[i] > top) || (dE[i] < bottom) || (dt[i] < left) || (dt[i] > right);
         if (outside){
             flags[i] =  0; // assume that lost = 0
+        }
         }
 }
