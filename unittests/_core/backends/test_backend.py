@@ -478,6 +478,56 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
 
+    def test_flagged_to_end_potentially_race_conditions(self):
+        for dtype in (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                flag = backend.int(0)
+                flags = backend.ones(int(1e6), dtype=np.int32)
+                np.random.seed(0)
+                flags[np.random.randint(0, len(flags), int(1e5))] = 0
+                dt = backend.array(
+                    backend.linspace(0, 10, len(flags)), backend.float
+                )
+                dE = backend.array(
+                    backend.linspace(0, 10, len(flags)), backend.float
+                )
+                ids = backend.array(backend.arange(0, len(flags)), backend.int)
+                n_new = backend.specials.flagged_to_end(
+                    flag=flag,
+                    flags=flags,
+                    dt=dt,
+                    dE=dE,
+                    ids=ids,
+                )
+                assert np.all(flags[:n_new] != 0)
+                assert np.all(flags[n_new:] == 0)
+                flags = flags[:n_new]
+                dt = dt[:n_new]
+                dE = dE[:n_new]
+                ids = ids[:n_new]
+
+                result = dt  # could be any of the 4 arrays
+                if special == "cuda":
+                    result = result.get()
+
+                result = np.sort(result)  # because of race conditions in
+                # parallel execution, the order can not be guaranteed
+
+                if i == 0:
+                    result_python = result
+                else:
+                    np.testing.assert_allclose(
+                        result,
+                        result_python,
+                        rtol=self.rtol,
+                        err_msg=f"Failed test `{special}` with {dtype}",
+                    )
+
     def test_flagged_to_end_none_flagged(self):
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
