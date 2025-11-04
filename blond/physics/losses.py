@@ -1,3 +1,10 @@
+"""Collection of implementations to handle beam losses in synchrotrons.
+
+Authors
+-------
+Simon Lauber
+"""
+
 from __future__ import annotations
 
 from abc import ABC
@@ -35,6 +42,8 @@ class LossesBaseClass(BeamPhysicsRelevant, ABC):
         If false, the ``Beam.flags`` will be set, but particles will still
         be considered for beam physics.
     """
+
+    """Abstract class to group/implement losses."""
 
     def __init__(self, purge_flagged_macroparticles: bool) -> None:
         super().__init__()
@@ -87,10 +96,10 @@ class BoxLosses(LossesBaseClass):
     def __init__(
         self,
         purge_flagged_macroparticles: bool,
-        t_min: backend.float | None = None,
-        t_max: backend.float | None = None,
-        e_min: backend.float | None = None,
-        e_max: backend.float | None = None,
+        t_min: float | None = None,
+        t_max: float | None = None,
+        e_min: float | None = None,
+        e_max: float | None = None,
     ) -> None:
         super().__init__(
             purge_flagged_macroparticles=purge_flagged_macroparticles,

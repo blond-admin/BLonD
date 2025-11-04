@@ -3,6 +3,7 @@ blond.acc\_math.analytic package
 
 .. automodule:: blond.acc_math.analytic
    :members:
+   :private-members:
    :show-inheritance:
    :undoc-members:
 
