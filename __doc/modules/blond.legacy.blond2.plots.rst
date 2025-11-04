@@ -3,6 +3,7 @@ blond.legacy.blond2.plots package
 
 .. automodule:: blond.legacy.blond2.plots
    :members:
+   :private-members:
    :show-inheritance:
    :undoc-members:
 
@@ -10,7 +11,7 @@ Submodules
 ----------
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 5
 
    blond.legacy.blond2.plots.plot
    blond.legacy.blond2.plots.plot_beams

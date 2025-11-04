@@ -1,3 +1,10 @@
+"""Measures the performance of the histogram function.
+
+Authors
+-------
+Leonard Thiele
+"""
+
 import time
 
 import numba
@@ -7,16 +14,17 @@ from blond._core.backends.backend import backend
 
 
 def main():
-    np.random.seed(42)
+    """Measures the performance of the histogram function."""
+    rng = np.random.default_rng(42)
     arr_sizes = np.array([1e3, 1e5, 1e7, 1e9], dtype=int)
     specials = ["numba", "python", "cpp"]
     times = np.zeros((len(specials), len(arr_sizes)))
     for arr_ind, arr_size in enumerate(arr_sizes):
-        input_array = (np.random.random_sample(arr_size) - 0.5) * 20
+        input_array = (rng.random(arr_size) - 0.5) * 20
         for spec_ind, special in enumerate(specials):
-            for rep in range(10):
+            for _ in range(10):
                 backend.set_specials(special)
-                numba.set_num_threads(16)
+                numba.set_num_threads(14)
                 array_write = backend.zeros(21, dtype=backend.float)
                 t0 = time.perf_counter()
                 backend.specials.histogram(

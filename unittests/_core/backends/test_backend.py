@@ -659,6 +659,38 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"{special=} {dtype=}",
                     )
 
+    def test_histogram_long_profiles(self) -> None:
+        """Specifically to test edge effects at beginning and end."""
+        for dtype in (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                array_write = backend.ones(3, dtype=backend.float)
+                spac = backend.linspace(0, 10, 50, dtype=backend.float)
+                for _ in range(2):
+                    backend.specials.histogram(
+                        array_read=spac,
+                        array_write=array_write,
+                        start=backend.float(2),
+                        stop=backend.float(4),
+                    )
+                result = array_write
+
+                if special == "cuda":
+                    result = result.get()
+                if i == 0:
+                    result_python = result
+                else:
+                    np.testing.assert_allclose(
+                        result,
+                        result_python,
+                        rtol=self.rtol,
+                        err_msg=f"{special=} {dtype=}",
+                    )
+
     def test_histogram_short_profile(self) -> None:
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):

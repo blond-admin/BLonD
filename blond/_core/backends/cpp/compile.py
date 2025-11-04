@@ -40,7 +40,7 @@ def run_compile(command: list[str], libname: str) -> int:
         return 0
 
 
-def compile_cpp_library(
+def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     with_fftw: bool = False,
     with_fftw_threads: bool = False,
     with_fftw_omp: bool = False,
@@ -214,7 +214,7 @@ def compile_cpp_library(
             "The FFTW Library is only compiled for  double-precision (64-bit)."
             " For single-precision, the FFTW Library is ignored."
         )
-        warnings.warn(msg)
+        warnings.warn(msg, stacklevel=1)
     ret = run_compile(command, libname_single)
     if ret != 0:
         print("There was a compilation error.")

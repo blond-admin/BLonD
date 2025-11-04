@@ -1,7 +1,18 @@
-API documentation
-=================
+blond package
+=============
+
+.. automodule:: blond
+   :members:
+   :private-members:
+   :show-inheritance:
+   :undoc-members:
+
+Subpackages
+-----------
 
 .. toctree::
+   :maxdepth: 5
+
    blond._core
    blond._generals
    blond.acc_math
@@ -15,3 +26,12 @@ API documentation
    blond.performance_blond3
    blond.physics
    blond.specifics
+   blond.testing
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 5
+
+   blond._version

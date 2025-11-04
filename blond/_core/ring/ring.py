@@ -26,7 +26,7 @@ class Ring(Preparable, Schedulable):
         self,
         circumference: float,
     ) -> None:
-        """Ring a.k.a. synchrotron.
+        """`Ring` a.k.a. synchrotron.
 
         Parameters
         ----------
@@ -87,7 +87,7 @@ class Ring(Preparable, Schedulable):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init

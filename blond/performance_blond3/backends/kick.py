@@ -1,3 +1,10 @@
+"""Testing the performance of `kick_multi_harmonic`.
+
+Authors
+-------
+Simon Lauber
+"""
+
 import time
 
 import cupy as cp
@@ -6,6 +13,7 @@ from blond._core.backends.backend import Numpy32Bit, backend
 
 
 def main():  # pragma: no cover
+    """Testing the performance of `kick_multi_harmonic`."""
     backend.change_backend(Numpy32Bit)
 
     dt = backend.linspace(
