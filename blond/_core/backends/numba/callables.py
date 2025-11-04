@@ -439,22 +439,23 @@ def recompile_numba_backend(  # NOQA PLR0915
                     v = y0 + (y1 - y0) * inv_dx * (x - x0)
                     dE[i] += charge * v + acceleration_kick
 
-            @staticmethod
-            def purge4(
-                flag: np.int32,
-                flags: NumpyArray | CupyArray,  # also purged
-                dt: NumpyArray | CupyArray,
-                dE: NumpyArray | CupyArray,
-                ids: NumpyArray | CupyArray,
-            ):
-                n_new = _purge4_nb(
-                    flag=flag,
-                    flags=flags,
-                    dt=dt,
-                    dE=dE,
-                    ids=ids,
-                )
-                return n_new
+        @staticmethod
+        def purge4(
+            flag: np.int32,
+            flags: NumpyArray | CupyArray,  # also purged
+            dt: NumpyArray | CupyArray,
+            dE: NumpyArray | CupyArray,
+            ids: NumpyArray | CupyArray,
+        ):
+            # TODO parallel version of sorting
+            n_new = _purge4_nb(
+                flag=flag,
+                flags=flags,
+                dt=dt,
+                dE=dE,
+                ids=ids,
+            )
+            return n_new
 
     return NumbaSpecials
 

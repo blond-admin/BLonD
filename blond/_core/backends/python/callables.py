@@ -240,7 +240,7 @@ class PythonSpecials(Specials):
 
     @staticmethod
     def purge4(
-        flag: np.int32 | np.int64,
+        flag: np.int32,
         flags: NumpyArray | CupyArray,  # also purged
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,

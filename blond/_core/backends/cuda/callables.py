@@ -336,12 +336,14 @@ def reload_cuda_backend(
 
         @staticmethod
         def purge4(
-            flag: int,
+            flag: np.int32,
             flags: CupyArray,
             dt: CupyArray,
             dE: CupyArray,
             ids: CupyArray,
         ):
+            # TODO write a kernel that works with gpu kernels
+            #  to have a smaller memory footprint.
             assert len(flags) == len(dt)
             assert len(flags) == len(dE)
             assert len(flags) == len(ids)

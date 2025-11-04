@@ -130,7 +130,7 @@ class Specials(ABC):
     @staticmethod
     @abstractmethod  # pragma: no cover
     def purge4(
-        flag: int,
+        flag: np.int32,
         flags: NumpyArray | CupyArray,  # also purged
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,

@@ -370,7 +370,7 @@ def reload_cpp_backend(
 
         @staticmethod
         def purge4(
-            flag: int,
+            flag: np.int32,
             flags: NumpyArray | CupyArray,  # also purged
             dt: NumpyArray | CupyArray,
             dE: NumpyArray | CupyArray,
