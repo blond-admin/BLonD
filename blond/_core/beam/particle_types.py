@@ -4,8 +4,6 @@ import numpy as np
 from numpy import float32, float64
 from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
 
-from ..backends.backend import backend
-
 m_mu = physical_constants["muon mass"][0]
 
 
@@ -34,15 +32,15 @@ class ParticleType:
 
         # classical particle radius [m]
         radius_cl = 0.25 / (np.pi * epsilon_0) * e**2 * charge**2 / (mass * e)
-        self._classical_particle_radius = backend.float(radius_cl)
+        self._classical_particle_radius = radius_cl
 
         # Sand's radiation constant [m / eV^3]
         c_gamma = 4 * np.pi / 3 * self._classical_particle_radius / mass**3
-        self._sands_radiation_constant = backend.float(c_gamma)
+        self._sands_radiation_constant = c_gamma
 
         # Quantum radiation constant [m]
         c_q = 55.0 / (32.0 * np.sqrt(3.0)) * hbar * c / (mass * e)
-        self._quantum_radiation_constant = backend.float(c_q)
+        self._quantum_radiation_constant = c_q
 
     @property
     def mass(self) -> float:
@@ -80,22 +78,22 @@ class ParticleType:
         return self._quantum_radiation_constant
 
 
-proton: ParticleType = ParticleType(
+proton = ParticleType(
     mass=m_p * c**2 / e,
     charge=1,
 )
 
-uranium_29: ParticleType = ParticleType(
+uranium_29 = ParticleType(
     mass=238 * m_p * c**2 / e,  # approximate mass-energy in eV
     charge=29,
 )
 
-electron: ParticleType = ParticleType(
+electron = ParticleType(
     mass=m_e * c**2 / e,
     charge=-1,
 )
 
-positron: ParticleType = ParticleType(
+positron = ParticleType(
     mass=m_e * c**2 / e,
     charge=1,
 )
