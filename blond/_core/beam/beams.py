@@ -234,8 +234,12 @@ class ProbeBeam(Beam):
         dE: NumpyArray | None = None,
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
+        intensity: int = 0,
     ) -> None:
         """Test Bunch without intensity effects.
+
+        This is intended to probe the simulation with peculiar bunches,
+        that might only feature ``dt`` or ``dE``
 
         Parameters
         ----------
@@ -243,19 +247,29 @@ class ProbeBeam(Beam):
             Type of particles, e.g. protons
         dt
             Macro-particle time coordinates, in [s]
+            Will be all zero if not provided.
         dE
             Macro-particle energy coordinates, in [eV]
+            Will be all zero if not provided.
+        reference_time
+            Time of the reference frame (global time), in [s]
+        reference_total_energy
+            Time of the reference frame (global total energy), in [eV]
+        intensity
+            Actual/real number of particles
+            a.k.a. beam intensity
         """
         super().__init__(
-            intensity=0,
+            intensity=intensity,
             particle_type=particle_type,
         )
         if dt is not None:
-            dE = np.zeros_like(dt)
+            dE = backend.zeros_like(dt)
         elif dE is not None:
-            dt = np.zeros_like(dE)
+            dt = backend.zeros_like(dE)
         elif (dE is None) and (dt is None):
             raise ValueError("dE or dt must be given!")
+
         else:
             raise RuntimeError(f"{dE=} {dt=}")
 
