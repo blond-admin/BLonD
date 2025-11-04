@@ -144,7 +144,6 @@ class Blond2BeamFeedback(LocalFeedback):
 
         self.delay = delay
 
-        #: | *Band-pass filter window coefficient for beam phase calculation.*
         self.alpha = window_coefficient
 
         self.time_offset = time_offset
