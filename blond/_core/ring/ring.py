@@ -130,7 +130,7 @@ class Ring(Preparable, Schedulable):
 
     @property  # as readonly attributes
     def elements(self) -> BeamPhysicsRelevantElements:
-        """Bending radius, in [m]."""
+        """The container of elements that are relevant for beam physics."""
         return self._elements
 
     @property  # as readonly attributes
