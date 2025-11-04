@@ -29,10 +29,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond._core.beam.base import BeamBaseClass
 
 
-
-
-
-
 def get_hamilton_semi_analytic(
     ts: NumpyArray | CupyArray,
     potential_well: NumpyArray | CupyArray,
@@ -119,7 +115,7 @@ def get_hamilton_semi_analytic(
     V = potential_well[None, :]  # [V]
 
     # Compute the Hamiltonian hamilton_2D(t, ΔE) = 0.5 * const * ΔE² + V(t)
-    hamilton_2D =  0.5 * drift_term * backend.square(deltaE_grid) + V  # [eV]
+    hamilton_2D = 0.5 * drift_term * backend.square(deltaE_grid) + V  # [eV]
 
     return deltaE_grid, time_grid, hamilton_2D
 
@@ -130,7 +126,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         time_limit: Tuple[float, float],
         n_macroparticles: int | float,
         hamilton_to_density_kwargs: Dict[str, Any],
-        hamilton_to_density_function: Callable = hamilton_to_density_by_max, #see example functions in the bucket_filler_functions file
+        hamilton_to_density_function: Callable = hamilton_to_density_by_max,  # see example functions in the bucket_filler_functions file
         internal_grid_shape: Tuple[int, int] = (1023, 1023),
         seed: int | None = 0,
         tolerance: float = 1e-6,
@@ -371,7 +367,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 dt=np.linspace(ts.min(), ts.max(), len(ts) * 10),
                 particle_type=beam.particle_type,
                 intensity=beam.intensity,
-                below_transition = below_transition
+                below_transition=below_transition,
             )
         )
         potential_well = potential_well[::10] * factor
@@ -392,11 +388,13 @@ class SemiEmpiricMatcher(MatchingRoutine):
             shape=self.internal_grid_shape,
         )
         density = self.hamilton_to_density_function(
-            time_grid = time_grid, deltaE_grid = deltaE_grid,
-            hamilton_2D=hamilton_2D, **self.hamilton_to_density_kwargs
+            time_grid=time_grid,
+            deltaE_grid=deltaE_grid,
+            hamilton_2D=hamilton_2D,
+            **self.hamilton_to_density_kwargs,
         )  # type: ignore
         self._plot_hamilton_2D = hamilton_2D
-        self._plot_density =density
+        self._plot_density = density
 
         populate_beam(
             beam=beam,
@@ -451,20 +449,30 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 plt.plot(ts, self._prelast_potential_well)
             if self.hamilton_to_density_kwargs["n_buckets"] is not None:
                 # If the density function used requires an n_buckets parameter, plot the bounds of said buckets
-                bucket_start_times = ts[::int(len(ts)/self.hamilton_to_density_kwargs["n_buckets"])]
+                bucket_start_times = ts[
+                    :: int(
+                        len(ts) / self.hamilton_to_density_kwargs["n_buckets"]
+                    )
+                ]
                 for bucket_start_time in bucket_start_times:
-                    plt.plot(2*[bucket_start_time],[self._last_potential_well.min(), self._last_potential_well.max()])
+                    plt.plot(
+                        2 * [bucket_start_time],
+                        [
+                            self._last_potential_well.min(),
+                            self._last_potential_well.max(),
+                        ],
+                    )
 
             plt.xlabel("Time (s)")
             plt.ylabel("Potential (arb. unit)")
 
             ax = plt.subplot(3, 2, 5)
-            ax.imshow(self._plot_hamilton_2D) # todo more beautiful
+            ax.imshow(self._plot_hamilton_2D)  # todo more beautiful
             ax.set_xticks([])
             ax.set_yticks([])
             ax.set_xlabel("semi empiric hamiltonian")
             ax = plt.subplot(3, 2, 6)
-            ax.imshow(self._plot_density) # todo more beautiful
+            ax.imshow(self._plot_density)  # todo more beautiful
             ax.set_xticks([])
             ax.set_yticks([])
             ax.set_xlabel("density distribution")
