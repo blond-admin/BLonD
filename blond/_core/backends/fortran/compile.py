@@ -20,7 +20,7 @@ _fortran_files32 = [
     "histogram_32.f90",
     "kick_32.f90",
     "kick_induced_32.f90",
-    "purge4_32.f90",
+    "flagged_to_end_32.f90",
 ]
 
 # Generate corresponding 64-bit file names by replacing "32" with "64"

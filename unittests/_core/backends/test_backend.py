@@ -415,7 +415,7 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
 
-    def test_purge4(self):
+    def test_flagged_to_end(self):
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 try:
@@ -429,7 +429,7 @@ class TestSpecials(unittest.TestCase):
                 dt = backend.array(backend.linspace(0, 10, 10), backend.float)
                 dE = backend.array(backend.linspace(0, 10, 10), backend.float)
                 ids = backend.array(backend.arange(0, 10), backend.int)
-                n_new = backend.specials.purge4(
+                n_new = backend.specials.flagged_to_end(
                     flag=flag,
                     flags=flags,
                     dt=dt,
@@ -478,7 +478,7 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
 
-    def test_purge4_none_flagged(self):
+    def test_flagged_to_end_none_flagged(self):
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 try:
@@ -492,7 +492,7 @@ class TestSpecials(unittest.TestCase):
                 dt = backend.array(backend.linspace(0, 10, 10), backend.float)
                 dE = backend.array(backend.linspace(0, 10, 10), backend.float)
                 ids = backend.array(backend.arange(0, 10), backend.int)
-                n_new = backend.specials.purge4(
+                n_new = backend.specials.flagged_to_end(
                     flag=flag,
                     flags=flags,
                     dt=dt,
@@ -506,7 +506,7 @@ class TestSpecials(unittest.TestCase):
                     msg=f"Failed test `{special}` with {dtype}",
                 )
 
-    def test_purge4_all_but_one_flagged(self):
+    def test_flagged_to_end_all_but_one_flagged(self):
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 try:
@@ -523,7 +523,7 @@ class TestSpecials(unittest.TestCase):
                 dt = backend.array(backend.linspace(0, 10, 10), backend.float)
                 dE = backend.array(backend.linspace(0, 10, 10), backend.float)
                 ids = backend.array(backend.arange(0, 10), backend.int)
-                n_new = backend.specials.purge4(
+                n_new = backend.specials.flagged_to_end(
                     flag=flag,
                     flags=flags,
                     dt=dt,
@@ -537,7 +537,7 @@ class TestSpecials(unittest.TestCase):
                     msg=f"Failed test `{special}` with {dtype}",
                 )
 
-    def test_purge4_all_flagged(self):
+    def test_flagged_to_end_all_flagged(self):
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 try:
@@ -551,7 +551,7 @@ class TestSpecials(unittest.TestCase):
                 dt = backend.array(backend.linspace(0, 10, 10), backend.float)
                 dE = backend.array(backend.linspace(0, 10, 10), backend.float)
                 ids = backend.array(backend.arange(0, 10), backend.int)
-                n_new = backend.specials.purge4(
+                n_new = backend.specials.flagged_to_end(
                     flag=flag,
                     flags=flags,
                     dt=dt,

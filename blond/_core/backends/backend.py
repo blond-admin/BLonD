@@ -129,21 +129,14 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def purge4(
+    def flagged_to_end(
         flag: np.int32,
         flags: NumpyArray | CupyArray,  # also purged
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         ids: NumpyArray | CupyArray,
     ):
-        """Purges entries from arrays where ``flags == flag``.
-
-        Notes
-        -----
-        The flagged macroparticles are removed from the array in place.
-        The order and size of the array changes, finding a single particle
-        by its position is potentially not possible anymore.
-        Use `ids` instead to identify a single particle.
+        """Reorders entries where ``flags == flag`` to the array end.
 
         Parameters
         ----------
@@ -159,7 +152,6 @@ class Specials(ABC):
             Macro-particle ids.
             This allows to identify single particles,
             even if the array indexing is changed.
-
         """
         pass
 

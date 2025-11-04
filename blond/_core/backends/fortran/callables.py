@@ -322,14 +322,14 @@ def reload_fortran_backend(
             )
 
         @staticmethod
-        def purge4(
+        def flagged_to_end(
             flag: int,
             flags: NumpyArray | CupyArray,  # also purged
             dt: NumpyArray | CupyArray,
             dE: NumpyArray | CupyArray,
             ids: NumpyArray | CupyArray,
         ):
-            n_new = libblond_fortran.purge4(
+            n_new = libblond_fortran.flagged_to_end(
                 flag=flag,
                 flags=flags,
                 dt=dt,

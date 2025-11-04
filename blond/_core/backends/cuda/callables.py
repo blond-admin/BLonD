@@ -335,7 +335,7 @@ def reload_cuda_backend(
             return floattype(result[0].get() / result[1].get())
 
         @staticmethod
-        def purge4(
+        def flagged_to_end(
             flag: np.int32,
             flags: CupyArray,
             dt: CupyArray,

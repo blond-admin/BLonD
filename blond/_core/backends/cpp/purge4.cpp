@@ -15,7 +15,7 @@ Project website: http://blond.web.cern.ch/
 
 #include "blond_common.h"
 
-extern "C" int purge4(
+extern "C" int flagged_to_end(
     const int flag,
     int* __restrict__ flags,
     real_t* __restrict__ dt,

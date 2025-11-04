@@ -1,4 +1,4 @@
-function purge4(flag, flags, dt, dE, ids, n) result(j)
+function flagged_to_end(flag, flags, dt, dE, ids, n) result(j)
     implicit none
     integer(kind=4), intent(in) :: flag, n
     integer(kind=4), intent(inout) :: flags(n), ids(n)
@@ -34,4 +34,4 @@ function purge4(flag, flags, dt, dE, ids, n) result(j)
             j = j - 1
         end if
     end do
-end function purge4
+end function flagged_to_end

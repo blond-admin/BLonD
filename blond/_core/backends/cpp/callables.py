@@ -369,14 +369,14 @@ def reload_cpp_backend(
             pass
 
         @staticmethod
-        def purge4(
+        def flagged_to_end(
             flag: np.int32,
             flags: NumpyArray | CupyArray,  # also purged
             dt: NumpyArray | CupyArray,
             dE: NumpyArray | CupyArray,
             ids: NumpyArray | CupyArray,
         ):
-            n_new = _LIBBLOND.purge4(
+            n_new = _LIBBLOND.flagged_to_end(
                 ct.c_int32(flag),
                 flags.ctypes.data_as(ct.c_void_p),
                 dt.ctypes.data_as(ct.c_void_p),

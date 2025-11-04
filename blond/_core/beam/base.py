@@ -398,11 +398,6 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     def purge_flagged_entries(self, flag: int = BeamFlags.LOST.value) -> None:
         """Delete flagged array entries from the array.
 
-        Side Effect
-        -----------
-        The attributes `_dt`, `_dE`, `_flags` are modified inplace.
-        All references that hold those arrays will see the modification.
-
         Parameters
         ----------
         flag
@@ -412,7 +407,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """
         from ..._core.backends.backend import backend  # prevent cyclic import
 
-        n_new = backend.specials.purge4(
+        n_new = backend.specials.flagged_to_end(
             flag=flag,
             flags=self._flags,
             dt=self._dt,
