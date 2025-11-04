@@ -158,12 +158,14 @@ test_documentation_building:
   before_script:
     - cd ${project_root}
     - python3 -m pip install --upgrade pip
-    - export PATH=$HOME/.local/bin:$PATH
+    - echo $HOME
     - python3 -m pip install .[doc]
+    - echo $PATH
     - pwd
   script:
     - cd ${project_root}/__doc
     - pwd
+    - echo $PATH
     - export PATH=/home/non_root/.local/bin:$PATH
     - ./create_docs.sh
   artifacts:
