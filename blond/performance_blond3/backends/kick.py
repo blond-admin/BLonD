@@ -58,7 +58,9 @@ def main():  # pragma: no cover
     from blond._core.backends.cpp.callables import CppSpecials
     from blond._core.backends.cuda.callables import CudaSpecials
     from blond._core.backends.fortran.callables import FortranSpecials
-    from blond._core.backends.numba.callables import NumbaSpecials
+    from blond._core.backends.numba.callables import recompile_numba_backend
+
+    NumbaSpecials = recompile_numba_backend(backend.float)
 
     functions = (
         NumbaSpecials().kick_multi_harmonic,
