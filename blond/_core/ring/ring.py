@@ -136,6 +136,20 @@ class Ring(Preparable, Schedulable):
             )
         )
 
+    def is_below_transition(self, beam: BeamBaseClass) -> bool:
+        """Weather the beam is above or below transition crossing.
+
+        Parameters
+        ----------
+        beam
+            Simulation beam object
+        """
+        if float(self.calc_average_eta_0(beam.reference_gamma)) < 0:
+            below_transition = True
+        else:
+            below_transition = False
+        return below_transition
+
     @property
     def n_cavities(self) -> int:
         """Total number of cavities in this synchrotron."""
