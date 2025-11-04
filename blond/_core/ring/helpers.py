@@ -32,7 +32,7 @@ def requires(argument: list[str]) -> Callable:
             return function(*args, **kwargs)
 
         # allow strings to prevent cyclic imports
-        assert all([isinstance(a, str) for a in argument])
+        assert all(isinstance(a, str) for a in argument)
         wrapper.requires = argument  # type: ignore
         return wrapper
 
@@ -87,7 +87,7 @@ def get_init_order(
     sorted_classes = _topological_sort(graph, in_degree, all_classes)
     sorted_classes_filtered = []
     for cls in sorted_classes:
-        if any([cls == type(i).__name__ for i in instances]):
+        if any(cls == type(i).__name__ for i in instances):
             sorted_classes_filtered.append(cls)
 
     return sorted_classes_filtered

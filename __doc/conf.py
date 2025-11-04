@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # BLonD documentation build configuration file, created by
 # sphinx-quickstart on Fri Mar 10 19:37:27 2017.
@@ -118,6 +117,10 @@ exclude_patterns = [
     "*/blond._core.backends.cuda.call*",
     "*/blond._core.backends.fortran.call*",
     "*/blond._core.backends.cpp.call*",
+    "*/blond._core.backends.cpp.lib*",
+    "*/blond._generals._files*",
+    "*/blond._generals._hashing*",
+    "*vari_noise*",
     "*/blond.testing.*",
     "*/blond.interfaces.xsuite.*",
     "*/blond.specifics.cern.*",  # empty at the moment

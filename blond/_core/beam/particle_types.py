@@ -1,12 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-
 import numpy as np
 from numpy import float32, float64
 from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
-
-from ..backends.backend import backend
 
 m_mu = physical_constants["muon mass"][0]
 
@@ -53,7 +49,7 @@ class ParticleType:
 
     @property
     def charge(self) -> float:
-        """Number of electrons of the particle, in []"""
+        """Number of electrons of the particle, unitless."""
         return self._charge
 
     @property

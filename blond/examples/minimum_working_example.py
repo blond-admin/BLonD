@@ -1,3 +1,5 @@
+"""A minimum working example of how to start a simulation with BLonD."""
+
 import matplotlib.pyplot as plt
 
 from blond import (
