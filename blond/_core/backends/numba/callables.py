@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from functools import cache
 from typing import TYPE_CHECKING
 
 import numba  # type: ignore
@@ -18,6 +19,7 @@ if TYPE_CHECKING:  # pragma: no cover
 logger = logging.getLogger(__name__)
 
 
+@cache  # or set a limit like maxsize=128
 def recompile_numba_backend(  # NOQA PLR0915
     floattype: np.float32 | np.float64,
 ) -> NumbaSpecials:
@@ -424,4 +426,5 @@ def recompile_numba_backend(  # NOQA PLR0915
     return NumbaSpecials
 
 
-NumbaSpecials = recompile_numba_backend(floattype=backend.float)
+if TYPE_CHECKING:
+    NumbaSpecials = recompile_numba_backend(backend.float)
