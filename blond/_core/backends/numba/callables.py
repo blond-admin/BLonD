@@ -133,20 +133,6 @@ sig_histogram = (
     sig_stop,
 )
 
-sig_mask = numba.bool[:, :]
-sig_buffer = nb_f[:]
-sig_meta_params_multibunch = (
-    sig_dt,
-    sig_dE,
-    sig_mask,
-    sig_buffer,
-    sig_buffer,
-    sig_buffer,
-    sig_buffer,
-    sig_buffer,
-    nb_f,
-)
-
 sig_hist_x = nb_f[:]
 sig_hist_y = nb_f[:]
 sig_alpha = nb_f
@@ -288,31 +274,6 @@ class NumbaSpecials(Specials):  # pragma: no cover
         coeff = T * eta_0 / (beta * beta * energy)
         for i in prange(len(dt)):
             dt[i] += coeff * dE[i]
-
-    @staticmethod
-    @njit(sig_meta_params_multibunch, parallel=True, fastmath=True, cache=True)
-    def meta_params_multibunch(
-        dt: NumpyArray | CupyArray,
-        dE: NumpyArray | CupyArray,
-        mask: NumpyArray | CupyArray,
-        sigma_dt_buffer: NumpyArray | CupyArray,
-        sigma_dE_buffer: NumpyArray | CupyArray,
-        mean_dt_buffer: NumpyArray | CupyArray,
-        mean_dE_buffer: NumpyArray | CupyArray,
-        emittance_buffer: NumpyArray | CupyArray,
-        t_rf: float,
-    ) -> None:
-        for bucket in prange(len(mask)):
-            sigma_dt_buffer[bucket] = np.std(dt[mask[bucket]])
-            sigma_dE_buffer[bucket] = np.std(dE[mask[bucket]])
-            mean_dt_buffer[bucket] = np.mean(dt[mask[bucket]]) - bucket * t_rf
-            # correct to value of first bucket
-            mean_dE_buffer[bucket] = np.mean(dE[mask[bucket]])
-            emittance_buffer[bucket] = np.sqrt(
-                np.average(dE[mask[bucket]] ** 2)
-                * np.average(dt[mask[bucket]] ** 2)
-                - np.average(dE[mask[bucket]] * dt[mask[bucket]]) ** 2
-            )
 
     @staticmethod
     @njit(sig_kick_multi_harmonic, parallel=True, fastmath=False)

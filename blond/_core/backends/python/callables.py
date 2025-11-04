@@ -13,30 +13,6 @@ if TYPE_CHECKING:  # pragma: no cover
 
 class PythonSpecials(Specials):
     @staticmethod
-    def meta_params_multibunch(
-        dt: NumpyArray | CupyArray,
-        dE: NumpyArray | CupyArray,
-        mask: NumpyArray | CupyArray,
-        sigma_dt_buffer: NumpyArray | CupyArray,
-        sigma_dE_buffer: NumpyArray | CupyArray,
-        mean_dt_buffer: NumpyArray | CupyArray,
-        mean_dE_buffer: NumpyArray | CupyArray,
-        emittance_buffer: NumpyArray | CupyArray,
-        t_rf: float,
-    ) -> None:
-        for bucket in range(len(mask)):
-            sigma_dt_buffer[bucket] = np.std(dt[mask[bucket]])
-            sigma_dE_buffer[bucket] = np.std(dE[mask[bucket]])
-            mean_dt_buffer[bucket] = np.mean(dt[mask[bucket]]) - bucket * t_rf
-            # correct to value of first bucket
-            mean_dE_buffer[bucket] = np.mean(dE[mask[bucket]])
-            emittance_buffer[bucket] = np.sqrt(
-                np.average(dE[mask[bucket]] ** 2)
-                * np.average(dt[mask[bucket]] ** 2)
-                - np.average(dE[mask[bucket]] * dt[mask[bucket]]) ** 2
-            )
-
-    @staticmethod
     def beam_phase(
         hist_x: NumpyArray,
         hist_y: NumpyArray,
