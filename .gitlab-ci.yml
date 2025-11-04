@@ -155,20 +155,13 @@ release_sdist_310:
 test_documentation_building:
   image: gitlab-registry.cern.ch/blond/blond/python310
   interruptible: true
-  before_script:
-    - cd ${project_root}
-    - python3 -m pip install --upgrade pip
-    - echo $HOME
-    - python3 -m pip install .[doc]
-    - echo $PATH
-    - pwd
   script:
     - cd ${project_root}/__doc
     - whoami
-    -
-    - pwd
+    - python3 -m pip install --upgrade pip
+    - python3 -m pip install .[doc]
     - echo $PATH
-    - export PATH=/home/non_root/.local/bin:$PATH
+    - export PATH=$HOME/.local/bin:$PATH
     - echo $PATH
     - ./create_docs.sh
   artifacts:
