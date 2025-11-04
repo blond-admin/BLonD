@@ -1,3 +1,10 @@
+"""Testing the performance of `kick_multi_harmonic`.
+
+Authors
+-------
+Simon Lauber
+"""
+
 import time
 
 import cupy as cp
@@ -6,6 +13,7 @@ from blond._core.backends.backend import Numpy32Bit, backend
 
 
 def main():  # pragma: no cover
+    """Testing the performance of `kick_multi_harmonic`."""
     backend.change_backend(Numpy32Bit)
 
     dt = backend.linspace(
@@ -50,7 +58,9 @@ def main():  # pragma: no cover
     from blond._core.backends.cpp.callables import CppSpecials
     from blond._core.backends.cuda.callables import CudaSpecials
     from blond._core.backends.fortran.callables import FortranSpecials
-    from blond._core.backends.numba.callables import NumbaSpecials
+    from blond._core.backends.numba.callables import recompile_numba_backend
+
+    NumbaSpecials = recompile_numba_backend(backend.float)
 
     functions = (
         NumbaSpecials().kick_multi_harmonic,

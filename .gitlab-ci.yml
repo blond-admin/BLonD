@@ -3,6 +3,20 @@ variables:
   # Set the project root to the directory containing your setup.py
   project_root: ./
   PYPI_UPLOAD_URL: "https://upload.pypi.org/legacy/"
+stages:
+  - precommit
+  - test
+  - deploy
+default:
+  interruptible: true
+
+# Automatically cancel older  running
+# pipelines when a new one starts on the same branch
+workflow:
+  rules:
+    - when: always
+  auto_cancel:
+    on_new_commit: interruptible
 
 .on_tag:
   # Rules to run a job only on a git tagged commit
@@ -29,11 +43,14 @@ variables:
 
 
 .main:
+  variables:
+    BLOND_BACKEND_MODE: "numba"     # Set the basic backend to numba. It is most verbose about wrong types
   script:
     - cd ${project_root}
     # Run all unittests + the examples
     - python3 -m pytest
       -v unittests/
+      -x
       --import-mode=importlib
       --cov
       --cov-config=.coveragerc
@@ -68,7 +85,8 @@ variables:
 
 precommit-check:
   image: python:3.12
-  stage: test
+  stage: precommit
+  interruptible: true
   before_script:
     - pip install pre-commit
   script:
@@ -138,6 +156,7 @@ release_sdist_310:
 
 test_documentation_building:
   image: gitlab-registry.cern.ch/blond/blond/python310
+  interruptible: true
   before_script:
     - cd ${project_root}
     - python3 -m pip install --upgrade pip
@@ -171,6 +190,7 @@ test_documentation_building:
 
 pages:  # BLonD2 scripts
   image: gitlab-registry.cern.ch/blond/blond/python310
+  interruptible: true
   script:
     - cd ${project_root}
     - mkdir public

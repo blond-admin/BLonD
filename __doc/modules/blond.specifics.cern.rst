@@ -3,6 +3,7 @@ blond.specifics.cern package
 
 .. automodule:: blond.specifics.cern
    :members:
+   :private-members:
    :show-inheritance:
    :undoc-members:
 
@@ -10,7 +11,7 @@ Subpackages
 -----------
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 5
 
    blond.specifics.cern.lhc
    blond.specifics.cern.ps

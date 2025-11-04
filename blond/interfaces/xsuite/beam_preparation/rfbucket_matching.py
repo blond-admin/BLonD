@@ -1,6 +1,8 @@
+"""Required scripts for defining the `XsuiteRFBucketMatcher`."""
+
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Type, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 from scipy.constants import c, e
@@ -11,8 +13,6 @@ from blond.beam_preparation.base import MatchingRoutine
 from blond.physics.drifts import DriftSimple
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional, Tuple
-
     from xpart.longitudinal.rfbucket_matching import (
         ParabolicDistribution,
         QGaussianDistribution,
@@ -22,19 +22,17 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond._core.beam.base import BeamBaseClass
     from blond._core.simulation.simulation import Simulation
 
-    distribution_hints = Type[
-        Union[
-            ParabolicDistribution,
-            QGaussianDistribution,
-            ThermalDistribution,
-        ]
+    distribution_hints = type[
+        ParabolicDistribution | QGaussianDistribution | ThermalDistribution
     ]
 
 
 class XsuiteRFBucketMatcher(MatchingRoutine):
-    """Beam preparation routine that matches a longitudinal beam distribution
+    """Use the XSuite `RFBucketMatcher` for beam matching.
+
+    Beam preparation routine that matches a longitudinal beam distribution
     using the Xsuite RFBucketMatcher and populates the beam with macroparticles.
-    REF: https://github.com/xsuite/xsuite
+    REF: https://github.com/xsuite/xsuite.
 
     This class constructs an RF bucket using the given machine parameters and
     applies a stationary distribution (e.g., Q-Gaussian, Thermal) to initialize
@@ -170,7 +168,7 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             p_increment=0,
         )
 
-        np.random.seed(seed=42)
+        np.random.seed(seed=42)  # NOQA
         matcher = RFBucketMatcher(
             rfbucket=rfbucket,
             distribution_type=self.distribution_type,

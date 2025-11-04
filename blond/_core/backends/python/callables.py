@@ -11,7 +11,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 
-def _purge4_py(
+def _flagged_to_end_py(
     flag: int,
     flags: NumpyArray,  # also purged
     dt: NumpyArray,
@@ -247,24 +247,18 @@ class PythonSpecials(Specials):
                 dE[i] += dt[i] * helper1[fbin[i]] + helper2[fbin[i]]
 
     @staticmethod
-    def purge4(
-        flag: np.int32 | np.int64,
+    def flagged_to_end(
+        flag: np.int32,
         flags: NumpyArray | CupyArray,  # also purged
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         ids: NumpyArray | CupyArray,
     ):
-        n_new = _purge4_py(
+        n_new = _flagged_to_end_py(
             flag=flag,
             flags=flags,
             dt=dt,
             dE=dE,
             ids=ids,
         )
-        # this changes the arrays in all references.
-        # This means that every position, that holds this array,
-        # is changed.
-        flags.resize(n_new, refcheck=False)
-        dt.resize(n_new, refcheck=False)
-        dE.resize(n_new, refcheck=False)
-        ids.resize(n_new, refcheck=False)
+        return n_new

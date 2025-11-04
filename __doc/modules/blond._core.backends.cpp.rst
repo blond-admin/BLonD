@@ -15,3 +15,5 @@ Submodules
 
    blond._core.backends.cpp.callables
    blond._core.backends.cpp.compile
+   blond._core.backends.cpp.libblond_double
+   blond._core.backends.cpp.libblond_single
