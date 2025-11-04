@@ -163,6 +163,8 @@ test_documentation_building:
   script:
     - cd ${project_root}/__doc
     - python3 -m pip list
+    - shopt -s globstar nullglob
+    - sphinx-apidoc --implicit-namespaces -o modules ../blond ../blond/*/*/__init__.py -f -e -M -d 5 -P
     - . ./create_docs.sh
   artifacts:
     paths:
