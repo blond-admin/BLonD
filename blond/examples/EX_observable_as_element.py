@@ -5,7 +5,7 @@ import numpy as np
 
 from blond import (
     Beam,
-    BeamEnergyTimeLogger,
+    BeamObserver,
     BiGaussian,
     DriftSimple,
     Ring,
@@ -26,7 +26,7 @@ def main():
     cavity1.voltage = 6e6
     cavity1.phi_rf = 0
 
-    N_TURNS = int(1e3)
+    N_TURNS = int(10)
 
     energy_cycle = MagneticCyclePerTurn(
         value_init=450e9,
@@ -43,7 +43,13 @@ def main():
         particle_type=proton,
     )
 
-    beam_logger_element = BeamEnergyTimeLogger(name="logger", section_index=0)
+    beam_logger_element = BeamObserver(
+        name="logger",
+        section_index=0,
+        folder="./results/",
+        n_turns=N_TURNS,
+        n_macroparticles=10,
+    )
     one_turn_execution_order = (
         drift1,
         cavity1,
@@ -57,7 +63,7 @@ def main():
             sigma_dt=0.4e-9 / 4,
             reinsertion=True,
             seed=1,
-            n_macroparticles=10001,
+            n_macroparticles=10,
         ),
         beam=beam1,
     )
@@ -66,11 +72,10 @@ def main():
 
     sim.run_simulation(
         n_turns=10,
-        # observe=(profile_observable,),
         beams=(beam1,),
     )
 
-    print(beam_logger_element.get_logged_arrays())
+    beam_logger_element.to_disk()
 
 
 if __name__ == "__main__":  # pragma: no cover

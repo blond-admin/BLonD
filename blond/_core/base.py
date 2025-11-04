@@ -262,15 +262,10 @@ class BeamObservationElement(SimulationElementBase):
     n_instances = 0
 
     def __init__(
-        self, section_index: int = 0, name: str | None = None
+        self, section_index: int = 0, name: str | None = None, **kwargs
     ) -> None:
-        super().__init__(section_index, name)
+        super().__init__(section_index=section_index, name=name, **kwargs)
         type(self).n_instances += 1
-
-    @abstractmethod
-    def observe(self, beam: BeamBaseClass) -> None:
-        """Inspect the beam state without modifying it."""
-        pass
 
     @abstractmethod
     def track(self, beam: BeamBaseClass) -> None:
