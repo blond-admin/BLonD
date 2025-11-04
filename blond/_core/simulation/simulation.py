@@ -267,7 +267,6 @@ class Simulation(Preparable, HasPropertyCache):
         particle_type: ParticleType,
         subtract_min: bool = True,
         intensity: int = 0,
-        below_transition: bool = False,
     ) -> Tuple[NumpyArray, float, float]:
         """
         Obtain the potential well by tracking a beam for one turn.
@@ -342,7 +341,7 @@ class Simulation(Preparable, HasPropertyCache):
             probe_bunch.read_partial_dE(), initial=0
         ) / len(dt)
 
-        if below_transition:
+        if self.ring.is_below_transition(beam=probe_bunch):
             # peaks and troughs are flipped when below transition
             potential_well *= -1
 
