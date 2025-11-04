@@ -122,11 +122,11 @@ blond._core.backends.backend
 # add type hints from database to files
 for target in targets.split("\n"):
     target_ = target.strip()
-    if len(target_) == 0:
-        continue
-    elif target_.startswith("unittests"):
-        continue
-    elif "legacy" in target_:
+    if (
+        len(target_) == 0
+        or target_.startswith("unittests")
+        or "legacy" in target_
+    ):
         continue
     else:
         subprocess.run(f"monkeytype apply {target}".split(" "), check=False)

@@ -141,16 +141,10 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     # Get boost path
     boost_path = None
     if boost is not None:
-        if boost:
-            boost_path = os.path.abspath(boost)
-        else:
-            boost_path = ""
+        boost_path = os.path.abspath(boost) if boost else ""
         cflags += ["-I", boost_path, "-DBOOST"]
 
-    if libs:
-        libs_ = libs.split()
-    else:
-        libs_ = []
+    libs_ = libs.split() if libs else []
 
     if parallel:
         cflags += ["-fopenmp", "-DPARALLEL", "-D_GLIBCXX_PARALLEL"]

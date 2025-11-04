@@ -399,17 +399,17 @@ class SingleHarmonicCavity(CavityBaseClass):
             Simulation context manager
         """
         super().on_init_simulation(simulation=simulation)
-        if (self.voltage is None) and "voltage" not in self.schedules.keys():
+        if (self.voltage is None) and "voltage" not in self.schedules:
             raise ValueError(
                 "You need to define `voltage` via `.voltage=...` "
                 f"or `.schedule(attribute='voltage', value=...)` for {self.name}"
             )
-        if (self.phi_rf is None) and "phi_rf" not in self.schedules.keys():
+        if (self.phi_rf is None) and "phi_rf" not in self.schedules:
             raise ValueError(
                 "You need to define `phi_rf` via `.phi_rf=...` "
                 f"or `.schedule(attribute='phi_rf', value=...)` for {self.name}"
             )
-        if (self.harmonic is None) and "harmonic" not in self.schedules.keys():
+        if (self.harmonic is None) and "harmonic" not in self.schedules:
             raise ValueError(
                 "You need to define `harmonic` via `.harmonic=...` "
                 f"or `.schedule(attribute='harmonic', value=...)` for {self.name}"
@@ -646,17 +646,17 @@ class MultiHarmonicCavity(CavityBaseClass):
             Simulation context manager
         """
         super().on_init_simulation(simulation=simulation)
-        if (self.voltage is None) and "voltage" not in self.schedules.keys():
+        if (self.voltage is None) and "voltage" not in self.schedules:
             raise ValueError(
                 f"You need to define `voltage` for '{self.name}' via "
                 f"`.voltage=...` or `.schedule(attribute='voltage', value=...)`"
             )
-        if (self.phi_rf is None) and "phi_rf" not in self.schedules.keys():
+        if (self.phi_rf is None) and "phi_rf" not in self.schedules:
             raise ValueError(
                 f"You need to define `phi_rf` for '{self.name}' via "
                 f"`.phi_rf=...` or `.schedule(attribute='phi_rf', value=...)`"
             )
-        if (self.harmonic is None) and "harmonic" not in self.schedules.keys():
+        if (self.harmonic is None) and "harmonic" not in self.schedules:
             raise ValueError(
                 f"You need to define `harmonic` for '{self.name}' via "
                 f"`.harmonic=...` or `.schedule(attribute='harmonic', value=...)`"
