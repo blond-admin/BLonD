@@ -157,7 +157,6 @@ test_documentation_building:
   interruptible: true
   script:
     - cd ${project_root}
-    - whoami
     - python3 -m pip install --upgrade pip
     - python3 -m pip install .[doc]
     - cd ${project_root}/__doc
@@ -172,14 +171,13 @@ test_documentation_building:
 
 #pages_blond3:  # adjusted for BLonD3, not active yet
 #  image: gitlab-registry.cern.ch/blond/blond/python310
-#  before_script:
+#  script:
 #    - cd ${project_root}
-#    - mkdir public
 #    - python3 -m pip install --upgrade pip
 #    - python3 -m pip install .[doc]
-#  script:
 #    - cd ${project_root}/__doc
-#    - ./create_docs.sh
+#    - export PATH=/home/non_root/.local/bin:$PATH
+#    - . ./create_docs.sh
 #    - cp -r ./_build/html/* public/
 #  artifacts:
 #    paths:
