@@ -1,3 +1,10 @@
+"""Collection of abstract classes to handle the calculation of wake potentials.
+
+Authors
+-------
+Simon Lauber
+"""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -19,25 +26,52 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class WakeFieldSolver:
+    """Abstract class for a solver that generates wake fields based on beam profiles."""
+
     @abstractmethod  # pragma: no cover
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:
+        """Lateinit method when :class:`blond.physics.impedances.base.WakeField` is late-initialized.
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+        parent_wakefield
+            Wakefield that this solver affiliated to
+        """
         pass
 
     @abstractmethod  # pragma: no cover
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
+        """Calculates the induced voltage based on the beam profile and beam parameters.
+
+        Parameters
+        ----------
+        beam
+            Simulation object of a particle beam
+
+        Returns
+        -------
+        induced_voltage
+            Induced voltage, in [V]
+        """
         pass
 
 
 class WakeFieldSource(ABC):
+    """General abstract class for wake fields."""
+
     def __init__(self, is_dynamic: bool):
         self.is_dynamic = is_dynamic
 
 
 class TimeDomain(ABC):
+    """Indication of a source is defined in time or frequency domain."""
+
     @abstractmethod  # pragma: no cover
     def get_wake_impedance(
         self,
@@ -55,7 +89,7 @@ class TimeDomain(ABC):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         Returns
         -------
@@ -66,6 +100,8 @@ class TimeDomain(ABC):
 
 
 class FreqDomain(ABC):
+    """Indication of a source is defined in time or frequency domain."""
+
     @abstractmethod  # pragma: no cover
     def get_impedance(
         self,
@@ -82,7 +118,7 @@ class FreqDomain(ABC):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         Returns
         -------
@@ -93,14 +129,30 @@ class FreqDomain(ABC):
 
 
 class AnalyticWakeFieldSource(WakeFieldSource):
+    """Indication on which calculation method a WakeFieldSolver uses.
+
+    Notes
+    -----
+    This is intended for ``isinstance`` checks.
+    """
+
     pass
 
 
 class DiscreteWakeFieldSource(WakeFieldSource):
+    """Indication on which calculation method a WakeFieldSolver uses.
+
+    Notes
+    -----
+    This is intended for ``isinstance`` checks.
+    """
+
     pass
 
 
 class ImpedanceBaseClass(BeamPhysicsRelevant):
+    """Abstract class on how to calculate induced voltages."""
+
     def __init__(
         self,
         section_index: int = 0,
@@ -111,12 +163,25 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
 
     @property  # as readonly attributes
     def profile(self) -> ProfileBaseClass:
+        """The reference profile that is causing the wake."""
         return self._profile
 
     @abstractmethod  # pragma: no cover
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
+        """Calculates the induced voltage based on the beam profile and beam parameters.
+
+        Parameters
+        ----------
+        beam
+            Simulation object of a particle beam
+
+        Returns
+        -------
+        induced_voltage
+            Induced voltage, in [V]
+        """
         pass
 
     def on_run_simulation(
@@ -132,7 +197,7 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -218,7 +283,7 @@ class WakeField(ImpedanceBaseClass):
         self._induced_voltage = None
 
     def info_string(self) -> str:
-        """Inform that the profile is also executed within the track method"""
+        """Inform that the profile is also executed within the track method."""
         content = f"{self.profile.info_string(prefix=' ↓ ')}\n{super().info_string()}"
         return content
 
@@ -291,11 +356,30 @@ class WakeField(ImpedanceBaseClass):
 
     @staticmethod
     def headless(
+        beam: BeamBaseClass,
         sources: tuple[WakeFieldSource, ...],
         solver: WakeFieldSolver,
         section_index: int = 0,
         profile: ProfileBaseClass | None = None,
     ):
+        """Initialize the full class.
+
+        Parameters
+        ----------
+        sources
+            List of sources that cause wake-fields
+        solver
+            Solver to calculate the induced voltage from the sources
+        section_index
+            Section index to group elements into sections
+        profile
+            Object for calculation of beam profiles
+
+        Returns
+        -------
+        Instance with lateinit methods executed.
+
+        """
         wf = WakeField(
             sources=sources,
             solver=solver,
@@ -308,4 +392,7 @@ class WakeField(ImpedanceBaseClass):
 
         simulation = Mock(Simulation)
         wf.on_init_simulation(simulation=simulation)
+        wf.on_run_simulation(
+            simulation=simulation, beam=beam, n_turns=1, turn_i_init=0
+        )
         return wf

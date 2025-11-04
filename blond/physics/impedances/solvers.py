@@ -1,7 +1,20 @@
+"""Solvers to calculate the wake potential from impedance sources.
+
+Authors
+-------
+Alexandre Lasheen
+Danilo Quartullo,
+Juan F. Esteban Mueller
+Leonard Thiele
+Markus Schwarz
+Simon Lauber
+"""
+
 from __future__ import annotations
 
-import warnings
+from collections import deque
 from typing import TYPE_CHECKING
+from warnings import warn
 
 import numpy as np
 from scipy.constants import elementary_charge as e
@@ -12,13 +25,14 @@ from ..._core.base import DynamicParameter
 from ..._core.beam.base import BeamBaseClass
 from ..._core.ring.helpers import requires
 from ..._core.simulation.simulation import Simulation
+from ..._generals._warnings import NotTestedWarning
 from ..profiles import (
     DynamicProfileConstCutoff,
     DynamicProfileConstNBins,
     StaticProfile,
 )
 from .base import FreqDomain, TimeDomain, WakeField, WakeFieldSolver
-from .sources import InductiveImpedance
+from .sources import InductiveImpedance, Resonators
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
@@ -26,8 +40,9 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class InductiveImpedanceSolver(WakeFieldSolver):
+    """Wakefield solver specialized for :class:`blond.physics.impedances.sources.InductiveImpedance`."""
+
     def __init__(self):
-        """Wakefield solver specialized for InductiveImpedance."""
         super().__init__()
         self._beam: BeamBaseClass | None = None
         self._Z_over_n: float | None = None
@@ -49,10 +64,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         """
         self._parent_wakefield = parent_wakefield
         assert all(
-            [
-                isinstance(o, InductiveImpedance)
-                for o in parent_wakefield.sources
-            ]
+            isinstance(o, InductiveImpedance) for o in parent_wakefield.sources
         )
         impedances: tuple[InductiveImpedance, ...] = parent_wakefield.sources
         self._Z_over_n = backend.float(
@@ -86,7 +98,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
             * (self._simulation.ring.circumference / beam.reference_velocity)
             / self._parent_wakefield.profile.hist_step
         )
-        diff = self._parent_wakefield.profile.diff_hist_y
+        diff = self._parent_wakefield.profile.gradient_hist_y
         return factor * diff * self._Z_over_n
 
 
@@ -124,20 +136,6 @@ class PeriodicFreqSolver(WakeFieldSolver):
         t_periodicity: float | None = None,
         allow_next_fast_len: bool = False,
     ):
-        """General wakefield solver to calculate wake-fields via frequency domain.
-
-        Parameters
-        ----------
-        t_periodicity
-            Periodicity that is assumed for fast fourier transform, in [s]
-
-            If None, it will be automatically set during `on_init_simulation`
-            to the revolution time of the initial turn of the magnetic cycle
-            with respect to the reference particle.
-        allow_next_fast_len
-            Allow to slightly change `t_periodicity` for
-            faster execution of fft via `scipy.fft.next_fast_len`
-        """
         super().__init__()
         self.allow_next_fast_len = allow_next_fast_len
         self.expect_profile_change: bool = False
@@ -180,14 +178,15 @@ class PeriodicFreqSolver(WakeFieldSolver):
         if parent_wakefield.profile is not None:
             is_static = isinstance(parent_wakefield.profile, StaticProfile)
             is_dynamic = isinstance(
-                parent_wakefield.profile, DynamicProfileConstCutoff
-            ) or isinstance(parent_wakefield.profile, DynamicProfileConstNBins)
+                parent_wakefield.profile,
+                DynamicProfileConstCutoff | DynamicProfileConstNBins,
+            )
             self._parent_wakefield = parent_wakefield
             self._update_internal_data()
 
             if is_dynamic:
                 if self.expect_profile_change is False:
-                    warnings.warn(
+                    warn(
                         f"Because you are using"
                         f" a `{type(parent_wakefield.profile)}`,"
                         f" the variable `update_on_calc` is set to"
@@ -208,7 +207,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         for source in self._parent_wakefield.sources:
             if source.is_dynamic:
                 if self.expect_impedance_change is False:
-                    warnings.warn(
+                    warn(
                         f"Because `{source}` is dynamic,"
                         f" the variable `expect_impedance_change` is set to"
                         f" True, which might impact performance."
@@ -372,15 +371,16 @@ class PeriodicFreqSolver(WakeFieldSolver):
 
 
 class TimeDomainFftSolver(WakeFieldSolver):
+    """Solver to calculate induced voltage using fftconvolve(wake,profile).
+
+    Notes
+    -----
+    This method is intended for beam profiles that are only a fraction of
+    the synchrotron revolution time (short profiles).
+
+    """
+
     def __init__(self):
-        """Solver to calculate induced voltage using fftconvolve(wake,profile).
-
-        Notes
-        -----
-        This method is intended for beam profiles that are only a fraction of
-        the synchrotron revolution time (short profiles).
-
-        """
         super().__init__()
         self.expect_impedance_change = False
 
@@ -393,7 +393,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
     @requires(["EnergyCycleBase"])  # because InductiveImpedance.get_
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
-    ):
+    ) -> None:
         """Lateinit method when WakeField is late-initialized.
 
         Parameters
@@ -406,13 +406,14 @@ class TimeDomainFftSolver(WakeFieldSolver):
         self._simulation = simulation
         if parent_wakefield.profile is not None:
             is_dynamic = isinstance(
-                parent_wakefield.profile, DynamicProfileConstCutoff
-            ) or isinstance(parent_wakefield.profile, DynamicProfileConstNBins)
+                parent_wakefield.profile,
+                DynamicProfileConstCutoff | DynamicProfileConstNBins,
+            )
             self._parent_wakefield = parent_wakefield
             self._wake_imp_y_needs_update = True
 
             if is_dynamic and self.expect_impedance_change is False:
-                warnings.warn(
+                warn(
                     f"Because you are using"
                     f" a `{type(parent_wakefield.profile)}`,"
                     f" the variable `update_on_calc` is set to"
@@ -432,7 +433,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
         for source in self._parent_wakefield.sources:
             if source.is_dynamic:
                 if self.expect_impedance_change is False:
-                    warnings.warn(
+                    warn(
                         f"Because `{source}` is dynamic,"
                         f" the variable `expect_impedance_change` is set to"
                         f" True, which might impact performance."
@@ -538,11 +539,398 @@ class TimeDomainFftSolver(WakeFieldSolver):
         return induced_voltage
 
 
-class AnalyticSingleTurnResonatorSolver(WakeFieldSolver):
-    def __init__(self):  # TODO
-        raise NotImplementedError()
+class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
+    """
+    Calculates the induced voltage by convolution of a wake with the bunch.
+
+    Notes
+    -----
+    This solver is only compatible with
+    :class:`~blond.physics.impedances.sources.Resonators` sources.
+    """
+
+    def __init__(self):
+        warn("Untested code", NotTestedWarning, stacklevel=1)
+        super().__init__()
+        self._wake_function_vals: NumpyArray | None = None
+        self._wake_function_time: NumpyArray | None = None
+        self._wake_function_vals_needs_update = True  # initialization
+
+        self._simulation: Simulation | None = None
+        self._parent_wakefield: WakeField | None = None
+
+    def on_wakefield_init_simulation(
+        self, simulation: Simulation, parent_wakefield: WakeField
+    ) -> None:
+        """Lateinit method when WakeField is late-initialized.
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+        parent_wakefield
+            Wakefield that this solver affiliated to
+        """
+        self._simulation = simulation
+        if parent_wakefield.profile is None:
+            raise ValueError("Parent wakefield needs to have a profile.")
+        self._parent_wakefield = parent_wakefield
+        self._wake_function_vals_needs_update = True
+
+        if not isinstance(parent_wakefield.profile, StaticProfile):
+            raise RuntimeError(
+                f"Expected `StaticProfile` but got {type(parent_wakefield.profile)=}."
+            )
+
+        for source in self._parent_wakefield.sources:
+            if source.is_dynamic or not isinstance(source, Resonators):
+                raise RuntimeError(
+                    f"Expected `Resonators` and not source.is_dynamic, but got {type(source)=}."
+                )
+
+    def _update_potential_sources(self, zero_pinning: bool = False) -> None:
+        """Updates the internal wake kernels.
+
+        Updates `_wake_function_time`  and `_wake_function_vals` arrays
+        if `self._wake_function_vals_needs_update=True`
+
+        The time axis is chosen based on the profile in `_parent_wakefield.profile`
+
+        Parameters
+        ----------
+        zero_pinning: boolean
+            causes values <= self._parent_wakefield.profile.hist_step * np.finfo(float).eps * len(self._wake_function_time)
+            to be pinned to exactly zero. This prevents issues with the heaviside function around the 0 timestamp
+        """
+        if not self._wake_function_vals_needs_update:
+            return
+        hist_step = self._parent_wakefield.profile.hist_step
+        arr_len = len(self._parent_wakefield.profile.hist_x)
+        self._wake_function_time = np.linspace(
+            -(arr_len - 1) * hist_step,
+            arr_len * hist_step,
+            int(2 * arr_len - 1),
+            endpoint=False,
+        )  # necessary for boundary effects
+        if zero_pinning:
+            self._wake_function_time[
+                np.abs(self._wake_function_time)
+                <= self._parent_wakefield.profile.hist_step
+                * np.finfo(float).eps
+                * len(self._wake_function_time)
+            ] = 0.0
+        self._wake_function_vals = np.zeros_like(self._wake_function_time)
+        for source in self._parent_wakefield.sources:
+            self._wake_function_vals += source.get_wake(
+                self._wake_function_time
+            )
+
+        self._wake_function_vals_needs_update = False  # avoid repeated update
+
+    def calc_induced_voltage(
+        self, beam: BeamBaseClass
+    ) -> NumpyArray | CupyArray:
+        """Calculates the induced voltage with the beam profile and parameters.
+
+        Parameters
+        ----------
+        beam
+            Simulation object of a particle beam
+
+        Returns
+        -------
+        induced_voltage
+            Induced voltage in [V]
+        """
+        if self._wake_function_vals_needs_update:
+            self._update_potential_sources()
+
+        _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
+            beam.intensity / beam.n_macroparticles_partial()
+        )
+
+        return _charge_per_macroparticle * np.convolve(
+            self._wake_function_vals,
+            self._parent_wakefield.profile.hist_y,
+            mode="valid",
+        )
 
 
-class MutliTurnResonatorSolver(WakeFieldSolver):
-    def __init__(self):  # TODO
-        raise NotImplementedError()
+class MultiPassResonatorSolver(WakeFieldSolver):
+    """Calculates the multi-turn wake function.
+
+    Solver, which saves the profiles of past passes and sums the
+    wake fields of all previous and the current pass together.
+
+    Parameters
+    ----------
+    decay_fraction_threshold: float
+        Until which fraction of the decay will the profile
+        still be considered for multi-pass wake calculation.
+
+    Attributes
+    ----------
+    _wake_function_vals: deque
+        List of wake function values: 0th entry being from the current pass,
+        subsequent entries from previous passes.
+    _wake_function_time: deque
+        time axes corresponding to _wake_function_time.
+
+    _past_profiles: deque
+        List of previously passed profiles: 0th entry being from the current pass,
+        subsequent entries from previous passes.
+    _past_profile_times: deque
+        time axes corresponding to _past_profiles.
+    """
+
+    def __init__(self, decay_fraction_threshold: float = 0.001):
+        warn("Untested code", NotTestedWarning, stacklevel=1)
+        super().__init__()
+
+        self._last_reference_time: float | None = None
+
+        self._maximum_storage_time: float | None = None
+        self._decay_fraction_threshold = decay_fraction_threshold
+
+        self._simulation: Simulation | None = None
+        self._parent_wakefield: WakeField | None = None
+
+        # define wake function values and corresponding time axis
+        self._past_profiles: deque[NumpyArray] = deque()
+        self._past_profile_times: deque[NumpyArray] = deque()
+        self._past_charge_per_macroparticle: deque[float] = deque()
+
+        self._wake_function_vals: deque[NumpyArray] = deque()
+        self._wake_function_time: deque[NumpyArray] = deque()
+
+    def _determine_storage_time(self):
+        """Determines the maxumum storage time, in [s].
+
+        Sums up the contributions of all resonators and
+        determine how long they should be stored in time.
+        """
+        if self._parent_wakefield is None:
+            raise RuntimeError(
+                "Parent wakefield must be present before this function can be called."
+            )
+        for source in self._parent_wakefield.sources:
+            # Guarding against non-resonator sources is done in on_wakefield_init_simulation
+            time_axis, envelope = source.calculate_envelope()
+
+            storage_time = time_axis[
+                np.abs(envelope - self._decay_fraction_threshold).argmin()
+            ]
+            self._maximum_storage_time = max(
+                self._maximum_storage_time, storage_time
+            )
+
+    def on_wakefield_init_simulation(
+        self, simulation: Simulation, parent_wakefield: WakeField
+    ) -> None:
+        """Lateinit method when WakeField is late-initialized.
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+        parent_wakefield
+            Wakefield that this solver affiliated to
+        """
+        self._simulation = simulation
+        if parent_wakefield.profile is None:
+            raise ValueError("Parent wakefield needs to have a profile.")
+        self._parent_wakefield = parent_wakefield
+
+        self._maximum_storage_time = 0
+        self._last_reference_time = -np.finfo(float).eps
+
+        if not isinstance(parent_wakefield.profile, StaticProfile):
+            raise RuntimeError(
+                f"Expected `StaticProfile` but got {type(parent_wakefield.profile)=}."
+            )
+
+        for source in self._parent_wakefield.sources:
+            if source.is_dynamic or not isinstance(source, Resonators):
+                raise RuntimeError(
+                    f"Expected `Resonators` and not source.is_dynamic, but got {type(source)=}."
+                )
+
+        self._determine_storage_time()
+
+    def _remove_fully_decayed_wake_profiles(
+        self, indexes_to_check: int = 2
+    ) -> None:
+        """Goes through wake functions and removes all arrays above storage time.
+
+        Goes through _wake_function_time from the back (oldest profile)
+        and removes all arrays from it, which are beyond
+        ``self._maximum_storage_time``. only the last
+        ``indexes_to_check`` entries are checked.
+
+        Parameters
+        ----------
+        indexes_to_check: int
+            number of indices in the list, that get checked. this is the number of indices, which starts from the back
+        """
+        if len(self._past_profiles) == 0:
+            return
+        for _ in range(indexes_to_check):
+            if len(self._past_profiles) == 0:
+                return
+            if (
+                np.min(self._past_profile_times[-1])
+                > self._maximum_storage_time
+            ):  # this assumes, that the time is increasing
+                # throughout the array, which is ensured, when
+                # the time is shifted
+                self._past_profile_times.pop()
+                self._past_profiles.pop()
+                self._wake_function_time.pop()
+                self._wake_function_vals.pop()
+            else:
+                return
+
+    def _update_past_profile_times_wake_times(self, current_time):
+        """Advances the times in the past profile arrays.
+
+        Advances the times in the past profile arrays by delta_t = current_time - self._last_reference_time and
+        sets self._last_reference_time to current_time afterwards.
+
+        Parameters
+        ----------
+        current_time
+            simulation time at the moment of calling, has to be > self._last_reference_time
+        """
+        delta_t = current_time - self._last_reference_time
+        assert delta_t > 0  # TODO: performance = ?
+        for prof_ind, profile_time in enumerate(self._past_profile_times):
+            profile_time += delta_t  # NOQA # TODO test PLW2901 `for` loop variable `profile_time` overwritten by assignment target
+            self._wake_function_time[prof_ind] += delta_t
+
+        self._last_reference_time = current_time
+
+    def _update_past_profile_wake_functions(self, zero_pinning: bool = False):
+        """Updates the wake functions according to the new timestamps.
+
+        The arrays are expected to be cleaned before, such that they don't
+        include arrays past self._maximum_storage_time.
+
+        Parameters
+        ----------
+        zero_pinning: bool
+            Clips small values to zero.
+
+            Causes ``values <= self._parent_wakefield.profile.hist_step * np.finfo(float).eps * len(self._wake_function_time)``
+            to be pinned to exactly zero.
+            This prevents issues with the heaviside function
+            around the 0 timestamp.
+
+        """
+        for prof_ind in range(len(self._past_profiles)):
+            if (
+                prof_ind == 0
+            ):  # current profile does not yet have arrays initialized
+                hist_step = self._parent_wakefield.profile.hist_step
+                arr_len = len(self._parent_wakefield.profile.hist_x)
+                self._wake_function_time.appendleft(
+                    np.linspace(
+                        -(arr_len - 1) * hist_step,
+                        arr_len * hist_step,
+                        int(2 * arr_len - 1),
+                        endpoint=False,
+                    )
+                )  # necessary for boundary effects
+                if zero_pinning:
+                    near_floating_point_precision_mask = np.abs(
+                        self._wake_function_time[prof_ind]
+                    ) <= hist_step * np.finfo(float).eps * len(
+                        self._wake_function_time[prof_ind]
+                    )
+                    self._wake_function_time[prof_ind][
+                        near_floating_point_precision_mask
+                    ] = 0.0
+                self._wake_function_vals.appendleft(
+                    np.zeros_like(self._wake_function_time[prof_ind])
+                )
+            else:
+                self._wake_function_vals[prof_ind] = np.zeros_like(
+                    self._wake_function_vals[prof_ind]
+                )
+            # now that everything is initialized, same operation for all arrays
+            for source in self._parent_wakefield.sources:  # TODO: do we ever need multiple resonstors objects in here --> probably not, resonators are defined in the Sources
+                self._wake_function_vals[prof_ind] += source.get_wake(
+                    self._wake_function_time[prof_ind]
+                )
+
+    def _update_potential_sources(self, current_time: float = 0) -> None:
+        """Updates `_wake_function_time`  and `_wake_function_vals` arrays.
+
+        The time axis is chosen based on
+        the profile in `_parent_wakefield.profile`
+
+        Parameters
+        ----------
+        current_time
+            simulation time at the moment of calling, default is 0.
+
+        """
+        self._update_past_profile_times_wake_times(current_time)
+        self._remove_fully_decayed_wake_profiles()
+
+        if len(self._past_profiles) != 0:  # ensure same time axis for profiles
+            past_hist_step = (
+                self._past_profile_times[-1][1]
+                - self._past_profile_times[-1][0]
+            )
+            # TODO: big time jumps lead to problematic casting --> do we care about this?
+            new_hist_step = (
+                self._parent_wakefield.profile.hist_x[1]
+                - self._parent_wakefield.profile.hist_x[0]
+            )
+            assert np.isclose(new_hist_step, past_hist_step, atol=0), (
+                "Profile bin size needs to be constant: hist_step might be too small with casting to delta_t precision."
+            )
+        self._past_profile_times.appendleft(
+            np.copy(self._parent_wakefield.profile.hist_x)
+        )
+        self._past_profiles.appendleft(
+            np.copy(self._parent_wakefield.profile.hist_y)
+        )
+
+        self._update_past_profile_wake_functions()
+
+    def calc_induced_voltage(
+        self, beam: BeamBaseClass
+    ) -> NumpyArray | CupyArray:
+        """Calculate the voltage induced by the beam profile.
+
+        The function will call :func:`_update_potential_sources` and
+        then compute the induced voltage based on all profiles
+        which are in the `_past_profiles` array.
+
+        Parameters
+        ----------
+        beam:
+            instance on which the induced voltage is to be calculated, important for reference time
+        """
+        self._update_potential_sources(beam.reference_time)
+
+        _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
+            beam.intensity / beam.n_macroparticles_partial()
+        )
+        self._past_charge_per_macroparticle.appendleft(
+            _charge_per_macroparticle
+        )
+
+        wake_sum = np.zeros_like(self._past_profiles[0])
+        for prof_ind in range(
+            len(self._past_profiles)
+        ):  # TODO: speedgain through circular shifting with numpy arrays instead of dequeue --> deque not usable with numba
+            wake_sum += self._past_charge_per_macroparticle[
+                prof_ind
+            ] * np.convolve(
+                self._wake_function_vals[prof_ind],
+                self._past_profiles[prof_ind],
+                mode="valid",
+            )
+        return wake_sum

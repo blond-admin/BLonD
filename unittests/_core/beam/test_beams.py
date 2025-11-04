@@ -168,7 +168,7 @@ class TestWeightenedBeam(unittest.TestCase):
     def setUp(self) -> None:
         # TODO: implement test for `__init__`
         self.weightened_beam = WeightenedBeam(
-            n_particles=None, particle_type=None
+            intensity=None, particle_type=None
         )
 
     @unittest.skip

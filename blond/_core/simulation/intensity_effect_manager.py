@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from blond import WakeField
+from blond.physics.impedances.base import WakeField
 from blond.physics.profiles import ProfileBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover

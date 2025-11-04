@@ -291,7 +291,7 @@ class BirksCavityFeedback(LocalFeedback):
         Parameters
         ----------
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         """
         # Update parameters from rest of BLonD classes

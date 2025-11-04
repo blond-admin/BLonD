@@ -1,3 +1,10 @@
+"""Functions needed for :class:`~blond.blond.beam_preparation.bigaussian.BiGaussian`.
+
+Authors
+-------
+Simon Lauber
+"""  # TODO add original author of bigaussian()
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -7,7 +14,7 @@ import numpy as np
 from .._core.backends.backend import backend
 from .._core.helpers import int_from_float_with_warning
 from .._generals._iterables import all_equal
-from ..acc_math.analytic.hammilton import (
+from ..acc_math.analytic.hamilton import (
     calc_phi_s_single_harmonic,
     is_in_separatrix,
 )
@@ -51,8 +58,7 @@ def _get_dE_from_dt(
     beam: BeamBaseClass,
     dt_amplitude: float,
 ) -> float:
-    r"""A routine to evaluate the dE amplitude from dt following a single
-    RF Hamiltonian.
+    r"""Evaluates the dE amplitude from dt following a single RF Hamiltonian.
 
     Returns
     -------
@@ -115,6 +121,28 @@ def _get_dE_from_dt(
 def get_main_harmonic_attributes(
     beam: BeamBaseClass, simulation: Simulation
 ) -> tuple[float, float, float, float]:
+    """Relevant main harmonic attributes of all RF stations in :class:`~blond._core.ring.ring.Ring`.
+
+    Parameters
+    ----------
+    simulation
+        Simulation context manager
+    beam
+        Simulation :class:`~blond._core.beam.beam.Beam` object
+
+    Returns
+    -------
+    harmonic
+        Main harmonic.
+    omega_rf
+        Main angular frequency, in [Hz].
+    phi_rf
+        Main phase, in [rad].
+    voltage
+        Main voltage, in [V].
+
+    """
+    # TODO move this into ring.
     from .. import MultiHarmonicCavity
     from ..physics.cavities import SingleHarmonicCavity
 
@@ -170,22 +198,14 @@ def get_main_harmonic_attributes(
 
 
 class BiGaussian(MatchingRoutine):
-    def __init__(
-        self,
-        n_macroparticles: int | float,
-        sigma_dt: float,
-        sigma_dE: float | None = None,
-        reinsertion: bool = False,
-        seed: int = 0,
-    ) -> None:
-        """Beam matching routine to generate a 2D Gaussian particle distribution.
+    """Beam matching routine to generate a 2D Gaussian particle distribution.
 
-        Parameters
-        ----------
-        n_macroparticles
-            Number of macroparticles to be generated
-        sigma_dt
-            Normal distribution length, in [s].
+    Parameters
+    ----------
+    n_macroparticles
+        Number of macroparticles to be generated
+    sigma_dt
+        Normal distribution length, in [s].
             Effective `sigma_dt` might be smaller, if `reinsertion=True `
         sigma_dE
             Normal distribution height, in [eV].
@@ -196,14 +216,23 @@ class BiGaussian(MatchingRoutine):
         seed
             Random seed parameter
 
-        Examples
-        --------
+    Examples
+    --------
         >>> simulation = Simulation( ... )
         >>> simulation.prepare_beam(
         >>>     beam= ... ,
         >>>     preparation_routine=BiGaussian( ... ),
         >>> )
-        """
+    """
+
+    def __init__(
+        self,
+        n_macroparticles: int | float,
+        sigma_dt: float,
+        sigma_dE: float | None = None,
+        reinsertion: bool = False,
+        seed: int = 0,
+    ) -> None:
         super().__init__()
         self.n_macroparticles = int_from_float_with_warning(
             n_macroparticles, warning_stacklevel=2
@@ -313,7 +342,7 @@ class BiGaussian(MatchingRoutine):
                         dt=dt,
                         dE=dE,
                     )
-                    == False  # noqa: E712
+                    == False
                 )
 
                 n_new = int(backend.sum(sel))

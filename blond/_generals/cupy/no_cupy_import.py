@@ -1,13 +1,10 @@
-"""This file should not have any dependency to Cupy
-to allow cupy agnostic code.
-"""
+"""Module without dependency to Cupy."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy import ndarray
 
 from ..._core.backends.backend import backend
 
@@ -32,7 +29,7 @@ def is_cupy_array(arr: NumpyArray | CupyArray | Any) -> bool:
 
     """
     if hasattr(arr, "device"):
-        return not (arr.device == "cpu")  # type: ignore
+        return arr.device != "cpu"  # type: ignore
     elif hasattr(arr, "gpu_data"):  # numba.cuda array
         # Overall there is no problem with numba-cuda arrays.
         # Its just that the entire code is tested against Cupy
@@ -58,12 +55,12 @@ class _AsarrayOverrideManager:
         order: str | None = None,
         *args: Any,
         **kwargs: Any,
-    ) -> ndarray:
+    ) -> NumpyArray:
         import cupy as cp  # type: ignore
 
         if isinstance(a, cp.ndarray):
             key = a.data.ptr
-            if key not in self.cache.keys():
+            if key not in self.cache:
                 a = a.get()  # copy data from GPU
                 self.cache[key] = a
             else:
@@ -74,7 +71,7 @@ class _AsarrayOverrideManager:
             a,
             dtype=dtype,
             order=order,
-            *args,
+            *args,  # NOQA: B026
             **kwargs,
         )
 

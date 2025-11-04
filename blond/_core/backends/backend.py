@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import importlib
 import os
-import sys
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
@@ -198,6 +196,7 @@ class BackendBaseClass(ABC):
         self.meshgrid: Callable = None  # type: ignore
         self.square: Callable = None  # type: ignore
         self.mean: Callable = None  # type: ignore
+        self.arange: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -245,7 +244,7 @@ class BackendBaseClass(ABC):
         """Whether the backend is using the GPU."""
         return self._is_gpu
 
-    def apply_environment_variables(self) -> None:
+    def apply_environment_variables(self) -> None:  # NOQA PLR0912
         """Load the environment variables and set up the backend accordingly.
 
         Notes
@@ -260,7 +259,7 @@ class BackendBaseClass(ABC):
         """
         _backend_mode_raw: str = os.environ.get(
             "BLOND_BACKEND_MODE",
-            "numba",  # default
+            "python",  # default
         ).lower()
         if _backend_mode_raw != "numba":
             print(
@@ -330,30 +329,6 @@ class BackendBaseClass(ABC):
             self.set_specials(mode=_backend_mode)  # type: ignore
 
 
-def fresh_import(module_location: str, class_name: str) -> type:
-    """To freshly do `from module_location import ClassName`.
-
-    Parameters
-    ----------
-    module_location
-        Import location where the module resides
-    class_name
-        Class to re-import
-
-    Returns
-    -------
-    Newly imported class
-
-    """
-    # TODO Refactor given files as classes, so that only reinstancing of a
-    #  class is needed instead of reloading a module path.
-    #  This function is only intended to reload backend specials.
-    if module_location in sys.modules:
-        del sys.modules[module_location]
-    module = importlib.import_module(module_location)
-    return getattr(module, class_name)
-
-
 class NumpyBackend(BackendBaseClass):
     def __init__(
         self,
@@ -395,6 +370,7 @@ class NumpyBackend(BackendBaseClass):
         self.meshgrid = np.meshgrid
         self.square = np.square
         self.mean = np.mean
+        self.arange = np.arange
 
         self._finalize()
 
@@ -422,27 +398,21 @@ class NumpyBackend(BackendBaseClass):
             self.specials = PythonSpecials()
             self.specials_mode = mode
         elif mode == "cpp":
-            CppSpecials = fresh_import(
-                "blond._core.backends.cpp.callables",
-                "CppSpecials",
-            )
-            self.specials = CppSpecials()
+            from .cpp.callables import reload_cpp_backend
+
+            self.specials = reload_cpp_backend(self.float)
             self.specials_mode = mode
         elif mode == "numba":
-            # like
-            # from .numba.callables import NumbaSpecials
-            # but reimport, so that dtypes are in line with the current backend
-            NumbaSpecials = fresh_import(
-                "blond._core.backends.numba.callables",
-                "NumbaSpecials",
-            )
+            from .numba.callables import recompile_numba_backend
+
+            NumbaSpecials = recompile_numba_backend(self.float)
             self.specials = NumbaSpecials()
             self.specials_mode = mode
         elif mode == "fortran":
-            FortranSpecials = fresh_import(
-                "blond._core.backends.fortran.callables",
-                "FortranSpecials",
-            )
+            from .fortran.callables import reload_fortran_backend
+
+            FortranSpecials = reload_fortran_backend(self.float)
+
             self.specials = FortranSpecials()
             self.specials_mode = mode
         else:
@@ -518,6 +488,7 @@ class CupyBackend(BackendBaseClass):
         self.meshgrid = cp.meshgrid
         self.square = cp.square
         self.mean = cp.mean
+        self.arange = cp.arange
 
         from .cuda.callables import CudaSpecials
 
@@ -535,10 +506,9 @@ class CupyBackend(BackendBaseClass):
 
         """
         if mode == "cuda":
-            CudaSpecials = fresh_import(
-                "blond._core.backends.cuda.callables",
-                "CudaSpecials",
-            )
+            from .cuda.callables import reload_cuda_backend
+
+            CudaSpecials = reload_cuda_backend(self.float)
 
             self.specials = CudaSpecials()
         else:

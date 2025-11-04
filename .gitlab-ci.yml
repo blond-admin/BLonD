@@ -3,6 +3,20 @@ variables:
   # Set the project root to the directory containing your setup.py
   project_root: ./
   PYPI_UPLOAD_URL: "https://upload.pypi.org/legacy/"
+stages:
+  - precommit
+  - test
+  - deploy
+default:
+  interruptible: true
+
+# Automatically cancel older  running
+# pipelines when a new one starts on the same branch
+workflow:
+  rules:
+    - when: always
+  auto_cancel:
+    on_new_commit: interruptible
 
 .on_tag:
   # Rules to run a job only on a git tagged commit
@@ -34,6 +48,7 @@ variables:
     # Run all unittests + the examples
     - python3 -m pytest
       -v unittests/
+      -x
       --import-mode=importlib
       --cov
       --cov-config=.coveragerc
@@ -68,7 +83,8 @@ variables:
 
 precommit-check:
   image: python:3.12
-  stage: test
+  stage: precommit
+  interruptible: true
   before_script:
     - pip install pre-commit
   script:
@@ -81,6 +97,7 @@ precommit-check:
 test_py_310:
   image: gitlab-registry.cern.ch/blond/blond/python310
   stage: test
+  interruptible: true
   extends:
     - .before
     - .main
@@ -92,6 +109,7 @@ test_py_310:
 test_py_311:
   image: gitlab-registry.cern.ch/blond/blond/python311
   stage: test
+  interruptible: true
   extends:
     - .before
     - .main
@@ -103,6 +121,7 @@ test_py_311:
 test_py_312:
   image: gitlab-registry.cern.ch/blond/blond/python312
   stage: test
+  interruptible: true
   extends:
     - .before
     - .main
@@ -135,25 +154,31 @@ release_sdist_310:
 
 test_documentation_building:
   image: gitlab-registry.cern.ch/blond/blond/python310
-  before_script:
+  interruptible: true
+  script:
     - cd ${project_root}
     - python3 -m pip install --upgrade pip
     - python3 -m pip install .[doc]
-  script:
-    - cd ${project_root}
-    - python3 -m sphinx build -b html -W -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=5 --keep-going __doc __doc/_build/html
+    - cd ${project_root}/__doc
+    - export PATH=/home/non_root/.local/bin:$PATH
+    - . ./create_docs.sh
+  artifacts:
+    paths:
+      - ${project_root}/__doc/_build/html
+    expire_in: 1 week
+    when: always
+
 
 #pages_blond3:  # adjusted for BLonD3, not active yet
 #  image: gitlab-registry.cern.ch/blond/blond/python310
-#  before_script:
-#    - cd ${project_root}
-#    - mkdir public
-#    - python3 -m pip install --upgrade pip
-#    - python3 -m pip install .[doc]
 #  script:
 #    - cd ${project_root}
-#    - python3 -m sphinx build -b html -W -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=5 --keep-going __doc __doc/_build/html
-#    - cp -r __doc/_build/html/* public/
+#    - python3 -m pip install --upgrade pip
+#    - python3 -m pip install .[doc]
+#    - cd ${project_root}/__doc
+#    - export PATH=/home/non_root/.local/bin:$PATH
+#    - . ./create_docs.sh
+#    - cp -r ./_build/html/* public/
 #  artifacts:
 #    paths:
 #      - ${project_root}public
@@ -162,6 +187,7 @@ test_documentation_building:
 
 pages:  # BLonD2 scripts
   image: gitlab-registry.cern.ch/blond/blond/python310
+  interruptible: true
   script:
     - cd ${project_root}
     - mkdir public

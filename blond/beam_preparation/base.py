@@ -1,3 +1,10 @@
+"""Base classes to define :class:`~blond.blond.beam_preparation.base.BeamPreparationRoutine` and :class:`~blond.blond.beam_preparation.base.MatchingRoutine`.
+
+Authors
+-------
+Simon Lauber
+"""
+
 from __future__ import annotations
 
 from abc import ABC
@@ -10,7 +17,13 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class BeamPreparationRoutine(ABC):
-    """Base class to write beam preparation routines."""
+    """Base class to write beam preparation routines.
+
+    Notes
+    -----
+    These tier of routines is allowed to produce mismatched beam,
+    whereas `MatchingRoutine` shall always provide for matched distributions.
+    """
 
     def prepare_beam(
         self,
@@ -32,7 +45,10 @@ class BeamPreparationRoutine(ABC):
             )
         )
         beam.reference_time = 0  # FIXME
+        # assign beams?
 
 
 class MatchingRoutine(BeamPreparationRoutine, ABC):
+    """Base class to define matching routines."""
+
     pass

@@ -1,3 +1,10 @@
+"""Collection of implementations to handle lumped RF cavities in synchrotrons.
+
+Authors
+-------
+Simon Lauber
+"""
+
 from __future__ import annotations
 
 import warnings
@@ -31,6 +38,20 @@ TWOPI_C0 = 2.0 * np.pi * c0
 
 
 class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
+    """Base class to implement beam-rf interactions in synchrotrons.
+
+    Parameters
+    ----------
+    n_rf
+        Number of different rf waves for interaction
+    section_index
+        Section index to group elements into sections
+    local_wakefield
+        Optional wakefield to interact with beam
+    cavity_feedback
+        Optional cavity feedback to change cavity parameters
+    """
+
     def __init__(
         self,
         n_rf: int,
@@ -41,19 +62,6 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         name: str | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
-        """Base class to implement beam-rf interactions in synchrotrons.
-
-        Parameters
-        ----------
-        n_rf
-            Number of different rf waves for interaction
-        section_index
-            Section index to group elements into sections
-        local_wakefield
-            Optional wakefield to interact with beam
-        cavity_feedback
-            Optional cavity feedback to change cavity parameters
-        """
         from blond.experimental.physics.feedbacks.base import LocalFeedback
 
         # prevent cyclic import
@@ -119,7 +127,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -167,7 +175,9 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         # TODO rewrite for efficiency
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,
-            section_i=self.section_index,
+            section_i=self.section_index
+            if not beam.is_counter_rotating
+            else len(self._ring.section_lengths) - self.section_index - 1,
             reference_time=beam.reference_time,
             particle_type=beam.particle_type,
         )
@@ -175,7 +185,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             target_total_energy - beam.reference_total_energy
         )
 
-        from blond.acc_math.analytic.hammilton import (
+        from blond.acc_math.analytic.hamilton import (
             calc_phi_s_single_harmonic,
         )
 
@@ -389,17 +399,17 @@ class SingleHarmonicCavity(CavityBaseClass):
             Simulation context manager
         """
         super().on_init_simulation(simulation=simulation)
-        if (self.voltage is None) and "voltage" not in self.schedules.keys():
+        if (self.voltage is None) and "voltage" not in self.schedules:
             raise ValueError(
                 "You need to define `voltage` via `.voltage=...` "
                 f"or `.schedule(attribute='voltage', value=...)` for {self.name}"
             )
-        if (self.phi_rf is None) and "phi_rf" not in self.schedules.keys():
+        if (self.phi_rf is None) and "phi_rf" not in self.schedules:
             raise ValueError(
                 "You need to define `phi_rf` via `.phi_rf=...` "
                 f"or `.schedule(attribute='phi_rf', value=...)` for {self.name}"
             )
-        if (self.harmonic is None) and "harmonic" not in self.schedules.keys():
+        if (self.harmonic is None) and "harmonic" not in self.schedules:
             raise ValueError(
                 "You need to define `harmonic` via `.harmonic=...` "
                 f"or `.schedule(attribute='harmonic', value=...)` for {self.name}"
@@ -427,10 +437,11 @@ class SingleHarmonicCavity(CavityBaseClass):
             Beam class to interact with this element
         """
         super().track(beam=beam)
-
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,
-            section_i=self.section_index,
+            section_i=self.section_index
+            if not beam.is_counter_rotating
+            else len(self._ring.section_lengths) - self.section_index - 1,
             reference_time=beam.reference_time,
             particle_type=beam.particle_type,
         )
@@ -637,17 +648,17 @@ class MultiHarmonicCavity(CavityBaseClass):
             Simulation context manager
         """
         super().on_init_simulation(simulation=simulation)
-        if (self.voltage is None) and "voltage" not in self.schedules.keys():
+        if (self.voltage is None) and "voltage" not in self.schedules:
             raise ValueError(
                 f"You need to define `voltage` for '{self.name}' via "
                 f"`.voltage=...` or `.schedule(attribute='voltage', value=...)`"
             )
-        if (self.phi_rf is None) and "phi_rf" not in self.schedules.keys():
+        if (self.phi_rf is None) and "phi_rf" not in self.schedules:
             raise ValueError(
                 f"You need to define `phi_rf` for '{self.name}' via "
                 f"`.phi_rf=...` or `.schedule(attribute='phi_rf', value=...)`"
             )
-        if (self.harmonic is None) and "harmonic" not in self.schedules.keys():
+        if (self.harmonic is None) and "harmonic" not in self.schedules:
             raise ValueError(
                 f"You need to define `harmonic` for '{self.name}' via "
                 f"`.harmonic=...` or `.schedule(attribute='harmonic', value=...)`"
@@ -666,7 +677,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         try:
             self.phi_s = self.calc_phi_s_single_harmonic(beam=beam)
         except Exception as exc:
-            warnings.warn(str(exc))
+            warnings.warn(str(exc), stacklevel=1)
             self.phi_s = np.nan
 
     def calc_omega(
@@ -829,7 +840,9 @@ class MultiHarmonicCavity(CavityBaseClass):
         super().track(beam=beam)
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,
-            section_i=self.section_index,
+            section_i=self.section_index
+            if not beam.is_counter_rotating
+            else len(self._ring.section_lengths) - self.section_index - 1,
             reference_time=beam.reference_time,
             particle_type=beam.particle_type,
         )
