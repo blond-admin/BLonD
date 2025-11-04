@@ -9,7 +9,7 @@ import numba  # type: ignore
 import numpy as np
 from numba import njit, prange, void
 
-from ..backend import Specials, backend
+from ..backend import Specials
 from ..python.callables import _purge4_py
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 def recompile_numba_backend(  # NOQA PLR0915
     floattype: np.float32 | np.float64,
-) -> NumbaSpecials:
+):
     """Helper to recompile `NumbaSpecials` when the backend changed."""
     logger.info(f"Compiling numba for {floattype}")
 
@@ -458,6 +458,3 @@ def recompile_numba_backend(  # NOQA PLR0915
             return n_new
 
     return NumbaSpecials
-
-
-NumbaSpecials = recompile_numba_backend(floattype=backend.float)
