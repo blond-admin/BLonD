@@ -127,6 +127,43 @@ class Specials(ABC):
     ) -> np.float32 | np.float64:
         pass
 
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def min(
+        array: NumpyArray | CupyArray, mask: NumpyArray | CupyArray
+    ) -> np.float32 | np.float64:
+        pass
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def max(
+        array: NumpyArray | CupyArray, mask: NumpyArray | CupyArray
+    ) -> np.float32 | np.float64:
+        pass
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def mean(
+        array: NumpyArray | CupyArray, mask: NumpyArray | CupyArray
+    ) -> np.float32 | np.float64:
+        pass
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def std(
+        array: NumpyArray | CupyArray, mask: NumpyArray | CupyArray
+    ) -> np.float32 | np.float64:
+        pass
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def rms_emittance(
+        array1: NumpyArray | CupyArray,
+        array2: NumpyArray | CupyArray,
+        mask: NumpyArray | CupyArray,
+    ) -> np.float32 | np.float64:
+        pass
+
 
 class BackendBaseClass(ABC):
     # type annotations for MyPy
