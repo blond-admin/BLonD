@@ -26,11 +26,19 @@ class BeamObserverationInPipeline(
 
     Parameters
     ----------
-    each_turn_i
-    section_index
-    n_turns
-    folder
-    name
+    each_turn_i : int, optional
+        Interval of turns at which to record data (e.g., `each_turn_i=1`
+        records every turn). Defaults to 1.
+    section_index : int, optional
+        Index of the pipeline section where this observation element is placed.
+        Defaults to 0.
+    n_turns : int, optional
+        Number of turns to record. Defaults to 1.
+    folder : str or None, optional
+        Directory path where observation data will be stored. If ``None``,
+        data is kept in memory. Defaults to ``None``.
+    name : str or None, optional
+        Optional name for this observation element. Defaults to ``None``.
     """
 
     def __init__(
