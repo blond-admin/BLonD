@@ -32,7 +32,7 @@ extern "C" void loss_box(
     for (int i = 0; i < n_macroparticles; i++) {
         const bool outside = (dE[i] > top) || (dE[i] < bottom) || (dt[i] < left) || (dt[i] > right);
         if (outside){
-            flags[i] =  0; // assume that lost = 0
+            flags[i] =  -500; // assume (BeamFlags.LOST.value)
         }
     }
 }

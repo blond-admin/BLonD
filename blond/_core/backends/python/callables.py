@@ -84,7 +84,7 @@ class PythonSpecials(Specials):
     ) -> None:
         # select particles outside box
         select = (dE > top) | (dE < bottom) | (dt < left) | (dt > right)
-        flags[select] = 0  # assume (BeamFlags.LOST.value)
+        flags[select] = -500  # assume (BeamFlags.LOST.value)
 
     @staticmethod
     def kick_single_harmonic(
