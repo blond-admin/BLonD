@@ -16,7 +16,7 @@ if TYPE_CHECKING:  # pragma: no cover
 class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
     """Updates beam's reference energy, for example asynchronous ramping.
 
-    C be used in simulations where RF ramping is asynchronous with respect to the
+    Can be used in simulations where RF ramping is asynchronous with respect to the
     beam’s energy. The resulting offset affects the beam's `dE` (energy deviation) and simulates the physics of an energy
     mismatch relative to the reference trajectory.
 
