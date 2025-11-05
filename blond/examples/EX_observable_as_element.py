@@ -1,5 +1,6 @@
 # pragma: no cover
 import logging
+import os
 
 import numpy as np
 
@@ -14,11 +15,17 @@ from blond import (
     proton,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
+from blond.handle_results.helpers import callers_relative_path
 
 logging.basicConfig(level=logging.INFO)
 
 
 def main():
+    try:
+        os.mkdir(callers_relative_path("./results/", stacklevel=1))
+    except:
+        pass
+
     ring = Ring(26658.883)
 
     cavity1 = SingleHarmonicCavity()
@@ -46,7 +53,10 @@ def main():
     beam_logger_element = BeamObserverationInPipeline(
         name="logger",
         section_index=0,
-        folder="./results/",
+        folder=callers_relative_path(
+            "./results/",
+            stacklevel=1,
+        ),
     )
 
     one_turn_execution_order = (
