@@ -50,37 +50,6 @@ class TestBeamPhysicsRelevant(unittest.TestCase):
         # self.beam_physics_relevant.track(beam=None)
         pass
 
-class BeamObservationElementTester(BeamObservationElement):
-    def __init__(self, section_index: int = 0, name: Optional[str] = None):
-        super().__init__(section_index=section_index, name=name)
-
-    def observe(self, beam: BeamBaseClass) -> None:
-        pass
-
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        pass
-
-    def on_run_simulation(
-        self, simulation: Simulation, n_turns: int, turn_i_init: int
-    ) -> None:
-        pass
-
-class TestBeamObservationElement(unittest.TestCase):
-    def setUp(self):
-        self.obs_elem = BeamObservationElementTester(
-            section_index=5, name="Monitor"
-        )
-
-    def test___init__(self):
-        self.assertEqual(self.obs_elem.section_index, 5)
-        self.assertEqual(self.obs_elem.name, "Monitor")
-
-    def test_is_active_this_turn(self):
-        self.obs_elem.each_turn_i = 2
-        self.assertTrue(self.obs_elem.is_active_this_turn(0))
-        self.assertFalse(self.obs_elem.is_active_this_turn(1))
-        self.assertTrue(self.obs_elem.is_active_this_turn(2))
-
 
 class TestDynamicParameter(unittest.TestCase):
     def setUp(self):

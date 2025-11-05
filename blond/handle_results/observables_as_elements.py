@@ -14,45 +14,42 @@ from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.observables import ObservablesGeneralElement
 
 
-class BeamObserver(BeamObservationElement, ObservablesGeneralElement):
-    """Logs ΔE and Δt of the beam and stores them via DenseArrayRecorder."""
+class BeamObservationInPipeline(
+    BeamObservationElement, ObservablesGeneralElement
+):
+    """Observation element placed in the ring, records beam data mid-turn.
+
+    This element should be placed at a specific location in your pipeline. It
+    cannot be used with .from_locals().
+
+    Parameters
+    ----------
+    each_turn_i
+    section_index
+    n_turns
+    folder
+    name
+    """
 
     def __init__(
         self,
         each_turn_i: int = 1,
         section_index: int = 0,
         n_turns: int = 1,
-        n_macroparticles: int = 1,
         folder: str | None = None,
         name: str | None = None,
     ) -> None:
-        BeamObservationElement.__init__(
-            self, section_index=section_index, name=name
-        )
-        ObservablesGeneralElement.__init__(self, folder=folder or "")  # todo
+        super().__init__(section_index=section_index, name=name, folder=folder)
         self.each_turn_i = each_turn_i
         self.n_turns = n_turns
-        self.n_macroparticles = n_macroparticles
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """On init."""
-        n_entries = self.n_turns // self.each_turn_i + 2
+        """Lateinit method when `simulation.__init__` is called.
 
-        self._dEs = DenseArrayRecorder(
-            self.common_name + "_dEs", (n_entries, self.n_macroparticles)
-        )
-        self._dts = DenseArrayRecorder(
-            self.common_name + "_dts", (n_entries, self.n_macroparticles)
-        )
-        self._reference_time = DenseArrayRecorder(
-            self.common_name + "_reference_time", (n_entries,)
-        )
-        self._reference_total_energy = DenseArrayRecorder(
-            self.common_name + "_reference_total_energy", (n_entries,)
-        )
-        self._flags = DenseArrayRecorder(
-            self.common_name + "_flags", (n_entries, self.n_macroparticles)
-        )
+        simulation
+            Simulation context manager
+        """
+        pass
 
     def on_run_simulation(
         self,
@@ -63,8 +60,34 @@ class BeamObserver(BeamObservationElement, ObservablesGeneralElement):
         obs_per_turn: int = 1,
         **kwargs,
     ) -> None:
-        """On run."""
-        pass
+        """Lateinit method when `simulation.run_simulation` is called.
+
+        simulation
+            Simulation context manager
+        beam
+            Simulation `Beam` object
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
+        n_entries = n_turns // self.each_turn_i + 2
+
+        self._dEs = DenseArrayRecorder(
+            self.common_name + "_dEs", (n_entries, beam.common_array_size)
+        )
+        self._dts = DenseArrayRecorder(
+            self.common_name + "_dts", (n_entries, beam.common_array_size)
+        )
+        self._reference_time = DenseArrayRecorder(
+            self.common_name + "_reference_time", (n_entries,)
+        )
+        self._reference_total_energy = DenseArrayRecorder(
+            self.common_name + "_reference_total_energy", (n_entries,)
+        )
+        self._flags = DenseArrayRecorder(
+            self.common_name + "_flags", (n_entries, beam.common_array_size)
+        )
 
     def track(self, beam: BeamBaseClass) -> None:
         """Record beam data without modifying it."""

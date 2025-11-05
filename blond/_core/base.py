@@ -198,9 +198,9 @@ class SimulationElementBase(MainLoopRelevant, ABC):
     """
 
     def __init__(
-        self, section_index: int = 0, name: str | None = None
+        self, section_index: int = 0, name: str | None = None, **kwargs
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
         self._section_index = section_index
         if name is None:
             name = (
@@ -251,7 +251,7 @@ class BeamPhysicsRelevant(SimulationElementBase):
 
 
 class BeamObservationElement(SimulationElementBase):
-    """Observe something but dont change the beam.
+    """Observe something but don't change the beam.
 
     Examples
     --------

@@ -5,7 +5,7 @@ import numpy as np
 
 from blond import (
     Beam,
-    BeamObserver,
+    BeamObserverInPipeline,
     BiGaussian,
     DriftSimple,
     Ring,
@@ -43,13 +43,12 @@ def main():
         particle_type=proton,
     )
 
-    beam_logger_element = BeamObserver(
+    beam_logger_element = BeamObserverInPipeline(
         name="logger",
         section_index=0,
         folder="./results/",
-        n_turns=N_TURNS,
-        n_macroparticles=10,
     )
+
     one_turn_execution_order = (
         drift1,
         cavity1,

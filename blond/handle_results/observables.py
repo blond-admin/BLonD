@@ -26,7 +26,6 @@ logger = logging.getLogger(__name__)
 class ObservablesGeneralElement(MainLoopRelevant):
     def __init__(self, folder: str | None = None, **kwargs):
         super().__init__(**kwargs)
-        folder = folder or ""
         if len(folder) > 0:
             assert folder.endswith("/") or folder.endswith("\\")
         self.common_name = folder + "last"
@@ -89,12 +88,13 @@ class ObservablesGeneralElement(MainLoopRelevant):
             )
 
     def assert_lateinit(self):
+        """Checks that DenseArrays are already initialized."""
         for parameter, value in self.__dict__.items():
             if value is None:  # uninitialized
                 assert value is not None, f"`{parameter}` was not initialized."
 
 
-class ObservablesEndOfTurnRenameMe(ObservablesGeneralElement):
+class ObservablesEndOfTurn(ObservablesGeneralElement):
     """Base class to observe attributes during simulation.
 
     Parameters
@@ -115,8 +115,9 @@ class ObservablesEndOfTurnRenameMe(ObservablesGeneralElement):
         self,
         each_turn_i: int,
         obs_per_turn: int = 1,
+        **kwargs,
     ):
-        super().__init__()
+        super().__init__(**kwargs)
         self.each_turn_i = each_turn_i
         self._obs_per_turn = obs_per_turn
 
@@ -225,7 +226,7 @@ class ObservablesEndOfTurnRenameMe(ObservablesGeneralElement):
             )
 
 
-class BunchObservation(ObservablesEndOfTurnRenameMe, BeamObservationElement):
+class BeamObservationEndOfTurn(ObservablesEndOfTurn):
     """Observe the bunch coordinates during simulation execution.
 
     Parameters
@@ -312,11 +313,52 @@ class BunchObservation(ObservablesEndOfTurnRenameMe, BeamObservationElement):
             (n_entries,),
         )
 
-    def track(self, beam: BeamBaseClass) -> None:
-        self.update(simulation=...)
+    def update(
+        self,
+        simulation: Simulation,
+    ) -> None:
+        """Update memory with new values.
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+
+        """
+        # TODO allow several bunches
+        self._reference_time.write(self._beam.reference_time)
+        self._reference_total_energy.write(self._beam.reference_total_energy)
+        self._dts.write(self._beam._dt)
+        self._dEs.write(self._beam._dE)
+        self._flags.write(self._beam._flags)
+
+    @property  # as readonly attributes
+    def reference_time(self):
+        """Returns reference time."""
+        return self._reference_time.get_valid_entries()
+
+    @property  # as readonly attributes
+    def reference_total_energy(self):
+        """Returns total energy."""
+        return self._reference_total_energy.get_valid_entries()
+
+    @property  # as readonly attributes
+    def dts(self):
+        """Returns array of dts."""
+        return self._dts.get_valid_entries()
+
+    @property  # as readonly attributes
+    def dEs(self):
+        """Returns array of dEs."""
+        return self._dEs.get_valid_entries()
+
+    @property  # as readonly attributes
+    def flags(self):
+        """Returns flags of particles, eg if lost or not."""
+        return self._flags.get_valid_entries()
 
 
-class BunchObservationMetaParams(ObservablesEndOfTurnRenameMe):
+class BunchObservationMetaParams(ObservablesEndOfTurn):
     """Records mean and standard deviation of both energy and time coordinates and estimates the bunch emittance.
 
     Parameters
@@ -444,7 +486,7 @@ class BunchObservationMetaParams(ObservablesEndOfTurnRenameMe):
 
     @property  # as readonly attributes
     def sigma_dE(self):
-        """Standard deviation of the energy coordinate."""
+        """Standard deviation of the energy coordinate, in [eV]."""
         return self._sigma_dE.get_valid_entries()
 
     @property  # as readonly attributes
@@ -468,7 +510,7 @@ class BunchObservationMetaParams(ObservablesEndOfTurnRenameMe):
         return self._emittance_stat.get_valid_entries()
 
 
-class MultiCavityObservation(ObservablesEndOfTurnRenameMe):
+class MultiCavityObservation(ObservablesEndOfTurn):
     def __init__(
         self,
         each_turn_i: int,
@@ -483,7 +525,7 @@ class MultiCavityObservation(ObservablesEndOfTurnRenameMe):
         # self._voltages: DenseArrayRecorder | None = None
 
 
-class CavityPhaseObservation(ObservablesEndOfTurnRenameMe):
+class CavityPhaseObservation(ObservablesEndOfTurn):
     """Observe the RF cavity parameters during the execution of the simulation.
 
     Parameters
@@ -592,7 +634,7 @@ class CavityPhaseObservation(ObservablesEndOfTurnRenameMe):
         return self._voltages.get_valid_entries()
 
 
-class StaticProfileObservation(ObservablesEndOfTurnRenameMe):
+class StaticProfileObservation(ObservablesEndOfTurn):
     """Observation of a static beam profile.
 
     Parameters
@@ -689,7 +731,7 @@ class StaticProfileObservation(ObservablesEndOfTurnRenameMe):
         return self._hist_y.get_valid_entries()
 
 
-class StaticMultiProfileObservation(ObservablesEndOfTurnRenameMe):
+class StaticMultiProfileObservation(ObservablesEndOfTurn):
     def __init__(
         self,
         each_turn_i: int,
@@ -788,7 +830,7 @@ class StaticMultiProfileObservation(ObservablesEndOfTurnRenameMe):
         return self._hist_y.get_valid_entries()
 
 
-class WakeFieldObservation(ObservablesEndOfTurnRenameMe):
+class WakeFieldObservation(ObservablesEndOfTurn):
     def __init__(
         self,
         each_turn_i: int,
@@ -887,7 +929,7 @@ class WakeFieldObservation(ObservablesEndOfTurnRenameMe):
         return self._induced_voltage.get_valid_entries()
 
 
-class DynamicProfileConstNBinsObservation(ObservablesEndOfTurnRenameMe):
+class DynamicProfileConstNBinsObservation(ObservablesEndOfTurn):
     def __init__(
         self,
         each_turn_i: int,
