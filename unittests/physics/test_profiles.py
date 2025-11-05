@@ -21,16 +21,16 @@ class TestProfileBaseClass(unittest.TestCase):
         pass
 
     def test_on_init_simulation(self):
-        from blond.testing.mocks import simulation
+        from blond.testing.mocks import simulation_mock
 
-        self.profile_base_class.on_init_simulation(simulation=simulation)
+        self.profile_base_class.on_init_simulation(simulation=simulation_mock)
 
     def test_on_run_simulation(self):
-        from blond.testing.mocks import beam, simulation
+        from blond.testing.mocks import beam_mock, simulation_mock
 
         self.profile_base_class.on_run_simulation(
-            simulation=simulation,
-            beam=beam,
+            simulation=simulation_mock,
+            beam=beam_mock,
             n_turns=1,
             turn_i_init=0,
         )
@@ -62,10 +62,10 @@ class TestProfileBaseClass(unittest.TestCase):
         )
 
     def test_track(self):
-        from blond.testing.mocks import beam
+        from blond.testing.mocks import beam_mock
 
         with self.assertRaises(NotImplementedError):
-            self.profile_base_class.track(beam=beam)
+            self.profile_base_class.track(beam=beam_mock)
 
     def test_get_arrays(self):
         self.profile_base_class.get_arrays(

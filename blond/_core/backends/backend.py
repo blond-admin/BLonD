@@ -389,6 +389,7 @@ class NumpyBackend(BackendBaseClass):
 
         """
         onchange = self.specials_mode != mode
+
         if mode == "python":
             from .python.callables import PythonSpecials
 
