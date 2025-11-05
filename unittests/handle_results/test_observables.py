@@ -12,7 +12,7 @@ from blond.handle_results.observables import (
     BeamObservationEndOfTurn,
     CavityPhaseObservation,
     DynamicProfileConstNBinsObservation,
-    ObservablesEndOfTurn,
+    ObservablesEndOfTurnBase,
     StaticMultiProfileObservation,
     StaticProfileObservation,
     WakeFieldObservation,
@@ -39,7 +39,7 @@ beam._dE = np.ones(beam.common_array_size, dtype=float)
 beam._flags = np.ones(beam.common_array_size, dtype=int)
 
 
-class ObservablesHelper(ObservablesEndOfTurn):
+class ObservablesHelper(ObservablesEndOfTurnBase):
     def update(self, simulation: Simulation) -> None:
         pass
 

@@ -21,7 +21,7 @@ from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
     BeamObservationEndOfTurn,
     BunchObservationMetaParams,
-    ObservablesEndOfTurn,
+    ObservablesEndOfTurnBase,
 )
 
 
@@ -146,7 +146,7 @@ class TestSimulation(unittest.TestCase):
             )
 
     def test__run_simulation_single_beam(self):
-        observe = Mock(spec=ObservablesEndOfTurn)
+        observe = Mock(spec=ObservablesEndOfTurnBase)
 
         def my_callback(simulation: Simulation, beam: Beam) -> None:
             return

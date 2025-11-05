@@ -13,11 +13,11 @@ from blond._core.base import BeamObservationElement
 from blond._core.beam.base import BeamBaseClass
 from blond._core.simulation.simulation import Simulation
 from blond.handle_results.array_recorders import DenseArrayRecorder
-from blond.handle_results.observables import ObservablesGeneralElement
+from blond.handle_results.observables import ObservablesBaseClass
 
 
 class BeamObserverationInPipeline(
-    BeamObservationElement, ObservablesGeneralElement
+    BeamObservationElement, ObservablesBaseClass
 ):
     """Observation element placed in the ring, records beam data mid-turn.
 

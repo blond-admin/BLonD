@@ -23,7 +23,7 @@ if TYPE_CHECKING:  # pragma: no cover
 logger = logging.getLogger(__name__)
 
 
-class ObservablesGeneralElement(MainLoopRelevant):
+class ObservablesBaseClass(MainLoopRelevant):
     def __init__(self, folder: str | None = None, **kwargs):
         super().__init__(**kwargs)
         if len(folder) > 0:
@@ -94,7 +94,7 @@ class ObservablesGeneralElement(MainLoopRelevant):
                 assert value is not None, f"`{parameter}` was not initialized."
 
 
-class ObservablesEndOfTurn(ObservablesGeneralElement):
+class ObservablesEndOfTurnBase(ObservablesBaseClass):
     """Base class to observe attributes during simulation.
 
     Parameters
@@ -226,7 +226,7 @@ class ObservablesEndOfTurn(ObservablesGeneralElement):
             )
 
 
-class BeamObservationEndOfTurn(ObservablesEndOfTurn):
+class BeamObservationEndOfTurn(ObservablesEndOfTurnBase):
     """Observe the bunch coordinates during simulation execution.
 
     Parameters
@@ -355,7 +355,7 @@ class BeamObservationEndOfTurn(ObservablesEndOfTurn):
         return self._flags.get_valid_entries()
 
 
-class BunchObservationMetaParams(ObservablesEndOfTurn):
+class BunchObservationMetaParams(ObservablesEndOfTurnBase):
     """Records mean and standard deviation of both energy and time coordinates and estimates the bunch emittance.
 
     Parameters
@@ -507,7 +507,7 @@ class BunchObservationMetaParams(ObservablesEndOfTurn):
         return self._emittance_stat.get_valid_entries()
 
 
-class MultiCavityObservation(ObservablesEndOfTurn):
+class MultiCavityObservation(ObservablesEndOfTurnBase):
     def __init__(
         self,
         each_turn_i: int,
@@ -522,7 +522,7 @@ class MultiCavityObservation(ObservablesEndOfTurn):
         # self._voltages: DenseArrayRecorder | None = None
 
 
-class CavityPhaseObservation(ObservablesEndOfTurn):
+class CavityPhaseObservation(ObservablesEndOfTurnBase):
     """Observe the RF cavity parameters during the execution of the simulation.
 
     Parameters
@@ -631,7 +631,7 @@ class CavityPhaseObservation(ObservablesEndOfTurn):
         return self._voltages.get_valid_entries()
 
 
-class StaticProfileObservation(ObservablesEndOfTurn):
+class StaticProfileObservation(ObservablesEndOfTurnBase):
     """Observation of a static beam profile.
 
     Parameters
@@ -728,7 +728,7 @@ class StaticProfileObservation(ObservablesEndOfTurn):
         return self._hist_y.get_valid_entries()
 
 
-class StaticMultiProfileObservation(ObservablesEndOfTurn):
+class StaticMultiProfileObservation(ObservablesEndOfTurnBase):
     def __init__(
         self,
         each_turn_i: int,
@@ -827,7 +827,7 @@ class StaticMultiProfileObservation(ObservablesEndOfTurn):
         return self._hist_y.get_valid_entries()
 
 
-class WakeFieldObservation(ObservablesEndOfTurn):
+class WakeFieldObservation(ObservablesEndOfTurnBase):
     def __init__(
         self,
         each_turn_i: int,
@@ -926,7 +926,7 @@ class WakeFieldObservation(ObservablesEndOfTurn):
         return self._induced_voltage.get_valid_entries()
 
 
-class DynamicProfileConstNBinsObservation(ObservablesEndOfTurn):
+class DynamicProfileConstNBinsObservation(ObservablesEndOfTurnBase):
     def __init__(
         self,
         each_turn_i: int,

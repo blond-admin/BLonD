@@ -49,7 +49,7 @@ if TYPE_CHECKING:  # pragma: no cover
     )
 
     from ...beam_preparation.base import BeamPreparationRoutine
-    from ...handle_results.observables import ObservablesEndOfTurn
+    from ...handle_results.observables import ObservablesEndOfTurnBase
     from ..beam.base import BeamBaseClass
     from ..beam.particle_types import ParticleType
     from ..ring.ring import Ring
@@ -390,7 +390,7 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass, ...],
         n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: tuple[ObservablesEndOfTurn, ...] = (),
+        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, Beam], None] | None = None,
     ) -> None:
@@ -512,7 +512,7 @@ class Simulation(Preparable):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int = 0,
-        observe: tuple[ObservablesEndOfTurn, ...] = (),
+        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, Beam], None] | None = None,
     ) -> None:
@@ -682,7 +682,7 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass, BeamBaseClass],
         n_turns: int,
         turn_i_init: int = 0,
-        observe: tuple[ObservablesEndOfTurn, ...] = (),
+        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, Beam], None] | None = None,
     ) -> None:
@@ -747,7 +747,7 @@ class Simulation(Preparable):
 
     def save_results(
         self,
-        observe: tuple[ObservablesEndOfTurn, ...] = (),
+        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
         common_name: str | None = None,
     ) -> None:
         """Save the given observables to the disk.
@@ -771,7 +771,7 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass],
         n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: tuple[ObservablesEndOfTurn, ...] = (),
+        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
         common_name: str | None = None,
     ) -> None:
         """Load the given observables from the disk.
