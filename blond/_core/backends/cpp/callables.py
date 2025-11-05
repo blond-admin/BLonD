@@ -209,10 +209,10 @@ def reload_cpp_backend(
         def beam_phase(
             hist_x: NumpyArray,
             hist_y: NumpyArray,
-            alpha: np.float32 | np.float64,
-            omega_rf: np.float32 | np.float64,
-            phi_rf: np.float32 | np.float64,
-            bin_size: np.float32 | np.float64,
+            alpha: float,
+            omega_rf: float,
+            phi_rf: float,
+            bin_size: float,
         ) -> float:
             return _LIBBLOND.beam_phase(
                 hist_x.ctypes.data_as(ct.c_void_p),  # bin_centers
@@ -262,10 +262,7 @@ def reload_cpp_backend(
 
         @staticmethod
         def loss_box(
-            top: np.float32 | np.float64,
-            bottom: np.float32 | np.float64,
-            left: np.float32 | np.float64,
-            right: float,
+            top: float, bottom: float, left: float, right: float
         ) -> None:
             pass
 
@@ -273,7 +270,7 @@ def reload_cpp_backend(
         def kick_single_harmonic(
             dt: NumpyArray | CupyArray,
             dE: NumpyArray | CupyArray,
-            voltage: np.float32 | np.float64,
+            voltage: float,
             omega_rf: float,
             phi_rf: float,
             charge: np.float32 | np.float64,

@@ -72,10 +72,7 @@ def reload_cuda_backend(
     class CudaSpecials(Specials):
         @staticmethod
         def loss_box(
-            top: np.float32 | np.float64,
-            bottom: np.float32 | np.float64,
-            left: np.float32 | np.float64,
-            right: float,
+            top: float, bottom: float, left: float, right: float
         ) -> None:
             raise NotImplementedError()
 
@@ -83,9 +80,9 @@ def reload_cuda_backend(
         def kick_single_harmonic(
             dt: CupyArray | CupyArray,
             dE: CupyArray | CupyArray,
-            voltage: np.float32 | np.float64,
-            omega_rf: np.float32 | np.float64,
-            phi_rf: np.float32 | np.float64,
+            voltage: float,
+            omega_rf: float,
+            phi_rf: float,
             charge: np.float32 | np.float64,
             acceleration_kick: np.float32 | np.float64,
         ) -> None:
@@ -119,9 +116,9 @@ def reload_cuda_backend(
             voltage: CupyArray,
             omega_rf: CupyArray,
             phi_rf: CupyArray,
-            charge: np.float32 | np.float64,
+            charge: float,
             n_rf: int,
-            acceleration_kick: np.float32 | np.float64,
+            acceleration_kick: float,
         ) -> None:
             assert dt.dtype == floattype
             assert dE.dtype == floattype
@@ -180,13 +177,13 @@ def reload_cuda_backend(
         def drift_legacy(
             dt: CupyArray,
             dE: CupyArray,
-            T: np.float32 | np.float64,
+            T: float,
             alpha_order: int,
-            eta_0: np.float32 | np.float64,
-            eta_1: np.float32 | np.float64,
-            eta_2: np.float32 | np.float64,
-            beta: np.float32 | np.float64,
-            energy: np.float32 | np.float64,
+            eta_0: float,
+            eta_1: float,
+            eta_2: float,
+            beta: float,
+            energy: float,
         ) -> None:
             raise NotImplementedError()
 
@@ -194,11 +191,11 @@ def reload_cuda_backend(
         def drift_exact(
             dt: CupyArray,
             dE: CupyArray,
-            T: np.float32 | np.float64,
-            alpha_0: np.float32 | np.float64,
-            alpha_1: np.float32 | np.float64,
-            alpha_2: np.float32 | np.float64,
-            beta: np.float32 | np.float64,
+            T: float,
+            alpha_0: float,
+            alpha_1: float,
+            alpha_2: float,
+            beta: float,
             energy: float,
         ) -> None:
             raise NotImplementedError()
