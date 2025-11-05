@@ -19,7 +19,7 @@ if TYPE_CHECKING:  # pragma: no cover
 class PrecisionClass:
     """Singleton class. Holds information about the floating point precision of the calculations."""
 
-    int_t: type[np.float32 | np.float64]
+    int_t: type[np.int32 | np.int64]
     real_t: type[np.float32 | np.float64]
     c_real_t: type[ct.c_float | ct.c_double]
     complex_t: type[np.complex64 | np.complex128]
