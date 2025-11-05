@@ -124,6 +124,8 @@ class TestInductiveImpedanceSolver(unittest.TestCase):
         self.inductive_impedance_solver._Z_over_n = 12
         _parent_wakefield = Mock(WakeField)
         _parent_wakefield.profile.hist_step = 1
+        _parent_wakefield.profile.hist_y_to_density_factor = beam.ratio
+
         self.inductive_impedance_solver._parent_wakefield = _parent_wakefield
         simulation = Mock(Simulation)
         simulation.ring.circumference = 123
