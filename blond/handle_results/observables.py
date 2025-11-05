@@ -266,20 +266,17 @@ class BeamObservationEndOfTurn(ObservablesEndOfTurn):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """
-            Lateinit method when `simulation.run_simulation` is called.
+        """Lateinit method when `simulation.run_simulation` is called.
 
-            simulation
-                Simulation context manager
-            beam
-        @property  # as readonly attributes
-        def flags(self):
-            return self._flags.get_valid_entries()
-                Simulation `Beam` object
-            n_turns
-                Number of turns to simulate
-            turn_i_init
-                Initial turn to execute simulation
+        simulation
+            Simulation context manager
+        beam
+            Simulation :class:`~blond._cycles_core.beam.beam.Beam` object
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+
         """
         super().on_run_simulation(
             simulation=simulation,
