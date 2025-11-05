@@ -57,7 +57,24 @@ class LossesBaseClass(BeamPhysicsRelevant, ABC):
         beam
             Beam class to interact with this element
         """
-        if self.purge_flagged_macroparticles:
+        pass
+
+    def _purge_particles(
+        self, beam: BeamBaseClass, force: bool = False
+    ) -> None:
+        """Potentially remove flagged particles.
+
+        Parameters
+        ----------
+        beam
+            Beam to remove the particles from
+        force
+            If true, will definitely purge particles.
+            Otherwise, it depends on `self.purge_flagged_macroparticles`
+
+
+        """
+        if self.purge_flagged_macroparticles or force:
             beam.purge_flagged_entries()
 
 
@@ -179,4 +196,4 @@ class BoxLosses(LossesBaseClass):
             dE=beam.read_partial_dE(),
             flags=beam.write_partial_flags(),
         )
-        super().track(beam=beam)
+        self._purge_particles(beam=beam, force=False)
