@@ -17,7 +17,6 @@ from ...physics.drifts import DriftBaseClass
 from ...physics.profiles import ProfileBaseClass
 from ..backends.backend import backend
 from ..base import (
-    BeamObservationElement,
     DynamicParameter,
     Preparable,
 )
@@ -261,7 +260,7 @@ class Simulation(Preparable):
 
         for cls in ordered_classes:
             for element in instances:
-                if not type(element).__name__ == cls:
+                if type(element).__name__ != cls:
                     continue
                 logger.info(f"Running `{method}` of {element}")
                 getattr(element, method)(**kwargs)
@@ -335,9 +334,7 @@ class Simulation(Preparable):
         )
         magnetic_cycle = _magnetic_cycle[0]
 
-        elements = get_elements(
-            locals_list, (SimulationElementBase, BeamObservationElement)
-        )
+        elements = get_elements(locals_list, (SimulationElementBase))
         print("here", elements)  # type: ignore
         ring.add_elements(elements=elements, reorder=True)
 
@@ -393,7 +390,7 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass, ...],
         n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: tuple[ObservablesEndOfTurn, ...] = tuple(),
+        observe: tuple[ObservablesEndOfTurn, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, Beam], None] | None = None,
     ) -> None:
@@ -480,11 +477,9 @@ class Simulation(Preparable):
             _n_turns = max_turns
         if backend.specials_mode == "python":
             particles_above_threshold = any(
-                [
-                    b.common_array_size
-                    > self._particle_performance_waning_threshold
-                    for b in beams
-                ]
+                b.common_array_size
+                > self._particle_performance_waning_threshold
+                for b in beams
             )
             if particles_above_threshold:
                 warn(
@@ -517,7 +512,7 @@ class Simulation(Preparable):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int = 0,
-        observe: tuple[ObservablesEndOfTurn, ...] = tuple(),
+        observe: tuple[ObservablesEndOfTurn, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, Beam], None] | None = None,
     ) -> None:
@@ -687,7 +682,7 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass, BeamBaseClass],
         n_turns: int,
         turn_i_init: int = 0,
-        observe: tuple[ObservablesEndOfTurn, ...] = tuple(),
+        observe: tuple[ObservablesEndOfTurn, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, Beam], None] | None = None,
     ) -> None:
@@ -752,7 +747,7 @@ class Simulation(Preparable):
 
     def save_results(
         self,
-        observe: tuple[ObservablesEndOfTurn, ...] = tuple(),
+        observe: tuple[ObservablesEndOfTurn, ...] = (),
         common_name: str | None = None,
     ) -> None:
         """Save the given observables to the disk.
@@ -776,7 +771,7 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass],
         n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: tuple[ObservablesEndOfTurn, ...] = tuple(),
+        observe: tuple[ObservablesEndOfTurn, ...] = (),
         common_name: str | None = None,
     ) -> None:
         """Load the given observables from the disk.

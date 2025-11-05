@@ -423,7 +423,7 @@ def get_scheduler(
         Required when arrays are handed over
         "per-turn" or "constant"
     """
-    if isinstance(value, int) or isinstance(value, float):
+    if isinstance(value, int | float):
         return ScheduledConstant(value=value)
     elif isinstance(value, np.ndarray):
         assert mode is not None

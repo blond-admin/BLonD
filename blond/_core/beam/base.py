@@ -9,9 +9,9 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from scipy.constants import speed_of_light as c0  # type: ignore
 
-from ..._core.ring.helpers import requires
-from ..base import HasPropertyCache, Preparable
-from ..helpers import int_from_float_with_warning
+from blond._core.base import HasPropertyCache, Preparable
+from blond._core.helpers import int_from_float_with_warning
+from blond._core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore

@@ -10,9 +10,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from blond import DriftSimple, Simulation
 from blond._core.base import BeamPhysicsRelevant
 from blond._core.beam.base import BeamBaseClass
+from blond._core.simulation.simulation import Simulation
+from blond.physics.drifts import DriftSimple
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any

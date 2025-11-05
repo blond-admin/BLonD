@@ -216,7 +216,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         self._simulation = simulation
         if (
             self.transition_gamma is None
-        ) and "transition_gamma" not in self.schedules.keys():
+        ) and "transition_gamma" not in self.schedules:
             raise ValueError(
                 "You need to define `transition_gamma` via `.transition_gamma=...` "
                 "or `.schedule(attribute='transition_gamma', value=...)`"
