@@ -112,13 +112,13 @@ class Ring(Preparable, Schedulable):
     def average_transition_gamma(self):
         from ... import DriftSimple  # prevent cyclic import
 
-        transition_gamma_average = sum(
-            [
-                e.transition_gamma * self.circumference / e.orbit_length
-                for e in (self.elements.get_elements(DriftSimple))  # todo
-                # not only simple
-            ]
-        )
+        gammas = [
+            e.transition_gamma for e in self.elements.get_elements(DriftSimple)
+        ]
+        weights = [
+            e.orbit_length for e in self.elements.get_elements(DriftSimple)
+        ]
+        transition_gamma_average = np.average(gammas, weights=weights)
         return transition_gamma_average
 
     @property
