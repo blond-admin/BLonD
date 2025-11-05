@@ -144,28 +144,20 @@ class Blond2BeamFeedback(LocalFeedback):
 
         self.delay = delay
 
-        #: | *Band-pass filter window coefficient for beam phase calculation.*
         self.alpha = window_coefficient
 
-        # determines from which RF-buckets the band-pass filter starts to acts
         self.time_offset = time_offset
 
-        #: | *Phase loop gain. Implementation depends on machine.*
         self.gain = PL_gain
 
-        #: | *Relative radial displacement [1], for radial loop.*
         self.drho = 0.0
 
-        #: | *Phase loop frequency correction of the main RF system.*
         self.domega_rf = 0.0
 
-        #: | *Beam phase measured at the main RF frequency.*
         self.phi_beam = 0.0
 
-        #: | *Phase difference between beam and RF.*
         self.dphi = 0.0
 
-        #: | *Reference signal for secondary loop to test step response.*
         self.reference = 0.0
 
         self.RFnoise = None  # FIXME remove this!

@@ -407,6 +407,8 @@ class NumpyBackend(BackendBaseClass):
             One of the available backend modes
 
         """
+        onchange = self.specials_mode != mode
+
         if mode == "python":
             from .python.callables import PythonSpecials
 
@@ -432,7 +434,7 @@ class NumpyBackend(BackendBaseClass):
             self.specials_mode = mode
         else:
             raise ValueError(mode)
-        if self.verbose:
+        if self.verbose and onchange:
             print(f"Set special to `{self.specials.__class__.__name__}`")
 
 
