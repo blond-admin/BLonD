@@ -96,7 +96,7 @@ class ExampleSimulation01:
 class SimulationTwoRfStations:
     """A simulation with two RF stations and according drifts."""
 
-    def __init__(self):
+    def __init__(self, below_transition_crossing=False):
         import numpy as np
 
         from blond import (
@@ -151,12 +151,16 @@ class SimulationTwoRfStations:
             orbit_length=0.5 * circumference,
             section_index=0,
         )
-        drift1.transition_gamma = 55.759505
+        drift1.transition_gamma = (
+            855.759505 if below_transition_crossing else 55.759505
+        )
         drift2 = DriftSimple(
             orbit_length=0.5 * circumference,
             section_index=1,
         )
-        drift2.transition_gamma = 55.759505
+        drift2.transition_gamma = (
+            855.759505 if below_transition_crossing else 55.759505
+        )
         beam1 = Beam(
             intensity=1e9,
             particle_type=proton,
@@ -171,7 +175,7 @@ class SimulationTwoRfStations:
 class SimulationTwoRfStationsWithWake:
     """A simulation with two RF stations and according drifts, plus wake."""
 
-    def __init__(self):
+    def __init__(self, below_transition_crossing=False):
         import numpy as np
 
         from blond import (
@@ -231,12 +235,16 @@ class SimulationTwoRfStationsWithWake:
             orbit_length=0.5 * circumference,
             section_index=0,
         )
-        drift1.transition_gamma = 55.759505
+        drift1.transition_gamma = (
+            855.759505 if below_transition_crossing else 55.759505
+        )
         drift2 = DriftSimple(
             orbit_length=0.5 * circumference,
             section_index=1,
         )
-        drift2.transition_gamma = 55.759505
+        drift2.transition_gamma = (
+            855.759505 if below_transition_crossing else 55.759505
+        )
         beam1 = Beam(
             intensity=1e9,
             particle_type=proton,
