@@ -218,13 +218,7 @@ class TestSimulation(unittest.TestCase):
             potential_well,
         )
 
-    @unittest.skip
-    def test_get_separatrix(self):
-        # TODO: implement test for `get_separatrix`
-        self.simulation.get_separatrix()
 
-    def test_invalidate_cache(self):
-        self.simulation.invalidate_cache()
 
     def test_plot_potential_well_empiric(self):
         self.simulation.plot_potential_well_empiric(
