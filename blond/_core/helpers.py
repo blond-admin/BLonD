@@ -41,6 +41,11 @@ def int_from_float_with_warning(
 def find_instances_with_method(root: Any, method_name: str) -> Any:
     """Find all instances within root that have a callable `methodname`.
 
+    This method does a tree walk on all objects within root.
+    Class attributes that should not be searched for `method_name`
+    can be omitted by placing `skip_find_instances_attributes` into the class
+    definition. An example is given below.
+
     Parameters
     ----------
     root
@@ -49,6 +54,20 @@ def find_instances_with_method(root: Any, method_name: str) -> Any:
         for classes with a method `methodname`
     method_name
         Name of the method to be searched for
+
+    Examples
+    --------
+    >>> class ItsComplicated:
+    >>>     skip_find_instances_attributes = ["problem"]
+    >>>
+    >>>     @property
+    >>>     def problem(self): # wont be accessed by `find_instances_with_method()`
+    >>>         raise NotImplementedError()
+    >>>
+    >>>     @property # will be accessed
+    >>>     def not_a_problem(self):
+    >>>         pass
+
     """
     found = set()
     seen = set()
