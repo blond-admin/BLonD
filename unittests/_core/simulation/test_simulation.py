@@ -409,15 +409,10 @@ class TestSimulation(unittest.TestCase):
                 ts, particle_type=particle_type
             )
         )
-        DEV_PLOT = True
+        DEV_PLOT = False
         simulation.turn_i.value = 0
         phi_s = float(cavity.calc_phi_s_single_harmonic(beam=beam1))
-        plt.figure()
-        phis_debug = np.linspace(0,2*np.pi)
-        plt.plot(phis_debug, cavity.voltage * np.sin(phis_debug))
-        plt.axhline(step)
-        plt.axvline(phi_s)
-        plt.show()
+
 
         potential_well_analytic = (
             particle_type.charge

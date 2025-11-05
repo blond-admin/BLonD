@@ -27,11 +27,19 @@ class IntensityEffectManager:
         return len(wakefields) > 0
 
     def is_active_wakefields(self) -> bool:  # TODO testcae
-        """Checks wehther all `Wakefields` are active or inactive."""
+        """Checks whehther all `Wakefields` are active or inactive.
+
+        Raises
+        ------
+        AssertionError
+            If there is a mixed state of `Wakefields` being active/inactive.
+        """
         wakefields = self._parent_simulation.ring.elements.get_elements(
             WakeField
         )
         actives = {wakefield.active for wakefield in wakefields}
+        if len(actives) == 0:
+            return False
         assert len(actives) == 1, (
             "Cant handle mixed states of wakefields being active/inactive."
         )
@@ -74,7 +82,13 @@ class IntensityEffectManager:
             wakefield.profile.active = active
 
     def is_active_profiles(self) -> bool:  # TODO testcae
-        """Checks whether all `Profiles` are active or inactive."""
+        """Checks whether all `Profiles` are active or inactive.
+
+        Raises
+        ------
+        AssertionError
+            If there is a mixed state of `Wakefields` being active/inactive.
+        """
         wakefields = self._parent_simulation.ring.elements.get_elements(
             WakeField
         )
@@ -84,6 +98,9 @@ class IntensityEffectManager:
         actives = {wakefield.profile.active for wakefield in wakefields} | {
             profile.active for profile in profiles
         }
+
+        if len(actives) == 0:
+            return False
         assert len(actives) == 1, (
             "Cant handle mixed states of Profiles being active/inactive."
         )

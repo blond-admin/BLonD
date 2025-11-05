@@ -302,10 +302,9 @@ class SemiEmpiricMatcher(MatchingRoutine):
             beam=beam,
         )
 
-        is_active_wakefields = simulation.intensity_effect_manager.is_active_wakefields()
-        is_active_profiles = simulation.intensity_effect_manager.is_active_profiles()
-        assert is_active_wakefields, "Expected `Wakefields` to be active."
-        assert is_active_profiles, "Expected `Profiles` to be active."
+        # make sure there is not a mixed state
+        simulation.intensity_effect_manager.is_active_wakefields()
+        simulation.intensity_effect_manager.is_active_profiles()
 
 
         ts = backend.linspace(
