@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, PropertyMock
 from blond._core.beam.base import BeamBaseClass
 from blond._core.beam.particle_types import proton
 from blond.cycles.magnetic_cycle import MagneticCycleByTime
-from blond.physics.energy_reference_kick import EnergyReferenceKick
+from blond.physics.energy_reference_kick import ReferenceEnergyChange
 
 
 class DummyMagneticCycleByTime(MagneticCycleByTime):
@@ -54,7 +54,7 @@ class TestEnergyReferenceKick(unittest.TestCase):
         self.simulation.ring = MagicMock()
 
         # Bypass __init__ TypeError by manually setting magnetic_cycle after creation
-        self.energy_kick = EnergyReferenceKick(section_index=0)
+        self.energy_kick = ReferenceEnergyChange(section_index=0)
         self.energy_kick._magnetic_cycle = self.simulation.magnetic_cycle
         self.energy_kick._turn_i = self.simulation.turn_i
         self.energy_kick._ring = self.simulation.ring
@@ -66,7 +66,7 @@ class TestEnergyReferenceKick(unittest.TestCase):
         simulation.magnetic_cycle = object()  # invalid type
         simulation.ring = MagicMock()
 
-        kick = EnergyReferenceKick(section_index=0)
+        kick = ReferenceEnergyChange(section_index=0)
         with self.assertRaises(TypeError):
             kick.on_init_simulation(simulation)
 

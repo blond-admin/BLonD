@@ -4,10 +4,10 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ... import Simulation
-from ..base import Preparable
-from ..beam.base import BeamBaseClass
-from ..ring.helpers import get_elements
+from blond._core.base import Preparable
+from blond._core.beam.base import BeamBaseClass
+from blond._core.ring.helpers import get_elements
+from blond._core.simulation.simulation import Simulation
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, TypeVar
@@ -25,6 +25,7 @@ class BeamPhysicsRelevantElements(Preparable):
     def __init__(self) -> None:
         super().__init__()
         self.elements: list[BeamPhysicsRelevant] = []
+        self._on_init_simulation_passed = False
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called.
@@ -35,6 +36,11 @@ class BeamPhysicsRelevantElements(Preparable):
             Simulation context manager
         """
         self._check_section_indexing()
+        self._on_init_simulation_passed = True
+
+    def _assert_no_init(self, msg: str) -> None:
+        """Raises `AssertionError`, if simulation was already initialized."""
+        assert not self._on_init_simulation_passed, msg
 
     def _check_section_indexing(self) -> None:
         """Verify that indices have been set correctly."""
@@ -92,7 +98,7 @@ class BeamPhysicsRelevantElements(Preparable):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -145,6 +151,9 @@ class BeamPhysicsRelevantElements(Preparable):
         AssertionError
             If `element.section_index` is not an integer.
         """
+        self._assert_no_init(
+            msg="Adding elements after initialization is forbidden!"
+        )
         assert isinstance(element.section_index, int)
 
         insert_at = None
@@ -204,12 +213,12 @@ class BeamPhysicsRelevantElements(Preparable):
                         <= element.section_index
                         <= self.elements[insert_at - 1].section_index + 1
                     )
-            except:
+            except AssertionError as exc:
                 raise AssertionError(
                     "The element section index is incompatible "
                     "with the requested location. Please allow "
                     "overwrite for automatic handling."
-                )
+                ) from exc
         else:
             raise AssertionError(
                 f"The element must be inserted within ["
@@ -217,8 +226,7 @@ class BeamPhysicsRelevantElements(Preparable):
             )
 
     def insert(self, element: BeamPhysicsRelevant, insert_at: int) -> None:
-        """Insert a beam physics-relevant element to the container at the
-        specified index.
+        """Insert an element to the container at the specified index.
 
         Parameters
         ----------
@@ -237,6 +245,9 @@ class BeamPhysicsRelevantElements(Preparable):
             insertion.
             If insert_at is not within [0:len(ring.elements.elements)]
         """
+        self._assert_no_init(
+            msg="Inserting elements after initialization is forbidden!"
+        )
         assert isinstance(element.section_index, int)
         self.check_section_index_compatibility(
             element=element, insert_at=insert_at
@@ -315,6 +326,9 @@ class BeamPhysicsRelevantElements(Preparable):
 
     def reorder(self) -> None:
         """Reorder each section by `natural_order`."""
+        self._assert_no_init(
+            msg="Reordering of elements after initialization is forbidden!"
+        )
         for section_index in range(self.n_sections):
             self.reorder_section(
                 section_index=section_index,
@@ -330,6 +344,10 @@ class BeamPhysicsRelevantElements(Preparable):
         section_index
             Section index to restrict the ordering to a specific section.
         """
+        self._assert_no_init(
+            msg="Section reordering of elements after initialization is "
+            "forbidden!"
+        )
         assert isinstance(section_index, int)
         from blond.experimental.physics.feedbacks.base import FeedbackBaseClass
 

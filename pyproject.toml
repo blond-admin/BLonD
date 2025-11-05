@@ -54,7 +54,8 @@ write_to = 'blond/_version.py' # autogenerates version string using git
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
-optional-dependencies = { all = { file = ["requirements.txt", "requirements-gpu.txt", "requirements-dev.txt", "requirements-fortran.txt", "requirements-doc.txt"] }, gpu = { file = ["requirements-gpu.txt"] }, fortran = { file = ["requirements-fortran.txt"] }, dev = { file = ["requirements-dev.txt"] }, legacy = { file = ["legacy/requirements.txt"] }, doc = { file = "requirements-doc.txt" } }
+optional-dependencies = { all = { file = ["requirements.txt","requirements-gpu.txt","requirements-dev.txt", "requirements-fortran.txt", "requirements-doc.txt", "blond/interfaces/xsuite/requirements.txt"] }, gpu = { file = ["requirements-gpu.txt"] }, fortran = { file = ["requirements-fortran.txt"] },  dev = { file = ["requirements-dev.txt"]},  legacy = { file = ["legacy/requirements.txt"]}, doc = { file = "requirements-doc.txt" }, xsuite = { file = "blond/interfaces/xsuite/requirements.txt" } }
+
 
 [tool.ruff]
 src = ["blond"]  # Source directories
@@ -67,8 +68,8 @@ exclude = [
     "unittests",
     "legacy",
     "integrationtests_blond3",
+    "__doc/",
 ]
-
 [tool.ruff.lint]
 # Enable broad set of useful lint rules
 select = [
@@ -78,25 +79,30 @@ select = [
     # "I",  # isort (import sorting)
     # "N",  # pep8-naming
     "UP",   # pyupgrade
-    # "C4", # flake8-comprehensions
+    "C4", # flake8-comprehensions
     "D",    # pydocstyle
-    # "SIM",# flake8-simplify
+    "SIM",# flake8-simplify
     "NPY",  # numpy-specific rules
     "PL",   # pylint rules
 ]
 
 ignore = [
-    "I",
+    "E501", #  Line too long
     "E501", #  Line too long
     "PLR0913", # Too many arguments in function definition
     "PLC0415", # `import` should be at the top-level of a file
     "D401", # First line of docstring should be in imperative mood
+    "B024", # ... is an abstract base class, but it has no abstract methods or properties
+    "E712", #  Avoid equality comparisons to `False`; use `if not ...:` for false checks
+
 ]
-unfixable = ["I"]
+exclude = [
+    "blond/handle_results/observables.py",
+    "blond/examples/*",
+]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
-
 [tool.pytest.ini_options]
 minversion = "8.4"
-addopts = "--import-mode=importlib"
+addopts = "--import-mode=importlib --cov --cov-config=.coveragerc"

@@ -1,3 +1,5 @@
+"""Example of user interfacing with BLonD."""
+
 # pragma: no cover
 
 import numpy as np
@@ -15,14 +17,16 @@ from blond._core.beam.beams import Beam
 from blond._core.ring.ring import Ring
 from blond.cycles.magnetic_cycle import MagneticCycleBase, MagneticCyclePerTurn
 from blond.physics.cavities import MultiHarmonicCavity
-from blond.physics.drifts import DriftXSuite
 from blond.physics.impedances.solvers import InductiveImpedanceSolver
 from blond.physics.impedances.sources import InductiveImpedance
 
 
 class Main:
+    """Helper class to describe a simulation."""
+
     @staticmethod
     def describe_accelerator() -> tuple[Ring, MagneticCyclePerTurn, Beam]:
+        """Describes the hardware that is simulated within the :class:`blond._core.ring.ring.Ring`."""
         # Description of accelerator
         my_ring = Ring(circumference=20)
 
@@ -56,7 +60,7 @@ class Main:
             profile1,
             # LocalFeedback(cavity1, profile1),
             # GlobalFeedback(profile1),
-            DriftXSuite(orbit_length=0.1 * my_ring.circumference),
+            # DriftXSuite(orbit_length=0.1 * my_ring.circumference), # TODO
         )
 
         my_cycle = MagneticCyclePerTurn(
@@ -80,6 +84,26 @@ class Main:
         my_cycle: MagneticCycleBase,
         my_beam: Beam,
     ) -> tuple:
+        """Assembles the :class:`blond._core.simulation.simulation.Simulation` object. and matches the beam.
+
+        Parameters
+        ----------
+        my_ring
+            `Ring` a.k.a. synchrotron.
+        my_cycle
+            Container object to handle the scheduled energy gain
+            per turn or by time.
+        my_beam
+            Simulation `Beam` object.
+
+        Returns
+        -------
+        simulation
+            `Simulation` object.
+        my_beam
+            `Beam` object, matched.
+
+        """
         # Preparation of simulation
         # Here everything might be interconnected
         simulation = Simulation(ring=my_ring, magnetic_cycle=my_cycle)
@@ -99,6 +123,16 @@ class Main:
         simulation: Simulation,
         my_beam: Beam,
     ) -> None:
+        """Runs the simulation.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` object.
+        my_beam
+            `Beam` object, matched.
+
+        """
         # Full simulation. everything here should be optimized
         simulation.run_simulation(
             turn_i_init=10, n_turns=100, beams=(my_beam,)
@@ -106,6 +140,7 @@ class Main:
 
 
 def main() -> None:
+    """Executes the predefined simulation."""
     my_ring, my_cycle, my_beam = Main.describe_accelerator()
     simulation, my_beam = Main.ready_simulation_and_beam(
         my_ring=my_ring,

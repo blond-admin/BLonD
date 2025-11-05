@@ -1,3 +1,10 @@
+"""Several setups of simulations that are intended for testcases.
+
+Authors
+-------
+Simon Lauber
+"""
+
 from matplotlib import pyplot as plt
 
 from blond import MultiHarmonicCavity
@@ -5,6 +12,8 @@ from blond._core.backends.backend import backend
 
 
 class ExampleSimulation01:
+    """Simulation with only one drift, one RF."""
+
     def __init__(self):
         import numpy as np
 
@@ -80,6 +89,8 @@ class ExampleSimulation01:
 
 
 class SimulationTwoRfStations:
+    """A simulation with two RF stations and according drifts."""
+
     def __init__(self):
         import numpy as np
 

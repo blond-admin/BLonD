@@ -1,3 +1,10 @@
+"""Testing the performance of `beam_phase`.
+
+Authors
+-------
+Simon Lauber
+"""
+
 import time
 
 import cupy as cp
@@ -5,8 +12,10 @@ import numpy as np
 
 
 def main():  # pragma: no cover
+    """Testing the performance of `beam_phase`."""
     hist_x = np.linspace(0, 1, 1024)
-    hist_y = np.random.randn(len(hist_x))
+    rng = np.random.default_rng()
+    hist_y = rng.standard_normal(len(hist_x))
     hist_x_cp = cp.array(hist_x)
     hist_y_cp = cp.array(hist_y)
     alpha = 1.4
@@ -19,8 +28,10 @@ def main():  # pragma: no cover
     from blond._core.backends.cpp.callables import CppSpecials
     from blond._core.backends.cuda.callables import CudaSpecials
     from blond._core.backends.fortran.callables import FortranSpecials
-    from blond._core.backends.numba.callables import NumbaSpecials
+    from blond._core.backends.numba.callables import recompile_numba_backend
     from blond._core.backends.python.callables import PythonSpecials
+
+    NumbaSpecials = recompile_numba_backend(backend.float)
 
     print(f"Testing `beam_phase` for {len(hist_x)} bins..")
     functions = (

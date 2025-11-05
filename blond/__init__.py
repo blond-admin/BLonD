@@ -1,32 +1,28 @@
-from ._core.backends.backend import backend
-from ._core.base import UserDefinedElement
-from ._core.beam.beams import Beam
-from ._core.beam.particle_types import (
-    electron,
-    mu_minus,
-    mu_plus,
-    positron,
-    proton,
-    uranium_29,
-)
-from ._core.ring.ring import Ring
-from ._core.simulation.simulation import Simulation
-from ._generals.cupy.no_cupy_import import AllowPlotting
-from .beam_preparation.bigaussian import BiGaussian
-from .cycles.magnetic_cycle import (
-    ConstantMagneticCycle,
-    MagneticCycleByTime,
-    MagneticCyclePerTurn,
-    MagneticCyclePerTurnAllCavities,
-)
-from .handle_results.observables import (
-    BunchObservation,
-    CavityPhaseObservation,
-    StaticProfileObservation,
-)
-from .physics.cavities import MultiHarmonicCavity, SingleHarmonicCavity
-from .physics.drifts import DriftSimple
-from .physics.energy_reference_kick import ReferenceEnergyChange
-from .physics.impedances.base import WakeField
-from .physics.losses import BoxLosses
-from .physics.profiles import StaticProfile
+"""BLonD beam dynamics software."""
+
+from ._core.backends.backend import backend  # NOQA
+from ._core.base import UserDefinedElement  # NOQA
+from ._core.beam.beams import Beam  # NOQA
+from ._core.beam.particle_types import electron  # NOQA
+from ._core.beam.particle_types import mu_minus  # NOQA
+from ._core.beam.particle_types import mu_plus  # NOQA
+from ._core.beam.particle_types import positron  # NOQA
+from ._core.beam.particle_types import proton  # NOQA
+from ._core.beam.particle_types import uranium_29  # NOQA
+from ._core.ring.ring import Ring  # NOQA
+from ._core.simulation.simulation import Simulation  # NOQA
+from ._generals.cupy.no_cupy_import import AllowPlotting  # NOQA
+from .beam_preparation.bigaussian import BiGaussian  # NOQA
+from .cycles.magnetic_cycle import ConstantMagneticCycle  # NOQA
+from .cycles.magnetic_cycle import MagneticCycleByTime  # NOQA
+from .cycles.magnetic_cycle import MagneticCyclePerTurn  # NOQA
+from .cycles.magnetic_cycle import MagneticCyclePerTurnAllCavities  # NOQA
+from .handle_results.observables import BunchObservation  # NOQA
+from .handle_results.observables import CavityPhaseObservation  # NOQA
+from .handle_results.observables import StaticProfileObservation  # NOQA
+from .physics.cavities import MultiHarmonicCavity, SingleHarmonicCavity  # NOQA
+from .physics.drifts import DriftSimple  # NOQA
+from .physics.energy_reference_kick import ReferenceEnergyChange  # NOQA
+from .physics.impedances.base import WakeField  # NOQA
+from .physics.losses import BoxLosses  # NOQA
+from .physics.profiles import StaticProfile  # NOQA

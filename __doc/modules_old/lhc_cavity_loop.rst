@@ -203,7 +203,7 @@ which is
 
     y^{(n)} = \frac{1}{64} \left ( x^{(n)} - 2 x^{(n - 8)} + x^{(n - 16)} \right ) + 2 y^{(n - 1)} - y^{(n - 2)}
 
-in discrete time-domain. The maximum and minimum value of the output, :math:`\Im \left \[ I_g \overline{V}_a \right \]`,
+in discrete time-domain. The maximum and minimum value of the output, :math:`\Im \left[ I_g \overline{V}_a \right]`,
 for a turn :math:`k` is then used to generate a correction to the central frequency of the cavity for turn
 :math:`k + 1` in the following way
 
