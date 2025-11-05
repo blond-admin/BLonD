@@ -443,5 +443,25 @@ class TestRing(unittest.TestCase):
         self.ring.add_element(drift_simple_mock, deepcopy=True)
 
         self.assertEqual(self.ring.average_transition_gamma, 42)
+
+    def test_average_transition_gamma2(self):
+        self.ring._circumference = 129
+        from blond.testing.mocks import drift_simple_mock
+
+        drift_simple_mock.transition_gamma = 20
+        drift_simple_mock.orbit_length = 12
+        drift_simple_mock.section_index = 0
+
+        self.ring.add_element(drift_simple_mock, deepcopy=True)
+
+        drift_simple_mock.transition_gamma = 40
+        drift_simple_mock.orbit_length = 12
+        drift_simple_mock.section_index = 0
+
+        self.ring.add_element(drift_simple_mock, deepcopy=True)
+
+        self.assertEqual(self.ring.average_transition_gamma, 30)
+
+
 if __name__ == "__main__":
     unittest.main()
