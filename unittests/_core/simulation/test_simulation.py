@@ -349,6 +349,102 @@ class TestSimulation(unittest.TestCase):
             rtol=1e-4,
         )
 
+    def test_get_potential_well_empiric_shape_acceleration(self):
+
+        ring = Ring(circumference=26658.883)
+
+        cavity1 = SingleHarmonicCavity()
+        cavity1.harmonic = 35640
+        cavity1.voltage = 6e6
+        cavity1.phi_rf = 0
+
+        N_TURNS = int((20 * 60) * 11e3)
+        energies = np.linspace(450e9, 7e12, N_TURNS)
+        step = energies[1]-energies[0]
+        magnetic_cycle = MagneticCyclePerTurn(
+            value_init=energies[0]-step,
+            values_after_turn=energies,
+            reference_particle=proton,
+            in_unit="total energy",
+        )
+
+        drift1 = DriftSimple(
+            orbit_length=26658.883,
+        )
+        drift1.transition_gamma = 55.759505
+
+        beam1 = Beam(intensity=1e9, particle_type=proton)
+        beam1.setup_beam(
+            dt=np.linspace(1, 10, 10),
+            dE=np.linspace(11, 20, 10),
+            reference_time=0,
+            reference_total_energy=energies[0]-step,
+        )
+        simulation = Simulation.from_locals(locals())
+        beam = beam1
+
+
+        cavity = simulation.ring.elements.get_element(
+            SingleHarmonicCavity
+        )
+        particle_type = proton
+
+        ts = np.linspace(
+            0,
+            simulation.magnetic_cycle.get_t_rev_init(
+                circumference=simulation.ring.circumference,
+                t_init=0,
+                turn_i_init=0,
+                particle_type=particle_type,
+            )
+            / cavity.harmonic,
+            20000,
+        )
+        phis = ts * cavity.calc_omega(
+            beam_beta=beam.reference_beta,
+            ring_circumference=simulation.ring.circumference,
+        )
+        potential_well, factor, tilt_dt_per_dE = (
+            simulation.get_potential_well_empiric(
+                ts, particle_type=particle_type
+            )
+        )
+        DEV_PLOT = True
+        simulation.turn_i.value = 0
+        phi_s = float(cavity.calc_phi_s_single_harmonic(beam=beam1))
+        plt.figure()
+        phis_debug = np.linspace(0,2*np.pi)
+        plt.plot(phis_debug, cavity.voltage * np.sin(phis_debug))
+        plt.axhline(step)
+        plt.axvline(phi_s)
+        plt.show()
+
+        potential_well_analytic = (
+            particle_type.charge
+            * cavity.voltage
+            / (2 * np.pi)
+            * (np.cos(phis) - np.cos(phi_s) + (phis - phi_s) * np.sin(phi_s))
+        )
+        if DEV_PLOT:
+            plt.plot(
+                potential_well,
+                label="potential_well",
+            )
+
+            plt.plot(
+                potential_well_analytic,
+                "--",
+                label="potential_well_analytic",
+            )
+            plt.legend()
+            plt.show()
+        np.testing.assert_allclose(
+            potential_well_analytic / potential_well_analytic.max() + 1,
+            potential_well / potential_well.max() + 1,
+            rtol=1e-4,
+        )
+
+
     def test_get_drift_term_empiric(self):
         from blond.testing.simulation import SimulationTwoRfStations
 
