@@ -157,13 +157,13 @@ release_sdist_310:
 test_documentation_building:
   image: gitlab-registry.cern.ch/blond/blond/python310
   interruptible: true
-  before_script:
+  script:
     - cd ${project_root}
     - python3 -m pip install --upgrade pip
     - python3 -m pip install .[doc]
-  script:
-    - cd ${project_root}
-    - python3 -m sphinx build -b html -W -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=5 --keep-going __doc __doc/_build/html
+    - cd ${project_root}/__doc
+    - export PATH=/home/non_root/.local/bin:$PATH
+    - . ./create_docs.sh
   artifacts:
     paths:
       - ${project_root}/__doc/_build/html
@@ -173,15 +173,14 @@ test_documentation_building:
 
 #pages_blond3:  # adjusted for BLonD3, not active yet
 #  image: gitlab-registry.cern.ch/blond/blond/python310
-#  before_script:
-#    - cd ${project_root}
-#    - mkdir public
-#    - python3 -m pip install --upgrade pip
-#    - python3 -m pip install .[doc]
 #  script:
 #    - cd ${project_root}
-#    - python3 -m sphinx build -b html -W -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=5 --keep-going __doc __doc/_build/html
-#    - cp -r __doc/_build/html/* public/
+#    - python3 -m pip install --upgrade pip
+#    - python3 -m pip install .[doc]
+#    - cd ${project_root}/__doc
+#    - export PATH=/home/non_root/.local/bin:$PATH
+#    - . ./create_docs.sh
+#    - cp -r ./_build/html/* public/
 #  artifacts:
 #    paths:
 #      - ${project_root}public
