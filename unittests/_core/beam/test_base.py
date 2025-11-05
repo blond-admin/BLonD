@@ -191,9 +191,9 @@ class TestBeamBaseClass(unittest.TestCase):
         )
 
     def test_purge_flagged_entries(self):
-        self.beam_base_class._flags[[0, 1, -1]] = 0
+        self.beam_base_class._flags[[0, 1, -1]] = -500
         self.beam_base_class.purge_flagged_entries()
-        self.assertTrue(np.all(self.beam_base_class._flags != 0))
+        self.assertTrue(np.all(self.beam_base_class._flags != -500))
 
 
 if __name__ == "__main__":
