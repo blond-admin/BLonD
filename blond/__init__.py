@@ -21,7 +21,7 @@ from .handle_results.observables import BeamObservationEndOfTurn  # NOQA
 from .handle_results.observables import CavityPhaseObservation  # NOQA
 from .handle_results.observables import StaticProfileObservation  # NOQA
 from .handle_results.observables_as_elements import (
-    BeamObserverInPipeline,  # NOQA
+    BeamObserverationInPipeline,  # NOQA
 )
 from .physics.cavities import MultiHarmonicCavity, SingleHarmonicCavity  # NOQA
 from .physics.drifts import DriftSimple  # NOQA
