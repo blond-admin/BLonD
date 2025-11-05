@@ -316,7 +316,7 @@ __global__ void loss_box(
     for (int i=tid; i<n_macroparticles; i=i+blockDim.x*gridDim.x){
         const bool outside = (dE[i] > top) || (dE[i] < bottom) || (dt[i] < left) || (dt[i] > right);
         if (outside){
-            flags[i] =  0; // assume that lost = 0
+            flags[i] =  -500; // assume (BeamFlags.LOST.value)
         }
         }
 }

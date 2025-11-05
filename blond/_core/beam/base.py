@@ -22,7 +22,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class BeamFlags(int, Enum):
-    LOST = 0
+    LOST = -500  # by convention with XSuite team
     ACTIVE = 1
 
 
