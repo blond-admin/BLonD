@@ -116,7 +116,7 @@ class Ring(Preparable, Schedulable):
 
         transition_gamma_average = sum(
             [
-                e.transition_gamma * self.circumference / e.orbit_length
+                e.transition_gamma * e.orbit_length / self.circumference
                 for e in (self.elements.get_elements(DriftSimple))  # todo
                 # not only simple
             ]
