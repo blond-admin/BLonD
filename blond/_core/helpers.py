@@ -53,10 +53,13 @@ def find_instances_with_method(root: Any, method_name: str) -> Any:
     found = set()
     seen = set()
 
-    def walk(obj: Any):
+    def walk(obj: Any, skip_list):
         if id(obj) in seen:
             return
         seen.add(id(obj))
+
+        if hasattr(obj, "skip_find_instances_with_method"):
+            skip_list.extend(obj.skip_find_instances_with_method)
 
         # Check if object has the desired method
         if hasattr(obj, method_name) and callable(getattr(obj, method_name)):
@@ -65,21 +68,23 @@ def find_instances_with_method(root: Any, method_name: str) -> Any:
         # Recurse into object attributes or container elements
         if isinstance(obj, dict):
             for key, value in obj.items():
-                walk(key)
-                walk(value)
+                walk(key, skip_list)
+                walk(value, skip_list)
         elif isinstance(obj, (list, tuple, set)):
             for item in obj:
-                walk(item)
+                walk(item, skip_list)
         elif hasattr(obj, "__dict__"):  # checks if is python class
             for attr_name in dir(obj):
-                # Skip built-in attributes
+                if attr_name in skip_list:
+                    continue
+                # Skip built-in attributes or private class attributes
                 if attr_name.startswith("__") and attr_name.endswith("__"):
                     continue
                 try:
                     attr = getattr(obj, attr_name)
                 except Exception:
                     continue  # Skip attributes that raise errors on access
-                walk(attr)
+                walk(attr, skip_list)
 
-    walk(root)
+    walk(root, skip_list=[])
     return found
