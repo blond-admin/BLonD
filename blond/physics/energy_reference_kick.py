@@ -59,15 +59,15 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
         simulation
             Simulation context manager
         """
-        super().on_init_simulation(simulation=simulation)
-        self._turn_i = simulation.turn_i
-        self._magnetic_cycle = simulation.magnetic_cycle
-        self._ring = simulation.ring
-
         if not isinstance(self._magnetic_cycle, MagneticCycleByTime):
             raise TypeError(
                 f"Expected MagneticCycleByTime, got {type(self._magnetic_cycle).__name__}"
             )
+
+        super().on_init_simulation(simulation=simulation)
+        self._turn_i = simulation.turn_i
+        self._magnetic_cycle = simulation.magnetic_cycle
+        self._ring = simulation.ring
 
     def on_run_simulation(
         self,
