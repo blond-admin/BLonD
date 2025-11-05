@@ -150,10 +150,6 @@ class TestBeam(unittest.TestCase):
             Beam.plot_hist(beam, axis=10)
 
     def test_plot_hist_executes_cpu(self) -> None:
-        try:
-            import cupy as cp  # type: ignore
-        except ModuleNotFoundError:
-            self.skipTest("Cupy not available")
         beam = Mock(Beam)
         beam._dE = np.ones(10)
         beam._dt = np.ones(10)
