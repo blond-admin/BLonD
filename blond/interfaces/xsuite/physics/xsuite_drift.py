@@ -43,6 +43,8 @@ class DriftXSuite(DriftBaseClass):
         Section index to group elements (passed to DriftBaseClass).
     """
 
+    skip_find_instances_attributes = ["_xsuite_element", "_line_internal"]
+
     def __init__(
         self,
         beam: BeamBaseClass,
@@ -92,8 +94,6 @@ class DriftXSuite(DriftBaseClass):
         turn_i_init: int,
         **kwargs: Any,
     ) -> None:
-        # Implement any drift-specific logic for on_run_simulation if needed,
-        # or leave as a no-op if not required.
         pass
 
     def track(self, beam: Optional[BeamBaseClass] = None) -> None:

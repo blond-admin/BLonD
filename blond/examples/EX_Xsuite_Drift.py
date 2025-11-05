@@ -65,7 +65,13 @@ def main():
         beta0=0.6,  # TODO
     )
 
-    sim = Simulation.from_locals(locals())
+    one_turn_map = []
+    one_turn_map.extend([cavity1, drift1])
+    ring.add_elements(one_turn_map)
+    sim = Simulation(
+        ring=ring,
+        magnetic_cycle=energy_cycle,
+    )
     sim.print_one_turn_execution_order()
 
 
