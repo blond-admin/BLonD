@@ -6,7 +6,7 @@ import numpy as np
 
 from blond import (
     Beam,
-    BeamObserverationInPipeline,
+    BeamObserverationInRingElement,
     BiGaussian,
     DriftSimple,
     Ring,
@@ -50,7 +50,7 @@ def main():
         particle_type=proton,
     )
 
-    beam_logger_element = BeamObserverationInPipeline(
+    beam_logger_element = BeamObserverationInRingElement(
         name="logger",
         section_index=0,
         folder=callers_relative_path(
