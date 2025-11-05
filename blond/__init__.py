@@ -24,7 +24,6 @@ from .handle_results.observables import (
     CavityPhaseObservation,
     StaticProfileObservation,
 )
-from .handle_results.observables_as_elements import BeamLoggerElement
 from .physics.cavities import MultiHarmonicCavity, SingleHarmonicCavity
 from .physics.drifts import DriftSimple
 from .physics.energy_reference_kick import ReferenceEnergyChange
