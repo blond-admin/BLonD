@@ -23,6 +23,12 @@ extern "C" int flagged_to_end(
     int_t* __restrict__ ids,
     const int n_macroparticles
 ) {
+    // Set j to the end of the array.
+    // Later every entry matching the flag is put to the end of the array
+    // and j is moved to one position left.
+    // Like that all particles that match the flag will be transferred to the
+    // end of the array.
+
     int global_j = n_macroparticles - 1; // common for all threads
 
     // Temporary variables for swapping
