@@ -20,7 +20,13 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class BeamPhysicsRelevantElements(Preparable):
-    """Container object to manage all beam interactions in `Ring`."""
+    """Container object to manage all beam interactions in `Ring`.
+
+    Attributes
+    ----------
+    elements
+        List of  :class:`~blond._core.ring.beam_physics_relevant_elements.BeamPhysicsRelevantElements`
+    """
 
     def __init__(self) -> None:
         super().__init__()
