@@ -7,6 +7,8 @@ Cannot be used with from_locals.
 
 from __future__ import annotations
 
+from typing import Any
+
 from blond._core.base import BeamObservationElement
 from blond._core.beam.base import BeamBaseClass
 from blond._core.simulation.simulation import Simulation
@@ -58,7 +60,10 @@ class BeamObserverationInPipeline(
         n_turns: int,
         turn_i_init: int,
         obs_per_turn: int = 1,
-        **kwargs,
+        **kwargs: dict[
+            str,
+            Any,
+        ],
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called.
 
@@ -70,6 +75,8 @@ class BeamObserverationInPipeline(
             Number of turns to simulate
         turn_i_init
             Initial turn to execute simulation
+        obs_per_turn
+            Number of observations per turn
         """
         n_entries = n_turns // self.each_turn_i + 2
 
@@ -97,12 +104,12 @@ class BeamObserverationInPipeline(
         self._reference_total_energy.write(beam.reference_total_energy)
         self._flags.write(beam.read_partial_flags())
 
-    @property
+    @property  # as readonly attributes
     def reference_time(self):
         """Returns reference_time."""
         return self._reference_time.get_valid_entries()
 
-    @property  # as readonly attributes
+    @property
     def reference_total_energy(self):
         """Returns reference_total_energy."""
         return self._reference_total_energy.get_valid_entries()
