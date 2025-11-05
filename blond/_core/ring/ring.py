@@ -219,7 +219,7 @@ class Ring(Preparable, Schedulable):
         deepcopy: bool = False,
         section_index: int | None = None,
     ):
-        """Append a beam physics-relevant element to the ring.
+        """Append a `SimulationElementBase` element to the ring.
 
         This method appends the given element to the
         internal sequence of elements, maintaining insertion order if
@@ -261,7 +261,7 @@ class Ring(Preparable, Schedulable):
         deepcopy: bool = False,
         section_index: int | None = None,
     ):
-        """Append beam physics-relevant elements to the ring.
+        """Append `SimulationElementBase` elements to the ring.
 
         This method appends the given elements to the
         internal sequence of elements, maintaining
