@@ -183,6 +183,19 @@ class EmpiricMatcher(MatchingRoutine):
             The default is `normalize_as_density`.
             It is intended to be replaced by user-defined functions.
 
+        Examples
+        --------
+        >>> simulation.prepare_beam(
+        >>>     beam=beam1,
+        >>>     preparation_routine=EmpiricMatcher(
+        >>>         grid_base_dt=np.linspace(0, 2.5e-9, 100),
+        >>>         grid_base_dE=np.linspace(
+        >>>             -(777538700.0 * 2), 777538700.0 * 2, 100
+        >>>         ),
+        >>>         n_macroparticles=1e6,
+        >>>         seed=0, # For reproducible results
+        >>>     ),
+        >>> )
         """
         assert callable(hamiltonian_to_density_function)
         self.hamiltonian_to_density_function = hamiltonian_to_density_function
