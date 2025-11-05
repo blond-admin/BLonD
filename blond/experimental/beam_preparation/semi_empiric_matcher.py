@@ -140,7 +140,7 @@ def get_hamilton_semi_analytic(
     E0 = reference_total_energy  # [eV]
 
     # Compute kinetic energy term constant
-    drift_term = eta / (np.square(beta) * E0)  # [1/eV]
+    drift_term = np.abs(eta) / (np.square(beta) * E0)  # [1/eV]
 
     # Auto-estimate ΔE range if not provided
     if energy_range is None:

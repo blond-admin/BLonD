@@ -337,6 +337,10 @@ class Simulation(Preparable):
             probe_bunch.read_partial_dE(), initial=0
         ) / len(dt)
 
+        if self.ring.is_below_transition(beam=probe_bunch):
+            # peaks and troughs are flipped when below transition
+            potential_well *= -1
+
         if subtract_min:
             # Align potential so that the visible minimum is 0
             potential_well -= potential_well.min()
