@@ -106,25 +106,25 @@ class BeamObserverationInPipeline(
 
     @property  # as readonly attributes
     def reference_time(self):
-        """Returns reference_time."""
+        """Returns reference_time [s]."""
         return self._reference_time.get_valid_entries()
 
     @property
     def reference_total_energy(self):
-        """Returns reference_total_energy."""
+        """Returns Total beam energy [eV].."""
         return self._reference_total_energy.get_valid_entries()
 
     @property  # as readonly attributes
     def dts(self):
-        """Returns dts."""
+        """Returns dt coordinates of the beam [s]."""
         return self._dts.get_valid_entries()
 
     @property  # as readonly attributes
     def dEs(self):
-        """Returns dEs."""
+        """Returns dEs coordinates of the beam [eV]."""
         return self._dEs.get_valid_entries()
 
     @property  # as readonly attributes
     def flags(self):
-        """Returns loss flags."""
+        """Returns flags-arrays."""
         return self._flags.get_valid_entries()
