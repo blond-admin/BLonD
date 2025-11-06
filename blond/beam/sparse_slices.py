@@ -11,7 +11,7 @@
 **Module to compute beam slicing for a sparse beam**
 **Only valid for cases with constant revolution and RF frequencies**
 
-:Authors: **Juan F. Esteban Mueller**
+:Authors: **Juan F. Esteban Mueller, Lina Valle (ed. 2025)**
 """
 
 from __future__ import annotations
@@ -37,9 +37,30 @@ if TYPE_CHECKING:
 
 class SparseSlices:
     """
-    *This class instantiates a Profile object for each filled bucket according
-    to the provided filling pattern. Each Profile object will be of the size of
-    an RF bucket and will have the same number of slices.*
+    This class instantiates a Profile object for each filled bucket according
+    to the provided filling pattern.
+
+    By default, each Profile object has the size of an RF bucket, and the
+    same number of slices (number_of_slices_per_bucket). The size of the
+    Profile objects can be extended to the neighbouring buckets by inputting
+    a "bucket_margin", for the same number of slices per bucket.
+
+    Parameters
+    ----------
+    rf_station
+        RFStation object
+    beam
+        Beam object
+    number_of_slices_per_bucket
+        Number of slices per bucket
+    filling_pattern
+        Filling pattern of the synchrotron
+    tracker
+        Choice of tracker. Can be "C" or "onebyone".
+    bucket_margin
+        Extend the scope of the Profile objects to the neighbouring buckets.
+    direct_slicing
+        Track at initialisation. FALSE by default.
     """
 
     @handle_legacy_kwargs
@@ -47,9 +68,10 @@ class SparseSlices:
         self,
         rf_station: RFStation,
         beam: Beam,
-        n_slices_bucket: int,
+        number_of_slices_per_bucket: int,
         filling_pattern: NumpyArray,
         tracker: TrackerTypes = "C",
+        bucket_margin: int = 0,
         direct_slicing: bool = False,
     ):
         #: *Import (reference) Beam*
@@ -59,8 +81,8 @@ class SparseSlices:
         self.rf_station = rf_station
 
         #: *Number of slices per bucket*
-        self.n_slices_bucket = n_slices_bucket
-
+        self.number_of_slices_per_bucket = number_of_slices_per_bucket
+        self.bucket_margin = bucket_margin
         #: *Filling pattern as a boolean array where True (1) means filled
         # bucket*
         self.filling_pattern = filling_pattern
@@ -74,21 +96,23 @@ class SparseSlices:
         # Pre-processing the slicing edges
         self.cut_left_array = np.zeros(self.n_filled_buckets)
         self.cut_right_array = np.zeros(self.n_filled_buckets)
-        self.set_cuts()
+        self.set_cuts(
+            bucket_margin=self.bucket_margin,
+        )
 
         # Initialize individual slicing objects
         self.profiles_list = []
         # Group n_macroparticles from all objects in a single array
         # (for C++ track).
         self.n_macroparticles_array = np.zeros(
-            (self.n_filled_buckets, n_slices_bucket)
+            (self.n_filled_buckets, self.number_of_slices_per_bucket)
         )
         # Group bin_centers from all objects in a single array (for impedance)
         self.bin_centers_array = np.zeros(
-            (self.n_filled_buckets, n_slices_bucket)
+            (self.n_filled_buckets, self.number_of_slices_per_bucket)
         )
         self.edges_array = np.zeros(
-            (self.n_filled_buckets, n_slices_bucket + 1)
+            (self.n_filled_buckets, self.number_of_slices_per_bucket + 1)
         )
         for i in range(self.n_filled_buckets):
             # Only valid for cut_edges='edges'
@@ -99,7 +123,7 @@ class SparseSlices:
                     CutOptions(
                         cut_left=float(self.cut_left_array[i]),
                         cut_right=float(self.cut_right_array[i]),
-                        n_slices=n_slices_bucket,
+                        n_slices=self.number_of_slices_per_bucket,
                     ),
                 )
             )
@@ -159,11 +183,16 @@ class SparseSlices:
         )
         self.rf_station = val
 
-    def set_cuts(self):
+    def set_cuts(self, bucket_margin: int = 0):
         """
         *Method to set the self.cut_left_array and self.cut_right_array
         properties, with the limits being an RF period.
         This is done as a pre-processing.*
+
+        Parameters
+        ----------
+        bucket_margin
+            Extend the scope of the Profile objects to the neighbouring buckets.
         """
         # RF period
         t_rf = self.rf_station.t_rf[0, self.rf_station.counter[0]]
@@ -172,8 +201,8 @@ class SparseSlices:
         self.cut_right_array = np.zeros(self.n_filled_buckets)
         for i in range(self.n_filled_buckets):
             bucket_index = np.where(self.filling_pattern)[0][i]
-            self.cut_left_array[i] = bucket_index * t_rf
-            self.cut_right_array[i] = (bucket_index + 1) * t_rf
+            self.cut_left_array[i] = (bucket_index - bucket_margin) * t_rf
+            self.cut_right_array[i] = (bucket_index + 1 + bucket_margin) * t_rf
 
     def _histogram_c(self):
         """
@@ -187,7 +216,7 @@ class SparseSlices:
             self.cut_left_array,
             self.cut_right_array,
             self.bunch_indexes,
-            self.n_slices_bucket,
+            self.number_of_slices_per_bucket,
         )
 
     def _histrogram_one_by_one(self):
