@@ -11,11 +11,13 @@
 **Module to compute beam slicing for a sparse beam**
 **Only valid for cases with constant revolution and RF frequencies**
 
-:Authors: **Juan F. Esteban Mueller**
+:Authors: **Juan F. Esteban Mueller, Lina Valle (ed. 2025)**
 """
 
 from __future__ import annotations
 
+import copy
+import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -37,9 +39,30 @@ if TYPE_CHECKING:
 
 class SparseSlices:
     """
-    *This class instantiates a Profile object for each filled bucket according
-    to the provided filling pattern. Each Profile object will be of the size of
-    an RF bucket and will have the same number of slices.*
+    This class instantiates a Profile object for each filled bucket according
+    to the provided filling pattern.
+
+    By default, each Profile object has the size of an RF bucket, and the
+    same number of slices (number_of_slices_per_bucket). The size of the
+    Profile objects can be extended to the neighbouring buckets by inputting
+    a "bucket_margin", for the same number of slices per bucket.
+
+    Parameters
+    ----------
+    rf_station
+        RFStation object
+    beam
+        Beam object
+    number_of_slices_per_bucket
+        Number of slices per bucket
+    filling_pattern
+        Filling pattern of the synchrotron
+    tracker
+        Choice of tracker. Can be "C" or "onebyone".
+    bucket_margin
+        Extend the scope of the Profile objects to the neighbouring buckets.
+    direct_slicing
+        Track at initialisation. FALSE by default.
     """
 
     @handle_legacy_kwargs
@@ -47,48 +70,73 @@ class SparseSlices:
         self,
         rf_station: RFStation,
         beam: Beam,
-        n_slices_bucket: int,
+        number_of_slices_per_bucket: int,
         filling_pattern: NumpyArray,
         tracker: TrackerTypes = "C",
+        bucket_margin: int = 0,
         direct_slicing: bool = False,
     ):
-        #: *Import (reference) Beam*
+        if (len(filling_pattern) != rf_station.harmonic).any():
+            if (len(filling_pattern) > rf_station.harmonic).any():
+                raise ValueError(
+                    f"The length of filling_pattern does not match exceeds "
+                    f"the number of RF buckets"
+                )
+            else:
+                warnings.warn(
+                    f"The filling pattern is shorter than the "
+                    f"total number of RF buckets.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            #: *Import (reference) Beam*
         self.beam = beam
-
+        self.energy = self.beam.energy
         #: *Import (reference) RFStation*
         self.rf_station = rf_station
 
         #: *Number of slices per bucket*
-        self.n_slices_bucket = n_slices_bucket
-
+        self.bucket_margin = bucket_margin
+        self.number_of_slices_per_bucket = number_of_slices_per_bucket
+        self.number_of_slices_per_profile = (
+            self.number_of_slices_per_bucket * (1 + 2 * self.bucket_margin)
+        )
         #: *Filling pattern as a boolean array where True (1) means filled
         # bucket*
         self.filling_pattern = filling_pattern
 
         # Bunch index for each filled bucket (-1 if empty). Only for C++ track
-        self.bunch_indexes = np.cumsum(filling_pattern) * filling_pattern - 1
+        self.bunch_indexes = (
+            np.cumsum(self.filling_pattern) * self.filling_pattern - 1
+        )
 
-        #: *Number of buckets to be sliced*
-        self.n_filled_buckets = int(np.sum(filling_pattern))
+        #: *Number of filled buckets in the filling pattern*
+        self.n_filled_buckets = int(np.sum(self.filling_pattern))
+        #: *Number of buckets to be sliced (including the bucket_margin)*
+        self.n_sliced_buckets = int(np.sum(self.filling_pattern)) * (
+            1 + 2 * self.bucket_margin
+        )
 
         # Pre-processing the slicing edges
         self.cut_left_array = np.zeros(self.n_filled_buckets)
         self.cut_right_array = np.zeros(self.n_filled_buckets)
-        self.set_cuts()
+        self.set_cuts(
+            bucket_margin=self.bucket_margin,
+        )
 
         # Initialize individual slicing objects
         self.profiles_list = []
         # Group n_macroparticles from all objects in a single array
         # (for C++ track).
         self.n_macroparticles_array = np.zeros(
-            (self.n_filled_buckets, n_slices_bucket)
+            (self.n_filled_buckets, self.number_of_slices_per_profile)
         )
         # Group bin_centers from all objects in a single array (for impedance)
         self.bin_centers_array = np.zeros(
-            (self.n_filled_buckets, n_slices_bucket)
+            (self.n_filled_buckets, self.number_of_slices_per_profile)
         )
         self.edges_array = np.zeros(
-            (self.n_filled_buckets, n_slices_bucket + 1)
+            (self.n_filled_buckets, self.number_of_slices_per_profile + 1)
         )
         for i in range(self.n_filled_buckets):
             # Only valid for cut_edges='edges'
@@ -99,7 +147,7 @@ class SparseSlices:
                     CutOptions(
                         cut_left=float(self.cut_left_array[i]),
                         cut_right=float(self.cut_right_array[i]),
-                        n_slices=n_slices_bucket,
+                        n_slices=self.number_of_slices_per_profile,
                     ),
                 )
             )
@@ -110,6 +158,16 @@ class SparseSlices:
             self.bin_centers_array[i, :] = self.profiles_list[i].bin_centers
             self.edges_array[i, :] = self.profiles_list[i].edges
             self.profiles_list[i].bin_centers = self.bin_centers_array[i, :]
+
+        # Total parameters to match the standard Profile object
+        self.n_macroparticles = np.concatenate(
+            self.n_macroparticles_array, axis=0
+        )
+        self.n_slices = int(
+            self.number_of_slices_per_bucket * filling_pattern.sum()
+        )
+        self.bin_centers = np.concatenate(self.bin_centers_array, axis=0)
+        self.bin_size = self.profiles_list[0].bin_size
 
         # Select the tracker
         if tracker == "C":
@@ -159,11 +217,16 @@ class SparseSlices:
         )
         self.rf_station = val
 
-    def set_cuts(self):
+    def set_cuts(self, bucket_margin: int = 0):
         """
         *Method to set the self.cut_left_array and self.cut_right_array
         properties, with the limits being an RF period.
         This is done as a pre-processing.*
+
+        Parameters
+        ----------
+        bucket_margin
+            Extend the scope of the Profile objects to the neighbouring buckets.
         """
         # RF period
         t_rf = self.rf_station.t_rf[0, self.rf_station.counter[0]]
@@ -172,8 +235,8 @@ class SparseSlices:
         self.cut_right_array = np.zeros(self.n_filled_buckets)
         for i in range(self.n_filled_buckets):
             bucket_index = np.where(self.filling_pattern)[0][i]
-            self.cut_left_array[i] = bucket_index * t_rf
-            self.cut_right_array[i] = (bucket_index + 1) * t_rf
+            self.cut_left_array[i] = (bucket_index - bucket_margin) * t_rf
+            self.cut_right_array[i] = (bucket_index + 1 + bucket_margin) * t_rf
 
     def _histogram_c(self):
         """
@@ -187,18 +250,8 @@ class SparseSlices:
             self.cut_left_array,
             self.cut_right_array,
             self.bunch_indexes,
-            self.n_slices_bucket,
+            self.number_of_slices_per_bucket,
         )
-
-    def _histrogram_one_by_one(self):
-        from warnings import warn
-
-        warn(
-            "_histrogram_one_by_one is deprecated, use _histogram_one_by_one",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self._histogram_one_by_one()
 
     def _histogram_one_by_one(self):
         """
@@ -208,3 +261,169 @@ class SparseSlices:
 
         for i in range(self.n_filled_buckets):
             self.profiles_list[i].track()
+
+    def _set_additional_cuts(
+        self,
+        updated_filling_pattern: NumpyArray,
+    ):
+        """
+        *Method to update set the self.cut_left_array and
+        self.cut_right_array
+        properties with additional filled buckets.*
+        """
+        if len(self.filling_pattern) != len(updated_filling_pattern):
+            raise ValueError(
+                f"The length of the updated filling pattern does not match "
+                f"the previously sotred filling pattern lengths: "
+                f"{len(updated_filling_pattern)} != "
+                f"{len(self.filling_pattern)}"
+            )
+        # RF period
+        t_rf = self.rf_station.t_rf[0, self.rf_station.counter[0]]
+        current_filling_pattern = self.filling_pattern
+
+        filled_bunches_current = np.where(current_filling_pattern)[0]
+        filled_bunches_new = np.where(updated_filling_pattern)[0]
+        additional_filled_buckets = len(filled_bunches_new) - len(
+            filled_bunches_current
+        )
+
+        mask_additional_bunch = copy.deepcopy(current_filling_pattern)
+        for i in filled_bunches_new:
+            if current_filling_pattern[i] == 0:
+                mask_additional_bunch[i] = 1
+            else:
+                mask_additional_bunch[i] = 0
+        # fixme: injected bunch might be between already considered bunches
+        updated_cut_left = np.zeros(additional_filled_buckets)
+        updated_cut_right = np.zeros(additional_filled_buckets)
+        for i in range(additional_filled_buckets):
+            bucket_index = np.where(mask_additional_bunch)[0][i]
+            updated_cut_left[i] = (bucket_index - self.bucket_margin) * t_rf
+            updated_cut_right[i] = (
+                bucket_index + 1 + self.bucket_margin
+            ) * t_rf
+        self.cut_left_array = np.append(self.cut_left_array, updated_cut_left)
+        self.cut_right_array = np.append(
+            self.cut_right_array, updated_cut_right
+        )
+        self.filling_pattern = updated_filling_pattern
+        return additional_filled_buckets
+
+    def _update_profile_lists(
+        self,
+        additional_filled_buckets: int,
+    ):
+        """
+        *Method to update create individual profiles for the injected
+        bunches*
+        """
+
+        # Initialize individual slicing objects
+        profiles_list_additional = []
+        if (
+            len(self.cut_right_array)
+            != self.n_filled_buckets + additional_filled_buckets
+        ) or (
+            len(self.cut_left_array)
+            != self.n_filled_buckets + additional_filled_buckets
+        ):
+            raise ValueError("Cut arrays have not been updated.")
+        if (
+            len(np.where(self.filling_pattern)[0])
+            != self.n_filled_buckets + additional_filled_buckets
+        ):
+            raise ValueError("Filling pattern has not been updated.")
+
+        for i in range(additional_filled_buckets):
+            # Only valid for cut_edges='edges'
+            profiles_list_additional.append(
+                Profile(
+                    self.Beam,
+                    CutOptions(
+                        cut_left=self.cut_left_array[
+                            self.n_filled_buckets + i
+                        ],
+                        cut_right=self.cut_right_array[
+                            self.n_filled_buckets + i
+                        ],
+                        n_slices=self.number_of_slices_per_profile,
+                    ),
+                )
+            )
+            self.n_macroparticles_array = np.insert(
+                arr=self.n_macroparticles_array,
+                obj=len(self.n_macroparticles_array),
+                values=profiles_list_additional[i].n_macroparticles,
+                axis=0,
+            )
+            self.bin_centers_array = np.insert(
+                arr=self.bin_centers_array,
+                obj=len(self.bin_centers_array),
+                values=profiles_list_additional[i].bin_centers,
+                axis=0,
+            )
+            self.edges_array = np.insert(
+                arr=self.edges_array,
+                obj=len(self.edges_array),
+                values=profiles_list_additional[i].edges,
+                axis=0,
+            )
+        self.profiles_list = np.append(
+            self.profiles_list, profiles_list_additional
+        )
+        self.n_filled_buckets += additional_filled_buckets
+        self.n_sliced_buckets += additional_filled_buckets * (
+            1 + 2 * self.bucket_margin
+        )
+        self._update_general_arrays()
+
+    def _update_general_arrays(self):
+        """
+        Method to update the general arrays after a profile update.
+        """
+        # Total parameters
+        if len(np.where(self.filling_pattern)[0]) != self.n_filled_buckets:
+            raise ValueError(
+                f"Filling pattern has length "
+                f"{len(np.where(self.filling_pattern)[0])}, number of "
+                f"declared filled buckets "
+                f"{self.n_filled_buckets}."
+            )
+        self.n_macroparticles = np.concatenate(
+            self.n_macroparticles_array, axis=0
+        )
+        self.n_slices = int(
+            self.number_of_slices_per_bucket * self.filling_pattern.sum()
+        )
+        self.bunch_indexes = (
+            np.cumsum(self.filling_pattern) * self.filling_pattern - 1
+        )
+        self.bin_centers = np.concatenate(self.bin_centers_array, axis=0)
+
+    def update_filling_pattern(
+        self,
+        updated_filling_pattern: NumpyArray,
+    ):
+        """
+        Method to consider an update of filling pattern in case of
+        multi-turn injection.
+
+        Parameters
+        ----------
+        updated_filling_pattern
+            Updated filling pattern
+        """
+        if len(self.filling_pattern) != len(updated_filling_pattern):
+            raise ValueError(
+                f"The length of the updated filling pattern does not match "
+                f"the previously stored filling pattern lengths: "
+                f"{len(updated_filling_pattern)} != "
+                f"{len(self.filling_pattern)}"
+            )
+        additional_filled_buckets = self._set_additional_cuts(
+            updated_filling_pattern=updated_filling_pattern
+        )
+        self._update_profile_lists(
+            additional_filled_buckets=additional_filled_buckets
+        )

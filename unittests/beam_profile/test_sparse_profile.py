@@ -13,6 +13,8 @@
 :Authors: **Markus Schwarz**
 """
 
+import copy
+
 # General imports
 # -----------------
 import unittest
@@ -30,7 +32,6 @@ from blond.input_parameters.ring import Ring
 
 
 class testProfileClass(unittest.TestCase):
-
     # Run before every test
     def setUp(self):
         """
@@ -47,24 +48,33 @@ class testProfileClass(unittest.TestCase):
         n_bunches = 2
 
         # --- Ring and RF ----------------------------------------------
-        intensity = n_bunches * intensity_pb     # total intensity SPS
+        intensity = n_bunches * intensity_pb  # total intensity SPS
         n_turns = 1
         # Ring parameters SPS
         circumference = 6911.5038  # Machine circumference [m]
         sync_momentum = 25.92e9  # SPS momentum at injection [eV/c]
 
         gamma_transition = 17.95142852  # Q20 Transition gamma
-        momentum_compaction = 1. / gamma_transition**2  # Momentum compaction array
+        momentum_compaction = (
+            1.0 / gamma_transition**2
+        )  # Momentum compaction array
 
-        ring = Ring(circumference, momentum_compaction, sync_momentum, Proton(),
-                    n_turns=n_turns)
+        ring = Ring(
+            circumference,
+            momentum_compaction,
+            sync_momentum,
+            Proton(),
+            n_turns=n_turns,
+        )
 
         # RF parameters SPS
         harmonic_number = 4620  # harmonic number
         voltage = 3.5e6  # [V]
         phi_offsets = 0
 
-        self.rf_station = RFStation(ring, harmonic_number, voltage, phi_offsets, n_rf=1)
+        self.rf_station = RFStation(
+            ring, harmonic_number, voltage, phi_offsets, n_rf=1
+        )
         t_rf = self.rf_station.t_rf[0, 0]
 
         bunch_spacing = 5  # RF buckets
@@ -73,13 +83,22 @@ class testProfileClass(unittest.TestCase):
         self.beam = Beam(ring, n_macroparticles, intensity)
 
         for bunch in range(n_bunches):
-
             bunchBeam = Beam(ring, n_macroparticles_pb, intensity_pb)
-            bigaussian(ring, self.rf_station, bunchBeam, sigma, reinsertion=True, seed=1984 + bunch)
+            bigaussian(
+                ring,
+                self.rf_station,
+                bunchBeam,
+                sigma,
+                reinsertion=True,
+                seed=1984 + bunch,
+            )
 
-            self.beam.dt[bunch * n_macroparticles_pb: (bunch + 1) * n_macroparticles_pb] \
-                = bunchBeam.dt + bunch * bunch_spacing * t_rf
-            self.beam.dE[bunch * n_macroparticles_pb: (bunch + 1) * n_macroparticles_pb] = bunchBeam.dE
+            self.beam.dt[
+                bunch * n_macroparticles_pb : (bunch + 1) * n_macroparticles_pb
+            ] = bunchBeam.dt + bunch * bunch_spacing * t_rf
+            self.beam.dE[
+                bunch * n_macroparticles_pb : (bunch + 1) * n_macroparticles_pb
+            ] = bunchBeam.dE
 
         self.filling_pattern = np.zeros(bunch_spacing * (n_bunches - 1) + 1)
         self.filling_pattern[::bunch_spacing] = 1
@@ -98,75 +117,279 @@ class testProfileClass(unittest.TestCase):
 
         # number of rf-buckets of the self.beam
         # + rf-buckets before the self.beam + rf-buckets after the self.beam
-        n_slices = self.n_slices_rf * (bunch_spacing * (n_bunches - 1) + 1
-                                       + int(np.round((t_batch_begin - cut_left) / t_rf))
-                                       + int(np.round((cut_right - t_batch_end) / t_rf)))
+        n_slices = self.n_slices_rf * (
+            bunch_spacing * (n_bunches - 1)
+            + 1
+            + int(np.round((t_batch_begin - cut_left) / t_rf))
+            + int(np.round((cut_right - t_batch_end) / t_rf))
+        )
 
-        self.uniform_profile = Profile(self.beam,
-                                       cut_options=CutOptions(cut_left=cut_left, n_slices=n_slices,
-                                                              cut_right=cut_right))
+        self.uniform_profile = Profile(
+            self.beam,
+            cut_options=CutOptions(
+                cut_left=cut_left, n_slices=n_slices, cut_right=cut_right
+            ),
+        )
         self.uniform_profile.track()
+
+    def test_inputs(self):
+        with self.assertRaises(ValueError):
+            SparseSlices(
+                self.rf_station,
+                self.beam,
+                self.n_slices_rf,
+                np.concatenate(
+                    (
+                        self.filling_pattern,
+                        np.ones(int(self.rf_station.harmonic[0][0])),
+                    ),
+                    axis=0,
+                ),
+            )
+        with self.assertWarns(UserWarning):
+            SparseSlices(
+                self.rf_station,
+                self.beam,
+                self.n_slices_rf,
+                self.filling_pattern,
+            )
 
     def test_WrongTrackingFunction(self):
         with self.assertRaises(NameError):
-            SparseSlices(self.rf_station, self.beam, self.n_slices_rf, self.filling_pattern,
-                         tracker='something horribly wrong')
+            SparseSlices(
+                self.rf_station,
+                self.beam,
+                self.n_slices_rf,
+                self.filling_pattern,
+                tracker="something horribly wrong",
+            )
 
-        nonuniform_profile = SparseSlices(self.rf_station, self.beam, self.n_slices_rf,
-                                          self.filling_pattern)
+        nonuniform_profile = SparseSlices(
+            self.rf_station, self.beam, self.n_slices_rf, self.filling_pattern
+        )
 
-        self.assertEqual(nonuniform_profile.bin_centers_array.shape, (2, self.n_slices_rf),
-                         msg='Wrong shape of bin_centers_array!')
+        self.assertEqual(
+            nonuniform_profile.bin_centers_array.shape,
+            (2, self.n_slices_rf),
+            msg="Wrong shape of bin_centers_array!",
+        )
 
     def test_onebyone(self):
-        rtol = 1e-6             # relative tolerance
-        atol = 0                # absolute tolerance
+        rtol = 1e-6  # relative tolerance
+        atol = 0  # absolute tolerance
 
-        nonuniform_profile = SparseSlices(self.rf_station, self.beam, self.n_slices_rf,
-                                          self.filling_pattern, tracker='onebyone',
-                                          direct_slicing=True)
+        nonuniform_profile = SparseSlices(
+            self.rf_station,
+            self.beam,
+            self.n_slices_rf,
+            self.filling_pattern,
+            tracker="onebyone",
+            direct_slicing=True,
+        )
 
         for bunch in range(2):
-            indexes = (self.uniform_profile.bin_centers > nonuniform_profile.cut_left_array[bunch])\
-                * (self.uniform_profile.bin_centers < nonuniform_profile.cut_right_array[bunch])
+            indexes = (
+                self.uniform_profile.bin_centers
+                > nonuniform_profile.cut_left_array[bunch]
+            ) * (
+                self.uniform_profile.bin_centers
+                < nonuniform_profile.cut_right_array[bunch]
+            )
 
-            np.testing.assert_allclose(self.uniform_profile.bin_centers[indexes],
-                                       nonuniform_profile.bin_centers_array[bunch],
-                                       rtol=rtol, atol=atol,
-                                       err_msg=f'Bins for bunch {bunch} do not agree '
-                                       + 'for tracker="onebyone"')
+            np.testing.assert_allclose(
+                self.uniform_profile.bin_centers[indexes],
+                nonuniform_profile.bin_centers_array[bunch],
+                rtol=rtol,
+                atol=atol,
+                err_msg=f"Bins for bunch {bunch} do not agree "
+                + 'for tracker="onebyone"',
+            )
 
-            np.testing.assert_allclose(self.uniform_profile.n_macroparticles[indexes],
-                                       nonuniform_profile.n_macroparticles_array[bunch],
-                                       rtol=rtol, atol=atol,
-                                       err_msg=f'Profiles for bunch {bunch} do not agree '
-                                       + 'for tracker="onebyone"')
+            np.testing.assert_allclose(
+                self.uniform_profile.n_macroparticles[indexes],
+                nonuniform_profile.n_macroparticles_array[bunch],
+                rtol=rtol,
+                atol=atol,
+                err_msg=f"Profiles for bunch {bunch} do not agree "
+                + 'for tracker="onebyone"',
+            )
 
     def test_Ctracker(self):
-        rtol = 1e-6             # relative tolerance
-        atol = 0                # absolute tolerance
+        rtol = 1e-6  # relative tolerance
+        atol = 0  # absolute tolerance
 
-        nonuniform_profile = SparseSlices(self.rf_station, self.beam, self.n_slices_rf,
-                                          self.filling_pattern, tracker='C',
-                                          direct_slicing=True)
+        nonuniform_profile = SparseSlices(
+            self.rf_station,
+            self.beam,
+            self.n_slices_rf,
+            self.filling_pattern,
+            tracker="C",
+            direct_slicing=True,
+        )
 
         for bunch in range(2):
-            indexes = (self.uniform_profile.bin_centers > nonuniform_profile.cut_left_array[bunch])\
-                * (self.uniform_profile.bin_centers < nonuniform_profile.cut_right_array[bunch])
+            indexes = (
+                self.uniform_profile.bin_centers
+                > nonuniform_profile.cut_left_array[bunch]
+            ) * (
+                self.uniform_profile.bin_centers
+                < nonuniform_profile.cut_right_array[bunch]
+            )
 
-            np.testing.assert_allclose(self.uniform_profile.bin_centers[indexes],
-                                       nonuniform_profile.bin_centers_array[bunch],
-                                       rtol=rtol, atol=atol,
-                                       err_msg=f'Bins for bunch {bunch} do not agree '
-                                       + 'for tracker="C"')
+            np.testing.assert_allclose(
+                self.uniform_profile.bin_centers[indexes],
+                nonuniform_profile.bin_centers_array[bunch],
+                rtol=rtol,
+                atol=atol,
+                err_msg=f"Bins for bunch {bunch} do not agree "
+                + 'for tracker="C"',
+            )
 
-            np.testing.assert_allclose(self.uniform_profile.n_macroparticles[indexes],
-                                       nonuniform_profile.n_macroparticles_array[bunch],
-                                       rtol=rtol, atol=atol,
-                                       err_msg=f'Profiles for bunch {bunch} do not agree '
-                                       + 'for tracker="C"')
+            np.testing.assert_allclose(
+                self.uniform_profile.n_macroparticles[indexes],
+                nonuniform_profile.n_macroparticles_array[bunch],
+                rtol=rtol,
+                atol=atol,
+                err_msg=f"Profiles for bunch {bunch} do not agree "
+                + 'for tracker="C"',
+            )
+
+    def test_set_additional_cuts(self):
+        filling_pattern = np.array([0, 1, 0, 0, 0])
+        updated_filling_pattern = np.array([0, 1, 0, 1, 0])
+        sparse_profile = SparseSlices(
+            self.rf_station, self.beam, self.n_slices_rf, filling_pattern
+        )
+
+        sparse_profile_temoin = SparseSlices(
+            self.rf_station,
+            self.beam,
+            self.n_slices_rf,
+            updated_filling_pattern,
+        )
+
+        with self.assertRaises(ValueError):
+            sparse_profile._set_additional_cuts(
+                updated_filling_pattern=np.ones(
+                    len(sparse_profile.filling_pattern) + 1
+                )
+            )
+
+        additional_filled_buckets = sparse_profile._set_additional_cuts(
+            updated_filling_pattern=updated_filling_pattern
+        )
+
+        np.testing.assert_equal(
+            additional_filled_buckets, 1, err_msg="Expected 1"
+        )
+        np.testing.assert_equal(
+            sparse_profile.filling_pattern,
+            updated_filling_pattern,
+        )
+        np.testing.assert_equal(
+            sparse_profile.cut_left_array,
+            sparse_profile_temoin.cut_left_array,
+        )
+        np.testing.assert_equal(
+            sparse_profile.cut_right_array,
+            sparse_profile_temoin.cut_right_array,
+        )
+
+    def test_update_profile_lists(self):
+        filling_pattern = np.array([0, 1, 0, 0, 0])
+        updated_filling_pattern = np.array([0, 1, 0, 1, 0])
+        sparse_profile = SparseSlices(
+            self.rf_station, self.beam, self.n_slices_rf, filling_pattern
+        )
+
+        sparse_profile_temoin = SparseSlices(
+            self.rf_station,
+            self.beam,
+            self.n_slices_rf,
+            updated_filling_pattern,
+        )
+
+        additional_filled_buckets = sparse_profile._set_additional_cuts(
+            updated_filling_pattern=updated_filling_pattern
+        )
+
+        sparse_profile._update_profile_lists(
+            additional_filled_buckets=additional_filled_buckets
+        )
+
+        np.testing.assert_equal(
+            sparse_profile.n_macroparticles_array,
+            sparse_profile_temoin.n_macroparticles_array,
+        )
+
+        np.testing.assert_equal(
+            sparse_profile.bin_centers_array,
+            sparse_profile_temoin.bin_centers_array,
+        )
+
+        np.testing.assert_equal(
+            sparse_profile.n_filled_buckets,
+            sparse_profile_temoin.n_filled_buckets,
+        )
+
+        np.testing.assert_equal(
+            sparse_profile.n_filled_buckets,
+            sparse_profile_temoin.n_filled_buckets,
+        )
+
+        np.testing.assert_equal(
+            sparse_profile.n_sliced_buckets,
+            sparse_profile_temoin.n_sliced_buckets,
+        )
+        # from _update_general_arrays()
+        np.testing.assert_equal(
+            sparse_profile.n_macroparticles,
+            sparse_profile_temoin.n_macroparticles,
+        )
+
+        np.testing.assert_equal(
+            sparse_profile.n_slices,
+            sparse_profile_temoin.n_slices,
+        )
+
+        np.testing.assert_equal(
+            sparse_profile.bunch_indexes,
+            sparse_profile_temoin.bunch_indexes,
+        )
+
+        np.testing.assert_equal(
+            sparse_profile.bin_centers,
+            sparse_profile_temoin.bin_centers,
+        )
+
+        sparse_profile.n_filled_buckets += 1
+        with self.assertRaises(ValueError):
+            sparse_profile._update_general_arrays()
+
+    def test_update_filling_pattern(self):
+        sparse_profile = SparseSlices(
+            self.rf_station,
+            self.beam,
+            self.n_slices_rf,
+            np.array([0, 1, 0, 0, 0]),
+        )
+        sparse_profile_temoin = copy.deepcopy(sparse_profile)
+        with self.assertRaises(ValueError):
+            sparse_profile.update_filling_pattern(
+                updated_filling_pattern=np.ones(
+                    len(sparse_profile.filling_pattern) + 1
+                )
+            )
+
+        updated_filling_patttern = np.array([0, 1, 0, 1, 0])
+        sparse_profile.update_filling_pattern(
+            updated_filling_pattern=updated_filling_patttern
+        )
+
+        np.testing.assert_equal(
+            updated_filling_patttern, sparse_profile.filling_pattern
+        )
 
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     unittest.main()
