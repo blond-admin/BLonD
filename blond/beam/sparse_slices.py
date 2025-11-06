@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import copy
+import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -75,7 +76,20 @@ class SparseSlices:
         bucket_margin: int = 0,
         direct_slicing: bool = False,
     ):
-        #: *Import (reference) Beam*
+        if (len(filling_pattern) != rf_station.harmonic).any():
+            if (len(filling_pattern) > rf_station.harmonic).any():
+                raise ValueError(
+                    f"The length of filling_pattern does not match exceeds "
+                    f"the number of RF buckets"
+                )
+            else:
+                warnings.warn(
+                    f"The filling pattern is shorter than the "
+                    f"total number of RF buckets.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            #: *Import (reference) Beam*
         self.beam = beam
         self.energy = self.beam.energy
         #: *Import (reference) RFStation*
@@ -250,15 +264,22 @@ class SparseSlices:
 
     def _set_additional_cuts(
         self,
-        updated_filling_pattern,
+        updated_filling_pattern: NumpyArray,
     ):
         """
         *Method to update set the self.cut_left_array and
         self.cut_right_array
         properties with additional filled buckets.*
         """
+        if len(self.filling_pattern) != len(updated_filling_pattern):
+            raise ValueError(
+                f"The length of the updated filling pattern does not match "
+                f"the previously sotred filling pattern lengths: "
+                f"{len(updated_filling_pattern)} != "
+                f"{len(self.filling_pattern)}"
+            )
         # RF period
-        t_rf = self.RFParams.t_rf[0, self.RFParams.counter[0]]
+        t_rf = self.rf_station.t_rf[0, self.rf_station.counter[0]]
         current_filling_pattern = self.filling_pattern
 
         filled_bunches_current = np.where(current_filling_pattern)[0]
@@ -278,8 +299,10 @@ class SparseSlices:
         updated_cut_right = np.zeros(additional_filled_buckets)
         for i in range(additional_filled_buckets):
             bucket_index = np.where(mask_additional_bunch)[0][i]
-            updated_cut_left[i] = bucket_index * t_rf
-            updated_cut_right[i] = (bucket_index + 1) * t_rf
+            updated_cut_left[i] = (bucket_index - self.bucket_margin) * t_rf
+            updated_cut_right[i] = (
+                bucket_index + 1 + self.bucket_margin
+            ) * t_rf
         self.cut_left_array = np.append(self.cut_left_array, updated_cut_left)
         self.cut_right_array = np.append(
             self.cut_right_array, updated_cut_right
@@ -295,6 +318,7 @@ class SparseSlices:
         *Method to update create individual profiles for the injected
         bunches*
         """
+
         # Initialize individual slicing objects
         profiles_list_additional = []
         if (
@@ -323,7 +347,7 @@ class SparseSlices:
                         cut_right=self.cut_right_array[
                             self.n_filled_buckets + i
                         ],
-                        n_slices=self.number_of_slices_per_bucket,
+                        n_slices=self.number_of_slices_per_profile,
                     ),
                 )
             )
@@ -377,7 +401,6 @@ class SparseSlices:
 
     def update_filling_pattern(
         self,
-        beam: Beam,
         updated_filling_pattern: NumpyArray,
     ):
         """
@@ -386,13 +409,16 @@ class SparseSlices:
 
         Parameters
         ----------
-        beam
-            Beam object
         updated_filling_pattern
             Updated filling pattern
         """
-
-        self.beam = beam
+        if len(self.filling_pattern) != len(updated_filling_pattern):
+            raise ValueError(
+                f"The length of the updated filling pattern does not match "
+                f"the previously stored filling pattern lengths: "
+                f"{len(updated_filling_pattern)} != "
+                f"{len(self.filling_pattern)}"
+            )
         additional_filled_buckets = self._set_additional_cuts(
             updated_filling_pattern=updated_filling_pattern
         )
