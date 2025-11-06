@@ -632,9 +632,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         self.voltage: NumpyArray | None = None
         self.phi_rf: NumpyArray | None = None
         self.harmonic: NumpyArray | None = None
-        self.delta_phi_rf: NumpyArray | None = backend.zeros(
-            1, dtype=backend.float
-        )
+        self.delta_phi_rf: NumpyArray | None = backend.zeros(1)
 
         self._t_rf: NumpyArray | None = None
         self._t_rev: float | None = None
@@ -849,10 +847,12 @@ class MultiHarmonicCavity(CavityBaseClass):
         backend.specials.kick_multi_harmonic(
             dt=beam.read_partial_dt(),
             dE=beam.write_partial_dE(),
-            voltage=self.voltage,
-            phi_rf=self.phi_rf + self.delta_phi_rf,
-            omega_rf=self._omega_rf + self.delta_omega_rf,
-            charge=beam.particle_type.charge,  # FIXME
+            voltage=(self.voltage).astype(backend.float),
+            phi_rf=(self.phi_rf + self.delta_phi_rf).astype(backend.float),
+            omega_rf=(self._omega_rf + self.delta_omega_rf).astype(
+                backend.float
+            ),
+            charge=beam.particle_type.charge,
             n_rf=self.n_rf,
             acceleration_kick=-reference_energy_change,  # Mind the minus!
         )

@@ -24,9 +24,9 @@ class ParticleType:
     def __init__(
         self, mass: float, charge: float, user_decay_rate: float = 0.0
     ):
-        self._mass = mass
-        self._charge = charge
-        self._user_decay_rate = user_decay_rate
+        self._mass = float(mass)
+        self._charge = float(charge)
+        self._user_decay_rate = float(user_decay_rate)
 
         self._mass_inv = 1 / mass
 

@@ -32,8 +32,8 @@ def main():
                         input_array, dtype=backend.float
                     ),  # casting to correct data type
                     array_write=array_write,
-                    start=backend.float(-12),
-                    stop=backend.float(8.0),
+                    start=float(-12),
+                    stop=8.0,
                 )
                 t1 = time.perf_counter()
                 times[spec_ind, arr_ind] += t1 - t0
