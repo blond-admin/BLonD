@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import copy
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -246,3 +247,155 @@ class SparseSlices:
 
         for i in range(self.n_filled_buckets):
             self.profiles_list[i].track()
+
+    def _set_additional_cuts(
+        self,
+        updated_filling_pattern,
+    ):
+        """
+        *Method to update set the self.cut_left_array and
+        self.cut_right_array
+        properties with additional filled buckets.*
+        """
+        # RF period
+        t_rf = self.RFParams.t_rf[0, self.RFParams.counter[0]]
+        current_filling_pattern = self.filling_pattern
+
+        filled_bunches_current = np.where(current_filling_pattern)[0]
+        filled_bunches_new = np.where(updated_filling_pattern)[0]
+        additional_filled_buckets = len(filled_bunches_new) - len(
+            filled_bunches_current
+        )
+
+        mask_additional_bunch = copy.deepcopy(current_filling_pattern)
+        for i in filled_bunches_new:
+            if current_filling_pattern[i] == 0:
+                mask_additional_bunch[i] = 1
+            else:
+                mask_additional_bunch[i] = 0
+        # fixme: injected bunch might be between already considered bunches
+        updated_cut_left = np.zeros(additional_filled_buckets)
+        updated_cut_right = np.zeros(additional_filled_buckets)
+        for i in range(additional_filled_buckets):
+            bucket_index = np.where(mask_additional_bunch)[0][i]
+            updated_cut_left[i] = bucket_index * t_rf
+            updated_cut_right[i] = (bucket_index + 1) * t_rf
+        self.cut_left_array = np.append(self.cut_left_array, updated_cut_left)
+        self.cut_right_array = np.append(
+            self.cut_right_array, updated_cut_right
+        )
+        self.filling_pattern = updated_filling_pattern
+        return additional_filled_buckets
+
+    def _update_profile_lists(
+        self,
+        additional_filled_buckets: int,
+    ):
+        """
+        *Method to update create individual profiles for the injected
+        bunches*
+        """
+        # Initialize individual slicing objects
+        profiles_list_additional = []
+        if (
+            len(self.cut_right_array)
+            != self.n_filled_buckets + additional_filled_buckets
+        ) or (
+            len(self.cut_left_array)
+            != self.n_filled_buckets + additional_filled_buckets
+        ):
+            raise ValueError("Cut arrays have not been updated.")
+        if (
+            len(np.where(self.filling_pattern)[0])
+            != self.n_filled_buckets + additional_filled_buckets
+        ):
+            raise ValueError("Filling pattern has not been updated.")
+
+        for i in range(additional_filled_buckets):
+            # Only valid for cut_edges='edges'
+            profiles_list_additional.append(
+                Profile(
+                    self.Beam,
+                    CutOptions(
+                        cut_left=self.cut_left_array[
+                            self.n_filled_buckets + i
+                        ],
+                        cut_right=self.cut_right_array[
+                            self.n_filled_buckets + i
+                        ],
+                        n_slices=self.number_of_slices_per_bucket,
+                    ),
+                )
+            )
+            self.n_macroparticles_array = np.insert(
+                arr=self.n_macroparticles_array,
+                obj=len(self.n_macroparticles_array),
+                values=profiles_list_additional[i].n_macroparticles,
+                axis=0,
+            )
+            self.bin_centers_array = np.insert(
+                arr=self.bin_centers_array,
+                obj=len(self.bin_centers_array),
+                values=profiles_list_additional[i].bin_centers,
+                axis=0,
+            )
+            self.edges_array = np.insert(
+                arr=self.edges_array,
+                obj=len(self.edges_array),
+                values=profiles_list_additional[i].edges,
+                axis=0,
+            )
+        self.profiles_list = np.append(
+            self.profiles_list, profiles_list_additional
+        )
+        self.n_filled_buckets += additional_filled_buckets
+        self._update_general_arrays()
+
+    def _update_general_arrays(self):
+        """
+        Method to update the general arrays after a profile update.
+        """
+        # Total parameters
+        if len(np.where(self.filling_pattern)[0]) != self.n_filled_buckets:
+            raise ValueError(
+                f"Filling pattern has length "
+                f"{len(np.where(self.filling_pattern)[0])}, number of "
+                f"declared filled buckets "
+                f"{self.n_filled_buckets}."
+            )
+        self.n_macroparticles = np.concatenate(
+            self.n_macroparticles_array, axis=0
+        )
+        self.n_slices = int(
+            self.number_of_slices_per_bucket * self.filling_pattern.sum()
+        )
+        self.bunch_indexes = (
+            np.cumsum(self.filling_pattern) * self.filling_pattern - 1
+        )
+        self.bin_centers = np.concatenate(self.bin_centers_array, axis=0)
+        self.bin_size = self.profiles_list[0].bin_size
+
+    def update_filling_pattern(
+        self,
+        beam: Beam,
+        updated_filling_pattern: NumpyArray,
+    ):
+        """
+        Method to consider an update of filling pattern in case of
+        multi-turn injection.
+
+        Parameters
+        ----------
+        beam
+            Beam object
+        updated_filling_pattern
+            Updated filling pattern
+        """
+
+        self.beam = beam
+        additional_filled_buckets = self._set_additional_cuts(
+            updated_filling_pattern=updated_filling_pattern
+        )
+        self._update_profile_lists(
+            additional_filled_buckets=additional_filled_buckets
+        )
