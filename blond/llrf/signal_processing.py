@@ -270,12 +270,13 @@ def rf_beam_current(
             )
 
         # Find which index in fine grid matches index in coarse grid
-        if isinstance(Profile, SparseSlices):
+        if isinstance(profile, SparseSlices):
             charges_coarse = np.zeros(n_points, dtype=complex)
 
-            for profile in Profile.profiles_list:
+            for profile_per_bucket in profile.profiles_list:
                 ind_fine = np.round(
-                    (profile.bin_centers + dT - np.pi / omega_c) / T_s
+                    (profile_per_bucket.bin_centers + dT - np.pi / omega_c)
+                    / T_s
                 )
                 ind_fine = np.array(ind_fine, dtype=int)
                 indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
@@ -292,7 +293,7 @@ def rf_beam_current(
 
         else:
             ind_fine = np.round(
-                (Profile.bin_centers + dT - np.pi / omega_c) / T_s
+                (profile.bin_centers + dT - np.pi / omega_c) / T_s
             )
             ind_fine = np.array(ind_fine, dtype=int)
             indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
