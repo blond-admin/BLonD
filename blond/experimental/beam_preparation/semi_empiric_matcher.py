@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-from typing import Callable  # NOQA
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
@@ -12,6 +11,9 @@ from blond.beam_preparation.base import MatchingRoutine
 
 from ..._core.helpers import int_from_float_with_warning
 from .helpers import populate_beam
+
+# Oversampling factor for potential well calculation
+_POTENTIAL_WELL_OVERSAMPLING = 10
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Callable, Dict, Tuple
@@ -123,6 +125,8 @@ def get_hamilton_semi_analytic(
         Reference total energy :math:`E_0` [eV].
     eta : float
         General synchrotron parameter (zeroth-order slippage factor) [unitless].
+    beta : float
+        Relativistic velocity factor :math:`\beta = v/c` [unitless].
     shape : tuple of int
         Shape of the output Hamiltonian grid, as ``(num_time_points, num_energy_points)``.
     energy_range : tuple of float or None, optional
@@ -222,11 +226,6 @@ class SemiEmpiricMatcher(MatchingRoutine):
         falls below this tolerance.
     verbose : bool, default=False
         If ``True``, prints convergence and status messages to the console.
-
-    Returns
-    -------
-    None
-        The function modifies internal beam distribution parameters in place.
 
     Notes
     -----
@@ -437,12 +436,18 @@ class SemiEmpiricMatcher(MatchingRoutine):
         """
         potential_well, factor, tilt_dt_per_dE = (
             simulation.get_potential_well_empiric(
-                dt=np.linspace(ts.min(), ts.max(), len(ts) * 10),
+                dt=np.linspace(
+                    ts.min(),
+                    ts.max(),
+                    len(ts) * _POTENTIAL_WELL_OVERSAMPLING,
+                ),
                 particle_type=beam.particle_type,
                 intensity=beam.intensity,
             )
         )
-        potential_well = potential_well[::10] * factor
+        potential_well = (
+            potential_well[::_POTENTIAL_WELL_OVERSAMPLING] * factor
+        )
         self._prelast_potential_well = self._last_potential_well
         self._last_potential_well = potential_well
         if self._prelast_potential_well is None:
@@ -510,7 +515,6 @@ class SemiEmpiricMatcher(MatchingRoutine):
             plt.ylabel("Density (arb. unit)")
 
             plt.subplot(2, 1, 2)
-            plt.axhline(self.hamilton_max, c="C1", linestyle="--")
             if self._last_potential_well is not None:
                 plt.plot(ts, self._last_potential_well)
             if self._prelast_potential_well is not None:
