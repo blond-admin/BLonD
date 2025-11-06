@@ -152,9 +152,9 @@ class SparseSlices:
                 )
             )
 
-            self.profiles_list[
+            self.n_macroparticles_array[i, :] = self.profiles_list[
                 i
-            ].n_macroparticles = self.n_macroparticles_array[i, :]
+            ].n_macroparticles
             self.bin_centers_array[i, :] = self.profiles_list[i].bin_centers
             self.edges_array[i, :] = self.profiles_list[i].edges
 

@@ -25,7 +25,7 @@ import numpy.linalg as npla
 from scipy import signal as sgn
 from scipy.constants import e
 from scipy.special import comb
-
+from ..beam.sparse_slices import SparseSlices
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
