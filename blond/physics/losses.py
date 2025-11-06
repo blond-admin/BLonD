@@ -43,8 +43,6 @@ class LossesBaseClass(BeamPhysicsRelevant, ABC):
         be considered for beam physics.
     """
 
-    """Abstract class to group/implement losses."""
-
     def __init__(self, purge_flagged_macroparticles: bool) -> None:
         super().__init__()
         self.purge_flagged_macroparticles = purge_flagged_macroparticles
