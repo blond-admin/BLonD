@@ -107,6 +107,8 @@ class testProfileClass(unittest.TestCase):
                                                              cut_right=cut_right))
         self.uniform_profile.track()
 
+    def test_set_additional_cuts(self):
+        pass
     def test_WrongTrackingFunction(self):
         with self.assertRaises(RuntimeError):
             SparseSlices(self.rf_station, self.beam, self.n_slices_rf, self.filling_pattern,

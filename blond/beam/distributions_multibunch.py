@@ -135,6 +135,20 @@ def matched_from_distribution_density_multibunch(beam, Ring, FullRingAndRF, dist
             bunch_length_fit = distribution_options['bunch_length_fit']
         else:
             bunch_length_fit = None
+        if 'n_points_grid' in distribution_options:
+            n_points_grid = distribution_options['n_points_grid']
+        else:
+            n_points_grid = int(1e3)
+        if 'n_points_potential' in distribution_options:
+            n_points_potential = distribution_options['n_points_potential']
+        else:
+            n_points_potential = int(1e4)
+
+        if 'dt_margin_percent' in distribution_options:
+            dt_margin_percent = distribution_options['dt_margin_percent']
+        else:
+            dt_margin_percent = 0.4
+
 
         if 'density_variable' in distribution_options:
             distribution_variable = distribution_options['density_variable']
@@ -160,6 +174,11 @@ def matched_from_distribution_density_multibunch(beam, Ring, FullRingAndRF, dist
                                            TotalInducedVoltage=TotalInducedVoltage,
                                            n_iterations=n_iterations_input,
                                            extraVoltageDict=extraVoltageDict,
+                                           n_points_grid = n_points_grid,
+                                           dt_margin_percent =
+                                           dt_margin_percent,
+                                           n_points_potential =
+                                           n_points_potential,
                                            distribution_exponent=distribution_exponent,
                                            distribution_type=distribution_type,
                                            emittance=emittance, bunch_length=bunch_length,

@@ -249,7 +249,6 @@ class RingAndRFTracker:
             if not isinstance(self.profile, SparseSlices):
                 self.interpolation = False
                 warnings.warn('Setting interpolation to TRUE')
-                self.logger.warning("Setting interpolation to TRUE")
 
         if (self.cavityFB is not None) and (not hasattr(self.cavityFB, '__iter__')):
             self.cavityFB = [self.cavityFB]

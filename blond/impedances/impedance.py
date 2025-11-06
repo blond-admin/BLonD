@@ -1068,6 +1068,8 @@ class InducedVoltageSparse(_InducedVoltage):
         #     / np.trapz(self.profile_object.n_macroparticles_array.flatten(), self.bin_centers)
 
         self._compute_wake_matrix()
+        self.induced_voltage_generation = self.induced_voltage_1turn
+
 
     def _compute_wake_matrix(self):
         """ correct, really fast, but less explicit"""

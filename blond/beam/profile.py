@@ -392,22 +392,22 @@ class Profile:
     Examples
     --------
 
-    >>> n_slices = 100
-    >>> CutOptions = profileModule.CutOptions(cut_left=0,
-    >>>       cut_right=self.ring.t_rev[0], n_slices = n_slices, cuts_unit='s')
-    >>> FitOptions = profileModule.FitOptions(fit_option='gaussian',
-    >>>                                        fitExtraOptions=None)
-    >>> filter_option = {'pass_frequency':1e7,
-    >>>    'stop_frequency':1e8, 'gain_pass':1, 'gain_stop':2,
-    >>>    'transfer_function_plot':False}
-    >>> FilterOptions = profileModule.FilterOptions(filterMethod='chebishev',
-    >>>         filterExtraOptions=filter_option)
-    >>> OtherSlicesOptions = profileModule.OtherSlicesOptions(smooth=False,
-    >>>                             direct_slicing = True)
-    >>> self.profile4 = profileModule.Profile(my_beam, CutOptions = CutOptions,
-    >>>                     FitOptions= FitOptions,
-    >>>                     FilterOptions=FilterOptions,
-    >>>                     OtherSlicesOptions = OtherSlicesOptions)
+    # >>> n_slices = 100
+    # >>> CutOptions = profileModule.CutOptions(cut_left=0,
+    # >>>       cut_right=self.ring.t_rev[0], n_slices = n_slices, cuts_unit='s')
+    # >>> FitOptions = profileModule.FitOptions(fit_option='gaussian',
+    # >>>                                        fitExtraOptions=None)
+    # >>> filter_option = {'pass_frequency':1e7,
+    # >>>    'stop_frequency':1e8, 'gain_pass':1, 'gain_stop':2,
+    # >>>    'transfer_function_plot':False}
+    # >>> FilterOptions = profileModule.FilterOptions(filterMethod='chebishev',
+    # >>>         filterExtraOptions=filter_option)
+    # >>> OtherSlicesOptions = profileModule.OtherSlicesOptions(smooth=False,
+    # >>>                             direct_slicing = True)
+    # >>> self.profile4 = profileModule.Profile(my_beam, CutOptions = CutOptions,
+    # >>>                     FitOptions= FitOptions,
+    # >>>                     FilterOptions=FilterOptions,
+    # >>>                     OtherSlicesOptions = OtherSlicesOptions)
 
     """
 

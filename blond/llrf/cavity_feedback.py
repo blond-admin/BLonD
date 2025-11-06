@@ -2033,7 +2033,6 @@ class FCCBoosterCavityLoop(CavityFeedback):
 
         # Arrays
         self.V_EXC = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.V_BEAM_INDUCED_TOT = np.zeros(2 * self.n_coarse, dtype=complex)
         self.V_FB_IN = np.zeros(2 * self.n_coarse, dtype=complex)
         self.V_AC_IN = np.zeros(2 * self.n_coarse, dtype=complex)
         self.V_BEAM_INDUCED = np.zeros(2 * self.n_coarse, dtype=complex)

@@ -18,6 +18,8 @@ from typing import TYPE_CHECKING
 
 import numpy
 from scipy.special import comb
+
+from blond.beam.sparse_slices import SparseSlices
 from blond.llrf.impulse_response import TravellingWaveCavity
 
 # Set up logging
@@ -133,7 +135,8 @@ def modulator(signal, omega_i, omega_f, T_sampling, phi_0=0, dt=0):
     return I_new + 1j * Q_new
 
 
-def rf_beam_current(Profile: Profile, omega_c: float, T_rev: float, lpf: bool = True, downsample: dict = None,
+def rf_beam_current(Profile: Profile | SparseSlices, omega_c: float, T_rev: (
+    float), lpf: bool = True, downsample: dict = None,
                     external_reference: bool = True, dT: float = 0):
     r"""Function calculating the beam charge at the (RF) frequency, slice by
     slice. The charge distribution [C] of the beam is determined from the beam
@@ -232,17 +235,37 @@ def rf_beam_current(Profile: Profile, omega_c: float, T_rev: float, lpf: bool = 
         except Exception:
             raise RuntimeError('Downsampling input erroneous in rf_beam_current')
 
-        # Find which index in fine grid matches index in coarse grid
-        ind_fine = np.round((Profile.bin_centers + dT - np.pi / omega_c)/T_s)
-        ind_fine = np.array(ind_fine, dtype=int)
-        indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
+        #Find which index in fine grid matches index in coarse grid
+        if isinstance(Profile, SparseSlices):
+            charges_coarse = np.zeros(n_points, dtype=complex)
 
-        # Pick total current within one coarse grid
-        charges_coarse = np.zeros(n_points, dtype=complex)
-        charges_coarse[ind_fine[0]] = np.sum(charges_fine[np.arange(indices[0])])
-        for i in range(1, len(indices)):
-            charges_coarse[i + ind_fine[0]] = np.sum(charges_fine[np.arange(indices[i - 1],
-                                                                            indices[i])])
+            for profile in Profile.profiles_list:
+                ind_fine = []
+                ind_fine = np.round(
+                    (profile.bin_centers + dT - np.pi / omega_c) / T_s)
+                ind_fine = np.array(ind_fine, dtype=int)
+                indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
+
+                # Pick total current within one coarse grid
+
+                charges_coarse[ind_fine[0]] = np.sum(
+                    charges_fine[np.arange(indices[0])])
+                for i in range(1, len(indices)):
+                    charges_coarse[i + ind_fine[0]] = np.sum(
+                        charges_fine[np.arange(indices[i - 1],
+                                               indices[i])])
+
+        else:
+            ind_fine = np.round((Profile.bin_centers + dT - np.pi / omega_c)/T_s)
+            ind_fine = np.array(ind_fine, dtype=int)
+            indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
+
+            # Pick total current within one coarse grid
+            charges_coarse = np.zeros(n_points, dtype=complex)
+            charges_coarse[ind_fine[0]] = np.sum(charges_fine[np.arange(indices[0])])
+            for i in range(1, len(indices)):
+                charges_coarse[i + ind_fine[0]] = np.sum(charges_fine[np.arange(indices[i - 1],
+                                                                                indices[i])])
 
         return charges_fine, charges_coarse
 
