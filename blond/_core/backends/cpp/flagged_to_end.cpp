@@ -23,36 +23,50 @@ extern "C" int flagged_to_end(
     int_t* __restrict__ ids,
     const int n_macroparticles
 ) {
-    int global_j = n_macroparticles - 1; // common for all threads
+    // Use sequential two-pointer approach for correctness
+    // Parallelizing in-place partition with swaps causes data races
+    int i = 0;  // scan from front
+    int j = n_macroparticles - 1;  // scan from back
 
-    // Temporary variables for swapping
-    int flags_tmp;
-    real_t dt_tmp;
-    real_t dE_tmp;
-    int_t ids_tmp;
+    while (i < j) {
+        // Find next flagged element from front
+        while (i < j && flags[i] != flag) {
+            ++i;
+        }
 
-    // Parallel loop
-    #pragma omp parallel
-    {
-        #pragma omp for
-        for (int i = 0; i < n_macroparticles; ++i) {
-            while ((i <= global_j) && (flags[i] == flag)) {
-                int j;
+        // Find next non-flagged element from back
+        while (i < j && flags[j] == flag) {
+            --j;
+        }
 
-                // Atomically decrement global_j and get old value
-                #pragma omp atomic capture
-                j = global_j--;
+        // If pointers haven't crossed, swap elements
+        if (i < j) {
+            // Swap all fields between i and j
+            real_t dt_tmp = dt[i];
+            dt[i] = dt[j];
+            dt[j] = dt_tmp;
 
-                if (i >= j) break; // Prevent swapping beyond j
+            real_t dE_tmp = dE[i];
+            dE[i] = dE[j];
+            dE[j] = dE_tmp;
 
-                // Swap all fields between i and j
-                dt_tmp = dt[i]; dt[i] = dt[j]; dt[j] = dt_tmp;
-                dE_tmp = dE[i]; dE[i] = dE[j]; dE[j] = dE_tmp;
-                flags_tmp = flags[i]; flags[i] = flags[j]; flags[j] = flags_tmp;
-                ids_tmp = ids[i]; ids[i] = ids[j]; ids[j] = ids_tmp;
-            }
+            int flags_tmp = flags[i];
+            flags[i] = flags[j];
+            flags[j] = flags_tmp;
+
+            int_t ids_tmp = ids[i];
+            ids[i] = ids[j];
+            ids[j] = ids_tmp;
+
+            ++i;
+            --j;
         }
     }
 
-    return global_j + 1;
+    // Return index of first flagged particle
+    // All particles at indices >= return value have the flag
+    if (i < n_macroparticles && flags[i] == flag) {
+        return i;
+    }
+    return i + 1;
 }
