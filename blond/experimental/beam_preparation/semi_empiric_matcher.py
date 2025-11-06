@@ -93,7 +93,7 @@ def get_hamilton_semi_analytic(
     Tuple[NumpyArray, NumpyArray, NumpyArray]
     | Tuple[CupyArray, CupyArray, CupyArray]
 ):
-    """
+    r"""
     Compute the 2D Hamiltonian :math:`H_{2D}(t, \Delta E)` based on an arbitrary potential well.
 
     This function computes a semi-analytic Hamiltonian over a 2D grid defined by
@@ -109,33 +109,34 @@ def get_hamilton_semi_analytic(
 
     where
 
-    - :math:`E_0` is the reference total energy.
-    - :math:`V(t)` is the potential well interpolated at times :math:`t`.
-    - :math:`c` is the speed of light.
+    - :math:`E_0` is the reference total energy [eV].
+    - :math:`V(t)` is the potential well interpolated at times :math:`t` [V].
+    - :math:`c` is the speed of light [m/s].
 
     Parameters
     ----------
     ts : array_like
-        Time coordinates of the potential well, in seconds (s).
+        Time coordinates of the potential well [s].
     potential_well : array_like
-        Potential energy values corresponding to ``ts``, in volts (V).
+        Potential energy values corresponding to ``ts`` [V].
     reference_total_energy : float
-        Reference total energy (:math:`E_0`), in electronvolts (eV).
+        Reference total energy :math:`E_0` [eV].
     eta : float
-        General synchrotron parameter (zeroth-order slippage factor), unitless.
+        General synchrotron parameter (zeroth-order slippage factor) [unitless].
     shape : tuple of int
         Shape of the output Hamiltonian grid, as ``(num_time_points, num_energy_points)``.
     energy_range : tuple of float or None, optional
-        Range of :math:`\Delta E` values to evaluate, in electronvolts (eV).
+        Range of :math:`\Delta E` values to evaluate [eV].
         If ``None``, it will comprise the largest separatrix inside the given potential.
 
     Returns
     -------
     hamilton_2D : ndarray
         2D array representing the semi-analytic Hamiltonian evaluated on a grid of
-        time vs. energy difference. Uses the same device (NumPy or CuPy) as the inputs.
-        Units: electronvolts (eV).
+        time vs. energy difference [eV]. Uses the same device (NumPy or CuPy) as the inputs.
     """
+
+
 
     assert len(ts) == len(potential_well), (
         f"{len(ts)=}, but {len(potential_well)=}"
