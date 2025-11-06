@@ -373,6 +373,9 @@ class SparseSlices:
             self.profiles_list, profiles_list_additional
         )
         self.n_filled_buckets += additional_filled_buckets
+        self.n_sliced_buckets += additional_filled_buckets * (
+            1 + 2 * self.bucket_margin
+        )
         self._update_general_arrays()
 
     def _update_general_arrays(self):
@@ -397,7 +400,6 @@ class SparseSlices:
             np.cumsum(self.filling_pattern) * self.filling_pattern - 1
         )
         self.bin_centers = np.concatenate(self.bin_centers_array, axis=0)
-        self.bin_size = self.profiles_list[0].bin_size
 
     def update_filling_pattern(
         self,
