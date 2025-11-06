@@ -281,8 +281,8 @@ class TestRFCurrentSparse(unittest.TestCase):
         )
         tot_charges_sparse = (
             np.sum(self.sparse_profile.n_macroparticles)
-            / self.beam2.n_macroparticles
-            * self.beam2.intensity
+            / self.beam_sparse.n_macroparticles
+            * self.beam_sparse.intensity
         )
         self.assertAlmostEqual(tot_charges, 2.3000000000e13, 9)
         self.assertEqual(tot_charges, tot_charges_sparse)
