@@ -22,12 +22,17 @@ equilibrium distribution**.
 Conceptual Background
 ---------------------
 
+
 The longitudinal dynamics of a particle in an RF system are governed by
 the Hamiltonian:
 
 .. math::
 
-   H(t, \Delta E) = \frac{1}{2} \frac{\eta E_0}{\beta^2 c^2} (\Delta E)^2 + V(t)
+   H(t, \Delta E)
+   = \frac{1}{2}
+     \frac{|\eta|}{\beta^2 E_0}
+     (\Delta E)^2
+     + V(t)
 
 where:
 
@@ -68,17 +73,34 @@ The matching routine proceeds as follows:
 
 3. **Density mapping**
 
-   The function :func:`hamilton_to_density_by_max` transforms the Hamiltonian
-   into a density map:
+   The mapping from a Hamiltonian to a density distribution in phase space
+   can be customized via the parameter ``hamilton_to_density_function``.
+   By default, the library uses :func:`hamilton_to_density_by_max`, which
+   generates a density map according to
 
    .. math::
 
       \rho(t, \Delta E)
-      = \left( 1 - \frac{H(t, \Delta E)}{H_\text{max}} \right)^{n}
+      = \left( 1 - \frac{H(t, \Delta E)}{H_\mathrm{max}} \right)^{n}
 
    where ``n`` = ``density_modifier`` controls how sharply the density
-   decreases toward the separatrix. This density defines how macro-particles
-   are distributed in phase space.
+   decreases toward the separatrix. Hamiltonian values above ``H_\mathrm{max}``
+   are truncated before computing the density, ensuring that all density
+   values remain in the range [0, 1].
+
+   This density map determines how macro-particles are distributed in phase space,
+   with higher density in regions of lower Hamiltonian.
+
+   Users can supply a custom function in place of :func:`hamilton_to_density_by_max`
+   by providing it to ``hamilton_to_density_function``. The custom function must
+   accept the same arguments:
+
+   - ``hamilton_2D`` (:class:`numpy.ndarray` or :class:`cupy.ndarray`): the 2D Hamiltonian array
+   - ``density_modifier`` (float): exponent controlling density contrast
+   - ``hamilton_max`` (float): maximum Hamiltonian for normalization
+
+   and return a 2D array of the same shape representing the density distribution.
+
 
 4. **Particle population**
 
@@ -92,7 +114,7 @@ The matching routine proceeds as follows:
    - The beam is matched in this unperturbed potential.
    - Then, the full **intensity effects** are gradually enabled over several iterations.
      At each iteration:
-       - The potential well is re-measured.
+       - The potential well is re-obtained.
        - A new beam distribution is reconstructed.
        - Convergence is tested based on RMS error between successive potential wells.
 

@@ -11,7 +11,8 @@ Overview
 The *empirical potential well* represents the effective longitudinal voltage landscape
 experienced by a charged particle beam during one full revolution of the accelerator.
 It is derived directly from a **numerical single-turn tracking** of a *probe beam*
-in the :class:`Simulation` environment, including all active RF systems and other beam relevant effects comprised in the simulation pipeline.
+in the :class:`Simulation` environment, including all active RF systems and other
+beam relevant effects comprised in the simulation pipeline.
 
 Unlike purely analytic models, this method captures **realistic distortions**
 introduced by multiple RF cavities, synchrotron phase shifts, and drifts between stations.
