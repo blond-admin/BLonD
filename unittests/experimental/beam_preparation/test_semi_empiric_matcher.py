@@ -15,7 +15,7 @@ from blond.experimental.beam_preparation.semi_empiric_matcher import (
 
 
 class TestSemiEmpiricMatcher(unittest.TestCase):
-    def test_roughly_correct_no_intensity(self):
+    def test_roughly_correct_no_intensity_above_transition(self):
         # check if the mean and the 10% and 90% percentiles are correct
         from blond.testing.simulation import SimulationTwoRfStations
 
@@ -76,7 +76,7 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
                 rtol=1e-4,
             )
 
-    def test_roughly_correct_intensity(self):
+    def test_roughly_correct_intensity_above_transition(self):
         from blond.testing.simulation import SimulationTwoRfStationsWithWake
 
         sim = SimulationTwoRfStationsWithWake()
@@ -129,18 +129,128 @@ class TestSemiEmpiricMatcher(unittest.TestCase):
                 rtol=1e-4,
             )
 
-    def _test_matching(self, sim):
+    def test_roughly_correct_no_intensity_below_transition(self):
+        # check if the mean and the 10% and 90% percentiles are correct
+        from blond.testing.simulation import SimulationTwoRfStations
+
+        # pinned values
+        expected_dt = {
+            10: 2.1853150400374943e-09,
+            50: 2.4968571654682137e-09,
+            90: 2.8105009430845485e-09,
+        }
+        expected_dE = {10: -2088795392.0, 50: -3022868.5, 90: 2081470976.0}
+        sim = SimulationTwoRfStations(below_transition_crossing=True)
+        self._test_matching(sim, below_transition_crossing=True)
+
+        DEV_PLOT = False
+        if DEV_PLOT:
+            idx = np.argmax(sim.beam1._dt)
+            data = np.ones((1000, 2))
+            data[:, :] = np.nan
+
+            def my_callback(simulation: Simulation, beam: Beam):
+                if simulation.turn_i.value % 1 != 0:
+                    return
+                plt.subplot(2, 1, 1)
+                plt.cla()
+                beam.plot_hist2d()
+                data[simulation.turn_i.value % data.shape[0], 0] = (
+                    sim.beam1._dt[idx]
+                )
+                data[simulation.turn_i.value % data.shape[0], 1] = (
+                    sim.beam1._dE[idx]
+                )
+                plt.plot(data[:, 0], data[:, 1], ".")
+                plt.axhline(beam._dE.mean())
+                plt.axvline(beam._dt.mean())
+                plt.subplot(2, 1, 2)
+                if simulation.turn_i.value == 0:
+                    plt.cla()
+                plt.hist(beam._dt, bins=256, histtype="step", density=True)
+                plt.draw()
+                plt.pause(0.1)
+
+            sim.simulation.run_simulation(
+                beams=(sim.beam1,),
+                callback=my_callback,
+                n_turns=1e6,
+            )
+        for percentile in (10, 50, 90):
+            percentile_dt = float(np.percentile(sim.beam1._dt, percentile))
+            percentile_dE = float(np.percentile(sim.beam1._dE, percentile))
+            np.testing.assert_allclose(
+                expected_dt[percentile],
+                percentile_dt,
+                rtol=1e-4,
+            )
+            np.testing.assert_allclose(
+                expected_dE[percentile],
+                percentile_dE,
+                rtol=1e-4,
+            )
+
+    def test_roughly_correct_intensity_below_transition(self):
+        from blond.testing.simulation import SimulationTwoRfStationsWithWake
+
+        sim = SimulationTwoRfStationsWithWake(below_transition_crossing=True)
+        self._test_matching(sim, below_transition_crossing=True)
+        DEV_PLOT = False
+        if DEV_PLOT:
+
+            def my_callback(simulation: Simulation, beam: Beam):
+                if simulation.turn_i.value % 10 != 0:
+                    return
+                plt.subplot(2, 1, 1)
+                plt.cla()
+                beam.plot_hist2d()
+                plt.axhline(beam._dE.mean())
+                plt.axvline(beam._dt.mean())
+                plt.subplot(2, 1, 2)
+                plt.hist(beam._dt, bins=256, histtype="step", density=True)
+                plt.draw()
+                plt.draw()
+                plt.pause(0.1)
+
+            sim.simulation.turn_i.value = 0
+            my_callback(simulation=sim.simulation, beam=sim.beam1)
+            sim.simulation.run_simulation(
+                beams=(sim.beam1,), callback=my_callback
+            )
+        # pinned values
+        expected_dt = {
+            10: 2.2011419353873407e-09,
+            50: 2.5075772569493893e-09,
+            90: 2.814130262152048e-09,
+        }
+        expected_dE = {10: -2083857792.0, 50: -3101351.0, 90: 2078033792.0}
+        for percentile in (10, 50, 90):
+            percentile_dt = float(np.percentile(sim.beam1._dt, percentile))
+            percentile_dE = float(np.percentile(sim.beam1._dE, percentile))
+            np.testing.assert_allclose(
+                expected_dt[percentile],
+                percentile_dt,
+                rtol=1e-4,
+            )
+            np.testing.assert_allclose(
+                expected_dE[percentile],
+                percentile_dE,
+                rtol=1e-4,
+            )
+
+    def _test_matching(self, sim, below_transition_crossing=False):
         simulation = sim.simulation
         beam = sim.beam1
+        t_rev = simulation.magnetic_cycle.get_t_rev_init(
+            simulation.ring.circumference,
+            turn_i_init=0,
+            t_init=0,
+            particle_type=beam.particle_type,
+        )
         ts = (
             np.linspace(
-                0,
-                simulation.magnetic_cycle.get_t_rev_init(
-                    simulation.ring.circumference,
-                    turn_i_init=0,
-                    t_init=0,
-                    particle_type=beam.particle_type,
-                ),
+                0 + (t_rev / 2 if below_transition_crossing else 0),
+                t_rev + (t_rev / 2 if below_transition_crossing else 0),
             )
             / 36540
         )

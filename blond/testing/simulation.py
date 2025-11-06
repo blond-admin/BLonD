@@ -1,3 +1,10 @@
+"""Several setups of simulations that are intended for testcases.
+
+Authors
+-------
+Simon Lauber
+"""
+
 from matplotlib import pyplot as plt
 
 from blond import MultiHarmonicCavity, WakeField
@@ -10,6 +17,8 @@ from blond.physics.profiles import StaticProfile
 
 
 class ExampleSimulation01:
+    """Simulation with only one drift, one RF."""
+
     def __init__(self):
         import numpy as np
 
@@ -85,7 +94,9 @@ class ExampleSimulation01:
 
 
 class SimulationTwoRfStations:
-    def __init__(self):
+    """A simulation with two RF stations and according drifts."""
+
+    def __init__(self, below_transition_crossing=False):
         import numpy as np
 
         from blond import (
@@ -140,12 +151,16 @@ class SimulationTwoRfStations:
             orbit_length=0.5 * circumference,
             section_index=0,
         )
-        drift1.transition_gamma = 55.759505
+        drift1.transition_gamma = (
+            855.759505 if below_transition_crossing else 55.759505
+        )
         drift2 = DriftSimple(
             orbit_length=0.5 * circumference,
             section_index=1,
         )
-        drift2.transition_gamma = 55.759505
+        drift2.transition_gamma = (
+            855.759505 if below_transition_crossing else 55.759505
+        )
         beam1 = Beam(
             intensity=1e9,
             particle_type=proton,
@@ -158,7 +173,9 @@ class SimulationTwoRfStations:
 
 
 class SimulationTwoRfStationsWithWake:
-    def __init__(self):
+    """A simulation with two RF stations and according drifts, plus wake."""
+
+    def __init__(self, below_transition_crossing=False):
         import numpy as np
 
         from blond import (
@@ -218,12 +235,16 @@ class SimulationTwoRfStationsWithWake:
             orbit_length=0.5 * circumference,
             section_index=0,
         )
-        drift1.transition_gamma = 55.759505
+        drift1.transition_gamma = (
+            855.759505 if below_transition_crossing else 55.759505
+        )
         drift2 = DriftSimple(
             orbit_length=0.5 * circumference,
             section_index=1,
         )
-        drift2.transition_gamma = 55.759505
+        drift2.transition_gamma = (
+            855.759505 if below_transition_crossing else 55.759505
+        )
         beam1 = Beam(
             intensity=1e9,
             particle_type=proton,

@@ -23,7 +23,7 @@ def run_compile(command: list[str], libname: str) -> int:
         return 0
 
 
-def compile_cuda_library(
+def compile_cuda_library(  # NOQA: PLR0915
     compute_capability: int | Literal["discover"] = "discover",
 ) -> None:
     """Compile the GPU library.
@@ -79,19 +79,19 @@ def compile_cuda_library(
 
         dev = cp.cuda.Device(0)
         dev_name = cp.cuda.runtime.getDeviceProperties(dev)["name"]
-        compute_capability = dev.compute_capability
+        compute_capability_ = dev.compute_capability
         print(f"Device name {dev_name}")
     elif compute_capability is not None:
-        compute_capability = compute_capability
+        compute_capability_ = compute_capability
     else:
         raise ValueError(f"{compute_capability=}")
     print(
         f"Compiling the CUDA library for"
-        f" compute capability {compute_capability}."
+        f" compute capability {compute_capability_}."
     )
 
     # Add the -arch required argument
-    nvcc_flags += ["-arch", f"sm_{compute_capability}"]
+    nvcc_flags += ["-arch", f"sm_{compute_capability_}"]
 
     # Get the CuPy header files location
     path_ = cp.__file__.split("/")[:-1]  # remove __init__.py from path
@@ -112,8 +112,8 @@ def compile_cuda_library(
     print("Compiler flags: ", " ".join(nvcc_flags))
     print("CuPy location: ", cupyloc)
 
-    libname_double = cuda_libname + f"_sm_{compute_capability}_double.cubin"
-    libname_single = cuda_libname + f"_sm_{compute_capability}_single.cubin"
+    libname_double = cuda_libname + f"_sm_{compute_capability_}_double.cubin"
+    libname_single = cuda_libname + f"_sm_{compute_capability_}_single.cubin"
 
     command = (
         [nvcc]

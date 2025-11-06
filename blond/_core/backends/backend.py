@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import importlib
 import os
-import sys
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
@@ -23,10 +21,7 @@ class Specials(ABC):
     @staticmethod
     @abstractmethod  # pragma: no cover
     def loss_box(
-        top: np.float32 | np.float64,
-        bottom: np.float32 | np.float64,
-        left: np.float32 | np.float64,
-        right: float,
+        top: float, bottom: float, left: float, right: float
     ) -> None:  # TODO
         pass
 
@@ -35,9 +30,9 @@ class Specials(ABC):
     def kick_single_harmonic(
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
-        voltage: np.float32 | np.float64,
-        omega_rf: np.float32 | np.float64,
-        phi_rf: np.float32 | np.float64,
+        voltage: float,
+        omega_rf: float,
+        phi_rf: float,
         charge: np.float32 | np.float64,
         acceleration_kick: np.float32 | np.float64,
     ) -> None:
@@ -51,9 +46,9 @@ class Specials(ABC):
         voltage: NumpyArray,
         omega_rf: NumpyArray,
         phi_rf: NumpyArray,
-        charge: np.float32 | np.float64,
+        charge: float,
         n_rf: int,
-        acceleration_kick: np.float32 | np.float64,
+        acceleration_kick: float,
     ) -> None:
         pass
 
@@ -74,13 +69,13 @@ class Specials(ABC):
     def drift_legacy(
         dt: NumpyArray,
         dE: NumpyArray,
-        T: np.float32 | np.float64,
+        T: float,
         alpha_order: int,
-        eta_0: np.float32 | np.float64,
-        eta_1: np.float32 | np.float64,
-        eta_2: np.float32 | np.float64,
-        beta: np.float32 | np.float64,
-        energy: np.float32 | np.float64,
+        eta_0: float,
+        eta_1: float,
+        eta_2: float,
+        beta: float,
+        energy: float,
     ) -> None:
         pass
 
@@ -89,12 +84,12 @@ class Specials(ABC):
     def drift_exact(
         dt: NumpyArray,
         dE: NumpyArray,
-        T: np.float32 | np.float64,
-        alpha_0: np.float32 | np.float64,
-        alpha_1: np.float32 | np.float64,
-        alpha_2: np.float32 | np.float64,
-        beta: np.float32 | np.float64,
-        energy: np.float32 | np.float64,
+        T: float,
+        alpha_0: float,
+        alpha_1: float,
+        alpha_2: float,
+        beta: float,
+        energy: float,
     ) -> None:
         pass
 
@@ -125,10 +120,10 @@ class Specials(ABC):
     def beam_phase(
         hist_x: NumpyArray,
         hist_y: NumpyArray,
-        alpha: np.float32 | np.float64,
-        omega_rf: np.float32 | np.float64,
-        phi_rf: np.float32 | np.float64,
-        bin_size: np.float32 | np.float64,
+        alpha: float,
+        omega_rf: float,
+        phi_rf: float,
+        bin_size: float,
     ) -> np.float32 | np.float64:
         pass
 
@@ -198,6 +193,7 @@ class BackendBaseClass(ABC):
         self.meshgrid: Callable = None  # type: ignore
         self.square: Callable = None  # type: ignore
         self.mean: Callable = None  # type: ignore
+        self.arange: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -245,7 +241,7 @@ class BackendBaseClass(ABC):
         """Whether the backend is using the GPU."""
         return self._is_gpu
 
-    def apply_environment_variables(self) -> None:
+    def apply_environment_variables(self) -> None:  # NOQA PLR0912
         """Load the environment variables and set up the backend accordingly.
 
         Notes
@@ -260,7 +256,7 @@ class BackendBaseClass(ABC):
         """
         _backend_mode_raw: str = os.environ.get(
             "BLOND_BACKEND_MODE",
-            "numba",  # default
+            "python",  # default
         ).lower()
         if _backend_mode_raw != "numba":
             print(
@@ -330,30 +326,6 @@ class BackendBaseClass(ABC):
             self.set_specials(mode=_backend_mode)  # type: ignore
 
 
-def fresh_import(module_location: str, class_name: str) -> type:
-    """To freshly do `from module_location import ClassName`.
-
-    Parameters
-    ----------
-    module_location
-        Import location where the module resides
-    class_name
-        Class to re-import
-
-    Returns
-    -------
-    Newly imported class
-
-    """
-    # TODO Refactor given files as classes, so that only reinstancing of a
-    #  class is needed instead of reloading a module path.
-    #  This function is only intended to reload backend specials.
-    if module_location in sys.modules:
-        del sys.modules[module_location]
-    module = importlib.import_module(module_location)
-    return getattr(module, class_name)
-
-
 class NumpyBackend(BackendBaseClass):
     def __init__(
         self,
@@ -395,6 +367,7 @@ class NumpyBackend(BackendBaseClass):
         self.meshgrid = np.meshgrid
         self.square = np.square
         self.mean = np.mean
+        self.arange = np.arange
 
         self._finalize()
 
@@ -416,33 +389,28 @@ class NumpyBackend(BackendBaseClass):
 
         """
         onchange = self.specials_mode != mode
+
         if mode == "python":
             from .python.callables import PythonSpecials
 
             self.specials = PythonSpecials()
             self.specials_mode = mode
         elif mode == "cpp":
-            CppSpecials = fresh_import(
-                "blond._core.backends.cpp.callables",
-                "CppSpecials",
-            )
-            self.specials = CppSpecials()
+            from .cpp.callables import reload_cpp_backend
+
+            self.specials = reload_cpp_backend(self.float)
             self.specials_mode = mode
         elif mode == "numba":
-            # like
-            # from .numba.callables import NumbaSpecials
-            # but reimport, so that dtypes are in line with the current backend
-            NumbaSpecials = fresh_import(
-                "blond._core.backends.numba.callables",
-                "NumbaSpecials",
-            )
+            from .numba.callables import recompile_numba_backend
+
+            NumbaSpecials = recompile_numba_backend(self.float)
             self.specials = NumbaSpecials()
             self.specials_mode = mode
         elif mode == "fortran":
-            FortranSpecials = fresh_import(
-                "blond._core.backends.fortran.callables",
-                "FortranSpecials",
-            )
+            from .fortran.callables import reload_fortran_backend
+
+            FortranSpecials = reload_fortran_backend(self.float)
+
             self.specials = FortranSpecials()
             self.specials_mode = mode
         else:
@@ -518,6 +486,7 @@ class CupyBackend(BackendBaseClass):
         self.meshgrid = cp.meshgrid
         self.square = cp.square
         self.mean = cp.mean
+        self.arange = cp.arange
 
         from .cuda.callables import CudaSpecials
 
@@ -535,10 +504,9 @@ class CupyBackend(BackendBaseClass):
 
         """
         if mode == "cuda":
-            CudaSpecials = fresh_import(
-                "blond._core.backends.cuda.callables",
-                "CudaSpecials",
-            )
+            from .cuda.callables import reload_cuda_backend
+
+            CudaSpecials = reload_cuda_backend(self.float)
 
             self.specials = CudaSpecials()
         else:

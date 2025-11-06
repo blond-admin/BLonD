@@ -39,7 +39,7 @@ def run_compile(command: list[str], libname: str) -> int:
         return 0
 
 
-def compile_cpp_library(
+def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     with_fftw: bool = False,
     with_fftw_threads: bool = False,
     with_fftw_omp: bool = False,
@@ -140,16 +140,10 @@ def compile_cpp_library(
     # Get boost path
     boost_path = None
     if boost is not None:
-        if boost:
-            boost_path = os.path.abspath(boost)
-        else:
-            boost_path = ""
+        boost_path = os.path.abspath(boost) if boost else ""
         cflags += ["-I", boost_path, "-DBOOST"]
 
-    if libs:
-        libs_ = libs.split()
-    else:
-        libs_ = []
+    libs_ = libs.split() if libs else []
 
     if parallel:
         cflags += ["-fopenmp", "-DPARALLEL", "-D_GLIBCXX_PARALLEL"]
@@ -213,7 +207,7 @@ def compile_cpp_library(
             "The FFTW Library is only compiled for  double-precision (64-bit)."
             " For single-precision, the FFTW Library is ignored."
         )
-        warnings.warn(msg)
+        warnings.warn(msg, stacklevel=1)
     ret = run_compile(command, libname_single)
     if ret != 0:
         print("There was a compilation error.")

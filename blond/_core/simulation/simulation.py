@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from copy import deepcopy
-from functools import cached_property
 from pstats import SortKey
 from typing import TYPE_CHECKING
 from warnings import warn
@@ -13,14 +12,14 @@ import numpy as np
 from scipy.integrate import cumulative_simpson
 from tqdm import tqdm  # type: ignore
 
-from ..._generals._warnings import PerformanceWarning
+from ..._generals._warnings import NotTestedWarning, PerformanceWarning
 from ...cycles.magnetic_cycle import MagneticCycleBase
+from ...physics.drifts import DriftBaseClass
 from ...physics.profiles import ProfileBaseClass
 from ..backends.backend import backend
 from ..base import (
     BeamPhysicsRelevant,
     DynamicParameter,
-    HasPropertyCache,
     Preparable,
 )
 from ..helpers import find_instances_with_method, int_from_float_with_warning
@@ -56,17 +55,18 @@ if TYPE_CHECKING:  # pragma: no cover
     from ..beam.base import BeamBaseClass
     from ..beam.particle_types import ParticleType
     from ..ring.ring import Ring
+from ...physics.cavities import CavityBaseClass
 
 logger = logging.getLogger(__name__)
 
 
-class Simulation(Preparable, HasPropertyCache):
+class Simulation(Preparable):
     """Context manager to perform beam physics simulations of synchrotrons.
 
     Parameters
     ----------
     ring
-        Ring a.k.a. synchrotron
+        `Ring` a.k.a. synchrotron
     magnetic_cycle
         Container object to handle the scheduled energy gain
         per turn or by time
@@ -154,10 +154,6 @@ class Simulation(Preparable, HasPropertyCache):
         ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
         ps.print_stats()
         print(s.getvalue())
-
-    def invalidate_cache(self):
-        """Delete the stored values of functions with @cached_property."""
-        pass  # TODO
 
     def plot_potential_well_empiric(
         self,
@@ -267,7 +263,7 @@ class Simulation(Preparable, HasPropertyCache):
         particle_type: ParticleType,
         subtract_min: bool = True,
         intensity: int = 0,
-    ) -> Tuple[NumpyArray, float, float]:
+    ) -> tuple[NumpyArray, float, float]:
         """
         Obtain the potential well by tracking a beam for one turn.
 
@@ -371,7 +367,7 @@ class Simulation(Preparable, HasPropertyCache):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -404,7 +400,7 @@ class Simulation(Preparable, HasPropertyCache):
 
         for cls in ordered_classes:
             for element in instances:
-                if not type(element).__name__ == cls:
+                if type(element).__name__ != cls:
                     continue
                 logger.info(f"Running `{method}` of {element}")
                 getattr(element, method)(**kwargs)
@@ -494,7 +490,7 @@ class Simulation(Preparable, HasPropertyCache):
 
     @property  # as readonly attributes
     def ring(self) -> Ring:
-        """Ring a.k.a. synchrotron."""
+        """`Ring` a.k.a. synchrotron."""
         return self._ring
 
     @property  # as readonly attributes
@@ -502,40 +498,9 @@ class Simulation(Preparable, HasPropertyCache):
         """Programmed energy program of the synchrotron."""
         return self._magnetic_cycle
 
-    @cached_property
-    def get_separatrix(self) -> None:
-        raise NotImplementedError
-
-    @cached_property
-    def get_potential_well(self) -> None:
-        raise NotImplementedError
-
     def print_one_turn_execution_order(self) -> None:
         """Prints the execution order of the main simulation loop."""
         self._ring.elements.print_order()
-
-    #  properties that have the @cached_property decorator
-    cached_properties = (
-        "get_separatrix",
-        "get_potential_well",
-    )
-
-    def _invalidate_cache_on_turn(
-        self,
-        turn_i: int,  # required by `turn_i.on_change`
-    ) -> None:
-        """Reset cache of `cached_property` attributes.
-
-        Parameters
-        ----------
-        Current turn
-
-        Notes
-        -----
-        This method is subscribed to turn_i.on_change
-
-        """
-        self._invalidate_cache(Simulation.cached_properties)
 
     def prepare_beam(
         self,
@@ -548,7 +513,7 @@ class Simulation(Preparable, HasPropertyCache):
         Parameters
         ----------
         beam
-            Simulation beam object
+            Simulation `Beam` object
         preparation_routine
             Algorithm to prepare the beam `dt` and `dE` coordinates.
         turn_i
@@ -561,10 +526,10 @@ class Simulation(Preparable, HasPropertyCache):
 
     def run_simulation(
         self,
-        beams: tuple[BeamBaseClass],
+        beams: tuple[BeamBaseClass, ...],
         n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: tuple[Observables, ...] = tuple(),
+        observe: tuple[Observables, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, Beam], None] | None = None,
     ) -> None:
@@ -573,7 +538,8 @@ class Simulation(Preparable, HasPropertyCache):
         Parameters
         ----------
         beams
-            Beams that are used to perform the simulation
+            Beams to be simulated, in case of two beams, the first must be
+            co-rotating and the second counter-rotating
         n_turns
             Number of turns to simulate.
             If None, will use the maximum number of turns given by the cycle.
@@ -592,14 +558,14 @@ class Simulation(Preparable, HasPropertyCache):
 
         """
         logger.info(f"Running `run_simulation` with {locals()}")
-        _n_turns = self.finalze(
+        _n_turns = self.finalize(
             beams=beams,
             n_turns=n_turns,
             observe=observe,
             turn_i_init=turn_i_init,
         )
 
-        if len(beams) == 1:
+        if len(beams) == 1:  # NOQA: PLR2004
             self._run_simulation_single_beam(
                 beam=beams[0],
                 n_turns=_n_turns,
@@ -608,7 +574,7 @@ class Simulation(Preparable, HasPropertyCache):
                 show_progressbar=show_progressbar,
                 callback=callback,
             )
-        elif len(beams) == 2:
+        elif len(beams) == 2:  # NOQA: PLR2004
             assert (
                 beams[0].is_counter_rotating,
                 beams[1].is_counter_rotating,
@@ -624,9 +590,14 @@ class Simulation(Preparable, HasPropertyCache):
                 observe=observe,
                 show_progressbar=show_progressbar,
                 callback=callback,
+                beams=beams,
+            )
+        else:
+            raise NotImplementedError(
+                f"Up to two beam supported, but got {len(beams)}"
             )
 
-    def finalze(self, beams, n_turns, observe, turn_i_init):
+    def finalize(self, beams, n_turns, observe, turn_i_init):
         max_turns = self.magnetic_cycle.n_turns
         if n_turns is not None:
             _n_turns = int_from_float_with_warning(
@@ -647,11 +618,9 @@ class Simulation(Preparable, HasPropertyCache):
             _n_turns = max_turns
         if backend.specials_mode == "python":
             particles_above_threshold = any(
-                [
-                    b.common_array_size
-                    > self._particle_performance_waning_threshold
-                    for b in beams
-                ]
+                b.common_array_size
+                > self._particle_performance_waning_threshold
+                for b in beams
             )
             if particles_above_threshold:
                 warn(
@@ -684,7 +653,7 @@ class Simulation(Preparable, HasPropertyCache):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int = 0,
-        observe: tuple[Observables, ...] = tuple(),
+        observe: tuple[Observables, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, Beam], None] | None = None,
     ) -> None:
@@ -711,12 +680,10 @@ class Simulation(Preparable, HasPropertyCache):
         iterator = range(turn_i_init, turn_i_init + n_turns)
         if show_progressbar:
             iterator = tqdm(iterator)  # Add TQDM display to iteration
-        self.turn_i.on_change(self._invalidate_cache_on_turn)
         self.turn_i.value = 0
         for observable in observe:
             observable.update(
                 simulation=self,
-                beam=beam,
             )
         for turn_i in iterator:
             self.turn_i.value = turn_i
@@ -724,12 +691,16 @@ class Simulation(Preparable, HasPropertyCache):
                 self.section_i.value = element.section_index
                 if element.is_active_this_turn(turn_i=self.turn_i.value):
                     element.track(beam)
-            for observable in observe:
-                if observable.is_active_this_turn(turn_i=self.turn_i.value):
-                    observable.update(
-                        simulation=self,
-                        beam=beam,
-                    )
+                if isinstance(
+                    element, DriftBaseClass
+                ):  # only observe after drifts
+                    for observable in observe:
+                        if observable.is_active_this_turn(
+                            turn_i=self.turn_i.value
+                        ):
+                            observable.update(
+                                simulation=self,
+                            )
             if callback is not None:
                 callback(simulation=self, beam=beam)
 
@@ -750,7 +721,7 @@ class Simulation(Preparable, HasPropertyCache):
     ]:
         raise NotImplementedError
         from ...physics.cavities import (  # prevent cyclic import
-            CavityBaseClass,
+            DriftBaseClass,
             MultiHarmonicCavity,
         )
 
@@ -791,7 +762,7 @@ class Simulation(Preparable, HasPropertyCache):
         beam_blond2 = Beam(
             ring=ring_blond2,
             n_macroparticles=self.beams[0]._n_macroparticles__init,
-            intensity=self.beams[0]._n_particles__init,
+            intensity=self.beams[0]._intensity__init,
         )
         # todo handle multiple RF stations
         cavity_blond3: SingleHarmonicCavity | MultiHarmonicCavity = (
@@ -849,10 +820,10 @@ class Simulation(Preparable, HasPropertyCache):
 
     def _run_simulation_counterrotating_beam(
         self,
-        beams: tuple[BeamBaseClass],
+        beams: tuple[BeamBaseClass, BeamBaseClass],
         n_turns: int,
         turn_i_init: int = 0,
-        observe: tuple[Observables, ...] = tuple(),
+        observe: tuple[Observables, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, Beam], None] | None = None,
     ) -> None:
@@ -875,12 +846,49 @@ class Simulation(Preparable, HasPropertyCache):
             that is called each turn.
 
         """
-        raise NotImplementedError()
-        pass  # todo
+        warn("Untested code", NotTestedWarning, stacklevel=1)
+
+        logger.info("Starting simulation mainloop...")
+        iterator = range(turn_i_init, turn_i_init + n_turns)
+        if show_progressbar:
+            iterator = tqdm(iterator)  # Add TQDM display to iteration
+        self.turn_i.value = 0
+
+        num_elements = len(self._ring.elements.elements)
+
+        for turn_i in iterator:
+            for element_ind, element in enumerate(
+                self._ring.elements.elements
+            ):
+                self.turn_i.value = turn_i
+                self.section_i.value = element.section_index
+
+                if element.is_active_this_turn(turn_i=self.turn_i.value):
+                    element.track(beams[0])  # [0] is expected to be corotating
+                element_counterrot = self.ring.elements.elements[
+                    num_elements - element_ind - 1
+                ]
+                if element_counterrot.is_active_this_turn(
+                    turn_i=self.turn_i.value
+                ):
+                    element_counterrot.track(beams[1])
+                if isinstance(
+                    element_counterrot, DriftBaseClass
+                ):  # only observe after drifts
+                    for observable in observe:
+                        if observable.is_active_this_turn(
+                            turn_i=self.turn_i.value
+                        ):
+                            observable.update(
+                                simulation=self,
+                            )
+        # reset counters to uninitialized again
+        self.turn_i.value = None
+        self.section_i.value = None
 
     def save_results(
         self,
-        observe: tuple[Observables, ...] = tuple(),
+        observe: tuple[Observables, ...] = (),
         common_name: str | None = None,
     ) -> None:
         """Save the given observables to the disk.
@@ -904,7 +912,7 @@ class Simulation(Preparable, HasPropertyCache):
         beams: tuple[BeamBaseClass],
         n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: tuple[Observables, ...] = tuple(),
+        observe: tuple[Observables, ...] = (),
         common_name: str | None = None,
     ) -> None:
         """Load the given observables from the disk.
@@ -924,7 +932,7 @@ class Simulation(Preparable, HasPropertyCache):
             A common filename for the files/arrays to save.
 
         """
-        self.finalze(
+        self.finalize(
             beams=beams,
             n_turns=n_turns,
             observe=observe,

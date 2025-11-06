@@ -1,3 +1,10 @@
+"""Collection of implementations to handle movement in bent synchrotron sections.
+
+Authors
+-------
+Simon Lauber
+"""
+
 from __future__ import annotations
 
 import abc
@@ -20,23 +27,24 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
+    """Base class of a drift.
+
+    Parameters
+    ----------
+    orbit_length
+        Length of drift, in [m].
+        Length / Velocity => Time to pass the element
+    section_index
+        Section index to group elements into sections
+
+    """
+
     def __init__(
         self,
         orbit_length: float,
         section_index: int = 0,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ) -> None:
-        """Base class of a drift.
-
-        Parameters
-        ----------
-        orbit_length
-            Length of drift, in [m].
-            Length / Velocity => Time to pass the element
-        section_index
-            Section index to group elements into sections
-
-        """
         super().__init__(
             section_index=section_index,
             **kwargs,  # for MRO of fused elements
@@ -46,10 +54,8 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
 
     @abc.abstractmethod
     def eta_0(self, gamma: float) -> backend.float:
+        """Drift in arc parameter eta for one turn in synchrotron."""
         pass
-
-    def __str__(self) -> str:
-        return ""
 
     def track(self, beam: BeamBaseClass) -> None:
         """Main simulation routine to be called in the mainloop.
@@ -82,7 +88,7 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -216,7 +222,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         self._simulation = simulation
         if (
             self.transition_gamma is None
-        ) and "transition_gamma" not in self.schedules.keys():
+        ) and "transition_gamma" not in self.schedules:
             raise ValueError(
                 "You need to define `transition_gamma` via `.transition_gamma=...` "
                 "or `.schedule(attribute='transition_gamma', value=...)`"
@@ -249,12 +255,13 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         )
         beam.reference_time += dt
 
-    def eta_0(self, gamma: float) -> backend.float:
+    def eta_0(self, gamma: float) -> np.float32 | np.float64:
+        """Drift in arc parameter eta for one turn in synchrotron."""
         return backend.float(self.alpha_0 - (1 / (gamma * gamma)))
 
     # alias of momentum_compaction_factor
     @property  # as readonly attributes
-    def alpha_0(self) -> backend.float:
+    def alpha_0(self) -> np.float32 | np.float64:
         """Momentum compaction factor."""
         return self.momentum_compaction_factor
 
@@ -262,47 +269,3 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         """Delete the stored values of functions with @cached_property."""
         # super()._invalidate_cache(DriftSimple.cached_props)
         pass
-
-
-class DriftSpecial(DriftBaseClass):
-    def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop.
-
-        Parameters
-        ----------
-        beam
-            Beam class to interact with this element
-        """
-        pass
-
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
-
-        simulation
-            Simulation context manager
-        """
-        super().on_init_simulation(simulation=simulation)
-
-    pass
-
-
-class DriftXSuite(DriftBaseClass):
-    def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop.
-
-        Parameters
-        ----------
-        beam
-            Beam class to interact with this element
-        """
-        pass
-
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
-
-        simulation
-            Simulation context manager
-        """
-        super().on_init_simulation(simulation=simulation)
-
-    pass

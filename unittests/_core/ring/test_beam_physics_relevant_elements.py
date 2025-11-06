@@ -210,6 +210,7 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
     def test_print_order(self):
         for mock_element in self.beam_physics_relevant_elements.elements:
             mock_element.info_string.return_value = ""
+
         self.beam_physics_relevant_elements.print_order()
 
     def test_reorder(self):
@@ -277,6 +278,20 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         )
         self.assertEqual((0, 0, 1, 1), section)
         self.assertEqual(expected, actual)
+
+    def test_fails_add_after_init(self):
+        from blond.testing.simulation import ExampleSimulation01
+
+        sim = ExampleSimulation01().simulation
+        drift = Mock(DriftBaseClass)
+        with self.assertRaises(AssertionError):
+            sim.ring.add_element(drift)
+        with self.assertRaises(AssertionError):
+            sim.ring.add_elements((drift,))
+        with self.assertRaises(AssertionError):
+            sim.ring.insert_element(drift, insert_at=0)
+        with self.assertRaises(AssertionError):
+            sim.ring.insert_elements([drift,], insert_at=0)
 
 
 if __name__ == "__main__":
