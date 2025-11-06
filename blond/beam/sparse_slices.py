@@ -157,7 +157,6 @@ class SparseSlices:
             ].n_macroparticles = self.n_macroparticles_array[i, :]
             self.bin_centers_array[i, :] = self.profiles_list[i].bin_centers
             self.edges_array[i, :] = self.profiles_list[i].edges
-            self.profiles_list[i].bin_centers = self.bin_centers_array[i, :]
 
         # Total parameters to match the standard Profile object
         self.n_macroparticles = np.concatenate(
