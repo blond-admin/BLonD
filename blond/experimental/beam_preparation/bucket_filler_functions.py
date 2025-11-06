@@ -159,7 +159,7 @@ def generalized_bucket_filler(
     if (
         free_parameter_guess is None
     ):  # typically the free parameter is in units of eV so setting it to max of hamiltonian makes sense in most cases
-        free_parameter_guess = np.max(_hamilton) / 100
+        free_parameter_guess = np.max(_hamilton) / 1000
 
     n_slices_per_bucket = int(time_grid.shape[1] / n_buckets)
     min_hamilton = np.min(_hamilton)
@@ -201,60 +201,6 @@ def generalized_bucket_filler(
         )
 
     return density
-
-
-def bucket_fill_by_emittance_gaussian(
-    time_grid: NumpyArray | CupyArray,
-    deltaE_grid: NumpyArray | CupyArray,
-    hamilton_2D: NumpyArray | CupyArray,
-    emittance_list: list[float],
-    intensity_frac_list: list[float],
-    n_buckets: int,
-    max_emittance_diff: float = 0.01,
-) -> NumpyArray | CupyArray:
-    """Method for generating gaussian distributed bunches of specific emittances. Makes use of the generalized bucket filler method
-    This is just an example of how the general method can be utilized.
-
-
-        Parameters
-        ----------
-        time_grid
-            Time coordinates of the hamiltonian, in [s].
-        deltaE_grid
-            Energy coordinate of the hamiltonian, in [eV].
-        hamilton_2D
-            hamiltonian value, in [eV].
-        emittance_list
-            list of (rms) emittances for each bunch
-        intensity_frac_list
-            fraction of total intensity for each bunch to have.
-        n_buckets
-            number of buckets spanned by the time axis.
-        max_emittance_diff
-            the maximum allowed difference between the desired
-            emittance and the generated emittance, in [eVs]
-
-
-        Returns
-        -------
-        _density
-            2D array containing the density distribution of the beam.
-    """
-
-    _density = generalized_bucket_filler(
-        time_grid,
-        deltaE_grid,
-        hamilton_2D,
-        emittance_list,
-        intensity_frac_list,
-        n_buckets,
-        max_metric_diff=max_emittance_diff,
-        density_function=gaussian_density,
-        metric_function=rms_emittance,
-        free_parameter_guess=None,
-    )
-
-    return _density
 
 
 def hamilton_to_density_by_max(

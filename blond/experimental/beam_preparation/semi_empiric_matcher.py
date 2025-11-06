@@ -393,7 +393,6 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 dt=np.linspace(ts.min(), ts.max(), len(ts) * 10),
                 particle_type=beam.particle_type,
                 intensity=beam.intensity,
-                below_transition=below_transition,
             )
         )
         potential_well = potential_well[::10] * factor
