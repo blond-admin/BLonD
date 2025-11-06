@@ -35,16 +35,16 @@ class Main:
             n_harmonics=10,
             main_harmonic_idx=0,
         )
-        cavity.voltage = 1e3 * backend.ones(10, dtype=backend.float)  # TODO
+        cavity.voltage = 1e3 * backend.ones(10)  # TODO
         # should
         # be
         # reasonable
         # value
-        cavity.phi_rf = 0 * backend.ones(10, dtype=backend.float)  # TODO
+        cavity.phi_rf = 0 * backend.ones(10)  # TODO
         # should be
         # reasonable
         # value
-        cavity.harmonic = backend.ones(10, dtype=backend.float)  # TODO
+        cavity.harmonic = backend.ones(10)  # TODO
         # should be
         # reasonable
         # value
