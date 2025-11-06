@@ -351,10 +351,8 @@ class WakeField(ImpedanceBaseClass):
             dE=beam.write_partial_dE(),
             voltage=induced_voltage,
             bin_centers=self.profile.hist_x,  # base for induced voltage
-            charge=backend.float(beam.particle_type.charge),
-            acceleration_kick=backend.float(
-                0.0
-            ),  # TODO was this ever required??
+            charge=beam.particle_type.charge,
+            acceleration_kick=0.0,  # TODO was this ever required??
         )
 
     @staticmethod

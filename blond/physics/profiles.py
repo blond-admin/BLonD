@@ -107,7 +107,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         return backend.gradient(self._hist_y, self.hist_step, edge_order=2)
 
     @cached_property
-    def hist_step(self) -> np.float32 | np.float64:
+    def hist_step(self) -> float:
         """Size of a single histogram bin."""
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
@@ -117,10 +117,10 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         if backend.is_gpu:
             fist_hist_x = fist_hist_x.get()
             second_hist_x = second_hist_x.get()
-        return backend.float(second_hist_x - fist_hist_x)  # type: ignore
+        return float(second_hist_x - fist_hist_x)  # type: ignore
 
     @cached_property
-    def cut_left(self) -> np.float32 | np.float64:
+    def cut_left(self) -> float:
         """Left outer edge of the histogram."""
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
@@ -128,10 +128,10 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         fist_hist_x = self._hist_x[0]
         if backend.is_gpu:
             fist_hist_x = fist_hist_x.get()
-        return backend.float(fist_hist_x - self.hist_step / 2.0)  # type: ignore
+        return float(fist_hist_x - self.hist_step / 2.0)  # type: ignore
 
     @cached_property
-    def cut_right(self) -> np.float32 | np.float64:
+    def cut_right(self) -> float:
         """Right outer edge of the histogram."""
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
@@ -139,7 +139,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         last_hist_x = self._hist_x[-1]
         if backend.is_gpu:
             last_hist_x = last_hist_x.get()
-        return backend.float(last_hist_x + self.hist_step / 2.0)  # type: ignore
+        return float(last_hist_x + self.hist_step / 2.0)  # type: ignore
 
     @cached_property
     def bin_edges(self) -> NumpyArray | CupyArray:
@@ -209,9 +209,9 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         return hist_x, hist_y
 
     @property  # as readonly attributes
-    def cutoff_frequency(self) -> np.float32 | np.float64:
+    def cutoff_frequency(self) -> float:
         """Cutoff frequency if the profile is fourier transformed, in [Hz]."""
-        return backend.float(1 / (2 * self.hist_step))
+        return 1 / (2 * self.hist_step)
 
     def _calc_gauss(self) -> None:
         """Gaussian fit for the beam profile."""

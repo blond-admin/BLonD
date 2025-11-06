@@ -170,7 +170,7 @@ class Schedulable:
     def apply_schedules(
         self,
         turn_i: int,
-        reference_time: np.float32 | np.float64,
+        reference_time: float,
     ) -> None:
         """Set value of schedule to the target parameter for current turn/time.
 
@@ -304,7 +304,7 @@ class _Scheduled:
     def get_scheduled(
         self,
         turn_i: int,
-        reference_time: np.float32 | np.float64,
+        reference_time: float,
     ):
         """Get the value of the schedule for the current turn/time.
 
