@@ -76,22 +76,31 @@ class SparseSlices:
     ):
         #: *Import (reference) Beam*
         self.beam = beam
-
+        self.energy = self.beam.energy
         #: *Import (reference) RFStation*
         self.rf_station = rf_station
 
         #: *Number of slices per bucket*
-        self.number_of_slices_per_bucket = number_of_slices_per_bucket
         self.bucket_margin = bucket_margin
+        self.number_of_slices_per_bucket = number_of_slices_per_bucket
+        self.number_of_slices_per_profile = (
+            self.number_of_slices_per_bucket * (1 + 2 * self.bucket_margin)
+        )
         #: *Filling pattern as a boolean array where True (1) means filled
         # bucket*
         self.filling_pattern = filling_pattern
 
         # Bunch index for each filled bucket (-1 if empty). Only for C++ track
-        self.bunch_indexes = np.cumsum(filling_pattern) * filling_pattern - 1
+        self.bunch_indexes = (
+            np.cumsum(self.filling_pattern) * self.filling_pattern - 1
+        )
 
-        #: *Number of buckets to be sliced*
-        self.n_filled_buckets = int(np.sum(filling_pattern))
+        #: *Number of filled buckets in the filling pattern*
+        self.n_filled_buckets = int(np.sum(self.filling_pattern))
+        #: *Number of buckets to be sliced (including the bucket_margin)*
+        self.n_sliced_buckets = int(np.sum(self.filling_pattern)) * (
+            1 + 2 * self.bucket_margin
+        )
 
         # Pre-processing the slicing edges
         self.cut_left_array = np.zeros(self.n_filled_buckets)
@@ -105,14 +114,14 @@ class SparseSlices:
         # Group n_macroparticles from all objects in a single array
         # (for C++ track).
         self.n_macroparticles_array = np.zeros(
-            (self.n_filled_buckets, self.number_of_slices_per_bucket)
+            (self.n_filled_buckets, self.number_of_slices_per_profile)
         )
         # Group bin_centers from all objects in a single array (for impedance)
         self.bin_centers_array = np.zeros(
-            (self.n_filled_buckets, self.number_of_slices_per_bucket)
+            (self.n_filled_buckets, self.number_of_slices_per_profile)
         )
         self.edges_array = np.zeros(
-            (self.n_filled_buckets, self.number_of_slices_per_bucket + 1)
+            (self.n_filled_buckets, self.number_of_slices_per_profile + 1)
         )
         for i in range(self.n_filled_buckets):
             # Only valid for cut_edges='edges'
@@ -123,7 +132,7 @@ class SparseSlices:
                     CutOptions(
                         cut_left=float(self.cut_left_array[i]),
                         cut_right=float(self.cut_right_array[i]),
-                        n_slices=self.number_of_slices_per_bucket,
+                        n_slices=self.number_of_slices_per_profile,
                     ),
                 )
             )
@@ -134,6 +143,16 @@ class SparseSlices:
             self.bin_centers_array[i, :] = self.profiles_list[i].bin_centers
             self.edges_array[i, :] = self.profiles_list[i].edges
             self.profiles_list[i].bin_centers = self.bin_centers_array[i, :]
+
+        # Total parameters to match the standard Profile object
+        self.n_macroparticles = np.concatenate(
+            self.n_macroparticles_array, axis=0
+        )
+        self.n_slices = int(
+            self.number_of_slices_per_bucket * filling_pattern.sum()
+        )
+        self.bin_centers = np.concatenate(self.bin_centers_array, axis=0)
+        self.bin_size = self.profiles_list[0].bin_size
 
         # Select the tracker
         if tracker == "C":
@@ -218,16 +237,6 @@ class SparseSlices:
             self.bunch_indexes,
             self.number_of_slices_per_bucket,
         )
-
-    def _histrogram_one_by_one(self):
-        from warnings import warn
-
-        warn(
-            "_histrogram_one_by_one is deprecated, use _histogram_one_by_one",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self._histogram_one_by_one()
 
     def _histogram_one_by_one(self):
         """
