@@ -597,7 +597,29 @@ class Simulation(Preparable):
                 f"Up to two beam supported, but got {len(beams)}"
             )
 
-    def finalize(self, beams, n_turns, observe, turn_i_init):
+    def finalize(
+        self,
+        beams: tuple[BeamBaseClass],
+        n_turns: int | None,
+        observe: tuple[Observables, ...],
+        turn_i_init: int,
+    ) -> None:
+        """Executes `_exec_on_run_simulation` and prepares the observables.
+
+        Parameters
+        ----------
+        beams
+            Beams to be simulated, in case of two beams, the first must be
+            co-rotating and the second counter-rotating
+        n_turns
+            Number of turns to simulate.
+            If None, will use the maximum number of turns given by the cycle.
+        observe
+            List of observables to protocol of what's happening inside
+            the simulation
+        turn_i_init
+            Initial turn to start with simulation
+        """
         max_turns = self.magnetic_cycle.n_turns
         if n_turns is not None:
             _n_turns = int_from_float_with_warning(
