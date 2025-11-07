@@ -136,6 +136,11 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     @property
     def reference_total_energy(self) -> float:
         """Total beam energy [eV]."""
+        if self._reference_total_energy is None:
+            raise ValueError(
+                "Beam is not properly set up, please set "
+                "`reference_total_energy` first!"
+            )
         return self._reference_total_energy
 
     @reference_total_energy.setter
