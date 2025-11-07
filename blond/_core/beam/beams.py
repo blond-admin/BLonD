@@ -100,7 +100,7 @@ class Beam(BeamBaseClass):
         )
 
         if reference_time:
-            self.reference_time = backend.float(reference_time)
+            self.reference_time = reference_time
         if reference_total_energy:
             self.reference_total_energy = reference_total_energy
 

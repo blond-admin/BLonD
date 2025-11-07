@@ -144,7 +144,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
 
         # TODO MOVE
         self._omega_rf: NumpyArray | None = None
-        self.delta_omega_rf = backend.float(0.0)
+        self.delta_omega_rf = 0.0
         self._t_rf: float | None = None
         self._t_rev: float | None = None
         self.voltage: NumpyArray | None = None
@@ -418,7 +418,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         self.voltage: float | None = voltage
         self.phi_rf: float | None = phi_rf
         self.harmonic: float | None = harmonic
-        self.delta_phi_rf: NumpyArray | None = backend.float(0)
+        self.delta_phi_rf: float = 0.0
 
     def get_main_harmonic(self) -> float:
         """Returns the harmonic number of the main harmonic."""
@@ -496,16 +496,16 @@ class SingleHarmonicRfStation(RfStationBaseClass):
             reference_time=beam.reference_time,
             particle_type=beam.particle_type,
         )
-        reference_energy_change = backend.float(
+        reference_energy_change = (
             target_total_energy - beam.reference_total_energy
         )
         backend.specials.kick_single_harmonic(
             dt=beam.read_partial_dt(),
             dE=beam.write_partial_dE(),
-            voltage=backend.float(self.voltage),
-            phi_rf=backend.float(self.phi_rf + self.delta_phi_rf),
-            omega_rf=backend.float(self._omega_rf + self.delta_omega_rf),
-            charge=backend.float(beam.particle_type.charge),  #  FIXME
+            voltage=self.voltage,
+            phi_rf=self.phi_rf + self.delta_phi_rf,
+            omega_rf=self._omega_rf + self.delta_omega_rf,
+            charge=beam.particle_type.charge,  #  FIXME
             acceleration_kick=-reference_energy_change,  # Mind the minus!
         )
         beam.reference_total_energy += reference_energy_change
@@ -602,12 +602,12 @@ class SingleHarmonicRfStation(RfStationBaseClass):
             cavity_feedback=cavity_feedback,
         )
 
-        mhc.voltage = backend.float(voltage)
-        mhc.phi_rf = backend.float(phi_rf)
-        mhc.harmonic = backend.float(harmonic)
+        mhc.voltage = voltage
+        mhc.phi_rf = phi_rf
+        mhc.harmonic = harmonic
 
         ring = Mock(Ring)
-        ring.circumference = backend.float(circumference)
+        ring.circumference = circumference
 
         energy_cycle = Mock(ConstantMagneticCycle)
         energy_cycle.get_target_total_energy.return_value = total_energy
@@ -683,9 +683,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         self.voltage: NumpyArray | None = None
         self.phi_rf: NumpyArray | None = None
         self.harmonic: NumpyArray | None = None
-        self.delta_phi_rf: NumpyArray | None = backend.zeros(
-            1, dtype=backend.float
-        )
+        self.delta_phi_rf: NumpyArray | None = backend.zeros(1)  # TODO
 
         self._t_rf: NumpyArray | None = None
         self._t_rev: float | None = None
@@ -749,9 +747,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         omega
             Angular frequency (2 PI f) of cavity in [rad/s]
         """
-        return self.harmonic * backend.float(
-            TWOPI_C0 * beam_beta / ring_circumference
-        )
+        return self.harmonic * (TWOPI_C0 * beam_beta / ring_circumference)
 
     def get_main_harmonic(self) -> float:
         """Returns the harmonic number of the main harmonic."""
@@ -895,17 +891,19 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             reference_time=beam.reference_time,
             particle_type=beam.particle_type,
         )
-        reference_energy_change = backend.float(
+        reference_energy_change = (
             target_total_energy - beam.reference_total_energy
         )
 
         backend.specials.kick_multi_harmonic(
             dt=beam.read_partial_dt(),
             dE=beam.write_partial_dE(),
-            voltage=self.voltage,
-            phi_rf=self.phi_rf + self.delta_phi_rf,
-            omega_rf=self._omega_rf + self.delta_omega_rf,
-            charge=backend.float(beam.particle_type.charge),  # FIXME
+            voltage=(self.voltage).astype(backend.float),
+            phi_rf=(self.phi_rf + self.delta_phi_rf).astype(backend.float),
+            omega_rf=(self._omega_rf + self.delta_omega_rf).astype(
+                backend.float
+            ),
+            charge=beam.particle_type.charge,
             n_rf=self.n_rf,
             acceleration_kick=-reference_energy_change,  # Mind the minus!
         )

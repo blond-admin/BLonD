@@ -15,4 +15,4 @@ if TYPE_CHECKING:  # pragma: no cover
 class VariNoise(NoiseGenerator):
     def get_noise(self, n_turns: int) -> NumpyArray:
         warnings.warn("VariNoise needs to be implemented!")
-        return np.ones(n_turns, dtype=backend.float)
+        return np.ones(n_turns)
