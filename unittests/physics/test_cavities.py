@@ -113,7 +113,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             )
 
 
-class TestSingleHarmonicCavity(unittest.TestCase):
+class TestSingleHarmonicRfStation(unittest.TestCase):
     def setUp(self) -> None:
         self.single_harmonic_cavity = SingleHarmonicRfStation.headless(
             section_index=0,

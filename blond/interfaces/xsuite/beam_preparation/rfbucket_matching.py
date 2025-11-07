@@ -46,7 +46,7 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
         Type of stationary distribution to use for matching. Must be a class from
         `xpart.longitudinal.rfbucket_matching`, such as `QGaussianDistribution`
         or `ThermalDistribution`.
-    cavity : SingleHarmonicCavity, optional
+    cavity : SingleHarmonicRfStation, optional
         RF cavity to use when constructing the RF bucket. Required for voltage,
         harmonic number, and phase.
     sigma_z : float, optional
