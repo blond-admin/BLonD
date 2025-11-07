@@ -213,10 +213,23 @@ class TestSimulation(unittest.TestCase):
         potential_well_pinned = np.loadtxt(
             callers_relative_path("resources/potential_well.csv", stacklevel=1)
         )
+        DEV_DEBUG = True
+        if DEV_DEBUG:
+            plt.subplot(2,1,1)
+            plt.plot(potential_well_pinned, label="potential_well_pinned")
+            plt.plot(potential_well,"--", label="potential_well")
+            plt.subplot(2,1,2)
+            plt.plot(potential_well - potential_well_pinned)
+            plt.legend()
+            plt.show()
+        from blond import backend
         np.testing.assert_allclose(
             potential_well_pinned,
             potential_well,
+            rtol=1e-5 if backend.float == np.float32 else 1e-12,
         )
+
+
 
 
 

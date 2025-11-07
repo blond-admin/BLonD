@@ -113,10 +113,10 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
                 particle_type=self.particle_type,
             )
         )
-        if self.reference_total_energy != new_reference_total_energy:
+        if self._reference_total_energy != new_reference_total_energy:
             msg = (
                 f"`Bunch` was prepared for"
-                f" total_energy = {self.reference_total_energy} eV,"
+                f" total_energy = {self._reference_total_energy} eV,"
                 f" but simulation at {turn_i_init=} is"
                 f" {new_reference_total_energy} eV."
                 f" The energy is overwritten according to simulation."
