@@ -9,7 +9,7 @@ from blond._core.beam.base import BeamBaseClass
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables_as_elements import (
-    BeamObserverationInRingElement,
+    BeamObservationInRingElement,
 )
 
 simulation = Mock(Simulation)
@@ -30,9 +30,9 @@ beam.read_partial_dt.return_value = np.arange(4, dtype=float) + 0.1
 beam.read_partial_flags.return_value = np.ones(4, dtype=int)
 
 
-class TestBeamObservationInPipeline(unittest.TestCase):
+class TestBeamObservationInRingElement(unittest.TestCase):
     def setUp(self) -> None:
-        self.observation = BeamObserverationInRingElement(
+        self.observation = BeamObservationInRingElement(
             each_turn_i=1,
             section_index=0,
             n_turns=5,
@@ -41,7 +41,7 @@ class TestBeamObservationInPipeline(unittest.TestCase):
         )
 
     def test___init__(self) -> None:
-        obs = BeamObserverationInRingElement(
+        obs = BeamObservationInRingElement(
             each_turn_i=2,
             n_turns=10,
             folder=callers_relative_path("results/", stacklevel=1),
