@@ -216,9 +216,9 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
     def test_reorder(self):
         self.beam_physics_relevant_elements.reorder()
         expected = (
-            "CavityBaseClass",
+            "RfStationBaseClass",
             "DriftBaseClass",
-            "CavityBaseClass",
+            "RfStationBaseClass",
             "DriftBaseClass",
         )
         actual = tuple(
@@ -234,10 +234,10 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         self.beam_physics_relevant_elements.reorder_section(section_index=0)
         # self.beam_physics_relevant_elements.reorder_section(section_index=1)
         expected = (
-            "CavityBaseClass",
+            "RfStationBaseClass",
             "DriftBaseClass",
             "DriftBaseClass",
-            "CavityBaseClass",
+            "RfStationBaseClass",
         )
         actual = tuple(
             [
@@ -259,9 +259,9 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         self.beam_physics_relevant_elements.reorder_section(section_index=0)
         self.beam_physics_relevant_elements.reorder_section(section_index=1)
         expected = (
-            "CavityBaseClass",
+            "RfStationBaseClass",
             "DriftBaseClass",
-            "CavityBaseClass",
+            "RfStationBaseClass",
             "DriftBaseClass",
         )
         actual = tuple(
