@@ -6,7 +6,9 @@ from pstats import SortKey
 from typing import TYPE_CHECKING
 from warnings import warn
 
-from scipy.integrate import cumulative_trapezoid
+from scipy.integrate import (
+    cumulative_trapezoid,  # type: ignore[import-untyped]
+)
 from tqdm import tqdm  # type: ignore
 
 from ..._generals._warnings import NotTestedWarning, PerformanceWarning
@@ -28,7 +30,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond import (
-        Beam,
         SingleHarmonicCavity,
     )
     from blond.legacy.blond2.beam.beam import Beam as Blond2Beam
@@ -52,6 +53,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from ..beam.base import BeamBaseClass
     from ..beam.particle_types import ParticleType
     from ..ring.ring import Ring
+
 from ...physics.cavities import CavityBaseClass
 
 logger = logging.getLogger(__name__)
@@ -389,7 +391,7 @@ class Simulation(Preparable):
         turn_i_init: int = 0,
         observe: tuple[Observables, ...] = (),
         show_progressbar: bool = True,
-        callback: Callable[[Simulation, Beam], None] | None = None,
+        callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
     ) -> None:
         """Execute the beam dynamics simulation.
 
@@ -511,7 +513,7 @@ class Simulation(Preparable):
         turn_i_init: int = 0,
         observe: tuple[Observables, ...] = (),
         show_progressbar: bool = True,
-        callback: Callable[[Simulation, Beam], None] | None = None,
+        callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
     ) -> None:
         """Execute the beam dynamics simulation for only one beam.
 
@@ -577,9 +579,9 @@ class Simulation(Preparable):
     ]:
         raise NotImplementedError
         from ...physics.cavities import (  # prevent cyclic import
-            DriftBaseClass,
             MultiHarmonicCavity,
         )
+        from ...physics.drifts import DriftBaseClass
 
         ring_length = self.ring.closed_orbit_length
         bending_radius = self.ring.bending_radius
@@ -681,7 +683,7 @@ class Simulation(Preparable):
         turn_i_init: int = 0,
         observe: tuple[Observables, ...] = (),
         show_progressbar: bool = True,
-        callback: Callable[[Simulation, Beam], None] | None = None,
+        callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
     ) -> None:
         """Execute the beam dynamics simulation for only one beam.
 
