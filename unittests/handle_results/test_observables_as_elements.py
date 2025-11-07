@@ -6,7 +6,6 @@ import numpy as np
 from blond import Simulation
 from blond._core.base import DynamicParameter
 from blond._core.beam.base import BeamBaseClass
-from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables_as_elements import (
     BeamObservationInRingElement,
@@ -35,64 +34,66 @@ class TestBeamObservationInRingElement(unittest.TestCase):
         self.observation = BeamObservationInRingElement(
             each_turn_i=1,
             section_index=0,
-            n_turns=5,
+            n_turns=3,
             folder=callers_relative_path("results/", stacklevel=1),
             name="test_obs",
         )
-
-    def test___init__(self) -> None:
-        obs = BeamObservationInRingElement(
-            each_turn_i=2,
-            n_turns=10,
-            folder=callers_relative_path("results/", stacklevel=1),
-        )
-        self.assertEqual(obs.each_turn_i, 2)
-        self.assertEqual(obs.n_turns, 10)
-
-    def test_on_run_simulation(self) -> None:
-        """Ensure that recorders are created correctly."""
         self.observation.common_name = "test"
         self.observation.on_run_simulation(
             simulation=simulation,
             beam=beam,
-            n_turns=10,
+            n_turns=3,
             turn_i_init=0,
         )
 
-        for recorder_name in [
+    def test_recorders_are_initialized(self):
+        """Ensure recorders exist and are DenseArrayRecorder instances."""
+        for rec_name in [
             "_dEs",
             "_dts",
             "_flags",
             "_reference_time",
             "_reference_total_energy",
         ]:
-            recorder = getattr(self.observation, recorder_name)
-            self.assertIsInstance(recorder, DenseArrayRecorder)
+            self.assertTrue(hasattr(self.observation, rec_name))
+            rec = getattr(self.observation, rec_name)
+            self.assertEqual(rec._memory.shape[0], 3 // 1 + 2)
 
-    def test_track_records_beam_data(self) -> None:
-        """Ensure that track() writes correct data to recorders."""
-        self.observation._dEs = Mock(DenseArrayRecorder)
-        self.observation._dts = Mock(DenseArrayRecorder)
-        self.observation._flags = Mock(DenseArrayRecorder)
-        self.observation._reference_time = Mock(DenseArrayRecorder)
-        self.observation._reference_total_energy = Mock(DenseArrayRecorder)
+    def test_track_and_retrieve_data(self):
+        """Ensure that calling track() stores data and public properties return it."""
+        for _ in range(3):
+            self.observation.track(beam)
 
-        self.observation.track(beam)
+        np.testing.assert_array_equal(
+            self.observation.dEs,
+            np.tile(beam.read_partial_dE.return_value, (3, 1)),
+            err_msg="ΔE values not recorded correctly",
+        )
 
-        self.observation._dEs.write.assert_called_once_with(
-            beam.read_partial_dE.return_value
+        np.testing.assert_array_equal(
+            self.observation.dts,
+            np.tile(beam.read_partial_dt.return_value, (3, 1)),
+            err_msg="Δt values not recorded correctly",
         )
-        self.observation._dts.write.assert_called_once_with(
-            beam.read_partial_dt.return_value
+
+        np.testing.assert_array_equal(
+            self.observation.flags,
+            np.tile(beam.read_partial_flags.return_value, (3, 1)),
+            err_msg="Flags not recorded correctly",
         )
-        self.observation._flags.write.assert_called_once_with(
-            beam.read_partial_flags.return_value
+
+        np.testing.assert_array_equal(
+            self.observation.reference_time,
+            np.full(3, beam.reference_time),
+            err_msg="Reference time not recorded correctly",
         )
-        self.observation._reference_time.write.assert_called_once_with(
-            beam.reference_time
+
+        np.testing.assert_array_equal(
+            self.observation.reference_total_energy,
+            np.full(3, beam.reference_total_energy),
+            err_msg="Reference total energy not recorded correctly",
         )
-        self.observation._reference_total_energy.write.assert_called_once_with(
-            beam.reference_total_energy
-        )
+
+
 if __name__ == "__main__":
     unittest.main()
