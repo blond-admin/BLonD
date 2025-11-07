@@ -48,8 +48,6 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         is_distributed
             Developer option to allow distributed computing
         """
-        from ..._core.backends.backend import backend  # prevent cyclic import
-
         super().__init__()
 
         self.intensity = int_from_float_with_warning(
@@ -65,7 +63,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         self._flags: NumpyArray | CupyArray | None = None
         self._ids: NumpyArray | CupyArray | None = None
 
-        self.reference_time: np.float32 | np.float64 = backend.float(0.0)
+        self.reference_time: float = 0.0
         # todo cached properties
         self._reference_total_energy: float | None = (
             None  # todo cached  properties
@@ -138,6 +136,11 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     @property
     def reference_total_energy(self) -> float:
         """Total beam energy [eV]."""
+        if self._reference_total_energy is None:
+            raise ValueError(
+                "Beam is not properly set up, please set "
+                "`reference_total_energy` first!"
+            )
         return self._reference_total_energy
 
     @reference_total_energy.setter
@@ -222,25 +225,25 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     @cached_property
     @abstractmethod  # pragma: no cover  # as readonly attributes
-    def dt_min(self) -> np.float32 | np.float64:
+    def dt_min(self) -> float:
         """Minimum dt coordinate, in [s]."""
         pass
 
     @cached_property
     @abstractmethod  # pragma: no cover  # as readonly attributes
-    def dt_max(self) -> np.float32 | np.float64:
+    def dt_max(self) -> float:
         """Maximum dt coordinate, in [s]."""
         pass
 
     @cached_property
     @abstractmethod  # pragma: no cover  # as readonly attributes
-    def dE_min(self) -> np.float32 | np.float64:
+    def dE_min(self) -> float:
         """Minimum dE coordinate, in [eV]."""
         pass
 
     @cached_property
     @abstractmethod  # pragma: no cover  # as readonly attributes
-    def dE_max(self) -> np.float32 | np.float64:
+    def dE_max(self) -> float:
         """Maximum dE coordinate, in [eV]."""
         pass
 
@@ -400,4 +403,18 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """
         self.invalidate_cache_dt()
         self.invalidate_cache_dE()
+        return self._flags
+
+    def read_partial_flags(self) -> NumpyArray | CupyArray:
+        """Returns flags-array on current node (distributed computing ready).
+
+        Note
+        ----
+        Depends on `is_distributed`
+        If not distributed, returns all particles.
+        Using `_dt` and `_dE` will result in the same behaviour.
+
+        If distributed, returns only the particles
+        visible to the current node.
+        """
         return self._flags

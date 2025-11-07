@@ -95,7 +95,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
 
         # TODO MOVE
         self._omega_rf: NumpyArray | None = None
-        self.delta_omega_rf = backend.float(0.0)
+        self.delta_omega_rf = 0.0
         self._t_rf: float | None = None
         self._t_rev: float | None = None
         self.voltage: NumpyArray | None = None
@@ -172,13 +172,16 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         phi_s
             Synchronous phase for the current RF parameters, in [rad]
         """
+        assert self._magnetic_cycle is not None
+        assert self._turn_i is not None
+        assert self._ring is not None
         # TODO rewrite for efficiency
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,
             section_i=self.section_index
             if not beam.is_counter_rotating
             else len(self._ring.section_lengths) - self.section_index - 1,
-            reference_time=beam.reference_time,
+            reference_time=float(beam.reference_time),
             particle_type=beam.particle_type,
         )
         reference_energy_change = (
@@ -189,10 +192,12 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             calc_phi_s_single_harmonic,
         )
 
+        assert self.voltage is not None
+        assert self.phi_rf is not None
         phi_s = calc_phi_s_single_harmonic(
             charge=beam.particle_type.charge,
-            voltage=self.voltage,
-            phase=self.phi_rf,
+            voltage=float(self.voltage),
+            phase=float(self.phi_rf),
             energy_gain=reference_energy_change,
             above_transition=beam.reference_gamma
             > self._ring.average_transition_gamma,
@@ -218,10 +223,11 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             Beam class to interact with this element
         """
         super().track(beam=beam)
+        assert self._turn_i is not None
         if self.schedule_active:
             self.apply_schedules(
                 turn_i=self._turn_i.value,
-                reference_time=beam.reference_time,
+                reference_time=float(beam.reference_time),
             )
 
         # set design omega etc. for this turn
@@ -234,6 +240,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         ):  # TODO incorrect for simulations that start later
             # domega_rf is updated later
             # this means domega_rf is effectively from last turn
+            assert self.harmonic is not None
             omega_increment = (
                 self._beam_feedback.domega_rf  # dynamically updated by `update_domega_rf`
                 * self.harmonic[:]
@@ -243,6 +250,8 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         # Update the RF phase of all systems for the next turn
         # Accumulated phase offset due to beam phase loop or frequency offset
         if self.delta_omega_rf != 0:
+            assert self.harmonic is not None
+            assert self._omega_rf is not None
             phi_increment = (
                 2.0
                 * np.pi
@@ -367,7 +376,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         self.voltage: float | None = voltage
         self.phi_rf: float | None = phi_rf
         self.harmonic: float | None = harmonic
-        self.delta_phi_rf: NumpyArray | None = backend.float(0)
+        self.delta_phi_rf: float = 0.0
 
     def get_main_harmonic(self) -> float:
         """Returns the harmonic number of the main harmonic."""
@@ -445,16 +454,16 @@ class SingleHarmonicCavity(CavityBaseClass):
             reference_time=beam.reference_time,
             particle_type=beam.particle_type,
         )
-        reference_energy_change = backend.float(
+        reference_energy_change = (
             target_total_energy - beam.reference_total_energy
         )
         backend.specials.kick_single_harmonic(
             dt=beam.read_partial_dt(),
             dE=beam.write_partial_dE(),
-            voltage=backend.float(self.voltage),
-            phi_rf=backend.float(self.phi_rf + self.delta_phi_rf),
-            omega_rf=backend.float(self._omega_rf + self.delta_omega_rf),
-            charge=backend.float(beam.particle_type.charge),  #  FIXME
+            voltage=self.voltage,
+            phi_rf=self.phi_rf + self.delta_phi_rf,
+            omega_rf=self._omega_rf + self.delta_omega_rf,
+            charge=beam.particle_type.charge,  #  FIXME
             acceleration_kick=-reference_energy_change,  # Mind the minus!
         )
         beam.reference_total_energy += reference_energy_change
@@ -553,12 +562,12 @@ class SingleHarmonicCavity(CavityBaseClass):
             cavity_feedback=cavity_feedback,
         )
 
-        mhc.voltage = backend.float(voltage)
-        mhc.phi_rf = backend.float(phi_rf)
-        mhc.harmonic = backend.float(harmonic)
+        mhc.voltage = voltage
+        mhc.phi_rf = phi_rf
+        mhc.harmonic = harmonic
 
         ring = Mock(Ring)
-        ring.circumference = backend.float(circumference)
+        ring.circumference = circumference
 
         energy_cycle = Mock(ConstantMagneticCycle)
         energy_cycle.get_target_total_energy.return_value = total_energy
@@ -634,9 +643,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         self.voltage: NumpyArray | None = None
         self.phi_rf: NumpyArray | None = None
         self.harmonic: NumpyArray | None = None
-        self.delta_phi_rf: NumpyArray | None = backend.zeros(
-            1, dtype=backend.float
-        )
+        self.delta_phi_rf: NumpyArray | None = backend.zeros(1)  # TODO
 
         self._t_rf: NumpyArray | None = None
         self._t_rev: float | None = None
@@ -700,9 +707,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         omega
             Angular frequency (2 PI f) of cavity in [rad/s]
         """
-        return self.harmonic * backend.float(
-            TWOPI_C0 * beam_beta / ring_circumference
-        )
+        return self.harmonic * (TWOPI_C0 * beam_beta / ring_circumference)
 
     def get_main_harmonic(self) -> float:
         """Returns the harmonic number of the main harmonic."""
@@ -846,17 +851,19 @@ class MultiHarmonicCavity(CavityBaseClass):
             reference_time=beam.reference_time,
             particle_type=beam.particle_type,
         )
-        reference_energy_change = backend.float(
+        reference_energy_change = (
             target_total_energy - beam.reference_total_energy
         )
 
         backend.specials.kick_multi_harmonic(
             dt=beam.read_partial_dt(),
             dE=beam.write_partial_dE(),
-            voltage=self.voltage,
-            phi_rf=self.phi_rf + self.delta_phi_rf,
-            omega_rf=self._omega_rf + self.delta_omega_rf,
-            charge=backend.float(beam.particle_type.charge),  # FIXME
+            voltage=(self.voltage).astype(backend.float),
+            phi_rf=(self.phi_rf + self.delta_phi_rf).astype(backend.float),
+            omega_rf=(self._omega_rf + self.delta_omega_rf).astype(
+                backend.float
+            ),
+            charge=beam.particle_type.charge,
             n_rf=self.n_rf,
             acceleration_kick=-reference_energy_change,  # Mind the minus!
         )

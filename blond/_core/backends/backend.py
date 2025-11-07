@@ -33,8 +33,8 @@ class Specials(ABC):
         voltage: float,
         omega_rf: float,
         phi_rf: float,
-        charge: np.float32 | np.float64,
-        acceleration_kick: np.float32 | np.float64,
+        charge: float,
+        acceleration_kick: float,
     ) -> None:
         pass
 
@@ -57,10 +57,10 @@ class Specials(ABC):
     def drift_simple(
         dt: NumpyArray,
         dE: NumpyArray,
-        T: np.float32 | np.float64,
-        eta_0: np.float32 | np.float64,
-        beta: np.float32 | np.float64,
-        energy: np.float32 | np.float64,
+        T: float,
+        eta_0: float,
+        beta: float,
+        energy: float,
     ) -> None:
         pass
 
@@ -100,8 +100,8 @@ class Specials(ABC):
         dE: NumpyArray,
         voltage: NumpyArray,
         bin_centers: NumpyArray,
-        charge: np.float32 | np.float64,
-        acceleration_kick: np.float32 | np.float64,
+        charge: float,
+        acceleration_kick: float,
     ) -> None:
         pass
 
@@ -110,8 +110,8 @@ class Specials(ABC):
     def histogram(
         array_read: NumpyArray,
         array_write: NumpyArray,
-        start: np.float32 | np.float64,
-        stop: np.float32 | np.float64,
+        start: float,
+        stop: float,
     ) -> None:
         pass
 
@@ -124,7 +124,7 @@ class Specials(ABC):
         omega_rf: float,
         phi_rf: float,
         bin_size: float,
-    ) -> np.float32 | np.float64:
+    ) -> float:
         pass
 
 

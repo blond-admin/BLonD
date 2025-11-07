@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
-from .._core.base import MainLoopRelevant
+from .._core.base import BeamObservationElement, MainLoopRelevant
 from .array_recorders import DenseArrayRecorder
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -23,7 +23,78 @@ if TYPE_CHECKING:  # pragma: no cover
 logger = logging.getLogger(__name__)
 
 
-class Observables(MainLoopRelevant):
+class ObservablesBaseClass(MainLoopRelevant):
+    def __init__(self, folder: str | None = None, **kwargs):
+        super().__init__(**kwargs)
+        if len(folder) > 0:
+            assert folder.endswith("/") or folder.endswith("\\")
+        self.common_name = folder + "last"
+        logger.info(f"Will save {self} to {self.common_name}_,,,")
+
+    def get_recorders(self) -> list[tuple[str, DenseArrayRecorder]]:
+        self.assert_lateinit()
+        recorders = [
+            (attribute, instance)
+            for attribute, instance in self.__dict__.items()
+            if isinstance(instance, DenseArrayRecorder)  # initialized
+        ]
+        return recorders
+
+    def rename(self, common_name: str) -> None:
+        """Change the common save name of all internal arrays.
+
+        Notes
+        -----
+        This has no effect on files that are already saved to the disk.
+
+        Parameters
+        ----------
+        common_name
+            The new common name of all internal arrays.
+
+        """
+        for _attribute_name, instance in self.get_recorders():
+            if self.common_name not in instance.filepath:
+                raise NameError(
+                    f"'{instance.filepath} does not include"
+                    f" {self.common_name}' anymore. This might be caused"
+                    f" by a manual override of the filename."
+                )
+            instance.filepath = instance.filepath.replace(
+                self.common_name,
+                common_name,
+            )
+        self.common_name = common_name
+        logger.info(f"Changed save target of {self} to {self.common_name}_,,,")
+
+    def to_disk(self) -> None:
+        """Save data to disk."""
+        for _attribute_name, instance in self.get_recorders():
+            array_recorder: DenseArrayRecorder = instance
+            logger.info(f"Saved {array_recorder.filepath_array}")
+            array_recorder.to_disk()
+
+    def from_disk(self) -> None:
+        """Load data from disk."""
+        for attribute_name, instance in self.get_recorders():
+            array_recorder: DenseArrayRecorder = instance
+            logger.info(f"Loaded {array_recorder.filepath_array}")
+
+            self.__setattr__(
+                attribute_name,
+                array_recorder.from_disk(
+                    filepath=array_recorder.filepath,
+                ),
+            )
+
+    def assert_lateinit(self):
+        """Checks that DenseArrays are already initialized."""
+        for parameter, value in self.__dict__.items():
+            if value is None:  # uninitialized
+                assert value is not None, f"`{parameter}` was not initialized."
+
+
+class ObservablesEndOfTurnBase(ObservablesBaseClass):
     """Base class to observe attributes during simulation.
 
     Parameters
@@ -43,18 +114,13 @@ class Observables(MainLoopRelevant):
     def __init__(
         self,
         each_turn_i: int,
-        folder: str,
         obs_per_turn: int = 1,
+        folder: str = "",
+        **kwargs,
     ):
-        super().__init__()
+        super().__init__(folder=folder, **kwargs)
         self.each_turn_i = each_turn_i
         self._obs_per_turn = obs_per_turn
-        if len(folder) > 0:
-            assert folder.endswith("/") or folder.endswith("\\")
-        self.common_name = (
-            folder + "last"  # will result in filenames like last_dE.npy etc.
-        )
-        logger.info(f"Will save {self} to {self.common_name}_,,,")
 
         self._n_turns: int | None = None
         self._section_indices_to_observe: NumpyArray | None = None
@@ -160,69 +226,8 @@ class Observables(MainLoopRelevant):
                 self._turns_array, turn + section_lengths
             )
 
-    def assert_lateinit(self):
-        for parameter, value in self.__dict__.items():
-            if value is None:  # uninitialized
-                assert value is not None, f"`{parameter}` was not initialized."
 
-    def get_recorders(self) -> list[tuple[str, DenseArrayRecorder]]:
-        self.assert_lateinit()
-        recorders = [
-            (attribute, instance)
-            for attribute, instance in self.__dict__.items()
-            if isinstance(instance, DenseArrayRecorder)  # initialized
-        ]
-        return recorders
-
-    def rename(self, common_name: str) -> None:
-        """Change the common save name of all internal arrays.
-
-        Notes
-        -----
-        This has no effect on files that are already saved to the disk.
-
-        Parameters
-        ----------
-        common_name
-            The new common name of all internal arrays.
-
-        """
-        for _attribute_name, instance in self.get_recorders():
-            if self.common_name not in instance.filepath:
-                raise NameError(
-                    f"'{instance.filepath} does not include"
-                    f" {self.common_name}' anymore. This might be caused"
-                    f" by a manual override of the filename."
-                )
-            instance.filepath = instance.filepath.replace(
-                self.common_name,
-                common_name,
-            )
-        self.common_name = common_name
-        logger.info(f"Changed save target of {self} to {self.common_name}_,,,")
-
-    def to_disk(self) -> None:
-        """Save data to disk."""
-        for _attribute_name, instance in self.get_recorders():
-            array_recorder: DenseArrayRecorder = instance
-            logger.info(f"Saved {array_recorder.filepath_array}")
-            array_recorder.to_disk()
-
-    def from_disk(self) -> None:
-        """Load data from disk."""
-        for attribute_name, instance in self.get_recorders():
-            array_recorder: DenseArrayRecorder = instance
-            logger.info(f"Loaded {array_recorder.filepath_array}")
-
-            self.__setattr__(
-                attribute_name,
-                array_recorder.from_disk(
-                    filepath=array_recorder.filepath,
-                ),
-            )
-
-
-class BunchObservation(Observables):
+class BeamObservationEndOfTurn(ObservablesEndOfTurnBase):
     """Observe the bunch coordinates during simulation execution.
 
     Parameters
@@ -262,17 +267,17 @@ class BunchObservation(Observables):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
+        """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
         beam
-            Simulation `Beam` object
+            Simulation :class:`~blond._cycles_core.beam.beam.Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
             Initial turn to execute simulation
+
         """
         super().on_run_simulation(
             simulation=simulation,
@@ -327,26 +332,31 @@ class BunchObservation(Observables):
 
     @property  # as readonly attributes
     def reference_time(self):
+        """Returns reference time."""
         return self._reference_time.get_valid_entries()
 
     @property  # as readonly attributes
     def reference_total_energy(self):
+        """Returns total energy."""
         return self._reference_total_energy.get_valid_entries()
 
     @property  # as readonly attributes
     def dts(self):
+        """Returns array of dts."""
         return self._dts.get_valid_entries()
 
     @property  # as readonly attributes
     def dEs(self):
+        """Returns array of dEs."""
         return self._dEs.get_valid_entries()
 
     @property  # as readonly attributes
     def flags(self):
+        """Returns flags of particles, eg if lost or not."""
         return self._flags.get_valid_entries()
 
 
-class BunchObservationMetaParams(Observables):
+class BunchObservationMetaParams(ObservablesEndOfTurnBase):
     """Records mean and standard deviation of both energy and time coordinates and estimates the bunch emittance.
 
     Parameters
@@ -474,7 +484,7 @@ class BunchObservationMetaParams(Observables):
 
     @property  # as readonly attributes
     def sigma_dE(self):
-        """Standard deviation of the energy coordinate."""
+        """Standard deviation of the energy coordinate, in [eV]."""
         return self._sigma_dE.get_valid_entries()
 
     @property  # as readonly attributes
@@ -498,7 +508,7 @@ class BunchObservationMetaParams(Observables):
         return self._emittance_stat.get_valid_entries()
 
 
-class CavityPhaseObservation(Observables):
+class CavityPhaseObservation(ObservablesEndOfTurnBase):
     """Observe the RF cavity parameters during the execution of the simulation.
 
     Parameters
@@ -607,7 +617,7 @@ class CavityPhaseObservation(Observables):
         return self._voltages.get_valid_entries()
 
 
-class StaticProfileObservation(Observables):
+class StaticProfileObservation(ObservablesEndOfTurnBase):
     """Observation of a static beam profile.
 
     Parameters
@@ -704,7 +714,7 @@ class StaticProfileObservation(Observables):
         return self._hist_y.get_valid_entries()
 
 
-class StaticMultiProfileObservation(Observables):
+class StaticMultiProfileObservation(ObservablesEndOfTurnBase):
     def __init__(
         self,
         each_turn_i: int,
@@ -803,7 +813,7 @@ class StaticMultiProfileObservation(Observables):
         return self._hist_y.get_valid_entries()
 
 
-class WakeFieldObservation(Observables):
+class WakeFieldObservation(ObservablesEndOfTurnBase):
     def __init__(
         self,
         each_turn_i: int,
@@ -902,7 +912,7 @@ class WakeFieldObservation(Observables):
         return self._induced_voltage.get_valid_entries()
 
 
-class DynamicProfileConstNBinsObservation(Observables):
+class DynamicProfileConstNBinsObservation(ObservablesEndOfTurnBase):
     def __init__(
         self,
         each_turn_i: int,

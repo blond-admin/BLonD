@@ -1,6 +1,9 @@
 import unittest
 
-from blond._core.helpers import int_from_float_with_warning
+from blond._core.helpers import (
+    find_instances_with_method,
+    int_from_float_with_warning,
+)
 
 
 class TestFunctions(unittest.TestCase):
@@ -8,10 +11,48 @@ class TestFunctions(unittest.TestCase):
         with self.assertWarns(Warning):
             int_from_float_with_warning(1.2, 2)
 
-    @unittest.skip
     def test_find_instances_with_method(self):
-        # TODO: implement test for `find_instances_with_method`
-        find_instances_with_method(root=None, method_name=None)
+        class Test:
+            def __init__(self):
+                self.a = 1
+
+            def to_be_found(self):
+                pass
+
+        test = Test()
+        found = find_instances_with_method(
+            root=test, method_name="to_be_found"
+        )
+        self.assertEqual(found.pop(), test)
+
+    def test_find_instances_with_method2(self):
+        class Test1:
+            def __init__(self):
+                self.a = 1
+
+            def to_be_found(self):
+                pass
+
+        class Problem:
+            def __getattribute__(self, name):
+                raise Exception()
+
+        class Test2:
+            skip_find_instances_attributes = ["problem"]
+
+            def __init__(self, test1):
+                self.a = test1
+                self.problem = Problem()
+
+            def not_found(self):
+                pass
+
+        test1 = Test1()
+        test2 = Test2(test1=test1)
+        found = find_instances_with_method(
+            root=test2, method_name="to_be_found"
+        )
+        self.assertEqual(found.pop(), test1)
 
     @unittest.skip
     def test_float_or_array_typesafe(self):
