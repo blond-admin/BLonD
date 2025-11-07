@@ -196,8 +196,8 @@ class SimulationElementBase(MainLoopRelevant, ABC):
     Elements derived from this class are executed as part of the simulation's
     main turn-by-turn loop. They can be:
 
-      * **Physics elements** — modify the beam state (e.g., drifts, cavities, kicks)
-      * **Observation elements** — record or analyze beam information without modifying it
+      * :class:`BeamPhysicsRelevant` — modify the beam state (e.g., drifts, cavities, kicks)
+      * :class:`BeamObservationElement — record or analyze beam information without modifying it
 
     Subclasses must implement:
       - ``on_init_simulation(simulation)``: called once before the simulation loop starts.
