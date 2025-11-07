@@ -641,7 +641,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         self.voltage: NumpyArray | None = None
         self.phi_rf: NumpyArray | None = None
         self.harmonic: NumpyArray | None = None
-        self.delta_phi_rf: NumpyArray | None = backend.zeros(1)
+        self.delta_phi_rf: NumpyArray | None = backend.zeros(1)  # TODO
 
         self._t_rf: NumpyArray | None = None
         self._t_rev: float | None = None

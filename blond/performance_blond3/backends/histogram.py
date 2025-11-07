@@ -32,7 +32,7 @@ def main():
                         input_array, dtype=backend.float
                     ),  # casting to correct data type
                     array_write=array_write,
-                    start=float(-12),
+                    start=-12.0,
                     stop=8.0,
                 )
                 t1 = time.perf_counter()
