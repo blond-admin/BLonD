@@ -115,9 +115,10 @@ class ObservablesEndOfTurnBase(ObservablesBaseClass):
         self,
         each_turn_i: int,
         obs_per_turn: int = 1,
+        folder: str = "",
         **kwargs,
     ):
-        super().__init__(**kwargs)
+        super().__init__(folder=folder, **kwargs)
         self.each_turn_i = each_turn_i
         self._obs_per_turn = obs_per_turn
 
