@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from copy import deepcopy
 from pstats import SortKey
 from typing import TYPE_CHECKING
 from warnings import warn
 
-from scipy.integrate import (
-    cumulative_trapezoid,  # type: ignore[import-untyped]
-)
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.integrate import cumulative_simpson  # type: ignore[import-untyped]
 from tqdm import tqdm  # type: ignore
 
 from blond._core.base import SimulationElementBase
@@ -155,13 +156,15 @@ class Simulation(Preparable):
         ps.print_stats()
         print(s.getvalue())
 
-    def get_potential_well_empiric(
+    def plot_potential_well_empiric(
         self,
-        ts: NumpyArray,
+        dt: NumpyArray,
         particle_type: ParticleType,
         subtract_min: bool = True,
-    ) -> NumpyArray:
-        """Obtain the potential well by tracking a beam one turn.
+        **kwargs_plot,
+    ) -> None:
+        """
+        Plot the potential well by tracking a beam one turn.
 
         Notes
         -----
@@ -174,7 +177,7 @@ class Simulation(Preparable):
 
         Parameters
         ----------
-        ts
+        dt
             Time coordinates to probe the potential, in [s]
         particle_type
             Type of particle to probe.
@@ -184,6 +187,48 @@ class Simulation(Preparable):
         subtract_min
             If True, will always return min(potential_well) = 0.
             If False, potential_well[0] = 0.
+        kwargs_plot
+            Keyword arguments for ``pyplot.plot``
+        """
+        potential_well, _, _ = self.get_potential_well_empiric(
+            dt=dt,
+            particle_type=particle_type,
+            subtract_min=subtract_min,
+        )
+        plt.plot(dt, potential_well, **kwargs_plot)
+        plt.xlabel("Time (s)")
+        plt.ylabel("Amplitude (arb. unit)")
+
+    def get_drift_term_empiric(
+        self,
+        dE: NumpyArray,
+        particle_type: ParticleType,
+        intensity: int = 0,
+    ) -> NumpyArray:
+        """
+        Obtain the potential well by tracking a beam one turn.
+
+        Notes
+        -----
+        This function internally obtains `dE_out` of `dt_in`.
+        During one turn with many drifts, the time coordinate will change
+        and sample different positions of dt, which is the expected
+        physical behaviour. The RF of successive station can thus appear
+        phase shifted/distorted due to the inherent drift in between RF
+        stations=.
+
+        Parameters
+        ----------
+        dE
+            Energy coordinates to probe the potential, in [eV]
+        particle_type
+            Type of particle to probe.
+            The particle charge influences the phase advance per station
+            and might exhibit different distortion of the potential well
+            due to the side effects described in `Notes`
+        intensity
+            Actual/real number of particles
+            a.k.a. beam intensity
 
         Returns
         -------
@@ -193,19 +238,123 @@ class Simulation(Preparable):
         from ..._core.beam.beams import ProbeBeam
 
         probe_bunch = ProbeBeam(
-            dt=ts,
+            dE=dE,
             particle_type=particle_type,
+            intensity=intensity,
         )
+        t0 = probe_bunch.reference_time
         self.run_simulation(
             beams=(probe_bunch,),
             n_turns=1,
             turn_i_init=0,
             show_progressbar=False,
         )
-        potential_well = cumulative_trapezoid(probe_bunch.read_partial_dE())
-        if subtract_min:
-            potential_well -= potential_well.min()
+        t1 = probe_bunch.reference_time
+        T = t1 - t0
+        potential_well = (
+            cumulative_simpson(probe_bunch.read_partial_dt(), x=dE, initial=0)
+            / T
+        )
+        potential_well -= potential_well.min()
         return potential_well
+
+    def get_potential_well_empiric(
+        self,
+        dt: NumpyArray,
+        particle_type: ParticleType,
+        subtract_min: bool = True,
+        intensity: int = 0,
+    ) -> tuple[NumpyArray, float, float]:
+        """
+        Obtain the potential well by tracking a beam for one turn.
+
+        Notes
+        -----
+        This function internally obtains `dE_out` of `dt_in`.
+        During one turn with many drifts, the time coordinate will change
+        and sample different positions of dt, which is the expected
+        physical behaviour. The RF of successive station can thus appear
+        phase shifted/distorted due to the inherent drift in between RF
+        stations.
+
+        Parameters
+        ----------
+        dt
+            Time coordinates to probe the potential, in [s].
+        particle_type
+            Type of particle to probe.
+            The particle charge influences the phase advance per station
+            and might exhibit different distortion of the potential well
+            due to the side effects described in `Notes`.
+        subtract_min
+            If True, will always return min(potential_well) = 0.
+            If False, potential_well[0] = 0.
+        intensity
+            Actual/real number of particles
+            a.k.a. beam intensity
+
+        Returns
+        -------
+        potential_well
+            The effective voltage that lead to a change of `dE` in one turn.
+        factor
+            The fraction of the time span of `ts` relative to the
+            revolution time `t_rev`.
+            ``(ts[-1] - ts[0]) / t_rev``
+        tilt_dt_per_dE
+            Change of time coordinate in one turn (in [s/eV])
+            This shears the phase space because there is a change
+            of time despite the initial condition dE = 0 eV.
+        """
+        from ..._core.beam.beams import ProbeBeam  # prevent circular import
+
+        probe_bunch = ProbeBeam(
+            dt=dt,
+            particle_type=particle_type,
+            intensity=intensity,
+        )
+        bunch_before = deepcopy(probe_bunch)
+        t_0 = probe_bunch.reference_time
+        deepcopy(self).run_simulation(
+            beams=(probe_bunch,),
+            n_turns=1,
+            turn_i_init=0,
+            show_progressbar=False,
+        )
+        # Calculate passed time
+        t_1 = probe_bunch.reference_time
+        t_rev = t_1 - t_0
+        # Calculate scaling factor
+        factor = (dt[-1] - dt[0]) / t_rev
+
+        # Calculate tilt of phase space
+        change_t = probe_bunch._dt - bunch_before._dt
+        change_E = probe_bunch._dE - bunch_before._dE
+        idx = np.argmax(change_t)
+        tilt_dt_per_dE = change_t[idx] / change_E[idx]
+
+        # Derive potential well by integrating over energy change
+        potential_well = -cumulative_simpson(
+            probe_bunch.read_partial_dE()
+            if backend.specials_mode != "cuda"
+            else probe_bunch.read_partial_dE().get(),
+            initial=0,
+        ) / len(dt)
+
+        if self.ring.is_below_transition(beam=probe_bunch):
+            # peaks and troughs are flipped when below transition
+            potential_well *= -1
+
+        if subtract_min:
+            # Align potential so that the visible minimum is 0
+            potential_well -= potential_well.min()
+        return (
+            backend.array(
+                potential_well / particle_type.charge, dtype=backend.float
+            ),
+            factor,
+            tilt_dt_per_dE,
+        )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called.
@@ -336,7 +485,6 @@ class Simulation(Preparable):
         magnetic_cycle = _magnetic_cycle[0]
 
         elements = get_elements(locals_list, (SimulationElementBase))
-        print("here", elements)  # type: ignore
         ring.add_elements(elements=elements, reorder=True)
 
         logger.debug(f"{ring=}")
@@ -377,9 +525,9 @@ class Simulation(Preparable):
         beam
             Simulation `Beam` object
         preparation_routine
-            Algorithm to prepare the beam dt and dE coorinates
+            Algorithm to prepare the beam `dt` and `dE` coordinates.
         turn_i
-            Turn to prepare the beam for
+            Turn at which to prepare the beam
 
         """
         logger.info("Running `prepare_beam`")
@@ -403,7 +551,8 @@ class Simulation(Preparable):
             Beams to be simulated, in case of two beams, the first must be
             co-rotating and the second counter-rotating
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate.
+            If None, will use the maximum number of turns given by the cycle.
         turn_i_init
             Initial turn to start with simulation
         observe
@@ -413,7 +562,8 @@ class Simulation(Preparable):
             If True, will show a progress bar indicating how many turns have
             been completed and other metrics
         callback
-            User defined function `def myfunction(simulation: Simulation): ...`
+            User defined function
+            `def myfunction(simulation: Simulation, beam: Beam): ...`
             that is called each turn.
 
         """
@@ -457,7 +607,29 @@ class Simulation(Preparable):
                 f"Up to two beam supported, but got {len(beams)}"
             )
 
-    def finalize(self, beams, n_turns, observe, turn_i_init):
+    def finalize(
+        self,
+        beams: tuple[BeamBaseClass],
+        n_turns: int | None,
+        observe: tuple[ObservablesEndOfTurnBase, ...],
+        turn_i_init: int,
+    ) -> None:
+        """Executes `_exec_on_run_simulation` and prepares the observables.
+
+        Parameters
+        ----------
+        beams
+            Beams to be simulated, in case of two beams, the first must be
+            co-rotating and the second counter-rotating
+        n_turns
+            Number of turns to simulate.
+            If None, will use the maximum number of turns given by the cycle.
+        observe
+            List of observables to protocol of what's happening inside
+            the simulation
+        turn_i_init
+            Initial turn to start with simulation
+        """
         max_turns = self.magnetic_cycle.n_turns
         if n_turns is not None:
             _n_turns = int_from_float_with_warning(
