@@ -52,7 +52,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from ..beam.base import BeamBaseClass
     from ..beam.particle_types import ParticleType
     from ..ring.ring import Ring
-from ...physics.cavities import RfStationBaseClass
+from ...physics.rf_stations import RfStationBaseClass
 
 logger = logging.getLogger(__name__)
 
@@ -576,7 +576,7 @@ class Simulation(Preparable):
         | Blond2FullRingAndRF
     ]:
         raise NotImplementedError
-        from ...physics.cavities import (  # prevent cyclic import
+        from ...physics.rf_stations import (  # prevent cyclic import
             DriftBaseClass,
             MultiHarmonicRfStation,
         )

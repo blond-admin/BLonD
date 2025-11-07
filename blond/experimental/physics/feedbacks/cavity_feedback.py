@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
     from blond import Simulation
     from blond._core.beam.base import BeamBaseClass
-    from blond.physics.cavities import MultiHarmonicRfStation
+    from blond.physics.rf_stations import MultiHarmonicRfStation
 
 # TODO rewrite all docstrings
 

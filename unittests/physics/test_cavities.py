@@ -8,7 +8,7 @@ from scipy.constants import speed_of_light as c0
 from blond import Simulation, proton
 from blond._core.backends.backend import backend
 from blond._core.base import DynamicParameter
-from blond.physics.cavities import (
+from blond.physics.rf_stations import (
     MultiHarmonicRfStation,
     RfStationBaseClass,
     SingleHarmonicRfStation,

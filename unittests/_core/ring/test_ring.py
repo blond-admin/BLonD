@@ -6,8 +6,8 @@ import numpy as np
 from blond import Ring, Simulation
 from blond._core.base import BeamPhysicsRelevant
 from blond._core.beam.base import BeamBaseClass
-from blond.physics.cavities import RfStationBaseClass
 from blond.physics.drifts import DriftBaseClass
+from blond.physics.rf_stations import RfStationBaseClass
 
 
 class BeamPhysicsRelevantHelper(BeamPhysicsRelevant):

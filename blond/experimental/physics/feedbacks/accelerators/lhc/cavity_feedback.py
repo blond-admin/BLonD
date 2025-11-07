@@ -17,11 +17,11 @@ from blond.experimental.physics.feedbacks.base import (
 from blond.experimental.physics.feedbacks.cavity_feedback import (
     BirksCavityFeedback,
 )
-from blond.physics.cavities import (
+from blond.physics.profiles import ProfileBaseClass
+from blond.physics.rf_stations import (
     MultiHarmonicRfStation,
     SingleHarmonicRfStation,
 )
-from blond.physics.profiles import ProfileBaseClass
 
 from .helpers import (
     cavity_response_sparse_matrix,

@@ -10,8 +10,8 @@ from blond._core.ring.beam_physics_relevant_elements import (
     BeamPhysicsRelevantElements,
     pretty_string,
 )
-from blond.physics.cavities import RfStationBaseClass
 from blond.physics.drifts import DriftBaseClass
+from blond.physics.rf_stations import RfStationBaseClass
 
 
 class TestFunctions(unittest.TestCase):

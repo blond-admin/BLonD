@@ -9,12 +9,12 @@ from blond._core.ring.helpers import requires
 if TYPE_CHECKING:  # pragma: no cover
     from blond._core.beam.base import BeamBaseClass
     from blond._core.simulation.simulation import Simulation
-    from blond.physics.cavities import (
+    from blond.physics.profiles import ProfileBaseClass
+    from blond.physics.rf_stations import (
         MultiHarmonicRfStation,
         RfStationBaseClass,
         SingleHarmonicRfStation,
     )
-    from blond.physics.profiles import ProfileBaseClass
 
 
 class FeedbackBaseClass(BeamPhysicsRelevant):

@@ -25,8 +25,8 @@ from .base import LocalFeedback
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond._core.beam.base import BeamBaseClass
-    from blond.physics.cavities import RfStationBaseClass
     from blond.physics.profiles import ProfileBaseClass
+    from blond.physics.rf_stations import RfStationBaseClass
 
 
 class GeneralBeamFeedback(LocalFeedback):

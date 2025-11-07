@@ -124,7 +124,7 @@ class Ring(Preparable, Schedulable):
     @property
     def n_cavities(self) -> int:
         """Total number of cavities in this synchrotron."""
-        from ...physics.cavities import RfStationBaseClass
+        from ...physics.rf_stations import RfStationBaseClass
 
         return self.elements.count(RfStationBaseClass)
 

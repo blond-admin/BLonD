@@ -20,11 +20,11 @@ from .cycles.magnetic_cycle import MagneticCyclePerTurnAllCavities  # NOQA
 from .handle_results.observables import BunchObservation  # NOQA
 from .handle_results.observables import RfStationPhaseObservation  # NOQA
 from .handle_results.observables import StaticProfileObservation  # NOQA
-from .physics.cavities import (  # NOQA
-    MultiHarmonicRfStation,
-    SingleHarmonicRfStation,
-)
 from .physics.drifts import DriftSimple  # NOQA
 from .physics.impedances.base import WakeField  # NOQA
 from .physics.losses import BoxLosses  # NOQA
 from .physics.profiles import StaticProfile  # NOQA
+from .physics.rf_stations import (  # NOQA
+    MultiHarmonicRfStation,
+    SingleHarmonicRfStation,
+)

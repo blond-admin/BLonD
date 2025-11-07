@@ -17,8 +17,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from .. import WakeField
     from .._core.beam.base import BeamBaseClass
     from .._core.simulation.simulation import Simulation
-    from ..physics.cavities import SingleHarmonicRfStation
     from ..physics.profiles import DynamicProfileConstNBins, StaticProfile
+    from ..physics.rf_stations import SingleHarmonicRfStation
 
 logger = logging.getLogger(__name__)
 

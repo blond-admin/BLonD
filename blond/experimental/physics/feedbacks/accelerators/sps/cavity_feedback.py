@@ -19,8 +19,8 @@ from blond.experimental.physics.feedbacks.cavity_feedback import (
     BirksCavityFeedback,
 )
 from blond.experimental.physics.feedbacks.helpers import cartesian_to_polar
-from blond.physics.cavities import MultiHarmonicRfStation
 from blond.physics.profiles import StaticProfile
+from blond.physics.rf_stations import MultiHarmonicRfStation
 
 from .helpers import comb_filter, get_power_gen_i, modulator, moving_average
 
