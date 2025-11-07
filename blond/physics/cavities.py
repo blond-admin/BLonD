@@ -80,6 +80,7 @@ class RfManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         """
         super().track(beam=beam)
         if self.schedule_active:
+            assert self._turn_i is not None
             self.apply_schedules(
                 turn_i=self._turn_i.value,
                 reference_time=beam.reference_time,
@@ -219,13 +220,16 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         phi_s
             Synchronous phase for the current RF parameters, in [rad]
         """
+        assert self._magnetic_cycle is not None
+        assert self._turn_i is not None
+        assert self._ring is not None
         # TODO rewrite for efficiency
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,
             section_i=self.section_index
             if not beam.is_counter_rotating
             else len(self._ring.section_lengths) - self.section_index - 1,
-            reference_time=beam.reference_time,
+            reference_time=float(beam.reference_time),
             particle_type=beam.particle_type,
         )
         reference_energy_change = (
@@ -236,10 +240,12 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
             calc_phi_s_single_harmonic,
         )
 
+        assert self.voltage is not None
+        assert self.phi_rf is not None
         phi_s = calc_phi_s_single_harmonic(
             charge=beam.particle_type.charge,
-            voltage=self.voltage,
-            phase=self.phi_rf,
+            voltage=float(self.voltage),
+            phase=float(self.phi_rf),
             energy_gain=reference_energy_change,
             above_transition=beam.reference_gamma
             > self._ring.average_transition_gamma,
@@ -276,6 +282,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         ):  # TODO incorrect for simulations that start later
             # domega_rf is updated later
             # this means domega_rf is effectively from last turn
+            assert self.harmonic is not None
             omega_increment = (
                 self._beam_feedback.domega_rf  # dynamically updated by `update_domega_rf`
                 * self.harmonic[:]
@@ -285,6 +292,8 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         # Update the RF phase of all systems for the next turn
         # Accumulated phase offset due to beam phase loop or frequency offset
         if self.delta_omega_rf != 0:
+            assert self.harmonic is not None
+            assert self._omega_rf is not None
             phi_increment = (
                 2.0
                 * np.pi

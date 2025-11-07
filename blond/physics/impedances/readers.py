@@ -37,7 +37,7 @@ class ImpedanceReader(ABC):
         amplitude
             Amplitude axis
         """
-        return freq, amplitude  # NOQA
+        ...
 
 
 class CsvReader(ImpedanceReader):

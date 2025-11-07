@@ -6,8 +6,8 @@ from matplotlib import pyplot as plt
 
 from blond import (
     Beam,
+    BeamObservationEndOfTurn,
     BiGaussian,
-    BunchObservation,
     CavityPhaseObservation,
     DriftSimple,
     Ring,
@@ -78,7 +78,7 @@ def main():
         each_turn_i=1,
         cavity=cavity1,
     )
-    bunch_observation = BunchObservation(each_turn_i=1, beam=beam1)
+    bunch_observation = BeamObservationEndOfTurn(each_turn_i=1, beam=beam1)
 
     def custom_action(simulation: Simulation, beam: Beam):  # pragma: no cover
         if simulation.turn_i.value % 10 != 0:

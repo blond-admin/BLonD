@@ -9,28 +9,26 @@ from blond._core.backends.backend import (
 )
 
 
-class TestEX_07_Xsuite_Matching(unittest.TestCase):
-    def setUp(self):
-        try:
-            import xpart
-        except ModuleNotFoundError as exc:
-            self.skipTest(str(exc))
-
+class TestEX_observable_as_element(unittest.TestCase):
     def test_executable_numba32(self):
         backend.change_backend(Numpy32Bit)
         backend.set_specials("numba")
-        from blond.examples import EX_07_Xsuite_Matching  # NOQA will run the
+        from blond.examples import (
+            EX_observable_as_element,  # NOQA will run the
+        )
 
         # full script. just checking if it crashes
-        EX_07_Xsuite_Matching.main()
+        EX_observable_as_element.main()
 
     def test_executable_numba64(self):
         backend.change_backend(Numpy64Bit)
         backend.set_specials("numba")
-        from blond.examples import EX_07_Xsuite_Matching  # NOQA will run the
+        from blond.examples import (
+            EX_observable_as_element,  # NOQA will run the
+        )
 
         # full script. just checking if it crashes
-        EX_07_Xsuite_Matching.main()
+        EX_observable_as_element.main()
 
     def test_executable_cuda32(self):
         try:
@@ -40,11 +38,13 @@ class TestEX_07_Xsuite_Matching(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy32Bit)
         backend.set_specials("cuda")
-        from blond.examples import EX_07_Xsuite_Matching  # NOQA will run the
+        from blond.examples import (
+            EX_observable_as_element,  # NOQA will run the
+        )
 
         # full script. just checking if it crashes
 
-        EX_07_Xsuite_Matching.main()
+        EX_observable_as_element.main()
         backend.zeros(100)
 
     def test_executable_cuda64(self):
@@ -55,8 +55,10 @@ class TestEX_07_Xsuite_Matching(unittest.TestCase):
             self.skipTest(str(exc))
         backend.change_backend(Cupy64Bit)
         backend.set_specials("cuda")
-        from blond.examples import EX_07_Xsuite_Matching  # NOQA will run the
+        from blond.examples import (
+            EX_observable_as_element,  # NOQA will run the
+        )
 
         # full script. just checking if it crashes
-        EX_07_Xsuite_Matching.main()
+        EX_observable_as_element.main()
         backend.zeros(100)
