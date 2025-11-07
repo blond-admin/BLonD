@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from functools import cache
+from functools import cache, wraps
 from typing import TYPE_CHECKING
 
 import numba  # type: ignore
@@ -19,6 +19,31 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 logger = logging.getLogger(__name__)
+
+
+def enforce_precision(dtype):
+    """Decorator to convert float inputs to a consistent precision."""
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            new_args = []
+            for arg in args:
+                if isinstance(arg, float):
+                    new_args.append(dtype(arg))
+                else:
+                    new_args.append(arg)
+
+            new_kwargs = {
+                k: (dtype(v) if isinstance(v, float) else v)
+                for k, v in kwargs.items()
+            }
+
+            return func(*new_args, **new_kwargs)
+
+        return wrapper
+
+    return decorator
 
 
 @cache  # or set a limit like maxsize=128
@@ -190,6 +215,7 @@ def recompile_numba_backend(  # NOQA PLR0915
 
     class NumbaSpecials(Specials):  # pragma: no cover
         @staticmethod
+        @enforce_precision(floattype)
         @njit(
             sig_beam_phase,
             parallel=True,
@@ -231,6 +257,7 @@ def recompile_numba_backend(  # NOQA PLR0915
             return scoeff / ccoeff
 
         @staticmethod
+        @enforce_precision(floattype)
         @njit(
             sig_histogram,
             parallel=True,
@@ -240,8 +267,8 @@ def recompile_numba_backend(  # NOQA PLR0915
         def histogram(
             array_read: NumpyArray,
             array_write: NumpyArray,
-            start: np.float32 | np.float64,
-            stop: np.float32 | np.float64,
+            start: float,
+            stop: float,
         ) -> None:
             n_threads = numba.get_num_threads()  # this prevents caching
             width = stop - start
@@ -263,6 +290,7 @@ def recompile_numba_backend(  # NOQA PLR0915
             array_write[:] = np.sum(array_tmp, axis=0)
 
         @staticmethod
+        @enforce_precision(floattype)
         @njit(
             sig_loss_box,
             parallel=True,
@@ -289,6 +317,7 @@ def recompile_numba_backend(  # NOQA PLR0915
                     flags[i] = _lost
 
         @staticmethod
+        @enforce_precision(floattype)
         @njit(
             sig_kick_single_harmonic,
             parallel=True,
@@ -301,8 +330,8 @@ def recompile_numba_backend(  # NOQA PLR0915
             voltage: float,
             omega_rf: float,
             phi_rf: float,
-            charge: np.float32 | np.float64,
-            acceleration_kick: np.float32 | np.float64,
+            charge: float,
+            acceleration_kick: float,
         ) -> None:
             voltage_kick = charge * voltage
             for i in prange(len(dt)):
@@ -312,6 +341,7 @@ def recompile_numba_backend(  # NOQA PLR0915
                 )
 
         @staticmethod
+        @enforce_precision(floattype)
         @njit(
             sig_drift_simple,
             parallel=True,
@@ -321,10 +351,10 @@ def recompile_numba_backend(  # NOQA PLR0915
         def drift_simple(
             dt: NumpyArray,
             dE: NumpyArray,
-            T: np.float32 | np.float64,
-            eta_0: np.float32 | np.float64,
-            beta: np.float32 | np.float64,
-            energy: np.float32 | np.float64,
+            T: float,
+            eta_0: float,
+            beta: float,
+            energy: float,
         ) -> None:
             """Function to apply drift equation of motion."""
             # solver_decoded = solver.decode(encoding='utf_8')
@@ -334,6 +364,7 @@ def recompile_numba_backend(  # NOQA PLR0915
                 dt[i] += coeff * dE[i]
 
         @staticmethod
+        @enforce_precision(floattype)
         @njit(sig_kick_multi_harmonic, parallel=True, fastmath=False)
         def kick_multi_harmonic(
             dt: NumpyArray | CupyArray,
@@ -357,6 +388,7 @@ def recompile_numba_backend(  # NOQA PLR0915
                 dE[i] += de_sum + acceleration_kick
 
         @staticmethod
+        @enforce_precision(floattype)
         @njit(sig_drift_legacy, parallel=True, fastmath=False)
         def drift_legacy(
             dt: NumpyArray,
@@ -396,6 +428,7 @@ def recompile_numba_backend(  # NOQA PLR0915
                     )
 
         @staticmethod
+        @enforce_precision(floattype)
         @njit(
             sig_drift_exact,
             parallel=True,
@@ -440,6 +473,7 @@ def recompile_numba_backend(  # NOQA PLR0915
                 )
 
         @staticmethod
+        @enforce_precision(floattype)
         @njit(
             sig_kick_induced_voltage,
             parallel=True,
@@ -451,8 +485,8 @@ def recompile_numba_backend(  # NOQA PLR0915
             dE: NumpyArray,
             voltage: NumpyArray,
             bin_centers: NumpyArray,
-            charge: np.float32 | np.float64,
-            acceleration_kick: np.float32 | np.float64,
+            charge: float,
+            acceleration_kick: float,
         ) -> None:
             dx = (bin_centers[-1] - bin_centers[0]) / (len(bin_centers) - 1)
             inv_dx = 1 / dx

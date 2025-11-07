@@ -8,7 +8,6 @@ Simon Lauber
 from matplotlib import pyplot as plt
 
 from blond import MultiHarmonicCavity
-from blond._core.backends.backend import backend
 
 
 class ExampleSimulation01:
@@ -114,27 +113,24 @@ class SimulationTwoRfStations:
             [
                 35640.0,
             ],
-            dtype=backend.float,
         )
         cavity1.voltage = np.array(
             [
                 6e6,
             ],
-            dtype=backend.float,
         )
         cavity1.phi_rf = np.array(
             [
                 0.0,
             ],
-            dtype=backend.float,
         )
 
         cavity2 = SingleHarmonicCavity(
             section_index=1,
         )
-        cavity2.harmonic = backend.float(35640)
-        cavity2.voltage = backend.float(6e6)
-        cavity2.phi_rf = backend.float(0)
+        cavity2.harmonic = 35640
+        cavity2.voltage = 6e6
+        cavity2.phi_rf = 0
 
         N_TURNS = 10
         energy_cycle = MagneticCyclePerTurn(
