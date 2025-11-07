@@ -9,7 +9,7 @@ from xpart.longitudinal.rfbucket_matching import (  # ThermalDistribution,; Para
 
 from blond import (
     Beam,
-    BunchObservation,
+    BeamObservationEndOfTurn,
     CavityPhaseObservation,
     DriftSimple,
     Ring,
@@ -68,7 +68,7 @@ def main():
         each_turn_i=1,
         cavity=cavity1,
     )
-    bunch_observation = BunchObservation(beam=beam1, each_turn_i=1)
+    bunch_observation = BeamObservationEndOfTurn(beam=beam1, each_turn_i=1)
 
     def custom_action(simulation: Simulation):
         if simulation.turn_i.value % 10 != 0:

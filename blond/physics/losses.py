@@ -52,17 +52,17 @@ class BoxLosses(LossesBaseClass):
 
     def __init__(
         self,
-        t_min: backend.float | None = None,
-        t_max: backend.float | None = None,
-        e_min: backend.float | None = None,
-        e_max: backend.float | None = None,
+        t_min: float | None = None,
+        t_max: float | None = None,
+        e_min: float | None = None,
+        e_max: float | None = None,
     ) -> None:
         super().__init__()
 
-        self.t_min = backend.float(t_min)
-        self.t_max = backend.float(t_max)
-        self.e_min = backend.float(e_min)
-        self.e_max = backend.float(e_max)
+        self.t_min = float(t_min)
+        self.t_max = float(t_max)
+        self.e_min = float(e_min)
+        self.e_max = float(e_max)
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called.

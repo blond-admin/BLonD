@@ -116,7 +116,18 @@ def reload_fortran_backend(
             omega_rf: float,
             phi_rf: float,
             bin_size: float,
-        ) -> np.float32 | np.float64:
+        ) -> float:
+            assert hist_x.dtype == floattype
+            assert hist_y.dtype == floattype
+            assert hist_x.flags.c_contiguous
+            assert hist_y.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            alpha = floattype(alpha)
+            omega_rf = floattype(omega_rf)
+            phi_rf = floattype(phi_rf)
+            bin_size = floattype(bin_size)
+
             return libblond_fortran.beam_phase_module.beam_phase(
                 bin_centers=hist_x,
                 profile=hist_y,
@@ -131,9 +142,18 @@ def reload_fortran_backend(
         def histogram(
             array_read: NumpyArray,
             array_write: NumpyArray,
-            start: np.float32 | np.float64,
-            stop: np.float32 | np.float64,
+            start: float,
+            stop: float,
         ) -> None:
+            assert array_read.dtype == floattype
+            assert array_write.dtype == floattype
+            assert array_read.flags.c_contiguous
+            assert array_write.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            start = floattype(start)
+            stop = floattype(stop)
+
             libblond_fortran.histogram(
                 array_read,
                 array_out=array_write,
@@ -178,16 +198,21 @@ def reload_fortran_backend(
             voltage: float,
             omega_rf: float,
             phi_rf: float,
-            charge: np.float32 | np.float64,
-            acceleration_kick: np.float32 | np.float64,
+            charge: float,
+            acceleration_kick: float,
         ) -> None:
             assert dt.dtype == floattype
             assert dE.dtype == floattype
-            assert isinstance(voltage, floattype)
-            assert isinstance(omega_rf, floattype)
-            assert isinstance(phi_rf, floattype)
-            assert isinstance(charge, floattype)
-            assert isinstance(acceleration_kick, floattype)
+            assert dt.flags.c_contiguous
+            assert dE.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            voltage = floattype(voltage)
+            omega_rf = floattype(omega_rf)
+            phi_rf = floattype(phi_rf)
+            charge = floattype(charge)
+            acceleration_kick = floattype(acceleration_kick)
+
             libblond_fortran.kick_single_harmonic(
                 dt=dt,
                 de=dE,
@@ -203,12 +228,23 @@ def reload_fortran_backend(
         def drift_simple(
             dt: NumpyArray,
             dE: NumpyArray,
-            T: np.float32 | np.float64,
-            eta_0: np.float32 | np.float64,
-            beta: np.float32 | np.float64,
-            energy: np.float32 | np.float64,
+            T: float,
+            eta_0: float,
+            beta: float,
+            energy: float,
         ) -> None:
             """Function to apply drift equation of motion."""
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
+            assert dt.flags.c_contiguous
+            assert dE.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            T = floattype(T)
+            eta_0 = floattype(eta_0)
+            beta = floattype(beta)
+            energy = floattype(energy)
+
             libblond_fortran.drift_simple(
                 dt=dt,
                 de=dE,
@@ -231,6 +267,21 @@ def reload_fortran_backend(
             n_rf: int,
             acceleration_kick: float,
         ) -> None:
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
+            assert voltage.dtype == floattype
+            assert omega_rf.dtype == floattype
+            assert phi_rf.dtype == floattype
+            assert dt.flags.c_contiguous
+            assert dE.flags.c_contiguous
+            assert voltage.flags.c_contiguous
+            assert omega_rf.flags.c_contiguous
+            assert phi_rf.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            charge = floattype(charge)
+            acceleration_kick = floattype(acceleration_kick)
+
             libblond_fortran.kick_multi_harmonic(
                 dt=dt,
                 de=dE,
@@ -328,9 +379,22 @@ def reload_fortran_backend(
             dE: NumpyArray,
             voltage: NumpyArray,
             bin_centers: NumpyArray,
-            charge: np.float32 | np.float64,
-            acceleration_kick: np.float32 | np.float64,
+            charge: float,
+            acceleration_kick: float,
         ) -> None:
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
+            assert voltage.dtype == floattype
+            assert bin_centers.dtype == floattype
+            assert dt.flags.c_contiguous
+            assert dE.flags.c_contiguous
+            assert voltage.flags.c_contiguous
+            assert bin_centers.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            charge = floattype(charge)
+            acceleration_kick = floattype(acceleration_kick)
+
             libblond_fortran.linear_interp_kick(
                 beam_dt=dt,
                 beam_de=dE,

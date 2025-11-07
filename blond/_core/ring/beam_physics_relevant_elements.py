@@ -14,17 +14,23 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from numpy.typing import NDArray as NumpyArray
 
-    from ..base import BeamPhysicsRelevant
+    from ..base import SimulationElementBase
 
     T = TypeVar("T")
 
 
 class BeamPhysicsRelevantElements(Preparable):
-    """Container object to manage all beam interactions in `Ring`."""
+    """Container object to manage all beam interactions in `Ring`.
+
+    Attributes
+    ----------
+    elements
+        List of  :class:`~blond._core.ring.beam_physics_relevant_elements.BeamPhysicsRelevantElements`
+    """
 
     def __init__(self) -> None:
         super().__init__()
-        self.elements: list[BeamPhysicsRelevant] = []
+        self.elements: list[SimulationElementBase] = []
         self._on_init_simulation_passed = False
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -132,7 +138,7 @@ class BeamPhysicsRelevantElements(Preparable):
                 result[section_i] = 0
         return result
 
-    def add_element(self, element: BeamPhysicsRelevant) -> None:
+    def add_element(self, element: SimulationElementBase) -> None:
         """Append a beam physics-relevant element to the container.
 
         This method appends the given element to the
@@ -169,7 +175,7 @@ class BeamPhysicsRelevantElements(Preparable):
 
     def check_section_index_compatibility(
         self,
-        element: BeamPhysicsRelevant,
+        element: SimulationElementBase,
         insert_at: int,
     ) -> None:
         """Method to check the element can be inserted in the defined section.
@@ -225,7 +231,7 @@ class BeamPhysicsRelevantElements(Preparable):
                 f"0:{len(self.elements)}] indexes. "
             )
 
-    def insert(self, element: BeamPhysicsRelevant, insert_at: int) -> None:
+    def insert(self, element: SimulationElementBase, insert_at: int) -> None:
         """Insert an element to the container at the specified index.
 
         Parameters

@@ -10,7 +10,7 @@ stages:
 default:
   interruptible: true
 
-# Automatically cancel older  running
+# Automatically cancel older running
 # pipelines when a new one starts on the same branch
 workflow:
   rules:

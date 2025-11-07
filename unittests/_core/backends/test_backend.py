@@ -562,8 +562,6 @@ class TestSpecials(unittest.TestCase):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
                 except (FileNotFoundError, OSError) as exc:
-                    if True:
-                        raise exc
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
                 flag = backend.int(0)
