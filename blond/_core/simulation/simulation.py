@@ -9,13 +9,14 @@ from warnings import warn
 from scipy.integrate import cumulative_trapezoid
 from tqdm import tqdm  # type: ignore
 
+from blond._core.base import SimulationElementBase
+
 from ..._generals._warnings import NotTestedWarning, PerformanceWarning
 from ...cycles.magnetic_cycle import MagneticCycleBase
 from ...physics.drifts import DriftBaseClass
 from ...physics.profiles import ProfileBaseClass
 from ..backends.backend import backend
 from ..base import (
-    BeamPhysicsRelevant,
     DynamicParameter,
     Preparable,
 )
@@ -48,10 +49,11 @@ if TYPE_CHECKING:  # pragma: no cover
     )
 
     from ...beam_preparation.base import BeamPreparationRoutine
-    from ...handle_results.observables import Observables
+    from ...handle_results.observables import ObservablesEndOfTurnBase
     from ..beam.base import BeamBaseClass
     from ..beam.particle_types import ParticleType
     from ..ring.ring import Ring
+
 from ...physics.cavities import CavityBaseClass
 
 logger = logging.getLogger(__name__)
@@ -332,7 +334,8 @@ class Simulation(Preparable):
         )
         magnetic_cycle = _magnetic_cycle[0]
 
-        elements = get_elements(locals_list, BeamPhysicsRelevant)  # type: ignore
+        elements = get_elements(locals_list, (SimulationElementBase))
+        print("here", elements)  # type: ignore
         ring.add_elements(elements=elements, reorder=True)
 
         logger.debug(f"{ring=}")
@@ -387,7 +390,7 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass, ...],
         n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: tuple[Observables, ...] = (),
+        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, Beam], None] | None = None,
     ) -> None:
@@ -509,7 +512,7 @@ class Simulation(Preparable):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int = 0,
-        observe: tuple[Observables, ...] = (),
+        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, Beam], None] | None = None,
     ) -> None:
@@ -679,7 +682,7 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass, BeamBaseClass],
         n_turns: int,
         turn_i_init: int = 0,
-        observe: tuple[Observables, ...] = (),
+        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, Beam], None] | None = None,
     ) -> None:
@@ -744,7 +747,7 @@ class Simulation(Preparable):
 
     def save_results(
         self,
-        observe: tuple[Observables, ...] = (),
+        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
         common_name: str | None = None,
     ) -> None:
         """Save the given observables to the disk.
@@ -768,7 +771,7 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass],
         n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: tuple[Observables, ...] = (),
+        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
         common_name: str | None = None,
     ) -> None:
         """Load the given observables from the disk.
