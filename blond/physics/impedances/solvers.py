@@ -67,7 +67,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
             isinstance(o, InductiveImpedance) for o in parent_wakefield.sources
         )
         impedances: tuple[InductiveImpedance, ...] = parent_wakefield.sources
-        self._Z_over_n = float(
+        self._Z_over_n = backend.float(
             np.sum(np.array([o.Z_over_n for o in impedances]))
         )
         self._turn_i = simulation.turn_i
@@ -88,7 +88,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         induced_voltage
             Induced voltage, in [V]
         """
-        factor = -(
+        factor = -backend.float(
             (beam.particle_type.charge * e)
             / (2 * np.pi)
             * beam.ratio
@@ -317,9 +317,12 @@ class PeriodicFreqSolver(WakeFieldSolver):
 
         self._update_impedance_sources(beam=beam)
 
-        _factor = (-1 * beam.particle_type.charge * e) * (
-            # TODO this might be a problem with MPI
-            beam.ratio
+        _factor = backend.float(
+            (-1 * beam.particle_type.charge * e)
+            * (
+                # TODO this might be a problem with MPI
+                beam.ratio
+            )
         )
 
         key = len(self._freq_y)  # todo

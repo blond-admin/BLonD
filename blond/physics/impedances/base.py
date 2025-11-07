@@ -344,6 +344,7 @@ class WakeField(ImpedanceBaseClass):
         if self.profile.active:
             self.profile.track(beam=beam)
         induced_voltage = self.calc_induced_voltage(beam=beam)
+        assert (induced_voltage).dtype == backend.float
         backend.specials.kick_induced_voltage(
             dt=beam.read_partial_dt(),
             dE=beam.write_partial_dE(),
