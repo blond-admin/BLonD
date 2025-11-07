@@ -15,6 +15,7 @@ from blond import (
     Simulation,
     SingleHarmonicCavity,
     StaticProfile,
+    backend,
     mu_plus,
     proton,
 )
@@ -213,15 +214,18 @@ class TestSimulation(unittest.TestCase):
         potential_well_pinned = np.loadtxt(
             callers_relative_path("resources/potential_well.csv", stacklevel=1)
         )
+
         DEV_DEBUG = False
         if DEV_DEBUG:
+            plt.figure()
             plt.subplot(2,1,1)
             plt.plot(potential_well_pinned, label="potential_well_pinned")
-            plt.plot(potential_well,"--", label="potential_well")
+            plt.plot(potential_well, "--",label="potential_well")
             plt.subplot(2,1,2)
-            plt.plot(potential_well - potential_well_pinned)
+            plt.plot(potential_well-potential_well_pinned)
             plt.legend()
             plt.show()
+
         from blond import backend
         np.testing.assert_allclose(
             potential_well_pinned,
