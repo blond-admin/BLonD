@@ -16,8 +16,8 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
     """Updates beam's `reference_total_energy` and `dE` array, but constant in absolute terms.
 
     Can be used in simulations where RF ramping is asynchronous with respect to the
-    beam’s energy. The resulting offset affects the beam's `dE` (energy deviation) and simulates the physics of an energy
-    mismatch relative to the reference trajectory.
+    beam’s energy. The resulting offset affects the beam's `dE` (energy deviation) and simulates the physics
+    of an energy mismatch relative to the reference trajectory.
 
     Parameters
     ----------
@@ -58,14 +58,13 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
         simulation
             Simulation context manager
         """
+        super().on_init_simulation(simulation=simulation)
+        self._turn_i = simulation.turn_i
+        self._magnetic_cycle = simulation.magnetic_cycle
         if not isinstance(self._magnetic_cycle, MagneticCycleByTime):
             raise TypeError(
                 f"Expected MagneticCycleByTime, got {type(self._magnetic_cycle).__name__}"
             )
-
-        super().on_init_simulation(simulation=simulation)
-        self._turn_i = simulation.turn_i
-        self._magnetic_cycle = simulation.magnetic_cycle
         self._ring = simulation.ring
 
     def on_run_simulation(
