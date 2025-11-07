@@ -213,7 +213,7 @@ class TestSimulation(unittest.TestCase):
         potential_well_pinned = np.loadtxt(
             callers_relative_path("resources/potential_well.csv", stacklevel=1)
         )
-        DEV_DEBUG = True
+        DEV_DEBUG = False
         if DEV_DEBUG:
             plt.subplot(2,1,1)
             plt.plot(potential_well_pinned, label="potential_well_pinned")
