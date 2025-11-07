@@ -16,20 +16,25 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
     """Updates beam's `reference_total_energy` and `dE` array, but constant in absolute terms.
 
     Can be used in simulations where RF ramping is asynchronous with respect to the
-    beam’s energy. The resulting offset affects the beam's `dE` (energy deviation) and simulates the physics
-    of an energy mismatch relative to the reference trajectory.
+    beam’s energy.
 
     Parameters
     ----------
-        section_index (int): Index of the ring section where this element is placed.
-        name (str, optional): An optional name for the element.
-        **kwargs (dict): Additional keyword arguments for compatibility with fused or composite elements.
+    section_index:
+        Index of the ring section where this element is placed.
+    name:
+        An optional name for the element.
+    **kwargs:
+        Additional keyword arguments for compatibility.
 
     Attributes
     ----------
-        _turn_i (DynamicParameter | None): Current simulation turn number (initialized during simulation).
-        _magnetic_cycle (MagneticCycleBase | None): Reference to the simulation’s magnetic cycle.
-        _ring (Ring | None): Reference to the ring being simulated.
+    _turn_i:
+        Current simulation turn number (initialized during simulation).
+    _magnetic_cycle:
+        Reference to the simulation’s magnetic cycle.
+    _ring:
+         Reference to the ring being simulated.
 
     Example:
         >>> elem = ReferenceEnergyChange(section_index=1, name="energy_reference_kick")
@@ -89,7 +94,11 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
         pass
 
     def track(self, beam: BeamBaseClass):
-        """Updates reference energy of the beam."""
+        """Updates reference energy of the beam.
+
+        beam
+            Simulation beam object
+        """
         super().track(beam=beam)
         if self.schedule_active:
             self.apply_schedules(
