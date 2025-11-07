@@ -335,7 +335,10 @@ class Simulation(Preparable):
 
         # Derive potential well by integrating over energy change
         potential_well = -cumulative_simpson(
-            probe_bunch.read_partial_dE(), initial=0
+            probe_bunch.read_partial_dE()
+            if backend.specials_mode != "cuda"
+            else probe_bunch.read_partial_dE().get(),
+            initial=0,
         ) / len(dt)
 
         if self.ring.is_below_transition(beam=probe_bunch):
@@ -345,7 +348,13 @@ class Simulation(Preparable):
         if subtract_min:
             # Align potential so that the visible minimum is 0
             potential_well -= potential_well.min()
-        return potential_well / particle_type.charge, factor, tilt_dt_per_dE
+        return (
+            backend.array(
+                potential_well / particle_type.charge, dtype=backend.float
+            ),
+            factor,
+            tilt_dt_per_dE,
+        )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called.
@@ -476,7 +485,6 @@ class Simulation(Preparable):
         magnetic_cycle = _magnetic_cycle[0]
 
         elements = get_elements(locals_list, (SimulationElementBase))
-        print("here", elements)  # type: ignore
         ring.add_elements(elements=elements, reorder=True)
 
         logger.debug(f"{ring=}")
