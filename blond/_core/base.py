@@ -5,8 +5,6 @@ from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 
-from .backends.backend import backend
-
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
     from os import PathLike
@@ -129,8 +127,6 @@ class Schedulable:
         assert hasattr(self, attribute), (
             f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
         )
-        if isinstance(value, np.ndarray):
-            value = value.astype(backend.float)
         self.schedules[attribute] = get_scheduler(value, mode=mode)
         self.schedule_active = True
 
@@ -170,7 +166,7 @@ class Schedulable:
     def apply_schedules(
         self,
         turn_i: int,
-        reference_time: np.float32 | np.float64,
+        reference_time: float,
     ) -> None:
         """Set value of schedule to the target parameter for current turn/time.
 
@@ -394,7 +390,7 @@ class _Scheduled:
     def get_scheduled(
         self,
         turn_i: int,
-        reference_time: np.float32 | np.float64,
+        reference_time: float,
     ):
         """Get the value of the schedule for the current turn/time.
 
@@ -418,10 +414,7 @@ class ScheduledConstant(_Scheduled):
             A constant value
         """
         super().__init__()
-        if isinstance(value, np.ndarray):
-            self.value = value.astype(backend.float)
-        else:
-            self.value = backend.float(value)
+        self.value = value
 
     def get_scheduled(
         self,
@@ -451,7 +444,7 @@ class ScheduledArray(_Scheduled):
             (indexing is done via self.values[turn_i])
         """
         super().__init__()
-        self.values = values.astype(backend.float)
+        self.values = values
 
     def get_scheduled(
         self,
@@ -475,7 +468,7 @@ class ScheduledInterpolation(_Scheduled):
         """Schedule values that change along time."""
         super().__init__()
         self.times = times
-        self.values = values  # TODO values.astype(backend.float)
+        self.values = values
 
     def get_scheduled(
         self,

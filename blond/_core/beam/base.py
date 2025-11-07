@@ -48,8 +48,6 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         is_distributed
             Developer option to allow distributed computing
         """
-        from ..._core.backends.backend import backend  # prevent cyclic import
-
         super().__init__()
 
         self.intensity = int_from_float_with_warning(
@@ -65,7 +63,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         self._flags: NumpyArray | CupyArray | None = None
         self._ids: NumpyArray | CupyArray | None = None
 
-        self.reference_time: np.float32 | np.float64 = backend.float(0.0)
+        self.reference_time: float = 0.0
         # todo cached properties
         self._reference_total_energy = 0.0  # todo cached properties
 
@@ -220,25 +218,25 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     @cached_property
     @abstractmethod  # pragma: no cover  # as readonly attributes
-    def dt_min(self) -> np.float32 | np.float64:
+    def dt_min(self) -> float:
         """Minimum dt coordinate, in [s]."""
         pass
 
     @cached_property
     @abstractmethod  # pragma: no cover  # as readonly attributes
-    def dt_max(self) -> np.float32 | np.float64:
+    def dt_max(self) -> float:
         """Maximum dt coordinate, in [s]."""
         pass
 
     @cached_property
     @abstractmethod  # pragma: no cover  # as readonly attributes
-    def dE_min(self) -> np.float32 | np.float64:
+    def dE_min(self) -> float:
         """Minimum dE coordinate, in [eV]."""
         pass
 
     @cached_property
     @abstractmethod  # pragma: no cover  # as readonly attributes
-    def dE_max(self) -> np.float32 | np.float64:
+    def dE_max(self) -> float:
         """Maximum dE coordinate, in [eV]."""
         pass
 

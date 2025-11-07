@@ -83,16 +83,20 @@ def reload_cuda_backend(
             voltage: float,
             omega_rf: float,
             phi_rf: float,
-            charge: np.float32 | np.float64,
-            acceleration_kick: np.float32 | np.float64,
+            charge: float,
+            acceleration_kick: float,
         ) -> None:
             assert dt.dtype == floattype
             assert dE.dtype == floattype
-            assert isinstance(charge, floattype)
-            assert isinstance(voltage, floattype)
-            assert isinstance(omega_rf, floattype)
-            assert isinstance(phi_rf, floattype)
-            assert isinstance(acceleration_kick, floattype)
+            assert dt.flags.c_contiguous
+            assert dE.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            charge = floattype(charge)
+            voltage = floattype(voltage)
+            omega_rf = floattype(omega_rf)
+            phi_rf = floattype(phi_rf)
+            acceleration_kick = floattype(acceleration_kick)
 
             _kick_single_harmonic(
                 args=(
@@ -125,8 +129,15 @@ def reload_cuda_backend(
             assert phi_rf.dtype == floattype
             assert voltage.dtype == floattype
             assert omega_rf.dtype == floattype
-            assert isinstance(charge, floattype)
-            assert isinstance(acceleration_kick, floattype)
+            assert dt.flags.c_contiguous
+            assert dE.flags.c_contiguous
+            assert voltage.flags.c_contiguous
+            assert omega_rf.flags.c_contiguous
+            assert phi_rf.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            charge = floattype(charge)
+            acceleration_kick = floattype(acceleration_kick)
 
             _kick_multi_harmonic(
                 args=(
@@ -148,17 +159,22 @@ def reload_cuda_backend(
         def drift_simple(
             dt: CupyArray,
             dE: CupyArray,
-            T: np.float32 | np.float64,
-            eta_0: np.float32 | np.float64,
-            beta: np.float32 | np.float64,
-            energy: np.float32 | np.float64,
+            T: float,
+            eta_0: float,
+            beta: float,
+            energy: float,
         ) -> None:
             assert dt.dtype == floattype
             assert dE.dtype == floattype
-            assert isinstance(T, floattype)
-            assert isinstance(eta_0, floattype)
-            assert isinstance(beta, floattype)
-            assert isinstance(energy, floattype)
+            assert dt.flags.c_contiguous
+            assert dE.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            T = floattype(T)
+            eta_0 = floattype(eta_0)
+            beta = floattype(beta)
+            energy = floattype(energy)
+
             _drift_simple(
                 args=(
                     dt,  # beam_dt
@@ -206,15 +222,21 @@ def reload_cuda_backend(
             dE: CupyArray,
             voltage: CupyArray,
             bin_centers: CupyArray,
-            charge: np.float32 | np.float64,
-            acceleration_kick: np.float32 | np.float64,
+            charge: float,
+            acceleration_kick: float,
         ) -> None:
             assert dt.dtype == floattype
             assert dE.dtype == floattype
             assert voltage.dtype == floattype
             assert bin_centers.dtype == floattype
-            assert isinstance(charge, floattype)
-            assert isinstance(acceleration_kick, floattype)
+            assert dt.flags.c_contiguous
+            assert dE.flags.c_contiguous
+            assert voltage.flags.c_contiguous
+            assert bin_centers.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            charge = floattype(charge)
+            acceleration_kick = floattype(acceleration_kick)
 
             glob_vkick_factor = cp.empty(2 * (bin_centers.size - 1), floattype)
             _gm_linear_interp_kick_help(
@@ -223,7 +245,7 @@ def reload_cuda_backend(
                     dE,
                     voltage,
                     bin_centers,
-                    floattype(charge),
+                    charge,
                     np.int32(bin_centers.size),
                     np.int32(dt.size),
                     acceleration_kick,
@@ -253,13 +275,17 @@ def reload_cuda_backend(
         def histogram(
             array_read: CupyArray,
             array_write: CupyArray,
-            start: np.float32 | np.float64,
-            stop: np.float32 | np.float64,
+            start: float,
+            stop: float,
         ) -> None:
             assert array_read.dtype == floattype
             assert array_write.dtype == floattype
-            assert isinstance(start, floattype)
-            assert isinstance(stop, floattype)
+            assert array_read.flags.c_contiguous
+            assert array_write.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            start = floattype(start)
+            stop = floattype(stop)
 
             n_slices = array_write.size
             array_write.fill(0)
@@ -302,13 +328,17 @@ def reload_cuda_backend(
             omega_rf: float,
             phi_rf: float,
             bin_size: float,
-        ) -> np.float32 | np.float64:
+        ) -> float:
             assert hist_x.dtype == floattype
             assert hist_y.dtype == floattype
-            assert isinstance(alpha, floattype), type(alpha)
-            assert isinstance(omega_rf, floattype), type(alpha)
-            assert isinstance(phi_rf, floattype), type(alpha)
-            assert isinstance(bin_size, floattype), type(alpha)
+            assert hist_x.flags.c_contiguous
+            assert hist_y.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            alpha = floattype(alpha)
+            omega_rf = floattype(omega_rf)
+            phi_rf = floattype(phi_rf)
+            bin_size = floattype(bin_size)
 
             result = cp.zeros(2, dtype=floattype)
             _beam_phase(
