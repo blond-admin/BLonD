@@ -10,7 +10,7 @@ from blond import (
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicCavity,
+    SingleHarmonicRfStation,
     StaticProfile,
     WakeField,
     proton,
@@ -92,10 +92,10 @@ class Blond3:
         ring = Ring(circumference=circumference)
         drift = DriftSimple(orbit_length=circumference)
         drift.transition_gamma = 4.4
-        cavity = SingleHarmonicCavity()
-        cavity.harmonic = 1
-        cavity.voltage = 8e3
-        cavity.phi_rf = np.pi
+        rf_station = SingleHarmonicRfStation()
+        rf_station.harmonic = 1
+        rf_station.voltage = 8e3
+        rf_station.phi_rf = np.pi
         profile = StaticProfile(
             blond2.profile.cut_left,
             blond2.profile.cut_right,
@@ -110,7 +110,7 @@ class Blond3:
             ),
             profile=profile,
         )
-        ring.add_elements((drift, cavity, profile, wake), reorder=True)
+        ring.add_elements((drift, rf_station, profile, wake), reorder=True)
         beam = Beam(intensity=1e11, particle_type=proton)
 
         E_0 = m_p * c**2 / e  # [eV]

@@ -10,11 +10,11 @@ from xpart.longitudinal.rfbucket_matching import (  # ThermalDistribution,; Para
 from blond import (
     Beam,
     BunchObservation,
-    CavityPhaseObservation,
     DriftSimple,
+    RfStationPhaseObservation,
     Ring,
     Simulation,
-    SingleHarmonicCavity,
+    SingleHarmonicRfStation,
     proton,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
@@ -28,7 +28,7 @@ logging.basicConfig(level=logging.INFO)
 def main():
     ring = Ring(26_658.883)
 
-    cavity1 = SingleHarmonicCavity()
+    cavity1 = SingleHarmonicRfStation()
     cavity1.harmonic = 35640
     cavity1.voltage = 6e6
     cavity1.phi_rf = 85  # 45*(np.pi/180)
@@ -64,9 +64,9 @@ def main():
         ),
     )
 
-    phase_observation = CavityPhaseObservation(
+    phase_observation = RfStationPhaseObservation(
         each_turn_i=1,
-        cavity=cavity1,
+        rf_station=cavity1,
     )
     bunch_observation = BunchObservation(beam=beam1, each_turn_i=1)
 

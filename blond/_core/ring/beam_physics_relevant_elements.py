@@ -50,7 +50,7 @@ class BeamPhysicsRelevantElements(Preparable):
 
     def _check_section_indexing(self) -> None:
         """Verify that indices have been set correctly."""
-        from ...physics.cavities import CavityBaseClass
+        from ...physics.cavities import RfStationBaseClass
         from ...physics.drifts import DriftBaseClass
 
         elem_section_indices = [e.section_index for e in self.elements]
@@ -58,14 +58,14 @@ class BeamPhysicsRelevantElements(Preparable):
         assert np.all(np.diff(elem_section_indices) >= 0), (
             f"Section indices must be increasing, but got {elem_section_indices}"
         )
-        cavities = self.get_elements(CavityBaseClass)
+        cavities = self.get_elements(RfStationBaseClass)
         cav_section_indices = [c.section_index for c in cavities]
         all_different = len(cav_section_indices) == len(
             set(cav_section_indices)
         )
         if not all_different:
             raise ValueError(
-                f"Each cavity must be in a different section, "
+                f"Each RF station must be in a different section, "
                 f"but got "
                 f"{[(cav.name, cav.section_index) for cav in cavities]}"
             )
@@ -74,7 +74,7 @@ class BeamPhysicsRelevantElements(Preparable):
         if len(unique_section_indices) > 1:
             for section_index in np.sort(unique_section_indices):
                 cavities = self.get_elements(
-                    CavityBaseClass,
+                    RfStationBaseClass,
                     section_i=section_index,  # type: ignore
                 )
                 drifts = self.get_elements(
@@ -82,7 +82,7 @@ class BeamPhysicsRelevantElements(Preparable):
                 )
                 if len(cavities) == 0:
                     raise RuntimeError(
-                        f"Missing cavity in section {section_index}"
+                        f"Missing RF station in section {section_index}"
                     )
                 if len(drifts) == 0:
                     raise RuntimeError(
@@ -357,7 +357,7 @@ class BeamPhysicsRelevantElements(Preparable):
         assert isinstance(section_index, int)
         from blond.experimental.physics.feedbacks.base import FeedbackBaseClass
 
-        from ...physics.cavities import CavityBaseClass
+        from ...physics.cavities import RfStationBaseClass
         from ...physics.drifts import DriftBaseClass
         from ...physics.impedances.base import ImpedanceBaseClass
         from ...physics.losses import LossesBaseClass
@@ -368,12 +368,12 @@ class BeamPhysicsRelevantElements(Preparable):
             ProfileBaseClass,
             FeedbackBaseClass,
             ImpedanceBaseClass,
-            CavityBaseClass,
+            RfStationBaseClass,
             DriftBaseClass,
         )
-        assert self.count(CavityBaseClass, section_i=section_index) == 1, (
-            f"Only one cavity per section allowed, but got "
-            f"{self.count(CavityBaseClass, section_i=section_index)}"
+        assert self.count(RfStationBaseClass, section_i=section_index) == 1, (
+            f"Only one RF station per section allowed, but got "
+            f"{self.count(RfStationBaseClass, section_i=section_index)}"
         )
         elements_in_section = [
             e for e in self.elements if e.section_index == section_index

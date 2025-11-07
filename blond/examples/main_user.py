@@ -16,7 +16,7 @@ from blond._core.backends.backend import backend
 from blond._core.beam.beams import Beam
 from blond._core.ring.ring import Ring
 from blond.cycles.magnetic_cycle import MagneticCycleBase, MagneticCyclePerTurn
-from blond.physics.cavities import MultiHarmonicCavity
+from blond.physics.cavities import MultiHarmonicRfStation
 from blond.physics.impedances.solvers import InductiveImpedanceSolver
 from blond.physics.impedances.sources import InductiveImpedance
 
@@ -31,20 +31,22 @@ class Main:
         my_ring = Ring(circumference=20)
 
         profile1 = StaticProfile(cut_left=0, cut_right=1, n_bins=128)
-        cavity = MultiHarmonicCavity(
+        rf_station = MultiHarmonicRfStation(
             n_harmonics=10,
             main_harmonic_idx=0,
         )
-        cavity.voltage = 1e3 * backend.ones(10, dtype=backend.float)  # TODO
+        rf_station.voltage = 1e3 * backend.ones(
+            10, dtype=backend.float
+        )  # TODO
         # should
         # be
         # reasonable
         # value
-        cavity.phi_rf = 0 * backend.ones(10, dtype=backend.float)  # TODO
+        rf_station.phi_rf = 0 * backend.ones(10, dtype=backend.float)  # TODO
         # should be
         # reasonable
         # value
-        cavity.harmonic = backend.ones(10, dtype=backend.float)  # TODO
+        rf_station.harmonic = backend.ones(10, dtype=backend.float)  # TODO
         # should be
         # reasonable
         # value
@@ -52,7 +54,7 @@ class Main:
             DriftSimple(
                 orbit_length=0.4 * my_ring.circumference, transition_gamma=11
             ),
-            cavity,
+            rf_station,
             WakeField(
                 sources=(InductiveImpedance(34.6669349520904 / 10e9),),
                 solver=InductiveImpedanceSolver(),

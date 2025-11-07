@@ -29,7 +29,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from blond import (
         Beam,
-        SingleHarmonicCavity,
+        SingleHarmonicRfStation,
     )
     from blond.legacy.blond2.beam.beam import Beam as Blond2Beam
     from blond.legacy.blond2.beam.profile import Profile as Blond2Profile
@@ -52,7 +52,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from ..beam.base import BeamBaseClass
     from ..beam.particle_types import ParticleType
     from ..ring.ring import Ring
-from ...physics.cavities import CavityBaseClass
+from ...physics.cavities import RfStationBaseClass
 
 logger = logging.getLogger(__name__)
 
@@ -307,7 +307,7 @@ class Simulation(Preparable):
         >>> beam1 = Beam( ... )
         >>> ring = Ring( ... )
         >>> energy_cycle = MagneticCyclePerTurn( ... )
-        >>> cavity1 = SingleHarmonicCavity( ... )
+        >>> rf_station = SingleHarmonicRfStation( ... )
         >>> drift1 = DriftSimple( ... )
         >>> Simulation.from_locals(locals=locals(), verbose=True)
 
@@ -578,7 +578,7 @@ class Simulation(Preparable):
         raise NotImplementedError
         from ...physics.cavities import (  # prevent cyclic import
             DriftBaseClass,
-            MultiHarmonicCavity,
+            MultiHarmonicRfStation,
         )
 
         ring_length = self.ring.closed_orbit_length
@@ -621,20 +621,20 @@ class Simulation(Preparable):
             intensity=self.beams[0]._intensity__init,
         )
         # todo handle multiple RF stations
-        cavity_blond3: SingleHarmonicCavity | MultiHarmonicCavity = (
-            self.ring.elements.get_element(CavityBaseClass)
+        rf_station_blond3: SingleHarmonicRfStation | MultiHarmonicRfStation = (
+            self.ring.elements.get_element(RfStationBaseClass)
         )
         # FIXME
         rf_station = RFStation(
             ring=ring_blond2,
-            harmonic=cavity_blond3.rf_program.harmonics,  # type: ignore # FIXME
-            voltage=cavity_blond3.rf_program.effective_voltages,  # type: ignore # FIXME
-            phi_rf_d=cavity_blond3.rf_program.phases,  # type: ignore # FIXME
-            n_rf=len(cavity_blond3.rf_program.phases),  # type: ignore # FIXME
+            harmonic=rf_station_blond3.rf_program.harmonics,  # type: ignore # FIXME
+            voltage=rf_station_blond3.rf_program.effective_voltages,  # type: ignore # FIXME
+            phi_rf_d=rf_station_blond3.rf_program.phases,  # type: ignore # FIXME
+            n_rf=len(rf_station_blond3.rf_program.phases),  # type: ignore # FIXME
             section_index=0,
-            omega_rf=cavity_blond3.rf_program.omegas_rf,  # type: ignore # FIXME
-            phi_noise=cavity_blond3.rf_program.phase_noise,  # type: ignore # FIXME
-            phi_modulation=cavity_blond3.rf_program.phase_modulation,  # type: ignore # FIXME
+            omega_rf=rf_station_blond3.rf_program.omegas_rf,  # type: ignore # FIXME
+            phi_noise=rf_station_blond3.rf_program.phase_noise,  # type: ignore # FIXME
+            phi_modulation=rf_station_blond3.rf_program.phase_modulation,  # type: ignore # FIXME
             rf_station_options=None,
         )
         profile_blond3 = self.ring.elements.get_element(ProfileBaseClass)

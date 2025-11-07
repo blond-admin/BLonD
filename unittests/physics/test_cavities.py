@@ -9,13 +9,13 @@ from blond import Simulation, proton
 from blond._core.backends.backend import backend
 from blond._core.base import DynamicParameter
 from blond.physics.cavities import (
-    CavityBaseClass,
-    MultiHarmonicCavity,
-    SingleHarmonicCavity,
+    MultiHarmonicRfStation,
+    RfStationBaseClass,
+    SingleHarmonicRfStation,
 )
 
 
-class CavityBaseClassHelper(CavityBaseClass):
+class RfStationBaseClassHelper(RfStationBaseClass):
     def voltage_waveform_tmp(self, ts: NumpyArray):
         pass
 
@@ -23,9 +23,9 @@ class CavityBaseClassHelper(CavityBaseClass):
         pass
 
 
-class TestMultiHarmonicCavity(unittest.TestCase):
+class TestMultiHarmonicRfStation(unittest.TestCase):
     def setUp(self) -> None:
-        self.multi_harmonic_cavity = MultiHarmonicCavity.headless(
+        self.multi_harmonic_rf_station = MultiHarmonicRfStation.headless(
             section_index=0,
             voltage=np.array([1e6, 2e6], dtype=backend.float),
             phi_rf=np.array([0.1 * np.pi, np.pi], dtype=backend.float),
@@ -36,7 +36,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             total_energy=939,
             main_harmonic_idx=0,
         )
-        self.multi_harmonic_cavity._ring.section_lengths = [1, 2, 3]
+        self.multi_harmonic_rf_station._ring.section_lengths = [1, 2, 3]
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
@@ -58,7 +58,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         beam.read_partial_dt.return_value = beam.dt
         beam.write_partial_dE.return_value = beam.dE
 
-        self.multi_harmonic_cavity.track(beam=beam)
+        self.multi_harmonic_rf_station.track(beam=beam)
 
         self.assertEqual(beam.reference_total_energy, 939)  # incremented
         self.assertEqual(beam.reference_time, 0)  # unchanged
@@ -89,8 +89,8 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         simulation = Mock(Simulation)
         simulation.turn_i = DynamicParameter(0)
         with self.assertRaises(ValueError):
-            self.multi_harmonic_cavity.voltage = None
-            self.multi_harmonic_cavity.on_init_simulation(
+            self.multi_harmonic_rf_station.voltage = None
+            self.multi_harmonic_rf_station.on_init_simulation(
                 simulation=simulation
             )
 
@@ -98,8 +98,8 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         simulation = Mock(Simulation)
         simulation.turn_i = DynamicParameter(0)
         with self.assertRaises(ValueError):
-            self.multi_harmonic_cavity.phi_rf = None
-            self.multi_harmonic_cavity.on_init_simulation(
+            self.multi_harmonic_rf_station.phi_rf = None
+            self.multi_harmonic_rf_station.on_init_simulation(
                 simulation=simulation
             )
 
@@ -107,15 +107,15 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         simulation = Mock(Simulation)
         simulation.turn_i = DynamicParameter(0)
         with self.assertRaises(ValueError):
-            self.multi_harmonic_cavity.harmonic = None
-            self.multi_harmonic_cavity.on_init_simulation(
+            self.multi_harmonic_rf_station.harmonic = None
+            self.multi_harmonic_rf_station.on_init_simulation(
                 simulation=simulation
             )
 
 
-class TestSingleHarmonicCavity(unittest.TestCase):
+class TestSingleHarmonicRfStation(unittest.TestCase):
     def setUp(self) -> None:
-        self.single_harmonic_cavity = SingleHarmonicCavity.headless(
+        self.single_harmonic_rf_station = SingleHarmonicRfStation.headless(
             section_index=0,
             voltage=1e6,
             phi_rf=np.pi * 0.3,
@@ -125,7 +125,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
             cavity_feedback=None,
             total_energy=939,
         )
-        self.single_harmonic_cavity._ring.section_lengths = [1, 2, 3]
+        self.single_harmonic_rf_station._ring.section_lengths = [1, 2, 3]
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
@@ -149,7 +149,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
         beam.read_partial_dt.return_value = beam.dt
         beam.write_partial_dE.return_value = beam.dE
 
-        self.single_harmonic_cavity.track(beam=beam)
+        self.single_harmonic_rf_station.track(beam=beam)
 
         self.assertEqual(beam.reference_total_energy, 939)  # incremented
         self.assertEqual(beam.reference_time, 0)  # unchanged
@@ -180,8 +180,8 @@ class TestSingleHarmonicCavity(unittest.TestCase):
         simulation = Mock(Simulation)
         simulation.turn_i = DynamicParameter(0)
         with self.assertRaises(ValueError):
-            self.single_harmonic_cavity.voltage = None
-            self.single_harmonic_cavity.on_init_simulation(
+            self.single_harmonic_rf_station.voltage = None
+            self.single_harmonic_rf_station.on_init_simulation(
                 simulation=simulation
             )
 
@@ -189,8 +189,8 @@ class TestSingleHarmonicCavity(unittest.TestCase):
         simulation = Mock(Simulation)
         simulation.turn_i = DynamicParameter(0)
         with self.assertRaises(ValueError):
-            self.single_harmonic_cavity.phi_rf = None
-            self.single_harmonic_cavity.on_init_simulation(
+            self.single_harmonic_rf_station.phi_rf = None
+            self.single_harmonic_rf_station.on_init_simulation(
                 simulation=simulation
             )
 
@@ -198,8 +198,8 @@ class TestSingleHarmonicCavity(unittest.TestCase):
         simulation = Mock(Simulation)
         simulation.turn_i = DynamicParameter(0)
         with self.assertRaises(ValueError):
-            self.single_harmonic_cavity.harmonic = None
-            self.single_harmonic_cavity.on_init_simulation(
+            self.single_harmonic_rf_station.harmonic = None
+            self.single_harmonic_rf_station.on_init_simulation(
                 simulation=simulation
             )
 

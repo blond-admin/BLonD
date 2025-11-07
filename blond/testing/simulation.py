@@ -7,7 +7,7 @@ Simon Lauber
 
 from matplotlib import pyplot as plt
 
-from blond import MultiHarmonicCavity
+from blond import MultiHarmonicRfStation
 from blond._core.backends.backend import backend
 
 
@@ -20,21 +20,21 @@ class ExampleSimulation01:
         from blond import (
             Beam,
             BiGaussian,
-            CavityPhaseObservation,
             DriftSimple,
+            RfStationPhaseObservation,
             Ring,
             Simulation,
-            SingleHarmonicCavity,
+            SingleHarmonicRfStation,
             proton,
         )
         from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 
         ring = Ring(circumference=26658.883)
 
-        cavity1 = SingleHarmonicCavity()
-        cavity1.harmonic = 35640
-        cavity1.voltage = 6e6
-        cavity1.phi_rf = 0
+        rf_station1 = SingleHarmonicRfStation()
+        rf_station1.harmonic = 35640
+        rf_station1.voltage = 6e6
+        rf_station1.phi_rf = 0
 
         N_TURNS = 10
         energy_cycle = MagneticCyclePerTurn(
@@ -67,8 +67,8 @@ class ExampleSimulation01:
             turn_i=10,
         )
 
-        phase_observation = CavityPhaseObservation(
-            each_turn_i=1, cavity=cavity1
+        phase_observation = RfStationPhaseObservation(
+            each_turn_i=1, rf_station=rf_station1
         )
 
         # bunch_observation = BunchObservation(each_turn_i=10, batch_size=)
@@ -99,7 +99,7 @@ class SimulationTwoRfStations:
             DriftSimple,
             Ring,
             Simulation,
-            SingleHarmonicCavity,
+            SingleHarmonicRfStation,
             proton,
         )
         from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
@@ -107,34 +107,34 @@ class SimulationTwoRfStations:
         circumference = 26658.883
         ring = Ring(circumference=circumference)
 
-        cavity1 = MultiHarmonicCavity(
+        rf_station1 = MultiHarmonicRfStation(
             section_index=0, n_harmonics=1, main_harmonic_idx=0
         )
-        cavity1.harmonic = np.array(
+        rf_station1.harmonic = np.array(
             [
                 35640.0,
             ],
             dtype=backend.float,
         )
-        cavity1.voltage = np.array(
+        rf_station1.voltage = np.array(
             [
                 6e6,
             ],
             dtype=backend.float,
         )
-        cavity1.phi_rf = np.array(
+        rf_station1.phi_rf = np.array(
             [
                 0.0,
             ],
             dtype=backend.float,
         )
 
-        cavity2 = SingleHarmonicCavity(
+        rf_station2 = SingleHarmonicRfStation(
             section_index=1,
         )
-        cavity2.harmonic = backend.float(35640)
-        cavity2.voltage = backend.float(6e6)
-        cavity2.phi_rf = backend.float(0)
+        rf_station2.harmonic = backend.float(35640)
+        rf_station2.voltage = backend.float(6e6)
+        rf_station2.phi_rf = backend.float(0)
 
         N_TURNS = 10
         energy_cycle = MagneticCyclePerTurn(

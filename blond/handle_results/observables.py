@@ -17,7 +17,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from .. import WakeField
     from .._core.beam.base import BeamBaseClass
     from .._core.simulation.simulation import Simulation
-    from ..physics.cavities import SingleHarmonicCavity
+    from ..physics.cavities import SingleHarmonicRfStation
     from ..physics.profiles import DynamicProfileConstNBins, StaticProfile
 
 logger = logging.getLogger(__name__)
@@ -498,11 +498,11 @@ class BunchObservationMetaParams(Observables):
         return self._emittance_stat.get_valid_entries()
 
 
-class MultiCavityObservation(Observables):
+class MultiRfStationObservation(Observables):
     def __init__(
         self,
         each_turn_i: int,
-        cavities: list[SingleHarmonicCavity],
+        cavities: list[SingleHarmonicRfStation],
         folder: str = "",
     ):
         raise NotImplementedError("To be implemented")
@@ -513,7 +513,7 @@ class MultiCavityObservation(Observables):
         # self._voltages: DenseArrayRecorder | None = None
 
 
-class CavityPhaseObservation(Observables):
+class RfStationPhaseObservation(Observables):
     """Observe the RF cavity parameters during the execution of the simulation.
 
     Parameters
@@ -521,7 +521,7 @@ class CavityPhaseObservation(Observables):
     each_turn_i
         Value to control that the element is
         callable each n-th turn.
-    cavity
+    rf_station
         Class that implements beam-rf interactions in a synchrotron
     folder
         Path to the target folder used for
@@ -531,11 +531,11 @@ class CavityPhaseObservation(Observables):
     def __init__(
         self,
         each_turn_i: int,
-        cavity: SingleHarmonicCavity,
+        rf_station: SingleHarmonicRfStation,
         folder: str = "",
     ):
         super().__init__(each_turn_i=each_turn_i, folder=folder)
-        self._cavity = cavity
+        self._rf_station = rf_station
         self._phases: DenseArrayRecorder | None = None
         self._omegas: DenseArrayRecorder | None = None
         self._voltages: DenseArrayRecorder | None = None
@@ -566,7 +566,7 @@ class CavityPhaseObservation(Observables):
             beam=beam,
         )
         n_entries = n_turns // self.each_turn_i + 2
-        n_harmonics = int(self._cavity.n_rf)
+        n_harmonics = int(self._rf_station.n_rf)
         self._phases = DenseArrayRecorder(
             f"{self.common_name}_phases",
             (n_entries, n_harmonics),
@@ -594,16 +594,16 @@ class CavityPhaseObservation(Observables):
         """
         self._phases.write(
             None
-            if self._cavity.phi_rf is None
-            else (self._cavity.phi_rf + self._cavity.delta_phi_rf)
+            if self._rf_station.phi_rf is None
+            else (self._rf_station.phi_rf + self._rf_station.delta_phi_rf)
         )
         self._omegas.write(
             None
-            if self._cavity._omega_rf is None
-            else (self._cavity._omega_rf + self._cavity.delta_omega_rf)
+            if self._rf_station._omega_rf is None
+            else (self._rf_station._omega_rf + self._rf_station.delta_omega_rf)
         )
         self._voltages.write(
-            self._cavity.voltage,
+            self._rf_station.voltage,
         )
 
     @property  # as readonly attributes

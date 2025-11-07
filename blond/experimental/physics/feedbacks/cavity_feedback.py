@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
     from blond import Simulation
     from blond._core.beam.base import BeamBaseClass
-    from blond.physics.cavities import MultiHarmonicCavity
+    from blond.physics.cavities import MultiHarmonicRfStation
 
 # TODO rewrite all docstrings
 
@@ -96,12 +96,12 @@ class BirksCavityFeedback(LocalFeedback):
     # TODO docstring
 
     # TODO remove after development
-    _parent_cavity: MultiHarmonicCavity
+    _parent_cavity: MultiHarmonicRfStation
     profile: StaticProfile
 
     def __init__(
         self,
-        _parent_cavity: MultiHarmonicCavity,
+        _parent_cavity: MultiHarmonicRfStation,
         profile: StaticProfile,
         n_cavities: int,
         n_periods_coarse: int,
@@ -135,7 +135,7 @@ class BirksCavityFeedback(LocalFeedback):
             section_index=section_index,
             name=name,
         )
-        self.set_parent_cavity(cavity=_parent_cavity)
+        self.set_parent_cavity(rf_station=_parent_cavity)
         # Number of cavities the feedback is working on
         assert n_cavities > 0, f"{n_cavities=}, but must be bigger 0."
         self.n_cavities = int_from_float_with_warning(

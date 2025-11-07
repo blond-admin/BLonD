@@ -50,23 +50,23 @@ See full documentation [here](https://blond-code.docs.cern.ch/).
 import matplotlib.pyplot as plt
 
 from blond import (
-    Ring,
-    SingleHarmonicCavity,
-    ConstantMagneticCycle,
-    proton,
-    Simulation,
-    DriftSimple,
-    Beam,
-    BiGaussian,
-    backend,
+  Ring,
+  SingleHarmonicRfStation,
+  ConstantMagneticCycle,
+  proton,
+  Simulation,
+  DriftSimple,
+  Beam,
+  BiGaussian,
+  backend,
 )
 
-backend.set_specials("cpp") # set any backend you want
+backend.set_specials("cpp")  # set any backend you want
 
-ring = Ring(26658.883) # general definition of ring
-cavity1 = SingleHarmonicCavity(harmonic=35640, voltage=6e6, phi_rf=0)
+ring = Ring(26658.883)  # general definition of ring
+cavity1 = SingleHarmonicRfStation(harmonic=35640, voltage=6e6, phi_rf=0)
 drift1 = DriftSimple(orbit_length=26658.883, transition_gamma=55.759505)
-ring.add_elements([cavity1, drift1]) # add elements that resemble one turn
+ring.add_elements([cavity1, drift1])  # add elements that resemble one turn
 
 # Define the ramp
 magnetic_cycle = ConstantMagneticCycle(value=450e9, reference_particle=proton)
@@ -82,10 +82,9 @@ sim.print_one_turn_execution_order()
 # As the physics case is defined in the simulation,
 # the beam can be populated with particles according to the separatrix.
 sim.prepare_beam(
-    beam=beam1,
-    preparation_routine=BiGaussian(sigma_dt=0.1e-9, n_macroparticles=1e6),
+  beam=beam1,
+  preparation_routine=BiGaussian(sigma_dt=0.1e-9, n_macroparticles=1e6),
 )
-
 
 plt.figure(0)
 plt.subplot(2, 1, 1)
@@ -97,9 +96,9 @@ dts = beam1.write_partial_dt()
 dts += 0.05e-9
 
 sim.run_simulation(
-    beams=(beam1,),
-    turn_i_init=0,
-    n_turns=1e4,
+  beams=(beam1,),
+  turn_i_init=0,
+  n_turns=1e4,
 )
 plt.figure(0)
 plt.subplot(2, 1, 2)

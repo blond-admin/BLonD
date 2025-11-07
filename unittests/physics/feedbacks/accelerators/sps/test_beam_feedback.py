@@ -14,9 +14,9 @@ from blond import (
     Beam,
     BiGaussian,
     BunchObservation,
-    CavityPhaseObservation,
     ConstantMagneticCycle,
-    MultiHarmonicCavity,
+    MultiHarmonicRfStation,
+    RfStationPhaseObservation,
     Ring,
     Simulation,
     StaticProfile,
@@ -152,17 +152,17 @@ class TestBeamFeedback(unittest.TestCase):
             profile=self.profile,
             PL_gain=1000,  # gain of phase loop
         )
-        self.cavity = MultiHarmonicCavity(
+        self.rf_station = MultiHarmonicRfStation(
             n_harmonics=1,
             main_harmonic_idx=0,
             beam_feedback=self.sps_beam_feedback,
         )
 
         # RF parameters SPS
-        self.cavity.harmonic = np.array([4620.0])  # Harmonic numbers
-        self.cavity.voltage = np.array([4.5e6])  # [V]
-        self.cavity.phi_rf = np.array([0.0])
-        self.ring.add_element(self.cavity)
+        self.rf_station.harmonic = np.array([4620.0])  # Harmonic numbers
+        self.rf_station.voltage = np.array([4.5e6])  # [V]
+        self.rf_station.phi_rf = np.array([0.0])
+        self.ring.add_element(self.rf_station)
         self.ring.add_drifts(
             n_sections=1,
             n_drifts_per_section=1,
@@ -204,9 +204,9 @@ class TestBeamFeedback(unittest.TestCase):
 
     def test_setup(self):
         obs_bunch = BunchObservation(each_turn_i=1, beam=self.beam)
-        cav_obs = CavityPhaseObservation(
+        cav_obs = RfStationPhaseObservation(
             each_turn_i=1,
-            cavity=self.cavity,
+            rf_station=self.rf_station,
         )
 
         def callback(simulation: Simulation):

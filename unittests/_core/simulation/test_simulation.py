@@ -10,7 +10,7 @@ from blond import (
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicCavity,
+    SingleHarmonicRfStation,
     StaticProfile,
     mu_plus,
     proton,
@@ -29,10 +29,10 @@ class TestSimulation(unittest.TestCase):
     def setUp(self):
         ring = Ring(circumference=26658.883)
 
-        cavity1 = SingleHarmonicCavity()
-        cavity1.harmonic = 35640
-        cavity1.voltage = 6e6
-        cavity1.phi_rf = 0
+        rf_station1 = SingleHarmonicRfStation()
+        rf_station1.harmonic = 35640
+        rf_station1.voltage = 6e6
+        rf_station1.phi_rf = 0
 
         N_TURNS = int(1e3)
         magnetic_cycle = MagneticCyclePerTurn(
@@ -102,24 +102,24 @@ class TestSimulation(unittest.TestCase):
         harmonic = 25900
         transition_gamma = 1 / np.sqrt(11.4e-4)
         one_turn_model = []
-        for cavity_i in range(n_cavities):
+        for rf_station_i in range(n_cavities):
             one_turn_model.extend(
                 [
                     DriftSimple(  # for symmetry's sake for the CR bunch, we need to inject in the middle of a drift
                         transition_gamma=transition_gamma,
                         orbit_length=circumference / n_cavities / 2,
-                        section_index=cavity_i,
+                        section_index=rf_station_i,
                     ),
-                    SingleHarmonicCavity(
+                    SingleHarmonicRfStation(
                         voltage=total_voltage / n_cavities,
                         phi_rf=0,
                         harmonic=harmonic,
-                        section_index=cavity_i,
+                        section_index=rf_station_i,
                     ),
                     DriftSimple(
                         transition_gamma=transition_gamma,
                         orbit_length=circumference / n_cavities / 2,
-                        section_index=cavity_i,
+                        section_index=rf_station_i,
                     ),
                 ]
             )

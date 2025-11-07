@@ -11,7 +11,7 @@ from blond import (
     BiGaussian,
     ConstantMagneticCycle,
     DriftSimple,
-    MultiHarmonicCavity,
+    MultiHarmonicRfStation,
     Ring,
     Simulation,
     StaticProfile,
@@ -55,7 +55,7 @@ def rf_volt_comp(
 
 
 def rf_voltage_calculation(
-    rf_params: MultiHarmonicCavity,
+    rf_params: MultiHarmonicRfStation,
     cavityFB: List[SPSCavityFeedback],
     profile: StaticProfile,
 ):
@@ -124,7 +124,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
         # self.ring = Ring(C, alpha, p_s, particle=Proton(), n_turns=N_t)
         ring = Ring(circumference=C)
         self.ring = ring
-        rf = MultiHarmonicCavity(
+        rf = MultiHarmonicRfStation(
             n_harmonics=1,
             main_harmonic_idx=0,
         )
@@ -744,7 +744,7 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         self.ring = Ring(circumference=C)
 
         # RFStation
-        self.rfstation = MultiHarmonicCavity(
+        self.rfstation = MultiHarmonicRfStation(
             n_harmonics=1, main_harmonic_idx=0
         )
         self.rfstation.voltage = np.array([V], dtype=backend.float)
@@ -1078,20 +1078,20 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
 class TestSPSTransmitterGain(unittest.TestCase):
     def setUp(self):
         self.ring = Ring(circumference=2 * np.pi * 1100.009)
-        cavity = MultiHarmonicCavity(
+        rf_station = MultiHarmonicRfStation(
             n_harmonics=1,
             main_harmonic_idx=0,
         )
-        cavity.harmonic = np.array([4620], dtype=backend.float)
-        cavity.phi_rf = np.array([0], dtype=backend.float)
-        cavity.voltage = np.array([4.5e6], dtype=backend.float)
-        self.rf = cavity
+        rf_station.harmonic = np.array([4620], dtype=backend.float)
+        rf_station.phi_rf = np.array([0], dtype=backend.float)
+        rf_station.voltage = np.array([4.5e6], dtype=backend.float)
+        self.rf = rf_station
         drift = DriftSimple(
             orbit_length=2 * np.pi * 1100.009,
             transition_gamma=18.0,
         )
 
-        self.ring.add_element(cavity)
+        self.ring.add_element(rf_station)
         self.ring.add_element(drift)
         self.magnetic_cycle = ConstantMagneticCycle(
             reference_particle=proton,
@@ -1118,7 +1118,7 @@ class TestSPSTransmitterGain(unittest.TestCase):
         beam_2 = deepcopy(self.beam)
         self.rf.track(beam_2)
         del beam_2
-        cavity._omega_rf = np.array([200.222e6 * 2 * np.pi])
+        rf_station._omega_rf = np.array([200.222e6 * 2 * np.pi])
 
         self.profile = StaticProfile(
             cut_left=0.0e-9,

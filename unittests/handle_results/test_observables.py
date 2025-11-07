@@ -4,15 +4,15 @@ from unittest.mock import Mock
 
 import numpy as np
 
-from blond import Simulation, SingleHarmonicCavity, StaticProfile, WakeField
+from blond import Simulation, SingleHarmonicRfStation, StaticProfile, WakeField
 from blond._core.base import DynamicParameter
 from blond._core.beam.base import BeamBaseClass
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
     BunchObservation,
-    CavityPhaseObservation,
     DynamicProfileConstNBinsObservation,
     Observables,
+    RfStationPhaseObservation,
     StaticMultiProfileObservation,
     StaticProfileObservation,
     WakeFieldObservation,
@@ -180,46 +180,46 @@ class TestBunchObservation(unittest.TestCase):
 
 class TestCavityPhaseObservation(unittest.TestCase):
     def setUp(self) -> None:
-        cavity = Mock(
-            SingleHarmonicCavity,
+        rf_station = Mock(
+            SingleHarmonicRfStation,
         )
-        cavity.n_rf = 12
-        cavity.phi_rf = 1
-        cavity.delta_phi_rf = 1
-        cavity._omega_rf = 1
-        cavity.delta_omega_rf = 1
-        cavity.voltage = 1
-        self.cavity_phase_observation = CavityPhaseObservation(
+        rf_station.n_rf = 12
+        rf_station.phi_rf = 1
+        rf_station.delta_phi_rf = 1
+        rf_station._omega_rf = 1
+        rf_station.delta_omega_rf = 1
+        rf_station.voltage = 1
+        self.rf_station_phase_observation = RfStationPhaseObservation(
             each_turn_i=1,
-            cavity=cavity,
+            rf_station=rf_station,
             folder=callers_relative_path("results/", stacklevel=1),
         )
 
     def test___init__(self) -> None:
-        self.cavity_phase_observation = CavityPhaseObservation(
+        self.rf_station_phase_observation = RfStationPhaseObservation(
             each_turn_i=1,
-            cavity=Mock(
-                SingleHarmonicCavity,
+            rf_station=Mock(
+                SingleHarmonicRfStation,
                 folder=callers_relative_path("results/", stacklevel=1),
             ),
         )
 
     def test_from_disk(self) -> None:
-        self.cavity_phase_observation.on_init_simulation(
+        self.rf_station_phase_observation.on_init_simulation(
             simulation=simulation,
         )
-        self.cavity_phase_observation.on_run_simulation(
+        self.rf_station_phase_observation.on_run_simulation(
             simulation=simulation,
             beam=beam,
             turn_i_init=0,
             n_turns=100,
         )
-        self.cavity_phase_observation.update(
+        self.rf_station_phase_observation.update(
             simulation=simulation,
         )
-        self.cavity_phase_observation.to_disk()
+        self.rf_station_phase_observation.to_disk()
 
-        self.cavity_phase_observation.from_disk()
+        self.rf_station_phase_observation.from_disk()
 
 
 class TestStaticProfileObservation(unittest.TestCase):

@@ -1,4 +1,4 @@
-"""Collection of implementations to handle lumped RF cavities in synchrotrons.
+"""Collection of implementations to handle lumped RF stations in synchrotrons.
 
 Authors
 -------
@@ -37,8 +37,8 @@ if TYPE_CHECKING:  # pragma: no cover
 TWOPI_C0 = 2.0 * np.pi * c0
 
 
-class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
-    """Base class to implement beam-rf interactions in synchrotrons.
+class RfStationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
+    """Base class to implement beam-RF interactions in synchrotrons.
 
     Parameters
     ----------
@@ -62,9 +62,8 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         name: str | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
-        from blond.experimental.physics.feedbacks.base import LocalFeedback
-
         # prevent cyclic import
+        from blond.experimental.physics.feedbacks.base import LocalFeedback
 
         super().__init__(
             section_index=section_index,
@@ -74,14 +73,14 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         if cavity_feedback is None:
             pass
         elif isinstance(cavity_feedback, LocalFeedback):
-            cavity_feedback.set_parent_cavity(cavity=self)
+            cavity_feedback.set_parent_cavity(rf_station=self)
         else:
             raise ValueError(cavity_feedback)
 
         if beam_feedback is None:
             pass
         elif isinstance(beam_feedback, LocalFeedback):
-            beam_feedback.set_parent_cavity(cavity=self)
+            beam_feedback.set_parent_cavity(rf_station=self)
         else:
             raise ValueError(beam_feedback)
         self._n_rf = n_rf
@@ -288,7 +287,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
 
     @abstractmethod  # pragma: no cover
     def voltage_waveform_tmp(self, ts: NumpyArray):
-        """Calculate voltage of cavity for current turn.
+        """Calculate the voltage of the RF station for current turn.
 
         Parameters
         ----------
@@ -304,7 +303,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         beam_beta: float,
         closed_orbit_length: float,
     ):
-        """Calculate angular frequency of cavity, in [rad/s].
+        """Calculate angular frequency of the RF station, in [rad/s].
 
         Parameters
         ----------
@@ -316,13 +315,13 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         Returns
         -------
         omega
-            Angular frequency (2 PI f) of cavity, in [rad/s]
+            Angular frequency (2 PI f) of RF station, in [rad/s]
         """
         pass
 
 
-class SingleHarmonicCavity(CavityBaseClass):
-    """Cavity with only one RF wave for beam interaction.
+class SingleHarmonicRfStation(RfStationBaseClass):
+    """RF Station with only one RF wave for beam interaction.
 
     Parameters
     ----------
@@ -336,11 +335,11 @@ class SingleHarmonicCavity(CavityBaseClass):
     Attributes
     ----------
     voltage
-        Cavity's effective voltage, in [V]
+        RF Stations's effective voltage, in [V]
     phi_rf
-        Cavity's design phase, in [deg]
+        RF Stations's design phase, in [deg]
     harmonic
-        Cavity's design harmonic []
+        RF Stations's design harmonic []
     """
 
     def __init__(
@@ -464,7 +463,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         beam_beta: float,
         ring_circumference: float,
     ) -> float:
-        """Calculate angular frequency of cavity, in [rad/s].
+        """Calculate angular frequency of RF station, in [rad/s].
 
         Parameters
         ----------
@@ -476,12 +475,12 @@ class SingleHarmonicCavity(CavityBaseClass):
         Returns
         -------
         omega
-            Angular frequency (2 PI f) of cavity, in [rad/s]
+            Angular frequency (2 PI f) of RF station, in [rad/s]
         """
         return self.harmonic * TWOPI_C0 * beam_beta / ring_circumference
 
     def voltage_waveform_tmp(self, ts: NumpyArray):
-        """Calculate voltage of cavity for current turn.
+        """Calculate voltage of the RF station for the current turn.
 
         Note
         ----
@@ -514,7 +513,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         total_energy: float,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
-    ) -> SingleHarmonicCavity:
+    ) -> SingleHarmonicRfStation:
         """Initialize object without simulation context.
 
         Parameters
@@ -545,7 +544,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         from .._core.simulation.simulation import Simulation
         from ..cycles.magnetic_cycle import ConstantMagneticCycle
 
-        mhc = SingleHarmonicCavity(
+        mhc = SingleHarmonicRfStation(
             section_index=section_index,
             local_wakefield=local_wakefield,
             cavity_feedback=cavity_feedback,
@@ -577,8 +576,8 @@ class SingleHarmonicCavity(CavityBaseClass):
         return mhc
 
 
-class MultiHarmonicCavity(CavityBaseClass):
-    """Cavity with several RF wave for beam interaction.
+class MultiHarmonicRfStation(RfStationBaseClass):
+    """RF station with several RF waves for beam interaction.
 
     Parameters
     ----------
@@ -597,11 +596,11 @@ class MultiHarmonicCavity(CavityBaseClass):
     Attributes
     ----------
     voltage
-        Cavity's effective voltages (per harmonic) in [V]
+        RF station's effective voltages (per harmonic) in [V]
     phi_rf
-        Cavity's design phases (per harmonic) in [deg]
+        RF station's design phases (per harmonic) in [deg]
     harmonic
-        Cavity's design harmonics (per harmonic) []
+        RF station's design harmonics (per harmonic) []
     """
 
     def __init__(
@@ -696,7 +695,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         Returns
         -------
         omega
-            Angular frequency (2 PI f) of cavity in [rad/s]
+            Angular frequency (2 PI f) of RF station, in [rad/s].
         """
         return self.harmonic * backend.float(
             TWOPI_C0 * beam_beta / ring_circumference
@@ -724,7 +723,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         )[self.main_harmonic_idx]
 
     def voltage_waveform_tmp(self, ts: NumpyArray):
-        """Calculate voltage of cavity for current turn.
+        """Calculate voltage of the RF station for the current turn.
 
         Note
         ----
@@ -762,7 +761,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
         beam_feedback: Blond2BeamFeedback | None = None,
-    ) -> MultiHarmonicCavity:
+    ) -> MultiHarmonicRfStation:
         """Initialize object without simulation context.
 
         Parameters
@@ -793,7 +792,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         from .._core.simulation.simulation import Simulation
         from ..cycles.magnetic_cycle import ConstantMagneticCycle
 
-        mhc = MultiHarmonicCavity(
+        mhc = MultiHarmonicRfStation(
             n_harmonics=len(voltage),
             section_index=section_index,
             local_wakefield=local_wakefield,

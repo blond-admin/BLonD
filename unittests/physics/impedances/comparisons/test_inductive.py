@@ -10,7 +10,7 @@ from blond import (
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicCavity,
+    SingleHarmonicRfStation,
     StaticProfile,
     WakeField,
     proton,
@@ -54,10 +54,10 @@ class TestInductiveImpedances(unittest.TestCase):
                 orbit_length=ring.circumference,
             )
             drift.transition_gamma = 4.4
-            cavity = SingleHarmonicCavity()
-            cavity.harmonic = 1
-            cavity.voltage = 8e3
-            cavity.phi_rf = np.pi
+            rf_station = SingleHarmonicRfStation()
+            rf_station.harmonic = 1
+            rf_station.voltage = 8e3
+            rf_station.phi_rf = np.pi
             profile = StaticProfile(
                 0,
                 10,
@@ -70,7 +70,7 @@ class TestInductiveImpedances(unittest.TestCase):
                 profile=profile,
             )
             ring.add_elements(
-                (drift, cavity, profile, wake),
+                (drift, rf_station, profile, wake),
                 reorder=True,
             )
             beam = Beam(

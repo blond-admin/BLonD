@@ -6,7 +6,7 @@ import numpy as np
 from blond import Ring, Simulation
 from blond._core.base import BeamPhysicsRelevant
 from blond._core.beam.base import BeamBaseClass
-from blond.physics.cavities import CavityBaseClass
+from blond.physics.cavities import RfStationBaseClass
 from blond.physics.drifts import DriftBaseClass
 
 
@@ -87,9 +87,9 @@ class TestRing(unittest.TestCase):
 
     def test_add_element_reorder(self):
         drift = Mock(spec=DriftBaseClass)
-        cavity = Mock(spec=CavityBaseClass)
+        rf_station = Mock(spec=RfStationBaseClass)
         drift.section_index = 0
-        cavity.section_index = 0
+        rf_station.section_index = 0
 
         self.ring.add_element(
             element=drift,
@@ -98,12 +98,12 @@ class TestRing(unittest.TestCase):
             section_index=None,
         )
         self.ring.add_element(
-            element=cavity,
+            element=rf_station,
             reorder=True,
             deepcopy=False,
             section_index=None,
         )
-        assert self.ring.elements.elements == [cavity, drift]
+        assert self.ring.elements.elements == [rf_station, drift]
 
     def test_add_elements(self):
         element1 = Mock(spec=BeamPhysicsRelevant)
@@ -357,10 +357,10 @@ class TestRing(unittest.TestCase):
     def test_n_cavities(self):
         element1 = Mock(spec=BeamPhysicsRelevant)
         element1.section_index = 0
-        cavity1 = Mock(spec=CavityBaseClass)
-        cavity1.section_index = 0
+        rf_station1 = Mock(spec=RfStationBaseClass)
+        rf_station1.section_index = 0
         self.ring.add_elements(
-            [element1 for i in range(10)] + [cavity1 for i in range(10)],
+            [element1 for i in range(10)] + [rf_station1 for i in range(10)],
             deepcopy=True,
         )
         self.assertEqual(self.ring.n_cavities, 10)
@@ -370,9 +370,9 @@ class TestRing(unittest.TestCase):
         drift = Mock(spec=DriftBaseClass)
         drift.section_index = 0
         drift.share_of_circumference = 1
-        cavity = Mock(spec=CavityBaseClass)
-        cavity.section_index = 0
-        self.ring.add_elements((drift, cavity))
+        rf_station = Mock(spec=RfStationBaseClass)
+        rf_station.section_index = 0
+        self.ring.add_elements((drift, rf_station))
 
         self.ring.on_init_simulation(simulation=simulation)
 
@@ -390,10 +390,10 @@ class TestRing(unittest.TestCase):
     def test_effective_circumference(self):
         drift = Mock(spec=DriftBaseClass)
         drift.orbit_length = 123
-        cavity = Mock(spec=CavityBaseClass)
+        rf_station = Mock(spec=RfStationBaseClass)
         drift.section_index = 0
-        cavity.section_index = 0
-        self.ring.add_elements((drift, cavity))
+        rf_station.section_index = 0
+        self.ring.add_elements((drift, rf_station))
         self.assertEqual(123, self.ring.closed_orbit_length)
 
     def test_effective_circumference2(self):
@@ -401,11 +401,11 @@ class TestRing(unittest.TestCase):
         drift.orbit_length = 123
         drift2 = Mock(spec=DriftBaseClass)
         drift2.orbit_length = 123
-        cavity = Mock(spec=CavityBaseClass)
+        rf_station = Mock(spec=RfStationBaseClass)
         drift.section_index = 0
         drift2.section_index = 0
-        cavity.section_index = 0
-        self.ring.add_elements((drift, drift2, cavity))
+        rf_station.section_index = 0
+        self.ring.add_elements((drift, drift2, rf_station))
         self.assertEqual(2 * 123, self.ring.closed_orbit_length)
 
     def test_assert_circumference(self):
@@ -415,11 +415,11 @@ class TestRing(unittest.TestCase):
             drift.orbit_length = 123
             drift2 = Mock(spec=DriftBaseClass)
             drift2.orbit_length = 123
-            cavity = Mock(spec=CavityBaseClass)
+            rf_station = Mock(spec=RfStationBaseClass)
             drift.section_index = 0
             drift2.section_index = 0
-            cavity.section_index = 0
-            self.ring.add_elements((drift, drift2, cavity))
+            rf_station.section_index = 0
+            self.ring.add_elements((drift, drift2, rf_station))
             self.ring.assert_circumference()  # fails
         self.ring._circumference = 2 * 123
         self.ring.assert_circumference()  # works

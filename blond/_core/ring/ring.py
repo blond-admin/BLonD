@@ -60,7 +60,7 @@ class Ring(Preparable, Schedulable):
             )
         elif self.n_cavities == 0:
             warnings.warn(
-                "The simulation has been initialized without cavity.",
+                "The simulation has been initialized without RF station.",
                 UserWarning,
                 stacklevel=1,
             )
@@ -124,9 +124,9 @@ class Ring(Preparable, Schedulable):
     @property
     def n_cavities(self) -> int:
         """Total number of cavities in this synchrotron."""
-        from ...physics.cavities import CavityBaseClass
+        from ...physics.cavities import RfStationBaseClass
 
-        return self.elements.count(CavityBaseClass)
+        return self.elements.count(RfStationBaseClass)
 
     @property  # as readonly attributes
     def elements(self) -> BeamPhysicsRelevantElements:
