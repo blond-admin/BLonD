@@ -1,5 +1,3 @@
-from typing import TYPE_CHECKING
-
 import numpy as np
 from scipy.constants import c
 
@@ -16,44 +14,39 @@ from blond import (
 )
 from blond.physics.energy_reference_kick import ReferenceEnergyChange
 
-if TYPE_CHECKING:
-    pass
-
 
 def main():
-    N_TURNS = 17
+    n_turns = 17
     # calculate parameters
     transition_gamma = 1 / np.sqrt(10.395e-4)
-    N_SECTIONS = 1
-    VOLTAGE_PER_SECTION = 865 * 30e6 / N_SECTIONS
-    TIME_PER_TURN = 953.338 * 2 * np.pi / c
+    n_sections = 1
+    voltage_per_section = 865 * 30e6 / n_sections
+    time_per_turn = 953.338 * 2 * np.pi / c
 
     # define energy ramp
-    ENERGY_RAMP = np.linspace(63e9, 313.83e9 * 100, N_TURNS)
-    PHI_S = 135 * np.pi / 180
+    energy_ramp = np.linspace(63e9, 313.83e9 * 100, n_turns)
+    phi_s = 135 * np.pi / 180
 
     # initiate ring
     ring = Ring(circumference=953.338 * 2 * np.pi)
 
     energy_cycle = MagneticCycleByTime(
         reference_particle=mu_plus,
-        base_time=np.linspace(0, 18 * TIME_PER_TURN, N_TURNS),
-        base_values=ENERGY_RAMP,
+        base_time=np.linspace(0, 18 * time_per_turn, n_turns),
+        base_values=energy_ramp,
         in_unit="momentum",
     )
 
-    N_CAVITIES = N_SECTIONS
-
     one_turn_model = []
-    for cavity_i in range(N_CAVITIES):
+    for cavity_i in range(n_sections):
         cavity = SingleHarmonicCavity(
             section_index=cavity_i,
         )
         profile = StaticProfile(
             cut_left=0, cut_right=1, n_bins=256, section_index=cavity_i
         )
-        cavity.voltage = VOLTAGE_PER_SECTION
-        cavity.phi_rf = PHI_S
+        cavity.voltage = voltage_per_section
+        cavity.phi_rf = phi_s
         cavity.harmonic = 25900
 
         one_turn_model.extend(
@@ -61,19 +54,19 @@ def main():
                 cavity,
                 DriftSimple(
                     transition_gamma=transition_gamma,
-                    orbit_length=ring.circumference / N_SECTIONS / 3,
+                    orbit_length=ring.circumference / n_sections / 3,
                     section_index=cavity_i,
                 ),
                 ReferenceEnergyChange(section_index=cavity_i),
                 DriftSimple(
                     transition_gamma=transition_gamma,
-                    orbit_length=ring.circumference / N_SECTIONS / 3,
+                    orbit_length=ring.circumference / n_sections / 3,
                     section_index=cavity_i,
                 ),
                 ReferenceEnergyChange(section_index=cavity_i),
                 DriftSimple(
                     transition_gamma=transition_gamma,
-                    orbit_length=ring.circumference / N_SECTIONS / 3,
+                    orbit_length=ring.circumference / n_sections / 3,
                     section_index=cavity_i,
                 ),
                 profile,
@@ -89,14 +82,14 @@ def main():
         particle_type=mu_plus,
     )
 
-    zmax = ring.circumference / (2 * 25900)
+    zmax = ring.circumference / (2 * 25900)  # maximum bunch length z
 
     total_cavity = SingleHarmonicCavity(
         section_index=cavity_i,
     )
 
-    total_cavity.voltage = VOLTAGE_PER_SECTION
-    total_cavity.phi_rf = PHI_S
+    total_cavity.voltage = voltage_per_section
+    total_cavity.phi_rf = phi_s
     total_cavity.harmonic = 25900
 
     sim.prepare_beam(
@@ -112,7 +105,7 @@ def main():
     sim.run_simulation(
         beams=(beam1,),
         turn_i_init=0,
-        n_turns=N_TURNS,
+        n_turns=n_turns,
     )
 
     return
