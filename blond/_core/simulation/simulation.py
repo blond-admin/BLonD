@@ -29,7 +29,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from blond import (
         Beam,
-        SingleHarmonicCavity,
+        SingleHarmonicRfStation,
     )
     from blond.legacy.blond2.beam.beam import Beam as Blond2Beam
     from blond.legacy.blond2.beam.profile import Profile as Blond2Profile
@@ -52,7 +52,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from ..beam.base import BeamBaseClass
     from ..beam.particle_types import ParticleType
     from ..ring.ring import Ring
-from ...physics.cavities import CavityBaseClass
+from ...physics.cavities import RfStationBaseClass
 
 logger = logging.getLogger(__name__)
 
@@ -307,7 +307,7 @@ class Simulation(Preparable):
         >>> beam1 = Beam( ... )
         >>> ring = Ring( ... )
         >>> energy_cycle = MagneticCyclePerTurn( ... )
-        >>> cavity1 = SingleHarmonicCavity( ... )
+        >>> cavity1 = SingleHarmonicRfStation( ... )
         >>> drift1 = DriftSimple( ... )
         >>> Simulation.from_locals(locals=locals(), verbose=True)
 
@@ -578,7 +578,7 @@ class Simulation(Preparable):
         raise NotImplementedError
         from ...physics.cavities import (  # prevent cyclic import
             DriftBaseClass,
-            MultiHarmonicCavity,
+            MultiHarmonicRfStation,
         )
 
         ring_length = self.ring.closed_orbit_length
@@ -621,8 +621,8 @@ class Simulation(Preparable):
             intensity=self.beams[0]._intensity__init,
         )
         # todo handle multiple RF stations
-        cavity_blond3: SingleHarmonicCavity | MultiHarmonicCavity = (
-            self.ring.elements.get_element(CavityBaseClass)
+        cavity_blond3: SingleHarmonicRfStation | MultiHarmonicRfStation = (
+            self.ring.elements.get_element(RfStationBaseClass)
         )
         # FIXME
         rf_station = RFStation(

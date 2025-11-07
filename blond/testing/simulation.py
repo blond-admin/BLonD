@@ -7,7 +7,7 @@ Simon Lauber
 
 from matplotlib import pyplot as plt
 
-from blond import MultiHarmonicCavity
+from blond import MultiHarmonicRfStation
 from blond._core.backends.backend import backend
 
 
@@ -24,14 +24,14 @@ class ExampleSimulation01:
             DriftSimple,
             Ring,
             Simulation,
-            SingleHarmonicCavity,
+            SingleHarmonicRfStation,
             proton,
         )
         from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 
         ring = Ring(circumference=26658.883)
 
-        cavity1 = SingleHarmonicCavity()
+        cavity1 = SingleHarmonicRfStation()
         cavity1.harmonic = 35640
         cavity1.voltage = 6e6
         cavity1.phi_rf = 0
@@ -99,7 +99,7 @@ class SimulationTwoRfStations:
             DriftSimple,
             Ring,
             Simulation,
-            SingleHarmonicCavity,
+            SingleHarmonicRfStation,
             proton,
         )
         from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
@@ -107,7 +107,7 @@ class SimulationTwoRfStations:
         circumference = 26658.883
         ring = Ring(circumference=circumference)
 
-        cavity1 = MultiHarmonicCavity(
+        cavity1 = MultiHarmonicRfStation(
             section_index=0, n_harmonics=1, main_harmonic_idx=0
         )
         cavity1.harmonic = np.array(
@@ -129,7 +129,7 @@ class SimulationTwoRfStations:
             dtype=backend.float,
         )
 
-        cavity2 = SingleHarmonicCavity(
+        cavity2 = SingleHarmonicRfStation(
             section_index=1,
         )
         cavity2.harmonic = backend.float(35640)

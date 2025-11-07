@@ -30,7 +30,7 @@ from blond import (
     MagneticCyclePerTurn,
     Ring,
     Simulation,
-    SingleHarmonicCavity,
+    SingleHarmonicRfStation,
     StaticProfile,
     WakeField,
     proton,
@@ -76,7 +76,7 @@ def main():
             value_init=sync_momentum,
             in_unit="momentum",
         )
-        cavity1 = SingleHarmonicCavity(
+        cavity1 = SingleHarmonicRfStation(
             harmonic=4620,
             voltage=0.9e6,
             phi_rf=0.0,

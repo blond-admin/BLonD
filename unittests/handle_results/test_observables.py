@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import numpy as np
 
-from blond import Simulation, SingleHarmonicCavity, StaticProfile, WakeField
+from blond import Simulation, SingleHarmonicRfStation, StaticProfile, WakeField
 from blond._core.base import DynamicParameter
 from blond._core.beam.base import BeamBaseClass
 from blond.handle_results.helpers import callers_relative_path
@@ -181,7 +181,7 @@ class TestBunchObservation(unittest.TestCase):
 class TestCavityPhaseObservation(unittest.TestCase):
     def setUp(self) -> None:
         cavity = Mock(
-            SingleHarmonicCavity,
+            SingleHarmonicRfStation,
         )
         cavity.n_rf = 12
         cavity.phi_rf = 1
@@ -199,7 +199,7 @@ class TestCavityPhaseObservation(unittest.TestCase):
         self.cavity_phase_observation = CavityPhaseObservation(
             each_turn_i=1,
             cavity=Mock(
-                SingleHarmonicCavity,
+                SingleHarmonicRfStation,
                 folder=callers_relative_path("results/", stacklevel=1),
             ),
         )

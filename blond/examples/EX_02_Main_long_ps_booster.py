@@ -27,7 +27,7 @@ from blond import (
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicCavity,
+    SingleHarmonicRfStation,
     StaticProfile,
     WakeField,
     proton,
@@ -65,7 +65,7 @@ def main():
         value=sync_momentum,
         reference_particle=proton,
     )
-    cavity1 = SingleHarmonicCavity()
+    cavity1 = SingleHarmonicRfStation()
     cavity1.harmonic = 1
     cavity1.voltage = 8e3
     cavity1.phi_rf = np.pi

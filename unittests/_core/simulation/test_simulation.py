@@ -10,7 +10,7 @@ from blond import (
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicCavity,
+    SingleHarmonicRfStation,
     StaticProfile,
     mu_plus,
     proton,
@@ -29,7 +29,7 @@ class TestSimulation(unittest.TestCase):
     def setUp(self):
         ring = Ring(circumference=26658.883)
 
-        cavity1 = SingleHarmonicCavity()
+        cavity1 = SingleHarmonicRfStation()
         cavity1.harmonic = 35640
         cavity1.voltage = 6e6
         cavity1.phi_rf = 0
@@ -110,7 +110,7 @@ class TestSimulation(unittest.TestCase):
                         orbit_length=circumference / n_cavities / 2,
                         section_index=cavity_i,
                     ),
-                    SingleHarmonicCavity(
+                    SingleHarmonicRfStation(
                         voltage=total_voltage / n_cavities,
                         phi_rf=0,
                         harmonic=harmonic,
