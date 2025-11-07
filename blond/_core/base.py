@@ -273,7 +273,7 @@ class BeamPhysicsRelevant(SimulationElementBase):
     n_instances = 0
 
     def __init__(
-        self, section_index: int = 0, name: str | None = None
+        self, section_index: int = 0, name: str | None = None, **kwargs
     ) -> None:
         super().__init__(section_index, name)
         type(self).n_instances += 1
