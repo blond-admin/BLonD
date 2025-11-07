@@ -10,6 +10,12 @@ from blond._core.backends.backend import (
 
 
 class TestEX_07_Xsuite_Matching(unittest.TestCase):
+    def setUp(self):
+        try:
+            import xpart
+        except ModuleNotFoundError as exc:
+            self.skipTest(str(exc))
+
     def test_executable_numba32(self):
         backend.change_backend(Numpy32Bit)
         backend.set_specials("numba")
