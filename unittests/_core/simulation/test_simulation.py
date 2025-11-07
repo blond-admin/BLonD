@@ -12,6 +12,7 @@ from blond import (
     Simulation,
     SingleHarmonicCavity,
     StaticProfile,
+    backend,
     mu_plus,
     proton,
 )
@@ -19,9 +20,9 @@ from blond._core.beam.base import BeamBaseClass
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
-    BunchObservation,
+    BeamObservationEndOfTurn,
     BunchObservationMetaParams,
-    Observables,
+    ObservablesEndOfTurnBase,
 )
 
 
@@ -146,7 +147,7 @@ class TestSimulation(unittest.TestCase):
             )
 
     def test__run_simulation_single_beam(self):
-        observe = Mock(spec=Observables)
+        observe = Mock(spec=ObservablesEndOfTurnBase)
 
         def my_callback(simulation: Simulation, beam: Beam) -> None:
             return
@@ -203,18 +204,24 @@ class TestSimulation(unittest.TestCase):
         potential_well_pinned = np.loadtxt(
             callers_relative_path("resources/potential_well.csv", stacklevel=1)
         )
+        DEV_DEBUG = False
+        if DEV_DEBUG:
+            plt.figure()
+            plt.subplot(2,1,1)
+            plt.plot(potential_well_pinned, label="potential_well_pinned")
+            plt.plot(potential_well, "--",label="potential_well")
+            plt.subplot(2,1,2)
+            plt.plot(potential_well-potential_well_pinned)
+            plt.legend()
+            plt.show()
         np.testing.assert_allclose(
             potential_well_pinned,
             potential_well,
+            rtol=1e-6 if backend.float == np.float32 else 1e-12
         )
 
-    @unittest.skip
-    def test_get_separatrix(self):
-        # TODO: implement test for `get_separatrix`
-        self.simulation.get_separatrix()
-
     def test_load_results(self):
-        observation = BunchObservation(each_turn_i=10, beam=self.beam)
+        observation = BeamObservationEndOfTurn(each_turn_i=10, beam=self.beam)
         kwargs = dict(
             beams=(self.beam,),
             n_turns=10,
@@ -265,7 +272,7 @@ class TestSimulation(unittest.TestCase):
         self.assertIsInstance(self.simulation.ring, Ring)
 
     def test_run_simulation(self):
-        observe = BunchObservation(each_turn_i=10, beam=self.beam)
+        observe = BeamObservationEndOfTurn(each_turn_i=10, beam=self.beam)
 
         def my_callback(simulation: Simulation, beam: BeamBaseClass) -> None:
             return

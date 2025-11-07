@@ -43,7 +43,7 @@ class PythonSpecials(Specials):
         omega_rf: float,
         phi_rf: float,
         bin_size: float,
-    ) -> np.float32 | np.float64:
+    ) -> float:
         scoeff = np.trapezoid(  # type: ignore
             np.exp(alpha * hist_x)
             * np.sin(omega_rf * hist_x + phi_rf)
@@ -63,8 +63,8 @@ class PythonSpecials(Specials):
     def histogram(
         array_read: NumpyArray,
         array_write: NumpyArray,
-        start: np.float32 | np.float64,
-        stop: np.float32 | np.float64,
+        start: float,
+        stop: float,
     ) -> None:
         array_write[:], _ = np.histogram(
             array_read,
@@ -85,8 +85,8 @@ class PythonSpecials(Specials):
         voltage: float,
         omega_rf: float,
         phi_rf: float,
-        charge: np.float32 | np.float64,
-        acceleration_kick: np.float32 | np.float64,
+        charge: float,
+        acceleration_kick: float,
     ) -> None:
         voltage_kick = charge * voltage
 
@@ -118,10 +118,10 @@ class PythonSpecials(Specials):
     def drift_simple(
         dt: NumpyArray,
         dE: NumpyArray,
-        T: np.float32 | np.float64,
-        eta_0: np.float32 | np.float64,
-        beta: np.float32 | np.float64,
-        energy: np.float32 | np.float64,
+        T: float,
+        eta_0: float,
+        beta: float,
+        energy: float,
     ) -> None:
         """Function to apply drift equation of motion."""
         # solver_decoded = solver.decode(encoding='utf_8')
@@ -200,8 +200,8 @@ class PythonSpecials(Specials):
         dE: NumpyArray,
         voltage: NumpyArray,
         bin_centers: NumpyArray,
-        charge: np.float32 | np.float64,
-        acceleration_kick: np.float32 | np.float64,
+        charge: float,
+        acceleration_kick: float,
     ) -> None:
         """Interpolated kick method.
 
