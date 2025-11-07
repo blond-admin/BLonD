@@ -416,7 +416,7 @@ class NumpyBackend(BackendBaseClass):
         else:
             raise ValueError(mode)
         if self.verbose and onchange:
-            print(f"Set special to `{self.specials.__class__.__name__}`")
+            print(f"Set special to `{mode}`")
 
 
 class Numpy32Bit(NumpyBackend):
@@ -512,7 +512,7 @@ class CupyBackend(BackendBaseClass):
         else:
             raise ValueError(mode)
         if self.verbose:
-            print(f"Set special to `{self.specials.__class__.__name__}`")
+            print(f"Set special to `{mode}`")
 
 
 class Cupy32Bit(CupyBackend):
