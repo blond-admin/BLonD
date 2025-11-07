@@ -6,10 +6,10 @@ from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
 from .._core.beam.base import BeamBaseClass
 from .._core.simulation.simulation import Simulation
+from ..cycles.magnetic_cycle import MagneticCycleBase, MagneticCycleByTime
 
 if TYPE_CHECKING:  # pragma: no cover
     from .. import Ring
-    from ..cycles.magnetic_cycle import MagneticCycleBase, MagneticCycleByTime
 
 
 class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
