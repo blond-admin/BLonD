@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, overload
 
 import numpy as np
-from scipy.constants import speed_of_light as c
+from scipy.constants import speed_of_light as c  # type: ignore[import-untyped]
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
@@ -97,7 +97,17 @@ def is_in_separatrix(
     return is_in_separatrix_
 
 
-def phase_modulo_above_transition(phi: NumpyArray) -> NumpyArray:
+@overload
+def phase_modulo_above_transition(phi: float) -> float: ...
+
+
+@overload
+def phase_modulo_above_transition(phi: NumpyArray) -> NumpyArray: ...
+
+
+def phase_modulo_above_transition(
+    phi: float | NumpyArray,
+) -> float | NumpyArray:
     """Projects a phase array into the range -Pi/2 to +3*Pi/2.
 
     Parameters
@@ -114,7 +124,17 @@ def phase_modulo_above_transition(phi: NumpyArray) -> NumpyArray:
     return phi - 2.0 * np.pi * np.floor(phi / (2.0 * np.pi))
 
 
-def phase_modulo_below_transition(phi: NumpyArray) -> NumpyArray:
+@overload
+def phase_modulo_below_transition(phi: float) -> float: ...
+
+
+@overload
+def phase_modulo_below_transition(phi: NumpyArray) -> NumpyArray: ...
+
+
+def phase_modulo_below_transition(
+    phi: float | NumpyArray,
+) -> float | NumpyArray:
     """Projects a phase array into the range -Pi/2 to +3*Pi/2.
 
     Parameters

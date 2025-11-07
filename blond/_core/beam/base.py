@@ -138,6 +138,11 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     @property
     def reference_total_energy(self) -> float:
         """Total beam energy [eV]."""
+        if self._reference_total_energy is None:
+            raise ValueError(
+                "Beam is not properly set up, please set "
+                "`reference_total_energy` first!"
+            )
         return self._reference_total_energy
 
     @reference_total_energy.setter
@@ -400,4 +405,18 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """
         self.invalidate_cache_dt()
         self.invalidate_cache_dE()
+        return self._flags
+
+    def read_partial_flags(self) -> NumpyArray | CupyArray:
+        """Returns flags-array on current node (distributed computing ready).
+
+        Note
+        ----
+        Depends on `is_distributed`
+        If not distributed, returns all particles.
+        Using `_dt` and `_dE` will result in the same behaviour.
+
+        If distributed, returns only the particles
+        visible to the current node.
+        """
         return self._flags

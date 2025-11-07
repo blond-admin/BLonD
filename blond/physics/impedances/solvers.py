@@ -230,6 +230,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
 
     def _update_internal_data(self):
         """Rebuild internal data model."""
+        assert self._parent_wakefield.profile is not None
         self._n_time = int(
             round(
                 self._t_periodicity / self._parent_wakefield.profile.hist_step,

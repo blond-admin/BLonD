@@ -9,13 +9,15 @@ import numpy as np
 
 from blond._core.backends.backend import backend
 
-from ..base import BeamPhysicsRelevant, Preparable, Schedulable
+from ..base import Preparable, Schedulable
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
     from typing import Any
 
     from numpy.typing import NDArray as NumpyArray
+
+    from blond._core.base import SimulationElementBase
 
     from ...physics.drifts import DriftBaseClass
     from ..beam.base import BeamBaseClass
@@ -238,12 +240,12 @@ class Ring(Preparable, Schedulable):
 
     def add_element(
         self,
-        element: BeamPhysicsRelevant,
+        element: SimulationElementBase,
         reorder: bool = False,
         deepcopy: bool = False,
         section_index: int | None = None,
     ):
-        """Append a beam physics-relevant element to the ring.
+        """Append a `SimulationElementBase` element to the ring.
 
         This method appends the given element to the
         internal sequence of elements, maintaining insertion order if
@@ -280,12 +282,12 @@ class Ring(Preparable, Schedulable):
 
     def add_elements(
         self,
-        elements: Iterable[BeamPhysicsRelevant],
+        elements: Iterable[SimulationElementBase],
         reorder: bool = False,
         deepcopy: bool = False,
         section_index: int | None = None,
     ):
-        """Append beam physics-relevant elements to the ring.
+        """Append `SimulationElementBase` elements to the ring.
 
         This method appends the given elements to the
         internal sequence of elements, maintaining
@@ -321,7 +323,7 @@ class Ring(Preparable, Schedulable):
 
     def insert_element(
         self,
-        element: BeamPhysicsRelevant,
+        element: SimulationElementBase,
         insert_at: int | list[int],
         deepcopy: bool = True,
         allow_section_index_overwrite: bool = False,
@@ -388,7 +390,7 @@ class Ring(Preparable, Schedulable):
 
     def insert_elements(
         self,
-        elements: list[BeamPhysicsRelevant],
+        elements: list[SimulationElementBase],
         insert_at: int,
         deepcopy: bool = True,
         allow_section_index_overwrite: bool = False,
@@ -439,8 +441,8 @@ class Ring(Preparable, Schedulable):
             )
 
     def _force_section_index_compatibility(
-        self, element: BeamPhysicsRelevant, insert_at: int
-    ) -> BeamPhysicsRelevant:
+        self, element: SimulationElementBase, insert_at: int
+    ) -> SimulationElementBase:
         """Internal method to ensure section index compatibility.
 
         This method overwrites the section index of the element, to ensure
