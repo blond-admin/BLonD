@@ -107,7 +107,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         new_reference_total_energy = (
             simulation.magnetic_cycle.get_total_energy_init(
                 turn_i_init=turn_i_init,
-                t_init=float(self.reference_time),
+                t_init=self.reference_time,
                 particle_type=self.particle_type,
             )
         )
@@ -120,7 +120,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
                 f" The energy is overwritten according to simulation."
             )
             warnings.warn(msg, stacklevel=1)
-        self.reference_total_energy = float(new_reference_total_energy)
+        self.reference_total_energy = new_reference_total_energy
 
     @property
     @abstractmethod  # pragma: no cover
