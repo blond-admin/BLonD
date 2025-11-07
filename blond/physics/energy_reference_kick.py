@@ -4,17 +4,16 @@ from typing import TYPE_CHECKING
 
 from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
-from .._core.beam.base import BeamBaseClass
-from .._core.simulation.simulation import Simulation
-from ..cycles.magnetic_cycle import MagneticCycleByTime
 
 if TYPE_CHECKING:  # pragma: no cover
     from .. import Ring
-    from ..cycles.magnetic_cycle import MagneticCycleBase
+    from .._core.beam.base import BeamBaseClass
+    from .._core.simulation.simulation import Simulation
+    from ..cycles.magnetic_cycle import MagneticCycleBase, MagneticCycleByTime
 
 
 class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
-    """Updates beam's reference energy, for example asynchronous ramping.
+    """Updates beam's `reference_total_energy` and `dE` array, but constant in absolute terms.
 
     Can be used in simulations where RF ramping is asynchronous with respect to the
     beam’s energy. The resulting offset affects the beam's `dE` (energy deviation) and simulates the physics of an energy
