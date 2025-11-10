@@ -126,7 +126,7 @@ def c_complex(
     return c_complex128(scalar)
 
 
-def reload_cpp_backend(
+def reload_cpp_backend(  # noqa: PLR0915
     floattype: type[np.float32] | type[np.float64],
 ) -> CppSpecials:
     if floattype == np.float32:
