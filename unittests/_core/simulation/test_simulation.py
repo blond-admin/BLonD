@@ -14,8 +14,6 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicCavity,
-    StaticProfile,
-    backend,
     mu_plus,
     proton,
 )
@@ -30,10 +28,6 @@ from blond.handle_results.observables import (
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
-
-if TYPE_CHECKING:  # pragma: no cover
-    from cupy.typing import NDArray as CupyArray  # type: ignore
-
 
 
 class TestSimulation(unittest.TestCase):
@@ -254,12 +248,6 @@ class TestSimulation(unittest.TestCase):
             potential_well_pinned,
             potential_well,
             rtol=1e-5 if backend.float == np.float32 else 1e-12,
-        )
-
-    def test_plot_potential_well_empiric(self):
-        self.simulation.plot_potential_well_empiric(
-            dt=np.linspace(0, 1e-9),
-            particle_type=proton,
         )
 
     def test_plot_potential_well_empiric(self):
