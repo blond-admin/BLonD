@@ -76,28 +76,28 @@ station_downscale = 40
 circumference = 5990
 harmonic = 25920
 voltage_per_cavity = 31140000.0
-cut_left = 0
+cut_left = 1e-10
 cut_right = 7e-10
 
-n_slices_profile = 2**7
+n_slices_profile = 2**8
 mtw = True
 
 energy_gain_per_turn = (
     (ejection_energy - inj_energy) / n_turns / station_downscale
 )
 
-n_turns_downscale = 10
+n_turns_downscale = 1000
 ejection_energy = inj_energy + n_turns_downscale * energy_gain_per_turn
 total_voltage = energy_gain_per_turn / np.sin(phi_s)
 voltage_per_station = total_voltage
 n_cavities = int(np.ceil(total_voltage / voltage_per_cavity))
 cav_per_station = n_cavities / station_downscale
 
-R_over_Q = 518
+R_over_Q = 100
 gamma_transition = 1 / np.sqrt(alpha_p)
 
 emittance = 0.025 * 4 * np.pi
-n_macroparticles = int(1e7)
+n_macroparticles = int(1e8)
 
 decay_fraction_threshold = 0.01
 
@@ -107,7 +107,7 @@ bm.use_numba()
 bm.use_precision("double")
 
 
-def setup_and_run_blond3(mtw: bool = False):
+def setup_and_run_blond3(multi_turn_wake: bool = False):
     ring = Ring(circumference=circumference)
     magnetic_cycle = MagneticCyclePerTurn(
         value_init=inj_energy,
@@ -146,7 +146,7 @@ def setup_and_run_blond3(mtw: bool = False):
                     solver=MultiPassResonatorSolver(
                         decay_fraction_threshold=decay_fraction_threshold
                     )
-                    if mtw
+                    if multi_turn_wake
                     else SingleTurnResonatorConvolutionSolver(),
                     profile=prof,
                 )
@@ -261,7 +261,7 @@ def setup_and_run_blond2(mtw=False):
 
     # frequency_resolution_input = 0.5 * ring.f_rev[0] / 1 * harmonic
     #
-    ind_volt_time = InducedVoltageTime(
+    ind_volt_time_matching = InducedVoltageTime(
         beam,
         profile,
         [res_fund],
@@ -274,7 +274,7 @@ def setup_and_run_blond2(mtw=False):
     total_ind_volt = total_ind_volt_b2(beam, profile, [ind_volt_res])
     # total_ind_volt.induced_voltage_sum()
 
-    total_ind_volt_matcher = total_ind_volt_b2(beam, profile, [ind_volt_time])
+    total_ind_volt_matcher = total_ind_volt_b2(beam, profile, [ind_volt_time_matching])
     total_ind_volt_matcher.induced_voltage_sum()
 
     long_tracker_match = RingAndRFTracker(rf_station, beam, profile=profile, total_induced_voltage=total_ind_volt_matcher, interpolation=False)
@@ -336,20 +336,20 @@ def setup_and_run_blond2(mtw=False):
 def plot_and_compare():
     bunch_centroid_b2, energy_centroid_b2, save_ind_volt_b2 = setup_and_run_blond2(mtw=mtw)
 
-    bunch_observation, profile_observation, ind_volt_obs = setup_and_run_blond3(mtw=mtw)
+    bunch_observation, profile_observation, ind_volt_obs = setup_and_run_blond3(multi_turn_wake=mtw)
 
     DEBUG_PLOTTING = True
     if DEBUG_PLOTTING:
-        # plt.title("bunch centroid")
-        # plt.plot(bunch_observation.mean_dt * 1e9)
-        # plt.plot(bunch_centroid_b2 * 1e9, label="blond2", ls="--")
-        # plt.ylabel("bunch centroid [ns]")
-        # plt.legend()
-        # plt.show()
+        plt.title("bunch centroid")
+        plt.plot(bunch_observation.mean_dt * 1e9)
+        plt.plot(bunch_centroid_b2 * 1e9, label="blond2", ls="--")
+        plt.ylabel("bunch centroid [ns]")
+        plt.legend()
+        plt.show()
 
-        plt.title("induced_voltage")
-        plt.plot(ind_volt_obs.induced_voltage[1] / 1e6)
-        plt.plot(save_ind_volt_b2[1] / 1e6, label="blond2", ls="--")
+        plt.title("last induced_voltage")
+        plt.plot(ind_volt_obs.induced_voltage[-1] / 1e6)
+        plt.plot(save_ind_volt_b2[-1] / 1e6, label="blond2", ls="--")
         plt.ylabel("induced voltage [MV]")
         plt.legend()
         plt.show()
