@@ -14,6 +14,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
+DEFAULT_BACKEND = "python"
+DEFAULT_BITS = "64"
+
 
 class Specials(ABC):
     """Abstract listing of functions that need implementation for a new backend."""
@@ -256,7 +259,7 @@ class BackendBaseClass(ABC):
         """
         _backend_mode_raw: str = os.environ.get(
             "BLOND_BACKEND_MODE",
-            "python",  # default
+            DEFAULT_BACKEND,  # default
         ).lower()
         if _backend_mode_raw != "numba":
             print(
@@ -286,7 +289,7 @@ class BackendBaseClass(ABC):
 
         _backend_bits_raw: str = os.environ.get(
             "BLOND_BACKEND_BITS",
-            "32",  # default
+            DEFAULT_BITS,  # default
         )
         if _backend_bits_raw != "32":
             print(
