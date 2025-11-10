@@ -252,11 +252,12 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         if self.delta_omega_rf != 0:
             assert self.harmonic is not None
             assert self._omega_rf is not None
+            assert self.delta_omega_rf is not None
             phi_increment = (
                 2.0
                 * np.pi
                 * self.harmonic[:]
-                * (self.delta_omega_rf)
+                * self.delta_omega_rf
                 / self._omega_rf[:]
             )
 
@@ -377,6 +378,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         self.phi_rf: float | None = phi_rf
         self.harmonic: float | None = harmonic
         self.delta_phi_rf: float = 0.0
+        self.delta_omega_rf: float = 0.0
 
     def get_main_harmonic(self) -> float:
         """Returns the harmonic number of the main harmonic."""
@@ -660,7 +662,10 @@ class MultiHarmonicCavity(CavityBaseClass):
         self.voltage: NumpyArray | None = voltage
         self.phi_rf: NumpyArray | None = phi_rf
         self.harmonic: NumpyArray | None = harmonic
-        self.delta_phi_rf: NumpyArray | None = backend.zeros(1)  # TODO
+        self.delta_phi_rf: NumpyArray | None = backend.zeros(
+            len(voltage)
+        )  # TODO
+        self.delta_omega_rf: NumpyArray | None = backend.zeros(len(voltage))
 
         self._t_rf: float | None = None
         self._t_rev: float | None = None
