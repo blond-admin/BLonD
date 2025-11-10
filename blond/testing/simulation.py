@@ -97,6 +97,8 @@ class SimulationTwoRfStations:
     """A simulation with two RF stations and according drifts."""
 
     def __init__(self, below_transition_crossing=False):
+        import numpy as np
+
         from blond import (
             Beam,
             DriftSimple,
@@ -111,25 +113,18 @@ class SimulationTwoRfStations:
         ring = Ring(circumference=circumference)
 
         cavity1 = MultiHarmonicCavity(
-            section_index=0, n_harmonics=1, main_harmonic_idx=0
-        )
-        cavity1.harmonic = backend.array(
-            [
-                35640.0,
-            ],
-            dtype=backend.float,
-        )
-        cavity1.voltage = backend.array(
-            [
-                6e6,
-            ],
-            dtype=backend.float,
-        )
-        cavity1.phi_rf = backend.array(
-            [
-                0.0,
-            ],
-            dtype=backend.float,
+            harmonic=np.array(
+                [35640],
+            ),
+            voltage=np.array(
+                [6e6],
+            ),
+            phi_rf=np.array(
+                [0.0],
+            ),
+            section_index=0,
+            n_harmonics=1,
+            main_harmonic_idx=0,
         )
 
         cavity2 = SingleHarmonicCavity(
@@ -190,7 +185,18 @@ class SimulationTwoRfStationsWithWake:
         ring = Ring(circumference=circumference)
 
         cavity1 = MultiHarmonicCavity(
-            section_index=0, n_harmonics=1, main_harmonic_idx=0
+            harmonic=np.array(
+                [35640],
+            ),
+            voltage=np.array(
+                [6e6],
+            ),
+            phi_rf=np.array(
+                [0.0],
+            ),
+            section_index=0,
+            n_harmonics=1,
+            main_harmonic_idx=0,
         )
         cavity1.harmonic = np.array(
             [
