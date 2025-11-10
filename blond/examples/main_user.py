@@ -32,22 +32,12 @@ class Main:
 
         profile1 = StaticProfile(cut_left=0, cut_right=1, n_bins=128)
         cavity = MultiHarmonicCavity(
+            voltage=1e3 * backend.ones(10),  # TODO should be reasonable value
+            phi_rf=0 * backend.ones(10),  # TODO should be reasonable value
+            harmonic=backend.ones(10),
             n_harmonics=10,
             main_harmonic_idx=0,
         )
-        cavity.voltage = 1e3 * backend.ones(10)  # TODO
-        # should
-        # be
-        # reasonable
-        # value
-        cavity.phi_rf = 0 * backend.ones(10)  # TODO
-        # should be
-        # reasonable
-        # value
-        cavity.harmonic = backend.ones(10)  # TODO
-        # should be
-        # reasonable
-        # value
         one_turn_execution_order = (
             DriftSimple(
                 orbit_length=0.4 * my_ring.circumference, transition_gamma=11
