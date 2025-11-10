@@ -293,9 +293,11 @@ def reload_cpp_backend(  # noqa: PLR0915
                 c_real(acceleration_kick, precision),
             )
 
-    @staticmethod
-    def loss_box(top: float, bottom: float, left: float, right: float) -> None:
-        pass
+        @staticmethod
+        def loss_box(
+            top: float, bottom: float, left: float, right: float
+        ) -> None:
+            pass
 
         @staticmethod
         def kick_single_harmonic(

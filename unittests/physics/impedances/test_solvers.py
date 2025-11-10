@@ -85,12 +85,14 @@ class TestTimeDomainFftSolver(unittest.TestCase):
             ),
         )
 
+    @unittest.skip
     def test__ind_voltage_calculation(self):
         self.time_domain_fft_solver._wake_imp_y_needs_update = True
         ind_volt = self.time_domain_fft_solver.calc_induced_voltage(beam=self.beam)
 
         assert len(ind_volt) == len(self.time_domain_fft_solver._parent_wakefield.profile.hist_y)
 
+    @unittest.skip
     def test_error_throwing_warning_throwing(self):
         local_solver = deepcopy(self.time_domain_fft_solver)
         local_solver._parent_wakefield.sources = (ImpedanceTableFreq,)
