@@ -7,7 +7,7 @@ from blond import Ring, Simulation
 from blond._core.base import BeamPhysicsRelevant
 from blond._core.beam.base import BeamBaseClass
 from blond.physics.cavities import CavityBaseClass
-from blond.physics.drifts import DriftBaseClass
+from blond.physics.drifts import DriftBaseClass, DriftSimple
 
 
 class BeamPhysicsRelevantHelper(BeamPhysicsRelevant):
@@ -462,6 +462,15 @@ class TestRing(unittest.TestCase):
 
         self.assertEqual(self.ring.average_transition_gamma, 30)
 
+    def test_is_below_transition(self):
+        from blond.testing.mocks import beam_mock
+        ring = Ring(circumference=123)
+        ring.add_element(DriftSimple(orbit_length=100, transition_gamma=123))
+        ring.add_element(DriftSimple(orbit_length=23, transition_gamma=123))
+        beam_mock.reference_gamma = 122
+        self.assertTrue(ring.is_below_transition(beam=beam_mock))
+        beam_mock.reference_gamma = 124
+        self.assertFalse(ring.is_below_transition(beam=beam_mock))
 
 if __name__ == "__main__":
     unittest.main()
