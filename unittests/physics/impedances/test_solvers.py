@@ -7,7 +7,6 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import numpy as np
-import pytest
 from matplotlib import pyplot as plt
 from scipy.constants import c, e
 from scipy.fft import next_fast_len
@@ -77,6 +76,8 @@ class TestTimeDomainFftSolver(unittest.TestCase):
         self.beam.n_macroparticles_partial.return_value = int(1e3)
         self.beam.ratio = self.beam.intensity / self.beam.n_macroparticles_partial()
 
+        self.time_domain_fft_solver._parent_wakefield.profile.hist_y_to_density_factor = (1 / self.beam.n_macroparticles_partial())
+
         self.time_domain_fft_solver._parent_wakefield.profile.beam_spectrum.return_value = np.fft.rfft(
             self.time_domain_fft_solver._parent_wakefield.profile.hist_y,
             n=next_fast_len(
@@ -84,14 +85,12 @@ class TestTimeDomainFftSolver(unittest.TestCase):
             ),
         )
 
-    @pytest.mark.skip()
     def test__ind_voltage_calculation(self):
         self.time_domain_fft_solver._wake_imp_y_needs_update = True
         ind_volt = self.time_domain_fft_solver.calc_induced_voltage(beam=self.beam)
 
         assert len(ind_volt) == len(self.time_domain_fft_solver._parent_wakefield.profile.hist_y)
 
-    @pytest.mark.skip()
     def test_error_throwing_warning_throwing(self):
         local_solver = deepcopy(self.time_domain_fft_solver)
         local_solver._parent_wakefield.sources = (ImpedanceTableFreq,)

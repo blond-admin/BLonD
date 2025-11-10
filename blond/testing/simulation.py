@@ -198,21 +198,6 @@ class SimulationTwoRfStationsWithWake:
             n_harmonics=1,
             main_harmonic_idx=0,
         )
-        cavity1.harmonic = np.array(
-            [
-                35640.0,
-            ],
-        )
-        cavity1.voltage = np.array(
-            [
-                6e6,
-            ],
-        )
-        cavity1.phi_rf = np.array(
-            [
-                0.0,
-            ],
-        )
 
         cavity2 = SingleHarmonicCavity(
             section_index=1,
