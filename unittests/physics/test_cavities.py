@@ -31,7 +31,7 @@ class TestCallables(unittest.TestCase):
             _assert_purely_real_or_imaginary(val)  # Should not raise
 
     def test_invalid_purely_real_or_imaginary(self):
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             _assert_purely_real_or_imaginary(5 + 1j)  # Should  raise
 
 
