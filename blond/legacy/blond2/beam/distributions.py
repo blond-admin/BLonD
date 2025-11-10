@@ -862,7 +862,6 @@ def matched_from_distribution_function(
         float(deltaE_coord_array[1] - deltaE_coord_array[0]),
         seed,
     )
-    print("am i done?")
     if total_induced_voltage is not None:
         return [time_potential_low_res, line_density_], induced_voltage_object
     else:
