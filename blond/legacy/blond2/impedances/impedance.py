@@ -1168,7 +1168,6 @@ class InducedVoltageResonator(_InducedVoltage):
             decay_time = 2 * np.max(resonators.Q / resonators.omega_R)
             decay_turns = -np.ceil(
                 np.log(time_decay_factor)
-                # / np.log(e)
                 * decay_time
                 / np.min(rf_station.t_rev)
             )
@@ -1187,12 +1186,12 @@ class InducedVoltageResonator(_InducedVoltage):
                     rf_station.t_rev[turn_ind] * turn_ind
                     + np.linspace(
                         profile.bin_centers[0],
-                        profile.bin_centers[-1],
-                        # + 2
-                        # * (
-                        #     profile.bin_centers[min_index]
-                        #     - profile.bin_centers[0]
-                        # ),
+                        profile.bin_centers[-1]
+                        + 2
+                        * (
+                            profile.bin_centers[min_index]
+                            - profile.bin_centers[0]
+                        ),
                         profile.n_slices #+ 2 * min_index,
                     ),
                 )
@@ -1299,13 +1298,13 @@ class InducedVoltageResonator(_InducedVoltage):
                     self.rf_params.t_rev[turn_ind] * turn_ind
                     + np.linspace(
                         self.profile.bin_centers[0],
-                        self.profile.bin_centers[-1],
-                        # + 2
-                        # * (
-                        #     self.profile.bin_centers[min_index]
-                        #     - self.profile.bin_centers[0]
-                        # ),
-                        self.profile.n_slices #+ 2 * min_index,
+                        self.profile.bin_centers[-1]
+                        + 2
+                        * (
+                            self.profile.bin_centers[min_index]
+                            - self.profile.bin_centers[0]
+                        ),
+                        self.profile.n_slices + 2 * min_index,
                     ),
                 )
             self.atLineDensityTimes = False
