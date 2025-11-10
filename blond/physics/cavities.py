@@ -792,7 +792,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         harmonic: NumpyArray,
         circumference: float,
         total_energy: float,
-        main_harmonic_idx: float,
+        main_harmonic_idx: int,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
         beam_feedback: Blond2BeamFeedback | None = None,
@@ -828,8 +828,8 @@ class MultiHarmonicCavity(CavityBaseClass):
         from ..cycles.magnetic_cycle import ConstantMagneticCycle
 
         mhc = MultiHarmonicCavity(
-            harmonic=np.array(voltage, dtype=backend.float),
-            voltage=np.array(harmonic, dtype=backend.float),
+            harmonic=np.array(harmonic, dtype=backend.float),
+            voltage=np.array(voltage, dtype=backend.float),
             phi_rf=np.array(phi_rf, dtype=backend.float),
             n_harmonics=len(voltage),
             section_index=section_index,
