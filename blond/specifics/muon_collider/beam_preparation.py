@@ -34,13 +34,14 @@ def load_beam_data_counterrot_from_file(
         Simulation :class:`~blond._cycles_core.beam.beam.Beam` object
 
     """
+    loaded_dict = np.load(filename)
     beam.setup_beam(
-        dt=np.load(filename)["dt"],
-        dE=np.load(filename)["dE"],
+        dt=loaded_dict["dt"],
+        dE=loaded_dict["dE"],
     )
     beam_counterrot.setup_beam(
-        dt=np.load(filename)["dt"],
-        dE=np.load(filename)["dE"],
+        dt=loaded_dict["dt"],
+        dE=loaded_dict["dE"],
     )
 
 
@@ -63,7 +64,8 @@ def load_beam_data_from_file(
         Simulation :class:`~blond._cycles_core.beam.beam.Beam` object
 
     """
+    loaded_dict = np.load(filename)
     beam.setup_beam(
-        dt=np.load(filename)["dt"],
-        dE=np.load(filename)["dE"],
+        dt=loaded_dict["dt"],
+        dE=loaded_dict["dE"],
     )
