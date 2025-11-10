@@ -66,12 +66,12 @@ class TestRfBeamCurrent(unittest.TestCase):
         self.ring = Ring(circumference=C)
         # self.rf = RFStation(self.ring, 4620, 4.5e6, 0)
         self.rf = MultiHarmonicCavity(
+            harmonic=np.array([4620], dtype=backend.float),
+            voltage=np.array([4.5e6], dtype=backend.float),
+            phi_rf=np.array([0], dtype=backend.float),
             n_harmonics=1,
             main_harmonic_idx=0,
         )
-        self.rf.phi_rf = np.array([0], dtype=backend.float)
-        self.rf.harmonic = np.array([4620], dtype=backend.float)
-        self.rf.voltage = np.array([4.5e6], dtype=backend.float)
         self.drift = DriftSimple(
             orbit_length=C,
             transition_gamma=gamma_t,

@@ -59,10 +59,11 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         beam.write_partial_dE.return_value = beam.dE
 
         self.multi_harmonic_cavity.track(beam=beam)
+        self.multi_harmonic_cavity._ring.average_transition_gamma = 5
 
         self.assertEqual(beam.reference_total_energy, 939)  # incremented
         self.assertEqual(beam.reference_time, 0)  # unchanged
-        print(beam.dE.tolist())
+
         np.testing.assert_allclose(  # changer/ test pinned to some value
             beam.dE,
             [

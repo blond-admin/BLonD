@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from numba.core.types import long_
 from scipy.constants import pi
 
 from blond import (
@@ -79,7 +78,7 @@ voltage_per_cavity = 31140000.0
 cut_left = 1e-10
 cut_right = 7e-10
 
-n_slices_profile = 2**8
+n_slices_profile = 2**6
 mtw = True
 
 energy_gain_per_turn = (
@@ -97,7 +96,7 @@ R_over_Q = 100
 gamma_transition = 1 / np.sqrt(alpha_p)
 
 emittance = 0.025 * 4 * np.pi
-n_macroparticles = int(1e8)
+n_macroparticles = int(1e6)
 
 decay_fraction_threshold = 0.01
 

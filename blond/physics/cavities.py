@@ -196,8 +196,8 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         assert self.phi_rf is not None
         phi_s = calc_phi_s_single_harmonic(
             charge=beam.particle_type.charge,
-            voltage=float(self.voltage),
-            phase=float(self.phi_rf),
+            voltage=float(self.get_main_harmonic_voltage()),
+            phase=float(self.get_main_harmonic_phi_rf()),
             energy_gain=reference_energy_change,
             above_transition=beam.reference_gamma
             > self._ring.average_transition_gamma,
@@ -249,7 +249,7 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             self.delta_omega_rf = omega_increment
         # Update the RF phase of all systems for the next turn
         # Accumulated phase offset due to beam phase loop or frequency offset
-        if self.delta_omega_rf != 0:
+        if np.any(self.delta_omega_rf != 0):
             assert self.harmonic is not None
             assert self._omega_rf is not None
             assert self.delta_omega_rf is not None
@@ -828,6 +828,9 @@ class MultiHarmonicCavity(CavityBaseClass):
         from ..cycles.magnetic_cycle import ConstantMagneticCycle
 
         mhc = MultiHarmonicCavity(
+            harmonic=np.array(voltage, dtype=backend.float),
+            voltage=np.array(harmonic, dtype=backend.float),
+            phi_rf=np.array(phi_rf, dtype=backend.float),
             n_harmonics=len(voltage),
             section_index=section_index,
             local_wakefield=local_wakefield,
@@ -835,10 +838,6 @@ class MultiHarmonicCavity(CavityBaseClass):
             beam_feedback=beam_feedback,
             main_harmonic_idx=main_harmonic_idx,
         )
-
-        mhc.voltage = voltage
-        mhc.phi_rf = phi_rf
-        mhc.harmonic = harmonic
 
         ring = Mock(Ring)
         ring.circumference = circumference

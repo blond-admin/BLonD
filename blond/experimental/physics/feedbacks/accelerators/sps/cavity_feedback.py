@@ -270,7 +270,7 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
         # Initialize moving average
         self.n_mov_av = round(
-            self.TWC.tau / self._parent_cavity._t_rf[self.harmonic_index]
+            self.TWC.tau / self._parent_cavity._t_rf
         )
         self.DV_MOV_AVG = np.zeros(2 * self.n_coarse, dtype=complex)
         self.logger.debug("Moving average over %d points", self.n_mov_av)
