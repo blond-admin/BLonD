@@ -1,3 +1,4 @@
+import cmath
 import unittest
 from unittest.mock import Mock, patch
 
@@ -133,6 +134,41 @@ class TestDriftSimple(unittest.TestCase):
             self.drift_simple.orbit_length
             / (0.5 * c0),  # drifted by length of drift
         )
+
+    def test_setters_negative_compaction(self):
+        self.drift_simple.momentum_compaction_factor = -2.5
+        self.assertEqual(self.drift_simple.momentum_compaction_factor, -2.5)
+        self.assertEqual(
+            self.drift_simple.transition_gamma, 1 / cmath.sqrt(-2.5)
+        )
+
+    def test_setters_complex_transition(self):
+        self.drift_simple.transition_gamma = 1 / cmath.sqrt(-2.5)
+        self.assertEqual(self.drift_simple.momentum_compaction_factor, -2.5)
+        self.assertEqual(
+            self.drift_simple.transition_gamma, 1 / cmath.sqrt(-2.5)
+        )
+
+    def test_setters_real_transition(self):
+        self.drift_simple.transition_gamma = 1 / cmath.sqrt(2.5)
+        self.assertEqual(self.drift_simple.momentum_compaction_factor, 2.5)
+        self.assertEqual(
+            self.drift_simple.transition_gamma, 1 / cmath.sqrt(2.5)
+        )
+
+    def test_init(self):
+        DriftSimple(orbit_length=1.0, section_index=0, transition_gamma=2.5j)
+
+        DriftSimple(
+            orbit_length=1.0, section_index=0, momentum_compaction_factor=2.5
+        )
+        with self.assertRaises(ValueError):
+            DriftSimple(
+                orbit_length=1.0,
+                section_index=0,
+                momentum_compaction_factor=2.5,
+                transition_gamma=2.5j,
+            )
 
     def tearDown(self):
         backend.change_backend(Numpy32Bit)

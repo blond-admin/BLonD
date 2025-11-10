@@ -8,6 +8,7 @@ Simon Lauber
 from __future__ import annotations
 
 import abc
+import cmath
 from abc import ABC
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
@@ -22,6 +23,44 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from .._core.beam.base import BeamBaseClass
     from .._core.simulation.simulation import Simulation
+
+
+def _assert_purely_real_or_imaginary(val: complex):
+    """
+    Assert that a complex number is purely real or purely imaginary.
+
+    A complex number is considered *purely real* if its imaginary part is zero,
+    and *purely imaginary* if its real part is zero. This function raises an
+    `AssertionError` if the number has both nonzero real and imaginary parts.
+
+    Parameters
+    ----------
+    val : complex
+        Complex number to be validated.
+
+    Raises
+    ------
+    AssertionError
+        If `val` has both real and imaginary parts nonzero.
+
+    Examples
+    --------
+    >>> _assert_purely_real_or_imaginary(5 + 0j)   # purely real
+    >>> _assert_purely_real_or_imaginary(0 + 3j)   # purely imaginary
+    >>> _assert_purely_real_or_imaginary(0j)       # zero (both parts 0) is fine
+    >>> _assert_purely_real_or_imaginary(2 + 4j)
+    Traceback (most recent call last):
+        ...
+    AssertionError: Expected number with only real or only imaginary part, not (2+4j)
+    """
+    if val.real != 0.0:
+        assert val.imag == 0.0, (
+            f"Expected number with only real or only imaginary part, not {val}"
+        )
+    elif val.imag != 0.0:
+        assert val.real == 0.0, (
+            f"Expected number with only real or only imaginary part, not {val}"
+        )
 
 
 class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
@@ -112,7 +151,8 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         self,
         orbit_length: float,
         section_index: int = 0,
-        transition_gamma: float | None = None,
+        transition_gamma: complex | float | None = None,
+        momentum_compaction_factor: float | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ) -> None:
         """Base class to implement beam drifts in synchrotrons.
@@ -134,31 +174,60 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             **kwargs,  # for MRO of fused elements
         )
 
-        self._transition_gamma: float | None = None
+        self._transition_gamma: complex | None = None
         self._momentum_compaction_factor: float | None = None
 
         self._simulation: Simulation | None = None
 
-        if transition_gamma is not None:
+        if (momentum_compaction_factor is not None) and (
+            transition_gamma is not None
+        ):
+            raise ValueError(
+                "Got `momentum_compaction_factor` and "
+                "`transition_gamma` as argument. "
+                "Please provide only one of them."
+            )
+        elif transition_gamma is not None:
             self.transition_gamma = transition_gamma  # use setter method
+        elif momentum_compaction_factor is not None:
+            self.momentum_compaction_factor = (  # use setter method
+                momentum_compaction_factor
+            )
+        else:
+            pass
 
     @property  # read only, set by `transition_gamma`
     def momentum_compaction_factor(self) -> float | None:
         """Momentum compaction factor."""
         return self._momentum_compaction_factor
 
+    @momentum_compaction_factor.setter  # read only, set by `transition_gamma`
+    def momentum_compaction_factor(
+        self, momentum_compaction_factor: float
+    ) -> None:
+        """Momentum compaction factor."""
+        self._momentum_compaction_factor = momentum_compaction_factor
+        self._transition_gamma = 1 / cmath.sqrt(momentum_compaction_factor)
+
     @property
-    def transition_gamma(self) -> float | None:
+    def transition_gamma(self) -> complex | None:
         """Gamma of transition crossing."""
         return self._transition_gamma
 
     @transition_gamma.setter
-    def transition_gamma(self, transition_gamma: float) -> None:
+    def transition_gamma(self, transition_gamma: complex) -> None:
         """Gamma of transition crossing."""
-        self._momentum_compaction_factor = 1.0 / (
+        _assert_purely_real_or_imaginary(transition_gamma)
+
+        _momentum_compaction_factor = 1.0 / (
             transition_gamma * transition_gamma
         )
-        self._transition_gamma = float(transition_gamma)
+
+        # .real is only possible, because we asserted that the momentum
+        # compaction factor is entirely real or complex.
+        self._momentum_compaction_factor = _momentum_compaction_factor.real
+
+        self._transition_gamma = complex(transition_gamma)
 
     @staticmethod
     def headless(
