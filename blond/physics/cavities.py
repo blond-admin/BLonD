@@ -95,13 +95,13 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
 
         # TODO MOVE
         self._omega_rf: NumpyArray | None = None
-        self.delta_omega_rf = 0.0
+        self.delta_omega_rf: NumpyArray | None = None
         self._t_rf: float | None = None
         self._t_rev: float | None = None
         self.voltage: NumpyArray | None = None
         self.phi_rf: NumpyArray | None = None
         self.harmonic: NumpyArray | None = None
-        self.phi_s: NumpyArray | None = None
+        self.phi_s: float | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called.
@@ -694,10 +694,15 @@ class MultiHarmonicCavity(CavityBaseClass):
             ring_circumference=self._ring.circumference,
         )
 
-        self._t_rf = 2 * np.pi / self._omega_rf[self.main_harmonic_idx]
-        self._t_rev = (
-            self._t_rf * self.harmonic[self.main_harmonic_idx]
-        )  # todo this should be main harmonic idx??
+        self._t_rf = (
+            2
+            * np.pi
+            / self.get_main_harmonic_omega_rf(
+                beam_beta=beam.reference_beta,
+                ring_circumference=self._ring.circumference,
+            )
+        )
+        self._t_rev = self._t_rf * self.get_main_harmonic()
         try:
             self.phi_s = self.calc_phi_s_single_harmonic(beam=beam)
         except Exception as exc:
