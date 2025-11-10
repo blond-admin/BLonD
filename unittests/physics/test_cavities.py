@@ -32,7 +32,7 @@ class TestCallables(unittest.TestCase):
 
     def test_invalid_purely_real_or_imaginary(self):
         with self.assertRaises(AssertionError):
-            _assert_purely_real_or_imaginary(5 + 1j)  # Should not raise
+            _assert_purely_real_or_imaginary(5 + 1j)  # Should  raise
 
 
 class TestMultiHarmonicCavity(unittest.TestCase):

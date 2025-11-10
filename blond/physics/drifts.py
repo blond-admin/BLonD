@@ -53,13 +53,17 @@ def _assert_purely_real_or_imaginary(val: complex):
         ...
     AssertionError: Expected number with only real or only imaginary part, not (2+4j)
     """
-    if val.real != 0.0:
-        assert val.imag == 0.0, (
-            f"Expected number with only real or only imaginary part, not {val}"
-        )
-    elif val.imag != 0.0:
-        assert val.real == 0.0, (
-            f"Expected number with only real or only imaginary part, not {val}"
+    match val:
+        case _ if val.real == 0 and val.imag != 0:
+            valid = False
+        case _ if val.real != 0 and val.imag == 0:
+            valid = False
+        case _:
+            valid = True
+
+    if not valid:
+        raise ValueError(
+            f"Expected purely real or purely imaginary number, not {val}."
         )
 
 
@@ -179,22 +183,19 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
 
         self._simulation: Simulation | None = None
 
-        if (momentum_compaction_factor is not None) and (
-            transition_gamma is not None
-        ):
-            raise ValueError(
-                "Got `momentum_compaction_factor` and "
-                "`transition_gamma` as argument. "
-                "Please provide only one of them."
-            )
-        elif transition_gamma is not None:
-            self.transition_gamma = transition_gamma  # use setter method
-        elif momentum_compaction_factor is not None:
-            self.momentum_compaction_factor = (  # use setter method
-                momentum_compaction_factor
-            )
-        else:
-            pass
+        match (momentum_compaction_factor, transition_gamma):
+            case (None, None):
+                pass
+            case (None, _):
+                self.transition_gamma = transition_gamma
+            case (_, None):
+                self.momentum_compaction_factor = momentum_compaction_factor
+            case (_, _):
+                raise ValueError(
+                    "Got `momentum_compaction_factor` and "
+                    "`transition_gamma` as argument. "
+                    "Please provide only one of them."
+                )
 
     @property  # read only, set by `transition_gamma`
     def momentum_compaction_factor(self) -> float | None:
