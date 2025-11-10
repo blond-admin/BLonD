@@ -124,6 +124,8 @@ class TestInductiveImpedanceSolver(unittest.TestCase):
         self.inductive_impedance_solver._Z_over_n = 12
         _parent_wakefield = Mock(WakeField)
         _parent_wakefield.profile.hist_step = 1
+        _parent_wakefield.profile.hist_y_to_density_factor = beam.ratio
+
         self.inductive_impedance_solver._parent_wakefield = _parent_wakefield
         simulation = Mock(Simulation)
         simulation.ring.circumference = 123
@@ -200,6 +202,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         beam = Mock(BeamBaseClass)
         beam.intensity = int(11e3)
         beam.n_macroparticles_partial.return_value = int(3e6)
+        self.periodic_freq_solver._parent_wakefield.profile.hist_y_to_density_factor = 1 /beam.n_macroparticles_partial.return_value
         beam.particle_type.charge = 1
         beam.ratio = 1
         induced_voltage = self.periodic_freq_solver.calc_induced_voltage(
@@ -296,6 +299,8 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         beam.intensity = int(1e9)
         beam.particle_type.charge = 1
         beam.n_macroparticles_partial.return_value = int(1e3)
+        analy_solver._parent_wakefield.profile.hist_y_to_density_factor = 1 / beam.n_macroparticles_partial.return_value
+
         beam.ratio = beam.intensity / beam.n_macroparticles_partial()
         analy_solver._update_potential_sources(
             zero_pinning=True
@@ -320,6 +325,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         td_fft_solver._parent_wakefield.profile.hist_x = hist_x
 
         td_fft_solver._parent_wakefield.profile.hist_y = analy_solver._parent_wakefield.profile.hist_y
+        td_fft_solver._parent_wakefield.profile.hist_y_to_density_factor = 1 / beam.n_macroparticles_partial.return_value
 
         td_fft_solver._parent_wakefield.sources = (self.resonators,)
 
@@ -2475,6 +2481,7 @@ class TestHeadlessSolvers(unittest.TestCase):
         Q_factor = 1.76e6
         beam = Mock(BeamBaseClass)
         beam.n_macroparticles_partial.return_value = 1e6
+        prof.hist_y_to_density_factor = 1 / beam.n_macroparticles_partial.return_value
         beam.intensity = 2.4e12
         beam.ratio = (
             beam.intensity / beam.n_macroparticles_partial.return_value

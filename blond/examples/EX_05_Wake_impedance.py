@@ -107,7 +107,7 @@ def main():
             profile=profile,
         )
         ring.add_elements(
-            (drift, profile, cavity1, wakefield),
+            (drift, cavity1, wakefield),
             reorder=True,
         )
         sim = Simulation(

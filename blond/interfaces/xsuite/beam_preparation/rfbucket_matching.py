@@ -84,7 +84,7 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
         distribution_type: distribution_hints,
         sigma_z: float,
         verbose_regeneration: bool = False,
-        seed: int = 42,
+        seed: int | None = None,
     ) -> None:
         super().__init__()
 
@@ -168,7 +168,8 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             p_increment=0,
         )
 
-        np.random.seed(seed=42)  # NOQA
+        if self.seed is not None:
+            np.random.seed(seed=self.seed)  # NOQA
         matcher = RFBucketMatcher(
             rfbucket=rfbucket,
             distribution_type=self.distribution_type,

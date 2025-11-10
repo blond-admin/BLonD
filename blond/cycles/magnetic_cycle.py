@@ -553,7 +553,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
             )
         return calc_total_energy(
             mass=particle_type.mass,
-            momentum=self._momentum_cached[key][section_i, turn_i],
+            momentum=self._momentum_cached[key][section_i, int(turn_i)],
         )
 
     @staticmethod
