@@ -667,11 +667,14 @@ def matched_from_distribution_function(
             time_potential_sep, potential_well_sep = potential_well_cut(
                 time_potential, total_potential
             )
+
         # Potential is shifted to put the minimum on 0
         potential_well_sep = potential_well_sep - np.min(potential_well_sep)
+
         # Compute deltaE frame corresponding to the separatrix
         max_potential = np.max(potential_well_sep)
         max_deltaE = np.sqrt(max_potential / eom_factor_dE)
+
         # Initializing the grids by reducing the resolution to a
         # n_points_grid*n_points_grid frame
         time_potential_low_res = np.linspace(
@@ -753,6 +756,7 @@ def matched_from_distribution_function(
                     dx=time_potential_high_res[1] - time_potential_high_res[0],
                 )
             )
+
         # Sorting the H and J functions to be able to interpolate J(H)
         H_array_dE0 = potential_well_low_res
         sorted_H_dE0 = H_array_dE0[H_array_dE0.argsort()]
@@ -763,6 +767,7 @@ def matched_from_distribution_function(
         J_grid = np.interp(
             H_grid, sorted_H_dE0, sorted_J_dE0, left=0, right=np.inf
         )
+
         # Choice of either H or J as the variable used
         if distribution_variable == "Action":
             sorted_X_dE0 = sorted_J_dE0
@@ -792,6 +797,7 @@ def matched_from_distribution_function(
                 beam,
                 full_ring_and_rf,
             )
+
         elif emittance is not None:
             if distribution_variable == "Action":
                 X0 = emittance / (2 * np.pi)
@@ -799,6 +805,7 @@ def matched_from_distribution_function(
                 X0 = np.interp(
                     emittance / (2 * np.pi), sorted_J_dE0, sorted_H_dE0
                 )
+
         # Computing the density grid
         if distribution_user_table is None:
             density_grid = distribution_function_(
@@ -818,6 +825,7 @@ def matched_from_distribution_function(
         # Calculating the line density
         line_density_ = np.sum(density_grid, axis=0)
         line_density_ *= beam.n_macroparticles / np.sum(line_density_)
+
         # Induced voltage contribution
         if total_induced_voltage is not None:
             # Inputing new line density
@@ -832,12 +840,15 @@ def matched_from_distribution_function(
             profile.cut_options.set_cuts()
             profile.set_slices_parameters()
             profile.n_macroparticles = line_density_
+
             # Re-calculating the sources of wakes/impedances according to this
             # slicing
             induced_voltage_object.reprocess()
+
             # Calculating the induced voltage
             induced_voltage_object.induced_voltage_sum()
             induced_voltage = induced_voltage_object.induced_voltage
+
             # Calculating the induced potential
             induced_potential_low_res = -(
                 eom_factor_potential
@@ -862,6 +873,7 @@ def matched_from_distribution_function(
         float(deltaE_coord_array[1] - deltaE_coord_array[0]),
         seed,
     )
+
     if total_induced_voltage is not None:
         return [time_potential_low_res, line_density_], induced_voltage_object
     else:
