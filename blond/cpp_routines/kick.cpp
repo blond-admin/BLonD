@@ -21,16 +21,59 @@ extern "C" void kick(const real_t * __restrict__ beam_dt,
                         const real_t * __restrict__ phi_RF,
                         const int n_macroparticles,
                         const real_t acc_kick) {
-
-    // KICK
-    #pragma omp parallel for
-    for (int i = 0; i < n_macroparticles; i++){
-        real_t dE_sum = 0.0;
-        const real_t dti = beam_dt[i];
-        for (int j = 0; j < n_rf; j++){
-            dE_sum += voltage[j] * FAST_SIN(omega_RF[j] * dti + phi_RF[j]);
+    if (n_rf == 1) {
+        // KICK
+        #pragma omp parallel for
+        for (int i = 0; i < n_macroparticles; i++){
+            real_t dE_sum = 0.0;
+            const real_t dti = beam_dt[i];
+            dE_sum += voltage[0] * FAST_SIN(omega_RF[0] * dti + phi_RF[0]);
+            beam_dE[i] += charge * dE_sum + acc_kick;
         }
-        beam_dE[i] += charge * dE_sum + acc_kick;
+    }else if (n_rf == 2){
+        // KICK
+        #pragma omp parallel for
+        for (int i = 0; i < n_macroparticles; i++){
+            real_t dE_sum = 0.0;
+            const real_t dti = beam_dt[i];
+            dE_sum += voltage[0] * FAST_SIN(omega_RF[0] * dti + phi_RF[0]);
+            dE_sum += voltage[1] * FAST_SIN(omega_RF[1] * dti + phi_RF[1]);
+            beam_dE[i] += charge * dE_sum + acc_kick;
+        }
+    }else if (n_rf == 3){
+        // KICK
+        #pragma omp parallel for
+        for (int i = 0; i < n_macroparticles; i++){
+            real_t dE_sum = 0.0;
+            const real_t dti = beam_dt[i];
+            dE_sum += voltage[0] * FAST_SIN(omega_RF[0] * dti + phi_RF[0]);
+            dE_sum += voltage[1] * FAST_SIN(omega_RF[1] * dti + phi_RF[1]);
+            dE_sum += voltage[2] * FAST_SIN(omega_RF[2] * dti + phi_RF[2]);
+            beam_dE[i] += charge * dE_sum + acc_kick;
+        }
+    }else if (n_rf == 4){
+        // KICK
+        #pragma omp parallel for
+        for (int i = 0; i < n_macroparticles; i++){
+            real_t dE_sum = 0.0;
+            const real_t dti = beam_dt[i];
+            dE_sum += voltage[0] * FAST_SIN(omega_RF[0] * dti + phi_RF[0]);
+            dE_sum += voltage[1] * FAST_SIN(omega_RF[1] * dti + phi_RF[1]);
+            dE_sum += voltage[2] * FAST_SIN(omega_RF[2] * dti + phi_RF[2]);
+            dE_sum += voltage[3] * FAST_SIN(omega_RF[3] * dti + phi_RF[3]);
+            beam_dE[i] += charge * dE_sum + acc_kick;
+        }
+    }else{
+        // KICK
+        #pragma omp parallel for
+        for (int i = 0; i < n_macroparticles; i++){
+            real_t dE_sum = 0.0;
+            const real_t dti = beam_dt[i];
+            for (int j = 0; j < n_rf; j++){
+                dE_sum += voltage[j] * FAST_SIN(omega_RF[j] * dti + phi_RF[j]);
+            }
+            beam_dE[i] += charge * dE_sum + acc_kick;
+        }
     }
 }
 
