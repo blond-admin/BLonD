@@ -1181,7 +1181,7 @@ class InducedVoltageResonator(_InducedVoltage):
 
             self.time_array = np.array([])
 
-            for turn_ind in range(n_turns_calculation):
+            for turn_ind in range(n_turns_calculation + 1):  # zeroth turn + all previously non-decayed turns
                 self.time_array = np.append(
                     self.time_array,
                     rf_station.t_rev[turn_ind] * turn_ind
@@ -1293,7 +1293,7 @@ class InducedVoltageResonator(_InducedVoltage):
 
             self.time_array = np.array([])
 
-            for turn_ind in range(n_turns_calculation):
+            for turn_ind in range(n_turns_calculation + 1):  # zeroth turn + all previously non-decayed turns
                 self.time_array = np.append(
                     self.time_array,
                     self.rf_params.t_rev[turn_ind] * turn_ind
