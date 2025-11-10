@@ -469,6 +469,11 @@ class TestRing(unittest.TestCase):
         ring.add_element(DriftSimple(orbit_length=23, transition_gamma=123))
         beam_mock.reference_gamma = 122
         self.assertTrue(ring.is_below_transition(beam=beam_mock))
+
+        # Exactly on transition crossing. This is not below anymore
+        beam_mock.reference_gamma = 123
+        self.assertFalse(ring.is_below_transition(beam=beam_mock))
+
         beam_mock.reference_gamma = 124
         self.assertFalse(ring.is_below_transition(beam=beam_mock))
 

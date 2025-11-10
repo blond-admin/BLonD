@@ -147,7 +147,7 @@ class Ring(Preparable, Schedulable):
         beam
             Simulation beam object
         """
-        return bool(beam.reference_gamma < self.average_transition_gamma)
+        return bool(self.calc_average_eta_0(gamma=beam.reference_gamma) < 0)
 
     @property
     def n_cavities(self) -> int:
