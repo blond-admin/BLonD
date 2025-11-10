@@ -105,17 +105,31 @@ class InductiveImpedanceSolver(WakeFieldSolver):
 class PeriodicFreqSolver(WakeFieldSolver):
     """General wakefield solver to calculate wake-fields via frequency domain.
 
+    Notes
+    -----
+    This solver is intended for the case, that the
+    length of the beam profile is in the order of time as one revolution
+    around the synchrotron takes ( long profiles).
+
+
     Parameters
     ----------
     t_periodicity
         Periodicity that is assumed for fast fourier transform, in [s]
-
-        If None, it will be automatically set during `on_init_simulation`
-        to the revolution time of the initial turn of the magnetic cycle
-        with respect to the reference particle.
     allow_next_fast_len
         Allow to slightly change `t_periodicity` for
         faster execution of fft via `scipy.fft.next_fast_len`
+
+    Attributes
+    ----------
+    allow_next_fast_len
+        Allow to slightly change `t_periodicity` for
+        faster execution of fft via `scipy.fft.next_fast_len`
+    expect_profile_change
+        If true, reloads internal data on each
+        `calc_induced_voltage` for proper updating with
+        dynamic parameters
+
     """
 
     def __init__(
