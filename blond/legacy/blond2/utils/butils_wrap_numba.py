@@ -452,8 +452,8 @@ def _resonator_induced_voltage_1_turn(
                 - signdeltaTi[:]
             )
 
-            for k in range(kappa1.shape[0]):
-                sum_ += kappa1[k] * (tmp_sum[k + 1] - tmp_sum[k])
+            for k in range(1, kappa1.shape[0]):
+                sum_ += kappa1[k - 1] * (tmp_sum[k] - tmp_sum[k - 1])
             induced_voltagei += R[j] / (2 * omega_r[j] * Q[j]) * sum_
         induced_voltage[i] = induced_voltagei * val
         deltaT[i, :] = deltaTi[:]

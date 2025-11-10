@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from numba.core.types import long_
 from scipy.constants import pi
 
 from blond import (
@@ -17,6 +18,7 @@ from blond._core.backends.backend import Numpy64Bit, backend
 from blond.handle_results.observables import (
     BunchObservationMetaParams,
     StaticProfileObservation,
+    WakeFieldObservation,
 )
 from blond.legacy.blond2.beam.beam import Beam as beam_b2
 from blond.legacy.blond2.beam.beam import MuPlus as mu_plus_b2
@@ -63,7 +65,7 @@ backend.change_backend(
 backend.set_specials("numba")
 
 # RCS2
-phi_s = 120 * pi / 180  # deg
+phi_s = 170 * pi / 180  # deg
 inj_energy = 313.83e9
 ejection_energy = 750e9
 n_turns = 56
@@ -72,14 +74,19 @@ Q_factor = 1.76e6
 bunch_intensity = 2.4e12
 station_downscale = 40
 circumference = 5990
-harmonic = 25928
+harmonic = 25920
 voltage_per_cavity = 31140000.0
+cut_left = 0
+cut_right = 7e-10
+
+n_slices_profile = 2**7
+mtw = True
 
 energy_gain_per_turn = (
     (ejection_energy - inj_energy) / n_turns / station_downscale
 )
 
-n_turns_downscale = 1000
+n_turns_downscale = 10
 ejection_energy = inj_energy + n_turns_downscale * energy_gain_per_turn
 total_voltage = energy_gain_per_turn / np.sin(phi_s)
 voltage_per_station = total_voltage
@@ -89,9 +96,8 @@ cav_per_station = n_cavities / station_downscale
 R_over_Q = 518
 gamma_transition = 1 / np.sqrt(alpha_p)
 
-n_slices_profile = 2**9
 emittance = 0.025 * 4 * np.pi
-n_macroparticles = int(1e6)
+n_macroparticles = int(1e7)
 
 decay_fraction_threshold = 0.01
 
@@ -124,8 +130,8 @@ def setup_and_run_blond3(mtw: bool = False):
         / harmonic
     )
     prof = StaticProfile.from_rad(
-        1e-10 * 2 * pi / t_rf,
-        2 * np.pi,
+        cut_left * 2 * np.pi / t_rf,
+        cut_right * 2 * np.pi / t_rf,
         n_slices_profile,
         t_rf,
         section_index=0,
@@ -135,14 +141,7 @@ def setup_and_run_blond3(mtw: bool = False):
         quality_factors=Q_factor,
         shunt_impedances=R_over_Q * Q_factor * cav_per_station,
     )  # FM only
-    one_turn_model.extend(
-        [
-            prof,
-            SingleHarmonicCavity(
-                voltage=voltage_per_station,
-                phi_rf=0,
-                harmonic=harmonic,
-                local_wakefield=WakeField(
+    wf = WakeField(
                     sources=(local_res,),
                     solver=MultiPassResonatorSolver(
                         decay_fraction_threshold=decay_fraction_threshold
@@ -150,7 +149,15 @@ def setup_and_run_blond3(mtw: bool = False):
                     if mtw
                     else SingleTurnResonatorConvolutionSolver(),
                     profile=prof,
-                ),
+                )
+    one_turn_model.extend(
+        [
+            prof,
+            SingleHarmonicCavity(
+                voltage=voltage_per_station,
+                phi_rf=0,
+                harmonic=harmonic,
+                local_wakefield=wf,
                 section_index=0,
             ),
             DriftSimple(
@@ -187,6 +194,7 @@ def setup_and_run_blond3(mtw: bool = False):
     profile_observation = StaticProfileObservation(
         each_turn_i=1, obs_per_turn=1, profile=prof
     )
+    wf_observation = WakeFieldObservation(wakefield=wf, each_turn_i=1, obs_per_turn=1)
     sim.run_simulation(
         beams=([beam]),
         turn_i_init=0,
@@ -194,12 +202,14 @@ def setup_and_run_blond3(mtw: bool = False):
         observe=(
             bunch_observation,
             profile_observation,
+            wf_observation,
         ),
     )
 
     return (
         bunch_observation,
         profile_observation,
+        wf_observation
     )
 
 
@@ -224,8 +234,8 @@ def setup_and_run_blond2(mtw=False):
         ring, n_macroparticles=n_macroparticles, intensity=bunch_intensity
     )
     cut_options = cut_options_b2(
-        cut_left=1e-10,
-        cut_right=1 / (rf_station.omega_rf[0, 0] / 2 / np.pi),
+        cut_left=cut_left,
+        cut_right=cut_right,
         n_slices=n_slices_profile,
     )
 
@@ -251,33 +261,30 @@ def setup_and_run_blond2(mtw=False):
 
     # frequency_resolution_input = 0.5 * ring.f_rev[0] / 1 * harmonic
     #
-    # ind_volt_time = InducedVoltageTime(
-    #     beam,
-    #     profile,
-    #     [res_fund],
-    #     rf_station=rf_station,
-    #     multi_turn_wake=mtw,
-    #     # frequency_resolution=frequency_resolution_input,
-    #     mtw_mode="time",
-    # )
+    ind_volt_time = InducedVoltageTime(
+        beam,
+        profile,
+        [res_fund],
+        rf_station=rf_station,
+        multi_turn_wake=False,
+        # frequency_resolution=frequency_resolution_input,
+        mtw_mode="time",
+    )
 
     total_ind_volt = total_ind_volt_b2(beam, profile, [ind_volt_res])
-    total_ind_volt.induced_voltage_sum()
+    # total_ind_volt.induced_voltage_sum()
 
-    long_tracker = RingAndRFTracker(
-        rf_station,
-        beam,
-        profile=profile,
-        total_induced_voltage=total_ind_volt,
-        interpolation=True,
-    )  # without interpolation no ind voltage
-    full_ring_and_rf_tracker = FullRingAndRF([long_tracker])
+    total_ind_volt_matcher = total_ind_volt_b2(beam, profile, [ind_volt_time])
+    total_ind_volt_matcher.induced_voltage_sum()
+
+    long_tracker_match = RingAndRFTracker(rf_station, beam, profile=profile, total_induced_voltage=total_ind_volt_matcher, interpolation=False)
+    full_ring_and_rf_tracker_matcher = FullRingAndRF([long_tracker_match])
 
     matching = matched_from_distribution_function(
         beam,
-        full_ring_and_rf_tracker,
+        full_ring_and_rf_tracker_matcher,
         n_iterations=10,
-        total_induced_voltage=total_ind_volt,
+        total_induced_voltage=total_ind_volt_matcher,
         dt_margin_percent=0.01,
         seed=1234,
         distribution_exponent=2,
@@ -290,10 +297,20 @@ def setup_and_run_blond2(mtw=False):
     )
     np.savez("initial_beam.npz", dt=beam.dt, dE=beam.dE, id=beam.id)
 
+    long_tracker = RingAndRFTracker(
+        rf_station,
+        beam,
+        profile=profile,
+        total_induced_voltage=total_ind_volt,
+        interpolation=False,
+    )  # without interpolation no ind voltage
+    full_ring_and_rf_tracker = FullRingAndRF([long_tracker])
+
     profile.track()
 
     save_bunch_centroid = []
     save_energy_centroid = []
+    save_ind_volt = np.zeros((ring.n_turns, len(total_ind_volt.induced_voltage)))
 
     from tqdm import tqdm
 
@@ -302,32 +319,38 @@ def setup_and_run_blond2(mtw=False):
 
     for trn in iterator:
         profile.track()
-        profile.fwhm()
+        # profile.fwhm()
 
         total_ind_volt.induced_voltage_sum()
 
         long_tracker.track()
 
         # statistics
-
+        save_ind_volt[trn, :] = total_ind_volt.induced_voltage
         save_bunch_centroid.append(np.mean(beam.dt))
         save_energy_centroid.append(np.mean(beam.dE))
 
-    return np.array(save_bunch_centroid), np.array(save_energy_centroid)
+    return np.array(save_bunch_centroid), np.array(save_energy_centroid), np.array(save_ind_volt)
 
 
 def plot_and_compare():
-    mtw = True
-    bunch_centroid_b2, energy_centroid_b2 = setup_and_run_blond2(mtw=mtw)
+    bunch_centroid_b2, energy_centroid_b2, save_ind_volt_b2 = setup_and_run_blond2(mtw=mtw)
 
-    bunch_observation, profile_observation = setup_and_run_blond3(mtw=mtw)
+    bunch_observation, profile_observation, ind_volt_obs = setup_and_run_blond3(mtw=mtw)
 
     DEBUG_PLOTTING = True
     if DEBUG_PLOTTING:
-        plt.title("bunch centroid")
-        plt.plot(bunch_observation.mean_dt * 1e9)
-        plt.plot(bunch_centroid_b2 * 1e9, label="blond2", ls="--")
-        plt.ylabel("bunch centroid [ns]")
+        # plt.title("bunch centroid")
+        # plt.plot(bunch_observation.mean_dt * 1e9)
+        # plt.plot(bunch_centroid_b2 * 1e9, label="blond2", ls="--")
+        # plt.ylabel("bunch centroid [ns]")
+        # plt.legend()
+        # plt.show()
+
+        plt.title("induced_voltage")
+        plt.plot(ind_volt_obs.induced_voltage[1] / 1e6)
+        plt.plot(save_ind_volt_b2[1] / 1e6, label="blond2", ls="--")
+        plt.ylabel("induced voltage [MV]")
         plt.legend()
         plt.show()
 
