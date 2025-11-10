@@ -21,16 +21,16 @@ from warnings import warn
 
 import numpy as np
 
-from ... import Simulation
-from ..._core.backends.backend import backend
-from ..._generals._warnings import NotTestedWarning
-from ..impedances.base import (
+from blond._core.backends.backend import backend
+from blond._core.simulation.simulation import Simulation
+from blond._generals._warnings import NotTestedWarning
+from blond.physics.impedances.base import (
     AnalyticWakeFieldSource,
     DiscreteWakeFieldSource,
     FreqDomain,
     TimeDomain,
 )
-from .readers import ImpedanceReader
+from blond.physics.impedances.readers import ImpedanceReader
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -187,8 +187,6 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
     quality_factors : array-like or float
         Quality factors (Q) of the resonances, dimensionless.
 
-
-
     Notes
     -----
     All values must be float, if one is given as float.
@@ -199,9 +197,9 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
 
     def __init__(
         self,
-        shunt_impedances: NumpyArray | float | ArrayLike,
-        center_frequencies: NumpyArray | float | ArrayLike,
-        quality_factors: NumpyArray | float | ArrayLike,
+        shunt_impedances: NumpyArray | ArrayLike | float,
+        center_frequencies: NumpyArray | ArrayLike | float,
+        quality_factors: NumpyArray | ArrayLike | float,
         shunt_impedances_counter_rotating: NumpyArray
         | float
         | ArrayLike
@@ -389,7 +387,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         beam: BeamBaseClass,
         counter_rotation: bool = False,
     ) -> NumpyArray:
-        """Return analytically calculated impedance in the frequency domain.
+        """Return the analytically calculated impedance in the frequency domain.
 
         Parameters
         ----------

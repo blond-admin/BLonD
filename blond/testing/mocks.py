@@ -2,8 +2,12 @@
 
 from unittest.mock import Mock
 
-from blond import Beam, Simulation
+from blond import Beam, DriftSimple, Simulation, StaticProfile, WakeField
 
-simulation = Mock(Simulation)
+simulation_mock = Mock(Simulation)
 
-beam = Mock(Beam)
+beam_mock = Mock(Beam)
+static_profile_mock = Mock(StaticProfile)
+wakefield_profile_mock = Mock(WakeField)
+
+drift_simple_mock = Mock(DriftSimple)

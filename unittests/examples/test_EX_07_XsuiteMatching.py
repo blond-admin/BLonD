@@ -17,6 +17,12 @@ except ImportError:
 
 @unittest.skipUnless(HAS_XSUITE, "XSUITE is not available")
 class TestEX_07_Xsuite_Matching(unittest.TestCase):
+    def setUp(self):
+        try:
+            import xpart
+        except ModuleNotFoundError as exception:
+            self.skipTest(str(exception))
+
     def test_executable_numba32(self):
         backend.change_backend(Numpy32Bit)
         backend.set_specials("numba")

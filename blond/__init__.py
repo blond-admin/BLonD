@@ -1,6 +1,12 @@
 """BLonD beam dynamics software."""
 
-from ._core.backends.backend import backend  # NOQA
+from ._core.backends.backend import (  # NOQA
+    Cupy32Bit,
+    Cupy64Bit,
+    Numpy32Bit,
+    Numpy64Bit,
+    backend,
+)
 from ._core.base import UserDefinedElement  # NOQA
 from ._core.beam.beams import Beam  # NOQA
 from ._core.beam.particle_types import electron  # NOQA
@@ -17,9 +23,12 @@ from .cycles.magnetic_cycle import ConstantMagneticCycle  # NOQA
 from .cycles.magnetic_cycle import MagneticCycleByTime  # NOQA
 from .cycles.magnetic_cycle import MagneticCyclePerTurn  # NOQA
 from .cycles.magnetic_cycle import MagneticCyclePerTurnAllCavities  # NOQA
-from .handle_results.observables import BunchObservation  # NOQA
+from .handle_results.observables import BeamObservationEndOfTurn  # NOQA
 from .handle_results.observables import CavityPhaseObservation  # NOQA
 from .handle_results.observables import StaticProfileObservation  # NOQA
+from .handle_results.observables_as_elements import (
+    BeamObservationInRingElement,  # NOQA
+)
 from .physics.cavities import MultiHarmonicCavity, SingleHarmonicCavity  # NOQA
 from .physics.drifts import DriftSimple  # NOQA
 from .physics.impedances.base import WakeField  # NOQA

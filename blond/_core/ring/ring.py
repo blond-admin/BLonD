@@ -9,13 +9,15 @@ import numpy as np
 
 from blond._core.backends.backend import backend
 
-from ..base import BeamPhysicsRelevant, Preparable, Schedulable
+from ..base import Preparable, Schedulable
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
     from typing import Any
 
     from numpy.typing import NDArray as NumpyArray
+
+    from blond._core.base import SimulationElementBase
 
     from ...physics.drifts import DriftBaseClass
     from ..beam.base import BeamBaseClass
@@ -68,7 +70,7 @@ class Ring(Preparable, Schedulable):
             )
 
         assert np.all(
-            0 <= np.diff([e.section_index for e in self.elements.elements])
+            np.diff([e.section_index for e in self.elements.elements]) >= 0
         ), (
             "Section indices must be ascending, but section order:"
             f" {[e.section_index for e in self.elements.elements]=}"
@@ -114,13 +116,14 @@ class Ring(Preparable, Schedulable):
     def average_transition_gamma(self):
         from ... import DriftSimple  # prevent cyclic import
 
-        transition_gamma_average = sum(
-            [
-                e.transition_gamma * self.circumference / e.orbit_length
-                for e in (self.elements.get_elements(DriftSimple))  # todo
-                # not only simple
-            ]
-        )
+        gammas = [
+            e.transition_gamma for e in self.elements.get_elements(DriftSimple)
+        ]
+        weights = [
+            e.orbit_length for e in self.elements.get_elements(DriftSimple)
+        ]
+        # todo not only simple dirft
+        transition_gamma_average = np.average(gammas, weights=weights)
         return transition_gamma_average
 
     def calc_average_eta_0(self, gamma: float) -> np.float32 | np.float64:
@@ -136,6 +139,16 @@ class Ring(Preparable, Schedulable):
             )
         )
 
+    def is_below_transition(self, beam: BeamBaseClass) -> bool:
+        """Whether the beam is above or below transition crossing.
+
+        Parameters
+        ----------
+        beam
+            Simulation beam object
+        """
+        return bool(beam.reference_gamma < self.average_transition_gamma)
+
     @property
     def n_cavities(self) -> int:
         """Total number of cavities in this synchrotron."""
@@ -145,7 +158,7 @@ class Ring(Preparable, Schedulable):
 
     @property  # as readonly attributes
     def elements(self) -> BeamPhysicsRelevantElements:
-        """Bending radius, in [m]."""
+        """The container of elements that are relevant for beam physics."""
         return self._elements
 
     @property  # as readonly attributes
@@ -227,12 +240,12 @@ class Ring(Preparable, Schedulable):
 
     def add_element(
         self,
-        element: BeamPhysicsRelevant,
+        element: SimulationElementBase,
         reorder: bool = False,
         deepcopy: bool = False,
         section_index: int | None = None,
     ):
-        """Append a beam physics-relevant element to the ring.
+        """Append a `SimulationElementBase` element to the ring.
 
         This method appends the given element to the
         internal sequence of elements, maintaining insertion order if
@@ -269,12 +282,12 @@ class Ring(Preparable, Schedulable):
 
     def add_elements(
         self,
-        elements: Iterable[BeamPhysicsRelevant],
+        elements: Iterable[SimulationElementBase],
         reorder: bool = False,
         deepcopy: bool = False,
         section_index: int | None = None,
     ):
-        """Append beam physics-relevant elements to the ring.
+        """Append `SimulationElementBase` elements to the ring.
 
         This method appends the given elements to the
         internal sequence of elements, maintaining
@@ -310,7 +323,7 @@ class Ring(Preparable, Schedulable):
 
     def insert_element(
         self,
-        element: BeamPhysicsRelevant,
+        element: SimulationElementBase,
         insert_at: int | list[int],
         deepcopy: bool = True,
         allow_section_index_overwrite: bool = False,
@@ -355,8 +368,7 @@ class Ring(Preparable, Schedulable):
         locations_in_the_new_ring = []
         if isinstance(insert_at, int):
             insert_at = [insert_at]
-        already_inserted = 0
-        for k in insert_at:
+        for already_inserted, k in enumerate(insert_at):
             if deepcopy:
                 element = copy.deepcopy(element)
                 if allow_section_index_overwrite:
@@ -373,13 +385,12 @@ class Ring(Preparable, Schedulable):
                 insert_at=k + already_inserted,
             )
             locations_in_the_new_ring.append(k + already_inserted)
-            already_inserted += 1
 
         return locations_in_the_new_ring
 
     def insert_elements(
         self,
-        elements: list[BeamPhysicsRelevant],
+        elements: list[SimulationElementBase],
         insert_at: int,
         deepcopy: bool = True,
         allow_section_index_overwrite: bool = False,
@@ -430,8 +441,8 @@ class Ring(Preparable, Schedulable):
             )
 
     def _force_section_index_compatibility(
-        self, element: BeamPhysicsRelevant, insert_at: int
-    ) -> BeamPhysicsRelevant:
+        self, element: SimulationElementBase, insert_at: int
+    ) -> SimulationElementBase:
         """Internal method to ensure section index compatibility.
 
         This method overwrites the section index of the element, to ensure

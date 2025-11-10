@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-from typing import Callable  # NOQA
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
@@ -12,6 +11,9 @@ from blond.beam_preparation.base import MatchingRoutine
 
 from ..._core.helpers import int_from_float_with_warning
 from .helpers import populate_beam
+
+# Oversampling factor for potential well calculation
+_POTENTIAL_WELL_OVERSAMPLING = 10
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Callable, Dict, Tuple
@@ -26,8 +28,6 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def hamilton_to_density_by_max(
-    time_grid: NumpyArray | CupyArray,
-    deltaE_grid: NumpyArray | CupyArray,
     hamilton_2D: NumpyArray | CupyArray,
     density_modifier: float,
     hamilton_max: float,
@@ -46,12 +46,6 @@ def hamilton_to_density_by_max(
 
     Parameters
     ----------
-    time_grid : NumpyArray or CupyArray
-        A 2D array representing the time axis of the phase space
-
-    deltaE_grid : NumpyArray or CupyArray
-        A 2D array representing the energy axis of the phase space
-
     hamilton_2D : NumpyArray or CupyArray
         A 2D array representing the spatial Hamilton field.
 
@@ -75,7 +69,6 @@ def hamilton_to_density_by_max(
 
     _density = hamilton_2D.copy()  # So the changes stay in this scope
 
-    _density -= _density.min()
     _density /= hamilton_max
     # Now 1 representing the limit between particles/no-particles.
     # Smaller 1 means there should be particles.
@@ -102,46 +95,53 @@ def get_hamilton_semi_analytic(
     Tuple[NumpyArray, NumpyArray, NumpyArray]
     | Tuple[CupyArray, CupyArray, CupyArray]
 ):
-    """Computes hamilton_2D(Δt, ΔE) based on an arbitrary potential_well.
+    r"""
+    Compute the 2D Hamiltonian :math:`H_{2D}(t, \Delta E)` based on an arbitrary potential well.
 
-    Computes a semi-analytic Hamiltonian hamilton_2D(t, ΔE)
-    over a 2D grid defined by time (t) and energy difference (ΔE).
+    This function computes a semi-analytic Hamiltonian over a 2D grid defined by
+    time (:math:`t`) and energy difference (:math:`\Delta E`).
 
     Notes
     -----
     The Hamiltonian is computed using the relation:
-        hamilton_2D(t, ΔE) = 0.5 * (η * E0) / (β² * c²) * ΔE² + V(t)
 
-    Where:
-        - E0 is the reference total energy.
-        - V(t) is the potential well interpolated at times t.
-        - c is the speed of light.
+    .. math::
+
+        H_{2D}(t, \Delta E) = \frac{1}{2} \frac{\eta E_0}{\beta^2 c^2} (\Delta E)^2 + V(t)
+
+    where
+
+    - :math:`E_0` is the reference total energy [eV].
+    - :math:`V(t)` is the potential well interpolated at times :math:`t` [V].
+    - :math:`c` is the speed of light [m/s].
 
     Parameters
     ----------
-    ts
-        Time coordinates of the potential well, in [s].
-    potential_well
-        Potential energy values corresponding to `ts`, in [V].
-    reference_total_energy
-        Reference total energy (E0), in [eV].
-    eta
-        General synchrotron parameter - Zeroth order slippage factor, unitless
-    shape
-        Shape of the output Hamiltonian grid
-        as (num_time_points, num_energy_points).
-    energy_range
-        Range of ΔE values to evaluate, in [eV].
-        If None, it will comprise the biggest separatrix inside the given
-        potential.
+    ts : array_like
+        Time coordinates of the potential well [s].
+    potential_well : array_like
+        Potential energy values corresponding to ``ts`` [V].
+    reference_total_energy : float
+        Reference total energy :math:`E_0` [eV].
+    eta : float
+        General synchrotron parameter (zeroth-order slippage factor) [unitless].
+    beta : float
+        Relativistic velocity factor :math:`\beta = v/c` [unitless].
+    shape : tuple of int
+        Shape of the output Hamiltonian grid, as ``(num_time_points, num_energy_points)``.
+    energy_range : tuple of float or None, optional
+        Range of :math:`\Delta E` values to evaluate [eV].
+        If ``None``, it will comprise the largest separatrix inside the given potential.
 
     Returns
     -------
-    hamilton_2D
+    hamilton_2D : ndarray
         2D array representing the semi-analytic Hamiltonian evaluated on a grid of
-        time vs. energy difference. Same device (NumPy or CuPy) as inputs.
-        Units: [eV]
+        time vs. energy difference [eV]. Uses the same device (NumPy or CuPy) as the inputs.
     """
+
+
+
     assert len(ts) == len(potential_well), (
         f"{len(ts)=}, but {len(potential_well)=}"
     )
@@ -149,7 +149,7 @@ def get_hamilton_semi_analytic(
     E0 = reference_total_energy  # [eV]
 
     # Compute kinetic energy term constant
-    drift_term = eta / (np.square(beta) * E0)  # [1/eV]
+    drift_term = np.abs(eta) / (np.square(beta) * E0)  # [1/eV]
 
     # Auto-estimate ΔE range if not provided
     if energy_range is None:
@@ -176,12 +176,62 @@ def get_hamilton_semi_analytic(
     V = potential_well[:, None]  # [V]
 
     # Compute the Hamiltonian hamilton_2D(t, ΔE) = 0.5 * const * ΔE² + V(t)
-    hamilton_2D = np.sign(eta) * (0.5 * drift_term * backend.square(deltaE_grid) + V)  # [eV]
+    hamilton_2D = 0.5 * drift_term * backend.square(deltaE_grid) + V  # [eV]
 
     return deltaE_grid, time_grid, hamilton_2D
 
 
 class SemiEmpiricMatcher(MatchingRoutine):
+    """
+    Match a distribution to ``potential_well_empiric`` using an analytic drift term.
+
+    This function matches a beam distribution to the empirically determined potential well,
+    including an analytic drift term. The process iteratively adjusts the distribution until
+    it converges within a specified tolerance, optionally accounting for intensity effects.
+
+    Parameters
+    ----------
+    time_limit : tuple of float
+        Start and stop of time, in seconds (s).
+        The Hamiltonian will be calculated within this time range.
+    n_macroparticles : int
+        Number of macroparticles to inject into the beam.
+    hamilton_to_density_kwargs : dict, optional
+        Keyword arguments passed to ``hamilton_to_density_function``.
+        For the default function, the following keys may be used:
+
+        - ``density_modifier`` : float
+          Exponent that shapes the density distribution according to :math:`H^{\text{density\_modifier}}`.
+        - ``hamilton_max`` : float
+          Maximum value of the Hamiltonian, in arbitrary units.
+    hamilton_to_density_function : callable
+        Function that converts the 2D Hamiltonian array into a density function.
+        See also :func:`hamilton_to_density_by_max`.
+    internal_grid_shape : tuple of int
+        Shape of the internal grid as ``(n_time, n_energy)``, used to generate
+        the beam particle coordinates.
+    maxiter_intensity_effects : int, optional
+        Maximum number of iterations allowed for convergence with intensity effects.
+    increment_intensity_effects_until_iteration_i : int, optional
+        Number of iterations during which intensity effects are gradually increased
+        before matching at full beam intensity.
+        Useful for convergence when intensity effects are strong.
+    seed : int, optional
+        Random seed ensuring reproducibility.
+        Runs with the same seed will produce identical distributions.
+    animate : bool, default=False
+        If ``True``, draws a plot using ``matplotlib.pyplot.draw()`` at each iteration.
+    tolerance : float, optional
+        Convergence threshold. The matching process stops when the error
+        falls below this tolerance.
+    verbose : bool, default=False
+        If ``True``, prints convergence and status messages to the console.
+
+    Notes
+    -----
+    This routine is intended for iterative beam-matching workflows where
+    the potential well and intensity effects are both considered analytically.
+    """
     def __init__(
         self,
         time_limit: Tuple[float, float],
@@ -196,46 +246,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         animate: bool = False,
         verbose: bool = True,
     ) -> None:
-        """Match distribution to ``potential_well_empiric`` with analytic drift term
 
-        Parameters
-        ----------
-
-        time_limit
-            Start and stop of time, in [s].
-            The Hamilton will be calculated within this time range.
-        n_macroparticles
-            Number of macroparticles to inject into the beam.
-        hamilton_to_density_kwargs
-            Keyword arguments used to call the ``hamilton_to_density_function``.
-            For the default function, there can be
-            ``density_modifier``: H**density_modifier shapes the density
-            distribution.
-            ``hamilton_max``: Maximum value of the Hamilton, in [arb. unit].
-        hamilton_to_density_function
-            A function that converts the 2D Hamiltonian array to a density
-            function. See ``hamilton_to_density_by_max``.
-        internal_grid_shape
-            Shape (n_time, t_energy) of the internal grid, which will be
-            used to generate the beam particle coordinates.
-        maxiter_intensity_effects
-            Maximum number of iterations to convergence with intensity effects.
-        increment_intensity_effects_until_iteration_i
-            Number of turns to increment intensity effects
-            before matching with the full beam intensity.
-            This is intended to help with convergence of the algorithm
-            and might be used when intensity effects are strong.
-            This is required to match to strong intensity effects.
-        seed
-            Random seed. Runs with the same seed will return the same
-            distribution
-        animate
-            If True, pyplot will draw() a plot on each iteration.
-        tolerance
-            If the error is below the tolerance, the matching is stopped.
-        verbose
-            If True, allows printing of convergence message
-        """
         self.n_macroparticles = int_from_float_with_warning(
             n_macroparticles,
             warning_stacklevel=2,
@@ -290,6 +301,12 @@ class SemiEmpiricMatcher(MatchingRoutine):
             simulation=simulation,
             beam=beam,
         )
+
+        # make sure there is not a mixed state
+        simulation.intensity_effect_manager.is_active_wakefields()
+        simulation.intensity_effect_manager.is_active_profiles()
+
+
         ts = backend.linspace(
             self.time_limit[0], self.time_limit[1], self.internal_grid_shape[0]
         )
@@ -419,12 +436,18 @@ class SemiEmpiricMatcher(MatchingRoutine):
         """
         potential_well, factor, tilt_dt_per_dE = (
             simulation.get_potential_well_empiric(
-                dt=np.linspace(ts.min(), ts.max(), len(ts) * 10),
+                dt=np.linspace(
+                    ts.min(),
+                    ts.max(),
+                    len(ts) * _POTENTIAL_WELL_OVERSAMPLING,
+                ),
                 particle_type=beam.particle_type,
                 intensity=beam.intensity,
             )
         )
-        potential_well = potential_well[::10] * factor
+        potential_well = (
+            potential_well[::_POTENTIAL_WELL_OVERSAMPLING] * factor
+        )
         self._prelast_potential_well = self._last_potential_well
         self._last_potential_well = potential_well
         if self._prelast_potential_well is None:
@@ -442,11 +465,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
             shape=self.internal_grid_shape,
         )
         density = self.hamilton_to_density_function(
-            time_grid = time_grid, deltaE_grid = deltaE_grid,
             hamilton_2D=hamilton_2D, **self.hamilton_to_density_kwargs
         )  # type: ignore
-        self._plot_hamilton_2D =hamilton_2D
-        self._plot_density =density
 
         populate_beam(
             beam=beam,
@@ -481,7 +501,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         """
         plt.figure("SemiEmpiricMatcher")
         with AllowPlotting():
-            plt.subplot(3, 1, 1)
+            plt.subplot(2, 1, 1)
             plt.title(
                 f"Iteration {i}, Intensity strength {(scalar * 100):3.1f}%"
             )
@@ -494,20 +514,10 @@ class SemiEmpiricMatcher(MatchingRoutine):
             plt.xlabel("Time (s)")
             plt.ylabel("Density (arb. unit)")
 
-            plt.subplot(3, 1, 2)
+            plt.subplot(2, 1, 2)
             if self._last_potential_well is not None:
                 plt.plot(ts, self._last_potential_well)
             if self._prelast_potential_well is not None:
                 plt.plot(ts, self._prelast_potential_well)
             plt.xlabel("Time (s)")
             plt.ylabel("Potential (arb. unit)")
-            ax = plt.subplot(3, 2, 5)
-            ax.imshow(self._plot_hamilton_2D.T) # todo more beautiful
-            ax.set_xticks([])
-            ax.set_yticks([])
-            ax.set_xlabel("semi empiric hamiltonian")
-            ax = plt.subplot(3, 2, 6)
-            ax.imshow(self._plot_density.T) # todo more beautiful
-            ax.set_xticks([])
-            ax.set_yticks([])
-            ax.set_xlabel("density distribution")

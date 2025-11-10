@@ -125,7 +125,8 @@ class TestInductiveImpedanceSolver(unittest.TestCase):
         self.inductive_impedance_solver._Z_over_n = 12
         _parent_wakefield = Mock(WakeField)
         _parent_wakefield.profile.hist_step = 1
-        _parent_wakefield.profile.hist_y_to_density_factor = 1
+        _parent_wakefield.profile.hist_y_to_density_factor = beam.ratio
+
         self.inductive_impedance_solver._parent_wakefield = _parent_wakefield
         simulation = Mock(Simulation)
         simulation.ring.circumference = 123
@@ -197,12 +198,12 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         )
         self.periodic_freq_solver._parent_wakefield.profile.hist_step = 0.5e-9
         self.periodic_freq_solver._parent_wakefield.profile.n_bins = 20
-        self.periodic_freq_solver._parent_wakefield.profile.hist_y_to_density_factor = 1
         self.periodic_freq_solver.t_periodicity = 1e-8
         self.periodic_freq_solver._update_internal_data()
         beam = Mock(BeamBaseClass)
         beam.intensity = int(11e3)
         beam.n_macroparticles_partial.return_value = int(3e6)
+        self.periodic_freq_solver._parent_wakefield.profile.hist_y_to_density_factor = 1 /beam.n_macroparticles_partial.return_value
         beam.particle_type.charge = 1
         beam.ratio = 1
         induced_voltage = self.periodic_freq_solver.calc_induced_voltage(
@@ -276,8 +277,6 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
             self.resonators,
         )
 
-
-
     def test_compare_with_fft_solver(self):
         analy_solver = deepcopy(self.single_turn_resonator_convolution_solver)
         left_edge, right_edge, hist_step = -2e-9, 1e-9, .01e-10  # finer profile, otherwise FFT solver fails
@@ -303,6 +302,14 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         analy_solver._parent_wakefield.profile.hist_y = profile
         analy_solver._parent_wakefield.profile.hist_y_to_density_factor = 1 / self.beam.n_macroparticles_partial()
 
+        beam = Mock(BeamBaseClass)
+
+        beam.intensity = int(1e9)
+        beam.particle_type.charge = 1
+        beam.n_macroparticles_partial.return_value = int(1e3)
+        analy_solver._parent_wakefield.profile.hist_y_to_density_factor = 1 / beam.n_macroparticles_partial.return_value
+
+        beam.ratio = beam.intensity / beam.n_macroparticles_partial()
         analy_solver._update_potential_sources(
             zero_pinning=True
         )
@@ -327,6 +334,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         td_fft_solver._parent_wakefield.profile.hist_y_to_density_factor = 1 / self.beam.n_macroparticles_partial()
 
         td_fft_solver._parent_wakefield.profile.hist_y = analy_solver._parent_wakefield.profile.hist_y
+        td_fft_solver._parent_wakefield.profile.hist_y_to_density_factor = 1 / beam.n_macroparticles_partial.return_value
 
         td_fft_solver._parent_wakefield.sources = (self.resonators,)
 

@@ -9,9 +9,9 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from scipy.constants import speed_of_light as c0  # type: ignore
 
-from ..._core.ring.helpers import requires
-from ..base import HasPropertyCache, Preparable
-from ..helpers import int_from_float_with_warning
+from blond._core.base import HasPropertyCache, Preparable
+from blond._core.helpers import int_from_float_with_warning
+from blond._core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -48,8 +48,6 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         is_distributed
             Developer option to allow distributed computing
         """
-        from ..._core.backends.backend import backend  # prevent cyclic import
-
         super().__init__()
 
         self.intensity = int_from_float_with_warning(
@@ -65,9 +63,11 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         self._flags: NumpyArray | CupyArray | None = None
         self._ids: NumpyArray | CupyArray | None = None
 
-        self.reference_time: np.float32 | np.float64 = backend.float(0.0)
+        self.reference_time: float = 0.0
         # todo cached properties
-        self._reference_total_energy = 0.0  # todo cached properties
+        self._reference_total_energy: float | None = (
+            None  # todo cached  properties
+        )
 
     @requires(["EnergyCycleBase"])
     def on_run_simulation(
@@ -111,10 +111,10 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
                 particle_type=self.particle_type,
             )
         )
-        if self.reference_total_energy != new_reference_total_energy:
+        if self._reference_total_energy != new_reference_total_energy:
             msg = (
                 f"`Bunch` was prepared for"
-                f" total_energy = {self.reference_total_energy} eV,"
+                f" total_energy = {self._reference_total_energy} eV,"
                 f" but simulation at {turn_i_init=} is"
                 f" {new_reference_total_energy} eV."
                 f" The energy is overwritten according to simulation."
@@ -136,6 +136,11 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     @property
     def reference_total_energy(self) -> float:
         """Total beam energy [eV]."""
+        if self._reference_total_energy is None:
+            raise ValueError(
+                "Beam is not properly set up, please set "
+                "`reference_total_energy` first!"
+            )
         return self._reference_total_energy
 
     @reference_total_energy.setter
@@ -148,6 +153,11 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     def reference_gamma(self) -> float:
         """Beam reference gamma a.k.a. Lorentz factor []."""
         # reference_total_energy in eV and mass_inv in [c²/eV]
+        if self._reference_total_energy is None:
+            raise ValueError(
+                "Beam is not properly set up, please set "
+                "`reference_total_energy` first!"
+            )
         val = self._reference_total_energy * self._particle_type.mass_inv
         return val
 
@@ -215,25 +225,25 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     @cached_property
     @abstractmethod  # pragma: no cover  # as readonly attributes
-    def dt_min(self) -> np.float32 | np.float64:
+    def dt_min(self) -> float:
         """Minimum dt coordinate, in [s]."""
         pass
 
     @cached_property
     @abstractmethod  # pragma: no cover  # as readonly attributes
-    def dt_max(self) -> np.float32 | np.float64:
+    def dt_max(self) -> float:
         """Maximum dt coordinate, in [s]."""
         pass
 
     @cached_property
     @abstractmethod  # pragma: no cover  # as readonly attributes
-    def dE_min(self) -> np.float32 | np.float64:
+    def dE_min(self) -> float:
         """Minimum dE coordinate, in [eV]."""
         pass
 
     @cached_property
     @abstractmethod  # pragma: no cover  # as readonly attributes
-    def dE_max(self) -> np.float32 | np.float64:
+    def dE_max(self) -> float:
         """Maximum dE coordinate, in [eV]."""
         pass
 
@@ -393,4 +403,18 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """
         self.invalidate_cache_dt()
         self.invalidate_cache_dE()
+        return self._flags
+
+    def read_partial_flags(self) -> NumpyArray | CupyArray:
+        """Returns flags-array on current node (distributed computing ready).
+
+        Note
+        ----
+        Depends on `is_distributed`
+        If not distributed, returns all particles.
+        Using `_dt` and `_dE` will result in the same behaviour.
+
+        If distributed, returns only the particles
+        visible to the current node.
+        """
         return self._flags

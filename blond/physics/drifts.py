@@ -12,8 +12,6 @@ from abc import ABC
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
-import numpy as np
-
 from .._core.backends.backend import backend
 from .._core.base import BeamPhysicsRelevant, HasPropertyCache, Schedulable
 
@@ -54,12 +52,8 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
 
     @abc.abstractmethod
     def eta_0(self, gamma: float) -> backend.float:
-        """Slippage factor."""
+        """Drift in arc parameter eta for one turn in synchrotron."""
         pass
-
-    def __str__(self) -> str:
-        """Abstract method for subclasses to fill."""
-        return ""
 
     def track(self, beam: BeamBaseClass) -> None:
         """Main simulation routine to be called in the mainloop.
@@ -140,8 +134,8 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             **kwargs,  # for MRO of fused elements
         )
 
-        self._transition_gamma: np.float64 | np.float32 | None = None
-        self._momentum_compaction_factor: np.float64 | np.float32 | None = None
+        self._transition_gamma: float | None = None
+        self._momentum_compaction_factor: float | None = None
 
         self._simulation: Simulation | None = None
 
@@ -149,22 +143,22 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             self.transition_gamma = transition_gamma  # use setter method
 
     @property  # read only, set by `transition_gamma`
-    def momentum_compaction_factor(self) -> np.float64 | np.float32 | None:
+    def momentum_compaction_factor(self) -> float | None:
         """Momentum compaction factor."""
         return self._momentum_compaction_factor
 
     @property
-    def transition_gamma(self) -> np.float64 | np.float32 | None:
+    def transition_gamma(self) -> float | None:
         """Gamma of transition crossing."""
         return self._transition_gamma
 
     @transition_gamma.setter
     def transition_gamma(self, transition_gamma: float) -> None:
         """Gamma of transition crossing."""
-        self._momentum_compaction_factor = backend.float(
-            1.0 / (transition_gamma * transition_gamma)
+        self._momentum_compaction_factor = 1.0 / (
+            transition_gamma * transition_gamma
         )
-        self._transition_gamma = backend.float(transition_gamma)
+        self._transition_gamma = float(transition_gamma)
 
     @staticmethod
     def headless(
@@ -198,7 +192,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             section_index=section_index,
         )
         if isinstance(transition_gamma, float):
-            d.transition_gamma = backend.float(transition_gamma)
+            d.transition_gamma = transition_gamma
         else:
             d.schedule("transition_gamma", transition_gamma, mode="per-turn")
         from .._core.beam.base import BeamBaseClass
@@ -226,7 +220,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         self._simulation = simulation
         if (
             self.transition_gamma is None
-        ) and "transition_gamma" not in self.schedules.keys():
+        ) and "transition_gamma" not in self.schedules:
             raise ValueError(
                 "You need to define `transition_gamma` via `.transition_gamma=...` "
                 "or `.schedule(attribute='transition_gamma', value=...)`"
@@ -246,26 +240,26 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
                 turn_i=self._simulation.turn_i.value,
                 reference_time=beam.reference_time,
             )
-        dt = backend.float(self.orbit_length / beam.reference_velocity)
+        dt = self.orbit_length / beam.reference_velocity
         gamma = beam.reference_gamma
         eta_0 = self.alpha_0 - (1 / (gamma * gamma))
         backend.specials.drift_simple(
             dt=beam.write_partial_dt(),
             dE=beam.read_partial_dE(),
-            T=backend.float(dt),
-            eta_0=backend.float(eta_0),
-            beta=backend.float(beam.reference_beta),
-            energy=backend.float(beam.reference_total_energy),
+            T=dt,
+            eta_0=eta_0,
+            beta=beam.reference_beta,
+            energy=beam.reference_total_energy,
         )
         beam.reference_time += dt
 
-    def eta_0(self, gamma: float) -> np.float32 | np.float64:
+    def eta_0(self, gamma: float) -> float:
         """Drift in arc parameter eta for one turn in synchrotron."""
-        return backend.float(self.alpha_0 - (1 / (gamma * gamma)))
+        return self.alpha_0 - (1 / (gamma * gamma))
 
     # alias of momentum_compaction_factor
     @property  # as readonly attributes
-    def alpha_0(self) -> np.float32 | np.float64:
+    def alpha_0(self) -> float:
         """Momentum compaction factor."""
         return self.momentum_compaction_factor
 

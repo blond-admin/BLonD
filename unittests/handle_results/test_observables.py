@@ -9,10 +9,10 @@ from blond._core.base import DynamicParameter
 from blond._core.beam.base import BeamBaseClass
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
-    BunchObservation,
+    BeamObservationEndOfTurn,
     CavityPhaseObservation,
     DynamicProfileConstNBinsObservation,
-    Observables,
+    ObservablesEndOfTurnBase,
     StaticMultiProfileObservation,
     StaticProfileObservation,
     WakeFieldObservation,
@@ -39,7 +39,7 @@ beam._dE = np.ones(beam.common_array_size, dtype=float)
 beam._flags = np.ones(beam.common_array_size, dtype=int)
 
 
-class ObservablesHelper(Observables):
+class ObservablesHelper(ObservablesEndOfTurnBase):
     def update(self, simulation: Simulation) -> None:
         pass
 
@@ -148,14 +148,14 @@ class TestObservables(unittest.TestCase):
 
 class TestBunchObservation(unittest.TestCase):
     def setUp(self) -> None:
-        self.bunch_observation = BunchObservation(
+        self.bunch_observation = BeamObservationEndOfTurn(
             each_turn_i=1,
             folder=callers_relative_path("results/", stacklevel=1),
             beam=beam,
         )
 
     def test___init__(self) -> None:
-        self.bunch_observation = BunchObservation(
+        self.bunch_observation = BeamObservationEndOfTurn(
             each_turn_i=1,
             folder=callers_relative_path("results/", stacklevel=1),
             beam=beam,

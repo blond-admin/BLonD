@@ -100,7 +100,7 @@ class Beam(BeamBaseClass):
         )
 
         if reference_time:
-            self.reference_time = backend.float(reference_time)
+            self.reference_time = reference_time
         if reference_total_energy:
             self.reference_total_energy = reference_total_energy
 
@@ -166,14 +166,20 @@ class Beam(BeamBaseClass):
         return len(self._dt)
 
     def plot_hist2d(self, **kwargs) -> None:
-        """Plot 2D histogram of beam coordinates."""
+        """Plot 2D histogram of beam coordinates.
+
+        Parameters
+        ----------
+        kwargs
+            Keyword arguments for ``matplotlib.pyplot.hist2d``
+        """
         if self._dt is None or self._dE is None:
             raise ValueError(
                 "Beam `dt` and `dE` coordinates are not initialized!"
             )
-        if "cmap" not in kwargs.keys():
+        if "cmap" not in kwargs:
             kwargs["cmap"] = "viridis"
-        if "bins" not in kwargs.keys():
+        if "bins" not in kwargs:
             kwargs["bins"] = 256
         if is_cupy_array(self._dt):
             # variables below are just for the type hints to function correctly
@@ -184,12 +190,22 @@ class Beam(BeamBaseClass):
             plt.hist2d(self._dt, self._dE, **kwargs)
 
     def plot_hist(self, axis=0, **kwargs) -> None:
-        """Plot 2D histogram of beam coordinates."""
+        """Plot 2D histogram of beam coordinates.
+
+        Parameters
+        ----------
+        axis
+            0: Plot dt axis
+            1: Plot dE axis
+        kwargs
+            Keyword arguments for ``matplotlib.pyplot.hist``
+
+        """
         if self._dt is None or self._dE is None:
             raise ValueError(
                 "Beam `dt` and `dE` coordinates are not initialized!"
             )
-        if "bins" not in kwargs.keys():
+        if "bins" not in kwargs:
             kwargs["bins"] = 256
         if is_cupy_array(self._dt):
             # variables below are just for the type hints to function correctly
@@ -253,6 +269,7 @@ class ProbeBeam(Beam):
             dt = backend.zeros_like(dE)
         elif (dE is None) and (dt is None):
             raise ValueError("dE or dt must be given!")
+
         else:
             raise RuntimeError(f"{dE=} {dt=}")
 

@@ -160,7 +160,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         turn_i_init: int,
         t_init: float,
         particle_type: ParticleType,
-    ) -> np.float32 | np.float64:
+    ) -> float:
         """Compute the initial the total energy [eV] for the initial turn.
 
         Parameters
@@ -204,7 +204,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         turn_i_init: int,
         t_init: float,
         particle_type: ParticleType,
-    ) -> np.float32 | np.float64:
+    ) -> float:
         r"""Compute the initial revolution period of a reference particle, in [s].
 
         Parameters
@@ -553,7 +553,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
             )
         return calc_total_energy(
             mass=particle_type.mass,
-            momentum=self._momentum_cached[key][section_i, turn_i],
+            momentum=self._momentum_cached[key][section_i, int(turn_i)],
         )
 
     @staticmethod

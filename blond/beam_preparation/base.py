@@ -10,6 +10,7 @@ from __future__ import annotations
 from abc import ABC
 from typing import TYPE_CHECKING
 
+from .._core.base import Schedulable
 from .._core.beam.base import BeamBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -37,8 +38,6 @@ class BeamPreparationRoutine(ABC):
         simulation
             Simulation context manager
         """
-        from .._core.base import Schedulable
-
         beam.reference_total_energy = (
             simulation.magnetic_cycle.get_total_energy_init(
                 turn_i_init=simulation.turn_i.value,

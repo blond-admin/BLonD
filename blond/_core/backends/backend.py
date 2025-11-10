@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import importlib
 import os
-import sys
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
@@ -15,6 +13,9 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
+
+DEFAULT_BACKEND = "python"
+DEFAULT_BITS = "64"
 
 
 class Specials(ABC):
@@ -35,8 +36,8 @@ class Specials(ABC):
         voltage: float,
         omega_rf: float,
         phi_rf: float,
-        charge: np.float32 | np.float64,
-        acceleration_kick: np.float32 | np.float64,
+        charge: float,
+        acceleration_kick: float,
     ) -> None:
         pass
 
@@ -59,10 +60,10 @@ class Specials(ABC):
     def drift_simple(
         dt: NumpyArray,
         dE: NumpyArray,
-        T: np.float32 | np.float64,
-        eta_0: np.float32 | np.float64,
-        beta: np.float32 | np.float64,
-        energy: np.float32 | np.float64,
+        T: float,
+        eta_0: float,
+        beta: float,
+        energy: float,
     ) -> None:
         pass
 
@@ -102,8 +103,8 @@ class Specials(ABC):
         dE: NumpyArray,
         voltage: NumpyArray,
         bin_centers: NumpyArray,
-        charge: np.float32 | np.float64,
-        acceleration_kick: np.float32 | np.float64,
+        charge: float,
+        acceleration_kick: float,
     ) -> None:
         pass
 
@@ -112,8 +113,8 @@ class Specials(ABC):
     def histogram(
         array_read: NumpyArray,
         array_write: NumpyArray,
-        start: np.float32 | np.float64,
-        stop: np.float32 | np.float64,
+        start: float,
+        stop: float,
     ) -> None:
         pass
 
@@ -126,7 +127,7 @@ class Specials(ABC):
         omega_rf: float,
         phi_rf: float,
         bin_size: float,
-    ) -> np.float32 | np.float64:
+    ) -> float:
         pass
 
 
@@ -258,7 +259,7 @@ class BackendBaseClass(ABC):
         """
         _backend_mode_raw: str = os.environ.get(
             "BLOND_BACKEND_MODE",
-            "numba",  # default
+            DEFAULT_BACKEND,  # default
         ).lower()
         if _backend_mode_raw != "numba":
             print(
@@ -288,7 +289,7 @@ class BackendBaseClass(ABC):
 
         _backend_bits_raw: str = os.environ.get(
             "BLOND_BACKEND_BITS",
-            "32",  # default
+            DEFAULT_BITS,  # default
         )
         if _backend_bits_raw != "32":
             print(
@@ -326,30 +327,6 @@ class BackendBaseClass(ABC):
             else:
                 raise ValueError(_backend_bits)
             self.set_specials(mode=_backend_mode)  # type: ignore
-
-
-def fresh_import(module_location: str, class_name: str) -> type:
-    """To freshly do `from module_location import ClassName`.
-
-    Parameters
-    ----------
-    module_location
-        Import location where the module resides
-    class_name
-        Class to re-import
-
-    Returns
-    -------
-    Newly imported class
-
-    """
-    # TODO Refactor given files as classes, so that only reinstancing of a
-    #  class is needed instead of reloading a module path.
-    #  This function is only intended to reload backend specials.
-    if module_location in sys.modules:
-        del sys.modules[module_location]
-    module = importlib.import_module(module_location)
-    return getattr(module, class_name)
 
 
 class NumpyBackend(BackendBaseClass):
@@ -414,39 +391,35 @@ class NumpyBackend(BackendBaseClass):
             One of the available backend modes
 
         """
+        onchange = self.specials_mode != mode
+
         if mode == "python":
             from .python.callables import PythonSpecials
 
             self.specials = PythonSpecials()
             self.specials_mode = mode
         elif mode == "cpp":
-            CppSpecials = fresh_import(
-                "blond._core.backends.cpp.callables",
-                "CppSpecials",
-            )
-            self.specials = CppSpecials()
+            from .cpp.callables import reload_cpp_backend
+
+            self.specials = reload_cpp_backend(self.float)
             self.specials_mode = mode
         elif mode == "numba":
-            # like
-            # from .numba.callables import NumbaSpecials
-            # but reimport, so that dtypes are in line with the current backend
-            NumbaSpecials = fresh_import(
-                "blond._core.backends.numba.callables",
-                "NumbaSpecials",
-            )
+            from .numba.callables import recompile_numba_backend
+
+            NumbaSpecials = recompile_numba_backend(self.float)
             self.specials = NumbaSpecials()
             self.specials_mode = mode
         elif mode == "fortran":
-            FortranSpecials = fresh_import(
-                "blond._core.backends.fortran.callables",
-                "FortranSpecials",
-            )
+            from .fortran.callables import reload_fortran_backend
+
+            FortranSpecials = reload_fortran_backend(self.float)
+
             self.specials = FortranSpecials()
             self.specials_mode = mode
         else:
             raise ValueError(mode)
-        if self.verbose:
-            print(f"Set special to `{self.specials.__class__.__name__}`")
+        if self.verbose and onchange:
+            print(f"Set special to `{mode}`")
 
 
 class Numpy32Bit(NumpyBackend):
@@ -534,16 +507,15 @@ class CupyBackend(BackendBaseClass):
 
         """
         if mode == "cuda":
-            CudaSpecials = fresh_import(
-                "blond._core.backends.cuda.callables",
-                "CudaSpecials",
-            )
+            from .cuda.callables import reload_cuda_backend
+
+            CudaSpecials = reload_cuda_backend(self.float)
 
             self.specials = CudaSpecials()
         else:
             raise ValueError(mode)
         if self.verbose:
-            print(f"Set special to `{self.specials.__class__.__name__}`")
+            print(f"Set special to `{mode}`")
 
 
 class Cupy32Bit(CupyBackend):

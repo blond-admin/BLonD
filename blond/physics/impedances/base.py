@@ -282,9 +282,12 @@ class WakeField(ImpedanceBaseClass):
         self.sources = sources
         self._induced_voltage = None
 
-    def info_string(self) -> str:
+    def info_string(self, prefix="") -> str:
         """Inform that the profile is also executed within the track method."""
-        content = f"{self.profile.info_string(prefix=' ↓ ')}\n{super().info_string()}"
+        content = (
+            f"{self.profile.info_string(prefix=' ↓ ')}\n"
+            f"{super().info_string(prefix=prefix)}"
+        )
         return content
 
     @property
@@ -326,6 +329,8 @@ class WakeField(ImpedanceBaseClass):
         self._induced_voltage = self.solver.calc_induced_voltage(beam=beam)[
             : self.profile.n_bins
         ]
+        # the induced voltage has to be provided with the backend precision
+        # because the track() method below requires it by calling the backend.
         return self.induced_voltage[: self.profile.n_bins]
 
     def track(self, beam: BeamBaseClass) -> None:
@@ -339,19 +344,15 @@ class WakeField(ImpedanceBaseClass):
         if self.profile.active:
             self.profile.track(beam=beam)
         induced_voltage = self.calc_induced_voltage(beam=beam)
-        assert (beam.read_partial_dt()).dtype == backend.float
-        assert (beam.write_partial_dE()).dtype == backend.float
         assert (induced_voltage).dtype == backend.float
-        assert (self.profile.hist_x).dtype == backend.float
         backend.specials.kick_induced_voltage(
             dt=beam.read_partial_dt(),
             dE=beam.write_partial_dE(),
-            voltage=induced_voltage,
+            # TODO improve induced_voltage calculation data type for speedup
+            voltage=induced_voltage.astype(backend.float),
             bin_centers=self.profile.hist_x,  # base for induced voltage
-            charge=backend.float(beam.particle_type.charge),
-            acceleration_kick=backend.float(
-                0.0
-            ),  # TODO was this ever required??
+            charge=beam.particle_type.charge,
+            acceleration_kick=0.0,  # TODO was this ever required??
         )
 
     @staticmethod

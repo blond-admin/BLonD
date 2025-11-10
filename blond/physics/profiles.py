@@ -45,7 +45,6 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         This factor is used to reproduce the behaviour
         of np.hist(..., density=True).
         Intended use: ``density = hist_y * hist_y_to_density_factor``
-
     """
 
     def __init__(
@@ -93,8 +92,15 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         assert self._hist_y is not None
         self.invalidate_cache()
 
-    def plot(self, **kwargs_plot: dict[str, Any]):
-        """Plot the current hist_x and hist_y of the profile."""
+    def plot(self, **kwargs_plot: dict[str, Any]) -> None:
+        """Plots the current histogram.
+
+        Parameters
+        ----------
+        kwargs_plot
+            Keyword arguments for `matplotlib.pyplot.plot`.
+
+        """
         plt.plot(self.hist_x, self.hist_y, **kwargs_plot)
 
     @property  # as readonly attributes
@@ -121,7 +127,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         return backend.gradient(self._hist_y, self.hist_step, edge_order=2)
 
     @cached_property
-    def hist_step(self) -> np.float32 | np.float64:
+    def hist_step(self) -> float:
         """Size of a single histogram bin."""
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
@@ -131,10 +137,10 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         if backend.is_gpu:
             fist_hist_x = fist_hist_x.get()
             second_hist_x = second_hist_x.get()
-        return backend.float(second_hist_x - fist_hist_x)  # type: ignore
+        return float(second_hist_x - fist_hist_x)  # type: ignore
 
     @cached_property
-    def cut_left(self) -> np.float32 | np.float64:
+    def cut_left(self) -> float:
         """Left outer edge of the histogram."""
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
@@ -142,10 +148,10 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         fist_hist_x = self._hist_x[0]
         if backend.is_gpu:
             fist_hist_x = fist_hist_x.get()
-        return backend.float(fist_hist_x - self.hist_step / 2.0)  # type: ignore
+        return float(fist_hist_x - self.hist_step / 2.0)  # type: ignore
 
     @cached_property
-    def cut_right(self) -> np.float32 | np.float64:
+    def cut_right(self) -> float:
         """Right outer edge of the histogram."""
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
@@ -153,7 +159,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         last_hist_x = self._hist_x[-1]
         if backend.is_gpu:
             last_hist_x = last_hist_x.get()
-        return backend.float(last_hist_x + self.hist_step / 2.0)  # type: ignore
+        return float(last_hist_x + self.hist_step / 2.0)  # type: ignore
 
     @cached_property
     def bin_edges(self) -> NumpyArray | CupyArray:
@@ -226,9 +232,9 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         return hist_x, hist_y
 
     @property  # as readonly attributes
-    def cutoff_frequency(self) -> np.float32 | np.float64:
+    def cutoff_frequency(self) -> float:
         """Cutoff frequency if the profile is fourier transformed, in [Hz]."""
-        return backend.float(1 / (2 * self.hist_step))
+        return 1 / (2 * self.hist_step)
 
     def _calc_gauss(self) -> None:
         """Gaussian fit for the beam profile."""
@@ -246,7 +252,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         # causes a MyPy type error,
         # This is intentionally ignored, we want to get an exception.
 
-        no_array_buffer = n_fft not in self._beam_spectrum_buffer.keys()
+        no_array_buffer = n_fft not in self._beam_spectrum_buffer
         if no_array_buffer:
             self._beam_spectrum_buffer[n_fft] = np.fft.rfft(
                 self._hist_y,  # type: ignore

@@ -2,7 +2,15 @@ from __future__ import annotations
 
 import numpy as np
 from numpy import float32, float64
-from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
+from scipy.constants import (  # type: ignore[import-untyped]
+    c,
+    e,
+    epsilon_0,
+    hbar,
+    m_e,
+    m_p,
+    physical_constants,
+)
 
 m_mu = physical_constants["muon mass"][0]
 
@@ -24,9 +32,9 @@ class ParticleType:
     def __init__(
         self, mass: float, charge: float, user_decay_rate: float = 0.0
     ):
-        self._mass = mass
-        self._charge = charge
-        self._user_decay_rate = user_decay_rate
+        self._mass = float(mass)
+        self._charge = float(charge)
+        self._user_decay_rate = float(user_decay_rate)
 
         self._mass_inv = 1 / mass
 
@@ -63,12 +71,12 @@ class ParticleType:
         return self._mass_inv
 
     @property
-    def classical_particle_radius(self) -> float32 | float64:
+    def classical_particle_radius(self) -> float:
         """Classical particle radius [m]."""
         return self._classical_particle_radius
 
     @property
-    def sands_radiation_constant(self) -> float32 | float64:
+    def sands_radiation_constant(self) -> float:
         """Sand's radiation constant [ m / eV^3]."""
         return self._sands_radiation_constant
 

@@ -9,8 +9,10 @@ from warnings import warn
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.integrate import cumulative_simpson
+from scipy.integrate import cumulative_simpson  # type: ignore[import-untyped]
 from tqdm import tqdm  # type: ignore
+
+from blond._core.base import SimulationElementBase
 
 from ..._generals._warnings import NotTestedWarning, PerformanceWarning
 from ...cycles.magnetic_cycle import MagneticCycleBase
@@ -18,7 +20,6 @@ from ...physics.drifts import DriftBaseClass
 from ...physics.profiles import ProfileBaseClass
 from ..backends.backend import backend
 from ..base import (
-    BeamPhysicsRelevant,
     DynamicParameter,
     Preparable,
 )
@@ -31,7 +32,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond import (
-        Beam,
         SingleHarmonicCavity,
     )
     from blond.legacy.blond2.beam.beam import Beam as Blond2Beam
@@ -51,10 +51,11 @@ if TYPE_CHECKING:  # pragma: no cover
     )
 
     from ...beam_preparation.base import BeamPreparationRoutine
-    from ...handle_results.observables import Observables
+    from ...handle_results.observables import ObservablesEndOfTurnBase
     from ..beam.base import BeamBaseClass
     from ..beam.particle_types import ParticleType
     from ..ring.ring import Ring
+
 from ...physics.cavities import CavityBaseClass
 
 logger = logging.getLogger(__name__)
@@ -334,13 +335,26 @@ class Simulation(Preparable):
 
         # Derive potential well by integrating over energy change
         potential_well = -cumulative_simpson(
-            probe_bunch.read_partial_dE(), initial=0
+            probe_bunch.read_partial_dE()
+            if backend.specials_mode != "cuda"
+            else probe_bunch.read_partial_dE().get(),
+            initial=0,
         ) / len(dt)
+
+        if self.ring.is_below_transition(beam=probe_bunch):
+            # peaks and troughs are flipped when below transition
+            potential_well *= -1
 
         if subtract_min:
             # Align potential so that the visible minimum is 0
             potential_well -= potential_well.min()
-        return potential_well / particle_type.charge, factor, tilt_dt_per_dE
+        return (
+            backend.array(
+                potential_well / particle_type.charge, dtype=backend.float
+            ),
+            factor,
+            tilt_dt_per_dE,
+        )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called.
@@ -396,7 +410,7 @@ class Simulation(Preparable):
 
         for cls in ordered_classes:
             for element in instances:
-                if not type(element).__name__ == cls:
+                if type(element).__name__ != cls:
                     continue
                 logger.info(f"Running `{method}` of {element}")
                 getattr(element, method)(**kwargs)
@@ -470,7 +484,7 @@ class Simulation(Preparable):
         )
         magnetic_cycle = _magnetic_cycle[0]
 
-        elements = get_elements(locals_list, BeamPhysicsRelevant)  # type: ignore
+        elements = get_elements(locals_list, (SimulationElementBase))
         ring.add_elements(elements=elements, reorder=True)
 
         logger.debug(f"{ring=}")
@@ -525,9 +539,9 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass, ...],
         n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: tuple[Observables, ...] = tuple(),
+        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
         show_progressbar: bool = True,
-        callback: Callable[[Simulation, Beam], None] | None = None,
+        callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
     ) -> None:
         """Execute the beam dynamics simulation.
 
@@ -593,7 +607,29 @@ class Simulation(Preparable):
                 f"Up to two beam supported, but got {len(beams)}"
             )
 
-    def finalize(self, beams, n_turns, observe, turn_i_init):
+    def finalize(
+        self,
+        beams: tuple[BeamBaseClass],
+        n_turns: int | None,
+        observe: tuple[ObservablesEndOfTurnBase, ...],
+        turn_i_init: int,
+    ) -> None:
+        """Executes `_exec_on_run_simulation` and prepares the observables.
+
+        Parameters
+        ----------
+        beams
+            Beams to be simulated, in case of two beams, the first must be
+            co-rotating and the second counter-rotating
+        n_turns
+            Number of turns to simulate.
+            If None, will use the maximum number of turns given by the cycle.
+        observe
+            List of observables to protocol of what's happening inside
+            the simulation
+        turn_i_init
+            Initial turn to start with simulation
+        """
         max_turns = self.magnetic_cycle.n_turns
         if n_turns is not None:
             _n_turns = int_from_float_with_warning(
@@ -614,11 +650,9 @@ class Simulation(Preparable):
             _n_turns = max_turns
         if backend.specials_mode == "python":
             particles_above_threshold = any(
-                [
-                    b.common_array_size
-                    > self._particle_performance_waning_threshold
-                    for b in beams
-                ]
+                b.common_array_size
+                > self._particle_performance_waning_threshold
+                for b in beams
             )
             if particles_above_threshold:
                 warn(
@@ -651,9 +685,9 @@ class Simulation(Preparable):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int = 0,
-        observe: tuple[Observables, ...] = tuple(),
+        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
         show_progressbar: bool = True,
-        callback: Callable[[Simulation, Beam], None] | None = None,
+        callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
     ) -> None:
         """Execute the beam dynamics simulation for only one beam.
 
@@ -719,9 +753,9 @@ class Simulation(Preparable):
     ]:
         raise NotImplementedError
         from ...physics.cavities import (  # prevent cyclic import
-            DriftBaseClass,
             MultiHarmonicCavity,
         )
+        from ...physics.drifts import DriftBaseClass
 
         ring_length = self.ring.closed_orbit_length
         bending_radius = self.ring.bending_radius
@@ -821,9 +855,9 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass, BeamBaseClass],
         n_turns: int,
         turn_i_init: int = 0,
-        observe: tuple[Observables, ...] = tuple(),
+        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
         show_progressbar: bool = True,
-        callback: Callable[[Simulation, Beam], None] | None = None,
+        callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
     ) -> None:
         """Execute the beam dynamics simulation for only one beam.
 
@@ -886,7 +920,7 @@ class Simulation(Preparable):
 
     def save_results(
         self,
-        observe: tuple[Observables, ...] = tuple(),
+        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
         common_name: str | None = None,
     ) -> None:
         """Save the given observables to the disk.
@@ -910,7 +944,7 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass],
         n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: tuple[Observables, ...] = tuple(),
+        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
         common_name: str | None = None,
     ) -> None:
         """Load the given observables from the disk.

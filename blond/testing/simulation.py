@@ -96,9 +96,7 @@ class ExampleSimulation01:
 class SimulationTwoRfStations:
     """A simulation with two RF stations and according drifts."""
 
-    def __init__(self):
-        import numpy as np
-
+    def __init__(self, below_transition_crossing=False):
         from blond import (
             Beam,
             DriftSimple,
@@ -115,19 +113,19 @@ class SimulationTwoRfStations:
         cavity1 = MultiHarmonicCavity(
             section_index=0, n_harmonics=1, main_harmonic_idx=0
         )
-        cavity1.harmonic = np.array(
+        cavity1.harmonic = backend.array(
             [
                 35640.0,
             ],
             dtype=backend.float,
         )
-        cavity1.voltage = np.array(
+        cavity1.voltage = backend.array(
             [
                 6e6,
             ],
             dtype=backend.float,
         )
-        cavity1.phi_rf = np.array(
+        cavity1.phi_rf = backend.array(
             [
                 0.0,
             ],
@@ -151,12 +149,16 @@ class SimulationTwoRfStations:
             orbit_length=0.5 * circumference,
             section_index=0,
         )
-        drift1.transition_gamma = 55.759505
+        drift1.transition_gamma = (
+            855.759505 if below_transition_crossing else 55.759505
+        )
         drift2 = DriftSimple(
             orbit_length=0.5 * circumference,
             section_index=1,
         )
-        drift2.transition_gamma = 55.759505
+        drift2.transition_gamma = (
+            855.759505 if below_transition_crossing else 55.759505
+        )
         beam1 = Beam(
             intensity=1e9,
             particle_type=proton,
@@ -169,9 +171,9 @@ class SimulationTwoRfStations:
 
 
 class SimulationTwoRfStationsWithWake:
-    """Simulation of two RF stations and according drifts, including wakefields."""
+    """A simulation with two RF stations and according drifts, plus wake."""
 
-    def __init__(self):
+    def __init__(self, below_transition_crossing=False):
         import numpy as np
 
         from blond import (
@@ -194,27 +196,24 @@ class SimulationTwoRfStationsWithWake:
             [
                 35640.0,
             ],
-            dtype=backend.float,
         )
         cavity1.voltage = np.array(
             [
                 6e6,
             ],
-            dtype=backend.float,
         )
         cavity1.phi_rf = np.array(
             [
                 0.0,
             ],
-            dtype=backend.float,
         )
 
         cavity2 = SingleHarmonicCavity(
             section_index=1,
         )
-        cavity2.harmonic = backend.float(35640)
-        cavity2.voltage = backend.float(6e6)
-        cavity2.phi_rf = backend.float(0)
+        cavity2.harmonic = 35640
+        cavity2.voltage = 6e6
+        cavity2.phi_rf = 0
 
         N_TURNS = int(1e6)
         energy_cycle = MagneticCyclePerTurn(
@@ -231,12 +230,16 @@ class SimulationTwoRfStationsWithWake:
             orbit_length=0.5 * circumference,
             section_index=0,
         )
-        drift1.transition_gamma = 55.759505
+        drift1.transition_gamma = (
+            855.759505 if below_transition_crossing else 55.759505
+        )
         drift2 = DriftSimple(
             orbit_length=0.5 * circumference,
             section_index=1,
         )
-        drift2.transition_gamma = 55.759505
+        drift2.transition_gamma = (
+            855.759505 if below_transition_crossing else 55.759505
+        )
         beam1 = Beam(
             intensity=1e9,
             particle_type=proton,

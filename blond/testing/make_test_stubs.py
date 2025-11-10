@@ -103,13 +103,12 @@ def _extract_untested_functions(cov_data):
         for cls in visitor.class_missing:
             methods = visitor.class_methods.get(cls, [])
             for func_name, args in methods:
-                if func_name == "__init__":
-                    # Only add if not already in results
-                    if not any(
-                        rn == "__init__" and rcls == cls
-                        for rn, rcls, _ in visitor.results
-                    ):
-                        visitor.results.append(("__init__", cls, args))
+                # Only add if not already in results
+                if func_name == "__init__" and not any(
+                    rn == "__init__" and rcls == cls
+                    for rn, rcls, _ in visitor.results
+                ):
+                    visitor.results.append(("__init__", cls, args))
 
         if visitor.results:
             untested[filepath] = visitor.results
@@ -127,11 +126,9 @@ def _write_boilerplate_tests(untested_functions) -> None:
 
     """
     for src_path, functions in untested_functions.items():
-        functions_ = list(
-            sorted(
-                functions,
-                key=lambda x: ("", x[0]) if x[1] is None else (x[1], x[0]),
-            )
+        functions_ = sorted(
+            functions,
+            key=lambda x: ("", x[0]) if x[1] is None else (x[1], x[0]),
         )
         rel_path = os.path.relpath(src_path, PROJECT_ROOT)
         test_path_dir = os.path.join(TEST_ROOT, os.path.dirname(rel_path))
