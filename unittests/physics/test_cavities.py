@@ -13,6 +13,7 @@ from blond.physics.cavities import (
     MultiHarmonicCavity,
     SingleHarmonicCavity,
 )
+from blond.physics.drifts import _assert_purely_real_or_imaginary
 
 
 class CavityBaseClassHelper(CavityBaseClass):
@@ -21,6 +22,17 @@ class CavityBaseClassHelper(CavityBaseClass):
 
     def calc_omega(self, beam_beta: float, ring_circumference: float):
         pass
+
+
+class TestCallables(unittest.TestCase):
+    def test_valid_purely_real_or_imaginary(self):
+        """Test that purely real, purely imaginary, and zero pass."""
+        for val in [5 + 0j, 0 + 3j, 0j]:
+            _assert_purely_real_or_imaginary(val)  # Should not raise
+
+    def test_invalid_purely_real_or_imaginary(self):
+        with self.assertRaises(AssertionError):
+            _assert_purely_real_or_imaginary(5 + 1j)  # Should not raise
 
 
 class TestMultiHarmonicCavity(unittest.TestCase):
