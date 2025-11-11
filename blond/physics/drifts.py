@@ -53,13 +53,7 @@ def _assert_purely_real_or_imaginary(val: complex):
         ...
     AssertionError: Expected number with only real or only imaginary part, not (2+4j)
     """
-    match val:
-        case _ if val.real != 0 and val.imag != 0:
-            valid = False
-        case _:
-            valid = True
-
-    if not valid:
+    if val.real != 0 and val.imag != 0:
         raise ValueError(
             f"Expected purely real or purely imaginary number, not {val}."
         )
