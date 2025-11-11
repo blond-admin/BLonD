@@ -37,6 +37,11 @@ if TYPE_CHECKING:  # pragma: no cover
 TWOPI_C0 = 2.0 * np.pi * c0
 
 
+"""
+Refactor proposal:
+
+Remove class
+"""
 class RfManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
     """Base class to implement beam-rf interactions in synchrotrons.
 
@@ -121,6 +126,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
             name=name,
             **kwargs,  # for MRO of fused elements
         )
+        self._turn_i: DynamicParameter | None = None
         if cavity_feedback is None:
             pass
         elif isinstance(cavity_feedback, LocalFeedback):
@@ -207,6 +213,18 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         """Returns the omega_rf of the main harmonic, in [rad/s]."""
         pass
 
+    """
+    Refactor proposal:
+
+    Replace concrete calc_phi_s_single_harmonic method with abstract
+    calc_phi_s method.
+
+    Single harmonic version is not reliable for multi-harmonic cases.
+    The method calc_phi_s_single_harmonic in hamilton.py should be moved
+    elsewhere and then can be called by SingleHarmonicRfStation.
+    Other types of RF station would need their own implementation to be
+    more accurate (or not, depending on need).
+    """
     def calc_phi_s_single_harmonic(self, beam: BeamBaseClass) -> float:
         """Calculates the main harmonic synchronous phase.
 
@@ -262,6 +280,14 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
     def _update_beam_based_attributes(self, beam: BeamBaseClass) -> None:
         pass
 
+
+    """
+    Refactor proposal:
+
+    Most of the contents of track should be removed.  The feedbacks
+    should be tracked on their own, with some method of linking them
+    to what the RF station does.
+    """
     def track(self, beam: BeamBaseClass) -> None:
         """Main simulation routine to be called in the mainloop.
 
@@ -349,6 +375,11 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         """
         pass
 
+    """
+    Refactor proposal:
+
+    Remove from the ABC.
+    """
     @abstractmethod  # pragma: no cover
     def calc_omega(
         self,

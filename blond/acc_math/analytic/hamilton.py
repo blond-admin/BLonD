@@ -11,6 +11,14 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
 
 
+"""
+Refactor proposal:
+
+Instead of having the voltage etc as input arguments, have the waveform
+as the argument and make a numerical calculation of the separatrix.
+That will be more flexible both for non-sinous waveforms and also
+inclusion of intensity effects.
+"""
 def is_in_separatrix(
     charge: float,
     harmonic: float,
@@ -151,6 +159,14 @@ def phase_modulo_below_transition(
     return phi - 2.0 * np.pi * (np.floor(phi / (2.0 * np.pi) + 0.5))
 
 
+"""
+Refactor proposal:
+
+Add to RFStationBaseClass a compute_hamiltonian method, or equivalent.
+For single RF, the RF station can call this method, or something similar
+for arbitrary waveforms, a numerical method similar to Solfege can be
+used.
+"""
 def single_rf_sin_hamiltonian(
     charge: float,
     harmonic: float,

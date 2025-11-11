@@ -118,6 +118,12 @@ def _get_dE_from_dt(
     )
 
 
+"""
+Refactor proposal:
+
+Remove this, perhaps add an equivalent method to Single/MultiRFStation
+classes to allow similar functionality.
+"""
 def get_main_harmonic_attributes(
     beam: BeamBaseClass, simulation: Simulation
 ) -> tuple[float, float, float, float]:
@@ -288,6 +294,11 @@ class BiGaussian(MatchingRoutine):
         else:
             sigma_dE = self._sigma_dE
 
+        """
+        Refactor proposal:
+
+        This can be replaced with something like `phi_s = rf.calc_phi_s`.
+        """
         phi_s = calc_phi_s_single_harmonic(
             charge=beam.particle_type.charge,
             voltage=voltage,
@@ -313,6 +324,14 @@ class BiGaussian(MatchingRoutine):
         rng_dt = backend.random.default_rng(self._seed)
         rng_dE = backend.random.default_rng(self._seed + 1)
 
+
+        """
+        Refactor proposal:
+
+        Instead of trying to center the beam for the user, make the
+        centroid position arguments.  A factory function or similar
+        could be added to compute them automatically when needed.
+        """
         dt = (
             self._sigma_dt
             * rng_dt.standard_normal(size=self.n_macroparticles).astype(
