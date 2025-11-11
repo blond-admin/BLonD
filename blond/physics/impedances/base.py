@@ -102,7 +102,7 @@ class TimeDomain(ABC):
 class TimeDomainCounterRotation(ABC):
     """Indication of a source, which has a defined wakefield for the counterrotating case."""
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def get_wake(
         self, time: NumpyArray
     ) -> NumpyArray:  # TODO: this function should be moved to TimeDomain
