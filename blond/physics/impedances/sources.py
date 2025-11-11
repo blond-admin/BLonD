@@ -208,7 +208,7 @@ class Resonators(
         | ArrayLike
         | None = None,
     ):
-        warn("Untested code", NotTestedWarning, stacklevel=2)
+        warn("Untested code", NotTestedWarning, stacklevel=1)
         super().__init__(is_dynamic=False)
 
         self._shunt_impedances: NumpyArray
