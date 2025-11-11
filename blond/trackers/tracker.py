@@ -32,8 +32,8 @@ import numpy as np
 import scipy
 from packaging.version import Version
 
-from blond.legacy.blond2.utils import precision
-from blond.legacy.blond2.utils.custom_warnings import PerformanceWarning
+from blond.utils import precision
+from blond.utils.custom_warnings import PerformanceWarning
 
 from ..llrf.cavity_feedback import CavityFeedback
 from ..utils import bmath as bm
