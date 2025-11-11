@@ -98,9 +98,13 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             )
 
     def test_general_getters(self) -> None:
-        assert self.multi_harmonic_cavity.get_main_harmonic() == self.multi_harmonic_cavity.harmonic[self.multi_harmonic_cavity.main_harmonic_idx]
-        assert self.multi_harmonic_cavity.get_main_harmonic_t_rf_current() == 2 * np.pi / self.multi_harmonic_cavity._omega_rf[self.multi_harmonic_cavity.main_harmonic_idx]
-        assert self.multi_harmonic_cavity.calc_main_harmonic_t_rf(beam_beta=self.beam.reference_beta, ring_circumference=456) == self.multi_harmonic_cavity.get_main_harmonic_t_rf_current()
+        self.multi_harmonic_cavity._update_beam_based_attributes(beam=self.beam)
+        assert self.multi_harmonic_cavity.get_main_harmonic() == self.multi_harmonic_cavity.harmonic[
+            self.multi_harmonic_cavity.main_harmonic_idx]
+        assert self.multi_harmonic_cavity.get_main_harmonic_t_rf_current() == 2 * np.pi / \
+               self.multi_harmonic_cavity._omega_rf[self.multi_harmonic_cavity.main_harmonic_idx]
+        assert self.multi_harmonic_cavity.calc_main_harmonic_t_rf(beam_beta=self.beam.reference_beta,
+                                                                  ring_circumference=456) == self.multi_harmonic_cavity.get_main_harmonic_t_rf_current()
 
     def test_on_init_simulation_fails2(self) -> None:
         simulation = Mock(Simulation)
@@ -187,6 +191,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
         )
 
     def test_general_getters(self) -> None:
+        self.single_harmonic_cavity._update_beam_based_attributes(beam=self.beam)
         assert self.single_harmonic_cavity.get_main_harmonic() == self.single_harmonic_cavity.harmonic
         assert self.single_harmonic_cavity.get_main_harmonic_t_rf_current() == 2 * np.pi / \
                self.single_harmonic_cavity._omega_rf
