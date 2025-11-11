@@ -376,6 +376,21 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         """
         pass
 
+    def info_string(self, prefix="") -> str:
+        """Inform that the profile is also executed within the track method."""
+        content = ""
+        if self._cavity_feedback is not None:
+            content += (
+                f"{self._cavity_feedback.info_string(prefix=prefix + ' ↓ ')}\n"
+            )
+
+        if self._local_wakefield is not None:
+            content += (
+                f"{self._local_wakefield.info_string(prefix=prefix + ' ↓ ')}\n"
+            )
+        content += f"{super().info_string(prefix=prefix)}"
+        return content
+
 
 class SingleHarmonicRfStation(RfStationBaseClass):
     """Cavity with only one RF wave for beam interaction.

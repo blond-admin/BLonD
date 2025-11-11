@@ -733,7 +733,8 @@ class Simulation(Preparable):
         logger.info("Starting simulation mainloop...")
         iterator = range(turn_i_init, turn_i_init + n_turns)
         if show_progressbar:
-            iterator = tqdm(iterator)  # Add TQDM display to iteration
+            iterator = tqdm(iterator, desc="BLonD3 mainloop")  # Add TQDM
+            # display to iteration
         self.turn_i.value = 0
         for observable in observe:
             observable.update(
