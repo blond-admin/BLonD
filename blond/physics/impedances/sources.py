@@ -307,8 +307,6 @@ class Resonators(
             Simulation `Beam` object
         n_fft
             Number of fft bins to use
-        counter_rotating
-            selector whether the corotating or counter-rotating impedance should be used
 
         Returns
         -------
@@ -326,6 +324,48 @@ class Resonators(
         self._cache_wake_impedance_hash = hash
         self._cache_wake_impedance = wake_impedance
         return wake_impedance
+
+    def get_wake_impedance_counter_rotation(
+        self,
+        time: NumpyArray,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_fft: int,
+    ) -> NumpyArray | CupyArray:  # Fixme all get_wake_impedance same
+        """Get the wake function, but converted to frequency domain.
+
+        Get impedance  computed via ``fft(...)`` from time domain
+        analytical formula equivalent to the partial single-particle-wake.
+
+        Parameters
+        ----------
+        time
+            Time array to get wake, in [s]
+        simulation : Simulation
+            Simulation object containing turn index and RF info.
+        beam
+            Simulation `Beam` object
+        n_fft
+            Number of fft bins to use
+
+        Returns
+        -------
+        wake_impedance
+
+        """
+        # Recalculate only if `time` has changed
+        hash = get_hash(time + 1)  # to distinguish between counterrotation
+        if hash is self._cache_wake_impedance_hash:
+            return self._cache_wake_impedance
+
+        wake_counter_rotation = self.get_wake_counter_rotation(time)
+        wake_impedance_counter_rotation = np.fft.rfft(
+            wake_counter_rotation, n=n_fft
+        )
+
+        self._cache_wake_impedance_hash = hash
+        self._cache_wake_impedance = wake_impedance_counter_rotation
+        return wake_impedance_counter_rotation
 
     def get_wake_impedance_freq(self, time):
         """Get frequency array corresponding to time used in :func:`get_wake_impedance`."""

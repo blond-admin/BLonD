@@ -376,7 +376,7 @@ class TestResonators(unittest.TestCase):
         )  # high Q to avoid smearing of frequency --> minimum getting
         time = np.linspace(-1e-9, 1.5e-9, 751)
 
-        wake_potential = res.get_wake(time=time, counter_rotating=True)
+        wake_potential = res.get_wake_counter_rotation(time=time)
         assert wake_potential.shape == time.shape
         DEV_DEBBUG = False
         if DEV_DEBBUG:
@@ -403,7 +403,7 @@ class TestResonators(unittest.TestCase):
             rtol=1e-4,
         )  # *2 from heaviside
 
-        wake_potential_corot = res.get_wake(time=time, counter_rotating=False)
+        wake_potential_corot = res.get_wake(time=time)
         np.testing.assert_allclose(wake_potential, -wake_potential_corot)
 
         # check periodicity
@@ -441,8 +441,8 @@ class TestResonators(unittest.TestCase):
         simulation = Mock(Simulation)
         beam = Mock(BeamBaseClass)
         time = np.linspace(-1e-9, 1e-9, int(1e3))
-        wake_imp_counter_rotation = self.resonators.get_wake_impedance(
-            time=time, simulation=simulation, beam=beam, n_fft=len(time), counter_rotating=True
+        wake_imp_counter_rotation = self.resonators.get_wake_impedance_counter_rotation(
+            time=time, simulation=simulation, beam=beam, n_fft=len(time)
         )
         wake_imp = self.resonators.get_wake_impedance(
             time=time, simulation=simulation, beam=beam, n_fft=len(time),
