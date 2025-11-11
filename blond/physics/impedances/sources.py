@@ -250,7 +250,7 @@ class Resonators(
                 )
 
             assert len(self._shunt_impedances_counter_rotating) == len(
-                shunt_impedances
+                self._shunt_impedances
             ), (
                 "Array lengths between co- and counterrotating impedances need to match."
             )
