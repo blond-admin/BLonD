@@ -863,10 +863,15 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 )
             # now that everything is initialized, same operation for all arrays
             for source in self._parent_wakefield.sources:  # TODO: do we ever need multiple resonstors objects in here --> probably not, resonators are defined in the Sources
-                self._wake_function_vals[prof_ind] += source.get_wake(
-                    self._wake_function_time[prof_ind],
-                    self._past_profile_counter_rotation[prof_ind]
-                    ^ self._past_profile_counter_rotation[0],
+                self._wake_function_vals[prof_ind] += (
+                    source.get_wake_counter_rotation(
+                        self._wake_function_time[prof_ind]
+                    )
+                    if (
+                        self._past_profile_counter_rotation[prof_ind]
+                        ^ self._past_profile_counter_rotation[0]
+                    )
+                    else source.get_wake(self._wake_function_time[prof_ind])
                 )
                 # exclusive OR, only if directionality of current profile and past profile differ,
                 # its actually counter-rotating
