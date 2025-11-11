@@ -96,8 +96,8 @@ class Schedulable:
         via `apply_schedules`
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.schedules: dict[str, _Scheduled] = {}
         self.schedule_active = False
 

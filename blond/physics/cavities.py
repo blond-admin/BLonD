@@ -38,7 +38,11 @@ TWOPI_C0 = 2.0 * np.pi * c0
 
 
 class RfManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
-    """Base class to implement beam-rf interactions in synchrotrons.
+    """Base class to implement beam-rf any interactions in synchrotrons.
+
+    This class is intended to come with barely any feature to host all
+    beam-rf interactions, whereas `RfStationBaseClass` has already several
+    class methods to group `SingleHarmonicRfStation`, and `MultiHarmonicRfStation`.
 
     Parameters
     ----------

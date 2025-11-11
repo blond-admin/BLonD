@@ -31,9 +31,6 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from numpy.typing import NDArray as NumpyArray
 
-    from blond import (
-        SingleHarmonicRfStation,
-    )
     from blond.legacy.blond2.beam.beam import Beam as Blond2Beam
     from blond.legacy.blond2.beam.profile import Profile as Blond2Profile
     from blond.legacy.blond2.impedances.impedance import (
@@ -752,9 +749,6 @@ class Simulation(Preparable):
         | Blond2FullRingAndRF
     ]:
         raise NotImplementedError
-        from ...physics.cavities import (  # prevent cyclic import
-            MultiHarmonicRfStation,
-        )
 
         ring_length = self.ring.closed_orbit_length
         bending_radius = self.ring.bending_radius
@@ -796,8 +790,8 @@ class Simulation(Preparable):
             intensity=self.beams[0]._intensity__init,
         )
         # todo handle multiple RF stations
-        cavity_blond3: SingleHarmonicRfStation | MultiHarmonicRfStation = (
-            self.ring.elements.get_element(RfStationBaseClass)
+        cavity_blond3: RfStationBaseClass = self.ring.elements.get_element(
+            RfStationBaseClass
         )
         # FIXME
         rf_station = RFStation(

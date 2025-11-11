@@ -19,7 +19,7 @@ from blond.experimental.physics.feedbacks.cavity_feedback import (
 )
 from blond.physics.cavities import (
     MultiHarmonicRfStation,
-    SingleHarmonicRfStation,
+    RfStationBaseClass,
 )
 from blond.physics.profiles import ProfileBaseClass
 
@@ -42,7 +42,7 @@ class LhcRfFeedback(LocalFeedback):
     def __init__(
         self,
         profile: ProfileBaseClass,
-        cavity: SingleHarmonicRfStation | MultiHarmonicRfStation,
+        cavity: RfStationBaseClass,
         section_index: int = 0,
     ):
         super().__init__(

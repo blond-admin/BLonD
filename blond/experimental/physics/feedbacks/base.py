@@ -38,7 +38,7 @@ class LocalFeedback(FeedbackBaseClass):
             name=name,
         )
         self._parent_cavity: (
-                SingleHarmonicRfStation | MultiHarmonicRfStation | None
+                RfStationBaseClass | None
         ) = None
         self.profile = profile
 
