@@ -120,7 +120,7 @@ class TimeDomainCounterRotation(ABC):
         self,
         time: NumpyArray,
     ) -> NumpyArray:
-        """Get wake potential equivalent to the partial wake in time domain for the counterrotating case.
+        """Get wake potential equivalent to the partial wake in time domain for the counter-rotating case.
 
         Parameters
         ----------
@@ -131,6 +131,32 @@ class TimeDomainCounterRotation(ABC):
         -------
         wake_potential: NumpyArray
             potential array, in [V]
+
+        """
+        pass
+
+    @abstractmethod  # pragma: no cover
+    def get_wake_impedance_counter_rotation(
+        self,
+        time: NumpyArray,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_fft: int,
+    ) -> NumpyArray:
+        """Get impedance equivalent to the partial wake in time domain for the counter-rotating case.
+
+        Parameters
+        ----------
+        time
+            Time array to get wake, in [s]
+        simulation : Simulation
+            Simulation object containing turn index and RF info.
+        beam
+            Simulation `Beam` object
+
+        Returns
+        -------
+        wake_impedance
 
         """
         pass
