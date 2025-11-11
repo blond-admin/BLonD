@@ -143,12 +143,12 @@ def get_main_harmonic_attributes(
 
     """
     # TODO move this into ring.
-    from .. import MultiHarmonicCavity
-    from ..physics.cavities import SingleHarmonicCavity
+    from .. import MultiHarmonicRfStation
+    from ..physics.cavities import SingleHarmonicRfStation
 
     rf_stations = simulation.ring.elements.get_elements(
-        SingleHarmonicCavity
-    ) + simulation.ring.elements.get_elements(MultiHarmonicCavity)
+        SingleHarmonicRfStation
+    ) + simulation.ring.elements.get_elements(MultiHarmonicRfStation)
     for _rf_station in rf_stations:
         _rf_station.apply_schedules(
             turn_i=0,

@@ -8,7 +8,7 @@ from blond import (
     MagneticCyclePerTurn,
     Ring,
     Simulation,
-    SingleHarmonicCavity,
+    SingleHarmonicRfStation,
     StaticProfile,
     WakeField,
     mu_plus,
@@ -138,7 +138,7 @@ def setup_and_run_blond3(mtw: bool = False):
     one_turn_model.extend(
         [
             prof,
-            SingleHarmonicCavity(
+            SingleHarmonicRfStation(
                 voltage=voltage_per_station,
                 phi_rf=0,
                 harmonic=harmonic,
