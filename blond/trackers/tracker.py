@@ -17,7 +17,7 @@ and the beam coordinates in phase space.**
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 try:
     import cupy as cp
@@ -32,8 +32,9 @@ import numpy as np
 import scipy
 from packaging.version import Version
 
-from blond.utils import precision
-from blond.utils.custom_warnings import PerformanceWarning
+from blond.legacy.blond2.utils import precision
+from blond.legacy.blond2.utils.custom_warnings import PerformanceWarning
+
 from ..llrf.cavity_feedback import CavityFeedback
 from ..utils import bmath as bm
 from ..utils.legacy_support import handle_legacy_kwargs
@@ -44,16 +45,16 @@ else:
     from scipy.integrate import cumtrapz
 
 if TYPE_CHECKING:
-    from typing import Optional, Literal
+    from typing import Literal, Optional
 
-    from numpy.typing import NDArray as NumpyArray
     from cupy.typing import NDArray as CupyArray
+    from numpy.typing import NDArray as NumpyArray
 
-    from ..impedances.impedance import TotalInducedVoltage
-    from ..llrf.beam_feedback import BeamFeedback
-    from ..beam.profile import Profile
     from ..beam.beam import Beam
+    from ..beam.profile import Profile
+    from ..impedances.impedance import TotalInducedVoltage
     from ..input_parameters.rf_parameters import RFStation
+    from ..llrf.beam_feedback import BeamFeedback
     from ..utils.types import DeviceType
 
     MainHarmonicOptionType = (
@@ -301,8 +302,8 @@ class RingAndRFTracker:
     periodicity : bool (optional)
         Option to switch periodic solver on/off; default is False (off)
     interpolation : bool (optional)
-        Option to use sliced and interpolated voltage for the kicker; default
-        is False
+        Option to use sliced and interpolated voltage for the kicker. This option is required for the usage of
+        induced voltages; default is False
 
     """
 
@@ -526,7 +527,6 @@ class RingAndRFTracker:
 
         """
         turn = self.counter[0]
-
         # Add phase noise directly to the cavity RF phase
         if self.rf_params.phi_noise is not None:
             if self.noiseFB is not None:
@@ -599,8 +599,16 @@ class RingAndRFTracker:
                         charge=self.beam.particle.charge,
                         acceleration_kick=self.acceleration_kick[turn],
                     )
-
                 else:
+                    if self.totalInducedVoltage is not None:
+                        bm.linear_interp_kick(
+                            dt=self.beam.dt,
+                            dE=self.beam.dE,
+                            voltage=self.totalInducedVoltage.induced_voltage,
+                            bin_centers=self.profile.bin_centers,
+                            charge=self.beam.particle.charge,
+                            acceleration_kick=0,
+                        )
                     self.kick(self.beam.dt, self.beam.dE, turn)
 
             self.drift(self.beam.dt, self.beam.dE, turn + 1)
@@ -704,7 +712,7 @@ class RingAndRFTracker:
         energy = self.rf_params.energy[turn + 1]
 
         n_rf = self.rf_params.voltage.shape[0]
-        from blond.gpu import GPU_DEV
+        from blond.legacy.blond2.gpu import GPU_DEV
 
         kickdrift_considering_periodicity = GPU_DEV.mod.get_function(
             "kickdrift_considering_periodicity"
