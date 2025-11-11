@@ -156,7 +156,7 @@ def get_main_harmonic_attributes(
         )
     # omega_rf should be all same
     omega_rf = [
-        rf.get_main_harmonic_omega_rf(
+        rf.calc_main_harmonic_omega_rf(
             beam_beta=beam.reference_beta,
             ring_circumference=simulation.ring.circumference,
         )

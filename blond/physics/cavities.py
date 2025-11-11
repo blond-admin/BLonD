@@ -94,13 +94,13 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         self._ring: Ring | None = None
 
         # TODO MOVE
-        self._omega_rf: NumpyArray | None = None
-        self.delta_omega_rf: NumpyArray | None = None
-        self._t_rf: float | None = None
+        self._omega_rf: NumpyArray | float | None = None
+        self.delta_omega_rf: NumpyArray | float | None = None
+        self._t_rf: NumpyArray | float | None = None
         self._t_rev: float | None = None
-        self.voltage: NumpyArray | None = None
-        self.phi_rf: NumpyArray | None = None
-        self.harmonic: NumpyArray | None = None
+        self.voltage: NumpyArray | float | None = None
+        self.phi_rf: NumpyArray | float | None = None
+        self.harmonic: NumpyArray | float | None = None
         self.phi_s: float | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -151,12 +151,31 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         pass
 
     @abstractmethod  # pragma: no cover
-    def get_main_harmonic_omega_rf(
+    def calc_main_harmonic_omega_rf(
         self,
         beam_beta: float,
         ring_circumference: float,
     ) -> float:
+        """Calculates the omega_rf of the main harmonic, in [rad/s]."""
+        pass
+
+    @abstractmethod  # pragma: no cover
+    def get_main_harmonic_omega_rf_current(self) -> float:
         """Returns the omega_rf of the main harmonic, in [rad/s]."""
+        pass
+
+    @abstractmethod  # pragma: no cover
+    def calc_main_harmonic_t_rf(
+        self,
+        beam_beta: float,
+        ring_circumference: float,
+    ) -> float:
+        """Calculates the t_rf of the main harmonic."""
+        pass
+
+    @abstractmethod  # pragma: no cover
+    def get_main_harmonic_t_rf_current(self) -> float:
+        """Returns the current t_rf of the main harmonic."""
         pass
 
     def calc_phi_s_single_harmonic(self, beam: BeamBaseClass) -> float:
@@ -392,7 +411,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         """Returns the phi_rf of the main harmonic, in [rad]."""
         return self.phi_rf
 
-    def get_main_harmonic_omega_rf(
+    def calc_main_harmonic_omega_rf(
         self,
         beam_beta: float,
         ring_circumference: float,
@@ -401,6 +420,24 @@ class SingleHarmonicCavity(CavityBaseClass):
         return self.calc_omega(
             beam_beta=beam_beta,
             ring_circumference=ring_circumference,
+        )
+
+    def get_main_harmonic_omega_rf_current(self) -> float:
+        """Returns the omega_rf of the main harmonic, in [rad/s]."""
+        return self._omega_rf
+
+    def get_main_harmonic_t_rf_current(
+        self,
+    ) -> float:
+        """Returns the t_rf of the main harmonic, in [s]."""
+        return (2 * np.pi) / self.get_main_harmonic_omega_rf_current()
+
+    def calc_main_harmonic_t_rf(
+        self, beam_beta: float, ring_circumference: float
+    ) -> float:
+        """Returns the t_rf of the main harmonic, in [s]."""
+        return (2 * np.pi) / self.calc_main_harmonic_omega_rf(
+            beam_beta, ring_circumference
         )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -621,9 +658,9 @@ class MultiHarmonicCavity(CavityBaseClass):
         self,
         n_harmonics: int,
         main_harmonic_idx: int,
-        voltage: NumpyArray,
-        phi_rf: NumpyArray,
-        harmonic: NumpyArray,
+        voltage: NumpyArray | None = None,
+        phi_rf: NumpyArray | None = None,
+        harmonic: NumpyArray | None = None,
         section_index: int = 0,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
@@ -643,31 +680,33 @@ class MultiHarmonicCavity(CavityBaseClass):
             name=name,
         )
 
-        self.main_harmonic_idx = main_harmonic_idx
+        self.main_harmonic_idx: int = main_harmonic_idx
 
-        assert len(voltage) == n_harmonics, (
-            f"length of voltage array must equal {n_harmonics}, was {len(voltage)}"
-        )
-        assert len(phi_rf) == n_harmonics, (
-            f"length of voltage array must equal {n_harmonics}, was {len(phi_rf)}"
-        )
-        assert len(harmonic) == n_harmonics, (
-            f"length of voltage array must equal {n_harmonics}, was {len(harmonic)}"
-        )
+        self.voltage: NumpyArray | None = voltage
+        self.phi_rf: NumpyArray | None = phi_rf
+        self.harmonic: NumpyArray | None = harmonic
+
+        if voltage is not None:
+            assert len(voltage) == n_harmonics, (
+                f"length of voltage array must equal {n_harmonics}, was {len(voltage)}"
+            )
+        if phi_rf is not None:
+            assert len(phi_rf) == n_harmonics, (
+                f"length of voltage array must equal {n_harmonics}, was {len(phi_rf)}"
+            )
+        if harmonic is not None:
+            assert len(harmonic) == n_harmonics, (
+                f"length of voltage array must equal {n_harmonics}, was {len(harmonic)}"
+            )
 
         assert main_harmonic_idx < n_harmonics, (
             f"main_harmonic_index was {main_harmonic_idx}, but needs to be smaller than {n_harmonics}"
         )
 
-        self.voltage: NumpyArray | None = voltage
-        self.phi_rf: NumpyArray | None = phi_rf
-        self.harmonic: NumpyArray | None = harmonic
-        self.delta_phi_rf: NumpyArray | None = backend.zeros(
-            len(voltage)
-        )  # TODO
+        self.delta_phi_rf: NumpyArray | None = backend.zeros(len(voltage))
         self.delta_omega_rf: NumpyArray | None = backend.zeros(len(voltage))
 
-        self._t_rf: float | None = None
+        self._t_rf: NumpyArray | None = None
         self._t_rev: float | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -699,15 +738,10 @@ class MultiHarmonicCavity(CavityBaseClass):
             ring_circumference=self._ring.circumference,
         )
 
-        self._t_rf = (
-            2
-            * np.pi
-            / self.get_main_harmonic_omega_rf(
-                beam_beta=beam.reference_beta,
-                ring_circumference=self._ring.circumference,
-            )
+        self._t_rf = 2 * np.pi / self._omega_rf
+        self._t_rev = (
+            self.get_main_harmonic_t_rf_current() * self.get_main_harmonic()
         )
-        self._t_rev = self._t_rf * self.get_main_harmonic()
         try:
             self.phi_s = self.calc_phi_s_single_harmonic(beam=beam)
         except Exception as exc:
@@ -748,7 +782,11 @@ class MultiHarmonicCavity(CavityBaseClass):
         """Returns the phi_rf of the main harmonic, in [rad]."""
         return self.phi_rf[self.main_harmonic_idx]
 
-    def get_main_harmonic_omega_rf(
+    def get_main_harmonic_omega_rf_current(self) -> float:
+        """Returns the omega_rf of the main harmonic, in [rad/s]."""
+        return self._omega_rf[self.main_harmonic_idx]
+
+    def calc_main_harmonic_omega_rf(
         self, beam_beta: float, ring_circumference: float
     ) -> float:
         """Returns the omega_rf of the main harmonic, in [rad/s]."""
@@ -756,6 +794,20 @@ class MultiHarmonicCavity(CavityBaseClass):
             beam_beta=beam_beta,
             ring_circumference=ring_circumference,
         )[self.main_harmonic_idx]
+
+    def get_main_harmonic_t_rf_current(
+        self,
+    ) -> float:
+        """Returns the t_rf of the main harmonic, in [s]."""
+        return (2 * np.pi) / self.get_main_harmonic_omega_rf_current()
+
+    def calc_main_harmonic_t_rf(
+        self, beam_beta: float, ring_circumference: float
+    ) -> float:
+        """Returns the t_rf of the main harmonic, in [s]."""
+        return (2 * np.pi) / self.calc_main_harmonic_omega_rf(
+            beam_beta, ring_circumference
+        )
 
     def voltage_waveform_tmp(self, ts: NumpyArray):
         """Calculate voltage of cavity for current turn.

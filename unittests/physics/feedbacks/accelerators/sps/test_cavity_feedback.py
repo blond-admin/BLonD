@@ -234,6 +234,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
             df=[0.18433333e6, 0.2275e6],
             commissioning=SPSCavityLoopCommissioning(open_ff=True, rot_iq=-1),
         )
+        self.OTFB.on_init_simulation(simulation)
         self.rf = rf
         """
 
