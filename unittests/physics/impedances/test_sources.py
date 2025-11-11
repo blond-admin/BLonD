@@ -179,6 +179,14 @@ class TestResonators(unittest.TestCase):
                 quality_factors=np.array([1, 2, 3]),
             )
 
+    def test___init__floats_counter_rotating(self):
+        _ = Resonators(
+            shunt_impedances=float(1),
+            center_frequencies=float(1),
+            quality_factors=float(1),
+            shunt_impedances_counter_rotating=float(1)
+        )
+
     def test___init__neg_freq(self):
         with self.assertRaises(RuntimeError):
             self.resonators = Resonators(
@@ -267,9 +275,18 @@ class TestResonators(unittest.TestCase):
         beam = Mock(BeamBaseClass)
         min_freq, max_freq, num = 0, 4e9, 801
         freq_x = np.linspace(min_freq, max_freq, num)
-        freq_y = self.resonators.get_impedance(
+
+        before_hashes = self.resonators._cache_impedance_hash  # check when hashed get changed and when not
+        _ = self.resonators.get_impedance(
             freq_x=freq_x, simulation=simulation, beam=beam
         )
+        assert before_hashes != self.resonators._cache_impedance_hash
+        in_between_hashes = self.resonators._cache_impedance_hash
+        freq_y = self.resonators.get_impedance(
+            freq_x=freq_x, simulation=simulation, beam=beam
+        )  # should not be recalculated as time did not change
+        assert in_between_hashes == self.resonators._cache_impedance_hash
+
         DEV_DEBBUG = False
         if DEV_DEBBUG:
             plt.plot(freq_x, np.abs(freq_y))
@@ -424,9 +441,18 @@ class TestResonators(unittest.TestCase):
         simulation = Mock(Simulation)
         beam = Mock(BeamBaseClass)
         time = np.linspace(-1e-9, 1e-9, int(1e3))
-        wake_imp = self.resonators.get_wake_impedance(
+
+        before_hashes = self.resonators._cache_wake_impedance_hash  # check when hashed get changed and when not
+        _ = self.resonators.get_wake_impedance(
             time=time, simulation=simulation, beam=beam, n_fft=len(time)
         )
+        assert before_hashes != self.resonators._cache_wake_impedance_hash
+        in_between_hashes = self.resonators._cache_wake_impedance_hash
+        wake_imp = self.resonators.get_wake_impedance(
+            time=time, simulation=simulation, beam=beam, n_fft=len(time)
+        )  # should not be recalculated as time did not change
+        assert in_between_hashes == self.resonators._cache_wake_impedance_hash
+
         wake_freq = self.resonators.get_wake_impedance_freq(time=time)
         DEV_DEBUG = False
         pinned_result = np.load(callers_relative_path("resources/get_wake_impedance_pinning.npz", stacklevel=1))
@@ -455,6 +481,12 @@ class TestResonators(unittest.TestCase):
             plt.plot(wake_freq, np.abs(wake_imp))
             plt.xlim(0, 1.5e9)
             plt.show()
+
+        save_cr_wake_imp = self.resonators._shunt_impedances_counter_rotating
+        with self.assertRaises(RuntimeError):
+            self.resonators._shunt_impedances_counter_rotating = None
+            self.resonators.get_wake_counter_rotation(time=time)
+        self.resonators._shunt_impedances_counter_rotating = save_cr_wake_imp
 
 
 class TestTravelingWaveCavity(unittest.TestCase):

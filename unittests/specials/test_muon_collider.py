@@ -9,7 +9,7 @@ from blond.specifics.muon_collider.beam_preparation import (
 )
 
 
-class BeamPreparationMuCol(unittest.TestCase):
+class TestBeamPreparationMuCol(unittest.TestCase):
     def test_load_beam_data_counterrot_from_file(self):
         beam = Beam(
             intensity=1,
