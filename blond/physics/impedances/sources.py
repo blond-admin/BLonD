@@ -255,10 +255,14 @@ class Resonators(
                 "Array lengths between co- and counterrotating impedances need to match."
             )
 
-        for imp_ind, imp in enumerate(self._shunt_impedances_counter_rotating):
-            assert np.isclose(np.abs(imp), self._shunt_impedances[imp_ind]), (
-                "Absolute value of co- and counter-rotating impedances mismatch, no energy conservation."
-            )
+            for imp_ind, imp in enumerate(
+                self._shunt_impedances_counter_rotating
+            ):
+                assert np.isclose(
+                    np.abs(imp), self._shunt_impedances[imp_ind]
+                ), (
+                    "Absolute value of co- and counter-rotating impedances mismatch, no energy conservation."
+                )
 
         # secondary quantities for wake calculation
         self._omega = 2 * np.pi * self._center_frequencies
