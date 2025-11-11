@@ -29,6 +29,7 @@ from blond.physics.impedances.base import (
     DiscreteWakeFieldSource,
     FreqDomain,
     TimeDomain,
+    TimeDomainCounterRotation,
 )
 from blond.physics.impedances.readers import ImpedanceReader
 
@@ -175,7 +176,9 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         return wake_impedance
 
 
-class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
+class Resonators(
+    AnalyticWakeFieldSource, TimeDomain, FreqDomain, TimeDomainCounterRotation
+):
     r"""Multiple resonances of RLC circuits for impedance calculations.
 
     Parameters
@@ -234,7 +237,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
             self._quality_factors = np.array(quality_factors)
             self._n_resonators = len(shunt_impedances)
 
-        self._shunt_impedances_counter_rotating: NumpyArray
+        self._shunt_impedances_counter_rotating: NumpyArray | None = None
 
         if shunt_impedances_counter_rotating is not None:
             if isinstance(shunt_impedances_counter_rotating, float):
@@ -245,14 +248,12 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
                 self._shunt_impedances_counter_rotating = np.array(
                     shunt_impedances_counter_rotating
                 )
-        else:
-            self._shunt_impedances_counter_rotating = self._shunt_impedances
 
-        assert len(shunt_impedances_counter_rotating) == len(
-            shunt_impedances
-        ), (
-            "Array lengths between co- and counterrotating impedances need to match."
-        )
+            assert len(shunt_impedances_counter_rotating) == len(
+                shunt_impedances
+            ), (
+                "Array lengths between co- and counterrotating impedances need to match."
+            )
 
         for imp_ind, imp in enumerate(self._shunt_impedances_counter_rotating):
             assert np.isclose(np.abs(imp), self._shunt_impedances[imp_ind]), (
@@ -286,7 +287,6 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         simulation: Simulation,
         beam: BeamBaseClass,
         n_fft: int,
-        counter_rotating: bool = False,
     ) -> NumpyArray | CupyArray:  # Fixme all get_wake_impedance same
         """Get the wake function, but converted to frequency domain.
 
@@ -312,11 +312,11 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
 
         """
         # Recalculate only if `time` has changed
-        hash = get_hash(time + counter_rotating)
+        hash = get_hash(time)
         if hash is self._cache_wake_impedance_hash:
             return self._cache_wake_impedance
 
-        wake = self.get_wake(time, counter_rotating=counter_rotating)
+        wake = self.get_wake(time)
         wake_impedance = np.fft.rfft(wake, n=n_fft)
 
         self._cache_wake_impedance_hash = hash
@@ -329,27 +329,57 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
             len(self._cache_wake_impedance), time[1] - time[0]
         )
 
-    def get_wake(self, time: NumpyArray, counter_rotating=False) -> NumpyArray:
+    def get_wake(self, time: NumpyArray) -> NumpyArray:
         """Computes the wake function of all resonators in time domain for the given time and returns the summed potential.
 
         Parameters
         ----------
         time : NumpyArray
             time array at which the wake is calculated [V]
-        counter_rotating
-            selector whether the corotating or counterrotating impedance should be used
         """
         wake = backend.zeros(len(time), dtype=backend.float, order="C")
-        shunt_imp = (
-            self._shunt_impedances_counter_rotating
-            if counter_rotating
-            else self._shunt_impedances
-        )
         for res_ind in range(self._n_resonators):
             wake += (
                 (np.sign(time) + 1)  # heaviside
                 * (
-                    shunt_imp[res_ind]
+                    self._shunt_impedances[res_ind]
+                    * self._alpha[res_ind]
+                    * np.exp(-self._alpha[res_ind] * time)
+                )
+                * (
+                    np.cos(self._omega_bar[res_ind] * time)
+                    - self._alpha[res_ind]
+                    / self._omega_bar[res_ind]
+                    * np.sin(self._omega_bar[res_ind] * time)
+                )
+            )
+        return wake
+
+    def get_wake_counter_rotation(self, time: NumpyArray) -> NumpyArray:
+        """Computes the wake function of all resonators in time domain for the given time and returns the summed potential.
+
+        Parameters
+        ----------
+        time : NumpyArray
+            time array at which the wake is calculated, in [s]
+
+        Returns
+        -------
+        wake_potential: NumpyArray
+            potential array, in [V]
+
+        """
+        if self._shunt_impedances_counter_rotating is None:
+            raise RuntimeError(
+                "_shunt_impedances_counter_rotating needs to be set before calling this function."
+            )
+
+        wake = backend.zeros(len(time), dtype=backend.float, order="C")
+        for res_ind in range(self._n_resonators):
+            wake += (
+                (np.sign(time) + 1)  # heaviside
+                * (
+                    self._shunt_impedances_counter_rotating[res_ind]
                     * self._alpha[res_ind]
                     * np.exp(-self._alpha[res_ind] * time)
                 )

@@ -99,6 +99,43 @@ class TimeDomain(ABC):
         pass
 
 
+class TimeDomainCounterRotation(ABC):
+    """Indication of a source, which has a defined wakefield for the counterrotating case."""
+
+    @abstractmethod
+    def get_wake(
+        self, time: NumpyArray
+    ) -> NumpyArray:  # TODO: this function should be moved to TimeDomain
+        """Get wake potential equivalent to the partial wake in time domain.
+
+        Parameters
+        ----------
+        time : NumpyArray
+            time array at which the wake is calculated [V]
+        """
+        pass
+
+    @abstractmethod  # pragma: no cover
+    def get_wake_counter_rotation(
+        self,
+        time: NumpyArray,
+    ) -> NumpyArray:
+        """Get wake potential equivalent to the partial wake in time domain for the counterrotating case.
+
+        Parameters
+        ----------
+        time : NumpyArray
+            time array at which the wake is calculated, in [s]
+
+        Returns
+        -------
+        wake_potential: NumpyArray
+            potential array, in [V]
+
+        """
+        pass
+
+
 class FreqDomain(ABC):
     """Indication of a source is defined in time or frequency domain."""
 
