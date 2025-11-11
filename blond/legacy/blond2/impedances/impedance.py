@@ -396,7 +396,6 @@ class _InducedVoltage:
             # By default, the wake_length is the slicing frame length
             self.wake_length = self.profile.cut_right - self.profile.cut_left
             self.n_induced_voltage = self.profile.n_slices
-            self.n_time = self.profile.n_slices
         else:
             raise RuntimeError(
                 "Error: only one of wake_length or "
@@ -1155,9 +1154,6 @@ class InducedVoltageResonator(_InducedVoltage):
         # If the time decay is longer than n_turns of simulation, the induced voltage is calculated for n_turns.
         # Length of the time decay dictated by the time decay factor.
 
-        self.rf_params = rf_station
-        self.time_decay_factor = time_decay_factor
-
         if multi_turn_wake:
             if time_array is not None:
                 warnings.warn(
@@ -1168,6 +1164,7 @@ class InducedVoltageResonator(_InducedVoltage):
             decay_time = 2 * np.max(resonators.Q / resonators.omega_R)
             decay_turns = -np.ceil(
                 np.log(time_decay_factor)
+                # / np.log(e)
                 * decay_time
                 / np.min(rf_station.t_rev)
             )
@@ -1180,7 +1177,7 @@ class InducedVoltageResonator(_InducedVoltage):
 
             self.time_array = np.array([])
 
-            for turn_ind in range(n_turns_calculation + 1):  # zeroth turn + all previously non-decayed turns
+            for turn_ind in range(n_turns_calculation):
                 self.time_array = np.append(
                     self.time_array,
                     rf_station.t_rev[turn_ind] * turn_ind
@@ -1192,7 +1189,7 @@ class InducedVoltageResonator(_InducedVoltage):
                             profile.bin_centers[min_index]
                             - profile.bin_centers[0]
                         ),
-                        profile.n_slices #+ 2 * min_index,
+                        profile.n_slices + 2 * min_index,
                     ),
                 )
             self.atLineDensityTimes = False
@@ -1249,11 +1246,7 @@ class InducedVoltageResonator(_InducedVoltage):
             self.n_time, dtype=bm.precision.real_t, order="C"
         )
 
-        self.wake_length_input = wake_length
-
-        self.frequency_resolution_input = frequency_resolution
-
-        self.multi_turn_wake = multi_turn_wake
+        wake_length = len(self.time_array) * self.profile.bin_size
 
         # Call the __init__ method of the parent class [calls process()]
         super().__init__(
@@ -1274,61 +1267,20 @@ class InducedVoltageResonator(_InducedVoltage):
 
         _InducedVoltage.process(self)
 
-        if self.multi_turn_wake:
-            # take the maximum of the resonators
-            decay_time = 2 * np.max(self.Q / self.omega_r)
-            decay_turns = -np.ceil(
-                np.log(self.time_decay_factor)
-                # / np.log(e)
-                * decay_time
-                / np.min(self.rf_params.t_rev)
-            )
-
-            n_turns_calculation = min(int(decay_turns), self.rf_params.n_turns)
-            potential_min_cav = self.rf_params.phi_s[0] / self.rf_params.omega_rf[0, 0]
-            min_index = np.abs(
-                self.profile.bin_centers[0] - potential_min_cav
-            ).argmin()
-
-            self.time_array = np.array([])
-
-            for turn_ind in range(n_turns_calculation + 1):  # zeroth turn + all previously non-decayed turns
-                self.time_array = np.append(
-                    self.time_array,
-                    self.rf_params.t_rev[turn_ind] * turn_ind
-                    + np.linspace(
-                        self.profile.bin_centers[0],
-                        self.profile.bin_centers[-1]
-                        + 2
-                        * (
-                            self.profile.bin_centers[min_index]
-                            - self.profile.bin_centers[0]
-                        ),
-                        self.profile.n_slices + 2 * min_index,
-                    ),
-                )
-            self.atLineDensityTimes = False
-            self.mtw_memory = np.zeros(len(self.time_array))
-            self.n_time = len(self.time_array)
-        else:
-            # Optional array of time values where the induced voltage is calculated.
-            # If left out, the induced voltage is calculated at the times of the
-            # line density.
-            self.time_array = self.profile.bin_centers
-            self.atLineDensityTimes = True
-        self.induced_voltage = np.zeros(len(self.time_array), dtype=bm.precision.real_t, order="C")
-
         # Since profile object changed, need to assign the proper dimensions to
         # _kappa1 and _deltaT
         self._kappa1 = np.zeros(
-            len(self.profile.bin_centers),
+            int(self.profile.n_slices - 1),
             dtype=bm.precision.real_t,
             order="C",
         )
         self._deltaT = np.zeros(
-            (len(self.time_array), self.profile.n_slices),
+            (self.n_time, self.profile.n_slices),
             dtype=bm.precision.real_t,
             order="C",
+        )
+        self.induced_voltage = np.zeros(
+            self.n_time, dtype=bm.precision.real_t, order="C"
         )
 
     def induced_voltage_1turn(self, beam_spectrum_dict: Dict[Any, Any] = {}):
