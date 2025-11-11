@@ -332,7 +332,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         return self._ids
 
     def read_partial_dt(self) -> NumpyArray | CupyArray:
-        """Returns dt-array on current node (distributed computing ready).
+        """Returns dt-array on current node (distributed computing ready), in [s].
 
         Note
         ----
@@ -346,7 +346,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         return self._dt
 
     def write_partial_dt(self) -> NumpyArray | CupyArray:
-        """Returns dt-array on current node (distributed computing ready).
+        """Returns dt-array on current node (distributed computing ready), in [s].
 
         Note
         ----
@@ -361,7 +361,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         return self._dt
 
     def read_partial_dE(self) -> NumpyArray | CupyArray:
-        """Returns dE-array on current node (distributed computing ready).
+        """Returns dE-array on current node (distributed computing ready), in [eV].
 
         Note
         ----
@@ -375,7 +375,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         return self._dE
 
     def write_partial_dE(self) -> NumpyArray | CupyArray:
-        """Returns dE-array on current node (distributed computing ready).
+        """Returns dE-array on current node (distributed computing ready), in [eV].
 
         Note
         ----
