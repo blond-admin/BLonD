@@ -26,7 +26,9 @@ class Specials(ABC):
     def loss_box(
         top: float, bottom: float, left: float, right: float
     ) -> None:  # TODO
-        pass
+        raise NotImplementedError(
+            "Abstract method `loss_box` not implemented."
+        )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -39,7 +41,9 @@ class Specials(ABC):
         charge: float,
         acceleration_kick: float,
     ) -> None:
-        pass
+        raise NotImplementedError(
+            "Abstract method `kick_singl` not implemented."
+        )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -53,7 +57,9 @@ class Specials(ABC):
         n_rf: int,
         acceleration_kick: float,
     ) -> None:
-        pass
+        raise NotImplementedError(
+            "Abstract method `kick_multi` not implemented."
+        )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -65,7 +71,9 @@ class Specials(ABC):
         beta: float,
         energy: float,
     ) -> None:
-        pass
+        raise NotImplementedError(
+            "Abstract method `drift_simp` not implemented."
+        )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -80,7 +88,9 @@ class Specials(ABC):
         beta: float,
         energy: float,
     ) -> None:
-        pass
+        raise NotImplementedError(
+            "Abstract method `drift_lega` not implemented."
+        )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -94,7 +104,9 @@ class Specials(ABC):
         beta: float,
         energy: float,
     ) -> None:
-        pass
+        raise NotImplementedError(
+            "Abstract method `drift_exac` not implemented."
+        )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -106,7 +118,9 @@ class Specials(ABC):
         charge: float,
         acceleration_kick: float,
     ) -> None:
-        pass
+        raise NotImplementedError(
+            "Abstract method `kick_induc` not implemented."
+        )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -116,7 +130,9 @@ class Specials(ABC):
         start: float,
         stop: float,
     ) -> None:
-        pass
+        raise NotImplementedError(
+            "Abstract method `histogram` not implemented."
+        )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -128,7 +144,9 @@ class Specials(ABC):
         phi_rf: float,
         bin_size: float,
     ) -> float:
-        pass
+        raise NotImplementedError(
+            "Abstract method `beam_phase` not implemented."
+        )
 
 
 class BackendBaseClass(ABC):
@@ -237,7 +255,9 @@ class BackendBaseClass(ABC):
             One of the available backend modes
 
         """
-        pass
+        raise NotImplementedError(
+            "Abstract method `set_specials` not implemented."
+        )
 
     @property
     def is_gpu(self) -> bool:
