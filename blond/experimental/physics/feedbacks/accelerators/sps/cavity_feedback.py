@@ -915,6 +915,9 @@ class SPSCavityFeedback:
 
         self.logger.info("Class initialized")
 
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        pass
+
     def track(self, beam: BeamBaseClass):
         r"""Main tracking method for the SPSCavityFeedback. This tracks both cavity types
         with beam.
