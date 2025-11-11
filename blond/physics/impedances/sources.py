@@ -207,6 +207,12 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
     ):
         warn("Untested code", NotTestedWarning, stacklevel=2)
         super().__init__(is_dynamic=False)
+
+        self._shunt_impedances: NumpyArray
+        self._center_frequencies: NumpyArray
+        self._quality_factors: NumpyArray
+        self._n_resonators: int
+
         if (
             isinstance(shunt_impedances, float)
             and isinstance(center_frequencies, float)
@@ -228,22 +234,25 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
             self._quality_factors = np.array(quality_factors)
             self._n_resonators = len(shunt_impedances)
 
+        self._shunt_impedances_counter_rotating: NumpyArray
+
         if shunt_impedances_counter_rotating is not None:
             if isinstance(shunt_impedances_counter_rotating, float):
                 self._shunt_impedances_counter_rotating = np.array(
                     [shunt_impedances_counter_rotating]
                 )
             else:
-                assert len(shunt_impedances_counter_rotating) == len(
-                    shunt_impedances
-                ), (
-                    "Array lengths between co- and counterrotating impedances need to match."
-                )
                 self._shunt_impedances_counter_rotating = np.array(
                     shunt_impedances_counter_rotating
                 )
         else:
             self._shunt_impedances_counter_rotating = self._shunt_impedances
+
+        assert len(shunt_impedances_counter_rotating) == len(
+            shunt_impedances
+        ), (
+            "Array lengths between co- and counterrotating impedances need to match."
+        )
 
         for imp_ind, imp in enumerate(self._shunt_impedances_counter_rotating):
             assert np.isclose(np.abs(imp), self._shunt_impedances[imp_ind]), (
