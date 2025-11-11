@@ -43,8 +43,11 @@ class TestDriftBaseClass(unittest.TestCase):
 
 
 class TestDriftSimple(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         backend.change_backend(Numpy64Bit)
+
+    def setUp(self):
         self.gamma = 2.5
         self.drift_simple = DriftSimple.headless(
             transition_gamma=20.0,  # highly relativistic
@@ -169,8 +172,8 @@ class TestDriftSimple(unittest.TestCase):
                 momentum_compaction_factor=2.5,
                 transition_gamma=2.5j,
             )
-
-    def tearDown(self):
+    @classmethod
+    def tearDownClass(cls):
         backend.change_backend(Numpy32Bit)
 
 
