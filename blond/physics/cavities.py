@@ -377,7 +377,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         pass
 
     def info_string(self, prefix="") -> str:
-        """Inform that the profile is also executed within the track method."""
+        """Inform that the feedback/wakefield is also executed within the track method."""
         content = ""
         if self._cavity_feedback is not None:
             content += (
