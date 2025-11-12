@@ -65,7 +65,9 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
         self.reference_time: float = 0.0
         # todo cached properties
-        self._reference_total_energy = 0.0  # todo cached properties
+        self._reference_total_energy: float | None = (
+            None  # todo cached  properties
+        )
 
     @requires(["EnergyCycleBase"])
     def on_run_simulation(
@@ -109,10 +111,10 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
                 particle_type=self.particle_type,
             )
         )
-        if self.reference_total_energy != new_reference_total_energy:
+        if self._reference_total_energy != new_reference_total_energy:
             msg = (
                 f"`Bunch` was prepared for"
-                f" total_energy = {self.reference_total_energy} eV,"
+                f" total_energy = {self._reference_total_energy} eV,"
                 f" but simulation at {turn_i_init=} is"
                 f" {new_reference_total_energy} eV."
                 f" The energy is overwritten according to simulation."
@@ -151,6 +153,11 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     def reference_gamma(self) -> float:
         """Beam reference gamma a.k.a. Lorentz factor []."""
         # reference_total_energy in eV and mass_inv in [c²/eV]
+        if self._reference_total_energy is None:
+            raise ValueError(
+                "Beam is not properly set up, please set "
+                "`reference_total_energy` first!"
+            )
         val = self._reference_total_energy * self._particle_type.mass_inv
         return val
 
@@ -325,7 +332,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         return self._ids
 
     def read_partial_dt(self) -> NumpyArray | CupyArray:
-        """Returns dt-array on current node (distributed computing ready).
+        """Returns dt-array on current node (distributed computing ready), in [s].
 
         Note
         ----
@@ -339,7 +346,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         return self._dt
 
     def write_partial_dt(self) -> NumpyArray | CupyArray:
-        """Returns dt-array on current node (distributed computing ready).
+        """Returns dt-array on current node (distributed computing ready), in [s].
 
         Note
         ----
@@ -354,7 +361,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         return self._dt
 
     def read_partial_dE(self) -> NumpyArray | CupyArray:
-        """Returns dE-array on current node (distributed computing ready).
+        """Returns dE-array on current node (distributed computing ready), in [eV].
 
         Note
         ----
@@ -368,7 +375,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         return self._dE
 
     def write_partial_dE(self) -> NumpyArray | CupyArray:
-        """Returns dE-array on current node (distributed computing ready).
+        """Returns dE-array on current node (distributed computing ready), in [eV].
 
         Note
         ----

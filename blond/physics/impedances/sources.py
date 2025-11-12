@@ -197,9 +197,9 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
 
     def __init__(
         self,
-        shunt_impedances: NumpyArray | float,
-        center_frequencies: NumpyArray | float,
-        quality_factors: NumpyArray | float,
+        shunt_impedances: NumpyArray | ArrayLike | float,
+        center_frequencies: NumpyArray | ArrayLike | float,
+        quality_factors: NumpyArray | ArrayLike | float,
     ):
         warn("Untested code", NotTestedWarning, stacklevel=1)
         super().__init__(is_dynamic=False)
@@ -219,9 +219,9 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
             assert len(shunt_impedances) == len(quality_factors), (
                 f"{len(shunt_impedances)} != {len(quality_factors)}"
             )
-            self._shunt_impedances = shunt_impedances
-            self._center_frequencies = center_frequencies
-            self._quality_factors = quality_factors
+            self._shunt_impedances = np.array(shunt_impedances)
+            self._center_frequencies = np.array(center_frequencies)
+            self._quality_factors = np.array(quality_factors)
             self._n_resonators = len(shunt_impedances)
 
         # secondary quantities for wake calculation

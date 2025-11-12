@@ -27,7 +27,7 @@ _basepath = os.path.join(folder, "compiled", hash_)
 
 
 def reload_cuda_backend(
-    floattype: type[np.float32] | type[np.float64],
+    floattype: type[np.float32 | np.float64],
 ) -> CudaSpecials:
     if floattype == np.float32:
         path = os.path.join(
@@ -97,23 +97,16 @@ def reload_cuda_backend(
             assert dt.flags.c_contiguous
             assert dE.flags.c_contiguous
 
-            # Cast Python floats to backend floattype
-            charge = floattype(charge)
-            voltage = floattype(voltage)
-            omega_rf = floattype(omega_rf)
-            phi_rf = floattype(phi_rf)
-            acceleration_kick = floattype(acceleration_kick)
-
             _kick_single_harmonic(
                 args=(
                     dt,  # beam_dt
                     dE,  # beam_dE
-                    charge,  # charge
-                    voltage,  # voltage
-                    omega_rf,  # omega_RF
-                    phi_rf,  # phi_RF
+                    floattype(charge),  # charge
+                    floattype(voltage),  # voltage
+                    floattype(omega_rf),  # omega_RF
+                    floattype(phi_rf),  # phi_RF
                     np.int32(len(dE)),  # n_macroparticles
-                    acceleration_kick,  # acc_kick
+                    floattype(acceleration_kick),  # acc_kick
                 ),
                 block=block_size,
                 grid=grid_size,
@@ -130,32 +123,30 @@ def reload_cuda_backend(
             n_rf: int,
             acceleration_kick: float,
         ) -> None:
+            print(locals())
             assert dt.dtype == floattype
             assert dE.dtype == floattype
             assert phi_rf.dtype == floattype
             assert voltage.dtype == floattype
             assert omega_rf.dtype == floattype
+
             assert dt.flags.c_contiguous
             assert dE.flags.c_contiguous
             assert voltage.flags.c_contiguous
             assert omega_rf.flags.c_contiguous
             assert phi_rf.flags.c_contiguous
 
-            # Cast Python floats to backend floattype
-            charge = floattype(charge)
-            acceleration_kick = floattype(acceleration_kick)
-
             _kick_multi_harmonic(
                 args=(
                     dt,  # beam_dt
                     dE,  # beam_dE
                     np.int32(len(voltage)),  # n_rf
-                    charge,  # charge
+                    floattype(charge),  # charge
                     voltage,  # voltage
                     omega_rf,  # omega_RF
                     phi_rf,  # phi_RF
                     np.int32(len(dE)),  # n_macroparticles
-                    acceleration_kick,  # acc_kick
+                    floattype(acceleration_kick),  # acc_kick
                 ),
                 block=block_size,
                 grid=grid_size,

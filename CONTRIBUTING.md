@@ -95,19 +95,33 @@ pip install --editable .[dev, gpu]
 pre-commit install
 ```
 
-### 4. Compile Native Backends
+### 4. Compiling Native Backends (Optional)
 
-> Automatically done in GitLab CI Pipeline before testing.
+> **Note:** These steps are automatically executed in the GitLab CI pipeline prior to running tests.
+> You only need to perform them manually if you are developing or testing locally.
+
+To compile the available native backends, use the following commands:
 
 ```bash
-blond-compile-cpp     # Compile the C++ backend
+blond-compile-cpp      # Compile the C++ backend
 ```
 ```bash
-blond-compile-cuda    # Compile the CUDA backend
+blond-compile-cuda     # Compile the CUDA backend
 ```
 ```bash
-blond-compile-fortran # Compile the Fortran backend
+blond-compile-fortran  # Compile the Fortran backend
 ```
+
+Once compiled, the corresponding backends will be available for use within your simulation environment.
+
+To activate a specific backend (for example, the C++ backend), you can use the following Python code:
+
+```python
+from blond import backend
+
+backend.set_specials(mode="cpp")  # Activate the C++ backend
+```
+
 
 ---
 

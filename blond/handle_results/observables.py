@@ -508,21 +508,6 @@ class BunchObservationMetaParams(ObservablesEndOfTurnBase):
         return self._emittance_stat.get_valid_entries()
 
 
-class MultiCavityObservation(ObservablesEndOfTurnBase):
-    def __init__(
-        self,
-        each_turn_i: int,
-        cavities: list[SingleHarmonicCavity],
-        folder: str = "",
-    ):
-        raise NotImplementedError("To be implemented")
-        # super().__init__(each_turn_i=each_turn_i, folder=folder)
-        # self._cavities = cavities
-        # self._phases: DenseArrayRecorder | None = None
-        # self._omegas: DenseArrayRecorder | None = None
-        # self._voltages: DenseArrayRecorder | None = None
-
-
 class CavityPhaseObservation(ObservablesEndOfTurnBase):
     """Observe the RF cavity parameters during the execution of the simulation.
 
@@ -532,7 +517,7 @@ class CavityPhaseObservation(ObservablesEndOfTurnBase):
         Value to control that the element is
         callable each n-th turn.
     cavity
-        Class that implements beam-rf interactions in a synchrotron
+        Class that implements beam-RF interactions in a synchrotron
     folder
         Path to the target folder used for
         saving or loading files.

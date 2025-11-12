@@ -33,6 +33,7 @@ class TestXsuiteRFBucketMatcher(unittest.TestCase):
                 distribution_type=routine,
                 sigma_z=zmax / 4,
                 n_macroparticles=int(1e4),
+                seed=42,
             ),
         )
 

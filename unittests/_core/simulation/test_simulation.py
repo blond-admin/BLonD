@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import unittest
 from copy import deepcopy
+from typing import TYPE_CHECKING
 from unittest.mock import Mock, create_autospec
 
 import matplotlib.pyplot as plt
@@ -24,6 +27,9 @@ from blond.handle_results.observables import (
     BunchObservationMetaParams,
     ObservablesEndOfTurnBase,
 )
+
+if TYPE_CHECKING:  # pragma: no cover
+    from cupy.typing import NDArray as CupyArray  # type: ignore
 
 
 class TestSimulation(unittest.TestCase):
@@ -52,7 +58,7 @@ class TestSimulation(unittest.TestCase):
             dt=np.linspace(1, 10, 10),
             dE=np.linspace(11, 20, 10),
             reference_time=0,
-            reference_total_energy=1,
+            reference_total_energy=450e9,
         )
         self.simulation = Simulation.from_locals(locals())
         self.beam = beam1
@@ -72,7 +78,9 @@ class TestSimulation(unittest.TestCase):
 
     def test_error_throwing(self):
         with self.assertRaises(NotImplementedError):
-            self.simulation.run_simulation(beams=(self.beam, self.beam, self.beam))
+            self.simulation.run_simulation(
+                beams=(self.beam, self.beam, self.beam)
+            )
 
     def test__run_simulation_counterrotating_beam_no_int_effects(self):
         beam = Beam(intensity=1e9, particle_type=mu_plus)
@@ -190,34 +198,64 @@ class TestSimulation(unittest.TestCase):
     def test_get_potential_well_empiric(self):
         from blond.testing.simulation import SimulationTwoRfStations
 
+
         sim = SimulationTwoRfStations()
-        potential_well = sim.simulation.get_potential_well_empiric(
-            ts=np.linspace(-1e-9, 1e-9, 100),
-            particle_type=proton,
+        ts = np.linspace(-2e-9, 2e-9, 100)
+
+        potential_well, factor, tilt_dt_per_dE = (
+            sim.simulation.get_potential_well_empiric(
+                dt=ts,
+                particle_type=proton,
+            )
         )
+        potential_well += 4 * potential_well.mean()
+        from blond import backend
+
         SAVE_PINNED = False
+
+        if backend.float == np.float32:
+            bits = "32"
+        elif backend.float == np.float64:
+            bits = "64"
+        else:
+            raise Exception()
+
         if SAVE_PINNED:
             np.savetxt(
-                "resources/potential_well.csv",
+                callers_relative_path(
+                    f"resources/potential_well_{bits}.csv",stacklevel=1
+                ),
                 potential_well,
             )
         potential_well_pinned = np.loadtxt(
-            callers_relative_path("resources/potential_well.csv", stacklevel=1)
+            callers_relative_path(
+                f"resources/potential_well_{bits}.csv", stacklevel=1
+            )
         )
+
         DEV_DEBUG = False
         if DEV_DEBUG:
             plt.figure()
-            plt.subplot(2,1,1)
+            plt.subplot(2, 1, 1)
             plt.plot(potential_well_pinned, label="potential_well_pinned")
-            plt.plot(potential_well, "--",label="potential_well")
-            plt.subplot(2,1,2)
-            plt.plot(potential_well-potential_well_pinned)
+            plt.plot(potential_well, "--", label="potential_well")
+            plt.subplot(2, 1, 2)
+            plt.plot(potential_well - potential_well_pinned)
             plt.legend()
             plt.show()
+
+        from blond import backend
+
         np.testing.assert_allclose(
             potential_well_pinned,
             potential_well,
-            rtol=1e-6 if backend.float == np.float32 else 1e-12
+            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+        )
+
+    def test_plot_potential_well_empiric(self):
+        self.simulation.plot_potential_well_empiric(
+            dt=np.linspace(0, 1e-9),
+            particle_type=proton,
         )
 
     def test_load_results(self):
@@ -288,6 +326,178 @@ class TestSimulation(unittest.TestCase):
             beams=(self.beam,),
         )
         mock_func.assert_called()
+
+    def test_get_potential_well_empiric_shape(self):
+        cavity = self.simulation.ring.elements.get_element(
+            SingleHarmonicCavity
+        )
+        particle_type = proton
+
+        ts = np.linspace(
+            0,
+            self.simulation.magnetic_cycle.get_t_rev_init(
+                circumference=self.simulation.ring.circumference,
+                t_init=0,
+                turn_i_init=0,
+                particle_type=particle_type,
+            )
+            / cavity.harmonic,
+            20000,
+        )
+        phis = ts * cavity.calc_omega(
+            beam_beta=self.beam.reference_beta,
+            ring_circumference=self.simulation.ring.circumference,
+        )
+        potential_well, factor, tilt_dt_per_dE = (
+            self.simulation.get_potential_well_empiric(
+                ts, particle_type=particle_type
+            )
+        )
+        DEV_PLOT = False
+        phi_s = np.pi
+
+        potential_well_analytic = (
+            particle_type.charge
+            * cavity.voltage
+            / (2 * np.pi)
+            * (np.cos(phis) - np.cos(phi_s) + (phis - phi_s) * np.sin(phi_s))
+        )
+        if DEV_PLOT:
+            plt.plot(
+                potential_well,
+                label="potential_well",
+            )
+
+            plt.plot(
+                potential_well_analytic,
+                "--",
+                label="potential_well_analytic",
+            )
+            plt.legend()
+            plt.show()
+        np.testing.assert_allclose(
+            potential_well_analytic / potential_well_analytic.max() + 1,
+            potential_well / potential_well.max() + 1,
+            rtol=1e-4,
+        )
+
+    def test_get_potential_well_empiric_shape_acceleration(self):
+        ring = Ring(circumference=26658.883)
+
+        cavity1 = SingleHarmonicCavity()
+        cavity1.harmonic = 35640
+        cavity1.voltage = 6e6
+        cavity1.phi_rf = 0
+
+        N_TURNS = int((20 * 60) * 11e3)
+        energies = np.linspace(450e9, 7e12, N_TURNS)
+        step = energies[1] - energies[0]
+        magnetic_cycle = MagneticCyclePerTurn(
+            value_init=energies[0] - step,
+            values_after_turn=energies,
+            reference_particle=proton,
+            in_unit="total energy",
+        )
+
+        drift1 = DriftSimple(
+            orbit_length=26658.883,
+        )
+        drift1.transition_gamma = 55.759505
+
+        beam1 = Beam(intensity=1e9, particle_type=proton)
+        beam1.setup_beam(
+            dt=np.linspace(1, 10, 10),
+            dE=np.linspace(11, 20, 10),
+            reference_time=0,
+            reference_total_energy=energies[0] - step,
+        )
+        simulation = Simulation.from_locals(locals())
+        beam = beam1
+
+        cavity = simulation.ring.elements.get_element(SingleHarmonicCavity)
+        particle_type = proton
+
+        ts = np.linspace(
+            0,
+            simulation.magnetic_cycle.get_t_rev_init(
+                circumference=simulation.ring.circumference,
+                t_init=0,
+                turn_i_init=0,
+                particle_type=particle_type,
+            )
+            / cavity.harmonic,
+            20000,
+        )
+        phis = ts * cavity.calc_omega(
+            beam_beta=beam.reference_beta,
+            ring_circumference=simulation.ring.circumference,
+        )
+        potential_well, factor, tilt_dt_per_dE = (
+            simulation.get_potential_well_empiric(
+                ts, particle_type=particle_type
+            )
+        )
+        DEV_PLOT = False
+        simulation.turn_i.value = 0
+        phi_s = float(cavity.calc_phi_s_single_harmonic(beam=beam1))
+
+        potential_well_analytic = (
+            particle_type.charge
+            * cavity.voltage
+            / (2 * np.pi)
+            * (np.cos(phis) - np.cos(phi_s) + (phis - phi_s) * np.sin(phi_s))
+        )
+        if DEV_PLOT:
+            plt.plot(
+                potential_well,
+                label="potential_well",
+            )
+
+            plt.plot(
+                potential_well_analytic,
+                "--",
+                label="potential_well_analytic",
+            )
+            plt.legend()
+            plt.show()
+        np.testing.assert_allclose(
+            potential_well_analytic / potential_well_analytic.max() + 1,
+            potential_well / potential_well.max() + 1,
+            rtol=1e-4,
+        )
+
+    def test_get_drift_term_empiric(self):
+        from blond.testing.simulation import SimulationTwoRfStations
+
+        sim = SimulationTwoRfStations()
+        simulation = sim.simulation
+        de = np.linspace(-1e9, 1e9)
+        beam = sim.beam1
+        beam.reference_total_energy = 450e9
+        drift_term = simulation.get_drift_term_empiric(
+            dE=de,
+            particle_type=proton,
+        )
+        E0 = beam.reference_total_energy
+        beta = beam.reference_beta
+
+        eta = float(simulation.ring.calc_average_eta_0(beam.reference_gamma))
+        drift_term_analytic = (
+            0.5 * eta / (np.square(beta) * E0) * de**2
+        )  # [1/eV]
+        DEV_DRAW = False
+        if DEV_DRAW:
+            plt.figure()
+
+            print(drift_term - drift_term_analytic)
+            plt.plot(drift_term)
+            plt.plot(drift_term_analytic, "--")
+            plt.show()
+        np.testing.assert_allclose(
+            drift_term_analytic + 1,
+            drift_term + 1,
+            atol=0.15,
+        )
 
 
 if __name__ == "__main__":
