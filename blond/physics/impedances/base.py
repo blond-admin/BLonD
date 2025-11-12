@@ -90,6 +90,8 @@ class TimeDomain(ABC):
             Simulation object containing turn index and RF info.
         beam
             Simulation `Beam` object
+        n_fft
+            number of points to be used in the fft
 
         Returns
         -------
@@ -116,10 +118,7 @@ class TimeDomainCounterRotation(ABC):
         pass
 
     @abstractmethod  # pragma: no cover
-    def get_wake_counter_rotation(
-        self,
-        time: NumpyArray,
-    ) -> NumpyArray:
+    def get_wake_counter_rotation(self, time: NumpyArray) -> NumpyArray:
         """Get wake potential equivalent to the partial wake in time domain for the counter-rotating case.
 
         Parameters
@@ -153,6 +152,8 @@ class TimeDomainCounterRotation(ABC):
             Simulation object containing turn index and RF info.
         beam
             Simulation `Beam` object
+        n_fft
+            number of points used in the fft
 
         Returns
         -------
