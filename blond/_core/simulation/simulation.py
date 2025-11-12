@@ -566,6 +566,28 @@ class Simulation(Preparable):
             `def myfunction(simulation: Simulation, beam: Beam): ...`
             that is called each turn.
 
+
+        Examples
+        --------
+        This examples shows how to add any code to the end of a turn.
+        It can hold any user-defined code for customized behavior.
+
+        >>> def custom_action(simulation: Simulation, beam: Beam):
+        >>>     '''This method gets called at the end of each turn.'''
+        >>>     # Below there is an example of plotting the beam each 10th turn.
+        >>>     if simulation.turn_i.value % 10 != 0:
+        >>>         return
+        >>>
+        >>>     plt.scatter(
+        >>>         simulation.beams[0].read_partial_dt(),
+        >>>         simulation.beams[0].read_partial_dE(),
+        >>>     )
+        >>>     plt.draw()
+        >>>     plt.pause(0.1)
+        >>>     plt.clf()
+        >>>
+        >>> simulation.run_simulation(..., callback=custom_action)
+
         """
         logger.info(f"Running `run_simulation` with {locals()}")
         _n_turns = self.finalize(
