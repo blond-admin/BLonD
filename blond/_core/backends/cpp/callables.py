@@ -113,9 +113,7 @@ class c_complex64(ct.Structure):
 
 def c_int(scalar: int, precision: PrecisionClass) -> ct.c_int32 | ct.c_int64:
     """Convert input to default precision."""
-    if precision.num == 1:
-        return ct.c_int32(scalar)
-    return ct.c_int64(scalar)
+    return ct.c_int32(scalar) if precision.num == 1 else ct.c_int64(scalar)
 
 
 def c_real(
