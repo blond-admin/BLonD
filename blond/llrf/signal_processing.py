@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 import numpy
 from scipy.special import comb
 
-from blond.beam.sparse_slices import SparseSlices
+from blond.beam.sparse_slices import _SparseBaseClass
 from blond.llrf.impulse_response import TravellingWaveCavity
 
 # Set up logging
@@ -135,7 +135,7 @@ def modulator(signal, omega_i, omega_f, T_sampling, phi_0=0, dt=0):
     return I_new + 1j * Q_new
 
 
-def rf_beam_current(Profile: Profile | SparseSlices, omega_c: float, T_rev: (
+def rf_beam_current(Profile: Profile | _SparseBaseClass, omega_c: float, T_rev: (
     float), lpf: bool = True, downsample: dict = None,
                     external_reference: bool = True, dT: float = 0):
     r"""Function calculating the beam charge at the (RF) frequency, slice by
@@ -206,6 +206,8 @@ def rf_beam_current(Profile: Profile | SparseSlices, omega_c: float, T_rev: (
          * np.copy(Profile.n_macroparticles)
     logger.debug("Sum of particles: %d, total charge: %.4e C",
                  np.sum(Profile.n_macroparticles), np.sum(charges))
+    print("Sum of particles: %d, total charge: %.4e C",
+                 np.sum(Profile.n_macroparticles), np.sum(charges))
     logger.debug("DC current is %.4e A", np.sum(charges) / T_rev)
 
     # Mix with frequency of interest; remember factor 2 demodulation
@@ -219,7 +221,7 @@ def rf_beam_current(Profile: Profile | SparseSlices, omega_c: float, T_rev: (
         I_f = low_pass_filter(I_f, cutoff_frequency=cutoff)
         Q_f = low_pass_filter(Q_f, cutoff_frequency=cutoff)
     logger.debug("RF total current is %.4e A", np.fabs(np.sum(I_f)) / T_rev)
-
+    print("RF total current is %.4e A", np.fabs(np.sum(I_f)) / T_rev)
     charges_fine = I_f + 1j * Q_f
     if external_reference:
         # slippage in phase due to a non-integer harmonic number
@@ -236,16 +238,15 @@ def rf_beam_current(Profile: Profile | SparseSlices, omega_c: float, T_rev: (
             raise RuntimeError('Downsampling input erroneous in rf_beam_current')
 
         #Find which index in fine grid matches index in coarse grid
-        if isinstance(Profile, SparseSlices):
+        if isinstance(Profile, _SparseBaseClass):
             charges_coarse = np.zeros(n_points, dtype=complex)
 
             for profile in Profile.profiles_list:
-                ind_fine = []
                 ind_fine = np.round(
                     (profile.bin_centers + dT - np.pi / omega_c) / T_s)
                 ind_fine = np.array(ind_fine, dtype=int)
                 indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
-
+                print(indices)
                 # Pick total current within one coarse grid
 
                 charges_coarse[ind_fine[0]] = np.sum(
@@ -255,17 +256,99 @@ def rf_beam_current(Profile: Profile | SparseSlices, omega_c: float, T_rev: (
                         charges_fine[np.arange(indices[i - 1],
                                                indices[i])])
 
+            # for profile in Profile.profiles_list:
+            #     charges_p = profile.Beam.ratio * profile.Beam.Particle.charge * e \
+            #               * np.copy(profile.n_macroparticles)
+            #     logger.debug("Sum of particles: %d, total charge: %.4e C",
+            #                  np.sum(profile.n_macroparticles), np.sum(charges_p))
+            #     print("Sum of particles: %d, total charge: %.4e C",
+            #           np.sum(profile.n_macroparticles), np.sum(charges_p))
+            #     logger.debug("DC current is %.4e A", np.sum(charges_p) / T_rev)
+            #
+            #     # Mix with frequency of interest; remember factor 2 demodulation
+            #     I_f_p = 2. * charges_p * np.cos(omega_c * profile.bin_centers)
+            #     Q_f_p = -2. * charges_p * np.sin(omega_c * profile.bin_centers)
+            #
+            #     # Pass through a low-pass filter
+            #     if lpf is True:
+            #         # Nyquist frequency 0.5*f_slices; cutoff at 20 MHz
+            #         cutoff = 20.e6 * 2. * profile.bin_size
+            #         I_f_p = low_pass_filter(I_f, cutoff_frequency=cutoff)
+            #         Q_f_p = low_pass_filter(Q_f, cutoff_frequency=cutoff)
+            #     logger.debug("RF total current is %.4e A",
+            #                  np.fabs(np.sum(I_f)) / T_rev)
+            #     print("RF total current is %.4e A",
+            #           np.fabs(np.sum(I_f_p)) / T_rev)
+            #     charges_fine_p = I_f_p + 1j * Q_f_p
+            #     if external_reference:
+            #         # slippage in phase due to a non-integer harmonic number
+            #         dphi = dT * omega_c
+            #         # Total phase correction
+            #         phase = dphi
+            #         charges_fine_p = charges_fine_p * np.exp(1j * phase)
+            #     k+=1
+            #     ind_fine = np.round(
+            #         (profile.bin_centers + dT - np.pi / omega_c) / T_s)
+            #     ind_fine = np.array(ind_fine, dtype=int)
+            #
+            #     indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
+            #     print("Bunch ## ",k)
+            #     print(indices)
+            #     print(ind_fine[0])
+            #     # Pick total current within one coarse grid
+            #
+            #     charges_coarse[ind_fine[0]] = np.sum(
+            #         charges_fine_p[np.arange(indices[0])])
+            #     for i in range(1, len(indices)):
+            #         charges_coarse[i + ind_fine[0]] = np.sum(
+            #             charges_fine_p[np.arange(indices[i - 1],
+            #                                    indices[i])])        #
+            # Pick total current within one coarse grid
+            # charges_coarse = np.zeros(n_points, dtype=complex)
+            # if isinstance(Profile, SparseSlices):
+            #     number_of_profiles = len(Profile.profiles_list)
+            #     number_of_indices_per_profile = int(len(
+            #         indices)/number_of_profiles)
+            #     current_profile = 0
+            #     for k in range(number_of_profiles):
+            #         charges_coarse[ind_fine[current_profile]] = np.sum(
+            #             charges_fine[np.arange(indices[current_profile])])
+            #         for i in range(1, number_of_indices_per_profile):
+            #             charges_coarse[i + ind_fine[current_profile]] = np.sum(
+            #                 charges_fine[np.arange(indices[current_profile + i -
+            #                                                1],
+            #                                        indices[current_profile + i])])
+            #         current_profile +=number_of_indices_per_profile
+
+            # for k in index_step_in_coarse_grid:
+            #     charges_coarse[k + ind_fine[0]] = np.sum(charges_fine[
+            #                                                  np.arange(
+            #                                                      indices[k - 1],
+            #                                                      indices[k])])
+            #
+            # if isinstance(Profile, SparseSlices):
+            #     index_step_in_coarse_grid = (ind_fine[1:] - ind_fine[:-1])
+            #     indices = np.where(index_step_in_coarse_grid > 0)[0]
+            #     charges_coarse[ind_fine[0]] = np.sum(
+            #         charges_fine[np.arange(indices[0])])
+            #     if len(indices) == 0:
+            #         indices = [len(Profile.bin_centers)]
+            #     for i in range(1, len(indices)):
+            #         charges_coarse[index_step_in_coarse_grid[indices[i]] + ind_fine[0]] = (
+            #             np.sum(charges_fine[np.arange(indices[i - 1],indices[i])]))
+            # else:
         else:
             ind_fine = np.round((Profile.bin_centers + dT - np.pi / omega_c)/T_s)
             ind_fine = np.array(ind_fine, dtype=int)
             indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
 
-            # Pick total current within one coarse grid
             charges_coarse = np.zeros(n_points, dtype=complex)
-            charges_coarse[ind_fine[0]] = np.sum(charges_fine[np.arange(indices[0])])
+
+            charges_coarse[ind_fine[0]] = np.sum(
+                charges_fine[np.arange(indices[0])])
             for i in range(1, len(indices)):
-                charges_coarse[i + ind_fine[0]] = np.sum(charges_fine[np.arange(indices[i - 1],
-                                                                                indices[i])])
+                charges_coarse[i + ind_fine[0]] = (
+                    np.sum(charges_fine[np.arange(indices[i - 1],indices[i])]))
 
         return charges_fine, charges_coarse
 

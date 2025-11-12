@@ -21,7 +21,7 @@ import numpy as np
 import scipy
 from packaging.version import Version
 
-from ..beam.sparse_slices import SparseSlices
+from ..beam.sparse_slices import _SparseBaseClass
 
 if Version(scipy.__version__) >= Version("1.14"):
     from scipy.integrate import cumulative_trapezoid as cumtrapz
@@ -246,7 +246,8 @@ class RingAndRFTracker:
             raise RuntimeError("ERROR in RingAndRFTracker: Empty RFStation" +
                                " with periodicity not yet implemented!")
         if (self.cavityFB is not None) and (self.interpolation is False):
-            if not isinstance(self.profile, SparseSlices):
+            if not isinstance(self.profile, _SparseBaseClass):
+                #fixme
                 self.interpolation = False
                 warnings.warn('Setting interpolation to TRUE')
 
