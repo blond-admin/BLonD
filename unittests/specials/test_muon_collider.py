@@ -46,6 +46,6 @@ class TestBeamPreparationMuCol(unittest.TestCase):
 
         np.savez(filename, dt=dt, dE=dE, allow_pickle=True)
 
-        load_beam_coordinates_counterrot_from_file(filename, beam)
+        load_beam_coordinates_from_file(filename, beam)
 
         os.remove(filename)
