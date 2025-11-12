@@ -1,5 +1,6 @@
 import unittest
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from blond import Beam, BoxLosses, proton
@@ -149,21 +150,36 @@ class TestBoxLosses(unittest.TestCase):
 
     def test_track6(self):
         self.box_losses = BoxLosses(
-            purge_flagged_macroparticles=False,
+            purge_flagged_macroparticles=True,
             t_min=1,
             t_max=2,
             e_min=-10,
             e_max=20,
         )
         beam = Beam(intensity=1e12, particle_type=proton)
+        dt_line = np.linspace(-10, 10, 20)
+        dE_line = np.linspace(-100, 100, 20)
+        dt, dE = np.meshgrid(dt_line, dE_line, indexing="ij")
+        dt = dt.flatten()
+        dE = dE.flatten()
         beam.setup_beam(
-            dt=np.linspace(-10, 10, 21),
-            dE=np.linspace(-100, 100, 21),
+            dt=dt,
+            dE=dE,
         )
+        DEV_PLOT = False
+        if DEV_PLOT:
+            beam.plot_scatter()
         self.box_losses.track(beam=beam)
+        if DEV_PLOT:
+            beam.plot_scatter()
+            plt.axhline(self.box_losses.e_max)
+            plt.axhline(self.box_losses.e_min)
+            plt.axvline(self.box_losses.t_max)
+            plt.axvline(self.box_losses.t_min)
+            plt.show()
 
-        self.assertEqual(21, len(beam._dt))
-        self.assertEqual(21, len(beam._dE))
+        self.assertEqual(3, len(beam._dt))
+        self.assertEqual(3, len(beam._dE))
 
         np.testing.assert_equal(
             (beam._dt < 1)
