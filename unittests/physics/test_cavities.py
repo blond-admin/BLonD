@@ -1,4 +1,5 @@
 import unittest
+from copy import deepcopy
 from unittest.mock import Mock
 
 import numpy as np
@@ -87,6 +88,23 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             self.beam.dt,
             np.linspace(-1e-6, 1e-6, 10),
         )
+
+    def test_wrong_array(self) -> None:
+        local_cav = MultiHarmonicCavity(n_harmonics=2, main_harmonic_idx=0, voltage=np.array([1, 2]),
+                                        phi_rf=np.array([3, 4]), harmonic=np.array([5, 6]))
+        np.testing.assert_allclose(local_cav.voltage, np.array([1, 2]))
+        np.testing.assert_allclose(local_cav.phi_rf, np.array([3, 4]))
+        np.testing.assert_allclose(local_cav.harmonic, np.array([5, 6]))
+
+        with self.assertRaises(ValueError):
+            _ = MultiHarmonicCavity(n_harmonics=2, main_harmonic_idx=0, voltage=np.array([1]),
+                                    phi_rf=np.array([3, 4]), harmonic=np.array([5, 6]))
+        with self.assertRaises(ValueError):
+            _ = MultiHarmonicCavity(n_harmonics=2, main_harmonic_idx=0, voltage=np.array([1, 2]),
+                                    phi_rf=np.array([3]), harmonic=np.array([5, 6]))
+        with self.assertRaises(ValueError):
+            _ = MultiHarmonicCavity(n_harmonics=2, main_harmonic_idx=0, voltage=np.array([1, 2]),
+                                    phi_rf=np.array([3, 4]), harmonic=np.array([5]))
 
     def test_on_init_simulation_fails(self) -> None:
         simulation = Mock(Simulation)

@@ -686,21 +686,20 @@ class MultiHarmonicCavity(CavityBaseClass):
         self.phi_rf: NumpyArray | None = phi_rf
         self.harmonic: NumpyArray | None = harmonic
 
-        if voltage is not None:
-            assert len(voltage) == n_harmonics, (
-                f"length of voltage array must equal {n_harmonics}, was {len(voltage)}"
-            )
-        if phi_rf is not None:
-            assert len(phi_rf) == n_harmonics, (
-                f"length of voltage array must equal {n_harmonics}, was {len(phi_rf)}"
-            )
-        if harmonic is not None:
-            assert len(harmonic) == n_harmonics, (
-                f"length of voltage array must equal {n_harmonics}, was {len(harmonic)}"
-            )
+        for array_name, input_array in (
+            ("voltage", voltage),
+            ("phi_rf", phi_rf),
+            ("harmonic", harmonic),
+        ):
+            if input_array is not None and len(input_array) != n_harmonics:
+                raise ValueError(
+                    f"Length of input array must be equal to {n_harmonics=}, "
+                    f"but {array_name} had the length {len(input_array)}"
+                )
 
         assert main_harmonic_idx < n_harmonics, (
-            f"main_harmonic_index was {main_harmonic_idx}, but needs to be smaller than {n_harmonics}"
+            f"main_harmonic_index was {main_harmonic_idx}, "
+            f"but needs to be smaller than {n_harmonics}"
         )
 
         self.delta_phi_rf: NumpyArray | None = backend.zeros(len(voltage))
