@@ -293,7 +293,7 @@ class BackendBaseClass(ABC):
         )
         if _backend_bits_raw != "32":
             print(
-                f"Using  environment variable BLOND_BACKEND_BITS = {_backend_bits_raw}"
+                f"Using environment variable BLOND_BACKEND_BITS = {_backend_bits_raw}"
             )
         _allowed_backend_bits_flag = (
             "32",
