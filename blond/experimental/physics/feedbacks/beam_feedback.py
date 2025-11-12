@@ -25,12 +25,12 @@ from .base import LocalFeedback
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond._core.beam.base import BeamBaseClass
-    from blond.physics.cavities import CavityBaseClass
+    from blond.physics.cavities import RfStationBaseClass
     from blond.physics.profiles import ProfileBaseClass
 
 
 class GeneralBeamFeedback(LocalFeedback):
-    _parent_cavity: CavityBaseClass
+    _parent_cavity: RfStationBaseClass
 
     def __init__(self, profile: ProfileBaseClass):
         super().__init__(profile=profile)

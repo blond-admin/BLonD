@@ -9,7 +9,7 @@ from blond import (
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicCavity,
+    SingleHarmonicRfStation,
     backend,
     proton,
 )
@@ -17,7 +17,7 @@ from blond import (
 backend.set_specials("cpp")  # set any backend you want
 
 ring = Ring(26658.883)  # general definition of ring
-cavity1 = SingleHarmonicCavity(harmonic=35640, voltage=6e6, phi_rf=0)
+cavity1 = SingleHarmonicRfStation(harmonic=35640, voltage=6e6, phi_rf=0)
 drift1 = DriftSimple(orbit_length=26658.883, transition_gamma=55.759505)
 ring.add_elements([cavity1, drift1])  # add elements that resemble one turn
 

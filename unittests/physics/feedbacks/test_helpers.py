@@ -8,7 +8,7 @@ from blond import (
     BiGaussian,
     ConstantMagneticCycle,
     DriftSimple,
-    MultiHarmonicCavity,
+    MultiHarmonicRfStation,
     Ring,
     Simulation,
     StaticProfile,
@@ -65,7 +65,7 @@ class TestRfBeamCurrent(unittest.TestCase):
         )
         self.ring = Ring(circumference=C)
         # self.rf = RFStation(self.ring, 4620, 4.5e6, 0)
-        self.rf = MultiHarmonicCavity(
+        self.rf = MultiHarmonicRfStation(
             n_harmonics=1,
             main_harmonic_idx=0,
         )
