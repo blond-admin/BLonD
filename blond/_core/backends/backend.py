@@ -27,7 +27,7 @@ class Specials(ABC):
         top: float, bottom: float, left: float, right: float
     ) -> None:  # TODO
         raise NotImplementedError(
-            "Abstract method `loss_box` not implemented."
+            "Abstract method `loss_box` is not implemented."
         )
 
     @staticmethod
@@ -42,7 +42,7 @@ class Specials(ABC):
         acceleration_kick: float,
     ) -> None:
         raise NotImplementedError(
-            "Abstract method `kick_singl` not implemented."
+            "Abstract method `kick_single_harmonic` is not implemented."
         )
 
     @staticmethod
@@ -58,7 +58,7 @@ class Specials(ABC):
         acceleration_kick: float,
     ) -> None:
         raise NotImplementedError(
-            "Abstract method `kick_multi` not implemented."
+            "Abstract method `kick_multi_harmonic` is not implemented."
         )
 
     @staticmethod
@@ -72,7 +72,7 @@ class Specials(ABC):
         energy: float,
     ) -> None:
         raise NotImplementedError(
-            "Abstract method `drift_simp` not implemented."
+            "Abstract method `drift_simple` is not implemented."
         )
 
     @staticmethod
@@ -89,7 +89,7 @@ class Specials(ABC):
         energy: float,
     ) -> None:
         raise NotImplementedError(
-            "Abstract method `drift_lega` not implemented."
+            "Abstract method `drift_legacy` is not implemented."
         )
 
     @staticmethod
@@ -105,7 +105,7 @@ class Specials(ABC):
         energy: float,
     ) -> None:
         raise NotImplementedError(
-            "Abstract method `drift_exac` not implemented."
+            "Abstract method `drift_exact` is not implemented."
         )
 
     @staticmethod
@@ -119,7 +119,7 @@ class Specials(ABC):
         acceleration_kick: float,
     ) -> None:
         raise NotImplementedError(
-            "Abstract method `kick_induc` not implemented."
+            "Abstract method `kick_induced_voltage` is not implemented."
         )
 
     @staticmethod
@@ -131,7 +131,7 @@ class Specials(ABC):
         stop: float,
     ) -> None:
         raise NotImplementedError(
-            "Abstract method `histogram` not implemented."
+            "Abstract method `histogram` is not implemented."
         )
 
     @staticmethod
@@ -145,7 +145,7 @@ class Specials(ABC):
         bin_size: float,
     ) -> float:
         raise NotImplementedError(
-            "Abstract method `beam_phase` not implemented."
+            "Abstract method `beam_phase` is not implemented."
         )
 
 
@@ -256,7 +256,7 @@ class BackendBaseClass(ABC):
 
         """
         raise NotImplementedError(
-            "Abstract method `set_specials` not implemented."
+            "Abstract method `set_specials` is not implemented."
         )
 
     @property
