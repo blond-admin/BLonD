@@ -5,35 +5,35 @@ Authors
 Simon Lauber
 """
 
+import numpy as np
 from matplotlib import pyplot as plt
 
-from blond import MultiHarmonicCavity, WakeField
-from blond._core.backends.backend import backend
+from blond import (
+    Beam,
+    BiGaussian,
+    CavityPhaseObservation,
+    ConstantMagneticCycle,
+    DriftSimple,
+    MagneticCyclePerTurn,
+    MultiHarmonicCavity,
+    Ring,
+    Simulation,
+    SingleHarmonicCavity,
+    StaticProfile,
+    WakeField,
+    backend,
+    proton,
+)
 from blond.physics.impedances.solvers import (
     TimeDomainFftSolver,
 )
 from blond.physics.impedances.sources import Resonators
-from blond.physics.profiles import StaticProfile
 
 
 class ExampleSimulation01:
     """Simulation with only one drift, one RF."""
 
     def __init__(self):
-        import numpy as np
-
-        from blond import (
-            Beam,
-            BiGaussian,
-            CavityPhaseObservation,
-            DriftSimple,
-            Ring,
-            Simulation,
-            SingleHarmonicCavity,
-            proton,
-        )
-        from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
-
         ring = Ring(circumference=26658.883)
 
         cavity1 = SingleHarmonicCavity()
@@ -97,18 +97,6 @@ class SimulationTwoRfStations:
     """A simulation with two RF stations and according drifts."""
 
     def __init__(self, below_transition_crossing=False):
-        import numpy as np
-
-        from blond import (
-            Beam,
-            DriftSimple,
-            Ring,
-            Simulation,
-            SingleHarmonicCavity,
-            proton,
-        )
-        from blond.cycles.magnetic_cycle import ConstantMagneticCycle
-
         circumference = 26658.883
         ring = Ring(circumference=circumference)
 
@@ -169,18 +157,6 @@ class SimulationTwoRfStationsWithWake:
     """A simulation with two RF stations and according drifts, plus wake."""
 
     def __init__(self, below_transition_crossing=False):
-        import numpy as np
-
-        from blond import (
-            Beam,
-            DriftSimple,
-            Ring,
-            Simulation,
-            SingleHarmonicCavity,
-            proton,
-        )
-        from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
-
         circumference = 26658.883
         ring = Ring(circumference=circumference)
 
