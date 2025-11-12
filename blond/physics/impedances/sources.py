@@ -42,13 +42,60 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def get_hash(array1d: NumpyArray) -> int:
-    """Calculate the hash value of a numpy array."""
+    """
+    Compute a lightweight, approximate hash value for a 1D NumPy array.
+
+    The function samples a few representative elements of the input array
+    (first, second, middle, and last), along with the array length, and computes
+    a Python built-in hash from this tuple. The result is intended for quick,
+    approximate identification of arrays rather than exact equality or integrity
+    verification.
+
+    Parameters
+    ----------
+    array1d : numpy.ndarray
+        One-dimensional NumPy array of numeric values.
+
+    Returns
+    -------
+    int
+        An integer hash value derived from selected elements of the array.
+
+    Warnings
+    --------
+    - This function is **not collision-resistant**. Different arrays may yield
+      identical hash values, especially if they share similar boundary values or
+      lengths.
+    - Not suitable for **data integrity**, **deduplication**, or **security**
+      purposes. Use `hashlib` (e.g., SHA-256) for robust, deterministic hashing.
+    - Assumes a 1D numeric array; no validation is performed. Multi-dimensional
+      or non-numeric inputs may cause unexpected behavior or errors.
+    - Python’s built-in hash is **not stable across sessions** due to hash
+      randomization (unless `PYTHONHASHSEED` is fixed).
+
+    Notes
+    -----
+    - **Time complexity:** O(1) — the function samples only four elements
+      regardless of array size.
+    - **Memory usage:** O(1) — constant space overhead.
+    - Designed for fast, approximate fingerprinting in performance-sensitive
+      contexts where occasional collisions are acceptable.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> arr = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+    >>> get_hash(arr)
+    2398472938472938  # Example output (varies by session)
+    """
+    len_ = len(array1d)
     return hash(
         (
             float(array1d[0]),
             float(array1d[1]),
+            float(array1d[int(len_ // 2)]),
             float(array1d[-1]),
-            len(array1d),
+            len_,
         )
     )
 
