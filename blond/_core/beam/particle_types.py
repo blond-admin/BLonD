@@ -86,36 +86,36 @@ class ParticleType:
         return self._quantum_radiation_constant
 
 
-proton = ParticleType(
+proton: ParticleType = ParticleType(
     mass=m_p * c**2 / e,
     charge=1,
 )
 
-uranium_29 = ParticleType(
+uranium_29: ParticleType = ParticleType(
     mass=238 * m_p * c**2 / e,  # approximate mass-energy in eV
     charge=29,
 )
 
-electron = ParticleType(
+electron: ParticleType = ParticleType(
     mass=m_e * c**2 / e,
     charge=-1,
 )
 
-positron = ParticleType(
+positron: ParticleType = ParticleType(
     mass=m_e * c**2 / e,
     charge=1,
 )
 
 _muon_decay_rate = float(1 / 2.1969811e-6)
 
-mu_plus = ParticleType(
+mu_plus: ParticleType = ParticleType(
     mass=m_mu * c**2 / e,
     charge=1,
     user_decay_rate=_muon_decay_rate,
 )
 
 
-mu_minus = ParticleType(
+mu_minus: ParticleType = ParticleType(
     mass=m_mu * c**2 / e,
     charge=-1,
     user_decay_rate=_muon_decay_rate,

@@ -61,6 +61,7 @@ def main():
             distribution_type=QGaussianDistribution,
             sigma_z=zmax / 4,
             n_macroparticles=int(1e3),
+            seed=42,
         ),
     )
 

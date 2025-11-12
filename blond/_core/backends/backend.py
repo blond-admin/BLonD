@@ -14,6 +14,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
+DEFAULT_BACKEND = "python"
+DEFAULT_BITS = "64"
+
 
 class Specials(ABC):
     """Abstract listing of functions that need implementation for a new backend."""
@@ -223,6 +226,10 @@ class BackendBaseClass(ABC):
         self.random: ModuleType = None  # type: ignore
         self.isnan: Callable = None  # type: ignore
         self.sum: Callable = None  # type: ignore
+        self.sqrt: Callable = None  # type: ignore
+        self.meshgrid: Callable = None  # type: ignore
+        self.square: Callable = None  # type: ignore
+        self.mean: Callable = None  # type: ignore
         self.arange: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
@@ -286,7 +293,7 @@ class BackendBaseClass(ABC):
         """
         _backend_mode_raw: str = os.environ.get(
             "BLOND_BACKEND_MODE",
-            "python",  # default
+            DEFAULT_BACKEND,  # default
         ).lower()
         if _backend_mode_raw != "numba":
             print(
@@ -316,7 +323,7 @@ class BackendBaseClass(ABC):
 
         _backend_bits_raw: str = os.environ.get(
             "BLOND_BACKEND_BITS",
-            "32",  # default
+            DEFAULT_BITS,  # default
         )
         if _backend_bits_raw != "32":
             print(
@@ -392,6 +399,11 @@ class NumpyBackend(BackendBaseClass):
         self.random = np.random
         self.isnan = np.isnan
         self.sum = np.sum
+        self.sqrt = np.sqrt
+        self.interp = np.interp
+        self.meshgrid = np.meshgrid
+        self.square = np.square
+        self.mean = np.mean
         self.arange = np.arange
 
         self._finalize()
@@ -441,7 +453,7 @@ class NumpyBackend(BackendBaseClass):
         else:
             raise ValueError(mode)
         if self.verbose and onchange:
-            print(f"Set special to `{self.specials.__class__.__name__}`")
+            print(f"Set special to `{mode}`")
 
 
 class Numpy32Bit(NumpyBackend):
@@ -506,6 +518,11 @@ class CupyBackend(BackendBaseClass):
         self.random = cp.random
         self.isnan = cp.isnan
         self.sum = cp.sum
+        self.sqrt = cp.sqrt
+        self.interp = cp.interp
+        self.meshgrid = cp.meshgrid
+        self.square = cp.square
+        self.mean = cp.mean
         self.arange = cp.arange
 
         from .cuda.callables import CudaSpecials
@@ -532,7 +549,7 @@ class CupyBackend(BackendBaseClass):
         else:
             raise ValueError(mode)
         if self.verbose:
-            print(f"Set special to `{self.specials.__class__.__name__}`")
+            print(f"Set special to `{mode}`")
 
 
 class Cupy32Bit(CupyBackend):
