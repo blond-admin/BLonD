@@ -12,7 +12,7 @@ import numpy as np
 from blond._core.beam.base import BeamBaseClass
 
 
-def load_beam_data_counterrot_from_file(
+def load_beam_coordinates_counterrot_from_file(
     filename: PathLike | str,
     beam: BeamBaseClass,
     beam_counterrot: BeamBaseClass,
@@ -45,7 +45,7 @@ def load_beam_data_counterrot_from_file(
     )
 
 
-def load_beam_data_from_file(
+def load_beam_coordinates_from_file(
     filename: PathLike | str,
     beam: BeamBaseClass,
 ) -> None:
