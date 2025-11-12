@@ -96,7 +96,7 @@ class ExampleSimulation01:
 class SimulationTwoRfStations:
     """A simulation with two RF stations and according drifts."""
 
-    def __init__(self, below_transition_crossing=False):
+    def __init__(self, below_transition_crossing: bool = False):
         circumference = 26658.883
         ring = Ring(circumference=circumference)
 
@@ -156,7 +156,7 @@ class SimulationTwoRfStations:
 class SimulationTwoRfStationsWithWake:
     """A simulation with two RF stations and according drifts, plus wake."""
 
-    def __init__(self, below_transition_crossing=False):
+    def __init__(self, below_transition_crossing: bool = False):
         circumference = 26658.883
         ring = Ring(circumference=circumference)
 
