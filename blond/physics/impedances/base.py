@@ -70,7 +70,7 @@ class WakeFieldSource(ABC):
 
 
 class TimeDomain(ABC):
-    """Indication of a source is defined in time or frequency domain."""
+    """Indication of a source is defined in time domain."""
 
     @abstractmethod  # pragma: no cover
     def get_wake_impedance(
@@ -164,7 +164,7 @@ class TimeDomainCounterRotation(ABC):
 
 
 class FreqDomain(ABC):
-    """Indication of a source is defined in time or frequency domain."""
+    """Indication of a source is defined in frequency domain."""
 
     @abstractmethod  # pragma: no cover
     def get_impedance(
