@@ -16,7 +16,7 @@ from blond import (
     BiGaussian,
     CavityPhaseObservation,
     ConstantMagneticCycle,
-    MultiHarmonicCavity,
+    MultiHarmonicRfStation,
     Ring,
     Simulation,
     StaticProfile,
@@ -152,7 +152,7 @@ class TestBeamFeedback(unittest.TestCase):
             profile=self.profile,
             PL_gain=1000,  # gain of phase loop
         )
-        self.cavity = MultiHarmonicCavity(
+        self.cavity = MultiHarmonicRfStation(
             harmonic=np.array([4620.0]),
             voltage=np.array([4.5e6]),
             phi_rf=np.array([0.0]),

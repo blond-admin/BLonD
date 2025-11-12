@@ -23,7 +23,7 @@ from blond import (
     BiGaussian,
     ConstantMagneticCycle,
     DriftSimple,
-    MultiHarmonicCavity,
+    MultiHarmonicRfStation,
     Ring,
     Simulation,
     StaticProfile,
@@ -186,7 +186,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
             t_init=0,
             particle_type=proton,
         )
-        rf = MultiHarmonicCavity(
+        rf = MultiHarmonicRfStation(
             voltage=np.array([V], dtype=backend.float),
             harmonic=np.array([h], dtype=backend.float),
             phi_rf=np.array([phi], dtype=backend.float),
@@ -311,7 +311,7 @@ class TestTravelingWaveCavity(unittest.TestCase):
         )
         ring = Ring(circumference=2 * np.pi * 1100.009)
 
-        rf = MultiHarmonicCavity(
+        rf = MultiHarmonicRfStation(
             harmonic=np.array([4620], dtype=backend.float),
             voltage=np.array([4.5e6], dtype=backend.float),
             phi_rf=np.array([0], dtype=backend.float),

@@ -10,18 +10,30 @@ from blond import Simulation, proton
 from blond._core.backends.backend import backend
 from blond._core.base import DynamicParameter
 from blond.physics.cavities import (
-    CavityBaseClass,
-    MultiHarmonicCavity,
-    SingleHarmonicCavity,
+    MultiHarmonicRfStation,
+    RfStationBaseClass,
+    SingleHarmonicRfStation,
 )
+from blond.physics.drifts import _assert_purely_real_or_imaginary
 
 
-class CavityBaseClassHelper(CavityBaseClass):
+class RfStationBaseClassHelper(RfStationBaseClass):
     def voltage_waveform_tmp(self, ts: NumpyArray):
         pass
 
     def calc_omega(self, beam_beta: float, ring_circumference: float):
         pass
+
+
+class TestCallables(unittest.TestCase):
+    def test_valid_purely_real_or_imaginary(self):
+        """Test that purely real, purely imaginary, and zero pass."""
+        for val in [5 + 0j, 0 + 3j, 0j]:
+            _assert_purely_real_or_imaginary(val)  # Should not raise
+
+    def test_invalid_purely_real_or_imaginary(self):
+        with self.assertRaises(ValueError):
+            _assert_purely_real_or_imaginary(5 + 1j)  # Should  raise
 
 
 class TestMultiHarmonicCavity(unittest.TestCase):
@@ -44,7 +56,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
 
         self.beam = beam
 
-        self.multi_harmonic_cavity = MultiHarmonicCavity.headless(
+        self.multi_harmonic_cavity = MultiHarmonicRfStation.headless(
             section_index=0,
             voltage=np.array([1e6, 2e6], dtype=backend.float),
             phi_rf=np.array([0.1 * np.pi, np.pi], dtype=backend.float),
@@ -90,20 +102,20 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         )
 
     def test_wrong_array(self) -> None:
-        local_cav = MultiHarmonicCavity(n_harmonics=2, main_harmonic_idx=0, voltage=np.array([1, 2]),
+        local_cav = MultiHarmonicRfStation(n_harmonics=2, main_harmonic_idx=0, voltage=np.array([1, 2]),
                                         phi_rf=np.array([3, 4]), harmonic=np.array([5, 6]))
         np.testing.assert_allclose(local_cav.voltage, np.array([1, 2]))
         np.testing.assert_allclose(local_cav.phi_rf, np.array([3, 4]))
         np.testing.assert_allclose(local_cav.harmonic, np.array([5, 6]))
 
         with self.assertRaises(ValueError):
-            _ = MultiHarmonicCavity(n_harmonics=2, main_harmonic_idx=0, voltage=np.array([1]),
+            _ = MultiHarmonicRfStation(n_harmonics=2, main_harmonic_idx=0, voltage=np.array([1]),
                                     phi_rf=np.array([3, 4]), harmonic=np.array([5, 6]))
         with self.assertRaises(ValueError):
-            _ = MultiHarmonicCavity(n_harmonics=2, main_harmonic_idx=0, voltage=np.array([1, 2]),
+            _ = MultiHarmonicRfStation(n_harmonics=2, main_harmonic_idx=0, voltage=np.array([1, 2]),
                                     phi_rf=np.array([3]), harmonic=np.array([5, 6]))
         with self.assertRaises(ValueError):
-            _ = MultiHarmonicCavity(n_harmonics=2, main_harmonic_idx=0, voltage=np.array([1, 2]),
+            _ = MultiHarmonicRfStation(n_harmonics=2, main_harmonic_idx=0, voltage=np.array([1, 2]),
                                     phi_rf=np.array([3, 4]), harmonic=np.array([5]))
 
     def test_on_init_simulation_fails(self) -> None:
@@ -164,7 +176,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
         beam.write_partial_dE.return_value = beam.dE
 
         self.beam = beam
-        self.single_harmonic_cavity = SingleHarmonicCavity.headless(
+        self.single_harmonic_cavity = SingleHarmonicRfStation.headless(
             section_index=0,
             voltage=1e6,
             phi_rf=np.pi * 0.3,
@@ -180,12 +192,10 @@ class TestSingleHarmonicCavity(unittest.TestCase):
         pass  # calls __init__ in  self.setUp
 
     def test_track(self) -> None:
-
         self.single_harmonic_cavity.track(beam=self.beam)
 
         self.assertEqual(self.beam.reference_total_energy, 939)  # incremented
         self.assertEqual(self.beam.reference_time, 0)  # unchanged
-        print(self.beam.dE.tolist())
         np.testing.assert_allclose(  # test pinned to some value
             self.beam.dE,
             [

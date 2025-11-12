@@ -19,7 +19,7 @@ from blond.experimental.physics.feedbacks.cavity_feedback import (
     BirksCavityFeedback,
 )
 from blond.experimental.physics.feedbacks.helpers import cartesian_to_polar
-from blond.physics.cavities import MultiHarmonicCavity
+from blond.physics.cavities import MultiHarmonicRfStation
 from blond.physics.profiles import StaticProfile
 
 from .helpers import comb_filter, get_power_gen_i, modulator, moving_average
@@ -112,7 +112,7 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
     def __init__(
         self,
-        _parent_cavity: MultiHarmonicCavity,
+        _parent_cavity: MultiHarmonicRfStation,
         profile: StaticProfile,
         n_sections: int,
         n_cavities: int = 4,
@@ -766,7 +766,7 @@ class SPSCavityFeedback:
 
     def __init__(
         self,
-        _parent_cavity: MultiHarmonicCavity,
+        _parent_cavity: MultiHarmonicRfStation,
         profile: StaticProfile,
         G_ff: float | list = 1,
         G_llrf: float | list = 10,

@@ -15,10 +15,10 @@ from blond import (
     ConstantMagneticCycle,
     DriftSimple,
     MagneticCyclePerTurn,
-    MultiHarmonicCavity,
+    MultiHarmonicRfStation,
     Ring,
     Simulation,
-    SingleHarmonicCavity,
+    SingleHarmonicRfStation,
     StaticProfile,
     WakeField,
     backend,
@@ -36,7 +36,7 @@ class ExampleSimulation01:
     def __init__(self):
         ring = Ring(circumference=26658.883)
 
-        cavity1 = SingleHarmonicCavity()
+        cavity1 = SingleHarmonicRfStation()
         cavity1.harmonic = 35640
         cavity1.voltage = 6e6
         cavity1.phi_rf = 0
@@ -100,7 +100,7 @@ class SimulationTwoRfStations:
         circumference = 26658.883
         ring = Ring(circumference=circumference)
 
-        cavity1 = MultiHarmonicCavity(
+        cavity1 = MultiHarmonicRfStation(
             harmonic=np.array(
                 [35640],
             ),
@@ -115,7 +115,7 @@ class SimulationTwoRfStations:
             main_harmonic_idx=0,
         )
 
-        cavity2 = SingleHarmonicCavity(
+        cavity2 = SingleHarmonicRfStation(
             section_index=1,
         )
         cavity2.harmonic = backend.float(35640)
@@ -160,7 +160,7 @@ class SimulationTwoRfStationsWithWake:
         circumference = 26658.883
         ring = Ring(circumference=circumference)
 
-        cavity1 = MultiHarmonicCavity(
+        cavity1 = MultiHarmonicRfStation(
             harmonic=np.array(
                 [35640],
             ),
@@ -175,7 +175,7 @@ class SimulationTwoRfStationsWithWake:
             main_harmonic_idx=0,
         )
 
-        cavity2 = SingleHarmonicCavity(
+        cavity2 = SingleHarmonicRfStation(
             section_index=1,
         )
         cavity2.harmonic = 35640

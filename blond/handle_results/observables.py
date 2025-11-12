@@ -17,7 +17,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from .. import WakeField
     from .._core.beam.base import BeamBaseClass
     from .._core.simulation.simulation import Simulation
-    from ..physics.cavities import SingleHarmonicCavity
+    from ..physics.cavities import SingleHarmonicRfStation
     from ..physics.profiles import DynamicProfileConstNBins, StaticProfile
 
 logger = logging.getLogger(__name__)
@@ -525,7 +525,7 @@ class CavityPhaseObservation(ObservablesEndOfTurnBase):
     def __init__(
         self,
         each_turn_i: int,
-        cavity: SingleHarmonicCavity,
+        cavity: SingleHarmonicRfStation,
         folder: str = "",
     ):
         super().__init__(each_turn_i=each_turn_i, folder=folder)

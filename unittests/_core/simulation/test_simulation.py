@@ -13,7 +13,7 @@ from blond import (
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicCavity,
+    SingleHarmonicRfStation,
     mu_plus,
     proton,
 )
@@ -34,7 +34,7 @@ class TestSimulation(unittest.TestCase):
     def setUp(self):
         ring = Ring(circumference=26658.883)
 
-        cavity1 = SingleHarmonicCavity()
+        cavity1 = SingleHarmonicRfStation()
         cavity1.harmonic = 35640
         cavity1.voltage = 6e6
         cavity1.phi_rf = 0
@@ -117,7 +117,7 @@ class TestSimulation(unittest.TestCase):
                         orbit_length=circumference / n_cavities / 2,
                         section_index=cavity_i,
                     ),
-                    SingleHarmonicCavity(
+                    SingleHarmonicRfStation(
                         voltage=total_voltage / n_cavities,
                         phi_rf=0,
                         harmonic=harmonic,
@@ -327,7 +327,7 @@ class TestSimulation(unittest.TestCase):
 
     def test_get_potential_well_empiric_shape(self):
         cavity = self.simulation.ring.elements.get_element(
-            SingleHarmonicCavity
+            SingleHarmonicRfStation
         )
         particle_type = proton
 
@@ -382,7 +382,7 @@ class TestSimulation(unittest.TestCase):
     def test_get_potential_well_empiric_shape_acceleration(self):
         ring = Ring(circumference=26658.883)
 
-        cavity1 = SingleHarmonicCavity()
+        cavity1 = SingleHarmonicRfStation()
         cavity1.harmonic = 35640
         cavity1.voltage = 6e6
         cavity1.phi_rf = 0
@@ -412,7 +412,7 @@ class TestSimulation(unittest.TestCase):
         simulation = Simulation.from_locals(locals())
         beam = beam1
 
-        cavity = simulation.ring.elements.get_element(SingleHarmonicCavity)
+        cavity = simulation.ring.elements.get_element(SingleHarmonicRfStation)
         particle_type = proton
 
         ts = np.linspace(

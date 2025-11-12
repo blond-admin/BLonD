@@ -32,7 +32,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond import (
-        SingleHarmonicCavity,
+        SingleHarmonicRfStation,
     )
     from blond.legacy.blond2.beam.beam import Beam as Blond2Beam
     from blond.legacy.blond2.beam.profile import Profile as Blond2Profile
@@ -56,7 +56,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from ..beam.particle_types import ParticleType
     from ..ring.ring import Ring
 
-from ...physics.cavities import CavityBaseClass
+from ...physics.cavities import RfStationBaseClass
 
 logger = logging.getLogger(__name__)
 
@@ -459,7 +459,7 @@ class Simulation(Preparable):
         >>> beam1 = Beam( ... )
         >>> ring = Ring( ... )
         >>> energy_cycle = MagneticCyclePerTurn( ... )
-        >>> cavity1 = SingleHarmonicCavity( ... )
+        >>> cavity1 = SingleHarmonicRfStation( ... )
         >>> drift1 = DriftSimple( ... )
         >>> Simulation.from_locals(locals=locals(), verbose=True)
 
@@ -565,6 +565,28 @@ class Simulation(Preparable):
             User defined function
             `def myfunction(simulation: Simulation, beam: Beam): ...`
             that is called each turn.
+
+
+        Examples
+        --------
+        This examples shows how to add any code to the end of a turn.
+        It can hold any user-defined code for customized behavior.
+
+        >>> def custom_action(simulation: Simulation, beam: Beam):
+        >>>     '''This method gets called at the end of each turn.'''
+        >>>     # Below there is an example of plotting the beam each 10th turn.
+        >>>     if simulation.turn_i.value % 10 != 0:
+        >>>         return
+        >>>
+        >>>     plt.scatter(
+        >>>         simulation.beams[0].read_partial_dt(),
+        >>>         simulation.beams[0].read_partial_dE(),
+        >>>     )
+        >>>     plt.draw()
+        >>>     plt.pause(0.1)
+        >>>     plt.clf()
+        >>>
+        >>> simulation.run_simulation(..., callback=custom_action)
 
         """
         logger.info(f"Running `run_simulation` with {locals()}")
@@ -753,7 +775,7 @@ class Simulation(Preparable):
     ]:
         raise NotImplementedError
         from ...physics.cavities import (  # prevent cyclic import
-            MultiHarmonicCavity,
+            MultiHarmonicRfStation,
         )
         from ...physics.drifts import DriftBaseClass
 
@@ -797,8 +819,8 @@ class Simulation(Preparable):
             intensity=self.beams[0]._intensity__init,
         )
         # todo handle multiple RF stations
-        cavity_blond3: SingleHarmonicCavity | MultiHarmonicCavity = (
-            self.ring.elements.get_element(CavityBaseClass)
+        cavity_blond3: SingleHarmonicRfStation | MultiHarmonicRfStation = (
+            self.ring.elements.get_element(RfStationBaseClass)
         )
         # FIXME
         rf_station = RFStation(
