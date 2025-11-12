@@ -26,9 +26,9 @@ Modules
     modules_old/equations_of_motion
     modules_old/sps_cavity_loop
     modules_old/lhc_cavity_loop
+    models_new/potential_well_empiric
+    models_new/semi_empiric_matcher
     modules/blond
-
-
 
 Indices and tables
 ==================

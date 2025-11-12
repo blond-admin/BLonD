@@ -12,6 +12,7 @@ from abc import abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from .._core.backends.backend import backend
@@ -37,6 +38,13 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         Section index to group elements into sections
     name
         User given name of the element
+
+    Attributes
+    ----------
+    hist_y_to_density_factor
+        This factor is used to reproduce the behaviour
+        of np.hist(..., density=True).
+        Intended use: ``density = hist_y * hist_y_to_density_factor``
     """
 
     def __init__(
@@ -48,6 +56,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         )
         self._hist_x: NumpyArray | CupyArray | None = None
         self._hist_y: NumpyArray | CupyArray | None = None
+        self.hist_y_to_density_factor: float | None = None
 
         self._beam_spectrum_buffer: dict[int, NumpyArray] = {}
 
@@ -82,6 +91,17 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         assert self._hist_x is not None
         assert self._hist_y is not None
         self.invalidate_cache()
+
+    def plot(self, **kwargs_plot: dict[str, Any]) -> None:
+        """Plots the current histogram.
+
+        Parameters
+        ----------
+        kwargs_plot
+            Keyword arguments for `matplotlib.pyplot.plot`.
+
+        """
+        plt.plot(self.hist_x, self.hist_y, **kwargs_plot)
 
     @property  # as readonly attributes
     def hist_x(self) -> NumpyArray | CupyArray:
@@ -176,6 +196,9 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
                 start=self.cut_left,
                 stop=self.cut_right,
             )
+            # this factor is used to reproduce the behaviour
+            # of np.hist(..., density=True)
+            self.hist_y_to_density_factor = 1.0 / beam.common_array_size
         self.invalidate_cache()
 
     @staticmethod
