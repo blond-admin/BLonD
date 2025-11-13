@@ -423,7 +423,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         self,
         section_index: int = 0,
         local_wakefield: WakeField | None = None,
-        cavity_feedback: LocalFeedback | None = None,
+        cavity_feedback: tuple[LocalFeedback, ...] | None = None,
         beam_feedback: Blond2BeamFeedback | None = None,
         name: str | None = None,
         voltage: float | None = None,
@@ -688,7 +688,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         main_harmonic_idx: int,
         section_index: int = 0,
         local_wakefield: WakeField | None = None,
-        cavity_feedback: LocalFeedback | None = None,
+        cavity_feedback: tuple[LocalFeedback, ...] | None = None,
         beam_feedback: Blond2BeamFeedback | None = None,
         name: str | None = None,
     ):

@@ -55,10 +55,10 @@ class TestRFStationBaseClass(unittest.TestCase):
 
         # TODO: remove this, once cavity feedback setup is fixed
         MultiHarmonicRfStation(section_index=1, local_wakefield=None, main_harmonic_idx=0, n_harmonics=1,
-                               cavity_feedback=cavity_feedback_good)
+                               cavity_feedback=(cavity_feedback_good, ))
         with self.assertRaises(ValueError):
             SingleHarmonicRfStation(section_index=1, local_wakefield=None,
-                                    cavity_feedback=prof)
+                                    cavity_feedback=(prof, ))
 
     def test_track_with_feedbacks(self):
         SingleHarmonicRfStation(section_index=1, local_wakefield=None,
@@ -310,6 +310,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
         simulation.turn_i = DynamicParameter(0)
 
         time_array = np.array([1, 2, 3])
+        self.single_harmonic_cavity._omega_rf = np.array([3.0e9])
         volt_calc = self.single_harmonic_cavity.voltage_waveform_tmp(time_array)
         assert len(volt_calc) == len(time_array)
 
