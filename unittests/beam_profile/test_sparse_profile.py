@@ -10,7 +10,7 @@
 """
 **Unit-tests for the self.SparseSlices  class.**
 
-:Authors: **Markus Schwarz**
+:Authors: **Markus Schwarz**, **Lina Valle**
 """
 
 import copy
