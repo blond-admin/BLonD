@@ -66,6 +66,6 @@ def main():
     plt.tight_layout()
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()
     plt.show()

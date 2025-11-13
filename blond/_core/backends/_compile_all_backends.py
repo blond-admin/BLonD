@@ -9,6 +9,7 @@ Typical usage:
     python compile_all_backends.py
 """
 
+# pragma: no cover
 from blond._core.backends.cpp.compile import main_cli as main_cli_cpp
 from blond._core.backends.cuda.compile import main_cli as main_cli_cuda
 from blond._core.backends.fortran.compile import main_cli as main_cli_fortran

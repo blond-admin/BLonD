@@ -631,11 +631,11 @@ class Simulation(Preparable):
 
     def finalize(
         self,
-        beams: tuple[BeamBaseClass],
-        n_turns: int | None,
-        observe: tuple[ObservablesEndOfTurnBase, ...],
-        turn_i_init: int,
-    ) -> None:
+        beams: tuple[BeamBaseClass, ...],
+        n_turns: int | None = None,
+        turn_i_init: int = 0,
+        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
+    ) -> int:
         """Executes `_exec_on_run_simulation` and prepares the observables.
 
         Parameters
@@ -774,7 +774,7 @@ class Simulation(Preparable):
         | Blond2RingAndRFTracker
         | Blond2FullRingAndRF
     ]:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
         from ...physics.cavities import (  # prevent cyclic import
             MultiHarmonicRfStation,
         )
