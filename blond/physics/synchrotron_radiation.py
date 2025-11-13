@@ -5,6 +5,7 @@ Authors
 Simon Lauber
 Lina Valle
 """
+# pragma: no cover
 
 from __future__ import annotations
 
