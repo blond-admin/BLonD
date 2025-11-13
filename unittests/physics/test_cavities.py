@@ -5,7 +5,7 @@ import numpy as np
 from numpy._typing import NDArray as NumpyArray
 from scipy.constants import speed_of_light as c0
 
-from blond import Simulation, StaticProfile, proton
+from blond import Ring, Simulation, StaticProfile, proton
 from blond._core.backends.backend import backend
 from blond._core.base import DynamicParameter
 from blond._core.beam.base import BeamBaseClass
@@ -21,6 +21,11 @@ from blond.physics.cavities import (
     SingleHarmonicRfStation,
 )
 from blond.physics.drifts import _assert_purely_real_or_imaginary
+from blond.physics.impedances.base import WakeField
+from blond.physics.impedances.solvers import (
+    SingleTurnResonatorConvolutionSolver,
+)
+from blond.physics.impedances.sources import Resonators
 
 
 class RfStationBaseClassHelper(RfStationBaseClass):
@@ -33,7 +38,19 @@ class RfStationBaseClassHelper(RfStationBaseClass):
 
 class TestRFStationBaseClass(unittest.TestCase):
     def setUp(self) -> None:
-        pass
+        self.beam = Mock(BeamBaseClass)
+        self.beam.particle_type = proton
+        self.beam.reference_time = 0
+        self.beam.reference_beta = 0.5
+        self.beam.reference_velocity = self.beam.reference_beta * c0
+        self.beam.reference_gamma = np.sqrt(1 - 0.25)  # beta**2
+        self.beam.reference_total_energy = 938
+        self.beam.dE = np.linspace(-1e6, 1e6, 10, dtype=backend.float)  # delta E
+        # in eV
+        self.beam.dt = np.linspace(-1e-6, 1e-6, 10, dtype=backend.float)  # delta t
+        # in s
+        self.beam.read_partial_dt.return_value = self.beam.dt
+        self.beam.write_partial_dE.return_value = self.beam.dE
 
     def test_init_of_feedbacks(self):
         # default init
@@ -81,35 +98,32 @@ class TestRFStationBaseClass(unittest.TestCase):
         mhc_feedbacks.phi_rf = np.array([1])
         mhc_feedbacks.harmonic = np.array([1])
 
-        beam = Mock(BeamBaseClass)
-        beam.particle_type = proton
-        beam.reference_time = 0
-        beam.reference_beta = 0.5
-        beam.reference_velocity = beam.reference_beta * c0
-        beam.reference_gamma = np.sqrt(1 - 0.25)  # beta**2
-        beam.reference_total_energy = 938
-        beam.dE = np.linspace(-1e6, 1e6, 10, dtype=backend.float)  # delta E
-        # in eV
-        beam.dt = np.linspace(-1e-6, 1e-6, 10, dtype=backend.float)  # delta t
-        # in s
-        beam.read_partial_dt.return_value = beam.dt
-        beam.write_partial_dE.return_value = beam.dE
-
         simulation = Mock(Simulation)
         simulation.turn_i = DynamicParameter(1)
         simulation.ring.circumference = 456
         simulation.ring.section_lengths = np.array([simulation.ring.circumference])
 
         mhc_feedbacks.on_init_simulation(simulation=simulation)
-        mhc_feedbacks.on_run_simulation(simulation=simulation, beam=beam, n_turns=100, turn_i_init=0)
+        mhc_feedbacks.on_run_simulation(simulation=simulation, beam=self.beam, n_turns=100, turn_i_init=0)
 
         with self.assertRaises(TypeError):
-            mhc_feedbacks.track(beam=beam)
+            mhc_feedbacks.track(beam=self.beam)
 
             cavity_feedback_good.track.assert_called_once()
 
         info_str = mhc_feedbacks.info_string()
         assert "Feedback" in info_str
+
+    def test_with_wakefields(self):
+        wf = Mock(WakeField)
+        shc = SingleHarmonicRfStation(section_index=0, harmonic=1, voltage=1, phi_rf=1,
+                                      local_wakefield=wf)
+        shc._turn_i = DynamicParameter(0)
+        shc._ring = Mock(Ring)
+        shc._ring.circumference = 456
+        with self.assertRaises(AttributeError):
+            shc.track(beam=self.beam)
+            assert wf.track.assert_called_once()
 
 
 class TestCallables(unittest.TestCase):
