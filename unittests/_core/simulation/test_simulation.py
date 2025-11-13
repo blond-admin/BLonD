@@ -20,6 +20,7 @@ from blond import (
     proton,
 )
 from blond._core.beam.base import BeamBaseClass
+from blond._generals._warnings import PerformanceWarning
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
@@ -27,6 +28,7 @@ from blond.handle_results.observables import (
     BunchObservationMetaParams,
     ObservablesEndOfTurnBase,
 )
+from blond.testing.mocks import beam_mock
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -289,8 +291,14 @@ class TestSimulation(unittest.TestCase):
         )
         self.simulation.run_simulation(**kwargs)
         de_before_save = observation.dEs.copy()
-        self.simulation.save_results(observe=(observation,))
-        self.simulation.load_results(**kwargs)
+        self.simulation.save_results(
+            observe=(observation,),
+            common_name="newname",
+        )
+        self.simulation.load_results(
+            **kwargs,
+            common_name="newname",
+        )
         de_from_disk = observation.dEs.copy()
         np.testing.assert_almost_equal(de_before_save, de_from_disk)
 
@@ -519,6 +527,26 @@ class TestSimulation(unittest.TestCase):
             drift_term + 1,
             atol=0.15,
         )
+
+    def test_finalize_raises(self) -> None:
+        self.simulation.magnetic_cycle._n_turns_max = None
+        with self.assertRaises(ValueError):
+            self.simulation.finalize(
+                beams=beam_mock,
+                n_turns=None,
+                observe=(),
+                turn_i_init=0,
+            )
+
+    def test_finalize_warns(self) -> None:
+        beam_mock.common_array_size = int(1e32)
+        with self.assertWarns(PerformanceWarning):
+            self.simulation.finalize(
+                beams=(beam_mock,),
+                n_turns=None,
+                observe=(),
+                turn_i_init=0,
+            )
 
 
 if __name__ == "__main__":

@@ -18,7 +18,7 @@ class TestBeam(unittest.TestCase):
             dE=np.linspace(1, 10, 10), dt=np.linspace(20, 30, 10)
         )
 
-    def test_setup_beam(self):
+    def test_setup_beam(self) -> None:
         self.beam.setup_beam(
             dE=np.linspace(1, 10, 10),
             dt=np.linspace(20, 30, 10),
@@ -223,7 +223,7 @@ class TestBeam(unittest.TestCase):
         with self.assertRaises(ValueError):
             Beam.plot_hist(beam, axis=10)
 
-    def test_setup_beam(self) -> None:
+    def test_setup_beam2(self) -> None:
         with self.assertRaises(AssertionError):
             self.beam.setup_beam(dE=np.ones(10), dt=np.ones(11))
         with self.assertRaises(AssertionError):
