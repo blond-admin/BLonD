@@ -698,11 +698,11 @@ class StaticProfileObservation(ObservablesEndOfTurnBase):
         if simulation.section_i.value in self._section_indices_to_observe:
             if (
                 self._last_turn_i_observed == simulation.turn_i.value
-                and self._last_section_i_observed == simulation.section_i
+                and self._last_section_i_observed == simulation.section_i.value
             ):
                 return
             self._last_turn_i_observed = simulation.turn_i.value
-            self._last_section_i_observed = simulation.section_i
+            self._last_section_i_observed = simulation.section_i.value
             self._hist_y.write(
                 self._profile._hist_y,
             )
