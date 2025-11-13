@@ -341,8 +341,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         # Correction from cavity loop
         if self._cavity_feedback is not None:
             for feedback in self._cavity_feedback:
-                if feedback is not None:
-                    feedback.track(beam=beam)
+                feedback.track(beam=beam)
 
         if self._local_wakefield is not None:
             self._local_wakefield.track(beam=beam)
