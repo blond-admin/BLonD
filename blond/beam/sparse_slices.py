@@ -281,8 +281,8 @@ class SparseSlices:
         t_rf = self.rf_station.t_rf[0, self.rf_station.counter[0]]
         current_filling_pattern = self.filling_pattern
 
-        filled_bunches_current = np.where(current_filling_pattern)[0]
-        filled_bunches_new = np.where(updated_filling_pattern)[0]
+        filled_bunches_current = np.where(current_filling_pattern != 0)[0]
+        filled_bunches_new = np.where(updated_filling_pattern != 0)[0]
         additional_filled_buckets = len(filled_bunches_new) - len(
             filled_bunches_current
         )
