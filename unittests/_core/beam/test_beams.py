@@ -161,6 +161,14 @@ class TestBeam(unittest.TestCase):
         Beam.plot_hist2d(beam)
         plt.gcf().clf()
 
+
+    def test_plot_scatter_raises(self) -> None:
+        beam = Mock(Beam)
+        beam._dE = None
+        beam._dt = None
+        with self.assertRaises(ValueError):
+            Beam.plot_scatter(beam)
+
     def test_plot_scatter_executes_cpu(self) -> None:
         beam = Mock(Beam)
         beam._dE = np.ones(10)
@@ -179,6 +187,14 @@ class TestBeam(unittest.TestCase):
         Beam.plot_scatter(beam)
         plt.gcf().clf()
 
+
+    def test_plot_hist_raises(self) -> None:
+        beam = Mock(Beam)
+        beam._dE = None
+        beam._dt = None
+        with self.assertRaises(ValueError):
+            Beam.plot_hist(beam, axis=1)
+
     def test_plot_hist_executes_gpu(self) -> None:
         try:
             import cupy as cp  # type: ignore
@@ -192,6 +208,12 @@ class TestBeam(unittest.TestCase):
             plt.gcf().clf()
         with self.assertRaises(ValueError):
             Beam.plot_hist(beam, axis=10)
+
+    def test_plot_hist_executes_kwargs(self) -> None:
+        beam = Mock(Beam)
+        beam._dE = np.ones(10)
+        beam._dt = np.ones(10)
+        Beam.plot_hist(beam, axis=0, bins=12)
 
     def test_plot_hist_executes_cpu(self) -> None:
         beam = Mock(Beam)
