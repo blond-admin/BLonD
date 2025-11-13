@@ -112,7 +112,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         n_rf: int,
         section_index: int,
         local_wakefield: WakeField | None,
-        cavity_feedback: LocalFeedback | None,
+        cavity_feedback: tuple[LocalFeedback, ...] | None,
         beam_feedback: Blond2BeamFeedback | None,
         name: str | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
@@ -128,10 +128,13 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         )
         if cavity_feedback is None:
             pass
-        elif isinstance(cavity_feedback, LocalFeedback):
-            cavity_feedback.set_parent_cavity(cavity=self)
         else:
-            raise ValueError(cavity_feedback)
+            for feedback in cavity_feedback:
+                if isinstance(feedback, LocalFeedback):
+                    pass  # TODO: fix, currently, one cannot setup the cavity without setting up the RF station first and vice versa
+                    # cavity_feedback.set_parent_cavity(cavity=self)
+                else:
+                    raise ValueError(cavity_feedback)
 
         if beam_feedback is None:
             pass
@@ -141,7 +144,9 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
             raise ValueError(beam_feedback)
         self._n_rf = n_rf
         self._local_wakefield = local_wakefield
-        self._cavity_feedback = cavity_feedback
+        self._cavity_feedback: tuple[LocalFeedback, ...] | None = (
+            cavity_feedback
+        )
         self._beam_feedback = beam_feedback
 
         self._magnetic_cycle: MagneticCycleBase | None = None
@@ -285,6 +290,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         if self._beam_feedback is not None and (
             self._turn_i.value >= self._beam_feedback.delay
         ):  # TODO incorrect for simulations that start later
+            self._beam_feedback.track(beam=beam)
             # domega_rf is updated later
             # this means domega_rf is effectively from last turn
             assert self.harmonic is not None
@@ -828,6 +834,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         circumference: float,
         total_energy: float,
         main_harmonic_idx: float,
+        reference_beta: float,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
         beam_feedback: Blond2BeamFeedback | None = None,
@@ -894,6 +901,9 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             beam=Mock(BeamBaseClass),
             main_harmonic_idx=main_harmonic_idx,
         )
+        beam = Mock(BeamBaseClass)
+        beam.reference_beta = reference_beta
+        mhc._update_beam_based_attributes(beam)
         return mhc
 
     def track(self, beam: BeamBaseClass) -> None:
