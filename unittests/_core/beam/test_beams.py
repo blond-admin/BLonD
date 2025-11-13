@@ -20,7 +20,8 @@ class TestBeam(unittest.TestCase):
 
     def test_setup_beam(self):
         self.beam.setup_beam(
-            dE=np.linspace(1, 10, 10), dt=np.linspace(20, 30, 10),
+            dE=np.linspace(1, 10, 10),
+            dt=np.linspace(20, 30, 10),
             reference_time=11,
             reference_total_energy=1e12,
         )
@@ -135,18 +136,16 @@ class TestBeam(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.beam.plot_hist2d()
 
-
     def test_plot_hist2d_executes(self) -> None:
         self.beam.plot_hist2d()
         plt.gcf().clf()
 
-
     def test_plot_hist2d_executes_kwargs1(self) -> None:
         self.beam.plot_hist2d(cmap="viridis")
 
-
     def test_plot_hist2d_executes_kwargs2(self) -> None:
         self.beam.plot_hist2d(bins=12)
+
     def test_plot_hist(self):
         self.beam.plot_hist()
         plt.gcf().clf()
@@ -162,14 +161,12 @@ class TestBeam(unittest.TestCase):
         Beam.plot_hist2d(beam)
         plt.gcf().clf()
 
-
     def test_plot_scatter_executes_cpu(self) -> None:
         beam = Mock(Beam)
         beam._dE = np.ones(10)
         beam._dt = np.ones(10)
         Beam.plot_scatter(beam)
         plt.gcf().clf()
-
 
     def test_plot_scatter_executes_gpu(self) -> None:
         try:
