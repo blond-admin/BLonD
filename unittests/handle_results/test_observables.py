@@ -157,6 +157,16 @@ class TestObservables(unittest.TestCase):
         self.observables.rename(orig_name + "_2")
         assert self.observables.common_name == orig_name + "_2"
 
+    def test_assert_lateinit_fail(self) -> None:
+        obs_helper = ObservablesHelper(obs_per_turn=1, each_turn_i=0)
+
+        obs_helper.dummy_value = None
+
+        with self.assertRaises(AssertionError):
+            obs_helper.get_recorders()
+        with self.assertRaises(AssertionError):
+            obs_helper.assert_lateinit()
+
     def test_on_run_simulation_warnings(self):
         self.observables.on_init_simulation(
             simulation=simulation,
