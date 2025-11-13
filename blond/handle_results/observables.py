@@ -54,7 +54,7 @@ class ObservablesBaseClass(MainLoopRelevant):
 
         """
         for _attribute_name, instance in self.get_recorders():
-            if self.common_name not in instance.filepath:
+            if common_name not in instance.filepath:
                 raise NameError(
                     f"'{instance.filepath} does not include"
                     f" {self.common_name}' anymore. This might be caused"

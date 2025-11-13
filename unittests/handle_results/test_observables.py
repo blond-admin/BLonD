@@ -7,6 +7,7 @@ import numpy as np
 from blond import Simulation, SingleHarmonicRfStation, StaticProfile, WakeField
 from blond._core.base import DynamicParameter
 from blond._core.beam.base import BeamBaseClass
+from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
     BeamObservationEndOfTurn,
@@ -122,6 +123,39 @@ class TestObservables(unittest.TestCase):
         assert np.all(np.where(np.diff(self.observables._turns_array) <= 0) == np.array([]))  # monotonic increase
         assert np.isclose(np.mean(np.diff(self.observables._turns_array)), 0.5)
         assert np.all(self.observables._section_indices_to_observe == np.array([0, 1]))  # only first one is selected
+
+    def test_rename(self) -> None:
+        self.observables = ObservablesHelper(
+            each_turn_i=1,
+            folder=callers_relative_path("results/", stacklevel=1),
+        )
+
+        self.observables.on_init_simulation(
+            simulation=simulation,
+        )
+        self.observables.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            turn_i_init=0,
+            n_turns=100,
+            obs_per_turn=1,
+        )
+
+        # without recorders, should run through
+        orig_name = self.observables.common_name
+        self.observables.rename(orig_name + "_1")
+        assert self.observables.common_name == orig_name + "_1"
+
+        self.observables._example_densr_arr_rec = DenseArrayRecorder(f"{orig_name}_1_example_densr_arr_rec", (1, 1))
+        recorders = self.observables.get_recorders()
+        assert len(recorders) == 1
+
+        print(recorders[0][1].filepath)
+        with self.assertRaises(NameError):
+            self.observables.rename("Nah")
+        recorders[0][1].filepath = orig_name + "_2"
+        self.observables.rename(orig_name + "_2")
+        assert self.observables.common_name == orig_name + "_2"
 
     def test_on_run_simulation_warnings(self):
         self.observables.on_init_simulation(
