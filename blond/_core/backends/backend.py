@@ -215,6 +215,7 @@ class BackendBaseClass(ABC):
         self.square: Callable = None  # type: ignore
         self.mean: Callable = None  # type: ignore
         self.arange: Callable = None  # type: ignore
+        self.average: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -391,6 +392,7 @@ class NumpyBackend(BackendBaseClass):
         self.square = np.square
         self.mean = np.mean
         self.arange = np.arange
+        self.average = np.average
 
         self._finalize()
 
@@ -510,6 +512,7 @@ class CupyBackend(BackendBaseClass):
         self.square = cp.square
         self.mean = cp.mean
         self.arange = cp.arange
+        self.average = cp.average
 
         from .cuda.callables import CudaSpecials
 
