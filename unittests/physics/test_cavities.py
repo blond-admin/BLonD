@@ -103,9 +103,10 @@ class TestRFStationBaseClass(unittest.TestCase):
         mhc_feedbacks.on_init_simulation(simulation=simulation)
         mhc_feedbacks.on_run_simulation(simulation=simulation, beam=beam, n_turns=100, turn_i_init=0)
 
-        super(MultiHarmonicRfStation, mhc_feedbacks).track(beam=beam)
+        with self.assertRaises(TypeError):
+            mhc_feedbacks.track(beam=beam)
 
-        cavity_feedback_good.track.assert_called_once()
+            cavity_feedback_good.track.assert_called_once()
 
         info_str = mhc_feedbacks.info_string()
         assert "Feedback" in info_str
