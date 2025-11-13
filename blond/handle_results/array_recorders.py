@@ -86,6 +86,7 @@ class DenseArrayRecorder(ArrayRecorder):
         if not self.overwrite and os.path.exists(self.filepath_array):
             warnings.warn(
                 f"{self.filepath_array} already exists!",
+                UserWarning,
                 stacklevel=1,
             )
 
