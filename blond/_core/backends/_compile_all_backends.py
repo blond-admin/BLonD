@@ -14,7 +14,7 @@ from blond._core.backends.cuda.compile import main_cli as main_cli_cuda
 from blond._core.backends.fortran.compile import main_cli as main_cli_fortran
 
 
-def main():
+def main():  # pragma: no cover `main_cli_xxx` gets executed anyway by CI/CD  pipeline
     """Compile all BLonD backends sequentially.
 
     This function invokes the command-line compilation interfaces for
@@ -27,5 +27,5 @@ def main():
     main_cli_cpp()
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()

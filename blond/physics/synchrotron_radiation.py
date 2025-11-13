@@ -19,7 +19,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
 
-class SynchrotronRadiation(BeamPhysicsRelevant):
+class SynchrotronRadiation(BeamPhysicsRelevant):  # pragma: no cover
     """Synchrotron radiation module.
 
     Parameters
@@ -36,6 +36,7 @@ class SynchrotronRadiation(BeamPhysicsRelevant):
             name=name,
         )
         raise NotImplementedError("For Lina")
+        # TODO remove # pragma: no cover if implemented
         self._simulation: DriftSimple | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
