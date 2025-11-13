@@ -175,10 +175,32 @@ class TestSimulation(unittest.TestCase):
     def test_magnetic_cycle(self):
         self.assertNotEqual(None, self.simulation.magnetic_cycle)
 
-    @unittest.skip("Testet in setUp")
     def test_from_locals(self):
-        # self.simulation.from_locals(locals=None)
-        pass
+        from blond.testing.mocks import (
+            cycle_const_mock,  # NOQA required for locals()
+        )
+        from blond.testing.mocks import (
+            drift_simple_mock,
+            single_harmonic_rf_station_mock,
+            static_profile_mock,
+            wakefield_profile_mock,
+        )
+
+        assert not hasattr(drift_simple_mock, "skip_find_instances_attributes")
+        drift_simple_mock.section_index = 0
+        drift_simple_mock.info_string.return_value = "drift_simple_mock"
+        static_profile_mock.section_index = 0
+        static_profile_mock.info_string.return_value = "static_profile_mock"
+        wakefield_profile_mock.section_index = 0
+        wakefield_profile_mock.info_string.return_value = (
+            "wakefield_profile_mock"
+        )
+        single_harmonic_rf_station_mock.section_index = 0
+        single_harmonic_rf_station_mock.info_string.return_value = (
+            "single_harmonic_rf_station_mock"
+        )
+        ring = Ring(circumference=12)
+        self.simulation.from_locals(locals=locals(), verbose=True)
 
     @unittest.skip
     def test_get_legacy_map(self):
@@ -197,7 +219,6 @@ class TestSimulation(unittest.TestCase):
 
     def test_get_potential_well_empiric(self):
         from blond.testing.simulation import SimulationTwoRfStations
-
 
         sim = SimulationTwoRfStations()
         ts = np.linspace(-2e-9, 2e-9, 100)
@@ -223,7 +244,7 @@ class TestSimulation(unittest.TestCase):
         if SAVE_PINNED:
             np.savetxt(
                 callers_relative_path(
-                    f"resources/potential_well_{bits}.csv",stacklevel=1
+                    f"resources/potential_well_{bits}.csv", stacklevel=1
                 ),
                 potential_well,
             )
