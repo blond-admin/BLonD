@@ -130,9 +130,23 @@ class TestBeam(unittest.TestCase):
         )
 
     def test_plot_hist2d_executes(self) -> None:
+        self.beam._dt = None
+        self.beam._dE = None
+        with self.assertRaises(ValueError):
+            self.beam.plot_hist2d()
+
+
+    def test_plot_hist2d_executes(self) -> None:
         self.beam.plot_hist2d()
         plt.gcf().clf()
 
+
+    def test_plot_hist2d_executes_kwargs1(self) -> None:
+        self.beam.plot_hist2d(cmap="viridis")
+
+
+    def test_plot_hist2d_executes_kwargs2(self) -> None:
+        self.beam.plot_hist2d(bins=12)
     def test_plot_hist(self):
         self.beam.plot_hist()
         plt.gcf().clf()
