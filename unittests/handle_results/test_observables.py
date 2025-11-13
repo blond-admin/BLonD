@@ -313,6 +313,7 @@ class TestStaticProfileObservation(unittest.TestCase):
             n_turns=100,
         )
         self.static_profile_observation._section_indices_to_observe = np.array([0])
+        simulation.section_i.value = 0
         self.static_profile_observation.update(simulation=simulation)
 
         prof = deepcopy(self.static_profile_observation)
