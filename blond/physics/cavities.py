@@ -290,7 +290,6 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         if self._beam_feedback is not None and (
             self._turn_i.value >= self._beam_feedback.delay
         ):  # TODO incorrect for simulations that start later
-            self._beam_feedback.track(beam=beam)
             # domega_rf is updated later
             # this means domega_rf is effectively from last turn
             assert self.harmonic is not None
