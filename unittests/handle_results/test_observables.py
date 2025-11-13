@@ -142,20 +142,20 @@ class TestObservables(unittest.TestCase):
         )
 
         # without recorders, should run through
-        orig_name = self.observables.common_name
+        orig_name = self.observables.common_filepath
         self.observables.rename(orig_name + "_1")
-        assert self.observables.common_name == orig_name + "_1"
+        assert self.observables.common_filepath == orig_name + "_1"
 
         self.observables._example_densr_arr_rec = DenseArrayRecorder(f"{orig_name}_1_example_densr_arr_rec", (1, 1))
         recorders = self.observables.get_recorders()
         assert len(recorders) == 1
 
-        print(recorders[0][1].filepath)
+        recorders[0][1].filepath = "Notsame"
         with self.assertRaises(NameError):
-            self.observables.rename("Nah")
-        recorders[0][1].filepath = orig_name + "_2"
+            self.observables.rename("")
+        recorders[0][1].filepath = orig_name + "_1"
         self.observables.rename(orig_name + "_2")
-        assert self.observables.common_name == orig_name + "_2"
+        assert self.observables.common_filepath == orig_name + "_2"
 
     def test_assert_lateinit_fail(self) -> None:
         obs_helper = ObservablesHelper(obs_per_turn=1, each_turn_i=0)
@@ -443,12 +443,21 @@ class TestStaticMultiProfileObservation(unittest.TestCase):
             obs_per_turn=2,
             n_turns=100,
         )
+        simulation.section_i.value = 0
+        simulation.turn_i.value = 0
         self.static_multi_profile_observation.update(
             simulation=simulation,
         )
+        print(self.static_multi_profile_observation.hist_y)
         self.static_multi_profile_observation.to_disk()
 
         self.static_multi_profile_observation.from_disk()
+
+        out = self.static_multi_profile_observation.hist_y
+        print(out)
+        print(self.profile_2.hist_y)
+
+        np.testing.assert_allclose(out, self.profile_2._hist_y)
 
 
 if __name__ == "__main__":

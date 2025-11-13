@@ -959,7 +959,7 @@ class Simulation(Preparable):
         """
         for observable in observe:
             if common_name is not None:
-                observable.rename(common_name=common_name)
+                observable.rename(new_common_filepath=common_name)
             observable.to_disk()
 
     def load_results(
@@ -995,5 +995,5 @@ class Simulation(Preparable):
         )
         for observable in observe:
             if common_name is not None:
-                observable.rename(common_name=common_name)
+                observable.rename(new_common_filepath=common_name)
             observable.from_disk()
