@@ -76,19 +76,19 @@ class SparseSlices:
         bucket_margin: int = 0,
         direct_slicing: bool = False,
     ):
+        if (len(filling_pattern) > rf_station.harmonic).any():
+            raise ValueError(
+                f"The length of filling_pattern does not match exceeds "
+                f"the number of RF buckets"
+            )
+
         if (len(filling_pattern) != rf_station.harmonic).any():
-            if (len(filling_pattern) > rf_station.harmonic).any():
-                raise ValueError(
-                    f"The length of filling_pattern does not match exceeds "
-                    f"the number of RF buckets"
-                )
-            else:
-                warnings.warn(
-                    f"The filling pattern is shorter than the "
-                    f"total number of RF buckets.",
-                    UserWarning,
-                    stacklevel=2,
-                )
+            warnings.warn(
+                f"The filling pattern is shorter than the "
+                f"total number of RF buckets.",
+                UserWarning,
+                stacklevel=2,
+            )
             #: *Import (reference) Beam*
         self.beam = beam
         self.energy = self.beam.energy
