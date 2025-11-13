@@ -287,7 +287,7 @@ class SparseSlices:
             filled_bunches_current
         )
 
-        mask_additional_bunch = copy.deepcopy(current_filling_pattern)
+        mask_additional_bunch = current_filling_pattern.copy()
         for i in filled_bunches_new:
             if current_filling_pattern[i] == 0:
                 mask_additional_bunch[i] = 1
