@@ -116,6 +116,7 @@ class TestFunctions(unittest.TestCase):
         found = find_instances_with_method(
             root=test2, method_name="to_be_found"
         )
+        self.assertEqual(len(found), 1)
         self.assertEqual(found.pop(), test1)
 
     @unittest.skip
