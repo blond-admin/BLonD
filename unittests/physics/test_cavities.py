@@ -71,6 +71,7 @@ class TestRFStationBaseClass(unittest.TestCase):
         #                                       phi_rf=np.array([1]), main_harmonic_idx=0, circumference=1,
         #                                       total_energy=1, reference_beta=1)
         cavity_feedback_good = Mock(SPSOneTurnFeedback) # profile=prof, _parent_cavity=mhc, n_sections=3)
+        cavity_feedback_good.info_string.return_value = "Unnamed-LocalFeedback-000"
 
         # TODO: remove this, once cavity feedback setup is fixed
         mhc_feedbacks = MultiHarmonicRfStation(section_index=1, local_wakefield=None, main_harmonic_idx=0, n_harmonics=1,
@@ -106,6 +107,10 @@ class TestRFStationBaseClass(unittest.TestCase):
 
         beam_feedback_good.track.assert_called_once()
         cavity_feedback_good.track.assert_called_once()
+
+        info_str = mhc_feedbacks.info_string()
+        print(info_str)
+        assert "Feedback" in info_str
 
 
 class TestCallables(unittest.TestCase):
@@ -300,6 +305,13 @@ class TestSingleHarmonicCavity(unittest.TestCase):
                 simulation=simulation
             )
 
+    def test_voltage_waveform_tmp(self):
+        simulation = Mock(Simulation)
+        simulation.turn_i = DynamicParameter(0)
+
+        time_array = np.array([1, 2, 3])
+        volt_calc = self.single_harmonic_cavity.voltage_waveform_tmp(time_array)
+        assert len(volt_calc) == len(time_array)
 
 if __name__ == "__main__":
     unittest.main()

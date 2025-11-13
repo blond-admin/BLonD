@@ -12,7 +12,7 @@ from matplotlib import pyplot as plt
 from scipy.constants import c, e
 from scipy.fft import next_fast_len
 
-from blond import Simulation, WakeField, mu_plus
+from blond import Simulation, SingleHarmonicRfStation, WakeField, mu_plus
 from blond._core.beam.base import BeamBaseClass
 from blond.physics.impedances.solvers import (
     InductiveImpedance,
@@ -728,6 +728,13 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.beam.particle_type.charge = 1
         self.beam.n_macroparticles_partial.return_value = int(1e2)
         self.beam.reference_time = 2e-5
+
+    def test_info_string_with_RF_station(self):
+        shc = SingleHarmonicRfStation(section_index=0, harmonic=1, voltage=1, phi_rf=1,
+                                      local_wakefield=WakeField(profile=StaticProfile.from_cutoff(0, 1e-9, 3e9),
+                                                                sources=(self.resonators,),
+                                                                solver=self.multi_pass_resonator_solver))
+        assert "WakeField" in shc.info_string()
 
     def test_determine_storage_time_single_res(self):
         simulation = Mock(Simulation)
