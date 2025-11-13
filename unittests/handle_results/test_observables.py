@@ -1,6 +1,6 @@
 import unittest
 from copy import deepcopy
-from unittest.mock import Mock
+from unittest.mock import Mock, PropertyMock, patch
 
 import numpy as np
 
@@ -18,6 +18,10 @@ from blond.handle_results.observables import (
     StaticProfileObservation,
     WakeFieldObservation,
 )
+from blond.physics.impedances.solvers import (
+    SingleTurnResonatorConvolutionSolver,
+)
+from blond.physics.impedances.sources import Resonators
 from blond.physics.profiles import DynamicProfileConstNBins
 
 simulation = Mock(
@@ -319,7 +323,7 @@ class TestStaticProfileObservation(unittest.TestCase):
     def setUp(self) -> None:
         profile = Mock(StaticProfile)
         profile.n_bins = 12
-        profile._hist_y = np.ones(profile.n_bins, dtype=float)
+        type(profile).hist_y = PropertyMock(return_value=np.ones(profile.n_bins, dtype=float))
 
         self.static_profile_observation = StaticProfileObservation(
             each_turn_i=1,
@@ -367,29 +371,28 @@ class TestStaticProfileObservation(unittest.TestCase):
         simulation.section_i.value = 0
         self.static_profile_observation.update(simulation=simulation)
 
-        prof = deepcopy(self.static_profile_observation)
-        before_len = len(prof.hist_y)
-        prof._profile._hist_y += 1
-        prof.update(simulation=simulation)
+        prof_obs = deepcopy(self.static_profile_observation)
+        before_len = len(prof_obs.hist_y)
+        prof_obs.update(simulation=simulation)
 
         assert (
-            len(prof.hist_y) == before_len
+            len(prof_obs.hist_y) == before_len
         )  # no update since we already had this turn
 
 
 class TestWakeFieldObservation(unittest.TestCase):
     def setUp(self) -> None:
-        wakefield = Mock(WakeField)
-        wakefield._profile = Mock(StaticProfile)
-        wakefield._profile.n_bins = 12
+        self.wakefield = Mock(WakeField)
+        self.wakefield._profile = Mock(StaticProfile)
+        self.wakefield._profile.n_bins = 12
         self.wake_field_observation = WakeFieldObservation(
             each_turn_i=1,
-            wakefield=wakefield,
+            wakefield=self.wakefield,
             folder=callers_relative_path("results/", stacklevel=1),
         )
-        wakefield.induced_voltage = np.ones(
-            wakefield._profile.n_bins, dtype=float
-        )
+        type(self.wakefield).induced_voltage = PropertyMock(return_value=np.ones(
+            self.wakefield._profile.n_bins, dtype=float
+        ))
 
     def test___init__(self) -> None:
         self.wake_field_observation = WakeFieldObservation(
@@ -397,6 +400,22 @@ class TestWakeFieldObservation(unittest.TestCase):
             wakefield=Mock(WakeField),
             folder=callers_relative_path("results/", stacklevel=1),
         )
+
+    def test_error_in_aquisition(self) -> None:
+        prof = StaticProfile.from_cutoff(0, 1e-9, 3e9)
+        wf = WakeField(section_index=0, profile=prof, sources=Mock(Resonators), solver=Mock(SingleTurnResonatorConvolutionSolver))
+        wf_obs = WakeFieldObservation(wakefield=wf, folder=callers_relative_path("results/", stacklevel=1), each_turn_i=1, obs_per_turn=2)
+
+        wf_obs.on_init_simulation(simulation=simulation)
+        wf_obs.on_run_simulation(simulation=simulation, beam=beam, turn_i_init=0, n_turns=100)
+
+        orig_save = type(wf).induced_voltage
+        type(wf).induced_voltage = PropertyMock(side_effect=AttributeError("boom"))
+
+        simulation.section_i.value = 0
+        wf_obs.update(simulation=simulation)
+
+        type(wf).induced_voltage = orig_save
 
     def test_from_disk(self) -> None:
         self.wake_field_observation.on_init_simulation(
@@ -408,23 +427,27 @@ class TestWakeFieldObservation(unittest.TestCase):
             turn_i_init=0,
             n_turns=100,
         )
+        simulation.section_i.value = 0
         self.wake_field_observation.update(
             simulation=simulation,
         )
         self.wake_field_observation.to_disk()
         self.wake_field_observation.from_disk()
 
+        assert len(self.wake_field_observation.induced_voltage[0]) == self.wakefield.induced_voltage.shape[0]
+        np.testing.assert_allclose(
+            self.wake_field_observation.induced_voltage[0], self.wakefield.induced_voltage)
 
 class TestDynamicProfileConstNBinsObservation(unittest.TestCase):
     def setUp(self) -> None:
-        profile = Mock(DynamicProfileConstNBins)
-        profile.n_bins = 12
-        profile._hist_y = np.ones(profile.n_bins, dtype=float)
-        profile._hist_x = np.arange(profile.n_bins, dtype=float)
+        self.profile = Mock(DynamicProfileConstNBins)
+        self.profile.n_bins = 12
+        type(self.profile).hist_y = PropertyMock(return_value=np.ones(self.profile.n_bins, dtype=float))
+        type(self.profile).hist_x = PropertyMock(return_value=np.arange(self.profile.n_bins, dtype=float))
 
         self.dynamic_profile_observation = DynamicProfileConstNBinsObservation(
             each_turn_i=1,
-            profile=profile,
+            profile=self.profile,
             folder=callers_relative_path("results/", stacklevel=1),
         )
 
@@ -452,17 +475,27 @@ class TestDynamicProfileConstNBinsObservation(unittest.TestCase):
 
         self.dynamic_profile_observation.from_disk()
 
+        assert len(
+            self.dynamic_profile_observation.hist_y) == 1
+        assert len(self.dynamic_profile_observation.hist_x) == 1
+        assert len(
+            self.dynamic_profile_observation.hist_y[0]) == self.profile.n_bins
+        assert len(
+            self.dynamic_profile_observation.hist_x[0]) == self.profile.n_bins
+        np.testing.assert_allclose(self.profile.hist_y, self.dynamic_profile_observation.hist_y[0])
+        np.testing.assert_allclose(self.profile.hist_x, self.dynamic_profile_observation.hist_x[0])
+
 
 class TestStaticMultiProfileObservation(unittest.TestCase):
     def setUp(self) -> None:
         self.profile = Mock(StaticProfile)
         self.profile.n_bins = 12
-        self.profile.hist_y = np.ones(self.profile.n_bins, dtype=float)
+        type(self.profile).hist_y = PropertyMock(return_value=np.ones(self.profile.n_bins, dtype=float))
         self.profile.section_index = 0
 
         self.profile_2 = Mock(StaticProfile)
         self.profile_2.n_bins = 12
-        self.profile_2.hist_y = np.ones(self.profile_2.n_bins, dtype=float) * 2
+        type(self.profile_2).hist_y = PropertyMock(return_value=np.ones(self.profile_2.n_bins, dtype=float) * 2)
         self.profile_2.section_index = 1
 
         self.static_multi_profile_observation = StaticMultiProfileObservation(
@@ -515,6 +548,13 @@ class TestStaticMultiProfileObservation(unittest.TestCase):
         assert len(self.static_multi_profile_observation.hist_y) == 1
 
         simulation.section_i.value = 1
+        self.static_multi_profile_observation.update(
+            simulation=simulation,
+        )
+        assert len(self.static_multi_profile_observation.hist_y) == 2
+        np.testing.assert_allclose(self.static_multi_profile_observation.hist_y[1], self.profile_2.hist_y)
+
+        # no update if we repeat
         self.static_multi_profile_observation.update(
             simulation=simulation,
         )

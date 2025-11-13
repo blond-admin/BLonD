@@ -600,6 +600,7 @@ class CavityPhaseObservation(ObservablesEndOfTurnBase):
             None
             if self._cavity._omega_rf is None
             else (self._cavity._omega_rf + self._cavity.delta_omega_rf)
+            # TODO: should be property call instead of private member
         )
         self._voltages.write(
             self._cavity.voltage,
@@ -708,7 +709,7 @@ class StaticProfileObservation(ObservablesEndOfTurnBase):
             self._last_turn_i_observed = simulation.turn_i.value
             self._last_section_i_observed = simulation.section_i.value
             self._hist_y.write(
-                self._profile._hist_y,
+                self._profile.hist_y,
             )
         # else return without recording
 
@@ -989,8 +990,8 @@ class DynamicProfileConstNBinsObservation(ObservablesEndOfTurnBase):
         simulation
             Simulation context manager
         """
-        self._hist_y.write(self._profile._hist_y)
-        self._hist_x.write(self._profile._hist_x)
+        self._hist_y.write(self._profile.hist_y)
+        self._hist_x.write(self._profile.hist_x)
 
     @property  # as readonly attributes
     def hist_y(self):
