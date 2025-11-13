@@ -804,7 +804,6 @@ class StaticMultiProfileObservation(ObservablesEndOfTurnBase):
             self._last_turn_i_observed == simulation.turn_i.value
             and self._last_section_i_observed == simulation.section_i.value
         ):
-            print("return")
             return
         self._last_turn_i_observed = simulation.turn_i.value
         self._last_section_i_observed = simulation.section_i.value

@@ -457,11 +457,13 @@ class TestStaticMultiProfileObservation(unittest.TestCase):
     def setUp(self) -> None:
         self.profile = Mock(StaticProfile)
         self.profile.n_bins = 12
-        self.profile._hist_y = np.ones(self.profile.n_bins, dtype=float)
+        self.profile.hist_y = np.ones(self.profile.n_bins, dtype=float)
+        self.profile.section_index = 0
 
         self.profile_2 = Mock(StaticProfile)
         self.profile_2.n_bins = 12
-        self.profile_2._hist_y = np.ones(self.profile_2.n_bins, dtype=float)
+        self.profile_2.hist_y = np.ones(self.profile_2.n_bins, dtype=float) * 2
+        self.profile_2.section_index = 1
 
         self.static_multi_profile_observation = StaticMultiProfileObservation(
             each_turn_i=1,
@@ -504,16 +506,20 @@ class TestStaticMultiProfileObservation(unittest.TestCase):
         self.static_multi_profile_observation.update(
             simulation=simulation,
         )
-        print(self.static_multi_profile_observation.hist_y)
+
         self.static_multi_profile_observation.to_disk()
 
         self.static_multi_profile_observation.from_disk()
 
-        out = self.static_multi_profile_observation.hist_y
-        print(out)
-        print(self.profile_2.hist_y)
+        np.testing.assert_allclose(self.static_multi_profile_observation.hist_y[0], self.profile.hist_y)
+        assert len(self.static_multi_profile_observation.hist_y) == 1
 
-        np.testing.assert_allclose(out, self.profile_2._hist_y)
+        simulation.section_i.value = 1
+        self.static_multi_profile_observation.update(
+            simulation=simulation,
+        )
+        assert len(self.static_multi_profile_observation.hist_y) == 2
+        np.testing.assert_allclose(self.static_multi_profile_observation.hist_y[1], self.profile_2.hist_y)
 
 
 if __name__ == "__main__":
