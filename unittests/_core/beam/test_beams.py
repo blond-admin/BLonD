@@ -18,6 +18,15 @@ class TestBeam(unittest.TestCase):
             dE=np.linspace(1, 10, 10), dt=np.linspace(20, 30, 10)
         )
 
+    def test_setup_beam(self):
+        self.beam.setup_beam(
+            dE=np.linspace(1, 10, 10), dt=np.linspace(20, 30, 10),
+            reference_time=11,
+            reference_total_energy=1e12,
+        )
+        self.assertEqual(self.beam.reference_time, 11.0)
+        self.assertEqual(self.beam.reference_total_energy, 1e12)
+
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
