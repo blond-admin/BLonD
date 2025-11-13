@@ -136,6 +136,21 @@ class TestFunctions(unittest.TestCase):
                 dependency_attribute="on_init_simulation.requires",
             )
 
+    def test_get_dependencies_raise2(self) -> None:
+        class A:
+            pass
+
+        class B:
+            @requires("A")
+            def on_init_simulation(self):
+                return
+
+        with self.assertRaises(NotImplementedError):
+            get_dependencies(
+                cls_=B,
+                dependency_attribute="on_init_simulation.requires.second_dot_here",
+            )
+
     def test_get_dependencies2(self) -> None:
         class A:
             pass
