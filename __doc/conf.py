@@ -39,7 +39,7 @@ os.environ["SPHINX_SHOW_WARNING_TYPES"] = "1"  # force categories in output
 folder = os.path.abspath("modules")
 sys.path.insert(0, folder)
 extensions = [
-    # "sphinx.ext.autodoc",
+    "sphinx.ext.autodoc",
     # "sphinx.ext.autosummary",
     #    "sphinx.ext.doctest",
     #    "sphinx.ext.intersphinx",
@@ -230,8 +230,8 @@ rst_prolog = """
 
 suppress_warnings = [
     "autodoc.duplicate_object",
-    "toc.excluded",
-    "ref.python",
+    # "toc.excluded",
+    # "ref.python",
     "docutils",
     "python.duplicate_object",
 ]  # remove warning for multiple mentions of the same item
@@ -241,6 +241,8 @@ html_css_files = ["css/wide.css"]
 autodoc_default_options = {
     # Avoid pulling in names that are only imported into __init__.py
     "imported-members": False,
+    "module-first": False,
+    "show-inheritance": True
 }
 
 show_warning_types = True

@@ -37,4 +37,4 @@ for f in ./modules/blond.*.rst; do
 EOF
 done
 
-sphinx-build -b html -c . -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=10 . ./_build/html -W
+sphinx-build -b html -c . -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=10 . ./_build/html

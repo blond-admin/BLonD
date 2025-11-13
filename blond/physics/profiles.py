@@ -558,3 +558,6 @@ class DynamicProfileConstNBins(DynamicProfile):
         self._hist_x, self._hist_y = ProfileBaseClass.get_arrays(
             cut_left=cut_left, cut_right=cut_right, n_bins=self.n_bins
         )
+
+
+StaticProfile.__module__ = "blond.physics.profiles"

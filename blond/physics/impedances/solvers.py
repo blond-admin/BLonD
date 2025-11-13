@@ -20,17 +20,18 @@ import numpy as np
 from scipy.constants import elementary_charge as e
 from scipy.fft import next_fast_len
 
+from blond.physics.profiles import (
+    DynamicProfileConstCutoff,
+    DynamicProfileConstNBins,
+    StaticProfile,
+)
+
 from ..._core.backends.backend import backend
 from ..._core.base import DynamicParameter
 from ..._core.beam.base import BeamBaseClass
 from ..._core.ring.helpers import requires
 from ..._core.simulation.simulation import Simulation
 from ..._generals._warnings import NotTestedWarning
-from ..profiles import (
-    DynamicProfileConstCutoff,
-    DynamicProfileConstNBins,
-    StaticProfile,
-)
 from .base import FreqDomain, TimeDomain, WakeField, WakeFieldSolver
 from .sources import InductiveImpedance, Resonators
 
