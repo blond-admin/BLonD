@@ -161,7 +161,6 @@ class TestBeam(unittest.TestCase):
         Beam.plot_hist2d(beam)
         plt.gcf().clf()
 
-
     def test_plot_scatter_raises(self) -> None:
         beam = Mock(Beam)
         beam._dE = None
@@ -186,7 +185,6 @@ class TestBeam(unittest.TestCase):
         beam._dt = cp.ones(10)
         Beam.plot_scatter(beam)
         plt.gcf().clf()
-
 
     def test_plot_hist_raises(self) -> None:
         beam = Mock(Beam)
@@ -237,6 +235,18 @@ class TestBeam(unittest.TestCase):
 class TestProbeBunch(unittest.TestCase):
     def setUp(self) -> None:
         self.probe_bunch = ProbeBeam(particle_type=proton, dt=np.ones(10))
+
+    def test___init__raises(self) -> None:
+        with self.assertRaises(ValueError):
+            self.probe_bunch = ProbeBeam(particle_type=proton)
+
+    def test___init__raises2(self) -> None:
+        with self.assertRaises(AssertionError):
+            self.probe_bunch = ProbeBeam(
+                particle_type=proton,
+                dt=np.ones(10),
+                dE=np.ones(11),
+            )
 
     def test___init__1(self) -> None:
         self.probe_bunch = ProbeBeam(particle_type=proton, dt=np.ones(10))

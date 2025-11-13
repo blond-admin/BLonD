@@ -283,7 +283,9 @@ class ProbeBeam(Beam):
             intensity=intensity,
             particle_type=particle_type,
         )
-        if dt is not None:
+        if dt is not None and dE is not None:
+            pass
+        elif dt is not None:
             dE = backend.zeros_like(dt)
         elif dE is not None:
             dt = backend.zeros_like(dE)
