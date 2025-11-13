@@ -128,7 +128,14 @@ class TestBeam(unittest.TestCase):
         self.beam.plot_hist()
         plt.gcf().clf()
 
-    def test_plot_hist2d_executes_gpu(self) -> None:
+    def test_plot_hist2d_executes_cpu(self) -> None:
+        beam = Mock(Beam)
+        beam._dE = np.ones(10)
+        beam._dt = np.ones(10)
+        Beam.plot_hist2d(beam)
+        plt.gcf().clf()
+
+    def test_plot_scatter_executes_gpu(self) -> None:
         try:
             import cupy as cp  # type: ignore
         except ModuleNotFoundError:
@@ -136,7 +143,7 @@ class TestBeam(unittest.TestCase):
         beam = Mock(Beam)
         beam._dE = cp.ones(10)
         beam._dt = cp.ones(10)
-        Beam.plot_hist2d(beam)
+        Beam.plot_scatter(beam)
         plt.gcf().clf()
 
     def test_plot_hist_executes_gpu(self) -> None:

@@ -124,6 +124,8 @@ class TestMultiHarmonicCavity(unittest.TestCase):
                 simulation=simulation
             )
 
+    def test_info_string(self):
+        self.multi_harmonic_cavity.info_string() # just hope it executes.
 
 class TestSingleHarmonicCavity(unittest.TestCase):
     def setUp(self) -> None:
