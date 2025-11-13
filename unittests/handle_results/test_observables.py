@@ -51,6 +51,30 @@ class ObservablesHelper(ObservablesEndOfTurnBase):
         pass
 
 
+class TestDenseArrayRecorder(unittest.TestCase):
+    def test___init__(self):
+        DenseArrayRecorder(
+            filepath=callers_relative_path("not_exists.txt", stacklevel=1),
+            shape=(
+                1,
+                1,
+            ),
+            dtype=float,
+            overwrite=True,
+        )
+    def test___init___warns(self):
+        with self.assertWarns(UserWarning):
+            DenseArrayRecorder(
+            filepath=callers_relative_path("resources/exists", stacklevel=1),
+            shape=(
+                1,
+                1,
+            ),
+            dtype=float,
+            overwrite=False,
+        )
+
+
 class TestObservables(unittest.TestCase):
     def setUp(self) -> None:
         self.observables = ObservablesHelper(
@@ -94,9 +118,14 @@ class TestObservables(unittest.TestCase):
         )
 
         assert len(self.observables._turns_array) == self.observables._n_turns
-        assert np.all(np.where(np.diff(self.observables._turns_array) <= 0) == np.array([])) # monotonic increase
+        assert np.all(
+            np.where(np.diff(self.observables._turns_array) <= 0)
+            == np.array([])
+        )  # monotonic increase
         assert np.mean(np.diff(self.observables._turns_array)) == 1
-        assert np.all(self.observables._section_indices_to_observe == np.array([0]))  # only first one is selected
+        assert np.all(
+            self.observables._section_indices_to_observe == np.array([0])
+        )  # only first one is selected
 
         self.observables.on_run_simulation(
             simulation=simulation,
@@ -106,10 +135,17 @@ class TestObservables(unittest.TestCase):
             obs_per_turn=2,
         )
 
-        assert len(self.observables._turns_array) == self.observables._n_turns * 2
-        assert np.all(np.where(np.diff(self.observables._turns_array) <= 0) == np.array([]))  # monotonic increase
+        assert (
+            len(self.observables._turns_array) == self.observables._n_turns * 2
+        )
+        assert np.all(
+            np.where(np.diff(self.observables._turns_array) <= 0)
+            == np.array([])
+        )  # monotonic increase
         assert np.isclose(np.mean(np.diff(self.observables._turns_array)), 0.5)
-        assert np.all(self.observables._section_indices_to_observe == np.array([0, 1]))  # only first one is selected
+        assert np.all(
+            self.observables._section_indices_to_observe == np.array([0, 1])
+        )  # only first one is selected
 
         self.observables.on_run_simulation(
             simulation=simulation,
@@ -119,10 +155,17 @@ class TestObservables(unittest.TestCase):
             obs_per_turn=2,
         )
 
-        assert len(self.observables._turns_array) == self.observables._n_turns * 2
-        assert np.all(np.where(np.diff(self.observables._turns_array) <= 0) == np.array([]))  # monotonic increase
+        assert (
+            len(self.observables._turns_array) == self.observables._n_turns * 2
+        )
+        assert np.all(
+            np.where(np.diff(self.observables._turns_array) <= 0)
+            == np.array([])
+        )  # monotonic increase
         assert np.isclose(np.mean(np.diff(self.observables._turns_array)), 0.5)
-        assert np.all(self.observables._section_indices_to_observe == np.array([0, 1]))  # only first one is selected
+        assert np.all(
+            self.observables._section_indices_to_observe == np.array([0, 1])
+        )  # only first one is selected
 
     def test_rename(self) -> None:
         self.observables = ObservablesHelper(
@@ -146,7 +189,9 @@ class TestObservables(unittest.TestCase):
         self.observables.rename(orig_name + "_1")
         assert self.observables.common_filepath == orig_name + "_1"
 
-        self.observables._example_densr_arr_rec = DenseArrayRecorder(f"{orig_name}_1_example_densr_arr_rec", (1, 1))
+        self.observables._example_densr_arr_rec = DenseArrayRecorder(
+            f"{orig_name}_1_example_densr_arr_rec", (1, 1)
+        )
         recorders = self.observables.get_recorders()
         assert len(recorders) == 1
 
@@ -172,7 +217,9 @@ class TestObservables(unittest.TestCase):
             simulation=simulation,
         )
 
-        with self.assertWarnsRegex(UserWarning, "obs_per_turn must be greater"):
+        with self.assertWarnsRegex(
+            UserWarning, "obs_per_turn must be greater"
+        ):
             self.observables.on_run_simulation(
                 simulation=simulation,
                 beam=beam,
@@ -180,7 +227,9 @@ class TestObservables(unittest.TestCase):
                 n_turns=100,
                 obs_per_turn=-1,
             )
-        with self.assertWarnsRegex(UserWarning, "obs_per_turn must be smaller"):
+        with self.assertWarnsRegex(
+            UserWarning, "obs_per_turn must be smaller"
+        ):
             self.observables.on_run_simulation(
                 simulation=simulation,
                 beam=beam,
@@ -312,7 +361,9 @@ class TestStaticProfileObservation(unittest.TestCase):
             turn_i_init=0,
             n_turns=100,
         )
-        self.static_profile_observation._section_indices_to_observe = np.array([0])
+        self.static_profile_observation._section_indices_to_observe = np.array(
+            [0]
+        )
         simulation.section_i.value = 0
         self.static_profile_observation.update(simulation=simulation)
 
@@ -321,7 +372,9 @@ class TestStaticProfileObservation(unittest.TestCase):
         prof._profile._hist_y += 1
         prof.update(simulation=simulation)
 
-        assert len(prof.hist_y) == before_len  # no update since we already had this turn
+        assert (
+            len(prof.hist_y) == before_len
+        )  # no update since we already had this turn
 
 
 class TestWakeFieldObservation(unittest.TestCase):
@@ -360,6 +413,7 @@ class TestWakeFieldObservation(unittest.TestCase):
         )
         self.wake_field_observation.to_disk()
         self.wake_field_observation.from_disk()
+
 
 class TestDynamicProfileConstNBinsObservation(unittest.TestCase):
     def setUp(self) -> None:
@@ -426,10 +480,12 @@ class TestStaticMultiProfileObservation(unittest.TestCase):
         wrong_profile = deepcopy(self.profile_2)
         wrong_profile.n_bins += 1
         with self.assertRaisesRegex(AssertionError, "n_bins"):
-            self.static_multi_profile_observation = StaticMultiProfileObservation(
-                each_turn_i=1,
-                profiles=[self.profile, wrong_profile],
-                folder=callers_relative_path("results/", stacklevel=1),
+            self.static_multi_profile_observation = (
+                StaticMultiProfileObservation(
+                    each_turn_i=1,
+                    profiles=[self.profile, wrong_profile],
+                    folder=callers_relative_path("results/", stacklevel=1),
+                )
             )
 
     def test_from_disk(self) -> None:

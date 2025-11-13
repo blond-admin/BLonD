@@ -22,10 +22,10 @@ class Specials(ABC):
     """Abstract listing of functions that need implementation for a new backend."""
 
     @staticmethod
-    @abstractmethod  # pragma: no cover
+    @abstractmethod
     def loss_box(
         top: float, bottom: float, left: float, right: float
-    ) -> None:  # TODO
+    ) -> None:  # pragma: no cover
         raise NotImplementedError(
             "Abstract method `loss_box` is not implemented."
         )
