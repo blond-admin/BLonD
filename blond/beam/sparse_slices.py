@@ -382,7 +382,7 @@ class SparseSlices:
         Method to update the general arrays after a profile update.
         """
         # Total parameters
-        if len(np.where(self.filling_pattern)[0]) != self.n_filled_buckets:
+        if len(np.where(self.filling_pattern != 0)[0]) != self.n_filled_buckets:
             raise ValueError(
                 f"Filling pattern has length "
                 f"{len(np.where(self.filling_pattern)[0])}, number of "
