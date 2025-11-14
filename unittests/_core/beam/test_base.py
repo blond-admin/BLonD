@@ -145,6 +145,11 @@ class TestBeamBaseClass(unittest.TestCase):
         simulation = Mock(spec=Simulation)
         self.beam_base_class.on_init_simulation(simulation=simulation)
 
+    def test_missing_init_of_simulation(self):
+        self.beam_base_class._dE = None
+        with self.assertRaises(AttributeError):
+            self.beam_base_class.n_macroparticles_partial()
+
     def test_on_run_simulation(self):
         simulation = Mock(spec=Simulation)
         beam = Mock(spec=BeamBaseClass)
