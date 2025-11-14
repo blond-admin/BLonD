@@ -157,7 +157,6 @@ class TestSpecials(unittest.TestCase):
         ]
         if cupy_available:
             self.special_modes.append("cuda")
-        print(f"Testing {self.special_modes}")
         set_num_threads(8)
 
     def _setUp(self, dtype, special_mode) -> None:
@@ -415,7 +414,7 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
 
-    def test_flagged_to_end(self):
+    def test_move_flagged_elements_to_end(self):
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 try:
@@ -429,7 +428,7 @@ class TestSpecials(unittest.TestCase):
                 dt = backend.array(backend.linspace(0, 10, 10), backend.float)
                 dE = backend.array(backend.linspace(0, 10, 10), backend.float)
                 ids = backend.array(backend.arange(0, 10), backend.int)
-                n_new = backend.specials.flagged_to_end(
+                n_new = backend.specials.move_flagged_elements_to_end(
                     flag=flag,
                     flags=flags,
                     dt=dt,
@@ -447,6 +446,7 @@ class TestSpecials(unittest.TestCase):
                     len(flags),
                     msg=f"Failed test `{special}` with {dtype}",
                 )
+                np.testing.assert_equal(flags, np.ones_like(flags))
                 self.assertEqual(
                     7,
                     len(dt),
@@ -478,7 +478,7 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
 
-    def test_flagged_to_end_potentially_race_conditions(self):
+    def test_move_flagged_elements_to_end_potentially_race_conditions(self):
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 try:
@@ -497,7 +497,7 @@ class TestSpecials(unittest.TestCase):
                     backend.linspace(0, 10, len(flags)), backend.float
                 )
                 ids = backend.array(backend.arange(0, len(flags)), backend.int)
-                n_new = backend.specials.flagged_to_end(
+                n_new = backend.specials.move_flagged_elements_to_end(
                     flag=flag,
                     flags=flags,
                     dt=dt,
@@ -528,7 +528,7 @@ class TestSpecials(unittest.TestCase):
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
 
-    def test_flagged_to_end_none_flagged(self):
+    def test_move_flagged_elements_to_end_none_flagged(self):
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 try:
@@ -542,7 +542,7 @@ class TestSpecials(unittest.TestCase):
                 dt = backend.array(backend.linspace(0, 10, 10), backend.float)
                 dE = backend.array(backend.linspace(0, 10, 10), backend.float)
                 ids = backend.array(backend.arange(0, 10), backend.int)
-                n_new = backend.specials.flagged_to_end(
+                n_new = backend.specials.move_flagged_elements_to_end(
                     flag=flag,
                     flags=flags,
                     dt=dt,
@@ -556,7 +556,7 @@ class TestSpecials(unittest.TestCase):
                     msg=f"Failed test `{special}` with {dtype}",
                 )
 
-    def test_flagged_to_end_all_but_one_flagged(self):
+    def test_move_flagged_elements_to_end_all_but_one_flagged(self):
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 try:
@@ -571,7 +571,7 @@ class TestSpecials(unittest.TestCase):
                 dt = backend.array(backend.linspace(0, 10, 10), backend.float)
                 dE = backend.array(backend.linspace(0, 10, 10), backend.float)
                 ids = backend.array(backend.arange(0, 10), backend.int)
-                n_new = backend.specials.flagged_to_end(
+                n_new = backend.specials.move_flagged_elements_to_end(
                     flag=flag,
                     flags=flags,
                     dt=dt,
@@ -585,7 +585,7 @@ class TestSpecials(unittest.TestCase):
                     msg=f"Failed test `{special}` with {dtype}",
                 )
 
-    def test_flagged_to_end_all_flagged(self):
+    def test_move_flagged_elements_to_end_all_flagged(self):
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
                 try:
@@ -599,7 +599,7 @@ class TestSpecials(unittest.TestCase):
                 dt = backend.array(backend.linspace(0, 10, 10), backend.float)
                 dE = backend.array(backend.linspace(0, 10, 10), backend.float)
                 ids = backend.array(backend.arange(0, 10), backend.int)
-                n_new = backend.specials.flagged_to_end(
+                n_new = backend.specials.move_flagged_elements_to_end(
                     flag=flag,
                     flags=flags,
                     dt=dt,

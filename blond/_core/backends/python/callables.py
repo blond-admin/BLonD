@@ -11,7 +11,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 
-def _flagged_to_end_py(
+def _move_flagged_elements_to_end_py(
     flag: int,
     flags: NumpyArray,  # also purged
     dt: NumpyArray,
@@ -239,14 +239,14 @@ class PythonSpecials(Specials):
                 dE[i] += dt[i] * helper1[fbin[i]] + helper2[fbin[i]]
 
     @staticmethod
-    def flagged_to_end(
+    def move_flagged_elements_to_end(
         flag: np.int32,
         flags: NumpyArray | CupyArray,  # also purged
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         ids: NumpyArray | CupyArray,
     ):
-        n_new = _flagged_to_end_py(
+        n_new = _move_flagged_elements_to_end_py(
             flag=flag,
             flags=flags,
             dt=dt,

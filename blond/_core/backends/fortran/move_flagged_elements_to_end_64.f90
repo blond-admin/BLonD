@@ -1,8 +1,9 @@
-function flagged_to_end(flag, flags, dt, dE, ids, n) result(j)
+function move_flagged_elements_to_end(flag, flags, dt, dE, ids, n) result(j)
     implicit none
     integer(kind=4), intent(in) :: flag, n
-    integer(kind=4), intent(inout) :: flags(n), ids(n)
-    real(4), intent(inout) :: dt(n), dE(n)
+    integer(kind=4), intent(inout) :: flags(n)
+    integer(kind=8), intent(inout) :: ids(n)
+    real(8), intent(inout) :: dt(n), dE(n)
     integer(kind=4) :: i, j
     integer(kind=4) :: tmp_flag, tmp_id
     real(4) :: tmp_dt, tmp_dE
@@ -34,4 +35,4 @@ function flagged_to_end(flag, flags, dt, dE, ids, n) result(j)
             j = j - 1
         end if
     end do
-end function flagged_to_end
+end function move_flagged_elements_to_end

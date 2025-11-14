@@ -132,7 +132,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def flagged_to_end(
+    def move_flagged_elements_to_end(
         flag: np.int32,
         flags: NumpyArray | CupyArray,  # also purged
         dt: NumpyArray | CupyArray,
@@ -156,7 +156,9 @@ class Specials(ABC):
             This allows to identify single particles,
             even if the array indexing is changed.
         """
-        pass
+        raise NotImplementedError(
+            "The backend for `move_flagged_elements_to_end` is missing."
+        )
 
 
 class BackendBaseClass(ABC):

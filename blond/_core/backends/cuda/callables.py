@@ -356,7 +356,7 @@ def reload_cuda_backend(
             return floattype(result[0].get() / result[1].get())
 
         @staticmethod
-        def flagged_to_end(
+        def move_flagged_elements_to_end(
             flag: np.int32,
             flags: CupyArray,
             dt: CupyArray,

@@ -11,7 +11,7 @@ import numpy as np
 from numba import njit, prange, void
 
 from ..backend import Specials
-from ..python.callables import _flagged_to_end_py
+from ..python.callables import _move_flagged_elements_to_end_py
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -186,7 +186,7 @@ def recompile_numba_backend(  # NOQA PLR0915
     sig_flag = numba.int32
     sig_flags = numba.int32[:]
     sig_ids = nb_i[:]
-    sig_flagged_to_end = nb_i(
+    sig_move_flagged_elements_to_end = nb_i(
         sig_flag,
         sig_flags,
         sig_dt,
@@ -194,7 +194,9 @@ def recompile_numba_backend(  # NOQA PLR0915
         sig_ids,
     )
 
-    _flagged_to_end_nb = njit(sig_flagged_to_end)(_flagged_to_end_py)
+    _move_flagged_elements_to_end_nb = njit(sig_move_flagged_elements_to_end)(
+        _move_flagged_elements_to_end_py
+    )
 
     class NumbaSpecials(Specials):  # pragma: no cover
         @staticmethod
@@ -472,7 +474,7 @@ def recompile_numba_backend(  # NOQA PLR0915
                     dE[i] += charge * v + acceleration_kick
 
         @staticmethod
-        def flagged_to_end(
+        def move_flagged_elements_to_end(
             flag: np.int32,
             flags: NumpyArray | CupyArray,  # also purged
             dt: NumpyArray | CupyArray,
@@ -480,7 +482,7 @@ def recompile_numba_backend(  # NOQA PLR0915
             ids: NumpyArray | CupyArray,
         ):
             # TODO parallel version of sorting
-            n_new = _flagged_to_end_nb(
+            n_new = _move_flagged_elements_to_end_nb(
                 flag=flag,
                 flags=flags,
                 dt=dt,
