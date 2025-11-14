@@ -57,7 +57,7 @@ workflow:
       --junitxml=junit-report.xml
     - COV=$(python3 -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); rate = float(tree.getroot().attrib['line-rate']) * 100; print(rate)")
     - echo "XML_COVERAGE=$COV"
-  coverage: /XML_COVERAGE=\s+(\d+\.\d+)/
+  coverage: '/XML_COVERAGE=(\d+\.\d+)/'
 
 #.after:
 #  after_script:
