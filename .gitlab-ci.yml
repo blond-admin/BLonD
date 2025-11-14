@@ -55,14 +55,24 @@ workflow:
       --cov-report html:coverage-html
       --cov-report xml:coverage.xml
       --junitxml=junit-report.xml
+    - |
+      python3 - <<'EOF'
+      import xml.etree.ElementTree as ET
+      tree = ET.parse('coverage.xml')
+      rate = tree.getroot().attrib['line-rate']   # e.g. "0.87342"
+      print(float(rate) * 100)  # convert to percent
+      EOF
+    - COV=$(cat cov.txt)
+    - echo "XML_COVERAGE: $COV"
+  coverage: '/XML_COVERAGE:\s+(\d+\.\d+)/'
 
-.after:
-  after_script:
-    - cd ${project_root}
-    - python3 -m pip install coverage
-    - coverage report
-    # - coverage xml -o coverage-report.xml
-  coverage: /(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/
+#.after:
+#  after_script:
+#    - cd ${project_root}
+#    - python3 -m pip install coverage
+#    - coverage report
+#    # - coverage xml -o coverage-report.xml
+#  coverage: /(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/
 
 .publish:
   artifacts:
@@ -101,7 +111,7 @@ test_py_310:
   extends:
     - .before
     - .main
-    - .after
+#    - .after
     - .publish
   tags:
     - k8s-gpu
@@ -113,7 +123,7 @@ test_py_311:
   extends:
     - .before
     - .main
-    - .after
+#    - .after
     # - .publish
   tags:
     - k8s-gpu
@@ -125,7 +135,7 @@ test_py_312:
   extends:
     - .before
     - .main
-    - .after
+#    - .after
     # - .publish
   tags:
     - k8s-gpu
