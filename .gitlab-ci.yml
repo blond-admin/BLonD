@@ -56,11 +56,11 @@ workflow:
       --cov-report xml:coverage.xml
       --junitxml=junit-report.xml
     - |
-      python3 <<'EOF'
+      python3 <<'EOF' > cov.txt
       import xml.etree.ElementTree as ET
       tree = ET.parse('coverage.xml')
-      rate = tree.getroot().attrib['line-rate']   # e.g. "0.87342"
-      print(float(rate) * 100)  # convert to percent
+      rate = tree.getroot().attrib['line-rate']
+      print(float(rate) * 100)
       EOF
     - COV=$(cat cov.txt)
     - echo "XML_COVERAGE: $COV"
