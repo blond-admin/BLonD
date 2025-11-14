@@ -55,12 +55,6 @@ class BeamPreparationRoutine(ABC):
                 reference_time=beam.reference_time,
             )
 
-        schedulables = simulation.ring.elements.get_elements(Schedulable)
-        for s in schedulables:
-            s.apply_schedules(
-                turn_i=simulation.turn_i.value,
-                reference_time=beam.reference_time,
-            )
 
 
 class MatchingRoutine(BeamPreparationRoutine, ABC):

@@ -384,11 +384,6 @@ class SemiEmpiricMatcher(MatchingRoutine):
             Time coordinate, in [s] for observation of the potential well.
         """
 
-        if float(simulation.ring.calc_average_eta_0(beam.reference_gamma)) < 0:
-            below_transition = True
-        else:
-            below_transition = False
-
         potential_well, factor, tilt_dt_per_dE = (
             simulation.get_potential_well_empiric(
                 dt=np.linspace(
