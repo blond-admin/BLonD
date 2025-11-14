@@ -11,7 +11,7 @@ from blond import (
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicCavity,
+    SingleHarmonicRfStation,
     proton,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
@@ -28,7 +28,7 @@ def main():
 
     ring = Ring(26658.883)
 
-    cavity1 = SingleHarmonicCavity()
+    cavity1 = SingleHarmonicRfStation()
     cavity1.harmonic = 35640
     cavity1.voltage = 6e6
     cavity1.phi_rf = 0

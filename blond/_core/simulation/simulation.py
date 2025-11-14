@@ -32,7 +32,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond import (
-        SingleHarmonicCavity,
+        SingleHarmonicRfStation,
     )
     from blond.legacy.blond2.beam.beam import Beam as Blond2Beam
     from blond.legacy.blond2.beam.profile import Profile as Blond2Profile
@@ -56,7 +56,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from ..beam.particle_types import ParticleType
     from ..ring.ring import Ring
 
-from ...physics.cavities import CavityBaseClass
+from ...physics.cavities import RfStationBaseClass
 
 logger = logging.getLogger(__name__)
 
@@ -335,7 +335,10 @@ class Simulation(Preparable):
 
         # Derive potential well by integrating over energy change
         potential_well = -cumulative_simpson(
-            probe_bunch.read_partial_dE(), initial=0
+            probe_bunch.read_partial_dE()
+            if backend.specials_mode != "cuda"
+            else probe_bunch.read_partial_dE().get(),
+            initial=0,
         ) / len(dt)
 
         if self.ring.is_below_transition(beam=probe_bunch):
@@ -345,7 +348,13 @@ class Simulation(Preparable):
         if subtract_min:
             # Align potential so that the visible minimum is 0
             potential_well -= potential_well.min()
-        return potential_well / particle_type.charge, factor, tilt_dt_per_dE
+        return (
+            backend.array(
+                potential_well / particle_type.charge, dtype=backend.float
+            ),
+            factor,
+            tilt_dt_per_dE,
+        )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called.
@@ -450,7 +459,7 @@ class Simulation(Preparable):
         >>> beam1 = Beam( ... )
         >>> ring = Ring( ... )
         >>> energy_cycle = MagneticCyclePerTurn( ... )
-        >>> cavity1 = SingleHarmonicCavity( ... )
+        >>> cavity1 = SingleHarmonicRfStation( ... )
         >>> drift1 = DriftSimple( ... )
         >>> Simulation.from_locals(locals=locals(), verbose=True)
 
@@ -476,7 +485,6 @@ class Simulation(Preparable):
         magnetic_cycle = _magnetic_cycle[0]
 
         elements = get_elements(locals_list, (SimulationElementBase))
-        print("here", elements)  # type: ignore
         ring.add_elements(elements=elements, reorder=True)
 
         logger.debug(f"{ring=}")
@@ -558,6 +566,28 @@ class Simulation(Preparable):
             `def myfunction(simulation: Simulation, beam: Beam): ...`
             that is called each turn.
 
+
+        Examples
+        --------
+        This examples shows how to add any code to the end of a turn.
+        It can hold any user-defined code for customized behavior.
+
+        >>> def custom_action(simulation: Simulation, beam: Beam):
+        >>>     '''This method gets called at the end of each turn.'''
+        >>>     # Below there is an example of plotting the beam each 10th turn.
+        >>>     if simulation.turn_i.value % 10 != 0:
+        >>>         return
+        >>>
+        >>>     plt.scatter(
+        >>>         simulation.beams[0].read_partial_dt(),
+        >>>         simulation.beams[0].read_partial_dE(),
+        >>>     )
+        >>>     plt.draw()
+        >>>     plt.pause(0.1)
+        >>>     plt.clf()
+        >>>
+        >>> simulation.run_simulation(..., callback=custom_action)
+
         """
         logger.info(f"Running `run_simulation` with {locals()}")
         _n_turns = self.finalize(
@@ -599,7 +629,29 @@ class Simulation(Preparable):
                 f"Up to two beam supported, but got {len(beams)}"
             )
 
-    def finalize(self, beams, n_turns, observe, turn_i_init):
+    def finalize(
+        self,
+        beams: tuple[BeamBaseClass],
+        n_turns: int | None,
+        observe: tuple[ObservablesEndOfTurnBase, ...],
+        turn_i_init: int,
+    ) -> None:
+        """Executes `_exec_on_run_simulation` and prepares the observables.
+
+        Parameters
+        ----------
+        beams
+            Beams to be simulated, in case of two beams, the first must be
+            co-rotating and the second counter-rotating
+        n_turns
+            Number of turns to simulate.
+            If None, will use the maximum number of turns given by the cycle.
+        observe
+            List of observables to protocol of what's happening inside
+            the simulation
+        turn_i_init
+            Initial turn to start with simulation
+        """
         max_turns = self.magnetic_cycle.n_turns
         if n_turns is not None:
             _n_turns = int_from_float_with_warning(
@@ -681,7 +733,8 @@ class Simulation(Preparable):
         logger.info("Starting simulation mainloop...")
         iterator = range(turn_i_init, turn_i_init + n_turns)
         if show_progressbar:
-            iterator = tqdm(iterator)  # Add TQDM display to iteration
+            iterator = tqdm(iterator, desc="BLonD3 mainloop")  # Add TQDM
+            # display to iteration
         self.turn_i.value = 0
         for observable in observe:
             observable.update(
@@ -723,7 +776,7 @@ class Simulation(Preparable):
     ]:
         raise NotImplementedError
         from ...physics.cavities import (  # prevent cyclic import
-            MultiHarmonicCavity,
+            MultiHarmonicRfStation,
         )
         from ...physics.drifts import DriftBaseClass
 
@@ -767,8 +820,8 @@ class Simulation(Preparable):
             intensity=self.beams[0]._intensity__init,
         )
         # todo handle multiple RF stations
-        cavity_blond3: SingleHarmonicCavity | MultiHarmonicCavity = (
-            self.ring.elements.get_element(CavityBaseClass)
+        cavity_blond3: SingleHarmonicRfStation | MultiHarmonicRfStation = (
+            self.ring.elements.get_element(RfStationBaseClass)
         )
         # FIXME
         rf_station = RFStation(

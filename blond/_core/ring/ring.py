@@ -147,18 +147,14 @@ class Ring(Preparable, Schedulable):
         beam
             Simulation beam object
         """
-        if float(self.calc_average_eta_0(beam.reference_gamma)) < 0:
-            below_transition = True
-        else:
-            below_transition = False
-        return below_transition
+        return bool(self.calc_average_eta_0(gamma=beam.reference_gamma) < 0)
 
     @property
     def n_cavities(self) -> int:
         """Total number of cavities in this synchrotron."""
-        from ...physics.cavities import CavityBaseClass
+        from ...physics.cavities import RfStationBaseClass
 
-        return self.elements.count(CavityBaseClass)
+        return self.elements.count(RfStationBaseClass)
 
     @property  # as readonly attributes
     def elements(self) -> BeamPhysicsRelevantElements:

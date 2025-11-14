@@ -1,3 +1,4 @@
+import cmath
 import unittest
 from unittest.mock import Mock, patch
 
@@ -42,8 +43,11 @@ class TestDriftBaseClass(unittest.TestCase):
 
 
 class TestDriftSimple(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         backend.change_backend(Numpy64Bit)
+
+    def setUp(self):
         self.gamma = 2.5
         self.drift_simple = DriftSimple.headless(
             transition_gamma=20.0,  # highly relativistic
@@ -134,7 +138,42 @@ class TestDriftSimple(unittest.TestCase):
             / (0.5 * c0),  # drifted by length of drift
         )
 
-    def tearDown(self):
+    def test_setters_negative_compaction(self):
+        self.drift_simple.momentum_compaction_factor = -2.5
+        self.assertEqual(self.drift_simple.momentum_compaction_factor, -2.5)
+        self.assertEqual(
+            self.drift_simple.transition_gamma, 1 / cmath.sqrt(-2.5)
+        )
+
+    def test_setters_complex_transition(self):
+        self.drift_simple.transition_gamma = 1 / cmath.sqrt(-2.5)
+        self.assertEqual(self.drift_simple.momentum_compaction_factor, -2.5)
+        self.assertEqual(
+            self.drift_simple.transition_gamma, 1 / cmath.sqrt(-2.5)
+        )
+
+    def test_setters_real_transition(self):
+        self.drift_simple.transition_gamma = 1 / cmath.sqrt(2.5)
+        self.assertEqual(self.drift_simple.momentum_compaction_factor, 2.5)
+        self.assertEqual(
+            self.drift_simple.transition_gamma, 1 / cmath.sqrt(2.5)
+        )
+
+    def test_init(self):
+        DriftSimple(orbit_length=1.0, section_index=0, transition_gamma=2.5j)
+
+        DriftSimple(
+            orbit_length=1.0, section_index=0, momentum_compaction_factor=2.5
+        )
+        with self.assertRaises(ValueError):
+            DriftSimple(
+                orbit_length=1.0,
+                section_index=0,
+                momentum_compaction_factor=2.5,
+                transition_gamma=2.5j,
+            )
+    @classmethod
+    def tearDownClass(cls):
         backend.change_backend(Numpy32Bit)
 
 

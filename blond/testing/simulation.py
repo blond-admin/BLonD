@@ -7,7 +7,7 @@ Simon Lauber
 
 from matplotlib import pyplot as plt
 
-from blond import MultiHarmonicCavity, WakeField
+from blond import MultiHarmonicRfStation, WakeField
 from blond._core.backends.backend import backend
 from blond.physics.impedances.solvers import (
     TimeDomainFftSolver,
@@ -29,14 +29,14 @@ class ExampleSimulation01:
             DriftSimple,
             Ring,
             Simulation,
-            SingleHarmonicCavity,
+            SingleHarmonicRfStation,
             proton,
         )
         from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 
         ring = Ring(circumference=26658.883)
 
-        cavity1 = SingleHarmonicCavity()
+        cavity1 = SingleHarmonicRfStation()
         cavity1.harmonic = 35640
         cavity1.voltage = 6e6
         cavity1.phi_rf = 0
@@ -97,14 +97,12 @@ class SimulationTwoRfStations:
     """A simulation with two RF stations and according drifts."""
 
     def __init__(self, below_transition_crossing=False):
-        import numpy as np
-
         from blond import (
             Beam,
             DriftSimple,
             Ring,
             Simulation,
-            SingleHarmonicCavity,
+            SingleHarmonicRfStation,
             proton,
         )
         from blond.cycles.magnetic_cycle import ConstantMagneticCycle
@@ -112,29 +110,29 @@ class SimulationTwoRfStations:
         circumference = 26658.883
         ring = Ring(circumference=circumference)
 
-        cavity1 = MultiHarmonicCavity(
+        cavity1 = MultiHarmonicRfStation(
             section_index=0, n_harmonics=1, main_harmonic_idx=0
         )
-        cavity1.harmonic = np.array(
+        cavity1.harmonic = backend.array(
             [
                 35640.0,
             ],
             dtype=backend.float,
         )
-        cavity1.voltage = np.array(
+        cavity1.voltage = backend.array(
             [
                 6e6,
             ],
             dtype=backend.float,
         )
-        cavity1.phi_rf = np.array(
+        cavity1.phi_rf = backend.array(
             [
                 0.0,
             ],
             dtype=backend.float,
         )
 
-        cavity2 = SingleHarmonicCavity(
+        cavity2 = SingleHarmonicRfStation(
             section_index=1,
         )
         cavity2.harmonic = backend.float(35640)
@@ -183,7 +181,7 @@ class SimulationTwoRfStationsWithWake:
             DriftSimple,
             Ring,
             Simulation,
-            SingleHarmonicCavity,
+            SingleHarmonicRfStation,
             proton,
         )
         from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
@@ -191,7 +189,7 @@ class SimulationTwoRfStationsWithWake:
         circumference = 26658.883
         ring = Ring(circumference=circumference)
 
-        cavity1 = MultiHarmonicCavity(
+        cavity1 = MultiHarmonicRfStation(
             section_index=0, n_harmonics=1, main_harmonic_idx=0
         )
         cavity1.harmonic = np.array(
@@ -210,7 +208,7 @@ class SimulationTwoRfStationsWithWake:
             ],
         )
 
-        cavity2 = SingleHarmonicCavity(
+        cavity2 = SingleHarmonicRfStation(
             section_index=1,
         )
         cavity2.harmonic = 35640

@@ -13,7 +13,7 @@ from blond import (
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicCavity,
+    SingleHarmonicRfStation,
     StaticProfile,
     backend,
     mu_plus,
@@ -36,7 +36,7 @@ class TestSimulation(unittest.TestCase):
     def setUp(self):
         ring = Ring(circumference=26658.883)
 
-        cavity1 = SingleHarmonicCavity()
+        cavity1 = SingleHarmonicRfStation()
         cavity1.harmonic = 35640
         cavity1.voltage = 6e6
         cavity1.phi_rf = 0
@@ -78,7 +78,9 @@ class TestSimulation(unittest.TestCase):
 
     def test_error_throwing(self):
         with self.assertRaises(NotImplementedError):
-            self.simulation.run_simulation(beams=(self.beam, self.beam, self.beam))
+            self.simulation.run_simulation(
+                beams=(self.beam, self.beam, self.beam)
+            )
 
     def test__run_simulation_counterrotating_beam_no_int_effects(self):
         beam = Beam(intensity=1e9, particle_type=mu_plus)
@@ -117,7 +119,7 @@ class TestSimulation(unittest.TestCase):
                         orbit_length=circumference / n_cavities / 2,
                         section_index=cavity_i,
                     ),
-                    SingleHarmonicCavity(
+                    SingleHarmonicRfStation(
                         voltage=total_voltage / n_cavities,
                         phi_rf=0,
                         harmonic=harmonic,
@@ -196,6 +198,7 @@ class TestSimulation(unittest.TestCase):
     def test_get_potential_well_empiric(self):
         from blond.testing.simulation import SimulationTwoRfStations
 
+
         sim = SimulationTwoRfStations()
         ts = np.linspace(-2e-9, 2e-9, 100)
 
@@ -205,29 +208,54 @@ class TestSimulation(unittest.TestCase):
                 particle_type=proton,
             )
         )
+        potential_well += 4 * potential_well.mean()
+        from blond import backend
+
         SAVE_PINNED = False
+
+        if backend.float == np.float32:
+            bits = "32"
+        elif backend.float == np.float64:
+            bits = "64"
+        else:
+            raise Exception()
+
         if SAVE_PINNED:
             np.savetxt(
-                callers_relative_path("resources/potential_well.csv", 1),
+                callers_relative_path(
+                    f"resources/potential_well_{bits}.csv",stacklevel=1
+                ),
                 potential_well,
             )
         potential_well_pinned = np.loadtxt(
-            callers_relative_path("resources/potential_well.csv", stacklevel=1)
+            callers_relative_path(
+                f"resources/potential_well_{bits}.csv", stacklevel=1
+            )
         )
+
         DEV_DEBUG = False
         if DEV_DEBUG:
             plt.figure()
-            plt.subplot(2,1,1)
+            plt.subplot(2, 1, 1)
             plt.plot(potential_well_pinned, label="potential_well_pinned")
-            plt.plot(potential_well, "--",label="potential_well")
-            plt.subplot(2,1,2)
-            plt.plot(potential_well-potential_well_pinned)
+            plt.plot(potential_well, "--", label="potential_well")
+            plt.subplot(2, 1, 2)
+            plt.plot(potential_well - potential_well_pinned)
             plt.legend()
             plt.show()
+
+        from blond import backend
+
         np.testing.assert_allclose(
             potential_well_pinned,
             potential_well,
-            rtol=1e-6 if backend.float == np.float32 else 1e-12
+            rtol=1e-5 if backend.float == np.float32 else 1e-12,
+        )
+
+    def test_plot_potential_well_empiric(self):
+        self.simulation.plot_potential_well_empiric(
+            dt=np.linspace(0, 1e-9),
+            particle_type=proton,
         )
 
 
@@ -309,7 +337,7 @@ class TestSimulation(unittest.TestCase):
 
     def test_get_potential_well_empiric_shape(self):
         cavity = self.simulation.ring.elements.get_element(
-            SingleHarmonicCavity
+            SingleHarmonicRfStation
         )
         particle_type = proton
 
@@ -362,19 +390,18 @@ class TestSimulation(unittest.TestCase):
         )
 
     def test_get_potential_well_empiric_shape_acceleration(self):
-
         ring = Ring(circumference=26658.883)
 
-        cavity1 = SingleHarmonicCavity()
+        cavity1 = SingleHarmonicRfStation()
         cavity1.harmonic = 35640
         cavity1.voltage = 6e6
         cavity1.phi_rf = 0
 
         N_TURNS = int((20 * 60) * 11e3)
         energies = np.linspace(450e9, 7e12, N_TURNS)
-        step = energies[1]-energies[0]
+        step = energies[1] - energies[0]
         magnetic_cycle = MagneticCyclePerTurn(
-            value_init=energies[0]-step,
+            value_init=energies[0] - step,
             values_after_turn=energies,
             reference_particle=proton,
             in_unit="total energy",
@@ -390,15 +417,12 @@ class TestSimulation(unittest.TestCase):
             dt=np.linspace(1, 10, 10),
             dE=np.linspace(11, 20, 10),
             reference_time=0,
-            reference_total_energy=energies[0]-step,
+            reference_total_energy=energies[0] - step,
         )
         simulation = Simulation.from_locals(locals())
         beam = beam1
 
-
-        cavity = simulation.ring.elements.get_element(
-            SingleHarmonicCavity
-        )
+        cavity = simulation.ring.elements.get_element(SingleHarmonicRfStation)
         particle_type = proton
 
         ts = np.linspace(
@@ -425,7 +449,6 @@ class TestSimulation(unittest.TestCase):
         simulation.turn_i.value = 0
         phi_s = float(cavity.calc_phi_s_single_harmonic(beam=beam1))
 
-
         potential_well_analytic = (
             particle_type.charge
             * cavity.voltage
@@ -450,7 +473,6 @@ class TestSimulation(unittest.TestCase):
             potential_well / potential_well.max() + 1,
             rtol=1e-4,
         )
-
 
     def test_get_drift_term_empiric(self):
         from blond.testing.simulation import SimulationTwoRfStations

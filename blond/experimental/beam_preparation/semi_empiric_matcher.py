@@ -17,6 +17,9 @@ from blond.experimental.beam_preparation.bucket_filler_functions import (
 from ..._core.helpers import int_from_float_with_warning
 from .helpers import populate_beam
 
+# Oversampling factor for potential well calculation
+_POTENTIAL_WELL_OVERSAMPLING = 10
+
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Callable, Dict, Iterable, Tuple
 
@@ -41,7 +44,7 @@ def get_hamilton_semi_analytic(
     Tuple[NumpyArray, NumpyArray, NumpyArray]
     | Tuple[CupyArray, CupyArray, CupyArray]
 ):
-    """
+    r"""
     Compute the 2D Hamiltonian :math:`H_{2D}(t, \Delta E)` based on an arbitrary potential well.
 
     This function computes a semi-analytic Hamiltonian over a 2D grid defined by
@@ -57,33 +60,36 @@ def get_hamilton_semi_analytic(
 
     where
 
-    - :math:`E_0` is the reference total energy.
-    - :math:`V(t)` is the potential well interpolated at times :math:`t`.
-    - :math:`c` is the speed of light.
+    - :math:`E_0` is the reference total energy [eV].
+    - :math:`V(t)` is the potential well interpolated at times :math:`t` [V].
+    - :math:`c` is the speed of light [m/s].
 
     Parameters
     ----------
     ts : array_like
-        Time coordinates of the potential well, in seconds (s).
+        Time coordinates of the potential well [s].
     potential_well : array_like
-        Potential energy values corresponding to ``ts``, in volts (V).
+        Potential energy values corresponding to ``ts`` [V].
     reference_total_energy : float
-        Reference total energy (:math:`E_0`), in electronvolts (eV).
+        Reference total energy :math:`E_0` [eV].
     eta : float
-        General synchrotron parameter (zeroth-order slippage factor), unitless.
+        General synchrotron parameter (zeroth-order slippage factor) [unitless].
+    beta : float
+        Relativistic velocity factor :math:`\beta = v/c` [unitless].
     shape : tuple of int
         Shape of the output Hamiltonian grid, as ``(num_time_points, num_energy_points)``.
     energy_range : tuple of float or None, optional
-        Range of :math:`\Delta E` values to evaluate, in electronvolts (eV).
+        Range of :math:`\Delta E` values to evaluate [eV].
         If ``None``, it will comprise the largest separatrix inside the given potential.
 
     Returns
     -------
     hamilton_2D : ndarray
         2D array representing the semi-analytic Hamiltonian evaluated on a grid of
-        time vs. energy difference. Uses the same device (NumPy or CuPy) as the inputs.
-        Units: electronvolts (eV).
+        time vs. energy difference [eV]. Uses the same device (NumPy or CuPy) as the inputs.
     """
+
+
 
     assert len(ts) == len(
         potential_well
@@ -169,11 +175,6 @@ class SemiEmpiricMatcher(MatchingRoutine):
         falls below this tolerance.
     verbose : bool, default=False
         If ``True``, prints convergence and status messages to the console.
-
-    Returns
-    -------
-    None
-        The function modifies internal beam distribution parameters in place.
 
     Notes
     -----
@@ -390,12 +391,18 @@ class SemiEmpiricMatcher(MatchingRoutine):
 
         potential_well, factor, tilt_dt_per_dE = (
             simulation.get_potential_well_empiric(
-                dt=np.linspace(ts.min(), ts.max(), len(ts) * 10),
+                dt=np.linspace(
+                    ts.min(),
+                    ts.max(),
+                    len(ts) * _POTENTIAL_WELL_OVERSAMPLING,
+                ),
                 particle_type=beam.particle_type,
                 intensity=beam.intensity,
             )
         )
-        potential_well = potential_well[::10] * factor
+        potential_well = (
+            potential_well[::_POTENTIAL_WELL_OVERSAMPLING] * factor
+        )
         self._prelast_potential_well = self._last_potential_well
         self._last_potential_well = potential_well
         if self._prelast_potential_well is None:

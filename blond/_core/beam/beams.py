@@ -189,6 +189,26 @@ class Beam(BeamBaseClass):
         else:
             plt.hist2d(self._dt, self._dE, **kwargs)
 
+    def plot_scatter(self, **kwargs) -> None:
+        """Scatter-plot of beam coordinates.
+
+        Parameters
+        ----------
+        kwargs
+            Keyword arguments for ``matplotlib.pyplot.scatter``
+        """
+        if self._dt is None or self._dE is None:
+            raise ValueError(
+                "Beam `dt` and `dE` coordinates are not initialized!"
+            )
+        if is_cupy_array(self._dt):
+            # variables below are just for the type hints to function correctly
+            dE: CupyArray = self._dE
+            dt: CupyArray = self._dt
+            plt.scatter(dt.get(), dE.get(), **kwargs)
+        else:
+            plt.scatter(self._dt, self._dE, **kwargs)
+
     def plot_hist(self, axis=0, **kwargs) -> None:
         """Plot 2D histogram of beam coordinates.
 

@@ -14,6 +14,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
+DEFAULT_BACKEND = "python"
+DEFAULT_BITS = "64"
+
 
 class Specials(ABC):
     """Abstract listing of functions that need implementation for a new backend."""
@@ -23,7 +26,9 @@ class Specials(ABC):
     def loss_box(
         top: float, bottom: float, left: float, right: float
     ) -> None:  # TODO
-        pass
+        raise NotImplementedError(
+            "Abstract method `loss_box` is not implemented."
+        )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -36,7 +41,9 @@ class Specials(ABC):
         charge: float,
         acceleration_kick: float,
     ) -> None:
-        pass
+        raise NotImplementedError(
+            "Abstract method `kick_single_harmonic` is not implemented."
+        )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -50,7 +57,9 @@ class Specials(ABC):
         n_rf: int,
         acceleration_kick: float,
     ) -> None:
-        pass
+        raise NotImplementedError(
+            "Abstract method `kick_multi_harmonic` is not implemented."
+        )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -62,7 +71,9 @@ class Specials(ABC):
         beta: float,
         energy: float,
     ) -> None:
-        pass
+        raise NotImplementedError(
+            "Abstract method `drift_simple` is not implemented."
+        )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -77,7 +88,9 @@ class Specials(ABC):
         beta: float,
         energy: float,
     ) -> None:
-        pass
+        raise NotImplementedError(
+            "Abstract method `drift_legacy` is not implemented."
+        )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -91,7 +104,9 @@ class Specials(ABC):
         beta: float,
         energy: float,
     ) -> None:
-        pass
+        raise NotImplementedError(
+            "Abstract method `drift_exact` is not implemented."
+        )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -103,7 +118,9 @@ class Specials(ABC):
         charge: float,
         acceleration_kick: float,
     ) -> None:
-        pass
+        raise NotImplementedError(
+            "Abstract method `kick_induced_voltage` is not implemented."
+        )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -113,7 +130,9 @@ class Specials(ABC):
         start: float,
         stop: float,
     ) -> None:
-        pass
+        raise NotImplementedError(
+            "Abstract method `histogram` is not implemented."
+        )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -125,7 +144,9 @@ class Specials(ABC):
         phi_rf: float,
         bin_size: float,
     ) -> float:
-        pass
+        raise NotImplementedError(
+            "Abstract method `beam_phase` is not implemented."
+        )
 
 
 class BackendBaseClass(ABC):
@@ -194,6 +215,7 @@ class BackendBaseClass(ABC):
         self.square: Callable = None  # type: ignore
         self.mean: Callable = None  # type: ignore
         self.arange: Callable = None  # type: ignore
+        self.average: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -234,7 +256,9 @@ class BackendBaseClass(ABC):
             One of the available backend modes
 
         """
-        pass
+        raise NotImplementedError(
+            "Abstract method `set_specials` is not implemented."
+        )
 
     @property
     def is_gpu(self) -> bool:
@@ -256,7 +280,7 @@ class BackendBaseClass(ABC):
         """
         _backend_mode_raw: str = os.environ.get(
             "BLOND_BACKEND_MODE",
-            "python",  # default
+            DEFAULT_BACKEND,  # default
         ).lower()
         if _backend_mode_raw != "numba":
             print(
@@ -286,7 +310,7 @@ class BackendBaseClass(ABC):
 
         _backend_bits_raw: str = os.environ.get(
             "BLOND_BACKEND_BITS",
-            "32",  # default
+            DEFAULT_BITS,  # default
         )
         if _backend_bits_raw != "32":
             print(
@@ -368,6 +392,7 @@ class NumpyBackend(BackendBaseClass):
         self.square = np.square
         self.mean = np.mean
         self.arange = np.arange
+        self.average = np.average
 
         self._finalize()
 
@@ -416,7 +441,7 @@ class NumpyBackend(BackendBaseClass):
         else:
             raise ValueError(mode)
         if self.verbose and onchange:
-            print(f"Set special to `{self.specials.__class__.__name__}`")
+            print(f"Set special to `{mode}`")
 
 
 class Numpy32Bit(NumpyBackend):
@@ -487,6 +512,7 @@ class CupyBackend(BackendBaseClass):
         self.square = cp.square
         self.mean = cp.mean
         self.arange = cp.arange
+        self.average = cp.average
 
         from .cuda.callables import CudaSpecials
 
@@ -512,7 +538,7 @@ class CupyBackend(BackendBaseClass):
         else:
             raise ValueError(mode)
         if self.verbose:
-            print(f"Set special to `{self.specials.__class__.__name__}`")
+            print(f"Set special to `{mode}`")
 
 
 class Cupy32Bit(CupyBackend):

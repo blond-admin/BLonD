@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.constants import c, e
 
-from blond import SingleHarmonicCavity
+from blond import SingleHarmonicRfStation
 from blond._core.helpers import int_from_float_with_warning
 from blond.beam_preparation.base import MatchingRoutine
 from blond.physics.drifts import DriftSimple
@@ -141,8 +141,8 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             turn_i=0,
             reference_time=0,
         )
-        cavity: SingleHarmonicCavity = simulation.ring.elements.get_element(
-            SingleHarmonicCavity
+        cavity: SingleHarmonicRfStation = simulation.ring.elements.get_element(
+            SingleHarmonicRfStation
         )
 
         cavity.apply_schedules(turn_i=0, reference_time=0.0)
