@@ -12,6 +12,7 @@ from blond._core.backends.backend import (
     NumpyBackend,
     backend,
 )
+from blond._core.backends.numba.callables import recompile_numba_backend
 
 try:
     import cupy as _  # type: ignore
@@ -610,6 +611,13 @@ class TestSpecials(unittest.TestCase):
     def tearDown(self) -> None:
         backend.change_backend(Numpy32Bit)
         backend.set_specials("numba")
+
+
+class TestNumbaCompilation(unittest.TestCase):
+    def test_raising_of_error(self) -> None:
+        with self.assertRaises(TypeError):
+            recompile_numba_backend(floattype=np.float16)
+
 
 
 if __name__ == "__main__":
