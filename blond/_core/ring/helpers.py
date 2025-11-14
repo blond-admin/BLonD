@@ -162,8 +162,6 @@ def get_dependencies(cls_: type, dependency_attribute: str) -> list:
                 raise Exception(type(attr))
         else:
             attr = []
-        if not isinstance(attr, list):  # inside of if is unreachable
-            raise Exception(type(attr))  # pragma: no cover
     else:
         attr = getattr(cls_, dependency_attribute, [])
         if not isinstance(attr, list):
