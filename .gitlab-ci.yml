@@ -56,7 +56,7 @@ workflow:
       --cov-report xml:coverage.xml
       --junitxml=junit-report.xml
     - |
-      python3 - <<'EOF'
+      python3 <<'EOF'
       import xml.etree.ElementTree as ET
       tree = ET.parse('coverage.xml')
       rate = tree.getroot().attrib['line-rate']   # e.g. "0.87342"
