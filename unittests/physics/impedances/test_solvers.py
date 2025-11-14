@@ -1,6 +1,7 @@
 import json
 import os
 import unittest
+import warnings
 from collections import deque
 from copy import deepcopy
 from pathlib import Path
@@ -14,6 +15,7 @@ from scipy.fft import next_fast_len
 
 from blond import Simulation, SingleHarmonicRfStation, WakeField, mu_plus
 from blond._core.beam.base import BeamBaseClass
+from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.solvers import (
     InductiveImpedance,
     InductiveImpedanceSolver,
@@ -90,24 +92,54 @@ class TestTimeDomainFftSolver(unittest.TestCase):
 
         assert len(ind_volt) == len(self.time_domain_fft_solver._parent_wakefield.profile.hist_y)
 
-    @pytest.mark.skip()
     def test_error_throwing_warning_throwing(self):
         local_solver = deepcopy(self.time_domain_fft_solver)
         local_solver._parent_wakefield.sources = (ImpedanceTableFreq,)
 
-        with self.assertRaises(Exception):
+        with self.assertRaisesRegex(Exception, "Can only accept impedance that support"):
             local_solver._update_impedance_sources(beam=self.beam)
 
-        local_solver._parent_wakefield.sources = (self.resonators,)
-        local_solver._update_impedance_sources(beam=self.beam)
-        local_solver._wake_imp_y = np.array([0])
-        local_solver._update_impedance_sources(beam=self.beam)
-        assert local_solver._wake_imp_y == np.array([0])  # check that nothing gets changed without flag
+        # local_solver._parent_wakefield.sources = (self.resonators,)
+        # local_solver._update_impedance_sources(beam=self.beam)
+        # local_solver._wake_imp_y = np.array([0])
+        # local_solver._update_impedance_sources(beam=self.beam)
+        # assert local_solver._wake_imp_y == np.array([0])  # check that nothing gets changed without flag
+        #
+        # local_solver._wake_imp_y_needs_update = True
+        # local_solver._wake_imp_y = np.ones_like(local_solver._parent_wakefield.profile.hist_x, dtype=complex)
+        # local_solver._update_impedance_sources(beam=self.beam)
+        # assert np.sum(local_solver._wake_imp_y) != 0
 
-        local_solver._wake_imp_y_needs_update = True
-        local_solver._wake_imp_y = np.ones_like(local_solver._parent_wakefield.profile.hist_x, dtype=complex)
-        local_solver._update_impedance_sources(beam=self.beam)
-        assert np.sum(local_solver._wake_imp_y) != 0
+    def test_on_wakefield_init_simulation_error_throwing(self):
+        simulation = Mock(Simulation)
+        parent_wakefield = Mock(WakeField)
+        profile = Mock(DynamicProfileConstNBins)
+        profile.n_bins = 10
+        parent_wakefield.profile = profile
+        parent_wakefield.profile.hist_step = 1
+        resonators = Mock(Resonators)
+        resonators.is_dynamic = False
+        parent_wakefield.sources = (resonators,)
+        resonators.get_impedance.return_value = np.linspace(1, 2, 6)
+
+        with warnings.catch_warnings(record=True) as w:
+            self.time_domain_fft_solver.expect_profile_change = False
+            self.time_domain_fft_solver.on_wakefield_init_simulation(simulation=simulation,
+                                                                   parent_wakefield=parent_wakefield)
+            self.assertIn("Because you are using a", str(w[0].message))
+
+        with self.assertRaisesRegex(NotImplementedError, "Unrecognized type"):
+            profile = Mock(BeamBaseClass)
+            parent_wakefield.profile = profile
+            parent_wakefield.profile.hist_step = 1
+            parent_wakefield.profile.n_bins = 10
+            self.time_domain_fft_solver.on_wakefield_init_simulation(simulation=simulation,
+                                                                   parent_wakefield=parent_wakefield)
+
+        with self.assertRaises(Exception):
+            parent_wakefield.profile = None
+            self.time_domain_fft_solver.on_wakefield_init_simulation(simulation=simulation,
+                                                                   parent_wakefield=parent_wakefield)
 
 
 class TestInductiveImpedanceSolver(unittest.TestCase):
@@ -158,7 +190,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
             Z_over_n=34.6669349520904 / 10e9 * 11e3
         )
         self.resonators = Resonators(
-            shunt_impedances=np.array([1, 2, 3]),
+            shunt_impedances=np.array([500, 1e6, 1e9]),
             center_frequencies=np.array([400e6, 600e6, 1.2e9]),
             quality_factors=np.array([1, 2, 3]),
         )
@@ -204,14 +236,29 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         beam.n_macroparticles_partial.return_value = int(3e6)
         self.periodic_freq_solver._parent_wakefield.profile.hist_y_to_density_factor = 1 /beam.n_macroparticles_partial.return_value
         beam.particle_type.charge = 1
-        beam.ratio = 1
+        beam.ratio = 1e5
         induced_voltage = self.periodic_freq_solver.calc_induced_voltage(
             beam=beam,
-        )  # TODO Pin Physics case here!
+        )
+        pinned_values = np.load(callers_relative_path("resources/induced_voltage_periodic_freq_solver.npz", stacklevel=1))["induced_voltage"]
+        np.testing.assert_allclose(pinned_values, induced_voltage, rtol=1e-5)
+
+        # np.savez(callers_relative_path("resources/induced_voltage_periodic_freq_solver.npz", stacklevel=1), induced_voltage=induced_voltage)
         DEV_PLOT = False
         if DEV_PLOT:
             plt.plot(induced_voltage)
             plt.show()
+
+        assert self.periodic_freq_solver._freq_y_needs_update == False
+        self.periodic_freq_solver._parent_wakefield.sources = (Mock(BeamBaseClass),)
+        # if this were to be checked, it would error, but since
+        # we are on _freq_y_needs_update == False, it skips
+        self.periodic_freq_solver._update_impedance_sources(beam=beam)
+
+        with self.assertRaises(Exception):
+            self.periodic_freq_solver._freq_y_needs_update = True
+            # update is now forced, which should force the error
+            self.periodic_freq_solver._update_impedance_sources(beam=beam)
 
     def test_on_wakefield_init_simulation(self):
         simulation = Mock(Simulation)
@@ -228,6 +275,37 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         self.periodic_freq_solver.on_wakefield_init_simulation(
             simulation=simulation, parent_wakefield=parent_wakefield
         )
+
+    def test_on_wakefield_init_simulation_error_throwing(self):
+        simulation = Mock(Simulation)
+        parent_wakefield = Mock(WakeField)
+        profile = Mock(DynamicProfileConstNBins)
+        profile.n_bins = 10
+        parent_wakefield.profile = profile
+        parent_wakefield.profile.hist_step = 1
+        resonators = Mock(Resonators)
+        resonators.is_dynamic = False
+        parent_wakefield.sources = (resonators,)
+        resonators.get_impedance.return_value = np.linspace(1, 2, 6)
+
+        with warnings.catch_warnings(record=True) as w:
+            self.periodic_freq_solver.expect_profile_change = False
+            self.periodic_freq_solver.on_wakefield_init_simulation(simulation=simulation,
+                                                                   parent_wakefield=parent_wakefield)
+            self.assertIn("Because you are using a", str(w[0].message))
+
+        with self.assertRaisesRegex(NotImplementedError, "Unrecognized type"):
+            profile = Mock(BeamBaseClass)
+            parent_wakefield.profile = profile
+            parent_wakefield.profile.hist_step = 1
+            parent_wakefield.profile.n_bins = 10
+            self.periodic_freq_solver.on_wakefield_init_simulation(simulation=simulation,
+                                                                   parent_wakefield=parent_wakefield)
+
+        with self.assertRaises(Exception):
+            parent_wakefield.profile = None
+            self.periodic_freq_solver.on_wakefield_init_simulation(simulation=simulation,
+                                                                   parent_wakefield=parent_wakefield)
 
 
 class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
@@ -1377,6 +1455,20 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         # ensure perfect addition of in-phase component
         assert np.allclose(ind_volt, ind_volt_init)
         assert np.argmax(ind_volt) == np.argmax(ind_volt_init)
+
+    def test_on_wakefield_init_simulation_wrong_source(self):
+        src = ImpedanceTableFreq(freq_x=np.array([1e12]), freq_y=np.array([500e6]))
+        parent_wakefield = WakeField(sources=(src,), solver=None, profile=Mock(StaticProfile))
+        simulation = Mock(Simulation)
+        with self.assertRaisesRegex(RuntimeError, "Expected `Resonators` and not "):
+            self.multi_pass_resonator_solver.on_wakefield_init_simulation(
+                simulation=simulation, parent_wakefield=parent_wakefield)
+        res = Resonators(shunt_impedances=1.0, center_frequencies=1.0, quality_factors=1.0)
+        res.is_dynamic = True
+        parent_wakefield = WakeField(sources=(res,), solver=None,  profile=Mock(StaticProfile))
+        with self.assertRaisesRegex(RuntimeError, "Expected `Resonators` and not "):
+            self.multi_pass_resonator_solver.on_wakefield_init_simulation(
+                simulation=simulation, parent_wakefield=parent_wakefield)
 
     def test_compare_to_analytical_resonator_solver_for_results(self):
         resonators = Resonators(
