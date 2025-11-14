@@ -101,15 +101,22 @@ class TestFunctions(unittest.TestCase):
 
         assert A.method.requires == [""]
 
-    @unittest.skip
-    def test_topological_sort(self) -> None:
-        # TODO: implement test for `topological_sort`
-        _topological_sort(graph=None, in_degree=None, all_classes=None)
+    def test_topological_sort_cyclic_dependency(self) -> None:
+        class A_recusive:
+            @requires(["B_recursive"])
+            def on_init_simulation(self):
+                pass
+        class B_recursive:
+            @requires(["A_recusive"])
+            def on_init_simulation(self):
+                pass
+        a_rec, b_rec = A_recusive(), B_recursive()
+        with self.assertRaisesRegex(ValueError, "Cyclic dependency"):
+            _ = get_init_order(
+                instances=(a_rec, b_rec), dependency_attribute="on_init_simulation.requires"
+            )
 
     def test_get_dependencies(self) -> None:
-        class A:
-            pass
-
         class B:
             @requires(["A", "B"])
             def on_init_simulation(self):
@@ -122,9 +129,6 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual(res, ["A", "B"])
 
     def test_get_dependencies_raise(self) -> None:
-        class A:
-            pass
-
         class B:
             @requires("A")
             def on_init_simulation(self):
@@ -135,20 +139,10 @@ class TestFunctions(unittest.TestCase):
                 cls_=B,
                 dependency_attribute="on_init_simulation.requires",
             )
-
-    def test_get_dependencies_raise2(self) -> None:
-        class A:
-            pass
-
-        class B:
-            @requires("A")
-            def on_init_simulation(self):
-                return
-
-        with self.assertRaises(NotImplementedError):
-            get_dependencies(
+        with self.assertRaisesRegex(NotImplementedError, "Only one . allowed"):
+            _ = get_dependencies(
                 cls_=B,
-                dependency_attribute="on_init_simulation.requires.second_dot_here",
+                dependency_attribute="on_init_simulation.requires.too_much_nesting",
             )
 
     def test_get_dependencies2(self) -> None:
