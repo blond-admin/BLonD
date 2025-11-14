@@ -59,14 +59,6 @@ workflow:
     - echo "XML_COVERAGE=$COV"
   coverage: '/XML_COVERAGE=(\d+\.\d+)/'
 
-#.after:
-#  after_script:
-#    - cd ${project_root}
-#    - python3 -m pip install coverage
-#    - coverage report
-#    # - coverage xml -o coverage-report.xml
-#  coverage: /(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/
-
 .publish:
   artifacts:
     expire_in: 30 days
@@ -116,7 +108,6 @@ test_py_311:
   extends:
     - .before
     - .main
-#    - .after
     # - .publish
   tags:
     - k8s-gpu
@@ -128,7 +119,6 @@ test_py_312:
   extends:
     - .before
     - .main
-#    - .after
     # - .publish
   tags:
     - k8s-gpu
