@@ -1,13 +1,16 @@
+"""
+Functions and classes to interface BLonD with xsuite.
+
+:Authors: **Birk Emil Karlsen-Baeck**, **Thom Arnoldus van Rijswijk**, **Helga Timko**, **Elleanor Lamb**
+"""
+
 from __future__ import annotations
 
-from abc import ABC
 from typing import TYPE_CHECKING, Any, Optional
 
-import numpy as np
 from scipy.constants import c as clight
 
 from blond._core.backends import backend
-from blond._core.base import BeamPhysicsRelevant, Schedulable
 from blond._core.beam.beams import BeamBaseClass
 
 if TYPE_CHECKING:
@@ -161,5 +164,10 @@ class DriftXSuite(DriftBaseClass):
         """Alias for momentum compaction factor."""
         return self.momentum_compaction_factor
 
-    def get_line(self) -> line:
+    def get_line(self):
         return self._line_internal
+
+
+class EnergyUpdateXsuite:
+    # todo
+    pass
