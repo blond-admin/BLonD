@@ -55,6 +55,29 @@ class TestDriftSimple(unittest.TestCase):
             section_index=0,
         )
 
+    def test_array_setup(self):
+        self.drift_simple = DriftSimple.headless(
+            transition_gamma=np.array([20.0]),  # highly relativistic
+            orbit_length=0.25 * 25,
+            section_index=0,
+        )
+
+        beam=Mock(BeamBaseClass)
+        beam.reference_time = 0.0
+        beam.reference_gamma = 1.0
+        beam.reference_velocity = 0.5
+        beam.reference_beta = 0.1
+        beam.reference_total_energy = 1.0
+        beam.write_partial_dt.return_value = np.ones(10)
+        beam.read_partial_dE.return_value = np.zeros(10)
+        self.drift_simple.track(beam=beam)
+
+    def test_error_throwing_on_unscheduled(self):
+        simulation = Mock(Simulation)
+        self.drift_simple = DriftSimple(section_index=1, orbit_length=0)
+        with self.assertRaises(ValueError):
+            self.drift_simple.on_init_simulation(simulation=simulation)
+
     def test___init__(self):
         np.testing.assert_array_equal(self.drift_simple.transition_gamma, 20.0)
         self.assertEqual(self.drift_simple.orbit_length, 0.25 * 25)

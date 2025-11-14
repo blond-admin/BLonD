@@ -85,7 +85,7 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
 
         self.orbit_length = orbit_length
 
-    @abc.abstractmethod
+    @abc.abstractmethod  # pragma: no cover
     def eta_0(self, gamma: float) -> backend.float:
         """Drift in arc parameter eta for one turn in synchrotron."""
         pass
