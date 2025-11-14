@@ -170,4 +170,10 @@ class DriftXSuite(DriftBaseClass):
 
 class EnergyUpdateXsuite:
     # todo
-    pass
+    """
+    BLonD–Xsuite interface element that performs drift tracking using an
+    Xsuite Line or sub-element.
+    """
+
+    def __init__(self):
+        pass
