@@ -712,7 +712,7 @@ class RingAndRFTracker:
         energy = self.rf_params.energy[turn + 1]
 
         n_rf = self.rf_params.voltage.shape[0]
-        from blond.legacy.blond2.gpu import GPU_DEV
+        from blond.gpu import GPU_DEV
 
         kickdrift_considering_periodicity = GPU_DEV.mod.get_function(
             "kickdrift_considering_periodicity"
