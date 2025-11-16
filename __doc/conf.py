@@ -253,26 +253,3 @@ show_warning_types = True
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {"https://docs.python.org/": None}
-
-
-# This section checks if a system module has been reported already
-_seen_targets = set()
-
-def _fqname_for(obj, name):
-    # Build a stable fully-qualified name for indexing decisions
-    mod = getattr(obj, "__module__", "") or ""
-    qual = getattr(obj, "__qualname__", "") or name
-    return f"{mod}.{qual}"
-
-def autodoc_skip_if_duplicate(app, what, name, obj, skip, options):
-    fq = _fqname_for(obj, name)
-
-    # only treat as duplicate if we've already seen the exact fqname.
-    if fq in _seen_targets:
-        return True  # skip this duplicate -> prevents duplicate-object warnings
-
-    _seen_targets.add(fq)
-    return skip  # keep default decision for the first time we see it
-
-def setup(app):
-    app.connect("autodoc-skip-member", autodoc_skip_if_duplicate)
