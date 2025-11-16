@@ -39,7 +39,7 @@ os.environ["SPHINX_SHOW_WARNING_TYPES"] = "1"  # force categories in output
 folder = os.path.abspath("modules")
 sys.path.insert(0, folder)
 extensions = [
-    # "sphinx.ext.autodoc",
+    "sphinx.ext.autodoc",
     # "sphinx.ext.autosummary",
     #    "sphinx.ext.doctest",
     #    "sphinx.ext.intersphinx",
@@ -133,6 +133,10 @@ pygments_style = "sphinx"
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 # todo_include_todos = True
 
+autodoc_member_order = "bysource"
+autodoc_preserve_defaults = True  # optional
+# autodoc_inherit_docstrings = False
+autodoc_typehints = "signature"  # or 'description'
 
 # -- Options for HTML output ----------------------------------------------
 
@@ -238,11 +242,13 @@ suppress_warnings = [
 html_static_path = ["_static"]
 html_css_files = ["css/wide.css"]
 
+
 autodoc_default_options = {
     # Avoid pulling in names that are only imported into __init__.py
-    "imported-members": False,
+    # "imported-members": False,  # breaks import location
+    "show-inheritance": True,
+    "no-imported-members": True,
 }
-
 show_warning_types = True
 
 # Example configuration for intersphinx: refer to the Python standard library.
