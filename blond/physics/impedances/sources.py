@@ -247,9 +247,9 @@ class Resonators(
 
     def __init__(
         self,
-        shunt_impedances: NumpyArray | ArrayLike | float,
-        center_frequencies: NumpyArray | ArrayLike | float,
-        quality_factors: NumpyArray | ArrayLike | float,
+        shunt_impedances: NumpyArray | ArrayLike | float | int,
+        center_frequencies: NumpyArray | ArrayLike | float | int,
+        quality_factors: NumpyArray | ArrayLike | float | int,
         shunt_impedances_counter_rotating: NumpyArray
         | float
         | ArrayLike
@@ -264,9 +264,9 @@ class Resonators(
         self._n_resonators: int
 
         if (
-            isinstance(shunt_impedances, float)
-            and isinstance(center_frequencies, float)
-            and isinstance(quality_factors, float)
+            isinstance(shunt_impedances, float | int)
+            and isinstance(center_frequencies, float | int)
+            and isinstance(quality_factors, float | int)
         ):
             self._shunt_impedances = np.array([shunt_impedances])
             self._center_frequencies = np.array([center_frequencies])
@@ -287,14 +287,13 @@ class Resonators(
         self._shunt_impedances_counter_rotating: NumpyArray | None = None
 
         if shunt_impedances_counter_rotating is not None:
-            if isinstance(shunt_impedances_counter_rotating, float):
-                self._shunt_impedances_counter_rotating = np.array(
-                    [shunt_impedances_counter_rotating]
-                )
-            else:
-                self._shunt_impedances_counter_rotating = np.array(
+            if isinstance(shunt_impedances_counter_rotating, float | int):
+                shunt_impedances_counter_rotating = [
                     shunt_impedances_counter_rotating
-                )
+                ]
+            self._shunt_impedances_counter_rotating = np.array(
+                shunt_impedances_counter_rotating
+            )
 
             assert len(self._shunt_impedances_counter_rotating) == len(
                 self._shunt_impedances
