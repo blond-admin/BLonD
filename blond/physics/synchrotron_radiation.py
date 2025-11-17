@@ -6,9 +6,13 @@ Simon Lauber
 Lina Valle
 """
 
-from __future__ import annotations
+from __future__ import (
+    annotations,  # pragma: no cover # TODO remove when SR is implemented
+)
 
-from typing import TYPE_CHECKING
+from typing import (
+    TYPE_CHECKING,  # pragma: no cover # TODO remove when SR is implemented
+)
 
 from blond._core.base import (
     BeamPhysicsRelevant,  # pragma: no cover # TODO remove when SR is implemented
