@@ -12,6 +12,7 @@ from blond._core.backends.backend import (
     NumpyBackend,
     backend,
 )
+from blond._core.backends.numba.callables import recompile_numba_backend
 
 try:
     import cupy as _  # type: ignore
@@ -53,6 +54,7 @@ class TestBackendBaseClass(unittest.TestCase):
             backend_modes = ["cuda"] + backend_modes
         except ModuleNotFoundError:
             pass
+        print(f"{backend_modes=}")
         for backend_mode in backend_modes:
             os.environ["BLOND_BACKEND_MODE"] = backend_mode
             for backend_bit in backend_bits:
@@ -71,6 +73,16 @@ class TestBackendBaseClass(unittest.TestCase):
                             warnings.warn(f"{backend_mode} backend was not supported for {backend_bit}, compilation missing?")
                         else:
                             raise error
+
+    def test__finalize(self):
+        some_backend = Numpy32Bit()
+        some_backend.array = None
+        with self.assertRaises(AttributeError):
+            some_backend._finalize()
+
+    def test_change_backend(self):
+        some_backend = Numpy32Bit()
+        some_backend.change_backend(some_backend) # shouldnt do anything
 
 
 class TestCupy32Bit(unittest.TestCase):
@@ -104,13 +116,21 @@ class TestCupyBackend(unittest.TestCase):
         self.cupy_backend.set_specials(mode="cuda")
 
 
+    def test_set_specials_fails(self):
+        if not cupy_available:
+            self.skipTest(f"{cupy_available=}")
+        self.cupy_backend = CupyBackend(
+            float_=np.float32, int_=np.float32, complex_=np.complex64
+        )
+        with self.assertRaises(ValueError):
+            self.cupy_backend.set_specials("doesnt exist")
+
 class TestNumpy64Bit(unittest.TestCase):
     def setUp(self) -> None:
         self.numpy64_bit = Numpy64Bit()
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
-
 
 class TestNumpyBackend(unittest.TestCase):
     def setUp(self) -> None:
@@ -141,6 +161,10 @@ class TestNumpyBackend(unittest.TestCase):
         except FileNotFoundError:
             self.skipTest(f"fortran not available!")
 
+
+    def test_set_specials_fails(self):
+        with self.assertRaises(ValueError):
+            self.numpy_backend.set_specials("doesnt exist")
 
 class TestSpecials(unittest.TestCase):
     def setUp(self) -> None:
@@ -610,6 +634,13 @@ class TestSpecials(unittest.TestCase):
     def tearDown(self) -> None:
         backend.change_backend(Numpy32Bit)
         backend.set_specials("numba")
+
+
+class TestNumbaCompilation(unittest.TestCase):
+    def test_raising_of_error(self) -> None:
+        with self.assertRaises(TypeError):
+            recompile_numba_backend(floattype=np.float16)
+
 
 
 if __name__ == "__main__":

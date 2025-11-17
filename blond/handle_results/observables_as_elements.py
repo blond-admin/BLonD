@@ -89,19 +89,20 @@ class BeamObservationInRingElement(
         n_entries = n_turns // self.each_turn_i + 2
 
         self._dEs = DenseArrayRecorder(
-            self.common_name + "_dEs", (n_entries, beam.common_array_size)
+            self.common_filepath + "_dEs", (n_entries, beam.common_array_size)
         )
         self._dts = DenseArrayRecorder(
-            self.common_name + "_dts", (n_entries, beam.common_array_size)
+            self.common_filepath + "_dts", (n_entries, beam.common_array_size)
         )
         self._reference_time = DenseArrayRecorder(
-            self.common_name + "_reference_time", (n_entries,)
+            self.common_filepath + "_reference_time", (n_entries,)
         )
         self._reference_total_energy = DenseArrayRecorder(
-            self.common_name + "_reference_total_energy", (n_entries,)
+            self.common_filepath + "_reference_total_energy", (n_entries,)
         )
         self._flags = DenseArrayRecorder(
-            self.common_name + "_flags", (n_entries, beam.common_array_size)
+            self.common_filepath + "_flags",
+            (n_entries, beam.common_array_size),
         )
 
     def track(self, beam: BeamBaseClass) -> None:

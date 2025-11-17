@@ -5,15 +5,27 @@ import numpy as np
 from numpy._typing import NDArray as NumpyArray
 from scipy.constants import speed_of_light as c0
 
-from blond import Simulation, proton
+from blond import Ring, Simulation, StaticProfile, proton
 from blond._core.backends.backend import backend
 from blond._core.base import DynamicParameter
+from blond._core.beam.base import BeamBaseClass
+from blond.experimental.physics.feedbacks.accelerators.sps.beam_feedback import (
+    SpsRlBeamFeedback,
+)
+from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback import (
+    SPSOneTurnFeedback,
+)
 from blond.physics.cavities import (
     MultiHarmonicRfStation,
     RfStationBaseClass,
     SingleHarmonicRfStation,
 )
 from blond.physics.drifts import _assert_purely_real_or_imaginary
+from blond.physics.impedances.base import WakeField
+from blond.physics.impedances.solvers import (
+    SingleTurnResonatorConvolutionSolver,
+)
+from blond.physics.impedances.sources import Resonators
 
 
 class RfStationBaseClassHelper(RfStationBaseClass):
@@ -22,6 +34,96 @@ class RfStationBaseClassHelper(RfStationBaseClass):
 
     def calc_omega(self, beam_beta: float, ring_circumference: float):
         pass
+
+
+class TestRFStationBaseClass(unittest.TestCase):
+    def setUp(self) -> None:
+        self.beam = Mock(BeamBaseClass)
+        self.beam.particle_type = proton
+        self.beam.reference_time = 0
+        self.beam.reference_beta = 0.5
+        self.beam.reference_velocity = self.beam.reference_beta * c0
+        self.beam.reference_gamma = np.sqrt(1 - 0.25)  # beta**2
+        self.beam.reference_total_energy = 938
+        self.beam.dE = np.linspace(-1e6, 1e6, 10, dtype=backend.float)  # delta E
+        # in eV
+        self.beam.dt = np.linspace(-1e-6, 1e-6, 10, dtype=backend.float)  # delta t
+        # in s
+        self.beam.read_partial_dt.return_value = self.beam.dt
+        self.beam.write_partial_dE.return_value = self.beam.dE
+
+    def test_init_of_feedbacks(self):
+        # default init
+        SingleHarmonicRfStation(section_index=1, local_wakefield=None,
+                                beam_feedback=None, cavity_feedback=None)
+        prof = StaticProfile.from_cutoff(0, 1e-9, 3e9)
+        beam_feedback_good = SpsRlBeamFeedback(section_index=0, profile=prof, PL_gain=1)
+
+        SingleHarmonicRfStation(section_index=1, local_wakefield=None,
+                                beam_feedback=beam_feedback_good, cavity_feedback=None)
+        with self.assertRaises(ValueError):
+            SingleHarmonicRfStation(section_index=1, local_wakefield=None,
+                                    beam_feedback=prof, cavity_feedback=None)
+
+        mhc = MultiHarmonicRfStation.headless(section_index=1, voltage=np.array([1]), harmonic=np.array([1]),
+                                              phi_rf=np.array([1]), main_harmonic_idx=0, circumference=1,
+                                              total_energy=1, reference_beta=1)
+        cavity_feedback_good = SPSOneTurnFeedback(profile=prof, _parent_cavity=mhc, n_sections=3)
+
+        # TODO: remove this, once cavity feedback setup is fixed
+        MultiHarmonicRfStation(section_index=1, local_wakefield=None, main_harmonic_idx=0, n_harmonics=1,
+                               cavity_feedback=(cavity_feedback_good, ))
+        with self.assertRaises(ValueError):
+            SingleHarmonicRfStation(section_index=1, local_wakefield=None,
+                                    cavity_feedback=(prof, ))
+
+    def test_track_with_feedbacks(self):
+        SingleHarmonicRfStation(section_index=1, local_wakefield=None,
+                                beam_feedback=None, cavity_feedback=None)
+        # prof = StaticProfile.from_cutoff(0, 1e-9, 3e9)
+        beam_feedback_good = Mock(SpsRlBeamFeedback) # (section_index=0, profile=prof, PL_gain=1)
+        beam_feedback_good.delay = 1e-9
+        beam_feedback_good.domega_rf = 0
+        # mhc = MultiHarmonicRfStation.headless(section_index=1, voltage=np.array([1]), harmonic=np.array([1]),
+        #                                       phi_rf=np.array([1]), main_harmonic_idx=0, circumference=1,
+        #                                       total_energy=1, reference_beta=1)
+        cavity_feedback_good = Mock(SPSOneTurnFeedback) # profile=prof, _parent_cavity=mhc, n_sections=3)
+        cavity_feedback_good.info_string.return_value = "Unnamed-LocalFeedback-000"
+
+        # TODO: remove this, once cavity feedback setup is fixed
+        mhc_feedbacks = MultiHarmonicRfStation(section_index=1, local_wakefield=None, main_harmonic_idx=0, n_harmonics=1,
+                                               cavity_feedback=(cavity_feedback_good,), beam_feedback=beam_feedback_good,
+                                               )
+        mhc_feedbacks.voltage = np.array([1])
+        mhc_feedbacks.phi_rf = np.array([1])
+        mhc_feedbacks.harmonic = np.array([1])
+
+        simulation = Mock(Simulation)
+        simulation.turn_i = DynamicParameter(1)
+        simulation.ring.circumference = 456
+        simulation.ring.section_lengths = np.array([simulation.ring.circumference])
+
+        mhc_feedbacks.on_init_simulation(simulation=simulation)
+        mhc_feedbacks.on_run_simulation(simulation=simulation, beam=self.beam, n_turns=100, turn_i_init=0)
+
+        with self.assertRaises(TypeError):
+            mhc_feedbacks.track(beam=self.beam)
+
+            cavity_feedback_good.track.assert_called_once()
+
+        info_str = mhc_feedbacks.info_string()
+        assert "Feedback" in info_str
+
+    def test_with_wakefields(self):
+        wf = Mock(WakeField)
+        shc = SingleHarmonicRfStation(section_index=0, harmonic=1, voltage=1, phi_rf=1,
+                                      local_wakefield=wf)
+        shc._turn_i = DynamicParameter(0)
+        shc._ring = Mock(Ring)
+        shc._ring.circumference = 456
+        with self.assertRaises(AttributeError):
+            shc.track(beam=self.beam)
+            assert wf.track.assert_called_once()
 
 
 class TestCallables(unittest.TestCase):
@@ -47,6 +149,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             cavity_feedback=None,
             total_energy=939,
             main_harmonic_idx=0,
+            reference_beta=1,
         )
         self.multi_harmonic_cavity._ring.section_lengths = [1, 2, 3]
 
@@ -54,8 +157,6 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         pass  # calls __init__ in  self.setUp
 
     def test_track(self) -> None:
-        from blond._core.beam.base import BeamBaseClass
-
         beam = Mock(BeamBaseClass)
         beam.particle_type = proton
         beam.reference_time = 0
@@ -217,6 +318,14 @@ class TestSingleHarmonicCavity(unittest.TestCase):
                 simulation=simulation
             )
 
+    def test_voltage_waveform_tmp(self):
+        simulation = Mock(Simulation)
+        simulation.turn_i = DynamicParameter(0)
+
+        time_array = np.array([1, 2, 3])
+        self.single_harmonic_cavity._omega_rf = np.array([3.0e9])
+        volt_calc = self.single_harmonic_cavity.voltage_waveform_tmp(time_array)
+        assert len(volt_calc) == len(time_array)
 
 if __name__ == "__main__":
     unittest.main()
