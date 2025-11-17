@@ -71,7 +71,11 @@ class TestBackendBaseClass(unittest.TestCase):
                             warnings.warn(f"{backend_mode} backend was not supported for {backend_bit}, compilation missing?")
                         else:
                             raise error
-
+    def test_temporary_specials_mode(self):
+        specials_org = backend.specials_mode
+        with backend.temporary_specials_mode(mode="python"):
+            self.assertEqual(backend.specials_mode, "python")
+        self.assertEqual(backend.specials_mode, specials_org)
 
 class TestCupy32Bit(unittest.TestCase):
     def test___init__(self) -> None:
