@@ -10,46 +10,19 @@ from numpy._typing import NDArray as NumpyArray
 from scipy.interpolate import interp1d
 
 from blond import Simulation, StaticProfile
-from blond.experimental.physics.feedbacks.base import (
-    GlobalFeedback,
-    LocalFeedback,
-)
 from blond.experimental.physics.feedbacks.cavity_feedback import (
-    BirksCavityFeedback,
+    IQCavityFeedback,
 )
 from blond.physics.cavities import (
     MultiHarmonicRfStation,
     SingleHarmonicRfStation,
 )
-from blond.physics.profiles import ProfileBaseClass
 
 from .helpers import (
     cavity_response_sparse_matrix,
     fir_filter_lhc_otfb_coeff,
     smooth_step,
 )
-
-
-class LhcBeamFeedBack(GlobalFeedback):
-    def __init__(self, profile: ProfileBaseClass, section_index: int = 0):
-        super().__init__(
-            profile=profile,
-            section_index=section_index,
-        )
-
-
-class LhcRfFeedback(LocalFeedback):
-    def __init__(
-        self,
-        profile: ProfileBaseClass,
-        cavity: SingleHarmonicRfStation | MultiHarmonicRfStation,
-        section_index: int = 0,
-    ):
-        super().__init__(
-            profile=profile,
-            cavity=cavity,
-            section_index=section_index,
-        )
 
 
 class LHCCavityLoopCommissioning:
@@ -154,7 +127,7 @@ class LHCCavityLoopCommissioning:
         return np.exp(2 * np.pi * 1j * r1) * np.sqrt(-2 * np.log(r2))
 
 
-class LHCCavityLoop(BirksCavityFeedback):
+class LHCCavityLoop(IQCavityFeedback):
     r"""Cavity loop to regulate the RF voltage in the LHC ACS cavities.
     The loop contains a generator, a switch-and-protect device, an RF FB and a
     OTFB. The arrays of the LLRF system cover one turn with exactly one tenth

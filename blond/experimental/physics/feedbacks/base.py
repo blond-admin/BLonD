@@ -61,9 +61,6 @@ class LocalFeedback(FeedbackBaseClass):
         pass
 
 
-RfFeedback = LocalFeedback  # just an alias name
-
-
 class GlobalFeedback(FeedbackBaseClass):
     def __init__(
         self,
@@ -91,10 +88,24 @@ class GlobalFeedback(FeedbackBaseClass):
             SingleHarmonicRfStation
         )
 
+    @abstractmethod
+    def get_beam_attribute(self, beam: BeamBaseClass):
+        # could be mean energy, mean phase or whatever
+        pass
 
-BeamFeedback = GlobalFeedback  # just an alias name
+    @abstractmethod
+    def apply_corrections(self):
+        # shift the cavity phase or so
+        pass
+
+    def track(self, beam: BeamBaseClass):
+        self.get_beam_attribute(
+            beam=beam
+        )
+        self.apply_corrections()
 
 
+# TODO: Remove
 class GroupedFeedback(FeedbackBaseClass):
     def __init__(
         self,

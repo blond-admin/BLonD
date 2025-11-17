@@ -21,7 +21,7 @@ import numpy as np
 
 from blond._core.backends.backend import backend
 
-from .base import LocalFeedback
+from .base import GlobalFeedback, LocalFeedback
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond._core.beam.base import BeamBaseClass
@@ -29,7 +29,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.physics.profiles import ProfileBaseClass
 
 
-class GeneralBeamFeedback(LocalFeedback):
+class BeamFeedbackBase(GlobalFeedback):
     _parent_cavity: RfStationBaseClass
 
     def __init__(self, profile: ProfileBaseClass):

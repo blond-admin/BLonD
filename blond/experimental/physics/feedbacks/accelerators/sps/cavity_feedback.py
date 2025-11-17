@@ -16,7 +16,7 @@ from blond.experimental.physics.feedbacks.accelerators.sps.impulse_response impo
     SPS5Section200MHzTWC,
 )
 from blond.experimental.physics.feedbacks.cavity_feedback import (
-    BirksCavityFeedback,
+    IQCavityFeedback,
 )
 from blond.experimental.physics.feedbacks.helpers import cartesian_to_polar
 from blond.physics.cavities import MultiHarmonicRfStation
@@ -80,7 +80,7 @@ class SPSCavityLoopCommissioning:
         self.excitation: int = int(excitation)
 
 
-class SPSOneTurnFeedback(BirksCavityFeedback):
+class SPSOneTurnFeedback(IQCavityFeedback):
     r"""The SPS one-turn delay feedback and feedforward model in BLonD for a single cavity type.
 
     Parameters

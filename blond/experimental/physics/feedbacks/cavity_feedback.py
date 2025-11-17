@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 # TODO rewrite all docstrings
 
 
-class BirksCavityFeedback(LocalFeedback):
+class IQCavityFeedback(LocalFeedback):
     """Base class to design cavity feedbacks.
 
     Parameters
