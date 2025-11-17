@@ -57,8 +57,10 @@ class TestBackendBaseClass(unittest.TestCase):
         print(f"{backend_modes=}")
         for backend_mode in backend_modes:
             os.environ["BLOND_BACKEND_MODE"] = backend_mode
+            print(f"{os.environ["BLOND_BACKEND_MODE"]=}")
             for backend_bit in backend_bits:
                 os.environ["BLOND_BACKEND_BITS"] = backend_bit
+                print(f"{os.environ["BLOND_BACKEND_BITS"]=}")
                 if (backend_mode == "fail") or (backend_bit == "fail"):
                     with self.assertRaises(ValueError):
                         self.backend_base_class.apply_environment_variables()
@@ -116,13 +118,19 @@ class TestCupyBackend(unittest.TestCase):
         self.cupy_backend.set_specials(mode="cuda")
 
 
+    def test_set_specials_fails(self):
+        self.cupy_backend = CupyBackend(
+            float_=np.float32, int_=np.float32, complex_=np.complex64
+        )
+        with self.assertRaises(ValueError):
+            self.cupy_backend.set_specials("doesnt exist")
+
 class TestNumpy64Bit(unittest.TestCase):
     def setUp(self) -> None:
         self.numpy64_bit = Numpy64Bit()
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
-
 
 class TestNumpyBackend(unittest.TestCase):
     def setUp(self) -> None:
@@ -153,6 +161,10 @@ class TestNumpyBackend(unittest.TestCase):
         except FileNotFoundError:
             self.skipTest(f"fortran not available!")
 
+
+    def test_set_specials_fails(self):
+        with self.assertRaises(ValueError):
+            self.numpy_backend.set_specials("doesnt exist")
 
 class TestSpecials(unittest.TestCase):
     def setUp(self) -> None:
