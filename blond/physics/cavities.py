@@ -37,7 +37,62 @@ if TYPE_CHECKING:  # pragma: no cover
 TWOPI_C0 = 2.0 * np.pi * c0
 
 
-class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
+class RfManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
+    """Base class to implement beam-rf any interactions in synchrotrons.
+
+    This class is intended to come with barely any feature to host all
+    beam-rf interactions, whereas `RfStationBaseClass` has already several
+    class methods to group `SingleHarmonicRfStation`, and `MultiHarmonicRfStation`.
+
+    Parameters
+    ----------
+    section_index
+        Section index to group elements into sections
+    name
+        User given name of the element
+    """
+
+    def __init__(
+        self,
+        section_index: int,
+        name: str | None = None,
+        **kwargs: dict[str, Any],  # for MRO of fused elements
+    ):
+        super().__init__(
+            section_index=section_index,
+            name=name,
+            **kwargs,  # for MRO of fused elements
+        )
+        self._turn_i: DynamicParameter | None = None
+
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called.
+
+        simulation
+            Simulation context manager
+        """
+        super().on_init_simulation(simulation=simulation)
+
+        self._turn_i = simulation.turn_i
+
+    def track(self, beam: BeamBaseClass) -> None:
+        """Main simulation routine to be called in the mainloop.
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element
+        """
+        super().track(beam=beam)
+        assert self._turn_i is not None
+        if self.schedule_active:
+            self.apply_schedules(
+                turn_i=self._turn_i.value,
+                reference_time=float(beam.reference_time),
+            )
+
+
+class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
     """Base class to implement beam-rf interactions in synchrotrons.
 
     Parameters
@@ -89,7 +144,6 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         self._cavity_feedback = cavity_feedback
         self._beam_feedback = beam_feedback
 
-        self._turn_i: DynamicParameter | None = None
         self._magnetic_cycle: MagneticCycleBase | None = None
         self._ring: Ring | None = None
 
@@ -110,7 +164,6 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             Simulation context manager
         """
         super().on_init_simulation(simulation=simulation)
-        self._turn_i = simulation.turn_i
         self._magnetic_cycle = simulation.magnetic_cycle
         self._ring = simulation.ring
 
@@ -223,12 +276,6 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             Beam class to interact with this element
         """
         super().track(beam=beam)
-        assert self._turn_i is not None
-        if self.schedule_active:
-            self.apply_schedules(
-                turn_i=self._turn_i.value,
-                reference_time=float(beam.reference_time),
-            )
 
         # set design omega etc. for this turn
         self._update_beam_based_attributes(beam=beam)
@@ -329,8 +376,23 @@ class CavityBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         """
         pass
 
+    def info_string(self, prefix="") -> str:
+        """Inform that the feedback/wakefield is also executed within the track method."""
+        content = ""
+        if self._cavity_feedback is not None:
+            content += (
+                f"{self._cavity_feedback.info_string(prefix=prefix + ' ↓ ')}\n"
+            )
 
-class SingleHarmonicCavity(CavityBaseClass):
+        if self._local_wakefield is not None:
+            content += (
+                f"{self._local_wakefield.info_string(prefix=prefix + ' ↓ ')}\n"
+            )
+        content += f"{super().info_string(prefix=prefix)}"
+        return content
+
+
+class SingleHarmonicRfStation(RfStationBaseClass):
     """Cavity with only one RF wave for beam interaction.
 
     Parameters
@@ -525,7 +587,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         total_energy: float,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
-    ) -> SingleHarmonicCavity:
+    ) -> SingleHarmonicRfStation:
         """Initialize object without simulation context.
 
         Parameters
@@ -556,7 +618,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         from .._core.simulation.simulation import Simulation
         from ..cycles.magnetic_cycle import ConstantMagneticCycle
 
-        mhc = SingleHarmonicCavity(
+        mhc = SingleHarmonicRfStation(
             section_index=section_index,
             local_wakefield=local_wakefield,
             cavity_feedback=cavity_feedback,
@@ -588,7 +650,7 @@ class SingleHarmonicCavity(CavityBaseClass):
         return mhc
 
 
-class MultiHarmonicCavity(CavityBaseClass):
+class MultiHarmonicRfStation(RfStationBaseClass):
     """Cavity with several RF wave for beam interaction.
 
     Parameters
@@ -769,7 +831,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
         beam_feedback: Blond2BeamFeedback | None = None,
-    ) -> MultiHarmonicCavity:
+    ) -> MultiHarmonicRfStation:
         """Initialize object without simulation context.
 
         Parameters
@@ -800,7 +862,7 @@ class MultiHarmonicCavity(CavityBaseClass):
         from .._core.simulation.simulation import Simulation
         from ..cycles.magnetic_cycle import ConstantMagneticCycle
 
-        mhc = MultiHarmonicCavity(
+        mhc = MultiHarmonicRfStation(
             n_harmonics=len(voltage),
             section_index=section_index,
             local_wakefield=local_wakefield,

@@ -8,7 +8,7 @@ from blond import (
     MagneticCycleByTime,
     Ring,
     Simulation,
-    SingleHarmonicCavity,
+    SingleHarmonicRfStation,
     StaticProfile,
     mu_plus,
 )
@@ -39,7 +39,7 @@ def main():
 
     one_turn_model = []
     for cavity_i in range(n_sections):
-        cavity = SingleHarmonicCavity(
+        cavity = SingleHarmonicRfStation(
             section_index=cavity_i,
         )
         profile = StaticProfile(
@@ -84,7 +84,7 @@ def main():
 
     zmax = ring.circumference / (2 * 25900)  # maximum bunch length z
 
-    total_cavity = SingleHarmonicCavity(
+    total_cavity = SingleHarmonicRfStation(
         section_index=cavity_i,
     )
 

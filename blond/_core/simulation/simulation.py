@@ -32,7 +32,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond import (
-        SingleHarmonicCavity,
+        SingleHarmonicRfStation,
     )
     from blond.legacy.blond2.beam.beam import Beam as Blond2Beam
     from blond.legacy.blond2.beam.profile import Profile as Blond2Profile
@@ -56,7 +56,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from ..beam.particle_types import ParticleType
     from ..ring.ring import Ring
 
-from ...physics.cavities import CavityBaseClass
+from ...physics.cavities import RfStationBaseClass
 
 logger = logging.getLogger(__name__)
 
@@ -459,7 +459,7 @@ class Simulation(Preparable):
         >>> beam1 = Beam( ... )
         >>> ring = Ring( ... )
         >>> energy_cycle = MagneticCyclePerTurn( ... )
-        >>> cavity1 = SingleHarmonicCavity( ... )
+        >>> cavity1 = SingleHarmonicRfStation( ... )
         >>> drift1 = DriftSimple( ... )
         >>> Simulation.from_locals(locals=locals(), verbose=True)
 
@@ -733,7 +733,8 @@ class Simulation(Preparable):
         logger.info("Starting simulation mainloop...")
         iterator = range(turn_i_init, turn_i_init + n_turns)
         if show_progressbar:
-            iterator = tqdm(iterator)  # Add TQDM display to iteration
+            iterator = tqdm(iterator, desc="BLonD3 mainloop")  # Add TQDM
+            # display to iteration
         self.turn_i.value = 0
         for observable in observe:
             observable.update(
@@ -775,7 +776,7 @@ class Simulation(Preparable):
     ]:
         raise NotImplementedError
         from ...physics.cavities import (  # prevent cyclic import
-            MultiHarmonicCavity,
+            MultiHarmonicRfStation,
         )
         from ...physics.drifts import DriftBaseClass
 
@@ -819,8 +820,8 @@ class Simulation(Preparable):
             intensity=self.beams[0]._intensity__init,
         )
         # todo handle multiple RF stations
-        cavity_blond3: SingleHarmonicCavity | MultiHarmonicCavity = (
-            self.ring.elements.get_element(CavityBaseClass)
+        cavity_blond3: SingleHarmonicRfStation | MultiHarmonicRfStation = (
+            self.ring.elements.get_element(RfStationBaseClass)
         )
         # FIXME
         rf_station = RFStation(
