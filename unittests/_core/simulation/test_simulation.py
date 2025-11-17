@@ -225,6 +225,15 @@ class TestSimulation(unittest.TestCase):
         sim = SimulationTwoRfStations()
         ts = np.linspace(-2e-9, 2e-9, 100)
 
+
+        potential_well, factor, tilt_dt_per_dE = (
+            sim.simulation.get_potential_well_empiric(
+                dt=ts,
+                particle_type=proton,
+                subtract_min=False # for tescase and repeated execution
+            )
+        )
+
         potential_well, factor, tilt_dt_per_dE = (
             sim.simulation.get_potential_well_empiric(
                 dt=ts,
