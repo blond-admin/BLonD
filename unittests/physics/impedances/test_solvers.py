@@ -13,8 +13,16 @@ from matplotlib import pyplot as plt
 from scipy.constants import c, e
 from scipy.fft import next_fast_len
 
-from blond import Simulation, SingleHarmonicRfStation, WakeField, mu_plus
+from blond import (
+    Cupy64Bit,
+    Numpy64Bit,
+    Simulation,
+    SingleHarmonicRfStation,
+    WakeField,
+    mu_plus,
+)
 from blond._core.beam.base import BeamBaseClass
+from blond._generals.cupy.no_cupy_import import is_cupy_array
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.solvers import (
     InductiveImpedance,
@@ -220,8 +228,11 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         self.periodic_freq_solver._parent_wakefield.profile.hist_step = 0.5e-9
         self.periodic_freq_solver.t_periodicity = 1e-8
 
-    def test_calc_induced_voltage(self):
-        self.periodic_freq_solver._parent_wakefield.profile.beam_spectrum.return_value = np.linspace(
+    def _test_calc_induced_voltage(self, backend_class):
+        from blond import backend
+        backend.change_backend(backend_class)
+        self.periodic_freq_solver._parent_wakefield.profile.beam_spectrum\
+            .return_value = backend.linspace(
             0, 1, 11
         )
         self.periodic_freq_solver._parent_wakefield.sources = (
@@ -240,7 +251,13 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         induced_voltage = self.periodic_freq_solver.calc_induced_voltage(
             beam=beam,
         )
+        induced_voltage = self.periodic_freq_solver.calc_induced_voltage(
+            beam=beam,
+        )
+        if is_cupy_array(induced_voltage):
+            induced_voltage =  induced_voltage.get()
         pinned_values = np.load(callers_relative_path("resources/induced_voltage_periodic_freq_solver.npz", stacklevel=1))["induced_voltage"]
+
         np.testing.assert_allclose(pinned_values, induced_voltage, rtol=1e-5)
 
         # np.savez(callers_relative_path("resources/induced_voltage_periodic_freq_solver.npz", stacklevel=1), induced_voltage=induced_voltage)
@@ -259,6 +276,25 @@ class TestPeriodicFreqSolver(unittest.TestCase):
             self.periodic_freq_solver._freq_y_needs_update = True
             # update is now forced, which should force the error
             self.periodic_freq_solver._update_impedance_sources(beam=beam)
+
+    def test_calc_induced_voltage_gpu(self):
+        try:
+            import cupy  # type: ignore
+        except ImportError as exc:
+            # skip test if GPU is not available
+            self.skipTest(str(exc))
+
+        from blond import backend
+
+        backend_org = type(backend)
+        self._test_calc_induced_voltage(backend_class=Cupy64Bit)
+        backend.change_backend(backend_org)
+
+    def test_calc_induced_voltage_cpu(self):
+        from blond import backend
+        backend_org = type(backend)
+        self._test_calc_induced_voltage(backend_class=Numpy64Bit)
+        backend.change_backend(backend_org)
 
     def test_on_wakefield_init_simulation(self):
         simulation = Mock(Simulation)
