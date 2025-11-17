@@ -54,6 +54,7 @@ class TestBackendBaseClass(unittest.TestCase):
             backend_modes = ["cuda"] + backend_modes
         except ModuleNotFoundError:
             pass
+        print(f"{backend_modes=}")
         for backend_mode in backend_modes:
             os.environ["BLOND_BACKEND_MODE"] = backend_mode
             for backend_bit in backend_bits:
@@ -72,6 +73,16 @@ class TestBackendBaseClass(unittest.TestCase):
                             warnings.warn(f"{backend_mode} backend was not supported for {backend_bit}, compilation missing?")
                         else:
                             raise error
+
+    def test__finalize(self):
+        some_backend = Numpy32Bit()
+        some_backend.array = None
+        with self.assertRaises(AttributeError):
+            some_backend._finalize()
+
+    def test_change_backend(self):
+        some_backend = Numpy32Bit()
+        some_backend.change_backend(some_backend) # shouldnt do anything
 
 
 class TestCupy32Bit(unittest.TestCase):

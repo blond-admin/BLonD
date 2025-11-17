@@ -118,11 +118,6 @@ class TestBeamBaseClass(unittest.TestCase):
     def test_dt_min(self):
         pass  # is abstract
 
-    @unittest.skip("Abstract method")
-    def test_plot_hist2d(self):
-        # TODO: implement test for `plot_hist2d`
-        self.beam_base_class.plot_hist2d()
-
     def test_invalidate_cache(self):
         self.beam_base_class.invalidate_cache()
 

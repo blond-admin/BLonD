@@ -1,4 +1,3 @@
-# pragma: no cover # TODO remove when SR is implemented
 """Collection of implementations to calculate the synchrotron radiation.
 
 Authors
@@ -11,13 +10,16 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from blond._core.base import BeamPhysicsRelevant
-from blond._core.beam.base import BeamBaseClass
-from blond._core.simulation.simulation import Simulation
-from blond.physics.drifts import DriftSimple
+from blond._core.base import (
+    BeamPhysicsRelevant,  # pragma: no cover # TODO remove when SR is implemented
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
+
+    from blond._core.beam.base import BeamBaseClass
+    from blond._core.simulation.simulation import Simulation
+    from blond.physics.drifts import DriftSimple
 
 
 class SynchrotronRadiation(BeamPhysicsRelevant):  # pragma: no cover
