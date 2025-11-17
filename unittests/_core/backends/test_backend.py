@@ -67,15 +67,25 @@ class TestBackendBaseClass(unittest.TestCase):
                         # Compiled backends might not be available locally --> skip.
                         # On the CI, these will always be available, as the before_script builds them
                         # or otherwise fails the CI
-                        if backend_mode == "fortran" or backend_mode == "cpp":  # TODO better handling
-                            warnings.warn(f"{backend_mode} backend was not supported for {backend_bit}, compilation missing?")
+                        if (
+                            backend_mode == "fortran" or backend_mode == "cpp"
+                        ):  # TODO better handling
+                            warnings.warn(
+                                f"{backend_mode} backend was not supported for {backend_bit}, compilation missing?"
+                            )
                         else:
                             raise error
+
     def test_temporary_specials_mode(self):
-        specials_org = backend.specials_mode
+        specials_org = backend.specials_mode # prevent side effect on other tests
+
+        backend.set_specials("numba")
         with backend.temporary_specials_mode(mode="python"):
             self.assertEqual(backend.specials_mode, "python")
-        self.assertEqual(backend.specials_mode, specials_org)
+        self.assertEqual(backend.specials_mode, "numba")
+
+        backend.set_specials(mode=specials_org) # prevent side effect on tests
+
 
 class TestCupy32Bit(unittest.TestCase):
     def test___init__(self) -> None:
