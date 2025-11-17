@@ -91,9 +91,9 @@ class Simulation(Preparable):
     section_i : DynamicParameter
         Counter tracking the current section (element) within a turn. Value is ``None``
         when not running.
-    ring : Ring
+    _ring : Ring
         The synchrotron ring (read-only property).
-    magnetic_cycle : MagneticCycleBase
+    _magnetic_cycle : MagneticCycleBase
         The energy evolution program (read-only property).
 
     Examples
