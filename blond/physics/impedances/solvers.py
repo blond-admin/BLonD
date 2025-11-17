@@ -312,8 +312,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         induced_voltage
             Induced voltage, in [V]
         """
-        if self.expect_profile_change:
-            # always trigger update
+        if self.expect_profile_change:  # dynamic profiles
             self._update_internal_data()  # might cause performance issues :(
         elif self.expect_impedance_change:
             # always trigger update
