@@ -11,9 +11,9 @@ class TestCallables(unittest.TestCase):
 
             @enforce_precision(floattype)
             def foo(a, b):
-                return a + b
+                return a + b[0]
 
-            res1 = foo(10.0, 20.0)
+            res1 = foo(10.0, np.ones(10, dtype=floattype))
             self.assertEqual(type(res1), floattype)
 
 

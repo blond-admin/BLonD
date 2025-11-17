@@ -292,7 +292,9 @@ class ProbeBeam(Beam):
         elif dE is not None:
             dt = backend.zeros_like(dE)
         else:
-            raise RuntimeError(f"{dE=} {dt=}")
+            raise RuntimeError(
+                f"{dE=} {dt=}"
+            )  # pragma: no cover Not Reachable
 
         self.setup_beam(
             dt=dt,
