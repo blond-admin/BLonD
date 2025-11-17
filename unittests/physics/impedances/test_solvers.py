@@ -487,7 +487,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
 
         induced_voltage_b = wf.calc_induced_voltage(beam=beam)
 
-        DEV_PLOT = True
+        DEV_PLOT = False
         if DEV_PLOT:
             plt.plot(induced_voltage_a)
             plt.plot(induced_voltage_b)
