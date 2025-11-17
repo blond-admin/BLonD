@@ -57,10 +57,8 @@ class TestBackendBaseClass(unittest.TestCase):
         print(f"{backend_modes=}")
         for backend_mode in backend_modes:
             os.environ["BLOND_BACKEND_MODE"] = backend_mode
-            print(f"{os.environ["BLOND_BACKEND_MODE"]=}")
             for backend_bit in backend_bits:
                 os.environ["BLOND_BACKEND_BITS"] = backend_bit
-                print(f"{os.environ["BLOND_BACKEND_BITS"]=}")
                 if (backend_mode == "fail") or (backend_bit == "fail"):
                     with self.assertRaises(ValueError):
                         self.backend_base_class.apply_environment_variables()
