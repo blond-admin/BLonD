@@ -461,7 +461,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
         n_t = (n_fft // 2) + 1
 
         if (self._wake_imp_y is None) or (
-            _wake_x.shape != self._wake_imp_y.shape
+            (n_t,) != self._wake_imp_y.shape  # tuple vs shape-tuple
         ):
             self._wake_imp_y = backend.zeros(n_t, dtype=backend.complex)
         else:

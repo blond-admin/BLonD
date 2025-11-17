@@ -14,12 +14,16 @@ from scipy.constants import c, e
 from scipy.fft import next_fast_len
 
 from blond import (
+    Beam,
+    ConstantMagneticCycle,
     Cupy64Bit,
     Numpy64Bit,
+    Ring,
     Simulation,
     SingleHarmonicRfStation,
     WakeField,
     mu_plus,
+    uranium_29,
 )
 from blond._core.beam.base import BeamBaseClass
 from blond._generals.cupy.no_cupy_import import is_cupy_array
@@ -163,6 +167,67 @@ class TestTimeDomainFftSolver(unittest.TestCase):
                 simulation=simulation, parent_wakefield=parent_wakefield
             )
 
+    def test_dynamic_profile_integration(self):
+        beam = Beam(
+            intensity=21,
+            particle_type=uranium_29,
+        )
+        cavity = SingleHarmonicRfStation()
+        cavity.harmonic = 1
+        cavity.voltage = 0
+        cavity.phi_rf = 0
+        rng = np.random.default_rng()
+        dt = rng.standard_normal(1000)
+
+        # truncate and shift center to 1
+        dt[dt > 1] = 0
+        dt[dt < -1] = 0
+        dt += 1
+
+        beam.setup_beam(dt=dt, dE=np.linspace(0, 1, 1000))
+        profile = DynamicProfileConstNBins(n_bins=200)
+        profile.update_attributes(beam=beam)
+        wf = WakeField(
+            sources=(
+                Resonators(
+                    shunt_impedances=np.array([1, 2, 3]),
+                    center_frequencies=np.array([500e6, 750e6, 1.5e9]),
+                    quality_factors=np.array([5e10, 5, 5]),
+                ),
+            ),
+            solver=TimeDomainFftSolver(
+            ),
+            profile=profile,
+        )
+        ring = Ring(circumference=123)
+        cycle = ConstantMagneticCycle(
+            reference_particle=uranium_29,
+            value=1e12,
+        )
+        sim = Simulation.from_locals(locals=locals())
+        profile.track(beam=beam)
+
+        profile_a = profile.hist_y
+        induced_voltage_a = wf.calc_induced_voltage(beam=beam)
+
+        dt = beam.write_partial_dt()
+        dt  -= 1
+        dt  /= 2
+        dt  += 1
+        profile.update_attributes(beam=beam)
+        profile.track(beam=beam)
+        profile_b = profile.hist_y
+        induced_voltage_b = wf.calc_induced_voltage(beam=beam)
+
+        DEV_PLOT = False
+        if DEV_PLOT:
+            plt.subplot(2,1,1)
+            plt.plot(profile_a)
+            plt.plot(profile_b)
+            plt.subplot(2,1,2)
+            plt.plot(induced_voltage_a)
+            plt.plot(induced_voltage_b)
+            plt.show()
 
 class TestInductiveImpedanceSolver(unittest.TestCase):
     def setUp(self):
@@ -369,6 +434,64 @@ class TestPeriodicFreqSolver(unittest.TestCase):
             self.periodic_freq_solver.on_wakefield_init_simulation(
                 simulation=simulation, parent_wakefield=parent_wakefield
             )
+
+    def test_dynamic_profile_integration(self):
+        beam = Beam(
+            intensity=21,
+            particle_type=uranium_29,
+        )
+        cavity = SingleHarmonicRfStation()
+        cavity.harmonic = 1
+        cavity.voltage = 0
+        cavity.phi_rf = 0
+        rng = np.random.default_rng()
+        dt = rng.standard_normal(1000)
+
+        # truncate and shift center to 1
+        dt[dt > 1] = 0
+        dt[dt < -1] = 0
+        dt += 1
+
+        beam.setup_beam(dt=dt, dE=np.linspace(0, 1, 1000))
+        profile = DynamicProfileConstCutoff(timestep=0.1)
+        profile.update_attributes(beam=beam)
+        wf = WakeField(
+            sources=(
+                Resonators(
+                    shunt_impedances=np.array([1, 2, 3]),
+                    center_frequencies=np.array([500e6, 750e6, 1.5e9]),
+                    quality_factors=np.array([5e10, 5, 5]),
+                ),
+            ),
+            solver=PeriodicFreqSolver(
+                t_periodicity=4.0, allow_next_fast_len=True
+            ),
+            profile=profile,
+        )
+        ring = Ring(circumference=123)
+        cycle = ConstantMagneticCycle(
+            reference_particle=uranium_29,
+            value=1e12,
+        )
+        sim = Simulation.from_locals(locals=locals())
+        profile.track(beam=beam)
+
+        induced_voltage_a = wf.calc_induced_voltage(beam=beam)
+
+        dt = beam.write_partial_dt()
+        dt  -= 1
+        dt  /= 2
+        dt  += 1
+        profile.update_attributes(beam=beam)
+        profile.track(beam=beam)
+
+        induced_voltage_b = wf.calc_induced_voltage(beam=beam)
+
+        DEV_PLOT = True
+        if DEV_PLOT:
+            plt.plot(induced_voltage_a)
+            plt.plot(induced_voltage_b)
+            plt.show()
 
 
 class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
