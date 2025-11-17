@@ -117,6 +117,8 @@ class TestCupyBackend(unittest.TestCase):
 
 
     def test_set_specials_fails(self):
+        if not cupy_available:
+            self.skipTest(f"{cupy_available=}")
         self.cupy_backend = CupyBackend(
             float_=np.float32, int_=np.float32, complex_=np.complex64
         )
