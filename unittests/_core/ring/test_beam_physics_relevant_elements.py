@@ -10,7 +10,7 @@ from blond._core.ring.beam_physics_relevant_elements import (
     BeamPhysicsRelevantElements,
     pretty_string,
 )
-from blond.physics.cavities import CavityBaseClass
+from blond.physics.cavities import RfStationBaseClass
 from blond.physics.drifts import DriftBaseClass
 
 
@@ -28,7 +28,7 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         element1.name = "element1"
         self.beam_physics_relevant_elements.add_element(element1)
 
-        element2 = Mock(spec=CavityBaseClass)
+        element2 = Mock(spec=RfStationBaseClass)
         element2.section_index = 0
         element2.name = "element2"
         self.beam_physics_relevant_elements.add_element(element2)
@@ -39,7 +39,7 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         element3.name = "element3"
         self.beam_physics_relevant_elements.add_element(element3)
 
-        element4 = Mock(spec=CavityBaseClass)
+        element4 = Mock(spec=RfStationBaseClass)
         element4.section_index = 1
         element4.name = "element4"
         self.beam_physics_relevant_elements.add_element(element4)
@@ -133,7 +133,7 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         )
         assert (
             self.beam_physics_relevant_elements.count(
-                class_=CavityBaseClass, section_i=0
+                class_=RfStationBaseClass, section_i=0
             )
             == 1
         )
@@ -145,7 +145,7 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         )
         assert (
             self.beam_physics_relevant_elements.count(
-                class_=CavityBaseClass, section_i=1
+                class_=RfStationBaseClass, section_i=1
             )
             == 1
         )
@@ -216,9 +216,9 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
     def test_reorder(self):
         self.beam_physics_relevant_elements.reorder()
         expected = (
-            "CavityBaseClass",
+            "RfStationBaseClass",
             "DriftBaseClass",
-            "CavityBaseClass",
+            "RfStationBaseClass",
             "DriftBaseClass",
         )
         actual = tuple(
@@ -234,10 +234,10 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         self.beam_physics_relevant_elements.reorder_section(section_index=0)
         # self.beam_physics_relevant_elements.reorder_section(section_index=1)
         expected = (
-            "CavityBaseClass",
+            "RfStationBaseClass",
             "DriftBaseClass",
             "DriftBaseClass",
-            "CavityBaseClass",
+            "RfStationBaseClass",
         )
         actual = tuple(
             [
@@ -259,9 +259,9 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         self.beam_physics_relevant_elements.reorder_section(section_index=0)
         self.beam_physics_relevant_elements.reorder_section(section_index=1)
         expected = (
-            "CavityBaseClass",
+            "RfStationBaseClass",
             "DriftBaseClass",
-            "CavityBaseClass",
+            "RfStationBaseClass",
             "DriftBaseClass",
         )
         actual = tuple(

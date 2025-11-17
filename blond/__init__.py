@@ -29,7 +29,10 @@ from .handle_results.observables import StaticProfileObservation  # NOQA
 from .handle_results.observables_as_elements import (
     BeamObservationInRingElement,  # NOQA
 )
-from .physics.cavities import MultiHarmonicCavity, SingleHarmonicCavity  # NOQA
+from .physics.cavities import (  # NOQA
+    MultiHarmonicRfStation,
+    SingleHarmonicRfStation,
+)
 from .physics.drifts import DriftSimple  # NOQA
 from .physics.impedances.base import WakeField  # NOQA
 from .physics.losses import BoxLosses  # NOQA

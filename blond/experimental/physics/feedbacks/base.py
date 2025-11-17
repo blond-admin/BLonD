@@ -10,9 +10,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond._core.beam.base import BeamBaseClass
     from blond._core.simulation.simulation import Simulation
     from blond.physics.cavities import (
-        CavityBaseClass,
-        MultiHarmonicCavity,
-        SingleHarmonicCavity,
+        MultiHarmonicRfStation,
+        RfStationBaseClass,
+        SingleHarmonicRfStation,
     )
     from blond.physics.profiles import ProfileBaseClass
 
@@ -38,11 +38,11 @@ class LocalFeedback(FeedbackBaseClass):
             name=name,
         )
         self._parent_cavity: (
-            SingleHarmonicCavity | MultiHarmonicCavity | None
+                SingleHarmonicRfStation | MultiHarmonicRfStation | None
         ) = None
         self.profile = profile
 
-    def set_parent_cavity(self, cavity: CavityBaseClass):
+    def set_parent_cavity(self, cavity: RfStationBaseClass):
         assert self._parent_cavity is None, (
             "This feedback has already one owner!"
         )
@@ -76,7 +76,7 @@ class GlobalFeedback(FeedbackBaseClass):
             name=name,
         )
         self.profile = profile
-        self.cavities: list[CavityBaseClass] | None = None
+        self.cavities: list[RfStationBaseClass] | None = None
 
     # Use `requires` to automatically sort execution order of
     # `element.on_init_simulation` for all elements
@@ -88,7 +88,7 @@ class GlobalFeedback(FeedbackBaseClass):
             Simulation context manager
         """
         self.cavities = simulation.ring.elements.get_elements(
-            SingleHarmonicCavity
+            SingleHarmonicRfStation
         )
 
 
@@ -99,7 +99,7 @@ class GroupedFeedback(FeedbackBaseClass):
     def __init__(
         self,
         profile: ProfileBaseClass,
-        cavities: list[SingleHarmonicCavity | MultiHarmonicCavity],
+        cavities: list[SingleHarmonicRfStation | MultiHarmonicRfStation],
         section_index: int = 0,
         name: str | None = None,
     ):
