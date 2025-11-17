@@ -301,12 +301,12 @@ class Resonators(
                 "Array lengths between co- and counterrotating impedances need to match."
             )
 
-            for imp_ind, imp in enumerate(
-                self._shunt_impedances_counter_rotating
+            for imp, imp_cr in zip(
+                self._shunt_impedances,
+                self._shunt_impedances_counter_rotating,
+                strict=False,
             ):
-                assert np.isclose(
-                    np.abs(imp), self._shunt_impedances[imp_ind]
-                ), (
+                assert np.isclose(np.abs(imp), np.abs(imp_cr)), (
                     "Absolute value of co- and counter-rotating impedances mismatch, no energy conservation."
                 )
 
