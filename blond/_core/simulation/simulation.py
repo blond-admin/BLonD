@@ -652,6 +652,7 @@ class Simulation(Preparable):
         turn_i_init
             Initial turn to start with simulation
         """
+        self.ring.assert_circumference()
         max_turns = self.magnetic_cycle.n_turns
         if n_turns is not None:
             _n_turns = int_from_float_with_warning(
