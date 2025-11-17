@@ -198,7 +198,7 @@ class Ring(Preparable, Schedulable):
             atol=atol,
         ), (
             f"{self.closed_orbit_length=} m,"
-            f" but should be {self.circumference} m."
+            f" but should be {self.circumference=} m."
         )
 
     def add_drifts(
