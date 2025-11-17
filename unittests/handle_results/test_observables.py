@@ -1,6 +1,6 @@
 import unittest
 from copy import deepcopy
-from unittest.mock import Mock, PropertyMock, patch
+from unittest.mock import Mock, PropertyMock
 
 import numpy as np
 
@@ -324,7 +324,7 @@ class TestStaticProfileObservation(unittest.TestCase):
         profile = Mock(StaticProfile)
         profile.n_bins = 12
         type(profile).hist_y = PropertyMock(return_value=np.ones(profile.n_bins, dtype=float))
-
+        # no changeback required, as this is changed on mocked object
         self.static_profile_observation = StaticProfileObservation(
             each_turn_i=1,
             profile=profile,
@@ -393,6 +393,7 @@ class TestWakeFieldObservation(unittest.TestCase):
         type(self.wakefield).induced_voltage = PropertyMock(return_value=np.ones(
             self.wakefield._profile.n_bins, dtype=float
         ))
+        # no changeback required, as this is changed on mocked object
 
     def test___init__(self) -> None:
         self.wake_field_observation = WakeFieldObservation(
@@ -417,6 +418,8 @@ class TestWakeFieldObservation(unittest.TestCase):
 
         with self.assertRaises(AttributeError):
             _ = wf.induced_voltage
+
+        type(wf).induced_voltage = orig_save  # important, otherwise the type is changed for the entire runtime
 
     def test_from_disk(self) -> None:
         self.wake_field_observation.on_init_simulation(
@@ -445,6 +448,7 @@ class TestDynamicProfileConstNBinsObservation(unittest.TestCase):
         self.profile.n_bins = 12
         type(self.profile).hist_y = PropertyMock(return_value=np.ones(self.profile.n_bins, dtype=float))
         type(self.profile).hist_x = PropertyMock(return_value=np.arange(self.profile.n_bins, dtype=float))
+        # no changeback required, as this is changed on mocked object
 
         self.dynamic_profile_observation = DynamicProfileConstNBinsObservation(
             each_turn_i=1,
@@ -492,11 +496,13 @@ class TestStaticMultiProfileObservation(unittest.TestCase):
         self.profile = Mock(StaticProfile)
         self.profile.n_bins = 12
         type(self.profile).hist_y = PropertyMock(return_value=np.ones(self.profile.n_bins, dtype=float))
+        # no changeback required, as this is changed on mocked object
         self.profile.section_index = 0
 
         self.profile_2 = Mock(StaticProfile)
         self.profile_2.n_bins = 12
         type(self.profile_2).hist_y = PropertyMock(return_value=np.ones(self.profile_2.n_bins, dtype=float) * 2)
+        # no changeback required, as this is changed on mocked object
         self.profile_2.section_index = 1
 
         self.static_multi_profile_observation = StaticMultiProfileObservation(
