@@ -41,20 +41,21 @@ class TestPhiS(unittest.TestCase):
 
 
 class TestFunctions(unittest.TestCase):
-    @unittest.skip("TODO")  # TODO
     def test_phase_modulo_above_transition(self):
-        upper_limit = +3 * np.pi / 2.0
-        lower_limit = -np.pi / 2
+        upper_limit = 2*np.pi
+        lower_limit = 0
         phis = np.linspace(-100, 100, 200)
         phis_corrected = phase_modulo_above_transition(phis)
-        plt.title("phase_modulo_above_transition")
-        plt.plot(phis, "o")
-        plt.plot(phis_corrected, "o")
-        plt.axhline(upper_limit)
-        plt.axhline(lower_limit)
-        # plt.show()
+        DEV_PLOT = False
+        if DEV_PLOT:
+            plt.title("phase_modulo_above_transition")
+            plt.plot(phis, "o")
+            plt.plot(phis_corrected, "o")
+            plt.axhline(upper_limit)
+            plt.axhline(lower_limit)
+            plt.show()
         self.assertTrue(
-            np.all(phis_corrected <= upper_limit),
+            np.all(phis_corrected < upper_limit),
             msg=f"{phis_corrected.max()=}",
         )
         self.assertTrue(
@@ -62,18 +63,19 @@ class TestFunctions(unittest.TestCase):
             msg=f"{phis_corrected.min()=}",
         )
 
-    @unittest.skip("TODO")  # TODO
     def test_phase_modulo_below_transition(self):
-        upper_limit = +3 * np.pi / 2.0
-        lower_limit = -np.pi / 2
+        upper_limit = np.pi
+        lower_limit = -np.pi
         phis = np.linspace(-100, 100, 200)
         phis_corrected = phase_modulo_below_transition(phis)
-        plt.title("phase_modulo_below_transition")
-        plt.plot(phis, "o")
-        plt.plot(phis_corrected, "o")
-        plt.axhline(upper_limit)
-        plt.axhline(lower_limit)
-        # plt.show()
+        DEV_PLOT = False
+        if DEV_PLOT:
+            plt.title("phase_modulo_below_transition")
+            plt.plot(phis, "o")
+            plt.plot(phis_corrected, "o")
+            plt.axhline(upper_limit)
+            plt.axhline(lower_limit)
+            plt.show()
         self.assertTrue(
             np.all(phis_corrected <= upper_limit),
             msg=f"{phis_corrected.max()=}",
