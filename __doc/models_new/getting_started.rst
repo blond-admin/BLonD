@@ -40,16 +40,12 @@ RF station is defined by its harmonic number, voltage, and phase:
 
 .. code-block:: python
 
-    from blond import SingleHarmonicCavity  # soon to be renamed to SingleHarmonicRfStation
+    from blond import SingleHarmonicRfStation
 
-    rf_station1 = SingleHarmonicCavity()
-    rf_station1.harmonic = 35640      # harmonic number
-    rf_station1.voltage = 6e6          # voltage in V
-    rf_station1.phi_rf = 0             # RF phase in radians
-
-.. note::
-   The class ``SingleHarmonicCavity`` will be renamed to ``SingleHarmonicRfStation`` in a future release to better reflect the terminology.
-
+    rf_station1 = SingleHarmonicRfStation()
+    rf_station1.harmonic = 35640         # harmonic number
+    rf_station1.voltage = 6e6            # voltage in V
+    rf_station1.phi_rf = 0               # RF phase in radians
 
 Configuring Drift Sections
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -79,7 +75,7 @@ For simulations with constant beam energy (no acceleration):
 
     energy_cycle = ConstantMagneticCycle(
         reference_particle=proton,
-        value=450e9,        # energy value
+        value=450e9,             # energy value
         in_unit="total energy",  # can be 'momentum', 'total energy', 'kinetic energy', or 'bending field'
     )
 
@@ -125,7 +121,7 @@ For full control over each RF station's contribution at each turn:
     N_TURNS = 1000
 
     energy_per_rf_station = np.zeros((n_rf_stations, N_TURNS))
-    ... # Write the desired values in `energy_per_rf_station`
+    # Write the desired values in `energy_per_rf_station`
     energy_cycle = MagneticCyclePerTurnAllCavities(
         reference_particle=proton,
         value_init=450e9,
@@ -178,7 +174,7 @@ The ``Simulation.from_locals()`` method automatically discovers and connects all
     from blond import Simulation
 
     sim = Simulation.from_locals(locals())
-    sim.print_one_turn_execution_order()  # optional: print execution order
+    sim.print_one_turn_execution_order()   # optional: print execution order
 
 The ``locals()`` function returns a dictionary of all variables in the current scope. ``Simulation.from_locals()`` inspects this dictionary and automatically detects all BLonD components (ring, RF stations, drifts, beam, energy cycle) without requiring you to pass each one explicitly.
 
@@ -199,7 +195,7 @@ The most commonly used method creates a simple Gaussian distribution in both tim
     sim.prepare_beam(
         beam=beam1,
         preparation_routine=BiGaussian(
-            sigma_dt=0.4e-9 / 4,      # time spread (standard deviation) in seconds
+            sigma_dt=0.4e-9 / 4,       # time spread (standard deviation) in seconds
             sigma_dE=1e9 / 4,          # energy spread (standard deviation) in eV
             seed=1,                    # random seed for reproducibility
             n_macroparticles=1e3,      # number of macroparticles
@@ -242,7 +238,7 @@ A physics-based matching approach that uses the Hamiltonian to generate matched 
     sim.prepare_beam(
         beam=beam1,
         preparation_routine=SemiEmpiricMatcher(
-            hamilton_max=1e-6,              # maximum Hamiltonian value
+            hamilton_max=1e-6,               # maximum Hamiltonian value
             n_macroparticles=1e6,
             seed=0,
             density_modifier=1.0,            # shape modifier for density distribution
