@@ -1,3 +1,4 @@
+# pragma: no cover # TODO remove when SR is implemented
 """Collection of implementations to calculate the synchrotron radiation.
 
 Authors
@@ -5,7 +6,6 @@ Authors
 Simon Lauber
 Lina Valle
 """
-# pragma: no cover
 
 from __future__ import annotations
 

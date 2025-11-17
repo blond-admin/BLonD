@@ -539,9 +539,9 @@ class TestSimulation(unittest.TestCase):
             )
 
     def test_finalize_warns(self) -> None:
-        beam_mock.common_array_size = int(1e32)
         from blond import backend
-        mode_org = backend.specials_mode
+        beam_mock.common_array_size = int(1e32)
+        special_mode_org = backend.specials_mode
         backend.set_specials(mode="python")
         with self.assertWarns(PerformanceWarning):
             self.simulation.finalize(
@@ -550,7 +550,7 @@ class TestSimulation(unittest.TestCase):
                 observe=(),
                 turn_i_init=0,
             )
-        backend.set_specials(mode=mode_org)
+        backend.set_specials(mode=special_mode_org)
 
 
 if __name__ == "__main__":
