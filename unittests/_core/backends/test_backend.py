@@ -446,7 +446,7 @@ class TestSpecials(unittest.TestCase):
                     len(flags),
                     msg=f"Failed test `{special}` with {dtype}",
                 )
-                np.testing.assert_equal(flags, np.ones_like(flags))
+                self.assertTrue(np.all(flags == np.ones_like(flags)))
                 self.assertEqual(
                     7,
                     len(dt),
