@@ -13,7 +13,7 @@ class TestFunctions(unittest.TestCase):
         try:
             import cupy as cp  # type: ignore
         except ImportError as exc:
-            unittest.skip(str(exc))
+            self.skipTest(str(exc))
         from blond import AllowPlotting
 
         # demo of AllowPlotting
