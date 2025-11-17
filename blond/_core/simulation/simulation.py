@@ -403,9 +403,7 @@ class Simulation(Preparable):
         classes_check = set()
         for ins in instances:
             classes_check.add(type(ins))
-        # assert len(classes_check) == len(ordered_classes), "BUG"
-        if "ABCMeta" in ordered_classes:
-            ordered_classes.pop(ordered_classes.index("ABCMeta"))
+
         logger.info(f"Execution order for `{method}` is {ordered_classes}")
 
         for cls in ordered_classes:
