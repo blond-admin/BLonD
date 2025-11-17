@@ -10,7 +10,7 @@ from blond import (
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicCavity,
+    SingleHarmonicRfStation,
     StaticProfile,
     WakeField,
     proton,
@@ -92,7 +92,7 @@ class Blond3:
         ring = Ring(circumference=circumference)
         drift = DriftSimple(orbit_length=circumference)
         drift.transition_gamma = 4.4
-        cavity = SingleHarmonicCavity()
+        cavity = SingleHarmonicRfStation()
         cavity.harmonic = 1
         cavity.voltage = 8e3
         cavity.phi_rf = np.pi

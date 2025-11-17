@@ -9,7 +9,7 @@ from blond import (
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicCavity,
+    SingleHarmonicRfStation,
     StaticProfile,
     WakeField,
     proton,
@@ -53,7 +53,7 @@ class TestResonatorImpedances(unittest.TestCase):
                 cut_right=1 * 96,
                 n_bins=256 * 96,
             )
-            cavity1 = SingleHarmonicCavity()
+            cavity1 = SingleHarmonicRfStation()
             cavity1.voltage = 0
             cavity1.phi_rf = 0
             cavity1.harmonic = 1

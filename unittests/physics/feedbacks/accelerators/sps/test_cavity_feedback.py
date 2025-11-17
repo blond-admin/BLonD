@@ -11,7 +11,7 @@ from blond import (
     BiGaussian,
     ConstantMagneticCycle,
     DriftSimple,
-    MultiHarmonicCavity,
+    MultiHarmonicRfStation,
     Ring,
     Simulation,
     StaticProfile,
@@ -55,7 +55,7 @@ def rf_volt_comp(
 
 
 def rf_voltage_calculation(
-    rf_params: MultiHarmonicCavity,
+    rf_params: MultiHarmonicRfStation,
     cavityFB: List[SPSCavityFeedback],
     profile: StaticProfile,
 ):
@@ -124,7 +124,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
         # self.ring = Ring(C, alpha, p_s, particle=Proton(), n_turns=N_t)
         ring = Ring(circumference=C)
         self.ring = ring
-        rf = MultiHarmonicCavity(
+        rf = MultiHarmonicRfStation(
             n_harmonics=1,
             main_harmonic_idx=0,
         )
@@ -744,7 +744,7 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         self.ring = Ring(circumference=C)
 
         # RFStation
-        self.rfstation = MultiHarmonicCavity(
+        self.rfstation = MultiHarmonicRfStation(
             n_harmonics=1, main_harmonic_idx=0
         )
         self.rfstation.voltage = np.array([V], dtype=backend.float)
@@ -1078,7 +1078,7 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
 class TestSPSTransmitterGain(unittest.TestCase):
     def setUp(self):
         self.ring = Ring(circumference=2 * np.pi * 1100.009)
-        cavity = MultiHarmonicCavity(
+        cavity = MultiHarmonicRfStation(
             n_harmonics=1,
             main_harmonic_idx=0,
         )

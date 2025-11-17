@@ -25,6 +25,70 @@ class TestFunctions(unittest.TestCase):
         )
         self.assertEqual(found.pop(), test)
 
+    def test_find_instances_with_recursion_attribute(self):
+        class Foo:
+            def __init__(self, subclass, subclass2):
+                self.a = 1
+                self.subclass = subclass
+                self.subclass2 = subclass2
+
+            def to_be_found(self):
+                pass
+
+        class Bar:
+            def __init__(self):
+                self.a = 1
+
+            def to_be_found(self):
+                pass
+
+        class Car:
+            def __init__(self):
+                self.a = 1
+
+            def not_found(self):
+                pass
+
+        bar = Bar()
+        car = Car()
+        foo = Foo(bar, car)
+        found = find_instances_with_method(root=foo, method_name="to_be_found")
+        self.assertTrue(foo in found)
+        self.assertTrue(bar in found)
+        self.assertTrue(len(found) == 2)
+
+    def test_find_instances_with_recursion_tuple(self):
+        class Foo:
+            def __init__(self, subclasses):
+                self.a = 1
+                self.subclasses = subclasses
+
+            def to_be_found(self):
+                pass
+
+        class Bar:
+            def __init__(self):
+                self.a = 1
+
+            def to_be_found(self):
+                pass
+
+        class Car:
+            def __init__(self):
+                self.a = 1
+
+            def not_found(self):
+                pass
+
+        bar = Bar()
+        car = Car()
+        foo = Foo((bar, car)) # a tuple
+        found = find_instances_with_method(root=foo,
+                                           method_name="to_be_found")
+        self.assertTrue(foo in found)
+        self.assertTrue(bar in found)
+        self.assertTrue(len(found) == 2)
+
     def test_find_instances_with_method2(self):
         class Test1:
             def __init__(self):
@@ -52,6 +116,7 @@ class TestFunctions(unittest.TestCase):
         found = find_instances_with_method(
             root=test2, method_name="to_be_found"
         )
+        self.assertEqual(len(found), 1)
         self.assertEqual(found.pop(), test1)
 
     @unittest.skip

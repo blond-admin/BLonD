@@ -9,14 +9,14 @@ from blond import Simulation, proton
 from blond._core.backends.backend import backend
 from blond._core.base import DynamicParameter
 from blond.physics.cavities import (
-    CavityBaseClass,
-    MultiHarmonicCavity,
-    SingleHarmonicCavity,
+    MultiHarmonicRfStation,
+    RfStationBaseClass,
+    SingleHarmonicRfStation,
 )
 from blond.physics.drifts import _assert_purely_real_or_imaginary
 
 
-class CavityBaseClassHelper(CavityBaseClass):
+class RfStationBaseClassHelper(RfStationBaseClass):
     def voltage_waveform_tmp(self, ts: NumpyArray):
         pass
 
@@ -37,7 +37,7 @@ class TestCallables(unittest.TestCase):
 
 class TestMultiHarmonicCavity(unittest.TestCase):
     def setUp(self) -> None:
-        self.multi_harmonic_cavity = MultiHarmonicCavity.headless(
+        self.multi_harmonic_cavity = MultiHarmonicRfStation.headless(
             section_index=0,
             voltage=np.array([1e6, 2e6], dtype=backend.float),
             phi_rf=np.array([0.1 * np.pi, np.pi], dtype=backend.float),
@@ -124,10 +124,12 @@ class TestMultiHarmonicCavity(unittest.TestCase):
                 simulation=simulation
             )
 
+    def test_info_string(self):
+        self.multi_harmonic_cavity.info_string() # just hope it executes.
 
 class TestSingleHarmonicCavity(unittest.TestCase):
     def setUp(self) -> None:
-        self.single_harmonic_cavity = SingleHarmonicCavity.headless(
+        self.single_harmonic_cavity = SingleHarmonicRfStation.headless(
             section_index=0,
             voltage=1e6,
             phi_rf=np.pi * 0.3,

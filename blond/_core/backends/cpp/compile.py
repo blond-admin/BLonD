@@ -23,7 +23,7 @@ cpp_files = [
     # "fast_resonator.cpp",
     "beam_phase.cpp",
     "loss_box.cpp",
-    "flagged_to_end.cpp",
+    "move_flagged_elements_to_end.cpp",
     # "fft.cpp",
     "openmp.cpp",  # required for single core compilation without parallel flag
 ]

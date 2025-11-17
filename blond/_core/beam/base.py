@@ -431,7 +431,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """
         from ..._core.backends.backend import backend  # prevent cyclic import
 
-        n_new = backend.specials.flagged_to_end(
+        n_new = backend.specials.move_flagged_elements_to_end(
             flag=flag,
             flags=self._flags,
             dt=self._dt,
