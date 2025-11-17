@@ -71,7 +71,7 @@ def main():
     )
     bunch_observation = BeamObservationEndOfTurn(beam=beam1, each_turn_i=1)
 
-    def custom_action(simulation: Simulation):
+    def custom_action(simulation: Simulation):  # pragma: no cover
         if simulation.turn_i.value % 10 != 0:
             return
 
@@ -99,7 +99,7 @@ def main():
         )
 
     ANIMATE = False
-    if ANIMATE:
+    if ANIMATE:  # pragma: no cover
         plt.figure()
         for i in range(N_TURNS):
             plt.clf()

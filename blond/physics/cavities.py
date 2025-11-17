@@ -112,7 +112,8 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         n_rf: int,
         section_index: int,
         local_wakefield: WakeField | None,
-        cavity_feedback: LocalFeedback | None,
+        cavity_feedback: tuple[LocalFeedback, ...]
+        | None,  # FIXME should be tuple or not???
         beam_feedback: Blond2BeamFeedback | None,
         name: str | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
@@ -128,10 +129,13 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         )
         if cavity_feedback is None:
             pass
-        elif isinstance(cavity_feedback, LocalFeedback):
-            cavity_feedback.set_parent_cavity(cavity=self)
         else:
-            raise ValueError(cavity_feedback)
+            for feedback in cavity_feedback:
+                if isinstance(feedback, LocalFeedback):
+                    pass  # TODO: fix, currently, one cannot setup the cavity without setting up the RF station first and vice versa
+                    # cavity_feedback.set_parent_cavity(cavity=self)
+                else:
+                    raise ValueError(cavity_feedback)
 
         if beam_feedback is None:
             pass
@@ -141,7 +145,9 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
             raise ValueError(beam_feedback)
         self._n_rf = n_rf
         self._local_wakefield = local_wakefield
-        self._cavity_feedback = cavity_feedback
+        self._cavity_feedback: tuple[LocalFeedback, ...] | None = (
+            cavity_feedback
+        )
         self._beam_feedback = beam_feedback
 
         self._magnetic_cycle: MagneticCycleBase | None = None
@@ -356,8 +362,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         # Correction from cavity loop
         if self._cavity_feedback is not None:
             for feedback in self._cavity_feedback:
-                if feedback is not None:
-                    feedback.track()
+                feedback.track(beam=beam)
 
         if self._local_wakefield is not None:
             self._local_wakefield.track(beam=beam)
@@ -396,6 +401,20 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         """
         pass
 
+    def info_string(self, prefix="") -> str:
+        """Inform that the feedback/wakefield is also executed within the track method."""
+        content = ""
+        if self._cavity_feedback is not None:
+            for feedback in self._cavity_feedback:
+                content += f"{feedback.info_string(prefix=prefix + ' ↓ ')}\n"
+
+        if self._local_wakefield is not None:
+            content += (
+                f"{self._local_wakefield.info_string(prefix=prefix + ' ↓ ')}\n"
+            )
+        content += f"{super().info_string(prefix=prefix)}"
+        return content
+
 
 class SingleHarmonicRfStation(RfStationBaseClass):
     """Cavity with only one RF wave for beam interaction.
@@ -423,7 +442,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         self,
         section_index: int = 0,
         local_wakefield: WakeField | None = None,
-        cavity_feedback: LocalFeedback | None = None,
+        cavity_feedback: tuple[LocalFeedback, ...] | None = None,
         beam_feedback: Blond2BeamFeedback | None = None,
         name: str | None = None,
         voltage: float | None = None,
@@ -598,7 +617,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         """
         voltage = self.voltage
         phi_rf = self.phi_rf + self.delta_phi_rf
-        omega_rf = self._omega_rf = self.delta_omega_rf
+        omega_rf = self._omega_rf + self.delta_omega_rf
         return voltage * np.sin(omega_rf * ts + phi_rf)
 
     @staticmethod
@@ -710,7 +729,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         harmonic: NumpyArray | None = None,
         section_index: int = 0,
         local_wakefield: WakeField | None = None,
-        cavity_feedback: LocalFeedback | None = None,
+        cavity_feedback: tuple[LocalFeedback, ...] | None = None,
         beam_feedback: Blond2BeamFeedback | None = None,
         name: str | None = None,
     ):
@@ -855,7 +874,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             beam_beta, ring_circumference
         )
 
-    def voltage_waveform_tmp(self, ts: NumpyArray):
+    def voltage_waveform_tmp(self, ts: NumpyArray):  # pragma: no cover
         """Calculate voltage of cavity for current turn.
 
         Note
@@ -891,6 +910,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         circumference: float,
         total_energy: float,
         main_harmonic_idx: int,
+        reference_beta: float,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
         beam_feedback: Blond2BeamFeedback | None = None,
@@ -956,6 +976,9 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             beam=Mock(BeamBaseClass),
             main_harmonic_idx=main_harmonic_idx,
         )
+        beam = Mock(BeamBaseClass)
+        beam.reference_beta = reference_beta
+        mhc._update_beam_based_attributes(beam)
         return mhc
 
     def track(self, beam: BeamBaseClass) -> None:

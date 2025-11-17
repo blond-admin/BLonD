@@ -35,6 +35,9 @@ class TestProfileBaseClass(unittest.TestCase):
             turn_i_init=0,
         )
 
+    def test_plot(self):
+        self.profile_base_class.plot()
+
     def test_hist_x(self):
         self.assertIsNotNone(self.profile_base_class.hist_x)
 
@@ -96,6 +99,21 @@ class TestProfileBaseClass(unittest.TestCase):
 
     def test_invalidate_cache(self):
         self.profile_base_class.invalidate_cache()
+
+    def test_weighted_avg_dt(self):
+        result = self.profile_base_class.weighted_avg_dt()
+        expected = backend.average(self.profile_base_class.hist_x,
+                                   weights=(self.profile_base_class.hist_y))
+        self.assertAlmostEqual(result, expected)
+
+    def test_sigma_weighted_avg_dt(self):
+        result = self.profile_base_class.sigma_weighted_avg_dt()
+        average = backend.average(self.profile_base_class.hist_x,
+                                  weights=(self.profile_base_class.hist_y))
+        variance = backend.average((self.profile_base_class.hist_x - average) ** 2,
+                                   weights=(self.profile_base_class.hist_y))
+        expected = backend.sqrt(variance)
+        self.assertAlmostEqual(result, expected)
 
 
 class TestStaticProfile(unittest.TestCase):

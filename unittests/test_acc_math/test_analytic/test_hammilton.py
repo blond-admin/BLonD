@@ -41,20 +41,21 @@ class TestPhiS(unittest.TestCase):
 
 
 class TestFunctions(unittest.TestCase):
-    @unittest.skip("TODO")  # TODO
     def test_phase_modulo_above_transition(self):
-        upper_limit = +3 * np.pi / 2.0
-        lower_limit = -np.pi / 2
+        upper_limit = 2 * np.pi
+        lower_limit = 0
         phis = np.linspace(-100, 100, 200)
         phis_corrected = phase_modulo_above_transition(phis)
-        plt.title("phase_modulo_above_transition")
-        plt.plot(phis, "o")
-        plt.plot(phis_corrected, "o")
-        plt.axhline(upper_limit)
-        plt.axhline(lower_limit)
-        # plt.show()
+        DEV_PLOT = False
+        if DEV_PLOT:
+            plt.title("phase_modulo_above_transition")
+            plt.plot(phis, "o")
+            plt.plot(phis_corrected, "o")
+            plt.axhline(upper_limit)
+            plt.axhline(lower_limit)
+            plt.show()
         self.assertTrue(
-            np.all(phis_corrected <= upper_limit),
+            np.all(phis_corrected < upper_limit),
             msg=f"{phis_corrected.max()=}",
         )
         self.assertTrue(
@@ -62,18 +63,19 @@ class TestFunctions(unittest.TestCase):
             msg=f"{phis_corrected.min()=}",
         )
 
-    @unittest.skip("TODO")  # TODO
     def test_phase_modulo_below_transition(self):
-        upper_limit = +3 * np.pi / 2.0
-        lower_limit = -np.pi / 2
+        upper_limit = np.pi
+        lower_limit = -np.pi
         phis = np.linspace(-100, 100, 200)
         phis_corrected = phase_modulo_below_transition(phis)
-        plt.title("phase_modulo_below_transition")
-        plt.plot(phis, "o")
-        plt.plot(phis_corrected, "o")
-        plt.axhline(upper_limit)
-        plt.axhline(lower_limit)
-        # plt.show()
+        DEV_PLOT = False
+        if DEV_PLOT:
+            plt.title("phase_modulo_below_transition")
+            plt.plot(phis, "o")
+            plt.plot(phis_corrected, "o")
+            plt.axhline(upper_limit)
+            plt.axhline(lower_limit)
+            plt.show()
         self.assertTrue(
             np.all(phis_corrected <= upper_limit),
             msg=f"{phis_corrected.max()=}",
@@ -97,27 +99,31 @@ class TestSingleRFSinHamiltonian(unittest.TestCase):
         self.total_energy = 1e9  # eV
         self.ring_circumference = 100.0  # m
 
-    @unittest.skip("TODO")  # TODO
     def test_hamiltonian_at_separatrix_max(self):
         # Max point of separatrix in phase: phi_b = π - phi_s
         dt_sep_max = (np.pi - self.phi_s - self.phi_rf_d) / self.omega_rf
         dE_sep_max = 0.0  # maximum in phase, energy = 0
-
-        H = single_rf_sin_hamiltonian(
-            charge=self.charge,
-            harmonic=self.harmonic,
-            voltage=self.voltage,
-            omega_rf=self.omega_rf,
-            phi_rf_d=self.phi_rf_d,
-            phi_s=self.phi_s,
-            etas=self.etas,
-            beta=self.beta,
-            total_energy=self.total_energy,
-            ring_circumference=self.ring_circumference,
-            dt=dt_sep_max,
-            dE=dE_sep_max,
-        )
-        self.fail()  # TODO
+        for sign in (-1, 1):
+            H = single_rf_sin_hamiltonian(
+                charge=self.charge,
+                harmonic=self.harmonic,
+                voltage=self.voltage,
+                omega_rf=self.omega_rf,
+                phi_rf_d=self.phi_rf_d,
+                phi_s=self.phi_s,
+                etas=sign * np.array(self.etas),
+                beta=self.beta,
+                total_energy=self.total_energy,
+                ring_circumference=self.ring_circumference,
+                dt=dt_sep_max,
+                dE=dE_sep_max,
+            )
+            H_pinned = (
+                -184782456987.43494
+            )  # guarantee that result doesnt change
+            # physics might be still wrong. In that case, H_pinned might need to
+            # b changed.
+            self.assertEqual(H, H_pinned)
 
     @unittest.skip("TODO")  # TODO
     def test_is_in_separatrix(self):

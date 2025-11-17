@@ -403,9 +403,7 @@ class Simulation(Preparable):
         classes_check = set()
         for ins in instances:
             classes_check.add(type(ins))
-        # assert len(classes_check) == len(ordered_classes), "BUG"
-        if "ABCMeta" in ordered_classes:
-            ordered_classes.pop(ordered_classes.index("ABCMeta"))
+
         logger.info(f"Execution order for `{method}` is {ordered_classes}")
 
         for cls in ordered_classes:
@@ -631,11 +629,11 @@ class Simulation(Preparable):
 
     def finalize(
         self,
-        beams: tuple[BeamBaseClass],
-        n_turns: int | None,
-        observe: tuple[ObservablesEndOfTurnBase, ...],
-        turn_i_init: int,
-    ) -> None:
+        beams: tuple[BeamBaseClass, ...],
+        n_turns: int | None = None,
+        turn_i_init: int = 0,
+        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
+    ) -> int:
         """Executes `_exec_on_run_simulation` and prepares the observables.
 
         Parameters
@@ -733,7 +731,8 @@ class Simulation(Preparable):
         logger.info("Starting simulation mainloop...")
         iterator = range(turn_i_init, turn_i_init + n_turns)
         if show_progressbar:
-            iterator = tqdm(iterator)  # Add TQDM display to iteration
+            iterator = tqdm(iterator, desc="BLonD3 mainloop")  # Add TQDM
+            # display to iteration
         self.turn_i.value = 0
         for observable in observe:
             observable.update(
@@ -773,7 +772,7 @@ class Simulation(Preparable):
         | Blond2RingAndRFTracker
         | Blond2FullRingAndRF
     ]:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
         from ...physics.cavities import (  # prevent cyclic import
             MultiHarmonicRfStation,
         )
@@ -958,7 +957,7 @@ class Simulation(Preparable):
         """
         for observable in observe:
             if common_name is not None:
-                observable.rename(common_name=common_name)
+                observable.rename(new_common_filepath=common_name)
             observable.to_disk()
 
     def load_results(
@@ -994,5 +993,5 @@ class Simulation(Preparable):
         )
         for observable in observe:
             if common_name is not None:
-                observable.rename(common_name=common_name)
+                observable.rename(new_common_filepath=common_name)
             observable.from_disk()

@@ -50,6 +50,34 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
     def test__check_section_indexing(self):
         self.beam_physics_relevant_elements._check_section_indexing()
 
+    def test__check_section_indexing_too_many_cavities(self):
+        third_cavity = Mock(spec=RfStationBaseClass)
+        third_cavity.name = "third_cavity"
+        third_cavity.section_index = 1
+        self.beam_physics_relevant_elements.add_element(third_cavity)
+        with self.assertRaisesRegex(ValueError, "Each cavity must be in a different section"):
+            self.beam_physics_relevant_elements._check_section_indexing()
+
+    def test_missing_drift_cavity(self):
+        element = Mock(spec=DriftBaseClass)
+        element.orbit_length = 0.5
+        element.section_index = 2
+        element.name = "element"
+        self.beam_physics_relevant_elements.add_element(element)
+        with self.assertRaisesRegex(RuntimeError, "Missing cavity in section"):
+            self.beam_physics_relevant_elements._check_section_indexing()
+
+        element = Mock(spec=RfStationBaseClass)
+        element.section_index = 2
+        element.name = "element"
+        self.beam_physics_relevant_elements.add_element(element)  # complete section 2 and open new one
+        element = Mock(spec=RfStationBaseClass)
+        element.section_index = 3
+        element.name = "element"
+        self.beam_physics_relevant_elements.add_element(element)
+        with self.assertRaisesRegex(RuntimeError, "Missing drift in section"):
+            self.beam_physics_relevant_elements._check_section_indexing()
+
     def test_add_element(self):
         element = Mock(spec=BeamPhysicsRelevant)
         element.section_index = 0

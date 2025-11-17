@@ -349,7 +349,7 @@ class WakeField(ImpedanceBaseClass):
     def info_string(self, prefix="") -> str:
         """Inform that the profile is also executed within the track method."""
         content = (
-            f"{self.profile.info_string(prefix=' ↓ ')}\n"
+            f"{self.profile.info_string(prefix=prefix + ' ↓ ')}\n"
             f"{super().info_string(prefix=prefix)}"
         )
         return content

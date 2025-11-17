@@ -165,7 +165,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         """Get the equivalent of np.gradient(x) in frequency domain ifft(derivative*fft(x))."""
         # Recalculate only of `freq_x` is changed
         hash_ = get_hash(freq_x)
-        if hash_ is self._cache_derivative_hash:
+        if hash_ == self._cache_derivative_hash:
             return self._cache_derivative
 
         df = freq_x[1] - freq_x[0]  # frequency spacing
@@ -211,7 +211,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         # Recalculate only of `time` is changed
 
         hash_ = get_hash(time)
-        if hash_ is self._cache_wake_impedance_hash:
+        if hash_ == self._cache_wake_impedance_hash:
             return self._cache_wake_impedance
         freq = np.fft.rfftfreq(n_fft, d=time[1] - time[0])
         wake_impedance = self.get_impedance(
@@ -360,14 +360,14 @@ class Resonators(
 
         """
         # Recalculate only if `time` has changed
-        hash = get_hash(time)
-        if hash is self._cache_wake_impedance_hash:
+        hash_ = get_hash(time)
+        if hash_ == self._cache_wake_impedance_hash:
             return self._cache_wake_impedance
 
         wake = self.get_wake(time)
         wake_impedance = np.fft.rfft(wake, n=n_fft)
 
-        self._cache_wake_impedance_hash = hash
+        self._cache_wake_impedance_hash = hash_
         self._cache_wake_impedance = wake_impedance
         return wake_impedance
 
@@ -428,6 +428,7 @@ class Resonators(
             time array at which the wake is calculated [V]
         """
         wake = backend.zeros(len(time), dtype=backend.float, order="C")
+
         for res_ind in range(self._n_resonators):
             wake += (
                 (
@@ -541,7 +542,7 @@ class Resonators(
         # Recalculate only if `freq_x` is changed
 
         hash_ = get_hash(freq_x + counter_rotation)
-        if hash_ is self._cache_impedance_hash:
+        if hash_ == self._cache_impedance_hash:
             return self._cache_impedance
 
         impedance = np.zeros(len(freq_x), dtype=complex)
@@ -642,7 +643,7 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
         """
         # Recalculate only of `freq_x` is changed
         hash_ = get_hash(freq_x)
-        if hash_ is self._cache_impedance_hash:
+        if hash_ == self._cache_impedance_hash:
             return self._cache_impedance
         impedance = np.interp(
             freq_x, self._freq_x, self._freq_y, left=0, right=0
@@ -745,7 +746,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
 
         """
         hash_ = get_hash(time)
-        if hash_ is self._cache_wake_impedance_hash:
+        if hash_ == self._cache_wake_impedance_hash:
             return self._cache_wake_impedance
         if time.min() < self._wake_x.min():
             warn(

@@ -174,6 +174,28 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             backend.float,  # type: ignore
         )
 
+    def weighted_avg_dt(self) -> float:
+        """Bunch center of weight, in [s].
+
+        calculates the bunch position by calculating
+        the average of `hist_x` (time coordinate)
+        weighted by `hist_y` (number of particles).
+        """
+        return backend.average(self._hist_x, weights=self._hist_y)
+
+    def sigma_weighted_avg_dt(self) -> float:
+        """Bunch length (1σ), in [s].
+
+        Calculates the 1-σ bunch length by
+        determining the std about the weighted average
+        calculated as in `weighted_avg_dt`.
+        """
+        average = backend.average(self._hist_x, weights=self._hist_y)
+        variance = backend.average(
+            backend.square(self._hist_x - average), weights=self._hist_y
+        )
+        return backend.sqrt(variance)
+
     def track(self, beam: BeamBaseClass) -> None:
         """Main simulation routine to be called in the mainloop.
 
@@ -235,16 +257,6 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
     def cutoff_frequency(self) -> float:
         """Cutoff frequency if the profile is fourier transformed, in [Hz]."""
         return 1 / (2 * self.hist_step)
-
-    def _calc_gauss(self) -> None:
-        """Gaussian fit for the beam profile."""
-        raise NotImplementedError
-
-    @cached_property
-    def gauss_fit_params(self) -> None:
-        """Gaussian fit for the beam profile."""
-        raise NotImplementedError
-        return self._calc_gauss()
 
     def beam_spectrum(self, n_fft: int | None) -> NumpyArray:
         """Calculate fourier transform of the profile."""
