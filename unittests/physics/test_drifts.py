@@ -74,7 +74,7 @@ class TestDriftSimple(unittest.TestCase):
 
     def test_error_throwing_on_unscheduled(self):
         simulation = Mock(Simulation)
-        self.drift_simple = DriftSimple(section_index=1, orbit_length=0)
+        self.drift_simple = DriftSimple(section_index=1, orbit_length=0)  # will raise Exception because of missing transition gamma
         with self.assertRaises(ValueError):
             self.drift_simple.on_init_simulation(simulation=simulation)
 

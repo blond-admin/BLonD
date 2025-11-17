@@ -73,7 +73,7 @@ class TestScheduledConstant(unittest.TestCase):
 
 
 class TestScheduledInterpolation(unittest.TestCase):
-    def setUp(self):
+    def setUp(self):  # TODO this testcase must be changed, when fixing the ISSUE #110 
         t_arr = np.linspace(0, 10)
         vals = np.linspace(-10, 0)
         self.scheduled_constant = ScheduledInterpolation(times=t_arr, values=vals)

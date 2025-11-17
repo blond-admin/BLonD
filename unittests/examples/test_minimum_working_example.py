@@ -42,7 +42,7 @@ class Test_minimum_working_example(unittest.TestCase):
         minimum_working_example.n_turns = 100
         minimum_working_example.n_macroparticles = 100
         minimum_working_example.main()
-        backend.zeros(100)
+        backend.zeros(100)  # TODO document everywhere reason: Force cupy to raise error on corrupt memory.
 
         # full script. just checking if it crashes
 

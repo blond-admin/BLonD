@@ -112,7 +112,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         n_rf: int,
         section_index: int,
         local_wakefield: WakeField | None,
-        cavity_feedback: tuple[LocalFeedback, ...] | None,
+        cavity_feedback: tuple[LocalFeedback, ...] | None, # FIXME should be tuple or not???
         beam_feedback: Blond2BeamFeedback | None,
         name: str | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
