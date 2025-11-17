@@ -3,6 +3,7 @@ import numpy as np
 from blond import (
     Beam,
     ConstantMagneticCycle,
+    DriftSimple,
     Ring,
     Simulation,
     UserDefinedElement,
@@ -24,6 +25,9 @@ class TimeRandomizer(UserDefinedElement):
 def main():
     ring = Ring(circumference=42)
     ring.add_element(TimeRandomizer())
+    ring.add_element(
+        DriftSimple(orbit_length=ring.circumference, transition_gamma=12)
+    )
     sim = Simulation(
         ring=ring,
         magnetic_cycle=ConstantMagneticCycle(
