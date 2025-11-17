@@ -410,12 +410,13 @@ class TestWakeFieldObservation(unittest.TestCase):
         wf_obs.on_run_simulation(simulation=simulation, beam=beam, turn_i_init=0, n_turns=100)
 
         orig_save = type(wf).induced_voltage
-        type(wf).induced_voltage = PropertyMock(side_effect=AttributeError("boom"))
+        type(wf).induced_voltage = PropertyMock(side_effect=AttributeError("ind_volt_calc_failed"))
 
         simulation.section_i.value = 0
         wf_obs.update(simulation=simulation)
 
-        type(wf).induced_voltage = orig_save
+        with self.assertRaises(AttributeError):
+            _ = wf.induced_voltage
 
     def test_from_disk(self) -> None:
         self.wake_field_observation.on_init_simulation(
