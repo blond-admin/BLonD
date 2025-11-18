@@ -240,14 +240,14 @@ class PythonSpecials(Specials):
 
     @staticmethod
     def move_flagged_elements_to_end(
-        flag: np.int32,
+        flag: int,
         flags: NumpyArray | CupyArray,  # also purged
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         ids: NumpyArray | CupyArray,
     ):
         n_new = _move_flagged_elements_to_end_py(
-            flag=flag,
+            flag=np.int32(flag),
             flags=flags,
             dt=dt,
             dE=dE,

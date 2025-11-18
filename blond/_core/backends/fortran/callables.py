@@ -394,7 +394,7 @@ def reload_fortran_backend(
             ids: NumpyArray | CupyArray,
         ):
             n_new = libblond_fortran.move_flagged_elements_to_end(
-                flag=flag,
+                flag=np.int32(flag),
                 flags=flags,
                 dt=dt,
                 de=dE,

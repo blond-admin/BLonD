@@ -151,7 +151,7 @@ class Specials(ABC):
     @staticmethod
     @abstractmethod  # pragma: no cover
     def move_flagged_elements_to_end(
-        flag: np.int32,
+        flag: int,
         flags: NumpyArray | CupyArray,  # also purged
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,

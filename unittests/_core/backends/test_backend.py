@@ -456,7 +456,7 @@ class TestSpecials(unittest.TestCase):
                 except (FileNotFoundError, OSError):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
-                flag = backend.int(0)
+                flag = 0
                 flags = backend.ones(10, dtype=np.int32)
                 flags[[0, 1, -1]] = 0
                 dt = backend.array(backend.linspace(0, 10, 10), backend.float)
@@ -520,7 +520,7 @@ class TestSpecials(unittest.TestCase):
                 except (FileNotFoundError, OSError):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
-                flag = backend.int(0)
+                flag = 0
                 flags = backend.ones(int(1e6), dtype=np.int32)
                 np.random.seed(0)
                 flags[np.random.randint(0, len(flags), int(1e5))] = 0
@@ -570,7 +570,7 @@ class TestSpecials(unittest.TestCase):
                 except (FileNotFoundError, OSError):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
-                flag = backend.int(0)
+                flag = 0
                 flags = backend.ones(10, dtype=np.int32)
 
                 dt = backend.array(backend.linspace(0, 10, 10), backend.float)
@@ -598,7 +598,7 @@ class TestSpecials(unittest.TestCase):
                 except (FileNotFoundError, OSError) as exc:
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
-                flag = backend.int(0)
+                flag = 0
                 flags = backend.zeros(10, dtype=np.int32)
                 flags[1] = 1
 
@@ -627,7 +627,7 @@ class TestSpecials(unittest.TestCase):
                 except (FileNotFoundError, OSError):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
-                flag = backend.int(0)
+                flag = 0
                 flags = backend.zeros(10, dtype=np.int32)
 
                 dt = backend.array(backend.linspace(0, 10, 10), backend.float)
