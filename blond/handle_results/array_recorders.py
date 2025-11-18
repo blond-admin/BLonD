@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from .._generals.cupy.no_cupy_import import is_cupy_array
+from ..generals.cupy.no_cupy_import import is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
     from os import PathLike

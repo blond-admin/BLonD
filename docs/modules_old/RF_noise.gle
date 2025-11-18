@@ -4,7 +4,7 @@ set font texcmss hei 0.35
 set just center
 
 !set lwidth 0.2 color gray20
-amove 0.6 0.7 
+amove 0.6 0.7
 
 begin graph
       size 5.5 3.5
@@ -22,10 +22,10 @@ end graph
 amove 8.6 0.7
 begin graph
       size 5.5 3.5
-      xtitle "Frequency [Hz]" hei 0.35 
-      ytitle "S_{\varphi}^{DS}(f) [rad^2/Hz]" hei 0.35 
-      xaxis hei 0.35 nticks 5 
-      yaxis min 0 max 1.2e-6 hei 0.35 nticks 6 format "sci 1" nolast 
+      xtitle "Frequency [Hz]" hei 0.35
+      ytitle "S_{\varphi}^{DS}(f) [rad^2/Hz]" hei 0.35
+      xaxis hei 0.35 nticks 5
+      yaxis min 0 max 1.2e-6 hei 0.35 nticks 6 format "sci 1" nolast
       xsubticks off
       ysubticks off
 

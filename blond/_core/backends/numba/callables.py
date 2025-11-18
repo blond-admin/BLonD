@@ -512,7 +512,7 @@ def recompile_numba_backend(  # NOQA PLR0915
 
         @staticmethod
         def move_flagged_elements_to_end(
-            flag: np.int32,
+            flag: int,
             flags: NumpyArray | CupyArray,  # also purged
             dt: NumpyArray | CupyArray,
             dE: NumpyArray | CupyArray,
@@ -520,7 +520,7 @@ def recompile_numba_backend(  # NOQA PLR0915
         ):
             # TODO parallel version of sorting
             n_new = _move_flagged_elements_to_end_nb(
-                flag=flag,
+                flag=np.int32(flag),
                 flags=flags,
                 dt=dt,
                 dE=dE,

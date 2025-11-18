@@ -5,7 +5,7 @@ import numba
 import numpy as np
 from matplotlib import pyplot as plt
 
-from blond._generals.cupy.no_cupy_import import is_cupy_array
+from blond.generals.cupy.no_cupy_import import is_cupy_array
 
 
 class TestFunctions(unittest.TestCase):

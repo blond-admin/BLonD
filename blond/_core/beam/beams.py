@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ..._generals.cupy.no_cupy_import import is_cupy_array
+from ...generals.cupy.no_cupy_import import is_cupy_array
 from ..backends.backend import backend
 from .base import BeamBaseClass, BeamFlags
 
@@ -78,7 +78,7 @@ class Beam(BeamBaseClass):
         assert len(dt) == len(dE), f"{len(dt)} != {len(dE)}"
         n_macroparticles = len(dt)
         if flags is None:
-            flags = backend.int(BeamFlags.ACTIVE.value) * backend.ones(
+            flags = np.int32(BeamFlags.ACTIVE.value) * backend.ones(
                 n_macroparticles, dtype=np.int32
             )
         else:

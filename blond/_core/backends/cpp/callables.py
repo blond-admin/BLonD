@@ -19,7 +19,7 @@ if TYPE_CHECKING:  # pragma: no cover
 class PrecisionClass:
     """Singleton class. Holds information about the floating point precision of the calculations."""
 
-    int_t: type[np.float32 | np.float64]
+    int_t: type[np.int32 | np.int64]
     real_t: type[np.float32 | np.float64]
     c_real_t: type[ct.c_float | ct.c_double]
     complex_t: type[np.complex64 | np.complex128]
@@ -158,7 +158,7 @@ def reload_cpp_backend(
         """
         libblond_path_ = os.environ.get("LIBBLOND", None)
 
-        from blond._generals._hashing import hash_in_folder
+        from blond.generals._hashing import hash_in_folder
 
         folder = os.path.dirname(os.path.abspath(__file__))
 
@@ -454,14 +454,14 @@ def reload_cpp_backend(
 
         @staticmethod
         def move_flagged_elements_to_end(
-            flag: np.int32,
+            flag: int,
             flags: NumpyArray | CupyArray,  # also purged
             dt: NumpyArray | CupyArray,
             dE: NumpyArray | CupyArray,
             ids: NumpyArray | CupyArray,
         ):
             n_new = _LIBBLOND.move_flagged_elements_to_end(
-                ct.c_int32(flag),
+                ct.c_int32(np.int32(flag)),
                 flags.ctypes.data_as(ct.c_void_p),
                 dt.ctypes.data_as(ct.c_void_p),
                 dE.ctypes.data_as(ct.c_void_p),

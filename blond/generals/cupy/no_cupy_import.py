@@ -77,22 +77,23 @@ class _AsarrayOverrideManager:
 
 
 class AllowPlotting:
+    """Allows implicitly casting of Cupy arrays to Numpy arrays.
+
+    Notes
+    -----
+    This is only intended for plotting of arrays.
+    The function temporarily overrides the numpy.asarray function.
+
+    Examples
+    --------
+    >>> y = cupy.ones(12)
+    >>> with AllowPlotting():
+    >>>     plt.plot(y)
+
+
+    """
+
     def __init__(self) -> None:
-        """Allows implicitly casting of Cupy arrays to Numpy arrays .
-
-        Notes
-        -----
-        This is only intended for plotting of arrays.
-        The function temporarily overrides the numpy.asarray function.
-
-        Examples
-        --------
-        >>> y = cupy.ones(12)
-        >>> with AllowPlotting():
-        >>>     plt.plot(y)
-
-
-        """
         if not backend.is_gpu:
             return  # do nothing
         # initialize cache, make override function available
