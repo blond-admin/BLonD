@@ -10,7 +10,9 @@ subroutine loss_box(top, bottom, left, right, dt, dE, flags, n)
 
    !$omp parallel do private(i) shared(top, bottom, left, right, dt, dE, flags)
    do i = 1, n
-      flags(i) = -500 ! assume (BeamFlags.LOST.value)
+      if (dE(i) > top .or. dE(i) < bottom .or. dt(i) < left .or. dt(i) > right) then
+         flags(i) = -500 ! assume (BeamFlags.LOST.value)
+      end if
    end do
    !$omp end parallel do
 end subroutine loss_box

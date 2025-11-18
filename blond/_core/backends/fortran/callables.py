@@ -186,7 +186,7 @@ def reload_fortran_backend(
                 left=left,
                 right=right,
                 dt=dt,
-                dE=dE,
+                de=dE,
                 flags=flags,
                 n=np.int32(len(dt)),
             )

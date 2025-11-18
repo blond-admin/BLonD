@@ -647,7 +647,6 @@ class TestSpecials(unittest.TestCase):
                     msg=f"Failed test `{special}` with {dtype}",
                 )
 
-    @unittest.skip
     def test_loss_box(self) -> None:
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
