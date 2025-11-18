@@ -177,8 +177,6 @@ class SparseSlices:
         Filling pattern of the synchrotron
     tracker
         Choice of tracker. Can be "C" or "onebyone".
-    bucket_margin
-        Extend the scope of the Profile objects to the neighbouring buckets.
     direct_slicing
         Track at initialisation. FALSE by default.
     """
