@@ -9,15 +9,13 @@ import numpy as np
 
 from blond._core.backends.backend import backend
 
-from ..base import Preparable, Schedulable
+from ..base import Preparable, Schedulable, SimulationElementBase
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
     from typing import Any
 
     from numpy.typing import NDArray as NumpyArray
-
-    from blond._core.base import SimulationElementBase
 
     from ...physics.drifts import DriftBaseClass
     from ..beam.base import BeamBaseClass
@@ -29,6 +27,9 @@ class Ring(Preparable, Schedulable):
     def __init__(
         self,
         circumference: float,
+        elements: Iterable[SimulationElementBase] = None,
+        *args,
+        **kwargs,
     ) -> None:
         """`Ring` a.k.a. synchrotron.
 
@@ -40,6 +41,9 @@ class Ring(Preparable, Schedulable):
             but the circumference is used to determine the RF frequency.
             Changes of orbit length thus lead to delays, but do not alter
             the derived frequency program.
+        elements
+            Objects representing beamline components or other elements
+            relevant to beam physics.
         """
         from .beam_physics_relevant_elements import BeamPhysicsRelevantElements
 
@@ -49,6 +53,10 @@ class Ring(Preparable, Schedulable):
             f"`circumference` must be bigger 0, but is {circumference}"
         )
         self._circumference = circumference
+
+        # Checking whether the elements are given
+        if elements is not None:
+            self.add_elements(elements, *args, **kwargs)
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called.
