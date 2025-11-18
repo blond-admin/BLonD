@@ -7,7 +7,7 @@ import cupy as cp  # type: ignore
 import numpy as np
 
 from ...._core.backends.backend import Specials, backend
-from ...._generals._hashing import hash_in_folder
+from ....generals._hashing import hash_in_folder
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore

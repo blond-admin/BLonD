@@ -95,7 +95,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     print("\nTrying to compile C++ backend.")
 
     if libname is None:
-        from blond._generals._hashing import hash_in_folder
+        from blond.generals._hashing import hash_in_folder
 
         folder = os.path.dirname(os.path.abspath(__file__))
 
