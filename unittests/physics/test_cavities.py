@@ -93,11 +93,9 @@ class TestRFStationBaseClass(unittest.TestCase):
 
         # TODO: remove this, once cavity feedback setup is fixed
         mhc_feedbacks = MultiHarmonicRfStation(section_index=1, local_wakefield=None, main_harmonic_idx=0, n_harmonics=1,
+                                               voltage=np.array([1]), phi_rf = np.array([1]), harmonic = np.array([1]),
                                                cavity_feedback=(cavity_feedback_good,), beam_feedback=beam_feedback_good,
                                                )
-        mhc_feedbacks.voltage = np.array([1])
-        mhc_feedbacks.phi_rf = np.array([1])
-        mhc_feedbacks.harmonic = np.array([1])
 
         simulation = Mock(Simulation)
         simulation.turn_i = DynamicParameter(1)
@@ -177,16 +175,11 @@ class TestMultiHarmonicCavity(unittest.TestCase):
 
     def test_track(self) -> None:
         self.multi_harmonic_cavity.track(beam=self.beam)
-        self.multi_harmonic_cavity._ring.average_transition_gamma = 5
 
         self.assertEqual(self.beam.reference_total_energy, 939)  # incremented
         self.assertEqual(self.beam.reference_time, 0)  # unchanged
 
-        self.multi_harmonic_cavity.track(beam=beam)
-
-        self.assertEqual(beam.reference_total_energy, 939)  # incremented
-        self.assertEqual(beam.reference_time, 0)  # unchanged
-        print(beam.dE.tolist())
+        # print(self.beam.dE.tolist())
         np.testing.assert_allclose(  # changer/ test pinned to some value
             self.beam.dE,
             [
