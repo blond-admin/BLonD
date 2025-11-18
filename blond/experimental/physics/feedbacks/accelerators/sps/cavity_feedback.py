@@ -270,7 +270,7 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
         # Initialize moving average
         self.n_mov_av = round(
-            self.TWC.tau / self._parent_cavity._t_rf[self.harmonic_index]
+            self.TWC.tau / self._parent_cavity.get_main_harmonic_t_rf_current()
         )
         self.DV_MOV_AVG = np.zeros(2 * self.n_coarse, dtype=complex)
         self.logger.debug("Moving average over %d points", self.n_mov_av)
@@ -914,6 +914,9 @@ class SPSCavityFeedback:
         self.track_init(debug=commissioning_1.debug)
 
         self.logger.info("Class initialized")
+
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        pass
 
     def track(self, beam: BeamBaseClass):
         r"""Main tracking method for the SPSCavityFeedback. This tracks both cavity types

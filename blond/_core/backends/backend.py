@@ -338,7 +338,7 @@ class BackendBaseClass(ABC):
         ).lower()
         if _backend_mode_raw != "numba":
             print(
-                f"Using environment variable BLOND_BACKEND_MODE={_backend_mode_raw}"
+                f"Using environment variable BLOND_BACKEND_MODE = {_backend_mode_raw}"
             )
         _allowed_backend_modes = (
             "python",

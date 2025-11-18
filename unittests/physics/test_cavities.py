@@ -1,4 +1,5 @@
 import unittest
+from copy import deepcopy
 from unittest.mock import Mock
 
 import numpy as np
@@ -92,11 +93,9 @@ class TestRFStationBaseClass(unittest.TestCase):
 
         # TODO: remove this, once cavity feedback setup is fixed
         mhc_feedbacks = MultiHarmonicRfStation(section_index=1, local_wakefield=None, main_harmonic_idx=0, n_harmonics=1,
+                                               voltage=np.array([1]), phi_rf = np.array([1]), harmonic = np.array([1]),
                                                cavity_feedback=(cavity_feedback_good,), beam_feedback=beam_feedback_good,
                                                )
-        mhc_feedbacks.voltage = np.array([1])
-        mhc_feedbacks.phi_rf = np.array([1])
-        mhc_feedbacks.harmonic = np.array([1])
 
         simulation = Mock(Simulation)
         simulation.turn_i = DynamicParameter(1)
@@ -139,6 +138,24 @@ class TestCallables(unittest.TestCase):
 
 class TestMultiHarmonicCavity(unittest.TestCase):
     def setUp(self) -> None:
+        from blond._core.beam.base import BeamBaseClass
+
+        beam = Mock(BeamBaseClass)
+        beam.particle_type = proton
+        beam.reference_time = 0
+        beam.reference_beta = 0.5
+        beam.reference_velocity = beam.reference_beta * c0
+        beam.reference_gamma = np.sqrt(1 - 0.25)  # beta**2
+        beam.reference_total_energy = 938
+        beam.dE = np.linspace(-1e6, 1e6, 10, dtype=backend.float)  # delta E
+        # in eV
+        beam.dt = np.linspace(-1e-6, 1e-6, 10, dtype=backend.float)  # delta t
+        # in s
+        beam.read_partial_dt.return_value = beam.dt
+        beam.write_partial_dE.return_value = beam.dE
+
+        self.beam = beam
+
         self.multi_harmonic_cavity = MultiHarmonicRfStation.headless(
             section_index=0,
             voltage=np.array([1e6, 2e6], dtype=backend.float),
@@ -157,27 +174,14 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         pass  # calls __init__ in  self.setUp
 
     def test_track(self) -> None:
-        beam = Mock(BeamBaseClass)
-        beam.particle_type = proton
-        beam.reference_time = 0
-        beam.reference_beta = 0.5
-        beam.reference_velocity = beam.reference_beta * c0
-        beam.reference_gamma = np.sqrt(1 - 0.25)  # beta**2
-        beam.reference_total_energy = 938
-        beam.dE = np.linspace(-1e6, 1e6, 10, dtype=backend.float)  # delta E
-        # in eV
-        beam.dt = np.linspace(-1e-6, 1e-6, 10, dtype=backend.float)  # delta t
-        # in s
-        beam.read_partial_dt.return_value = beam.dt
-        beam.write_partial_dE.return_value = beam.dE
+        self.multi_harmonic_cavity.track(beam=self.beam)
 
-        self.multi_harmonic_cavity.track(beam=beam)
+        self.assertEqual(self.beam.reference_total_energy, 939)  # incremented
+        self.assertEqual(self.beam.reference_time, 0)  # unchanged
 
-        self.assertEqual(beam.reference_total_energy, 939)  # incremented
-        self.assertEqual(beam.reference_time, 0)  # unchanged
-        print(beam.dE.tolist())
+        # print(self.beam.dE.tolist())
         np.testing.assert_allclose(  # changer/ test pinned to some value
-            beam.dE,
+            self.beam.dE,
             [
                 -3553222.1295187217,
                 229103.39306234661,
@@ -194,9 +198,26 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         )
 
         np.testing.assert_allclose(  # unchanged
-            beam.dt,
+            self.beam.dt,
             np.linspace(-1e-6, 1e-6, 10),
         )
+
+    def test_wrong_array(self) -> None:
+        local_cav = MultiHarmonicRfStation(n_harmonics=2, main_harmonic_idx=0, voltage=np.array([1, 2]),
+                                        phi_rf=np.array([3, 4]), harmonic=np.array([5, 6]))
+        np.testing.assert_allclose(local_cav.voltage, np.array([1, 2]))
+        np.testing.assert_allclose(local_cav.phi_rf, np.array([3, 4]))
+        np.testing.assert_allclose(local_cav.harmonic, np.array([5, 6]))
+
+        with self.assertRaises(ValueError):
+            _ = MultiHarmonicRfStation(n_harmonics=2, main_harmonic_idx=0, voltage=np.array([1]),
+                                    phi_rf=np.array([3, 4]), harmonic=np.array([5, 6]))
+        with self.assertRaises(ValueError):
+            _ = MultiHarmonicRfStation(n_harmonics=2, main_harmonic_idx=0, voltage=np.array([1, 2]),
+                                    phi_rf=np.array([3]), harmonic=np.array([5, 6]))
+        with self.assertRaises(ValueError):
+            _ = MultiHarmonicRfStation(n_harmonics=2, main_harmonic_idx=0, voltage=np.array([1, 2]),
+                                    phi_rf=np.array([3, 4]), harmonic=np.array([5]))
 
     def test_on_init_simulation_fails(self) -> None:
         simulation = Mock(Simulation)
@@ -206,6 +227,15 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             self.multi_harmonic_cavity.on_init_simulation(
                 simulation=simulation
             )
+
+    def test_general_getters(self) -> None:
+        self.multi_harmonic_cavity._update_beam_based_attributes(beam=self.beam)
+        assert self.multi_harmonic_cavity.get_main_harmonic() == self.multi_harmonic_cavity.harmonic[
+            self.multi_harmonic_cavity.main_harmonic_idx]
+        assert self.multi_harmonic_cavity.get_main_harmonic_t_rf_current() == 2 * np.pi / \
+               self.multi_harmonic_cavity._omega_rf[self.multi_harmonic_cavity.main_harmonic_idx]
+        assert self.multi_harmonic_cavity.calc_main_harmonic_t_rf(beam_beta=self.beam.reference_beta,
+                                                                  ring_circumference=456) == self.multi_harmonic_cavity.get_main_harmonic_t_rf_current()
 
     def test_on_init_simulation_fails2(self) -> None:
         simulation = Mock(Simulation)
@@ -230,22 +260,6 @@ class TestMultiHarmonicCavity(unittest.TestCase):
 
 class TestSingleHarmonicCavity(unittest.TestCase):
     def setUp(self) -> None:
-        self.single_harmonic_cavity = SingleHarmonicRfStation.headless(
-            section_index=0,
-            voltage=1e6,
-            phi_rf=np.pi * 0.3,
-            harmonic=3.5,
-            circumference=456,
-            local_wakefield=None,
-            cavity_feedback=None,
-            total_energy=939,
-        )
-        self.single_harmonic_cavity._ring.section_lengths = [1, 2, 3]
-
-    def test___init__(self):
-        pass  # calls __init__ in  self.setUp
-
-    def test_track(self) -> None:
         from blond._core.beam.base import BeamBaseClass
 
         beam = Mock(BeamBaseClass)
@@ -264,13 +278,30 @@ class TestSingleHarmonicCavity(unittest.TestCase):
         beam.read_partial_dt.return_value = beam.dt
         beam.write_partial_dE.return_value = beam.dE
 
-        self.single_harmonic_cavity.track(beam=beam)
+        self.beam = beam
 
-        self.assertEqual(beam.reference_total_energy, 939)  # incremented
-        self.assertEqual(beam.reference_time, 0)  # unchanged
-        print(beam.dE.tolist())
+        self.single_harmonic_cavity = SingleHarmonicRfStation.headless(
+            section_index=0,
+            voltage=1e6,
+            phi_rf=np.pi * 0.3,
+            harmonic=3.5,
+            circumference=456,
+            local_wakefield=None,
+            cavity_feedback=None,
+            total_energy=939,
+        )
+        self.single_harmonic_cavity._ring.section_lengths = [1, 2, 3]
+
+    def test___init__(self):
+        pass  # calls __init__ in  self.setUp
+
+    def test_track(self) -> None:
+        self.single_harmonic_cavity.track(beam=self.beam)
+
+        self.assertEqual(self.beam.reference_total_energy, 939)  # incremented
+        self.assertEqual(self.beam.reference_time, 0)  # unchanged
         np.testing.assert_allclose(  # test pinned to some value
-            beam.dE,
+            self.beam.dE,
             [
                 -1003263.8619856804,
                 221697.39838640607,
@@ -287,9 +318,17 @@ class TestSingleHarmonicCavity(unittest.TestCase):
         )
 
         np.testing.assert_allclose(  # unchanged
-            beam.dt,
+            self.beam.dt,
             np.linspace(-1e-6, 1e-6, 10),
         )
+
+    def test_general_getters(self) -> None:
+        self.single_harmonic_cavity._update_beam_based_attributes(beam=self.beam)
+        assert self.single_harmonic_cavity.get_main_harmonic() == self.single_harmonic_cavity.harmonic
+        assert self.single_harmonic_cavity.get_main_harmonic_t_rf_current() == 2 * np.pi / \
+               self.single_harmonic_cavity._omega_rf
+        assert self.single_harmonic_cavity.calc_main_harmonic_t_rf(beam_beta=self.beam.reference_beta,
+                                                                   ring_circumference=456) == self.single_harmonic_cavity.get_main_harmonic_t_rf_current()
 
     def test_on_init_simulation_fails(self) -> None:
         simulation = Mock(Simulation)

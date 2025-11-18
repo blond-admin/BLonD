@@ -344,7 +344,7 @@ class TestSpecials(unittest.TestCase):
                     np.testing.assert_allclose(
                         result,
                         result_python,
-                        rtol=self.rtol,
+                        rtol=1e-5 if dtype == np.float32 else 1e-12,
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
 
@@ -409,7 +409,7 @@ class TestSpecials(unittest.TestCase):
                     np.testing.assert_allclose(
                         result,
                         result_python,
-                        rtol=self.rtol,
+                        rtol=1e-5 if dtype == np.float32 else 1e-12,
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
 
