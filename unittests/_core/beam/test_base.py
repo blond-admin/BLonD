@@ -33,8 +33,8 @@ class BeamBaseClassTester(BeamBaseClass):
             is_counter_rotating=is_counter_rotating,
             is_distributed=is_distributed,
         )
-        self._dE = np.linspace(1, 10, 10,dtype=backend.float)
-        self._dt = np.linspace(20, 30, 10,dtype=backend.float)
+        self._dE = np.linspace(1, 10, 10, dtype=backend.float)
+        self._dt = np.linspace(20, 30, 10, dtype=backend.float)
         self._flags = np.zeros(10, dtype=np.int32)
         self._ids = np.arange(10, dtype=backend.int)
 
@@ -189,6 +189,21 @@ class TestBeamBaseClass(unittest.TestCase):
         self.assertTrue(
             isinstance(self.beam_base_class.write_partial_flags(), np.ndarray)
         )
+
+    def test_purge_flagged_entries(self):
+        ids_before = self.beam_base_class._ids.copy()
+        select = [0, 1, -1]
+
+        self.beam_base_class._flags[select] = -500
+        self.beam_base_class.purge_flagged_entries()
+        self.assertTrue(np.all(self.beam_base_class._flags != -500))
+
+        mask = np.ones(len(ids_before), dtype=bool)
+        mask[select] = False
+        ids_after = self.beam_base_class._ids
+        np.testing.assert_equal(np.sort(ids_before[mask]), np.sort(ids_after))
+
+
 
 
 if __name__ == "__main__":

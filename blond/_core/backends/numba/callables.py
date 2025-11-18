@@ -10,7 +10,8 @@ import numba  # type: ignore
 import numpy as np
 from numba import njit, prange, void
 
-from ..backend import Specials, backend
+from ..backend import Specials
+from ..python.callables import _move_flagged_elements_to_end_py
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -47,7 +48,7 @@ def enforce_precision(dtype):
 @cache  # or set a limit like maxsize=128
 def recompile_numba_backend(  # NOQA PLR0915
     floattype: np.float32 | np.float64,
-) -> NumbaSpecials:
+):
     """Helper to recompile `NumbaSpecials` when the backend changed."""
     logger.info(f"Compiling numba for {floattype}")
 
@@ -181,6 +182,21 @@ def recompile_numba_backend(  # NOQA PLR0915
     )
     # Internal definition, to make `njit` compile with the correct signature,
     # that is eiter 32 or 64 bit, defined by the backend.
+
+    sig_flag = numba.int32
+    sig_flags = numba.int32[:]
+    sig_ids = nb_i[:]
+    sig_move_flagged_elements_to_end = nb_i(
+        sig_flag,
+        sig_flags,
+        sig_dt,
+        sig_dE,
+        sig_ids,
+    )
+
+    _move_flagged_elements_to_end_nb = njit(sig_move_flagged_elements_to_end)(
+        _move_flagged_elements_to_end_py
+    )
 
     class NumbaSpecials(Specials):  # pragma: no cover
         @staticmethod
@@ -457,8 +473,28 @@ def recompile_numba_backend(  # NOQA PLR0915
                     v = y0 + (y1 - y0) * inv_dx * (x - x0)
                     dE[i] += charge * v + acceleration_kick
 
+        @staticmethod
+        def move_flagged_elements_to_end(
+            flag: int,
+            flags: NumpyArray | CupyArray,  # also purged
+            dt: NumpyArray | CupyArray,
+            dE: NumpyArray | CupyArray,
+            ids: NumpyArray | CupyArray,
+        ):
+            # TODO parallel version of sorting
+            n_new = _move_flagged_elements_to_end_nb(
+                flag=np.int32(flag),
+                flags=flags,
+                dt=dt,
+                dE=dE,
+                ids=ids,
+            )
+            return n_new
+
     return NumbaSpecials
 
 
 if TYPE_CHECKING:
+    from blond import backend
+
     NumbaSpecials = recompile_numba_backend(backend.float)

@@ -26,7 +26,7 @@ from blond import (
     uranium_29,
 )
 from blond._core.beam.base import BeamBaseClass
-from blond._generals.cupy.no_cupy_import import is_cupy_array
+from blond.generals.cupy.no_cupy_import import is_cupy_array
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.solvers import (
     InductiveImpedance,

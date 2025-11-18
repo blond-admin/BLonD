@@ -14,8 +14,8 @@ from tqdm import tqdm  # type: ignore
 
 from blond._core.base import SimulationElementBase
 
-from ..._generals._warnings import NotTestedWarning, PerformanceWarning
 from ...cycles.magnetic_cycle import MagneticCycleBase
+from ...generals._warnings import NotTestedWarning, PerformanceWarning
 from ...physics.drifts import DriftBaseClass
 from ...physics.profiles import ProfileBaseClass
 from ..backends.backend import backend
@@ -1101,6 +1101,7 @@ class Simulation(Preparable):
         run_simulation
         load_results
         """
+        self.ring.assert_circumference()
         max_turns = self.magnetic_cycle.n_turns
         if n_turns is not None:
             _n_turns = int_from_float_with_warning(

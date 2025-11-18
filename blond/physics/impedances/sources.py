@@ -23,7 +23,7 @@ import numpy as np
 
 from blond._core.backends.backend import backend
 from blond._core.simulation.simulation import Simulation
-from blond._generals._warnings import NotTestedWarning
+from blond.generals._warnings import NotTestedWarning
 from blond.physics.impedances.base import (
     AnalyticWakeFieldSource,
     DiscreteWakeFieldSource,

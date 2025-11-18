@@ -148,6 +148,60 @@ class Specials(ABC):
             "Abstract method `beam_phase` is not implemented."
         )
 
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def move_flagged_elements_to_end(
+        flag: int,
+        flags: NumpyArray | CupyArray,  # also purged
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        ids: NumpyArray | CupyArray,
+    ):
+        """Reorders entries where ``flags == flag`` to the array end.
+
+        Parameters
+        ----------
+        flag
+            The flag to be used as a selector what to place at the end.
+        flags
+            Macro-particle flags
+        dt
+            Macro-particle time coordinates [s]
+        dE
+            Macro-particle energy coordinates [eV]
+        ids
+            Macro-particle ids.
+            This allows to identify single particles,
+            even if the array indexing is changed.
+        """
+        raise NotImplementedError(
+            "The backend for `move_flagged_elements_to_end` is missing."
+        )
+
+
+class _ModeSwitchHelper:
+    """Helper to be used in a `with` statement to set the specials temporarily.
+
+    Parameters
+    ----------
+    backend
+        The active backend class.
+    mode
+        The mode of the specials to be set.
+    """
+
+    def __init__(self, backend: BackendBaseClass, mode: str):
+        self.backend = backend
+        self.mode_org = None
+        self.mode_tmp = mode
+
+    def __enter__(self):
+        self.mode_org = self.backend.specials_mode
+        self.backend.set_specials(mode=self.mode_tmp)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.backend.set_specials(mode=self.mode_org)
+
 
 class BackendBaseClass(ABC):
     # type annotations for MyPy
@@ -350,6 +404,23 @@ class BackendBaseClass(ABC):
                 # Anyways its beter to write if, elif, else explicitly
                 raise ValueError(_backend_bits)  # pragma: no cover
             self.set_specials(mode=_backend_mode)  # type: ignore
+
+    def temporary_specials_mode(self, mode: str):
+        """Helper to be used in a `with` statement to set the specials temporarily.
+
+        Examples
+        --------
+        >>> with backend.temporary_specials_mode("python"):
+        >>>     print(backend.specials_mode)
+        >>>     ...
+        >>> print(backend.specials_mode)
+
+        Returns
+        -------
+        _mode_switch_helper
+
+        """
+        return _ModeSwitchHelper(backend=self, mode=mode)
 
 
 class NumpyBackend(BackendBaseClass):
