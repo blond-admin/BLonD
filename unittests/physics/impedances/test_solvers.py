@@ -1281,8 +1281,31 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         assert len(self.multi_pass_resonator_solver._past_profile_times) == 0
 
         # check immediate return
+        self.multi_pass_resonator_solver._wake_function_vals = deque(
+            [np.array([1, 1, 1]), np.array([2, 2, 2]), np.array([3, 3, 3])]
+        )
+        self.multi_pass_resonator_solver._wake_function_time = deque(
+            [
+                np.array([0.1, 0.2, 0.3]),
+                np.array([1.1, 1.2, 1.3]),
+                np.array([2.1, 2.2, 2.3]),
+            ]
+        )  # technically not correct length but doesnt matter here
+        self.multi_pass_resonator_solver._past_profile_times = deque(
+            [
+                np.array([0.1, 0.2, 0.3]),
+                np.array([1.1, 1.2, 1.3]),
+                np.array([2.1, 2.2, 2.3]),
+            ]
+        )
+        self.multi_pass_resonator_solver._past_profiles = deque(
+            [np.array([1, 1, 1]), np.array([2, 2, 2]), np.array([3, 3, 3])]
+        )
+        self.multi_pass_resonator_solver._past_profiles_counter_rotation_flag = deque([False, False, False])
+
+        self.multi_pass_resonator_solver._maximum_storage_time = 0.0
         self.multi_pass_resonator_solver._remove_fully_decayed_wake_profiles(
-            indexes_to_check=10
+            indexes_to_check=4
         )
 
     def test_remove_fully_decayed_wake_profiles_physics(self):
