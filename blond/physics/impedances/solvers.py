@@ -701,7 +701,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._past_profiles: deque[NumpyArray] = deque()
         self._past_profile_times: deque[NumpyArray] = deque()
         self._past_charge_per_macroparticle: deque[float] = deque()
-        self._past_profile_counter_rotation_flag: deque[bool] = deque()
+        self._past_profiles_counter_rotation_flag: deque[bool] = deque()
 
         self._wake_function_vals: deque[NumpyArray] = deque()
         self._wake_function_time: deque[NumpyArray] = deque()
@@ -788,7 +788,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 # the time is shifted
                 self._past_profile_times.pop()
                 self._past_profiles.pop()
-                self._past_profile_counter_rotation_flag.pop()
+                self._past_profiles_counter_rotation_flag.pop()
                 self._wake_function_time.pop()
                 self._wake_function_vals.pop()
             else:
@@ -867,8 +867,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                         self._wake_function_time[prof_ind]
                     )
                     if (
-                        self._past_profile_counter_rotation_flag[prof_ind]
-                        ^ self._past_profile_counter_rotation_flag[0]
+                        self._past_profiles_counter_rotation_flag[prof_ind]
+                        ^ self._past_profiles_counter_rotation_flag[0]
                     )
                     else source.get_wake(self._wake_function_time[prof_ind])
                 )
@@ -910,7 +910,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._past_profiles.appendleft(
             np.copy(self._parent_wakefield.profile.hist_y)
         )
-        self._past_profile_counter_rotation_flag.appendleft(
+        self._past_profiles_counter_rotation_flag.appendleft(
             beam.is_counter_rotating
         )
 
