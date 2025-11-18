@@ -766,6 +766,13 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         assert found
 
     def test__update_potential_sources_result_values(self):
+        beam = Mock(BeamBaseClass)
+        beam.intensity = int(1e2)
+        beam.particle_type.charge = 1
+        beam.n_macroparticles_partial.return_value = int(1e2)
+        self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y_to_density_factor = (
+                1 / beam.n_macroparticles_partial())
+
         self.single_turn_resonator_convolution_solver._update_potential_sources(
             zero_pinning=True
         )
@@ -780,7 +787,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         ] = 1 / 3 / e
         calced_voltage = (
             self.single_turn_resonator_convolution_solver.calc_induced_voltage(
-                beam=self.beam
+                beam=beam
             )
         )
 
