@@ -7,7 +7,7 @@ import cupy as cp  # type: ignore
 import numpy as np
 
 from ...._core.backends.backend import Specials, backend
-from ...._generals._hashing import hash_in_folder
+from ....generals._hashing import hash_in_folder
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -385,7 +385,7 @@ def reload_cuda_backend(
 
         @staticmethod
         def move_flagged_elements_to_end(
-            flag: np.int32,
+            flag: int,
             flags: CupyArray,
             dt: CupyArray,
             dE: CupyArray,
@@ -393,9 +393,7 @@ def reload_cuda_backend(
         ):
             # TODO write a kernel that works with gpu kernels
             #  to have a smaller memory footprint.
-            assert len(flags) == len(dt)
-            assert len(flags) == len(dE)
-            assert len(flags) == len(ids)
+            flag = np.int32(flag)
             assert flags.dtype == np.int32
             assert dt.dtype == backend.float
             assert dE.dtype == backend.float

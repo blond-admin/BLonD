@@ -25,7 +25,7 @@ from ..._core.base import DynamicParameter
 from ..._core.beam.base import BeamBaseClass
 from ..._core.ring.helpers import requires
 from ..._core.simulation.simulation import Simulation
-from ..._generals._warnings import NotTestedWarning
+from ...generals._warnings import NotTestedWarning
 from ..profiles import (
     DynamicProfileConstCutoff,
     DynamicProfileConstNBins,
@@ -312,8 +312,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         induced_voltage
             Induced voltage, in [V]
         """
-        if self.expect_profile_change:
-            # always trigger update
+        if self.expect_profile_change:  # dynamic profiles
             self._update_internal_data()  # might cause performance issues :(
         elif self.expect_impedance_change:
             # always trigger update
@@ -462,7 +461,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
         n_t = (n_fft // 2) + 1
 
         if (self._wake_imp_y is None) or (
-            _wake_x.shape != self._wake_imp_y.shape
+            (n_t,) != self._wake_imp_y.shape  # tuple vs shape-tuple
         ):
             self._wake_imp_y = backend.zeros(n_t, dtype=backend.complex)
         else:

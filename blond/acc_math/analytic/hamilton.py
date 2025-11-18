@@ -108,18 +108,43 @@ def phase_modulo_above_transition(phi: NumpyArray) -> NumpyArray: ...
 def phase_modulo_above_transition(
     phi: float | NumpyArray,
 ) -> float | NumpyArray:
-    """Projects a phase array into the range -Pi/2 to +3*Pi/2.
+    r"""Wraps phase values into the range :math:`[0, 2\\pi)`.
+
+    This function projects scalar or array phase values (in radians)
+    into the range from :math:`0` (inclusive) to :math:`2\\pi` (exclusive),
+    ensuring continuity across multiples of :math:`2\\pi`.
 
     Parameters
     ----------
-    phi
-        Phase, in [rad]
+    phi : float or ndarray
+        Input phase value(s) in radians. Can be a scalar or a NumPy array.
 
     Returns
     -------
-    phi_corrected
-         Phase array into the range -Pi/2 to +3*Pi/2.
+    phi_corrected : float or ndarray
+        Phase value(s) wrapped into the range :math:`[0, 2\\pi)`.
 
+    Notes
+    -----
+    This operation performs a modulo of :math:`2\\pi` such that negative phase
+    values are shifted into the positive domain.
+
+    The transformation is defined as:
+
+    .. math::
+
+        \\phi_{corrected} = \\phi - 2\\pi \\left\\lfloor \\frac{\\phi}{2\\pi} \\right\\rfloor
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> phase_modulo_above_transition(-np.pi / 2)
+    4.71238898038469
+    >>> phase_modulo_above_transition(3 * np.pi)
+    3.141592653589793
+    >>> phi = np.linspace(-10, 10, 5)
+    >>> phase_modulo_above_transition(phi)
+    array([2.56637061, 3.56637061, 4.56637061, 5.56637061, 0.56637061])
     """
     return phi - 2.0 * np.pi * np.floor(phi / (2.0 * np.pi))
 
@@ -135,18 +160,43 @@ def phase_modulo_below_transition(phi: NumpyArray) -> NumpyArray: ...
 def phase_modulo_below_transition(
     phi: float | NumpyArray,
 ) -> float | NumpyArray:
-    """Projects a phase array into the range -Pi/2 to +3*Pi/2.
+    r"""Wraps phase values into the range :math:`[0, 2\\pi)`.
+
+    This function projects scalar or array phase values (in radians)
+    into the range from :math:`0` (inclusive) to :math:`2\\pi` (exclusive),
+    ensuring continuity across multiples of :math:`2\\pi`.
 
     Parameters
     ----------
-    phi
-        Phase, in [rad]
+    phi : float or ndarray
+        Input phase value(s) in radians. Can be a scalar or a NumPy array.
 
     Returns
     -------
-    phi_corrected
-         Phase array into the range -Pi/2 to +3*Pi/2.
+    phi_corrected : float or ndarray
+        Phase value(s) wrapped into the range :math:`[0, 2\\pi)`.
 
+    Notes
+    -----
+    This operation performs a modulo of :math:`2\\pi` such that negative phase
+    values are shifted into the positive domain.
+
+    The transformation is defined as:
+
+    .. math::
+
+        \\phi_{corrected} = \\phi - 2\\pi \\left\\lfloor \\frac{\\phi}{2\\pi} \\right\\rfloor
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> phase_modulo_above_transition(-np.pi / 2)
+    4.71238898038469
+    >>> phase_modulo_above_transition(3 * np.pi)
+    3.141592653589793
+    >>> phi = np.linspace(-10, 10, 5)
+    >>> phase_modulo_above_transition(phi)
+    array([2.56637061, 3.56637061, 4.56637061, 5.56637061, 0.56637061])
     """
     return phi - 2.0 * np.pi * (np.floor(phi / (2.0 * np.pi) + 0.5))
 

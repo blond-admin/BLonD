@@ -5,7 +5,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from numpy import random
 
-from blond import SingleHarmonicRfStation
+from blond import DriftSimple, SingleHarmonicRfStation
 from blond.handle_results.helpers import callers_relative_path
 from blond.testing.simulation import ExampleSimulation01
 
@@ -36,6 +36,20 @@ class TestXsuiteRFBucketMatcher(unittest.TestCase):
                 seed=42,
             ),
         )
+
+        drift = self.example.simulation.ring.elements.get_element(DriftSimple)
+        drift._transition_gamma = None
+
+        with self.assertRaises(ValueError):
+            simulation.prepare_beam(
+                beam=self.example.beam1,
+                preparation_routine=XsuiteRFBucketMatcher(
+                    distribution_type=routine,
+                    sigma_z=zmax / 4,
+                    n_macroparticles=int(1e1),
+                    seed=42,
+                ),
+            )
 
     def test_distribution_is_matched_thermal(self):
         try:

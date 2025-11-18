@@ -11,6 +11,9 @@ class TestFunctions(unittest.TestCase):
         with self.assertWarns(Warning):
             int_from_float_with_warning(1.2, 2)
 
+    def test_int_from_float_with_exception(self):
+        with self.assertRaises(TypeError):
+            int_from_float_with_warning(type(int_from_float_with_warning), 2)
     def test_find_instances_with_method(self):
         class Test:
             def __init__(self):

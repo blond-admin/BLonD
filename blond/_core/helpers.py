@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import warnings
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, TypeVar
@@ -76,8 +77,8 @@ def find_instances_with_method(root: Any, method_name: str) -> Any:
         if id(obj) in seen:
             return
         seen.add(id(obj))
-
-        if hasattr(obj, "skip_find_instances_attributes"):
+        is_mock = isinstance(obj, Mock)
+        if hasattr(obj, "skip_find_instances_attributes") and not is_mock:
             skip_list.extend(obj.skip_find_instances_attributes)
 
         # Check if object has the desired method
@@ -92,7 +93,9 @@ def find_instances_with_method(root: Any, method_name: str) -> Any:
         elif isinstance(obj, (list, tuple, set)):  # NOQA: UP038
             for item in obj:
                 walk(item, skip_list)
-        elif hasattr(obj, "__dict__"):  # checks if is python class
+        elif (
+            hasattr(obj, "__dict__") and not is_mock
+        ):  # checks if is python class
             for attr_name in dir(obj):
                 if attr_name in skip_list:
                     continue

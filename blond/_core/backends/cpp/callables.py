@@ -158,7 +158,7 @@ def reload_cpp_backend(
         """
         libblond_path_ = os.environ.get("LIBBLOND", None)
 
-        from blond._generals._hashing import hash_in_folder
+        from blond.generals._hashing import hash_in_folder
 
         folder = os.path.dirname(os.path.abspath(__file__))
 
@@ -312,10 +312,10 @@ def reload_cpp_backend(
             flags: CupyArray,
         ) -> None:
             _LIBBLOND.loss_box(
-                c_real(top),
-                c_real(bottom),
-                c_real(left),
-                c_real(right),
+                c_real(top, precision),
+                c_real(bottom, precision),
+                c_real(left, precision),
+                c_real(right, precision),
                 _getPointer(dt),
                 _getPointer(dE),
                 _getPointer(flags),
@@ -454,14 +454,14 @@ def reload_cpp_backend(
 
         @staticmethod
         def move_flagged_elements_to_end(
-            flag: np.int32,
+            flag: int,
             flags: NumpyArray | CupyArray,  # also purged
             dt: NumpyArray | CupyArray,
             dE: NumpyArray | CupyArray,
             ids: NumpyArray | CupyArray,
         ):
             n_new = _LIBBLOND.move_flagged_elements_to_end(
-                ct.c_int32(flag),
+                ct.c_int32(np.int32(flag)),
                 flags.ctypes.data_as(ct.c_void_p),
                 dt.ctypes.data_as(ct.c_void_p),
                 dE.ctypes.data_as(ct.c_void_p),

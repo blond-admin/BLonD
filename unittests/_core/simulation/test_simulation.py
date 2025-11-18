@@ -21,12 +21,14 @@ from blond import (
 )
 from blond._core.beam.base import BeamBaseClass
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
+from blond.generals._warnings import PerformanceWarning
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
     BeamObservationEndOfTurn,
     BunchObservationMetaParams,
     ObservablesEndOfTurnBase,
 )
+from blond.testing.mocks import beam_mock
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -175,10 +177,32 @@ class TestSimulation(unittest.TestCase):
     def test_magnetic_cycle(self):
         self.assertNotEqual(None, self.simulation.magnetic_cycle)
 
-    @unittest.skip("Testet in setUp")
     def test_from_locals(self):
-        # self.simulation.from_locals(locals=None)
-        pass
+        from blond.testing.mocks import (
+            cycle_const_mock,  # NOQA required for locals()
+        )
+        from blond.testing.mocks import (
+            drift_simple_mock,
+            single_harmonic_rf_station_mock,
+            static_profile_mock,
+            wakefield_profile_mock,
+        )
+
+        assert not hasattr(drift_simple_mock, "skip_find_instances_attributes")
+        drift_simple_mock.section_index = 0
+        drift_simple_mock.info_string.return_value = "drift_simple_mock"
+        static_profile_mock.section_index = 0
+        static_profile_mock.info_string.return_value = "static_profile_mock"
+        wakefield_profile_mock.section_index = 0
+        wakefield_profile_mock.info_string.return_value = (
+            "wakefield_profile_mock"
+        )
+        single_harmonic_rf_station_mock.section_index = 0
+        single_harmonic_rf_station_mock.info_string.return_value = (
+            "single_harmonic_rf_station_mock"
+        )
+        ring = Ring(circumference=12)
+        self.simulation.from_locals(locals=locals(), verbose=True)
 
     @unittest.skip
     def test_get_legacy_map(self):
@@ -198,9 +222,17 @@ class TestSimulation(unittest.TestCase):
     def test_get_potential_well_empiric(self):
         from blond.testing.simulation import SimulationTwoRfStations
 
-
         sim = SimulationTwoRfStations()
         ts = np.linspace(-2e-9, 2e-9, 100)
+
+
+        potential_well, factor, tilt_dt_per_dE = (
+            sim.simulation.get_potential_well_empiric(
+                dt=ts,
+                particle_type=proton,
+                subtract_min=False # for tescase and repeated execution
+            )
+        )
 
         potential_well, factor, tilt_dt_per_dE = (
             sim.simulation.get_potential_well_empiric(
@@ -223,7 +255,7 @@ class TestSimulation(unittest.TestCase):
         if SAVE_PINNED:
             np.savetxt(
                 callers_relative_path(
-                    f"resources/potential_well_{bits}.csv",stacklevel=1
+                    f"resources/potential_well_{bits}.csv", stacklevel=1
                 ),
                 potential_well,
             )
@@ -268,8 +300,14 @@ class TestSimulation(unittest.TestCase):
         )
         self.simulation.run_simulation(**kwargs)
         de_before_save = observation.dEs.copy()
-        self.simulation.save_results(observe=(observation,))
-        self.simulation.load_results(**kwargs)
+        self.simulation.save_results(
+            observe=(observation,),
+            common_name="newname",
+        )
+        self.simulation.load_results(
+            **kwargs,
+            common_name="newname",
+        )
         de_from_disk = observation.dEs.copy()
         np.testing.assert_almost_equal(de_before_save, de_from_disk)
 
@@ -498,6 +536,30 @@ class TestSimulation(unittest.TestCase):
             drift_term + 1,
             atol=0.15,
         )
+
+    def test_finalize_raises(self) -> None:
+        self.simulation.magnetic_cycle._n_turns_max = None
+        with self.assertRaises(ValueError):
+            self.simulation.finalize(
+                beams=beam_mock,
+                n_turns=None,
+                observe=(),
+                turn_i_init=0,
+            )
+
+    def test_finalize_warns(self) -> None:
+        from blond import backend
+        beam_mock.common_array_size = int(1e32)
+        special_mode_org = backend.specials_mode
+        backend.set_specials(mode="python")
+        with self.assertWarns(PerformanceWarning):
+            self.simulation.finalize(
+                beams=(beam_mock,),
+                n_turns=None,
+                observe=(),
+                turn_i_init=0,
+            )
+        backend.set_specials(mode=special_mode_org)
 
 
 if __name__ == "__main__":

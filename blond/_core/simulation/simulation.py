@@ -14,8 +14,8 @@ from tqdm import tqdm  # type: ignore
 
 from blond._core.base import SimulationElementBase
 
-from ..._generals._warnings import NotTestedWarning, PerformanceWarning
 from ...cycles.magnetic_cycle import MagneticCycleBase
+from ...generals._warnings import NotTestedWarning, PerformanceWarning
 from ...physics.drifts import DriftBaseClass
 from ...physics.profiles import ProfileBaseClass
 from ..backends.backend import backend
@@ -403,9 +403,7 @@ class Simulation(Preparable):
         classes_check = set()
         for ins in instances:
             classes_check.add(type(ins))
-        # assert len(classes_check) == len(ordered_classes), "BUG"
-        if "ABCMeta" in ordered_classes:
-            ordered_classes.pop(ordered_classes.index("ABCMeta"))
+
         logger.info(f"Execution order for `{method}` is {ordered_classes}")
 
         for cls in ordered_classes:
@@ -631,11 +629,11 @@ class Simulation(Preparable):
 
     def finalize(
         self,
-        beams: tuple[BeamBaseClass],
-        n_turns: int | None,
-        observe: tuple[ObservablesEndOfTurnBase, ...],
-        turn_i_init: int,
-    ) -> None:
+        beams: tuple[BeamBaseClass, ...],
+        n_turns: int | None = None,
+        turn_i_init: int = 0,
+        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
+    ) -> int:
         """Executes `_exec_on_run_simulation` and prepares the observables.
 
         Parameters
@@ -652,6 +650,7 @@ class Simulation(Preparable):
         turn_i_init
             Initial turn to start with simulation
         """
+        self.ring.assert_circumference()
         max_turns = self.magnetic_cycle.n_turns
         if n_turns is not None:
             _n_turns = int_from_float_with_warning(
@@ -774,7 +773,7 @@ class Simulation(Preparable):
         | Blond2RingAndRFTracker
         | Blond2FullRingAndRF
     ]:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
         from ...physics.cavities import (  # prevent cyclic import
             MultiHarmonicRfStation,
         )
@@ -959,7 +958,7 @@ class Simulation(Preparable):
         """
         for observable in observe:
             if common_name is not None:
-                observable.rename(common_name=common_name)
+                observable.rename(new_common_filepath=common_name)
             observable.to_disk()
 
     def load_results(
@@ -995,5 +994,5 @@ class Simulation(Preparable):
         )
         for observable in observe:
             if common_name is not None:
-                observable.rename(common_name=common_name)
+                observable.rename(new_common_filepath=common_name)
             observable.from_disk()

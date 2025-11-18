@@ -60,7 +60,7 @@ class TestBiGaussian(unittest.TestCase):
             simulation=simulation_.simulation, beam=simulation_.beam1
         )
         self.assertAlmostEqual(
-            np.std(simulation_.beam1.read_partial_dt()), 50e-9
+            float(np.std(simulation_.beam1.read_partial_dt())), 50e-9
         )
 
     def test_prepare_beam2(self):
@@ -76,13 +76,13 @@ class TestBiGaussian(unittest.TestCase):
             simulation=simulation_.simulation, beam=simulation_.beam1
         )
         self.assertAlmostEqual(
-            np.std(simulation_.beam1.read_partial_dt()) / 50e-9,
+            float(np.std(simulation_.beam1.read_partial_dt()) / 50e-9),
             1,
             places=1,  # low precision because of few
             # particles in this testcase
         )
         self.assertAlmostEqual(
-            np.std(simulation_.beam1.read_partial_dE()) / 60e9,
+            float(np.std(simulation_.beam1.read_partial_dE()) / 60e9),
             1,
             places=1,  # low precision because of
             # few particles in this testcase

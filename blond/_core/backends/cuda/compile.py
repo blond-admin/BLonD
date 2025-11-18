@@ -48,7 +48,7 @@ def compile_cuda_library(  # NOQA: PLR0915
         "32",
     ]
 
-    from blond._generals._hashing import hash_in_folder
+    from blond.generals._hashing import hash_in_folder
 
     folder = os.path.dirname(os.path.abspath(__file__))
 

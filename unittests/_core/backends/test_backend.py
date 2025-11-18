@@ -12,6 +12,7 @@ from blond._core.backends.backend import (
     NumpyBackend,
     backend,
 )
+from blond._core.backends.numba.callables import recompile_numba_backend
 
 try:
     import cupy as _  # type: ignore
@@ -53,6 +54,7 @@ class TestBackendBaseClass(unittest.TestCase):
             backend_modes = ["cuda"] + backend_modes
         except ModuleNotFoundError:
             pass
+        print(f"{backend_modes=}")
         for backend_mode in backend_modes:
             os.environ["BLOND_BACKEND_MODE"] = backend_mode
             for backend_bit in backend_bits:
@@ -75,6 +77,26 @@ class TestBackendBaseClass(unittest.TestCase):
                             )
                         else:
                             raise error
+
+    def test__finalize(self):
+        some_backend = Numpy32Bit()
+        some_backend.array = None
+        with self.assertRaises(AttributeError):
+            some_backend._finalize()
+
+    def test_change_backend(self):
+        some_backend = Numpy32Bit()
+        some_backend.change_backend(some_backend) # shouldnt do anything
+
+    def test_temporary_specials_mode(self):
+        specials_org = backend.specials_mode # prevent side effect on other tests
+
+        backend.set_specials("numba")
+        with backend.temporary_specials_mode(mode="python"):
+            self.assertEqual(backend.specials_mode, "python")
+        self.assertEqual(backend.specials_mode, "numba")
+
+        backend.set_specials(mode=specials_org) # prevent side effect on tests
 
 
 class TestCupy32Bit(unittest.TestCase):
@@ -108,13 +130,21 @@ class TestCupyBackend(unittest.TestCase):
         self.cupy_backend.set_specials(mode="cuda")
 
 
+    def test_set_specials_fails(self):
+        if not cupy_available:
+            self.skipTest(f"{cupy_available=}")
+        self.cupy_backend = CupyBackend(
+            float_=np.float32, int_=np.float32, complex_=np.complex64
+        )
+        with self.assertRaises(ValueError):
+            self.cupy_backend.set_specials("doesnt exist")
+
 class TestNumpy64Bit(unittest.TestCase):
     def setUp(self) -> None:
         self.numpy64_bit = Numpy64Bit()
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
-
 
 class TestNumpyBackend(unittest.TestCase):
     def setUp(self) -> None:
@@ -145,6 +175,10 @@ class TestNumpyBackend(unittest.TestCase):
         except FileNotFoundError:
             self.skipTest(f"fortran not available!")
 
+
+    def test_set_specials_fails(self):
+        with self.assertRaises(ValueError):
+            self.numpy_backend.set_specials("doesnt exist")
 
 class TestSpecials(unittest.TestCase):
     def setUp(self) -> None:
@@ -422,7 +456,7 @@ class TestSpecials(unittest.TestCase):
                 except (FileNotFoundError, OSError):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
-                flag = backend.int(0)
+                flag = 0
                 flags = backend.ones(10, dtype=np.int32)
                 flags[[0, 1, -1]] = 0
                 dt = backend.array(backend.linspace(0, 10, 10), backend.float)
@@ -486,7 +520,7 @@ class TestSpecials(unittest.TestCase):
                 except (FileNotFoundError, OSError):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
-                flag = backend.int(0)
+                flag = 0
                 flags = backend.ones(int(1e6), dtype=np.int32)
                 np.random.seed(0)
                 flags[np.random.randint(0, len(flags), int(1e5))] = 0
@@ -536,7 +570,7 @@ class TestSpecials(unittest.TestCase):
                 except (FileNotFoundError, OSError):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
-                flag = backend.int(0)
+                flag = 0
                 flags = backend.ones(10, dtype=np.int32)
 
                 dt = backend.array(backend.linspace(0, 10, 10), backend.float)
@@ -564,7 +598,7 @@ class TestSpecials(unittest.TestCase):
                 except (FileNotFoundError, OSError) as exc:
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
-                flag = backend.int(0)
+                flag = 0
                 flags = backend.zeros(10, dtype=np.int32)
                 flags[1] = 1
 
@@ -593,7 +627,7 @@ class TestSpecials(unittest.TestCase):
                 except (FileNotFoundError, OSError):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
-                flag = backend.int(0)
+                flag = 0
                 flags = backend.zeros(10, dtype=np.int32)
 
                 dt = backend.array(backend.linspace(0, 10, 10), backend.float)
@@ -613,7 +647,6 @@ class TestSpecials(unittest.TestCase):
                     msg=f"Failed test `{special}` with {dtype}",
                 )
 
-    @unittest.skip
     def test_loss_box(self) -> None:
         for dtype in (np.float32, np.float64):
             for i, special in enumerate(self.special_modes):
@@ -830,6 +863,13 @@ class TestSpecials(unittest.TestCase):
     def tearDown(self) -> None:
         backend.change_backend(Numpy32Bit)
         backend.set_specials("numba")
+
+
+class TestNumbaCompilation(unittest.TestCase):
+    def test_raising_of_error(self) -> None:
+        with self.assertRaises(TypeError):
+            recompile_numba_backend(floattype=np.float16)
+
 
 
 if __name__ == "__main__":

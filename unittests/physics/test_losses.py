@@ -3,9 +3,32 @@ import unittest
 import matplotlib.pyplot as plt
 import numpy as np
 
-from blond import Beam, BoxLosses, proton
+from blond import Beam, BoxLosses, Simulation, proton
+from blond._core.beam.base import BeamBaseClass
+from blond.physics.losses import LossesBaseClass
 from blond.testing.mocks import beam_mock, simulation_mock
 
+
+class LossesBaseClassHelper(LossesBaseClass):
+    def track(self, beam: BeamBaseClass) -> None:
+        pass
+
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        pass
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs,
+    ) -> None:
+        pass
+
+class TestLossesBaseClass(unittest.TestCase):
+    def test_init(self):
+        LossesBaseClassHelper()
 
 class TestBoxLosses(unittest.TestCase):
     def setUp(self):
