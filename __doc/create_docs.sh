@@ -12,7 +12,7 @@ API Documentation
 
 .. toctree::
    blond._core
-   blond._generals
+   blond.generals
    blond.acc_math
    blond.beam_preparation
    blond.cycles
