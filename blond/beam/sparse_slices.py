@@ -105,10 +105,8 @@ class _SparseBaseClass:
         """
         Method to update the general arrays after a profile update.
         """
-        self.n_macroparticles = np.concatenate(
-            self.n_macroparticles_array, axis=0
-        )
-        self.bin_centers = np.concatenate(self.bin_centers_array, axis=0)
+        self.n_macroparticles = self.n_macroparticles_array.flatten()
+        self.bin_centers = self.bin_centers_array.flatten()
         self.bin_size = self.profiles_list[0].bin_size
         self.n_slices = self.number_of_slices_per_profile * len(
             self.profiles_list
@@ -153,10 +151,8 @@ class _SparseBaseClass:
             self.n_macroparticles_array[i, :] = self.profiles_list[
                 i
             ].n_macroparticles
-        self.bin_centers = np.concatenate(self.bin_centers_array, axis=0)
-        self.n_macroparticles = np.concatenate(
-            self.n_macroparticles_array, axis=0
-        )
+        self.bin_centers = self.bin_centers_array.flatten()
+        self.n_macroparticles = self.n_macroparticles_array.flatten()
 
 
 class SparseSlices:
@@ -470,9 +466,7 @@ class SparseSlices:
                 values=profiles_list_additional[i].edges,
                 axis=0,
             )
-        self.profiles_list = np.append(
-            self.profiles_list, profiles_list_additional
-        )
+        self.profiles_list += profiles_list_additional
         self.n_filled_buckets += additional_filled_buckets
         self._update_general_arrays()
 
@@ -491,16 +485,14 @@ class SparseSlices:
                 f"declared filled buckets "
                 f"{self.n_filled_buckets}."
             )
-        self.n_macroparticles = np.concatenate(
-            self.n_macroparticles_array, axis=0
-        )
+        self.n_macroparticles = self.n_macroparticles_array.flatten()
         self.n_slices = int(
             self.number_of_slices_per_bucket * self.filling_pattern.sum()
         )
         self.bunch_indexes = (
             np.cumsum(self.filling_pattern) * self.filling_pattern - 1
         )
-        self.bin_centers = np.concatenate(self.bin_centers_array, axis=0)
+        self.bin_centers = self.bin_centers_array.flatten()
 
     def update_filling_pattern(
         self,
