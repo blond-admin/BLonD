@@ -1280,6 +1280,11 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
         assert len(self.multi_pass_resonator_solver._past_profile_times) == 0
 
+        # check immediate return
+        self.multi_pass_resonator_solver._remove_fully_decayed_wake_profiles(
+            indexes_to_check=10
+        )
+
     def test_remove_fully_decayed_wake_profiles_physics(self):
         simulation = Mock(Simulation)
         single_resonator = Resonators(
