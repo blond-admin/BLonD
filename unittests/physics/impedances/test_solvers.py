@@ -209,18 +209,18 @@ class TestTimeDomainFftSolver(unittest.TestCase):
         sim = Simulation.from_locals(locals=locals())
         profile.track(beam=beam)
 
-        local_solver._wake_imp_y_needs_update = True
-        local_solver._wake_imp_y = np.ones_like(local_solver._parent_wakefield.profile.hist_x, dtype=complex)
-        local_solver._update_impedance_sources(beam=self.beam)
-        assert np.sum(local_solver._wake_imp_y) != 0
+        self.time_domain_fft_solver._wake_imp_y_needs_update = True
+        self.time_domain_fft_solver._wake_imp_y = np.ones_like(self.time_domain_fft_solver._parent_wakefield.profile.hist_x, dtype=complex)
+        self.time_domain_fft_solver._update_impedance_sources(beam=self.beam)
+        assert np.sum(self.time_domain_fft_solver._wake_imp_y) != 0
 
         profile_a = profile.hist_y
         induced_voltage_a = wf.calc_induced_voltage(beam=beam)
 
         dt = beam.write_partial_dt()
-        dt  -= 1
-        dt  /= 2
-        dt  += 1
+        dt -= 1
+        dt /= 2
+        dt += 1
         profile.update_attributes(beam=beam)
         profile.track(beam=beam)
         profile_b = profile.hist_y
@@ -228,10 +228,10 @@ class TestTimeDomainFftSolver(unittest.TestCase):
 
         DEV_PLOT = False
         if DEV_PLOT:
-            plt.subplot(2,1,1)
+            plt.subplot(2, 1, 1)
             plt.plot(profile_a)
             plt.plot(profile_b)
-            plt.subplot(2,1,2)
+            plt.subplot(2, 1, 2)
             plt.plot(induced_voltage_a)
             plt.plot(induced_voltage_b)
             plt.show()
@@ -597,7 +597,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
             analy_solver._parent_wakefield.profile.hist_y
         )
         td_fft_solver._parent_wakefield.profile.hist_y_to_density_factor = (
-            1 / beam.n_macroparticles_partial.return_value
+            1 / self.beam.n_macroparticles_partial.return_value
         )
 
         td_fft_solver._parent_wakefield.sources = (self.resonators,)
@@ -1099,7 +1099,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.multi_pass_resonator_solver._past_profiles = deque(
             [np.array([1, 1, 1]), np.array([2, 2, 2]), np.array([3, 3, 3])]
         )
-        self.multi_pass_resonator_solver._past_profile_counter_rotation = deque([False, False, False])
+        self.multi_pass_resonator_solver._past_profile_counter_rotation_flag = deque([False, False, False])
 
         self.multi_pass_resonator_solver._maximum_storage_time = 1.0
         self.multi_pass_resonator_solver._remove_fully_decayed_wake_profiles(
@@ -1168,6 +1168,9 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.multi_pass_resonator_solver._past_profiles = deque(
             [np.array([1, 1, 1]), np.array([2, 2, 2]), np.array([3, 3, 3])]
         )
+        self.multi_pass_resonator_solver._past_profiles_counter_rotation = deque(
+            [False, False, False]
+        )
 
         self.multi_pass_resonator_solver._remove_fully_decayed_wake_profiles(
             indexes_to_check=2
@@ -1215,7 +1218,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.multi_pass_resonator_solver._past_profiles = deque(
             [np.array([1, 1, 1]), np.array([2, 2, 2]), np.array([3, 3, 3])]
         )
-        self.multi_pass_resonator_solver._past_profile_counter_rotation = deque([False, False, False])
+        self.multi_pass_resonator_solver._past_profile_counter_rotation_flag = deque([False, False, False])
 
         self.multi_pass_resonator_solver._maximum_storage_time = 2.0
         self.multi_pass_resonator_solver._remove_fully_decayed_wake_profiles(
@@ -1376,7 +1379,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         local_res._past_profiles.appendleft(
             self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y
         )
-        local_res._past_profile_counter_rotation.appendleft(False)
+        local_res._past_profile_counter_rotation_flag.appendleft(False)
         local_res._update_past_profile_wake_functions(zero_pinning=True)
 
         assert len(local_res._wake_function_time) == 1
@@ -1409,7 +1412,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
                 self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y
             )
         )
-        local_res._past_profile_counter_rotation.appendleft(False)
+        local_res._past_profile_counter_rotation_flag.appendleft(False)
         local_res._update_past_profile_wake_functions(zero_pinning=True)
         local_res._update_past_profile_times_wake_times(1e-8)
         local_res._past_profile_times.appendleft(
@@ -1422,7 +1425,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
                 self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y
             )
         )
-        local_res._past_profile_counter_rotation.appendleft(False)
+        local_res._past_profile_counter_rotation_flag.appendleft(False)
         local_res._update_past_profile_wake_functions(zero_pinning=True)
 
         # should have been pushed back --> [1] is the oder profile, [0] is the newest
