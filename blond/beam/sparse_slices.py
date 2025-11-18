@@ -230,8 +230,6 @@ class SparseSlices:
 
         #: *Number of filled buckets in the filling pattern*
         self.n_filled_buckets = int(np.sum(self.filling_pattern))
-        #: *Number of buckets to be sliced (including the bucket_margin)*
-        self.n_sliced_buckets = int(np.sum(self.filling_pattern))
 
         # Pre-processing the slicing edges
         self.cut_left_array = np.zeros(self.n_filled_buckets)
@@ -476,9 +474,6 @@ class SparseSlices:
             self.profiles_list, profiles_list_additional
         )
         self.n_filled_buckets += additional_filled_buckets
-        self.n_sliced_buckets += additional_filled_buckets * (
-            1 + 2 * self.bucket_margin
-        )
         self._update_general_arrays()
 
     def _update_general_arrays(self):
