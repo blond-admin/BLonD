@@ -746,7 +746,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             name=name,
         )
 
-        self.main_harmonic_idx: int = main_harmonic_idx
+        self.main_harmonic_idx = main_harmonic_idx
 
         self.voltage: NumpyArray | None = voltage
         self.phi_rf: NumpyArray | None = phi_rf
