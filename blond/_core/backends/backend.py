@@ -22,10 +22,10 @@ class Specials(ABC):
     """Abstract listing of functions that need implementation for a new backend."""
 
     @staticmethod
-    @abstractmethod  # pragma: no cover
+    @abstractmethod
     def loss_box(
         top: float, bottom: float, left: float, right: float
-    ) -> None:  # TODO
+    ) -> None:  # pragma: no cover
         raise NotImplementedError(
             "Abstract method `loss_box` is not implemented."
         )
@@ -312,10 +312,6 @@ class BackendBaseClass(ABC):
             "BLOND_BACKEND_BITS",
             DEFAULT_BITS,  # default
         )
-        if _backend_bits_raw != "32":
-            print(
-                f"Using  environment variable BLOND_BACKEND_BITS = {_backend_bits_raw}"
-            )
         _allowed_backend_bits_flag = (
             "32",
             "64",
@@ -338,7 +334,10 @@ class BackendBaseClass(ABC):
             elif _backend_bits == "64":
                 self.change_backend(Cupy64Bit)
             else:
-                raise ValueError(_backend_bits)
+                # This statement is not reachable
+                # because of `_backend_bits_raw in _allowed_backend_bits_flag`
+                # Anyways its beter to write if, elif, else explicitly
+                raise ValueError(_backend_bits)  # pragma: no cover
             self.set_specials(mode=_backend_mode)  # type: ignore
         else:
             if _backend_bits == "32":
@@ -346,7 +345,10 @@ class BackendBaseClass(ABC):
             elif _backend_bits == "64":
                 self.change_backend(Numpy64Bit)
             else:
-                raise ValueError(_backend_bits)
+                # This statement is not reachable
+                # because of `_backend_bits_raw in _allowed_backend_bits_flag`
+                # Anyways its beter to write if, elif, else explicitly
+                raise ValueError(_backend_bits)  # pragma: no cover
             self.set_specials(mode=_backend_mode)  # type: ignore
 
 

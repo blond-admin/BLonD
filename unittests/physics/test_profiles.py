@@ -35,6 +35,9 @@ class TestProfileBaseClass(unittest.TestCase):
             turn_i_init=0,
         )
 
+    def test_plot(self):
+        self.profile_base_class.plot()
+
     def test_hist_x(self):
         self.assertIsNotNone(self.profile_base_class.hist_x)
 

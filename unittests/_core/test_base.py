@@ -12,9 +12,13 @@ from blond._core.base import (
     HasPropertyCache,
     MainLoopRelevant,
     Preparable,
+    Schedulable,
+    ScheduledConstant,
+    ScheduledInterpolation,
     get_scheduler,
 )
 from blond._core.beam.base import BeamBaseClass
+from blond.handle_results.helpers import callers_relative_path
 
 
 class BeamPhysicsRelevantTester(BeamPhysicsRelevant):
@@ -50,6 +54,35 @@ class TestBeamPhysicsRelevant(unittest.TestCase):
         # self.beam_physics_relevant.track(beam=None)
         pass
 
+class TestScheduledConstant(unittest.TestCase):
+    def setUp(self):
+        self.scheduled_constant = ScheduledConstant(1.0)
+        assert self.scheduled_constant.get_scheduled(1, 1.0) == 1.0
+        assert self.scheduled_constant.get_scheduled(int(1e9), np.inf) == 1.0
+
+        self.scheduled_constant = ScheduledConstant(1)
+        assert self.scheduled_constant.get_scheduled(1, 1.0) == 1
+        assert self.scheduled_constant.get_scheduled(int(1e9), np.inf) == 1
+
+        self.scheduled_constant = ScheduledConstant(np.array([1.0]))
+        assert self.scheduled_constant.get_scheduled(1, 1.0) == np.array([1.0])
+        assert self.scheduled_constant.get_scheduled(int(1e9), np.inf) == np.array([1.0])
+
+    def test_init(self):
+        pass
+
+
+class TestScheduledInterpolation(unittest.TestCase):
+    def setUp(self):  # TODO this testcase must be changed, when fixing the ISSUE #110
+        t_arr = np.linspace(0, 10)
+        vals = np.linspace(-10, 0)
+        self.scheduled_constant = ScheduledInterpolation(times=t_arr, values=vals)
+        np.testing.assert_allclose(self.scheduled_constant.get_scheduled(1, 1.0), np.interp(1.0, t_arr, vals))
+        np.testing.assert_allclose(self.scheduled_constant.get_scheduled(5, 1.0), np.interp(1.0, t_arr, vals))
+        np.testing.assert_allclose(self.scheduled_constant.get_scheduled(5, 1.0), np.interp(1.0, t_arr, vals))
+
+    def test_init(self):
+        pass
 
 
 class BeamObservationElementTester(BeamObservationElement):
@@ -188,17 +221,31 @@ class TestFunctions(unittest.TestCase):
         get_scheduler(1.0, mode="per-turn")
         get_scheduler(np.ones(10), mode="per-turn")
         get_scheduler((np.ones(10), np.ones(10)), mode="per-turn")
+        get_scheduler(np.ones(10), mode="constant")
         with self.assertRaises(TypeError):
             get_scheduler("a string", mode="per-turn")
-
-    def test_get_scheduler_1(self):
-        get_scheduler(1, mode="constant")
-        get_scheduler(1.0, mode="constant")
-        get_scheduler(np.ones(10), mode="constant")
-        get_scheduler((np.ones(10), np.ones(10)), mode="constant")
         with self.assertRaises(TypeError):
-            get_scheduler("a string", mode="constant")
+            get_scheduler(np.ones(10), mode="not_in_the_mode_today")
 
+class TestSchedulable(unittest.TestCase):
+    def setUp(self):
+        self.schedulable = Schedulable()
+        with self.assertRaisesRegex(AssertionError, "doesnt exist"):
+            self.schedulable.schedule_from_file(attribute="voltage",
+                                                filename=callers_relative_path("schedulable_testfile.txt",
+                                                                               stacklevel=1))
+        self.schedulable.voltage = None
+        with self.assertRaises(AssertionError):  # mode not set for array
+            self.schedulable.schedule_from_file(attribute="voltage",
+                                                filename=callers_relative_path("schedulable_testfile.txt",
+                                                                               stacklevel=1))
+
+        self.schedulable.schedule_from_file(attribute="voltage",
+                                            filename=callers_relative_path("schedulable_testfile.txt", stacklevel=1),
+                                            mode="per-turn")
+
+    def test___init__(self):
+        pass
 
 if __name__ == "__main__":
     unittest.main()

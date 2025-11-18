@@ -182,8 +182,7 @@ def get_hamilton_semi_analytic(
 
 
 class SemiEmpiricMatcher(MatchingRoutine):
-    """
-    Match a distribution to ``potential_well_empiric`` using an analytic drift term.
+    r"""Match a distribution to ``potential_well_empiric`` using an analytic drift term.
 
     This function matches a beam distribution to the empirically determined potential well,
     including an analytic drift term. The process iteratively adjusts the distribution until
@@ -201,7 +200,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         For the default function, the following keys may be used:
 
         - ``density_modifier`` : float
-          Exponent that shapes the density distribution according to :math:`H^{\text{density\_modifier}}`.
+          Exponent that shapes the density distribution according to :math:`H^{\text{density_modifier}}`.
         - ``hamilton_max`` : float
           Maximum value of the Hamiltonian, in arbitrary units.
     hamilton_to_density_function : callable

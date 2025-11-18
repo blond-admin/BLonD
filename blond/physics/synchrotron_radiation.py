@@ -6,20 +6,27 @@ Simon Lauber
 Lina Valle
 """
 
-from __future__ import annotations
+from __future__ import (
+    annotations,  # pragma: no cover # TODO remove when SR is implemented
+)
 
-from typing import TYPE_CHECKING
+from typing import (
+    TYPE_CHECKING,  # pragma: no cover # TODO remove when SR is implemented
+)
 
-from blond._core.base import BeamPhysicsRelevant
-from blond._core.beam.base import BeamBaseClass
-from blond._core.simulation.simulation import Simulation
-from blond.physics.drifts import DriftSimple
+from blond._core.base import (
+    BeamPhysicsRelevant,  # pragma: no cover # TODO remove when SR is implemented
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
+    from blond._core.beam.base import BeamBaseClass
+    from blond._core.simulation.simulation import Simulation
+    from blond.physics.drifts import DriftSimple
 
-class SynchrotronRadiation(BeamPhysicsRelevant):
+
+class SynchrotronRadiation(BeamPhysicsRelevant):  # pragma: no cover
     """Synchrotron radiation module.
 
     Parameters
@@ -36,6 +43,7 @@ class SynchrotronRadiation(BeamPhysicsRelevant):
             name=name,
         )
         raise NotImplementedError("For Lina")
+        # TODO remove # pragma: no cover if implemented
         self._simulation: DriftSimple | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
