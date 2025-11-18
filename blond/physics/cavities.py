@@ -768,8 +768,8 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             f"but needs to be smaller than {n_harmonics}"
         )
 
-        self.delta_phi_rf: NumpyArray | None = backend.zeros(len(voltage))
-        self.delta_omega_rf: NumpyArray | None = backend.zeros(len(voltage))
+        self.delta_phi_rf: NumpyArray | None = backend.zeros(n_harmonics)
+        self.delta_omega_rf: NumpyArray | None = backend.zeros(n_harmonics)
 
         self._t_rf: NumpyArray | None = None
         self._t_rev: float | None = None
