@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from ...._core.backends.backend import Specials, backend
-from ...._generals._hashing import hash_in_folder
+from ....generals._hashing import hash_in_folder
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -384,6 +384,24 @@ def reload_fortran_backend(
                 n_macroparticles=np.int32(len(dt)),
                 acc_kick=acceleration_kick,
             )
+
+        @staticmethod
+        def move_flagged_elements_to_end(
+            flag: int,
+            flags: NumpyArray | CupyArray,  # also purged
+            dt: NumpyArray | CupyArray,
+            dE: NumpyArray | CupyArray,
+            ids: NumpyArray | CupyArray,
+        ):
+            n_new = libblond_fortran.move_flagged_elements_to_end(
+                flag=np.int32(flag),
+                flags=flags,
+                dt=dt,
+                de=dE,
+                ids=ids,
+                n=np.int32(len(dt)),
+            )
+            return n_new
 
     return FortranSpecials
 

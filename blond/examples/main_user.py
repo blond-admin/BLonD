@@ -40,7 +40,7 @@ class Main:
         )
         one_turn_execution_order = (
             DriftSimple(
-                orbit_length=0.4 * my_ring.circumference, transition_gamma=21
+                orbit_length=1.0 * my_ring.circumference, transition_gamma=21
             ),
             cavity,
             WakeField(

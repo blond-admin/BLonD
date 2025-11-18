@@ -25,7 +25,7 @@ from ..._core.base import DynamicParameter
 from ..._core.beam.base import BeamBaseClass
 from ..._core.ring.helpers import requires
 from ..._core.simulation.simulation import Simulation
-from ..._generals._warnings import NotTestedWarning
+from ...generals._warnings import NotTestedWarning
 from ..profiles import (
     DynamicProfileConstCutoff,
     DynamicProfileConstNBins,

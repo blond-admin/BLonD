@@ -19,6 +19,7 @@ if TYPE_CHECKING:  # pragma: no cover
 class PrecisionClass:
     """Singleton class. Holds information about the floating point precision of the calculations."""
 
+    int_t: type[np.int32 | np.int64]
     real_t: type[np.float32 | np.float64]
     c_real_t: type[ct.c_float | ct.c_double]
     complex_t: type[np.complex64 | np.complex128]
@@ -42,12 +43,14 @@ class PrecisionClass:
         """
         if _precision in ["single", "s", "32", "float32", "float", "f"]:
             self.str = "single"
+            self.int_t = np.int32
             self.real_t = np.float32
             self.c_real_t = ct.c_float
             self.complex_t = np.complex64
             self.num = 1
         elif _precision in ["double", "d", "64", "float64"]:
             self.str = "double"
+            self.int_t = np.int64
             self.real_t = np.float64
             self.c_real_t = ct.c_double
             self.complex_t = np.complex128
@@ -108,6 +111,11 @@ class c_complex64(ct.Structure):
         return self.real + 1.0j * self.imag
 
 
+def c_int(scalar: int, precision: PrecisionClass) -> ct.c_int32 | ct.c_int64:
+    """Convert input to default precision."""
+    return ct.c_int32(scalar) if precision.num == 1 else ct.c_int64(scalar)
+
+
 def c_real(
     scalar: float, precision: PrecisionClass
 ) -> ct.c_float | ct.c_double:
@@ -150,7 +158,7 @@ def reload_cpp_backend(  # noqa: PLR0915
         """
         libblond_path_ = os.environ.get("LIBBLOND", None)
 
-        from blond._generals._hashing import hash_in_folder
+        from blond.generals._hashing import hash_in_folder
 
         folder = os.path.dirname(os.path.abspath(__file__))
 
@@ -428,6 +436,25 @@ def reload_cpp_backend(  # noqa: PLR0915
             energy: float,
         ):
             pass
+
+        @staticmethod
+        def move_flagged_elements_to_end(
+            flag: int,
+            flags: NumpyArray | CupyArray,  # also purged
+            dt: NumpyArray | CupyArray,
+            dE: NumpyArray | CupyArray,
+            ids: NumpyArray | CupyArray,
+        ):
+            n_new = _LIBBLOND.move_flagged_elements_to_end(
+                ct.c_int32(np.int32(flag)),
+                flags.ctypes.data_as(ct.c_void_p),
+                dt.ctypes.data_as(ct.c_void_p),
+                dE.ctypes.data_as(ct.c_void_p),
+                ids.ctypes.data_as(ct.c_void_p),
+                ct.c_int(len(dt)),  # n_macroparticles
+            )
+            n_new = int(n_new)
+            return n_new
 
     return CppSpecials
 

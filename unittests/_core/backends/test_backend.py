@@ -69,8 +69,12 @@ class TestBackendBaseClass(unittest.TestCase):
                         # Compiled backends might not be available locally --> skip.
                         # On the CI, these will always be available, as the before_script builds them
                         # or otherwise fails the CI
-                        if backend_mode == "fortran" or backend_mode == "cpp":  # TODO better handling
-                            warnings.warn(f"{backend_mode} backend was not supported for {backend_bit}, compilation missing?")
+                        if (
+                            backend_mode == "fortran" or backend_mode == "cpp"
+                        ):  # TODO better handling
+                            warnings.warn(
+                                f"{backend_mode} backend was not supported for {backend_bit}, compilation missing?"
+                            )
                         else:
                             raise error
 
@@ -83,6 +87,16 @@ class TestBackendBaseClass(unittest.TestCase):
     def test_change_backend(self):
         some_backend = Numpy32Bit()
         some_backend.change_backend(some_backend) # shouldnt do anything
+
+    def test_temporary_specials_mode(self):
+        specials_org = backend.specials_mode # prevent side effect on other tests
+
+        backend.set_specials("numba")
+        with backend.temporary_specials_mode(mode="python"):
+            self.assertEqual(backend.specials_mode, "python")
+        self.assertEqual(backend.specials_mode, "numba")
+
+        backend.set_specials(mode=specials_org) # prevent side effect on tests
 
 
 class TestCupy32Bit(unittest.TestCase):
@@ -433,6 +447,205 @@ class TestSpecials(unittest.TestCase):
                         rtol=self.rtol,
                         err_msg=f"Failed test `{special}` with {dtype}",
                     )
+
+    def test_move_flagged_elements_to_end(self):
+        for dtype in (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                flag = 0
+                flags = backend.ones(10, dtype=np.int32)
+                flags[[0, 1, -1]] = 0
+                dt = backend.array(backend.linspace(0, 10, 10), backend.float)
+                dE = backend.array(backend.linspace(0, 10, 10), backend.float)
+                ids = backend.array(backend.arange(0, 10), backend.int)
+                n_new = backend.specials.move_flagged_elements_to_end(
+                    flag=flag,
+                    flags=flags,
+                    dt=dt,
+                    dE=dE,
+                    ids=ids,
+                )
+                flags = flags[:n_new]
+                dt = dt[:n_new]
+                dE = dE[:n_new]
+                ids = ids[:n_new]
+
+                result = dt  # could be any of the 4 arrays
+                self.assertEqual(
+                    7,
+                    len(flags),
+                    msg=f"Failed test `{special}` with {dtype}",
+                )
+                self.assertTrue(np.all(flags == np.ones_like(flags)))
+                self.assertEqual(
+                    7,
+                    len(dt),
+                    msg=f"Failed test `{special}` with {dtype}",
+                )
+                self.assertEqual(
+                    7,
+                    len(dE),
+                    msg=f"Failed test `{special}` with {dtype}",
+                )
+                self.assertEqual(
+                    7,
+                    len(ids),
+                    msg=f"Failed test `{special}` with {dtype}",
+                )
+                if special == "cuda":
+                    result = result.get()
+
+                result = np.sort(result)  # because of race conditions in
+                # parallel execution, the order can not be guaranteed
+
+                if i == 0:
+                    result_python = result
+                else:
+                    np.testing.assert_allclose(
+                        result,
+                        result_python,
+                        rtol=self.rtol,
+                        err_msg=f"Failed test `{special}` with {dtype}",
+                    )
+
+    def test_move_flagged_elements_to_end_potentially_race_conditions(self):
+        for dtype in (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                flag = 0
+                flags = backend.ones(int(1e6), dtype=np.int32)
+                np.random.seed(0)
+                flags[np.random.randint(0, len(flags), int(1e5))] = 0
+                dt = backend.array(
+                    backend.linspace(0, 10, len(flags)), backend.float
+                )
+                dE = backend.array(
+                    backend.linspace(0, 10, len(flags)), backend.float
+                )
+                ids = backend.array(backend.arange(0, len(flags)), backend.int)
+                n_new = backend.specials.move_flagged_elements_to_end(
+                    flag=flag,
+                    flags=flags,
+                    dt=dt,
+                    dE=dE,
+                    ids=ids,
+                )
+                assert np.all(flags[:n_new] != 0)
+                assert np.all(flags[n_new:] == 0)
+                flags = flags[:n_new]
+                dt = dt[:n_new]
+                dE = dE[:n_new]
+                ids = ids[:n_new]
+
+                result = dt  # could be any of the 4 arrays
+                if special == "cuda":
+                    result = result.get()
+
+                result = np.sort(result)  # because of race conditions in
+                # parallel execution, the order can not be guaranteed
+
+                if i == 0:
+                    result_python = result
+                else:
+                    np.testing.assert_allclose(
+                        result,
+                        result_python,
+                        rtol=self.rtol,
+                        err_msg=f"Failed test `{special}` with {dtype}",
+                    )
+
+    def test_move_flagged_elements_to_end_none_flagged(self):
+        for dtype in (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                flag = 0
+                flags = backend.ones(10, dtype=np.int32)
+
+                dt = backend.array(backend.linspace(0, 10, 10), backend.float)
+                dE = backend.array(backend.linspace(0, 10, 10), backend.float)
+                ids = backend.array(backend.arange(0, 10), backend.int)
+                n_new = backend.specials.move_flagged_elements_to_end(
+                    flag=flag,
+                    flags=flags,
+                    dt=dt,
+                    dE=dE,
+                    ids=ids,
+                )
+
+                self.assertEqual(
+                    10,
+                    n_new,
+                    msg=f"Failed test `{special}` with {dtype}",
+                )
+
+    def test_move_flagged_elements_to_end_all_but_one_flagged(self):
+        for dtype in (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError) as exc:
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                flag = 0
+                flags = backend.zeros(10, dtype=np.int32)
+                flags[1] = 1
+
+                dt = backend.array(backend.linspace(0, 10, 10), backend.float)
+                dE = backend.array(backend.linspace(0, 10, 10), backend.float)
+                ids = backend.array(backend.arange(0, 10), backend.int)
+                n_new = backend.specials.move_flagged_elements_to_end(
+                    flag=flag,
+                    flags=flags,
+                    dt=dt,
+                    dE=dE,
+                    ids=ids,
+                )
+
+                self.assertEqual(
+                    1,
+                    n_new,
+                    msg=f"Failed test `{special}` with {dtype}",
+                )
+
+    def test_move_flagged_elements_to_end_all_flagged(self):
+        for dtype in (np.float32, np.float64):
+            for i, special in enumerate(self.special_modes):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                flag = 0
+                flags = backend.zeros(10, dtype=np.int32)
+
+                dt = backend.array(backend.linspace(0, 10, 10), backend.float)
+                dE = backend.array(backend.linspace(0, 10, 10), backend.float)
+                ids = backend.array(backend.arange(0, 10), backend.int)
+                n_new = backend.specials.move_flagged_elements_to_end(
+                    flag=flag,
+                    flags=flags,
+                    dt=dt,
+                    dE=dE,
+                    ids=ids,
+                )
+
+                self.assertEqual(
+                    0,
+                    n_new,
+                    msg=f"Failed test `{special}` with {dtype}",
+                )
 
     @unittest.skip
     def test_loss_box(self) -> None:

@@ -18,8 +18,8 @@ from blond import (
     proton,
 )
 from blond._core.beam.base import BeamBaseClass
-from blond._generals._warnings import PerformanceWarning
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
+from blond.generals._warnings import PerformanceWarning
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
     BeamObservationEndOfTurn,
