@@ -43,6 +43,8 @@ workflow:
 
 
 .main:
+  variables:
+    BLOND_BACKEND_MODE: "numba"     # Set the basic backend to numba. It is most verbose about wrong types
   script:
     - pip list
     - cd ${project_root}

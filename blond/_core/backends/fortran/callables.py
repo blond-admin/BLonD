@@ -385,6 +385,24 @@ def reload_fortran_backend(
                 acc_kick=acceleration_kick,
             )
 
+        @staticmethod
+        def move_flagged_elements_to_end(
+            flag: int,
+            flags: NumpyArray | CupyArray,  # also purged
+            dt: NumpyArray | CupyArray,
+            dE: NumpyArray | CupyArray,
+            ids: NumpyArray | CupyArray,
+        ):
+            n_new = libblond_fortran.move_flagged_elements_to_end(
+                flag=np.int32(flag),
+                flags=flags,
+                dt=dt,
+                de=dE,
+                ids=ids,
+                n=np.int32(len(dt)),
+            )
+            return n_new
+
     return FortranSpecials
 
 
