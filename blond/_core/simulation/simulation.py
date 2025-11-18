@@ -23,6 +23,7 @@ from ..base import (
     DynamicParameter,
     Preparable,
 )
+from ..beam.base import BeamBaseClass
 from ..helpers import find_instances_with_method, int_from_float_with_warning
 from ..ring.helpers import get_elements, get_init_order
 
@@ -52,7 +53,6 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from ...beam_preparation.base import BeamPreparationRoutine
     from ...handle_results.observables import ObservablesEndOfTurnBase
-    from ..beam.base import BeamBaseClass
     from ..beam.particle_types import ParticleType
     from ..ring.ring import Ring
 
@@ -631,10 +631,10 @@ class Simulation(Preparable):
 
     def finalize(
         self,
-        beams: tuple[BeamBaseClass],
+        beams: BeamBaseClass | tuple[BeamBaseClass],
         n_turns: int | None,
-        observe: tuple[ObservablesEndOfTurnBase, ...],
-        turn_i_init: int,
+        observe: tuple[ObservablesEndOfTurnBase, ...] = None,
+        turn_i_init: int = 0,
     ) -> None:
         """Executes `_exec_on_run_simulation` and prepares the observables.
 
@@ -652,6 +652,9 @@ class Simulation(Preparable):
         turn_i_init
             Initial turn to start with simulation
         """
+        if isinstance(beams, BeamBaseClass):
+            beams = (beams,)
+
         max_turns = self.magnetic_cycle.n_turns
         if n_turns is not None:
             _n_turns = int_from_float_with_warning(
