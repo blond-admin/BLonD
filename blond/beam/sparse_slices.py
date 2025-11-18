@@ -410,10 +410,8 @@ class SparseSlices:
         masked_indexes = np.where(mask_additional_bunch != 0)[0]
         for i in range(additional_filled_buckets):
             bucket_index = masked_indexes[i]
-            updated_cut_left[i] = (bucket_index - self.bucket_margin) * t_rf
-            updated_cut_right[i] = (
-                bucket_index + 1 + self.bucket_margin
-            ) * t_rf
+            updated_cut_left[i] = bucket_index * t_rf
+            updated_cut_right[i] = (bucket_index + 1) * t_rf
         self.cut_left_array = np.append(self.cut_left_array, updated_cut_left)
         self.cut_right_array = np.append(
             self.cut_right_array, updated_cut_right
