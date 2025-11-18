@@ -148,6 +148,36 @@ class Specials(ABC):
             "Abstract method `beam_phase` is not implemented."
         )
 
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def move_flagged_elements_to_end(
+        flag: int,
+        flags: NumpyArray | CupyArray,  # also purged
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        ids: NumpyArray | CupyArray,
+    ):
+        """Reorders entries where ``flags == flag`` to the array end.
+
+        Parameters
+        ----------
+        flag
+            The flag to be used as a selector what to place at the end.
+        flags
+            Macro-particle flags
+        dt
+            Macro-particle time coordinates [s]
+        dE
+            Macro-particle energy coordinates [eV]
+        ids
+            Macro-particle ids.
+            This allows to identify single particles,
+            even if the array indexing is changed.
+        """
+        raise NotImplementedError(
+            "The backend for `move_flagged_elements_to_end` is missing."
+        )
+
 
 class _ModeSwitchHelper:
     """Helper to be used in a `with` statement to set the specials temporarily.

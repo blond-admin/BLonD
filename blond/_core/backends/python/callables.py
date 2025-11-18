@@ -11,6 +11,29 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 
+def _move_flagged_elements_to_end_py(
+    flag: int,
+    flags: NumpyArray,  # also purged
+    dt: NumpyArray,
+    dE: NumpyArray,
+    ids: NumpyArray,
+):
+    i = 0
+    j = flags.size - 1
+
+    while i <= j:
+        if flags[i] != flag:
+            i += 1
+        else:
+            # flags[i] is True, swap with flags[j]
+            flags[i], flags[j] = flags[j], flags[i]
+            dt[i], dt[j] = dt[j], dt[i]
+            dE[i], dE[j] = dE[j], dE[i]
+            ids[i], ids[j] = ids[j], ids[i]
+            j -= 1
+    return j + 1
+
+
 class PythonSpecials(Specials):
     @staticmethod
     def beam_phase(
@@ -214,3 +237,20 @@ class PythonSpecials(Specials):
             # fbin = int(np.floor((dt[i]-bin_centers[0])*inv_bin_width))
             if (fbin[i] >= 0) and (fbin[i] < n_slices - 1):
                 dE[i] += dt[i] * helper1[fbin[i]] + helper2[fbin[i]]
+
+    @staticmethod
+    def move_flagged_elements_to_end(
+        flag: int,
+        flags: NumpyArray | CupyArray,  # also purged
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        ids: NumpyArray | CupyArray,
+    ):
+        n_new = _move_flagged_elements_to_end_py(
+            flag=np.int32(flag),
+            flags=flags,
+            dt=dt,
+            dE=dE,
+            ids=ids,
+        )
+        return n_new
