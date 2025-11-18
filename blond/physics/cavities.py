@@ -150,12 +150,14 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         # TODO MOVE
         self._omega_rf: NumpyArray | None = None
         self.delta_omega_rf = 0.0
+        self.dphi_rf = 0.0
         self._t_rf: float | None = None
         self._t_rev: float | None = None
         self.voltage: NumpyArray | None = None
         self.phi_rf: NumpyArray | None = None
         self.harmonic: NumpyArray | None = None
         self.phi_s: NumpyArray | None = None
+        self.omega_s0: NumpyArray | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called.
@@ -211,6 +213,45 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
     ) -> float:
         """Returns the omega_rf of the main harmonic, in [rad/s]."""
         pass
+
+    def calc_synchrotron_tune_single_harmonic(self, beam: BeamBaseClass):
+        """Function calculating the turn-by-turn synchrotron tune.
+
+        The calculation assumes a single-harmonic RF system and no intensity
+        effects.
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element
+
+        Returns
+        -------
+        Q_s
+            Synchrotron tune.
+
+        """
+        assert self._magnetic_cycle is not None
+        assert self._turn_i is not None
+        assert self._ring is not None
+
+        from blond.acc_math.analytic.hamilton import (
+            calc_synchrotron_tune_single_harmonic,
+        )
+
+        assert self.voltage is not None
+
+        Q_s0 = calc_synchrotron_tune_single_harmonic(
+            charge=beam.particle_type.charge,
+            voltage=float(self.voltage),
+            beta=beam.reference_beta,
+            energy=beam.reference_total_energy,
+            phi_s=self.calc_phi_s_single_harmonic(beam),
+            harmonic=self.harmonic,
+            eta_0=self._ring.calc_average_eta_0(beam.reference_gamma),
+        )
+
+        return Q_s0
 
     def calc_phi_s_single_harmonic(self, beam: BeamBaseClass) -> float:
         """Calculates the main harmonic synchronous phase.
@@ -355,7 +396,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         pass
 
     @abstractmethod  # pragma: no cover
-    def calc_omega(
+    def calc_omega_rf(
         self,
         beam_beta: float,
         closed_orbit_length: float,
@@ -458,7 +499,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         ring_circumference: float,
     ) -> float:
         """Returns the omega_rf of the main harmonic, in [rad/s]."""
-        return self.calc_omega(
+        return self.calc_omega_rf(
             beam_beta=beam_beta,
             ring_circumference=ring_circumference,
         )
@@ -487,7 +528,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
             )
 
     def _update_beam_based_attributes(self, beam: BeamBaseClass) -> None:
-        self._omega_rf = self.calc_omega(
+        self._omega_rf = self.calc_omega_rf(
             beam_beta=beam.reference_beta,
             ring_circumference=self._ring.circumference,
         )
@@ -530,7 +571,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         )
         beam.reference_total_energy += reference_energy_change
 
-    def calc_omega(
+    def calc_omega_rf(
         self,
         beam_beta: float,
         ring_circumference: float,
@@ -734,7 +775,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             )
 
     def _update_beam_based_attributes(self, beam: BeamBaseClass) -> None:
-        self._omega_rf = self.calc_omega(
+        self._omega_rf = self.calc_omega_rf(
             beam_beta=beam.reference_beta,
             ring_circumference=self._ring.circumference,
         )
@@ -749,7 +790,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             warnings.warn(str(exc), stacklevel=1)
             self.phi_s = np.nan
 
-    def calc_omega(
+    def calc_omega_rf(
         self,
         beam_beta: float,
         ring_circumference: float,
@@ -787,7 +828,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         self, beam_beta: float, ring_circumference: float
     ) -> float:
         """Returns the omega_rf of the main harmonic, in [rad/s]."""
-        return self.calc_omega(
+        return self.calc_omega_rf(
             beam_beta=beam_beta,
             ring_circumference=ring_circumference,
         )[self.main_harmonic_idx]
