@@ -38,7 +38,7 @@ class TestBeamObservationInRingElement(unittest.TestCase):
             folder=callers_relative_path("results/", stacklevel=1),
             name="test_obs",
         )
-        self.observation.common_name = "test"
+        self.observation.common_filepath = "test"
         self.observation.on_run_simulation(
             simulation=simulation,
             beam=beam,

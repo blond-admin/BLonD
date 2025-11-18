@@ -303,7 +303,7 @@ class BeamPhysicsRelevant(SimulationElementBase):
         super().__init__(section_index, name)
         type(self).n_instances += 1
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def track(self, beam: BeamBaseClass) -> None:
         """Apply the element’s physics effect to the beam.
 
@@ -342,7 +342,7 @@ class BeamObservationElement(SimulationElementBase):
         super().__init__(section_index=section_index, name=name, **kwargs)
         type(self).n_instances += 1
 
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def track(self, beam: BeamBaseClass) -> None:
         """Inspect the beam state without modifying it.
 

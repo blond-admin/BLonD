@@ -75,7 +75,7 @@ class PythonSpecials(Specials):
     @staticmethod
     def loss_box(
         top: float, bottom: float, left: float, right: float
-    ) -> None:  # TODO
+    ) -> None:  # pragma: no cover
         raise NotImplementedError
 
     @staticmethod
