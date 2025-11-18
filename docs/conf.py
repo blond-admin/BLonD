@@ -26,14 +26,14 @@ print(">>> Sphinx loaded THIS conf.py:", __file__)
 #
 # needs_sphinx = "1.0"
 
+import os
+
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named "sphinx.ext.*") or your custom
 # ones.
 import sys
-import os
 
 os.environ["SPHINX_SHOW_WARNING_TYPES"] = "1"  # force categories in output
-
 
 
 folder = os.path.abspath("modules")
@@ -54,12 +54,12 @@ extensions = [
 ]
 
 inheritance_graph_attrs = dict(
-    rankdir="TB",   # "TB" = Top → Bottom (vertical)
+    rankdir="TB",  # "TB" = Top → Bottom (vertical)
     size='"12.0, 10.0"',  # adjust as needed (width,height in inches)
     fontsize=14,
     ranksep="0.4",
     nodesep="0.2",
-    layout="dot"
+    layout="dot",
 )
 
 # Add any paths that contain templates here, relative to this directory.
@@ -89,6 +89,7 @@ autodoc_mock_imports = ["mpi4py"]
 #
 
 from importlib.metadata import version as get_version
+
 # The short X.Y version.
 version = ".".join(get_version("blond").split(".")[:3])
 # The full version, including alpha/beta/rc tags.
@@ -252,21 +253,26 @@ intersphinx_mapping = {"https://docs.python.org/": None}
 # This section checks if a system module has been reported already
 _seen_targets = set()
 
+
 def _fqname_for(obj, name):
     # Build a stable fully-qualified name for indexing decisions
     mod = getattr(obj, "__module__", "") or ""
     qual = getattr(obj, "__qualname__", "") or name
     return f"{mod}.{qual}"
 
+
 def autodoc_skip_if_duplicate(app, what, name, obj, skip, options):
     fq = _fqname_for(obj, name)
 
     # only treat as duplicate if we've already seen the exact fqname.
     if fq in _seen_targets:
-        return True  # skip this duplicate -> prevents duplicate-object warnings
+        return (
+            True  # skip this duplicate -> prevents duplicate-object warnings
+        )
 
     _seen_targets.add(fq)
     return skip  # keep default decision for the first time we see it
+
 
 def setup(app):
     app.connect("autodoc-skip-member", autodoc_skip_if_duplicate)
