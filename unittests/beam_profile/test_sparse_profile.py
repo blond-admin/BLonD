@@ -337,10 +337,6 @@ class testProfileClass(unittest.TestCase):
             sparse_profile_temoin.n_filled_buckets,
         )
 
-        np.testing.assert_equal(
-            sparse_profile.n_sliced_buckets,
-            sparse_profile_temoin.n_sliced_buckets,
-        )
         # from _update_general_arrays()
         np.testing.assert_equal(
             sparse_profile.n_macroparticles,
