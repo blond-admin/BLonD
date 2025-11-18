@@ -325,10 +325,13 @@ class Resonators(
                 "All center frequencies must be greater or equal 0"
             )
 
-        self._cache_wake_impedance = None
+        self._cache_wake_impedance: NumpyArray | None = None
         self._cache_wake_impedance_hash: int | None = None
 
-        self._cache_impedance = None
+        self._cache_wake_impedance_counter_rotation: NumpyArray | None = None
+        self._cache_wake_impedance_counter_rotation_hash: int | None = None
+
+        self._cache_impedance: NumpyArray | None = None
         self._cache_impedance_hash: int | None = None
 
     def get_wake_impedance(
@@ -400,17 +403,19 @@ class Resonators(
 
         """
         # Recalculate only if `time` has changed
-        hash = get_hash(time + 1)  # to distinguish between counterrotation
-        if hash is self._cache_wake_impedance_hash:
-            return self._cache_wake_impedance
+        hash_ = get_hash(time + 1)  # to distinguish between counterrotation
+        if hash_ == self._cache_wake_impedance_counter_rotation_hash:
+            return self._cache_wake_impedance_counter_rotation
 
         wake_counter_rotation = self.get_wake_counter_rotation(time)
         wake_impedance_counter_rotation = np.fft.rfft(
             wake_counter_rotation, n=n_fft
         )
 
-        self._cache_wake_impedance_hash = hash
-        self._cache_wake_impedance = wake_impedance_counter_rotation
+        self._cache_wake_impedance_counter_rotation_hash = hash_
+        self._cache_wake_impedance_counter_rotation = (
+            wake_impedance_counter_rotation
+        )
         return wake_impedance_counter_rotation
 
     def get_wake_impedance_freq(self, time):
