@@ -88,6 +88,16 @@ class TestBackendBaseClass(unittest.TestCase):
         some_backend = Numpy32Bit()
         some_backend.change_backend(some_backend) # shouldnt do anything
 
+    def test_temporary_specials_mode(self):
+        specials_org = backend.specials_mode # prevent side effect on other tests
+
+        backend.set_specials("numba")
+        with backend.temporary_specials_mode(mode="python"):
+            self.assertEqual(backend.specials_mode, "python")
+        self.assertEqual(backend.specials_mode, "numba")
+
+        backend.set_specials(mode=specials_org) # prevent side effect on tests
+
 
 class TestCupy32Bit(unittest.TestCase):
     def test___init__(self) -> None:
