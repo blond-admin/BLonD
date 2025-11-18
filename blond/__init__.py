@@ -17,12 +17,12 @@ from ._core.beam.particle_types import proton  # NOQA
 from ._core.beam.particle_types import uranium_29  # NOQA
 from ._core.ring.ring import Ring  # NOQA
 from ._core.simulation.simulation import Simulation  # NOQA
-from ._generals.cupy.no_cupy_import import AllowPlotting  # NOQA
 from .beam_preparation.bigaussian import BiGaussian  # NOQA
 from .cycles.magnetic_cycle import ConstantMagneticCycle  # NOQA
 from .cycles.magnetic_cycle import MagneticCycleByTime  # NOQA
 from .cycles.magnetic_cycle import MagneticCyclePerTurn  # NOQA
 from .cycles.magnetic_cycle import MagneticCyclePerTurnAllCavities  # NOQA
+from .generals.cupy.no_cupy_import import AllowPlotting  # NOQA
 from .handle_results.observables import BeamObservationEndOfTurn  # NOQA
 from .handle_results.observables import CavityPhaseObservation  # NOQA
 from .handle_results.observables import StaticProfileObservation  # NOQA

@@ -39,7 +39,7 @@ Afterwards the content of the file `modules/blond.rst` is replaced with
         :maxdepth: 10
 
        blond._core
-       blond._generals
+       blond.generals
        blond.acc_math
        blond.beam_preparation
        blond.cycles

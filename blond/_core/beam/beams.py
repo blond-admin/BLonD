@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ..._generals.cupy.no_cupy_import import is_cupy_array
+from ...generals.cupy.no_cupy_import import is_cupy_array
 from ..backends.backend import backend
 from .base import BeamBaseClass, BeamFlags
 

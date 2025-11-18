@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from blond._generals.cupy.no_cupy_import import (
+from blond.generals.cupy.no_cupy_import import (
     _AsarrayOverrideManager,
     is_cupy_array,
 )

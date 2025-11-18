@@ -14,8 +14,8 @@ from tqdm import tqdm  # type: ignore
 
 from blond._core.base import SimulationElementBase
 
-from ..._generals._warnings import NotTestedWarning, PerformanceWarning
 from ...cycles.magnetic_cycle import MagneticCycleBase
+from ...generals._warnings import NotTestedWarning, PerformanceWarning
 from ...physics.drifts import DriftBaseClass
 from ...physics.profiles import ProfileBaseClass
 from ..backends.backend import backend

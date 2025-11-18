@@ -95,7 +95,7 @@ def compile_fortran_module(module_name: str, fortran_files: list[str]) -> bool:
 
 
 def move_compiled_file_to_subfolder(module_name: str):
-    from blond._generals._hashing import hash_in_folder
+    from blond.generals._hashing import hash_in_folder
 
     folder = os.path.dirname(os.path.abspath(__file__))
     hash_ = hash_in_folder(

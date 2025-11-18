@@ -158,7 +158,7 @@ def reload_cpp_backend(
         """
         libblond_path_ = os.environ.get("LIBBLOND", None)
 
-        from blond._generals._hashing import hash_in_folder
+        from blond.generals._hashing import hash_in_folder
 
         folder = os.path.dirname(os.path.abspath(__file__))
 
