@@ -4,7 +4,7 @@ set font texcmss hei 0.4
 set just center
 
 set lwidth 0.2 color gray20
-amove 4 4 
+amove 4 4
 circle 3
 
 
@@ -14,7 +14,7 @@ set fill blue
 amove 3.5 6.8
 box 1 0.4
 amove 6.75 3.5
-box 0.4 1 
+box 0.4 1
 amove 1.95 1.55
 begin rotate -30
 box  1 0.4

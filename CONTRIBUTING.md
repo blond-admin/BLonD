@@ -18,7 +18,7 @@ Code that is not mature enough to be inside the standard codebase should be deve
 
 ```
 blond/
-├── __doc/                    # Sphinx documentation
+├── docs/                    # Sphinx documentation
 ├── blond/                    # Core Python package
 ├──── experimental/           # Untested/unstable code
 ├──── legacy/                 # The recent version of BLonD 2
@@ -164,12 +164,12 @@ To build the documentation locally:
 
 ```bash
 python -m pip install .[doc]
-python3 -m sphinx build -b html -W -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=5 --keep-going __doc __doc/_build/html
+python3 -m sphinx build -b html -W -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=5 --keep-going docs docs/_build/html
 ```
 
-Built files appear in `__doc/_build/html/`.
+Built files appear in `docs/_build/html/`.
 
-Then, [index.html](__doc/_build/html/index.html) can be opened with a web browser
+Then, [index.html](docs/_build/html/index.html) can be opened with a web browser
 
 ## Contributing
 
