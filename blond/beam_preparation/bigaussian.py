@@ -13,11 +13,11 @@ import numpy as np
 
 from .._core.backends.backend import backend
 from .._core.helpers import int_from_float_with_warning
-from ..generals._iterables import all_equal
 from ..acc_math.analytic.hamilton import (
     calc_phi_s_single_harmonic,
     is_in_separatrix,
 )
+from ..generals._iterables import all_equal
 from .base import MatchingRoutine
 
 if TYPE_CHECKING:  # pragma: no cover
