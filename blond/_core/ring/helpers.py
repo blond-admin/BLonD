@@ -130,7 +130,6 @@ def _build_dependency_graph(
                 1  # Increment in-degree count for the class
             )
             all_classes.add(dep)  # Ensure the dependency class is also tracked
-        pass
     return graph, in_degree, all_classes
 
 
@@ -163,8 +162,6 @@ def get_dependencies(cls_: type, dependency_attribute: str) -> list:
                 raise Exception(type(attr))
         else:
             attr = []
-        if not isinstance(attr, list):
-            raise Exception(type(attr))
     else:
         attr = getattr(cls_, dependency_attribute, [])
         if not isinstance(attr, list):

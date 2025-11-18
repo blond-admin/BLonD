@@ -9,13 +9,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from .._core.backends.backend import backend
+from .._core.base import BeamPhysicsRelevant
+
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
-from .._core.backends.backend import backend
-from .._core.base import BeamPhysicsRelevant
-from .._core.beam.base import BeamBaseClass
-from .._core.simulation.simulation import Simulation
+    from .._core.beam.base import BeamBaseClass
+    from .._core.simulation.simulation import Simulation
 
 
 class LossesBaseClass(BeamPhysicsRelevant):
@@ -101,7 +102,7 @@ class BoxLosses(LossesBaseClass):
         beam
             Beam class to interact with this element
         """
-        backend.loss_box(
+        backend.specials.loss_box(
             beam.write_partial_flags(),
             self.t_min,
             self.t_max,

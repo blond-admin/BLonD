@@ -258,16 +258,6 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         """Cutoff frequency if the profile is fourier transformed, in [Hz]."""
         return 1 / (2 * self.hist_step)
 
-    def _calc_gauss(self) -> None:
-        """Gaussian fit for the beam profile."""
-        raise NotImplementedError
-
-    @cached_property
-    def gauss_fit_params(self) -> None:
-        """Gaussian fit for the beam profile."""
-        raise NotImplementedError
-        return self._calc_gauss()
-
     def beam_spectrum(self, n_fft: int | None) -> NumpyArray:
         """Calculate fourier transform of the profile."""
         # `_hist_x`, `_hist_x` could be None, which is not handled and

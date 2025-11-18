@@ -1,5 +1,7 @@
 import unittest
+from unittest.mock import Mock
 
+import numba
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -11,7 +13,7 @@ class TestFunctions(unittest.TestCase):
         try:
             import cupy as cp  # type: ignore
         except ImportError as exc:
-            unittest.skip(str(exc))
+            self.skipTest(str(exc))
         from blond import AllowPlotting
 
         # demo of AllowPlotting
@@ -44,3 +46,12 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual(is_cupy_array(np.ones(10)), False)
         self.assertEqual(is_cupy_array([1, 2, 3]), False)
         self.assertEqual(is_cupy_array("Not an array"), False)
+
+        with self.assertRaises(TypeError):
+            from numba.cuda import to_device
+            arr_numba_cuda = to_device(np.ones(10))
+            is_cupy_array(arr_numba_cuda)
+
+        numba_array_dummy = Mock()
+        setattr(numba_array_dummy, "gpu_data", True)
+        self.assertEqual(is_cupy_array(numba.cuda), False)
