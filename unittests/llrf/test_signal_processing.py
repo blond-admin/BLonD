@@ -23,7 +23,11 @@ from scipy.constants import e
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, Profile
-from blond.beam.sparse_profiles import _SparseProfileBaseClass, SparseBatch
+from blond.beam.sparse_profiles import (
+    _SparseProfileBaseClass,
+    SparseBatch,
+    SparseBucket,
+)
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.llrf.impulse_response import (
@@ -262,6 +266,9 @@ class TestRFCurrentSparse(unittest.TestCase):
         np.testing.assert_equal(
             self.sparse_profile.bin_centers, self.profile.bin_centers
         )
+        np.testing.assert_equal(
+            self.sparse_profile.n_macroparticles, self.profile.n_macroparticles
+        )
 
     def test_downsampling(self):
         downsample_dict = {
@@ -269,6 +276,24 @@ class TestRFCurrentSparse(unittest.TestCase):
             "points": self.rf.harmonic[0, 0] / 5,
         }
 
+        sparse_bucket_profile = SparseBucket(
+            rf_station=self.rf,
+            beam=self.beam_sparse,
+            number_of_slices_per_profile=int(1000),  # same number
+            # of slices per bucket
+            bunch_list=self.sparse_profile.batch_list,
+            tracker="onebyone",
+        )
+        with self.assertRaises(TypeError):
+            rf_beam_current(
+                sparse_bucket_profile,
+                self.omega,
+                self.ring.t_rev[0],
+                lpf=False,
+                downsample=downsample_dict,
+                external_reference=True,
+                dT=0,
+            )
         rf_current_std, rf_current_coarse_std = rf_beam_current(
             self.profile,
             self.omega,
