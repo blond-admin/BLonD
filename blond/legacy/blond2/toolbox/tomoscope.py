@@ -21,7 +21,7 @@ import matplotlib.cm as cm
 import numpy as np
 from matplotlib import pyplot as plt
 
-from ..utils import bmath as bm
+from blond.legacy.blond2.utils import bmath as bm
 
 
 def distribution_from_tomoscope_data(

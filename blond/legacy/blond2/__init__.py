@@ -22,7 +22,7 @@ def test():
         import scipy
         from packaging import version
 
-        from . import (
+        from blond.legacy.blond2 import (
             beam,
             impedances,
             input_parameters,
@@ -36,7 +36,7 @@ def test():
         )
 
         # This should report the backend that is used
-        from .utils import bmath
+        from blond.legacy.blond2.utils import bmath
 
         bmath.report_backend()
         print("\nBLonD installed successfully!")

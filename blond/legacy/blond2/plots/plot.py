@@ -21,8 +21,7 @@ import h5py as hp
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ..utils.legacy_support import handle_legacy_kwargs
-from .plot_beams import (
+from blond.legacy.blond2.plots.plot_beams import (
     plot_bunch_length_evol,
     plot_bunch_length_evol_gaussian,
     plot_energy_evol,
@@ -30,7 +29,7 @@ from .plot_beams import (
     plot_position_evol,
     plot_transmitted_particles,
 )
-from .plot_llrf import (
+from blond.legacy.blond2.plots.plot_llrf import (
     plot_COM_motion,
     plot_LHCNoiseFB,
     plot_LHCNoiseFB_FWHM,
@@ -43,17 +42,21 @@ from .plot_llrf import (
     plot_RF_phase_error,
     plot_RL_radial_error,
 )
-from .plot_slices import plot_beam_profile, plot_beam_spectrum
+from blond.legacy.blond2.plots.plot_slices import (
+    plot_beam_profile,
+    plot_beam_spectrum,
+)
+from blond.legacy.blond2.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import Optional
 
-    from ..beam.beam import Beam
-    from ..beam.profile import Profile
-    from ..input_parameters.rf_parameters import RFStation
-    from ..input_parameters.ring import Ring
-    from ..llrf.beam_feedback import BeamFeedback
-    from ..llrf.rf_noise import LHCNoiseFB
+    from blond.legacy.blond2.beam.beam import Beam
+    from blond.legacy.blond2.beam.profile import Profile
+    from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+    from blond.legacy.blond2.input_parameters.ring import Ring
+    from blond.legacy.blond2.llrf.beam_feedback import BeamFeedback
+    from blond.legacy.blond2.llrf.rf_noise import LHCNoiseFB
 
 
 def fig_folder(dirname):

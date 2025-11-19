@@ -26,13 +26,10 @@ import numpy.random as rnd
 import scipy.signal
 from scipy.interpolate import interp1d
 
-from ..utils import bmath as bm
-from ..utils.legacy_support import handle_legacy_kwargs
-
 # Import SPS3Section and feedforward_filter for eval(..) below
 # noqa statement is used to block autoformatter from
 # removing seemingly unused import statements
-from .impulse_response import (  # noqa
+from blond.legacy.blond2.llrf.impulse_response import (  # noqa
     SPS3Section200MHzTWC,
     SPS4Section200MHzTWC,
     SPS5Section200MHzTWC,
@@ -45,7 +42,7 @@ from .impulse_response import (  # noqa
 # Import SPS3Section and feedforward_filter for eval(..) below
 # noqa statement is used to block autoformatter from
 # removing seemingly unused import statements
-from .signal_processing import (  # noqa
+from blond.legacy.blond2.llrf.signal_processing import (  # noqa
     cartesian_to_polar,
     comb_filter,
     feedforward_filter_TWC3,
@@ -59,14 +56,16 @@ from .signal_processing import (  # noqa
     rf_beam_current,
     smooth_step,
 )
+from blond.legacy.blond2.utils import bmath as bm
+from blond.legacy.blond2.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import Any, Optional
 
     from numpy.typing import NDArray as NumpyArray
 
-    from ..beam.profile import Profile
-    from ..input_parameters.rf_parameters import RFStation
+    from blond.legacy.blond2.beam.profile import Profile
+    from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
 
 
 class CavityFeedback:

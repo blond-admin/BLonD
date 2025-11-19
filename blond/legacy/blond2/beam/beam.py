@@ -23,18 +23,18 @@ from typing import TYPE_CHECKING, Optional
 import numpy as np
 from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
 
-from ..trackers.utilities import is_in_separatrix
-from ..utils import bmath as bm
-from ..utils import exceptions as blond_exceptions
-from ..utils.legacy_support import handle_legacy_kwargs
+from blond.legacy.blond2.trackers.utilities import is_in_separatrix
+from blond.legacy.blond2.utils import bmath as bm
+from blond.legacy.blond2.utils import exceptions as blond_exceptions
+from blond.legacy.blond2.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     import cupy as cp
     from numpy.typing import NDArray as NumpyArray
 
-    from ..input_parameters.rf_parameters import RFStation
-    from ..input_parameters.ring import Ring
-    from ..utils.types import DeviceType
+    from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+    from blond.legacy.blond2.input_parameters.ring import Ring
+    from blond.legacy.blond2.utils.types import DeviceType
 
 m_mu = physical_constants["muon mass"][0]
 
@@ -645,7 +645,7 @@ class Beam:
                 "ERROR: Cannot use this routine unless in MPI Mode"
             )
 
-        from ..utils.mpi_config import WORKER
+        from blond.legacy.blond2.utils.mpi_config import WORKER
 
         if WORKER.is_master and random:
             bm.random.shuffle(self.id)
@@ -680,7 +680,7 @@ class Beam:
             raise RuntimeError(
                 "ERROR: Cannot use this routine unless in MPI Mode"
             )
-        from ..utils.mpi_config import WORKER
+        from blond.legacy.blond2.utils.mpi_config import WORKER
 
         if all_gather:
             self.dt = WORKER.allgather(self.dt)
@@ -711,7 +711,7 @@ class Beam:
                 "ERROR: Cannot use this routine unless in MPI Mode"
             )
 
-        from ..utils.mpi_config import WORKER
+        from blond.legacy.blond2.utils.mpi_config import WORKER
 
         if all_gather:
             self.mean_dt = WORKER.allreduce(
@@ -805,7 +805,7 @@ class Beam:
                 "ERROR: Cannot use this routine unless in MPI Mode"
             )
 
-        from ..utils.mpi_config import WORKER
+        from blond.legacy.blond2.utils.mpi_config import WORKER
 
         if all_gather:
             temp = WORKER.allgather(np.array([self.n_macroparticles_lost]))

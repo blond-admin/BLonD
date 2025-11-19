@@ -14,9 +14,9 @@ else:
     _CUPY_AVAILABLE = True
 
 # BLonD imports
-from ..input_parameters import rf_parameters as rfpar
-from ..utils import bmath as bm
-from ..utils import data_check as dc
+from blond.legacy.blond2.input_parameters import rf_parameters as rfpar
+from blond.legacy.blond2.utils import bmath as bm
+from blond.legacy.blond2.utils import data_check as dc
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Iterable, Optional

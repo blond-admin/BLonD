@@ -38,7 +38,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
-    from ..._core.beam.base import BeamBaseClass
+    from blond._core.beam.base import BeamBaseClass
 
 
 def get_hash(array1d: NumpyArray) -> int:

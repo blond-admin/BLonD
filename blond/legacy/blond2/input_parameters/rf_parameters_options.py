@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import splev, splrep
 
-from ..utils.legacy_support import handle_legacy_kwargs
+from blond.legacy.blond2.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import Callable, Literal, Optional, Sequence
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
-    from .ring import Ring
+    from blond.legacy.blond2.input_parameters.ring import Ring
 
 
 class RFStationOptions:
@@ -202,7 +202,7 @@ class RFStationOptions:
 
             # Plot original and interpolated data
             if self.plot:
-                from ..plots.plot import fig_folder
+                from blond.legacy.blond2.plots.plot import fig_folder
 
                 # Directory where plots will be stored
                 fig_folder(self.figdir)

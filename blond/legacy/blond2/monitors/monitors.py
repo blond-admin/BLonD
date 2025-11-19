@@ -20,17 +20,17 @@ from typing import TYPE_CHECKING
 import h5py as hp
 import numpy as np
 
-from ..utils.legacy_support import handle_legacy_kwargs
+from blond.legacy.blond2.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import Optional, Sequence, SupportsIndex
 
-    from ..beam.beam import Beam
-    from ..beam.profile import Profile
-    from ..input_parameters.rf_parameters import RFStation
-    from ..input_parameters.ring import Ring
-    from ..llrf.beam_feedback import BeamFeedback
-    from ..llrf.rf_noise import LHCNoiseFB
+    from blond.legacy.blond2.beam.beam import Beam
+    from blond.legacy.blond2.beam.profile import Profile
+    from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+    from blond.legacy.blond2.input_parameters.ring import Ring
+    from blond.legacy.blond2.llrf.beam_feedback import BeamFeedback
+    from blond.legacy.blond2.llrf.rf_noise import LHCNoiseFB
 
 
 class BunchMonitor:

@@ -2,14 +2,14 @@
 
 from typing import TYPE_CHECKING
 
-from .._core.backends.backend import backend
-from .._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
-from .._core.beam.base import BeamBaseClass
-from .._core.simulation.simulation import Simulation
-from ..cycles.magnetic_cycle import MagneticCycleBase, MagneticCycleByTime
+from blond._core.backends.backend import backend
+from blond._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
+from blond._core.beam.base import BeamBaseClass
+from blond._core.simulation.simulation import Simulation
+from blond.cycles.magnetic_cycle import MagneticCycleBase, MagneticCycleByTime
 
 if TYPE_CHECKING:  # pragma: no cover
-    from .. import Ring
+    from blond import Ring
 
 
 class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):

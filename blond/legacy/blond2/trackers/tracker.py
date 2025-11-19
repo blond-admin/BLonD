@@ -32,12 +32,11 @@ import numpy as np
 import scipy
 from packaging.version import Version
 
+from blond.legacy.blond2.llrf.cavity_feedback import CavityFeedback
+from blond.legacy.blond2.utils import bmath as bm
 from blond.legacy.blond2.utils import precision
 from blond.legacy.blond2.utils.custom_warnings import PerformanceWarning
-
-from ..llrf.cavity_feedback import CavityFeedback
-from ..utils import bmath as bm
-from ..utils.legacy_support import handle_legacy_kwargs
+from blond.legacy.blond2.utils.legacy_support import handle_legacy_kwargs
 
 if Version(scipy.__version__) >= Version("1.14"):
     from scipy.integrate import cumulative_trapezoid as cumtrapz
@@ -50,12 +49,12 @@ if TYPE_CHECKING:
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
-    from ..beam.beam import Beam
-    from ..beam.profile import Profile
-    from ..impedances.impedance import TotalInducedVoltage
-    from ..input_parameters.rf_parameters import RFStation
-    from ..llrf.beam_feedback import BeamFeedback
-    from ..utils.types import DeviceType
+    from blond.legacy.blond2.beam.beam import Beam
+    from blond.legacy.blond2.beam.profile import Profile
+    from blond.legacy.blond2.impedances.impedance import TotalInducedVoltage
+    from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+    from blond.legacy.blond2.llrf.beam_feedback import BeamFeedback
+    from blond.legacy.blond2.utils.types import DeviceType
 
     MainHarmonicOptionType = (
         Literal["lowest_freq", "highest_voltage"] | float | int

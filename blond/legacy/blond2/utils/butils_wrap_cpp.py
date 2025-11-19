@@ -15,7 +15,12 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from . import c_complex64, c_complex128, c_real, precision
+from blond.legacy.blond2.utils import (
+    c_complex64,
+    c_complex128,
+    c_real,
+    precision,
+)
 
 if TYPE_CHECKING:
     from typing import Literal, Optional, Type

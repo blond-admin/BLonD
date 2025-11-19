@@ -21,8 +21,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 # BLonD imports
-from ..utils import data_check as dCheck
-from ..utils.legacy_support import handle_legacy_kwargs
+from blond.legacy.blond2.utils import data_check as dCheck
+from blond.legacy.blond2.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import Any

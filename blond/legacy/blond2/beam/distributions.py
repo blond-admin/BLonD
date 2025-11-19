@@ -36,25 +36,29 @@ try:
 except AttributeError:
     np.trapezoid = np.trapz
 
-from ..trackers.utilities import (
+from blond.legacy.blond2.beam.profile import CutOptions, Profile
+from blond.legacy.blond2.trackers.utilities import (
     is_in_separatrix,
     minmax_location,
     potential_well_cut,
 )
-from ..utils import bmath as bm
-from ..utils.legacy_support import handle_legacy_kwargs
-from .profile import CutOptions, Profile
+from blond.legacy.blond2.utils import bmath as bm
+from blond.legacy.blond2.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import Callable, Literal, Optional
 
     from numpy.typing import NDArray as NumpyArray
 
-    from ..impedances.impedance import TotalInducedVoltage
-    from ..input_parameters.rf_parameters import RFStation
-    from ..input_parameters.ring import Ring
-    from ..trackers.tracker import FullRingAndRF, MainHarmonicOptionType
-    from ..utils.types import (
+    from blond.legacy.blond2.beam.beam import Beam
+    from blond.legacy.blond2.impedances.impedance import TotalInducedVoltage
+    from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+    from blond.legacy.blond2.input_parameters.ring import Ring
+    from blond.legacy.blond2.trackers.tracker import (
+        FullRingAndRF,
+        MainHarmonicOptionType,
+    )
+    from blond.legacy.blond2.utils.types import (
         BunchLengthFitTypes,
         DistributionUserTableType,
         DistributionVariableType,
@@ -64,7 +68,6 @@ if TYPE_CHECKING:
         LineDensityDistType,
         LineDensityInputType,
     )
-    from .beam import Beam
 
 
 @handle_legacy_kwargs

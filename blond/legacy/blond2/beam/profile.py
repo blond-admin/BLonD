@@ -21,17 +21,17 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy import ndimage
 
-from ..toolbox import filters_and_fitting as ffroutines
-from ..utils import bmath as bm
-from ..utils.legacy_support import handle_legacy_kwargs
+from blond.legacy.blond2.toolbox import filters_and_fitting as ffroutines
+from blond.legacy.blond2.utils import bmath as bm
+from blond.legacy.blond2.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import Callable, Optional, Tuple
 
     from numpy.typing import NDArray as NumpyArray
 
-    from ..input_parameters.rf_parameters import RFStation
-    from ..utils.types import (
+    from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+    from blond.legacy.blond2.utils.types import (
         BeamProfileDerivativeModes,
         CutUnitType,
         FilterExtraOptionsType,
@@ -725,7 +725,7 @@ class Profile:
                 "ERROR: Cannot use this routine unless in MPI Mode"
             )
 
-        from ..utils.mpi_config import WORKER
+        from blond.legacy.blond2.utils.mpi_config import WORKER
 
         if WORKER.workers == 1:
             return

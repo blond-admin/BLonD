@@ -19,14 +19,14 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ..impedances.impedance_sources import InputTable
-from ..utils.legacy_support import handle_legacy_kwargs
+from blond.legacy.blond2.impedances.impedance_sources import InputTable
+from blond.legacy.blond2.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from os import PathLike
     from typing import Optional
 
-    from ..impedances.impedance import (
+    from blond.legacy.blond2.impedances.impedance import (
         InducedVoltageFreq,
         InducedVoltageTime,
         TotalInducedVoltage,

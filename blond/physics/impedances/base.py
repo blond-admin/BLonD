@@ -10,9 +10,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from ..._core.backends.backend import backend
-from ..._core.base import BeamPhysicsRelevant
-from ..._core.ring.helpers import requires
+from blond._core.backends.backend import backend
+from blond._core.base import BeamPhysicsRelevant
+from blond._core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -20,9 +20,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
-    from ..._core.beam.base import BeamBaseClass
-    from ..._core.simulation.simulation import Simulation
-    from ..profiles import ProfileBaseClass
+    from blond._core.beam.base import BeamBaseClass
+    from blond._core.simulation.simulation import Simulation
+    from blond.physics.profiles import ProfileBaseClass
 
 
 class WakeFieldSolver:
@@ -280,7 +280,9 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         simulation
             Simulation context manager
         """
-        from ..profiles import ProfileBaseClass  # prevent cyclic import
+        from blond.physics.profiles import (
+            ProfileBaseClass,  # prevent cyclic import
+        )
 
         if self._profile is None:
             profiles = simulation.ring.elements.get_elements(
@@ -453,7 +455,7 @@ class WakeField(ImpedanceBaseClass):
         )
         from unittest.mock import Mock
 
-        from ..._core.simulation.simulation import Simulation
+        from blond._core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
         wf.on_init_simulation(simulation=simulation)

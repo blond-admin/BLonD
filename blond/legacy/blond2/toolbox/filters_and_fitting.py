@@ -29,14 +29,14 @@ except AttributeError:
 from scipy.optimize import curve_fit
 from scipy.signal import cheb2ord, cheby2, filtfilt, freqz
 
-from ..utils import bmath as bm
-from ..utils.legacy_support import handle_legacy_kwargs
+from blond.legacy.blond2.utils import bmath as bm
+from blond.legacy.blond2.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
-    from ..utils.types import FilterExtraOptionsType
+    from blond.legacy.blond2.utils.types import FilterExtraOptionsType
 
 
 @handle_legacy_kwargs

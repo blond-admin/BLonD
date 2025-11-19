@@ -20,8 +20,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.layout_engine import PlaceHolderLayoutEngine
 
-from ..trackers.utilities import separatrix
-from ..utils.legacy_support import handle_legacy_kwargs
+from blond.legacy.blond2.trackers.utilities import separatrix
+from blond.legacy.blond2.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from os import PathLike
@@ -29,10 +29,10 @@ if TYPE_CHECKING:
 
     import h5py as hp
 
-    from ..beam.beam import Beam
-    from ..beam.profile import Profile
-    from ..input_parameters.rf_parameters import RFStation
-    from ..input_parameters.ring import Ring
+    from blond.legacy.blond2.beam.beam import Beam
+    from blond.legacy.blond2.beam.profile import Profile
+    from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+    from blond.legacy.blond2.input_parameters.ring import Ring
 
 
 @handle_legacy_kwargs

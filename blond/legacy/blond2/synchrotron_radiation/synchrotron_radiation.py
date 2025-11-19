@@ -20,22 +20,22 @@ from typing import TYPE_CHECKING, Optional
 import numpy as np
 from numpy.typing import NDArray
 
-from ..beam.beam import Beam
-from ..input_parameters.rf_parameters import RFStation
-from ..input_parameters.ring import Ring
-from ..utils import bmath as bm
-from ..utils.exceptions import MissingParameterError
-from ..utils.legacy_support import handle_legacy_kwargs
+from blond.legacy.blond2.beam.beam import Beam
+from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond.legacy.blond2.input_parameters.ring import Ring
+from blond.legacy.blond2.utils import bmath as bm
+from blond.legacy.blond2.utils.exceptions import MissingParameterError
+from blond.legacy.blond2.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import Callable, Optional
 
     from numpy.typing import NDArray
 
-    from ..beam.beam import Beam
-    from ..input_parameters.rf_parameters import RFStation
-    from ..input_parameters.ring import Ring
-    from ..utils.types import DeviceType
+    from blond.legacy.blond2.beam.beam import Beam
+    from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+    from blond.legacy.blond2.input_parameters.ring import Ring
+    from blond.legacy.blond2.utils.types import DeviceType
 
 
 class SynchrotronRadiation:

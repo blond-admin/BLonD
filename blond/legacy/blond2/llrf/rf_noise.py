@@ -20,13 +20,15 @@ from typing import TYPE_CHECKING
 import numpy as np
 import numpy.random as rnd
 
+from blond.legacy.blond2.beam.profile import Profile
+from blond.legacy.blond2.plots.plot import fig_folder
+from blond.legacy.blond2.plots.plot_llrf import (
+    plot_noise_spectrum,
+    plot_phase_noise,
+)
+from blond.legacy.blond2.toolbox.next_regular import next_regular
 from blond.legacy.blond2.utils import bmath as bm
-
-from ..beam.profile import Profile
-from ..plots.plot import fig_folder
-from ..plots.plot_llrf import plot_noise_spectrum, plot_phase_noise
-from ..toolbox.next_regular import next_regular
-from ..utils.legacy_support import handle_legacy_kwargs
+from blond.legacy.blond2.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import Callable, Literal, Optional, Sequence, Tuple
@@ -34,8 +36,8 @@ if TYPE_CHECKING:
     from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
-    from ..input_parameters.rf_parameters import RFStation
-    from ..input_parameters.ring import Ring
+    from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+    from blond.legacy.blond2.input_parameters.ring import Ring
 
 CFWHM = np.sqrt(2.0 / np.log(2.0))
 

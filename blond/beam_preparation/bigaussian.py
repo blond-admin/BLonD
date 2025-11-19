@@ -11,18 +11,18 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from .._core.backends.backend import backend
-from .._core.helpers import int_from_float_with_warning
-from ..acc_math.analytic.hamilton import (
+from blond._core.backends.backend import backend
+from blond._core.helpers import int_from_float_with_warning
+from blond.acc_math.analytic.hamilton import (
     calc_phi_s_single_harmonic,
     is_in_separatrix,
 )
-from ..generals._iterables import all_equal
-from .base import MatchingRoutine
+from blond.beam_preparation.base import MatchingRoutine
+from blond.generals._iterables import all_equal
 
 if TYPE_CHECKING:  # pragma: no cover
-    from .._core.beam.base import BeamBaseClass
-    from .._core.simulation.simulation import Simulation
+    from blond._core.beam.base import BeamBaseClass
+    from blond._core.simulation.simulation import Simulation
 
 
 def _get_dE_from_dt_core(
@@ -66,7 +66,7 @@ def _get_dE_from_dt(
         Full amplitude of the particle oscillation, in [eV]
 
     """
-    from ..physics.drifts import DriftSimple
+    from blond.physics.drifts import DriftSimple
 
     drifts = simulation.ring.elements.get_elements(DriftSimple)
     above_transition = [
@@ -143,8 +143,8 @@ def get_main_harmonic_attributes(
 
     """
     # TODO move this into ring.
-    from .. import MultiHarmonicRfStation
-    from ..physics.cavities import SingleHarmonicRfStation
+    from blond import MultiHarmonicRfStation
+    from blond.physics.cavities import SingleHarmonicRfStation
 
     rf_stations = simulation.ring.elements.get_elements(
         SingleHarmonicRfStation
@@ -254,7 +254,7 @@ class BiGaussian(MatchingRoutine):
         simulation
             Simulation context manager
         """
-        from ..physics.drifts import DriftSimple
+        from blond.physics.drifts import DriftSimple
 
         super().prepare_beam(
             simulation=simulation,

@@ -17,10 +17,10 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.constants import e
 
-from ..utils import bmath as bm
+from blond.legacy.blond2.utils import bmath as bm
 
 if TYPE_CHECKING:
-    from ..beam.beam import Beam
+    from blond.legacy.blond2.beam.beam import Beam
 
 
 class Music:

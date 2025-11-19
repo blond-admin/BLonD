@@ -30,7 +30,7 @@ from scipy.special import airy
 from scipy.special import gamma as gamma_func
 from scipy.special import kv, polygamma
 
-from ..utils import bmath as bm
+from blond.legacy.blond2.utils import bmath as bm
 
 if TYPE_CHECKING:
     from typing import Iterable, Optional

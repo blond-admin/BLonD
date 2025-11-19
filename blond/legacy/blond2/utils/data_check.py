@@ -20,8 +20,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from . import bmath as bm
-from . import exceptions as blond_exceptions
+from blond.legacy.blond2.utils import bmath as bm
+from blond.legacy.blond2.utils import exceptions as blond_exceptions
 
 if TYPE_CHECKING:
     from typing import Any, Iterable, TypeVar

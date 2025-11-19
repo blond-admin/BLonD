@@ -21,8 +21,8 @@ import scipy.integrate as int
 from pylab import cm
 from scipy.special import ellipk
 
-from ..utils.legacy_support import handle_legacy_kwargs
-from .action import action_from_phase_amplitude, x2
+from blond.legacy.blond2.toolbox.action import action_from_phase_amplitude, x2
+from blond.legacy.blond2.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from os import PathLike
@@ -30,8 +30,8 @@ if TYPE_CHECKING:
 
     from numpy.typing import NDArray as NumpyArray
 
-    from ..input_parameters.rf_parameters import RFStation
-    from ..input_parameters.ring import Ring
+    from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+    from blond.legacy.blond2.input_parameters.ring import Ring
 
 
 @handle_legacy_kwargs

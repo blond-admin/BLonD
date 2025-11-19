@@ -20,15 +20,15 @@ from typing import TYPE_CHECKING, Iterable
 
 import numpy as np
 
-from ..utils.legacy_support import handle_legacy_kwargs
+from blond.legacy.blond2.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import TYPE_CHECKING, Optional
 
     from numpy.typing import NDArray as NumpyArray
 
-    from ..input_parameters.rf_parameters import RFStation
-    from ..input_parameters.ring import Ring
+    from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+    from blond.legacy.blond2.input_parameters.ring import Ring
 
 
 class _FrequencyOffset:

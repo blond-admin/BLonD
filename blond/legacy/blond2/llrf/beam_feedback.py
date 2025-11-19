@@ -20,17 +20,17 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ..utils import bmath as bm
-from ..utils.legacy_support import handle_legacy_kwargs
+from blond.legacy.blond2.utils import bmath as bm
+from blond.legacy.blond2.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import Optional
 
-    from ..beam.profile import Profile
-    from ..input_parameters.rf_parameters import RFStation
-    from ..input_parameters.ring import Ring
-    from ..utils.types import DeviceType
-    from .rf_noise import LHCNoiseFB
+    from blond.legacy.blond2.beam.profile import Profile
+    from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+    from blond.legacy.blond2.input_parameters.ring import Ring
+    from blond.legacy.blond2.llrf.rf_noise import LHCNoiseFB
+    from blond.legacy.blond2.utils.types import DeviceType
 
 
 class BeamFeedback:

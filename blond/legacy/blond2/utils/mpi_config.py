@@ -17,12 +17,12 @@ from typing import TYPE_CHECKING
 import numpy as np
 from mpi4py import MPI
 
-from . import bmath as bm
+from blond.legacy.blond2.utils import bmath as bm
 
 if TYPE_CHECKING:
     from typing import Callable, Dict, Optional
 
-    from ..beam.beam import Beam
+    from blond.legacy.blond2.beam.beam import Beam
 
 WORKER = None
 

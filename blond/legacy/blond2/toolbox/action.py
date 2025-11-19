@@ -20,8 +20,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.special import ellipe, ellipk
 
-from ..input_parameters.rf_parameters import RFStation
-from ..utils.legacy_support import handle_legacy_kwargs
+from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+from blond.legacy.blond2.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import Optional
@@ -29,8 +29,8 @@ if TYPE_CHECKING:
     from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
-    from ..input_parameters.rf_parameters import RFStation
-    from ..input_parameters.ring import Ring
+    from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+    from blond.legacy.blond2.input_parameters.ring import Ring
 
 
 def x(phimax: ArrayLike) -> ArrayLike:

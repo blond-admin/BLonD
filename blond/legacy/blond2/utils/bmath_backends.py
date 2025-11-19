@@ -32,7 +32,7 @@ else:
     _numba_available = True
 
 try:
-    from .butils_wrap_cpp import get_libblond
+    from blond.legacy.blond2.utils.butils_wrap_cpp import get_libblond
 
     if get_libblond() is None:
         raise ImportError("`libblond` not found")
@@ -50,7 +50,7 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from typing import Literal
 
-    from ..gpu import GPU_DEV
+    from blond.legacy.blond2.gpu import GPU_DEV
 
 
 class MasterBackend:
@@ -319,7 +319,7 @@ class MasterBackend:
         Returns:
             GPU_DEV: TODO
         """
-        from ..gpu import GPU_DEV
+        from blond.legacy.blond2.gpu import GPU_DEV
 
         return GPU_DEV
 
@@ -336,7 +336,7 @@ class MasterBackend:
             warnings.warn(f"Invalid {gpu_id=}, must positive number!")
             return
 
-        from ..gpu import GPU_DEV
+        from blond.legacy.blond2.gpu import GPU_DEV
 
         GPU_DEV.set(gpu_id)
 
@@ -770,7 +770,7 @@ class GpuBackend(__CupyBackend):
         _precision (str, optional):
             Can be either 'single' or 'double'.  Defaults to 'double'.
         """
-        from ..gpu import GPU_DEV
+        from blond.legacy.blond2.gpu import GPU_DEV
 
         MasterBackend.use_precision(self, _precision)
         GPU_DEV.load_library(_precision)

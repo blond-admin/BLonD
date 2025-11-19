@@ -22,10 +22,12 @@ import scipy
 from packaging.version import Version
 from scipy.constants import c
 
-from ..beam.beam import Particle, Proton
-from ..utils import bmath as bm
-from ..utils.legacy_support import handle_legacy_kwargs
-from .rf_parameters_options import RFStationOptions
+from blond.legacy.blond2.beam.beam import Particle, Proton
+from blond.legacy.blond2.input_parameters.rf_parameters_options import (
+    RFStationOptions,
+)
+from blond.legacy.blond2.utils import bmath as bm
+from blond.legacy.blond2.utils.legacy_support import handle_legacy_kwargs
 
 if Version(scipy.__version__) >= Version("1.14"):
     from scipy.integrate import cumulative_trapezoid as cumtrapz
@@ -37,9 +39,9 @@ if TYPE_CHECKING:
 
     from numpy.typing import NDArray
 
-    from ..beam.beam import Beam, Particle, Proton
-    from ..utils.types import DeviceType
-    from .ring import Ring
+    from blond.legacy.blond2.beam.beam import Beam, Particle, Proton
+    from blond.legacy.blond2.input_parameters.ring import Ring
+    from blond.legacy.blond2.utils.types import DeviceType
 
 
 class RFStation:

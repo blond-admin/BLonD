@@ -30,8 +30,8 @@ if TYPE_CHECKING:
     from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
-    from ..utils.types import InterpolationTypes
-    from .ring import SynchronousDataTypes
+    from blond.legacy.blond2.input_parameters.ring import SynchronousDataTypes
+    from blond.legacy.blond2.utils.types import InterpolationTypes
 
 
 class RingOptions:
@@ -492,7 +492,7 @@ class RingOptions:
         momentum_interp = momentum_interp[initial_index:final_index]
 
         if self.plot:
-            from ..plots.plot import fig_folder
+            from blond.legacy.blond2.plots.plot import fig_folder
 
             # Directory where longitudinal_plots will be stored
             fig_folder(self.figdir)

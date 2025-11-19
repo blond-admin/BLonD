@@ -19,13 +19,13 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ..utils.legacy_support import handle_legacy_kwargs
+from blond.legacy.blond2.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from os import PathLike
     from typing import Optional
 
-    from ..beam.profile import Profile
+    from blond.legacy.blond2.beam.profile import Profile
 
 
 @handle_legacy_kwargs

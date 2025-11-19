@@ -21,9 +21,9 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.constants import e
 
-from ..toolbox.next_regular import next_regular
-from ..utils import bmath as bm
-from ..utils.legacy_support import handle_legacy_kwargs
+from blond.legacy.blond2.toolbox.next_regular import next_regular
+from blond.legacy.blond2.utils import bmath as bm
+from blond.legacy.blond2.utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import Any, Callable, Dict, Literal, Optional
@@ -33,11 +33,17 @@ if TYPE_CHECKING:
 
     NDArray = NumpyArray | CupyArray
 
-    from ..beam.beam import Beam
-    from ..beam.profile import Profile
-    from ..input_parameters.rf_parameters import RFStation
-    from ..utils.types import BeamProfileDerivativeModes, DeviceType
-    from .impedance_sources import Resonators, _ImpedanceObject
+    from blond.legacy.blond2.beam.beam import Beam
+    from blond.legacy.blond2.beam.profile import Profile
+    from blond.legacy.blond2.impedances.impedance_sources import (
+        Resonators,
+        _ImpedanceObject,
+    )
+    from blond.legacy.blond2.input_parameters.rf_parameters import RFStation
+    from blond.legacy.blond2.utils.types import (
+        BeamProfileDerivativeModes,
+        DeviceType,
+    )
 
     MtwModeTypes = Literal["freq", "time"]
 

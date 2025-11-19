@@ -16,8 +16,8 @@ if TYPE_CHECKING:
     from cupy._core.fusion import _FusionVarArray, _FusionVarScalar
     from numpy import float64
 
-from ..utils import precision
-from . import GPU_DEV
+from blond.legacy.blond2.gpu import GPU_DEV
+from blond.legacy.blond2.utils import precision
 
 # TODO all typing
 

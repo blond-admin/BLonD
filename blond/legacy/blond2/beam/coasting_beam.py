@@ -19,14 +19,14 @@ from typing import TYPE_CHECKING
 import numpy as np
 import numpy.random as rand
 
-from ..utils import exceptions as blond_exceptions
+from blond.legacy.blond2.utils import exceptions as blond_exceptions
 
 if TYPE_CHECKING:
     from typing import Literal, Optional
 
     from numpy.typing import NDArray as NumpyArray
 
-    from .beam import Beam
+    from blond.legacy.blond2.beam.beam import Beam
 
 
 def generate_coasting_beam(

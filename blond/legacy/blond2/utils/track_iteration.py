@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Any, Callable, Iterable, Protocol, Self
 
-    from .types import Trackable
+    from blond.legacy.blond2.utils.types import Trackable
 
     class Predicate(Protocol):
         def __call__(
