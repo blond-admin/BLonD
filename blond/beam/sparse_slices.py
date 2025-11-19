@@ -435,13 +435,27 @@ class _SparseBaseClass:
             Track at initialisation. FALSE by default.
 
         """
+        if (len(_filling_pattern) > rf_station.harmonic).any():
+            raise ValueError(
+                f"The length of filling_pattern does not match exceeds "
+                f"the number of RF buckets"
+            )
+
+        if (len(_filling_pattern) != rf_station.harmonic).any():
+            warnings.warn(
+                f"The filling pattern is shorter than the "
+                f"total number of RF buckets.",
+                UserWarning,
+                stacklevel=2,
+            )
+            #: *Import (reference) Beam*
         self.beam = beam
         self.energy = beam.energy
         self.rf_station = rf_station
 
         self.number_of_slices_per_profile = number_of_slices_per_profile
         self._filling_pattern = _filling_pattern
-        self._number_of_indexes = np.sum(_filling_pattern)
+        self._number_of_indexes = int(np.sum(_filling_pattern))
         self._profile_length_in_buckets = _profile_length_in_buckets
 
         # Index of each batch (-1 if empty). Only for C++ track
