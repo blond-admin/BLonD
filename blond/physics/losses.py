@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:  # pragma: no cover
     pass
 
-from .._core.base import BeamPhysicsRelevant
+from blond._core.base import BeamPhysicsRelevant
 
 
 class LossesBaseClass(BeamPhysicsRelevant):

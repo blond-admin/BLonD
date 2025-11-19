@@ -11,8 +11,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ...._core.backends.backend import Specials, backend
-from ....generals._hashing import hash_in_folder
+from blond._core.backends.backend import Specials, backend
+from blond.generals._hashing import hash_in_folder
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
