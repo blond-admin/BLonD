@@ -74,7 +74,7 @@ class _SparseProfileBaseClass:
         """
         if (len(_filling_pattern) > rf_station.harmonic).any():
             raise ValueError(
-                f"The length of filling_pattern does not match exceeds "
+                f"The length of filling_pattern exceeds "
                 f"the number of RF buckets"
             )
 
