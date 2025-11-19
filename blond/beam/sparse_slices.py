@@ -639,13 +639,18 @@ class _SparseBaseClass:
             else:
                 mask_additional_bunch[i] = 0
         # fixme: injected bunch might be between already considered bunches
-        updated_cut_left = np.zeros(_additional_indexes)
-        updated_cut_right = np.zeros(_additional_indexes)
+
         masked_indexes = np.where(mask_additional_bunch != 0)[0]
-        for i in range(_additional_indexes):
-            bucket_index = masked_indexes[i]
-            updated_cut_left[i] = bucket_index * t_rf
-            updated_cut_right[i] = (bucket_index + 1) * t_rf
+
+        if len(masked_indexes) != _additional_indexes:
+            raise ValueError(
+                "The mask does not reflect the additional indexes"
+            )
+
+        updated_cut_left = masked_indexes * t_rf
+        updated_cut_right = (
+            masked_indexes + self._profile_length_in_buckets
+        ) * t_rf
         self.cut_left_array = np.append(self.cut_left_array, updated_cut_left)
         self.cut_right_array = np.append(
             self.cut_right_array, updated_cut_right
