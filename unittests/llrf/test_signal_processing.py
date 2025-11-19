@@ -21,7 +21,7 @@ from scipy.constants import e
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, Profile
-from blond.beam.sparse_slices import SparseSlices
+from blond.beam.sparse_profiles import _SparseProfileBaseClass
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.llrf.impulse_response import (
@@ -240,12 +240,12 @@ class TestRFCurrentSparse(unittest.TestCase):
             int(bunch_spacing / self.rf.t_rf[0, 0]) * (bunches - 1) + 1
         )
         filling_pattern[:: int(bunch_spacing / self.rf.t_rf[0, 0])] = 1
-        self.sparse_profile = SparseSlices(
+        self.sparse_profile = _SparseProfileBaseClass(
             rf_station=self.rf,
             beam=self.beam_sparse,
-            number_of_slices_per_bucket=int(1000),
-            filling_pattern=filling_pattern,
-            bucket_margin=5,
+            number_of_slices_per_profile=int(1000),
+            _filling_pattern=filling_pattern,
+            _profile_length_in_buckets=5,
             tracker="onebyone",
         )
         self.sparse_profile.track()

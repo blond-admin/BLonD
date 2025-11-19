@@ -25,7 +25,7 @@ import numpy.linalg as npla
 from scipy import signal as sgn
 from scipy.constants import e
 from scipy.special import comb
-from ..beam.sparse_slices import SparseSlices
+from ..beam.sparse_profiles import _SparseProfileBaseClass
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
     from .impulse_response import TravellingWaveCavity
     from ..beam.profile import Profile
-    from ..beam.sparse_slices import SparseSlices
+    from ..beam.sparse_profiles import _SparseProfileBaseClass
 
 logger = logging.getLogger(__name__)
 
@@ -270,7 +270,7 @@ def rf_beam_current(
             )
 
         # Find which index in fine grid matches index in coarse grid
-        if isinstance(profile, SparseSlices):
+        if isinstance(profile, _SparseProfileBaseClass):
             charges_coarse = np.zeros(n_points, dtype=complex)
 
             for profile_per_bucket in profile.profiles_list:
