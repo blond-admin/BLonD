@@ -930,7 +930,9 @@ def potential_well_cut(
     if n_minima == 0:
         # PotentialWellError
         raise RuntimeError("The potential well has no minima...")
-    if n_minima > n_maxima == 1:
+    if 1 == n_maxima < n_minima:
+        # fast pythonic way of handling two compatible comparison. Line
+        # verifies if n_maxima == 1 and is strictly smaller than n_minima
         # PotentialWellError
         raise RuntimeError(
             "The potential well has more minima than maxima, and only one maximum"
