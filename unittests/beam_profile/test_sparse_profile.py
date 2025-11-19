@@ -152,6 +152,24 @@ class testProfileClass(unittest.TestCase):
                 ),
                 self.profile_length_in_buckets,
             )
+
+        with self.assertRaises(TypeError):
+            _SparseProfileBaseClass(
+                self.rf_station,
+                self.beam,
+                self.n_slices_rf,
+                self.filling_pattern,
+                1.5,
+            )
+
+        with self.assertRaises(ValueError):
+            _SparseProfileBaseClass(
+                self.rf_station,
+                self.beam,
+                self.n_slices_rf,
+                self.filling_pattern,
+                int(-5),
+            )
         with self.assertWarns(UserWarning):
             _SparseProfileBaseClass(
                 self.rf_station,

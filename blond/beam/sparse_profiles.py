@@ -74,7 +74,7 @@ class _SparseProfileBaseClass:
         """
         if (len(_filling_pattern) > rf_station.harmonic).any():
             raise ValueError(
-                f"The length of filling_pattern does not match exceeds "
+                f"The length of filling_pattern exceeds "
                 f"the number of RF buckets"
             )
 
@@ -85,9 +85,11 @@ class _SparseProfileBaseClass:
                 UserWarning,
                 stacklevel=2,
             )
-            #: *Import (reference) Beam*
+        if not isinstance(_profile_length_in_buckets, int):
+            raise TypeError(
+                "The profile length should be an integer number of RF buckets."
+            )
         self.beam = beam
-        self.energy = beam.energy
         self.rf_station = rf_station
 
         self.number_of_slices_per_profile = number_of_slices_per_profile
@@ -409,7 +411,7 @@ class _SparseProfileBaseClass:
 
 
 class SparseBucket(_SparseProfileBaseClass):
-    '''
+    """
     *This class instantiates a Profile object for each filled bucket according
     to the provided filling pattern or bunch list.
     Each Profile object will be of the size of an RF bucket and will have the same number of slices.
@@ -429,7 +431,6 @@ class SparseBucket(_SparseProfileBaseClass):
     direct_slicing
         Track at initialisation. FALSE by default.
     """
-    '''
 
     def __init__(
         self,
@@ -468,6 +469,19 @@ class SparseBucket(_SparseProfileBaseClass):
         self,
         updated_bunch_list: list[int],
     ):
+        """
+        Function to update the SparseBucket object to match the new bunch
+        list in the case of newly injected bunches.
+
+        The method creates additional profiles to follow the newly injected
+        bunches, and updated the internal arrays and numbering accordingly.
+
+        Parameters
+        ----------
+        updated_bunch_list
+            Updated bunch list. Must be the same length as the stored bunch
+            list.
+        """
         additional_filled_buckets = self._set_additional_cuts(
             _updated_filling_pattern=updated_bunch_list
         )
@@ -482,6 +496,23 @@ class SparseBatch(_SparseProfileBaseClass):
     to the provided batch list.
     Each Profile object will be of the size of
     a batch and will have the same number of slices.*
+
+    Parameters
+    ----------
+    rf_station
+        RFStation object
+    beam
+        Beam object
+    number_of_slices_per_profile
+        Number of slices per profile
+    batch_list
+        Batch list (or filling pattern) of the synchrotron
+    batch_length
+        Batch length in number of RF buckets.
+    tracker
+        Choice of tracker. Can be "C" or "onebyone".
+    direct_slicing
+        Track at initialisation. FALSE by default.
     """
 
     def __init__(
@@ -534,6 +565,19 @@ class SparseBatch(_SparseProfileBaseClass):
         self,
         updated_batch_list: list[int],
     ):
+        """
+        Function to update the SparseBatch object to match the new batch
+        list in the case of newly injected batches.
+
+        The method creates additional profiles to follow the newly injected
+        batches, and updated the internal arrays and numbering accordingly.
+
+        Parameters
+        ----------
+        updated_batch_list
+            Updated batch list. Must be the same length as the stored batch
+            list.
+        """
         additional_batches = self._set_additional_cuts(
             _updated_filling_pattern=updated_batch_list
         )
