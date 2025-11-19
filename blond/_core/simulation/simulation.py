@@ -51,11 +51,21 @@ if TYPE_CHECKING:  # pragma: no cover
         RingAndRFTracker as Blond2RingAndRFTracker,
     )
 
-    from ...beam_preparation.base import BeamPreparationRoutine
     from ...handle_results.observables import ObservablesEndOfTurnBase
     from ..beam.base import BeamBaseClass
     from ..beam.particle_types import ParticleType
     from ..ring.ring import Ring
+    from blond.beam_preparation.base import BeamPreparationRoutine
+    from blond.interfaces.xsuite.beam_preparation.rfbucket_matching import (
+        XsuiteRFBucketMatcher,
+    )
+    from blond import BiGaussian
+    from blond.experimental.beam_preparation.empiric_matcher import (
+        EmpiricMatcher,
+    )
+    from blond.experimental.beam_preparation.semi_empiric_matcher import (
+        SemiEmpiricMatcher,
+    )
 
 from ...physics.cavities import RfStationBaseClass
 
@@ -809,7 +819,13 @@ class Simulation(Preparable):
     def prepare_beam(
         self,
         beam: BeamBaseClass,
-        preparation_routine: BeamPreparationRoutine,
+        preparation_routine: (
+            BiGaussian
+            | EmpiricMatcher
+            | SemiEmpiricMatcher
+            | XsuiteRFBucketMatcher
+            | BeamPreparationRoutine
+        ),
         turn_i: int = 0,
     ) -> None:
         """Populate the beam's with macroparticles.

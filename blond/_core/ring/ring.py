@@ -182,7 +182,7 @@ class Ring(Preparable, Schedulable):
 
         See Also
         --------
-        `average_transition_gamma`
+        average_transition_gamma
         """
         from ...physics.drifts import DriftBaseClass  # prevent circular import
 
@@ -216,7 +216,7 @@ class Ring(Preparable, Schedulable):
 
         See Also
         --------
-        `average_transition_gamma`
+        average_transition_gamma
         """
         return bool(self.calc_average_eta_0(gamma=beam.reference_gamma) < 0)
 
