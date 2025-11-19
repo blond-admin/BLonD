@@ -495,7 +495,9 @@ class _SparseBaseClass:
         The left cut starts at the bucket index considered and the right cut
         is defined by its distance, in number of RF buckets (input
         length_in_buckets), from the bucket index considered.
+
         This is done as a pre-processing.
+
         Parameters
         ----------
         length_in_buckets
@@ -554,7 +556,8 @@ class _SparseBaseClass:
 
     def _init_general_arrays(self):
         """
-        Method to update the general arrays after a profile update.
+        Method to update the general arrays after a change in the profile
+        list.
         """
         self.n_macroparticles = self.n_macroparticles_array.flatten()
         self.bin_centers = self.bin_centers_array.flatten()
@@ -564,6 +567,10 @@ class _SparseBaseClass:
         )
 
     def _set_tracker(self):
+        """
+        Internal method to handle the tracker choice, and track at
+        initialisation if self.direct_slicing is True.
+        """
         if self.tracker == "C":
             self.track = self._histogram_c
         elif self.tracker == "onebyone":
@@ -610,10 +617,20 @@ class _SparseBaseClass:
         _updated_filling_pattern: NumpyArray,
     ):
         """
-        *Method to update total cut array properties with the new cut
-        options for the additional filled buckets in the updated filling
-        pattern, with the limits being
-        an RF period.*
+        Internal method to update the cut array properties of the Sparse
+        object with new cut_left | Cut_right options around the additional
+        indexes.
+
+        The left cut starts at the bucket index considered and the right cut
+        is defined by its distance, in number of RF buckets (
+        self._profile_length_in_buckets), from the bucket index considered.
+        This is done as a pre-processing.
+
+        Returns
+        ---------
+        _additional_indexes
+            Number of additional indexes to consider for an update of the
+            profile list.
         """
         if len(self._filling_pattern) != len(_updated_filling_pattern):
             raise ValueError(
@@ -663,8 +680,17 @@ class _SparseBaseClass:
         _additional_indexes: int,
     ):
         """
-        *Method to update the total profile lists by creating individual
-        profiles for the newly injected bunches*
+        Internal method to update the profile list with new profile objects
+        for to track the additional indexes.
+
+        Ths method updates the general arrays and matrices accordingly (
+        n_macroparticles, bin_centers).
+
+        Parameters
+        ----------
+        _additional_indexes
+            Number of additional indexes to consider. Provided by the
+            internal method self._set_additional_cuts
         """
 
         # Initialize individual slicing objects
