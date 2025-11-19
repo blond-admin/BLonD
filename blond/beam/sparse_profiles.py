@@ -87,7 +87,6 @@ class _SparseProfileBaseClass:
             )
             #: *Import (reference) Beam*
         self.beam = beam
-        self.energy = beam.energy
         self.rf_station = rf_station
 
         self.number_of_slices_per_profile = number_of_slices_per_profile
