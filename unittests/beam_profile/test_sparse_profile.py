@@ -10,7 +10,7 @@
 """
 **Unit-tests for the self.SparseSlices  class.**
 
-:Authors: **Markus Schwarz**
+:Authors: **Markus Schwarz**, **Lina Valle**
 """
 
 import copy
@@ -26,7 +26,11 @@ import numpy as np
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, Profile
-from blond.beam.sparse_slices import SparseSlices
+from blond.beam.sparse_profiles import (
+    _SparseProfileBaseClass,
+    SparseBucket,
+    SparseBatch,
+)
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 
@@ -102,6 +106,7 @@ class testProfileClass(unittest.TestCase):
 
         self.filling_pattern = np.zeros(bunch_spacing * (n_bunches - 1) + 1)
         self.filling_pattern[::bunch_spacing] = 1
+        self.profile_length_in_buckets = 1
 
         # uniform profile
 
@@ -134,7 +139,7 @@ class testProfileClass(unittest.TestCase):
 
     def test_inputs(self):
         with self.assertRaises(ValueError):
-            SparseSlices(
+            _SparseProfileBaseClass(
                 self.rf_station,
                 self.beam,
                 self.n_slices_rf,
@@ -145,27 +150,33 @@ class testProfileClass(unittest.TestCase):
                     ),
                     axis=0,
                 ),
+                self.profile_length_in_buckets,
             )
         with self.assertWarns(UserWarning):
-            SparseSlices(
+            _SparseProfileBaseClass(
                 self.rf_station,
                 self.beam,
                 self.n_slices_rf,
                 self.filling_pattern,
+                self.profile_length_in_buckets,
             )
 
     def test_WrongTrackingFunction(self):
-        with self.assertRaises(NameError):
-            SparseSlices(
+        with self.assertRaises(RuntimeError):
+            _SparseProfileBaseClass(
                 self.rf_station,
                 self.beam,
                 self.n_slices_rf,
                 self.filling_pattern,
+                self.profile_length_in_buckets,
                 tracker="something horribly wrong",
             )
 
-        nonuniform_profile = SparseSlices(
-            self.rf_station, self.beam, self.n_slices_rf, self.filling_pattern
+        nonuniform_profile = SparseBucket(
+            self.rf_station,
+            self.beam,
+            self.n_slices_rf,
+            self.filling_pattern,
         )
 
         self.assertEqual(
@@ -178,11 +189,12 @@ class testProfileClass(unittest.TestCase):
         rtol = 1e-6  # relative tolerance
         atol = 0  # absolute tolerance
 
-        nonuniform_profile = SparseSlices(
+        nonuniform_profile = _SparseProfileBaseClass(
             self.rf_station,
             self.beam,
             self.n_slices_rf,
             self.filling_pattern,
+            self.profile_length_in_buckets,
             tracker="onebyone",
             direct_slicing=True,
         )
@@ -218,11 +230,12 @@ class testProfileClass(unittest.TestCase):
         rtol = 1e-6  # relative tolerance
         atol = 0  # absolute tolerance
 
-        nonuniform_profile = SparseSlices(
+        nonuniform_profile = _SparseProfileBaseClass(
             self.rf_station,
             self.beam,
             self.n_slices_rf,
             self.filling_pattern,
+            self.profile_length_in_buckets,
             tracker="C",
             direct_slicing=True,
         )
@@ -255,96 +268,105 @@ class testProfileClass(unittest.TestCase):
             )
 
     def test_set_additional_cuts(self):
-        filling_pattern = np.array([0, 1, 0, 0, 0])
-        updated_filling_pattern = np.array([0, 1, 0, 1, 0])
-        sparse_profile = SparseSlices(
-            self.rf_station, self.beam, self.n_slices_rf, filling_pattern
+        updated_filling_pattern = np.array([1, 1, 0, 0, 0, 1])
+        sparse_profile = _SparseProfileBaseClass(
+            self.rf_station,
+            self.beam,
+            self.n_slices_rf,
+            self.filling_pattern,
+            self.profile_length_in_buckets,
         )
 
-        sparse_profile_temoin = SparseSlices(
+        sparse_profile_temoin = _SparseProfileBaseClass(
             self.rf_station,
             self.beam,
             self.n_slices_rf,
             updated_filling_pattern,
+            self.profile_length_in_buckets,
         )
 
         with self.assertRaises(ValueError):
             sparse_profile._set_additional_cuts(
-                updated_filling_pattern=np.ones(
-                    len(sparse_profile.filling_pattern) + 1
+                _updated_filling_pattern=np.ones(
+                    len(sparse_profile._filling_pattern) + 1
                 )
             )
 
         additional_filled_buckets = sparse_profile._set_additional_cuts(
-            updated_filling_pattern=updated_filling_pattern
+            _updated_filling_pattern=updated_filling_pattern
         )
 
         np.testing.assert_equal(
             additional_filled_buckets, 1, err_msg="Expected 1"
         )
         np.testing.assert_equal(
-            sparse_profile.filling_pattern,
+            sparse_profile._filling_pattern,
             updated_filling_pattern,
         )
         np.testing.assert_equal(
-            sparse_profile.cut_left_array,
+            np.sort(sparse_profile.cut_left_array),
             sparse_profile_temoin.cut_left_array,
         )
         np.testing.assert_equal(
-            sparse_profile.cut_right_array,
+            np.sort(sparse_profile.cut_right_array),
             sparse_profile_temoin.cut_right_array,
         )
 
     def test_update_profile_lists(self):
-        filling_pattern = np.array([0, 1, 0, 0, 0])
-        updated_filling_pattern = np.array([0, 1, 0, 1, 0])
-        sparse_profile = SparseSlices(
-            self.rf_station, self.beam, self.n_slices_rf, filling_pattern
+        updated_filling_pattern = np.array([1, 1, 0, 0, 0, 1])
+        sparse_profile = _SparseProfileBaseClass(
+            self.rf_station,
+            self.beam,
+            self.n_slices_rf,
+            self.filling_pattern,
+            self.profile_length_in_buckets,
         )
 
-        sparse_profile_temoin = SparseSlices(
+        sparse_profile_temoin = _SparseProfileBaseClass(
             self.rf_station,
             self.beam,
             self.n_slices_rf,
             updated_filling_pattern,
+            self.profile_length_in_buckets,
         )
 
         additional_filled_buckets = sparse_profile._set_additional_cuts(
-            updated_filling_pattern=updated_filling_pattern
+            _updated_filling_pattern=updated_filling_pattern
         )
 
         sparse_profile._update_profile_lists(
-            additional_filled_buckets=additional_filled_buckets
+            _additional_indexes=additional_filled_buckets
         )
 
         np.testing.assert_equal(
-            sparse_profile.n_macroparticles_array,
-            sparse_profile_temoin.n_macroparticles_array,
+            sparse_profile.n_macroparticles_array[0],
+            sparse_profile_temoin.n_macroparticles_array[0],
         )
 
         np.testing.assert_equal(
-            sparse_profile.bin_centers_array,
-            sparse_profile_temoin.bin_centers_array,
+            sparse_profile.n_macroparticles_array[1],
+            sparse_profile_temoin.n_macroparticles_array[-1],
         )
 
         np.testing.assert_equal(
-            sparse_profile.n_filled_buckets,
-            sparse_profile_temoin.n_filled_buckets,
+            sparse_profile.bin_centers_array[0],
+            sparse_profile_temoin.bin_centers_array[0],
         )
 
         np.testing.assert_equal(
-            sparse_profile.n_filled_buckets,
-            sparse_profile_temoin.n_filled_buckets,
+            sparse_profile.bin_centers_array[1],
+            sparse_profile_temoin.bin_centers_array[-1],
         )
 
         np.testing.assert_equal(
-            sparse_profile.n_sliced_buckets,
-            sparse_profile_temoin.n_sliced_buckets,
+            sparse_profile._number_of_indexes,
+            sparse_profile_temoin._number_of_indexes,
         )
+
         # from _update_general_arrays()
         np.testing.assert_equal(
-            sparse_profile.n_macroparticles,
-            sparse_profile_temoin.n_macroparticles,
+            np.sort(sparse_profile.n_macroparticles),
+            np.sort(sparse_profile_temoin.n_macroparticles),
         )
 
         np.testing.assert_equal(
@@ -353,42 +375,103 @@ class testProfileClass(unittest.TestCase):
         )
 
         np.testing.assert_equal(
-            sparse_profile.bunch_indexes,
-            sparse_profile_temoin.bunch_indexes,
+            sparse_profile._bucket_indexes,
+            sparse_profile_temoin._bucket_indexes,
         )
 
         np.testing.assert_equal(
-            sparse_profile.bin_centers,
-            sparse_profile_temoin.bin_centers,
+            np.sort(sparse_profile.bin_centers),
+            np.sort(sparse_profile_temoin.bin_centers),
         )
 
-        sparse_profile.n_filled_buckets += 1
+        sparse_profile._number_of_indexes += 1
         with self.assertRaises(ValueError):
             sparse_profile._update_general_arrays()
 
-    def test_update_filling_pattern(self):
-        sparse_profile = SparseSlices(
+    def test_properties_SparseBucket(self):
+        sparse_profile = SparseBucket(
             self.rf_station,
             self.beam,
             self.n_slices_rf,
             np.array([0, 1, 0, 0, 0]),
         )
-        sparse_profile_temoin = copy.deepcopy(sparse_profile)
-        with self.assertRaises(ValueError):
-            sparse_profile.update_filling_pattern(
-                updated_filling_pattern=np.ones(
-                    len(sparse_profile.filling_pattern) + 1
-                )
-            )
-
-        updated_filling_patttern = np.array([0, 1, 0, 1, 0])
-        sparse_profile.update_filling_pattern(
-            updated_filling_pattern=updated_filling_patttern
+        np.testing.assert_equal(
+            sparse_profile.bunch_list,
+            np.array([0, 1, 0, 0, 0]),
         )
 
         np.testing.assert_equal(
-            updated_filling_patttern, sparse_profile.filling_pattern
+            sparse_profile.total_number_of_filled_buckets,
+            1,
         )
+
+        np.testing.assert_equal(
+            sparse_profile.bunch_indexes,
+            np.array([-1, 0, -1, -1, -1]),
+        )
+
+        # testing the update_bunch_list function
+        with self.assertRaises(ValueError):
+            sparse_profile.update_bunch_list(
+                updated_bunch_list=np.ones(
+                    len(sparse_profile._filling_pattern) + 1
+                )
+            )
+        updated_bunch_list = np.array([0, 1, 0, 1, 0])
+        sparse_profile.update_bunch_list(updated_bunch_list=updated_bunch_list)
+
+        np.testing.assert_equal(updated_bunch_list, sparse_profile.bunch_list)
+
+    def test_properties_SparseBatch(self):
+        sparse_profile = SparseBatch(
+            self.rf_station,
+            self.beam,
+            self.n_slices_rf,
+            np.array([0, 1, 0, 0, 0]),
+            self.profile_length_in_buckets * 2,
+        )
+
+        np.testing.assert_equal(
+            sparse_profile.batch_list,
+            np.array([0, 1, 0, 0, 0]),
+        )
+
+        np.testing.assert_equal(
+            sparse_profile.number_of_slices_per_bucket,
+            self.n_slices_rf / 2,
+        )
+        np.testing.assert_equal(
+            sparse_profile.total_number_of_batches,
+            1,
+        )
+
+        np.testing.assert_equal(
+            sparse_profile.total_number_of_sliced_buckets,
+            2,
+        )
+
+        np.testing.assert_equal(
+            sparse_profile.batch_length,
+            2,
+        )
+
+        np.testing.assert_equal(
+            sparse_profile.batch_indexes,
+            np.array([-1, 0, -1, -1, -1]),
+        )
+
+        # testing the updated_batch_list function
+
+        with self.assertRaises(ValueError):
+            sparse_profile.update_batch_list(
+                updated_batch_list=np.ones(
+                    len(sparse_profile._filling_pattern) + 1
+                )
+            )
+        updated_batch_list = np.array([0, 1, 0, 1, 0])
+        sparse_profile.update_batch_list(updated_batch_list=updated_batch_list)
+
+        np.testing.assert_equal(updated_batch_list, sparse_profile.batch_list)
 
 
 if __name__ == "__main__":

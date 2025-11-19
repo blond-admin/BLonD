@@ -83,5 +83,7 @@ __new_by_old = {
     "CavityFeedback": "cavity_feedback",
     "smoothOption": "smooth_option",
     "timeArray": "time_array",
+    "n_slices_bucket": "number_of_slices_per_bucket",
+    "SparseSlices": "SparseBucket",
 }
 handle_legacy_kwargs = _handle_legacy_kwargs(__new_by_old)
