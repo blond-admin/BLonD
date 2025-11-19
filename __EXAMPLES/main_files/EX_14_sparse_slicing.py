@@ -24,7 +24,7 @@ from scipy.constants import c, e, m_e
 
 from blond.beam.beam import Beam, Electron
 from blond.beam.distributions import matched_from_distribution_function
-from blond.beam.sparse_profiles import SparseBucket as SparseSlices
+from blond.beam.sparse_profiles import SparseBucket
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker
@@ -127,7 +127,7 @@ for i in range(int(np.sum(filling_pattern))):
     ] += bucket_length * np.where(filling_pattern)[0][i]
 
 
-slice_beam = SparseSlices(RF_sct_par, beam, n_slices, filling_pattern)
+slice_beam = SparseBucket(RF_sct_par, beam, n_slices, filling_pattern)
 
 t0 = time.time()
 slice_beam.track()
@@ -145,7 +145,7 @@ for i in range(int(np.sum(filling_pattern))):
     slice_beam.profiles_list[i].n_macroparticles *= 0
 
 
-slice_beam = SparseSlices(
+slice_beam = SparseBucket(
     RF_sct_par, beam, n_slices, filling_pattern, tracker="onebyone"
 )
 
