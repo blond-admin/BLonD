@@ -22,7 +22,7 @@ class Specials(ABC):
     """Abstract listing of functions that need implementation for a new backend."""
 
     @staticmethod
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def loss_box(
         top: float,
         bottom: float,
