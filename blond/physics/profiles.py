@@ -15,9 +15,9 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .._core.backends.backend import backend
-from .._core.base import BeamPhysicsRelevant, HasPropertyCache
-from .._core.helpers import int_from_float_with_warning
+from blond._core.backends.backend import backend
+from blond._core.base import BeamPhysicsRelevant, HasPropertyCache
+from blond._core.helpers import int_from_float_with_warning
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -25,8 +25,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
-    from .._core.beam.base import BeamBaseClass
-    from .._core.simulation.simulation import Simulation
+    from blond._core.beam.base import BeamBaseClass
+    from blond._core.simulation.simulation import Simulation
 
 
 class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
@@ -184,9 +184,9 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         return backend.average(self._hist_x, weights=self._hist_y)
 
     def sigma_weighted_avg_dt(self) -> float:
-        """Bunch length (1σ), in [s].
+        r"""Bunch length (:math:`1 \sigma`), in [s].
 
-        Calculates the 1-σ bunch length by
+        Calculates the :math:`1 \sigma` bunch length by
         determining the std about the weighted average
         calculated as in `weighted_avg_dt`.
         """

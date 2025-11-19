@@ -2,7 +2,7 @@
 
 Authors
 -------
-§
+Leonard Thiele, Simon Lauber
 """
 
 from os import PathLike
