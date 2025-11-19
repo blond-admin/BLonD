@@ -35,4 +35,5 @@ from .physics.cavities import (  # NOQA
 )
 from .physics.drifts import DriftSimple  # NOQA
 from .physics.impedances.base import WakeField  # NOQA
+from .physics.losses import BoxLosses  # NOQA
 from .physics.profiles import StaticProfile  # NOQA
