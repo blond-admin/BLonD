@@ -25,7 +25,7 @@ from scipy.constants import c, e, m_e
 
 from blond.beam.beam import Beam, Electron
 from blond.beam.distributions import matched_from_distribution_function
-from blond.beam.sparse_slices import SparseSlices
+from blond.beam.sparse_profiles import SparseBucket as SparseSlices
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.trackers.tracker import FullRingAndRF, RingAndRFTracker

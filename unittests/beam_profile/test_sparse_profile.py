@@ -26,7 +26,7 @@ import numpy as np
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, Profile
-from blond.beam.sparse_slices import (
+from blond.beam.sparse_profiles import (
     _SparseBaseClass,
     SparseBucket,
     SparseBatch,
