@@ -154,14 +154,14 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         self._ring: Ring | None = None
 
         # TODO MOVE
-        self._omega_rf: NumpyArray | None = None
-        self.delta_omega_rf = 0.0
-        self._t_rf: float | None = None
+        self._omega_rf: NumpyArray | float | None = None
+        self.delta_omega_rf: NumpyArray | float | None = None
+        self._t_rf: NumpyArray | float | None = None
         self._t_rev: float | None = None
-        self.voltage: NumpyArray | None = None
-        self.phi_rf: NumpyArray | None = None
-        self.harmonic: NumpyArray | None = None
-        self.phi_s: NumpyArray | None = None
+        self.voltage: NumpyArray | float | None = None
+        self.phi_rf: NumpyArray | float | None = None
+        self.harmonic: NumpyArray | float | None = None
+        self.phi_s: float | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called.
@@ -210,12 +210,31 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         pass
 
     @abstractmethod  # pragma: no cover
-    def get_main_harmonic_omega_rf(
+    def calc_main_harmonic_omega_rf(
         self,
         beam_beta: float,
         ring_circumference: float,
     ) -> float:
+        """Calculates the omega_rf of the main harmonic, in [rad/s]."""
+        pass
+
+    @abstractmethod  # pragma: no cover
+    def get_main_harmonic_omega_rf_current(self) -> float:
         """Returns the omega_rf of the main harmonic, in [rad/s]."""
+        pass
+
+    @abstractmethod  # pragma: no cover
+    def calc_main_harmonic_t_rf(
+        self,
+        beam_beta: float,
+        ring_circumference: float,
+    ) -> float:
+        """Calculates the t_rf of the main harmonic."""
+        pass
+
+    @abstractmethod  # pragma: no cover
+    def get_main_harmonic_t_rf_current(self) -> float:
+        """Returns the current t_rf of the main harmonic."""
         pass
 
     def calc_phi_s_single_harmonic(self, beam: BeamBaseClass) -> float:
@@ -255,8 +274,8 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         assert self.phi_rf is not None
         phi_s = calc_phi_s_single_harmonic(
             charge=beam.particle_type.charge,
-            voltage=float(self.voltage),
-            phase=float(self.phi_rf),
+            voltage=float(self.get_main_harmonic_voltage()),
+            phase=float(self.get_main_harmonic_phi_rf()),
             energy_gain=reference_energy_change,
             above_transition=beam.reference_gamma
             > self._ring.average_transition_gamma,
@@ -302,14 +321,15 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
             self.delta_omega_rf = omega_increment
         # Update the RF phase of all systems for the next turn
         # Accumulated phase offset due to beam phase loop or frequency offset
-        if self.delta_omega_rf != 0:
+        if np.any(self.delta_omega_rf != 0):
             assert self.harmonic is not None
             assert self._omega_rf is not None
+            assert self.delta_omega_rf is not None
             phi_increment = (
                 2.0
                 * np.pi
                 * self.harmonic[:]
-                * (self.delta_omega_rf)
+                * self.delta_omega_rf
                 / self._omega_rf[:]
             )
 
@@ -443,6 +463,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         self.phi_rf: float | None = phi_rf
         self.harmonic: float | None = harmonic
         self.delta_phi_rf: float = 0.0
+        self.delta_omega_rf: float = 0.0
 
     def get_main_harmonic(self) -> float:
         """Returns the harmonic number of the main harmonic."""
@@ -456,7 +477,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         """Returns the phi_rf of the main harmonic, in [rad]."""
         return self.phi_rf
 
-    def get_main_harmonic_omega_rf(
+    def calc_main_harmonic_omega_rf(
         self,
         beam_beta: float,
         ring_circumference: float,
@@ -465,6 +486,24 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         return self.calc_omega(
             beam_beta=beam_beta,
             ring_circumference=ring_circumference,
+        )
+
+    def get_main_harmonic_omega_rf_current(self) -> float:
+        """Returns the omega_rf of the main harmonic, in [rad/s]."""
+        return self._omega_rf
+
+    def get_main_harmonic_t_rf_current(
+        self,
+    ) -> float:
+        """Returns the t_rf of the main harmonic, in [s]."""
+        return (2 * np.pi) / self.get_main_harmonic_omega_rf_current()
+
+    def calc_main_harmonic_t_rf(
+        self, beam_beta: float, ring_circumference: float
+    ) -> float:
+        """Returns the t_rf of the main harmonic, in [s]."""
+        return (2 * np.pi) / self.calc_main_harmonic_omega_rf(
+            beam_beta, ring_circumference
         )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -622,15 +661,15 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         from .._core.simulation.simulation import Simulation
         from ..cycles.magnetic_cycle import ConstantMagneticCycle
 
-        mhc = SingleHarmonicRfStation(
+        shc = SingleHarmonicRfStation(
             section_index=section_index,
             local_wakefield=local_wakefield,
             cavity_feedback=cavity_feedback,
         )
 
-        mhc.voltage = voltage
-        mhc.phi_rf = phi_rf
-        mhc.harmonic = harmonic
+        shc.voltage = voltage
+        shc.phi_rf = phi_rf
+        shc.harmonic = harmonic
 
         ring = Mock(Ring)
         ring.circumference = circumference
@@ -644,14 +683,14 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         simulation.turn_i = Mock(DynamicParameter)
         simulation.turn_i.value = 0
 
-        mhc.on_init_simulation(simulation=simulation)
-        mhc.on_run_simulation(
+        shc.on_init_simulation(simulation=simulation)
+        shc.on_run_simulation(
             simulation=simulation,
             n_turns=1,
             turn_i_init=simulation.turn_i.value,
             beam=Mock(BeamBaseClass),
         )
-        return mhc
+        return shc
 
 
 class MultiHarmonicRfStation(RfStationBaseClass):
@@ -685,6 +724,9 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         self,
         n_harmonics: int,
         main_harmonic_idx: int,
+        voltage: NumpyArray | None = None,
+        phi_rf: NumpyArray | None = None,
+        harmonic: NumpyArray | None = None,
         section_index: int = 0,
         local_wakefield: WakeField | None = None,
         cavity_feedback: tuple[LocalFeedback, ...] | None = None,
@@ -706,10 +748,28 @@ class MultiHarmonicRfStation(RfStationBaseClass):
 
         self.main_harmonic_idx = main_harmonic_idx
 
-        self.voltage: NumpyArray | None = None
-        self.phi_rf: NumpyArray | None = None
-        self.harmonic: NumpyArray | None = None
-        self.delta_phi_rf: NumpyArray | None = backend.zeros(1)  # TODO
+        self.voltage: NumpyArray | None = voltage
+        self.phi_rf: NumpyArray | None = phi_rf
+        self.harmonic: NumpyArray | None = harmonic
+
+        for array_name, input_array in (
+            ("voltage", voltage),
+            ("phi_rf", phi_rf),
+            ("harmonic", harmonic),
+        ):
+            if input_array is not None and len(input_array) != n_harmonics:
+                raise ValueError(
+                    f"Length of input array must be equal to {n_harmonics=}, "
+                    f"but {array_name} had the length {len(input_array)}"
+                )
+
+        assert main_harmonic_idx < n_harmonics, (
+            f"main_harmonic_index was {main_harmonic_idx}, "
+            f"but needs to be smaller than {n_harmonics}"
+        )
+
+        self.delta_phi_rf: NumpyArray | None = backend.zeros(n_harmonics)
+        self.delta_omega_rf: NumpyArray | None = backend.zeros(n_harmonics)
 
         self._t_rf: NumpyArray | None = None
         self._t_rev: float | None = None
@@ -743,10 +803,10 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             ring_circumference=self._ring.circumference,
         )
 
-        self._t_rf = (2 * np.pi) / self._omega_rf
+        self._t_rf = 2 * np.pi / self._omega_rf
         self._t_rev = (
-            self._t_rf[0] * self.harmonic[0]
-        )  # todo this should be main harmonic idx??
+            self.get_main_harmonic_t_rf_current() * self.get_main_harmonic()
+        )
         try:
             self.phi_s = self.calc_phi_s_single_harmonic(beam=beam)
         except Exception as exc:
@@ -787,7 +847,11 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         """Returns the phi_rf of the main harmonic, in [rad]."""
         return self.phi_rf[self.main_harmonic_idx]
 
-    def get_main_harmonic_omega_rf(
+    def get_main_harmonic_omega_rf_current(self) -> float:
+        """Returns the omega_rf of the main harmonic, in [rad/s]."""
+        return self._omega_rf[self.main_harmonic_idx]
+
+    def calc_main_harmonic_omega_rf(
         self, beam_beta: float, ring_circumference: float
     ) -> float:
         """Returns the omega_rf of the main harmonic, in [rad/s]."""
@@ -795,6 +859,20 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             beam_beta=beam_beta,
             ring_circumference=ring_circumference,
         )[self.main_harmonic_idx]
+
+    def get_main_harmonic_t_rf_current(
+        self,
+    ) -> float:
+        """Returns the t_rf of the main harmonic, in [s]."""
+        return (2 * np.pi) / self.get_main_harmonic_omega_rf_current()
+
+    def calc_main_harmonic_t_rf(
+        self, beam_beta: float, ring_circumference: float
+    ) -> float:
+        """Returns the t_rf of the main harmonic, in [s]."""
+        return (2 * np.pi) / self.calc_main_harmonic_omega_rf(
+            beam_beta, ring_circumference
+        )
 
     def voltage_waveform_tmp(self, ts: NumpyArray):  # pragma: no cover
         """Calculate voltage of cavity for current turn.
@@ -831,7 +909,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         harmonic: NumpyArray,
         circumference: float,
         total_energy: float,
-        main_harmonic_idx: float,
+        main_harmonic_idx: int,
         reference_beta: float,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
@@ -868,6 +946,9 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         from ..cycles.magnetic_cycle import ConstantMagneticCycle
 
         mhc = MultiHarmonicRfStation(
+            harmonic=np.array(harmonic, dtype=backend.float),
+            voltage=np.array(voltage, dtype=backend.float),
+            phi_rf=np.array(phi_rf, dtype=backend.float),
             n_harmonics=len(voltage),
             section_index=section_index,
             local_wakefield=local_wakefield,
@@ -875,10 +956,6 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             beam_feedback=beam_feedback,
             main_harmonic_idx=main_harmonic_idx,
         )
-
-        mhc.voltage = voltage
-        mhc.phi_rf = phi_rf
-        mhc.harmonic = harmonic
 
         ring = Mock(Ring)
         ring.circumference = circumference

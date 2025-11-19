@@ -117,7 +117,7 @@ The function returns a 3-tuple:
 API Reference
 -------------
 
-.. autofunction:: blond._core.simulation.simulation.Simulation.get_potential_well_empiric
+:func:`Simulation.get_potential_well_empiric`
 
 ---
 
