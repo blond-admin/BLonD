@@ -151,7 +151,6 @@ def reload_cuda_backend(
             n_rf: int,
             acceleration_kick: float,
         ) -> None:
-            print(locals())
             assert dt.dtype == floattype
             assert dE.dtype == floattype
             assert phi_rf.dtype == floattype

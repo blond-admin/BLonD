@@ -39,7 +39,7 @@ os.environ["SPHINX_SHOW_WARNING_TYPES"] = "1"  # force categories in output
 folder = os.path.abspath("modules")
 sys.path.insert(0, folder)
 extensions = [
-    # "sphinx.ext.autodoc",
+    "sphinx.ext.autodoc",
     # "sphinx.ext.autosummary",
     #    "sphinx.ext.doctest",
     #    "sphinx.ext.intersphinx",
@@ -134,6 +134,10 @@ pygments_style = "sphinx"
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 # todo_include_todos = True
 
+autodoc_member_order = "bysource"
+autodoc_preserve_defaults = True  # optional
+# autodoc_inherit_docstrings = False
+autodoc_typehints = "signature"  # or 'description'
 
 # -- Options for HTML output ----------------------------------------------
 
@@ -241,38 +245,12 @@ html_css_files = ["css/wide.css"]
 
 autodoc_default_options = {
     # Avoid pulling in names that are only imported into __init__.py
-    "imported-members": False,
+    # "imported-members": False,  # breaks import location
+    "show-inheritance": True,
+    "no-imported-members": True,
 }
 
 show_warning_types = True
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {"https://docs.python.org/": None}
-
-
-# This section checks if a system module has been reported already
-_seen_targets = set()
-
-
-def _fqname_for(obj, name):
-    # Build a stable fully-qualified name for indexing decisions
-    mod = getattr(obj, "__module__", "") or ""
-    qual = getattr(obj, "__qualname__", "") or name
-    return f"{mod}.{qual}"
-
-
-def autodoc_skip_if_duplicate(app, what, name, obj, skip, options):
-    fq = _fqname_for(obj, name)
-
-    # only treat as duplicate if we've already seen the exact fqname.
-    if fq in _seen_targets:
-        return (
-            True  # skip this duplicate -> prevents duplicate-object warnings
-        )
-
-    _seen_targets.add(fq)
-    return skip  # keep default decision for the first time we see it
-
-
-def setup(app):
-    app.connect("autodoc-skip-member", autodoc_skip_if_duplicate)

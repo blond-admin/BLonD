@@ -14,8 +14,6 @@ from blond import (
     Ring,
     Simulation,
     SingleHarmonicRfStation,
-    StaticProfile,
-    backend,
     mu_plus,
     proton,
 )
