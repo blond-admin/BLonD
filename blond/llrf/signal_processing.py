@@ -25,7 +25,7 @@ import numpy.linalg as npla
 from scipy import signal as sgn
 from scipy.constants import e
 from scipy.special import comb
-from ..beam.sparse_profiles import _SparseProfileBaseClass
+from ..beam.sparse_profiles import SparseBatch, SparseBucket
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
     from .impulse_response import TravellingWaveCavity
     from ..beam.profile import Profile
-    from ..beam.sparse_profiles import _SparseProfileBaseClass
+    from ..beam.sparse_profiles import SparseBatch
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +155,7 @@ def modulator(
 
 @handle_legacy_kwargs
 def rf_beam_current(
-    profile: Profile | SparseSlices,
+    profile: Profile | SparseBatch,
     omega_c: float,
     T_rev: float,
     lpf: bool = True,
@@ -198,7 +198,10 @@ def rf_beam_current(
     Parameters
     ----------
     profile : class
-        A Profile type class or a SparseSlices class
+        A Profile type class or a SparseBatch class.
+        #todo: understand the discrepancy with SparseBucket
+        N.B.: the results are not working for the SparseBucket class at the
+        moment.
     omega_c : float
         Revolution frequency [1/s] at which the current should be calculated
     T_rev : float
@@ -224,7 +227,6 @@ def rf_beam_current(
         on the coarse time grid
 
     """
-
     # Convert from dimensionless to Coulomb/Ampères
     # Take into account macro-particle charge with real-to-macro-particle ratio
     charges = (
@@ -270,7 +272,7 @@ def rf_beam_current(
             )
 
         # Find which index in fine grid matches index in coarse grid
-        if isinstance(profile, _SparseProfileBaseClass):
+        if isinstance(profile, SparseBatch):
             charges_coarse = np.zeros(n_points, dtype=complex)
 
             for profile_per_bucket in profile.profiles_list:
@@ -291,7 +293,7 @@ def rf_beam_current(
                         charges_fine[np.arange(indices[i - 1], indices[i])]
                     )
 
-        else:
+        elif isinstance(profile, Profile):
             ind_fine = np.round(
                 (profile.bin_centers + dT - np.pi / omega_c) / T_s
             )
@@ -307,7 +309,8 @@ def rf_beam_current(
                 charges_coarse[i + ind_fine[0]] = np.sum(
                     charges_fine[np.arange(indices[i - 1], indices[i])]
                 )
-
+        else:
+            raise TypeError(f"Profile type {type(profile)} not supported.")
         return charges_fine, charges_coarse
 
     else:
