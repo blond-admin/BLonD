@@ -234,10 +234,15 @@ class Beam(BeamBaseClass):
 
     @cached_property
     def common_array_size(self) -> int:
-        """Total number of macro-particles in the beam.
+        """Total number of macro-particles in the beam regardless of `flags` state.
 
         This property returns the size of the particle arrays (`dt`, `dE`, `flags`).
         For distributed beams, this accounts for particles across all processes.
+
+        Notes
+        -----
+        Particles that are labeled LOST will be nevertheless counted,
+        as they still exist in the array.
 
         Returns
         -------

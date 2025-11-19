@@ -34,6 +34,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond import (
         SingleHarmonicRfStation,
     )
+
     from blond.legacy.blond2.beam.beam import Beam as Blond2Beam
     from blond.legacy.blond2.beam.profile import Profile as Blond2Profile
     from blond.legacy.blond2.impedances.impedance import (
@@ -854,16 +855,25 @@ class Simulation(Preparable):
         ... )
 
         Use a more advanced Hamiltonian-based matcher:
-
         >>> from blond.experimental.beam_preparation.semi_empiric_matcher import SemiEmpiricMatcher
-        >>> sim.prepare_beam(
-        ...     beam=beam1,
-        ...     preparation_routine=SemiEmpiricMatcher(
-        ...         hamilton_max=1e-6,
-        ...         n_macroparticles=1e6,
-        ...         seed=0,
+        >>> # Define matching routine with typical parameters
+        >>> matcher = SemiEmpiricMatcher(
+        ...     time_limit=(-2e-9, 2e-9),              # Time window around bunch [s]
+        ...     n_macroparticles=100_000,              # Number of macro-particles
+        ...     hamilton_to_density_kwargs=dict(
+        ...         density_modifier=2.0,              # Controls density profile sharpness
+        ...         hamilton_max=1.0                   # Hamiltonian cutoff [eV]
         ...     ),
+        ...     internal_grid_shape=(1023, 1023),      # Resolution of phase space grid
+        ...     tolerance=1e-6,                        # Convergence threshold
+        ...     maxiter_intensity_effects=100,         # Max iterations with wakefields
+        ...     increment_intensity_effects_until_iteration_i=10,  # Intensity ramp-up steps
+        ...     seed=42,                               # For reproducibility
+        ...     verbose=True,                          # Print convergence info
+        ...     animate=False,                         # Set True for live plotting
         ... )
+        >>> # Perform beam matching
+        >>> matcher.prepare_beam(sim, beam)
 
         Notes
         -----
