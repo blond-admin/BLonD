@@ -7,7 +7,7 @@ import cupy as cp  # type: ignore
 import numpy as np
 
 from ...._core.backends.backend import Specials, backend
-from ...._generals._hashing import hash_in_folder
+from ....generals._hashing import hash_in_folder
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -34,7 +34,10 @@ def reload_cuda_backend(
             _basepath,
             f"kernels_sm_{_compute_capability}_single.cubin",
         )
-        assert os.path.isfile(path), f"{path=}"
+        if not os.path.isfile(path):
+            raise FileNotFoundError(
+                f"The compiled CUDA backend was notfound at {path=}"
+            )
         gpu_module = cp.RawModule(
             path=path,
         )
@@ -43,7 +46,10 @@ def reload_cuda_backend(
             _basepath,
             f"kernels_sm_{_compute_capability}_double.cubin",
         )
-        assert os.path.isfile(path), f"{path=}"
+        if not os.path.isfile(path):
+            raise FileNotFoundError(
+                f"The compiled CUDA backend was notfound at {path=}"
+            )
         gpu_module = cp.RawModule(
             path=path,
         )
@@ -117,7 +123,6 @@ def reload_cuda_backend(
             n_rf: int,
             acceleration_kick: float,
         ) -> None:
-            print(locals())
             assert dt.dtype == floattype
             assert dE.dtype == floattype
             assert phi_rf.dtype == floattype
@@ -348,6 +353,33 @@ def reload_cuda_backend(
                 shared_mem=2 * block_size[0] * np.dtype(floattype).itemsize,
             )
             return floattype(result[0].get() / result[1].get())
+
+        @staticmethod
+        def move_flagged_elements_to_end(
+            flag: int,
+            flags: CupyArray,
+            dt: CupyArray,
+            dE: CupyArray,
+            ids: CupyArray,
+        ):
+            # TODO write a kernel that works with gpu kernels
+            #  to have a smaller memory footprint.
+            flag = np.int32(flag)
+            assert flags.dtype == np.int32
+            assert dt.dtype == backend.float
+            assert dE.dtype == backend.float
+            assert ids.dtype == backend.int
+
+            select = flags == flag
+            order = cp.argsort(select)
+
+            flags[:] = flags[order]
+            dt[:] = dt[order]
+            dE[:] = dE[order]
+            ids[:] = ids[order]
+
+            n_new = len(ids) - cp.sum(select)
+            return n_new
 
     return CudaSpecials
 

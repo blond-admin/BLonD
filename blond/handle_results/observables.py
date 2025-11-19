@@ -28,8 +28,8 @@ class ObservablesBaseClass(MainLoopRelevant):
         super().__init__(**kwargs)
         if len(folder) > 0:
             assert folder.endswith("/") or folder.endswith("\\")
-        self.common_name = folder + "last"
-        logger.info(f"Will save {self} to {self.common_name}_,,,")
+        self.common_filepath = folder + "last"
+        logger.info(f"Will save {self} to {self.common_filepath}_,,,")
 
     def get_recorders(self) -> list[tuple[str, DenseArrayRecorder]]:
         self.assert_lateinit()
@@ -40,7 +40,7 @@ class ObservablesBaseClass(MainLoopRelevant):
         ]
         return recorders
 
-    def rename(self, common_name: str) -> None:
+    def rename(self, new_common_filepath: str) -> None:
         """Change the common save name of all internal arrays.
 
         Notes
@@ -49,23 +49,27 @@ class ObservablesBaseClass(MainLoopRelevant):
 
         Parameters
         ----------
-        common_name
+        new_common_filepath
             The new common name of all internal arrays.
 
         """
+        old_common_filepath = self.common_filepath
         for _attribute_name, instance in self.get_recorders():
-            if self.common_name not in instance.filepath:
+            if old_common_filepath not in instance.filepath:
+                # it would not make sense to replace the old filepath
                 raise NameError(
-                    f"'{instance.filepath} does not include"
-                    f" {self.common_name}' anymore. This might be caused"
+                    f"{instance.filepath} does not include"
+                    f" {old_common_filepath} anymore. This might be caused"
                     f" by a manual override of the filename."
                 )
             instance.filepath = instance.filepath.replace(
-                self.common_name,
-                common_name,
+                old_common_filepath,
+                new_common_filepath,
             )
-        self.common_name = common_name
-        logger.info(f"Changed save target of {self} to {self.common_name}_,,,")
+        self.common_filepath = new_common_filepath
+        logger.info(
+            f"Changed save target of {self} to {self.common_filepath}."
+        )
 
     def to_disk(self) -> None:
         """Save data to disk."""
@@ -220,11 +224,10 @@ class ObservablesEndOfTurnBase(ObservablesBaseClass):
             )
             / simulation.ring.circumference
         )
-        self._turns_array = np.zeros(0)
+        self._turns_array = np.zeros((n_turns, len(section_lengths)))
         for turn in range(turn_i_init, turn_i_init + n_turns):
-            self._turns_array = np.append(
-                self._turns_array, turn + section_lengths
-            )
+            self._turns_array[turn - turn_i_init] = turn + section_lengths
+        self._turns_array = self._turns_array.flatten()
 
 
 class BeamObservationEndOfTurn(ObservablesEndOfTurnBase):
@@ -290,24 +293,24 @@ class BeamObservationEndOfTurn(ObservablesEndOfTurnBase):
         shape = (n_entries, n_macroparticles)
 
         self._dts = DenseArrayRecorder(
-            f"{self.common_name}_dts",
+            f"{self.common_filepath}_dts",
             shape,
         )
         self._dEs = DenseArrayRecorder(
-            f"{self.common_name}_dEs",
+            f"{self.common_filepath}_dEs",
             shape,
         )
         self._flags = DenseArrayRecorder(
-            f"{self.common_name}_flags",
+            f"{self.common_filepath}_flags",
             shape,
         )
 
         self._reference_time = DenseArrayRecorder(
-            f"{self.common_name}_reference_time",
+            f"{self.common_filepath}_reference_time",
             (n_entries,),
         )
         self._reference_total_energy = DenseArrayRecorder(
-            f"{self.common_name}_reference_total_energy",
+            f"{self.common_filepath}_reference_total_energy",
             (n_entries,),
         )
 
@@ -425,23 +428,23 @@ class BunchObservationMetaParams(ObservablesEndOfTurnBase):
         shape = n_entries
 
         self._mean_dt = DenseArrayRecorder(
-            f"{self.common_name}_mean_dt",
+            f"{self.common_filepath}_mean_dt",
             shape,
         )
         self._mean_dE = DenseArrayRecorder(
-            f"{self.common_name}_mean_dE",
+            f"{self.common_filepath}_mean_dE",
             shape,
         )
         self._sigma_dt = DenseArrayRecorder(
-            f"{self.common_name}_sigma_dt",
+            f"{self.common_filepath}_sigma_dt",
             shape,
         )
         self._sigma_dE = DenseArrayRecorder(
-            f"{self.common_name}_sigma_dE",
+            f"{self.common_filepath}_sigma_dE",
             shape,
         )
         self._emittance_stat = DenseArrayRecorder(
-            f"{self.common_name}_emittance_stat",
+            f"{self.common_filepath}_emittance_stat",
             shape,
         )
 
@@ -563,15 +566,15 @@ class CavityPhaseObservation(ObservablesEndOfTurnBase):
         n_entries = n_turns // self.each_turn_i + 2
         n_harmonics = int(self._cavity.n_rf)
         self._phases = DenseArrayRecorder(
-            f"{self.common_name}_phases",
+            f"{self.common_filepath}_phases",
             (n_entries, n_harmonics),
         )
         self._omegas = DenseArrayRecorder(
-            f"{self.common_name}_omegas",
+            f"{self.common_filepath}_omegas",
             (n_entries, n_harmonics),
         )
         self._voltages = DenseArrayRecorder(
-            f"{self.common_name}_voltages",
+            f"{self.common_filepath}_voltages",
             (n_entries, n_harmonics),
         )
 
@@ -596,6 +599,7 @@ class CavityPhaseObservation(ObservablesEndOfTurnBase):
             None
             if self._cavity._omega_rf is None
             else (self._cavity._omega_rf + self._cavity.delta_omega_rf)
+            # TODO: should be property call instead of private member
         )
         self._voltages.write(
             self._cavity.voltage,
@@ -679,7 +683,7 @@ class StaticProfileObservation(ObservablesEndOfTurnBase):
         n_entries = len(self._turns_array)
         n_bins = int(self._profile.n_bins)
         self._hist_y = DenseArrayRecorder(
-            f"{self.common_name}_hist_y",
+            f"{self.common_filepath}_hist_y",
             (n_entries, n_bins),
         )
 
@@ -698,13 +702,13 @@ class StaticProfileObservation(ObservablesEndOfTurnBase):
         if simulation.section_i.value in self._section_indices_to_observe:
             if (
                 self._last_turn_i_observed == simulation.turn_i.value
-                and self._last_section_i_observed == simulation.section_i
+                and self._last_section_i_observed == simulation.section_i.value
             ):
                 return
             self._last_turn_i_observed = simulation.turn_i.value
-            self._last_section_i_observed = simulation.section_i
+            self._last_section_i_observed = simulation.section_i.value
             self._hist_y.write(
-                self._profile._hist_y,
+                self._profile.hist_y,
             )
         # else return without recording
 
@@ -781,7 +785,7 @@ class StaticMultiProfileObservation(ObservablesEndOfTurnBase):
         n_entries = len(self._turns_array) * len(self._profiles)
         n_bins = self._profiles[0].n_bins
         self._hist_y = DenseArrayRecorder(
-            f"{self.common_name}_hist_y",
+            f"{self.common_filepath}_hist_y",
             (n_entries, n_bins),
         )
 
@@ -798,11 +802,11 @@ class StaticMultiProfileObservation(ObservablesEndOfTurnBase):
         """
         if (
             self._last_turn_i_observed == simulation.turn_i.value
-            and self._last_section_i_observed == simulation.section_i
+            and self._last_section_i_observed == simulation.section_i.value
         ):
             return
         self._last_turn_i_observed = simulation.turn_i.value
-        self._last_section_i_observed = simulation.section_i
+        self._last_section_i_observed = simulation.section_i.value
         for prof in self._profiles:
             if simulation.section_i.value == prof.section_index:
                 self._hist_y.write(prof.hist_y)
@@ -874,7 +878,7 @@ class WakeFieldObservation(ObservablesEndOfTurnBase):
         n_entries = len(self._turns_array)
         n_bins = int(self._wakefield._profile.n_bins)
         self._induced_voltage = DenseArrayRecorder(
-            f"{self.common_name}_induced_voltage",
+            f"{self.common_filepath}_induced_voltage",
             (n_entries, n_bins),
         )
 
@@ -966,11 +970,11 @@ class DynamicProfileConstNBinsObservation(ObservablesEndOfTurnBase):
         n_entries = n_turns // self.each_turn_i + 2
         n_bins = int(self._profile.n_bins)
         self._hist_y = DenseArrayRecorder(
-            f"{self.common_name}_hist_y",
+            f"{self.common_filepath}_hist_y",
             (n_entries, n_bins),
         )
         self._hist_x = DenseArrayRecorder(
-            f"{self.common_name}_hist_x",
+            f"{self.common_filepath}_hist_x",
             (n_entries, n_bins),
         )
 
@@ -985,8 +989,8 @@ class DynamicProfileConstNBinsObservation(ObservablesEndOfTurnBase):
         simulation
             Simulation context manager
         """
-        self._hist_y.write(self._profile._hist_y)
-        self._hist_x.write(self._profile._hist_x)
+        self._hist_y.write(self._profile.hist_y)
+        self._hist_x.write(self._profile.hist_x)
 
     @property  # as readonly attributes
     def hist_y(self):

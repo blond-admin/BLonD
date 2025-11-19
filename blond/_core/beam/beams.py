@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ..._generals.cupy.no_cupy_import import is_cupy_array
+from ...generals.cupy.no_cupy_import import is_cupy_array
 from ..backends.backend import backend
 from .base import BeamBaseClass, BeamFlags
 
@@ -78,8 +78,8 @@ class Beam(BeamBaseClass):
         assert len(dt) == len(dE), f"{len(dt)} != {len(dE)}"
         n_macroparticles = len(dt)
         if flags is None:
-            flags = backend.int(BeamFlags.ACTIVE.value) * backend.ones(
-                n_macroparticles, dtype=backend.int
+            flags = np.int32(BeamFlags.ACTIVE.value) * backend.ones(
+                n_macroparticles, dtype=np.int32
             )
         else:
             assert flags.max() <= BeamFlags.ACTIVE.value
@@ -283,15 +283,18 @@ class ProbeBeam(Beam):
             intensity=intensity,
             particle_type=particle_type,
         )
-        if dt is not None:
+        if dt is not None and dE is not None:
+            pass
+        elif (dE is None) and (dt is None):
+            raise ValueError("dE or dt must be given!")
+        elif dt is not None:
             dE = backend.zeros_like(dt)
         elif dE is not None:
             dt = backend.zeros_like(dE)
-        elif (dE is None) and (dt is None):
-            raise ValueError("dE or dt must be given!")
-
         else:
-            raise RuntimeError(f"{dE=} {dt=}")
+            raise RuntimeError(
+                f"{dE=} {dt=}"
+            )  # pragma: no cover Not Reachable
 
         self.setup_beam(
             dt=dt,

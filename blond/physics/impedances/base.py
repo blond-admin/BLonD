@@ -70,7 +70,7 @@ class WakeFieldSource(ABC):
 
 
 class TimeDomain(ABC):
-    """Indication of a source is defined in time or frequency domain."""
+    """Indication of a source is defined in time domain."""
 
     @abstractmethod  # pragma: no cover
     def get_wake_impedance(
@@ -90,6 +90,70 @@ class TimeDomain(ABC):
             Simulation object containing turn index and RF info.
         beam
             Simulation `Beam` object
+        n_fft
+            number of points to be used in the fft
+
+        Returns
+        -------
+        wake_impedance
+
+        """
+        pass
+
+
+class TimeDomainCounterRotation(ABC):
+    """Indication of a source, which has a defined wakefield for the counterrotating case."""
+
+    @abstractmethod  # pragma: no cover
+    def get_wake(
+        self, time: NumpyArray
+    ) -> NumpyArray:  # TODO: this function should be moved to TimeDomain
+        """Get wake potential equivalent to the partial wake in time domain.
+
+        Parameters
+        ----------
+        time : NumpyArray
+            time array at which the wake is calculated [V]
+        """
+        pass
+
+    @abstractmethod  # pragma: no cover
+    def get_wake_counter_rotation(self, time: NumpyArray) -> NumpyArray:
+        """Get wake potential equivalent to the partial wake in time domain for the counter-rotating case.
+
+        Parameters
+        ----------
+        time : NumpyArray
+            time array at which the wake is calculated, in [s]
+
+        Returns
+        -------
+        wake_potential: NumpyArray
+            potential array, in [V]
+
+        """
+        pass
+
+    @abstractmethod  # pragma: no cover
+    def get_wake_impedance_counter_rotation(
+        self,
+        time: NumpyArray,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_fft: int,
+    ) -> NumpyArray:
+        """Get impedance equivalent to the partial wake in time domain for the counter-rotating case.
+
+        Parameters
+        ----------
+        time
+            Time array to get wake, in [s]
+        simulation : Simulation
+            Simulation object containing turn index and RF info.
+        beam
+            Simulation `Beam` object
+        n_fft
+            number of points used in the fft
 
         Returns
         -------
@@ -100,7 +164,7 @@ class TimeDomain(ABC):
 
 
 class FreqDomain(ABC):
-    """Indication of a source is defined in time or frequency domain."""
+    """Indication of a source is defined in frequency domain."""
 
     @abstractmethod  # pragma: no cover
     def get_impedance(

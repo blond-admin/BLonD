@@ -22,7 +22,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class BeamFlags(int, Enum):
-    LOST = 0
+    LOST = -500  # by convention with XSuite team
     ACTIVE = 1
 
 
@@ -418,3 +418,27 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         visible to the current node.
         """
         return self._flags
+
+    def purge_flagged_entries(self, flag: int = BeamFlags.LOST.value) -> None:
+        """Delete flagged array entries from the array.
+
+        Parameters
+        ----------
+        flag
+            The flag to be used as a selector what to place at the end.
+            Default is to remove lost particles ``flag=0``.
+
+        """
+        from ..._core.backends.backend import backend  # prevent cyclic import
+
+        n_new = backend.specials.move_flagged_elements_to_end(
+            flag=flag,
+            flags=self._flags,
+            dt=self._dt,
+            dE=self._dE,
+            ids=self._ids,
+        )
+        self._flags = self._flags[:n_new]
+        self._dt = self._dt[:n_new]
+        self._dE = self._dE[:n_new]
+        self._ids = self._ids[:n_new]

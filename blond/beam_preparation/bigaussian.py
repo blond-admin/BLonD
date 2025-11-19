@@ -13,11 +13,11 @@ import numpy as np
 
 from .._core.backends.backend import backend
 from .._core.helpers import int_from_float_with_warning
-from .._generals._iterables import all_equal
 from ..acc_math.analytic.hamilton import (
     calc_phi_s_single_harmonic,
     is_in_separatrix,
 )
+from ..generals._iterables import all_equal
 from .base import MatchingRoutine
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -156,7 +156,7 @@ def get_main_harmonic_attributes(
         )
     # omega_rf should be all same
     omega_rf = [
-        rf.get_main_harmonic_omega_rf(
+        rf.calc_main_harmonic_omega_rf(
             beam_beta=beam.reference_beta,
             ring_circumference=simulation.ring.circumference,
         )
@@ -206,23 +206,23 @@ class BiGaussian(MatchingRoutine):
         Number of macroparticles to be generated
     sigma_dt
         Normal distribution length, in [s].
-            Effective `sigma_dt` might be smaller, if `reinsertion=True `
-        sigma_dE
-            Normal distribution height, in [eV].
-            Effective `sigma_dE` might be smaller, if `reinsertion=True `
-        reinsertion
-            If True, only particles within the separatrix are generated.
-            This affects the effective `sigma_dt` and `sigma_dE`
-        seed
-            Random seed parameter
+        Effective `sigma_dt` might be smaller, if `reinsertion=True`
+    sigma_dE
+        Normal distribution height, in [eV].
+        Effective `sigma_dE` might be smaller, if `reinsertion=True`
+    reinsertion
+        If True, only particles within the separatrix are generated.
+        This affects the effective `sigma_dt` and `sigma_dE`
+    seed
+        Random seed parameter
 
     Examples
     --------
-        >>> simulation = Simulation( ... )
-        >>> simulation.prepare_beam(
-        >>>     beam= ... ,
-        >>>     preparation_routine=BiGaussian( ... ),
-        >>> )
+    >>> simulation = Simulation( ... )
+    >>> simulation.prepare_beam(
+    >>>     beam= ... ,
+    >>>     preparation_routine=BiGaussian( ... ),
+    >>> )
     """
 
     def __init__(

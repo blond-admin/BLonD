@@ -26,14 +26,14 @@ print(">>> Sphinx loaded THIS conf.py:", __file__)
 #
 # needs_sphinx = "1.0"
 
+import os
+
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named "sphinx.ext.*") or your custom
 # ones.
 import sys
-import os
 
 os.environ["SPHINX_SHOW_WARNING_TYPES"] = "1"  # force categories in output
-
 
 
 folder = os.path.abspath("modules")
@@ -54,12 +54,12 @@ extensions = [
 ]
 
 inheritance_graph_attrs = dict(
-    rankdir="TB",   # "TB" = Top → Bottom (vertical)
+    rankdir="TB",  # "TB" = Top → Bottom (vertical)
     size='"12.0, 10.0"',  # adjust as needed (width,height in inches)
     fontsize=14,
     ranksep="0.4",
     nodesep="0.2",
-    layout="dot"
+    layout="dot",
 )
 
 # Add any paths that contain templates here, relative to this directory.
@@ -89,6 +89,7 @@ autodoc_mock_imports = ["mpi4py"]
 #
 
 from importlib.metadata import version as get_version
+
 # The short X.Y version.
 version = ".".join(get_version("blond").split(".")[:3])
 # The full version, including alpha/beta/rc tags.
@@ -118,8 +119,8 @@ exclude_patterns = [
     "*/blond._core.backends.fortran.call*",
     "*/blond._core.backends.cpp.call*",
     "*/blond._core.backends.cpp.lib*",
-    "*/blond._generals._files*",
-    "*/blond._generals._hashing*",
+    "*/blond.generals._files*",
+    "*/blond.generals._hashing*",
     "*vari_noise*",
     "*/blond.testing.*",
     "*/blond.interfaces.xsuite.*",
@@ -242,13 +243,13 @@ suppress_warnings = [
 html_static_path = ["_static"]
 html_css_files = ["css/wide.css"]
 
-
 autodoc_default_options = {
     # Avoid pulling in names that are only imported into __init__.py
     # "imported-members": False,  # breaks import location
     "show-inheritance": True,
     "no-imported-members": True,
 }
+
 show_warning_types = True
 
 # Example configuration for intersphinx: refer to the Python standard library.
