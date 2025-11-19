@@ -27,7 +27,7 @@ from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, Profile
 from blond.beam.sparse_profiles import (
-    _SparseBaseClass,
+    _SparseProfileBaseClass,
     SparseBucket,
     SparseBatch,
 )
@@ -139,7 +139,7 @@ class testProfileClass(unittest.TestCase):
 
     def test_inputs(self):
         with self.assertRaises(ValueError):
-            _SparseBaseClass(
+            _SparseProfileBaseClass(
                 self.rf_station,
                 self.beam,
                 self.n_slices_rf,
@@ -153,7 +153,7 @@ class testProfileClass(unittest.TestCase):
                 self.profile_length_in_buckets,
             )
         with self.assertWarns(UserWarning):
-            _SparseBaseClass(
+            _SparseProfileBaseClass(
                 self.rf_station,
                 self.beam,
                 self.n_slices_rf,
@@ -163,7 +163,7 @@ class testProfileClass(unittest.TestCase):
 
     def test_WrongTrackingFunction(self):
         with self.assertRaises(RuntimeError):
-            _SparseBaseClass(
+            _SparseProfileBaseClass(
                 self.rf_station,
                 self.beam,
                 self.n_slices_rf,
@@ -189,7 +189,7 @@ class testProfileClass(unittest.TestCase):
         rtol = 1e-6  # relative tolerance
         atol = 0  # absolute tolerance
 
-        nonuniform_profile = _SparseBaseClass(
+        nonuniform_profile = _SparseProfileBaseClass(
             self.rf_station,
             self.beam,
             self.n_slices_rf,
@@ -230,7 +230,7 @@ class testProfileClass(unittest.TestCase):
         rtol = 1e-6  # relative tolerance
         atol = 0  # absolute tolerance
 
-        nonuniform_profile = _SparseBaseClass(
+        nonuniform_profile = _SparseProfileBaseClass(
             self.rf_station,
             self.beam,
             self.n_slices_rf,
@@ -274,7 +274,7 @@ class testProfileClass(unittest.TestCase):
             self.rf_station, self.beam, self.n_slices_rf, filling_pattern
         )
 
-        sparse_profile_temoin = _SparseBaseClass(
+        sparse_profile_temoin = _SparseProfileBaseClass(
             self.rf_station,
             self.beam,
             self.n_slices_rf,
@@ -316,7 +316,7 @@ class testProfileClass(unittest.TestCase):
             self.rf_station, self.beam, self.n_slices_rf, filling_pattern
         )
 
-        sparse_profile_temoin = _SparseBaseClass(
+        sparse_profile_temoin = _SparseProfileBaseClass(
             self.rf_station,
             self.beam,
             self.n_slices_rf,
