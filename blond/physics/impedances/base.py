@@ -192,28 +192,6 @@ class FreqDomain(ABC):
         pass
 
 
-class AnalyticWakeFieldSource(WakeFieldSource):
-    """Indication on which calculation method a WakeFieldSolver uses.
-
-    Notes
-    -----
-    This is intended for ``isinstance`` checks.
-    """
-
-    pass
-
-
-class DiscreteWakeFieldSource(WakeFieldSource):
-    """Indication on which calculation method a WakeFieldSolver uses.
-
-    Notes
-    -----
-    This is intended for ``isinstance`` checks.
-    """
-
-    pass
-
-
 class ImpedanceBaseClass(BeamPhysicsRelevant):
     """Abstract class on how to calculate induced voltages."""
 
