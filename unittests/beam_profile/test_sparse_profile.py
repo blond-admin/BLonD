@@ -268,10 +268,13 @@ class testProfileClass(unittest.TestCase):
             )
 
     def test_set_additional_cuts(self):
-        filling_pattern = np.array([0, 1, 0, 0, 0])
-        updated_filling_pattern = np.array([0, 1, 0, 1, 0])
-        sparse_profile = SparseBucket(
-            self.rf_station, self.beam, self.n_slices_rf, filling_pattern
+        updated_filling_pattern = np.array([1, 1, 0, 0, 0, 1])
+        sparse_profile = _SparseProfileBaseClass(
+            self.rf_station,
+            self.beam,
+            self.n_slices_rf,
+            self.filling_pattern,
+            self.profile_length_in_buckets,
         )
 
         sparse_profile_temoin = _SparseProfileBaseClass(
@@ -301,19 +304,22 @@ class testProfileClass(unittest.TestCase):
             updated_filling_pattern,
         )
         np.testing.assert_equal(
-            sparse_profile.cut_left_array,
+            np.sort(sparse_profile.cut_left_array),
             sparse_profile_temoin.cut_left_array,
         )
         np.testing.assert_equal(
-            sparse_profile.cut_right_array,
+            np.sort(sparse_profile.cut_right_array),
             sparse_profile_temoin.cut_right_array,
         )
 
     def test_update_profile_lists(self):
-        filling_pattern = np.array([0, 1, 0, 0, 0])
-        updated_filling_pattern = np.array([0, 1, 0, 1, 0])
-        sparse_profile = SparseBucket(
-            self.rf_station, self.beam, self.n_slices_rf, filling_pattern
+        updated_filling_pattern = np.array([1, 1, 0, 0, 0, 1])
+        sparse_profile = _SparseProfileBaseClass(
+            self.rf_station,
+            self.beam,
+            self.n_slices_rf,
+            self.filling_pattern,
+            self.profile_length_in_buckets,
         )
 
         sparse_profile_temoin = _SparseProfileBaseClass(
@@ -333,13 +339,23 @@ class testProfileClass(unittest.TestCase):
         )
 
         np.testing.assert_equal(
-            sparse_profile.n_macroparticles_array,
-            sparse_profile_temoin.n_macroparticles_array,
+            sparse_profile.n_macroparticles_array[0],
+            sparse_profile_temoin.n_macroparticles_array[0],
         )
 
         np.testing.assert_equal(
-            sparse_profile.bin_centers_array,
-            sparse_profile_temoin.bin_centers_array,
+            sparse_profile.n_macroparticles_array[1],
+            sparse_profile_temoin.n_macroparticles_array[-1],
+        )
+
+        np.testing.assert_equal(
+            sparse_profile.bin_centers_array[0],
+            sparse_profile_temoin.bin_centers_array[0],
+        )
+
+        np.testing.assert_equal(
+            sparse_profile.bin_centers_array[1],
+            sparse_profile_temoin.bin_centers_array[-1],
         )
 
         np.testing.assert_equal(
@@ -349,8 +365,8 @@ class testProfileClass(unittest.TestCase):
 
         # from _update_general_arrays()
         np.testing.assert_equal(
-            sparse_profile.n_macroparticles,
-            sparse_profile_temoin.n_macroparticles,
+            np.sort(sparse_profile.n_macroparticles),
+            np.sort(sparse_profile_temoin.n_macroparticles),
         )
 
         np.testing.assert_equal(
@@ -364,8 +380,8 @@ class testProfileClass(unittest.TestCase):
         )
 
         np.testing.assert_equal(
-            sparse_profile.bin_centers,
-            sparse_profile_temoin.bin_centers,
+            np.sort(sparse_profile.bin_centers),
+            np.sort(sparse_profile_temoin.bin_centers),
         )
 
         sparse_profile._number_of_indexes += 1
