@@ -8,17 +8,17 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
-from .._core.base import BeamObservationElement, MainLoopRelevant
-from .array_recorders import DenseArrayRecorder
+from blond._core.base import BeamObservationElement, MainLoopRelevant
+from blond.handle_results.array_recorders import DenseArrayRecorder
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
-    from .. import WakeField
-    from .._core.beam.base import BeamBaseClass
-    from .._core.simulation.simulation import Simulation
-    from ..physics.cavities import SingleHarmonicRfStation
-    from ..physics.profiles import DynamicProfileConstNBins, StaticProfile
+    from blond import WakeField
+    from blond._core.beam.base import BeamBaseClass
+    from blond._core.simulation.simulation import Simulation
+    from blond.physics.cavities import SingleHarmonicRfStation
+    from blond.physics.profiles import DynamicProfileConstNBins, StaticProfile
 
 logger = logging.getLogger(__name__)
 

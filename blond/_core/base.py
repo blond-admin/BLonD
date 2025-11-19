@@ -12,8 +12,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from numpy.typing import NDArray as NumpyArray
 
-    from .beam.base import BeamBaseClass
-    from .simulation.simulation import Simulation
+    from blond._core.beam.base import BeamBaseClass
+    from blond._core.simulation.simulation import Simulation
 
     T = TypeVar("T")
 
@@ -259,7 +259,7 @@ class SimulationElementBase(MainLoopRelevant, ABC):
             The state of the object
 
         """
-        from .ring.beam_physics_relevant_elements import (
+        from blond._core.ring.beam_physics_relevant_elements import (
             pretty_string,  # prevent circular import
         )
 

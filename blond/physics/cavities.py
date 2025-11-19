@@ -15,24 +15,23 @@ from unittest.mock import Mock
 import numpy as np
 from scipy.constants import speed_of_light as c0
 
+from blond._core.backends.backend import backend
+from blond._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
 from blond.experimental.physics.feedbacks.beam_feedback import (
     Blond2BeamFeedback,
 )
-
-from .._core.backends.backend import backend
-from .._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
     from numpy.typing import NDArray as NumpyArray
 
-    from .. import Ring
-    from .._core.beam.base import BeamBaseClass
-    from .._core.simulation.simulation import Simulation
-    from ..cycles.magnetic_cycle import MagneticCycleBase
-    from ..experimental.physics.feedbacks.base import LocalFeedback
-    from .impedances.base import WakeField
+    from blond import Ring
+    from blond._core.beam.base import BeamBaseClass
+    from blond._core.simulation.simulation import Simulation
+    from blond.cycles.magnetic_cycle import MagneticCycleBase
+    from blond.experimental.physics.feedbacks.base import LocalFeedback
+    from blond.physics.impedances.base import WakeField
 
 TWOPI_C0 = 2.0 * np.pi * c0
 
@@ -656,10 +655,10 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         -------
         single_harmonic_cavity
         """
-        from .._core.beam.base import BeamBaseClass
-        from .._core.ring.ring import Ring
-        from .._core.simulation.simulation import Simulation
-        from ..cycles.magnetic_cycle import ConstantMagneticCycle
+        from blond._core.beam.base import BeamBaseClass
+        from blond._core.ring.ring import Ring
+        from blond._core.simulation.simulation import Simulation
+        from blond.cycles.magnetic_cycle import ConstantMagneticCycle
 
         shc = SingleHarmonicRfStation(
             section_index=section_index,
@@ -940,10 +939,10 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         -------
         multi_harmonic_cavity
         """
-        from .._core.beam.base import BeamBaseClass
-        from .._core.ring.ring import Ring
-        from .._core.simulation.simulation import Simulation
-        from ..cycles.magnetic_cycle import ConstantMagneticCycle
+        from blond._core.beam.base import BeamBaseClass
+        from blond._core.ring.ring import Ring
+        from blond._core.simulation.simulation import Simulation
+        from blond.cycles.magnetic_cycle import ConstantMagneticCycle
 
         mhc = MultiHarmonicRfStation(
             harmonic=np.array(harmonic, dtype=backend.float),
