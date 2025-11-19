@@ -16,12 +16,14 @@ Unittest for llrf.filters
 import unittest
 
 import numpy as np
+import matplotlib.pyplot as plt
+
 from scipy.constants import e
 
 from blond.beam.beam import Beam, Proton
 from blond.beam.distributions import bigaussian
 from blond.beam.profile import CutOptions, Profile
-from blond.beam.sparse_profiles import _SparseProfileBaseClass
+from blond.beam.sparse_profiles import _SparseProfileBaseClass, SparseBatch
 from blond.input_parameters.rf_parameters import RFStation
 from blond.input_parameters.ring import Ring
 from blond.llrf.impulse_response import (
@@ -226,6 +228,7 @@ class TestRFCurrentSparse(unittest.TestCase):
             )
             self.beam2.dE[i * N_m : (i + 1) * N_m] = self.beam.dE
             self.beam_sparse.dE[i * N_m : (i + 1) * N_m] = self.beam.dE
+
         self.profile = Profile(
             self.beam2,
             cut_options=CutOptions(
@@ -236,19 +239,29 @@ class TestRFCurrentSparse(unittest.TestCase):
         )
         self.profile.track()
 
-        filling_pattern = np.zeros(
+        # Creation of the SparseBatch profile
+        # creating the simple batch_list
+        batch_list = np.zeros(
             int(bunch_spacing / self.rf.t_rf[0, 0]) * (bunches - 1) + 1
         )
-        filling_pattern[:: int(bunch_spacing / self.rf.t_rf[0, 0])] = 1
-        self.sparse_profile = _SparseProfileBaseClass(
+        batch_list[0] = 1
+        # Initialisation of the SparseBatch profile which perfectly matches
+        # the standard profile
+        self.sparse_profile = SparseBatch(
             rf_station=self.rf,
             beam=self.beam_sparse,
-            number_of_slices_per_profile=int(1000),
-            _filling_pattern=filling_pattern,
-            _profile_length_in_buckets=5,
+            number_of_slices_per_profile=int(1000 * buckets),  # same number
+            # of slices per bucket
+            batch_list=batch_list,
+            batch_length=bunches * 5,  # ensure the cut_right of the
+            # SparseBatch matches the cut_right of the standard profile
             tracker="onebyone",
         )
         self.sparse_profile.track()
+
+        np.testing.assert_equal(
+            self.sparse_profile.bin_centers, self.profile.bin_centers
+        )
 
     def test_downsampling(self):
         downsample_dict = {
@@ -265,6 +278,7 @@ class TestRFCurrentSparse(unittest.TestCase):
             external_reference=True,
             dT=0,
         )
+
         rf_current_sparse, rf_current_coarse_sparse = rf_beam_current(
             self.sparse_profile,
             self.omega,
@@ -274,6 +288,7 @@ class TestRFCurrentSparse(unittest.TestCase):
             external_reference=True,
             dT=0,
         )
+
         tot_charges = (
             np.sum(self.profile.n_macroparticles)
             / self.beam2.n_macroparticles
@@ -292,7 +307,7 @@ class TestRFCurrentSparse(unittest.TestCase):
         # Peak RF current on coarse grid
         peak_rf_current = np.max(np.absolute(rf_current_coarse_std))
         peak_rf_current_sparse = np.max(np.absolute(rf_current_coarse_sparse))
-        self.assertAlmostEqual(peak_rf_current, 2.9284593979, 7)
+        self.assertAlmostEqual(peak_rf_current, 2.9284691149551643, 7)
         self.assertEqual(peak_rf_current, peak_rf_current_sparse)
 
         # np.testing.assert_equal(rf_current_sparse, rf_current_std)
