@@ -467,6 +467,19 @@ class SparseBucket(_SparseProfileBaseClass):
         self,
         updated_bunch_list: list[int],
     ):
+        """
+        Function to update the SparseBucket object to match the new bunch
+        list in the case of newly injected bunches.
+
+        The method creates additional profiles to follow the newly injected
+        bunches, and updated the internal arrays and numbering accordingly.
+
+        Parameters
+        ----------
+        updated_bunch_list
+            Updated bunch list. Must be the same length as the stored bunch
+            list.
+        """
         additional_filled_buckets = self._set_additional_cuts(
             _updated_filling_pattern=updated_bunch_list
         )
@@ -533,6 +546,19 @@ class SparseBatch(_SparseProfileBaseClass):
         self,
         updated_batch_list: list[int],
     ):
+        """
+        Function to update the SparseBatch object to match the new batch
+        list in the case of newly injected batches.
+
+        The method creates additional profiles to follow the newly injected
+        batches, and updated the internal arrays and numbering accordingly.
+
+        Parameters
+        ----------
+        updated_batch_list
+            Updated batch list. Must be the same length as the stored batch
+            list.
+        """
         additional_batches = self._set_additional_cuts(
             _updated_filling_pattern=updated_batch_list
         )
