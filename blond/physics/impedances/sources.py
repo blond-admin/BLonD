@@ -28,6 +28,7 @@ from blond.physics.impedances.base import (
     FreqDomain,
     TimeDomain,
     TimeDomainCounterRotation,
+    WakeFieldSource,
 )
 from blond.physics.impedances.readers import ImpedanceReader
 
@@ -98,7 +99,7 @@ def get_hash(array1d: NumpyArray) -> int:
     )
 
 
-class InductiveImpedance(FreqDomain, TimeDomain):
+class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
     """Inductive impedance, i.e. only complex component in frequency domain.
 
     Parameters
@@ -221,7 +222,9 @@ class InductiveImpedance(FreqDomain, TimeDomain):
         return wake_impedance
 
 
-class Resonators(TimeDomain, FreqDomain, TimeDomainCounterRotation):
+class Resonators(
+    WakeFieldSource, TimeDomain, FreqDomain, TimeDomainCounterRotation
+):
     r"""Multiple resonances of RLC circuits for impedance calculations.
 
     Parameters
@@ -570,7 +573,7 @@ class Resonators(TimeDomain, FreqDomain, TimeDomainCounterRotation):
         return impedance
 
 
-class ImpedanceTable:
+class ImpedanceTable(WakeFieldSource):
     """Base class to manage impedance tables."""
 
     @staticmethod
@@ -767,7 +770,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
 
 
 # TODO rework docstring
-class TravelingWaveCavity(TimeDomain, FreqDomain):
+class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
     r"""Impedance of travelling wave cavities.
 
     Notes
