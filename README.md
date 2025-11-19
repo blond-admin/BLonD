@@ -13,6 +13,14 @@
 > CERN code for the simulation of longitudinal beam dynamics in synchrotrons.
 
 
+**BLonD** is a Python-based simulator for **longitudinal beam dynamics** in circular particle accelerators. It models complex phenomena based on **macro-particle tracking**, such as:
+
+* Beam-induced voltages
+* Beam and cavity feedback mechanisms
+
+BLonD also features **parallel backends** for efficient execution on both **CPUs** and **GPUs**, enabling scalable and high-performance simulations.
+
+
 ### Dependencies
 
 * [Python 3.10+](https://www.python.org/downloads/)
