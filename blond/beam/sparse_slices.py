@@ -442,6 +442,7 @@ class _SparseBaseClass:
         self.number_of_slices_per_profile = number_of_slices_per_profile
         self._filling_pattern = _filling_pattern
         self._number_of_indexes = np.sum(_filling_pattern)
+        self._profile_length_in_buckets = _profile_length_in_buckets
 
         # Index of each batch (-1 if empty). Only for C++ track
         self._bucket_indexes = (
@@ -816,7 +817,6 @@ class SparseBatch(_SparseBaseClass):
             tracker=tracker,
             direct_slicing=direct_slicing,
         )
-        self._profile_length_in_buckets = batch_length
 
     @property
     def batch_list(self):
