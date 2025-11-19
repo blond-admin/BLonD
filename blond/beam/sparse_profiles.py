@@ -363,23 +363,22 @@ class _SparseProfileBaseClass:
                     ),
                 )
             )
-            self.n_macroparticles_array = np.insert(
-                arr=self.n_macroparticles_array,
-                obj=len(self.n_macroparticles_array),
-                values=profiles_list_additional[i].n_macroparticles,
+            self.n_macroparticles_array = np.concatenate(
+                [
+                    self.n_macroparticles_array,
+                    [profiles_list_additional[i].n_macroparticles],
+                ],
                 axis=0,
             )
-            self.bin_centers_array = np.insert(
-                arr=self.bin_centers_array,
-                obj=len(self.bin_centers_array),
-                values=profiles_list_additional[i].bin_centers,
+            self.bin_centers_array = np.concatenate(
+                [
+                    self.bin_centers_array,
+                    [profiles_list_additional[i].bin_centers],
+                ],
                 axis=0,
             )
-            self.edges_array = np.insert(
-                arr=self.edges_array,
-                obj=len(self.edges_array),
-                values=profiles_list_additional[i].edges,
-                axis=0,
+            self.edges_array = np.concatenate(
+                [self.edges_array, [profiles_list_additional[i].edges]], axis=0
             )
         self.profiles_list += profiles_list_additional
         self._number_of_indexes += _additional_indexes
