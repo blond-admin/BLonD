@@ -873,6 +873,10 @@ def minmax_location(
     """
     *Function to locate the minima and maxima of the f(x) numerical function.*
     """
+    if len(x) != len(f):
+        raise ValueError(
+            f"The time and potential arrays have different lengths: {len(x)} != {len(f)}"
+        )
 
     f_derivative = np.diff(f)
     x_derivative = x[0:-1] + (x[1] - x[0]) / 2
@@ -913,7 +917,6 @@ def potential_well_cut(
     *Function to cut the potential well in order to take only the separatrix
     (several cases according to the number of min/max).*
     """
-
     # Check for the min/max of the potential well
     minmax_positions, minmax_values = minmax_location(
         time_potential, potential_array
@@ -923,23 +926,32 @@ def potential_well_cut(
     max_potential_values = minmax_values[1]
     n_minima = len(min_time_positions)
     n_maxima = len(max_time_positions)
-
+    saved_indexes = []
     if n_minima == 0:
         # PotentialWellError
         raise RuntimeError("The potential well has no minima...")
-    if n_minima > n_maxima and n_maxima == 1:
+    if 1 == n_maxima < n_minima:
+        # fast pythonic way of handling two compatible comparison. Line
+        # verifies if n_maxima == 1 and is strictly smaller than n_minima
         # PotentialWellError
         raise RuntimeError(
             "The potential well has more minima than maxima, and only one maximum"
         )
     if n_maxima == 0:
-        print(
-            "Warning: The maximum of the potential well could not be found... \
+        from warnings import warn
+
+        warn(
+            "The maximum of the potential well could not be found... \
                 You may reconsider the options to calculate the potential well \
                 as the main harmonic is probably not the expected one. \
                 You may also increase the percentage of margin to compute \
-                the potentiel well. The full potential well will be taken"
+                the potentiel well. The full potential well will be taken'",
+            UserWarning,
+            stacklevel=2,
         )
+        saved_indexes = np.arange(len(time_potential) + 1)
+        time_potential_sep = time_potential
+        potential_well_sep = potential_array
     elif n_maxima == 1:
         if min_time_positions[0] > max_time_positions[0]:
             saved_indexes = (potential_array < max_potential_values[0]) * (
@@ -996,12 +1008,19 @@ def potential_well_cut(
             )
             time_potential_sep = time_potential[saved_indexes]
             potential_well_sep = potential_array[saved_indexes]
-
-        else:
+        elif lower_maximum_time > higher_maximum_time:
             saved_indexes = (
                 (potential_array < lower_maximum_value)
                 * (time_potential < lower_maximum_time)
                 * (time_potential > higher_maximum_time)
+            )
+            time_potential_sep = time_potential[saved_indexes]
+            potential_well_sep = potential_array[saved_indexes]
+        else:
+            saved_indexes = (
+                (potential_array < lower_maximum_value)
+                * (time_potential > lower_maximum_time)
+                * (time_potential < higher_maximum_time)
             )
             time_potential_sep = time_potential[saved_indexes]
             potential_well_sep = potential_array[saved_indexes]
@@ -1025,7 +1044,11 @@ def potential_well_cut(
 
         time_potential_sep = time_potential[saved_indexes]
         potential_well_sep = potential_array[saved_indexes]
+    else:
+        raise RuntimeError("case not covered, cannot perform cut")
 
+    if len(saved_indexes) == 0:
+        raise RuntimeError("potential well cut failed")
     return time_potential_sep, potential_well_sep
 
 
