@@ -7,10 +7,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from blond import AllowPlotting, backend
+from blond._core.helpers import int_from_float_with_warning
 from blond.beam_preparation.base import MatchingRoutine
-
-from ..._core.helpers import int_from_float_with_warning
-from .helpers import populate_beam
+from blond.experimental.beam_preparation.helpers import populate_beam
 
 # Oversampling factor for potential well calculation
 _POTENTIAL_WELL_OVERSAMPLING = 10

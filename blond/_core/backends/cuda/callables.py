@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 import cupy as cp  # type: ignore
 import numpy as np
 
-from ...._core.backends.backend import Specials, backend
-from ....generals._hashing import hash_in_folder
+from blond._core.backends.backend import Specials, backend
+from blond.generals._hashing import hash_in_folder
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -123,7 +123,6 @@ def reload_cuda_backend(
             n_rf: int,
             acceleration_kick: float,
         ) -> None:
-            print(locals())
             assert dt.dtype == floattype
             assert dE.dtype == floattype
             assert phi_rf.dtype == floattype

@@ -153,15 +153,15 @@ class TestBeamFeedback(unittest.TestCase):
             PL_gain=1000,  # gain of phase loop
         )
         self.cavity = MultiHarmonicRfStation(
+            harmonic=np.array([4620.0]),
+            voltage=np.array([4.5e6]),
+            phi_rf=np.array([0.0]),
             n_harmonics=1,
             main_harmonic_idx=0,
             beam_feedback=self.sps_beam_feedback,
         )
 
         # RF parameters SPS
-        self.cavity.harmonic = np.array([4620.0])  # Harmonic numbers
-        self.cavity.voltage = np.array([4.5e6])  # [V]
-        self.cavity.phi_rf = np.array([0.0])
         self.ring.add_element(self.cavity)
         self.ring.add_drifts(
             n_sections=1,

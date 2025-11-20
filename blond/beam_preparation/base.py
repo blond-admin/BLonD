@@ -10,11 +10,11 @@ from __future__ import annotations
 from abc import ABC
 from typing import TYPE_CHECKING
 
-from .._core.base import Schedulable
-from .._core.beam.base import BeamBaseClass
+from blond._core.base import Schedulable
+from blond._core.beam.base import BeamBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
-    from .._core.simulation.simulation import Simulation
+    from blond._core.simulation.simulation import Simulation
 
 
 class BeamPreparationRoutine(ABC):

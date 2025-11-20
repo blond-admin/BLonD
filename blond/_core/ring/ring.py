@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ..base import Preparable, Schedulable
+from blond._core.base import Preparable, Schedulable
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
@@ -16,11 +16,12 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond._core.base import SimulationElementBase
-
-    from ...physics.drifts import DriftBaseClass
-    from ..beam.base import BeamBaseClass
-    from ..simulation.simulation import Simulation
-    from .beam_physics_relevant_elements import BeamPhysicsRelevantElements
+    from blond._core.beam.base import BeamBaseClass
+    from blond._core.ring.beam_physics_relevant_elements import (
+        BeamPhysicsRelevantElements,
+    )
+    from blond._core.simulation.simulation import Simulation
+    from blond.physics.drifts import DriftBaseClass
 
 
 class Ring(Preparable, Schedulable):
@@ -44,7 +45,9 @@ class Ring(Preparable, Schedulable):
             fixed. Orbit length changes result in timing delays but don't affect
             the RF frequency program.
         """
-        from .beam_physics_relevant_elements import BeamPhysicsRelevantElements
+        from blond._core.ring.beam_physics_relevant_elements import (
+            BeamPhysicsRelevantElements,
+        )
 
         super().__init__()
         self._elements = BeamPhysicsRelevantElements()
@@ -150,7 +153,7 @@ class Ring(Preparable, Schedulable):
         the orbit length of each drift section. This value is cached after first
         calculation.
         """
-        from ... import DriftSimple  # prevent cyclic import
+        from blond import DriftSimple  # prevent cyclic import
 
         gammas = [
             e.transition_gamma for e in self.elements.get_elements(DriftSimple)
@@ -184,7 +187,9 @@ class Ring(Preparable, Schedulable):
         --------
         average_transition_gamma
         """
-        from ...physics.drifts import DriftBaseClass  # prevent circular import
+        from blond.physics.drifts import (
+            DriftBaseClass,  # prevent circular import
+        )
 
         drifts = self.elements.get_elements(DriftBaseClass)
         weights = [d.orbit_length for d in drifts]
@@ -229,7 +234,7 @@ class Ring(Preparable, Schedulable):
         n_cavities
             The count of all cavity elements currently in the ring.
         """
-        from ...physics.cavities import RfStationBaseClass
+        from blond.physics.cavities import RfStationBaseClass
 
         return self.elements.count(RfStationBaseClass)
 
@@ -259,7 +264,7 @@ class Ring(Preparable, Schedulable):
         This is calculated by summing the `orbit_length` of all drift elements and
         may differ from the reference circumference during simulation.
         """
-        from ...physics.drifts import DriftBaseClass
+        from blond.physics.drifts import DriftBaseClass
 
         all_drifts = self.elements.get_elements(DriftBaseClass)
         orbit_length = float(sum([drift.orbit_length for drift in all_drifts]))
@@ -343,7 +348,7 @@ class Ring(Preparable, Schedulable):
         >>> # Creates 40 drifts total, 10 per section, each with length = circumference/40
         """
         if driftclass is None:
-            from ... import DriftSimple  # prevent cyclic import
+            from blond import DriftSimple  # prevent cyclic import
 
             driftclass = DriftSimple
 

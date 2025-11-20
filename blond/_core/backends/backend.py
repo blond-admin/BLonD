@@ -338,7 +338,7 @@ class BackendBaseClass(ABC):
         ).lower()
         if _backend_mode_raw != "numba":
             print(
-                f"Using environment variable BLOND_BACKEND_MODE={_backend_mode_raw}"
+                f"Using environment variable BLOND_BACKEND_MODE = {_backend_mode_raw}"
             )
         _allowed_backend_modes = (
             "python",
@@ -489,23 +489,27 @@ class NumpyBackend(BackendBaseClass):
         onchange = self.specials_mode != mode
 
         if mode == "python":
-            from .python.callables import PythonSpecials
+            from blond._core.backends.python.callables import PythonSpecials
 
             self.specials = PythonSpecials()
             self.specials_mode = mode
         elif mode == "cpp":
-            from .cpp.callables import reload_cpp_backend
+            from blond._core.backends.cpp.callables import reload_cpp_backend
 
             self.specials = reload_cpp_backend(self.float)
             self.specials_mode = mode
         elif mode == "numba":
-            from .numba.callables import recompile_numba_backend
+            from blond._core.backends.numba.callables import (
+                recompile_numba_backend,
+            )
 
             NumbaSpecials = recompile_numba_backend(self.float)
             self.specials = NumbaSpecials()
             self.specials_mode = mode
         elif mode == "fortran":
-            from .fortran.callables import reload_fortran_backend
+            from blond._core.backends.fortran.callables import (
+                reload_fortran_backend,
+            )
 
             FortranSpecials = reload_fortran_backend(self.float)
 
@@ -587,7 +591,7 @@ class CupyBackend(BackendBaseClass):
         self.arange = cp.arange
         self.average = cp.average
 
-        from .cuda.callables import CudaSpecials
+        from blond._core.backends.cuda.callables import CudaSpecials
 
         self.specials = CudaSpecials()
 
@@ -603,7 +607,7 @@ class CupyBackend(BackendBaseClass):
 
         """
         if mode == "cuda":
-            from .cuda.callables import reload_cuda_backend
+            from blond._core.backends.cuda.callables import reload_cuda_backend
 
             CudaSpecials = reload_cuda_backend(self.float)
 

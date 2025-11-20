@@ -12,19 +12,21 @@ import numpy as np
 from scipy.integrate import cumulative_simpson  # type: ignore[import-untyped]
 from tqdm import tqdm  # type: ignore
 
-from blond._core.base import SimulationElementBase
-
-from ...cycles.magnetic_cycle import MagneticCycleBase
-from ...generals._warnings import NotTestedWarning, PerformanceWarning
-from ...physics.drifts import DriftBaseClass
-from ...physics.profiles import ProfileBaseClass
-from ..backends.backend import backend
-from ..base import (
+from blond._core.backends.backend import backend
+from blond._core.base import (
     DynamicParameter,
     Preparable,
+    SimulationElementBase,
 )
-from ..helpers import find_instances_with_method, int_from_float_with_warning
-from ..ring.helpers import get_elements, get_init_order
+from blond._core.helpers import (
+    find_instances_with_method,
+    int_from_float_with_warning,
+)
+from blond._core.ring.helpers import get_elements, get_init_order
+from blond.cycles.magnetic_cycle import MagneticCycleBase
+from blond.generals._warnings import NotTestedWarning, PerformanceWarning
+from blond.physics.drifts import DriftBaseClass
+from blond.physics.profiles import ProfileBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -51,11 +53,11 @@ if TYPE_CHECKING:  # pragma: no cover
         RingAndRFTracker as Blond2RingAndRFTracker,
     )
 
-    from ...handle_results.observables import ObservablesEndOfTurnBase
-    from ..beam.base import BeamBaseClass
-    from ..beam.particle_types import ParticleType
-    from ..ring.ring import Ring
     from blond.beam_preparation.base import BeamPreparationRoutine
+    from blond.handle_results.observables import ObservablesEndOfTurnBase
+    from blond._core.beam.base import BeamBaseClass
+    from blond._core.beam.particle_types import ParticleType
+    from blond._core.ring.ring import Ring
     from blond.interfaces.xsuite.beam_preparation.rfbucket_matching import (
         XsuiteRFBucketMatcher,
     )
@@ -66,8 +68,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.experimental.beam_preparation.semi_empiric_matcher import (
         SemiEmpiricMatcher,
     )
-
-from ...physics.cavities import RfStationBaseClass
+from blond.physics.cavities import RfStationBaseClass
 
 logger = logging.getLogger(__name__)
 
@@ -132,7 +133,9 @@ class Simulation(Preparable):
     ) -> None:
         assert ring.elements.n_elements > 0, f"{ring.elements.n_elements=}"
 
-        from .intensity_effect_manager import IntensityEffectManager
+        from blond._core.simulation.intensity_effect_manager import (
+            IntensityEffectManager,
+        )
 
         super().__init__()
         self._ring: Ring = ring
@@ -368,7 +371,7 @@ class Simulation(Preparable):
         --------
         get_potential_well_empiric
         """
-        from ..._core.beam.beams import ProbeBeam
+        from blond._core.beam.beams import ProbeBeam
 
         probe_bunch = ProbeBeam(
             dE=dE,
@@ -472,7 +475,7 @@ class Simulation(Preparable):
         plot_potential_well_empiric
         get_drift_term_empiric
         """
-        from ..._core.beam.beams import ProbeBeam  # prevent circular import
+        from blond._core.beam.beams import ProbeBeam  # prevent circular import
 
         probe_bunch = ProbeBeam(
             dt=dt,
@@ -721,8 +724,10 @@ class Simulation(Preparable):
         Simulation.__init__
         prepare_beam
         """
-        from ..beam.base import BeamBaseClass  # prevent cyclic import
-        from ..ring.ring import Ring  # prevent cyclic import
+        from blond._core.beam.base import (
+            BeamBaseClass,  # prevent cyclic import
+        )
+        from blond._core.ring.ring import Ring  # prevent cyclic import
 
         locals_list = locals.values()
         msg1 = f"Found locals: {locals.keys()}"
@@ -1251,10 +1256,10 @@ class Simulation(Preparable):
         | Blond2FullRingAndRF
     ]:
         raise NotImplementedError  # pragma: no cover
-        from ...physics.cavities import (  # prevent cyclic import
+        from blond.physics.cavities import (  # prevent cyclic import
             MultiHarmonicRfStation,
         )
-        from ...physics.drifts import DriftBaseClass
+        from blond.physics.drifts import DriftBaseClass
 
         ring_length = self.ring.closed_orbit_length
         bending_radius = self.ring.bending_radius

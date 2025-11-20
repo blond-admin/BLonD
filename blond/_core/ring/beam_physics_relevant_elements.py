@@ -14,7 +14,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from numpy.typing import NDArray as NumpyArray
 
-    from ..base import SimulationElementBase
+    from blond._core.base import SimulationElementBase
 
     T = TypeVar("T")
 
@@ -50,8 +50,8 @@ class BeamPhysicsRelevantElements(Preparable):
 
     def _check_section_indexing(self) -> None:
         """Verify that indices have been set correctly."""
-        from ...physics.cavities import RfStationBaseClass
-        from ...physics.drifts import DriftBaseClass
+        from blond.physics.cavities import RfStationBaseClass
+        from blond.physics.drifts import DriftBaseClass
 
         elem_section_indices = [e.section_index for e in self.elements]
         assert min(elem_section_indices) == 0, "section_index=0 must be set"
@@ -126,7 +126,7 @@ class BeamPhysicsRelevantElements(Preparable):
         -----
         This is different from per-drift listing
         """
-        from ...physics.drifts import DriftBaseClass
+        from blond.physics.drifts import DriftBaseClass
 
         sections = self.get_sections_indices()
         result = np.empty(len(sections))
@@ -356,12 +356,11 @@ class BeamPhysicsRelevantElements(Preparable):
         )
         assert isinstance(section_index, int)
         from blond.experimental.physics.feedbacks.base import FeedbackBaseClass
-
-        from ...physics.cavities import RfStationBaseClass
-        from ...physics.drifts import DriftBaseClass
-        from ...physics.impedances.base import ImpedanceBaseClass
-        from ...physics.losses import LossesBaseClass
-        from ...physics.profiles import ProfileBaseClass
+        from blond.physics.cavities import RfStationBaseClass
+        from blond.physics.drifts import DriftBaseClass
+        from blond.physics.impedances.base import ImpedanceBaseClass
+        from blond.physics.losses import LossesBaseClass
+        from blond.physics.profiles import ProfileBaseClass
 
         natural_order = (
             LossesBaseClass,
