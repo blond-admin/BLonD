@@ -25,11 +25,10 @@ from blond._core.backends.backend import backend
 from blond._core.simulation.simulation import Simulation
 from blond.generals._warnings import NotTestedWarning
 from blond.physics.impedances.base import (
-    AnalyticWakeFieldSource,
-    DiscreteWakeFieldSource,
     FreqDomain,
     TimeDomain,
     TimeDomainCounterRotation,
+    WakeFieldSource,
 )
 from blond.physics.impedances.readers import ImpedanceReader
 
@@ -38,7 +37,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
-    from ..._core.beam.base import BeamBaseClass
+    from blond._core.beam.base import BeamBaseClass
 
 
 def get_hash(array1d: NumpyArray) -> int:
@@ -100,7 +99,7 @@ def get_hash(array1d: NumpyArray) -> int:
     )
 
 
-class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
+class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
     """Inductive impedance, i.e. only complex component in frequency domain.
 
     Parameters
@@ -224,7 +223,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
 
 
 class Resonators(
-    AnalyticWakeFieldSource, TimeDomain, FreqDomain, TimeDomainCounterRotation
+    WakeFieldSource, TimeDomain, FreqDomain, TimeDomainCounterRotation
 ):
     r"""Multiple resonances of RLC circuits for impedance calculations.
 
@@ -574,7 +573,7 @@ class Resonators(
         return impedance
 
 
-class ImpedanceTable(DiscreteWakeFieldSource):
+class ImpedanceTable(WakeFieldSource):
     """Base class to manage impedance tables."""
 
     @staticmethod
@@ -771,7 +770,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
 
 
 # TODO rework docstring
-class TravelingWaveCavity(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
+class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
     r"""Impedance of travelling wave cavities.
 
     Notes
@@ -822,7 +821,7 @@ class TravelingWaveCavity(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
     >>> time = np.array(1,2,3)
     >>> twc.wake_calc(time)
     >>> frequency = np.array(1,2,3)
-    >>> twc.imped_calc(frequency)
+    >>> twc.get_impedance(frequency)
     """
 
     def __init__(

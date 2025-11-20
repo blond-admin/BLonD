@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ..._core.backends.backend import backend
+from blond._core.backends.backend import backend
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional, Tuple

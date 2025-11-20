@@ -12,15 +12,14 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from .._core.backends.backend import backend
-from .._core.base import BeamPhysicsRelevant
+from blond._core.backends.backend import backend
+from blond._core.base import BeamPhysicsRelevant
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
     from blond import Simulation
-
-    from .._core.beam.base import BeamBaseClass
+    from blond._core.beam.base import BeamBaseClass
 
 
 class LossesBaseClass(BeamPhysicsRelevant, ABC):
