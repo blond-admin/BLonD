@@ -15,8 +15,7 @@ from blond.experimental.acc_math.empiric.hamiltonian import (
     calc_hamiltonian,
     separatrixes,
 )
-
-from .helpers import populate_beam
+from blond.experimental.beam_preparation.helpers import populate_beam
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable

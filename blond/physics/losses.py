@@ -9,10 +9,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from .._core.base import BeamPhysicsRelevant
+from blond._core.base import BeamPhysicsRelevant
 
 if TYPE_CHECKING:  # pragma: no cover
-    from .._core.beam.base import BeamBaseClass
+    from blond._core.beam.base import BeamBaseClass
 
 
 class LossesBaseClass(BeamPhysicsRelevant):

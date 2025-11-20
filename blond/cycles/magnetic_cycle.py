@@ -23,18 +23,18 @@ from unittest.mock import Mock
 import numpy as np
 from scipy.constants import speed_of_light as c0
 
-from .._core.base import HasPropertyCache
-from .._core.beam.base import BeamBaseClass
-from .._core.beam.particle_types import ParticleType, proton
-from ..acc_math.analytic.simple_math import calc_total_energy
-from .base import ProgrammedCycle
+from blond._core.base import HasPropertyCache
+from blond._core.beam.base import BeamBaseClass
+from blond._core.beam.particle_types import ParticleType, proton
+from blond.acc_math.analytic.simple_math import calc_total_energy
+from blond.cycles.base import ProgrammedCycle
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, Literal, TypeVar
 
     from numpy.typing import NDArray as NumpyArray
 
-    from .._core.simulation.simulation import Simulation
+    from blond._core.simulation.simulation import Simulation
 
     FloatOrArray = float | NumpyArray
 
@@ -403,7 +403,7 @@ class ConstantMagneticCycle(MagneticCycleBase):
             in_unit=in_unit,
             reference_particle=proton,
         )
-        from .._core.simulation.simulation import Simulation
+        from blond._core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
         simulation.ring.bending_radius = bending_radius
@@ -597,9 +597,9 @@ class MagneticCyclePerTurn(MagneticCycleBase):
             reference_particle=reference_particle,
         )
 
-        from .._core.beam.base import BeamBaseClass
-        from .._core.beam.particle_types import ParticleType
-        from .._core.simulation.simulation import Simulation
+        from blond._core.beam.base import BeamBaseClass
+        from blond._core.beam.particle_types import ParticleType
+        from blond._core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
         beam = Mock(BeamBaseClass)
@@ -789,9 +789,9 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
             in_unit=in_unit,
             reference_particle=reference_particle,
         )
-        from .._core.beam.base import BeamBaseClass
-        from .._core.beam.particle_types import ParticleType
-        from .._core.simulation.simulation import Simulation
+        from blond._core.beam.base import BeamBaseClass
+        from blond._core.beam.particle_types import ParticleType
+        from blond._core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
         beam = Mock(BeamBaseClass)
@@ -956,9 +956,9 @@ class MagneticCycleByTime(MagneticCycleBase):
         -------
         Magnetic_cycle_by_time
         """
-        from .._core.beam.base import BeamBaseClass
-        from .._core.beam.particle_types import ParticleType
-        from .._core.simulation.simulation import Simulation
+        from blond._core.beam.base import BeamBaseClass
+        from blond._core.beam.particle_types import ParticleType
+        from blond._core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
         beam = Mock(BeamBaseClass)

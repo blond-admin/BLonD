@@ -10,6 +10,12 @@ from numpy._typing import NDArray as NumpyArray
 from scipy.signal import fftconvolve
 
 from blond import Simulation
+from blond.experimental.physics.feedbacks.accelerators.sps.helpers import (
+    comb_filter,
+    get_power_gen_i,
+    modulator,
+    moving_average,
+)
 from blond.experimental.physics.feedbacks.accelerators.sps.impulse_response import (  # NOQA
     SPS3Section200MHzTWC,
     SPS4Section200MHzTWC,
@@ -21,8 +27,6 @@ from blond.experimental.physics.feedbacks.cavity_feedback import (
 from blond.experimental.physics.feedbacks.helpers import cartesian_to_polar
 from blond.physics.cavities import MultiHarmonicRfStation
 from blond.physics.profiles import StaticProfile
-
-from .helpers import comb_filter, get_power_gen_i, modulator, moving_average
 
 if TYPE_CHECKING:
     from blond._core.beam.base import BeamBaseClass

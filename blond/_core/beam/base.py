@@ -17,8 +17,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
-    from ..simulation.simulation import Simulation
-    from .particle_types import ParticleType
+    from blond._core.beam.particle_types import ParticleType
+    from blond._core.simulation.simulation import Simulation
 
 
 class BeamFlags(int, Enum):
@@ -429,7 +429,9 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             Default is to remove lost particles ``flag=0``.
 
         """
-        from ..._core.backends.backend import backend  # prevent cyclic import
+        from blond._core.backends.backend import (
+            backend,  # prevent cyclic import
+        )
 
         n_new = backend.specials.move_flagged_elements_to_end(
             flag=flag,

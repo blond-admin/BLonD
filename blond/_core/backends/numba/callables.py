@@ -10,9 +10,11 @@ import numba  # type: ignore
 import numpy as np
 from numba import njit, prange, void
 
-from ...beam.base import BeamFlags
-from ..backend import Specials
-from ..python.callables import _move_flagged_elements_to_end_py
+from blond._core.backends.backend import Specials
+from blond._core.backends.python.callables import (
+    _move_flagged_elements_to_end_py,
+)
+from blond._core.beam.base import BeamFlags
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore

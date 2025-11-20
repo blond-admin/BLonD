@@ -10,6 +10,11 @@ from numpy._typing import NDArray as NumpyArray
 from scipy.interpolate import interp1d
 
 from blond import Simulation, StaticProfile
+from blond.experimental.physics.feedbacks.accelerators.lhc.helpers import (
+    cavity_response_sparse_matrix,
+    fir_filter_lhc_otfb_coeff,
+    smooth_step,
+)
 from blond.experimental.physics.feedbacks.base import (
     GlobalFeedback,
     LocalFeedback,
@@ -22,12 +27,6 @@ from blond.physics.cavities import (
     SingleHarmonicRfStation,
 )
 from blond.physics.profiles import ProfileBaseClass
-
-from .helpers import (
-    cavity_response_sparse_matrix,
-    fir_filter_lhc_otfb_coeff,
-    smooth_step,
-)
 
 
 class LhcBeamFeedBack(GlobalFeedback):
