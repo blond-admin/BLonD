@@ -44,7 +44,7 @@ class _SparseProfileBaseClass:
         number_of_slices_per_profile: int,
         _filling_pattern: NumpyArray,
         _profile_length_in_buckets: int,
-        tracker: Literal["C", "onebyone"] = "C",
+        tracker: TrackerTypes = "C",
         direct_slicing: bool = False,
     ):
         """
@@ -422,7 +422,7 @@ class SparseBucket(_SparseProfileBaseClass):
     bunch_list
         Bunch list (or filling pattern) of the synchrotron
     tracker
-        Choice of tracker. Can be "C" or "onebyone".
+        Choice of tracker. Can be "C" or "onebyone". Default is "C".
     direct_slicing
         Track at initialisation. FALSE by default.
     """
@@ -433,7 +433,7 @@ class SparseBucket(_SparseProfileBaseClass):
         beam: Beam,
         number_of_slices_per_profile: int,
         bunch_list: NumpyArray,
-        tracker="C",
+        tracker: TrackerTypes = "C",
         direct_slicing: bool = False,
     ):
         #: *Filling pattern as a boolean array where True (1) means filled
@@ -505,7 +505,7 @@ class SparseBatch(_SparseProfileBaseClass):
     batch_length
         Batch length in number of RF buckets.
     tracker
-        Choice of tracker. Can be "C" or "onebyone".
+        Choice of tracker. Can be "C" or "onebyone". Default is "C".
     direct_slicing
         Track at initialisation. FALSE by default.
     """
@@ -517,7 +517,7 @@ class SparseBatch(_SparseProfileBaseClass):
         number_of_slices_per_profile: int,
         batch_list: NumpyArray,
         batch_length: int = 1,
-        tracker="C",
+        tracker: TrackerTypes = "C",
         direct_slicing: bool = False,
     ):
         #: *Filling pattern as a boolean array where True (1) means filled
