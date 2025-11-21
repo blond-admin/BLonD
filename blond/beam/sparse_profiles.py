@@ -521,7 +521,7 @@ class SparseBatch(_SparseProfileBaseClass):
         number_of_slices_per_profile: int,
         batch_list: NumpyArray,
         batch_length: int = 1,
-        tracker="C",
+        tracker: TrackerTypes = "C",
         direct_slicing: bool = False,
     ):
         #: *Filling pattern as a boolean array where True (1) means filled
