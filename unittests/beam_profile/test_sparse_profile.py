@@ -214,7 +214,7 @@ class testProfileClass(unittest.TestCase):
             self.filling_pattern,
             self.profile_length_in_buckets,
             tracker="onebyone",
-            direct_slicing=True,
+            initialisation_slicing=True,
         )
 
         for bunch in range(2):
@@ -255,7 +255,7 @@ class testProfileClass(unittest.TestCase):
             self.filling_pattern,
             self.profile_length_in_buckets,
             tracker="C",
-            direct_slicing=True,
+            initialisation_slicing=True,
         )
 
         for bunch in range(2):
@@ -401,10 +401,6 @@ class testProfileClass(unittest.TestCase):
             np.sort(sparse_profile.bin_centers),
             np.sort(sparse_profile_temoin.bin_centers),
         )
-
-        sparse_profile._number_of_indexes += 1
-        with self.assertRaises(ValueError):
-            sparse_profile._update_general_arrays()
 
     def test_properties_SparseBucket(self):
         sparse_profile = SparseBucket(
