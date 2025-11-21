@@ -603,5 +603,5 @@ def SparseSlices(
         number_of_slices_per_profile=n_slices_bucket,
         bunch_list=filling_pattern,
         tracker=tracker,
-        direct_slicing=direct_slicing,
+        initialisation_slicing=direct_slicing,
     )
