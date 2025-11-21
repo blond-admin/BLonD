@@ -26,6 +26,7 @@ from scipy import signal as sgn
 from scipy.constants import e
 from scipy.special import comb
 from ..beam.sparse_profiles import SparseBatch, SparseBucket
+from ..beam.profile import Profile
 from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
