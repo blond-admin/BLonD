@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from blond import AllowPlotting, backend
-from blond._core.helpers import int_from_float_with_warning
+from blond.core.helpers import int_from_float_with_warning
 from blond.beam_preparation.base import MatchingRoutine
 from blond.experimental.beam_preparation.helpers import populate_beam
 
@@ -23,7 +23,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond import (
         Simulation,
     )
-    from blond._core.beam.base import BeamBaseClass
+    from blond.core.beam.base import BeamBaseClass
 
 
 def hamilton_to_density_by_max(

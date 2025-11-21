@@ -22,14 +22,14 @@ def main():  # pragma: no cover
     omega_rf = 1.4
     phi_rf = 1.4
     bin_size = 1.4
-    from blond._core.backends.backend import Numpy64Bit, backend
+    from blond.core.backends.backend import Numpy64Bit, backend
 
     backend.change_backend(Numpy64Bit)
-    from blond._core.backends.cpp.callables import CppSpecials
-    from blond._core.backends.cuda.callables import CudaSpecials
-    from blond._core.backends.fortran.callables import FortranSpecials
-    from blond._core.backends.numba.callables import recompile_numba_backend
-    from blond._core.backends.python.callables import PythonSpecials
+    from blond.core.backends.cpp.callables import CppSpecials
+    from blond.core.backends.cuda.callables import CudaSpecials
+    from blond.core.backends.fortran.callables import FortranSpecials
+    from blond.core.backends.numba.callables import recompile_numba_backend
+    from blond.core.backends.python.callables import PythonSpecials
 
     NumbaSpecials = recompile_numba_backend(backend.float)
 

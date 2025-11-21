@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond._core.backends.backend import backend
+from blond.core.backends.backend import backend
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional, Tuple
@@ -12,7 +12,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
-    from blond._core.beam.base import BeamBaseClass
+    from blond.core.beam.base import BeamBaseClass
 
 
 def generate_particle_coordinates(

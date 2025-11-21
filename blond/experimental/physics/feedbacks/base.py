@@ -3,12 +3,12 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-from blond._core.base import BeamPhysicsRelevant
-from blond._core.ring.helpers import requires
+from blond.core.base import BeamPhysicsRelevant
+from blond.core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
-    from blond._core.beam.base import BeamBaseClass
-    from blond._core.simulation.simulation import Simulation
+    from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
     from blond.physics.cavities import (
         MultiHarmonicRfStation,
         RfStationBaseClass,

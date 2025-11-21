@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from blond._core.beam.base import BeamBaseClass
-from blond._core.simulation.simulation import Simulation
+from blond.core.beam.base import BeamBaseClass
+from blond.core.simulation.simulation import Simulation
 from blond.beam_preparation.base import MatchingRoutine
 
 if TYPE_CHECKING:  # pragma: no cover

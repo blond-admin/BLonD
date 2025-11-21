@@ -489,17 +489,17 @@ class NumpyBackend(BackendBaseClass):
         onchange = self.specials_mode != mode
 
         if mode == "python":
-            from blond._core.backends.python.callables import PythonSpecials
+            from blond.core.backends.python.callables import PythonSpecials
 
             self.specials = PythonSpecials()
             self.specials_mode = mode
         elif mode == "cpp":
-            from blond._core.backends.cpp.callables import reload_cpp_backend
+            from blond.core.backends.cpp.callables import reload_cpp_backend
 
             self.specials = reload_cpp_backend(self.float)
             self.specials_mode = mode
         elif mode == "numba":
-            from blond._core.backends.numba.callables import (
+            from blond.core.backends.numba.callables import (
                 recompile_numba_backend,
             )
 
@@ -507,7 +507,7 @@ class NumpyBackend(BackendBaseClass):
             self.specials = NumbaSpecials()
             self.specials_mode = mode
         elif mode == "fortran":
-            from blond._core.backends.fortran.callables import (
+            from blond.core.backends.fortran.callables import (
                 reload_fortran_backend,
             )
 
@@ -591,7 +591,7 @@ class CupyBackend(BackendBaseClass):
         self.arange = cp.arange
         self.average = cp.average
 
-        from blond._core.backends.cuda.callables import CudaSpecials
+        from blond.core.backends.cuda.callables import CudaSpecials
 
         self.specials = CudaSpecials()
 
@@ -607,7 +607,7 @@ class CupyBackend(BackendBaseClass):
 
         """
         if mode == "cuda":
-            from blond._core.backends.cuda.callables import reload_cuda_backend
+            from blond.core.backends.cuda.callables import reload_cuda_backend
 
             CudaSpecials = reload_cuda_backend(self.float)
 

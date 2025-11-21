@@ -9,16 +9,16 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from scipy.constants import speed_of_light as c0  # type: ignore
 
-from blond._core.base import HasPropertyCache, Preparable
-from blond._core.helpers import int_from_float_with_warning
-from blond._core.ring.helpers import requires
+from blond.core.base import HasPropertyCache, Preparable
+from blond.core.helpers import int_from_float_with_warning
+from blond.core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
-    from blond._core.beam.particle_types import ParticleType
-    from blond._core.simulation.simulation import Simulation
+    from blond.core.beam.particle_types import ParticleType
+    from blond.core.simulation.simulation import Simulation
 
 
 class BeamFlags(int, Enum):
@@ -429,7 +429,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             Default is to remove lost particles ``flag=0``.
 
         """
-        from blond._core.backends.backend import (
+        from blond.core.backends.backend import (
             backend,  # prevent cyclic import
         )
 

@@ -29,7 +29,7 @@ from blond.physics.cavities import MultiHarmonicRfStation
 from blond.physics.profiles import StaticProfile
 
 if TYPE_CHECKING:
-    from blond._core.beam.base import BeamBaseClass
+    from blond.core.beam.base import BeamBaseClass
 
 
 class SPSCavityLoopCommissioning:

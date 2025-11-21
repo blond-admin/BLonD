@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond._core.base import Preparable, Schedulable
+from blond.core.base import Preparable, Schedulable
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
@@ -15,12 +15,12 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from numpy.typing import NDArray as NumpyArray
 
-    from blond._core.base import SimulationElementBase
-    from blond._core.beam.base import BeamBaseClass
-    from blond._core.ring.beam_physics_relevant_elements import (
+    from blond.core.base import SimulationElementBase
+    from blond.core.beam.base import BeamBaseClass
+    from blond.core.ring.beam_physics_relevant_elements import (
         BeamPhysicsRelevantElements,
     )
-    from blond._core.simulation.simulation import Simulation
+    from blond.core.simulation.simulation import Simulation
     from blond.physics.drifts import DriftBaseClass
 
 
@@ -45,7 +45,7 @@ class Ring(Preparable, Schedulable):
             fixed. Orbit length changes result in timing delays but don't affect
             the RF frequency program.
         """
-        from blond._core.ring.beam_physics_relevant_elements import (
+        from blond.core.ring.beam_physics_relevant_elements import (
             BeamPhysicsRelevantElements,
         )
 

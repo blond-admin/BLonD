@@ -17,7 +17,7 @@ from blond import (
     mu_plus,
     proton,
 )
-from blond._core.beam.base import BeamBaseClass
+from blond.core.beam.base import BeamBaseClass
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 from blond.generals._warnings import PerformanceWarning
 from blond.handle_results.helpers import callers_relative_path

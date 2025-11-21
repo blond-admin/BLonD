@@ -13,16 +13,16 @@ from abc import ABC
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
-from blond._core.backends.backend import backend
-from blond._core.base import BeamPhysicsRelevant, HasPropertyCache, Schedulable
+from blond.core.backends.backend import backend
+from blond.core.base import BeamPhysicsRelevant, HasPropertyCache, Schedulable
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
     from numpy.typing import NDArray as NumpyArray
 
-    from blond._core.beam.base import BeamBaseClass
-    from blond._core.simulation.simulation import Simulation
+    from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
 
 
 def _assert_purely_real_or_imaginary(val: complex):
@@ -247,7 +247,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         -------
         drift_simple
         """
-        from blond._core.base import DynamicParameter
+        from blond.core.base import DynamicParameter
 
         d = DriftSimple(
             orbit_length=orbit_length,
@@ -257,8 +257,8 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             d.transition_gamma = transition_gamma
         else:
             d.schedule("transition_gamma", transition_gamma, mode="per-turn")
-        from blond._core.beam.base import BeamBaseClass
-        from blond._core.simulation.simulation import Simulation
+        from blond.core.beam.base import BeamBaseClass
+        from blond.core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
         simulation.turn_i = Mock(DynamicParameter)

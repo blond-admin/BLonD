@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING, Any
 import matplotlib.pyplot as plt
 import numpy as np
 
-from blond._core.backends.backend import backend
-from blond._core.beam.base import BeamBaseClass, BeamFlags
+from blond.core.backends.backend import backend
+from blond.core.beam.base import BeamBaseClass, BeamFlags
 from blond.generals.cupy.no_cupy_import import is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -16,7 +16,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond import Simulation
-    from blond._core.beam.particle_types import ParticleType
+    from blond.core.beam.particle_types import ParticleType
 
 
 class Beam(BeamBaseClass):

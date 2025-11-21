@@ -4,17 +4,17 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond._core.base import Preparable
-from blond._core.beam.base import BeamBaseClass
-from blond._core.ring.helpers import get_elements
-from blond._core.simulation.simulation import Simulation
+from blond.core.base import Preparable
+from blond.core.beam.base import BeamBaseClass
+from blond.core.ring.helpers import get_elements
+from blond.core.simulation.simulation import Simulation
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, TypeVar
 
     from numpy.typing import NDArray as NumpyArray
 
-    from blond._core.base import SimulationElementBase
+    from blond.core.base import SimulationElementBase
 
     T = TypeVar("T")
 
@@ -25,7 +25,7 @@ class BeamPhysicsRelevantElements(Preparable):
     Attributes
     ----------
     elements
-        List of  :class:`~blond._core.ring.beam_physics_relevant_elements.BeamPhysicsRelevantElements`
+        List of  :class:`~blond.core.ring.beam_physics_relevant_elements.BeamPhysicsRelevantElements`
     """
 
     def __init__(self) -> None:

@@ -15,8 +15,8 @@ from blond import (
     MagneticCyclePerTurnAllCavities,
     proton,
 )
-from blond._core.beam.base import BeamBaseClass
-from blond._core.beam.particle_types import ParticleType, uranium_29
+from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.particle_types import ParticleType, uranium_29
 from blond.acc_math.analytic.simple_math import (
     beta_by_momentum,
     calc_beta,

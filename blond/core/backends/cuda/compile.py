@@ -95,7 +95,7 @@ def compile_cuda_library(  # NOQA: PLR0915
 
     # Get the CuPy header files location
     path_ = cp.__file__.split("/")[:-1]  # remove __init__.py from path
-    path_.extend(["_core", "include"])
+    path_.extend(["core", "include"])
     cupyloc = os.path.join("/".join(path_))
 
     print("CUDA Compiler: ", nvcc)

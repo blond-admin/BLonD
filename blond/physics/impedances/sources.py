@@ -21,8 +21,8 @@ from warnings import warn
 
 import numpy as np
 
-from blond._core.backends.backend import backend
-from blond._core.simulation.simulation import Simulation
+from blond.core.backends.backend import backend
+from blond.core.simulation.simulation import Simulation
 from blond.generals._warnings import NotTestedWarning
 from blond.physics.impedances.base import (
     FreqDomain,
@@ -37,7 +37,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
-    from blond._core.beam.base import BeamBaseClass
+    from blond.core.beam.base import BeamBaseClass
 
 
 def get_hash(array1d: NumpyArray) -> int:

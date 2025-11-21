@@ -10,8 +10,8 @@ import numba  # type: ignore
 import numpy as np
 from numba import njit, prange, void
 
-from blond._core.backends.backend import Specials
-from blond._core.backends.python.callables import (
+from blond.core.backends.backend import Specials
+from blond.core.backends.python.callables import (
     _move_flagged_elements_to_end_py,
 )
 

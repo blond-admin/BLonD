@@ -4,8 +4,8 @@ from unittest.mock import Mock
 import numpy as np
 
 from blond import Ring, Simulation
-from blond._core.base import BeamPhysicsRelevant
-from blond._core.beam.base import BeamBaseClass
+from blond.core.base import BeamPhysicsRelevant
+from blond.core.beam.base import BeamBaseClass
 from blond.physics.cavities import RfStationBaseClass
 from blond.physics.drifts import DriftBaseClass, DriftSimple
 

@@ -18,9 +18,9 @@ def main():  # pragma: no cover `main_cli_xxx` gets executed anyway by CI/CD  pi
     when initializing or rebuilding the BLonD environment to ensure
     all compiled modules are up to date.
     """
-    from blond._core.backends.cpp.compile import main_cli as main_cli_cpp
-    from blond._core.backends.cuda.compile import main_cli as main_cli_cuda
-    from blond._core.backends.fortran.compile import (
+    from blond.core.backends.cpp.compile import main_cli as main_cli_cpp
+    from blond.core.backends.cuda.compile import main_cli as main_cli_cuda
+    from blond.core.backends.fortran.compile import (
         main_cli as main_cli_fortran,
     )
 

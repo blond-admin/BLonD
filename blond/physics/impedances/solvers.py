@@ -20,11 +20,11 @@ import numpy as np
 from scipy.constants import elementary_charge as e
 from scipy.fft import next_fast_len
 
-from blond._core.backends.backend import backend
-from blond._core.base import DynamicParameter
-from blond._core.beam.base import BeamBaseClass
-from blond._core.ring.helpers import requires
-from blond._core.simulation.simulation import Simulation
+from blond.core.backends.backend import backend
+from blond.core.base import DynamicParameter
+from blond.core.beam.base import BeamBaseClass
+from blond.core.ring.helpers import requires
+from blond.core.simulation.simulation import Simulation
 from blond.generals._warnings import NotTestedWarning
 from blond.physics.impedances.base import (
     FreqDomain,

@@ -2,10 +2,10 @@
 
 from typing import TYPE_CHECKING
 
-from blond._core.backends.backend import backend
-from blond._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
-from blond._core.beam.base import BeamBaseClass
-from blond._core.simulation.simulation import Simulation
+from blond.core.backends.backend import backend
+from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
+from blond.core.beam.base import BeamBaseClass
+from blond.core.simulation.simulation import Simulation
 from blond.cycles.magnetic_cycle import MagneticCycleBase, MagneticCycleByTime
 
 if TYPE_CHECKING:  # pragma: no cover

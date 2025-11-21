@@ -8,7 +8,7 @@ import scipy
 from numpy._typing import NDArray as NumpyArray
 from scipy.constants import e
 
-from blond._core.beam.base import BeamBaseClass
+from blond.core.beam.base import BeamBaseClass
 
 logger = logging.getLogger(__name__)
 

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond._core.backends.backend import Specials, backend
+from blond.core.backends.backend import Specials, backend
 
 if TYPE_CHECKING:  # pragma: no cover
     from ctypes import CDLL
