@@ -63,7 +63,7 @@ class _SparseProfileBaseClass:
         _profile_length_in_buckets
             Profile lengths in number of RF buckets. Should be greater than 1.
         tracker
-            Choice of tracker. Can be "C" or "onebyone".
+            Choice of tracker. Can be "C" or "onebyone". Default is "C".
         initialisation_slicing
             Enables tracking at initialisation. FALSE by default.
 
@@ -585,7 +585,7 @@ def SparseSlices(
     filling_pattern
         Bunch list (or filling pattern) of the synchrotron
     tracker
-        Choice of tracker. Can be "C" or "onebyone".
+        Choice of tracker. Can be "C" or "onebyone". Default is "C".
     direct_slicing
         Track at initialisation. FALSE by default.
     """
