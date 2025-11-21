@@ -218,7 +218,7 @@ class testProfileClass(unittest.TestCase):
         )
 
         for bunch in range(2):
-            indexes = (
+            indices = (
                 self.uniform_profile.bin_centers
                 > nonuniform_profile.cut_left_array[bunch]
             ) * (
@@ -227,7 +227,7 @@ class testProfileClass(unittest.TestCase):
             )
 
             np.testing.assert_allclose(
-                self.uniform_profile.bin_centers[indexes],
+                self.uniform_profile.bin_centers[indices],
                 nonuniform_profile.bin_centers_array[bunch],
                 rtol=rtol,
                 atol=atol,
@@ -236,7 +236,7 @@ class testProfileClass(unittest.TestCase):
             )
 
             np.testing.assert_allclose(
-                self.uniform_profile.n_macroparticles[indexes],
+                self.uniform_profile.n_macroparticles[indices],
                 nonuniform_profile.n_macroparticles_array[bunch],
                 rtol=rtol,
                 atol=atol,
@@ -259,7 +259,7 @@ class testProfileClass(unittest.TestCase):
         )
 
         for bunch in range(2):
-            indexes = (
+            indices = (
                 self.uniform_profile.bin_centers
                 > nonuniform_profile.cut_left_array[bunch]
             ) * (
@@ -268,7 +268,7 @@ class testProfileClass(unittest.TestCase):
             )
 
             np.testing.assert_allclose(
-                self.uniform_profile.bin_centers[indexes],
+                self.uniform_profile.bin_centers[indices],
                 nonuniform_profile.bin_centers_array[bunch],
                 rtol=rtol,
                 atol=atol,
@@ -277,7 +277,7 @@ class testProfileClass(unittest.TestCase):
             )
 
             np.testing.assert_allclose(
-                self.uniform_profile.n_macroparticles[indexes],
+                self.uniform_profile.n_macroparticles[indices],
                 nonuniform_profile.n_macroparticles_array[bunch],
                 rtol=rtol,
                 atol=atol,
@@ -353,7 +353,7 @@ class testProfileClass(unittest.TestCase):
         )
 
         sparse_profile._update_profile_lists(
-            _additional_indexes=additional_filled_buckets
+            _additional_indices=additional_filled_buckets
         )
 
         np.testing.assert_equal(
@@ -377,8 +377,8 @@ class testProfileClass(unittest.TestCase):
         )
 
         np.testing.assert_equal(
-            sparse_profile._number_of_indexes,
-            sparse_profile_temoin._number_of_indexes,
+            sparse_profile._number_of_indices,
+            sparse_profile_temoin._number_of_indices,
         )
 
         np.testing.assert_equal(
@@ -392,8 +392,8 @@ class testProfileClass(unittest.TestCase):
         )
 
         np.testing.assert_equal(
-            sparse_profile._bucket_indexes,
-            sparse_profile_temoin._bucket_indexes,
+            sparse_profile._bucket_indices,
+            sparse_profile_temoin._bucket_indices,
         )
 
         np.testing.assert_equal(
@@ -419,7 +419,7 @@ class testProfileClass(unittest.TestCase):
         )
 
         np.testing.assert_equal(
-            sparse_profile.bunch_indexes,
+            sparse_profile.bunch_indices,
             np.array([-1, 0, -1, -1, -1]),
         )
 
@@ -469,7 +469,7 @@ class testProfileClass(unittest.TestCase):
         )
 
         np.testing.assert_equal(
-            sparse_profile.batch_indexes,
+            sparse_profile.batch_indices,
             np.array([-1, 0, -1, -1, -1]),
         )
 
