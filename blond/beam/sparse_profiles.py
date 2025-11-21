@@ -104,12 +104,14 @@ class _SparseProfileBaseClass:
 
         self.tracker = tracker
         self.initialisation_slicing = initialisation_slicing
-        self.track = None
 
         # Pre-processing the slicing edges
         self._set_cuts(length_in_buckets=_profile_length_in_buckets)
         self._generate_profile_list()
-        self._set_tracker()
+
+        # Track at initialisation
+        if self.initialisation_slicing:
+            self.track()
 
     @property
     def n_macroparticles_array(self):
@@ -209,22 +211,17 @@ class _SparseProfileBaseClass:
             for i in range(self._number_of_indices)
         ]
 
-    def _set_tracker(self):
+    def track(self):
         """
-        Internal method to handle the tracker choice, and track at
-        initialisation if self.direct_slicing is True.
+        Tracking method of the profile, depending on the tracker choice.
         """
         if self.tracker == "C":
-            self.track = self._histogram_c
+            self._histogram_c()
         elif self.tracker == "onebyone":
-            self.track = self._histogram_one_by_one
+            self._histogram_one_by_one()
         else:
             # WrongCalcError
             raise RuntimeError("Tracking method not recognized!")
-
-        # Track at initialisation
-        if self.initialisation_slicing:
-            self.track()
 
     def _histogram_c(self):
         """
