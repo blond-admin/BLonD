@@ -13,6 +13,7 @@ from blond.handle_results.observables import (
     BeamObservationEndOfTurn,
     CavityPhaseObservation,
     DynamicProfileConstNBinsObservation,
+    MultiBunchObservationMetaParams,
     ObservablesEndOfTurnBase,
     StaticMultiProfileObservation,
     StaticProfileObservation,
@@ -273,6 +274,40 @@ class TestBunchObservation(unittest.TestCase):
         )
         self.bunch_observation.to_disk()
         self.bunch_observation.from_disk()
+
+
+class TestMultiBunchObservationMetaParams(unittest.TestCase):
+    def setUp(self) -> None:
+        self.multi_bunch_observation_meta_params = MultiBunchObservationMetaParams(
+            t_rf=1,
+            each_turn_i=1,
+            folder=callers_relative_path("results/", stacklevel=1),
+            beam=beam,
+        )
+
+    def test___init__(self) -> None:
+        self.multi_bunch_observation_meta_params = MultiBunchObservationMetaParams(
+            t_rf=1,
+            each_turn_i=1,
+            folder=callers_relative_path("results/", stacklevel=1),
+            beam=beam,
+        )
+
+    def test_from_disk(self) -> None:
+        self.multi_bunch_observation_meta_params.on_init_simulation(
+            simulation=simulation,
+        )
+        self.multi_bunch_observation_meta_params.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            turn_i_init=0,
+            n_turns=100,
+        )
+        self.multi_bunch_observation_meta_params.update(
+            simulation=simulation,
+        )
+        self.multi_bunch_observation_meta_params.to_disk()
+        self.multi_bunch_observation_meta_params.from_disk()
 
 
 class TestCavityPhaseObservation(unittest.TestCase):

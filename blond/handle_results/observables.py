@@ -570,6 +570,15 @@ class MultiBunchObservationMetaParams(ObservablesEndOfTurnBase):
         self._mean_dE: DenseArrayRecorder | None = None
         self._emittance_stat: DenseArrayRecorder | None = None
 
+        # buffering arrays necessary to retrieve the arrays
+        # of the current turn, are initialized in
+        # on_run_simulation
+        self._mean_dt_buffer: NumpyArray | None = None
+        self._mean_dE_buffer: NumpyArray | None = None
+        self._emittance_stat_buffer: NumpyArray | None = None
+        self._sigma_dt_buffer: NumpyArray | None = None
+        self._sigma_dE_buffer: NumpyArray | None = None
+
     def on_run_simulation(
         self,
         simulation: Simulation,
@@ -609,23 +618,23 @@ class MultiBunchObservationMetaParams(ObservablesEndOfTurnBase):
         self._sigma_dE_buffer = np.zeros(self.n_bunches)
 
         self._mean_dt = DenseArrayRecorder(
-            f"{self.common_name}_mean_dt",
+            f"{self.common_filepath}_mean_dt",
             shape,
         )
         self._mean_dE = DenseArrayRecorder(
-            f"{self.common_name}_mean_dE",
+            f"{self.common_filepath}_mean_dE",
             shape,
         )
         self._sigma_dt = DenseArrayRecorder(
-            f"{self.common_name}_sigma_dt",
+            f"{self.common_filepath}_sigma_dt",
             shape,
         )
         self._sigma_dE = DenseArrayRecorder(
-            f"{self.common_name}_sigma_dE",
+            f"{self.common_filepath}_sigma_dE",
             shape,
         )
         self._emittance_stat = DenseArrayRecorder(
-            f"{self.common_name}_emittance_stat",
+            f"{self.common_filepath}_emittance_stat",
             shape,
         )
 
