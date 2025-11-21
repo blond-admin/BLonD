@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
@@ -25,17 +26,25 @@ class Beam(BeamBaseClass):
         particle_type: ParticleType,
         is_counter_rotating: bool = False,
     ) -> None:
-        """Base class to host particle coordinates and timing information.
+        """Initialize a beam of particles for simulation.
+
+        The Beam class represents a collection of macro-particles that model
+        the behavior of a real particle beam in an accelerator. Each macro-particle
+        represents many real particles and has relative coordinates in time `dt` and
+        energy `dE` space.
 
         Parameters
         ----------
         intensity
-            Actual/real number of particles
-            a.k.a. beam intensity
+            The total number of real particles in the beam (beam intensity).
+            This is distinct from the number of macro-particles used in the
+            simulation, which is typically much smaller.
         particle_type
-            Type of particles, e.g. protons
+            The type of particle in the beam (e.g., protons, electrons).
+            This determines properties like mass and charge.
         is_counter_rotating
-            If this is a normal or counter-rotating beam
+            Whether this beam rotates in the opposite direction to the main beam.
+            Default is False (co-rotating beam).
         """
         super().__init__(
             intensity=intensity,
@@ -45,10 +54,15 @@ class Beam(BeamBaseClass):
         )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """Initialize beam parameters when the simulation is created.
 
+        This method is automatically called during simulation initialization
+        to set up the beam within the simulation context.
+
+        Parameters
+        ----------
         simulation
-            Simulation context manager
+            The simulation object that manages this beam.
         """
         super().on_init_simulation(simulation=simulation)
 
@@ -60,20 +74,30 @@ class Beam(BeamBaseClass):
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
     ) -> None:
-        """Sets beam array attributes for simulation.
+        """Configure the beam with an initial particle distributions.
+
+        This method sets the time and energy coordinates for all macro-particles
+        in the beam. It must be called before running a simulation to initialize
+        the particle distribution.
 
         Parameters
         ----------
         dt
-            Macro-particle time coordinates, in [s]
+            Time coordinates of each macro-particle relative to the reference
+            time, in [s].
         dE
-            Macro-particle energy coordinates, in [eV]
+            Energy coordinates of each macro-particle relative to the reference
+            energy, in [eV]. Must have the same length as `dt`.
         flags
-            Macro-particle flags
+            Status flags for each macro-particle (e.g., active, lost).
+            If not provided, all particles are set to `ACTIVE` by default.
         reference_time
-            Time of the reference frame (global time), in [s]
+            The absolute reference time for the coordinate system,
+            in [s]. Particle times `dt` are relative to
+            this reference.
         reference_total_energy
-            Time of the reference frame (global total energy), in [eV]
+            The reference total energy for the coordinate system, in [eV].
+            Particle energies `dE` are relative to this reference.
         """
         assert len(dt) == len(dE), f"{len(dt)} != {len(dE)}"
         n_macroparticles = len(dt)
@@ -114,16 +138,24 @@ class Beam(BeamBaseClass):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """Prepare the beam before the simulation starts running.
 
+        This method is automatically called when `simulation.run_simulation()`
+        is invoked, allowing the beam to perform any necessary setup before
+        the turn-by-turn tracking begins.
+
+        Parameters
+        ----------
         simulation
-            Simulation context manager
+            The simulation object managing the beam dynamics.
         beam
-            Simulation `Beam` object
+            The beam object being simulated (typically this beam itself).
         n_turns
-            Number of turns to simulate
+            The total number of turns (revolutions) to simulate.
         turn_i_init
-            Initial turn to execute simulation
+            The starting turn number for the simulation.
+        **kwargs
+            Additional keyword arguments for simulation setup.
         """
         super().on_run_simulation(
             simulation=simulation,
@@ -134,7 +166,23 @@ class Beam(BeamBaseClass):
 
     @property
     def ratio(self) -> float:
-        """Ratio of the intensity vs. the sum of weights."""
+        """Number of real particles represented by each macro-particle.
+
+        This is the ratio of the total beam intensity (real particles) to the
+        number of macro-particles in the simulation. For example, if the beam
+        has 1e11 real particles and 1e6 macro-particles, each macro-particle
+        represents 1e5 real particles.
+
+        Returns
+        -------
+        ratio
+            The number of real particles per macro-particle.
+        """
+        warnings.warn(
+            "`ratio` might be removed in future.",
+            DeprecationWarning,
+            stacklevel=1,
+        )
         # As there are no weights, lets assume all weights are 1,
         # The sum over all macro-particles with weight 1
         # is thus `common_array_size`.
@@ -142,36 +190,86 @@ class Beam(BeamBaseClass):
 
     @cached_property
     def dt_min(self) -> np.int32 | np.int64:
-        """Minimum dt coordinate, in [s]."""
+        """Minimum time coordinate among all macro-particles in the beam in [s].
+
+        Returns
+        -------
+        dt_min
+            Earliest time position in [s], relative to the reference time.
+        """
         return self._dt.min()
 
     @cached_property
     def dt_max(self) -> np.int32 | np.int64:
-        """Maximum dt coordinate, in [s]."""
+        """Maximum time coordinate among all macro-particles in the beam in [s].
+
+        Returns
+        -------
+        dt_max
+            Latest time position in [s], relative to the reference time.
+        """
         return self._dt.max()
 
     @cached_property
     def dE_min(self) -> np.int32 | np.int64:
-        """Minimum dE coordinate, in [eV]."""
+        """Minimum energy coordinate among all macro-particles in the beam in [eV].
+
+        Returns
+        -------
+        dE_min
+            Lowest energy in [eV], relative to the reference energy.
+        """
         return self._dE.min()
 
     @cached_property
     def dE_max(self) -> np.int32 | np.int64:
-        """Maximum dE coordinate, in [eV]."""
+        """Maximum energy coordinate among all macro-particles in the beam in [eV].
+
+        Returns
+        -------
+        dE_max
+            Highest energy in [eV], relative to the reference energy.
+        """
         return self._dE.max()
 
     @cached_property
     def common_array_size(self) -> int:
-        """Size of the beam, considering distributed beams."""
+        """Total number of macro-particles in the beam regardless of `flags` state.
+
+        This property returns the size of the particle arrays (`dt`, `dE`, `flags`).
+        For distributed beams, this accounts for particles across all processes.
+
+        Notes
+        -----
+        Particles that are labeled LOST will be nevertheless counted,
+        as they still exist in the array.
+
+        Returns
+        -------
+        common_array_size
+            The number of macro-particles being tracked in the simulation.
+        """
         return len(self._dt)
 
     def plot_hist2d(self, **kwargs) -> None:
-        """Plot 2D histogram of beam coordinates.
+        """Plot a 2D histogram of the beam distribution.
+
+        Creates a visualization showing the distribution of macro-particles in
+        the time-energy distribution (`dt` vs `dE`). This is useful for visualizing
+        the beam shape, density, and any structures in the distribution.
 
         Parameters
         ----------
-        kwargs
-            Keyword arguments for ``matplotlib.pyplot.hist2d``
+        **kwargs
+            Additional keyword arguments passed to ``matplotlib.pyplot.hist2d``.
+            Common options include:
+            - bins: number of bins (default: 256)
+            - cmap: colormap (default: 'viridis')
+            - range: data range [[xmin, xmax], [ymin, ymax]]
+
+        Notes
+        -----
+        The x-axis represents time `dt` and the y-axis represents energy `dE`.
         """
         if self._dt is None or self._dE is None:
             raise ValueError(
@@ -210,15 +308,24 @@ class Beam(BeamBaseClass):
             plt.scatter(self._dt, self._dE, **kwargs)
 
     def plot_hist(self, axis=0, **kwargs) -> None:
-        """Plot 2D histogram of beam coordinates.
+        """Plot a 1D histogram of beam coordinates along a single axis.
+
+        Creates a histogram showing the distribution of macro-particles projected
+        onto either the time axis or the energy axis.
 
         Parameters
         ----------
         axis
-            0: Plot dt axis
-            1: Plot dE axis
-        kwargs
-            Keyword arguments for ``matplotlib.pyplot.hist``
+            Which coordinate to plot:
+            - 0: Plot time coordinate `dt` distribution
+            - 1: Plot energy coordinate `dE` distribution
+            Default is 0 (time).
+        **kwargs
+            Additional keyword arguments passed to ``matplotlib.pyplot.hist``.
+            Common options include:
+            - bins: number of bins (default: 256)
+            - range: data range (min, max)
+            - density: if True, normalize to form a probability density
 
         """
         if self._dt is None or self._dE is None:
@@ -256,28 +363,39 @@ class ProbeBeam(Beam):
         reference_total_energy: float | None = None,
         intensity: int = 0,
     ) -> None:
-        """Test Bunch without intensity effects.
+        """Create a test beam for probing simulation dynamics.
 
-        This is intended to probe the simulation with peculiar bunches,
-        that might only feature ``dt`` or ``dE``
+        A ProbeBeam is a special beam type, designed for testing and
+        analysis purposes.
+
+        At least one of `dt` or `dE` must be provided. If only one is given,
+        the other coordinate is automatically set to zero for all particles.
 
         Parameters
         ----------
         particle_type
-            Type of particles, e.g. protons
+            The type of particle in the beam (e.g., protons, electrons).
+            This determines properties like mass and charge.
         dt
-            Macro-particle time coordinates, in [s]
-            Will be all zero if not provided.
+            Time coordinates for the macro-particles, in [s].
+            If only `dt` is provided, `dE` will be set to zeros.
+            If neither `dt` nor `dE` is provided, an error is raised.
         dE
-            Macro-particle energy coordinates, in [eV]
-            Will be all zero if not provided.
+            Energy coordinates for the macro-particles, in [eV].
+            If only `dE` is provided, dt will be set to zeros.
+            If neither `dt` nor `dE` is provided, an error is raised.
         reference_time
-            Time of the reference frame (global time), in [s]
+            The reference time for the coordinate system, in [s].
         reference_total_energy
-            Time of the reference frame (global total energy), in [eV]
+            The reference total energy for the coordinate system, in [eV].
         intensity
-            Actual/real number of particles
-            a.k.a. beam intensity
+            The beam intensity (number of real particles). Default is 0,
+            meaning no collective effects.
+
+        Raises
+        ------
+        ValueError
+            If neither `dt` nor `dE` is provided.
         """
         super().__init__(
             intensity=intensity,
