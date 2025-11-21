@@ -381,7 +381,6 @@ class testProfileClass(unittest.TestCase):
             sparse_profile_temoin._number_of_indexes,
         )
 
-        # from _update_general_arrays()
         np.testing.assert_equal(
             np.sort(sparse_profile.n_macroparticles),
             np.sort(sparse_profile_temoin.n_macroparticles),

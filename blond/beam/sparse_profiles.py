@@ -99,13 +99,6 @@ class _SparseProfileBaseClass:
         )
 
         self.profiles_list = None
-
-        # Group n_macroparticles from all objects in a single array
-        # (for C++ track).
-        self.n_macroparticles_array = None
-        self.bin_centers_array = None
-        self.edges_array = None
-
         self.cut_left_array = None
         self.cut_right_array = None
 
@@ -117,6 +110,33 @@ class _SparseProfileBaseClass:
         self._set_cuts(length_in_buckets=_profile_length_in_buckets)
         self._generate_profile_list()
         self._set_tracker()
+
+    @property
+    def n_macroparticles_array(self):
+        return np.array(
+            [
+                self.profiles_list[i].n_macroparticles
+                for i in range(self._number_of_indexes)
+            ]
+        )
+
+    @property
+    def bin_centers_array(self):
+        return np.array(
+            [
+                self.profiles_list[i].bin_centers
+                for i in range(self._number_of_indexes)
+            ]
+        )
+
+    @property
+    def edges_array(self):
+        return np.array(
+            [
+                self.profiles_list[i].edges
+                for i in range(self._number_of_indexes)
+            ]
+        )
 
     @property
     def n_macroparticles(self):
@@ -176,34 +196,18 @@ class _SparseProfileBaseClass:
         initialises the general arrays and matrices (n_macroparticles,
         bin_size, bin_centers).
         """
-        self.profiles_list = []
-        self.n_macroparticles_array = np.zeros(
-            (self._number_of_indexes, self.number_of_slices_per_profile)
-        )
-        self.bin_centers_array = np.zeros(
-            (self._number_of_indexes, self.number_of_slices_per_profile)
-        )
-        self.edges_array = np.zeros(
-            (self._number_of_indexes, self.number_of_slices_per_profile + 1)
-        )
 
-        for i in range(self._number_of_indexes):
-            # Only valid for cut_edges='edges'
-            self.profiles_list.append(
-                Profile(
-                    self.beam,
-                    CutOptions(
-                        cut_left=self.cut_left_array[i],
-                        cut_right=self.cut_right_array[i],
-                        n_slices=self.number_of_slices_per_profile,
-                    ),
-                )
+        self.profiles_list = [
+            Profile(
+                self.beam,
+                CutOptions(
+                    cut_left=self.cut_left_array[i],
+                    cut_right=self.cut_right_array[i],
+                    n_slices=self.number_of_slices_per_profile,
+                ),
             )
-            self.n_macroparticles_array[i, :] = self.profiles_list[
-                i
-            ].n_macroparticles
-            self.bin_centers_array[i, :] = self.profiles_list[i].bin_centers
-            self.edges_array[i, :] = self.profiles_list[i].edges
+            for i in range(self._number_of_indexes)
+        ]
 
     def _set_tracker(self):
         """
@@ -244,10 +248,6 @@ class _SparseProfileBaseClass:
 
         for i in range(len(self.profiles_list)):
             self.profiles_list[i].track()
-            self.bin_centers_array[i, :] = self.profiles_list[i].bin_centers
-            self.n_macroparticles_array[i, :] = self.profiles_list[
-                i
-            ].n_macroparticles
 
     def _set_additional_cuts(
         self,
@@ -345,39 +345,20 @@ class _SparseProfileBaseClass:
         ):
             raise ValueError("Filling pattern has not been updated.")
 
-        for i in range(_additional_indexes):
-            # Only valid for cut_edges='edges'
-            profiles_list_additional.append(
-                Profile(
-                    self.beam,
-                    CutOptions(
-                        cut_left=self.cut_left_array[
-                            self._number_of_indexes + i
-                        ],
-                        cut_right=self.cut_right_array[
-                            self._number_of_indexes + i
-                        ],
-                        n_slices=self.number_of_slices_per_profile,
-                    ),
-                )
+        profiles_list_additional = [
+            Profile(
+                self.beam,
+                CutOptions(
+                    cut_left=self.cut_left_array[self._number_of_indexes + i],
+                    cut_right=self.cut_right_array[
+                        self._number_of_indexes + i
+                    ],
+                    n_slices=self.number_of_slices_per_profile,
+                ),
             )
-            self.n_macroparticles_array = np.concatenate(
-                [
-                    self.n_macroparticles_array,
-                    [profiles_list_additional[i].n_macroparticles],
-                ],
-                axis=0,
-            )
-            self.bin_centers_array = np.concatenate(
-                [
-                    self.bin_centers_array,
-                    [profiles_list_additional[i].bin_centers],
-                ],
-                axis=0,
-            )
-            self.edges_array = np.concatenate(
-                [self.edges_array, [profiles_list_additional[i].edges]], axis=0
-            )
+            for i in range(_additional_indexes)
+        ]
+
         self.profiles_list += profiles_list_additional
         self._number_of_indexes += _additional_indexes
         self._bucket_indexes = (
