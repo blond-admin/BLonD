@@ -348,10 +348,12 @@ class testProfileClass(unittest.TestCase):
             self.profile_length_in_buckets,
         )
 
+        with self.assertRaises(ValueError):
+            sparse_profile._update_profile_lists(_additional_indices=5)
+
         additional_filled_buckets = sparse_profile._set_additional_cuts(
             _updated_filling_pattern=updated_filling_pattern
         )
-
         sparse_profile._update_profile_lists(
             _additional_indices=additional_filled_buckets
         )
