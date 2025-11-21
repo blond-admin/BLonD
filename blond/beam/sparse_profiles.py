@@ -16,7 +16,6 @@
 
 from __future__ import annotations
 
-import copy
 import warnings
 from typing import TYPE_CHECKING
 
@@ -24,12 +23,9 @@ import numpy as np
 
 from .profile import CutOptions, Profile
 from ..utils import bmath as bm
-from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import Literal
-    from typing import Optional as LateInit
-
     from numpy.typing import NDArray as NumpyArray
 
     from .beam import Beam
@@ -48,8 +44,8 @@ class _SparseProfileBaseClass:
         number_of_slices_per_profile: int,
         _filling_pattern: NumpyArray,
         _profile_length_in_buckets: int,
-        tracker: Literal["C", "onebyone"] = "C",
-        direct_slicing: bool = False,
+        tracker: TrackerTypes = "C",
+        initialisation_slicing: bool = False,
     ):
         """
         Common initialization of Sparse objects.
@@ -67,8 +63,8 @@ class _SparseProfileBaseClass:
         _profile_length_in_buckets
             Profile lengths in number of RF buckets. Should be greater than 1.
         tracker
-            Choice of tracker. Can be "C" or "onebyone".
-        direct_slicing
+            Choice of tracker. Can be "C" or "onebyone". Default is "C".
+        initialisation_slicing
             Enables tracking at initialisation. FALSE by default.
 
         """
@@ -94,37 +90,76 @@ class _SparseProfileBaseClass:
 
         self.number_of_slices_per_profile = number_of_slices_per_profile
         self._filling_pattern = _filling_pattern
-        self._number_of_indexes = int(np.sum(_filling_pattern))
+        self._number_of_indices = int(np.sum(_filling_pattern))
         self._profile_length_in_buckets = _profile_length_in_buckets
 
         # Index of each batch (-1 if empty). Only for C++ track
-        self._bucket_indexes = (
+        self._bucket_indices = (
             np.cumsum(_filling_pattern) * _filling_pattern - 1
         )
 
-        self.n_slices = None
         self.profiles_list = None
-
-        # Group n_macroparticles from all objects in a single array
-        # (for C++ track).
-        self.n_macroparticles_array = None
-        self.bin_centers_array = None
-        self.edges_array = None
-        self.n_macroparticles = None
-        self.bin_centers = None
-        self.bin_size = None
-
         self.cut_left_array = None
         self.cut_right_array = None
 
         self.tracker = tracker
-        self.direct_slicing = direct_slicing
-        self.track = None
+        self.initialisation_slicing = initialisation_slicing
 
         # Pre-processing the slicing edges
         self._set_cuts(length_in_buckets=_profile_length_in_buckets)
         self._generate_profile_list()
-        self._set_tracker()
+
+        # Track at initialisation
+        if self.initialisation_slicing:
+            self.track()
+
+    @property
+    def n_macroparticles_array(self):
+        return np.array(
+            [
+                self.profiles_list[i].n_macroparticles
+                for i in range(self._number_of_indices)
+            ]
+        )
+
+    @property
+    def bin_centers_array(self):
+        return np.array(
+            [
+                self.profiles_list[i].bin_centers
+                for i in range(self._number_of_indices)
+            ]
+        )
+
+    @property
+    def edges_array(self):
+        return np.array(
+            [
+                self.profiles_list[i].edges
+                for i in range(self._number_of_indices)
+            ]
+        )
+
+    @property
+    def n_macroparticles(self):
+        return self.n_macroparticles_array.flatten()
+
+    @property
+    def bin_centers(self):
+        return self.bin_centers_array.flatten()
+
+    @property
+    def bin_size(self):
+        # by construction, all the profiles have the same bin sizes.
+        return self.profiles_list[0].bin_size
+
+    @property
+    def n_slices(self):
+        return self.number_of_slices_per_profile * len(self.profiles_list)
+
+    @property
+    def edges(self):
+        return self.edges_array.flatten()
 
     def _set_cuts(self, length_in_buckets: int):
         """
@@ -149,10 +184,10 @@ class _SparseProfileBaseClass:
             )
         # RF period
         t_rf = self.rf_station.t_rf[0, self.rf_station.counter[0]]
-        bucket_indexes = np.where(self._filling_pattern != 0)[0]
+        bucket_indices = np.where(self._filling_pattern != 0)[0]
 
-        self.cut_left_array = bucket_indexes * t_rf
-        self.cut_right_array = (bucket_indexes + length_in_buckets) * t_rf
+        self.cut_left_array = bucket_indices * t_rf
+        self.cut_right_array = (bucket_indices + length_in_buckets) * t_rf
 
     def _generate_profile_list(self):
         """
@@ -163,93 +198,53 @@ class _SparseProfileBaseClass:
         initialises the general arrays and matrices (n_macroparticles,
         bin_size, bin_centers).
         """
-        self.profiles_list = []
-        self.n_macroparticles_array = np.zeros(
-            (self._number_of_indexes, self.number_of_slices_per_profile)
-        )
-        self.bin_centers_array = np.zeros(
-            (self._number_of_indexes, self.number_of_slices_per_profile)
-        )
-        self.edges_array = np.zeros(
-            (self._number_of_indexes, self.number_of_slices_per_profile + 1)
-        )
 
-        for i in range(self._number_of_indexes):
-            # Only valid for cut_edges='edges'
-            self.profiles_list.append(
-                Profile(
-                    self.beam,
-                    CutOptions(
-                        cut_left=self.cut_left_array[i],
-                        cut_right=self.cut_right_array[i],
-                        n_slices=self.number_of_slices_per_profile,
-                    ),
-                )
+        self.profiles_list = [
+            Profile(
+                self.beam,
+                CutOptions(
+                    cut_left=self.cut_left_array[i],
+                    cut_right=self.cut_right_array[i],
+                    n_slices=self.number_of_slices_per_profile,
+                ),
             )
-            self.n_macroparticles_array[i, :] = self.profiles_list[
-                i
-            ].n_macroparticles
-            self.bin_centers_array[i, :] = self.profiles_list[i].bin_centers
-            self.edges_array[i, :] = self.profiles_list[i].edges
-        self._init_general_arrays()
+            for i in range(self._number_of_indices)
+        ]
 
-    def _init_general_arrays(self):
+    def track(self):
         """
-        Method to update the general arrays after a change in the profile
-        list.
-        """
-        self.n_macroparticles = self.n_macroparticles_array.flatten()
-        self.bin_centers = self.bin_centers_array.flatten()
-        self.bin_size = self.profiles_list[0].bin_size
-        self.n_slices = self.number_of_slices_per_profile * len(
-            self.profiles_list
-        )
-
-    def _set_tracker(self):
-        """
-        Internal method to handle the tracker choice, and track at
-        initialisation if self.direct_slicing is True.
+        Tracking method of the profile, depending on the tracker choice.
         """
         if self.tracker == "C":
-            self.track = self._histogram_c
+            self._histogram_c()
         elif self.tracker == "onebyone":
-            self.track = self._histogram_one_by_one
+            self._histogram_one_by_one()
         else:
             # WrongCalcError
             raise RuntimeError("Tracking method not recognized!")
 
-        # Track at initialisation
-        if self.direct_slicing:
-            self.track()
-
     def _histogram_c(self):
         """
-        *Histogram generated by calling an optimized C++ function that
-        calculates all the profile at once.*
+        Histogram generated by calling an optimized C++ function that
+        calculates all the profile at once.
         """
         bm.sparse_histogram(
             self.beam.dt,
             self.n_macroparticles_array,
             self.cut_left_array,
             self.cut_right_array,
-            self._bucket_indexes,
+            self._bucket_indices,
             self.number_of_slices_per_profile,
         )
 
     def _histogram_one_by_one(self):
         """
-        *Histogram generated by calling the tack() method of each Profile
-        object*
+        Histogram generated by calling the tack() method of each Profile
+        object
         """
 
         for i in range(len(self.profiles_list)):
             self.profiles_list[i].track()
-            self.bin_centers_array[i, :] = self.profiles_list[i].bin_centers
-            self.n_macroparticles_array[i, :] = self.profiles_list[
-                i
-            ].n_macroparticles
-        self.bin_centers = self.bin_centers_array.flatten()
-        self.n_macroparticles = self.n_macroparticles_array.flatten()
 
     def _set_additional_cuts(
         self,
@@ -257,8 +252,8 @@ class _SparseProfileBaseClass:
     ):
         """
         Internal method to update the cut array properties of the Sparse
-        object with new cut_left | Cut_right options around the additional
-        indexes.
+        object with new cut_left | cut_right options around the additional
+        indices.
 
         The left cut starts at the bucket index considered and the right cut
         is defined by its distance, in number of RF buckets (
@@ -267,8 +262,8 @@ class _SparseProfileBaseClass:
 
         Returns
         ---------
-        _additional_indexes
-            Number of additional indexes to consider for an update of the
+        _additional_indices
+            Number of additional indices to consider for an update of the
             profile list.
         """
         if len(self._filling_pattern) != len(_updated_filling_pattern):
@@ -283,7 +278,7 @@ class _SparseProfileBaseClass:
 
         filled_bunches_current = np.where(self._filling_pattern != 0)[0]
         filled_bunches_new = np.where(_updated_filling_pattern != 0)[0]
-        _additional_indexes = len(filled_bunches_new) - len(
+        _additional_indices = len(filled_bunches_new) - len(
             filled_bunches_current
         )
 
@@ -296,139 +291,119 @@ class _SparseProfileBaseClass:
                 mask_additional_bunch[i] = 0
         # fixme: injected bunch might be between already considered bunches
 
-        masked_indexes = np.where(mask_additional_bunch != 0)[0]
+        masked_indices = np.where(mask_additional_bunch != 0)[0]
 
-        if len(masked_indexes) != _additional_indexes:
+        if len(masked_indices) != _additional_indices:
             raise ValueError(
-                "The mask does not reflect the additional indexes"
+                "The mask does not reflect the additional indices"
             )
 
-        updated_cut_left = masked_indexes * t_rf
+        updated_cut_left = masked_indices * t_rf
         updated_cut_right = (
-            masked_indexes + self._profile_length_in_buckets
+            masked_indices + self._profile_length_in_buckets
         ) * t_rf
         self.cut_left_array = np.append(self.cut_left_array, updated_cut_left)
         self.cut_right_array = np.append(
             self.cut_right_array, updated_cut_right
         )
         self._filling_pattern = _updated_filling_pattern
-        return _additional_indexes
+        return _additional_indices
 
     def _update_profile_lists(
         self,
-        _additional_indexes: int,
+        _additional_indices: int,
     ):
         """
         Internal method to update the profile list with new profile objects
-        for to track the additional indexes.
+        for to track the additional indices.
 
         Ths method updates the general arrays and matrices accordingly (
         n_macroparticles, bin_centers).
 
         Parameters
         ----------
-        _additional_indexes
-            Number of additional indexes to consider. Provided by the
+        _additional_indices
+            Number of additional indices to consider. Provided by the
             internal method self._set_additional_cuts
         """
 
         # Initialize individual slicing objects
         profiles_list_additional = []
-        _total_number_of_indexes = (
-            self._number_of_indexes + _additional_indexes
+        _total_number_of_indices = (
+            self._number_of_indices + _additional_indices
         )
-        if (len(self.cut_right_array) != _total_number_of_indexes) or (
-            len(self.cut_left_array) != _total_number_of_indexes
+        if (len(self.cut_right_array) != _total_number_of_indices) or (
+            len(self.cut_left_array) != _total_number_of_indices
         ):
             raise ValueError("Cut arrays have not been updated.")
         if (
             len(np.where(self._filling_pattern != 0)[0])
-            != _total_number_of_indexes
+            != _total_number_of_indices
         ):
             raise ValueError("Filling pattern has not been updated.")
 
-        for i in range(_additional_indexes):
-            # Only valid for cut_edges='edges'
-            profiles_list_additional.append(
-                Profile(
-                    self.beam,
-                    CutOptions(
-                        cut_left=self.cut_left_array[
-                            self._number_of_indexes + i
-                        ],
-                        cut_right=self.cut_right_array[
-                            self._number_of_indexes + i
-                        ],
-                        n_slices=self.number_of_slices_per_profile,
-                    ),
-                )
+        profiles_list_additional = [
+            Profile(
+                self.beam,
+                CutOptions(
+                    cut_left=self.cut_left_array[self._number_of_indices + i],
+                    cut_right=self.cut_right_array[
+                        self._number_of_indices + i
+                    ],
+                    n_slices=self.number_of_slices_per_profile,
+                ),
             )
-            self.n_macroparticles_array = np.concatenate(
-                [
-                    self.n_macroparticles_array,
-                    [profiles_list_additional[i].n_macroparticles],
-                ],
-                axis=0,
-            )
-            self.bin_centers_array = np.concatenate(
-                [
-                    self.bin_centers_array,
-                    [profiles_list_additional[i].bin_centers],
-                ],
-                axis=0,
-            )
-            self.edges_array = np.concatenate(
-                [self.edges_array, [profiles_list_additional[i].edges]], axis=0
-            )
-        self.profiles_list += profiles_list_additional
-        self._number_of_indexes += _additional_indexes
-        self._update_general_arrays()
+            for i in range(_additional_indices)
+        ]
 
-    def _update_general_arrays(self):
-        """
-        Method to update the general arrays after a profile update.
-        """
-        # Total parameters
-        if (
-            len(np.where(self._filling_pattern != 0)[0])
-            != self._number_of_indexes
-        ):
-            raise ValueError(
-                f"Filling pattern has length "
-                f"{len(np.where(self._filling_pattern)[0])}, number of "
-                f"declared filled buckets "
-                f"{self._number_of_indexes}."
-            )
-        self.n_macroparticles = self.n_macroparticles_array.flatten()
-        self.n_slices = int(
-            self.number_of_slices_per_profile * self._filling_pattern.sum()
-        )
-        self._bucket_indexes = (
+        self.profiles_list += profiles_list_additional
+        self._number_of_indices += _additional_indices
+        self._bucket_indices = (
             np.cumsum(self._filling_pattern) * self._filling_pattern - 1
         )
-        self.bin_centers = self.bin_centers_array.flatten()
 
 
 class SparseBucket(_SparseProfileBaseClass):
     """
-    *This class instantiates a Profile object for each filled bucket according
-    to the provided filling pattern or bunch list.
-    Each Profile object will be of the size of an RF bucket and will have the same number of slices.
+     This class instantiates a Profile object for each filled bucket according
+     to the provided filling pattern or bunch list.
+     Each Profile object will be of the size of an RF bucket and will have the same number of slices.
 
-    Parameters
-    ----------
-    rf_station
-        RFStation object
-    beam
-        Beam object
-    number_of_slices_per_profile
-        Number of slices per profile
-    bunch_list
-        Bunch list (or filling pattern) of the synchrotron
-    tracker
-        Choice of tracker. Can be "C" or "onebyone".
-    direct_slicing
-        Track at initialisation. FALSE by default.
+     Parameters
+     ----------
+     rf_station
+         RFStation object
+     beam
+         Beam object
+     number_of_slices_per_profile
+         Number of slices per profile
+     bunch_list
+         Bunch list (or filling pattern) of the synchrotron
+     tracker
+         Choice of tracker. Can be "C" or "onebyone". Default is "C".
+     initialisation_slicing
+         Track at initialisation. FALSE by default.
+
+
+    Example
+     --------
+     >>> import numpy as np
+     >>> from blond.beam.sparse_profiles import SparseBucket
+     >>> from blond.beam.beam import Beam
+     >>> from blond.input_parameters.rf_parameters import RFStation
+     >>> self.ring = Ring(n_turns = 1, ring_length = 100,
+     >>> alpha = 0.00001, momentum = 1e9)
+     >>> self.beam = Beam(self.ring, 10000, 1e10)
+     >>> self.rf_params = RFStation(ring=self.ring, n_rf=1, harmonic=[4620],
+     >>>                  voltage=[7e6], phi_rf_d=[0.])
+     >>> bunch_spacing = 10
+     >>> bunch_list = np.zeros(self.rf_params.harmonic[0])
+     >>> bunch_list[::bunch_spacing] = 1
+     >>> sparse_profile = SparseBucket(rf_station=self.rf_params,
+     >>>                                 beam = self.beam,
+     >>>number_of_slices_per_profile = 1e4,
+     >>>bunch_list = bunch_list)
+     >>>
     """
 
     def __init__(
@@ -437,8 +412,8 @@ class SparseBucket(_SparseProfileBaseClass):
         beam: Beam,
         number_of_slices_per_profile: int,
         bunch_list: NumpyArray,
-        tracker="C",
-        direct_slicing: bool = False,
+        tracker: TrackerTypes = "C",
+        initialisation_slicing: bool = False,
     ):
         #: *Filling pattern as a boolean array where True (1) means filled
         # bucket*
@@ -449,7 +424,7 @@ class SparseBucket(_SparseProfileBaseClass):
             _filling_pattern=bunch_list,
             _profile_length_in_buckets=1,
             tracker=tracker,
-            direct_slicing=direct_slicing,
+            initialisation_slicing=initialisation_slicing,
         )
 
     @property
@@ -458,11 +433,11 @@ class SparseBucket(_SparseProfileBaseClass):
 
     @property
     def total_number_of_filled_buckets(self):
-        return self._number_of_indexes
+        return self._number_of_indices
 
     @property
-    def bunch_indexes(self):
-        return self._bucket_indexes
+    def bunch_indices(self):
+        return self._bucket_indices
 
     def update_bunch_list(
         self,
@@ -485,16 +460,16 @@ class SparseBucket(_SparseProfileBaseClass):
             _updated_filling_pattern=updated_bunch_list
         )
         self._update_profile_lists(
-            _additional_indexes=additional_filled_buckets
+            _additional_indices=additional_filled_buckets
         )
 
 
 class SparseBatch(_SparseProfileBaseClass):
     """
-    *This class instantiates a Profile object for each batch according
+    This class instantiates a Profile object for each batch according
     to the provided batch list.
     Each Profile object will be of the size of
-    a batch and will have the same number of slices.*
+    a batch and will have the same number of slices.
 
     Parameters
     ----------
@@ -509,8 +484,8 @@ class SparseBatch(_SparseProfileBaseClass):
     batch_length
         Batch length in number of RF buckets.
     tracker
-        Choice of tracker. Can be "C" or "onebyone".
-    direct_slicing
+        Choice of tracker. Can be "C" or "onebyone". Default is "C".
+    initialisation_slicing
         Track at initialisation. FALSE by default.
     """
 
@@ -521,8 +496,8 @@ class SparseBatch(_SparseProfileBaseClass):
         number_of_slices_per_profile: int,
         batch_list: NumpyArray,
         batch_length: int = 1,
-        tracker="C",
-        direct_slicing: bool = False,
+        tracker: TrackerTypes = "C",
+        initialisation_slicing: bool = False,
     ):
         #: *Filling pattern as a boolean array where True (1) means filled
         # bucket*
@@ -533,7 +508,7 @@ class SparseBatch(_SparseProfileBaseClass):
             _filling_pattern=batch_list,
             _profile_length_in_buckets=batch_length,
             tracker=tracker,
-            direct_slicing=direct_slicing,
+            initialisation_slicing=initialisation_slicing,
         )
 
     @property
@@ -546,19 +521,19 @@ class SparseBatch(_SparseProfileBaseClass):
 
     @property
     def total_number_of_batches(self):
-        return self._number_of_indexes
+        return self._number_of_indices
 
     @property
     def total_number_of_sliced_buckets(self):
-        return int(self._profile_length_in_buckets * self._number_of_indexes)
+        return int(self._profile_length_in_buckets * self._number_of_indices)
 
     @property
     def batch_length(self):
         return self._profile_length_in_buckets
 
     @property
-    def batch_indexes(self):
-        return self._bucket_indexes
+    def batch_indices(self):
+        return self._bucket_indices
 
     def update_batch_list(
         self,
@@ -580,4 +555,50 @@ class SparseBatch(_SparseProfileBaseClass):
         additional_batches = self._set_additional_cuts(
             _updated_filling_pattern=updated_batch_list
         )
-        self._update_profile_lists(_additional_indexes=additional_batches)
+        self._update_profile_lists(_additional_indices=additional_batches)
+
+
+def SparseSlices(
+    rf_station: RFStation,
+    beam: Beam,
+    n_slices_bucket: int,
+    filling_pattern: NumpyArray,
+    tracker: TrackerTypes = "C",
+    direct_slicing: bool = False,
+):
+    """
+    Deprecated: please use SparseBucket
+
+    This class instantiates a SparseBucket object.
+
+    Parameters
+    ----------
+    rf_station
+        RFStation object
+    beam
+        Beam object
+    n_slices_bucket
+        Number of slices per profile
+    filling_pattern
+        Bunch list (or filling pattern) of the synchrotron
+    tracker
+        Choice of tracker. Can be "C" or "onebyone". Default is "C".
+    direct_slicing
+        Track at initialisation. FALSE by default.
+    """
+    from warnings import warn
+
+    warn(
+        "SparseSlices is deprecated, use SparseBucket",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
+    return SparseBucket(
+        rf_station=rf_station,
+        beam=beam,
+        number_of_slices_per_profile=n_slices_bucket,
+        bunch_list=filling_pattern,
+        tracker=tracker,
+        initialisation_slicing=direct_slicing,
+    )

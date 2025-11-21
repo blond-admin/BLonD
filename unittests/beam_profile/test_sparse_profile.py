@@ -180,15 +180,16 @@ class testProfileClass(unittest.TestCase):
             )
 
     def test_WrongTrackingFunction(self):
+        sparse_profile = _SparseProfileBaseClass(
+            self.rf_station,
+            self.beam,
+            self.n_slices_rf,
+            self.filling_pattern,
+            self.profile_length_in_buckets,
+            tracker="something horribly wrong",
+        )
         with self.assertRaises(RuntimeError):
-            _SparseProfileBaseClass(
-                self.rf_station,
-                self.beam,
-                self.n_slices_rf,
-                self.filling_pattern,
-                self.profile_length_in_buckets,
-                tracker="something horribly wrong",
-            )
+            sparse_profile.track()
 
         nonuniform_profile = SparseBucket(
             self.rf_station,
@@ -214,11 +215,11 @@ class testProfileClass(unittest.TestCase):
             self.filling_pattern,
             self.profile_length_in_buckets,
             tracker="onebyone",
-            direct_slicing=True,
+            initialisation_slicing=True,
         )
 
         for bunch in range(2):
-            indexes = (
+            indices = (
                 self.uniform_profile.bin_centers
                 > nonuniform_profile.cut_left_array[bunch]
             ) * (
@@ -227,7 +228,7 @@ class testProfileClass(unittest.TestCase):
             )
 
             np.testing.assert_allclose(
-                self.uniform_profile.bin_centers[indexes],
+                self.uniform_profile.bin_centers[indices],
                 nonuniform_profile.bin_centers_array[bunch],
                 rtol=rtol,
                 atol=atol,
@@ -236,7 +237,7 @@ class testProfileClass(unittest.TestCase):
             )
 
             np.testing.assert_allclose(
-                self.uniform_profile.n_macroparticles[indexes],
+                self.uniform_profile.n_macroparticles[indices],
                 nonuniform_profile.n_macroparticles_array[bunch],
                 rtol=rtol,
                 atol=atol,
@@ -255,11 +256,11 @@ class testProfileClass(unittest.TestCase):
             self.filling_pattern,
             self.profile_length_in_buckets,
             tracker="C",
-            direct_slicing=True,
+            initialisation_slicing=True,
         )
 
         for bunch in range(2):
-            indexes = (
+            indices = (
                 self.uniform_profile.bin_centers
                 > nonuniform_profile.cut_left_array[bunch]
             ) * (
@@ -268,7 +269,7 @@ class testProfileClass(unittest.TestCase):
             )
 
             np.testing.assert_allclose(
-                self.uniform_profile.bin_centers[indexes],
+                self.uniform_profile.bin_centers[indices],
                 nonuniform_profile.bin_centers_array[bunch],
                 rtol=rtol,
                 atol=atol,
@@ -277,7 +278,7 @@ class testProfileClass(unittest.TestCase):
             )
 
             np.testing.assert_allclose(
-                self.uniform_profile.n_macroparticles[indexes],
+                self.uniform_profile.n_macroparticles[indices],
                 nonuniform_profile.n_macroparticles_array[bunch],
                 rtol=rtol,
                 atol=atol,
@@ -348,12 +349,14 @@ class testProfileClass(unittest.TestCase):
             self.profile_length_in_buckets,
         )
 
+        with self.assertRaises(ValueError):
+            sparse_profile._update_profile_lists(_additional_indices=5)
+
         additional_filled_buckets = sparse_profile._set_additional_cuts(
             _updated_filling_pattern=updated_filling_pattern
         )
-
         sparse_profile._update_profile_lists(
-            _additional_indexes=additional_filled_buckets
+            _additional_indices=additional_filled_buckets
         )
 
         np.testing.assert_equal(
@@ -377,11 +380,10 @@ class testProfileClass(unittest.TestCase):
         )
 
         np.testing.assert_equal(
-            sparse_profile._number_of_indexes,
-            sparse_profile_temoin._number_of_indexes,
+            sparse_profile._number_of_indices,
+            sparse_profile_temoin._number_of_indices,
         )
 
-        # from _update_general_arrays()
         np.testing.assert_equal(
             np.sort(sparse_profile.n_macroparticles),
             np.sort(sparse_profile_temoin.n_macroparticles),
@@ -393,18 +395,14 @@ class testProfileClass(unittest.TestCase):
         )
 
         np.testing.assert_equal(
-            sparse_profile._bucket_indexes,
-            sparse_profile_temoin._bucket_indexes,
+            sparse_profile._bucket_indices,
+            sparse_profile_temoin._bucket_indices,
         )
 
         np.testing.assert_equal(
             np.sort(sparse_profile.bin_centers),
             np.sort(sparse_profile_temoin.bin_centers),
         )
-
-        sparse_profile._number_of_indexes += 1
-        with self.assertRaises(ValueError):
-            sparse_profile._update_general_arrays()
 
     def test_properties_SparseBucket(self):
         sparse_profile = SparseBucket(
@@ -424,7 +422,7 @@ class testProfileClass(unittest.TestCase):
         )
 
         np.testing.assert_equal(
-            sparse_profile.bunch_indexes,
+            sparse_profile.bunch_indices,
             np.array([-1, 0, -1, -1, -1]),
         )
 
@@ -474,7 +472,7 @@ class testProfileClass(unittest.TestCase):
         )
 
         np.testing.assert_equal(
-            sparse_profile.batch_indexes,
+            sparse_profile.batch_indices,
             np.array([-1, 0, -1, -1, -1]),
         )
 
