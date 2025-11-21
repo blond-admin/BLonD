@@ -517,7 +517,7 @@ class BunchObservationMetaParams(ObservablesEndOfTurnBase):
         return self._emittance_stat.get_valid_entries()
 
 
-class MultiBunchObservationMetaParams(Observables):
+class MultiBunchObservationMetaParams(ObservablesEndOfTurnBase):
     def __init__(
         self,
         each_turn_i: int,
