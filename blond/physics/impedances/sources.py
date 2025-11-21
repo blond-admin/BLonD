@@ -1,3 +1,17 @@
+"""Implementations of beam impedance sources.
+
+Module to describe classes for the calculation of wakes and impedances.
+
+
+Authors
+-------
+Alexandre Lasheen
+Danilo Quartullo
+Juan F. Esteban Mueller,
+Markus Schwarz
+Simon Lauber
+"""
+
 from __future__ import annotations
 
 from abc import abstractmethod
@@ -7,46 +21,95 @@ from warnings import warn
 
 import numpy as np
 
-from ... import Simulation
-from ..._core.backends.backend import backend
-from ..._generals._warnings import NotTestedWarning
-from ..impedances.base import (
-    AnalyticWakeFieldSource,
-    DiscreteWakeFieldSource,
+from blond._core.backends.backend import backend
+from blond._core.simulation.simulation import Simulation
+from blond.generals._warnings import NotTestedWarning
+from blond.physics.impedances.base import (
     FreqDomain,
     TimeDomain,
+    TimeDomainCounterRotation,
+    WakeFieldSource,
 )
-from .readers import ImpedanceReader
+from blond.physics.impedances.readers import ImpedanceReader
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import ArrayLike
     from numpy.typing import NDArray as NumpyArray
 
-    from ..._core.beam.base import BeamBaseClass
+    from blond._core.beam.base import BeamBaseClass
 
 
 def get_hash(array1d: NumpyArray) -> int:
+    """
+    Compute a lightweight, approximate hash value for a 1D NumPy array.
+
+    The function samples a few representative elements of the input array
+    (first, second, middle, and last), along with the array length, and computes
+    a Python built-in hash from this tuple. The result is intended for quick,
+    approximate identification of arrays rather than exact equality or integrity
+    verification.
+
+    Parameters
+    ----------
+    array1d : numpy.ndarray
+        One-dimensional NumPy array of numeric values.
+
+    Returns
+    -------
+    int
+        An integer hash value derived from selected elements of the array.
+
+    Warnings
+    --------
+    - This function is **not collision-resistant**. Different arrays may yield
+      identical hash values, especially if they share similar boundary values or
+      lengths.
+    - Not suitable for **data integrity**, **deduplication**, or **security**
+      purposes. Use `hashlib` (e.g., SHA-256) for robust, deterministic hashing.
+    - Assumes a 1D numeric array; no validation is performed. Multi-dimensional
+      or non-numeric inputs may cause unexpected behavior or errors.
+    - Python’s built-in hash is **not stable across sessions** due to hash
+      randomization (unless `PYTHONHASHSEED` is fixed).
+
+    Notes
+    -----
+    - **Time complexity:** O(1) — the function samples only four elements
+      regardless of array size.
+    - **Memory usage:** O(1) — constant space overhead.
+    - Designed for fast, approximate fingerprinting in performance-sensitive
+      contexts where occasional collisions are acceptable.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> arr = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+    >>> get_hash(arr)
+    2398472938472938  # Example output (varies by session)
+    """
+    len_ = len(array1d)
     return hash(
         (
             float(array1d[0]),
             float(array1d[1]),
+            float(array1d[int(len_ // 2)]),
             float(array1d[-1]),
-            len(array1d),
+            len_,
         )
     )
 
 
-class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
-    def __init__(self, Z_over_n: float):
-        """Inductive impedance, i.e. only complex component in frequency domain.
+class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
+    """Inductive impedance, i.e. only complex component in frequency domain.
 
-        Parameters
-        ----------
-        Z_over_n : float or array-like
-            Constant imaginary Z/n = (Z * f /f0) impedance in [Ω].
-            Can be a scalar or a turn-indexed array.
-        """
+    Parameters
+    ----------
+    Z_over_n : float or array-like
+        Constant imaginary Z/n = (Z * f /f0) impedance in [Ω].
+        Can be a scalar or a turn-indexed array.
+    """
+
+    def __init__(self, Z_over_n: float):
         super().__init__(is_dynamic=True)
         self.Z_over_n = Z_over_n
 
@@ -85,7 +148,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         Returns
         -------
@@ -101,7 +164,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         """Get the equivalent of np.gradient(x) in frequency domain ifft(derivative*fft(x))."""
         # Recalculate only of `freq_x` is changed
         hash_ = get_hash(freq_x)
-        if hash_ is self._cache_derivative_hash:
+        if hash_ == self._cache_derivative_hash:
             return self._cache_derivative
 
         df = freq_x[1] - freq_x[0]  # frequency spacing
@@ -137,7 +200,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         Returns
         -------
@@ -147,7 +210,7 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         # Recalculate only of `time` is changed
 
         hash_ = get_hash(time)
-        if hash_ is self._cache_wake_impedance_hash:
+        if hash_ == self._cache_wake_impedance_hash:
             return self._cache_wake_impedance
         freq = np.fft.rfftfreq(n_fft, d=time[1] - time[0])
         wake_impedance = self.get_impedance(
@@ -159,37 +222,50 @@ class InductiveImpedance(AnalyticWakeFieldSource, FreqDomain, TimeDomain):
         return wake_impedance
 
 
-class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
+class Resonators(
+    WakeFieldSource, TimeDomain, FreqDomain, TimeDomainCounterRotation
+):
+    r"""Multiple resonances of RLC circuits for impedance calculations.
+
+    Parameters
+    ----------
+    shunt_impedances : array-like or float
+        Shunt impedances of the resonant circuits, in [:math:`\omega`].
+    center_frequencies : array-like or float
+        Center frequencies of the resonances, in [Hz].
+    quality_factors : array-like or float
+        Quality factors (Q) of the resonances, dimensionless.
+
+    Notes
+    -----
+    All values must be float, if one is given as float.
+
+    Ensure that all input arrays have the same length, with each entry
+    corresponding to a separate resonance.
+    """
+
     def __init__(
         self,
-        shunt_impedances: NumpyArray | float,
-        center_frequencies: NumpyArray | float,
-        quality_factors: NumpyArray | float,
+        shunt_impedances: NumpyArray | ArrayLike | float | int,
+        center_frequencies: NumpyArray | ArrayLike | float | int,
+        quality_factors: NumpyArray | ArrayLike | float | int,
+        shunt_impedances_counter_rotating: NumpyArray
+        | float
+        | ArrayLike
+        | None = None,
     ):
-        """Multiple resonances of RLC circuits for impedance calculations.
-
-        Parameters
-        ----------
-        shunt_impedances : array-like or float
-            Shunt impedances of the resonant circuits, in [Ω].
-        center_frequencies : array-like or float
-            Center frequencies of the resonances, in [Hz].
-        quality_factors : array-like or float
-            Quality factors (Q) of the resonances, dimensionless.
-
-        all values must be float, if one is given as float
-
-        Notes
-        -----
-        Ensure that all input arrays have the same length, with each entry
-        corresponding to a separate resonance.
-        """
-        warn("Untested code", NotTestedWarning)
+        warn("Untested code", NotTestedWarning, stacklevel=1)
         super().__init__(is_dynamic=False)
+
+        self._shunt_impedances: NumpyArray
+        self._center_frequencies: NumpyArray
+        self._quality_factors: NumpyArray
+        self._n_resonators: int
+
         if (
-            isinstance(shunt_impedances, float)
-            and isinstance(center_frequencies, float)
-            and isinstance(quality_factors, float)
+            isinstance(shunt_impedances, float | int)
+            and isinstance(center_frequencies, float | int)
+            and isinstance(quality_factors, float | int)
         ):
             self._shunt_impedances = np.array([shunt_impedances])
             self._center_frequencies = np.array([center_frequencies])
@@ -202,10 +278,36 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
             assert len(shunt_impedances) == len(quality_factors), (
                 f"{len(shunt_impedances)} != {len(quality_factors)}"
             )
-            self._shunt_impedances = shunt_impedances
-            self._center_frequencies = center_frequencies
-            self._quality_factors = quality_factors
+            self._shunt_impedances = np.array(shunt_impedances)
+            self._center_frequencies = np.array(center_frequencies)
+            self._quality_factors = np.array(quality_factors)
             self._n_resonators = len(shunt_impedances)
+
+        self._shunt_impedances_counter_rotating: NumpyArray | None = None
+
+        if shunt_impedances_counter_rotating is not None:
+            if isinstance(shunt_impedances_counter_rotating, float | int):
+                shunt_impedances_counter_rotating = [
+                    shunt_impedances_counter_rotating
+                ]
+            self._shunt_impedances_counter_rotating = np.array(
+                shunt_impedances_counter_rotating
+            )
+
+            assert len(self._shunt_impedances_counter_rotating) == len(
+                self._shunt_impedances
+            ), (
+                "Array lengths between co- and counterrotating impedances need to match."
+            )
+
+            for imp, imp_cr in zip(
+                self._shunt_impedances,
+                self._shunt_impedances_counter_rotating,
+                strict=False,
+            ):
+                assert np.isclose(np.abs(imp), np.abs(imp_cr)), (
+                    "Absolute value of co- and counter-rotating impedances mismatch, no energy conservation."
+                )
 
         # secondary quantities for wake calculation
         self._omega = 2 * np.pi * self._center_frequencies
@@ -213,7 +315,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         self._omega_bar = np.sqrt(self._omega**2 - self._alpha**2)
 
         # Test if one or more quality factors is smaller than 0.5.
-        if np.sum(self._quality_factors < 0.5) > 0:
+        if np.sum(self._quality_factors < 0.5) > 0:  # NOQA PLR2004
             raise RuntimeError(
                 "All quality factors Q must be greater or equal 0.5"
             )
@@ -222,10 +324,13 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
                 "All center frequencies must be greater or equal 0"
             )
 
-        self._cache_wake_impedance = None
+        self._cache_wake_impedance: NumpyArray | None = None
         self._cache_wake_impedance_hash: int | None = None
 
-        self._cache_impedance = None
+        self._cache_wake_impedance_counter_rotation: NumpyArray | None = None
+        self._cache_wake_impedance_counter_rotation_hash: int | None = None
+
+        self._cache_impedance: NumpyArray | None = None
         self._cache_impedance_hash: int | None = None
 
     def get_wake_impedance(
@@ -235,8 +340,10 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         beam: BeamBaseClass,
         n_fft: int,
     ) -> NumpyArray | CupyArray:  # Fixme all get_wake_impedance same
-        """Get impedance  computed via fft from time domain analytical formula equivalent
-        to the partial single-particle-wake.
+        """Get the wake function, but converted to frequency domain.
+
+        Get impedance  computed via ``fft(...)`` from time domain
+        analytical formula equivalent to the partial single-particle-wake.
 
         Parameters
         ----------
@@ -245,7 +352,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_fft
             Number of fft bins to use
 
@@ -255,16 +362,60 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
 
         """
         # Recalculate only if `time` has changed
-        hash = get_hash(time)
-        if hash is self._cache_wake_impedance_hash:
+        hash_ = get_hash(time)
+        if hash_ == self._cache_wake_impedance_hash:
             return self._cache_wake_impedance
 
         wake = self.get_wake(time)
         wake_impedance = np.fft.rfft(wake, n=n_fft)
 
-        self._cache_wake_impedance_hash = hash
+        self._cache_wake_impedance_hash = hash_
         self._cache_wake_impedance = wake_impedance
         return wake_impedance
+
+    def get_wake_impedance_counter_rotation(
+        self,
+        time: NumpyArray,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_fft: int,
+    ) -> NumpyArray | CupyArray:  # Fixme all get_wake_impedance same
+        """Get the wake function, but converted to frequency domain.
+
+        Get impedance  computed via ``fft(...)`` from time domain
+        analytical formula equivalent to the partial single-particle-wake.
+
+        Parameters
+        ----------
+        time
+            Time array to get wake, in [s]
+        simulation : Simulation
+            Simulation object containing turn index and RF info.
+        beam
+            Simulation `Beam` object
+        n_fft
+            Number of fft bins to use
+
+        Returns
+        -------
+        wake_impedance
+
+        """
+        # Recalculate only if `time` has changed
+        hash_ = get_hash(time + 1)  # to distinguish between counterrotation
+        if hash_ == self._cache_wake_impedance_counter_rotation_hash:
+            return self._cache_wake_impedance_counter_rotation
+
+        wake_counter_rotation = self.get_wake_counter_rotation(time)
+        wake_impedance_counter_rotation = np.fft.rfft(
+            wake_counter_rotation, n=n_fft
+        )
+
+        self._cache_wake_impedance_counter_rotation_hash = hash_
+        self._cache_wake_impedance_counter_rotation = (
+            wake_impedance_counter_rotation
+        )
+        return wake_impedance_counter_rotation
 
     def get_wake_impedance_freq(self, time):
         """Get frequency array corresponding to time used in :func:`get_wake_impedance`."""
@@ -284,9 +435,50 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
 
         for res_ind in range(self._n_resonators):
             wake += (
-                (np.sign(time) + 1)  # heaviside
+                (
+                    np.sign(time) + 1
+                )  # heaviside: /2 from heaviside and *2 from linac R/Q cancel
                 * (
                     self._shunt_impedances[res_ind]
+                    * self._alpha[res_ind]
+                    * np.exp(-self._alpha[res_ind] * time)
+                )
+                * (
+                    np.cos(self._omega_bar[res_ind] * time)
+                    - self._alpha[res_ind]
+                    / self._omega_bar[res_ind]
+                    * np.sin(self._omega_bar[res_ind] * time)
+                )
+            )
+        return wake
+
+    def get_wake_counter_rotation(self, time: NumpyArray) -> NumpyArray:
+        """Computes the wake function of all resonators in time domain for the given time and returns the summed potential.
+
+        Parameters
+        ----------
+        time : NumpyArray
+            time array at which the wake is calculated, in [s]
+
+        Returns
+        -------
+        wake_potential: NumpyArray
+            potential array, in [V]
+
+        """
+        if self._shunt_impedances_counter_rotating is None:
+            raise RuntimeError(
+                "_shunt_impedances_counter_rotating needs to be set before calling this function."
+            )
+
+        wake = backend.zeros(len(time), dtype=backend.float, order="C")
+        for res_ind in range(self._n_resonators):
+            wake += (
+                (
+                    np.sign(time) + 1
+                )  # heaviside: /2 from heaviside and *2 from linac R/Q cancel
+                * (
+                    self._shunt_impedances_counter_rotating[res_ind]
                     * self._alpha[res_ind]
                     * np.exp(-self._alpha[res_ind] * time)
                 )
@@ -331,8 +523,9 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         freq_x: NumpyArray,
         simulation: Simulation,
         beam: BeamBaseClass,
+        counter_rotation: bool = False,
     ) -> NumpyArray:
-        """Return the impedance in the frequency domain.
+        """Return the analytically calculated impedance in the frequency domain.
 
         Parameters
         ----------
@@ -341,7 +534,9 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
+        counter_rotation
+            checkbox if the counter-rotating or corotating impedance should be used
 
         Returns
         -------
@@ -350,15 +545,20 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         """
         # Recalculate only if `freq_x` is changed
 
-        hash_ = get_hash(freq_x)
-        if hash_ is self._cache_impedance_hash:
+        hash_ = get_hash(freq_x + counter_rotation)
+        if hash_ == self._cache_impedance_hash:
             return self._cache_impedance
 
         impedance = np.zeros(len(freq_x), dtype=complex)
         n_centers = len(self._center_frequencies)
 
+        shunt_impedance = (
+            self._shunt_impedances_counter_rotating
+            if counter_rotation
+            else self._shunt_impedances
+        )
         for i in range(n_centers):
-            impedance[1:] += self._shunt_impedances[i] / (
+            impedance[1:] += shunt_impedance[i] / (
                 1
                 + (
                     (1j * self._quality_factors[i])
@@ -373,7 +573,7 @@ class Resonators(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         return impedance
 
 
-class ImpedanceTable(DiscreteWakeFieldSource):
+class ImpedanceTable(WakeFieldSource):
     """Base class to manage impedance tables."""
 
     @staticmethod
@@ -381,24 +581,40 @@ class ImpedanceTable(DiscreteWakeFieldSource):
     def from_file(
         filepath: PathLike, reader: ImpedanceReader
     ) -> ImpedanceTable:
+        """Instance table from a file on the disk.
+
+        Parameters
+        ----------
+        filepath
+            Path of the file to lead
+        reader
+            `ImpedanceReader` to interpret what's written in the file
+
+        Returns
+        -------
+        impedance_table
+            The loaded table
+
+        """
         pass
 
 
 class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
+    """Impedance table in frequency domain.
+
+    Parameters
+    ----------
+    freq_x
+        Frequency axis, in [Hz].
+    freq_y
+        Complex amplitudes in frequency domain
+    """
+
     def __init__(
         self,
         freq_x: NumpyArray,
         freq_y: NumpyArray,
     ):
-        """Impedance table in frequency domain.
-
-        Parameters
-        ----------
-        freq_x
-            Frequency axis, in [Hz].
-        freq_y
-            Complex amplitudes in frequency domain
-        """
         super().__init__(is_dynamic=False)
 
         self._freq_x = freq_x
@@ -422,7 +638,7 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         Returns
         -------
@@ -431,7 +647,7 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
         """
         # Recalculate only of `freq_x` is changed
         hash_ = get_hash(freq_x)
-        if hash_ is self._cache_impedance_hash:
+        if hash_ == self._cache_impedance_hash:
             return self._cache_impedance
         impedance = np.interp(
             freq_x, self._freq_x, self._freq_y, left=0, right=0
@@ -467,20 +683,21 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
 
 
 class ImpedanceTableTime(ImpedanceTable, TimeDomain):
+    """Impedance table in frequency domain.
+
+    Parameters
+    ----------
+    wake_x
+        Wake time axis, in [s]
+    wake_y
+        Wake amplitude, in [V]
+    """
+
     def __init__(
         self,
         wake_x: NumpyArray,
         wake_y: NumpyArray,
     ):
-        """Impedance table in frequency domain.
-
-        Parameters
-        ----------
-        wake_x
-            Wake time axis, in [s]
-        wake_y
-            Wake amplitude, in [V]
-        """
         super().__init__(is_dynamic=False)
         self._wake_x = wake_x
         self._wake_y = wake_y
@@ -525,7 +742,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         Returns
         -------
@@ -533,12 +750,18 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
 
         """
         hash_ = get_hash(time)
-        if hash_ is self._cache_wake_impedance_hash:
+        if hash_ == self._cache_wake_impedance_hash:
             return self._cache_wake_impedance
         if time.min() < self._wake_x.min():
-            warn("Interpolation of wake outside boundaries")
+            warn(
+                "Interpolation of wake outside boundaries",
+                stacklevel=1,
+            )
         if time.max() > self._wake_x.max():
-            warn("Interpolation of wake outside boundaries")
+            warn(
+                "Interpolation of wake outside boundaries",
+                stacklevel=1,
+            )
         wake = np.interp(time, self._wake_x, self._wake_y)
         wake_impedance = np.fft.rfft(wake, n=n_fft)
         self._cache_wake_impedance_hash = hash_
@@ -547,7 +770,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
 
 
 # TODO rework docstring
-class TravelingWaveCavity(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
+class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
     r"""Impedance of travelling wave cavities.
 
     Notes
@@ -598,7 +821,7 @@ class TravelingWaveCavity(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
     >>> time = np.array(1,2,3)
     >>> twc.wake_calc(time)
     >>> frequency = np.array(1,2,3)
-    >>> twc.imped_calc(frequency)
+    >>> twc.get_impedance(frequency)
     """
 
     def __init__(
@@ -668,7 +891,7 @@ class TravelingWaveCavity(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         Returns
         -------
@@ -694,7 +917,7 @@ class TravelingWaveCavity(AnalyticWakeFieldSource, TimeDomain, FreqDomain):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         Returns
         -------

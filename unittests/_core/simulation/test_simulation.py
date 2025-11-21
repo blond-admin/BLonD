@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import unittest
 from copy import deepcopy
+from typing import TYPE_CHECKING
 from unittest.mock import Mock, create_autospec
 
 import matplotlib.pyplot as plt
@@ -10,26 +13,30 @@ from blond import (
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicCavity,
-    StaticProfile,
+    SingleHarmonicRfStation,
     mu_plus,
     proton,
 )
 from blond._core.beam.base import BeamBaseClass
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
+from blond.generals._warnings import PerformanceWarning
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
-    BunchObservation,
+    BeamObservationEndOfTurn,
     BunchObservationMetaParams,
-    Observables,
+    ObservablesEndOfTurnBase,
 )
+from blond.testing.mocks import beam_mock
+
+if TYPE_CHECKING:  # pragma: no cover
+    from cupy.typing import NDArray as CupyArray  # type: ignore
 
 
 class TestSimulation(unittest.TestCase):
     def setUp(self):
         ring = Ring(circumference=26658.883)
 
-        cavity1 = SingleHarmonicCavity()
+        cavity1 = SingleHarmonicRfStation()
         cavity1.harmonic = 35640
         cavity1.voltage = 6e6
         cavity1.phi_rf = 0
@@ -51,7 +58,7 @@ class TestSimulation(unittest.TestCase):
             dt=np.linspace(1, 10, 10),
             dE=np.linspace(11, 20, 10),
             reference_time=0,
-            reference_total_energy=1,
+            reference_total_energy=450e9,
         )
         self.simulation = Simulation.from_locals(locals())
         self.beam = beam1
@@ -71,7 +78,9 @@ class TestSimulation(unittest.TestCase):
 
     def test_error_throwing(self):
         with self.assertRaises(NotImplementedError):
-            self.simulation.run_simulation(beams=(self.beam, self.beam, self.beam))
+            self.simulation.run_simulation(
+                beams=(self.beam, self.beam, self.beam)
+            )
 
     def test__run_simulation_counterrotating_beam_no_int_effects(self):
         beam = Beam(intensity=1e9, particle_type=mu_plus)
@@ -110,7 +119,7 @@ class TestSimulation(unittest.TestCase):
                         orbit_length=circumference / n_cavities / 2,
                         section_index=cavity_i,
                     ),
-                    SingleHarmonicCavity(
+                    SingleHarmonicRfStation(
                         voltage=total_voltage / n_cavities,
                         phi_rf=0,
                         harmonic=harmonic,
@@ -146,7 +155,7 @@ class TestSimulation(unittest.TestCase):
             )
 
     def test__run_simulation_single_beam(self):
-        observe = Mock(spec=Observables)
+        observe = Mock(spec=ObservablesEndOfTurnBase)
 
         def my_callback(simulation: Simulation, beam: Beam) -> None:
             return
@@ -166,10 +175,32 @@ class TestSimulation(unittest.TestCase):
     def test_magnetic_cycle(self):
         self.assertNotEqual(None, self.simulation.magnetic_cycle)
 
-    @unittest.skip("Testet in setUp")
     def test_from_locals(self):
-        # self.simulation.from_locals(locals=None)
-        pass
+        from blond.testing.mocks import (
+            cycle_const_mock,  # NOQA required for locals()
+        )
+        from blond.testing.mocks import (
+            drift_simple_mock,
+            single_harmonic_rf_station_mock,
+            static_profile_mock,
+            wakefield_profile_mock,
+        )
+
+        assert not hasattr(drift_simple_mock, "skip_find_instances_attributes")
+        drift_simple_mock.section_index = 0
+        drift_simple_mock.info_string.return_value = "drift_simple_mock"
+        static_profile_mock.section_index = 0
+        static_profile_mock.info_string.return_value = "static_profile_mock"
+        wakefield_profile_mock.section_index = 0
+        wakefield_profile_mock.info_string.return_value = (
+            "wakefield_profile_mock"
+        )
+        single_harmonic_rf_station_mock.section_index = 0
+        single_harmonic_rf_station_mock.info_string.return_value = (
+            "single_harmonic_rf_station_mock"
+        )
+        ring = Ring(circumference=12)
+        self.simulation.from_locals(locals=locals(), verbose=True)
 
     @unittest.skip
     def test_get_legacy_map(self):
@@ -190,31 +221,75 @@ class TestSimulation(unittest.TestCase):
         from blond.testing.simulation import SimulationTwoRfStations
 
         sim = SimulationTwoRfStations()
-        potential_well = sim.simulation.get_potential_well_empiric(
-            ts=np.linspace(-1e-9, 1e-9, 100),
-            particle_type=proton,
+        ts = np.linspace(-2e-9, 2e-9, 100)
+
+
+        potential_well, factor, tilt_dt_per_dE = (
+            sim.simulation.get_potential_well_empiric(
+                dt=ts,
+                particle_type=proton,
+                subtract_min=False # for tescase and repeated execution
+            )
         )
+
+        potential_well, factor, tilt_dt_per_dE = (
+            sim.simulation.get_potential_well_empiric(
+                dt=ts,
+                particle_type=proton,
+            )
+        )
+        potential_well += 4 * potential_well.mean()
+        from blond import backend
+
         SAVE_PINNED = False
+
+        if backend.float == np.float32:
+            bits = "32"
+        elif backend.float == np.float64:
+            bits = "64"
+        else:
+            raise Exception()
+
         if SAVE_PINNED:
             np.savetxt(
-                "resources/potential_well.csv",
+                callers_relative_path(
+                    f"resources/potential_well_{bits}.csv", stacklevel=1
+                ),
                 potential_well,
             )
         potential_well_pinned = np.loadtxt(
-            callers_relative_path("resources/potential_well.csv", stacklevel=1)
+            callers_relative_path(
+                f"resources/potential_well_{bits}.csv", stacklevel=1
+            )
         )
+
+        DEV_DEBUG = False
+        if DEV_DEBUG:
+            plt.figure()
+            plt.subplot(2, 1, 1)
+            plt.plot(potential_well_pinned, label="potential_well_pinned")
+            plt.plot(potential_well, "--", label="potential_well")
+            plt.subplot(2, 1, 2)
+            plt.plot(potential_well - potential_well_pinned)
+            plt.legend()
+            plt.show()
+
+        from blond import backend
+
         np.testing.assert_allclose(
             potential_well_pinned,
             potential_well,
+            rtol=1e-5 if backend.float == np.float32 else 1e-12,
         )
 
-    @unittest.skip
-    def test_get_separatrix(self):
-        # TODO: implement test for `get_separatrix`
-        self.simulation.get_separatrix()
+    def test_plot_potential_well_empiric(self):
+        self.simulation.plot_potential_well_empiric(
+            dt=np.linspace(0, 1e-9),
+            particle_type=proton,
+        )
 
     def test_load_results(self):
-        observation = BunchObservation(each_turn_i=10, beam=self.beam)
+        observation = BeamObservationEndOfTurn(each_turn_i=10, beam=self.beam)
         kwargs = dict(
             beams=(self.beam,),
             n_turns=10,
@@ -223,8 +298,14 @@ class TestSimulation(unittest.TestCase):
         )
         self.simulation.run_simulation(**kwargs)
         de_before_save = observation.dEs.copy()
-        self.simulation.save_results(observe=(observation,))
-        self.simulation.load_results(**kwargs)
+        self.simulation.save_results(
+            observe=(observation,),
+            common_name="newname",
+        )
+        self.simulation.load_results(
+            **kwargs,
+            common_name="newname",
+        )
         de_from_disk = observation.dEs.copy()
         np.testing.assert_almost_equal(de_before_save, de_from_disk)
 
@@ -265,7 +346,7 @@ class TestSimulation(unittest.TestCase):
         self.assertIsInstance(self.simulation.ring, Ring)
 
     def test_run_simulation(self):
-        observe = BunchObservation(each_turn_i=10, beam=self.beam)
+        observe = BeamObservationEndOfTurn(each_turn_i=10, beam=self.beam)
 
         def my_callback(simulation: Simulation, beam: BeamBaseClass) -> None:
             return
@@ -281,6 +362,202 @@ class TestSimulation(unittest.TestCase):
             beams=(self.beam,),
         )
         mock_func.assert_called()
+
+    def test_get_potential_well_empiric_shape(self):
+        cavity = self.simulation.ring.elements.get_element(
+            SingleHarmonicRfStation
+        )
+        particle_type = proton
+
+        ts = np.linspace(
+            0,
+            self.simulation.magnetic_cycle.get_t_rev_init(
+                circumference=self.simulation.ring.circumference,
+                t_init=0,
+                turn_i_init=0,
+                particle_type=particle_type,
+            )
+            / cavity.harmonic,
+            20000,
+        )
+        phis = ts * cavity.calc_omega(
+            beam_beta=self.beam.reference_beta,
+            ring_circumference=self.simulation.ring.circumference,
+        )
+        potential_well, factor, tilt_dt_per_dE = (
+            self.simulation.get_potential_well_empiric(
+                ts, particle_type=particle_type
+            )
+        )
+        DEV_PLOT = False
+        phi_s = np.pi
+
+        potential_well_analytic = (
+            particle_type.charge
+            * cavity.voltage
+            / (2 * np.pi)
+            * (np.cos(phis) - np.cos(phi_s) + (phis - phi_s) * np.sin(phi_s))
+        )
+        if DEV_PLOT:
+            plt.plot(
+                potential_well,
+                label="potential_well",
+            )
+
+            plt.plot(
+                potential_well_analytic,
+                "--",
+                label="potential_well_analytic",
+            )
+            plt.legend()
+            plt.show()
+        np.testing.assert_allclose(
+            potential_well_analytic / potential_well_analytic.max() + 1,
+            potential_well / potential_well.max() + 1,
+            rtol=1e-4,
+        )
+
+    def test_get_potential_well_empiric_shape_acceleration(self):
+        ring = Ring(circumference=26658.883)
+
+        cavity1 = SingleHarmonicRfStation()
+        cavity1.harmonic = 35640
+        cavity1.voltage = 6e6
+        cavity1.phi_rf = 0
+
+        N_TURNS = int((20 * 60) * 11e3)
+        energies = np.linspace(450e9, 7e12, N_TURNS)
+        step = energies[1] - energies[0]
+        magnetic_cycle = MagneticCyclePerTurn(
+            value_init=energies[0] - step,
+            values_after_turn=energies,
+            reference_particle=proton,
+            in_unit="total energy",
+        )
+
+        drift1 = DriftSimple(
+            orbit_length=26658.883,
+        )
+        drift1.transition_gamma = 55.759505
+
+        beam1 = Beam(intensity=1e9, particle_type=proton)
+        beam1.setup_beam(
+            dt=np.linspace(1, 10, 10),
+            dE=np.linspace(11, 20, 10),
+            reference_time=0,
+            reference_total_energy=energies[0] - step,
+        )
+        simulation = Simulation.from_locals(locals())
+        beam = beam1
+
+        cavity = simulation.ring.elements.get_element(SingleHarmonicRfStation)
+        particle_type = proton
+
+        ts = np.linspace(
+            0,
+            simulation.magnetic_cycle.get_t_rev_init(
+                circumference=simulation.ring.circumference,
+                t_init=0,
+                turn_i_init=0,
+                particle_type=particle_type,
+            )
+            / cavity.harmonic,
+            20000,
+        )
+        phis = ts * cavity.calc_omega(
+            beam_beta=beam.reference_beta,
+            ring_circumference=simulation.ring.circumference,
+        )
+        potential_well, factor, tilt_dt_per_dE = (
+            simulation.get_potential_well_empiric(
+                ts, particle_type=particle_type
+            )
+        )
+        DEV_PLOT = False
+        simulation.turn_i.value = 0
+        phi_s = float(cavity.calc_phi_s_single_harmonic(beam=beam1))
+
+        potential_well_analytic = (
+            particle_type.charge
+            * cavity.voltage
+            / (2 * np.pi)
+            * (np.cos(phis) - np.cos(phi_s) + (phis - phi_s) * np.sin(phi_s))
+        )
+        if DEV_PLOT:
+            plt.plot(
+                potential_well,
+                label="potential_well",
+            )
+
+            plt.plot(
+                potential_well_analytic,
+                "--",
+                label="potential_well_analytic",
+            )
+            plt.legend()
+            plt.show()
+        np.testing.assert_allclose(
+            potential_well_analytic / potential_well_analytic.max() + 1,
+            potential_well / potential_well.max() + 1,
+            rtol=1e-4,
+        )
+
+    def test_get_drift_term_empiric(self):
+        from blond.testing.simulation import SimulationTwoRfStations
+
+        sim = SimulationTwoRfStations()
+        simulation = sim.simulation
+        de = np.linspace(-1e9, 1e9)
+        beam = sim.beam1
+        beam.reference_total_energy = 450e9
+        drift_term = simulation.get_drift_term_empiric(
+            dE=de,
+            particle_type=proton,
+        )
+        E0 = beam.reference_total_energy
+        beta = beam.reference_beta
+
+        eta = float(simulation.ring.calc_average_eta_0(beam.reference_gamma))
+        drift_term_analytic = (
+            0.5 * eta / (np.square(beta) * E0) * de**2
+        )  # [1/eV]
+        DEV_DRAW = False
+        if DEV_DRAW:
+            plt.figure()
+
+            print(drift_term - drift_term_analytic)
+            plt.plot(drift_term)
+            plt.plot(drift_term_analytic, "--")
+            plt.show()
+        np.testing.assert_allclose(
+            drift_term_analytic + 1,
+            drift_term + 1,
+            atol=0.15,
+        )
+
+    def test_finalize_raises(self) -> None:
+        self.simulation.magnetic_cycle._n_turns_max = None
+        with self.assertRaises(ValueError):
+            self.simulation.finalize(
+                beams=beam_mock,
+                n_turns=None,
+                observe=(),
+                turn_i_init=0,
+            )
+
+    def test_finalize_warns(self) -> None:
+        from blond import backend
+        beam_mock.common_array_size = int(1e32)
+        special_mode_org = backend.specials_mode
+        backend.set_specials(mode="python")
+        with self.assertWarns(PerformanceWarning):
+            self.simulation.finalize(
+                beams=(beam_mock,),
+                n_turns=None,
+                observe=(),
+                turn_i_init=0,
+            )
+        backend.set_specials(mode=special_mode_org)
 
 
 if __name__ == "__main__":

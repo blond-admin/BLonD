@@ -3,11 +3,11 @@ from __future__ import annotations
 import copy
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ..base import BeamPhysicsRelevant, Preparable, Schedulable
+from blond._core.base import Preparable, Schedulable
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
@@ -15,10 +15,13 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from numpy.typing import NDArray as NumpyArray
 
-    from ...physics.drifts import DriftBaseClass
-    from ..beam.base import BeamBaseClass
-    from ..simulation.simulation import Simulation
-    from .beam_physics_relevant_elements import BeamPhysicsRelevantElements
+    from blond._core.base import SimulationElementBase
+    from blond._core.beam.base import BeamBaseClass
+    from blond._core.ring.beam_physics_relevant_elements import (
+        BeamPhysicsRelevantElements,
+    )
+    from blond._core.simulation.simulation import Simulation
+    from blond.physics.drifts import DriftBaseClass
 
 
 class Ring(Preparable, Schedulable):
@@ -27,16 +30,21 @@ class Ring(Preparable, Schedulable):
         circumference: float,
         radiation_integrals: NumpyArray | None = None,
     ) -> None:
-        """Ring a.k.a. synchrotron.
+        """Create a `Ring` object representing a synchrotron accelerator.
+
+        A Ring (synchrotron) is the fundamental structure that contains all beam
+        physics elements like RF stations, drifts, and other components. It maintains
+        a reference circumference used for RF frequency calculations.
 
         Parameters
         ----------
         circumference
-            Constant synchrotron reference circumference, in [m].
-            The orbit length might change during simulation,
-            but the circumference is used to determine the RF frequency.
-            Changes of orbit length thus lead to delays, but do not alter
-            the derived frequency program.
+            The reference circumference of the synchrotron, in [m].
+            This value remains constant during simulation and is used to determine
+            the RF frequency program. Note: While the actual orbit length may vary
+            during simulation (e.g., due to energy changes), the circumference stays
+            fixed. Orbit length changes result in timing delays but don't affect
+            the RF frequency program.
         radiation_integrals
             Synchrotron radiation integrals.
             First five synchrotron radiation integrals are required:
@@ -49,9 +57,10 @@ class Ring(Preparable, Schedulable):
             horizontal dispersion function, 'K' the focusing strength and 'H =
             \beta_x D^2 + \alpha_x D {D'} + \gamma_x {D'}^2 ' the
             H-function
-
         """
-        from .beam_physics_relevant_elements import BeamPhysicsRelevantElements
+        from blond._core.ring.beam_physics_relevant_elements import (
+            BeamPhysicsRelevantElements,
+        )
 
         super().__init__()
         self._elements = BeamPhysicsRelevantElements()
@@ -62,10 +71,16 @@ class Ring(Preparable, Schedulable):
         self._radiation_integrals = radiation_integrals
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """Initialize the ring when a simulation is created.
 
+        This method is automatically called during simulation initialization to
+        validate the ring configuration. It checks that RF stations are properly
+        configured and section indices are correctly ordered.
+
+        Parameters
+        ----------
         simulation
-            Simulation context manager
+            The simulation context manager that owns this ring.
         """
         if self.n_cavities > 1:
             assert (
@@ -81,7 +96,7 @@ class Ring(Preparable, Schedulable):
             )
 
         assert np.all(
-            0 <= np.diff([e.section_index for e in self.elements.elements])
+            np.diff([e.section_index for e in self.elements.elements]) >= 0
         ), (
             "Section indices must be ascending, but section order:"
             f" {[e.section_index for e in self.elements.elements]=}"
@@ -95,31 +110,41 @@ class Ring(Preparable, Schedulable):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """Prepare the ring when simulation execution begins.
+
+        This method is automatically called
+        when ``simulation.run_simulation()`` starts.
 
         Parameters
         ----------
         simulation
-            Simulation context manager
+            The simulation context manager.
         beam
-            Simulation beam object
+            The beam object being simulated.
         n_turns
-            Number of turns to simulate
+            Total number of turns to simulate.
         turn_i_init
-            Initial turn to execute simulation
+            The starting turn number (useful for resuming simulations).
+        **kwargs
+            Additional keyword arguments.
         """
         pass
 
     @property
     def circumference(self) -> float:
-        """Constant synchrotron reference circumference, in [m].
+        """Get the reference circumference of the synchrotron, in [m].
+
+        Returns
+        -------
+        circumference
+            The reference circumference, in [m].
 
         Notes
         -----
-        The orbit length might change during simulation,
-        but the circumference is used to determine the RF frequency.
-        Changes of orbit length thus lead to delays, but do not alter
-        the derived frequency program.
+        This value remains constant throughout the simulation and determines the
+        RF frequency program. The actual orbit length (see `closed_orbit_length`)
+        may differ during simulation, leading to timing delays without changing
+        the RF frequency.
         """
         return self._circumference
 
@@ -131,34 +156,136 @@ class Ring(Preparable, Schedulable):
         return self._radiation_integrals
 
     @cached_property
-    def average_transition_gamma(self):
-        from ... import DriftSimple  # prevent cyclic import
+    def average_transition_gamma(self) -> float:
+        """Calculate the orbit-length weighted average transition gamma.
 
-        transition_gamma_average = sum(
-            [
-                e.transition_gamma * self.circumference / e.orbit_length
-                for e in (self.elements.get_elements(DriftSimple))  # todo
-                # not only simple
-            ]
-        )
+        The transition gamma is the Lorentz factor at which particles cross from
+        below to above transition energy. This property computes a weighted average
+        based on the drift sections in the ring.
+
+        Returns
+        -------
+        average_transition_gamma
+            The weighted average transition gamma (dimensionless).
+
+        Notes
+        -----
+        Currently only considers DriftSimple elements. The weighting is based on
+        the orbit length of each drift section. This value is cached after first
+        calculation.
+        """
+        from blond import DriftSimple  # prevent cyclic import
+
+        gammas = [
+            e.transition_gamma for e in self.elements.get_elements(DriftSimple)
+        ]
+        weights = [
+            e.orbit_length for e in self.elements.get_elements(DriftSimple)
+        ]
+        # todo not only simple dirft
+        transition_gamma_average = np.average(gammas, weights=weights)
         return transition_gamma_average
+
+    def calc_average_eta_0(self, gamma: float) -> float:
+        """Calculate the orbit-length weighted average slip factor `eta_0`.
+
+        The slip factor `eta_0` describes the relationship between relative momentum
+        deviation and relative path length change. This method computes a weighted
+        average over all drift sections in the ring at a given beam energy.
+
+        Parameters
+        ----------
+        gamma
+            The relativistic Lorentz factor at which to evaluate
+            the slip factor.
+
+        Returns
+        -------
+        average_eta_0
+            The weighted average slip factor (dimensionless).
+
+        See Also
+        --------
+        average_transition_gamma
+        """
+        from blond.physics.drifts import (
+            DriftBaseClass,  # prevent circular import
+        )
+
+        drifts = self.elements.get_elements(DriftBaseClass)
+        weights = [d.orbit_length for d in drifts]
+        etas = [d.eta_0(gamma) for d in drifts]
+        return float(
+            np.average(
+                etas,
+                weights=weights,
+            )
+        )
+
+    def is_below_transition(self, beam: BeamBaseClass) -> bool:
+        """Check if the beam velocity is below the transition energy.
+
+        Below transition, higher energy particles take longer to complete an orbit.
+        Above transition, higher energy particles complete orbits faster. This
+        distinction is crucial for longitudinal beam dynamics and RF phase settings.
+
+        Parameters
+        ----------
+        beam
+            The beam object containing the reference gamma value to check.
+
+        Returns
+        -------
+        bool
+            True if the beam is below transition (gamma < gamma_transition),
+            False otherwise.
+
+        See Also
+        --------
+        average_transition_gamma
+        """
+        return bool(self.calc_average_eta_0(gamma=beam.reference_gamma) < 0)
 
     @property
     def n_cavities(self) -> int:
-        """Total number of cavities in this synchrotron."""
-        from ...physics.cavities import CavityBaseClass
+        """Get the total number of RF stations in the ring.
 
-        return self.elements.count(CavityBaseClass)
+        Returns
+        -------
+        n_cavities
+            The count of all cavity elements currently in the ring.
+        """
+        from blond.physics.cavities import RfStationBaseClass
+
+        return self.elements.count(RfStationBaseClass)
 
     @property  # as readonly attributes
     def elements(self) -> BeamPhysicsRelevantElements:
-        """Bending radius, in [m]."""
+        """Get the container of all beam physics elements in the ring.
+
+        Returns
+        -------
+        elements
+            A container holding all elements (RF stations, drifts, monitors, etc.)
+            that affect beam physics in this ring.
+        """
         return self._elements
 
     @property  # as readonly attributes
     def closed_orbit_length(self) -> float:
-        """Length of the closed orbit, in [m]."""
-        from ...physics.drifts import DriftBaseClass
+        """Get the actual closed orbit length, in [m].
+
+        Returns
+        -------
+        closed_orbit_length
+            The sum of all drift orbit lengths, in [m].
+
+        Notes
+        -----
+        This is calculated by summing the `orbit_length` of all drift elements and
+        may differ from the reference circumference during simulation.
+        """
+        from blond.physics.drifts import DriftBaseClass
 
         all_drifts = self.elements.get_elements(DriftBaseClass)
         orbit_length = float(sum([drift.orbit_length for drift in all_drifts]))
@@ -166,32 +293,49 @@ class Ring(Preparable, Schedulable):
 
     @property
     def section_lengths(self) -> NumpyArray:
-        """Length of each section, in [m]."""
+        """Get the orbit length of each section in the ring, in [m].
+
+        Returns
+        -------
+        section_lengths
+            Array containing the orbit length of each section, in [m].
+        """
         return self.elements.get_sections_orbit_length()
 
     def assert_circumference(
         self,
         atol: float = 1e-6,
     ) -> None:
-        """Checks that the sum of all drifts is equal to the circumference.
+        """Verify that the closed orbit length matches the reference circumference.
+
+        This method checks that the sum of all drift orbit lengths equals the
+        reference circumference within the specified tolerance. Use this to
+        validate your ring configuration.
 
         Parameters
         ----------
         atol
-            The tolerance of the check, in [m]
+            The absolute tolerance for the comparison, in [m].
+            Default is 1e-6 m (1 micrometer).
 
         Raises
         ------
         AssertionError
-            If circumference != circumference
+            If the closed orbit length differs from the reference circumference
+            by more than `atol`.
 
+        Examples
+        --------
+        >>> ring.assert_circumference()  # Check with default tolerance
+        >>> ring.assert_circumference(atol=1e-3)  # Check with 1 mm tolerance
         """
         assert np.isclose(
             self.closed_orbit_length,
             self.circumference,
             atol=atol,
         ), (
-            f"{self.closed_orbit_length=}m, but should be {self.circumference}m."
+            f"{self.closed_orbit_length=} m,"
+            f" but should be {self.circumference=} m."
         )
 
     def add_drifts(
@@ -201,23 +345,31 @@ class Ring(Preparable, Schedulable):
         driftclass: type[DriftBaseClass] | None = None,
         **kwargs_drift,
     ) -> None:
-        """Add several drifts to the different sections.
+        """Add uniformly distributed drift sections to the ring.
+
+        This convenience method creates and adds drift elements distributed equally
+        across multiple sections. Each drift will have the same length, calculated
+        to fill the entire circumference.
 
         Parameters
         ----------
         n_drifts_per_section
-            Number of drifts per section
+            Number of drift elements to create in each section.
         n_sections
-            Total number of sections to populate with drifts
+            Total number of sections in the ring.
         driftclass
-            Drift class to be used.
-        kwargs_drift
-            Additional parameters to initialize the `driftclass`.
-            Optional, only if `driftclass` supports it.
+            The drift class to instantiate. If None, uses `DriftSimple`.
+        **kwargs_drift
+            Additional keyword arguments passed to the drift constructor
+            (e.g., `transition_gamma`, `bending_radius`).
 
+        Examples
+        --------
+        >>> ring.add_drifts(n_drifts_per_section=10, n_sections=4)
+        >>> # Creates 40 drifts total, 10 per section, each with length = circumference/40
         """
         if driftclass is None:
-            from ... import DriftSimple  # prevent cyclic import
+            from blond import DriftSimple  # prevent cyclic import
 
             driftclass = DriftSimple
 
@@ -234,36 +386,42 @@ class Ring(Preparable, Schedulable):
 
     def add_element(
         self,
-        element: BeamPhysicsRelevant,
+        element: SimulationElementBase,
         reorder: bool = False,
         deepcopy: bool = False,
         section_index: int | None = None,
     ):
-        """Append a beam physics-relevant element to the ring.
+        """Add a single element to the end of the ring.
 
-        This method appends the given element to the
-        internal sequence of elements, maintaining insertion order if
-        reorder is False.
-        The element must have a valid integer `section_index`.
+        This is the primary method for adding beam physics elements (RF stations,
+        drifts, monitors, etc.) to the ring. Elements are appended in the order
+        they are added unless reordering is enabled.
 
         Parameters
         ----------
         element
-            An object representing a beamline component or any element
-            relevant to beam physics. Must have a valid  `section_index`
-            attribute of type `int`.
+            A beam physics element (cavity, drift, monitor, etc.) to add.
+            Must have a valid integer `section_index` attribute.
         reorder
-            Reorder each section by `natural_order`
+            If True, automatically reorder elements within each section by their
+            `natural_order` attribute after adding. Default is False.
         deepcopy
-            Takes a copy of the given element
+            If True, adds a deep copy of the element instead of the original
+            reference. Useful when reusing element templates. Default is False.
         section_index
-            Add element to section
-            (overwrites section index of element)
+            If provided, overrides the element's existing section_index attribute.
+            Useful for programmatically assigning sections.
 
         Raises
         ------
         AssertionError
-            If `element.section_index` is not an integer.
+            If the element's section_index is not a valid integer.
+
+        Examples
+        --------
+        >>> from blond import RFCavity
+        >>> cavity = RFCavity(voltage=1e6, harmonic=400, section_index=0)
+        >>> ring.add_element(cavity)
         """
         if deepcopy:
             element = copy.deepcopy(element)
@@ -276,34 +434,38 @@ class Ring(Preparable, Schedulable):
 
     def add_elements(
         self,
-        elements: Iterable[BeamPhysicsRelevant],
+        elements: Iterable[SimulationElementBase],
         reorder: bool = False,
         deepcopy: bool = False,
         section_index: int | None = None,
     ):
-        """Append beam physics-relevant elements to the ring.
+        """Add multiple elements to the ring at once.
 
-        This method appends the given elements to the
-        internal sequence of elements, maintaining
-        insertion order if `reorder` is False.
+        Convenience method for adding several beam physics elements in a single call.
+        Elements are added in the order they appear in the iterable.
 
         Parameters
         ----------
         elements
-            Objects representing beamline components or other elements
-            relevant to beam physics.
+            A collection (list, tuple, etc.) of beam physics elements to add.
+            Each element must have a valid integer `section_index` attribute.
         reorder
-            Reorder each section by `natural_order`
+            If True, reorder elements within each section by their `natural_order`
+            after adding all elements. Default is False.
         deepcopy
-            Takes copies of the given elements
+            If True, adds deep copies of the elements. Default is False.
         section_index
-            Add elements to section
-            (overwrites section index of elements)
+            If provided, overrides the section_index for all elements being added.
 
         Raises
         ------
         AssertionError
-            If `element.section_index` is not an integer.
+            If any element's section_index is not a valid integer.
+
+        Examples
+        --------
+        >>> rf_stations = [SingleHarmonicRfStation(..., section_index=i) for i in range(4)]
+        >>> ring.add_elements(rf_stations)
         """
         for element in elements:
             self.add_element(
@@ -317,53 +479,57 @@ class Ring(Preparable, Schedulable):
 
     def insert_element(
         self,
-        element: BeamPhysicsRelevant,
+        element: SimulationElementBase,
         insert_at: int | list[int],
         deepcopy: bool = True,
         allow_section_index_overwrite: bool = False,
     ) -> list[int]:
-        """Insert a single element at the specified locations in the ring.
+        """Insert an element at specific position(s) in the ring.
 
-        This function inserts the element at the specified locations in the
-        ring, ensuring ``ring.elements.elements[location] == element``
-
-        Deepcopy is recommended. The function offers the possibility to
-        automatically update the copied elements' section indexes,
-        for guaranteed compatibility.
+        Unlike `add_element` which appends to the end, this method inserts an
+        element at precise locations within the existing element sequence. Useful
+        for adding elements at specific positions.
 
         Parameters
         ----------
         element
-            An object representing a beamline component or any element
-            relevant to beam physics. Must have a valid `section_index`
-            attribute of type `int`.
+            The element to insert. Must have a valid integer `section_index`.
         insert_at
-            Single location or list of locations in the initial ring.
+            Position(s) where the element should be inserted. Can be a single
+            index or list of indices. After insertion at position k,
+            ring.elements.elements[k] will be the inserted element.
         deepcopy
-            Takes copies of the given element.
+            Whether to insert copies of the element (recommended when inserting
+            at multiple locations). Default is True.
         allow_section_index_overwrite
-            Automatic handling of section indexes.
+            If True, automatically adjusts the element's section_index to match
+            the section at the insertion position. Requires deepcopy=True.
+            Default is False.
 
         Returns
         -------
-        locations_in_the_new_ring
-            Location(s) of the inserted element in the new ring
+        list[int]
+            The final positions of the inserted element(s) in the modified ring.
 
         Raises
         ------
         AssertionError
-            If ``element.section_index`` is not an integer.
-            If insert_at is not within [0:len(ring.elements.elements)]
-            If ``element.section_index`` is inconsistent with the section of
-            insertion.
-            If allow_section_index_overwrite is enabled without deepcopy
+            - If element.section_index is not an integer
+            - If insert_at is outside valid range [0, len(elements)]
+            - If element.section_index doesn't match the insertion section
+              (unless allow_section_index_overwrite=True)
+            - If allow_section_index_overwrite=True but deepcopy=False
 
+        Examples
+        --------
+        >>> monitor = BeamMonitor(section_index=0)
+        >>> ring.insert_element(monitor, insert_at=5)
+        [5]
         """
         locations_in_the_new_ring = []
         if isinstance(insert_at, int):
             insert_at = [insert_at]
-        already_inserted = 0
-        for k in insert_at:
+        for already_inserted, k in enumerate(insert_at):
             if deepcopy:
                 element = copy.deepcopy(element)
                 if allow_section_index_overwrite:
@@ -380,50 +546,53 @@ class Ring(Preparable, Schedulable):
                 insert_at=k + already_inserted,
             )
             locations_in_the_new_ring.append(k + already_inserted)
-            already_inserted += 1
 
         return locations_in_the_new_ring
 
     def insert_elements(
         self,
-        elements: list[BeamPhysicsRelevant],
+        elements: list[SimulationElementBase],
         insert_at: int,
         deepcopy: bool = True,
         allow_section_index_overwrite: bool = False,
     ):
-        """Insert the elements at the specified location in the ring.
+        """Insert multiple elements at a specific position in the ring.
 
-        This function inserts the list of elements at the specified locations
-        in the ring, respecting the element order in list:
+        This method inserts a list of elements as a contiguous block at the
+        specified position. The elements maintain their order from the input list.
 
-        - ``ring.elements.elements[location] == elements[0]``
-        - ``ring.elements.elements[location:location+len(elements)] == elements``
-
-        Deepcopy is recommended. The function offers the possibility to
-        automatically update the copied elements' section indexes,
-        for guaranteed compatibility.
+        After insertion:
+        - ring.elements.elements[insert_at] == elements[0]
+        - ring.elements.elements[insert_at:insert_at+len(elements)] == elements
 
         Parameters
         ----------
         elements
-            A list of objects representing a beamline component or any element
-            relevant to beam physics. Must have a valid `section_index`
-            attribute of type `int`.
+            List of elements to insert. Each must have a valid integer
+            `section_index` attribute. They will be inserted in order.
         insert_at
-            Single location.
+            The position where the first element should be inserted.
         deepcopy
-            Takes copies of the element listed.
+            Whether to insert copies of the elements. Default is True.
         allow_section_index_overwrite
-            Automatic handling of section indexes.
+            If True, automatically adjusts each element's section_index to match
+            the section at its insertion position. Requires deepcopy=True.
+            Default is False.
 
         Raises
         ------
         AssertionError
-            If `element.section_index` is not an integer.
-            If 'element.section_index' is inconsistent with the section of
-            insertion.
-            If insert_at is not within [0:len(ring.elements.elements)]
-            If allow_section_index_overwrite is enabled without deepcopy
+            - If any element's section_index is not an integer
+            - If element section indices don't match the insertion section
+              (unless allow_section_index_overwrite=True)
+            - If insert_at is outside valid range [0, len(elements)]
+            - If allow_section_index_overwrite=True but deepcopy=False
+
+        Examples
+        --------
+        >>> monitors = [BeamMonitor(section_index=0) for _ in range(3)]
+        >>> ring.insert_elements(monitors, insert_at=10)
+        >>> # Monitors now at positions 10, 11, 12
         """
         # The elements are inserted one by one, from the last to the first
         # to preserve the input insertion order.
@@ -437,31 +606,30 @@ class Ring(Preparable, Schedulable):
             )
 
     def _force_section_index_compatibility(
-        self, element: BeamPhysicsRelevant, insert_at: int
-    ) -> BeamPhysicsRelevant:
-        """Internal method to ensure section index compatibility.
+        self, element: SimulationElementBase, insert_at: int
+    ) -> SimulationElementBase:
+        """Internal method to automatically fix element section index for insertion.
 
-        This method overwrites the section index of the element, to ensure
-        section index compatibility in the ring. The element section index
-        is copied from the following element the ring:
+        This private method is called by insert methods when
+        `allow_section_index_overwrite=True`. It adjusts the element's `section_index`
+        to match the section at the insertion position.
 
-            ``element.section_index = ring.elements.elements[
-            insert_at].section_index``
-
-        unless the element is appended at the end of the ring:
-
-            ``element.section_index = ring.elements.elements[
-            len(self.elements.elements)-1].section_index``
+        The section index is copied from:
+        - The element at position `insert_at` (if inserting in the middle)
+        - The last element in the ring (if appending at the end)
 
         Parameters
         ----------
         element
-            An object representing a beamline component or any element
-            relevant to beam physics. Must have a valid  ``section_index``
-            attribute of type ``int``.
+            The element whose section_index needs adjustment. Must have a
+            `section_index` attribute.
         insert_at
-            Single location index.
+            The position where the element will be inserted.
 
+        Returns
+        -------
+        SimulationElementBase
+            The same element with potentially modified section_index.
         """
         try:
             self.elements.check_section_index_compatibility(

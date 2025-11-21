@@ -10,7 +10,7 @@ from blond._core.ring.beam_physics_relevant_elements import (
     BeamPhysicsRelevantElements,
     pretty_string,
 )
-from blond.physics.cavities import CavityBaseClass
+from blond.physics.cavities import RfStationBaseClass
 from blond.physics.drifts import DriftBaseClass
 
 
@@ -28,7 +28,7 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         element1.name = "element1"
         self.beam_physics_relevant_elements.add_element(element1)
 
-        element2 = Mock(spec=CavityBaseClass)
+        element2 = Mock(spec=RfStationBaseClass)
         element2.section_index = 0
         element2.name = "element2"
         self.beam_physics_relevant_elements.add_element(element2)
@@ -39,7 +39,7 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         element3.name = "element3"
         self.beam_physics_relevant_elements.add_element(element3)
 
-        element4 = Mock(spec=CavityBaseClass)
+        element4 = Mock(spec=RfStationBaseClass)
         element4.section_index = 1
         element4.name = "element4"
         self.beam_physics_relevant_elements.add_element(element4)
@@ -49,6 +49,34 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
 
     def test__check_section_indexing(self):
         self.beam_physics_relevant_elements._check_section_indexing()
+
+    def test__check_section_indexing_too_many_cavities(self):
+        third_cavity = Mock(spec=RfStationBaseClass)
+        third_cavity.name = "third_cavity"
+        third_cavity.section_index = 1
+        self.beam_physics_relevant_elements.add_element(third_cavity)
+        with self.assertRaisesRegex(ValueError, "Each cavity must be in a different section"):
+            self.beam_physics_relevant_elements._check_section_indexing()
+
+    def test_missing_drift_cavity(self):
+        element = Mock(spec=DriftBaseClass)
+        element.orbit_length = 0.5
+        element.section_index = 2
+        element.name = "element"
+        self.beam_physics_relevant_elements.add_element(element)
+        with self.assertRaisesRegex(RuntimeError, "Missing cavity in section"):
+            self.beam_physics_relevant_elements._check_section_indexing()
+
+        element = Mock(spec=RfStationBaseClass)
+        element.section_index = 2
+        element.name = "element"
+        self.beam_physics_relevant_elements.add_element(element)  # complete section 2 and open new one
+        element = Mock(spec=RfStationBaseClass)
+        element.section_index = 3
+        element.name = "element"
+        self.beam_physics_relevant_elements.add_element(element)
+        with self.assertRaisesRegex(RuntimeError, "Missing drift in section"):
+            self.beam_physics_relevant_elements._check_section_indexing()
 
     def test_add_element(self):
         element = Mock(spec=BeamPhysicsRelevant)
@@ -133,7 +161,7 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         )
         assert (
             self.beam_physics_relevant_elements.count(
-                class_=CavityBaseClass, section_i=0
+                class_=RfStationBaseClass, section_i=0
             )
             == 1
         )
@@ -145,7 +173,7 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         )
         assert (
             self.beam_physics_relevant_elements.count(
-                class_=CavityBaseClass, section_i=1
+                class_=RfStationBaseClass, section_i=1
             )
             == 1
         )
@@ -172,6 +200,8 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         assert len(elements) == 2
 
     def test_get_order_info(self):
+        for mock_element in self.beam_physics_relevant_elements.elements:
+            mock_element.info_string.return_value = ""
         self.beam_physics_relevant_elements.get_order_info()
 
     def test_get_section_circumference_orbit_lengths(self):
@@ -206,14 +236,17 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         )
 
     def test_print_order(self):
+        for mock_element in self.beam_physics_relevant_elements.elements:
+            mock_element.info_string.return_value = ""
+
         self.beam_physics_relevant_elements.print_order()
 
     def test_reorder(self):
         self.beam_physics_relevant_elements.reorder()
         expected = (
-            "CavityBaseClass",
+            "RfStationBaseClass",
             "DriftBaseClass",
-            "CavityBaseClass",
+            "RfStationBaseClass",
             "DriftBaseClass",
         )
         actual = tuple(
@@ -229,10 +262,10 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         self.beam_physics_relevant_elements.reorder_section(section_index=0)
         # self.beam_physics_relevant_elements.reorder_section(section_index=1)
         expected = (
-            "CavityBaseClass",
+            "RfStationBaseClass",
             "DriftBaseClass",
             "DriftBaseClass",
-            "CavityBaseClass",
+            "RfStationBaseClass",
         )
         actual = tuple(
             [
@@ -254,9 +287,9 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         self.beam_physics_relevant_elements.reorder_section(section_index=0)
         self.beam_physics_relevant_elements.reorder_section(section_index=1)
         expected = (
-            "CavityBaseClass",
+            "RfStationBaseClass",
             "DriftBaseClass",
-            "CavityBaseClass",
+            "RfStationBaseClass",
             "DriftBaseClass",
         )
         actual = tuple(
@@ -273,6 +306,20 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         )
         self.assertEqual((0, 0, 1, 1), section)
         self.assertEqual(expected, actual)
+
+    def test_fails_add_after_init(self):
+        from blond.testing.simulation import ExampleSimulation01
+
+        sim = ExampleSimulation01().simulation
+        drift = Mock(DriftBaseClass)
+        with self.assertRaises(AssertionError):
+            sim.ring.add_element(drift)
+        with self.assertRaises(AssertionError):
+            sim.ring.add_elements((drift,))
+        with self.assertRaises(AssertionError):
+            sim.ring.insert_element(drift, insert_at=0)
+        with self.assertRaises(AssertionError):
+            sim.ring.insert_elements([drift,], insert_at=0)
 
 
 if __name__ == "__main__":

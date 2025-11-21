@@ -1,3 +1,19 @@
+"""Several classes to manage and describe the ramp of the magnets.
+
+Notes
+-----
+The following classes are currently available:
+- :class:`~blond.cycles.magnetic_cycles.ConstantMagneticCycle`
+- :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurn`
+- :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllCavities`
+- :class:`~blond.cycles.magnetic_cycles.MagneticCycleByTime`
+
+Authors
+-------
+Simon Lauber
+
+"""
+
 from __future__ import annotations
 
 from abc import abstractmethod
@@ -7,21 +23,20 @@ from unittest.mock import Mock
 import numpy as np
 from scipy.constants import speed_of_light as c0
 
-from .._core.backends.backend import backend
-from .._core.base import HasPropertyCache
-from .._core.beam.base import BeamBaseClass
-from .._core.beam.particle_types import ParticleType, proton
-from ..acc_math.analytic.simple_math import calc_total_energy
-from .base import ProgrammedCycle
+from blond._core.base import HasPropertyCache
+from blond._core.beam.base import BeamBaseClass
+from blond._core.beam.particle_types import ParticleType, proton
+from blond.acc_math.analytic.simple_math import calc_total_energy
+from blond.cycles.base import ProgrammedCycle
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, Literal, TypeVar, Union
+    from typing import Any, Literal, TypeVar
 
     from numpy.typing import NDArray as NumpyArray
 
-    from .._core.simulation.simulation import Simulation
+    from blond._core.simulation.simulation import Simulation
 
-    FloatOrArray = Union[float, NumpyArray]
+    FloatOrArray = float | NumpyArray
 
     T = TypeVar("T")
 
@@ -85,7 +100,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation :class:`~blond._cycles_core.beam.beam.Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -135,7 +150,8 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
 
         Returns
         -------
-
+        reference_total_energy
+            The new energy, in [eV]
         """
         pass
 
@@ -144,7 +160,25 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         turn_i_init: int,
         t_init: float,
         particle_type: ParticleType,
-    ) -> backend.float:
+    ) -> float:
+        """Compute the initial the total energy [eV] for the initial turn.
+
+        Parameters
+        ----------
+        turn_i_init
+            Current turn index.
+            (Eventually needed for array accessing)
+        t_init
+            Current reference time, in [s].
+            (Eventually needed for interpolation)
+        particle_type
+            Type of particles, e.g. protons
+
+        Returns
+        -------
+        reference_total_energy
+            The total energy, in [eV]
+        """
         index = turn_i_init - 1
         if index < 0:
             total_energy_init = calc_total_energy(
@@ -170,7 +204,45 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         turn_i_init: int,
         t_init: float,
         particle_type: ParticleType,
-    ) -> backend.float:
+    ) -> float:
+        r"""Compute the initial revolution period of a reference particle, in [s].
+
+        Parameters
+        ----------
+        circumference : float
+            Reference circumference of the synchrotron, in [m].
+        turn_i_init : int
+            Turn index corresponding to the initial time `t_init`.
+        t_init : float
+            Initial time, in [s].
+        particle_type : ParticleType
+            Object containing particle properties (e.g., mass, charge).
+
+        Returns
+        -------
+        t_rev_init
+            Initial revolution period, in [s].
+
+        Notes
+        -----
+        The revolution period \( T_{\mathrm{rev}} \) is computed as:
+
+        .. math::
+
+            T_{\mathrm{rev}} = \frac{C}{\beta c}
+
+        where:
+            - \( C \) is the machine circumference,
+            - \( \beta = v / c \) is the normalized velocity,
+            - \( c \) is the speed of light.
+
+        The relativistic gamma and beta factors are computed from the total energy of the particle:
+
+        .. math::
+
+            \gamma = \frac{E_{\mathrm{tot}}}{mc^2}, \quad
+            \beta = \sqrt{1 - \frac{1}{\gamma^2}}
+        """
         reference_total_energy = self.get_total_energy_init(
             turn_i_init=turn_i_init,
             t_init=t_init,
@@ -199,6 +271,23 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
 
 
 class ConstantMagneticCycle(MagneticCycleBase):
+    """Magnetic cycle for a non-changing magnetic field.
+
+    Parameters
+    ----------
+    reference_particle
+        Type of particles, e.g. protons
+    value
+        Constant value of unit `in_unit`
+    in_unit
+        - 'momentum' [eV/c], (no conversion is done)
+        - 'total energy' [eV],
+        - 'kinetic energy' [eV], or
+        - 'bending field' [T]
+    bending_radius
+        To 'bending field' associated bending radius, in [m]
+    """
+
     def __init__(
         self,
         reference_particle: ParticleType,
@@ -206,22 +295,6 @@ class ConstantMagneticCycle(MagneticCycleBase):
         in_unit: SynchronousDataTypes = "momentum",
         bending_radius: float | None = None,
     ):
-        """Magnetic cycle for a non-changing magnetic field.
-
-        Parameters
-        ----------
-        reference_particle
-            Type of particles, e.g. protons
-        value
-            Constant value of unit `in_unit`
-        in_unit
-            - 'momentum' [eV/c], (no conversion is done)
-            - 'total energy' [eV],
-            - 'kinetic energy' [eV], or
-            - 'bending field' [T]
-        bending_radius
-            To 'bending field' associated bending radius, in [m]
-        """
         self._magnetic_rigidity: float = _to_magnetic_rigidity(
             data=value,
             mass=reference_particle.mass,
@@ -281,6 +354,8 @@ class ConstantMagneticCycle(MagneticCycleBase):
 
         Returns
         -------
+        total_energy : float or NDArray
+            Total relativistic energy, in [eV]
 
         """
         # constant because ConstantMagneticCycle
@@ -328,7 +403,7 @@ class ConstantMagneticCycle(MagneticCycleBase):
             in_unit=in_unit,
             reference_particle=proton,
         )
-        from .._core.simulation.simulation import Simulation
+        from blond._core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
         simulation.ring.bending_radius = bending_radius
@@ -338,6 +413,29 @@ class ConstantMagneticCycle(MagneticCycleBase):
 
 
 class MagneticCyclePerTurn(MagneticCycleBase):
+    """Magnetic cycle per turn.
+
+    Notes
+    -----
+    Assumes each cavity has the same increment of beam energy.
+
+    Parameters
+    ----------
+    reference_particle
+        Type of particles, e.g. protons
+    value_init
+        Initial value at start of simulation in of unit `in_unit`
+    values_after_turn
+        Value after turn in synchrotron in of unit `in_unit`
+    in_unit
+        - 'momentum' [eV/c], (no conversion is done)
+        - 'total energy' [eV],
+        - 'kinetic energy' [eV], or
+        - 'bending field' [T]
+    bending_radius
+        To 'bending field' associated bending radius, in [m]
+    """
+
     def __init__(
         self,
         reference_particle: ParticleType,
@@ -346,25 +444,6 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         in_unit: SynchronousDataTypes = "momentum",
         bending_radius: float | None = None,
     ):
-        """Magnetic cycle per turn. Assumes each cavity has the same increment
-        of beam energy.
-
-        Parameters
-        ----------
-        reference_particle
-            Type of particles, e.g. protons
-        value_init
-            Initial value at start of simulation in of unit `in_unit`
-        values_after_turn
-            Value after turn in synchrotron in of unit `in_unit`
-        in_unit
-            - 'momentum' [eV/c], (no conversion is done)
-            - 'total energy' [eV],
-            - 'kinetic energy' [eV], or
-            - 'bending field' [T]
-        bending_radius
-            To 'bending field' associated bending radius, in [m]
-        """
         magnetic_rigidity_init = _to_magnetic_rigidity(
             data=value_init,
             mass=reference_particle.mass,
@@ -462,6 +541,8 @@ class MagneticCyclePerTurn(MagneticCycleBase):
 
         Returns
         -------
+        total_energy : float or NDArray
+            Total relativistic energy, in [eV]
 
         """
         key = hash(particle_type)
@@ -472,7 +553,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
             )
         return calc_total_energy(
             mass=particle_type.mass,
-            momentum=self._momentum_cached[key][section_i, turn_i],
+            momentum=self._momentum_cached[key][section_i, int(turn_i)],
         )
 
     @staticmethod
@@ -516,9 +597,9 @@ class MagneticCyclePerTurn(MagneticCycleBase):
             reference_particle=reference_particle,
         )
 
-        from .._core.beam.base import BeamBaseClass
-        from .._core.beam.particle_types import ParticleType
-        from .._core.simulation.simulation import Simulation
+        from blond._core.beam.base import BeamBaseClass
+        from blond._core.beam.particle_types import ParticleType
+        from blond._core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
         beam = Mock(BeamBaseClass)
@@ -539,6 +620,26 @@ class MagneticCyclePerTurn(MagneticCycleBase):
 
 
 class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
+    """Magnetic program per turn, defined for each cavity.
+
+    Parameters
+    ----------
+    reference_particle
+        Type of particles, e.g. protons
+    value_init
+        Initial value at start of simulation in of unit `in_unit`
+    values_after_cavity_per_turn
+        Value after each cavity and each turn in Synchrotron
+         in of unit `in_unit`
+    in_unit
+        - 'momentum' [eV/c], (no conversion is done)
+        - 'total energy' [eV],
+        - 'kinetic energy' [eV], or
+        - 'bending field' [T]
+    bending_radius
+        To 'bending field' associated bending radius, in [m]
+    """
+
     def __init__(
         self,
         reference_particle: ParticleType,
@@ -547,25 +648,6 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
         in_unit: SynchronousDataTypes = "momentum",
         bending_radius: float | None = None,
     ):
-        """Magnetic program per turn, defined for each cavity.
-
-        Parameters
-        ----------
-        reference_particle
-            Type of particles, e.g. protons
-        value_init
-            Initial value at start of simulation in of unit `in_unit`
-        values_after_cavity_per_turn
-            Value after each cavity and each turn in Synchrotron
-             in of unit `in_unit`
-        in_unit
-            - 'momentum' [eV/c], (no conversion is done)
-            - 'total energy' [eV],
-            - 'kinetic energy' [eV], or
-            - 'bending field' [T]
-        bending_radius
-            To 'bending field' associated bending radius, in [m]
-        """
         magnetic_rigidity_init = _to_magnetic_rigidity(
             data=value_init,
             mass=reference_particle.mass,
@@ -651,6 +733,8 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
 
         Returns
         -------
+        total_energy : float or NDArray
+            Total relativistic energy, in [eV]
 
         """
         key = hash(particle_type)
@@ -679,22 +763,24 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
         Parameters
         ----------
         reference_particle
-            Type of particles, e.g. protons
+            Type of particles, e.g. protons.
         value_init
-            Initial value at start of simulation in of unit `in_unit`
+            Initial value at start of simulation in of unit `in_unit`.
         values_after_cavity_per_turn
             Value after each cavity and each turn in Synchrotron
-             in of unit `in_unit`
+             in of unit `in_unit`.
         in_unit
             - 'momentum' [eV/c], (no conversion is done)
             - 'total energy' [eV],
             - 'kinetic energy' [eV], or
             - 'bending field' [T]
         bending_radius
-            Bending radius, in [m]
+            Bending radius, in [m].
 
         Returns
         -------
+        magnetic_cycle
+            Fully initialized :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllCavities`.
 
         """
         ret = MagneticCyclePerTurnAllCavities(
@@ -703,9 +789,9 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
             in_unit=in_unit,
             reference_particle=reference_particle,
         )
-        from .._core.beam.base import BeamBaseClass
-        from .._core.beam.particle_types import ParticleType
-        from .._core.simulation.simulation import Simulation
+        from blond._core.beam.base import BeamBaseClass
+        from blond._core.beam.particle_types import ParticleType
+        from blond._core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
         beam = Mock(BeamBaseClass)
@@ -726,6 +812,28 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
 
 
 class MagneticCycleByTime(MagneticCycleBase):
+    """Magnetic cycle defined as B vs. time, interpolated just in time.
+
+    Parameters
+    ----------
+    reference_particle
+        Type of particles, e.g. protons
+    base_time
+        Values of time [s]
+    base_values
+        Values at time in synchrotron in of unit `in_unit`
+    in_unit
+        - 'momentum' [eV/c], (no conversion is done)
+        - 'total energy' [eV],
+        - 'kinetic energy' [eV], or
+        - 'bending field' [T]
+    bending_radius
+        To 'bending field' associated bending radius, in [m]
+    interpolator
+        Interpolation routine to get time in between the base values
+        Default: `numpy.interp`
+    """
+
     def __init__(
         self,
         reference_particle: ParticleType,
@@ -735,27 +843,6 @@ class MagneticCycleByTime(MagneticCycleBase):
         bending_radius: float | None = None,
         interpolator=np.interp,
     ):
-        """Magnetic cycle defined as B vs. time, interpolated just in time.
-
-        Parameters
-        ----------
-        reference_particle
-            Type of particles, e.g. protons
-        base_time
-            Values of time [s]
-        base_values
-            Values at time in synchrotron in of unit `in_unit`
-        in_unit
-            - 'momentum' [eV/c], (no conversion is done)
-            - 'total energy' [eV],
-            - 'kinetic energy' [eV], or
-            - 'bending field' [T]
-        bending_radius
-            To 'bending field' associated bending radius, in [m]
-        interpolator
-            Interpolation routine to get time in between the base values
-            Default: `numpy.interp`
-        """
         base_magnetic_rigidity = _to_magnetic_rigidity(
             data=base_values,
             mass=reference_particle.mass,
@@ -806,19 +893,20 @@ class MagneticCycleByTime(MagneticCycleBase):
         ----------
         turn_i
             Currently turn index
-            (Eventually needed for array accessing)
+            (Eventually needed for array accessing).
         section_i
             Currently section index
-            (Eventually needed for array accessing)
+            (Eventually needed for array accessing).
         reference_time
             Current reference time
-            (Eventually needed for interpolation)
+            (Eventually needed for interpolation).
         particle_type
-            Type of particles, e.g. protons
+            Type of particles, e.g. protons.
 
         Returns
         -------
-
+        total_energy
+            Total relativistic energy, in [eV].
         """
         magnetic_rigidity = self._interpolator(
             reference_time,
@@ -840,7 +928,7 @@ class MagneticCycleByTime(MagneticCycleBase):
         base_values: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
         bending_radius: float | None = None,
-        interpolator=np.interp,
+        interpolator=np.interp,  # todo type hint, also below
     ) -> MagneticCycleByTime:
         """Initialize object without simulation context.
 
@@ -848,7 +936,7 @@ class MagneticCycleByTime(MagneticCycleBase):
         ----------
         reference_particle
             Type of particles, e.g. protons
-            Example: For an electron `charge=1`
+            Example: For an electron `charge=-1`
         base_time
             Values of time [s]
         base_values
@@ -868,9 +956,9 @@ class MagneticCycleByTime(MagneticCycleBase):
         -------
         Magnetic_cycle_by_time
         """
-        from .._core.beam.base import BeamBaseClass
-        from .._core.beam.particle_types import ParticleType
-        from .._core.simulation.simulation import Simulation
+        from blond._core.beam.base import BeamBaseClass
+        from blond._core.beam.particle_types import ParticleType
+        from blond._core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
         beam = Mock(BeamBaseClass)
@@ -915,7 +1003,7 @@ def _to_magnetic_rigidity(
         The mass of the particles in [eV/c**2]
     charge
         Particle charge, i.e. number of elementary charges `e`
-        Example: For an electron `charge=1`
+        Example: For an electron `charge=-1`
     convert_from
         What units `data` given in:
         - 'momentum' [eV/c], (no conversion is done)
@@ -956,4 +1044,34 @@ def magnetic_rigidity_to_momentum(
     magnetic_rigidity: float | NumpyArray,
     charge: float,
 ) -> float | NumpyArray:
+    r"""Convert magnetic rigidity to momentum.
+
+    Parameters
+    ----------
+    magnetic_rigidity : float or array-like
+        Magnetic rigidity :math:`B \rho`, in [Tm].
+    charge : float
+        Particle charge, i.e. number of elementary charges `e`
+        Example: For an electron `charge=-1`
+
+    Returns
+    -------
+    momentum
+        Relativistic momentum, in [eV/c].
+
+    Notes
+    -----
+    The momentum is calculated using the relation:
+
+    .. math::
+
+        p = B \rho \cdot |q| \cdot c
+
+    where:
+        - :math:`p`  is the momentum,
+        - :math:`B \rho` is the magnetic rigidity,
+        - :math:`q`  is the particle charge in units of `e`,
+        - :math:`c` is the speed of light in vacuum.
+
+    """
     return magnetic_rigidity * np.abs(charge) * c0

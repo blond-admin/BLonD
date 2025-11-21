@@ -12,8 +12,6 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
 )
 
 if TYPE_CHECKING:
-    from typing import Optional
-    from typing import Optional as LateInit
 
     from numpy.typing import NDArray as NumpyArray
 
@@ -28,34 +26,35 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
     """
 
     def __str__(self):
-        return f"Synchrotron radiation section element."
+        return "Synchrotron radiation section element."
 
     def __init__(
         self,
         fractional_radiation_integrals: NumpyArray,
-        name: Optional[str] = None,
-        section_index: Optional[int] = None,
+        name: str | None = None,
+        section_index: int | None = None,
     ):
         super().__init__(name=name, section_index=section_index)
 
-        self._simulation: LateInit[Simulation] = None
+        self._simulation: Simulation | None = None
         self._fractional_radiation_integrals = fractional_radiation_integrals
-        self._turn_i: LateInit[DynamicParameter] = 0
+        self._turn_i: DynamicParameter | None = 0
 
     def _calculate_kick(self, beam: BeamBaseClass) -> NumpyArray:
         """
         Function to calculate the energy kick induced by the energy lost by
         synchrotron radiation, its damping effect and the quantum excitation.
         Function used to update the beam partial energy dE.
+
         Parameters
         ----------
         beam
              BeamBaseClass object
+
         Returns
         -------
             Energy kick to be applied on the energy coordinates of the beam
         """
-
         U0, tau_z, sigma0 = (
             gather_longitudinal_synchrotron_radiation_parameters(
                 particle_type=beam.particle_type,
@@ -85,7 +84,6 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         beam
             BeamBaseClass object
         """
-
         # TODO write C++ routine
         energy_change = self._calculate_kick(beam=beam)
         dE = beam.write_partial_dE()
@@ -117,7 +115,7 @@ class SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
     def __init__(
         self,
         section_index: int = 0,
-        name: Optional[str] = None,
+        name: str | None = None,
         fraction_of_ring_circumference: float = None,
         share_of_synchrotron_radiation_integrals: NumpyArray = None,
         is_isomagnetic: bool = False,
@@ -156,7 +154,7 @@ class SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
     def __init__(
         self,
         section_index: int = 0,
-        name: Optional[str] = None,
+        name: str | None = None,
         fraction_of_ring_circumference: float = None,
         share_of_synchrotron_radiation_integrals: NumpyArray = None,
     ):
@@ -204,13 +202,13 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
 
     def __init__(
         self,
-        name: Optional[str] = None,
-        section_index: Optional[int] = None,
-        wiggler_type: Optional[str] = "sinusoidal",
-        number: Optional[int] = 1,
-        peak_field: Optional[float] = 1.0,
-        pole_length: Optional[float] = 0.095,
-        number_poles: Optional[int] = 43,
+        name: str | None = None,
+        section_index: int | None = None,
+        wiggler_type: str | None = "sinusoidal",
+        number: int | None = 1,
+        peak_field: float | None = 1.0,
+        pole_length: float | None = 0.095,
+        number_poles: int | None = 43,
     ):
         super().__init__(name=name, section_index=section_index)
 
@@ -220,13 +218,9 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         self._pole_length = (pole_length,)
         self._number_poles = (number_poles,)
 
-        self._simulation: LateInit[Simulation] = None
-        self._contribution_to_synchrotron_radiation_integrals_without_energy: LateInit[
-            NumpyArray
-        ] = np.zeros((1, 5))
-        self._contribution_to_synchrotron_radiation_integrals_with_energy: LateInit[
-            NumpyArray
-        ] = np.zeros((1, 5))
+        self._simulation: Simulation | None = None
+        self._contribution_to_synchrotron_radiation_integrals_without_energy: NumpyArray | None = np.zeros((1, 5))
+        self._contribution_to_synchrotron_radiation_integrals_with_energy: NumpyArray | None = np.zeros((1, 5))
 
     @property
     def number_of_wigglers(self):

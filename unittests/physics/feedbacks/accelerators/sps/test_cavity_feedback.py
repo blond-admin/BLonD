@@ -11,7 +11,7 @@ from blond import (
     BiGaussian,
     ConstantMagneticCycle,
     DriftSimple,
-    MultiHarmonicCavity,
+    MultiHarmonicRfStation,
     Ring,
     Simulation,
     StaticProfile,
@@ -55,7 +55,7 @@ def rf_volt_comp(
 
 
 def rf_voltage_calculation(
-    rf_params: MultiHarmonicCavity,
+    rf_params: MultiHarmonicRfStation,
     cavityFB: List[SPSCavityFeedback],
     profile: StaticProfile,
 ):
@@ -124,13 +124,13 @@ class TestSPSCavityFeedback(unittest.TestCase):
         # self.ring = Ring(C, alpha, p_s, particle=Proton(), n_turns=N_t)
         ring = Ring(circumference=C)
         self.ring = ring
-        rf = MultiHarmonicCavity(
+        rf = MultiHarmonicRfStation(
+            harmonic=np.array([h], dtype=backend.float),
+            voltage=np.array([V], dtype=backend.float),
+            phi_rf=np.array([phi], dtype=backend.float),
             n_harmonics=1,
             main_harmonic_idx=0,
         )
-        rf.harmonic = np.array([h], dtype=backend.float)
-        rf.voltage = np.array([V], dtype=backend.float)
-        rf.phi_rf = np.array([phi], dtype=backend.float)
         self.ring.add_element(rf)
         self.ring.add_drifts(
             n_drifts_per_section=1,
@@ -234,6 +234,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
             df=[0.18433333e6, 0.2275e6],
             commissioning=SPSCavityLoopCommissioning(open_ff=True, rot_iq=-1),
         )
+        self.OTFB.on_init_simulation(simulation)
         self.rf = rf
         """
 
@@ -744,12 +745,12 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         self.ring = Ring(circumference=C)
 
         # RFStation
-        self.rfstation = MultiHarmonicCavity(
+        self.rfstation = MultiHarmonicRfStation(
+            harmonic=np.array([h], dtype=backend.float),
+            voltage=np.array([V], dtype=backend.float),
+            phi_rf=np.array([phi], dtype=backend.float),
             n_harmonics=1, main_harmonic_idx=0
         )
-        self.rfstation.voltage = np.array([V], dtype=backend.float)
-        self.rfstation.phi_rf = np.array([phi], dtype=backend.float)
-        self.rfstation.harmonic = np.array([h], dtype=backend.float)
         self.magnetic_cycle = ConstantMagneticCycle(
             reference_particle=proton,
             value=p_s,
@@ -1078,13 +1079,13 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
 class TestSPSTransmitterGain(unittest.TestCase):
     def setUp(self):
         self.ring = Ring(circumference=2 * np.pi * 1100.009)
-        cavity = MultiHarmonicCavity(
+        cavity = MultiHarmonicRfStation(
+            harmonic=np.array([4620], dtype=backend.float),
+            voltage=np.array([4.5e6], dtype=backend.float),
+            phi_rf=np.array([0], dtype=backend.float),
             n_harmonics=1,
             main_harmonic_idx=0,
         )
-        cavity.harmonic = np.array([4620], dtype=backend.float)
-        cavity.phi_rf = np.array([0], dtype=backend.float)
-        cavity.voltage = np.array([4.5e6], dtype=backend.float)
         self.rf = cavity
         drift = DriftSimple(
             orbit_length=2 * np.pi * 1100.009,

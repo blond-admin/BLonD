@@ -1,21 +1,28 @@
+"""Functions needed for :class:`~blond.blond.beam_preparation.bigaussian.BiGaussian`.
+
+Authors
+-------
+Simon Lauber
+"""  # TODO add original author of bigaussian()
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 import numpy as np
 
-from .._core.backends.backend import backend
-from .._core.helpers import int_from_float_with_warning
-from .._generals._iterables import all_equal
-from ..acc_math.analytic.hamilton import (
+from blond._core.backends.backend import backend
+from blond._core.helpers import int_from_float_with_warning
+from blond.acc_math.analytic.hamilton import (
     calc_phi_s_single_harmonic,
     is_in_separatrix,
 )
-from .base import MatchingRoutine
+from blond.beam_preparation.base import MatchingRoutine
+from blond.generals._iterables import all_equal
 
 if TYPE_CHECKING:  # pragma: no cover
-    from .._core.beam.base import BeamBaseClass
-    from .._core.simulation.simulation import Simulation
+    from blond._core.beam.base import BeamBaseClass
+    from blond._core.simulation.simulation import Simulation
 
 
 def _get_dE_from_dt_core(
@@ -51,8 +58,7 @@ def _get_dE_from_dt(
     beam: BeamBaseClass,
     dt_amplitude: float,
 ) -> float:
-    r"""A routine to evaluate the dE amplitude from dt following a single
-    RF Hamiltonian.
+    r"""Evaluates the dE amplitude from dt following a single RF Hamiltonian.
 
     Returns
     -------
@@ -60,7 +66,7 @@ def _get_dE_from_dt(
         Full amplitude of the particle oscillation, in [eV]
 
     """
-    from ..physics.drifts import DriftSimple
+    from blond.physics.drifts import DriftSimple
 
     drifts = simulation.ring.elements.get_elements(DriftSimple)
     above_transition = [
@@ -115,12 +121,34 @@ def _get_dE_from_dt(
 def get_main_harmonic_attributes(
     beam: BeamBaseClass, simulation: Simulation
 ) -> tuple[float, float, float, float]:
-    from .. import MultiHarmonicCavity
-    from ..physics.cavities import SingleHarmonicCavity
+    """Relevant main harmonic attributes of all RF stations in :class:`~blond._core.ring.ring.Ring`.
+
+    Parameters
+    ----------
+    simulation
+        Simulation context manager
+    beam
+        Simulation :class:`~blond._core.beam.beam.Beam` object
+
+    Returns
+    -------
+    harmonic
+        Main harmonic.
+    omega_rf
+        Main angular frequency, in [Hz].
+    phi_rf
+        Main phase, in [rad].
+    voltage
+        Main voltage, in [V].
+
+    """
+    # TODO move this into ring.
+    from blond import MultiHarmonicRfStation
+    from blond.physics.cavities import SingleHarmonicRfStation
 
     rf_stations = simulation.ring.elements.get_elements(
-        SingleHarmonicCavity
-    ) + simulation.ring.elements.get_elements(MultiHarmonicCavity)
+        SingleHarmonicRfStation
+    ) + simulation.ring.elements.get_elements(MultiHarmonicRfStation)
     for _rf_station in rf_stations:
         _rf_station.apply_schedules(
             turn_i=0,
@@ -128,7 +156,7 @@ def get_main_harmonic_attributes(
         )
     # omega_rf should be all same
     omega_rf = [
-        rf.get_main_harmonic_omega_rf(
+        rf.calc_main_harmonic_omega_rf(
             beam_beta=beam.reference_beta,
             ring_circumference=simulation.ring.circumference,
         )
@@ -170,6 +198,33 @@ def get_main_harmonic_attributes(
 
 
 class BiGaussian(MatchingRoutine):
+    """Beam matching routine to generate a 2D Gaussian particle distribution.
+
+    Parameters
+    ----------
+    n_macroparticles
+        Number of macroparticles to be generated
+    sigma_dt
+        Normal distribution length, in [s].
+        Effective `sigma_dt` might be smaller, if `reinsertion=True`
+    sigma_dE
+        Normal distribution height, in [eV].
+        Effective `sigma_dE` might be smaller, if `reinsertion=True`
+    reinsertion
+        If True, only particles within the separatrix are generated.
+        This affects the effective `sigma_dt` and `sigma_dE`
+    seed
+        Random seed parameter
+
+    Examples
+    --------
+    >>> simulation = Simulation( ... )
+    >>> simulation.prepare_beam(
+    >>>     beam= ... ,
+    >>>     preparation_routine=BiGaussian( ... ),
+    >>> )
+    """
+
     def __init__(
         self,
         n_macroparticles: int | float,
@@ -178,21 +233,6 @@ class BiGaussian(MatchingRoutine):
         reinsertion: bool = False,
         seed: int = 0,
     ) -> None:
-        """Beam matching routine to generate a 2D Gaussian particle distribution.
-
-        Parameters
-        ----------
-        n_macroparticles
-            Number of macroparticles to be generated
-        sigma_dt
-            Normal distribution length, in [s]
-        sigma_dE
-            Normal distribution height, in [eV]
-        reinsertion
-            If True, only particles within the separatrix are generated
-        seed
-            Random seed parameter
-        """
         super().__init__()
         self.n_macroparticles = int_from_float_with_warning(
             n_macroparticles, warning_stacklevel=2
@@ -214,7 +254,7 @@ class BiGaussian(MatchingRoutine):
         simulation
             Simulation context manager
         """
-        from ..physics.drifts import DriftSimple
+        from blond.physics.drifts import DriftSimple
 
         super().prepare_beam(
             simulation=simulation,
@@ -302,7 +342,7 @@ class BiGaussian(MatchingRoutine):
                         dt=dt,
                         dE=dE,
                     )
-                    == False  # noqa: E712
+                    == False
                 )
 
                 n_new = int(backend.sum(sel))

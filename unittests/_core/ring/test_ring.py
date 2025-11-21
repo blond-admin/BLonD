@@ -6,8 +6,8 @@ import numpy as np
 from blond import Ring, Simulation
 from blond._core.base import BeamPhysicsRelevant
 from blond._core.beam.base import BeamBaseClass
-from blond.physics.cavities import CavityBaseClass
-from blond.physics.drifts import DriftBaseClass
+from blond.physics.cavities import RfStationBaseClass
+from blond.physics.drifts import DriftBaseClass, DriftSimple
 
 
 class BeamPhysicsRelevantHelper(BeamPhysicsRelevant):
@@ -87,7 +87,7 @@ class TestRing(unittest.TestCase):
 
     def test_add_element_reorder(self):
         drift = Mock(spec=DriftBaseClass)
-        cavity = Mock(spec=CavityBaseClass)
+        cavity = Mock(spec=RfStationBaseClass)
         drift.section_index = 0
         cavity.section_index = 0
 
@@ -357,7 +357,7 @@ class TestRing(unittest.TestCase):
     def test_n_cavities(self):
         element1 = Mock(spec=BeamPhysicsRelevant)
         element1.section_index = 0
-        cavity1 = Mock(spec=CavityBaseClass)
+        cavity1 = Mock(spec=RfStationBaseClass)
         cavity1.section_index = 0
         self.ring.add_elements(
             [element1 for i in range(10)] + [cavity1 for i in range(10)],
@@ -370,7 +370,7 @@ class TestRing(unittest.TestCase):
         drift = Mock(spec=DriftBaseClass)
         drift.section_index = 0
         drift.share_of_circumference = 1
-        cavity = Mock(spec=CavityBaseClass)
+        cavity = Mock(spec=RfStationBaseClass)
         cavity.section_index = 0
         self.ring.add_elements((drift, cavity))
 
@@ -390,7 +390,7 @@ class TestRing(unittest.TestCase):
     def test_effective_circumference(self):
         drift = Mock(spec=DriftBaseClass)
         drift.orbit_length = 123
-        cavity = Mock(spec=CavityBaseClass)
+        cavity = Mock(spec=RfStationBaseClass)
         drift.section_index = 0
         cavity.section_index = 0
         self.ring.add_elements((drift, cavity))
@@ -401,7 +401,7 @@ class TestRing(unittest.TestCase):
         drift.orbit_length = 123
         drift2 = Mock(spec=DriftBaseClass)
         drift2.orbit_length = 123
-        cavity = Mock(spec=CavityBaseClass)
+        cavity = Mock(spec=RfStationBaseClass)
         drift.section_index = 0
         drift2.section_index = 0
         cavity.section_index = 0
@@ -415,7 +415,7 @@ class TestRing(unittest.TestCase):
             drift.orbit_length = 123
             drift2 = Mock(spec=DriftBaseClass)
             drift2.orbit_length = 123
-            cavity = Mock(spec=CavityBaseClass)
+            cavity = Mock(spec=RfStationBaseClass)
             drift.section_index = 0
             drift2.section_index = 0
             cavity.section_index = 0
@@ -431,6 +431,51 @@ class TestRing(unittest.TestCase):
         self.assertEqual(3, self.ring.elements.n_sections)
         self.ring.assert_circumference()  # works
 
+    def test_average_transition_gamma(self):
+        self.ring._circumference = 129
+        from blond.testing.mocks import drift_simple_mock
+
+        drift_simple_mock.transition_gamma = 42
+        drift_simple_mock.orbit_length = 12
+        drift_simple_mock.section_index = 0
+
+        self.ring.add_element(drift_simple_mock, deepcopy=True)
+        self.ring.add_element(drift_simple_mock, deepcopy=True)
+
+        self.assertEqual(self.ring.average_transition_gamma, 42)
+
+    def test_average_transition_gamma2(self):
+        self.ring._circumference = 129
+        from blond.testing.mocks import drift_simple_mock
+
+        drift_simple_mock.transition_gamma = 20
+        drift_simple_mock.orbit_length = 12
+        drift_simple_mock.section_index = 0
+
+        self.ring.add_element(drift_simple_mock, deepcopy=True)
+
+        drift_simple_mock.transition_gamma = 40
+        drift_simple_mock.orbit_length = 12
+        drift_simple_mock.section_index = 0
+
+        self.ring.add_element(drift_simple_mock, deepcopy=True)
+
+        self.assertEqual(self.ring.average_transition_gamma, 30)
+
+    def test_is_below_transition(self):
+        from blond.testing.mocks import beam_mock
+        ring = Ring(circumference=123)
+        ring.add_element(DriftSimple(orbit_length=100, transition_gamma=123))
+        ring.add_element(DriftSimple(orbit_length=23, transition_gamma=123))
+        beam_mock.reference_gamma = 122
+        self.assertTrue(ring.is_below_transition(beam=beam_mock))
+
+        # Exactly on transition crossing. This is not below anymore
+        beam_mock.reference_gamma = 123
+        self.assertFalse(ring.is_below_transition(beam=beam_mock))
+
+        beam_mock.reference_gamma = 124
+        self.assertFalse(ring.is_below_transition(beam=beam_mock))
 
 if __name__ == "__main__":
     unittest.main()

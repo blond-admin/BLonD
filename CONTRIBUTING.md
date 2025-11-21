@@ -18,7 +18,7 @@ Code that is not mature enough to be inside the standard codebase should be deve
 
 ```
 blond/
-├── __doc/                    # Sphinx documentation
+├── docs/                    # Sphinx documentation
 ├── blond/                    # Core Python package
 ├──── experimental/           # Untested/unstable code
 ├──── legacy/                 # The recent version of BLonD 2
@@ -95,19 +95,33 @@ pip install --editable .[dev, gpu]
 pre-commit install
 ```
 
-### 4. Compile Native Backends
+### 4. Compiling Native Backends (Optional)
 
-> Automatically done in GitLab CI Pipeline before testing.
+> **Note:** These steps are automatically executed in the GitLab CI pipeline prior to running tests.
+> You only need to perform them manually if you are developing or testing locally.
+
+To compile the available native backends, use the following commands:
 
 ```bash
-blond-compile-cpp     # Compile the C++ backend
+blond-compile-cpp      # Compile the C++ backend
 ```
 ```bash
-blond-compile-cuda    # Compile the CUDA backend
+blond-compile-cuda     # Compile the CUDA backend
 ```
 ```bash
-blond-compile-fortran # Compile the Fortran backend
+blond-compile-fortran  # Compile the Fortran backend
 ```
+
+Once compiled, the corresponding backends will be available for use within your simulation environment.
+
+To activate a specific backend (for example, the C++ backend), you can use the following Python code:
+
+```python
+from blond import backend
+
+backend.set_specials(mode="cpp")  # Activate the C++ backend
+```
+
 
 ---
 
@@ -150,12 +164,12 @@ To build the documentation locally:
 
 ```bash
 python -m pip install .[doc]
-python3 -m sphinx build -b html -W -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=5 --keep-going __doc __doc/_build/html
+python3 -m sphinx build -b html -W -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=5 --keep-going docs docs/_build/html
 ```
 
-Built files appear in `__doc/_build/html/`.
+Built files appear in `docs/_build/html/`.
 
-Then, [index.html](__doc/_build/html/index.html) can be opened with a web browser
+Then, [index.html](docs/_build/html/index.html) can be opened with a web browser
 
 ## Contributing
 

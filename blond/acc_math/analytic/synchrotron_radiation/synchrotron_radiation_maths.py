@@ -273,7 +273,6 @@ def calculate_horizontal_damping_time_in_seconds(
     -------
         Horizontal damping time in seconds.
     """
-
     horizontal_damping_partition_number = (
         calculate_horizontal_damping_partition_number(
             synchrotron_radiation_integrals

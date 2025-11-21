@@ -8,52 +8,123 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
-from .._core.base import MainLoopRelevant
-from .array_recorders import DenseArrayRecorder
+from blond._core.base import BeamObservationElement, MainLoopRelevant
+from blond.handle_results.array_recorders import DenseArrayRecorder
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
-    from .. import WakeField
-    from .._core.beam.base import BeamBaseClass
-    from .._core.simulation.simulation import Simulation
-    from ..physics.cavities import SingleHarmonicCavity
-    from ..physics.profiles import DynamicProfileConstNBins, StaticProfile
+    from blond import WakeField
+    from blond._core.beam.base import BeamBaseClass
+    from blond._core.simulation.simulation import Simulation
+    from blond.physics.cavities import SingleHarmonicRfStation
+    from blond.physics.profiles import DynamicProfileConstNBins, StaticProfile
 
 logger = logging.getLogger(__name__)
 
 
-class Observables(MainLoopRelevant):
-    def __init__(
-        self,
-        each_turn_i: int,
-        folder: str,
-        obs_per_turn: int = 1,
-    ):
-        """Base class to observe attributes during simulation.
+class ObservablesBaseClass(MainLoopRelevant):
+    def __init__(self, folder: str | None = None, **kwargs):
+        super().__init__(**kwargs)
+        if len(folder) > 0:
+            assert folder.endswith("/") or folder.endswith("\\")
+        self.common_filepath = folder + "last"
+        logger.info(f"Will save {self} to {self.common_filepath}_,,,")
+
+    def get_recorders(self) -> list[tuple[str, DenseArrayRecorder]]:
+        self.assert_lateinit()
+        recorders = [
+            (attribute, instance)
+            for attribute, instance in self.__dict__.items()
+            if isinstance(instance, DenseArrayRecorder)  # initialized
+        ]
+        return recorders
+
+    def rename(self, new_common_filepath: str) -> None:
+        """Change the common save name of all internal arrays.
+
+        Notes
+        -----
+        This has no effect on files that are already saved to the disk.
 
         Parameters
         ----------
-        each_turn_i
-            Value to control that the element is
-            callable each n-th turn.
-        obs_per_turn
-            Number of observations per turn. Default is 1,
-            cannot be higher than number of cavities in turn map
-        folder
-            Path to the target folder used for
-            saving or loading files.
+        new_common_filepath
+            The new common name of all internal arrays.
 
         """
-        super().__init__()
+        old_common_filepath = self.common_filepath
+        for _attribute_name, instance in self.get_recorders():
+            if old_common_filepath not in instance.filepath:
+                # it would not make sense to replace the old filepath
+                raise NameError(
+                    f"{instance.filepath} does not include"
+                    f" {old_common_filepath} anymore. This might be caused"
+                    f" by a manual override of the filename."
+                )
+            instance.filepath = instance.filepath.replace(
+                old_common_filepath,
+                new_common_filepath,
+            )
+        self.common_filepath = new_common_filepath
+        logger.info(
+            f"Changed save target of {self} to {self.common_filepath}."
+        )
+
+    def to_disk(self) -> None:
+        """Save data to disk."""
+        for _attribute_name, instance in self.get_recorders():
+            array_recorder: DenseArrayRecorder = instance
+            logger.info(f"Saved {array_recorder.filepath_array}")
+            array_recorder.to_disk()
+
+    def from_disk(self) -> None:
+        """Load data from disk."""
+        for attribute_name, instance in self.get_recorders():
+            array_recorder: DenseArrayRecorder = instance
+            logger.info(f"Loaded {array_recorder.filepath_array}")
+
+            self.__setattr__(
+                attribute_name,
+                array_recorder.from_disk(
+                    filepath=array_recorder.filepath,
+                ),
+            )
+
+    def assert_lateinit(self):
+        """Checks that DenseArrays are already initialized."""
+        for parameter, value in self.__dict__.items():
+            if value is None:  # uninitialized
+                assert value is not None, f"`{parameter}` was not initialized."
+
+
+class ObservablesEndOfTurnBase(ObservablesBaseClass):
+    """Base class to observe attributes during simulation.
+
+    Parameters
+    ----------
+    each_turn_i
+        Value to control that the element is
+        callable each n-th turn.
+    obs_per_turn
+        Number of observations per turn. Default is 1,
+        cannot be higher than number of cavities in turn map
+    folder
+        Path to the target folder used for
+        saving or loading files.
+
+    """
+
+    def __init__(
+        self,
+        each_turn_i: int,
+        obs_per_turn: int = 1,
+        folder: str = "",
+        **kwargs,
+    ):
+        super().__init__(folder=folder, **kwargs)
         self.each_turn_i = each_turn_i
         self._obs_per_turn = obs_per_turn
-        if len(folder) > 0:
-            assert folder.endswith("/") or folder.endswith("\\")
-        self.common_name = (
-            folder + "last"  # will result in filenames like last_dE.npy etc.
-        )
-        logger.info(f"Will save {self} to {self.common_name}_,,,")
 
         self._n_turns: int | None = None
         self._section_indices_to_observe: NumpyArray | None = None
@@ -110,7 +181,7 @@ class Observables(MainLoopRelevant):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -153,94 +224,33 @@ class Observables(MainLoopRelevant):
             )
             / simulation.ring.circumference
         )
-        self._turns_array = np.zeros(0)
+        self._turns_array = np.zeros((n_turns, len(section_lengths)))
         for turn in range(turn_i_init, turn_i_init + n_turns):
-            self._turns_array = np.append(
-                self._turns_array, turn + section_lengths
-            )
-
-    def assert_lateinit(self):
-        for parameter, value in self.__dict__.items():
-            if value is None:  # uninitialized
-                assert value is not None, f"`{parameter}` was not initialized."
-
-    def get_recorders(self) -> list[tuple[str, DenseArrayRecorder]]:
-        self.assert_lateinit()
-        recorders = [
-            (attribute, instance)
-            for attribute, instance in self.__dict__.items()
-            if isinstance(instance, DenseArrayRecorder)  # initialized
-        ]
-        return recorders
-
-    def rename(self, common_name: str) -> None:
-        """Change the common save name of all internal arrays.
-
-        Notes
-        -----
-        This has no effect on files that are already saved to the disk.
-
-        Parameters
-        ----------
-        common_name
-            The new common name of all internal arrays.
-
-        """
-        for _attribute_name, instance in self.get_recorders():
-            if self.common_name not in instance.filepath:
-                raise NameError(
-                    f"'{instance.filepath} does not include"
-                    f" {self.common_name}' anymore. This might be caused"
-                    f" by a manual override of the filename."
-                )
-            instance.filepath = instance.filepath.replace(
-                self.common_name,
-                common_name,
-            )
-        self.common_name = common_name
-        logger.info(f"Changed save target of {self} to {self.common_name}_,,,")
-
-    def to_disk(self) -> None:
-        """Save data to disk."""
-        for _attribute_name, instance in self.get_recorders():
-            array_recorder: DenseArrayRecorder = instance
-            logger.info(f"Saved {array_recorder.filepath_array}")
-            array_recorder.to_disk()
-
-    def from_disk(self) -> None:
-        """Load data from disk."""
-        for attribute_name, instance in self.get_recorders():
-            array_recorder: DenseArrayRecorder = instance
-            logger.info(f"Loaded {array_recorder.filepath_array}")
-
-            self.__setattr__(
-                attribute_name,
-                array_recorder.from_disk(
-                    filepath=array_recorder.filepath,
-                ),
-            )
+            self._turns_array[turn - turn_i_init] = turn + section_lengths
+        self._turns_array = self._turns_array.flatten()
 
 
-class BunchObservation(Observables):
+class BeamObservationEndOfTurn(ObservablesEndOfTurnBase):
+    """Observe the bunch coordinates during simulation execution.
+
+    Parameters
+    ----------
+    each_turn_i
+        Value to control that the element is
+        callable each n-th turn.
+    beam
+        Simulation beam object
+    folder
+        Path to the target folder used for
+        saving or loading files.
+    """
+
     def __init__(
         self,
         each_turn_i: int,
         beam: BeamBaseClass,
         folder: str = "",
     ):
-        """Observe the bunch coordinates during simulation execution.
-
-        Parameters
-        ----------
-        each_turn_i
-            Value to control that the element is
-            callable each n-th turn.
-        beam
-            Simulation beam object
-        folder
-            Path to the target folder used for
-            saving or loading files.
-        """
         super().__init__(
             each_turn_i=each_turn_i,
             folder=folder,
@@ -260,17 +270,17 @@ class BunchObservation(Observables):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """
-        Lateinit method when `simulation.run_simulation` is called.
+        """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation :class:`~blond._cycles_core.beam.beam.Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
             Initial turn to execute simulation
+
         """
         super().on_run_simulation(
             simulation=simulation,
@@ -283,24 +293,24 @@ class BunchObservation(Observables):
         shape = (n_entries, n_macroparticles)
 
         self._dts = DenseArrayRecorder(
-            f"{self.common_name}_dts",
+            f"{self.common_filepath}_dts",
             shape,
         )
         self._dEs = DenseArrayRecorder(
-            f"{self.common_name}_dEs",
+            f"{self.common_filepath}_dEs",
             shape,
         )
         self._flags = DenseArrayRecorder(
-            f"{self.common_name}_flags",
+            f"{self.common_filepath}_flags",
             shape,
         )
 
         self._reference_time = DenseArrayRecorder(
-            f"{self.common_name}_reference_time",
+            f"{self.common_filepath}_reference_time",
             (n_entries,),
         )
         self._reference_total_energy = DenseArrayRecorder(
-            f"{self.common_name}_reference_total_energy",
+            f"{self.common_filepath}_reference_total_energy",
             (n_entries,),
         )
 
@@ -325,26 +335,48 @@ class BunchObservation(Observables):
 
     @property  # as readonly attributes
     def reference_time(self):
+        """Returns reference time."""
         return self._reference_time.get_valid_entries()
 
     @property  # as readonly attributes
     def reference_total_energy(self):
+        """Returns total energy."""
         return self._reference_total_energy.get_valid_entries()
 
     @property  # as readonly attributes
     def dts(self):
+        """Returns array of dts."""
         return self._dts.get_valid_entries()
 
     @property  # as readonly attributes
     def dEs(self):
+        """Returns array of dEs."""
         return self._dEs.get_valid_entries()
 
     @property  # as readonly attributes
     def flags(self):
+        """Returns flags of particles, eg if lost or not."""
         return self._flags.get_valid_entries()
 
 
-class BunchObservationMetaParams(Observables):
+class BunchObservationMetaParams(ObservablesEndOfTurnBase):
+    """Records mean and standard deviation of both energy and time coordinates and estimates the bunch emittance.
+
+    Parameters
+    ----------
+    each_turn_i
+        Value to control that the element is
+        callable each n-th turn.
+    obs_per_turn
+        Number of observations per turn. Default is 1,
+        cannot be more than number of cavities in turn map
+    beam
+        Simulation beam object
+    folder
+        Path to the target folder used for
+        saving or loading files.
+    """
+
     def __init__(
         self,
         each_turn_i: int,
@@ -352,22 +384,6 @@ class BunchObservationMetaParams(Observables):
         folder: str = "",
         obs_per_turn: int = 1,
     ):
-        """Records mean and standard deviation of both energy and time coordinates and estimates the bunch emittance.
-
-        Parameters
-        ----------
-        each_turn_i
-            Value to control that the element is
-            callable each n-th turn.
-        obs_per_turn
-            Number of observations per turn. Default is 1,
-            cannot be more than number of cavities in turn map
-        beam
-            Simulation beam object
-        folder
-            Path to the target folder used for
-            saving or loading files.
-        """
         super().__init__(
             each_turn_i=each_turn_i, obs_per_turn=obs_per_turn, folder=folder
         )
@@ -412,23 +428,23 @@ class BunchObservationMetaParams(Observables):
         shape = n_entries
 
         self._mean_dt = DenseArrayRecorder(
-            f"{self.common_name}_mean_dt",
+            f"{self.common_filepath}_mean_dt",
             shape,
         )
         self._mean_dE = DenseArrayRecorder(
-            f"{self.common_name}_mean_dE",
+            f"{self.common_filepath}_mean_dE",
             shape,
         )
         self._sigma_dt = DenseArrayRecorder(
-            f"{self.common_name}_sigma_dt",
+            f"{self.common_filepath}_sigma_dt",
             shape,
         )
         self._sigma_dE = DenseArrayRecorder(
-            f"{self.common_name}_sigma_dE",
+            f"{self.common_filepath}_sigma_dE",
             shape,
         )
         self._emittance_stat = DenseArrayRecorder(
-            f"{self.common_name}_emittance_stat",
+            f"{self.common_filepath}_emittance_stat",
             shape,
         )
 
@@ -471,7 +487,7 @@ class BunchObservationMetaParams(Observables):
 
     @property  # as readonly attributes
     def sigma_dE(self):
-        """Standard deviation of the energy coordinate."""
+        """Standard deviation of the energy coordinate, in [eV]."""
         return self._sigma_dE.get_valid_entries()
 
     @property  # as readonly attributes
@@ -486,7 +502,7 @@ class BunchObservationMetaParams(Observables):
 
     @property  # as readonly attributes
     def emittance_stat(self):
-        """Statistical emittance calculated with
+        r"""Statistical emittance calculated with
 
         .. math::
             \epsilon = \sqrt{\langle \Delta t^2 \\rangle \langle \Delta E^2 \\rangle - \langle \Delta t \Delta E \\rangle^2}
@@ -495,41 +511,27 @@ class BunchObservationMetaParams(Observables):
         return self._emittance_stat.get_valid_entries()
 
 
-class MultiCavityObservation(Observables):
+class CavityPhaseObservation(ObservablesEndOfTurnBase):
+    """Observe the RF cavity parameters during the execution of the simulation.
+
+    Parameters
+    ----------
+    each_turn_i
+        Value to control that the element is
+        callable each n-th turn.
+    cavity
+        Class that implements beam-RF interactions in a synchrotron
+    folder
+        Path to the target folder used for
+        saving or loading files.
+    """
+
     def __init__(
         self,
         each_turn_i: int,
-        cavities: list[SingleHarmonicCavity],
+        cavity: SingleHarmonicRfStation,
         folder: str = "",
     ):
-        raise NotImplementedError("To be implemented")
-        # super().__init__(each_turn_i=each_turn_i, folder=folder)
-        # self._cavities = cavities
-        # self._phases: DenseArrayRecorder | None = None
-        # self._omegas: DenseArrayRecorder | None = None
-        # self._voltages: DenseArrayRecorder | None = None
-
-
-class CavityPhaseObservation(Observables):
-    def __init__(
-        self,
-        each_turn_i: int,
-        cavity: SingleHarmonicCavity,
-        folder: str = "",
-    ):
-        """Observe the cavity rf parameters during simulation execution.
-
-        Parameters
-        ----------
-        each_turn_i
-            Value to control that the element is
-            callable each n-th turn.
-        cavity
-            Class that implements beam-rf interactions in a synchrotron
-        folder
-            Path to the target folder used for
-            saving or loading files.
-        """
         super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._cavity = cavity
         self._phases: DenseArrayRecorder | None = None
@@ -549,7 +551,7 @@ class CavityPhaseObservation(Observables):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -564,15 +566,15 @@ class CavityPhaseObservation(Observables):
         n_entries = n_turns // self.each_turn_i + 2
         n_harmonics = int(self._cavity.n_rf)
         self._phases = DenseArrayRecorder(
-            f"{self.common_name}_phases",
+            f"{self.common_filepath}_phases",
             (n_entries, n_harmonics),
         )
         self._omegas = DenseArrayRecorder(
-            f"{self.common_name}_omegas",
+            f"{self.common_filepath}_omegas",
             (n_entries, n_harmonics),
         )
         self._voltages = DenseArrayRecorder(
-            f"{self.common_name}_voltages",
+            f"{self.common_filepath}_voltages",
             (n_entries, n_harmonics),
         )
 
@@ -597,6 +599,7 @@ class CavityPhaseObservation(Observables):
             None
             if self._cavity._omega_rf is None
             else (self._cavity._omega_rf + self._cavity.delta_omega_rf)
+            # TODO: should be property call instead of private member
         )
         self._voltages.write(
             self._cavity.voltage,
@@ -604,18 +607,38 @@ class CavityPhaseObservation(Observables):
 
     @property  # as readonly attributes
     def phases(self) -> NumpyArray:
+        """Cavity's effective phase, in [deg]."""
         return self._phases.get_valid_entries()
 
     @property  # as readonly attributes
     def omegas(self) -> NumpyArray:
+        """Cavity's angular frequency, in [Hz]."""
         return self._omegas.get_valid_entries()
 
     @property  # as readonly attributes
     def voltages(self) -> NumpyArray:
+        """Cavity's effective voltage, in [V]."""
         return self._voltages.get_valid_entries()
 
 
-class StaticProfileObservation(Observables):
+class StaticProfileObservation(ObservablesEndOfTurnBase):
+    """Observation of a static beam profile.
+
+    Parameters
+    ----------
+    each_turn_i
+        Value to control that the element is
+        callable each n-th turn.
+    profile
+        Class for the calculation of beam profile
+        that doesn't change its parameters
+    obs_per_turn
+        Number of observations per turn, default is 1
+    folder
+        Path to the target folder used for
+        saving or loading files.
+    """
+
     def __init__(
         self,
         each_turn_i: int,
@@ -623,22 +646,6 @@ class StaticProfileObservation(Observables):
         obs_per_turn: int = 1,
         folder: str = "",
     ):
-        """Observation of a static beam profile.
-
-        Parameters
-        ----------
-        each_turn_i
-            Value to control that the element is
-            callable each n-th turn.
-        profile
-            Class for the calculation of beam profile
-            that doesn't change its parameters
-        obs_per_turn
-            Number of observations per turn, default is 1
-        folder
-            Path to the target folder used for
-            saving or loading files.
-        """
         super().__init__(
             each_turn_i=each_turn_i,
             obs_per_turn=obs_per_turn,
@@ -660,7 +667,7 @@ class StaticProfileObservation(Observables):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -676,7 +683,7 @@ class StaticProfileObservation(Observables):
         n_entries = len(self._turns_array)
         n_bins = int(self._profile.n_bins)
         self._hist_y = DenseArrayRecorder(
-            f"{self.common_name}_hist_y",
+            f"{self.common_filepath}_hist_y",
             (n_entries, n_bins),
         )
 
@@ -695,13 +702,13 @@ class StaticProfileObservation(Observables):
         if simulation.section_i.value in self._section_indices_to_observe:
             if (
                 self._last_turn_i_observed == simulation.turn_i.value
-                and self._last_section_i_observed == simulation.section_i
+                and self._last_section_i_observed == simulation.section_i.value
             ):
                 return
             self._last_turn_i_observed = simulation.turn_i.value
-            self._last_section_i_observed = simulation.section_i
+            self._last_section_i_observed = simulation.section_i.value
             self._hist_y.write(
-                self._profile._hist_y,
+                self._profile.hist_y,
             )
         # else return without recording
 
@@ -711,7 +718,7 @@ class StaticProfileObservation(Observables):
         return self._hist_y.get_valid_entries()
 
 
-class StaticMultiProfileObservation(Observables):
+class StaticMultiProfileObservation(ObservablesEndOfTurnBase):
     def __init__(
         self,
         each_turn_i: int,
@@ -778,7 +785,7 @@ class StaticMultiProfileObservation(Observables):
         n_entries = len(self._turns_array) * len(self._profiles)
         n_bins = self._profiles[0].n_bins
         self._hist_y = DenseArrayRecorder(
-            f"{self.common_name}_hist_y",
+            f"{self.common_filepath}_hist_y",
             (n_entries, n_bins),
         )
 
@@ -795,11 +802,11 @@ class StaticMultiProfileObservation(Observables):
         """
         if (
             self._last_turn_i_observed == simulation.turn_i.value
-            and self._last_section_i_observed == simulation.section_i
+            and self._last_section_i_observed == simulation.section_i.value
         ):
             return
         self._last_turn_i_observed = simulation.turn_i.value
-        self._last_section_i_observed = simulation.section_i
+        self._last_section_i_observed = simulation.section_i.value
         for prof in self._profiles:
             if simulation.section_i.value == prof.section_index:
                 self._hist_y.write(prof.hist_y)
@@ -810,7 +817,7 @@ class StaticMultiProfileObservation(Observables):
         return self._hist_y.get_valid_entries()
 
 
-class WakeFieldObservation(Observables):
+class WakeFieldObservation(ObservablesEndOfTurnBase):
     def __init__(
         self,
         each_turn_i: int,
@@ -829,6 +836,9 @@ class WakeFieldObservation(Observables):
             Manager class to calculate wake-fields
         obs_per_turn
             Number of observations per turn
+        folder
+            Path to the target folder used for
+            saving or loading files.
         """
         super().__init__(
             each_turn_i=each_turn_i,
@@ -852,7 +862,7 @@ class WakeFieldObservation(Observables):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -868,7 +878,7 @@ class WakeFieldObservation(Observables):
         n_entries = len(self._turns_array)
         n_bins = int(self._wakefield._profile.n_bins)
         self._induced_voltage = DenseArrayRecorder(
-            f"{self.common_name}_induced_voltage",
+            f"{self.common_filepath}_induced_voltage",
             (n_entries, n_bins),
         )
 
@@ -906,7 +916,7 @@ class WakeFieldObservation(Observables):
         return self._induced_voltage.get_valid_entries()
 
 
-class DynamicProfileConstNBinsObservation(Observables):
+class DynamicProfileConstNBinsObservation(ObservablesEndOfTurnBase):
     def __init__(
         self,
         each_turn_i: int,
@@ -916,7 +926,7 @@ class DynamicProfileConstNBinsObservation(Observables):
         """Observation of a dynamic beam profile with changing width, while keeping a constant bin number.
 
         Parameters
-        -------
+        ----------
          each_turn_i
             Value to control that the element is
             callable each n-th turn
@@ -928,7 +938,6 @@ class DynamicProfileConstNBinsObservation(Observables):
             saving or loading files.
 
         """
-
         super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._profile = profile
         self._hist_y: DenseArrayRecorder | None = None
@@ -961,11 +970,11 @@ class DynamicProfileConstNBinsObservation(Observables):
         n_entries = n_turns // self.each_turn_i + 2
         n_bins = int(self._profile.n_bins)
         self._hist_y = DenseArrayRecorder(
-            f"{self.common_name}_hist_y",
+            f"{self.common_filepath}_hist_y",
             (n_entries, n_bins),
         )
         self._hist_x = DenseArrayRecorder(
-            f"{self.common_name}_hist_x",
+            f"{self.common_filepath}_hist_x",
             (n_entries, n_bins),
         )
 
@@ -980,8 +989,8 @@ class DynamicProfileConstNBinsObservation(Observables):
         simulation
             Simulation context manager
         """
-        self._hist_y.write(self._profile._hist_y)
-        self._hist_x.write(self._profile._hist_x)
+        self._hist_y.write(self._profile.hist_y)
+        self._hist_x.write(self._profile.hist_x)
 
     @property  # as readonly attributes
     def hist_y(self):

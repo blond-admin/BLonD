@@ -13,6 +13,14 @@
 > CERN code for the simulation of longitudinal beam dynamics in synchrotrons.
 
 
+**BLonD** is a Python-based simulator for **longitudinal beam dynamics** in circular particle accelerators. It models complex phenomena based on **macro-particle tracking**, such as:
+
+* Beam-induced voltages
+* Beam and cavity feedback mechanisms
+
+BLonD also features **parallel backends** for efficient execution on both **CPUs** and **GPUs**, enabling scalable and high-performance simulations.
+
+
 ### Dependencies
 
 * [Python 3.10+](https://www.python.org/downloads/)
@@ -51,7 +59,7 @@ import matplotlib.pyplot as plt
 
 from blond import (
     Ring,
-    SingleHarmonicCavity,
+    SingleHarmonicRfStation,
     ConstantMagneticCycle,
     proton,
     Simulation,
@@ -61,12 +69,12 @@ from blond import (
     backend,
 )
 
-backend.set_specials("cpp") # set any backend you want
+backend.set_specials("cpp")  # set any backend you want
 
-ring = Ring(26658.883) # general definition of ring
-cavity1 = SingleHarmonicCavity(harmonic=35640, voltage=6e6, phi_rf=0)
+ring = Ring(26658.883)  # general definition of ring
+cavity1 = SingleHarmonicRfStation(harmonic=35640, voltage=6e6, phi_rf=0)
 drift1 = DriftSimple(orbit_length=26658.883, transition_gamma=55.759505)
-ring.add_elements([cavity1, drift1]) # add elements that resemble one turn
+ring.add_elements([cavity1, drift1])  # add elements that resemble one turn
 
 # Define the ramp
 magnetic_cycle = ConstantMagneticCycle(value=450e9, reference_particle=proton)
@@ -85,7 +93,6 @@ sim.prepare_beam(
     beam=beam1,
     preparation_routine=BiGaussian(sigma_dt=0.1e-9, n_macroparticles=1e6),
 )
-
 
 plt.figure(0)
 plt.subplot(2, 1, 1)

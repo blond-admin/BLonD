@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import importlib
 import os
-import sys
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
@@ -16,16 +14,21 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
+DEFAULT_BACKEND = "python"
+DEFAULT_BITS = "64"
+
 
 class Specials(ABC):
     """Abstract listing of functions that need implementation for a new backend."""
 
     @staticmethod
-    @abstractmethod  # pragma: no cover
+    @abstractmethod
     def loss_box(
         top: float, bottom: float, left: float, right: float
-    ) -> None:  # TODO
-        pass
+    ) -> None:  # pragma: no cover
+        raise NotImplementedError(
+            "Abstract method `loss_box` is not implemented."
+        )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -35,10 +38,12 @@ class Specials(ABC):
         voltage: float,
         omega_rf: float,
         phi_rf: float,
-        charge: np.float32 | np.float64,
-        acceleration_kick: np.float32 | np.float64,
+        charge: float,
+        acceleration_kick: float,
     ) -> None:
-        pass
+        raise NotImplementedError(
+            "Abstract method `kick_single_harmonic` is not implemented."
+        )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -52,19 +57,23 @@ class Specials(ABC):
         n_rf: int,
         acceleration_kick: float,
     ) -> None:
-        pass
+        raise NotImplementedError(
+            "Abstract method `kick_multi_harmonic` is not implemented."
+        )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
     def drift_simple(
         dt: NumpyArray,
         dE: NumpyArray,
-        T: np.float32 | np.float64,
-        eta_0: np.float32 | np.float64,
-        beta: np.float32 | np.float64,
-        energy: np.float32 | np.float64,
+        T: float,
+        eta_0: float,
+        beta: float,
+        energy: float,
     ) -> None:
-        pass
+        raise NotImplementedError(
+            "Abstract method `drift_simple` is not implemented."
+        )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -79,7 +88,9 @@ class Specials(ABC):
         beta: float,
         energy: float,
     ) -> None:
-        pass
+        raise NotImplementedError(
+            "Abstract method `drift_legacy` is not implemented."
+        )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -93,7 +104,9 @@ class Specials(ABC):
         beta: float,
         energy: float,
     ) -> None:
-        pass
+        raise NotImplementedError(
+            "Abstract method `drift_exact` is not implemented."
+        )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -102,20 +115,24 @@ class Specials(ABC):
         dE: NumpyArray,
         voltage: NumpyArray,
         bin_centers: NumpyArray,
-        charge: np.float32 | np.float64,
-        acceleration_kick: np.float32 | np.float64,
+        charge: float,
+        acceleration_kick: float,
     ) -> None:
-        pass
+        raise NotImplementedError(
+            "Abstract method `kick_induced_voltage` is not implemented."
+        )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
     def histogram(
         array_read: NumpyArray,
         array_write: NumpyArray,
-        start: np.float32 | np.float64,
-        stop: np.float32 | np.float64,
+        start: float,
+        stop: float,
     ) -> None:
-        pass
+        raise NotImplementedError(
+            "Abstract method `histogram` is not implemented."
+        )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
@@ -126,8 +143,64 @@ class Specials(ABC):
         omega_rf: float,
         phi_rf: float,
         bin_size: float,
-    ) -> np.float32 | np.float64:
-        pass
+    ) -> float:
+        raise NotImplementedError(
+            "Abstract method `beam_phase` is not implemented."
+        )
+
+    @staticmethod
+    @abstractmethod  # pragma: no cover
+    def move_flagged_elements_to_end(
+        flag: int,
+        flags: NumpyArray | CupyArray,  # also purged
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        ids: NumpyArray | CupyArray,
+    ):
+        """Reorders entries where ``flags == flag`` to the array end.
+
+        Parameters
+        ----------
+        flag
+            The flag to be used as a selector what to place at the end.
+        flags
+            Macro-particle flags
+        dt
+            Macro-particle time coordinates [s]
+        dE
+            Macro-particle energy coordinates [eV]
+        ids
+            Macro-particle ids.
+            This allows to identify single particles,
+            even if the array indexing is changed.
+        """
+        raise NotImplementedError(
+            "The backend for `move_flagged_elements_to_end` is missing."
+        )
+
+
+class _ModeSwitchHelper:
+    """Helper to be used in a `with` statement to set the specials temporarily.
+
+    Parameters
+    ----------
+    backend
+        The active backend class.
+    mode
+        The mode of the specials to be set.
+    """
+
+    def __init__(self, backend: BackendBaseClass, mode: str):
+        self.backend = backend
+        self.mode_org = None
+        self.mode_tmp = mode
+
+    def __enter__(self):
+        self.mode_org = self.backend.specials_mode
+        self.backend.set_specials(mode=self.mode_tmp)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.backend.set_specials(mode=self.mode_org)
 
 
 class BackendBaseClass(ABC):
@@ -191,6 +264,12 @@ class BackendBaseClass(ABC):
         self.random: ModuleType = None  # type: ignore
         self.isnan: Callable = None  # type: ignore
         self.sum: Callable = None  # type: ignore
+        self.sqrt: Callable = None  # type: ignore
+        self.meshgrid: Callable = None  # type: ignore
+        self.square: Callable = None  # type: ignore
+        self.mean: Callable = None  # type: ignore
+        self.arange: Callable = None  # type: ignore
+        self.average: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -231,14 +310,16 @@ class BackendBaseClass(ABC):
             One of the available backend modes
 
         """
-        pass
+        raise NotImplementedError(
+            "Abstract method `set_specials` is not implemented."
+        )
 
     @property
     def is_gpu(self) -> bool:
         """Whether the backend is using the GPU."""
         return self._is_gpu
 
-    def apply_environment_variables(self) -> None:
+    def apply_environment_variables(self) -> None:  # NOQA PLR0912
         """Load the environment variables and set up the backend accordingly.
 
         Notes
@@ -253,11 +334,11 @@ class BackendBaseClass(ABC):
         """
         _backend_mode_raw: str = os.environ.get(
             "BLOND_BACKEND_MODE",
-            "numba",  # default
+            DEFAULT_BACKEND,  # default
         ).lower()
         if _backend_mode_raw != "numba":
             print(
-                f"Using environment variable BLOND_BACKEND_MODE={_backend_mode_raw}"
+                f"Using environment variable BLOND_BACKEND_MODE = {_backend_mode_raw}"
             )
         _allowed_backend_modes = (
             "python",
@@ -283,12 +364,8 @@ class BackendBaseClass(ABC):
 
         _backend_bits_raw: str = os.environ.get(
             "BLOND_BACKEND_BITS",
-            "32",  # default
+            DEFAULT_BITS,  # default
         )
-        if _backend_bits_raw != "32":
-            print(
-                f"Using  environment variable BLOND_BACKEND_BITS = {_backend_bits_raw}"
-            )
         _allowed_backend_bits_flag = (
             "32",
             "64",
@@ -311,7 +388,10 @@ class BackendBaseClass(ABC):
             elif _backend_bits == "64":
                 self.change_backend(Cupy64Bit)
             else:
-                raise ValueError(_backend_bits)
+                # This statement is not reachable
+                # because of `_backend_bits_raw in _allowed_backend_bits_flag`
+                # Anyways its beter to write if, elif, else explicitly
+                raise ValueError(_backend_bits)  # pragma: no cover
             self.set_specials(mode=_backend_mode)  # type: ignore
         else:
             if _backend_bits == "32":
@@ -319,32 +399,28 @@ class BackendBaseClass(ABC):
             elif _backend_bits == "64":
                 self.change_backend(Numpy64Bit)
             else:
-                raise ValueError(_backend_bits)
+                # This statement is not reachable
+                # because of `_backend_bits_raw in _allowed_backend_bits_flag`
+                # Anyways its beter to write if, elif, else explicitly
+                raise ValueError(_backend_bits)  # pragma: no cover
             self.set_specials(mode=_backend_mode)  # type: ignore
 
+    def temporary_specials_mode(self, mode: str):
+        """Helper to be used in a `with` statement to set the specials temporarily.
 
-def fresh_import(module_location: str, class_name: str) -> type:
-    """To freshly do `from module_location import ClassName`.
+        Examples
+        --------
+        >>> with backend.temporary_specials_mode("python"):
+        >>>     print(backend.specials_mode)
+        >>>     ...
+        >>> print(backend.specials_mode)
 
-    Parameters
-    ----------
-    module_location
-        Import location where the module resides
-    class_name
-        Class to re-import
+        Returns
+        -------
+        _mode_switch_helper
 
-    Returns
-    -------
-    Newly imported class
-
-    """
-    # TODO Refactor given files as classes, so that only reinstancing of a
-    #  class is needed instead of reloading a module path.
-    #  This function is only intended to reload backend specials.
-    if module_location in sys.modules:
-        del sys.modules[module_location]
-    module = importlib.import_module(module_location)
-    return getattr(module, class_name)
+        """
+        return _ModeSwitchHelper(backend=self, mode=mode)
 
 
 class NumpyBackend(BackendBaseClass):
@@ -383,6 +459,13 @@ class NumpyBackend(BackendBaseClass):
         self.random = np.random
         self.isnan = np.isnan
         self.sum = np.sum
+        self.sqrt = np.sqrt
+        self.interp = np.interp
+        self.meshgrid = np.meshgrid
+        self.square = np.square
+        self.mean = np.mean
+        self.arange = np.arange
+        self.average = np.average
 
         self._finalize()
 
@@ -403,39 +486,39 @@ class NumpyBackend(BackendBaseClass):
             One of the available backend modes
 
         """
+        onchange = self.specials_mode != mode
+
         if mode == "python":
-            from .python.callables import PythonSpecials
+            from blond._core.backends.python.callables import PythonSpecials
 
             self.specials = PythonSpecials()
             self.specials_mode = mode
         elif mode == "cpp":
-            CppSpecials = fresh_import(
-                "blond._core.backends.cpp.callables",
-                "CppSpecials",
-            )
-            self.specials = CppSpecials()
+            from blond._core.backends.cpp.callables import reload_cpp_backend
+
+            self.specials = reload_cpp_backend(self.float)
             self.specials_mode = mode
         elif mode == "numba":
-            # like
-            # from .numba.callables import NumbaSpecials
-            # but reimport, so that dtypes are in line with the current backend
-            NumbaSpecials = fresh_import(
-                "blond._core.backends.numba.callables",
-                "NumbaSpecials",
+            from blond._core.backends.numba.callables import (
+                recompile_numba_backend,
             )
+
+            NumbaSpecials = recompile_numba_backend(self.float)
             self.specials = NumbaSpecials()
             self.specials_mode = mode
         elif mode == "fortran":
-            FortranSpecials = fresh_import(
-                "blond._core.backends.fortran.callables",
-                "FortranSpecials",
+            from blond._core.backends.fortran.callables import (
+                reload_fortran_backend,
             )
+
+            FortranSpecials = reload_fortran_backend(self.float)
+
             self.specials = FortranSpecials()
             self.specials_mode = mode
         else:
             raise ValueError(mode)
-        if self.verbose:
-            print(f"Set special to `{self.specials.__class__.__name__}`")
+        if self.verbose and onchange:
+            print(f"Set special to `{mode}`")
 
 
 class Numpy32Bit(NumpyBackend):
@@ -500,8 +583,15 @@ class CupyBackend(BackendBaseClass):
         self.random = cp.random
         self.isnan = cp.isnan
         self.sum = cp.sum
+        self.sqrt = cp.sqrt
+        self.interp = cp.interp
+        self.meshgrid = cp.meshgrid
+        self.square = cp.square
+        self.mean = cp.mean
+        self.arange = cp.arange
+        self.average = cp.average
 
-        from .cuda.callables import CudaSpecials
+        from blond._core.backends.cuda.callables import CudaSpecials
 
         self.specials = CudaSpecials()
 
@@ -517,16 +607,15 @@ class CupyBackend(BackendBaseClass):
 
         """
         if mode == "cuda":
-            CudaSpecials = fresh_import(
-                "blond._core.backends.cuda.callables",
-                "CudaSpecials",
-            )
+            from blond._core.backends.cuda.callables import reload_cuda_backend
+
+            CudaSpecials = reload_cuda_backend(self.float)
 
             self.specials = CudaSpecials()
         else:
             raise ValueError(mode)
         if self.verbose:
-            print(f"Set special to `{self.specials.__class__.__name__}`")
+            print(f"Set special to `{mode}`")
 
 
 class Cupy32Bit(CupyBackend):

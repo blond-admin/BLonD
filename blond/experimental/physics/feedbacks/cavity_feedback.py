@@ -7,9 +7,12 @@ import numpy as np
 
 from blond import StaticProfile
 from blond._core.helpers import int_from_float_with_warning
-
-from .base import LocalFeedback
-from .helpers import cartesian_to_polar, polar_to_cartesian, rf_beam_current
+from blond.experimental.physics.feedbacks.base import LocalFeedback
+from blond.experimental.physics.feedbacks.helpers import (
+    cartesian_to_polar,
+    polar_to_cartesian,
+    rf_beam_current,
+)
 
 if TYPE_CHECKING:
     from typing import Any
@@ -19,7 +22,7 @@ if TYPE_CHECKING:
 
     from blond import Simulation
     from blond._core.beam.base import BeamBaseClass
-    from blond.physics.cavities import MultiHarmonicCavity
+    from blond.physics.cavities import MultiHarmonicRfStation
 
 # TODO rewrite all docstrings
 
@@ -96,12 +99,12 @@ class BirksCavityFeedback(LocalFeedback):
     # TODO docstring
 
     # TODO remove after development
-    _parent_cavity: MultiHarmonicCavity
+    _parent_cavity: MultiHarmonicRfStation
     profile: StaticProfile
 
     def __init__(
         self,
-        _parent_cavity: MultiHarmonicCavity,
+        _parent_cavity: MultiHarmonicRfStation,
         profile: StaticProfile,
         n_cavities: int,
         n_periods_coarse: int,
@@ -291,7 +294,7 @@ class BirksCavityFeedback(LocalFeedback):
         Parameters
         ----------
         beam
-            Simulation beam object
+            Simulation `Beam` object
 
         """
         # Update parameters from rest of BLonD classes

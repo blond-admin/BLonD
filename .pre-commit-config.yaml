@@ -1,4 +1,4 @@
-exclude: ^(legacy|__doc|blond3/legacy/|builds)
+exclude: ^(legacy|docs|blond3/legacy/|builds)
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -23,3 +23,5 @@ repos:
     rev: v0.12.11  # Replace with the latest version
     hooks:
       - id: ruff-format  # This runs `ruff format`
+      - id: ruff-check  # This runs `ruff check`
+        args: ["--fix"] # otherwise not compatible with Ruff

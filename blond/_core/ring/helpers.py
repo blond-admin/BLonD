@@ -32,7 +32,7 @@ def requires(argument: list[str]) -> Callable:
             return function(*args, **kwargs)
 
         # allow strings to prevent cyclic imports
-        assert all([isinstance(a, str) for a in argument])
+        assert all(isinstance(a, str) for a in argument)
         wrapper.requires = argument  # type: ignore
         return wrapper
 
@@ -87,7 +87,7 @@ def get_init_order(
     sorted_classes = _topological_sort(graph, in_degree, all_classes)
     sorted_classes_filtered = []
     for cls in sorted_classes:
-        if any([cls == type(i).__name__ for i in instances]):
+        if any(cls == type(i).__name__ for i in instances):
             sorted_classes_filtered.append(cls)
 
     return sorted_classes_filtered
@@ -130,7 +130,6 @@ def _build_dependency_graph(
                 1  # Increment in-degree count for the class
             )
             all_classes.add(dep)  # Ensure the dependency class is also tracked
-        pass
     return graph, in_degree, all_classes
 
 
@@ -163,8 +162,6 @@ def get_dependencies(cls_: type, dependency_attribute: str) -> list:
                 raise Exception(type(attr))
         else:
             attr = []
-        if not isinstance(attr, list):
-            raise Exception(type(attr))
     else:
         attr = getattr(cls_, dependency_attribute, [])
         if not isinstance(attr, list):

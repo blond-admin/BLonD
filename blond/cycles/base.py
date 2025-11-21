@@ -1,9 +1,11 @@
+"""Base class to manage preprogrammed cycles."""
+
 from __future__ import annotations
 
 from abc import ABC
 from typing import TYPE_CHECKING
 
-from .._core.base import Preparable
+from blond._core.base import Preparable
 
 if TYPE_CHECKING:  # pragma: no cover
     pass

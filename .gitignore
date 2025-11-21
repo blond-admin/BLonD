@@ -2,8 +2,9 @@
 
 results
 logs
-/__doc/_build/
-/__doc/build/
+/docs/_build/
+/docs/build/
+/docs/modules/*.rst
 /__EXAMPLES/*output_files/
 /__BENCHMARKS/debug.log
 /__BENCHMARKS/OTFB.png

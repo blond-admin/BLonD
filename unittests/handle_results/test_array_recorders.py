@@ -4,21 +4,9 @@ import numpy
 import numpy as np
 
 from blond.handle_results.array_recorders import (
-    ChunkedArrayRecorder,
     DenseArrayRecorder,
 )
 from blond.handle_results.helpers import callers_relative_path
-
-
-class TestChunkedArrayRecorder(unittest.TestCase):
-    @unittest.skip
-    def setUp(self):
-        # TODO: implement test for `__init__`
-        self.chunked_array_recorder = ChunkedArrayRecorder()
-
-    @unittest.skip
-    def test___init__(self):
-        pass  # calls __init__ in  self.setUp
 
 
 class TestDenseArrayRecorder(unittest.TestCase):
@@ -84,6 +72,27 @@ class TestDenseArrayRecorder(unittest.TestCase):
         numpy.testing.assert_array_equal(
             self.dense_array_recorder.get_valid_entries()[0, :], newdata
         )
+
+
+    def test_overwrite(self):
+        rec1 = DenseArrayRecorder(
+            filepath=callers_relative_path("deleteme2", 1),
+            shape=(20, 10),
+            dtype=np.float32,
+            order="C",
+            overwrite=True,
+        )
+        rec1.to_disk() # creates deleteme2
+        rec2 = DenseArrayRecorder(
+            filepath=callers_relative_path("deleteme2", 1),
+            shape=(20, 10),
+            dtype=np.float32,
+            order="C",
+            overwrite=False,
+        )
+        with self.assertRaises(AssertionError):
+            rec2.to_disk()
+        rec1.purge_from_disk(verbose=False)
 
 
 if __name__ == "__main__":

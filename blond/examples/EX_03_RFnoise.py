@@ -1,3 +1,14 @@
+"""Example input for simulation with RF noise.
+
+Notes
+-----
+No intensity effects.
+
+Authors
+-------
+Helga Timko
+
+"""
 # pragma: no cover
 
 # coding: utf8
@@ -8,12 +19,6 @@
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
-
-"""Example input for simulation with RF noise
-No intensity effects.
-
-:Authors: **Helga Timko**
-"""
 
 import os
 
@@ -26,10 +31,10 @@ from blond import (
     MagneticCyclePerTurn,
     Ring,
     Simulation,
-    SingleHarmonicCavity,
+    SingleHarmonicRfStation,
     proton,
 )
-from blond.cycles.noise_generators.vari_noise import VariNoise
+from blond.experimental.cycles.noise_generators.vari_noise import VariNoise
 from blond.physics.profiles import DynamicProfileConstNBins
 
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
@@ -37,7 +42,7 @@ this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 
 def main():
     ring = Ring(circumference=26658.883)
-    cavity1 = SingleHarmonicCavity()
+    cavity1 = SingleHarmonicRfStation()
     cavity1.voltage = 6e6
     cavity1.schedule(
         attribute="phi_rf",

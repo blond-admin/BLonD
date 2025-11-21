@@ -4,27 +4,34 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ... import Simulation
-from ..base import Preparable
-from ..beam.base import BeamBaseClass
-from ..ring.helpers import get_elements
+from blond._core.base import Preparable
+from blond._core.beam.base import BeamBaseClass
+from blond._core.ring.helpers import get_elements
+from blond._core.simulation.simulation import Simulation
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any, TypeVar
 
     from numpy.typing import NDArray as NumpyArray
 
-    from ..base import BeamPhysicsRelevant
+    from blond._core.base import SimulationElementBase
 
     T = TypeVar("T")
 
 
 class BeamPhysicsRelevantElements(Preparable):
-    """Container object to manage all beam interactions in `Ring`."""
+    """Container object to manage all beam interactions in `Ring`.
+
+    Attributes
+    ----------
+    elements
+        List of  :class:`~blond._core.ring.beam_physics_relevant_elements.BeamPhysicsRelevantElements`
+    """
 
     def __init__(self) -> None:
         super().__init__()
-        self.elements: list[BeamPhysicsRelevant] = []
+        self.elements: list[SimulationElementBase] = []
+        self._on_init_simulation_passed = False
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called.
@@ -35,18 +42,23 @@ class BeamPhysicsRelevantElements(Preparable):
             Simulation context manager
         """
         self._check_section_indexing()
+        self._on_init_simulation_passed = True
+
+    def _assert_no_init(self, msg: str) -> None:
+        """Raises `AssertionError`, if simulation was already initialized."""
+        assert not self._on_init_simulation_passed, msg
 
     def _check_section_indexing(self) -> None:
         """Verify that indices have been set correctly."""
-        from ...physics.cavities import CavityBaseClass
-        from ...physics.drifts import DriftBaseClass
+        from blond.physics.cavities import RfStationBaseClass
+        from blond.physics.drifts import DriftBaseClass
 
         elem_section_indices = [e.section_index for e in self.elements]
         assert min(elem_section_indices) == 0, "section_index=0 must be set"
         assert np.all(np.diff(elem_section_indices) >= 0), (
             f"Section indices must be increasing, but got {elem_section_indices}"
         )
-        cavities = self.get_elements(CavityBaseClass)
+        cavities = self.get_elements(RfStationBaseClass)
         cav_section_indices = [c.section_index for c in cavities]
         all_different = len(cav_section_indices) == len(
             set(cav_section_indices)
@@ -62,7 +74,7 @@ class BeamPhysicsRelevantElements(Preparable):
         if len(unique_section_indices) > 1:
             for section_index in np.sort(unique_section_indices):
                 cavities = self.get_elements(
-                    CavityBaseClass,
+                    RfStationBaseClass,
                     section_i=section_index,  # type: ignore
                 )
                 drifts = self.get_elements(
@@ -92,7 +104,7 @@ class BeamPhysicsRelevantElements(Preparable):
         simulation
             Simulation context manager
         beam
-            Simulation beam object
+            Simulation `Beam` object
         n_turns
             Number of turns to simulate
         turn_i_init
@@ -114,7 +126,7 @@ class BeamPhysicsRelevantElements(Preparable):
         -----
         This is different from per-drift listing
         """
-        from ...physics.drifts import DriftBaseClass
+        from blond.physics.drifts import DriftBaseClass
 
         sections = self.get_sections_indices()
         result = np.empty(len(sections))
@@ -126,7 +138,7 @@ class BeamPhysicsRelevantElements(Preparable):
                 result[section_i] = 0
         return result
 
-    def add_element(self, element: BeamPhysicsRelevant) -> None:
+    def add_element(self, element: SimulationElementBase) -> None:
         """Append a beam physics-relevant element to the container.
 
         This method appends the given element to the
@@ -145,6 +157,9 @@ class BeamPhysicsRelevantElements(Preparable):
         AssertionError
             If `element.section_index` is not an integer.
         """
+        self._assert_no_init(
+            msg="Adding elements after initialization is forbidden!"
+        )
         assert isinstance(element.section_index, int)
 
         insert_at = None
@@ -160,7 +175,7 @@ class BeamPhysicsRelevantElements(Preparable):
 
     def check_section_index_compatibility(
         self,
-        element: BeamPhysicsRelevant,
+        element: SimulationElementBase,
         insert_at: int,
     ) -> None:
         """Method to check the element can be inserted in the defined section.
@@ -204,21 +219,20 @@ class BeamPhysicsRelevantElements(Preparable):
                         <= element.section_index
                         <= self.elements[insert_at - 1].section_index + 1
                     )
-            except:
+            except AssertionError as exc:
                 raise AssertionError(
                     "The element section index is incompatible "
                     "with the requested location. Please allow "
                     "overwrite for automatic handling."
-                )
+                ) from exc
         else:
             raise AssertionError(
                 f"The element must be inserted within ["
                 f"0:{len(self.elements)}] indexes. "
             )
 
-    def insert(self, element: BeamPhysicsRelevant, insert_at: int) -> None:
-        """Insert a beam physics-relevant element to the container at the
-        specified index.
+    def insert(self, element: SimulationElementBase, insert_at: int) -> None:
+        """Insert an element to the container at the specified index.
 
         Parameters
         ----------
@@ -237,6 +251,9 @@ class BeamPhysicsRelevantElements(Preparable):
             insertion.
             If insert_at is not within [0:len(ring.elements.elements)]
         """
+        self._assert_no_init(
+            msg="Inserting elements after initialization is forbidden!"
+        )
         assert isinstance(element.section_index, int)
         self.check_section_index_compatibility(
             element=element, insert_at=insert_at
@@ -315,6 +332,9 @@ class BeamPhysicsRelevantElements(Preparable):
 
     def reorder(self) -> None:
         """Reorder each section by `natural_order`."""
+        self._assert_no_init(
+            msg="Reordering of elements after initialization is forbidden!"
+        )
         for section_index in range(self.n_sections):
             self.reorder_section(
                 section_index=section_index,
@@ -330,26 +350,29 @@ class BeamPhysicsRelevantElements(Preparable):
         section_index
             Section index to restrict the ordering to a specific section.
         """
+        self._assert_no_init(
+            msg="Section reordering of elements after initialization is "
+            "forbidden!"
+        )
         assert isinstance(section_index, int)
         from blond.experimental.physics.feedbacks.base import FeedbackBaseClass
-
-        from ...physics.cavities import CavityBaseClass
-        from ...physics.drifts import DriftBaseClass
-        from ...physics.impedances.base import ImpedanceBaseClass
-        from ...physics.losses import LossesBaseClass
-        from ...physics.profiles import ProfileBaseClass
+        from blond.physics.cavities import RfStationBaseClass
+        from blond.physics.drifts import DriftBaseClass
+        from blond.physics.impedances.base import ImpedanceBaseClass
+        from blond.physics.losses import LossesBaseClass
+        from blond.physics.profiles import ProfileBaseClass
 
         natural_order = (
             LossesBaseClass,
             ProfileBaseClass,
             FeedbackBaseClass,
             ImpedanceBaseClass,
-            CavityBaseClass,
+            RfStationBaseClass,
             DriftBaseClass,
         )
-        assert self.count(CavityBaseClass, section_i=section_index) == 1, (
+        assert self.count(RfStationBaseClass, section_i=section_index) == 1, (
             f"Only one cavity per section allowed, but got "
-            f"{self.count(CavityBaseClass, section_i=section_index)}"
+            f"{self.count(RfStationBaseClass, section_i=section_index)}"
         )
         elements_in_section = [
             e for e in self.elements if e.section_index == section_index
@@ -410,15 +433,7 @@ class BeamPhysicsRelevantElements(Preparable):
             f"{('section_index'):13s} {'filtered_dict'}\n"
         )
         for element in self.elements:
-            filtered_dict = {
-                k: pretty_string(v)
-                for k, v in element.__dict__.items()
-                if (not k.startswith("_")) and (k != "name")
-            }
-            content += (
-                f"{element.name:40s} {(type(element).__name__):20s} "
-                f"{str(element.section_index):13s} {filtered_dict}\n"
-            )
+            content += element.info_string() + "\n"
         content += sep
         return content
 

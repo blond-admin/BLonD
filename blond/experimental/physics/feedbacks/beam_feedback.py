@@ -20,17 +20,16 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond._core.backends.backend import backend
-
-from .base import LocalFeedback
+from blond.experimental.physics.feedbacks.base import LocalFeedback
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond._core.beam.base import BeamBaseClass
-    from blond.physics.cavities import CavityBaseClass
+    from blond.physics.cavities import RfStationBaseClass
     from blond.physics.profiles import ProfileBaseClass
 
 
 class GeneralBeamFeedback(LocalFeedback):
-    _parent_cavity: CavityBaseClass
+    _parent_cavity: RfStationBaseClass
 
     def __init__(self, profile: ProfileBaseClass):
         super().__init__(profile=profile)
@@ -144,28 +143,20 @@ class Blond2BeamFeedback(LocalFeedback):
 
         self.delay = delay
 
-        #: | *Band-pass filter window coefficient for beam phase calculation.*
         self.alpha = window_coefficient
 
-        # determines from which RF-buckets the band-pass filter starts to acts
         self.time_offset = time_offset
 
-        #: | *Phase loop gain. Implementation depends on machine.*
         self.gain = PL_gain
 
-        #: | *Relative radial displacement [1], for radial loop.*
         self.drho = 0.0
 
-        #: | *Phase loop frequency correction of the main RF system.*
         self.domega_rf = 0.0
 
-        #: | *Beam phase measured at the main RF frequency.*
         self.phi_beam = 0.0
 
-        #: | *Phase difference between beam and RF.*
         self.dphi = 0.0
 
-        #: | *Reference signal for secondary loop to test step response.*
         self.reference = 0.0
 
         self.RFnoise = None  # FIXME remove this!

@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-
 import numpy as np
 from numpy import float32, float64
-from scipy.constants import c, e, epsilon_0, hbar, m_e, m_p, physical_constants
-
-from ..backends.backend import backend
+from scipy.constants import (  # type: ignore[import-untyped]
+    c,
+    e,
+    epsilon_0,
+    hbar,
+    m_e,
+    m_p,
+    physical_constants,
+)
 
 m_mu = physical_constants["muon mass"][0]
 
@@ -28,9 +32,9 @@ class ParticleType:
     def __init__(
         self, mass: float, charge: float, user_decay_rate: float = 0.0
     ):
-        self._mass = mass
-        self._charge = charge
-        self._user_decay_rate = user_decay_rate
+        self._mass = float(mass)
+        self._charge = float(charge)
+        self._user_decay_rate = float(user_decay_rate)
 
         self._mass_inv = 1 / mass
 
@@ -53,7 +57,7 @@ class ParticleType:
 
     @property
     def charge(self) -> float:
-        """Number of electrons of the particle, in []"""
+        """Number of electrons of the particle, unitless."""
         return self._charge
 
     @property
@@ -67,12 +71,12 @@ class ParticleType:
         return self._mass_inv
 
     @property
-    def classical_particle_radius(self) -> float32 | float64:
+    def classical_particle_radius(self) -> float:
         """Classical particle radius [m]."""
         return self._classical_particle_radius
 
     @property
-    def sands_radiation_constant(self) -> float32 | float64:
+    def sands_radiation_constant(self) -> float:
         """Sand's radiation constant [ m / eV^3]."""
         return self._sands_radiation_constant
 
@@ -82,36 +86,36 @@ class ParticleType:
         return self._quantum_radiation_constant
 
 
-proton = ParticleType(
+proton: ParticleType = ParticleType(
     mass=m_p * c**2 / e,
     charge=1,
 )
 
-uranium_29 = ParticleType(
+uranium_29: ParticleType = ParticleType(
     mass=238 * m_p * c**2 / e,  # approximate mass-energy in eV
     charge=29,
 )
 
-electron = ParticleType(
+electron: ParticleType = ParticleType(
     mass=m_e * c**2 / e,
     charge=-1,
 )
 
-positron = ParticleType(
+positron: ParticleType = ParticleType(
     mass=m_e * c**2 / e,
     charge=1,
 )
 
 _muon_decay_rate = float(1 / 2.1969811e-6)
 
-mu_plus = ParticleType(
+mu_plus: ParticleType = ParticleType(
     mass=m_mu * c**2 / e,
     charge=1,
     user_decay_rate=_muon_decay_rate,
 )
 
 
-mu_minus = ParticleType(
+mu_minus: ParticleType = ParticleType(
     mass=m_mu * c**2 / e,
     charge=-1,
     user_decay_rate=_muon_decay_rate,

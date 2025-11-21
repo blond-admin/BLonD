@@ -1,3 +1,10 @@
+"""Helper script to apply monkeytype stubs.
+
+Authors
+-------
+Simon Lauber
+"""
+
 import subprocess
 
 # RUN IN TERMINAL: "monkeytype run run_pytest.py"
@@ -35,7 +42,7 @@ unittests.examples.test_EX_01_Acceleration
 unittests.cycles.test_energy_cycle
 unittests.cycles.test_base
 unittests.beam_preparation.test_bigaussian
-unittests._generals.test_iterables
+unittests.generals.test_iterables
 unittests._core.test_helpers
 unittests._core.test_base
 unittests._core.simulation.test_simulation
@@ -96,7 +103,7 @@ blond.beam_preparation.bigaussian
 blond.beam_preparation.base
 blond.acc_math.analytic.simple_math
 blond.acc_math.analytic.hamilton
-blond._generals.iterables
+blond.generals.iterables
 blond._core.simulation.simulation
 blond._core.simulation.intensity_effect_manager
 blond._core.ring.ring
@@ -114,12 +121,12 @@ blond._core.backends.backend
 """
 # add type hints from database to files
 for target in targets.split("\n"):
-    target = target.strip()
-    if len(target) == 0:
-        continue
-    elif target.startswith("unittests"):
-        continue
-    elif "legacy" in target:
+    target_ = target.strip()
+    if (
+        len(target_) == 0
+        or target_.startswith("unittests")
+        or "legacy" in target_
+    ):
         continue
     else:
-        subprocess.run(f"monkeytype apply {target}".split(" "))
+        subprocess.run(f"monkeytype apply {target}".split(" "), check=False)

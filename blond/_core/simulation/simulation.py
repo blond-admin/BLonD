@@ -2,25 +2,31 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from copy import deepcopy
 from pstats import SortKey
 from typing import TYPE_CHECKING
 from warnings import warn
 
-from scipy.integrate import cumulative_trapezoid
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.integrate import cumulative_simpson  # type: ignore[import-untyped]
 from tqdm import tqdm  # type: ignore
 
-from ..._generals._warnings import NotTestedWarning, PerformanceWarning
-from ...cycles.magnetic_cycle import MagneticCycleBase
-from ...physics.drifts import DriftBaseClass
-from ...physics.profiles import ProfileBaseClass
-from ..backends.backend import backend
-from ..base import (
-    BeamPhysicsRelevant,
+from blond._core.backends.backend import backend
+from blond._core.base import (
     DynamicParameter,
     Preparable,
+    SimulationElementBase,
 )
-from ..helpers import find_instances_with_method, int_from_float_with_warning
-from ..ring.helpers import get_elements, get_init_order
+from blond._core.helpers import (
+    find_instances_with_method,
+    int_from_float_with_warning,
+)
+from blond._core.ring.helpers import get_elements, get_init_order
+from blond.cycles.magnetic_cycle import MagneticCycleBase
+from blond.generals._warnings import NotTestedWarning, PerformanceWarning
+from blond.physics.drifts import DriftBaseClass
+from blond.physics.profiles import ProfileBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -28,9 +34,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond import (
-        Beam,
-        SingleHarmonicCavity,
+        SingleHarmonicRfStation,
     )
+
     from blond.legacy.blond2.beam.beam import Beam as Blond2Beam
     from blond.legacy.blond2.beam.profile import Profile as Blond2Profile
     from blond.legacy.blond2.impedances.impedance import (
@@ -47,35 +53,77 @@ if TYPE_CHECKING:  # pragma: no cover
         RingAndRFTracker as Blond2RingAndRFTracker,
     )
 
-    from ...beam_preparation.base import BeamPreparationRoutine
-    from ...handle_results.observables import Observables
-    from ..beam.base import BeamBaseClass
-    from ..beam.particle_types import ParticleType
-    from ..ring.ring import Ring
-from ...physics.cavities import CavityBaseClass
+    from blond.beam_preparation.base import BeamPreparationRoutine
+    from blond.handle_results.observables import ObservablesEndOfTurnBase
+    from blond._core.beam.base import BeamBaseClass
+    from blond._core.beam.particle_types import ParticleType
+    from blond._core.ring.ring import Ring
+    from blond.interfaces.xsuite.beam_preparation.rfbucket_matching import (
+        XsuiteRFBucketMatcher,
+    )
+    from blond import BiGaussian
+    from blond.experimental.beam_preparation.empiric_matcher import (
+        EmpiricMatcher,
+    )
+    from blond.experimental.beam_preparation.semi_empiric_matcher import (
+        SemiEmpiricMatcher,
+    )
+from blond.physics.cavities import RfStationBaseClass
 
 logger = logging.getLogger(__name__)
 
 
 class Simulation(Preparable):
-    """Context manager to perform beam physics simulations of synchrotrons.
+    """Main simulation manager for beam dynamics in synchrotrons.
+
+    The ``Simulation`` class is the central object that coordinates all aspects of a
+    beam dynamics simulation. It manages the ring structure, energy evolution, beam
+    tracking through RF stations and drift sections, and data collection via observables.
+
+    Typical workflow:
+        1. Create a ``Simulation`` using ``Simulation.from_locals()`` to auto-detect components
+        2. Prepare the beam with ``sim.prepare_beam()`` to populate the phase space
+        3. Run the simulation with ``sim.run_simulation()`` to track the beam evolution
+        4. Analyze results from observables or save/load them for later use
 
     Parameters
     ----------
     ring
-        Ring a.k.a. synchrotron
+        The ``Ring`` object representing the synchrotron, which contains all physical
+        elements (RF stations, drifts, etc.) that the beam encounters each turn.
     magnetic_cycle
-        Container object to handle the scheduled energy gain
-        per turn or by time
+        Defines how the beam energy evolves during the simulation. This can be a
+        constant energy, a turn-by-turn energy ramp, or a time-based interpolation.
 
     Attributes
     ----------
     turn_i
-        Counter of the current turn during simulation,
-        which can also handle subscriptions/callbacks
+        Counter tracking the current turn number during simulation. Can be subscribed
+        to for notifications when the turn changes. Value is ``None`` when not running.
     section_i
-        Counter of the current section during simulation,
-        which can also handle subscriptions/callbacks
+        Counter tracking the current section (element) within a turn. Value is ``None``
+        when not running.
+    _ring
+        The synchrotron ring (read-only property).
+    _magnetic_cycle
+        The energy evolution program (read-only property).
+
+    Examples
+    --------
+    Create a simple simulation automatically from local variables:
+
+    >>> from blond import Ring, ConstantMagneticCycle, SingleHarmonicRfStation, DriftSimple, proton
+    >>> ring = Ring(26658.883)
+    >>> energy_cycle = ConstantMagneticCycle(proton, value=450e9, in_unit="total energy")
+    >>> rf_station1 = SingleHarmonicRfStation()
+    >>> drift1 = DriftSimple(orbit_length=26658.883)
+    >>> sim = Simulation.from_locals(locals())
+
+    See Also
+    --------
+    from_locals : Automatically create a Simulation from defined components
+    prepare_beam : Populate the beam phase space with macroparticles
+    run_simulation : Execute the beam dynamics tracking
     """
 
     def __init__(
@@ -85,7 +133,9 @@ class Simulation(Preparable):
     ) -> None:
         assert ring.elements.n_elements > 0, f"{ring.elements.n_elements=}"
 
-        from .intensity_effect_manager import IntensityEffectManager
+        from blond._core.simulation.intensity_effect_manager import (
+            IntensityEffectManager,
+        )
 
         super().__init__()
         self._ring: Ring = ring
@@ -108,21 +158,55 @@ class Simulation(Preparable):
         profile_n_turns: int,
         sortby: SortKey = SortKey.CUMULATIVE,
     ) -> None:
-        """Executes the python profiler.
+        """Profile the simulation to identify performance bottlenecks.
+
+        Runs the Python profiler during simulation execution to measure where time
+        is being spent. This is useful for optimizing slow simulations by identifying
+        which functions or elements are consuming the most CPU time.
+
+        The profiler can start after a few turns to exclude initialization overhead
+        and focus on the main simulation loop performance.
 
         Parameters
         ----------
         beams
-            Beams that are used to perform the simulation
+            Beams to simulate during profiling (typically just one).
         turn_i_init
-            Initial turn to start simulation
+            Turn number at which to start the simulation.
         profile_start_turn_i
-            First turn to start profiling.
-            Can be later than turn_i_init.
+            Turn number at which to begin profiling. Should be `>= turn_i_init`.
+            Set this higher than `turn_i_init` to skip profiling the initialization phase.
         profile_n_turns
-            Total number of turns that are consideref for profiling
+            Number of turns to profile after starting.
         sortby
-            Order to sort the runtime table
+            How to sort the profiling results. Options include:
+                - SortKey.CUMULATIVE: Sort by cumulative time (default, most useful)
+                - SortKey.TIME: Sort by internal time
+                - SortKey.CALLS: Sort by call count
+
+        Examples
+        --------
+        Profile 100 turns after a 10-turn warmup:
+
+        >>> from pstats import SortKey
+        >>> sim.profiling(
+        ...     beams=(beam1,),
+        ...     turn_i_init=0,
+        ...     profile_start_turn_i=10,  # Skip first 10 turns
+        ...     profile_n_turns=100,       # Profile next 100 turns
+        ...     sortby=SortKey.CUMULATIVE,
+        ... )
+        # Prints detailed timing statistics
+
+        Notes
+        -----
+        - Profiling adds overhead and makes the simulation slower.
+        - Use this for development and optimization, not for production runs.
+        - Results show function call counts and time spent in each function.
+
+        See Also
+        --------
+        run_simulation
         """
         assert profile_start_turn_i >= turn_i_init
 
@@ -152,63 +236,319 @@ class Simulation(Preparable):
         ps.print_stats()
         print(s.getvalue())
 
-    def get_potential_well_empiric(
+    def plot_potential_well_empiric(
         self,
-        ts: NumpyArray,
+        dt: NumpyArray,
         particle_type: ParticleType,
         subtract_min: bool = True,
-    ) -> NumpyArray:
-        """Obtain the potential well by tracking a beam one turn.
+        **kwargs_plot,
+    ) -> None:
+        """Plot the RF potential well by tracking particles through one turn.
 
-        Notes
-        -----
-        This function internally obtains `dE_out` of `dt_in`.
-        During one turn with many drifts, the time coordinate will change
-        and sample different positions of dt, which is the expected
-        physical behaviour. The RF of successive station can thus appear
-        phase shifted/distorted due to the inherent drift in between RF
-        stations=.
+        This is a convenience method that calculates and immediately plots the RF
+        potential well. It internally calls ``get_potential_well_empiric()`` and
+        creates a matplotlib plot of the result.
+
+        The potential well shows the effective RF "landscape" that determines stable
+        and unstable regions for particles in longitudinal phase space.
 
         Parameters
         ----------
-        ts
-            Time coordinates to probe the potential, in [s]
+        dt
+            Array of time coordinates at which to sample the potential, in [s].
+            Usually spans at least one RF bucket.
         particle_type
-            Type of particle to probe.
-            The particle charge influences the phase advance per station
-            and might exhibit different distortion of the potential well
-            due to the side effects described in `Notes`
+            Type of particle to track (e.g., proton, electron). The particle charge
+            affects the phase advance and thus the potential shape.
         subtract_min
-            If True, will always return min(potential_well) = 0.
-            If False, potential_well[0] = 0.
+            If True (default), normalizes the potential so its minimum is at zero.
+            If False, normalizes so ``potential_well[0] = 0``.
+        **kwargs_plot
+            Additional keyword arguments passed to ``matplotlib.pyplot.plot()``
+            for customizing the plot appearance (e.g., color='red', linewidth=2).
+
+        Examples
+        --------
+        Plot the potential well with default settings:
+
+        >>> import numpy as np
+        >>> dt_array = np.linspace(0, 2.5e-9, 500)
+        >>> plt.title('RF Bucket Structure')
+        >>> sim.plot_potential_well_empiric(dt=dt_array, particle_type=proton)
+        >>> plt.show()
+
+        Customize the plot appearance:
+
+        >>> sim.plot_potential_well_empiric(
+        ...     dt=dt_array,
+        ...     particle_type=proton,
+        ...     color='red',
+        ...     linewidth=2,
+        ...     label='Potential'
+        ... )
+        >>> plt.legend()
+        >>> plt.show()
+
+        Notes
+        -----
+        - This method creates the plot but does not call ``plt.show()``. You must
+          call that separately to display the plot.
+        - With multiple RF stations and drifts, the potential may show distortions
+          due to phase advances between stations.
+
+        See Also
+        --------
+        get_potential_well_empiric
+        """
+        potential_well, _, _ = self.get_potential_well_empiric(
+            dt=dt,
+            particle_type=particle_type,
+            subtract_min=subtract_min,
+        )
+        plt.plot(dt, potential_well, **kwargs_plot)
+        plt.xlabel("Time (s)")
+        plt.ylabel("Amplitude (arb. unit)")
+
+    def get_drift_term_empiric(
+        self,
+        dE: NumpyArray,
+        particle_type: ParticleType,
+        intensity: int = 0,
+    ) -> NumpyArray:
+        """Calculate how particles drift in time as a function of energy offset.
+
+        This method empirically determines the time drift (chromaticity effect) by
+        tracking probe particles with different energy offsets through one complete turn.
+        Particles with different energies travel at different velocities and orbits,
+        causing them to arrive at different times.
+
+        This is the complementary measurement to ``get_potential_well_empiric()``:
+            - ``get_potential_well_empiric``: starts with time offsets, measures energy changes
+            - ``get_drift_term_empiric``: starts with energy offsets, measures time changes
+
+        Parameters
+        ----------
+        dE
+            Array of energy offsets to probe, in [eV]. Typically spans from negative
+            to positive values around the synchronous energy.
+        particle_type
+            Type of particle (e.g., proton, electron). Different particles have
+            different velocity vs. energy relationships.
+        intensity
+            Beam intensity (number of real particles) to include collective effects.
 
         Returns
         -------
-        potential_well
-            The effective voltage that lead to a change of `dE` in one turn.
+        drift_term
+            The time drift accumulated in one turn for each energy offset, in [s].
+            Shows how arrival time varies with energy.
+
+        Examples
+        --------
+        Calculate and plot the chromatic drift:
+
+        >>> import numpy as np
+        >>> import matplotlib.pyplot as plt
+        >>>
+        >>> dE_array = np.linspace(-1e8, 1e8, 500)  # Energy offsets in eV
+        >>> drift = sim.get_drift_term_empiric(dE=dE_array, particle_type=proton)
+        >>>
+        >>> plt.plot(dE_array, drift)
+        >>> plt.xlabel('Energy offset [eV]')
+        >>> plt.ylabel('Time drift [s]')
+        >>> plt.title('Chromatic Effect')
+        >>> plt.show()
+
+        Notes
+        -----
+        - Higher energy particles typically travel a longer path
+          (above transition) or shorter path (below transition), causing
+          time shifts.
+        - This is related to the slip factor (eta).
+        - The method creates a temporary probe beam and tracks it for one turn.
+
+        See Also
+        --------
+        get_potential_well_empiric
         """
-        from ..._core.beam.beams import ProbeBeam
+        from blond._core.beam.beams import ProbeBeam
 
         probe_bunch = ProbeBeam(
-            dt=ts,
+            dE=dE,
             particle_type=particle_type,
+            intensity=intensity,
         )
+        t0 = probe_bunch.reference_time
         self.run_simulation(
             beams=(probe_bunch,),
             n_turns=1,
             turn_i_init=0,
             show_progressbar=False,
         )
-        potential_well = cumulative_trapezoid(probe_bunch.read_partial_dE())
-        if subtract_min:
-            potential_well -= potential_well.min()
+        t1 = probe_bunch.reference_time
+        T = t1 - t0
+        potential_well = (
+            cumulative_simpson(probe_bunch.read_partial_dt(), x=dE, initial=0)
+            / T
+        )
+        potential_well -= potential_well.min()
         return potential_well
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+    def get_potential_well_empiric(
+        self,
+        dt: NumpyArray,
+        particle_type: ParticleType,
+        subtract_min: bool = True,
+        intensity: int = 0,
+    ) -> tuple[NumpyArray, float, float]:
+        """Calculate the RF potential well by tracking particles through one turn.
 
+        The potential well represents the effective RF voltage "landscape" that particles
+        experience as they move through the synchrotron. This method computes it empirically
+        by tracking probe particles at different time offsets through one complete turn and
+        measuring their energy changes.
+
+        This is useful for:
+            - Visualizing stable and unstable regions for particles
+            - Understanding bucket shapes and separatrices
+            - Verifying RF configurations
+            - Analyzing beam matching
+
+        The method accounts for realistic effects like phase advances between multiple
+        RF stations and drift sections.
+
+        Parameters
+        ----------
+        dt
+            Array of time coordinates at which to sample the potential well, in [s].
+            Typically spans one or more RF buckets.
+        particle_type
+            Type of particle (e.g., proton, electron). The particle charge affects
+            phase advance and the potential shape.
+        subtract_min
+            If True (default), shifts the potential so its minimum is at zero.
+            If False, shifts it so potential_well[0] = 0.
+        intensity
+            Beam intensity (number of real particles) to include collective effects.
+            Default is 0 (no intensity effects).
+
+        Returns
+        -------
+        potential_well
+            The effective potential energy at each time coordinate, in arbitrary units
+            (proportional to energy).
+        factor
+            Ratio of the sampled time span to the revolution period:
+            ``(dt[-1] - dt[0]) / t_rev``. Indicates how many buckets were sampled.
+        tilt_dt_per_dE
+            Phase space tilt coefficient [s/eV], showing how time coordinates change
+            with energy even at dE=0 due to chromatic effects.
+
+        Examples
+        --------
+        Calculate and plot the potential well:
+
+        >>> import numpy as np
+        >>> import matplotlib.pyplot as plt
+        >>>
+        >>> dt_array = np.linspace(0, 2.5e-9, 500)
+        >>> potential, factor, tilt = sim.get_potential_well_empiric(
+        ...     dt=dt_array,
+        ...     particle_type=proton,
+        ... )
+        >>>
+        >>> plt.plot(dt_array, potential)
+        >>> plt.xlabel('Time [s]')
+        >>> plt.ylabel('Potential [arb. units]')
+        >>> plt.title('RF Potential Well')
+        >>> plt.show()
+
+        Notes
+        -----
+        - This creates a temporary probe beam internally and runs it for one turn.
+        - With multiple RF stations and drifts, the effective potential can appear
+          distorted because particles drift in time between stations.
+        - The calculation is accurate but slower than analytical approximations.
+
+        See Also
+        --------
+        plot_potential_well_empiric
+        get_drift_term_empiric
+        """
+        from blond._core.beam.beams import ProbeBeam  # prevent circular import
+
+        probe_bunch = ProbeBeam(
+            dt=dt,
+            particle_type=particle_type,
+            intensity=intensity,
+        )
+        bunch_before = deepcopy(probe_bunch)
+        t_0 = probe_bunch.reference_time
+        deepcopy(self).run_simulation(
+            beams=(probe_bunch,),
+            n_turns=1,
+            turn_i_init=0,
+            show_progressbar=False,
+        )
+        # Calculate passed time
+        t_1 = probe_bunch.reference_time
+        t_rev = t_1 - t_0
+        # Calculate scaling factor
+        factor = (dt[-1] - dt[0]) / t_rev
+
+        # Calculate tilt of phase space
+        change_t = probe_bunch._dt - bunch_before._dt
+        change_E = probe_bunch._dE - bunch_before._dE
+        idx = np.argmax(change_t)
+        tilt_dt_per_dE = change_t[idx] / change_E[idx]
+
+        # Derive potential well by integrating over energy change
+        potential_well = -cumulative_simpson(
+            probe_bunch.read_partial_dE()
+            if backend.specials_mode != "cuda"
+            else probe_bunch.read_partial_dE().get(),
+            initial=0,
+        ) / len(dt)
+
+        if self.ring.is_below_transition(beam=probe_bunch):
+            # peaks and troughs are flipped when below transition
+            potential_well *= -1
+
+        if subtract_min:
+            # Align potential so that the visible minimum is 0
+            potential_well -= potential_well.min()
+        return (
+            backend.array(
+                potential_well / particle_type.charge, dtype=backend.float
+            ),
+            factor,
+            tilt_dt_per_dE,
+        )
+
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        """Hook called when the Simulation object is initialized.
+
+        This is used by simulation elements to perform
+        initialization tasks. It is called automatically
+        when ``Simulation.__init__()`` is executed.
+
+        All objects in the simulation hierarchy that have an ``on_init_simulation``
+        method will have it called in a specific dependency order.
+
+        Parameters
+        ----------
         simulation
-            Simulation context manager
+            The simulation instance being initialized (usually ``self``).
+
+        Notes
+        -----
+        - This is called once when the Simulation is created, before any beams are prepared.
+        - Subclasses and simulation elements can override this to set up initial state.
+        - The base implementation does nothing.
+
+        See Also
+        --------
+        on_run_simulation
         """
         pass
 
@@ -220,16 +560,38 @@ class Simulation(Preparable):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """Hook called when ``run_simulation`` is invoked.
 
+        This is a lifecycle hook that can be overridden by subclasses or used by
+        simulation elements to perform setup tasks before the main simulation loop
+        begins. It is called automatically by ``finalize()``.
+
+        All objects in the simulation hierarchy that have an ``on_run_simulation``
+        method will have it called in a specific dependency order.
+
+        Parameters
+        ----------
         simulation
-            Simulation context manager
+            The simulation instance (usually ``self``).
         beam
-            Simulation beam object
+            The first beam that will be tracked (primary beam in multi-beam scenarios).
         n_turns
-            Number of turns to simulate
+            Number of turns that will be simulated.
         turn_i_init
-            Initial turn to execute simulation
+            Starting turn number.
+        **kwargs
+            Additional keyword arguments for extendability.
+
+        Notes
+        -----
+        - This is called before each ``run_simulation()`` or ``load_results()`` call.
+        - Useful for pre-allocating arrays, resetting state, or computing derived parameters.
+        - The base implementation does nothing.
+
+        See Also
+        --------
+        on_init_simulation
+        finalize
         """
         pass
 
@@ -251,14 +613,12 @@ class Simulation(Preparable):
         classes_check = set()
         for ins in instances:
             classes_check.add(type(ins))
-        # assert len(classes_check) == len(ordered_classes), "BUG"
-        if "ABCMeta" in ordered_classes:
-            ordered_classes.pop(ordered_classes.index("ABCMeta"))
+
         logger.info(f"Execution order for `{method}` is {ordered_classes}")
 
         for cls in ordered_classes:
             for element in instances:
-                if not type(element).__name__ == cls:
+                if type(element).__name__ != cls:
                     continue
                 logger.info(f"Running `{method}` of {element}")
                 getattr(element, method)(**kwargs)
@@ -294,26 +654,80 @@ class Simulation(Preparable):
     def from_locals(
         locals: dict[str, Any], verbose: bool = False
     ) -> Simulation:
-        """Automatically instantiate simulation from all locals where it's called.
+        """Automatically create a Simulation by discovering components in the current scope.
+
+        It automatically detects and assembles all simulation components (
+        Ring, RF stations, drifts, magnetic cycle, beams) from the local
+        variables where it's called. This eliminates the need to
+        manually pass each component to the ``Simulation`` constructor.
+
+        The method searches for:
+            - Exactly one ``Ring`` object (required)
+            - Exactly one ``MagneticCycleBase`` object (required)
+            - All``SimulationElementBase`` objects like RF stations, drifts, etc.
+            - Any number of ``Beam`` objects
+
+        All found elements are automatically added to the ring in the correct execution order.
 
         Parameters
         ----------
         locals
-            Dictionary of elements that
-            should be contained in the simulation.
+            The local variable dictionary, typically obtained by calling ``locals()``.
+            This should contain all the simulation components you've defined.
+        verbose
+            If True, prints detailed information about discovered components and their
+            execution order. Useful for debugging. Default is False.
+
+        Returns
+        -------
+        simulation
+            A fully initialized ``Simulation`` object with all components properly
+            connected and ordered.
+
+        Raises
+        ------
+        AssertionError
+            If exactly one Ring is not found, or if exactly one magnetic cycle is not found.
 
         Examples
         --------
-        >>> beam1 = Beam( ... )
-        >>> ring = Ring( ... )
-        >>> energy_cycle = MagneticCyclePerTurn( ... )
-        >>> cavity1 = SingleHarmonicCavity( ... )
-        >>> drift1 = DriftSimple( ... )
-        >>> Simulation.from_locals(locals=locals(), verbose=True)
+        Basic usage with automatic component discovery:
 
+        >>> from blond import *
+        >>> ring = Ring(26658.883)
+        >>> energy_cycle = ConstantMagneticCycle(proton, value=450e9, in_unit="total energy")
+        >>> rf_station1 = SingleHarmonicRfStation()
+        >>> rf_station1.harmonic = 35640
+        >>> rf_station1.voltage = 6e6
+        >>> drift1 = DriftSimple(orbit_length=26658.883)
+        >>> beam1 = Beam(intensity=1e9, particle_type=proton)
+        >>>
+        >>> # Automatically discover and assemble everything:
+        >>> sim = Simulation.from_locals(locals())
+
+        With verbose output to see what was discovered:
+
+        >>> sim = Simulation.from_locals(locals(), verbose=True)
+        # Prints: Found locals: dict_keys([...])
+        # Prints: Execution order information
+
+        Notes
+        -----
+        - The execution order of elements within the ring is automatically determined based
+          on their dependencies and types.
+        - All RF stations and drifts must be defined before calling this method.
+        - The beam does not need to be prepared yet - use ``sim.prepare_beam()`` after
+          creating the simulation.
+
+        See Also
+        --------
+        Simulation.__init__
+        prepare_beam
         """
-        from ..beam.base import BeamBaseClass  # prevent cyclic import
-        from ..ring.ring import Ring  # prevent cyclic import
+        from blond._core.beam.base import (
+            BeamBaseClass,  # prevent cyclic import
+        )
+        from blond._core.ring.ring import Ring  # prevent cyclic import
 
         locals_list = locals.values()
         msg1 = f"Found locals: {locals.keys()}"
@@ -332,7 +746,7 @@ class Simulation(Preparable):
         )
         magnetic_cycle = _magnetic_cycle[0]
 
-        elements = get_elements(locals_list, BeamPhysicsRelevant)  # type: ignore
+        elements = get_elements(locals_list, (SimulationElementBase))
         ring.add_elements(elements=elements, reorder=True)
 
         logger.debug(f"{ring=}")
@@ -348,35 +762,155 @@ class Simulation(Preparable):
 
     @property  # as readonly attributes
     def ring(self) -> Ring:
-        """Ring a.k.a. synchrotron."""
+        """The synchrotron ring containing all simulation elements.
+
+        Returns the ``Ring`` object that holds all physical elements (RF stations,
+        drifts, impedances, etc.) through which the beam is tracked each turn.
+
+        Returns
+        -------
+        Ring
+            The ring object, which contains the element list and execution order.
+
+        """
         return self._ring
 
     @property  # as readonly attributes
     def magnetic_cycle(self) -> MagneticCycleBase:
-        """Programmed energy program of the synchrotron."""
+        """The energy evolution program for the synchrotron.
+
+        Returns the ``MagneticCycleBase`` object that defines how the beam's reference
+        energy changes during the simulation (constant, ramping, or time-dependent).
+
+        Returns
+        -------
+        cycle
+            The magnetic cycle object defining energy evolution.
+
+        See Also
+        --------
+        ConstantMagneticCycle
+        MagneticCyclePerTurn
+        MagneticCyclePerTurnAllCavities
+        MagneticCycleByTime
+        """
         return self._magnetic_cycle
 
     def print_one_turn_execution_order(self) -> None:
-        """Prints the execution order of the main simulation loop."""
+        """Display the order in which elements are executed during each turn.
+
+        This prints a human-readable list showing the sequence of elements (RF stations,
+        drifts, etc.) that the beam encounters during one complete turn through the ring.
+        This is useful for verifying that elements are in the expected order and for
+        understanding the simulation flow.
+
+        The output includes:
+            - Element type (e.g., SingleHarmonicRfStation, DriftSimple)
+            - Element name or identifier
+            - Section index for each element
+
+
+        Notes
+        -----
+        This should be called after creating the simulation with ``from_locals()``
+        but before running it, to verify the setup is correct.
+
+        See Also
+        --------
+        from_locals
+        """
         self._ring.elements.print_order()
 
     def prepare_beam(
         self,
         beam: BeamBaseClass,
-        preparation_routine: BeamPreparationRoutine,
+        preparation_routine: (
+            BiGaussian
+            | EmpiricMatcher
+            | SemiEmpiricMatcher
+            | XsuiteRFBucketMatcher
+            | BeamPreparationRoutine
+        ),
         turn_i: int = 0,
     ) -> None:
-        """Run the routine to prepare the beam.
+        """Populate the beam's with macroparticles.
+
+        Before running a simulation, the beam must be "prepared" by populating its
+        longitudinal particle distribution (time and energy coordinates) with
+        macroparticles.
+        This method applies a beam preparation routine to generate the initial
+        distribution of particles.
+
+        Common preparation routines include:
+            - ``BiGaussian``: Simple Gaussian distribution in time and energy
+            - ``EmpiricMatcher``: Grid-based distribution matching
+            - ``SemiEmpiricMatcher``: Hamiltonian-based matched distribution
+            - ``XsuiteRFBucketMatcher``: Interface to XSuite's RF bucket matching
 
         Parameters
         ----------
         beam
-            Simulation beam object
+            The ``Beam`` object to populate with macroparticles. This beam should
+            have already been defined with its intensity and particle type.
         preparation_routine
-            Algorithm to prepare the beam dt and dE coorinates
+            The algorithm that generates the initial particle distribution. This
+            determines the shape and characteristics of the beam in longitudinal
+            phase space (dt, dE coordinates).
         turn_i
-            Turn to prepare the beam for
+            The turn number at which to prepare the beam. Usually 0 (the default)
+            for initial beam setup.
 
+        Examples
+        --------
+        Prepare a beam with a simple Gaussian distribution:
+
+        >>> from blond import BiGaussian
+        >>> sim.prepare_beam(
+        ...     beam=beam1,
+        ...     preparation_routine=BiGaussian(
+        ...         sigma_dt=0.4e-9 / 4,    # time spread in seconds
+        ...         sigma_dE=1e9 / 4,       # energy spread in eV
+        ...         n_macroparticles=1e3,
+        ...         seed=1,
+        ...     ),
+        ... )
+
+        Use a more advanced Hamiltonian-based matcher:
+        >>> from blond.experimental.beam_preparation.semi_empiric_matcher import SemiEmpiricMatcher
+        >>> # Define matching routine with typical parameters
+        >>> matcher = SemiEmpiricMatcher(
+        ...     time_limit=(-2e-9, 2e-9),              # Time window around bunch [s]
+        ...     n_macroparticles=100_000,              # Number of macro-particles
+        ...     hamilton_to_density_kwargs=dict(
+        ...         density_modifier=2.0,              # Controls density profile sharpness
+        ...         hamilton_max=1.0                   # Hamiltonian cutoff [eV]
+        ...     ),
+        ...     internal_grid_shape=(1023, 1023),      # Resolution of phase space grid
+        ...     tolerance=1e-6,                        # Convergence threshold
+        ...     maxiter_intensity_effects=100,         # Max iterations with wakefields
+        ...     increment_intensity_effects_until_iteration_i=10,  # Intensity ramp-up steps
+        ...     seed=42,                               # For reproducibility
+        ...     verbose=True,                          # Print convergence info
+        ...     animate=False,                         # Set True for live plotting
+        ... )
+        >>> # Perform beam matching
+        >>> matcher.prepare_beam(sim, beam)
+
+        Notes
+        -----
+        - This method should be called after creating the ``Simulation`` but
+          before ``run_simulation()``.
+        - The beam preparation uses the current simulation state (RF programs, energy,
+          etc.) to calculate the appropriate phase space distribution.
+        - Different preparation routines produce different beam characteristics and may
+          be more or less matched to the RF bucket.
+
+        See Also
+        --------
+        BiGaussian
+        EmpiricMatcher
+        SemiEmpiricMatcher
+        XsuiteRFBucketMatcher
         """
         logger.info("Running `prepare_beam`")
         self.turn_i.value = turn_i
@@ -387,30 +921,121 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass, ...],
         n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: tuple[Observables, ...] = tuple(),
+        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
         show_progressbar: bool = True,
-        callback: Callable[[Simulation, Beam], None] | None = None,
+        callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
     ) -> None:
-        """Execute the beam dynamics simulation.
+        """Execute the main beam dynamics simulation loop.
+
+        This is the core method that tracks the beam(s) through the synchrotron for
+        a specified number of turns. Each turn, the beam passes through all elements
+        in the ring (RF stations, drifts, etc.) in order. Observables can record data
+        during the simulation, and an optional callback can be used for custom actions.
+
+        The simulation loop:
+            1. For each turn from ``turn_i_init`` to ``turn_i_init + n_turns``
+            2. Track the beam through each element in the ring
+            3. Update observables after each drift section
+            4. Call the optional callback function
+            5. Update the progress bar if enabled
 
         Parameters
         ----------
         beams
-            Beams to be simulated, in case of two beams, the first must be
-            co-rotating and the second counter-rotating
+            Tuple of beam(s) to simulate. For single beam simulations, use ``(beam1,)``.
+            For counter-rotating beam simulations, use ``(beam_corotating, beam_counter)``.
+            The first beam must be co-rotating, the second counter-rotating.
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate. If None, uses the maximum number defined by
+            the magnetic cycle (only valid for cycles with a defined endpoint).
+            Default is None.
         turn_i_init
-            Initial turn to start with simulation
+            Starting turn number for the simulation. Use this to continue a simulation
+            from a specific turn. Default is 0.
         observe
-            List of observables to protocol of whats happening inside
-            the simulation
+            Tuple of observable objects that record data during the simulation
+            (e.g., ``CavityPhaseObservation``, ``BeamObservationEndOfTurn``).
+            Each observable is updated according to its own schedule. Default is empty tuple.
         show_progressbar
-            If True, will show a progress bar indicating how many turns have
-            been completed and other metrics
+            If True, displays a progress bar showing simulation progress and turn rate.
+            Useful for long simulations. Default is True.
         callback
-            User defined function `def myfunction(simulation: Simulation): ...`
-            that is called each turn.
+            Optional user-defined function called at the end of each turn. Signature
+            must be ``def callback(simulation: Simulation, beam: BeamBaseClass): ...``.
+            Useful for custom data collection or live plotting. Default is None.
+
+        Raises
+        ------
+        AssertionError
+            If ``turn_i_init + n_turns`` exceeds the maximum turns defined by the
+            magnetic cycle, or if beam ordering is incorrect for counter-rotating simulations.
+        ValueError
+            If ``n_turns`` is None and the magnetic cycle has unlimited turns.
+        NotImplementedError
+            If more than two beams are provided (currently unsupported).
+
+        Examples
+        --------
+        Basic simulation for 1000 turns:
+
+        >>> sim.run_simulation(
+        ...     beams=(beam1,),
+        ...     n_turns=1000,
+        ... )
+
+        Simulation with observables to record data:
+
+        >>> from blond import CavityPhaseObservation, BeamObservationEndOfTurn
+        >>> phase_obs = CavityPhaseObservation(each_turn_i=1, cavity=rf_station1)
+        >>> beam_obs = BeamObservationEndOfTurn(each_turn_i=1, beam=beam1)
+        >>>
+        >>> sim.run_simulation(
+        ...     beams=(beam1,),
+        ...     n_turns=1000,
+        ...     observe=(phase_obs, beam_obs),
+        ... )
+        >>> # After simulation, access data via phase_obs.phases, beam_obs.dts, etc.
+
+        Simulation with custom callback for live plotting:
+
+        >>> import matplotlib.pyplot as plt
+        >>> def plot_beam(simulation, beam):
+        ...     if simulation.turn_i.value % 100 == 0:  # Every 100 turns
+        ...         plt.clf()
+        ...         plt.scatter(beam.read_partial_dt(), beam.read_partial_dE())
+        ...         plt.pause(0.01)
+        >>>
+        >>> sim.run_simulation(
+        ...     beams=(beam1,),
+        ...     n_turns=1000,
+        ...     callback=plot_beam,
+        ... )
+
+        Continue a simulation from turn 500:
+
+        >>> sim.run_simulation(
+        ...     beams=(beam1,),
+        ...     n_turns=500,      # Run 500 more turns
+        ...     turn_i_init=500,  # Starting from turn 500
+        ... )
+
+        Notes
+        -----
+        - The beam must be prepared with ``prepare_beam()`` or
+        ``beam.setup_beam()`` before calling this method.
+        - Observables are updated after each drift section, not after every element.
+        - The progress bar shows turns per second, which helps estimate total runtime.
+        - For counter-rotating beams, elements are traversed in opposite order for
+          the counter-rotating beam.
+
+        See Also
+        --------
+        prepare_beam+
+        setup_beam
+        save_results
+        load_results
+        print_one_turn_execution_order
+
 
         """
         logger.info(f"Running `run_simulation` with {locals()}")
@@ -421,7 +1046,7 @@ class Simulation(Preparable):
             turn_i_init=turn_i_init,
         )
 
-        if len(beams) == 1:
+        if len(beams) == 1:  # NOQA: PLR2004
             self._run_simulation_single_beam(
                 beam=beams[0],
                 n_turns=_n_turns,
@@ -430,7 +1055,7 @@ class Simulation(Preparable):
                 show_progressbar=show_progressbar,
                 callback=callback,
             )
-        elif len(beams) == 2:
+        elif len(beams) == 2:  # NOQA: PLR2004
             assert (
                 beams[0].is_counter_rotating,
                 beams[1].is_counter_rotating,
@@ -453,7 +1078,61 @@ class Simulation(Preparable):
                 f"Up to two beam supported, but got {len(beams)}"
             )
 
-    def finalize(self, beams, n_turns, observe, turn_i_init):
+    def finalize(
+        self,
+        beams: tuple[BeamBaseClass, ...],
+        n_turns: int | None = None,
+        turn_i_init: int = 0,
+        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
+    ) -> int:
+        """Initialize all simulation components before running or loading results.
+
+        This method is called internally by both ``run_simulation()`` and ``load_results()``
+        to set up the simulation state. It:
+            1. Validates the number of turns against the magnetic cycle
+            2. Checks for performance warnings
+            3. Calls ``on_run_simulation()`` hooks on all components
+            4. Prepares observables for data collection
+
+        Users typically don't need to call this method directly.
+
+        Parameters
+        ----------
+        beams
+            Beams to be simulated. For two-beam simulations, first must be
+            co-rotating, second counter-rotating.
+        n_turns
+            Number of turns to simulate. If None, uses the maximum from the
+            magnetic cycle (if defined).
+        observe
+            Observable objects that will record data during simulation.
+        turn_i_init
+            Starting turn number for the simulation.
+
+        Returns
+        -------
+        n_turns
+            The validated number of turns that will be simulated.
+
+        Raises
+        ------
+        ValueError
+            If ``n_turns`` is None and the magnetic cycle has unlimited turns.
+        AssertionError
+            If ``turn_i_init + n_turns`` exceeds the magnetic cycle's maximum.
+
+        Notes
+        -----
+        - This method temporarily attaches observables and beams to the simulation
+          object to allow discovery by the initialization system.
+        - Performance warnings are issued if using Python backend with many particles.
+
+        See Also
+        --------
+        run_simulation
+        load_results
+        """
+        self.ring.assert_circumference()
         max_turns = self.magnetic_cycle.n_turns
         if n_turns is not None:
             _n_turns = int_from_float_with_warning(
@@ -474,11 +1153,9 @@ class Simulation(Preparable):
             _n_turns = max_turns
         if backend.specials_mode == "python":
             particles_above_threshold = any(
-                [
-                    b.common_array_size
-                    > self._particle_performance_waning_threshold
-                    for b in beams
-                ]
+                b.common_array_size
+                > self._particle_performance_waning_threshold
+                for b in beams
             )
             if particles_above_threshold:
                 warn(
@@ -511,9 +1188,9 @@ class Simulation(Preparable):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int = 0,
-        observe: tuple[Observables, ...] = tuple(),
+        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
         show_progressbar: bool = True,
-        callback: Callable[[Simulation, Beam], None] | None = None,
+        callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
     ) -> None:
         """Execute the beam dynamics simulation for only one beam.
 
@@ -537,7 +1214,8 @@ class Simulation(Preparable):
         logger.info("Starting simulation mainloop...")
         iterator = range(turn_i_init, turn_i_init + n_turns)
         if show_progressbar:
-            iterator = tqdm(iterator)  # Add TQDM display to iteration
+            iterator = tqdm(iterator, desc="BLonD3 mainloop")  # Add TQDM
+            # display to iteration
         self.turn_i.value = 0
         for observable in observe:
             observable.update(
@@ -577,11 +1255,11 @@ class Simulation(Preparable):
         | Blond2RingAndRFTracker
         | Blond2FullRingAndRF
     ]:
-        raise NotImplementedError
-        from ...physics.cavities import (  # prevent cyclic import
-            CavityBaseClass,
-            MultiHarmonicCavity,
+        raise NotImplementedError  # pragma: no cover
+        from blond.physics.cavities import (  # prevent cyclic import
+            MultiHarmonicRfStation,
         )
+        from blond.physics.drifts import DriftBaseClass
 
         ring_length = self.ring.closed_orbit_length
         bending_radius = self.ring.bending_radius
@@ -623,8 +1301,8 @@ class Simulation(Preparable):
             intensity=self.beams[0]._intensity__init,
         )
         # todo handle multiple RF stations
-        cavity_blond3: SingleHarmonicCavity | MultiHarmonicCavity = (
-            self.ring.elements.get_element(CavityBaseClass)
+        cavity_blond3: SingleHarmonicRfStation | MultiHarmonicRfStation = (
+            self.ring.elements.get_element(RfStationBaseClass)
         )
         # FIXME
         rf_station = RFStation(
@@ -681,9 +1359,9 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass, BeamBaseClass],
         n_turns: int,
         turn_i_init: int = 0,
-        observe: tuple[Observables, ...] = tuple(),
+        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
         show_progressbar: bool = True,
-        callback: Callable[[Simulation, Beam], None] | None = None,
+        callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
     ) -> None:
         """Execute the beam dynamics simulation for only one beam.
 
@@ -704,7 +1382,7 @@ class Simulation(Preparable):
             that is called each turn.
 
         """
-        warn("Untested code", NotTestedWarning)
+        warn("Untested code", NotTestedWarning, stacklevel=1)
 
         logger.info("Starting simulation mainloop...")
         iterator = range(turn_i_init, turn_i_init + n_turns)
@@ -746,23 +1424,64 @@ class Simulation(Preparable):
 
     def save_results(
         self,
-        observe: tuple[Observables, ...] = tuple(),
+        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
         common_name: str | None = None,
     ) -> None:
-        """Save the given observables to the disk.
+        """Save observable data to disk for later analysis.
+
+        After running a simulation, this method saves the data collected by observables
+        (like RF phase evolution, beam profiles, etc.) to disk. This is useful for:
+            - Analyzing results later without re-running the simulation
+            - Sharing results with others
+
+        Each observable is saved according to its own format (typically NumPy arrays).
 
         Parameters
         ----------
         observe
-            List of observables to protocol of whats happening inside
-            the simulation
+            Tuple of observable objects whose data should be saved. These should be
+            the same observables that were passed to ``run_simulation()``.
+            Default is empty tuple.
         common_name
-            A common filename for the files/arrays to save.
+            Optional prefix for all saved files. If provided, all observables will
+            use this as part of their filename, making it easier to identify related
+            files. If None, each observable uses its default naming. Default is None.
 
+        Examples
+        --------
+        Save results after a simulation:
+
+        >>> # Run simulation with observables
+        >>> sim.run_simulation(
+        ...     beams=(beam1,),
+        ...     n_turns=1000,
+        ...     observe=(phase_obs, beam_obs),
+        ... )
+        >>>
+        >>> # Save the data
+        >>> sim.save_results(observe=(phase_obs, beam_obs))
+
+        Save with a custom name prefix:
+
+        >>> sim.save_results(
+        ...     observe=(phase_obs, beam_obs),
+        ...     common_name="simulation_450GeV_1000turns"
+        ... )
+
+        Notes
+        -----
+        - Saved files are typically stored in the current working directory or a
+          subdirectory defined by the observable.
+        - Use ``load_results()`` to load saved data without re-running the simulation.
+
+        See Also
+        --------
+        load_results
+        run_simulation
         """
         for observable in observe:
             if common_name is not None:
-                observable.rename(common_name=common_name)
+                observable.rename(new_common_filepath=common_name)
             observable.to_disk()
 
     def load_results(
@@ -770,25 +1489,93 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass],
         n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: tuple[Observables, ...] = tuple(),
+        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
         common_name: str | None = None,
     ) -> None:
-        """Load the given observables from the disk.
+        """Load previously saved observable data from disk.
+
+        This method loads data from observables that were saved with ``save_results()``
+        in a previous session. This allows you to analyze results without re-running
+        the expensive simulation. The observables are initialized as if the simulation
+        had just completed.
+
+        Typical use case: Run a long simulation once, save the results, then load them
+        multiple times for different analyses or plotting.
 
         Parameters
         ----------
         beams
-            Beams that are used to perform the simulation
+            Tuple of beam objects. Must match the beams used when the data was saved.
         n_turns
-            Number of turns to simulate
+            Number of turns that were simulated. Must match the saved data.
+            If None, uses the maximum from the magnetic cycle. Default is None.
         turn_i_init
-            Initial turn to start with simulation
+            Initial turn number of the saved simulation. Must match the saved data.
+            Default is 0.
         observe
-            List of observables to protocol of whats happening inside
-            the simulation
+            Tuple of observable objects to load data into. These observables will
+            be populated with the saved data. Default is empty tuple.
         common_name
-            A common filename for the files/arrays to save.
+            Common prefix used when saving the files. Must match the name used in
+            ``save_results()`` if one was provided. Default is None.
 
+        Raises
+        ------
+        FileNotFoundError
+            If the saved data files cannot be found.
+        AssertionError
+            If the loaded data dimensions don't match the specified parameters.
+
+        Examples
+        --------
+        Load previously saved results:
+
+        >>> # Create observables (same as before)
+        >>> phase_obs = CavityPhaseObservation(each_turn_i=1, cavity=rf_station1)
+        >>> beam_obs = BeamObservationEndOfTurn(each_turn_i=1, beam=beam1)
+        >>>
+        >>> # Load the saved data
+        >>> sim.load_results(
+        ...     beams=(beam1,),
+        ...     n_turns=1000,
+        ...     observe=(phase_obs, beam_obs),
+        ... )
+        >>>
+        >>> # Now analyze the loaded data
+        >>> plt.plot(phase_obs.phases)
+        >>> plt.show()
+
+        Load with custom name prefix:
+
+        >>> sim.load_results(
+        ...     beams=(beam1,),
+        ...     n_turns=1000,
+        ...     observe=(phase_obs, beam_obs),
+        ...     common_name="simulation_450GeV_1000turns"
+        ... )
+
+        Combine with run_simulation for caching:
+
+        >>> try:
+        ...     sim.load_results(beams=(beam1,), n_turns=1000, observe=(phase_obs, beam_obs))
+        ...     print("Loaded cached results")
+        ... except FileNotFoundError:
+        ...     print("No cached results, running simulation")
+        ...     sim.run_simulation(beams=(beam1,), n_turns=1000, observe=(phase_obs, beam_obs))
+        ...     sim.save_results(observe=(phase_obs, beam_obs))
+
+        Notes
+        -----
+        - The observables must be created with the same parameters as when the data
+          was saved.
+        - The simulation setup (ring, RF stations, etc.) should match the original
+          simulation, though only the observables are populated with data.
+        - This method calls ``finalize()`` internally to set up the simulation state.
+
+        See Also
+        --------
+        save_results
+        run_simulation
         """
         self.finalize(
             beams=beams,
@@ -798,5 +1585,5 @@ class Simulation(Preparable):
         )
         for observable in observe:
             if common_name is not None:
-                observable.rename(common_name=common_name)
+                observable.rename(new_common_filepath=common_name)
             observable.from_disk()

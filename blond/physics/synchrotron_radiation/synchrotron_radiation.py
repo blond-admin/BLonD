@@ -28,22 +28,17 @@ L. Valle
 
 from __future__ import annotations
 
-from abc import ABC
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from numpy.matlib import empty
-from scipy.constants import c, e
 
 from blond._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
 from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
     calculate_damping_times_in_turns,
     calculate_energy_loss_per_turn,
     calculate_natural_energy_spread,
-)
-from blond.acc_math.analytic.synchrotron_radiation.utilities import (
-    gather_longitudinal_synchrotron_radiation_parameters,
 )
 from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.physics.synchrotron_radiation.elements import (
@@ -53,8 +48,6 @@ from blond.physics.synchrotron_radiation.elements import (
 )
 
 if TYPE_CHECKING:
-    from typing import Optional
-    from typing import Optional as LateInit
 
     from numpy.typing import NDArray as NumpyArray
 
@@ -89,7 +82,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
     def __init__(
         self,
         section_index: int = 0,
-        name: Optional[str] = None,
+        name: str | None = None,
         is_isomagnetic: bool = False,
     ):
         super().__init__(
@@ -99,16 +92,16 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
 
         self._longitudinal_damping_time = None
         self._energy_loss_per_turn = None
-        self.is_isomagnetic: Optional[bool] = False
-        self.get_synchrotron_radiation_info_turn_by_turn: Optional[bool] = True
-        self.synchrotron_radiation_integrals: LateInit[NumpyArray] = None
-        self._simulation: LateInit[Simulation] = None
-        self._damping_times: LateInit[NumpyArray] = None
+        self.is_isomagnetic: bool | None = False
+        self.get_synchrotron_radiation_info_turn_by_turn: bool | None = True
+        self.synchrotron_radiation_integrals: NumpyArray | None = None
+        self._simulation: Simulation | None = None
+        self._damping_times: NumpyArray | None = None
 
-        self._natural_energy_spread: LateInit[NumpyArray] = None
-        self._turn_i: LateInit[DynamicParameter] = 0
-        self._magnetic_cycle: LateInit[MagneticCycleBase] = None
-        self._ring: LateInit[Ring] = None
+        self._natural_energy_spread: NumpyArray | None = None
+        self._turn_i: DynamicParameter | None = 0
+        self._magnetic_cycle: MagneticCycleBase | None = None
+        self._ring: Ring | None = None
 
         self.generated_children: list[SynchrotronRadiationBaseClass] = []
 
@@ -131,9 +124,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
     # TODO: transmit the share of SRI to the children.
     def generate_children(
         self,
-        element_list: Optional[
-            list[DriftBaseClass | CavityBaseClass] | list[int]
-        ] = None,
+        element_list: list[DriftBaseClass | CavityBaseClass] | list[int] | None = None,
     ):
         """
         Function which creates, inserts and initialises the synchrotron
@@ -233,7 +224,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> None:
         if self.get_synchrotron_radiation_info_turn_by_turn:
             self._energy_loss_per_turn = np.empty(n_turns)

@@ -1,33 +1,22 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from blond import (
     Beam,
-    BiGaussian,
-    BunchObservation,
-    CavityPhaseObservation,
     ConstantMagneticCycle,
     DriftSimple,
     Ring,
-    Simulation,
     SingleHarmonicCavity,
     positron,
 )
 
 if TYPE_CHECKING:  # pragma: no cover
-    from collections.abc import Iterable
-    from typing import Any
 
     from numpy.typing import NDArray as NumpyArray
 
     from blond._core.beam.particle_types import ParticleType
-    from blond._core.ring.beam_physics_relevant_elements import (
-        BeamPhysicsRelevantElements,
-    )
-    from blond._core.simulation.simulation import Simulation
 
-    from ...physics.drifts import DriftBaseClass
 
 
 def generate_FCCee_ring(
@@ -143,7 +132,7 @@ def generate_HEB_ring(
         return
     if momentum is None or len(momentum) != Nturns + 1:
         if momentum is None:
-            print(f"Warning, no momentum provided.")
+            print("Warning, no momentum provided.")
         else:
             print(
                 f"Warning, len(momentum) != Nturns+1 == {len(momentum) != Nturns + 1}"
@@ -240,7 +229,7 @@ def generate_HEB_ring_RPO(
         return
     if momentum is None or len(momentum) != Nturns + 1:
         if momentum is None:
-            print(f"Warning, no momentum provided.")
+            print("Warning, no momentum provided.")
         else:
             print(
                 f"Warning, len(momentum) != Nturns+1 == {len(momentum) != Nturns + 1}"

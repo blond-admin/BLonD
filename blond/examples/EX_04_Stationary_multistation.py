@@ -9,7 +9,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Example input for simulating a ring with multiple RF stations
+"""Example input for simulating a ring with multiple RF stations.
+
 No intensity effects.
 
 :Authors: **Helga Timko**
@@ -22,7 +23,7 @@ from blond import (
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicCavity,
+    SingleHarmonicRfStation,
     proton,
 )
 from blond.physics.profiles import DynamicProfileConstNBins
@@ -57,7 +58,7 @@ def main():
             orbit_length=0.3 * ring.circumference,
             section_index=0,
         ),
-        SingleHarmonicCavity(
+        SingleHarmonicRfStation(
             harmonic=harmonic_number,
             phi_rf=phi_rf,
             voltage=voltage1,
@@ -68,7 +69,7 @@ def main():
             orbit_length=0.7 * ring.circumference,
             section_index=1,
         ),
-        SingleHarmonicCavity(
+        SingleHarmonicRfStation(
             harmonic=harmonic_number,
             phi_rf=phi_rf,
             voltage=voltage2,
