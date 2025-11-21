@@ -22,7 +22,9 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class BeamFlags(int, Enum):
-    LOST = -500  # by convention with XSuite team
+    # Please mind that the LOST flag is hardcoded in all backends
+    # for loss_box
+    LOST = -500  # by convention with XSuite team.
     ACTIVE = 1
 
 

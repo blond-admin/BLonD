@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond._core.backends.backend import Specials
+from blond._core.beam.base import BeamFlags
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -84,7 +85,7 @@ class PythonSpecials(Specials):
     ) -> None:
         # select particles outside box
         select = (dE > top) | (dE < bottom) | (dt < left) | (dt > right)
-        flags[select] = -500  # assume (BeamFlags.LOST.value)
+        flags[select] = BeamFlags.LOST.value
 
     @staticmethod
     def kick_single_harmonic(
