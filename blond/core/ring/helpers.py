@@ -1,3 +1,5 @@
+"""Helper functions to deal with the late-init methods of `Simulation`."""
+
 from __future__ import annotations
 
 import inspect

@@ -1,3 +1,5 @@
+"""Functions to compile CUDA backend for `CudaSpecials`."""
+
 from __future__ import annotations
 
 import argparse
@@ -13,6 +15,20 @@ _basepath = os.sep.join(_filepath.split(os.sep)[:-1])
 
 
 def run_compile(command: list[str], libname: str) -> int:
+    """Executes the compile command for the library.
+
+    Parameters
+    ----------
+    command
+        Any bash command.
+    libname
+        Library that has to be created.
+
+    Returns
+    -------
+    return_code
+        0 if OK, else -1.
+    """
     if os.path.exists(libname):
         os.remove(libname)
     print(" ".join(command))

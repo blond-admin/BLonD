@@ -1,3 +1,5 @@
+"""Functions to compile Fortran backend for `FortranSpecials`."""
+
 from __future__ import annotations
 
 import os
@@ -94,7 +96,16 @@ def compile_fortran_module(module_name: str, fortran_files: list[str]) -> bool:
     return True  # Return True if compilation succeeds
 
 
-def move_compiled_file_to_subfolder(module_name: str):
+def move_compiled_file_to_subfolder(module_name: str) -> None:
+    """Moves a compiled file to the 'compiled' subfolder.
+
+    Parameters
+    ----------
+    module_name
+        A module name, e.g. "beam_phase_32.f90".
+
+
+    """
     from blond.generals._hashing import hash_in_folder
 
     folder = os.path.dirname(os.path.abspath(__file__))

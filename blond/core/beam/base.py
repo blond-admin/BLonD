@@ -1,3 +1,5 @@
+"""Generalized functions to deal with Beam objects."""
+
 from __future__ import annotations
 
 import warnings
@@ -22,11 +24,28 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class BeamFlags(int, Enum):
+    """Flags that define the beam state."""
+
     LOST = -500  # by convention with XSuite team
     ACTIVE = 1
 
 
 class BeamBaseClass(Preparable, HasPropertyCache, ABC):
+    """Base class to make beam classes.
+
+    Parameters
+    ----------
+    intensity
+        Actual/real number of particles
+        a.k.a. beam intensity
+    particle_type
+        Type of particles, e.g. protons
+    is_counter_rotating
+        If this is a normal or counter-rotating beam
+    is_distributed
+        Developer option to allow distributed computing
+    """
+
     def __init__(
         self,
         intensity: int | float,
@@ -34,20 +53,6 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         is_counter_rotating: bool = False,
         is_distributed: bool = False,
     ) -> None:
-        """Base class to make beam classes.
-
-        Parameters
-        ----------
-        intensity
-            Actual/real number of particles
-            a.k.a. beam intensity
-        particle_type
-            Type of particles, e.g. protons
-        is_counter_rotating
-            If this is a normal or counter-rotating beam
-        is_distributed
-            Developer option to allow distributed computing
-        """
         super().__init__()
 
         self.intensity = int_from_float_with_warning(

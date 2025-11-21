@@ -1,3 +1,5 @@
+"""Holds the `IntensityEffectManager`."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -10,6 +12,14 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class IntensityEffectManager:
+    """Activate/deactivate Wakes and Profiles globally.
+
+    Parameters
+    ----------
+    simulation
+        `Simulation` context manager
+    """
+
     def __init__(self, simulation: Simulation) -> None:
         self._parent_simulation = simulation
 

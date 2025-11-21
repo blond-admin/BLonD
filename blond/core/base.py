@@ -1,3 +1,5 @@
+"""Internal mix-ins to define all `Simulation` relevant classes."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -19,6 +21,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class Preparable(ABC):
+    """Internal Mix-in for a class to make it preparable by the `Simulation` object."""
+
     def __init__(self) -> None:
         super().__init__()
 
@@ -355,6 +359,23 @@ class BeamObservationElement(SimulationElementBase):
 
 
 class UserDefinedElement(BeamPhysicsRelevant, ABC):
+    """Element that can be defined by the user.
+
+    Notes
+    -----
+    The ``track()`` method must be implemented.
+
+    Examples
+    --------
+    >>> class TimeRandomizer(UserDefinedElement):
+    ... def __init__(self):
+    ...         super().__init__()
+    ...
+    ... def track(self, beam: BeamBaseClass):
+    ...     dt = beam.write_partial_dt()
+    ...     dt += backend.random.rand(len(dt))
+    """
+
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called.
 
@@ -405,14 +426,15 @@ class _Scheduled:
 
 
 class ScheduledConstant(_Scheduled):
-    def __init__(self, value: float | int | NumpyArray) -> None:
-        """Schedule a value that never changes.
+    """Schedule a value that never changes.
 
-        Parameters
-        ----------
-        value
-            A constant value
-        """
+    Parameters
+    ----------
+    value
+        A constant value
+    """
+
+    def __init__(self, value: float | int | NumpyArray) -> None:
         super().__init__()
         self.value = value
 
@@ -434,15 +456,16 @@ class ScheduledConstant(_Scheduled):
 
 
 class ScheduledArray(_Scheduled):
-    def __init__(self, values: NumpyArray) -> None:
-        """Schedule values that change per turn.
+    """Schedule values that change per turn.
 
-        Parameters
-        ----------
-        values
-            Values per turn
-            (indexing is done via self.values[turn_i])
-        """
+    Parameters
+    ----------
+    values
+        Values per turn
+        (indexing is done via self.values[turn_i])
+    """
+
+    def __init__(self, values: NumpyArray) -> None:
         super().__init__()
         self.values = values
 
@@ -464,8 +487,17 @@ class ScheduledArray(_Scheduled):
 
 
 class ScheduledInterpolation(_Scheduled):
+    """Schedule values that change along time.
+
+    Parameters
+    ----------
+    times
+        Values alon the times axis, in [s].
+    values
+        Values alon the values axis.
+    """
+
     def __init__(self, times: NumpyArray, values: NumpyArray) -> None:
-        """Schedule values that change along time."""
         super().__init__()
         self.times = times
         self.values = values
@@ -518,14 +550,15 @@ def get_scheduler(
 
 
 class DynamicParameter:  # TODO add code generation for this method with type-hints
-    def __init__(self, value_init: Any) -> None:
-        """Changeable parameter tact can be subscribed on_change.
+    """Changeable parameter tact can be subscribed on_change.
 
-        Parameters
-        ----------
-        value_init
-            Initial parameter that is set as parameter.value
-        """
+    Parameters
+    ----------
+    value_init
+        Initial parameter that is set as parameter.value
+    """
+
+    def __init__(self, value_init: Any) -> None:
         self._value = value_init
         self._observers: list[Callable[[Any], None]] = []
 
@@ -546,10 +579,12 @@ class DynamicParameter:  # TODO add code generation for this method with type-hi
 
     @property
     def value(self):
+        """Get the current value."""
         return self._value
 
     @value.setter
     def value(self, new_val: T) -> None:
+        """Set the current value."""
         if new_val != self._value:
             self._notify(new_val)
         self._value = new_val

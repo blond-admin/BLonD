@@ -607,7 +607,7 @@ class CavityPhaseObservation(ObservablesEndOfTurnBase):
 
     @property  # as readonly attributes
     def phases(self) -> NumpyArray:
-        """Cavity's effective phase, in [deg]."""
+        """Cavity's effective phase, in [rad]."""
         return self._phases.get_valid_entries()
 
     @property  # as readonly attributes

@@ -9,8 +9,8 @@ import numpy as np
 from tqdm import tqdm
 
 from blond import Simulation
-from blond.core.helpers import int_from_float_with_warning
 from blond.beam_preparation.base import MatchingRoutine
+from blond.core.helpers import int_from_float_with_warning
 from blond.experimental.acc_math.empiric.hamiltonian import (
     calc_hamiltonian,
     separatrixes,

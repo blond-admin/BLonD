@@ -1,3 +1,5 @@
+"""Holds the `Ring` object."""
+
 from __future__ import annotations
 
 import copy
@@ -25,26 +27,27 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class Ring(Preparable, Schedulable):
+    """Create a `Ring` object representing a synchrotron accelerator.
+
+    A Ring (synchrotron) is the fundamental structure that contains all beam
+    physics elements like RF stations, drifts, and other components. It maintains
+    a reference circumference used for RF frequency calculations.
+
+    Parameters
+    ----------
+    circumference
+        The reference circumference of the synchrotron, in [m].
+        This value remains constant during simulation and is used to determine
+        the RF frequency program. Note: While the actual orbit length may vary
+        during simulation (e.g., due to energy changes), the circumference stays
+        fixed. Orbit length changes result in timing delays but don't affect
+        the RF frequency program.
+    """
+
     def __init__(
         self,
         circumference: float,
     ) -> None:
-        """Create a `Ring` object representing a synchrotron accelerator.
-
-        A Ring (synchrotron) is the fundamental structure that contains all beam
-        physics elements like RF stations, drifts, and other components. It maintains
-        a reference circumference used for RF frequency calculations.
-
-        Parameters
-        ----------
-        circumference
-            The reference circumference of the synchrotron, in [m].
-            This value remains constant during simulation and is used to determine
-            the RF frequency program. Note: While the actual orbit length may vary
-            during simulation (e.g., due to energy changes), the circumference stays
-            fixed. Orbit length changes result in timing delays but don't affect
-            the RF frequency program.
-        """
         from blond.core.ring.beam_physics_relevant_elements import (
             BeamPhysicsRelevantElements,
         )

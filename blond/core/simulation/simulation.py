@@ -1,3 +1,12 @@
+"""Holds the `Simulation` class.
+
+Authores
+--------
+S. Lauber
+L. Thiele
+
+"""
+
 from __future__ import annotations
 
 import logging
@@ -68,6 +77,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.experimental.beam_preparation.semi_empiric_matcher import (
         SemiEmpiricMatcher,
     )
+
 from blond.physics.cavities import RfStationBaseClass
 
 logger = logging.getLogger(__name__)
@@ -724,9 +734,7 @@ class Simulation(Preparable):
         Simulation.__init__
         prepare_beam
         """
-        from blond.core.beam.base import (
-            BeamBaseClass,  # prevent cyclic import
-        )
+        from blond.core.beam.base import BeamBaseClass  # prevent cyclic import
         from blond.core.ring.ring import Ring  # prevent cyclic import
 
         locals_list = locals.values()
@@ -1255,6 +1263,7 @@ class Simulation(Preparable):
         | Blond2RingAndRFTracker
         | Blond2FullRingAndRF
     ]:
+        """Intended to give a BLonD2 compatible output. Not functional at the moment."""
         raise NotImplementedError  # pragma: no cover
         from blond.physics.cavities import (  # prevent cyclic import
             MultiHarmonicRfStation,

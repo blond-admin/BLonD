@@ -1,3 +1,5 @@
+"""Holds `CudaSpecials` and helper functions."""
+
 from __future__ import annotations
 
 import os
@@ -26,9 +28,23 @@ hash_ = hash_in_folder(
 _basepath = os.path.join(folder, "compiled", hash_)
 
 
-def reload_cuda_backend(
+def reload_cuda_backend(  # ruff: noqa: D102
     floattype: type[np.float32 | np.float64],
 ) -> CudaSpecials:
+    """Load and link the according CUDA backend.
+
+    Parameters
+    ----------
+    floattype
+        Float type to compile the backend for.
+        32 or 64 bit.
+
+    Returns
+    -------
+    CudaSpecials
+        The `CudaSpecials` class.
+
+    """
     if floattype == np.float32:
         path = os.path.join(
             _basepath,

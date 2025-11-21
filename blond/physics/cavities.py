@@ -432,7 +432,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
     voltage
         Cavity's effective voltage, in [V]
     phi_rf
-        Cavity's design phase, in [deg]
+        Cavity's design phase, in [rad]
     harmonic
         Cavity's design harmonic []
     """
@@ -639,7 +639,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         voltage
             Cavity's effective voltage in [V]
         phi_rf
-            Cavity's design phase in [deg]
+            Cavity's design phase in [rad]
         harmonic
             Cavity's design harmonic []
         circumference
@@ -714,7 +714,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
     voltage
         Cavity's effective voltages (per harmonic) in [V]
     phi_rf
-        Cavity's design phases (per harmonic) in [deg]
+        Cavity's design phases (per harmonic) in [rad]
     harmonic
         Cavity's design harmonics (per harmonic) []
     """
@@ -923,7 +923,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         voltage
             Cavity's effective voltages (per harmonic) in [V]
         phi_rf
-            Cavity's design phases (per harmonic) in [deg]
+            Cavity's design phases (per harmonic) in [rad]
         harmonic
             Cavity's design harmonics (per harmonic) []
         circumference

@@ -1,3 +1,5 @@
+"""Holds `FortranSpecials` and helper functions."""
+
 from __future__ import annotations
 
 import importlib.util
@@ -50,6 +52,29 @@ if _using_windows:
 
 
 def find_module_so(file: str) -> str:
+    """
+    Locate the compiled shared library for a given module.
+
+    This function searches for the compiled `.so` (Linux) or `.pyd` (Windows)
+    file corresponding to a Python or Fortran module within a specific
+    `compiled/<hash>` folder relative to the current script. The folder hash
+    is computed based on the source files in the same directory as this script.
+
+    Parameters
+    ----------
+    file : str
+        Base name of the module to search for, e.g., 'libblond64'.
+
+    Returns
+    -------
+    str
+        Full path to the compiled shared library matching the module name.
+
+    Raises
+    ------
+    FileNotFoundError
+        If no matching compiled library is found in the expected folder.
+    """
     # Get the directory of that file
     this_folder = os.path.dirname(os.path.abspath(__file__))
     hash_ = hash_in_folder(
@@ -71,6 +96,14 @@ def find_module_so(file: str) -> str:
 
 
 def add_backend(module_name: str) -> ModuleType:
+    """Add the backend to the sys modules, preventing `ModuleNotFoundError`.
+
+    Parameters
+    ----------
+    module_name
+        Name of the module, e.g. 'libblond64'.
+
+    """
     module_path = find_module_so(module_name)
     # Load it explicitly
     spec = importlib.util.spec_from_file_location(
@@ -93,9 +126,23 @@ def add_backend(module_name: str) -> ModuleType:
     return loaded_module
 
 
-def reload_fortran_backend(
+def reload_fortran_backend(  # ruff: noqa: D102
     floattype: type[np.float32] | type[np.float64],
 ) -> FortranSpecials:
+    """Reload the library according to the float precision.
+
+    Parameters
+    ----------
+    floattype
+        Float type to compile the backend for.
+        32 or 64 bit.
+
+    Returns
+    -------
+    FortranSpecials
+        The `FortranSpecials` class.
+
+    """
     logger.info(f"Loading Fortran backend for {floattype}")
 
     if floattype == np.float32:

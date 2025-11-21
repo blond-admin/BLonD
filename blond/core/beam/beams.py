@@ -1,3 +1,5 @@
+"""Beam definitions based on `BeamBaseClass`."""
+
 from __future__ import annotations
 
 import warnings
@@ -20,32 +22,33 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class Beam(BeamBaseClass):
+    """Initialize a beam of particles for simulation.
+
+    The Beam class represents a collection of macro-particles that model
+    the behavior of a real particle beam in an accelerator. Each macro-particle
+    represents many real particles and has relative coordinates in time `dt` and
+    energy `dE` space.
+
+    Parameters
+    ----------
+    intensity
+       The total number of real particles in the beam (beam intensity).
+       This is distinct from the number of macro-particles used in the
+       simulation, which is typically much smaller.
+    particle_type
+       The type of particle in the beam (e.g., protons, electrons).
+       This determines properties like mass and charge.
+    is_counter_rotating
+       Whether this beam rotates in the opposite direction to the main beam.
+       Default is False (co-rotating beam).
+    """
+
     def __init__(
         self,
         intensity: int | float,
         particle_type: ParticleType,
         is_counter_rotating: bool = False,
     ) -> None:
-        """Initialize a beam of particles for simulation.
-
-        The Beam class represents a collection of macro-particles that model
-        the behavior of a real particle beam in an accelerator. Each macro-particle
-        represents many real particles and has relative coordinates in time `dt` and
-        energy `dE` space.
-
-        Parameters
-        ----------
-        intensity
-            The total number of real particles in the beam (beam intensity).
-            This is distinct from the number of macro-particles used in the
-            simulation, which is typically much smaller.
-        particle_type
-            The type of particle in the beam (e.g., protons, electrons).
-            This determines properties like mass and charge.
-        is_counter_rotating
-            Whether this beam rotates in the opposite direction to the main beam.
-            Default is False (co-rotating beam).
-        """
         super().__init__(
             intensity=intensity,
             particle_type=particle_type,
@@ -354,6 +357,41 @@ class Beam(BeamBaseClass):
 
 
 class ProbeBeam(Beam):
+    """Create a test beam for probing simulation dynamics.
+
+    A ProbeBeam is a special beam type, designed for testing and
+    analysis purposes.
+
+    At least one of `dt` or `dE` must be provided. If only one is given,
+    the other coordinate is automatically set to zero for all particles.
+
+    Parameters
+    ----------
+    particle_type
+        The type of particle in the beam (e.g., protons, electrons).
+        This determines properties like mass and charge.
+    dt
+        Time coordinates for the macro-particles, in [s].
+        If only `dt` is provided, `dE` will be set to zeros.
+        If neither `dt` nor `dE` is provided, an error is raised.
+    dE
+        Energy coordinates for the macro-particles, in [eV].
+        If only `dE` is provided, dt will be set to zeros.
+        If neither `dt` nor `dE` is provided, an error is raised.
+    reference_time
+        The reference time for the coordinate system, in [s].
+    reference_total_energy
+        The reference total energy for the coordinate system, in [eV].
+    intensity
+        The beam intensity (number of real particles). Default is 0,
+        meaning no collective effects.
+
+    Raises
+    ------
+    ValueError
+        If neither `dt` nor `dE` is provided.
+    """
+
     def __init__(
         self,
         particle_type: ParticleType,
@@ -363,40 +401,6 @@ class ProbeBeam(Beam):
         reference_total_energy: float | None = None,
         intensity: int = 0,
     ) -> None:
-        """Create a test beam for probing simulation dynamics.
-
-        A ProbeBeam is a special beam type, designed for testing and
-        analysis purposes.
-
-        At least one of `dt` or `dE` must be provided. If only one is given,
-        the other coordinate is automatically set to zero for all particles.
-
-        Parameters
-        ----------
-        particle_type
-            The type of particle in the beam (e.g., protons, electrons).
-            This determines properties like mass and charge.
-        dt
-            Time coordinates for the macro-particles, in [s].
-            If only `dt` is provided, `dE` will be set to zeros.
-            If neither `dt` nor `dE` is provided, an error is raised.
-        dE
-            Energy coordinates for the macro-particles, in [eV].
-            If only `dE` is provided, dt will be set to zeros.
-            If neither `dt` nor `dE` is provided, an error is raised.
-        reference_time
-            The reference time for the coordinate system, in [s].
-        reference_total_energy
-            The reference total energy for the coordinate system, in [eV].
-        intensity
-            The beam intensity (number of real particles). Default is 0,
-            meaning no collective effects.
-
-        Raises
-        ------
-        ValueError
-            If neither `dt` nor `dE` is provided.
-        """
         super().__init__(
             intensity=intensity,
             particle_type=particle_type,

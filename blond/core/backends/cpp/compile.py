@@ -1,3 +1,5 @@
+"""Functions to compile C++ backend for `CppSpecials`."""
+
 from __future__ import annotations
 
 import argparse
@@ -30,6 +32,7 @@ cpp_files = [os.path.join(_basepath, f) for f in cpp_files]
 
 
 def run_compile(command: list[str], libname: str) -> int:
+    """TODO."""  # TODO undocumented port from BLOND2
     if os.path.exists(libname):
         os.remove(libname)
     print(" ".join(command))
@@ -256,6 +259,7 @@ def prepare_cflags(
     libname: str,
     optimize: bool,
 ) -> tuple[list[str], str, str]:
+    """TODO."""  # TODO undocumented port from BLOND2
     if "posix" in os.name:
         cflags += ["-fPIC"]
         if optimize:
@@ -296,6 +300,7 @@ def prepare_fftw(
     with_fftw_omp: bool | None = False,
     with_fftw_threads: bool | None = False,
 ) -> tuple[list[str], list[str]]:
+    """TODO."""  # TODO undocumented port from BLOND2
     fftw_cflags = []
     fftw_libs = []
     if with_fftw:
@@ -318,6 +323,7 @@ def prepare_fftw(
 
 
 def add_avx_flags(cflags: list[str], compiler: str) -> list[str]:
+    """TODO."""  # TODO undocumented port from BLOND2
     # Check compiler defined directives
     # This is compatible with python3.6 - python 3.9
     # The universal_newlines argument transforms output to text (from binary)

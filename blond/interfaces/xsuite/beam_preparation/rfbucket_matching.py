@@ -8,8 +8,8 @@ import numpy as np
 from scipy.constants import c, e
 
 from blond import SingleHarmonicRfStation
-from blond.core.helpers import int_from_float_with_warning
 from blond.beam_preparation.base import MatchingRoutine
+from blond.core.helpers import int_from_float_with_warning
 from blond.physics.drifts import DriftSimple
 
 if TYPE_CHECKING:  # pragma: no cover

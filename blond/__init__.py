@@ -1,5 +1,6 @@
 """BLonD beam dynamics software."""
 
+from blond.beam_preparation.bigaussian import BiGaussian  # NOQA
 from blond.core.backends.backend import (  # NOQA
     Cupy32Bit,
     Cupy64Bit,
@@ -17,7 +18,6 @@ from blond.core.beam.particle_types import proton  # NOQA
 from blond.core.beam.particle_types import uranium_29  # NOQA
 from blond.core.ring.ring import Ring  # NOQA
 from blond.core.simulation.simulation import Simulation  # NOQA
-from blond.beam_preparation.bigaussian import BiGaussian  # NOQA
 from blond.cycles.magnetic_cycle import ConstantMagneticCycle  # NOQA
 from blond.cycles.magnetic_cycle import MagneticCycleByTime  # NOQA
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn  # NOQA

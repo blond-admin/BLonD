@@ -1,3 +1,4 @@
+"""Holds `NumbaSpecials` and helper functions."""
 # pragma: no cover
 
 from __future__ import annotations
@@ -48,10 +49,22 @@ def enforce_precision(dtype):
 
 
 @cache  # or set a limit like maxsize=128
-def recompile_numba_backend(  # NOQA PLR0915
+def recompile_numba_backend(  # NOQA PLR0915 # ruff: noqa: D102
     floattype: np.float32 | np.float64,
 ):
-    """Helper to recompile `NumbaSpecials` when the backend changed."""
+    """Helper to recompile `NumbaSpecials` when the backend changed.
+
+    Parameters
+    ----------
+    floattype
+        Float type to compile the backend for.
+        32 or 64 bit.
+
+    Returns
+    -------
+    NumbaSpecials
+        The `NumbaSpecials` backend.
+    """
     logger.info(f"Compiling numba for {floattype}")
 
     if floattype == np.float32:

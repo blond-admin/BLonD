@@ -1,3 +1,5 @@
+"""Pre-defined particle types, such as `proton`."""
+
 from __future__ import annotations
 
 import numpy as np

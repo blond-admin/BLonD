@@ -1,3 +1,5 @@
+"""Holds `PythonSpecials` and helper functions."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -11,6 +13,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 
+# The function definition is recycled by the numba backend.
 def _move_flagged_elements_to_end_py(
     flag: int,
     flags: NumpyArray,  # also purged
@@ -18,6 +21,25 @@ def _move_flagged_elements_to_end_py(
     dE: NumpyArray,
     ids: NumpyArray,
 ):
+    """Reorders entries where ``flags == flag`` to the array end.
+
+    This is only intended for `purge_flagged_entries`.
+
+    Parameters
+    ----------
+    flag
+        The flag to be used as a selector what to place at the end.
+    flags
+        Macro-particle flags
+    dt
+        Macro-particle time coordinates [s]
+    dE
+        Macro-particle energy coordinates [eV]
+    ids
+        Macro-particle ids.
+        This allows to identify single particles,
+        even if the array indexing is changed.
+    """
     i = 0
     j = flags.size - 1
 
@@ -35,6 +57,8 @@ def _move_flagged_elements_to_end_py(
 
 
 class PythonSpecials(Specials):
+    """Implementation of backend functions in Python."""
+
     @staticmethod
     def beam_phase(
         hist_x: NumpyArray,
@@ -44,6 +68,28 @@ class PythonSpecials(Specials):
         phi_rf: float,
         bin_size: float,
     ) -> float:
+        """Calculates the beam phase.
+
+        Parameters
+        ----------
+        hist_x
+            x axis of the histogram, usually in [s].
+        hist_y
+            y axis of the histogram.
+        alpha
+            # TODO ported from blond2, was undocumented
+        omega_rf
+            # TODO ported from blond2, was undocumented
+        phi_rf
+            # TODO ported from blond2, was undocumented
+        bin_size
+            # TODO ported from blond2, was undocumented
+
+        Returns
+        -------
+        beam_phase
+            # TODO ported from blond2, was undocumented
+        """
         scoeff = np.trapezoid(  # type: ignore
             np.exp(alpha * hist_x)
             * np.sin(omega_rf * hist_x + phi_rf)
@@ -66,6 +112,20 @@ class PythonSpecials(Specials):
         start: float,
         stop: float,
     ) -> None:
+        """Calculate the histogram of an array.
+
+        Parameters
+        ----------
+        array_read
+            Array of many entries that should be compressed to a histogram.
+        array_write
+            Memory of where to write the histogram.
+        start
+            Start of the histogram bins.
+        stop
+            Stop of the histogram bins.
+
+        """
         array_write[:], _ = np.histogram(
             array_read,
             range=(float(start), float(stop)),
@@ -73,8 +133,11 @@ class PythonSpecials(Specials):
         )
 
     @staticmethod
-    def loss_box(
-        top: float, bottom: float, left: float, right: float
+    def loss_box(  # noqa: D102
+        top: float,
+        bottom: float,
+        left: float,
+        right: float,
     ) -> None:  # pragma: no cover
         raise NotImplementedError
 
@@ -88,6 +151,25 @@ class PythonSpecials(Specials):
         charge: float,
         acceleration_kick: float,
     ) -> None:
+        """Apply ``dE += .. * sin(.. * dt + ..)``.
+
+        Parameters
+        ----------
+        dt
+            Macro-particle time coordinates, in [s]
+        dE
+            Macro-particle energy coordinates, in [eV]
+        voltage
+            RF voltage of the cavity, in [V]
+        omega_rf
+            Angular frequency of the RF system, in [rad/s]
+        phi_rf
+            Cavity's design phase (per harmonic) in [rad]
+        charge
+            Particle charge, as number of elementary charges `e` []
+        acceleration_kick
+            Energy that is added to all particles, in [eV].
+        """
         voltage_kick = charge * voltage
 
         dE[:] += (
@@ -106,7 +188,25 @@ class PythonSpecials(Specials):
         n_rf: int,
         acceleration_kick: float,
     ) -> None:
-        """Function to apply RF kick on the particles with sin function."""
+        """Apply ``dE += .. * sin(.. * dt + ..)``.
+
+        Parameters
+        ----------
+        dt
+            Macro-particle time coordinates, in [s]
+        dE
+            Macro-particle energy coordinates, in [eV]
+        voltage
+            RF voltages of the cavity, in [V]
+        omega_rf
+            Angular frequencies of the RF system, in [rad/s]
+        phi_rf
+            Cavity's design phases (per harmonic) in [rad]
+        charge
+            Particle charge, as number of elementary charges `e` []
+        acceleration_kick
+            Energy that is added to all particles, in [eV].
+        """
         voltage_kick = charge * voltage
 
         for j in range(n_rf):
@@ -123,7 +223,23 @@ class PythonSpecials(Specials):
         beta: float,
         energy: float,
     ) -> None:
-        """Function to apply drift equation of motion."""
+        r"""Function to apply drift equation of motion.
+
+        Parameters
+        ----------
+        dt
+            Macro-particle time coordinates, in [s]
+        dE
+            Macro-particle energy coordinates, in [eV]
+        T
+            Revolution period, in [s].
+        eta_0
+            General synchrotron parameter (zeroth-order slippage factor) [unitless].
+        beta
+            Relativistic velocity factor :math:`\beta = v/c` [unitless].
+        energy
+            Total beam energy [eV].
+        """
         # solver_decoded = solver.decode(encoding='utf_8')
 
         coeff = eta_0 / (beta * beta * energy)
@@ -141,7 +257,29 @@ class PythonSpecials(Specials):
         beta: float,
         energy: float,
     ) -> None:  # pragma: no cover # TODO
-        """Function to apply drift equation of motion."""
+        r"""Function to apply drift equation of motion.
+
+        Parameters
+        ----------
+        dt
+            Macro-particle time coordinates, in [s]
+        dE
+            Macro-particle energy coordinates, in [eV]
+        T
+            Revolution period, in [s].
+        alpha_order
+            Oder of the alpha parameter
+        eta_0
+            General synchrotron parameter (zeroth-order slippage factor) [unitless].
+        eta_1
+            General synchrotron parameter (zeroth-order slippage factor) [unitless].
+        eta_2
+            General synchrotron parameter (zeroth-order slippage factor) [unitless].
+        beta
+            Relativistic velocity factor :math:`\beta = v/c` [unitless].
+        energy
+            Total beam energy [eV].
+        """
         # solver_decoded = solver.decode(encoding='utf_8')
 
         coeff = 1.0 / (beta * beta * energy)
@@ -170,7 +308,27 @@ class PythonSpecials(Specials):
         beta: float,
         energy: float,
     ) -> None:  # pragma: no cover # TODO
-        """Function to apply drift equation of motion."""
+        r"""Function to apply drift equation of motion.
+
+        Parameters
+        ----------
+        dt
+            Macro-particle time coordinates, in [s]
+        dE
+            Macro-particle energy coordinates, in [eV]
+        T
+            Revolution period, in [s].
+        alpha_0
+            Momentum compaction factor [unitless].
+        alpha_1
+            Momentum compaction factor [unitless].
+        alpha_2
+            Momentum compaction factor [unitless].
+        beta
+            Relativistic velocity factor :math:`\beta = v/c` [unitless].
+        energy
+            Total beam energy [eV].
+        """
         # solver_decoded = solver.decode(encoding='utf_8')
 
         invbetasq = 1 / (beta * beta)
@@ -246,6 +404,25 @@ class PythonSpecials(Specials):
         dE: NumpyArray | CupyArray,
         ids: NumpyArray | CupyArray,
     ):
+        """Reorders entries where ``flags == flag`` to the array end.
+
+        This is only intended for `purge_flagged_entries`.
+
+        Parameters
+        ----------
+        flag
+            The flag to be used as a selector what to place at the end.
+        flags
+            Macro-particle flags
+        dt
+            Macro-particle time coordinates [s]
+        dE
+            Macro-particle energy coordinates [eV]
+        ids
+            Macro-particle ids.
+            This allows to identify single particles,
+            even if the array indexing is changed.
+        """
         n_new = _move_flagged_elements_to_end_py(
             flag=np.int32(flag),
             flags=flags,

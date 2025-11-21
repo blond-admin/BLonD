@@ -1,3 +1,5 @@
+"""Global definitions for the capabilities of all backends."""
+
 from __future__ import annotations
 
 import os
@@ -23,7 +25,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod
-    def loss_box(
+    def loss_box(  # noqa: D102
         top: float, bottom: float, left: float, right: float
     ) -> None:  # pragma: no cover
         raise NotImplementedError(
@@ -32,7 +34,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def kick_single_harmonic(
+    def kick_single_harmonic(  # noqa: D102
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         voltage: float,
@@ -47,7 +49,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def kick_multi_harmonic(
+    def kick_multi_harmonic(  # noqa: D102
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         voltage: NumpyArray,
@@ -63,7 +65,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def drift_simple(
+    def drift_simple(  # noqa: D102
         dt: NumpyArray,
         dE: NumpyArray,
         T: float,
@@ -77,7 +79,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def drift_legacy(
+    def drift_legacy(  # noqa: D102
         dt: NumpyArray,
         dE: NumpyArray,
         T: float,
@@ -94,7 +96,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def drift_exact(
+    def drift_exact(  # noqa: D102
         dt: NumpyArray,
         dE: NumpyArray,
         T: float,
@@ -110,7 +112,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def kick_induced_voltage(
+    def kick_induced_voltage(  # noqa: D102
         dt: NumpyArray,
         dE: NumpyArray,
         voltage: NumpyArray,
@@ -124,7 +126,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def histogram(
+    def histogram(  # noqa: D102
         array_read: NumpyArray,
         array_write: NumpyArray,
         start: float,
@@ -136,7 +138,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def beam_phase(
+    def beam_phase(  # noqa: D102
         hist_x: NumpyArray,
         hist_y: NumpyArray,
         alpha: float,
@@ -204,6 +206,22 @@ class _ModeSwitchHelper:
 
 
 class BackendBaseClass(ABC):
+    """Base class for a backend.
+
+    Parameters
+    ----------
+    float_
+        Precision type for float, e.g. float32, float64.
+    int_:
+        Precision type for int, e.g. float32, float64.
+    complex_
+        Precision type for complex, e.g. float32, float64.
+    specials_mode
+        Default mode to load special libraries.
+    is_gpu
+        Whether the backend is using the GPU.
+    """
+
     # type annotations for MyPy
     float: type[np.float32 | np.float64]
     int: type[np.int32] | type[np.int64]
@@ -224,21 +242,6 @@ class BackendBaseClass(ABC):
         is_gpu: bool,
         verbose: bool = False,
     ) -> None:
-        """Base class for a backend.
-
-        Parameters
-        ----------
-        float_
-            Precision type for float, e.g. float32, float64.
-        int_:
-            Precision type for int, e.g. float32, float64.
-        complex_
-            Precision type for complex, e.g. float32, float64.
-        specials_mode
-            Default mode to load special libraries.
-        is_gpu
-            Whether the backend is using the GPU.
-        """
         self.verbose = verbose
 
         self._is_gpu = is_gpu
@@ -424,23 +427,24 @@ class BackendBaseClass(ABC):
 
 
 class NumpyBackend(BackendBaseClass):
+    """Base class for Numpy based backends.
+
+    Parameters
+    ----------
+    float_
+        Precision type for float, e.g. float32, float64.
+    int_
+        Precision type for int, e.g. float32, float64.
+    complex_
+        Precision type for complex, e.g. float32, float64.
+    """
+
     def __init__(
         self,
         float_: type[np.float32 | np.float64],
         int_: type[np.int32 | np.int64],
         complex_: type[np.complex128 | np.complex64],
     ) -> None:
-        """Base class for Numpy based backends.
-
-        Parameters
-        ----------
-        float_
-            Precision type for float, e.g. float32, float64.
-        int_
-            Precision type for int, e.g. float32, float64.
-        complex_
-            Precision type for complex, e.g. float32, float64.
-        """
         super().__init__(
             float_,
             int_,
@@ -522,10 +526,11 @@ class NumpyBackend(BackendBaseClass):
 
 
 class Numpy32Bit(NumpyBackend):
+    """Numpy backend with 32 bit precision."""
+
     def __init__(
         self,
     ) -> None:
-        """Numpy backend with 32 bit precision."""
         super().__init__(
             np.float32,
             np.int32,
@@ -534,10 +539,11 @@ class Numpy32Bit(NumpyBackend):
 
 
 class Numpy64Bit(NumpyBackend):
+    """Numpy backend with 64 bit precision."""
+
     def __init__(
         self,
     ) -> None:
-        """Numpy backend with 64 bit precision."""
         super().__init__(
             np.float64,
             np.int64,
@@ -546,23 +552,24 @@ class Numpy64Bit(NumpyBackend):
 
 
 class CupyBackend(BackendBaseClass):
+    """Base class for Cupy based backends.
+
+    Parameters
+    ----------
+    float_
+        Precision type for float, e.g. float32, float64.
+    int_
+        Precision type for int, e.g. float32, float64.
+    complex_
+        Precision type for complex, e.g. float32, float64.
+    """
+
     def __init__(
         self,
         float_: type[np.float32 | np.float64],
         int_: type[np.int32 | np.int64],
         complex_: type[np.complex128 | np.complex64],
     ) -> None:
-        """Base class for Cupy based backends.
-
-        Parameters
-        ----------
-        float_
-            Precision type for float, e.g. float32, float64.
-        int_
-            Precision type for int, e.g. float32, float64.
-        complex_
-            Precision type for complex, e.g. float32, float64.
-        """
         super().__init__(
             float_,
             int_,
@@ -619,8 +626,9 @@ class CupyBackend(BackendBaseClass):
 
 
 class Cupy32Bit(CupyBackend):
+    """Cupy backend with 64 bit precision."""
+
     def __init__(self) -> None:
-        """Cupy backend with 64 bit precision."""
         super().__init__(
             np.float32,
             np.int32,
@@ -629,8 +637,9 @@ class Cupy32Bit(CupyBackend):
 
 
 class Cupy64Bit(CupyBackend):
+    """Cupy backend with 32 bit precision."""
+
     def __init__(self) -> None:
-        """Cupy backend with 32 bit precision."""
         super().__init__(
             np.float64,
             np.int64,

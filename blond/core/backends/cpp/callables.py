@@ -1,3 +1,5 @@
+"""Holds `CppSpecials` and helper functions."""
+
 from __future__ import annotations
 
 import ctypes as ct
@@ -137,6 +139,20 @@ def c_complex(
 def reload_cpp_backend(  # noqa: PLR0915
     floattype: type[np.float32] | type[np.float64],
 ) -> CppSpecials:
+    """Load and link the according C++ backend.
+
+    Parameters
+    ----------
+    floattype
+        Float type to compile the backend for.
+        32 or 64 bit.
+
+    Returns
+    -------
+    CppSpecials
+        The `CppSpecials` class.
+
+    """
     if floattype == np.float32:
         # By default, use double precision
         precision = PrecisionClass("single")

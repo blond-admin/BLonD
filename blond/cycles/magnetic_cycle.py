@@ -23,10 +23,10 @@ from unittest.mock import Mock
 import numpy as np
 from scipy.constants import speed_of_light as c0
 
+from blond.acc_math.analytic.simple_math import calc_total_energy
 from blond.core.base import HasPropertyCache
 from blond.core.beam.base import BeamBaseClass
 from blond.core.beam.particle_types import ParticleType, proton
-from blond.acc_math.analytic.simple_math import calc_total_energy
 from blond.cycles.base import ProgrammedCycle
 
 if TYPE_CHECKING:  # pragma: no cover
