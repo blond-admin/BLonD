@@ -77,32 +77,17 @@ class GlobalFeedback(FeedbackBaseClass):
 
     # Use `requires` to automatically sort execution order of
     # `element.on_init_simulation` for all elements
-    @requires(["SingleHarmonicCavity"])
+    @requires(["RfStationBaseClass"])
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called
 
         simulation
             Simulation context manager
         """
+        from blond.physics.cavities import RfStationBaseClass
         self.cavities = simulation.ring.elements.get_elements(
-            SingleHarmonicRfStation
+            RfStationBaseClass,
         )
-
-    @abstractmethod
-    def get_beam_attribute(self, beam: BeamBaseClass):
-        # could be mean energy, mean phase or whatever
-        pass
-
-    @abstractmethod
-    def apply_corrections(self):
-        # shift the cavity phase or so
-        pass
-
-    def track(self, beam: BeamBaseClass):
-        self.get_beam_attribute(
-            beam=beam
-        )
-        self.apply_corrections()
 
 
 # TODO: Remove

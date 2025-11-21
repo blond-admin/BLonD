@@ -32,8 +32,13 @@ if TYPE_CHECKING:  # pragma: no cover
 class BeamFeedbackBase(GlobalFeedback):
     _parent_cavity: RfStationBaseClass
 
-    def __init__(self, profile: ProfileBaseClass):
+    def __init__(
+            self,
+            profile: ProfileBaseClass,
+            delay: int = 0
+    ):
         super().__init__(profile=profile)
+        self.delay = delay
 
     @abstractmethod
     def get_beam_attribute(self, beam: BeamBaseClass):
@@ -41,7 +46,7 @@ class BeamFeedbackBase(GlobalFeedback):
         pass
 
     @abstractmethod
-    def apply_corrections(self):
+    def apply_corrections(self, beam: BeamBaseClass):
         # shift the cavity phase or so
         pass
 
@@ -49,7 +54,9 @@ class BeamFeedbackBase(GlobalFeedback):
         self.get_beam_attribute(  # could be mean energy, mean phase or whatever
             beam=beam,
         )
-        self.apply_corrections()
+        self.apply_corrections(
+            beam=beam,
+        )
 
 
 class Blond2BeamFeedback(LocalFeedback):

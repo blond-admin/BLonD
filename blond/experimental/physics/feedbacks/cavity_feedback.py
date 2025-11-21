@@ -101,7 +101,6 @@ class IQCavityFeedback(LocalFeedback):
 
     def __init__(
         self,
-        _parent_cavity: MultiHarmonicRfStation,
         profile: StaticProfile,
         n_cavities: int,
         n_periods_coarse: int,
@@ -119,7 +118,7 @@ class IQCavityFeedback(LocalFeedback):
         n_cavities
             Number of cavities the feedback controls
         n_periods_coarse
-            Number of periods for the coarse grid
+            Number of rf periods the coarse grid sampling period corresponds to
         harmonic_index
             Index of the RF harmonic that should be controlled by the feedback
         use_lowpass_filter
@@ -135,7 +134,7 @@ class IQCavityFeedback(LocalFeedback):
             section_index=section_index,
             name=name,
         )
-        self.set_parent_cavity(cavity=_parent_cavity)
+
         # Number of cavities the feedback is working on
         assert n_cavities > 0, f"{n_cavities=}, but must be bigger 0."
         self.n_cavities = int_from_float_with_warning(
@@ -151,35 +150,39 @@ class IQCavityFeedback(LocalFeedback):
             harmonic_index,
             warning_stacklevel=2,
         )
-        if self.harmonic_index > self._parent_cavity.n_rf - 1:
-            raise RuntimeError(
-                "ERROR in CavityFeedback: argument"
-                " n_h is greater than the number of n_rf in RFStation"
-            )
 
-        # Sampling time in the model and the number of samples per turn
+        # Ratio between rf periods and coarse grid sampling period
         self.n_periods_coarse = int(n_periods_coarse)
 
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+
         self.T_s = (
-            self.n_periods_coarse * 2 * np.pi
-        ) / self._parent_cavity._omega_rf[self.harmonic_index]
+                           self.n_periods_coarse * 2 * np.pi
+                   ) / self._parent_cavity.omega_rf[self.harmonic_index]
         # TODO REMWORK/REMOVE
         t_rev = float(
             (2 * np.pi * self._parent_cavity.harmonic[self.harmonic_index])
-            / self._parent_cavity._omega_rf[self.harmonic_index]
+            / self._parent_cavity.omega_rf[self.harmonic_index]
         )
         # TODO REMWORK/REMOVE
         t_rf = t_rev / float(self._parent_cavity.harmonic[self.harmonic_index])
 
         self.n_coarse = round(t_rev / self.T_s)
         self.omega_carrier = (
-            self._parent_cavity._omega_rf[self.harmonic_index]
-            / self.n_periods_coarse
+                self._parent_cavity.omega_rf[self.harmonic_index]
+                / self.n_periods_coarse
         )
         # FIXME NO REDECLARATION!
 
         self.omega_rf = float(
-            self._parent_cavity._omega_rf[self.harmonic_index]
+            self._parent_cavity.omega_rf[self.harmonic_index]
         )
         self.dT = 0
 
@@ -202,16 +205,6 @@ class IQCavityFeedback(LocalFeedback):
         self.T_s_prev: LateInit = None
         self.rf_centers_prev: LateInit = None
 
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        turn_i_init: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        pass
-
     @abstractmethod  # pragma: no cover
     def update_fb_variables(self) -> None:
         r"""Method to update the variables specific to the feedback.
@@ -226,7 +219,7 @@ class IQCavityFeedback(LocalFeedback):
 
         # Present RF angular frequency
         self.omega_rf = float(
-            self._parent_cavity._omega_rf[self.harmonic_index]
+            self._parent_cavity.omega_rf[self.harmonic_index]
         )
         t_rev = float(  # TODO REMWORK/REMOVE
             2
@@ -250,13 +243,8 @@ class IQCavityFeedback(LocalFeedback):
         self.rf_centers_prev = np.copy(self.rf_centers)
 
         # Residual part of last turn entering the current turn due to non-integer harmonic number
-        self.dT = (
-            -(
-                self._parent_cavity.phi_rf[self.harmonic_index]
-                + self._parent_cavity.phi_rf[self.harmonic_index]
-            )
-            / self.omega_rf
-        )
+        self.dT = -self._parent_cavity.phi_rf[self.harmonic_index] / self.omega_rf
+
         self.rf_centers = (
             np.arange(self.n_coarse) + 0.5 / self.n_periods_coarse
         ) * self.T_s + self.dT
