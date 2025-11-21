@@ -220,11 +220,11 @@ class TestBothBlonds(unittest.TestCase):
         if DEBUG_MODE:
             n_macroparts = [int(1e4), int(1e5), int(1e6)]
             bunch_lengths = [1e-8 / 12, 1e-9 / 8,  1e-9 / 4, ]
-            n_slices_lst = [64, 128, 256, 512]
+            n_slices_lst = [1024]
         else:
-            n_macroparts = [int(1e5)]
-            bunch_lengths = [1e-9 / 4]
-            n_slices_lst = [64]
+            n_macroparts = [int(2e4)]
+            bunch_lengths = [5e-10]
+            n_slices_lst = [128]
         for mac_ind, n_macroparticles in enumerate(
             n_macroparts
         ):
@@ -235,6 +235,7 @@ class TestBothBlonds(unittest.TestCase):
                     self.blond3 = Blond3(
                         n_macroparticles, n_slices, bunch_length
                     )
+
                     DEBUG_PLOT = False
                     if DEBUG_PLOT:
                         plt.title(f"{n_macroparticles} {n_slices} {bunch_length}")
