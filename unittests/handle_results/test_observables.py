@@ -279,7 +279,7 @@ class TestBunchObservation(unittest.TestCase):
 class TestMultiBunchObservationMetaParams(unittest.TestCase):
     def setUp(self) -> None:
         self.multi_bunch_observation_meta_params = MultiBunchObservationMetaParams(
-            t_rf=1,
+            t_rf=2,
             each_turn_i=1,
             folder=callers_relative_path("results/", stacklevel=1),
             beam=beam,
@@ -287,13 +287,13 @@ class TestMultiBunchObservationMetaParams(unittest.TestCase):
 
     def test___init__(self) -> None:
         self.multi_bunch_observation_meta_params = MultiBunchObservationMetaParams(
-            t_rf=1,
+            t_rf=2,
             each_turn_i=1,
             folder=callers_relative_path("results/", stacklevel=1),
             beam=beam,
         )
 
-    def test_from_disk(self) -> None:
+    def test_from_disk_single_bunch(self) -> None:
         self.multi_bunch_observation_meta_params.on_init_simulation(
             simulation=simulation,
         )
@@ -308,6 +308,20 @@ class TestMultiBunchObservationMetaParams(unittest.TestCase):
         )
         self.multi_bunch_observation_meta_params.to_disk()
         self.multi_bunch_observation_meta_params.from_disk()
+
+        emittance = np.sqrt(np.mean(beam._dE ** 2)
+                              * np.mean(beam._dt ** 2)
+                              - np.mean(beam._dE * beam._dt) ** 2)
+        assert np.isclose(self.multi_bunch_observation_meta_params.emittance_stat,
+                          emittance)
+        assert np.isclose(self.multi_bunch_observation_meta_params.sigma_dE,
+                          np.std(beam._dE))
+        assert np.isclose(self.multi_bunch_observation_meta_params.sigma_dt,
+                          np.std(beam._dt))
+        assert np.isclose(self.multi_bunch_observation_meta_params.mean_dE,
+                          np.mean(beam._dE))
+        assert np.isclose(self.multi_bunch_observation_meta_params.mean_dt,
+                          np.mean(beam._dt))
 
 
 class TestCavityPhaseObservation(unittest.TestCase):

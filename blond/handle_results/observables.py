@@ -230,11 +230,6 @@ class ObservablesEndOfTurnBase(ObservablesBaseClass):
             self._turns_array[turn - turn_i_init] = turn + section_lengths
         self._turns_array = self._turns_array.flatten()
 
-    def assert_lateinit(self):
-        for parameter, value in self.__dict__.items():
-            if value is None:  # uninitialized
-                assert value is not None, f"`{parameter}` was not initialized."
-
 
 class BeamObservationEndOfTurn(ObservablesEndOfTurnBase):
     """Observe the bunch coordinates during simulation execution.
@@ -660,15 +655,15 @@ class MultiBunchObservationMetaParams(ObservablesEndOfTurnBase):
 
         if simulation.section_i.value in self._section_indices_to_observe:
             if self.recompute_mask or len(self._mask[0]) == 0:
-                self._mask = []
+                self._mask = np.zeros(
+                    (self.n_bunches, self._beam.common_array_size), dtype=bool
+                )
                 for bucket in range(self.n_bunches):
-                    self._mask.append(
-                        (self._beam._dt < self.t_rf * (bucket + 1))
-                        & (self._beam._dt > self.t_rf * bucket)
-                    )
+                    self._mask[bucket] = (
+                        self._beam._dt < self.t_rf * (bucket + 1)
+                    ) & (self._beam._dt > self.t_rf * bucket)
 
                 self._mask = np.array(self._mask, dtype=bool)
-
             backend.specials.meta_params_multibunch(
                 self._beam._dt,
                 self._beam._dE,
