@@ -48,7 +48,7 @@ class _SparseProfileBaseClass:
         number_of_slices_per_profile: int,
         _filling_pattern: NumpyArray,
         _profile_length_in_buckets: int,
-        tracker: Literal["C", "onebyone"] = "C",
+        tracker: TrackerTypes = "C",
         direct_slicing: bool = False,
     ):
         """
