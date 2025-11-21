@@ -2,11 +2,6 @@ import unittest
 
 import matplotlib.pyplot as plt
 import numpy as np
-from physics.impedances.compare_with_legacy.test_integration_InducedVoltageFreq import (
-    Q_factor,
-    R_shunt,
-    f_res,
-)
 
 from blond import (
     Beam,
@@ -25,6 +20,12 @@ from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
 )
 from blond.physics.impedances.sources import Resonators
+
+from .test_integration_InducedVoltageFreq import (
+    Q_factor,
+    R_shunt,
+    f_res,
+)
 
 DEV_PLOT = False
 
