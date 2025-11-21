@@ -437,7 +437,7 @@ class SparseBucket(_SparseProfileBaseClass):
         beam: Beam,
         number_of_slices_per_profile: int,
         bunch_list: NumpyArray,
-        tracker="C",
+        tracker: TrackerTypes = "C",
         direct_slicing: bool = False,
     ):
         #: *Filling pattern as a boolean array where True (1) means filled
