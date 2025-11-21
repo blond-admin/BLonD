@@ -663,7 +663,6 @@ class MultiBunchObservationMetaParams(ObservablesEndOfTurnBase):
                         self._beam._dt < self.t_rf * (bucket + 1)
                     ) & (self._beam._dt > self.t_rf * bucket)
 
-                self._mask = np.array(self._mask, dtype=bool)
             backend.specials.meta_params_multibunch(
                 self._beam._dt,
                 self._beam._dE,

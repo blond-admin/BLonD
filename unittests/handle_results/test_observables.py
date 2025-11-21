@@ -323,6 +323,67 @@ class TestMultiBunchObservationMetaParams(unittest.TestCase):
         assert np.isclose(self.multi_bunch_observation_meta_params.mean_dt,
                           np.mean(beam._dt))
 
+    def test_from_disk_double_bunch(self) -> None:
+        # bucket length is 2, dt is at one, push one bucket to
+        orig_bunch_length = beam.common_array_size
+        beam_local = deepcopy(beam)
+        beam_local._dE = np.append(beam_local._dE, beam_local._dE + 2)
+        beam_local._dt = np.append(beam_local._dt, beam_local._dt + 2)
+        beam_local.common_array_size = len(beam_local._dE)
+        self.multi_bunch_observation_meta_params = MultiBunchObservationMetaParams(
+            n_bunches=2,
+            t_rf=2,
+            each_turn_i=1,
+            folder=callers_relative_path("results/", stacklevel=1),
+            beam=beam_local,
+        )
+
+        self.multi_bunch_observation_meta_params.recompute_mask = True
+        self.multi_bunch_observation_meta_params.on_init_simulation(
+            simulation=simulation,
+        )
+        self.multi_bunch_observation_meta_params.on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            turn_i_init=0,
+            n_turns=100,
+        )
+        self.multi_bunch_observation_meta_params.update(
+            simulation=simulation,
+        )
+        self.multi_bunch_observation_meta_params.to_disk()
+        self.multi_bunch_observation_meta_params.from_disk()
+
+        emittance_1 = np.sqrt(np.mean(beam_local._dE[0:orig_bunch_length] ** 2)
+                              * np.mean(beam_local._dt[0:orig_bunch_length] ** 2)
+                              - np.mean(beam_local._dE[0:orig_bunch_length] * beam_local._dt[0:orig_bunch_length]) ** 2)
+        assert np.isclose(self.multi_bunch_observation_meta_params.emittance_stat[0, 0],
+                          emittance_1)
+        emittance_2 = np.sqrt(np.mean(beam_local._dE[orig_bunch_length:] ** 2)
+                              * np.mean(beam_local._dt[orig_bunch_length:] ** 2)
+                              - np.mean(beam_local._dE[orig_bunch_length:] * beam_local._dt[orig_bunch_length:]) ** 2)
+        assert np.isclose(self.multi_bunch_observation_meta_params.emittance_stat[1, 0],
+                          emittance_2)
+
+        assert np.isclose(self.multi_bunch_observation_meta_params.sigma_dE[0, 0],
+                          np.std(beam_local._dE[0:orig_bunch_length]))
+        assert np.isclose(self.multi_bunch_observation_meta_params.sigma_dt[0, 0],
+                          np.std(beam_local._dt[0:orig_bunch_length]))
+        assert np.isclose(self.multi_bunch_observation_meta_params.mean_dE[0, 0],
+                          np.mean(beam_local._dE[0:orig_bunch_length]))
+        assert np.isclose(self.multi_bunch_observation_meta_params.mean_dt[0, 0],
+                          np.mean(beam_local._dt[0:orig_bunch_length]))
+
+        assert np.isclose(self.multi_bunch_observation_meta_params.sigma_dE[1, 0],
+                          np.std(beam_local._dE[orig_bunch_length:]))
+        assert np.isclose(self.multi_bunch_observation_meta_params.sigma_dt[1, 0],
+                          np.std(beam_local._dt[orig_bunch_length:]))
+        assert np.isclose(self.multi_bunch_observation_meta_params.mean_dE[1, 0],
+                          np.mean(beam_local._dE[orig_bunch_length:]))
+        assert np.isclose(self.multi_bunch_observation_meta_params.mean_dt[1, 0],
+                          np.mean(beam_local._dt[orig_bunch_length:]) -
+                          self.multi_bunch_observation_meta_params.t_rf)
+
 
 class TestCavityPhaseObservation(unittest.TestCase):
     def setUp(self) -> None:
