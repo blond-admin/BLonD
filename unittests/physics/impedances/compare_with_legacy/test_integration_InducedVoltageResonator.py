@@ -216,13 +216,22 @@ class TestBothBlonds(unittest.TestCase):
                 )
 
     def test_diff_params(self):
+        DEBUG_MODE = False
+        if DEBUG_MODE:
+            n_macroparts = [int(1e4), int(1e5), int(1e6)]
+            bunch_lengths = [1e-8 / 12, 1e-9 / 8,  1e-9 / 4, ]
+            n_slices_lst = [64, 128, 256, 512]
+        else:
+            n_macroparts = [int(1e5)]
+            bunch_lengths = [1e-9 / 4]
+            n_slices_lst = [64]
         for mac_ind, n_macroparticles in enumerate(
-            [int(1e4), int(1e5), int(1e6)]
+            n_macroparts
         ):
-            # for slic_ind, n_slices in enumerate([64, 128, 256, 512]):
-            for slic_ind, n_slices in enumerate([1024]):
+            for slic_ind, n_slices in enumerate(n_slices_lst):
+            # for slic_ind, n_slices in enumerate([1024]):
                 # for b_ind, bunch_length in enumerate([1e-9 / 4, 1e-9, 4e-9]):
-                for b_ind, bunch_length in enumerate([1e-8 / 12, 1e-9 / 8,  1e-9 / 4, ]):
+                for b_ind, bunch_length in enumerate(bunch_lengths):
                     self.blond3 = Blond3(
                         n_macroparticles, n_slices, bunch_length
                     )
