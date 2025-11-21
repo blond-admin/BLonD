@@ -98,7 +98,6 @@ class _SparseProfileBaseClass:
             np.cumsum(_filling_pattern) * _filling_pattern - 1
         )
 
-        self.n_slices = None
         self.profiles_list = None
 
         # Group n_macroparticles from all objects in a single array
@@ -106,9 +105,6 @@ class _SparseProfileBaseClass:
         self.n_macroparticles_array = None
         self.bin_centers_array = None
         self.edges_array = None
-        self.n_macroparticles = None
-        self.bin_centers = None
-        self.bin_size = None
 
         self.cut_left_array = None
         self.cut_right_array = None
@@ -121,6 +117,27 @@ class _SparseProfileBaseClass:
         self._set_cuts(length_in_buckets=_profile_length_in_buckets)
         self._generate_profile_list()
         self._set_tracker()
+
+    @property
+    def n_macroparticles(self):
+        return self.n_macroparticles_array.flatten()
+
+    @property
+    def bin_centers(self):
+        return self.bin_centers_array.flatten()
+
+    @property
+    def bin_size(self):
+        # by construction, all the profiles have the same bin sizes.
+        return self.profiles_list[0].bin_size
+
+    @property
+    def n_slices(self):
+        return self.number_of_slices_per_profile * len(self.profiles_list)
+
+    @property
+    def edges(self):
+        return self.edges_array.flatten()
 
     def _set_cuts(self, length_in_buckets: int):
         """
@@ -187,19 +204,6 @@ class _SparseProfileBaseClass:
             ].n_macroparticles
             self.bin_centers_array[i, :] = self.profiles_list[i].bin_centers
             self.edges_array[i, :] = self.profiles_list[i].edges
-        self._init_general_arrays()
-
-    def _init_general_arrays(self):
-        """
-        Method to update the general arrays after a change in the profile
-        list.
-        """
-        self.n_macroparticles = self.n_macroparticles_array.flatten()
-        self.bin_centers = self.bin_centers_array.flatten()
-        self.bin_size = self.profiles_list[0].bin_size
-        self.n_slices = self.number_of_slices_per_profile * len(
-            self.profiles_list
-        )
 
     def _set_tracker(self):
         """
@@ -244,8 +248,6 @@ class _SparseProfileBaseClass:
             self.n_macroparticles_array[i, :] = self.profiles_list[
                 i
             ].n_macroparticles
-        self.bin_centers = self.bin_centers_array.flatten()
-        self.n_macroparticles = self.n_macroparticles_array.flatten()
 
     def _set_additional_cuts(
         self,
@@ -378,31 +380,9 @@ class _SparseProfileBaseClass:
             )
         self.profiles_list += profiles_list_additional
         self._number_of_indexes += _additional_indexes
-        self._update_general_arrays()
-
-    def _update_general_arrays(self):
-        """
-        Method to update the general arrays after a profile update.
-        """
-        # Total parameters
-        if (
-            len(np.where(self._filling_pattern != 0)[0])
-            != self._number_of_indexes
-        ):
-            raise ValueError(
-                f"Filling pattern has length "
-                f"{len(np.where(self._filling_pattern)[0])}, number of "
-                f"declared filled buckets "
-                f"{self._number_of_indexes}."
-            )
-        self.n_macroparticles = self.n_macroparticles_array.flatten()
-        self.n_slices = int(
-            self.number_of_slices_per_profile * self._filling_pattern.sum()
-        )
         self._bucket_indexes = (
             np.cumsum(self._filling_pattern) * self._filling_pattern - 1
         )
-        self.bin_centers = self.bin_centers_array.flatten()
 
 
 class SparseBucket(_SparseProfileBaseClass):
