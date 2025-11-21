@@ -387,24 +387,45 @@ class _SparseProfileBaseClass:
 
 class SparseBucket(_SparseProfileBaseClass):
     """
-    This class instantiates a Profile object for each filled bucket according
-    to the provided filling pattern or bunch list.
-    Each Profile object will be of the size of an RF bucket and will have the same number of slices.
+     This class instantiates a Profile object for each filled bucket according
+     to the provided filling pattern or bunch list.
+     Each Profile object will be of the size of an RF bucket and will have the same number of slices.
 
-    Parameters
-    ----------
-    rf_station
-        RFStation object
-    beam
-        Beam object
-    number_of_slices_per_profile
-        Number of slices per profile
-    bunch_list
-        Bunch list (or filling pattern) of the synchrotron
-    tracker
-        Choice of tracker. Can be "C" or "onebyone". Default is "C".
-    direct_slicing
-        Track at initialisation. FALSE by default.
+     Parameters
+     ----------
+     rf_station
+         RFStation object
+     beam
+         Beam object
+     number_of_slices_per_profile
+         Number of slices per profile
+     bunch_list
+         Bunch list (or filling pattern) of the synchrotron
+     tracker
+         Choice of tracker. Can be "C" or "onebyone". Default is "C".
+     direct_slicing
+         Track at initialisation. FALSE by default.
+
+
+    Example
+     --------
+     >>> import numpy as np
+     >>> from blond.beam.sparse_profiles import SparseBucket
+     >>> from blond.beam.beam import Beam
+     >>> from blond.input_parameters.rf_parameters import RFStation
+     >>> self.ring = Ring(n_turns = 1, ring_length = 100,
+     >>> alpha = 0.00001, momentum = 1e9)
+     >>> self.beam = Beam(self.ring, 10000, 1e10)
+     >>> self.rf_params = RFStation(ring=self.ring, n_rf=1, harmonic=[4620],
+     >>>                  voltage=[7e6], phi_rf_d=[0.])
+     >>> bunch_spacing = 10
+     >>> bunch_list = np.zeros(self.rf_params.harmonic[0])
+     >>> bunch_list[::bunch_spacing] = 1
+     >>> sparse_profile = SparseBucket(rf_station=self.rf_params,
+     >>>                                 beam = self.beam,
+     >>>number_of_slices_per_profile = 1e4,
+     >>>bunch_list = bunch_list)
+     >>>
     """
 
     def __init__(
