@@ -398,9 +398,9 @@ class Ring(Preparable, Schedulable):
 
         Examples
         --------
-        >>> from blond import RFCavity
-        >>> cavity = RFCavity(voltage=1e6, harmonic=400, section_index=0)
-        >>> ring.add_element(cavity)
+        >>> from blond import MultiHarmonicRfStation
+        >>> rf_station = MultiHarmonicRfStation(voltage=1e6, harmonic=400, section_index=0)
+        >>> ring.add_element(rf_station)
         """
         if deepcopy:
             element = copy.deepcopy(element)
@@ -501,8 +501,8 @@ class Ring(Preparable, Schedulable):
 
         Examples
         --------
-        >>> monitor = BeamMonitor(section_index=0)
-        >>> ring.insert_element(monitor, insert_at=5)
+        >>> drift = DriftSimple(section_index=0, ...)
+        >>> ring.insert_element(drift, insert_at=5)
         [5]
         """
         locations_in_the_new_ring = []
@@ -569,9 +569,8 @@ class Ring(Preparable, Schedulable):
 
         Examples
         --------
-        >>> monitors = [BeamMonitor(section_index=0) for _ in range(3)]
-        >>> ring.insert_elements(monitors, insert_at=10)
-        >>> # Monitors now at positions 10, 11, 12
+        >>> drifts = [DriftSimple(section_index=0, ...) for _ in range(3)]
+        >>> ring.insert_elements(drifts, insert_at=10)
         """
         # The elements are inserted one by one, from the last to the first
         # to preserve the input insertion order.
