@@ -16,7 +16,6 @@
 
 from __future__ import annotations
 
-import copy
 import warnings
 from typing import TYPE_CHECKING
 
@@ -24,12 +23,9 @@ import numpy as np
 
 from .profile import CutOptions, Profile
 from ..utils import bmath as bm
-from ..utils.legacy_support import handle_legacy_kwargs
 
 if TYPE_CHECKING:
     from typing import Literal
-    from typing import Optional as LateInit
-
     from numpy.typing import NDArray as NumpyArray
 
     from .beam import Beam
