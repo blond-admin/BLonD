@@ -255,7 +255,7 @@ class _SparseProfileBaseClass:
     ):
         """
         Internal method to update the cut array properties of the Sparse
-        object with new cut_left | Cut_right options around the additional
+        object with new cut_left | cut_right options around the additional
         indexes.
 
         The left cut starts at the bucket index considered and the right cut
