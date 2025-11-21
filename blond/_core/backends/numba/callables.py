@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import logging
-from functools import cache
+from functools import cache, wraps
 from typing import TYPE_CHECKING
 
 import numba  # type: ignore
 import numpy as np
 from numba import njit, prange, void
 
-from ..backend import Specials, backend
+from blond._core.backends.backend import Specials
+from blond._core.backends.python.callables import (
+    _move_flagged_elements_to_end_py,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -19,10 +22,35 @@ if TYPE_CHECKING:  # pragma: no cover
 logger = logging.getLogger(__name__)
 
 
+def enforce_precision(dtype):
+    """Decorator to convert float inputs to a consistent precision."""
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            new_args = []
+            for arg in args:
+                if isinstance(arg, float):
+                    new_args.append(dtype(arg))
+                else:
+                    new_args.append(arg)
+
+            new_kwargs = {
+                k: (dtype(v) if isinstance(v, float) else v)
+                for k, v in kwargs.items()
+            }
+
+            return func(*new_args, **new_kwargs)
+
+        return wrapper
+
+    return decorator
+
+
 @cache  # or set a limit like maxsize=128
 def recompile_numba_backend(  # NOQA PLR0915
     floattype: np.float32 | np.float64,
-) -> NumbaSpecials:
+):
     """Helper to recompile `NumbaSpecials` when the backend changed."""
     logger.info(f"Compiling numba for {floattype}")
 
@@ -171,8 +199,24 @@ def recompile_numba_backend(  # NOQA PLR0915
     # Internal definition, to make `njit` compile with the correct signature,
     # that is eiter 32 or 64 bit, defined by the backend.
 
+    sig_flag = numba.int32
+    sig_flags = numba.int32[:]
+    sig_ids = nb_i[:]
+    sig_move_flagged_elements_to_end = nb_i(
+        sig_flag,
+        sig_flags,
+        sig_dt,
+        sig_dE,
+        sig_ids,
+    )
+
+    _move_flagged_elements_to_end_nb = njit(sig_move_flagged_elements_to_end)(
+        _move_flagged_elements_to_end_py
+    )
+
     class NumbaSpecials(Specials):  # pragma: no cover
         @staticmethod
+        @enforce_precision(floattype)
         @njit(
             sig_beam_phase,
             parallel=True,
@@ -214,6 +258,7 @@ def recompile_numba_backend(  # NOQA PLR0915
             return scoeff / ccoeff
 
         @staticmethod
+        @enforce_precision(floattype)
         @njit(
             sig_histogram,
             parallel=True,
@@ -223,8 +268,8 @@ def recompile_numba_backend(  # NOQA PLR0915
         def histogram(
             array_read: NumpyArray,
             array_write: NumpyArray,
-            start: np.float32 | np.float64,
-            stop: np.float32 | np.float64,
+            start: float,
+            stop: float,
         ) -> None:
             n_threads = numba.get_num_threads()  # this prevents caching
             width = stop - start
@@ -246,12 +291,14 @@ def recompile_numba_backend(  # NOQA PLR0915
             array_write[:] = np.sum(array_tmp, axis=0)
 
         @staticmethod
+        @enforce_precision(floattype)
         def loss_box(
             top: float, bottom: float, left: float, right: float
         ) -> None:
             pass
 
         @staticmethod
+        @enforce_precision(floattype)
         @njit(
             sig_kick_single_harmonic,
             parallel=True,
@@ -264,8 +311,8 @@ def recompile_numba_backend(  # NOQA PLR0915
             voltage: float,
             omega_rf: float,
             phi_rf: float,
-            charge: np.float32 | np.float64,
-            acceleration_kick: np.float32 | np.float64,
+            charge: float,
+            acceleration_kick: float,
         ) -> None:
             voltage_kick = charge * voltage
             for i in prange(len(dt)):
@@ -275,6 +322,7 @@ def recompile_numba_backend(  # NOQA PLR0915
                 )
 
         @staticmethod
+        @enforce_precision(floattype)
         @njit(
             sig_drift_simple,
             parallel=True,
@@ -284,10 +332,10 @@ def recompile_numba_backend(  # NOQA PLR0915
         def drift_simple(
             dt: NumpyArray,
             dE: NumpyArray,
-            T: np.float32 | np.float64,
-            eta_0: np.float32 | np.float64,
-            beta: np.float32 | np.float64,
-            energy: np.float32 | np.float64,
+            T: float,
+            eta_0: float,
+            beta: float,
+            energy: float,
         ) -> None:
             """Function to apply drift equation of motion."""
             # solver_decoded = solver.decode(encoding='utf_8')
@@ -329,6 +377,7 @@ def recompile_numba_backend(  # NOQA PLR0915
                 )
 
         @staticmethod
+        @enforce_precision(floattype)
         @njit(sig_kick_multi_harmonic, parallel=True, fastmath=False)
         def kick_multi_harmonic(
             dt: NumpyArray | CupyArray,
@@ -352,6 +401,7 @@ def recompile_numba_backend(  # NOQA PLR0915
                 dE[i] += de_sum + acceleration_kick
 
         @staticmethod
+        @enforce_precision(floattype)
         @njit(sig_drift_legacy, parallel=True, fastmath=False)
         def drift_legacy(
             dt: NumpyArray,
@@ -391,6 +441,7 @@ def recompile_numba_backend(  # NOQA PLR0915
                     )
 
         @staticmethod
+        @enforce_precision(floattype)
         @njit(
             sig_drift_exact,
             parallel=True,
@@ -435,6 +486,7 @@ def recompile_numba_backend(  # NOQA PLR0915
                 )
 
         @staticmethod
+        @enforce_precision(floattype)
         @njit(
             sig_kick_induced_voltage,
             parallel=True,
@@ -446,8 +498,8 @@ def recompile_numba_backend(  # NOQA PLR0915
             dE: NumpyArray,
             voltage: NumpyArray,
             bin_centers: NumpyArray,
-            charge: np.float32 | np.float64,
-            acceleration_kick: np.float32 | np.float64,
+            charge: float,
+            acceleration_kick: float,
         ) -> None:
             dx = (bin_centers[-1] - bin_centers[0]) / (len(bin_centers) - 1)
             inv_dx = 1 / dx
@@ -469,8 +521,28 @@ def recompile_numba_backend(  # NOQA PLR0915
                     v = y0 + (y1 - y0) * inv_dx * (x - x0)
                     dE[i] += charge * v + acceleration_kick
 
+        @staticmethod
+        def move_flagged_elements_to_end(
+            flag: int,
+            flags: NumpyArray | CupyArray,  # also purged
+            dt: NumpyArray | CupyArray,
+            dE: NumpyArray | CupyArray,
+            ids: NumpyArray | CupyArray,
+        ):
+            # TODO parallel version of sorting
+            n_new = _move_flagged_elements_to_end_nb(
+                flag=np.int32(flag),
+                flags=flags,
+                dt=dt,
+                dE=dE,
+                ids=ids,
+            )
+            return n_new
+
     return NumbaSpecials
 
 
 if TYPE_CHECKING:
+    from blond import backend
+
     NumbaSpecials = recompile_numba_backend(backend.float)

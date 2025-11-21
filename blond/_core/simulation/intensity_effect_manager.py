@@ -13,6 +13,38 @@ class IntensityEffectManager:
     def __init__(self, simulation: Simulation) -> None:
         self._parent_simulation = simulation
 
+    def has_wakefields(self):
+        """
+        Checks if there are any `WakeField` instances in the `Simulation`.
+
+        Returns
+        -------
+        True if there is any WakeField
+        """
+        wakefields = self._parent_simulation.ring.elements.get_elements(
+            WakeField
+        )
+        return len(wakefields) > 0
+
+    def is_active_wakefields(self) -> bool:  # TODO testcae
+        """Checks whehther all `Wakefields` are active or inactive.
+
+        Raises
+        ------
+        AssertionError
+            If there is a mixed state of `Wakefields` being active/inactive.
+        """
+        wakefields = self._parent_simulation.ring.elements.get_elements(
+            WakeField
+        )
+        actives = {wakefield.active for wakefield in wakefields}
+        if len(actives) == 0:
+            return False
+        assert len(actives) == 1, (
+            "Cant handle mixed states of wakefields being active/inactive."
+        )
+        return actives.pop()
+
     def set_wakefields(self, active: bool) -> None:
         """Activate/deactivate `WakeField`.
 
@@ -41,3 +73,35 @@ class IntensityEffectManager:
         )
         for profile in profiles:
             profile.active = active
+        # Deactivate the `Profiles` of the WakeFields.
+        # The frozen wakefields can still affect the beam.
+        wakefields = self._parent_simulation.ring.elements.get_elements(
+            WakeField
+        )
+        for wakefield in wakefields:
+            wakefield.profile.active = active
+
+    def is_active_profiles(self) -> bool:  # TODO testcae
+        """Checks whether all `Profiles` are active or inactive.
+
+        Raises
+        ------
+        AssertionError
+            If there is a mixed state of `Wakefields` being active/inactive.
+        """
+        wakefields = self._parent_simulation.ring.elements.get_elements(
+            WakeField
+        )
+        profiles = self._parent_simulation.ring.elements.get_elements(
+            ProfileBaseClass
+        )
+        actives = {wakefield.profile.active for wakefield in wakefields} | {
+            profile.active for profile in profiles
+        }
+
+        if len(actives) == 0:
+            return False
+        assert len(actives) == 1, (
+            "Cant handle mixed states of Profiles being active/inactive."
+        )
+        return actives.pop()

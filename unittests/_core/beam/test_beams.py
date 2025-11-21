@@ -18,6 +18,16 @@ class TestBeam(unittest.TestCase):
             dE=np.linspace(1, 10, 10), dt=np.linspace(20, 30, 10)
         )
 
+    def test_setup_beam(self) -> None:
+        self.beam.setup_beam(
+            dE=np.linspace(1, 10, 10),
+            dt=np.linspace(20, 30, 10),
+            reference_time=11,
+            reference_total_energy=1e12,
+        )
+        self.assertEqual(self.beam.reference_time, 11.0)
+        self.assertEqual(self.beam.reference_total_energy, 1e12)
+
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
@@ -120,8 +130,24 @@ class TestBeam(unittest.TestCase):
             beam=beam,
         )
 
+    def test_plot_hist2d_fails(self) -> None:
+        self.beam._dt = None
+        self.beam._dE = None
+        with self.assertRaises(ValueError):
+            self.beam.plot_hist2d()
+
     def test_plot_hist2d_executes(self) -> None:
         self.beam.plot_hist2d()
+        plt.gcf().clf()
+
+    def test_plot_hist2d_executes_kwargs1(self) -> None:
+        self.beam.plot_hist2d(cmap="viridis")
+
+    def test_plot_hist2d_executes_kwargs2(self) -> None:
+        self.beam.plot_hist2d(bins=12)
+
+    def test_plot_hist(self):
+        self.beam.plot_hist()
         plt.gcf().clf()
 
     def test_plot_hist2d_executes_gpu(self) -> None:
@@ -135,7 +161,69 @@ class TestBeam(unittest.TestCase):
         Beam.plot_hist2d(beam)
         plt.gcf().clf()
 
-    def test_setup_beam(self) -> None:
+    def test_plot_scatter_raises(self) -> None:
+        beam = Mock(Beam)
+        beam._dE = None
+        beam._dt = None
+        with self.assertRaises(ValueError):
+            Beam.plot_scatter(beam)
+
+    def test_plot_scatter_executes_cpu(self) -> None:
+        beam = Mock(Beam)
+        beam._dE = np.ones(10)
+        beam._dt = np.ones(10)
+        Beam.plot_scatter(beam)
+        plt.gcf().clf()
+
+    def test_plot_scatter_executes_gpu(self) -> None:
+        try:
+            import cupy as cp  # type: ignore
+        except ModuleNotFoundError:
+            self.skipTest("Cupy not available")
+        beam = Mock(Beam)
+        beam._dE = cp.ones(10)
+        beam._dt = cp.ones(10)
+        Beam.plot_scatter(beam)
+        plt.gcf().clf()
+
+    def test_plot_hist_raises(self) -> None:
+        beam = Mock(Beam)
+        beam._dE = None
+        beam._dt = None
+        with self.assertRaises(ValueError):
+            Beam.plot_hist(beam, axis=1)
+
+    def test_plot_hist_executes_gpu(self) -> None:
+        try:
+            import cupy as cp  # type: ignore
+        except ModuleNotFoundError:
+            self.skipTest("Cupy not available")
+        beam = Mock(Beam)
+        beam._dE = cp.ones(10)
+        beam._dt = cp.ones(10)
+        for axis in range(2):
+            Beam.plot_hist(beam, axis=axis)
+            plt.gcf().clf()
+        with self.assertRaises(ValueError):
+            Beam.plot_hist(beam, axis=10)
+
+    def test_plot_hist_executes_kwargs(self) -> None:
+        beam = Mock(Beam)
+        beam._dE = np.ones(10)
+        beam._dt = np.ones(10)
+        Beam.plot_hist(beam, axis=0, bins=12)
+
+    def test_plot_hist_executes_cpu(self) -> None:
+        beam = Mock(Beam)
+        beam._dE = np.ones(10)
+        beam._dt = np.ones(10)
+        for axis in range(2):
+            Beam.plot_hist(beam, axis=axis)
+            plt.gcf().clf()
+        with self.assertRaises(ValueError):
+            Beam.plot_hist(beam, axis=10)
+
+    def test_setup_beam2(self) -> None:
         with self.assertRaises(AssertionError):
             self.beam.setup_beam(dE=np.ones(10), dt=np.ones(11))
         with self.assertRaises(AssertionError):
@@ -147,6 +235,26 @@ class TestBeam(unittest.TestCase):
 class TestProbeBunch(unittest.TestCase):
     def setUp(self) -> None:
         self.probe_bunch = ProbeBeam(particle_type=proton, dt=np.ones(10))
+
+    def test___init__raises(self) -> None:
+        with self.assertRaises(ValueError):
+            self.probe_bunch = ProbeBeam(particle_type=proton)
+
+    def test___init__raises2(self) -> None:
+        with self.assertRaises(AssertionError):
+            self.probe_bunch = ProbeBeam(
+                particle_type=proton,
+                dt=np.ones(10),
+                dE=np.ones(11),
+            )
+    def test___init__raises3(self) -> None:
+        with self.assertRaises(ValueError):
+            self.probe_bunch = ProbeBeam(
+                particle_type=proton,
+                dt=None,
+                dE=None,
+            )
+
 
     def test___init__1(self) -> None:
         self.probe_bunch = ProbeBeam(particle_type=proton, dt=np.ones(10))

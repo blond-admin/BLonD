@@ -20,6 +20,7 @@ _fortran_files32 = [
     "histogram_32.f90",
     "kick_32.f90",
     "kick_induced_32.f90",
+    "move_flagged_elements_to_end_32.f90",
 ]
 
 # Generate corresponding 64-bit file names by replacing "32" with "64"
@@ -94,7 +95,7 @@ def compile_fortran_module(module_name: str, fortran_files: list[str]) -> bool:
 
 
 def move_compiled_file_to_subfolder(module_name: str):
-    from blond._generals._hashing import hash_in_folder
+    from blond.generals._hashing import hash_in_folder
 
     folder = os.path.dirname(os.path.abspath(__file__))
     hash_ = hash_in_folder(

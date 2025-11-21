@@ -15,6 +15,7 @@ from blond.experimental.acc_math.empiric.hamiltonian import (
     calc_hamiltonian,
     separatrixes,
 )
+from blond.experimental.beam_preparation.helpers import populate_beam
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
@@ -30,7 +31,7 @@ def populate_beam(
     deltaE_grid: NumpyArray,
     density_grid: NumpyArray,
     n_macroparticles: int,
-    seed: int,
+    seed: int | None,
 ) -> None:
     """Fill bunch with macroparticles according to density_distribution.
 
@@ -55,7 +56,8 @@ def populate_beam(
         always return the same value
     """
     # Initialise the random number generator
-    np.random.seed(seed=seed)
+    if seed is not None:
+        np.random.seed(seed=seed)
     # Generating particles randomly inside the grid cells according to the
     # provided density_grid
     indexes = np.random.choice(
@@ -114,7 +116,7 @@ class EmpiricMatcher(MatchingRoutine):
         grid_base_dt: NumpyArray,
         grid_base_dE: NumpyArray,
         n_macroparticles: int | float,
-        seed: int = 0,
+        seed: int | None = None,
         maxiter_intensity_effects=10,
         maxiter_hamiltonian=20,
         atol_hamiltonian=1e-4,
@@ -180,6 +182,19 @@ class EmpiricMatcher(MatchingRoutine):
             The default is `normalize_as_density`.
             It is intended to be replaced by user-defined functions.
 
+        Examples
+        --------
+        >>> simulation.prepare_beam(
+        >>>     beam=beam1,
+        >>>     preparation_routine=EmpiricMatcher(
+        >>>         grid_base_dt=np.linspace(0, 2.5e-9, 100),
+        >>>         grid_base_dE=np.linspace(
+        >>>             -(777538700.0 * 2), 777538700.0 * 2, 100
+        >>>         ),
+        >>>         n_macroparticles=1e6,
+        >>>         seed=0, # For reproducible results
+        >>>     ),
+        >>> )
         """
         assert callable(hamiltonian_to_density_function)
         self.hamiltonian_to_density_function = hamiltonian_to_density_function
@@ -203,11 +218,13 @@ class EmpiricMatcher(MatchingRoutine):
             n_macroparticles,
             warning_stacklevel=2,
         )
-
-        self._seed = int_from_float_with_warning(
-            seed,
-            warning_stacklevel=2,
-        )
+        if seed is not None:
+            self._seed = int_from_float_with_warning(
+                seed,
+                warning_stacklevel=2,
+            )
+        else:
+            self._seed = None
         self._maxiter_intensity_effects = int_from_float_with_warning(
             maxiter_intensity_effects,
             warning_stacklevel=2,

@@ -6,13 +6,13 @@ from matplotlib import pyplot as plt
 
 from blond import (
     Beam,
+    BeamObservationEndOfTurn,
     BiGaussian,
-    BunchObservation,
     CavityPhaseObservation,
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicCavity,
+    SingleHarmonicRfStation,
     proton,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
@@ -24,7 +24,7 @@ logging.basicConfig(level=logging.INFO)
 def main():
     ring = Ring(26658.883)
 
-    cavity1 = SingleHarmonicCavity()
+    cavity1 = SingleHarmonicRfStation()
     cavity1.harmonic = 35640
     cavity1.voltage = 6e6
     cavity1.phi_rf = 0
@@ -78,7 +78,7 @@ def main():
         each_turn_i=1,
         cavity=cavity1,
     )
-    bunch_observation = BunchObservation(each_turn_i=1, beam=beam1)
+    bunch_observation = BeamObservationEndOfTurn(each_turn_i=1, beam=beam1)
 
     def custom_action(simulation: Simulation, beam: Beam):  # pragma: no cover
         if simulation.turn_i.value % 10 != 0:
@@ -99,7 +99,9 @@ def main():
             n_turns=N_TURNS,
             observe=(phase_observation, bunch_observation),
         )
-        print(f"Loaded {phase_observation.common_name}")
+        print(
+            f"Loaded {phase_observation.common_filepath}"
+        )  # pragma: no cover
     except (FileNotFoundError, AssertionError):
         sim.run_simulation(
             beams=(beam1,),

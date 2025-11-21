@@ -12,11 +12,12 @@ from abc import abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING
 
+import matplotlib.pyplot as plt
 import numpy as np
 
-from .._core.backends.backend import backend
-from .._core.base import BeamPhysicsRelevant, HasPropertyCache
-from .._core.helpers import int_from_float_with_warning
+from blond._core.backends.backend import backend
+from blond._core.base import BeamPhysicsRelevant, HasPropertyCache
+from blond._core.helpers import int_from_float_with_warning
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -24,8 +25,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
-    from .._core.beam.base import BeamBaseClass
-    from .._core.simulation.simulation import Simulation
+    from blond._core.beam.base import BeamBaseClass
+    from blond._core.simulation.simulation import Simulation
 
 
 class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
@@ -37,6 +38,13 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         Section index to group elements into sections
     name
         User given name of the element
+
+    Attributes
+    ----------
+    hist_y_to_density_factor
+        This factor is used to reproduce the behaviour
+        of np.hist(..., density=True).
+        Intended use: ``density = hist_y * hist_y_to_density_factor``
     """
 
     def __init__(
@@ -48,6 +56,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         )
         self._hist_x: NumpyArray | CupyArray | None = None
         self._hist_y: NumpyArray | CupyArray | None = None
+        self.hist_y_to_density_factor: float | None = None
 
         self._beam_spectrum_buffer: dict[int, NumpyArray] = {}
 
@@ -83,6 +92,17 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         assert self._hist_y is not None
         self.invalidate_cache()
 
+    def plot(self, **kwargs_plot: dict[str, Any]) -> None:
+        """Plots the current histogram.
+
+        Parameters
+        ----------
+        kwargs_plot
+            Keyword arguments for `matplotlib.pyplot.plot`.
+
+        """
+        plt.plot(self.hist_x, self.hist_y, **kwargs_plot)
+
     @property  # as readonly attributes
     def hist_x(self) -> NumpyArray | CupyArray:
         """x-axis of histogram, in [s], i.e. `bin_centers`."""
@@ -107,7 +127,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         return backend.gradient(self._hist_y, self.hist_step, edge_order=2)
 
     @cached_property
-    def hist_step(self) -> np.float32 | np.float64:
+    def hist_step(self) -> float:
         """Size of a single histogram bin."""
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
@@ -117,10 +137,10 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         if backend.is_gpu:
             fist_hist_x = fist_hist_x.get()
             second_hist_x = second_hist_x.get()
-        return backend.float(second_hist_x - fist_hist_x)  # type: ignore
+        return float(second_hist_x - fist_hist_x)  # type: ignore
 
     @cached_property
-    def cut_left(self) -> np.float32 | np.float64:
+    def cut_left(self) -> float:
         """Left outer edge of the histogram."""
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
@@ -128,10 +148,10 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         fist_hist_x = self._hist_x[0]
         if backend.is_gpu:
             fist_hist_x = fist_hist_x.get()
-        return backend.float(fist_hist_x - self.hist_step / 2.0)  # type: ignore
+        return float(fist_hist_x - self.hist_step / 2.0)  # type: ignore
 
     @cached_property
-    def cut_right(self) -> np.float32 | np.float64:
+    def cut_right(self) -> float:
         """Right outer edge of the histogram."""
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
@@ -139,7 +159,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         last_hist_x = self._hist_x[-1]
         if backend.is_gpu:
             last_hist_x = last_hist_x.get()
-        return backend.float(last_hist_x + self.hist_step / 2.0)  # type: ignore
+        return float(last_hist_x + self.hist_step / 2.0)  # type: ignore
 
     @cached_property
     def bin_edges(self) -> NumpyArray | CupyArray:
@@ -153,6 +173,28 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             len(self._hist_x) + 1,
             backend.float,  # type: ignore
         )
+
+    def weighted_avg_dt(self) -> float:
+        """Bunch center of weight, in [s].
+
+        calculates the bunch position by calculating
+        the average of `hist_x` (time coordinate)
+        weighted by `hist_y` (number of particles).
+        """
+        return backend.average(self._hist_x, weights=self._hist_y)
+
+    def sigma_weighted_avg_dt(self) -> float:
+        r"""Bunch length (:math:`1 \sigma`), in [s].
+
+        Calculates the :math:`1 \sigma` bunch length by
+        determining the std about the weighted average
+        calculated as in `weighted_avg_dt`.
+        """
+        average = backend.average(self._hist_x, weights=self._hist_y)
+        variance = backend.average(
+            backend.square(self._hist_x - average), weights=self._hist_y
+        )
+        return backend.sqrt(variance)
 
     def track(self, beam: BeamBaseClass) -> None:
         """Main simulation routine to be called in the mainloop.
@@ -176,6 +218,9 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
                 start=self.cut_left,
                 stop=self.cut_right,
             )
+            # this factor is used to reproduce the behaviour
+            # of np.hist(..., density=True)
+            self.hist_y_to_density_factor = 1.0 / beam.common_array_size
         self.invalidate_cache()
 
     @staticmethod
@@ -209,19 +254,9 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         return hist_x, hist_y
 
     @property  # as readonly attributes
-    def cutoff_frequency(self) -> np.float32 | np.float64:
+    def cutoff_frequency(self) -> float:
         """Cutoff frequency if the profile is fourier transformed, in [Hz]."""
-        return backend.float(1 / (2 * self.hist_step))
-
-    def _calc_gauss(self) -> None:
-        """Gaussian fit for the beam profile."""
-        raise NotImplementedError
-
-    @cached_property
-    def gauss_fit_params(self) -> None:
-        """Gaussian fit for the beam profile."""
-        raise NotImplementedError
-        return self._calc_gauss()
+        return 1 / (2 * self.hist_step)
 
     def beam_spectrum(self, n_fft: int | None) -> NumpyArray:
         """Calculate fourier transform of the profile."""

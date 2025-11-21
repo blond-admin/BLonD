@@ -1,19 +1,33 @@
 import json
 import os
 import unittest
+import warnings
 from collections import deque
 from copy import deepcopy
 from pathlib import Path
 from unittest.mock import Mock
 
 import numpy as np
-import pytest
 from matplotlib import pyplot as plt
 from scipy.constants import c, e
 from scipy.fft import next_fast_len
 
-from blond import Simulation, WakeField, mu_plus
+from blond import (
+    Beam,
+    ConstantMagneticCycle,
+    Cupy64Bit,
+    Numpy64Bit,
+    Ring,
+    Simulation,
+    SingleHarmonicRfStation,
+    WakeField,
+    mu_plus,
+    uranium_29,
+)
+from blond._core.backends.backend import backend
 from blond._core.beam.base import BeamBaseClass
+from blond.generals.cupy.no_cupy_import import is_cupy_array
+from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.solvers import (
     InductiveImpedance,
     InductiveImpedanceSolver,
@@ -37,10 +51,8 @@ class TestTimeDomainFftSolver(unittest.TestCase):
             center_frequencies=np.array([500e6, 750e6, 1.5e9]),
             quality_factors=np.array([5, 5, 5]),
         )
-        self.time_domain_fft_solver = (
-            TimeDomainFftSolver()
-        )
-        self.left_edge, self.right_edge, self.hist_step = -2e-9, 1e-9, .01e-10
+        self.time_domain_fft_solver = TimeDomainFftSolver()
+        self.left_edge, self.right_edge, self.hist_step = -2e-9, 1e-9, 0.01e-10
         self.hist_x = np.linspace(
             self.left_edge,
             self.right_edge,
@@ -49,14 +61,16 @@ class TestTimeDomainFftSolver(unittest.TestCase):
             endpoint=True,
         )
 
-        self.time_domain_fft_solver._parent_wakefield = Mock(
-            WakeField
-        )
+        self.time_domain_fft_solver._parent_wakefield = Mock(WakeField)
         self.time_domain_fft_solver._parent_wakefield.profile = Mock(
             spec=StaticProfile
         )
-        self.time_domain_fft_solver._parent_wakefield.profile.hist_step = self.hist_step
-        self.time_domain_fft_solver._parent_wakefield.profile.hist_x = self.hist_x
+        self.time_domain_fft_solver._parent_wakefield.profile.hist_step = (
+            self.hist_step
+        )
+        self.time_domain_fft_solver._parent_wakefield.profile.hist_x = (
+            self.hist_x
+        )
 
         profile = np.zeros_like(
             self.time_domain_fft_solver._parent_wakefield.profile.hist_x
@@ -74,40 +88,153 @@ class TestTimeDomainFftSolver(unittest.TestCase):
         self.beam.intensity = int(1e9)
         self.beam.particle_type.charge = 1
         self.beam.n_macroparticles_partial.return_value = int(1e3)
-        self.beam.ratio = self.beam.intensity / self.beam.n_macroparticles_partial()
+        self.beam.ratio = (
+            self.beam.intensity / self.beam.n_macroparticles_partial()
+        )
+
+        self.time_domain_fft_solver._parent_wakefield.profile.hist_y_to_density_factor = (1 / self.beam.n_macroparticles_partial())
 
         self.time_domain_fft_solver._parent_wakefield.profile.beam_spectrum.return_value = np.fft.rfft(
             self.time_domain_fft_solver._parent_wakefield.profile.hist_y,
             n=next_fast_len(
-                len(self.time_domain_fft_solver._parent_wakefield.profile.hist_y) * 2
+                len(
+                    self.time_domain_fft_solver._parent_wakefield.profile.hist_y
+                )
+                * 2
             ),
         )
 
-    @pytest.mark.skip()
+    @unittest.skip
     def test__ind_voltage_calculation(self):
         self.time_domain_fft_solver._wake_imp_y_needs_update = True
-        ind_volt = self.time_domain_fft_solver.calc_induced_voltage(beam=self.beam)
+        ind_volt = self.time_domain_fft_solver.calc_induced_voltage(
+            beam=self.beam
+        )
 
-        assert len(ind_volt) == len(self.time_domain_fft_solver._parent_wakefield.profile.hist_y)
+        assert len(ind_volt) == len(
+            self.time_domain_fft_solver._parent_wakefield.profile.hist_y
+        )
 
-    @pytest.mark.skip()
     def test_error_throwing_warning_throwing(self):
         local_solver = deepcopy(self.time_domain_fft_solver)
         local_solver._parent_wakefield.sources = (ImpedanceTableFreq,)
 
-        with self.assertRaises(Exception):
+        with self.assertRaisesRegex(
+            Exception, "Can only accept impedance that support"
+        ):
             local_solver._update_impedance_sources(beam=self.beam)
 
-        local_solver._parent_wakefield.sources = (self.resonators,)
-        local_solver._update_impedance_sources(beam=self.beam)
-        local_solver._wake_imp_y = np.array([0])
-        local_solver._update_impedance_sources(beam=self.beam)
-        assert local_solver._wake_imp_y == np.array([0])  # check that nothing gets changed without flag
+        # local_solver._parent_wakefield.sources = (self.resonators,)
+        # local_solver._update_impedance_sources(beam=self.beam)
+        # local_solver._wake_imp_y = np.array([0])
+        # local_solver._update_impedance_sources(beam=self.beam)
+        # assert local_solver._wake_imp_y == np.array([0])  # check that nothing gets changed without flag
+        #
+        # local_solver._wake_imp_y_needs_update = True
+        # local_solver._wake_imp_y = np.ones_like(local_solver._parent_wakefield.profile.hist_x, dtype=complex)
+        # local_solver._update_impedance_sources(beam=self.beam)
+        # assert np.sum(local_solver._wake_imp_y) != 0
 
-        local_solver._wake_imp_y_needs_update = True
-        local_solver._wake_imp_y = np.ones_like(local_solver._parent_wakefield.profile.hist_x, dtype=complex)
-        local_solver._update_impedance_sources(beam=self.beam)
-        assert np.sum(local_solver._wake_imp_y) != 0
+    def test_on_wakefield_init_simulation_error_throwing(self):
+        simulation = Mock(Simulation)
+        parent_wakefield = Mock(WakeField)
+        profile = Mock(DynamicProfileConstNBins)
+        profile.n_bins = 10
+        parent_wakefield.profile = profile
+        parent_wakefield.profile.hist_step = 1
+        resonators = Mock(Resonators)
+        resonators.is_dynamic = False
+        parent_wakefield.sources = (resonators,)
+        resonators.get_impedance.return_value = np.linspace(1, 2, 6)
+
+        with warnings.catch_warnings(record=True) as w:
+            self.time_domain_fft_solver.expect_profile_change = False
+            self.time_domain_fft_solver.on_wakefield_init_simulation(
+                simulation=simulation, parent_wakefield=parent_wakefield
+            )
+            self.assertIn("Because you are using a", str(w[0].message))
+
+        with self.assertRaisesRegex(NotImplementedError, "Unrecognized type"):
+            profile = Mock(BeamBaseClass)
+            parent_wakefield.profile = profile
+            parent_wakefield.profile.hist_step = 1
+            parent_wakefield.profile.n_bins = 10
+            self.time_domain_fft_solver.on_wakefield_init_simulation(
+                simulation=simulation, parent_wakefield=parent_wakefield
+            )
+
+        with self.assertRaises(Exception):
+            parent_wakefield.profile = None
+            self.time_domain_fft_solver.on_wakefield_init_simulation(
+                simulation=simulation, parent_wakefield=parent_wakefield
+            )
+
+    def test_dynamic_profile_integration(self):
+        beam = Beam(
+            intensity=21,
+            particle_type=uranium_29,
+        )
+        cavity = SingleHarmonicRfStation()
+        cavity.harmonic = 1
+        cavity.voltage = 0
+        cavity.phi_rf = 0
+        rng = np.random.default_rng()
+        dt = rng.standard_normal(1000)
+
+        # truncate and shift center to 1
+        dt[dt > 1] = 0
+        dt[dt < -1] = 0
+        dt += 1
+
+        beam.setup_beam(dt=dt, dE=np.linspace(0, 1, 1000))
+        profile = DynamicProfileConstNBins(n_bins=200)
+        profile.update_attributes(beam=beam)
+        wf = WakeField(
+            sources=(
+                Resonators(
+                    shunt_impedances=np.array([1, 2, 3]),
+                    center_frequencies=np.array([500e6, 750e6, 1.5e9]),
+                    quality_factors=np.array([5e10, 5, 5]),
+                ),
+            ),
+            solver=TimeDomainFftSolver(
+            ),
+            profile=profile,
+        )
+        ring = Ring(circumference=123)
+        cycle = ConstantMagneticCycle(
+            reference_particle=uranium_29,
+            value=1e12,
+        )
+        sim = Simulation.from_locals(locals=locals())
+        profile.track(beam=beam)
+
+        self.time_domain_fft_solver._wake_imp_y_needs_update = True
+        self.time_domain_fft_solver._wake_imp_y = np.ones_like(self.time_domain_fft_solver._parent_wakefield.profile.hist_x, dtype=complex)
+        self.time_domain_fft_solver._update_impedance_sources(beam=self.beam)
+        assert np.sum(self.time_domain_fft_solver._wake_imp_y) != 0
+
+        profile_a = profile.hist_y
+        induced_voltage_a = wf.calc_induced_voltage(beam=beam)
+
+        dt = beam.write_partial_dt()
+        dt -= 1
+        dt /= 2
+        dt += 1
+        profile.update_attributes(beam=beam)
+        profile.track(beam=beam)
+        profile_b = profile.hist_y
+        induced_voltage_b = wf.calc_induced_voltage(beam=beam)
+
+        DEV_PLOT = False
+        if DEV_PLOT:
+            plt.subplot(2, 1, 1)
+            plt.plot(profile_a)
+            plt.plot(profile_b)
+            plt.subplot(2, 1, 2)
+            plt.plot(induced_voltage_a)
+            plt.plot(induced_voltage_b)
+            plt.show()
 
 
 class TestInductiveImpedanceSolver(unittest.TestCase):
@@ -124,6 +251,8 @@ class TestInductiveImpedanceSolver(unittest.TestCase):
         self.inductive_impedance_solver._Z_over_n = 12
         _parent_wakefield = Mock(WakeField)
         _parent_wakefield.profile.hist_step = 1
+        _parent_wakefield.profile.hist_y_to_density_factor = beam.ratio
+
         self.inductive_impedance_solver._parent_wakefield = _parent_wakefield
         simulation = Mock(Simulation)
         simulation.ring.circumference = 123
@@ -156,7 +285,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
             Z_over_n=34.6669349520904 / 10e9 * 11e3
         )
         self.resonators = Resonators(
-            shunt_impedances=np.array([1, 2, 3]),
+            shunt_impedances=np.array([500, 1e6, 1e9]),
             center_frequencies=np.array([400e6, 600e6, 1.2e9]),
             quality_factors=np.array([1, 2, 3]),
         )
@@ -186,8 +315,11 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         self.periodic_freq_solver._parent_wakefield.profile.hist_step = 0.5e-9
         self.periodic_freq_solver.t_periodicity = 1e-8
 
-    def test_calc_induced_voltage(self):
-        self.periodic_freq_solver._parent_wakefield.profile.beam_spectrum.return_value = np.linspace(
+    def _test_calc_induced_voltage(self, backend_class):
+        from blond import backend
+
+        backend.change_backend(backend_class)
+        self.periodic_freq_solver._parent_wakefield.profile.beam_spectrum.return_value = backend.linspace(
             0, 1, 11
         )
         self.periodic_freq_solver._parent_wakefield.sources = (
@@ -200,15 +332,66 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         beam = Mock(BeamBaseClass)
         beam.intensity = int(11e3)
         beam.n_macroparticles_partial.return_value = int(3e6)
+        self.periodic_freq_solver._parent_wakefield.profile.hist_y_to_density_factor = (
+            1 / beam.n_macroparticles_partial.return_value
+        )
         beam.particle_type.charge = 1
-        beam.ratio = 1
+        beam.ratio = 1e5
         induced_voltage = self.periodic_freq_solver.calc_induced_voltage(
             beam=beam,
-        )  # TODO Pin Physics case here!
+        )
+        induced_voltage = self.periodic_freq_solver.calc_induced_voltage(
+            beam=beam,
+        )
+        if is_cupy_array(induced_voltage):
+            induced_voltage = induced_voltage.get()
+        pinned_values = np.load(
+            callers_relative_path(
+                "resources/induced_voltage_periodic_freq_solver.npz",
+                stacklevel=1,
+            )
+        )["induced_voltage"]
+
+        np.testing.assert_allclose(pinned_values, induced_voltage, rtol=1e-5)
+
+        # np.savez(callers_relative_path("resources/induced_voltage_periodic_freq_solver.npz", stacklevel=1), induced_voltage=induced_voltage)
         DEV_PLOT = False
         if DEV_PLOT:
             plt.plot(induced_voltage)
             plt.show()
+
+        assert self.periodic_freq_solver._freq_y_needs_update == False
+        self.periodic_freq_solver._parent_wakefield.sources = (
+            Mock(BeamBaseClass),
+        )
+        # if this were to be checked, it would error, but since
+        # we are on _freq_y_needs_update == False, it skips
+        self.periodic_freq_solver._update_impedance_sources(beam=beam)
+
+        with self.assertRaises(Exception):
+            self.periodic_freq_solver._freq_y_needs_update = True
+            # update is now forced, which should force the error
+            self.periodic_freq_solver._update_impedance_sources(beam=beam)
+
+    def test_calc_induced_voltage_gpu(self):
+        try:
+            import cupy  # type: ignore
+        except ImportError as exc:
+            # skip test if GPU is not available
+            self.skipTest(str(exc))
+
+        from blond import backend
+
+        backend_org = type(backend)
+        self._test_calc_induced_voltage(backend_class=Cupy64Bit)
+        backend.change_backend(backend_org)
+
+    def test_calc_induced_voltage_cpu(self):
+        from blond import backend
+
+        backend_org = type(backend)
+        self._test_calc_induced_voltage(backend_class=Numpy64Bit)
+        backend.change_backend(backend_org)
 
     def test_on_wakefield_init_simulation(self):
         simulation = Mock(Simulation)
@@ -225,6 +408,98 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         self.periodic_freq_solver.on_wakefield_init_simulation(
             simulation=simulation, parent_wakefield=parent_wakefield
         )
+
+    def test_on_wakefield_init_simulation_error_throwing(self):
+        simulation = Mock(Simulation)
+        parent_wakefield = Mock(WakeField)
+        profile = Mock(DynamicProfileConstNBins)
+        profile.n_bins = 10
+        parent_wakefield.profile = profile
+        parent_wakefield.profile.hist_step = 1
+        resonators = Mock(Resonators)
+        resonators.is_dynamic = False
+        parent_wakefield.sources = (resonators,)
+        resonators.get_impedance.return_value = np.linspace(1, 2, 6)
+
+        with warnings.catch_warnings(record=True) as w:
+            self.periodic_freq_solver.expect_profile_change = False
+            self.periodic_freq_solver.on_wakefield_init_simulation(
+                simulation=simulation, parent_wakefield=parent_wakefield
+            )
+            self.assertIn("Because you are using a", str(w[0].message))
+
+        with self.assertRaisesRegex(NotImplementedError, "Unrecognized type"):
+            profile = Mock(BeamBaseClass)
+            parent_wakefield.profile = profile
+            parent_wakefield.profile.hist_step = 1
+            parent_wakefield.profile.n_bins = 10
+            self.periodic_freq_solver.on_wakefield_init_simulation(
+                simulation=simulation, parent_wakefield=parent_wakefield
+            )
+
+        with self.assertRaises(Exception):
+            parent_wakefield.profile = None
+            self.periodic_freq_solver.on_wakefield_init_simulation(
+                simulation=simulation, parent_wakefield=parent_wakefield
+            )
+
+    def test_dynamic_profile_integration(self):
+        beam = Beam(
+            intensity=21,
+            particle_type=uranium_29,
+        )
+        cavity = SingleHarmonicRfStation()
+        cavity.harmonic = 1
+        cavity.voltage = 0
+        cavity.phi_rf = 0
+        rng = np.random.default_rng()
+        dt = rng.standard_normal(1000)
+
+        # truncate and shift center to 1
+        dt[dt > 1] = 0
+        dt[dt < -1] = 0
+        dt += 1
+
+        beam.setup_beam(dt=dt, dE=np.linspace(0, 1, 1000))
+        profile = DynamicProfileConstCutoff(timestep=0.1)
+        profile.update_attributes(beam=beam)
+        wf = WakeField(
+            sources=(
+                Resonators(
+                    shunt_impedances=np.array([1, 2, 3]),
+                    center_frequencies=np.array([500e6, 750e6, 1.5e9]),
+                    quality_factors=np.array([5e10, 5, 5]),
+                ),
+            ),
+            solver=PeriodicFreqSolver(
+                t_periodicity=4.0, allow_next_fast_len=True
+            ),
+            profile=profile,
+        )
+        ring = Ring(circumference=123)
+        cycle = ConstantMagneticCycle(
+            reference_particle=uranium_29,
+            value=1e12,
+        )
+        sim = Simulation.from_locals(locals=locals())
+        profile.track(beam=beam)
+
+        induced_voltage_a = wf.calc_induced_voltage(beam=beam)
+
+        dt = beam.write_partial_dt()
+        dt  -= 1
+        dt  /= 2
+        dt  += 1
+        profile.update_attributes(beam=beam)
+        profile.track(beam=beam)
+
+        induced_voltage_b = wf.calc_induced_voltage(beam=beam)
+
+        DEV_PLOT = False
+        if DEV_PLOT:
+            plt.plot(induced_voltage_a)
+            plt.plot(induced_voltage_b)
+            plt.show()
 
 
 class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
@@ -246,6 +521,12 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
             endpoint=True,
         )
 
+        self.beam = Mock(BeamBaseClass)
+
+        self.beam.intensity = int(1e9)
+        self.beam.particle_type.charge = 1
+        self.beam.n_macroparticles_partial.return_value = int(1e3)
+
         self.single_turn_resonator_convolution_solver._parent_wakefield = Mock(
             WakeField
         )
@@ -254,6 +535,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         )
         self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_step = self.hist_step
         self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_x = self.hist_x
+        self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y_to_density_factor = 1 / self.beam.n_macroparticles_partial()
 
         profile = np.zeros_like(
             self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_x
@@ -268,48 +550,39 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
 
     def test_compare_with_fft_solver(self):
         analy_solver = deepcopy(self.single_turn_resonator_convolution_solver)
-        left_edge, right_edge, hist_step = -2e-9, 1e-9, .01e-10  # finer profile, otherwise FFT solver fails
+        left_edge, right_edge, hist_step = (
+            -2e-9,
+            1e-9,
+            0.01e-10,
+        )  # finer profile, otherwise FFT solver fails
         hist_x = np.linspace(
             left_edge,
             right_edge,
-            int(np.round((right_edge - left_edge) / hist_step))
-            + 1,
+            int(np.round((right_edge - left_edge) / hist_step)) + 1,
             endpoint=True,
         )
 
-        analy_solver._parent_wakefield.profile = Mock(
-            spec=StaticProfile
-        )
+        analy_solver._parent_wakefield.profile = Mock(spec=StaticProfile)
         analy_solver._parent_wakefield.profile.hist_step = hist_step
         analy_solver._parent_wakefield.profile.hist_x = hist_x
 
-        profile = np.zeros_like(
-            analy_solver._parent_wakefield.profile.hist_x
-        )
+        profile = np.zeros_like(analy_solver._parent_wakefield.profile.hist_x)
         profile[9:12] = 1  # symmetric profile around centerpoint
         profile /= np.sum(profile)
         analy_solver._parent_wakefield.profile.hist_y = profile
+        analy_solver._parent_wakefield.profile.hist_y_to_density_factor = 1 / self.beam.n_macroparticles_partial()
 
+        analy_solver._parent_wakefield.profile.hist_y_to_density_factor = (
+            1 / self.beam.n_macroparticles_partial.return_value
+        )
 
-        beam = Mock(BeamBaseClass)
-
-        beam.intensity = int(1e9)
-        beam.particle_type.charge = 1
-        beam.n_macroparticles_partial.return_value = int(1e3)
-        beam.ratio = beam.intensity / beam.n_macroparticles_partial()
-        analy_solver._update_potential_sources(
-            zero_pinning=True
-        )
-        initial_wake_pot = (
-            analy_solver._wake_function_vals
-        )
-        initial_wake_pot_time = (
-            analy_solver._wake_function_time
-        )
+        analy_solver._update_potential_sources(zero_pinning=True)
+        initial_wake_pot = analy_solver._wake_function_vals
+        initial_wake_pot_time = analy_solver._wake_function_time
         assert len(initial_wake_pot) == len(initial_wake_pot_time)
         initial_voltage = (
             analy_solver.calc_induced_voltage(
-                beam=beam
+                beam=self.beam
             )
         )
 
@@ -318,21 +591,29 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         td_fft_solver._parent_wakefield.profile = Mock(StaticProfile)
         td_fft_solver._parent_wakefield.profile.hist_step = hist_step
         td_fft_solver._parent_wakefield.profile.hist_x = hist_x
+        td_fft_solver._parent_wakefield.profile.hist_y_to_density_factor = 1 / self.beam.n_macroparticles_partial()
 
-        td_fft_solver._parent_wakefield.profile.hist_y = analy_solver._parent_wakefield.profile.hist_y
+        td_fft_solver._parent_wakefield.profile.hist_y = (
+            analy_solver._parent_wakefield.profile.hist_y
+        )
+        td_fft_solver._parent_wakefield.profile.hist_y_to_density_factor = (
+            1 / self.beam.n_macroparticles_partial.return_value
+        )
 
         td_fft_solver._parent_wakefield.sources = (self.resonators,)
 
-        td_fft_solver._parent_wakefield.profile.beam_spectrum.return_value = np.fft.rfft(
-            analy_solver._parent_wakefield.profile.hist_y,
-            n=next_fast_len(
-                len(analy_solver._parent_wakefield.profile.hist_y) * 2
-            ),
+        td_fft_solver._parent_wakefield.profile.beam_spectrum.return_value = (
+            np.fft.rfft(
+                analy_solver._parent_wakefield.profile.hist_y,
+                n=next_fast_len(
+                    len(analy_solver._parent_wakefield.profile.hist_y) * 2
+                ),
+            )
         )
 
-        td_solver = td_fft_solver.calc_induced_voltage(beam=beam)
-        assert np.allclose(
-            initial_voltage, td_solver[0 : len(initial_voltage)]
+        td_solver = td_fft_solver.calc_induced_voltage(beam=self.beam)
+        np.testing.assert_allclose(
+            initial_voltage, td_solver[0 : len(initial_voltage)], atol=1e-10,
         )
 
     def test___init__(self):
@@ -344,10 +625,6 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         """
         ensure that the profile does not change on application of different profile lengths with 0-padding
         """
-        beam = Mock(BeamBaseClass)
-        beam.intensity = int(1e9)
-        beam.particle_type.charge = 1
-        beam.n_macroparticles_partial.return_value = int(1e3)
         self.single_turn_resonator_convolution_solver._update_potential_sources(
             zero_pinning=True
         )
@@ -360,7 +637,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         assert len(initial_wake_pot) == len(initial_wake_pot_time)
         initial_voltage = (
             self.single_turn_resonator_convolution_solver.calc_induced_voltage(
-                beam=beam
+                beam=self.beam
             )
         )
         initial_profile_len = len(
@@ -378,8 +655,11 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
                 self.hist_step,
             ),
         )
-        num_to_append = (len(self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_x) -
-                         len(self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y))
+        num_to_append = len(
+            self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_x
+        ) - len(
+            self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y
+        )
         self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y = np.append(
             self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y,
             np.zeros(int(num_to_append)),
@@ -391,7 +671,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         )
         updated_voltage = (
             self.single_turn_resonator_convolution_solver.calc_induced_voltage(
-                beam=beam
+                beam=self.beam
             )
         )
         # check for correct length of profiles and voltages
@@ -417,12 +697,8 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         )
 
     def test__correct_time_diff_on_internal_array(self):
-        beam = Mock(BeamBaseClass)
-        beam.intensity = int(1e9)
-        beam.particle_type.charge = 1
-        beam.n_macroparticles_partial.return_value = int(1e3)
         _ = self.single_turn_resonator_convolution_solver.calc_induced_voltage(
-            beam=beam
+            beam=self.beam
         )
         np.allclose(
             np.diff(
@@ -438,12 +714,8 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         )
 
     def test__update_potential_sources_location_of_calculation_matching(self):
-        beam = Mock(BeamBaseClass)
-        beam.intensity = int(1e9)
-        beam.particle_type.charge = 1
-        beam.n_macroparticles_partial.return_value = int(1e3)
         _ = self.single_turn_resonator_convolution_solver.calc_induced_voltage(
-            beam=beam
+            beam=self.beam
         )
         first_time = self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_x
         found = False
@@ -474,7 +746,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         local_copy._parent_wakefield.profile.hist_x = (
             local_copy._parent_wakefield.profile.hist_x + 1e-10 / 2
         )
-        _ = local_copy.calc_induced_voltage(beam=beam)
+        _ = local_copy.calc_induced_voltage(beam=self.beam)
 
         found = False
         for run_ind in range(
@@ -498,6 +770,9 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         beam.intensity = int(1e2)
         beam.particle_type.charge = 1
         beam.n_macroparticles_partial.return_value = int(1e2)
+        self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y_to_density_factor = (
+                1 / beam.n_macroparticles_partial())
+
         self.single_turn_resonator_convolution_solver._update_potential_sources(
             zero_pinning=True
         )
@@ -600,6 +875,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         # intensity == n_macroparticles, integrated bunch is 1 --> all normalized to 1C
 
         analy._wake_function_vals_needs_update = True
+        analy._parent_wakefield.profile.hist_y_to_density_factor = 1 / beam.n_macroparticles_partial()
 
         calced_voltage = analy.calc_induced_voltage(beam=beam)
 
@@ -688,6 +964,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             shunt_impedances=np.array([1, 2, 3]),
             center_frequencies=np.array([500e6, 750e6, 1.5e9]),
             quality_factors=np.array([10e3, 10e3, 10e3]),
+            shunt_impedances_counter_rotating=np.array([-1, -2, -3])
         )
         self.multi_pass_resonator_solver = MultiPassResonatorSolver()
         self.hist_step, self.hist_x = (
@@ -703,6 +980,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.multi_pass_resonator_solver._parent_wakefield.profile.hist_x = (
             self.hist_x
         )
+        self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y_to_density_factor = 1
 
         self.profile = np.zeros_like(
             self.multi_pass_resonator_solver._parent_wakefield.profile.hist_x
@@ -721,7 +999,22 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.beam.intensity = int(1e2)
         self.beam.particle_type.charge = 1
         self.beam.n_macroparticles_partial.return_value = int(1e2)
-        self.beam.reference_time = 2e-5
+        self.beam.reference_time = 0
+        self.beam.is_counter_rotating = False
+
+    def test_info_string_with_RF_station(self):
+        shc = SingleHarmonicRfStation(
+            section_index=0,
+            harmonic=1,
+            voltage=1,
+            phi_rf=1,
+            local_wakefield=WakeField(
+                profile=StaticProfile.from_cutoff(0, 1e-9, 3e9),
+                sources=(self.resonators,),
+                solver=self.multi_pass_resonator_solver,
+            ),
+        )
+        assert "WakeField" in shc.info_string()
 
     def test_determine_storage_time_single_res(self):
         simulation = Mock(Simulation)
@@ -813,6 +1106,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.multi_pass_resonator_solver._past_profiles = deque(
             [np.array([1, 1, 1]), np.array([2, 2, 2]), np.array([3, 3, 3])]
         )
+        self.multi_pass_resonator_solver._past_profiles_counter_rotation_flag = deque([False, False, False])
 
         self.multi_pass_resonator_solver._maximum_storage_time = 1.0
         self.multi_pass_resonator_solver._remove_fully_decayed_wake_profiles(
@@ -881,6 +1175,9 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.multi_pass_resonator_solver._past_profiles = deque(
             [np.array([1, 1, 1]), np.array([2, 2, 2]), np.array([3, 3, 3])]
         )
+        self.multi_pass_resonator_solver._past_profiles_counter_rotation_flag = deque(
+            [False, False, False]
+        )
 
         self.multi_pass_resonator_solver._remove_fully_decayed_wake_profiles(
             indexes_to_check=2
@@ -928,6 +1225,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.multi_pass_resonator_solver._past_profiles = deque(
             [np.array([1, 1, 1]), np.array([2, 2, 2]), np.array([3, 3, 3])]
         )
+        self.multi_pass_resonator_solver._past_profiles_counter_rotation_flag = deque([False, False, False])
 
         self.multi_pass_resonator_solver._maximum_storage_time = 2.0
         self.multi_pass_resonator_solver._remove_fully_decayed_wake_profiles(
@@ -971,13 +1269,44 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         )
 
         self.multi_pass_resonator_solver._past_profile_times = deque(
-            np.add(self.multi_pass_resonator_solver._past_profile_times,
-                   self.multi_pass_resonator_solver._maximum_storage_time + 1))
+            np.add(
+                self.multi_pass_resonator_solver._past_profile_times,
+                self.multi_pass_resonator_solver._maximum_storage_time + 1,
+            )
+        )
         self.multi_pass_resonator_solver._remove_fully_decayed_wake_profiles(
             indexes_to_check=2
         )
 
         assert len(self.multi_pass_resonator_solver._past_profile_times) == 0
+
+        # check immediate return
+        self.multi_pass_resonator_solver._wake_function_vals = deque(
+            [np.array([1, 1, 1]), np.array([2, 2, 2]), np.array([3, 3, 3])]
+        )
+        self.multi_pass_resonator_solver._wake_function_time = deque(
+            [
+                np.array([0.1, 0.2, 0.3]),
+                np.array([1.1, 1.2, 1.3]),
+                np.array([2.1, 2.2, 2.3]),
+            ]
+        )  # technically not correct length but doesnt matter here
+        self.multi_pass_resonator_solver._past_profile_times = deque(
+            [
+                np.array([0.1, 0.2, 0.3]),
+                np.array([1.1, 1.2, 1.3]),
+                np.array([2.1, 2.2, 2.3]),
+            ]
+        )
+        self.multi_pass_resonator_solver._past_profiles = deque(
+            [np.array([1, 1, 1]), np.array([2, 2, 2]), np.array([3, 3, 3])]
+        )
+        self.multi_pass_resonator_solver._past_profiles_counter_rotation_flag = deque([False, False, False])
+
+        self.multi_pass_resonator_solver._maximum_storage_time = 0.0
+        self.multi_pass_resonator_solver._remove_fully_decayed_wake_profiles(
+            indexes_to_check=4
+        )
 
     def test_remove_fully_decayed_wake_profiles_physics(self):
         simulation = Mock(Simulation)
@@ -1001,19 +1330,28 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             local_solv._parent_wakefield.profile = None
-            local_solv.on_wakefield_init_simulation(simulation=simulation,
-                                                    parent_wakefield=local_solv._parent_wakefield)
+            local_solv.on_wakefield_init_simulation(
+                simulation=simulation,
+                parent_wakefield=local_solv._parent_wakefield,
+            )
 
         with self.assertRaises(RuntimeError):
-            local_solv._parent_wakefield.profile = DynamicProfileConstCutoff(timestep=0)
-            local_solv.on_wakefield_init_simulation(simulation=simulation,
-                                                    parent_wakefield=local_solv._parent_wakefield)
+            local_solv._parent_wakefield.profile = DynamicProfileConstCutoff(
+                timestep=0
+            )
+            local_solv.on_wakefield_init_simulation(
+                simulation=simulation,
+                parent_wakefield=local_solv._parent_wakefield,
+            )
 
         with self.assertRaises(RuntimeError):
-            local_solv._parent_wakefield.sources = (ImpedanceTableFreq(np.array([0]), np.array([0])), )
-            local_solv.on_wakefield_init_simulation(simulation=simulation,
-                                                    parent_wakefield=local_solv._parent_wakefield)
-
+            local_solv._parent_wakefield.sources = (
+                ImpedanceTableFreq(np.array([0]), np.array([0])),
+            )
+            local_solv.on_wakefield_init_simulation(
+                simulation=simulation,
+                parent_wakefield=local_solv._parent_wakefield,
+            )
 
     def test_update_past_profile_times_wake_times(self):
         self.multi_pass_resonator_solver._past_profile_times = deque(
@@ -1076,6 +1414,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         local_res._past_profiles.appendleft(
             self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y
         )
+        local_res._past_profiles_counter_rotation_flag.appendleft(False)
         local_res._update_past_profile_wake_functions(zero_pinning=True)
 
         assert len(local_res._wake_function_time) == 1
@@ -1108,6 +1447,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
                 self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y
             )
         )
+        local_res._past_profiles_counter_rotation_flag.appendleft(False)
         local_res._update_past_profile_wake_functions(zero_pinning=True)
         local_res._update_past_profile_times_wake_times(1e-8)
         local_res._past_profile_times.appendleft(
@@ -1120,6 +1460,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
                 self.multi_pass_resonator_solver._parent_wakefield.profile.hist_y
             )
         )
+        local_res._past_profiles_counter_rotation_flag.appendleft(False)
         local_res._update_past_profile_wake_functions(zero_pinning=True)
 
         # should have been pushed back --> [1] is the oder profile, [0] is the newest
@@ -1162,12 +1503,14 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             simulation=sim,
             parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield,
         )
-        local_res._update_potential_sources()
+        local_res._update_potential_sources(self.beam)
 
         local_res._wake_function_vals_needs_update = True
         tsteps = [0.5, 1.0, 1.6]
         local_res._maximum_storage_time = 1.5
-        local_res._update_potential_sources(tsteps[0])
+        beam = deepcopy(self.beam)
+        beam.reference_time = tsteps[0]
+        local_res._update_potential_sources(beam=beam)
 
         assert (
             len(local_res._wake_function_time)
@@ -1176,19 +1519,18 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             == len(local_res._past_profiles)
             == 2
         )
-        assert np.mean(local_res._wake_function_time[1]) == np.mean(
-            local_res._wake_function_time[0] + tsteps[0]
-        )
-        assert np.mean(local_res._past_profile_times[1]) == np.mean(
-            local_res._past_profile_times[0] + tsteps[0]
-        )
-        assert np.allclose(
+        np.testing.assert_allclose(local_res._wake_function_time[1],
+            local_res._wake_function_time[0] + tsteps[0])
+        np.testing.assert_allclose(local_res._past_profile_times[1],
+            local_res._past_profile_times[0] + tsteps[0])
+        np.testing.assert_allclose(
             local_res._past_profiles[0], local_res._past_profiles[1]
         )
 
         # repeat another time, first array should be kicked out due to delay
         local_res._wake_function_vals_needs_update = True
-        local_res._update_potential_sources(tsteps[1])
+        beam.reference_time = tsteps[1]
+        local_res._update_potential_sources(beam=beam)
         assert (
             len(local_res._wake_function_time)
             == len(local_res._wake_function_vals)
@@ -1196,19 +1538,20 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             == len(local_res._past_profiles)
             == 3
         )
-        assert np.mean(local_res._wake_function_time[1]) == np.mean(
+        np.testing.assert_allclose(local_res._wake_function_time[1],
             local_res._wake_function_time[0] + tsteps[1] - tsteps[0]
         )
-        assert np.mean(local_res._past_profile_times[1]) == np.mean(
+        np.testing.assert_allclose(local_res._past_profile_times[1],
             local_res._past_profile_times[0] + tsteps[1] - tsteps[0]
         )
-        assert np.allclose(
+        np.testing.assert_allclose(
             local_res._past_profiles[0], local_res._past_profiles[1]
         )
 
         # kick out oldest profile
         local_res._wake_function_vals_needs_update = True
-        local_res._update_potential_sources(tsteps[2])
+        beam.reference_time = tsteps[2]
+        local_res._update_potential_sources(beam=beam)
         assert (
             len(local_res._wake_function_time)
             == len(local_res._wake_function_vals)
@@ -1216,27 +1559,27 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             == len(local_res._past_profiles)
             == 3
         )
-        assert np.isclose(
+        np.testing.assert_allclose(
             np.mean(local_res._wake_function_time[1]),
             np.mean(local_res._wake_function_time[0] + tsteps[2] - tsteps[1]),
         )
-        assert np.isclose(
+        np.testing.assert_allclose(
             np.mean(local_res._past_profile_times[1]),
             np.mean(local_res._past_profile_times[0] + tsteps[2] - tsteps[1]),
         )
-        assert np.isclose(
+        np.testing.assert_allclose(
             np.mean(local_res._wake_function_time[2]),
             np.mean(local_res._wake_function_time[1] + tsteps[1] - tsteps[0]),
         )
-        assert np.isclose(
+        np.testing.assert_allclose(
             np.mean(local_res._past_profile_times[2]),
             np.mean(local_res._past_profile_times[1] + tsteps[1] - tsteps[0]),
         )
 
-        assert np.allclose(
+        np.testing.assert_allclose(
             local_res._past_profiles[0], local_res._past_profiles[1]
         )
-        assert np.allclose(
+        np.testing.assert_allclose(
             local_res._past_profiles[1], local_res._past_profiles[2]
         )
 
@@ -1248,17 +1591,19 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             simulation=sim,
             parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield,
         )
-        local_res._update_potential_sources()
+        beam = deepcopy(self.beam)
+        local_res._update_potential_sources(beam)
 
         local_res._maximum_storage_time = 1.5
 
         local_res._parent_wakefield.profile.hist_x *= 2
         local_res._wake_function_vals_needs_update = True
+        beam.reference_time += 1
         with self.assertRaises(
             AssertionError,
             msg="profile bin size needs to be constant: hist_step might be too small with casting to delta_t precision",
         ):
-            local_res._update_potential_sources(1.0)
+            local_res._update_potential_sources(beam)
 
     def test_calc_induced_voltage_array_lengths(self):
         sim = Mock(Simulation)
@@ -1274,7 +1619,9 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
         local_res._maximum_storage_time = 1.5
         local_res._wake_function_vals_needs_update = True
-        local_res._update_potential_sources(1.0)
+        beam = deepcopy(self.beam)
+        beam.reference_time = 1
+        local_res._update_potential_sources(beam=beam)
 
         assert len(ind_volt) == len(local_res._parent_wakefield.profile.hist_x)
 
@@ -1292,9 +1639,110 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
         local_res._maximum_storage_time = 1.5
         local_res._wake_function_vals_needs_update = True
-        local_res._update_potential_sources(1.0)
+        beam = deepcopy(self.beam)
+        beam.reference_time = 1
+        local_res._update_potential_sources(beam=beam)
 
         assert len(ind_volt) == len(local_res._parent_wakefield.profile.hist_x)
+
+    def test_calc_induced_voltage_counter_rotation(self):
+        sim = Mock(Simulation)
+
+        local_res_corot = deepcopy(self.multi_pass_resonator_solver)
+        local_res_corot.on_wakefield_init_simulation(
+            simulation=sim,
+            parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield,
+        )
+        beam = deepcopy(self.beam)
+        beam.is_counter_rotating = False
+        ind_volt_corot = local_res_corot.calc_induced_voltage(beam=beam)
+
+        assert len(ind_volt_corot) == len(local_res_corot._parent_wakefield.profile.hist_x)
+
+        local_res_counterrot = deepcopy(self.multi_pass_resonator_solver)
+        local_res_counterrot.on_wakefield_init_simulation(
+            simulation=sim,
+            parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield,
+        )
+        beam = deepcopy(self.beam)
+        beam.is_counter_rotating = True
+        ind_volt_corot = local_res_counterrot.calc_induced_voltage(beam=beam)
+        np.testing.assert_allclose(ind_volt_corot, ind_volt_corot)  # first one needs to be the same as this is the self-field
+
+        local_res_counterrot._parent_wakefield.profile.hist_y = np.zeros_like(local_res_counterrot._parent_wakefield.profile.hist_y)
+        # avoid interference from current profile
+        local_res_counterrot_corot = deepcopy(local_res_counterrot)
+        local_res_counterrot_counterrot = deepcopy(local_res_counterrot)
+        beam.is_counter_rotating = False
+        beam.reference_time += np.finfo(float).eps
+        counterrot_corot_ind_volt = local_res_counterrot_corot.calc_induced_voltage(beam)
+        beam.is_counter_rotating = True
+        counterrot_counterrot_ind_volt = local_res_counterrot_counterrot.calc_induced_voltage(beam)
+
+        np.testing.assert_allclose(counterrot_corot_ind_volt, -counterrot_counterrot_ind_volt)
+        # should be inverted as all shunt impedances are inverted
+
+
+    def test_calc_induced_voltage_counter_rotation_opposite_charge(self):
+        sim = Mock(Simulation)
+
+        local_res_counterrot = deepcopy(self.multi_pass_resonator_solver)
+        local_res_counterrot.on_wakefield_init_simulation(
+            simulation=sim,
+            parent_wakefield=self.multi_pass_resonator_solver._parent_wakefield,
+        )
+        beam = deepcopy(self.beam)
+        beam.particle_type.charge = -1
+        beam.is_counter_rotating = True
+        ind_volt_corot = local_res_counterrot.calc_induced_voltage(beam=beam)
+        np.testing.assert_allclose(ind_volt_corot, ind_volt_corot)  # first one needs to be the same as this is the self-field
+
+        local_res_counterrot._parent_wakefield.profile.hist_y = np.zeros_like(local_res_counterrot._parent_wakefield.profile.hist_y)
+        # avoid interference from current profile
+        local_res_counterrot_corot = deepcopy(local_res_counterrot)
+        local_res_counterrot_counterrot = deepcopy(local_res_counterrot)
+        beam.is_counter_rotating = False
+        beam.reference_time += np.finfo(float).eps
+        beam.read_partial_dt.return_value = np.linspace(local_res_counterrot._parent_wakefield.profile.hist_x[0], local_res_counterrot._parent_wakefield.profile.hist_x[-1], num=100)
+        beam.dE = np.zeros_like(beam.read_partial_dt())
+
+        beam_corot = deepcopy(beam)
+        counterrot_corot_ind_volt = local_res_counterrot_corot.calc_induced_voltage(beam_corot)
+        backend.set_specials("python")
+        backend.specials.kick_induced_voltage(
+            dt=beam_corot.read_partial_dt(),
+            dE=beam_corot.dE,
+            voltage=counterrot_corot_ind_volt,
+            bin_centers=self.hist_x,  # base for induced voltage
+            charge=backend.float(beam.particle_type.charge),
+            acceleration_kick=backend.float(
+                0.0
+            ),  # TODO was this ever required??
+        )
+
+        beam_corot_dt = beam_corot.read_partial_dt()
+        beam_corot_dE = beam_corot.dE
+
+        beam.is_counter_rotating = True
+        beam.particle_type.charge = 1
+        counterrot_counterrot_ind_volt = local_res_counterrot_counterrot.calc_induced_voltage(beam)
+
+        # opposite charge and opposite direction --> should be same kick but not same voltage
+        np.testing.assert_allclose(counterrot_corot_ind_volt, -counterrot_counterrot_ind_volt)
+
+        backend.specials.kick_induced_voltage(
+            dt=beam.read_partial_dt(),
+            dE=beam.dE,
+            voltage=counterrot_counterrot_ind_volt,
+            bin_centers=self.hist_x,  # base for induced voltage
+            charge=beam.particle_type.charge,
+            acceleration_kick=backend.float(
+                0.0
+            ),
+        )
+        np.testing.assert_allclose(beam.read_partial_dt(), beam_corot_dt)
+        np.testing.assert_allclose(beam.dE, beam_corot_dE)
+        # the resulting kick should be the same
 
     def test_calc_induced_voltage_vals(self):
         resonators = Resonators(
@@ -1319,6 +1767,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         )
         local_res._parent_wakefield.profile.hist_x = bunch_time
         local_res._parent_wakefield.profile.hist_y = bunch / np.sum(bunch)
+        local_res._parent_wakefield.profile.hist_y_to_density_factor = 1 / self.beam.n_macroparticles_partial()
 
         local_res._parent_wakefield.sources = (resonators,)
 
@@ -1365,14 +1814,40 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         assert np.allclose(ind_volt, ind_volt_init)
         assert np.argmax(ind_volt) == np.argmax(ind_volt_init)
 
+    def test_on_wakefield_init_simulation_wrong_source(self):
+        src = ImpedanceTableFreq(
+            freq_x=np.array([1e12]), freq_y=np.array([500e6])
+        )
+        parent_wakefield = WakeField(
+            sources=(src,), solver=None, profile=Mock(StaticProfile)
+        )
+        simulation = Mock(Simulation)
+        with self.assertRaisesRegex(
+            RuntimeError, "Expected `Resonators` and not "
+        ):
+            self.multi_pass_resonator_solver.on_wakefield_init_simulation(
+                simulation=simulation, parent_wakefield=parent_wakefield
+            )
+        res = Resonators(
+            shunt_impedances=1.0, center_frequencies=1.0, quality_factors=1.0
+        )
+        res.is_dynamic = True
+        parent_wakefield = WakeField(
+            sources=(res,), solver=None, profile=Mock(StaticProfile)
+        )
+        with self.assertRaisesRegex(
+            RuntimeError, "Expected `Resonators` and not "
+        ):
+            self.multi_pass_resonator_solver.on_wakefield_init_simulation(
+                simulation=simulation, parent_wakefield=parent_wakefield
+            )
+
     def test_compare_to_analytical_resonator_solver_for_results(self):
         resonators = Resonators(
             shunt_impedances=np.array([1e12, 1e10]),
             center_frequencies=np.array([500e6, 1000e6]),
             quality_factors=np.array([10e5, 10e4]),
         )
-
-        local_res = MultiPassResonatorSolver(decay_fraction_threshold=0.999)
 
         sigma_z = 40e-3
         sigma_length = 8.54
@@ -1384,6 +1859,8 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             )
             bunch = np.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
 
+            local_res = MultiPassResonatorSolver(decay_fraction_threshold=0.999)
+
             local_res._parent_wakefield = Mock(WakeField)
             local_res._parent_wakefield.profile = Mock(spec=StaticProfile)
             local_res._parent_wakefield.profile.hist_step = (
@@ -1391,6 +1868,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             )
             local_res._parent_wakefield.profile.hist_x = bunch_time
             local_res._parent_wakefield.profile.hist_y = bunch / np.sum(bunch)
+            local_res._parent_wakefield.profile.hist_y_to_density_factor = 1 / self.beam.n_macroparticles_partial()
 
             local_res._parent_wakefield.sources = (resonators,)
             local_res._wake_function_vals_needs_update = True
@@ -1410,6 +1888,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             local_res_analy._parent_wakefield.profile.hist_y = bunch / np.sum(
                 bunch
             )
+            local_res_analy._parent_wakefield.profile.hist_y_to_density_factor = 1 / self.beam.n_macroparticles_partial()
             local_res_analy._parent_wakefield.sources = (resonators,)
 
             local_res_analy._wake_function_vals_needs_update = True
@@ -2475,6 +2954,9 @@ class TestHeadlessSolvers(unittest.TestCase):
         Q_factor = 1.76e6
         beam = Mock(BeamBaseClass)
         beam.n_macroparticles_partial.return_value = 1e6
+        prof.hist_y_to_density_factor = (
+            1 / beam.n_macroparticles_partial()
+        )
         beam.intensity = 2.4e12
         beam.ratio = (
             beam.intensity / beam.n_macroparticles_partial.return_value
@@ -2512,13 +2994,22 @@ class TestHeadlessSolvers(unittest.TestCase):
         DEBUG_PLOT = False
         if DEBUG_PLOT:
             fig, ax = plt.subplots(1, 1)
-            ax.plot(ind_voltage_td[:len(wf_td.profile.hist_y)], label="fft time domain")
+            ax.plot(
+                ind_voltage_td[: len(wf_td.profile.hist_y)],
+                label="fft time domain",
+            )
             ax.plot(ind_voltage_res, label="resonator convolution", ls="--")
             ax.legend()
 
-            ax.plot(wf_td.profile.hist_y / max(wf_td.profile.hist_y) * np.min(ind_voltage_res))
+            ax.plot(
+                wf_td.profile.hist_y
+                / max(wf_td.profile.hist_y)
+                * np.min(ind_voltage_res)
+            )
             plt.show()
 
         assert np.allclose(
-            ind_voltage_res, ind_voltage_td[:len(wf_td.profile.hist_y)], atol=15
+            ind_voltage_res,
+            ind_voltage_td[: len(wf_td.profile.hist_y)],
+            atol=15,
         )

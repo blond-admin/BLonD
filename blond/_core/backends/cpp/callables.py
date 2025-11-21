@@ -19,6 +19,7 @@ if TYPE_CHECKING:  # pragma: no cover
 class PrecisionClass:
     """Singleton class. Holds information about the floating point precision of the calculations."""
 
+    int_t: type[np.int32 | np.int64]
     real_t: type[np.float32 | np.float64]
     c_real_t: type[ct.c_float | ct.c_double]
     complex_t: type[np.complex64 | np.complex128]
@@ -42,12 +43,14 @@ class PrecisionClass:
         """
         if _precision in ["single", "s", "32", "float32", "float", "f"]:
             self.str = "single"
+            self.int_t = np.int32
             self.real_t = np.float32
             self.c_real_t = ct.c_float
             self.complex_t = np.complex64
             self.num = 1
         elif _precision in ["double", "d", "64", "float64"]:
             self.str = "double"
+            self.int_t = np.int64
             self.real_t = np.float64
             self.c_real_t = ct.c_double
             self.complex_t = np.complex128
@@ -108,6 +111,11 @@ class c_complex64(ct.Structure):
         return self.real + 1.0j * self.imag
 
 
+def c_int(scalar: int, precision: PrecisionClass) -> ct.c_int32 | ct.c_int64:
+    """Convert input to default precision."""
+    return ct.c_int32(scalar) if precision.num == 1 else ct.c_int64(scalar)
+
+
 def c_real(
     scalar: float, precision: PrecisionClass
 ) -> ct.c_float | ct.c_double:
@@ -126,7 +134,7 @@ def c_complex(
     return c_complex128(scalar)
 
 
-def reload_cpp_backend(
+def reload_cpp_backend(  # noqa: PLR0915
     floattype: type[np.float32] | type[np.float64],
 ) -> CppSpecials:
     if floattype == np.float32:
@@ -150,7 +158,7 @@ def reload_cpp_backend(
         """
         libblond_path_ = os.environ.get("LIBBLOND", None)
 
-        from blond._generals._hashing import hash_in_folder
+        from blond.generals._hashing import hash_in_folder
 
         folder = os.path.dirname(os.path.abspath(__file__))
 
@@ -214,6 +222,17 @@ def reload_cpp_backend(
             phi_rf: float,
             bin_size: float,
         ) -> float:
+            assert hist_x.dtype == floattype
+            assert hist_y.dtype == floattype
+            assert hist_x.flags.c_contiguous
+            assert hist_y.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            alpha = floattype(alpha)
+            omega_rf = floattype(omega_rf)
+            phi_rf = floattype(phi_rf)
+            bin_size = floattype(bin_size)
+
             return _LIBBLOND.beam_phase(
                 hist_x.ctypes.data_as(ct.c_void_p),  # bin_centers
                 hist_y.ctypes.data_as(ct.c_void_p),  # profile
@@ -228,9 +247,18 @@ def reload_cpp_backend(
         def histogram(
             array_read: NumpyArray,
             array_write: NumpyArray,
-            start: np.float32 | np.float64,
-            stop: np.float32 | np.float64,
+            start: float,
+            stop: float,
         ) -> None:
+            assert array_read.dtype == floattype
+            assert array_write.dtype == floattype
+            assert array_read.flags.c_contiguous
+            assert array_write.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            start = floattype(start)
+            stop = floattype(stop)
+
             _LIBBLOND.histogram(
                 array_read.ctypes.data_as(ct.c_void_p),
                 array_write.ctypes.data_as(ct.c_void_p),
@@ -246,9 +274,22 @@ def reload_cpp_backend(
             dE: NumpyArray,
             voltage: NumpyArray,
             bin_centers: NumpyArray,
-            charge: np.float32 | np.float64,
-            acceleration_kick: np.float32 | np.float64,
+            charge: float,
+            acceleration_kick: float,
         ) -> None:
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
+            assert voltage.dtype == floattype
+            assert bin_centers.dtype == floattype
+            assert dt.flags.c_contiguous
+            assert dE.flags.c_contiguous
+            assert voltage.flags.c_contiguous
+            assert bin_centers.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            charge = floattype(charge)
+            acceleration_kick = floattype(acceleration_kick)
+
             _LIBBLOND.linear_interp_kick(
                 dt.ctypes.data_as(ct.c_void_p),
                 dE.ctypes.data_as(ct.c_void_p),
@@ -273,9 +314,21 @@ def reload_cpp_backend(
             voltage: float,
             omega_rf: float,
             phi_rf: float,
-            charge: np.float32 | np.float64,
-            acceleration_kick: np.float32 | np.float64,
+            charge: float,
+            acceleration_kick: float,
         ) -> None:
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
+            assert dt.flags.c_contiguous
+            assert dE.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            charge = floattype(charge)
+            voltage = floattype(voltage)
+            omega_rf = floattype(omega_rf)
+            phi_rf = floattype(phi_rf)
+            acceleration_kick = floattype(acceleration_kick)
+
             _LIBBLOND.kick_single_harmonic(
                 dt.ctypes.data_as(ct.c_void_p),
                 dE.ctypes.data_as(ct.c_void_p),
@@ -298,6 +351,21 @@ def reload_cpp_backend(
             n_rf: int,
             acceleration_kick: float,
         ) -> None:
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
+            assert voltage.dtype == floattype
+            assert omega_rf.dtype == floattype
+            assert phi_rf.dtype == floattype
+            assert dt.flags.c_contiguous
+            assert dE.flags.c_contiguous
+            assert voltage.flags.c_contiguous
+            assert omega_rf.flags.c_contiguous
+            assert phi_rf.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            charge = floattype(charge)
+            acceleration_kick = floattype(acceleration_kick)
+
             _LIBBLOND.kick_multi_harmonic(
                 _getPointer(dt),
                 _getPointer(dE),
@@ -314,11 +382,22 @@ def reload_cpp_backend(
         def drift_simple(
             dt: NumpyArray,
             dE: NumpyArray,
-            T: np.float32 | np.float64,
-            eta_0: np.float32 | np.float64,
-            beta: np.float32 | np.float64,
-            energy: np.float32 | np.float64,
+            T: float,
+            eta_0: float,
+            beta: float,
+            energy: float,
         ) -> None:
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
+            assert dt.flags.c_contiguous
+            assert dE.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            T = floattype(T)
+            eta_0 = floattype(eta_0)
+            beta = floattype(beta)
+            energy = floattype(energy)
+
             _LIBBLOND.drift_simple(
                 _getPointer(dt),
                 _getPointer(dE),
@@ -357,6 +436,25 @@ def reload_cpp_backend(
             energy: float,
         ):
             pass
+
+        @staticmethod
+        def move_flagged_elements_to_end(
+            flag: int,
+            flags: NumpyArray | CupyArray,  # also purged
+            dt: NumpyArray | CupyArray,
+            dE: NumpyArray | CupyArray,
+            ids: NumpyArray | CupyArray,
+        ):
+            n_new = _LIBBLOND.move_flagged_elements_to_end(
+                ct.c_int32(np.int32(flag)),
+                flags.ctypes.data_as(ct.c_void_p),
+                dt.ctypes.data_as(ct.c_void_p),
+                dE.ctypes.data_as(ct.c_void_p),
+                ids.ctypes.data_as(ct.c_void_p),
+                ct.c_int(len(dt)),  # n_macroparticles
+            )
+            n_new = int(n_new)
+            return n_new
 
     return CppSpecials
 

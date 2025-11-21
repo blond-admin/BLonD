@@ -9,7 +9,7 @@ from blond import (
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicCavity,
+    SingleHarmonicRfStation,
     StaticProfile,
     WakeField,
     proton,
@@ -126,7 +126,7 @@ class Blond3:
             blond2.profile.cut_right,
             blond2.profile.n_slices,
         )
-        cavity1 = SingleHarmonicCavity()
+        cavity1 = SingleHarmonicRfStation()
         cavity1.voltage = 0.9e6
         cavity1.phi_rf = 0
         cavity1.harmonic = 4620
@@ -216,16 +216,26 @@ class TestBothBlonds(unittest.TestCase):
                 )
 
     def test_diff_params(self):
+        DEBUG_MODE = False
+        if DEBUG_MODE:
+            n_macroparts = [int(1e4), int(1e5), int(1e6)]
+            bunch_lengths = [1e-8 / 12, 1e-9 / 8,  1e-9 / 4, ]
+            n_slices_lst = [1024]
+        else:
+            n_macroparts = [int(2e4)]
+            bunch_lengths = [5e-10]
+            n_slices_lst = [128]
         for mac_ind, n_macroparticles in enumerate(
-            [int(1e4), int(1e5), int(1e6)]
+            n_macroparts
         ):
-            # for slic_ind, n_slices in enumerate([64, 128, 256, 512]):
-            for slic_ind, n_slices in enumerate([1024]):
+            for slic_ind, n_slices in enumerate(n_slices_lst):
+            # for slic_ind, n_slices in enumerate([1024]):
                 # for b_ind, bunch_length in enumerate([1e-9 / 4, 1e-9, 4e-9]):
-                for b_ind, bunch_length in enumerate([1e-8 / 12, 1e-9 / 8,  1e-9 / 4, ]):
+                for b_ind, bunch_length in enumerate(bunch_lengths):
                     self.blond3 = Blond3(
                         n_macroparticles, n_slices, bunch_length
                     )
+
                     DEBUG_PLOT = False
                     if DEBUG_PLOT:
                         plt.title(f"{n_macroparticles} {n_slices} {bunch_length}")

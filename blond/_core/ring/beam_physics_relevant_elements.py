@@ -14,17 +14,23 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from numpy.typing import NDArray as NumpyArray
 
-    from ..base import BeamPhysicsRelevant
+    from blond._core.base import SimulationElementBase
 
     T = TypeVar("T")
 
 
 class BeamPhysicsRelevantElements(Preparable):
-    """Container object to manage all beam interactions in `Ring`."""
+    """Container object to manage all beam interactions in `Ring`.
+
+    Attributes
+    ----------
+    elements
+        List of  :class:`~blond._core.ring.beam_physics_relevant_elements.BeamPhysicsRelevantElements`
+    """
 
     def __init__(self) -> None:
         super().__init__()
-        self.elements: list[BeamPhysicsRelevant] = []
+        self.elements: list[SimulationElementBase] = []
         self._on_init_simulation_passed = False
 
     def on_init_simulation(self, simulation: Simulation) -> None:
@@ -44,15 +50,15 @@ class BeamPhysicsRelevantElements(Preparable):
 
     def _check_section_indexing(self) -> None:
         """Verify that indices have been set correctly."""
-        from ...physics.cavities import CavityBaseClass
-        from ...physics.drifts import DriftBaseClass
+        from blond.physics.cavities import RfStationBaseClass
+        from blond.physics.drifts import DriftBaseClass
 
         elem_section_indices = [e.section_index for e in self.elements]
         assert min(elem_section_indices) == 0, "section_index=0 must be set"
         assert np.all(np.diff(elem_section_indices) >= 0), (
             f"Section indices must be increasing, but got {elem_section_indices}"
         )
-        cavities = self.get_elements(CavityBaseClass)
+        cavities = self.get_elements(RfStationBaseClass)
         cav_section_indices = [c.section_index for c in cavities]
         all_different = len(cav_section_indices) == len(
             set(cav_section_indices)
@@ -68,7 +74,7 @@ class BeamPhysicsRelevantElements(Preparable):
         if len(unique_section_indices) > 1:
             for section_index in np.sort(unique_section_indices):
                 cavities = self.get_elements(
-                    CavityBaseClass,
+                    RfStationBaseClass,
                     section_i=section_index,  # type: ignore
                 )
                 drifts = self.get_elements(
@@ -120,7 +126,7 @@ class BeamPhysicsRelevantElements(Preparable):
         -----
         This is different from per-drift listing
         """
-        from ...physics.drifts import DriftBaseClass
+        from blond.physics.drifts import DriftBaseClass
 
         sections = self.get_sections_indices()
         result = np.empty(len(sections))
@@ -132,7 +138,7 @@ class BeamPhysicsRelevantElements(Preparable):
                 result[section_i] = 0
         return result
 
-    def add_element(self, element: BeamPhysicsRelevant) -> None:
+    def add_element(self, element: SimulationElementBase) -> None:
         """Append a beam physics-relevant element to the container.
 
         This method appends the given element to the
@@ -169,7 +175,7 @@ class BeamPhysicsRelevantElements(Preparable):
 
     def check_section_index_compatibility(
         self,
-        element: BeamPhysicsRelevant,
+        element: SimulationElementBase,
         insert_at: int,
     ) -> None:
         """Method to check the element can be inserted in the defined section.
@@ -225,7 +231,7 @@ class BeamPhysicsRelevantElements(Preparable):
                 f"0:{len(self.elements)}] indexes. "
             )
 
-    def insert(self, element: BeamPhysicsRelevant, insert_at: int) -> None:
+    def insert(self, element: SimulationElementBase, insert_at: int) -> None:
         """Insert an element to the container at the specified index.
 
         Parameters
@@ -350,24 +356,23 @@ class BeamPhysicsRelevantElements(Preparable):
         )
         assert isinstance(section_index, int)
         from blond.experimental.physics.feedbacks.base import FeedbackBaseClass
-
-        from ...physics.cavities import CavityBaseClass
-        from ...physics.drifts import DriftBaseClass
-        from ...physics.impedances.base import ImpedanceBaseClass
-        from ...physics.losses import LossesBaseClass
-        from ...physics.profiles import ProfileBaseClass
+        from blond.physics.cavities import RfStationBaseClass
+        from blond.physics.drifts import DriftBaseClass
+        from blond.physics.impedances.base import ImpedanceBaseClass
+        from blond.physics.losses import LossesBaseClass
+        from blond.physics.profiles import ProfileBaseClass
 
         natural_order = (
             LossesBaseClass,
             ProfileBaseClass,
             FeedbackBaseClass,
             ImpedanceBaseClass,
-            CavityBaseClass,
+            RfStationBaseClass,
             DriftBaseClass,
         )
-        assert self.count(CavityBaseClass, section_i=section_index) == 1, (
+        assert self.count(RfStationBaseClass, section_i=section_index) == 1, (
             f"Only one cavity per section allowed, but got "
-            f"{self.count(CavityBaseClass, section_i=section_index)}"
+            f"{self.count(RfStationBaseClass, section_i=section_index)}"
         )
         elements_in_section = [
             e for e in self.elements if e.section_index == section_index
@@ -428,15 +433,7 @@ class BeamPhysicsRelevantElements(Preparable):
             f"{('section_index'):13s} {'filtered_dict'}\n"
         )
         for element in self.elements:
-            filtered_dict = {
-                k: pretty_string(v)
-                for k, v in element.__dict__.items()
-                if (not k.startswith("_")) and (k != "name")
-            }
-            content += (
-                f"{element.name:40s} {(type(element).__name__):20s} "
-                f"{str(element.section_index):13s} {filtered_dict}\n"
-            )
+            content += element.info_string() + "\n"
         content += sep
         return content
 

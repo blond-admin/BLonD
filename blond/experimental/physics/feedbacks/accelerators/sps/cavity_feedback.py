@@ -10,6 +10,12 @@ from numpy._typing import NDArray as NumpyArray
 from scipy.signal import fftconvolve
 
 from blond import Simulation
+from blond.experimental.physics.feedbacks.accelerators.sps.helpers import (
+    comb_filter,
+    get_power_gen_i,
+    modulator,
+    moving_average,
+)
 from blond.experimental.physics.feedbacks.accelerators.sps.impulse_response import (  # NOQA
     SPS3Section200MHzTWC,
     SPS4Section200MHzTWC,
@@ -19,10 +25,8 @@ from blond.experimental.physics.feedbacks.cavity_feedback import (
     BirksCavityFeedback,
 )
 from blond.experimental.physics.feedbacks.helpers import cartesian_to_polar
-from blond.physics.cavities import MultiHarmonicCavity
+from blond.physics.cavities import MultiHarmonicRfStation
 from blond.physics.profiles import StaticProfile
-
-from .helpers import comb_filter, get_power_gen_i, modulator, moving_average
 
 if TYPE_CHECKING:
     from blond._core.beam.base import BeamBaseClass
@@ -112,7 +116,7 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
     def __init__(
         self,
-        _parent_cavity: MultiHarmonicCavity,
+        _parent_cavity: MultiHarmonicRfStation,
         profile: StaticProfile,
         n_sections: int,
         n_cavities: int = 4,
@@ -270,7 +274,7 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
         # Initialize moving average
         self.n_mov_av = round(
-            self.TWC.tau / self._parent_cavity._t_rf[self.harmonic_index]
+            self.TWC.tau / self._parent_cavity.get_main_harmonic_t_rf_current()
         )
         self.DV_MOV_AVG = np.zeros(2 * self.n_coarse, dtype=complex)
         self.logger.debug("Moving average over %d points", self.n_mov_av)
@@ -766,7 +770,7 @@ class SPSCavityFeedback:
 
     def __init__(
         self,
-        _parent_cavity: MultiHarmonicCavity,
+        _parent_cavity: MultiHarmonicRfStation,
         profile: StaticProfile,
         G_ff: float | list = 1,
         G_llrf: float | list = 10,
@@ -914,6 +918,9 @@ class SPSCavityFeedback:
         self.track_init(debug=commissioning_1.debug)
 
         self.logger.info("Class initialized")
+
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        pass
 
     def track(self, beam: BeamBaseClass):
         r"""Main tracking method for the SPSCavityFeedback. This tracks both cavity types

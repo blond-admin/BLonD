@@ -9,12 +9,12 @@ from xpart.longitudinal.rfbucket_matching import (  # ThermalDistribution,; Para
 
 from blond import (
     Beam,
-    BunchObservation,
+    BeamObservationEndOfTurn,
     CavityPhaseObservation,
     DriftSimple,
     Ring,
     Simulation,
-    SingleHarmonicCavity,
+    SingleHarmonicRfStation,
     proton,
 )
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
@@ -28,7 +28,7 @@ logging.basicConfig(level=logging.INFO)
 def main():
     ring = Ring(26_658.883)
 
-    cavity1 = SingleHarmonicCavity()
+    cavity1 = SingleHarmonicRfStation()
     cavity1.harmonic = 35640
     cavity1.voltage = 6e6
     cavity1.phi_rf = 85  # 45*(np.pi/180)
@@ -61,6 +61,7 @@ def main():
             distribution_type=QGaussianDistribution,
             sigma_z=zmax / 4,
             n_macroparticles=int(1e3),
+            seed=42,
         ),
     )
 
@@ -68,9 +69,9 @@ def main():
         each_turn_i=1,
         cavity=cavity1,
     )
-    bunch_observation = BunchObservation(beam=beam1, each_turn_i=1)
+    bunch_observation = BeamObservationEndOfTurn(beam=beam1, each_turn_i=1)
 
-    def custom_action(simulation: Simulation):
+    def custom_action(simulation: Simulation):  # pragma: no cover
         if simulation.turn_i.value % 10 != 0:
             return
 
@@ -98,7 +99,7 @@ def main():
         )
 
     ANIMATE = False
-    if ANIMATE:
+    if ANIMATE:  # pragma: no cover
         plt.figure()
         for i in range(N_TURNS):
             plt.clf()

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.constants import c, e
 
-from blond import SingleHarmonicCavity
+from blond import SingleHarmonicRfStation
 from blond._core.helpers import int_from_float_with_warning
 from blond.beam_preparation.base import MatchingRoutine
 from blond.physics.drifts import DriftSimple
@@ -84,7 +84,7 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
         distribution_type: distribution_hints,
         sigma_z: float,
         verbose_regeneration: bool = False,
-        seed: int = 42,
+        seed: int | None = None,
     ) -> None:
         super().__init__()
 
@@ -141,8 +141,8 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             turn_i=0,
             reference_time=0,
         )
-        cavity: SingleHarmonicCavity = simulation.ring.elements.get_element(
-            SingleHarmonicCavity
+        cavity: SingleHarmonicRfStation = simulation.ring.elements.get_element(
+            SingleHarmonicRfStation
         )
 
         cavity.apply_schedules(turn_i=0, reference_time=0.0)
@@ -168,7 +168,8 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             p_increment=0,
         )
 
-        np.random.seed(seed=42)  # NOQA
+        if self.seed is not None:
+            np.random.seed(seed=self.seed)  # NOQA
         matcher = RFBucketMatcher(
             rfbucket=rfbucket,
             distribution_type=self.distribution_type,

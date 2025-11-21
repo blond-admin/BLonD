@@ -4,7 +4,9 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ...beam_feedback import Blond2BeamFeedback
+from blond.experimental.physics.feedbacks.beam_feedback import (
+    Blond2BeamFeedback,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond._core.beam.base import BeamBaseClass

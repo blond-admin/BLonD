@@ -16,7 +16,7 @@ from blond._core.backends.backend import backend
 from blond._core.beam.beams import Beam
 from blond._core.ring.ring import Ring
 from blond.cycles.magnetic_cycle import MagneticCycleBase, MagneticCyclePerTurn
-from blond.physics.cavities import MultiHarmonicCavity
+from blond.physics.cavities import MultiHarmonicRfStation
 from blond.physics.impedances.solvers import InductiveImpedanceSolver
 from blond.physics.impedances.sources import InductiveImpedance
 
@@ -28,29 +28,19 @@ class Main:
     def describe_accelerator() -> tuple[Ring, MagneticCyclePerTurn, Beam]:
         """Describes the hardware that is simulated within the :class:`blond._core.ring.ring.Ring`."""
         # Description of accelerator
-        my_ring = Ring(circumference=20)
+        my_ring = Ring(circumference=6912)
 
         profile1 = StaticProfile(cut_left=0, cut_right=1, n_bins=128)
-        cavity = MultiHarmonicCavity(
-            n_harmonics=10,
+        cavity = MultiHarmonicRfStation(
+            voltage=backend.array([6e6, 2e6]),
+            phi_rf=backend.array([0, 0]),
+            harmonic=backend.array([4620, 4 * 4620]),
+            n_harmonics=2,
             main_harmonic_idx=0,
         )
-        cavity.voltage = 1e3 * backend.ones(10, dtype=backend.float)  # TODO
-        # should
-        # be
-        # reasonable
-        # value
-        cavity.phi_rf = 0 * backend.ones(10, dtype=backend.float)  # TODO
-        # should be
-        # reasonable
-        # value
-        cavity.harmonic = backend.ones(10, dtype=backend.float)  # TODO
-        # should be
-        # reasonable
-        # value
         one_turn_execution_order = (
             DriftSimple(
-                orbit_length=0.4 * my_ring.circumference, transition_gamma=11
+                orbit_length=1.0 * my_ring.circumference, transition_gamma=21
             ),
             cavity,
             WakeField(
@@ -65,8 +55,8 @@ class Main:
 
         my_cycle = MagneticCyclePerTurn(
             reference_particle=proton,
-            values_after_turn=np.linspace(1e9, 3e9, 110),
-            value_init=1e9,
+            values_after_turn=np.linspace(25e9, 30e9, 110),
+            value_init=25e9,
         )
 
         my_beam = Beam(

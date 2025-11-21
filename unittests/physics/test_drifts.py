@@ -1,3 +1,4 @@
+import cmath
 import unittest
 from unittest.mock import Mock, patch
 
@@ -10,9 +11,14 @@ from blond._core.beam.base import BeamBaseClass
 from blond.physics.drifts import DriftBaseClass, DriftSimple
 
 
+class DriftBaseClassHelper(DriftBaseClass):
+    def eta_0(self, gamma: float) -> backend.float:
+        pass
+
+
 class TestDriftBaseClass(unittest.TestCase):
     def setUp(self):
-        self.drift_base_class = DriftBaseClass(
+        self.drift_base_class = DriftBaseClassHelper(
             orbit_length=123, section_index=0
         )
 
@@ -37,14 +43,40 @@ class TestDriftBaseClass(unittest.TestCase):
 
 
 class TestDriftSimple(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         backend.change_backend(Numpy64Bit)
+
+    def setUp(self):
         self.gamma = 2.5
         self.drift_simple = DriftSimple.headless(
             transition_gamma=20.0,  # highly relativistic
             orbit_length=0.25 * 25,
             section_index=0,
         )
+
+    def test_array_setup(self):
+        self.drift_simple = DriftSimple.headless(
+            transition_gamma=np.array([20.0]),  # highly relativistic
+            orbit_length=0.25 * 25,
+            section_index=0,
+        )
+
+        beam=Mock(BeamBaseClass)
+        beam.reference_time = 0.0
+        beam.reference_gamma = 1.0
+        beam.reference_velocity = 0.5
+        beam.reference_beta = 0.1
+        beam.reference_total_energy = 1.0
+        beam.write_partial_dt.return_value = np.ones(10)
+        beam.read_partial_dE.return_value = np.zeros(10)
+        self.drift_simple.track(beam=beam)
+
+    def test_error_throwing_on_unscheduled(self):
+        simulation = Mock(Simulation)
+        self.drift_simple = DriftSimple(section_index=1, orbit_length=0)  # will raise Exception because of missing transition gamma
+        with self.assertRaises(ValueError):
+            self.drift_simple.on_init_simulation(simulation=simulation)
 
     def test___init__(self):
         np.testing.assert_array_equal(self.drift_simple.transition_gamma, 20.0)
@@ -129,7 +161,42 @@ class TestDriftSimple(unittest.TestCase):
             / (0.5 * c0),  # drifted by length of drift
         )
 
-    def tearDown(self):
+    def test_setters_negative_compaction(self):
+        self.drift_simple.momentum_compaction_factor = -2.5
+        self.assertEqual(self.drift_simple.momentum_compaction_factor, -2.5)
+        self.assertEqual(
+            self.drift_simple.transition_gamma, 1 / cmath.sqrt(-2.5)
+        )
+
+    def test_setters_complex_transition(self):
+        self.drift_simple.transition_gamma = 1 / cmath.sqrt(-2.5)
+        self.assertEqual(self.drift_simple.momentum_compaction_factor, -2.5)
+        self.assertEqual(
+            self.drift_simple.transition_gamma, 1 / cmath.sqrt(-2.5)
+        )
+
+    def test_setters_real_transition(self):
+        self.drift_simple.transition_gamma = 1 / cmath.sqrt(2.5)
+        self.assertEqual(self.drift_simple.momentum_compaction_factor, 2.5)
+        self.assertEqual(
+            self.drift_simple.transition_gamma, 1 / cmath.sqrt(2.5)
+        )
+
+    def test_init(self):
+        DriftSimple(orbit_length=1.0, section_index=0, transition_gamma=2.5j)
+
+        DriftSimple(
+            orbit_length=1.0, section_index=0, momentum_compaction_factor=2.5
+        )
+        with self.assertRaises(ValueError):
+            DriftSimple(
+                orbit_length=1.0,
+                section_index=0,
+                momentum_compaction_factor=2.5,
+                transition_gamma=2.5j,
+            )
+    @classmethod
+    def tearDownClass(cls):
         backend.change_backend(Numpy32Bit)
 
 

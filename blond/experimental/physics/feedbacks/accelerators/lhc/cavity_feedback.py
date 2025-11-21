@@ -10,6 +10,11 @@ from numpy._typing import NDArray as NumpyArray
 from scipy.interpolate import interp1d
 
 from blond import Simulation, StaticProfile
+from blond.experimental.physics.feedbacks.accelerators.lhc.helpers import (
+    cavity_response_sparse_matrix,
+    fir_filter_lhc_otfb_coeff,
+    smooth_step,
+)
 from blond.experimental.physics.feedbacks.base import (
     GlobalFeedback,
     LocalFeedback,
@@ -17,14 +22,11 @@ from blond.experimental.physics.feedbacks.base import (
 from blond.experimental.physics.feedbacks.cavity_feedback import (
     BirksCavityFeedback,
 )
-from blond.physics.cavities import MultiHarmonicCavity, SingleHarmonicCavity
-from blond.physics.profiles import ProfileBaseClass
-
-from .helpers import (
-    cavity_response_sparse_matrix,
-    fir_filter_lhc_otfb_coeff,
-    smooth_step,
+from blond.physics.cavities import (
+    MultiHarmonicRfStation,
+    SingleHarmonicRfStation,
 )
+from blond.physics.profiles import ProfileBaseClass
 
 
 class LhcBeamFeedBack(GlobalFeedback):
@@ -39,7 +41,7 @@ class LhcRfFeedback(LocalFeedback):
     def __init__(
         self,
         profile: ProfileBaseClass,
-        cavity: SingleHarmonicCavity | MultiHarmonicCavity,
+        cavity: SingleHarmonicRfStation | MultiHarmonicRfStation,
         section_index: int = 0,
     ):
         super().__init__(
@@ -188,7 +190,7 @@ class LHCCavityLoop(BirksCavityFeedback):
 
     def __init__(
         self,
-        _parent_cavity: MultiHarmonicCavity,
+        _parent_cavity: MultiHarmonicRfStation,
         profile: StaticProfile,
         n_cavities: int = 8,
         f_c: float = 400.789e6,

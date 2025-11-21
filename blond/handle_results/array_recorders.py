@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from .._generals.cupy.no_cupy_import import is_cupy_array
+from blond.generals.cupy.no_cupy_import import is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
     from os import PathLike
@@ -86,6 +86,7 @@ class DenseArrayRecorder(ArrayRecorder):
         if not self.overwrite and os.path.exists(self.filepath_array):
             warnings.warn(
                 f"{self.filepath_array} already exists!",
+                UserWarning,
                 stacklevel=1,
             )
 

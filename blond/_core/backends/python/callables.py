@@ -4,11 +4,34 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ..backend import Specials
+from blond._core.backends.backend import Specials
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
+
+
+def _move_flagged_elements_to_end_py(
+    flag: int,
+    flags: NumpyArray,  # also purged
+    dt: NumpyArray,
+    dE: NumpyArray,
+    ids: NumpyArray,
+):
+    i = 0
+    j = flags.size - 1
+
+    while i <= j:
+        if flags[i] != flag:
+            i += 1
+        else:
+            # flags[i] is True, swap with flags[j]
+            flags[i], flags[j] = flags[j], flags[i]
+            dt[i], dt[j] = dt[j], dt[i]
+            dE[i], dE[j] = dE[j], dE[i]
+            ids[i], ids[j] = ids[j], ids[i]
+            j -= 1
+    return j + 1
 
 
 class PythonSpecials(Specials):
@@ -44,7 +67,7 @@ class PythonSpecials(Specials):
         omega_rf: float,
         phi_rf: float,
         bin_size: float,
-    ) -> np.float32 | np.float64:
+    ) -> float:
         scoeff = np.trapezoid(  # type: ignore
             np.exp(alpha * hist_x)
             * np.sin(omega_rf * hist_x + phi_rf)
@@ -64,8 +87,8 @@ class PythonSpecials(Specials):
     def histogram(
         array_read: NumpyArray,
         array_write: NumpyArray,
-        start: np.float32 | np.float64,
-        stop: np.float32 | np.float64,
+        start: float,
+        stop: float,
     ) -> None:
         array_write[:], _ = np.histogram(
             array_read,
@@ -76,7 +99,7 @@ class PythonSpecials(Specials):
     @staticmethod
     def loss_box(
         top: float, bottom: float, left: float, right: float
-    ) -> None:  # TODO
+    ) -> None:  # pragma: no cover
         raise NotImplementedError
 
     @staticmethod
@@ -86,8 +109,8 @@ class PythonSpecials(Specials):
         voltage: float,
         omega_rf: float,
         phi_rf: float,
-        charge: np.float32 | np.float64,
-        acceleration_kick: np.float32 | np.float64,
+        charge: float,
+        acceleration_kick: float,
     ) -> None:
         voltage_kick = charge * voltage
 
@@ -119,10 +142,10 @@ class PythonSpecials(Specials):
     def drift_simple(
         dt: NumpyArray,
         dE: NumpyArray,
-        T: np.float32 | np.float64,
-        eta_0: np.float32 | np.float64,
-        beta: np.float32 | np.float64,
-        energy: np.float32 | np.float64,
+        T: float,
+        eta_0: float,
+        beta: float,
+        energy: float,
     ) -> None:
         """Function to apply drift equation of motion."""
         # solver_decoded = solver.decode(encoding='utf_8')
@@ -201,8 +224,8 @@ class PythonSpecials(Specials):
         dE: NumpyArray,
         voltage: NumpyArray,
         bin_centers: NumpyArray,
-        charge: np.float32 | np.float64,
-        acceleration_kick: np.float32 | np.float64,
+        charge: float,
+        acceleration_kick: float,
     ) -> None:
         """Interpolated kick method.
 
@@ -238,3 +261,20 @@ class PythonSpecials(Specials):
             # fbin = int(np.floor((dt[i]-bin_centers[0])*inv_bin_width))
             if (fbin[i] >= 0) and (fbin[i] < n_slices - 1):
                 dE[i] += dt[i] * helper1[fbin[i]] + helper2[fbin[i]]
+
+    @staticmethod
+    def move_flagged_elements_to_end(
+        flag: int,
+        flags: NumpyArray | CupyArray,  # also purged
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        ids: NumpyArray | CupyArray,
+    ):
+        n_new = _move_flagged_elements_to_end_py(
+            flag=np.int32(flag),
+            flags=flags,
+            dt=dt,
+            dE=dE,
+            ids=ids,
+        )
+        return n_new

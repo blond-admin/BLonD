@@ -33,8 +33,8 @@ class BeamBaseClassTester(BeamBaseClass):
             is_counter_rotating=is_counter_rotating,
             is_distributed=is_distributed,
         )
-        self._dE = np.linspace(1, 10, 10,dtype=backend.float)
-        self._dt = np.linspace(20, 30, 10,dtype=backend.float)
+        self._dE = np.linspace(1, 10, 10, dtype=backend.float)
+        self._dt = np.linspace(20, 30, 10, dtype=backend.float)
         self._flags = np.zeros(10, dtype=np.int32)
         self._ids = np.arange(10, dtype=backend.int)
 
@@ -70,16 +70,16 @@ class BeamBaseClassTester(BeamBaseClass):
     def plot_hist2d(self):
         pass
 
-    def dE_max(self) -> np.float32 | np.float64:
+    def dE_max(self) -> float:
         pass
 
-    def dt_min(self) -> np.float32 | np.float64:
+    def dt_min(self) -> float:
         pass
 
-    def dt_max(self) -> np.float32 | np.float64:
+    def dt_max(self) -> float:
         pass
 
-    def dE_min(self) -> np.float32 | np.float64:
+    def dE_min(self) -> float:
         pass
 
     def common_array_size(self) -> int:
@@ -118,11 +118,6 @@ class TestBeamBaseClass(unittest.TestCase):
     def test_dt_min(self):
         pass  # is abstract
 
-    @unittest.skip("Abstract method")
-    def test_plot_hist2d(self):
-        # TODO: implement test for `plot_hist2d`
-        self.beam_base_class.plot_hist2d()
-
     def test_invalidate_cache(self):
         self.beam_base_class.invalidate_cache()
 
@@ -144,6 +139,11 @@ class TestBeamBaseClass(unittest.TestCase):
     def test_on_init_simulation(self):
         simulation = Mock(spec=Simulation)
         self.beam_base_class.on_init_simulation(simulation=simulation)
+
+    def test_missing_init_of_simulation(self):
+        self.beam_base_class._dE = None
+        with self.assertRaises(AttributeError):
+            self.beam_base_class.n_macroparticles_partial()
 
     def test_on_run_simulation(self):
         simulation = Mock(spec=Simulation)
@@ -189,6 +189,21 @@ class TestBeamBaseClass(unittest.TestCase):
         self.assertTrue(
             isinstance(self.beam_base_class.write_partial_flags(), np.ndarray)
         )
+
+    def test_purge_flagged_entries(self):
+        ids_before = self.beam_base_class._ids.copy()
+        select = [0, 1, -1]
+
+        self.beam_base_class._flags[select] = -500
+        self.beam_base_class.purge_flagged_entries()
+        self.assertTrue(np.all(self.beam_base_class._flags != -500))
+
+        mask = np.ones(len(ids_before), dtype=bool)
+        mask[select] = False
+        ids_after = self.beam_base_class._ids
+        np.testing.assert_equal(np.sort(ids_before[mask]), np.sort(ids_after))
+
+
 
 
 if __name__ == "__main__":
