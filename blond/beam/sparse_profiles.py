@@ -509,7 +509,7 @@ class SparseBatch(_SparseProfileBaseClass):
     batch_length
         Batch length in number of RF buckets.
     tracker
-        Choice of tracker. Can be "C" or "onebyone".
+        Choice of tracker. Can be "C" or "onebyone". Default is "C".
     direct_slicing
         Track at initialisation. FALSE by default.
     """
