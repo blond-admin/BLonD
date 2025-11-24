@@ -106,9 +106,6 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
     each_turn_i
         Value to control that the element is
         callable each n-th turn.
-    obs_per_turn
-        Number of observations per turn. Default is 1,
-        cannot be higher than number of cavities in turn map
     folder
         Path to the target folder used for
         saving or loading files.
@@ -333,9 +330,6 @@ class BunchObservationMetaParams(ObservablesOncePerTurnBase):
     each_turn_i
         Value to control that the element is
         callable each n-th turn.
-    obs_per_turn
-        Number of observations per turn. Default is 1,
-        cannot be more than number of cavities in turn map
     beam
         Simulation beam object
     folder
@@ -597,8 +591,6 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
     profile
         Class for the calculation of beam profile
         that doesn't change its parameters
-    obs_per_turn
-        Number of observations per turn, default is 1
     folder
         Path to the target folder used for
         saving or loading files.
@@ -727,8 +719,6 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
             Number of turns to simulate
         turn_i_init
             Initial turn to execute simulation
-        obs_per_turn
-            Number of observations per turn, default is 1
         """
         super().on_run_simulation(
             simulation=simulation,
@@ -790,8 +780,6 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
             callable each n-th turn.
         wakefield
             Manager class to calculate wake-fields
-        obs_per_turn
-            Number of observations per turn
         folder
             Path to the target folder used for
             saving or loading files.
