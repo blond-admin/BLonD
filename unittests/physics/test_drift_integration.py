@@ -1,6 +1,6 @@
 import numpy as np
 
-from blond._core.backends.backend import Numpy32Bit, backend
+from blond.core.backends.backend import Numpy32Bit, backend
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 
 backend.change_backend(Numpy32Bit)

@@ -8,7 +8,7 @@ if TYPE_CHECKING:  # pragma: no cover
 import numpy as np
 
 from blond import Simulation
-from blond._core.beam.base import BeamBaseClass
+from blond.core.beam.base import BeamBaseClass
 from blond.experimental.physics.feedbacks.beam_feedback import (
     Blond2BeamFeedback,
 )

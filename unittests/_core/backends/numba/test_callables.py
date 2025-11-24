@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from blond._core.backends.numba.callables import enforce_precision
+from blond.core.backends.numba.callables import enforce_precision
 
 
 class TestCallables(unittest.TestCase):

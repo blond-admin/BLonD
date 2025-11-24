@@ -18,12 +18,12 @@ def main():  # pragma: no cover
     voltage = bin_centers**2
     charge = 10
     acceleration_kick = 0
-    from blond._core.backends.backend import Numpy64Bit, backend
+    from blond.core.backends.backend import Numpy64Bit, backend
 
     backend.change_backend(Numpy64Bit)
-    from blond._core.backends.cpp.callables import CppSpecials
-    from blond._core.backends.fortran.callables import FortranSpecials
-    from blond._core.backends.numba.callables import recompile_numba_backend
+    from blond.core.backends.cpp.callables import CppSpecials
+    from blond.core.backends.fortran.callables import FortranSpecials
+    from blond.core.backends.numba.callables import recompile_numba_backend
 
     NumbaSpecials = recompile_numba_backend(backend.float)
 

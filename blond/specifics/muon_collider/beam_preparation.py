@@ -9,7 +9,7 @@ from os import PathLike
 
 import numpy as np
 
-from blond._core.beam.base import BeamBaseClass
+from blond.core.beam.base import BeamBaseClass
 
 
 def load_beam_coordinates_counterrot_from_file(

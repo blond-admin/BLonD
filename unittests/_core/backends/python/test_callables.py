@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from blond._core.backends.python.callables import PythonSpecials
+from blond.core.backends.python.callables import PythonSpecials
 
 
 class TestPythonSpecials(unittest.TestCase):

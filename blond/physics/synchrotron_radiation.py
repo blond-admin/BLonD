@@ -14,15 +14,15 @@ from typing import (
     TYPE_CHECKING,  # pragma: no cover # TODO remove when SR is implemented
 )
 
-from blond._core.base import (
+from blond.core.base import (
     BeamPhysicsRelevant,  # pragma: no cover # TODO remove when SR is implemented
 )
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
-    from blond._core.beam.base import BeamBaseClass
-    from blond._core.simulation.simulation import Simulation
+    from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
     from blond.physics.drifts import DriftSimple
 
 
@@ -47,7 +47,7 @@ class SynchrotronRadiation(BeamPhysicsRelevant):  # pragma: no cover
         self._simulation: DriftSimple | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when :func:`blond._core.simulation.simulation.Simulation.__init__` is called.
+        """Lateinit method when :func:`blond.core.simulation.simulation.Simulation.__init__` is called.
 
         simulation
             Simulation context manager

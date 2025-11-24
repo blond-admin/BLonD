@@ -3,7 +3,7 @@ import warnings
 
 import numpy as np
 
-from blond._core.backends.backend import (
+from blond.core.backends.backend import (
     Cupy32Bit,
     Cupy64Bit,
     CupyBackend,
@@ -12,7 +12,7 @@ from blond._core.backends.backend import (
     NumpyBackend,
     backend,
 )
-from blond._core.backends.numba.callables import recompile_numba_backend
+from blond.core.backends.numba.callables import recompile_numba_backend
 
 try:
     import cupy as _  # type: ignore

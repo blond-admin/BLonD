@@ -8,9 +8,9 @@ from unittest.mock import Mock
 import numpy as np
 
 from blond import Simulation, proton
-from blond._core.backends.backend import backend
-from blond._core.beam.base import BeamBaseClass
-from blond._core.beam.particle_types import ParticleType
+from blond.core.backends.backend import backend
+from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.particle_types import ParticleType
 
 if TYPE_CHECKING:
     from typing import Optional

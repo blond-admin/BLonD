@@ -1,7 +1,7 @@
 import unittest
 
 from blond import Simulation
-from blond._core.beam.base import BeamBaseClass
+from blond.core.beam.base import BeamBaseClass
 from blond.physics.losses import LossesBaseClass
 
 

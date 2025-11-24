@@ -19,11 +19,11 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond._core.backends.backend import backend
+from blond.core.backends.backend import backend
 from blond.experimental.physics.feedbacks.base import LocalFeedback
 
 if TYPE_CHECKING:  # pragma: no cover
-    from blond._core.beam.base import BeamBaseClass
+    from blond.core.beam.base import BeamBaseClass
     from blond.physics.cavities import RfStationBaseClass
     from blond.physics.profiles import ProfileBaseClass
 

@@ -8,8 +8,8 @@ import numpy as np
 from scipy.constants import c, e
 
 from blond import SingleHarmonicRfStation
-from blond._core.helpers import int_from_float_with_warning
 from blond.beam_preparation.base import MatchingRoutine
+from blond.core.helpers import int_from_float_with_warning
 from blond.physics.drifts import DriftSimple
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -19,8 +19,8 @@ if TYPE_CHECKING:  # pragma: no cover
         ThermalDistribution,
     )
 
-    from blond._core.beam.base import BeamBaseClass
-    from blond._core.simulation.simulation import Simulation
+    from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
 
     distribution_hints = type[
         ParabolicDistribution | QGaussianDistribution | ThermalDistribution

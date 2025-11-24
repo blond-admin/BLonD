@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond import StaticProfile
-from blond._core.helpers import int_from_float_with_warning
+from blond.core.helpers import int_from_float_with_warning
 from blond.experimental.physics.feedbacks.base import LocalFeedback
 from blond.experimental.physics.feedbacks.helpers import (
     cartesian_to_polar,
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
 
     from blond import Simulation
-    from blond._core.beam.base import BeamBaseClass
+    from blond.core.beam.base import BeamBaseClass
     from blond.physics.cavities import MultiHarmonicRfStation
 
 # TODO rewrite all docstrings

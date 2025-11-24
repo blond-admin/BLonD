@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond._core.backends.backend import backend
+from blond.core.backends.backend import backend
 from blond.cycles.noise_generators.base import NoiseGenerator
 
 if TYPE_CHECKING:  # pragma: no cover
