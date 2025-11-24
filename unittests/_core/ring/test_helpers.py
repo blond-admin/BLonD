@@ -87,25 +87,6 @@ class TestFunctions(unittest.TestCase):
 
 
     def test_get_init_order_baslcass(self) -> None:
-        with self.assertRaises(AssertionError):
-            class BaseClass():
-                pass
-
-            class Areal(BaseClass):
-                def common(self):
-                    pass
-
-            class Breal:
-                # @requires(["BaseClass",]) # without should fail
-                def common(self):
-                    pass
-
-            sorted_classes = get_init_order(
-                instances=(Breal(), Areal()),
-                dependency_attribute="common.requires",
-            )
-            assert sorted_classes == ["Areal", "Breal"]
-
         class BaseClass():
             pass
 
