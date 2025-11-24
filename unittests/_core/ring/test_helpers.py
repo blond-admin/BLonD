@@ -114,7 +114,7 @@ class TestFunctions(unittest.TestCase):
                 pass
 
         class Breal:
-            @requires(["BaseClass",]) # without should work
+            @requires(["BaseClass",]) # with should work
             def common(self):
                 pass
 
