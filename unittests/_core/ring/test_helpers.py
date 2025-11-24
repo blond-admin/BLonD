@@ -86,7 +86,7 @@ class TestFunctions(unittest.TestCase):
         assert sorted_classes == ["A", "B", "C", "D"]
 
 
-    def test_get_init_order_baslcass(self) -> None:
+    def test_get_init_order_baseclass(self) -> None:
         class BaseClass():
             pass
 
