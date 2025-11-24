@@ -231,7 +231,7 @@ class ObservablesAfterDriftBase(ObservablesBaseClass):
 
 
 class BeamObservationAfterDrift(ObservablesAfterDriftBase):
-    """Observe the bunch coordinates during simulation execution.
+    """Observe the bunch coordinates during simulation execution after a drift element.
 
     Parameters
     ----------
