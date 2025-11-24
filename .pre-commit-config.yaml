@@ -25,3 +25,11 @@ repos:
       - id: ruff-format  # This runs `ruff format`
       - id: ruff-check  # This runs `ruff check`
         args: ["--fix"] # otherwise not compatible with Ruff
+
+  # Check that the copyright notice is there
+  - repo: local
+    hooks:
+      - id: custom-py-check
+        name: Copyright check
+        entry: python3 dev_tools/precommit_check_copyright.py
+        language: system

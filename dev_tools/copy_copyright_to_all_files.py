@@ -24,8 +24,6 @@ def insert_copyright_notes():
                 or name.endswith(".cu")
             )
             is_fortran_file = name.endswith(".f90")
-            if is_python_file:
-                continue  # TODO REMOVE
             if is_python_file or is_cpp_file or is_fortran_file:
                 full_path = os.path.join(dirpath, name)
                 if os.path.getsize(full_path) > 0:  # skip empty files
