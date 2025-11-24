@@ -5,5 +5,3 @@
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
-
-"""Function definitions that are useful outside the beam physics context."""
