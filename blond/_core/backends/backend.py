@@ -270,6 +270,7 @@ class BackendBaseClass(ABC):
         self.mean: Callable = None  # type: ignore
         self.arange: Callable = None  # type: ignore
         self.average: Callable = None  # type: ignore
+        self.fftconvolve: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -448,6 +449,8 @@ class NumpyBackend(BackendBaseClass):
             specials_mode="python",
             is_gpu=False,
         )
+        from scipy.signal import fftconvolve
+
         self.array = np.array
         self.gradient = np.gradient
         self.linspace = np.linspace
@@ -466,6 +469,7 @@ class NumpyBackend(BackendBaseClass):
         self.mean = np.mean
         self.arange = np.arange
         self.average = np.average
+        self.fftconvolve = fftconvolve
 
         self._finalize()
 
@@ -571,6 +575,7 @@ class CupyBackend(BackendBaseClass):
             is_gpu=True,
         )
         import cupy as cp  # type: ignore # import only if needed, which is not always the case
+        from scipy.signal import fftconvolve
 
         self.array = cp.array
         self.gradient = cp.gradient
@@ -590,6 +595,7 @@ class CupyBackend(BackendBaseClass):
         self.mean = cp.mean
         self.arange = cp.arange
         self.average = cp.average
+        self.fftconvolve = fftconvolve
 
         from blond._core.backends.cuda.callables import CudaSpecials
 
