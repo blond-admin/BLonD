@@ -30,6 +30,6 @@ repos:
   - repo: local
     hooks:
       - id: custom-py-check
-        name: Copyright check
+        name: check copyright
         entry: python3 dev_tools/precommit_check_copyright.py
         language: system
