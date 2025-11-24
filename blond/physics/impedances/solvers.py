@@ -955,3 +955,119 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 mode="valid",
             )
         return wake_sum
+
+
+class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
+    """A solver for multi-turn wakefields, where the profiles span the entire revolution time.
+
+    This class calculates the wakefield in cases where the profile spans the entire
+    revolution time of the ring. The profiles from multiple turns are considered in a
+    continuous manner, with neighboring profiles connected seamlessly across turns.
+
+
+    Parameters
+    ----------
+    n_turns
+        Number of turns that the multi-turn wake consists of.
+    """
+
+    def __init__(self, n_turns: int) -> None:
+        self._n_profiles = n_turns
+
+        self._parent_wakefield: WakeField | None = None
+        self._wake_kernel: NumpyArray | CupyArray | None = None
+        self._simulation: Simulation | None = None
+
+        self._previous_wakes = deque(maxlen=n_turns)
+
+    def on_wakefield_init_simulation(
+        self, simulation: Simulation, parent_wakefield: WakeField
+    ) -> None:
+        """Lateinit method when WakeField is late-initialized.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        parent_wakefield
+            `WakeField` that this solver affiliated to.
+        """
+        self._parent_wakefield = parent_wakefield
+        self._simulation = simulation
+
+    def _update_wake_kernel(self) -> None:
+        """Updates the wakefield kernel that is used for convolution with the beam profile."""
+        assert isinstance(self._parent_wakefield.profile, StaticProfile), (
+            f"Expected StaticProfile, but"
+            f" got {type(self._parent_wakefield.profile)=}"
+        )
+        # The assumptions below work only with static profiles.
+        # This could be rewritten if necessary.
+        width = (
+            self._parent_wakefield.profile.cut_right
+            - self._parent_wakefield.profile.cut_left
+        )
+
+        t_max = self._n_profiles * width
+        total_bins = self._n_profiles * self._parent_wakefield.profile.n_bins
+        time_axis = np.linspace(0, t_max, total_bins + 1)
+
+        wake_kernel = None  # This needs to be derived
+        for source in self._parent_wakefield.sources:
+            assert isinstance(source, TimeDomain), f"{type(source)=}"
+            wake_kernel_tmp = source.get_wake(
+                time_axis,
+            )
+
+            if wake_kernel is None:
+                wake_kernel = wake_kernel_tmp
+            else:
+                wake_kernel += wake_kernel_tmp
+
+        self._wake_kernel = wake_kernel
+
+    def calc_induced_voltage(
+        self, beam: BeamBaseClass
+    ) -> NumpyArray | CupyArray:
+        """Calculates the induced voltage in this turn based on the last profiles.
+
+        Parameters
+        ----------
+        beam
+            Simulation object of a particle beam.
+
+        Returns
+        -------
+        induced_voltage
+            The induced voltage, in [V].
+        """
+        if self._wake_kernel is None:
+            self._update_wake_kernel()
+
+        _factor = self._normalization_factor(
+            beam=beam, profile=self._parent_wakefield.profile
+        )
+
+        # The speed of this function can be improved.
+        # But: first correct, then fast!
+        # Could use buffered fft convolution for example.
+
+        induced_voltage_this_turn = _factor * backend.fftconvolve(
+            self._parent_wakefield.profile.hist_y,
+            self._wake_kernel,
+            mode="full",
+        )
+        self._previous_wakes.appendleft(induced_voltage_this_turn)
+        bins_per_profile = self._parent_wakefield.profile.n_bins
+
+        for i, induced_voltage_tmp in enumerate(self._previous_wakes):
+            sel_current_profile = slice(
+                i * bins_per_profile,  # start
+                (i + 1) * bins_per_profile,  # stop
+            )
+            if i == 0:
+                induced_voltage = induced_voltage_tmp[sel_current_profile]
+            else:
+                induced_voltage += induced_voltage_tmp[sel_current_profile]
+
+        return induced_voltage
