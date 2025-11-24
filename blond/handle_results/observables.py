@@ -98,7 +98,7 @@ class ObservablesBaseClass(MainLoopRelevant):
                 assert value is not None, f"`{parameter}` was not initialized."
 
 
-class ObservablesAfterDriftBase(ObservablesBaseClass):
+class ObservablesOncePerTurnBase(ObservablesBaseClass):
     """Base class to observe attributes during simulation.
 
     Parameters
@@ -118,13 +118,11 @@ class ObservablesAfterDriftBase(ObservablesBaseClass):
     def __init__(
         self,
         each_turn_i: int,
-        obs_per_turn: int = 1,
         folder: str = "",
         **kwargs,
     ):
         super().__init__(folder=folder, **kwargs)
         self.each_turn_i = each_turn_i
-        self._obs_per_turn = obs_per_turn
 
         self._n_turns: int | None = None
         self._section_indices_to_observe: NumpyArray | None = None
@@ -172,7 +170,6 @@ class ObservablesAfterDriftBase(ObservablesBaseClass):
         beam: BeamBaseClass,  # this is not used in this context
         n_turns: int,
         turn_i_init: int,
-        obs_per_turn: int = 1,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -186,51 +183,19 @@ class ObservablesAfterDriftBase(ObservablesBaseClass):
             Number of turns to simulate
         turn_i_init
             Initial turn to execute simulation
-        obs_per_turn
-            Number of observations per turn. Default is 1
         """
         self._n_turns = int(n_turns)
         self._turn_i_init = int(turn_i_init)
-        if obs_per_turn >= 0:
-            self._obs_per_turn = obs_per_turn
-        else:
-            self._obs_per_turn = 1
-            warnings.warn(
-                f"obs_per_turn must be greater than 0, got {obs_per_turn}, value was set to 1.",
-                UserWarning,
-            )
-        if obs_per_turn > simulation.ring.n_cavities:
-            self._obs_per_turn = simulation.ring.n_cavities
-            warnings.warn(
-                f"obs_per_turn must be smaller than n_cavities ({simulation.ring.n_cavities}), "
-                f"got {obs_per_turn}, value was set to {simulation.ring.n_cavities}.",
-                UserWarning,
-            )
 
-        self._section_indices_to_observe = np.arange(
-            0,
-            simulation.ring.n_cavities,
-            step=np.ceil(simulation.ring.n_cavities / self._obs_per_turn),
-            dtype=int,
+        self._turns_array = np.linspace(
+            0, n_turns, num=n_turns // self.each_turn_i + 1, dtype=int
         )
-        # To get the decimal point for the turns array, the distances of the individual sections in the ring
-        # need to be taken into account
-        section_lengths = (
-            np.array(
-                [
-                    np.sum(simulation.ring.section_lengths[0:ind])
-                    for ind in self._section_indices_to_observe
-                ]
-            )
-            / simulation.ring.circumference
-        )
-        self._turns_array = np.zeros((n_turns, len(section_lengths)))
-        for turn in range(turn_i_init, turn_i_init + n_turns):
-            self._turns_array[turn - turn_i_init] = turn + section_lengths
-        self._turns_array = self._turns_array.flatten()
+        self._turns_array = np.append(
+            np.array([0]), self._turns_array
+        )  # prepend 0 for pre-running
 
 
-class BeamObservationAfterDrift(ObservablesAfterDriftBase):
+class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
     """Observe the bunch coordinates during simulation execution after a drift element.
 
     Parameters
@@ -287,10 +252,9 @@ class BeamObservationAfterDrift(ObservablesAfterDriftBase):
             beam=beam,
             n_turns=n_turns,
             turn_i_init=turn_i_init,
-            obs_per_turn=self._obs_per_turn,
         )
 
-        n_entries = int(n_turns * self._obs_per_turn + 1)
+        n_entries = n_turns // self.each_turn_i + 2
         n_macroparticles = int(beam.common_array_size)
         shape = (n_entries, n_macroparticles)
 
@@ -361,7 +325,7 @@ class BeamObservationAfterDrift(ObservablesAfterDriftBase):
         return self._flags.get_valid_entries()
 
 
-class BunchObservationMetaParams(ObservablesAfterDriftBase):
+class BunchObservationMetaParams(ObservablesOncePerTurnBase):
     """Records mean and standard deviation of both energy and time coordinates and estimates the bunch emittance.
 
     Parameters
@@ -384,11 +348,8 @@ class BunchObservationMetaParams(ObservablesAfterDriftBase):
         each_turn_i: int,
         beam: BeamBaseClass,
         folder: str = "",
-        obs_per_turn: int = 1,
     ):
-        super().__init__(
-            each_turn_i=each_turn_i, obs_per_turn=obs_per_turn, folder=folder
-        )
+        super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._beam = beam
 
         self._sigma_dt: DenseArrayRecorder | None = None
@@ -423,10 +384,9 @@ class BunchObservationMetaParams(ObservablesAfterDriftBase):
             beam=beam,
             n_turns=n_turns,
             turn_i_init=turn_i_init,
-            obs_per_turn=self._obs_per_turn,
         )
 
-        n_entries = int(n_turns * self._obs_per_turn + 1)
+        n_entries = n_turns // self.each_turn_i + 2
         shape = n_entries
 
         self._mean_dt = DenseArrayRecorder(
@@ -513,7 +473,7 @@ class BunchObservationMetaParams(ObservablesAfterDriftBase):
         return self._emittance_stat.get_valid_entries()
 
 
-class CavityPhaseObservation(ObservablesAfterDriftBase):
+class CavityPhaseObservation(ObservablesOncePerTurnBase):
     """Observe the RF cavity parameters during the execution of the simulation.
 
     Parameters
@@ -564,10 +524,9 @@ class CavityPhaseObservation(ObservablesAfterDriftBase):
             beam=beam,
             n_turns=n_turns,
             turn_i_init=turn_i_init,
-            obs_per_turn=self._obs_per_turn,
         )
 
-        n_entries = int(n_turns * self._obs_per_turn + 1)
+        n_entries = n_turns // self.each_turn_i + 2
         n_harmonics = int(self._cavity.n_rf)
         shape = (n_entries, n_harmonics)
 
@@ -627,7 +586,7 @@ class CavityPhaseObservation(ObservablesAfterDriftBase):
         return self._voltages.get_valid_entries()
 
 
-class StaticProfileObservation(ObservablesAfterDriftBase):
+class StaticProfileObservation(ObservablesOncePerTurnBase):
     """Observation of a static beam profile.
 
     Parameters
@@ -649,12 +608,10 @@ class StaticProfileObservation(ObservablesAfterDriftBase):
         self,
         each_turn_i: int,
         profile: StaticProfile,
-        obs_per_turn: int = 1,
         folder: str = "",
     ):
         super().__init__(
             each_turn_i=each_turn_i,
-            obs_per_turn=obs_per_turn,
             folder=folder,
         )
         self._profile = profile
@@ -683,10 +640,9 @@ class StaticProfileObservation(ObservablesAfterDriftBase):
             simulation=simulation,
             n_turns=n_turns,
             turn_i_init=turn_i_init,
-            obs_per_turn=self._obs_per_turn,
             beam=beam,
         )
-        n_entries = int(n_turns * self._obs_per_turn + 1)
+        n_entries = n_turns // self.each_turn_i + 2
         n_bins = int(self._profile.n_bins)
         self._hist_y = DenseArrayRecorder(
             f"{self.common_filepath}_hist_y",
@@ -705,17 +661,16 @@ class StaticProfileObservation(ObservablesAfterDriftBase):
             Simulation context manager
 
         """
-        if simulation.section_i.value in self._section_indices_to_observe:
-            if (
-                self._last_turn_i_observed == simulation.turn_i.value
-                and self._last_section_i_observed == simulation.section_i.value
-            ):
-                return
-            self._last_turn_i_observed = simulation.turn_i.value
-            self._last_section_i_observed = simulation.section_i.value
-            self._hist_y.write(
-                self._profile.hist_y,
-            )
+        if (
+            self._last_turn_i_observed == simulation.turn_i.value
+            and self._last_section_i_observed == simulation.section_i.value
+        ):
+            return
+        self._last_turn_i_observed = simulation.turn_i.value
+        self._last_section_i_observed = simulation.section_i.value
+        self._hist_y.write(
+            self._profile.hist_y,
+        )
         # else return without recording
 
     @property  # as readonly attributes
@@ -724,13 +679,12 @@ class StaticProfileObservation(ObservablesAfterDriftBase):
         return self._hist_y.get_valid_entries()
 
 
-class StaticMultiProfileObservation(ObservablesAfterDriftBase):
+class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
     def __init__(
         self,
         each_turn_i: int,
         profiles: list[StaticProfile],
         folder: str = "",
-        obs_per_turn: int = 1,
     ):
         """Observation of multiple profiles in one observation object. The profiles need to have the same n_bins.
 
@@ -742,15 +696,11 @@ class StaticMultiProfileObservation(ObservablesAfterDriftBase):
         profiles
             List of class for the calculation of beam profile
             that doesn't change its parameters
-        obs_per_turn
-            Number of observations per turn, default is 1
         folder
             Path to the target folder used for
             saving or loading files.
         """
-        super().__init__(
-            each_turn_i=each_turn_i, obs_per_turn=obs_per_turn, folder=folder
-        )
+        super().__init__(each_turn_i=each_turn_i, folder=folder)
 
         self._profiles = profiles
         assert all(
@@ -763,7 +713,6 @@ class StaticMultiProfileObservation(ObservablesAfterDriftBase):
         beam: BeamBaseClass,  # this is not used in this context
         n_turns: int,
         turn_i_init: int,
-        obs_per_turn: int = 1,
         **kwargs,
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called.
@@ -786,10 +735,10 @@ class StaticMultiProfileObservation(ObservablesAfterDriftBase):
             beam=beam,
             n_turns=n_turns,
             turn_i_init=turn_i_init,
-            obs_per_turn=obs_per_turn,
         )
         n_entries = int(
-            len(self._turns_array) * len(self._profiles) * obs_per_turn + 1
+            len(self._turns_array) * len(self._profiles) // self.each_turn_i
+            + 2 * len(self._profiles)
         )
         n_bins = self._profiles[0].n_bins
         self._hist_y = DenseArrayRecorder(
@@ -825,12 +774,11 @@ class StaticMultiProfileObservation(ObservablesAfterDriftBase):
         return self._hist_y.get_valid_entries()
 
 
-class WakeFieldObservation(ObservablesAfterDriftBase):
+class WakeFieldObservation(ObservablesOncePerTurnBase):
     def __init__(
         self,
         each_turn_i: int,
         wakefield: WakeField,
-        obs_per_turn: int = 1,
         folder: str = "",
     ):
         """Observe the calculation of wake-fields.
@@ -850,7 +798,6 @@ class WakeFieldObservation(ObservablesAfterDriftBase):
         """
         super().__init__(
             each_turn_i=each_turn_i,
-            obs_per_turn=obs_per_turn,
             folder=folder,
         )
         self._wakefield = wakefield
@@ -881,10 +828,9 @@ class WakeFieldObservation(ObservablesAfterDriftBase):
             beam=beam,
             n_turns=n_turns,
             turn_i_init=turn_i_init,
-            obs_per_turn=self._obs_per_turn,
         )
 
-        n_entries = int(n_turns * self._obs_per_turn + 1)
+        n_entries = n_turns // self.each_turn_i + 2
         n_bins = int(self._wakefield._profile.n_bins)
         self._induced_voltage = DenseArrayRecorder(
             f"{self.common_filepath}_induced_voltage",
@@ -903,15 +849,14 @@ class WakeFieldObservation(ObservablesAfterDriftBase):
             Simulation context manager
 
         """
-        if simulation.section_i.value in self._section_indices_to_observe:
-            try:
-                self._induced_voltage.write(
-                    self._wakefield.induced_voltage,
-                )
-            except AttributeError:
-                self._induced_voltage.write(
-                    np.zeros(self._wakefield._profile.n_bins)
-                )
+        try:
+            self._induced_voltage.write(
+                self._wakefield.induced_voltage,
+            )
+        except AttributeError:
+            self._induced_voltage.write(
+                np.zeros(self._wakefield._profile.n_bins)
+            )
 
     @property  # as readonly attributes
     def induced_voltage(self):
@@ -925,7 +870,7 @@ class WakeFieldObservation(ObservablesAfterDriftBase):
         return self._induced_voltage.get_valid_entries()
 
 
-class DynamicProfileConstNBinsObservation(ObservablesAfterDriftBase):
+class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
     def __init__(
         self,
         each_turn_i: int,
@@ -975,10 +920,9 @@ class DynamicProfileConstNBinsObservation(ObservablesAfterDriftBase):
             beam=beam,
             n_turns=n_turns,
             turn_i_init=turn_i_init,
-            obs_per_turn=self._obs_per_turn,
         )
 
-        n_entries = int(n_turns * self._obs_per_turn + 1)
+        n_entries = n_turns // self.each_turn_i + 2
         n_bins = int(self._profile.n_bins)
         shape = (n_entries, n_bins)
         self._hist_y = DenseArrayRecorder(

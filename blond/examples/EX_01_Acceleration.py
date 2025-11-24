@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 
 from blond import (
     Beam,
-    BeamObservationAfterDrift,
+    BeamObservationOncePerTurn,
     BiGaussian,
     CavityPhaseObservation,
     DriftSimple,
@@ -78,7 +78,7 @@ def main():
         each_turn_i=1,
         cavity=cavity1,
     )
-    bunch_observation = BeamObservationAfterDrift(each_turn_i=1, beam=beam1)
+    bunch_observation = BeamObservationOncePerTurn(each_turn_i=1, beam=beam1)
 
     def custom_action(simulation: Simulation, beam: Beam):  # pragma: no cover
         if simulation.turn_i.value % 10 != 0:

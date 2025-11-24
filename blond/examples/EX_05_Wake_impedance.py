@@ -24,7 +24,7 @@ from matplotlib import pyplot as plt
 from blond import (
     AllowPlotting,
     Beam,
-    BeamObservationAfterDrift,
+    BeamObservationOncePerTurn,
     BiGaussian,
     DriftSimple,
     MagneticCyclePerTurn,
@@ -122,7 +122,9 @@ def main():
             ),
             beam=beam,
         )
-        bunch_observable = BeamObservationAfterDrift(each_turn_i=10, beam=beam)
+        bunch_observable = BeamObservationOncePerTurn(
+            each_turn_i=10, beam=beam
+        )
         sim.run_simulation(
             observe=(bunch_observable,),
             beams=(beam,),

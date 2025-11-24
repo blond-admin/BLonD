@@ -9,7 +9,7 @@ from xpart.longitudinal.rfbucket_matching import (  # ThermalDistribution,; Para
 
 from blond import (
     Beam,
-    BeamObservationAfterDrift,
+    BeamObservationOncePerTurn,
     CavityPhaseObservation,
     DriftSimple,
     Ring,
@@ -69,7 +69,7 @@ def main():
         each_turn_i=1,
         cavity=cavity1,
     )
-    bunch_observation = BeamObservationAfterDrift(beam=beam1, each_turn_i=1)
+    bunch_observation = BeamObservationOncePerTurn(beam=beam1, each_turn_i=1)
 
     def custom_action(simulation: Simulation):  # pragma: no cover
         if simulation.turn_i.value % 10 != 0:
