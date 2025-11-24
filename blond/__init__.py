@@ -23,7 +23,7 @@ from blond.cycles.magnetic_cycle import MagneticCycleByTime  # NOQA
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn  # NOQA
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurnAllCavities  # NOQA
 from blond.generals.cupy.no_cupy_import import AllowPlotting  # NOQA
-from blond.handle_results.observables import BeamObservationEndOfTurn  # NOQA
+from blond.handle_results.observables import BeamObservationAfterDrift  # NOQA
 from blond.handle_results.observables import CavityPhaseObservation  # NOQA
 from blond.handle_results.observables import StaticProfileObservation  # NOQA
 from blond.handle_results.observables_as_elements import (

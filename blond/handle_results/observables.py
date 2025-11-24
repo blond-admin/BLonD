@@ -98,7 +98,7 @@ class ObservablesBaseClass(MainLoopRelevant):
                 assert value is not None, f"`{parameter}` was not initialized."
 
 
-class ObservablesEndOfTurnBase(ObservablesBaseClass):
+class ObservablesAfterDriftBase(ObservablesBaseClass):
     """Base class to observe attributes during simulation.
 
     Parameters
@@ -230,7 +230,7 @@ class ObservablesEndOfTurnBase(ObservablesBaseClass):
         self._turns_array = self._turns_array.flatten()
 
 
-class BeamObservationEndOfTurn(ObservablesEndOfTurnBase):
+class BeamObservationAfterDrift(ObservablesAfterDriftBase):
     """Observe the bunch coordinates during simulation execution.
 
     Parameters
@@ -359,7 +359,7 @@ class BeamObservationEndOfTurn(ObservablesEndOfTurnBase):
         return self._flags.get_valid_entries()
 
 
-class BunchObservationMetaParams(ObservablesEndOfTurnBase):
+class BunchObservationMetaParams(ObservablesAfterDriftBase):
     """Records mean and standard deviation of both energy and time coordinates and estimates the bunch emittance.
 
     Parameters
@@ -511,7 +511,7 @@ class BunchObservationMetaParams(ObservablesEndOfTurnBase):
         return self._emittance_stat.get_valid_entries()
 
 
-class CavityPhaseObservation(ObservablesEndOfTurnBase):
+class CavityPhaseObservation(ObservablesAfterDriftBase):
     """Observe the RF cavity parameters during the execution of the simulation.
 
     Parameters
@@ -621,7 +621,7 @@ class CavityPhaseObservation(ObservablesEndOfTurnBase):
         return self._voltages.get_valid_entries()
 
 
-class StaticProfileObservation(ObservablesEndOfTurnBase):
+class StaticProfileObservation(ObservablesAfterDriftBase):
     """Observation of a static beam profile.
 
     Parameters
@@ -718,7 +718,7 @@ class StaticProfileObservation(ObservablesEndOfTurnBase):
         return self._hist_y.get_valid_entries()
 
 
-class StaticMultiProfileObservation(ObservablesEndOfTurnBase):
+class StaticMultiProfileObservation(ObservablesAfterDriftBase):
     def __init__(
         self,
         each_turn_i: int,
@@ -817,7 +817,7 @@ class StaticMultiProfileObservation(ObservablesEndOfTurnBase):
         return self._hist_y.get_valid_entries()
 
 
-class WakeFieldObservation(ObservablesEndOfTurnBase):
+class WakeFieldObservation(ObservablesAfterDriftBase):
     def __init__(
         self,
         each_turn_i: int,
@@ -916,7 +916,7 @@ class WakeFieldObservation(ObservablesEndOfTurnBase):
         return self._induced_voltage.get_valid_entries()
 
 
-class DynamicProfileConstNBinsObservation(ObservablesEndOfTurnBase):
+class DynamicProfileConstNBinsObservation(ObservablesAfterDriftBase):
     def __init__(
         self,
         each_turn_i: int,

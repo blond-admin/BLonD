@@ -54,7 +54,7 @@ if TYPE_CHECKING:  # pragma: no cover
     )
 
     from blond.beam_preparation.base import BeamPreparationRoutine
-    from blond.handle_results.observables import ObservablesEndOfTurnBase
+    from blond.handle_results.observables import ObservablesAfterDriftBase
     from blond._core.beam.base import BeamBaseClass
     from blond._core.beam.particle_types import ParticleType
     from blond._core.ring.ring import Ring
@@ -921,7 +921,7 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass, ...],
         n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
+        observe: tuple[ObservablesAfterDriftBase, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
     ) -> None:
@@ -985,9 +985,9 @@ class Simulation(Preparable):
 
         Simulation with observables to record data:
 
-        >>> from blond import CavityPhaseObservation, BeamObservationEndOfTurn
+        >>> from blond import CavityPhaseObservation, BeamObservationAfterDrift
         >>> phase_obs = CavityPhaseObservation(each_turn_i=1, cavity=rf_station1)
-        >>> beam_obs = BeamObservationEndOfTurn(each_turn_i=1, beam=beam1)
+        >>> beam_obs = BeamObservationAfterDrift(each_turn_i=1, beam=beam1)
         >>>
         >>> sim.run_simulation(
         ...     beams=(beam1,),
@@ -1083,7 +1083,7 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass, ...],
         n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
+        observe: tuple[ObservablesAfterDriftBase, ...] = (),
     ) -> int:
         """Initialize all simulation components before running or loading results.
 
@@ -1188,7 +1188,7 @@ class Simulation(Preparable):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int = 0,
-        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
+        observe: tuple[ObservablesAfterDriftBase, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
     ) -> None:
@@ -1359,7 +1359,7 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass, BeamBaseClass],
         n_turns: int,
         turn_i_init: int = 0,
-        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
+        observe: tuple[ObservablesAfterDriftBase, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
     ) -> None:
@@ -1424,7 +1424,7 @@ class Simulation(Preparable):
 
     def save_results(
         self,
-        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
+        observe: tuple[ObservablesAfterDriftBase, ...] = (),
         common_name: str | None = None,
     ) -> None:
         """Save observable data to disk for later analysis.
@@ -1489,7 +1489,7 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass],
         n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
+        observe: tuple[ObservablesAfterDriftBase, ...] = (),
         common_name: str | None = None,
     ) -> None:
         """Load previously saved observable data from disk.
