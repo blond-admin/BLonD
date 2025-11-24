@@ -368,12 +368,12 @@ class UserDefinedElement(BeamPhysicsRelevant, ABC):
     Examples
     --------
     >>> class TimeRandomizer(UserDefinedElement):
-    ... def __init__(self):
+    ...     def __init__(self):
     ...         super().__init__()
     ...
-    ... def track(self, beam: BeamBaseClass):
-    ...     dt = beam.write_partial_dt()
-    ...     dt += backend.random.rand(len(dt))
+    ...     def track(self, beam: BeamBaseClass):
+    ...         dt = beam.write_partial_dt()
+    ...         dt += backend.random.rand(len(dt))
     """
 
     def on_init_simulation(self, simulation: Simulation) -> None:

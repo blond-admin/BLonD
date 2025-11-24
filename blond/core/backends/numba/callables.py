@@ -50,7 +50,7 @@ def enforce_precision(dtype):
 
 @cache  # or set a limit like maxsize=128
 def recompile_numba_backend(  # NOQA PLR0915 # ruff: noqa: D102
-    floattype: np.float32 | np.float64,
+    floattype: type[np.float32 | np.float64],
 ):
     """Helper to recompile `NumbaSpecials` when the backend changed.
 
@@ -58,7 +58,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # ruff: noqa: D102
     ----------
     floattype
         Float type to compile the backend for.
-        32 or 64 bit.
+        `np.float32` or `np.float64` bit.
 
     Returns
     -------
