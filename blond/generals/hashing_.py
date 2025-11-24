@@ -69,7 +69,7 @@ def hash_in_folder(
     hash_
         The resulting SHA-256 hexadecimal digest.
     """
-    from blond.generals._files import get_files_with_extensions
+    from blond.generals.files_ import get_files_with_extensions
 
     files = get_files_with_extensions(
         folder=folder,
