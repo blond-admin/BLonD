@@ -380,9 +380,13 @@ class TimeDomainFftSolver(WakeFieldSolver):
 
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        allow_next_fast_len: bool = True,
+    ):
         super().__init__()
         self.expect_impedance_change = False
+        self._allow_next_fast_len = allow_next_fast_len
 
         self._parent_wakefield: WakeField | None = None
         self._wake_imp_y: NumpyArray | None = None
@@ -457,7 +461,10 @@ class TimeDomainFftSolver(WakeFieldSolver):
         _wake_x = self._parent_wakefield.profile.hist_x
         _wake_x = _wake_x - _wake_x.min()
 
-        n_fft = next_fast_len(2 * len(_wake_x))
+        n_fft = 2 * len(_wake_x)
+        if self._allow_next_fast_len:
+            n_fft = next_fast_len(n_fft)
+
         n_t = (n_fft // 2) + 1
 
         if (self._wake_imp_y is None) or (
@@ -525,6 +532,8 @@ class TimeDomainFftSolver(WakeFieldSolver):
                 n_fft=next_fast_len(
                     2 * len(self._parent_wakefield.profile.hist_x)
                 )
+                if self._allow_next_fast_len
+                else 2 * len(self._parent_wakefield.profile.hist_x)
             ),
         )
 
