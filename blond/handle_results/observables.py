@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
-from blond.core.base import BeamObservationElement, MainLoopRelevant
+from blond.core.base import MainLoopRelevant
 from blond.handle_results.array_recorders import DenseArrayRecorder
 
 if TYPE_CHECKING:  # pragma: no cover
