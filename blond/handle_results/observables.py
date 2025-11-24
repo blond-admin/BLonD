@@ -121,7 +121,6 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         self.each_turn_i = each_turn_i
 
         self._n_turns: int | None = None
-        self._section_indices_to_observe: NumpyArray | None = None
         self._turn_i_init: int | None = None
         self._turns_array: NumpyArray | None = None
 
@@ -581,7 +580,7 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
             turn_i_init=turn_i_init,
         )
         n_entries = int(
-            len(self._turns_array) * len(self._profiles) // self.each_turn_i
+            (len(self._turns_array) * len(self._profiles)) // self.each_turn_i
             + 2 * len(self._profiles)
         )
         n_bins = self._profiles[0].n_bins

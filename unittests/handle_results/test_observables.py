@@ -118,58 +118,21 @@ class TestObservables(unittest.TestCase):
             beam=beam,
             turn_i_init=0,
             n_turns=100,
-            obs_per_turn=1,
         )
 
-        assert len(self.observables._turns_array) == self.observables._n_turns
+        assert len(self.observables._turns_array) == self.observables._n_turns + 2
         assert np.all(
             np.where(np.diff(self.observables._turns_array) <= 0)
             == np.array([])
         )  # monotonic increase
-        assert np.mean(np.diff(self.observables._turns_array)) == 1
-        assert np.all(
-            self.observables._section_indices_to_observe == np.array([0])
-        )  # only first one is selected
+        assert np.mean(np.diff(self.observables._turns_array[1:])) == 1
 
         self.observables.on_run_simulation(
             simulation=simulation,
             beam=beam,
             turn_i_init=0,
             n_turns=100,
-            obs_per_turn=2,
         )
-
-        assert (
-            len(self.observables._turns_array) == self.observables._n_turns * 2
-        )
-        assert np.all(
-            np.where(np.diff(self.observables._turns_array) <= 0)
-            == np.array([])
-        )  # monotonic increase
-        assert np.isclose(np.mean(np.diff(self.observables._turns_array)), 0.5)
-        assert np.all(
-            self.observables._section_indices_to_observe == np.array([0, 1])
-        )  # only first one is selected
-
-        self.observables.on_run_simulation(
-            simulation=simulation,
-            beam=beam,
-            turn_i_init=50,
-            n_turns=100,
-            obs_per_turn=2,
-        )
-
-        assert (
-            len(self.observables._turns_array) == self.observables._n_turns * 2
-        )
-        assert np.all(
-            np.where(np.diff(self.observables._turns_array) <= 0)
-            == np.array([])
-        )  # monotonic increase
-        assert np.isclose(np.mean(np.diff(self.observables._turns_array)), 0.5)
-        assert np.all(
-            self.observables._section_indices_to_observe == np.array([0, 1])
-        )  # only first one is selected
 
     def test_rename(self) -> None:
         self.observables = ObservablesHelper(
@@ -185,7 +148,6 @@ class TestObservables(unittest.TestCase):
             beam=beam,
             turn_i_init=0,
             n_turns=100,
-            obs_per_turn=1,
         )
 
         # without recorders, should run through
@@ -207,7 +169,7 @@ class TestObservables(unittest.TestCase):
         assert self.observables.common_filepath == orig_name + "_2"
 
     def test_assert_lateinit_fail(self) -> None:
-        obs_helper = ObservablesHelper(obs_per_turn=1, each_turn_i=0)
+        obs_helper = ObservablesHelper(each_turn_i=0)
 
         obs_helper.dummy_value = None
 
@@ -215,32 +177,6 @@ class TestObservables(unittest.TestCase):
             obs_helper.get_recorders()
         with self.assertRaises(AssertionError):
             obs_helper.assert_lateinit()
-
-    def test_on_run_simulation_warnings(self):
-        self.observables.on_init_simulation(
-            simulation=simulation,
-        )
-
-        with self.assertWarnsRegex(
-            UserWarning, "obs_per_turn must be greater"
-        ):
-            self.observables.on_run_simulation(
-                simulation=simulation,
-                beam=beam,
-                turn_i_init=0,
-                n_turns=100,
-                obs_per_turn=-1,
-            )
-        with self.assertWarnsRegex(
-            UserWarning, "obs_per_turn must be smaller"
-        ):
-            self.observables.on_run_simulation(
-                simulation=simulation,
-                beam=beam,
-                turn_i_init=0,
-                n_turns=100,
-                obs_per_turn=3,
-            )
 
 
 class TestBunchObservation(unittest.TestCase):
@@ -348,6 +284,8 @@ class TestStaticProfileObservation(unittest.TestCase):
             turn_i_init=0,
             n_turns=100,
         )
+        simulation.section_i.value = 0
+        simulation.turn_i.value = 0
         self.static_profile_observation.update(
             simulation=simulation,
         )
@@ -405,7 +343,7 @@ class TestWakeFieldObservation(unittest.TestCase):
     def test_error_in_aquisition(self) -> None:
         prof = StaticProfile.from_cutoff(0, 1e-9, 3e9)
         wf = WakeField(section_index=0, profile=prof, sources=Mock(Resonators), solver=Mock(SingleTurnResonatorConvolutionSolver))
-        wf_obs = WakeFieldObservation(wakefield=wf, folder=callers_relative_path("results/", stacklevel=1), each_turn_i=1, obs_per_turn=2)
+        wf_obs = WakeFieldObservation(wakefield=wf, folder=callers_relative_path("results/", stacklevel=1), each_turn_i=1)
 
         wf_obs.on_init_simulation(simulation=simulation)
         wf_obs.on_run_simulation(simulation=simulation, beam=beam, turn_i_init=0, n_turns=100)

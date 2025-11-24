@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import numpy as np
+
 from blond._core.base import BeamObservationElement
 from blond._core.beam.base import BeamBaseClass
 from blond._core.simulation.simulation import Simulation
@@ -137,3 +139,154 @@ class BeamObservationInRingElement(
     def flags(self):
         """Returns flags-arrays."""
         return self._flags.get_valid_entries()
+
+
+class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
+    """Records mean and standard deviation of both energy and time coordinates and estimates the bunch emittance.
+
+    Parameters
+    ----------
+    each_turn_i
+        Value to control that the element is
+        callable each n-th turn.
+    beam
+        Simulation beam object
+    folder
+        Path to the target folder used for
+        saving or loading files.
+    """
+
+    def __init__(
+        self,
+        each_turn_i: int,
+        beam: BeamBaseClass,
+        folder: str = "",
+    ):
+        super().__init__(each_turn_i=each_turn_i, folder=folder)
+        self._beam = beam
+
+        self._sigma_dt: DenseArrayRecorder | None = None
+        self._sigma_dE: DenseArrayRecorder | None = None
+        self._mean_dt: DenseArrayRecorder | None = None
+        self._mean_dE: DenseArrayRecorder | None = None
+        self._emittance_stat: DenseArrayRecorder | None = None
+
+        self._last_section_i_observed = -1
+        self._last_turn_i_observed = -1
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs,
+    ) -> None:
+        """Lateinit method when :func:`blond._core.simulation.simulation.Simulation.run_simulation` is called.
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+        beam
+            Simulation beam object
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
+        super().on_run_simulation(
+            simulation=simulation,
+            beam=beam,
+            n_turns=n_turns,
+            turn_i_init=turn_i_init,
+        )
+
+        count = sum([el == self for el in simulation.ring.elements.elements])
+
+        n_entries = int(n_turns * count // +1)
+        shape = n_entries
+
+        self._mean_dt = DenseArrayRecorder(
+            f"{self.common_filepath}_mean_dt",
+            shape,
+        )
+        self._mean_dE = DenseArrayRecorder(
+            f"{self.common_filepath}_mean_dE",
+            shape,
+        )
+        self._sigma_dt = DenseArrayRecorder(
+            f"{self.common_filepath}_sigma_dt",
+            shape,
+        )
+        self._sigma_dE = DenseArrayRecorder(
+            f"{self.common_filepath}_sigma_dE",
+            shape,
+        )
+        self._emittance_stat = DenseArrayRecorder(
+            f"{self.common_filepath}_emittance_stat",
+            shape,
+        )
+
+    def track(
+        self,
+        simulation: Simulation,
+    ) -> None:
+        """Update memory with new values.
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+
+        """
+        if (
+            self._last_section_i_observed == simulation.section_i.value
+            and self._last_turn_i_observed == simulation.turn_i.value
+        ):
+            return
+        self._last_turn_i_observed = simulation.turn_i.value
+        self._last_section_i_observed = simulation.section_i.value
+        if simulation.section_i.value in self._section_indices_to_observe:
+            self._sigma_dt.write(np.std(self._beam._dt))
+            self._sigma_dE.write(np.std(self._beam._dE))
+            self._mean_dt.write(np.mean(self._beam._dt))
+            self._mean_dE.write(np.mean(self._beam._dE))
+            self._emittance_stat.write(
+                np.sqrt(
+                    np.average(self._beam._dE**2)
+                    * np.average(self._beam._dt**2)
+                    - np.average(self._beam._dE * self._beam._dt) ** 2
+                )
+            )
+
+    @property  # as readonly attributes
+    def sigma_dt(self):
+        """Standard deviation of the time coordinate."""
+        return self._sigma_dt.get_valid_entries()
+
+    @property  # as readonly attributes
+    def sigma_dE(self):
+        """Standard deviation of the energy coordinate, in [eV]."""
+        return self._sigma_dE.get_valid_entries()
+
+    @property  # as readonly attributes
+    def mean_dt(self):
+        """Mean of the time coordinate."""
+        return self._mean_dt.get_valid_entries()
+
+    @property  # as readonly attributes
+    def mean_dE(self):
+        """Mean of the time coordinate."""
+        return self._mean_dE.get_valid_entries()
+
+    @property  # as readonly attributes
+    def rms_emittance(self):
+        r"""Root-Mean=Square emittance.
+
+        The statistical emittance is calculated with
+
+        .. math::
+            \epsilon = \sqrt{\langle \Delta t^2 \\rangle \langle \Delta E^2 \\rangle - \langle \Delta t \Delta E \\rangle^2}
+        """
+        return self._emittance_stat.get_valid_entries()
