@@ -9,7 +9,7 @@ from blond.experimental.physics.feedbacks.beam_feedback import (
 )
 
 if TYPE_CHECKING:  # pragma: no cover
-    from blond._core.beam.base import BeamBaseClass
+    from blond.core.beam.base import BeamBaseClass
     from blond.physics.profiles import ProfileBaseClass
 
 

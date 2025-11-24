@@ -9,8 +9,8 @@ import numpy as np
 from tqdm import tqdm
 
 from blond import Simulation
-from blond._core.helpers import int_from_float_with_warning
 from blond.beam_preparation.base import MatchingRoutine
+from blond.core.helpers import int_from_float_with_warning
 from blond.experimental.acc_math.empiric.hamiltonian import (
     calc_hamiltonian,
     separatrixes,
@@ -22,7 +22,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from numpy.typing import NDArray as NumpyArray
 
-    from blond._core.beam.base import BeamBaseClass
+    from blond.core.beam.base import BeamBaseClass
 
 
 def populate_beam(

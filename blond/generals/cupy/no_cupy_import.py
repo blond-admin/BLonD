@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond._core.backends.backend import backend
+from blond.core.backends.backend import backend
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any

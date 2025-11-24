@@ -17,7 +17,7 @@ from blond import (
     StaticProfile,
     proton,
 )
-from blond._core.backends.backend import Numpy32Bit, Numpy64Bit, backend
+from blond.core.backends.backend import Numpy32Bit, Numpy64Bit, backend
 from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback import (
     SPSCavityFeedback,
     SPSCavityLoopCommissioning,

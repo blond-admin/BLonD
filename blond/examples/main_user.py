@@ -12,9 +12,9 @@ from blond import (
     WakeField,
     proton,
 )
-from blond._core.backends.backend import backend
-from blond._core.beam.beams import Beam
-from blond._core.ring.ring import Ring
+from blond.core.backends.backend import backend
+from blond.core.beam.beams import Beam
+from blond.core.ring.ring import Ring
 from blond.cycles.magnetic_cycle import MagneticCycleBase, MagneticCyclePerTurn
 from blond.physics.cavities import MultiHarmonicRfStation
 from blond.physics.impedances.solvers import InductiveImpedanceSolver
@@ -26,7 +26,7 @@ class Main:
 
     @staticmethod
     def describe_accelerator() -> tuple[Ring, MagneticCyclePerTurn, Beam]:
-        """Describes the hardware that is simulated within the :class:`blond._core.ring.ring.Ring`."""
+        """Describes the hardware that is simulated within the :class:`blond.core.ring.ring.Ring`."""
         # Description of accelerator
         my_ring = Ring(circumference=6912)
 
@@ -74,7 +74,7 @@ class Main:
         my_cycle: MagneticCycleBase,
         my_beam: Beam,
     ) -> tuple:
-        """Assembles the :class:`blond._core.simulation.simulation.Simulation` object. and matches the beam.
+        """Assembles the :class:`blond.core.simulation.simulation.Simulation` object. and matches the beam.
 
         Parameters
         ----------

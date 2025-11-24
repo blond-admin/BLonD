@@ -1,23 +1,23 @@
 """BLonD beam dynamics software."""
 
-from blond._core.backends.backend import (  # NOQA
+from blond.beam_preparation.bigaussian import BiGaussian  # NOQA
+from blond.core.backends.backend import (  # NOQA
     Cupy32Bit,
     Cupy64Bit,
     Numpy32Bit,
     Numpy64Bit,
     backend,
 )
-from blond._core.base import UserDefinedElement  # NOQA
-from blond._core.beam.beams import Beam  # NOQA
-from blond._core.beam.particle_types import electron  # NOQA
-from blond._core.beam.particle_types import mu_minus  # NOQA
-from blond._core.beam.particle_types import mu_plus  # NOQA
-from blond._core.beam.particle_types import positron  # NOQA
-from blond._core.beam.particle_types import proton  # NOQA
-from blond._core.beam.particle_types import uranium_29  # NOQA
-from blond._core.ring.ring import Ring  # NOQA
-from blond._core.simulation.simulation import Simulation  # NOQA
-from blond.beam_preparation.bigaussian import BiGaussian  # NOQA
+from blond.core.base import UserDefinedElement  # NOQA
+from blond.core.beam.beams import Beam  # NOQA
+from blond.core.beam.particle_types import electron  # NOQA
+from blond.core.beam.particle_types import mu_minus  # NOQA
+from blond.core.beam.particle_types import mu_plus  # NOQA
+from blond.core.beam.particle_types import positron  # NOQA
+from blond.core.beam.particle_types import proton  # NOQA
+from blond.core.beam.particle_types import uranium_29  # NOQA
+from blond.core.ring.ring import Ring  # NOQA
+from blond.core.simulation.simulation import Simulation  # NOQA
 from blond.cycles.magnetic_cycle import ConstantMagneticCycle  # NOQA
 from blond.cycles.magnetic_cycle import MagneticCycleByTime  # NOQA
 from blond.cycles.magnetic_cycle import MagneticCyclePerTurn  # NOQA

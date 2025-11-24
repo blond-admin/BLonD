@@ -4,8 +4,8 @@ from cupy.typing import NDArray as CupyArray
 from numpy._typing import NDArray as NumpyArray
 
 from blond import Beam
-from blond._core.backends.backend import backend
-from blond._core.beam.particle_types import ParticleType
+from blond.core.backends.backend import backend
+from blond.core.beam.particle_types import ParticleType
 
 
 class WeightenedBeam(Beam):

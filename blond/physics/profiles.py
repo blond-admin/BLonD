@@ -15,9 +15,9 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import numpy as np
 
-from blond._core.backends.backend import backend
-from blond._core.base import BeamPhysicsRelevant, HasPropertyCache
-from blond._core.helpers import int_from_float_with_warning
+from blond.core.backends.backend import backend
+from blond.core.base import BeamPhysicsRelevant, HasPropertyCache
+from blond.core.helpers import int_from_float_with_warning
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -25,8 +25,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
-    from blond._core.beam.base import BeamBaseClass
-    from blond._core.simulation.simulation import Simulation
+    from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
 
 
 class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):

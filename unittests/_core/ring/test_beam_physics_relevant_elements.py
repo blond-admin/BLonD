@@ -4,9 +4,9 @@ from unittest.mock import Mock
 import numpy as np
 
 from blond import Simulation
-from blond._core.base import BeamPhysicsRelevant
-from blond._core.beam.base import BeamBaseClass
-from blond._core.ring.beam_physics_relevant_elements import (
+from blond.core.base import BeamPhysicsRelevant
+from blond.core.beam.base import BeamBaseClass
+from blond.core.ring.beam_physics_relevant_elements import (
     BeamPhysicsRelevantElements,
     pretty_string,
 )

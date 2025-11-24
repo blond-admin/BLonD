@@ -10,7 +10,7 @@ from blond import (
     backend,
     proton,
 )
-from blond._core.beam.base import BeamBaseClass
+from blond.core.beam.base import BeamBaseClass
 
 
 class TimeRandomizer(UserDefinedElement):
