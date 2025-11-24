@@ -284,11 +284,13 @@ class BeamObservationAfterDrift(ObservablesAfterDriftBase):
         """
         super().on_run_simulation(
             simulation=simulation,
+            beam=beam,
             n_turns=n_turns,
             turn_i_init=turn_i_init,
-            beam=self._beam,
+            obs_per_turn=self._obs_per_turn,
         )
-        n_entries = n_turns // self.each_turn_i + 2
+
+        n_entries = int(n_turns * self._obs_per_turn + 1)
         n_macroparticles = int(beam.common_array_size)
         shape = (n_entries, n_macroparticles)
 
@@ -559,23 +561,27 @@ class CavityPhaseObservation(ObservablesAfterDriftBase):
         """
         super().on_run_simulation(
             simulation=simulation,
+            beam=beam,
             n_turns=n_turns,
             turn_i_init=turn_i_init,
-            beam=beam,
+            obs_per_turn=self._obs_per_turn,
         )
-        n_entries = n_turns // self.each_turn_i + 2
+
+        n_entries = int(n_turns * self._obs_per_turn + 1)
         n_harmonics = int(self._cavity.n_rf)
+        shape = (n_entries, n_harmonics)
+
         self._phases = DenseArrayRecorder(
             f"{self.common_filepath}_phases",
-            (n_entries, n_harmonics),
+            shape,
         )
         self._omegas = DenseArrayRecorder(
             f"{self.common_filepath}_omegas",
-            (n_entries, n_harmonics),
+            shape,
         )
         self._voltages = DenseArrayRecorder(
             f"{self.common_filepath}_voltages",
-            (n_entries, n_harmonics),
+            shape,
         )
 
     def update(
@@ -680,7 +686,7 @@ class StaticProfileObservation(ObservablesAfterDriftBase):
             obs_per_turn=self._obs_per_turn,
             beam=beam,
         )
-        n_entries = len(self._turns_array)
+        n_entries = int(n_turns * self._obs_per_turn + 1)
         n_bins = int(self._profile.n_bins)
         self._hist_y = DenseArrayRecorder(
             f"{self.common_filepath}_hist_y",
@@ -782,7 +788,9 @@ class StaticMultiProfileObservation(ObservablesAfterDriftBase):
             turn_i_init=turn_i_init,
             obs_per_turn=obs_per_turn,
         )
-        n_entries = len(self._turns_array) * len(self._profiles)
+        n_entries = int(
+            len(self._turns_array) * len(self._profiles) * obs_per_turn + 1
+        )
         n_bins = self._profiles[0].n_bins
         self._hist_y = DenseArrayRecorder(
             f"{self.common_filepath}_hist_y",
@@ -870,12 +878,13 @@ class WakeFieldObservation(ObservablesAfterDriftBase):
         """
         super().on_run_simulation(
             simulation=simulation,
+            beam=beam,
             n_turns=n_turns,
             turn_i_init=turn_i_init,
             obs_per_turn=self._obs_per_turn,
-            beam=beam,
         )
-        n_entries = len(self._turns_array)
+
+        n_entries = int(n_turns * self._obs_per_turn + 1)
         n_bins = int(self._wakefield._profile.n_bins)
         self._induced_voltage = DenseArrayRecorder(
             f"{self.common_filepath}_induced_voltage",
@@ -963,19 +972,22 @@ class DynamicProfileConstNBinsObservation(ObservablesAfterDriftBase):
         """
         super().on_run_simulation(
             simulation=simulation,
+            beam=beam,
             n_turns=n_turns,
             turn_i_init=turn_i_init,
-            beam=beam,
+            obs_per_turn=self._obs_per_turn,
         )
-        n_entries = n_turns // self.each_turn_i + 2
+
+        n_entries = int(n_turns * self._obs_per_turn + 1)
         n_bins = int(self._profile.n_bins)
+        shape = (n_entries, n_bins)
         self._hist_y = DenseArrayRecorder(
             f"{self.common_filepath}_hist_y",
-            (n_entries, n_bins),
+            shape,
         )
         self._hist_x = DenseArrayRecorder(
             f"{self.common_filepath}_hist_x",
-            (n_entries, n_bins),
+            shape,
         )
 
     def update(
