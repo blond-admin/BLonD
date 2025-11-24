@@ -23,8 +23,10 @@ from blond.generals._warnings import PerformanceWarning
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
     BeamObservationOncePerTurn,
-    BunchObservationMetaParams,
     ObservablesOncePerTurnBase,
+)
+from blond.handle_results.observables_as_elements import (
+    BunchObservationMetaParams,
 )
 from blond.testing.mocks import beam_mock
 
@@ -110,6 +112,13 @@ class TestSimulation(unittest.TestCase):
         )
         harmonic = 25900
         transition_gamma = 1 / np.sqrt(11.4e-4)
+        bunch_observation = BunchObservationMetaParams(
+            each_turn_i=1, beam=beam
+        )
+        bunch_observation_CR = BunchObservationMetaParams(
+            each_turn_i=1, beam=beam_CR
+        )
+
         one_turn_model = []
         for cavity_i in range(n_cavities):
             one_turn_model.extend(
@@ -119,12 +128,14 @@ class TestSimulation(unittest.TestCase):
                         orbit_length=circumference / n_cavities / 2,
                         section_index=cavity_i,
                     ),
+                    bunch_observation_CR,
                     SingleHarmonicRfStation(
                         voltage=total_voltage / n_cavities,
                         phi_rf=0,
                         harmonic=harmonic,
                         section_index=cavity_i,
                     ),
+                    bunch_observation,
                     DriftSimple(
                         transition_gamma=transition_gamma,
                         orbit_length=circumference / n_cavities / 2,
@@ -135,18 +146,10 @@ class TestSimulation(unittest.TestCase):
         ring.add_elements(one_turn_model, reorder=False)
         sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
 
-        bunch_observation = BunchObservationMetaParams(
-            each_turn_i=1, obs_per_turn=n_cavities, beam=beam
-        )
-        bunch_observation_CR = BunchObservationMetaParams(
-            each_turn_i=1, obs_per_turn=n_cavities, beam=beam_CR
-        )
-
         sim.run_simulation(
             beams=(beam, beam_CR),
             n_turns=n_turns,
             turn_i_init=0,
-            observe=(bunch_observation, bunch_observation_CR),
         )
         for member in ["mean_dE", "mean_dt", "sigma_dE", "sigma_dt"]:
             assert np.allclose(

@@ -144,6 +144,8 @@ class BeamObservationInRingElement(
 class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
     """Records mean and standard deviation of both energy and time coordinates and estimates the bunch emittance.
 
+    The observation object needs to be placed in a section. Only one recording will be performed per section.
+
     Parameters
     ----------
     each_turn_i
@@ -162,17 +164,22 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         beam: BeamBaseClass,
         folder: str = "",
     ):
-        super().__init__(each_turn_i=each_turn_i, folder=folder)
+        super().__init__(folder=folder)
+
+        self.each_turn_i = each_turn_i
         self._beam = beam
 
         self._sigma_dt: DenseArrayRecorder | None = None
         self._sigma_dE: DenseArrayRecorder | None = None
         self._mean_dt: DenseArrayRecorder | None = None
         self._mean_dE: DenseArrayRecorder | None = None
-        self._emittance_stat: DenseArrayRecorder | None = None
+        self._emittance_rms: DenseArrayRecorder | None = None
 
         self._last_section_i_observed = -1
         self._last_turn_i_observed = -1
+
+        self.current_turn = -1
+        self.current_section = -1
 
     def on_run_simulation(
         self,
@@ -204,7 +211,7 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
 
         count = sum([el == self for el in simulation.ring.elements.elements])
 
-        n_entries = int(n_turns * count // +1)
+        n_entries = int(n_turns * count // self.each_turn_i)
         shape = n_entries
 
         self._mean_dt = DenseArrayRecorder(
@@ -223,14 +230,24 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
             f"{self.common_filepath}_sigma_dE",
             shape,
         )
-        self._emittance_stat = DenseArrayRecorder(
+        self._emittance_rms = DenseArrayRecorder(
             f"{self.common_filepath}_emittance_stat",
             shape,
         )
 
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        """
+        Lateinit method when `simulation.__init__` is called.
+
+        simulation
+            Simulation context manager
+        """
+        self.current_turn = simulation.turn_i.value
+        self.current_section = simulation.section_i.value
+
     def track(
         self,
-        simulation: Simulation,
+        beam: BeamBaseClass,
     ) -> None:
         """Update memory with new values.
 
@@ -240,25 +257,25 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
             Simulation context manager
 
         """
+        if self._beam != beam:
+            return
         if (
-            self._last_section_i_observed == simulation.section_i.value
-            and self._last_turn_i_observed == simulation.turn_i.value
+            self._last_section_i_observed == self.current_section
+            and self._last_turn_i_observed == self.current_turn
         ):
             return
-        self._last_turn_i_observed = simulation.turn_i.value
-        self._last_section_i_observed = simulation.section_i.value
-        if simulation.section_i.value in self._section_indices_to_observe:
-            self._sigma_dt.write(np.std(self._beam._dt))
-            self._sigma_dE.write(np.std(self._beam._dE))
-            self._mean_dt.write(np.mean(self._beam._dt))
-            self._mean_dE.write(np.mean(self._beam._dE))
-            self._emittance_stat.write(
-                np.sqrt(
-                    np.average(self._beam._dE**2)
-                    * np.average(self._beam._dt**2)
-                    - np.average(self._beam._dE * self._beam._dt) ** 2
-                )
+        self._last_turn_i_observed = self.current_turn
+        self._last_section_i_observed = self.current_section
+        self._sigma_dt.write(np.std(self._beam._dt))
+        self._sigma_dE.write(np.std(self._beam._dE))
+        self._mean_dt.write(np.mean(self._beam._dt))
+        self._mean_dE.write(np.mean(self._beam._dE))
+        self._emittance_rms.write(
+            np.sqrt(
+                np.average(self._beam._dE**2) * np.average(self._beam._dt**2)
+                - np.average(self._beam._dE * self._beam._dt) ** 2
             )
+        )
 
     @property  # as readonly attributes
     def sigma_dt(self):
@@ -289,4 +306,4 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         .. math::
             \epsilon = \sqrt{\langle \Delta t^2 \\rangle \langle \Delta E^2 \\rangle - \langle \Delta t \Delta E \\rangle^2}
         """
-        return self._emittance_stat.get_valid_entries()
+        return self._emittance_rms.get_valid_entries()
