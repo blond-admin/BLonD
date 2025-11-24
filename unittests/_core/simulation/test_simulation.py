@@ -151,6 +151,16 @@ class TestSimulation(unittest.TestCase):
             n_turns=n_turns,
             turn_i_init=0,
         )
+        assert len(bunch_observation.mean_dE) == n_turns * n_cavities
+        assert len(bunch_observation.mean_dt) == n_turns * n_cavities
+        assert len(bunch_observation.sigma_dE) == n_turns * n_cavities
+        assert len(bunch_observation.sigma_dt) == n_turns * n_cavities
+        assert len(bunch_observation.rms_emittance) == n_turns * n_cavities
+        assert len(bunch_observation_CR.mean_dE) == n_turns * n_cavities
+        assert len(bunch_observation_CR.mean_dt) == n_turns * n_cavities
+        assert len(bunch_observation_CR.sigma_dE) == n_turns * n_cavities
+        assert len(bunch_observation_CR.sigma_dt) == n_turns * n_cavities
+        assert len(bunch_observation_CR.rms_emittance) == n_turns * n_cavities
         for member in ["mean_dE", "mean_dt", "sigma_dE", "sigma_dt"]:
             assert np.allclose(
                 getattr(bunch_observation, member),

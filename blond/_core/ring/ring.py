@@ -81,12 +81,14 @@ class Ring(Preparable, Schedulable):
                 stacklevel=1,
             )
 
-        assert np.all(
+        if not np.any(
             np.diff([e.section_index for e in self.elements.elements]) >= 0
-        ), (
-            "Section indices must be ascending, but section order:"
-            f" {[e.section_index for e in self.elements.elements]=}"
-        )
+        ):
+            warnings.warn(
+                "Section indices must be ascending, but section order:"
+                f" {[e.section_index for e in self.elements.elements]=}",
+                stacklevel=1,
+            )
 
     def on_run_simulation(
         self,
@@ -406,7 +408,7 @@ class Ring(Preparable, Schedulable):
             element = copy.deepcopy(element)
         if section_index is not None:
             element._section_index = int(section_index)
-        self.elements.add_element(element)
+        self.elements.add_element(element, reorder=reorder)
 
         if reorder:
             self.elements.reorder()
