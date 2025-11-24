@@ -93,13 +93,12 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         induced_voltage
             Induced voltage, in [V]
         """
-        factor = -backend.float(
-            (beam.particle_type.charge * e)
-            / (2 * np.pi)
-            * (
-                beam.intensity  # this used to be ratio
-                * self._parent_wakefield.profile.hist_y_to_density_factor
-            )
+        _factor = self._normalization_factor(
+            beam=beam,
+            profile=self._parent_wakefield.profile,
+        )
+        factor = backend.float(
+            (_factor / (2 * np.pi))
             * (self._simulation.ring.circumference / beam.reference_velocity)
             / self._parent_wakefield.profile.hist_step
         )
@@ -326,14 +325,9 @@ class PeriodicFreqSolver(WakeFieldSolver):
 
         self._update_impedance_sources(beam=beam)
 
-        _factor = backend.float(
-            (-1 * beam.particle_type.charge * e)
-            *
-            # TODO this might be a problem with MPI
-            (
-                beam.intensity  # this used to be ratio
-                * self._parent_wakefield.profile.hist_y_to_density_factor
-            )
+        _factor = self._normalization_factor(
+            beam=beam,
+            profile=self._parent_wakefield.profile,
         )
 
         key = len(self._freq_y)  # todo
@@ -516,14 +510,9 @@ class TimeDomainFftSolver(WakeFieldSolver):
             self._wake_imp_y_needs_update = True
         self._update_impedance_sources(beam=beam)
 
-        _factor = (
-            (-1 * beam.particle_type.charge * e)
-            *
-            # TODO this might be a problem with MPI
-            (
-                beam.intensity  # this used to be ratio
-                * self._parent_wakefield.profile.hist_y_to_density_factor
-            )
+        _factor = self._normalization_factor(
+            beam=beam,
+            profile=self._parent_wakefield.profile,
         )
         # Calculate the convolution of the wake and the beam
         # Usually this would be np.convolve(wake, beam).

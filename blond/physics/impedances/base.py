@@ -61,6 +61,33 @@ class WakeFieldSolver:
         """
         pass
 
+    def _normalization_factor(
+        self,
+        beam: BeamBaseClass,
+        profile: ProfileBaseClass,
+    ) -> float:
+        """Factor converting between wakefield (macroparticles vs real particles).
+
+        Parameters
+        ----------
+        beam
+            Simulation object of a particle beam.
+        profile
+            Beam profile object.
+
+        Returns
+        -------
+        _factor
+            Factor converting between wakefield
+            (macroparticles vs real particles).
+        """
+        from scipy.constants import elementary_charge as e
+
+        _factor = (-1 * beam.particle_type.charge * e) * (
+            beam.intensity * profile.hist_y_to_density_factor
+        )
+        return _factor
+
 
 class WakeFieldSource(ABC):
     """General abstract class for wake fields."""
