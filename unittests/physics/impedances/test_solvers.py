@@ -3126,6 +3126,7 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         np.testing.assert_allclose(
             wf_mutli.induced_voltage + offset,
             wf_single.induced_voltage + offset,
+            rtol=1e-5 if backend.float == np.float32 else 1e-12,
         )
 
     def test_calc_induced_voltage_multi_turn(self):
@@ -3205,4 +3206,5 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         np.testing.assert_allclose(
             wf_mutli.induced_voltage + offset,
             wf_single.induced_voltage[-128:] + offset,
+            rtol=1e-5 if backend.float == np.float32 else 1e-12,
         )
