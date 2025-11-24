@@ -6,8 +6,8 @@ import numpy as np
 from scipy.constants import speed_of_light as c0
 
 from blond import Simulation
-from blond._core.backends.backend import Numpy32Bit, Numpy64Bit, backend
-from blond._core.beam.base import BeamBaseClass
+from blond.core.backends.backend import Numpy32Bit, Numpy64Bit, backend
+from blond.core.beam.base import BeamBaseClass
 from blond.physics.drifts import DriftBaseClass, DriftSimple
 
 
@@ -109,7 +109,7 @@ class TestDriftSimple(unittest.TestCase):
         self.drift_simple.invalidate_cache()
 
     def test_on_init_simulation(self):
-        from blond._core.simulation.simulation import Simulation
+        from blond.core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
         simulation.ring.circumference = 10

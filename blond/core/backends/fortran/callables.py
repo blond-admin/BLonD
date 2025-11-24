@@ -1,0 +1,464 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
+"""Holds `FortranSpecials` and helper functions."""
+
+from __future__ import annotations
+
+import importlib.util
+import logging
+import os
+import shutil
+import sys
+import warnings
+from types import ModuleType
+from typing import TYPE_CHECKING
+
+import numpy as np
+
+from blond.core.backends.backend import Specials, backend
+from blond.generals._hashing import hash_in_folder
+
+if TYPE_CHECKING:  # pragma: no cover
+    from cupy.typing import NDArray as CupyArray  # type: ignore
+    from numpy.typing import NDArray as NumpyArray
+
+
+logger = logging.getLogger(__name__)
+
+
+def _add_dll_directory(command: str):
+    """Add the bin directory of some executable to the DLL search path.
+
+    Parameters
+    ----------
+    command
+        A command line command, e.g. gcc or gfortran
+
+    """
+    _gfortran_path = shutil.which(command)
+    if not _gfortran_path:
+        raise RuntimeError(f'shutil.which("{command}") = {_gfortran_path}')
+    gfortran_bin_directory = os.path.dirname(_gfortran_path)
+    logger.debug(f"Added {gfortran_bin_directory=} to the DLL search path.")
+    os.add_dll_directory(gfortran_bin_directory)
+
+
+_using_windows = os.name == "nt"
+if _using_windows:
+    try:
+        # this is implemented to prevent
+        # add_backend(..) from crashing on windows
+        _add_dll_directory("gfortran")
+    except RuntimeError as exc:
+        warnings.warn(str(exc), stacklevel=1)
+
+
+def find_module_so(file: str) -> str:
+    """
+    Locate the compiled shared library for a given module.
+
+    This function searches for the compiled `.so` (Linux) or `.pyd` (Windows)
+    file corresponding to a Python or Fortran module within a specific
+    `compiled/<hash>` folder relative to the current script. The folder hash
+    is computed based on the source files in the same directory as this script.
+
+    Parameters
+    ----------
+    file : str
+        Base name of the module to search for, e.g., 'libblond64'.
+
+    Returns
+    -------
+    str
+        Full path to the compiled shared library matching the module name.
+
+    Raises
+    ------
+    FileNotFoundError
+        If no matching compiled library is found in the expected folder.
+    """
+    # Get the directory of that file
+    this_folder = os.path.dirname(os.path.abspath(__file__))
+    hash_ = hash_in_folder(
+        folder=this_folder,
+        extensions=(".py", ".f90"),
+        recursive=False,
+    )
+    folder = os.path.join(this_folder, "compiled", hash_)
+
+    # List all files in the directory and filter
+    for filename in os.listdir(folder):
+        is_lib = (
+            filename.endswith(".so")  # linux
+            or filename.endswith(".pyd")  # windows
+        )
+        if is_lib and file in filename:
+            return os.path.join(folder, filename)
+    raise FileNotFoundError(file)
+
+
+def add_backend(module_name: str) -> ModuleType:
+    """Add the backend to the sys modules, preventing `ModuleNotFoundError`.
+
+    Parameters
+    ----------
+    module_name
+        Name of the module, e.g. 'libblond64'.
+
+    """
+    module_path = find_module_so(module_name)
+    # Load it explicitly
+    spec = importlib.util.spec_from_file_location(
+        module_name, str(module_path)
+    )
+    if spec is not None:
+        loaded_module = importlib.util.module_from_spec(spec)
+        if spec.loader is not None:
+            spec.loader.exec_module(loaded_module)
+        else:
+            raise Exception(
+                f"Failed to load spec from {module_name} at {module_path}"
+            )
+        # (Optional) Add to sys.modules to make it importable elsewhere
+        sys.modules[module_name] = loaded_module
+    else:
+        raise Exception(
+            f"Failed to load spec from {module_name} at {module_path}"
+        )
+    return loaded_module
+
+
+def reload_fortran_backend(  # ruff: noqa: D102
+    floattype: type[np.float32] | type[np.float64],
+) -> FortranSpecials:
+    """Reload the library according to the float precision.
+
+    Parameters
+    ----------
+    floattype
+        Float type to compile the backend for.
+        32 or 64 bit.
+
+    Returns
+    -------
+    FortranSpecials
+        The `FortranSpecials` class.
+
+    """
+    logger.info(f"Loading Fortran backend for {floattype}")
+
+    if floattype == np.float32:
+        libblond_fortran = add_backend(module_name="libblond32")
+
+    elif floattype == np.float64:
+        libblond_fortran = add_backend(module_name="libblond64")
+
+    else:
+        raise TypeError(floattype)
+
+    class FortranSpecials(Specials):
+        @staticmethod
+        def beam_phase(
+            hist_x: NumpyArray,
+            hist_y: NumpyArray,
+            alpha: float,
+            omega_rf: float,
+            phi_rf: float,
+            bin_size: float,
+        ) -> float:
+            assert hist_x.dtype == floattype
+            assert hist_y.dtype == floattype
+            assert hist_x.flags.c_contiguous
+            assert hist_y.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            alpha = floattype(alpha)
+            omega_rf = floattype(omega_rf)
+            phi_rf = floattype(phi_rf)
+            bin_size = floattype(bin_size)
+
+            return libblond_fortran.beam_phase_module.beam_phase(
+                bin_centers=hist_x,
+                profile=hist_y,
+                alpha=alpha,
+                omega_rf=omega_rf,
+                phi_rf=phi_rf,
+                bin_size=bin_size,
+                n_bins=np.int32(len(hist_x)),
+            )
+
+        @staticmethod
+        def histogram(
+            array_read: NumpyArray,
+            array_write: NumpyArray,
+            start: float,
+            stop: float,
+        ) -> None:
+            assert array_read.dtype == floattype
+            assert array_write.dtype == floattype
+            assert array_read.flags.c_contiguous
+            assert array_write.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            start = floattype(start)
+            stop = floattype(stop)
+
+            libblond_fortran.histogram(
+                array_read,
+                array_out=array_write,
+                n_macroparticles=np.int32(len(array_read)),
+                n_slices=np.int32(len(array_write)),
+                cut_left=start,
+                cut_right=stop,
+            )
+
+        @staticmethod
+        def loss_box(
+            top: float, bottom: float, left: float, right: float
+        ) -> None:
+            pass
+
+        @staticmethod
+        def kick_single_harmonic(
+            dt: NumpyArray | CupyArray,
+            dE: NumpyArray | CupyArray,
+            voltage: float,
+            omega_rf: float,
+            phi_rf: float,
+            charge: float,
+            acceleration_kick: float,
+        ) -> None:
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
+            assert dt.flags.c_contiguous
+            assert dE.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            voltage = floattype(voltage)
+            omega_rf = floattype(omega_rf)
+            phi_rf = floattype(phi_rf)
+            charge = floattype(charge)
+            acceleration_kick = floattype(acceleration_kick)
+
+            libblond_fortran.kick_single_harmonic(
+                dt=dt,
+                de=dE,
+                voltage=voltage,
+                omega_rf=omega_rf,
+                phi_rf=phi_rf,
+                charge=charge,
+                acceleration_kick=acceleration_kick,
+                n=np.int32(len(dt)),
+            )
+            pass
+
+        @staticmethod
+        def drift_simple(
+            dt: NumpyArray,
+            dE: NumpyArray,
+            T: float,
+            eta_0: float,
+            beta: float,
+            energy: float,
+        ) -> None:
+            """Function to apply drift equation of motion."""
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
+            assert dt.flags.c_contiguous
+            assert dE.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            T = floattype(T)
+            eta_0 = floattype(eta_0)
+            beta = floattype(beta)
+            energy = floattype(energy)
+
+            libblond_fortran.drift_simple(
+                dt=dt,
+                de=dE,
+                t=T,
+                eta_0=eta_0,
+                beta=beta,
+                energy=energy,
+                n=np.int32(len(dt)),
+            )
+            pass
+
+        @staticmethod
+        def kick_multi_harmonic(
+            dt: NumpyArray | CupyArray,
+            dE: NumpyArray | CupyArray,
+            voltage: NumpyArray,
+            omega_rf: NumpyArray,
+            phi_rf: NumpyArray,
+            charge: float,
+            n_rf: int,
+            acceleration_kick: float,
+        ) -> None:
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
+            assert voltage.dtype == floattype
+            assert omega_rf.dtype == floattype
+            assert phi_rf.dtype == floattype
+            assert dt.flags.c_contiguous
+            assert dE.flags.c_contiguous
+            assert voltage.flags.c_contiguous
+            assert omega_rf.flags.c_contiguous
+            assert phi_rf.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            charge = floattype(charge)
+            acceleration_kick = floattype(acceleration_kick)
+
+            libblond_fortran.kick_multi_harmonic(
+                dt=dt,
+                de=dE,
+                n_rf=n_rf,
+                charge=charge,
+                voltage=voltage[:],
+                omega_rf=omega_rf[:],
+                phi_rf=phi_rf[:],
+                n_macroparticles=np.int32(len(dt)),
+                acc_kick=acceleration_kick,
+            )
+
+        @staticmethod
+        def drift_legacy(
+            dt: NumpyArray,
+            dE: NumpyArray,
+            t_rev: float,
+            length_ratio: float,
+            alpha_order: int,
+            eta_0: float,
+            eta_1: float,
+            eta_2: float,
+            beta: float,
+            energy: float,
+        ) -> None:
+            raise NotImplementedError
+
+            T = t_rev * length_ratio
+            coeff = 1.0 / (beta * beta * energy)
+            eta0 = eta_0 * coeff
+            eta1 = eta_1 * coeff * coeff
+            eta2 = eta_2 * coeff * coeff * coeff
+            for i in range(len(dt)):
+                dEi = dE[i]
+                if alpha_order == 0:
+                    dt[i] += T * (1.0 / (1.0 - eta0 * dEi) - 1.0)
+                elif alpha_order == 1:
+                    dt[i] += T * (
+                        1.0 / (1.0 - eta0 * dEi - eta1 * dEi * dEi) - 1.0
+                    )
+                else:
+                    dt[i] += T * (
+                        1.0
+                        / (
+                            1.0
+                            - eta0 * dEi
+                            - eta1 * dEi * dEi
+                            - eta2 * dEi * dEi * dEi
+                        )
+                        - 1.0
+                    )
+
+        @staticmethod
+        def drift_exact(
+            dt: NumpyArray,
+            dE: NumpyArray,
+            t_rev: float,
+            length_ratio: float,
+            alpha_0: float,
+            alpha_1: float,
+            alpha_2: float,
+            beta: float,
+            energy: float,
+        ) -> None:
+            raise NotImplementedError
+            T = t_rev * length_ratio
+            invbetasq = 1 / (beta * beta)
+            invenesq = 1 / (energy * energy)
+            # double beam_delta;
+            for i in range(len(dt)):
+                beam_delta = (
+                    np.sqrt(
+                        1.0
+                        + invbetasq
+                        * (dE[i] * dE[i] * invenesq + 2.0 * dE[i] / energy)
+                    )
+                    - 1.0
+                )
+
+                dt[i] += T * (
+                    (
+                        1.0
+                        + alpha_0 * beam_delta
+                        + alpha_1 * (beam_delta * beam_delta)
+                        + alpha_2 * (beam_delta * beam_delta * beam_delta)
+                    )
+                    * (1.0 + dE[i] / energy)
+                    / (1.0 + beam_delta)
+                    - 1.0
+                )
+
+        @staticmethod
+        def kick_induced_voltage(
+            dt: NumpyArray,
+            dE: NumpyArray,
+            voltage: NumpyArray,
+            bin_centers: NumpyArray,
+            charge: float,
+            acceleration_kick: float,
+        ) -> None:
+            assert dt.dtype == floattype
+            assert dE.dtype == floattype
+            assert voltage.dtype == floattype
+            assert bin_centers.dtype == floattype
+            assert dt.flags.c_contiguous
+            assert dE.flags.c_contiguous
+            assert voltage.flags.c_contiguous
+            assert bin_centers.flags.c_contiguous
+
+            # Cast Python floats to backend floattype
+            charge = floattype(charge)
+            acceleration_kick = floattype(acceleration_kick)
+
+            libblond_fortran.linear_interp_kick(
+                beam_dt=dt,
+                beam_de=dE,
+                voltage_array=voltage,
+                bin_centers=bin_centers,
+                charge=charge,
+                n_slices=np.int32(len(bin_centers)),
+                n_macroparticles=np.int32(len(dt)),
+                acc_kick=acceleration_kick,
+            )
+
+        @staticmethod
+        def move_flagged_elements_to_end(
+            flag: int,
+            flags: NumpyArray | CupyArray,  # also purged
+            dt: NumpyArray | CupyArray,
+            dE: NumpyArray | CupyArray,
+            ids: NumpyArray | CupyArray,
+        ):
+            n_new = libblond_fortran.move_flagged_elements_to_end(
+                flag=np.int32(flag),
+                flags=flags,
+                dt=dt,
+                de=dE,
+                ids=ids,
+                n=np.int32(len(dt)),
+            )
+            return n_new
+
+    return FortranSpecials
+
+
+FortranSpecials = reload_fortran_backend(floattype=backend.float)

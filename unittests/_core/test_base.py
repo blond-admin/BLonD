@@ -5,7 +5,7 @@ from typing import Optional
 import numpy as np
 
 from blond import Simulation
-from blond._core.base import (
+from blond.core.base import (
     BeamObservationElement,
     BeamPhysicsRelevant,
     DynamicParameter,
@@ -17,7 +17,7 @@ from blond._core.base import (
     ScheduledInterpolation,
     get_scheduler,
 )
-from blond._core.beam.base import BeamBaseClass
+from blond.core.beam.base import BeamBaseClass
 from blond.handle_results.helpers import callers_relative_path
 
 

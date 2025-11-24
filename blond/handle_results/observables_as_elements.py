@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """
 Logs energy and time at some points around the simulation, is inserted like all other elements.
 
@@ -9,9 +17,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from blond._core.base import BeamObservationElement
-from blond._core.beam.base import BeamBaseClass
-from blond._core.simulation.simulation import Simulation
+from blond.core.base import BeamObservationElement
+from blond.core.beam.base import BeamBaseClass
+from blond.core.simulation.simulation import Simulation
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.observables import ObservablesBaseClass
 

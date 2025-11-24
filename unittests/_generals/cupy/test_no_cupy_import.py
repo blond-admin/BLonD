@@ -20,7 +20,7 @@ class TestFunctions(unittest.TestCase):
         array = cp.array([1, 2, 23])
         array2 = cp.array([1, 2, 25])
         plt.figure()
-        from blond._core.backends.backend import Cupy32Bit, backend
+        from blond.core.backends.backend import Cupy32Bit, backend
 
         backend.change_backend(Cupy32Bit)
         with AllowPlotting():

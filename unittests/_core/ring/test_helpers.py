@@ -1,6 +1,6 @@
 import unittest
 
-from blond._core.ring.helpers import (
+from blond.core.ring.helpers import (
     _build_dependency_graph,
     _topological_sort,
     get_dependencies,

@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """Functions needed for :class:`~blond.blond.beam_preparation.bigaussian.BiGaussian`.
 
 Authors
@@ -11,18 +19,18 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond._core.backends.backend import backend
-from blond._core.helpers import int_from_float_with_warning
 from blond.acc_math.analytic.hamilton import (
     calc_phi_s_single_harmonic,
     is_in_separatrix,
 )
 from blond.beam_preparation.base import MatchingRoutine
+from blond.core.backends.backend import backend
+from blond.core.helpers import int_from_float_with_warning
 from blond.generals._iterables import all_equal
 
 if TYPE_CHECKING:  # pragma: no cover
-    from blond._core.beam.base import BeamBaseClass
-    from blond._core.simulation.simulation import Simulation
+    from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
 
 
 def _get_dE_from_dt_core(
@@ -121,14 +129,14 @@ def _get_dE_from_dt(
 def get_main_harmonic_attributes(
     beam: BeamBaseClass, simulation: Simulation
 ) -> tuple[float, float, float, float]:
-    """Relevant main harmonic attributes of all RF stations in :class:`~blond._core.ring.ring.Ring`.
+    """Relevant main harmonic attributes of all RF stations in :class:`~blond.core.ring.ring.Ring`.
 
     Parameters
     ----------
     simulation
         Simulation context manager
     beam
-        Simulation :class:`~blond._core.beam.beam.Beam` object
+        Simulation :class:`~blond.core.beam.beam.Beam` object
 
     Returns
     -------

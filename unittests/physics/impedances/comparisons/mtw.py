@@ -13,7 +13,7 @@ from blond import (
     WakeField,
     mu_plus,
 )
-from blond._core.backends.backend import Numpy64Bit, backend
+from blond.core.backends.backend import Numpy64Bit, backend
 from blond.handle_results.observables import (
     BunchObservationMetaParams,
     StaticProfileObservation,
