@@ -590,7 +590,7 @@ class CupyBackend(BackendBaseClass):
             is_gpu=True,
         )
         import cupy as cp  # type: ignore # import only if needed, which is not always the case
-        from scipy.signal import fftconvolve
+        from cupyx.scipy.signal import fftconvolve
 
         self.array = cp.array
         self.gradient = cp.gradient
