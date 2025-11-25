@@ -25,12 +25,12 @@ DEV_PLOT = False
 
 class TestResonatorImpedances(unittest.TestCase):
     def setUp(self):
-        from blond._core.backends.backend import Numpy64Bit, backend
+        from blond.core.backends.backend import Numpy64Bit, backend
 
         backend.change_backend(Numpy64Bit)
 
     def tearDown(self):
-        from blond._core.backends.backend import Numpy32Bit, backend
+        from blond.core.backends.backend import Numpy32Bit, backend
 
         backend.change_backend(Numpy32Bit)
 

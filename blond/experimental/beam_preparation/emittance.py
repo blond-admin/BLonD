@@ -1,11 +1,19 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """Implementation to match beam coordinates to an emittance. """
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from blond._core.beam.base import BeamBaseClass
-from blond._core.simulation.simulation import Simulation
 from blond.beam_preparation.base import MatchingRoutine
+from blond.core.beam.base import BeamBaseClass
+from blond.core.simulation.simulation import Simulation
 
 if TYPE_CHECKING:  # pragma: no cover
     pass

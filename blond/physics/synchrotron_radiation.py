@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """Collection of implementations to calculate the synchrotron radiation.
 
 Authors
@@ -14,15 +22,15 @@ from typing import (
     TYPE_CHECKING,  # pragma: no cover # TODO remove when SR is implemented
 )
 
-from blond._core.base import (
+from blond.core.base import (
     BeamPhysicsRelevant,  # pragma: no cover # TODO remove when SR is implemented
 )
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
-    from blond._core.beam.base import BeamBaseClass
-    from blond._core.simulation.simulation import Simulation
+    from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
     from blond.physics.drifts import DriftSimple
 
 
@@ -47,7 +55,7 @@ class SynchrotronRadiation(BeamPhysicsRelevant):  # pragma: no cover
         self._simulation: DriftSimple | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when :func:`blond._core.simulation.simulation.Simulation.__init__` is called.
+        """Lateinit method when :func:`blond.core.simulation.simulation.Simulation.__init__` is called.
 
         simulation
             Simulation context manager

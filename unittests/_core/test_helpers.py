@@ -1,6 +1,6 @@
 import unittest
 
-from blond._core.helpers import (
+from blond.core.helpers import (
     find_instances_with_method,
     int_from_float_with_warning,
 )

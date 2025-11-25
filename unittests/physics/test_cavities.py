@@ -7,9 +7,9 @@ from numpy._typing import NDArray as NumpyArray
 from scipy.constants import speed_of_light as c0
 
 from blond import Ring, Simulation, StaticProfile, proton
-from blond._core.backends.backend import backend
-from blond._core.base import DynamicParameter
-from blond._core.beam.base import BeamBaseClass
+from blond.core.backends.backend import backend
+from blond.core.base import DynamicParameter
+from blond.core.beam.base import BeamBaseClass
 from blond.experimental.physics.feedbacks.accelerators.sps.beam_feedback import (
     SpsRlBeamFeedback,
 )
@@ -138,7 +138,7 @@ class TestCallables(unittest.TestCase):
 
 class TestMultiHarmonicCavity(unittest.TestCase):
     def setUp(self) -> None:
-        from blond._core.beam.base import BeamBaseClass
+        from blond.core.beam.base import BeamBaseClass
 
         beam = Mock(BeamBaseClass)
         beam.particle_type = proton
@@ -260,7 +260,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
 
 class TestSingleHarmonicCavity(unittest.TestCase):
     def setUp(self) -> None:
-        from blond._core.beam.base import BeamBaseClass
+        from blond.core.beam.base import BeamBaseClass
 
         beam = Mock(BeamBaseClass)
         beam.particle_type = proton

@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from blond import Beam, BoxLosses, Simulation, proton, uranium_29
-from blond._core.beam.base import BeamBaseClass, BeamFlags
+from blond.core.beam.base import BeamBaseClass, BeamFlags
 from blond.physics.losses import LossesBaseClass
 from blond.testing.mocks import beam_mock, simulation_mock
 

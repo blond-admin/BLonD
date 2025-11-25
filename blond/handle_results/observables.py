@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 from __future__ import annotations
 
 import logging
@@ -8,15 +16,15 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
 
-from blond._core.base import BeamObservationElement, MainLoopRelevant
+from blond.core.base import BeamObservationElement, MainLoopRelevant
 from blond.handle_results.array_recorders import DenseArrayRecorder
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
     from blond import WakeField
-    from blond._core.beam.base import BeamBaseClass
-    from blond._core.simulation.simulation import Simulation
+    from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
     from blond.physics.cavities import SingleHarmonicRfStation
     from blond.physics.profiles import DynamicProfileConstNBins, StaticProfile
 
@@ -403,7 +411,7 @@ class BunchObservationMetaParams(ObservablesEndOfTurnBase):
         turn_i_init: int,
         **kwargs,
     ) -> None:
-        """Lateinit method when :func:`blond._core.simulation.simulation.Simulation.run_simulation` is called.
+        """Lateinit method when :func:`blond.core.simulation.simulation.Simulation.run_simulation` is called.
 
         Parameters
         ----------
@@ -607,7 +615,7 @@ class CavityPhaseObservation(ObservablesEndOfTurnBase):
 
     @property  # as readonly attributes
     def phases(self) -> NumpyArray:
-        """Cavity's effective phase, in [deg]."""
+        """Cavity's effective phase, in [rad]."""
         return self._phases.get_valid_entries()
 
     @property  # as readonly attributes
@@ -950,7 +958,7 @@ class DynamicProfileConstNBinsObservation(ObservablesEndOfTurnBase):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when :func:`blond._core.simulation.simulation.Simulation.run_simulation` is called.
+        """Lateinit method when :func:`blond.core.simulation.simulation.Simulation.run_simulation` is called.
 
         simulation
             Simulation context manager

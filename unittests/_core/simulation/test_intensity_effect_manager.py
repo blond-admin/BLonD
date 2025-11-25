@@ -1,10 +1,10 @@
 import unittest
 from copy import copy
 
-from blond._core.ring.beam_physics_relevant_elements import (
+from blond.core.ring.beam_physics_relevant_elements import (
     BeamPhysicsRelevantElements,
 )
-from blond._core.simulation.intensity_effect_manager import (
+from blond.core.simulation.intensity_effect_manager import (
     IntensityEffectManager,
 )
 from blond.testing.mocks import (
