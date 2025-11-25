@@ -556,3 +556,42 @@ class DynamicProfileConstNBins(DynamicProfile):
         self._hist_x, self._hist_y = ProfileBaseClass.get_arrays(
             cut_left=cut_left, cut_right=cut_right, n_bins=self.n_bins
         )
+
+
+class Fitting(ProfileBaseClass):
+    """Contains all methods that use fitting for performing statistics on the profile.
+
+    Parameter
+    ----------
+    hist_x
+        x-axis of the histogram to perform the fitting on
+    hist_y
+        y-axis of the histogram to perform the fitting on
+    """
+
+    def __init__(self, hist_x: NumpyArray, hist_y: NumpyArray):
+        self._hist_x = hist_x
+        self._hist_y = hist_y
+        self._fitting_result = self.gauss_fit()
+
+    def gauss(x: NumpyArray, *p) -> NumpyArray:
+        r"""Returns a gaussian function.
+
+        .. math::
+
+        A\, e^{\frac{(x - x_0)^2}{2\sigma_x^2}}.
+
+        Parameters
+        ----------
+        x
+            Input array at which points to calculate the gaussian
+        p
+            Parameters necessary to calculate the Gaussian
+            p = [A, x_0, \\sigma_x]
+            A = Amplitude of the function
+            x_0 = mean
+            \\sigma_x = standard deviation
+        """
+        A, x_0, sigma_x = p
+
+        return A * np.exp(-((x - x_0) ** 2) / 2.0 / sigma_x**2)
