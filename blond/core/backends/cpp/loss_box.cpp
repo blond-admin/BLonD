@@ -6,8 +6,8 @@
 // submit itself to any jurisdiction.
 // Project website: http://blond.web.cern.ch/
 
-// Optimised C++ routine that calculates the drift.
-// Author: Danilo Quartullo, Helga Timko, Alexandre Lasheen
+// C++ routine that calculates loss_box.
+// Author: Simon Lauber
 
 #include <math.h>
 #include <string.h>
