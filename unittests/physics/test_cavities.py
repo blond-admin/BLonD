@@ -1,5 +1,4 @@
 import unittest
-from copy import deepcopy
 from unittest.mock import Mock
 
 import numpy as np
@@ -23,10 +22,6 @@ from blond.physics.cavities import (
 )
 from blond.physics.drifts import _assert_purely_real_or_imaginary
 from blond.physics.impedances.base import WakeField
-from blond.physics.impedances.solvers import (
-    SingleTurnResonatorConvolutionSolver,
-)
-from blond.physics.impedances.sources import Resonators
 
 
 class RfStationBaseClassHelper(RfStationBaseClass):

@@ -176,10 +176,8 @@ class TestSimulation(unittest.TestCase):
         self.assertNotEqual(None, self.simulation.magnetic_cycle)
 
     def test_from_locals(self):
-        from blond.testing.mocks import (
-            cycle_const_mock,  # NOQA required for locals()
-        )
-        from blond.testing.mocks import (
+        from blond.testing.mocks import (  # NOQA required for locals()
+            cycle_const_mock,
             drift_simple_mock,
             single_harmonic_rf_station_mock,
             static_profile_mock,

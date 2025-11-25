@@ -1,6 +1,6 @@
 import cmath
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import numpy as np
 from scipy.constants import speed_of_light as c0

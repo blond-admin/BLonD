@@ -16,7 +16,6 @@ from blond import (
 )
 from blond.core.backends.backend import Numpy64Bit, backend
 from blond.physics.impedances.solvers import (
-    PeriodicFreqSolver,
     SingleTurnResonatorConvolutionSolver,
 )
 from blond.physics.impedances.sources import Resonators
