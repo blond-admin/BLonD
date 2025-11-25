@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 from blond.core.base import BeamPhysicsRelevant
 
 if TYPE_CHECKING:  # pragma: no cover
-    from blond._core.beam.base import BeamBaseClass
+    from blond.core.beam.base import BeamBaseClass
 
 
 class LossesBaseClass(BeamPhysicsRelevant):

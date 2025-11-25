@@ -1179,7 +1179,7 @@ class Simulation(Preparable):
                     f" {self._particle_performance_waning_threshold}"
                     f" particles in your beam."
                     f" Consider using another backend via\n"
-                    f" >>> from blond._core.backends.backend import backend\n"
+                    f" >>> from blond.core.backends.backend import backend\n"
                     f" >>> backend.set_specials(mode=...)",
                     PerformanceWarning,
                     stacklevel=2,
