@@ -238,6 +238,25 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
     folder
         Path to the target folder used for
         saving or loading files.
+
+    Examples
+    --------
+    >>> bunch_observation = BeamObservationOncePerTurn(each_turn_i=2, beam=...)
+    >>>
+    >>> sim.run_simulation(
+    ...     beams=...,
+    ...     observe=(bunch_observation,),
+    ... )
+    >>> before = 0  # before simulation
+    >>> turn_2 = 1  # after 2 turns, because `each_turn_i = 2`
+    >>> for index in (before, turn_2)
+    ...     plt.hist2d(
+    ...         bunch_observation.dts[index, :],
+    ...         bunch_observation.dEs[index, :],
+    ...         bins=256,
+    ...         range=[[0, 2.5e-9], [-4e8, 4e8]],
+    ...     )
+
     """
 
     def __init__(
@@ -368,6 +387,24 @@ class CavityPhaseObservation(ObservablesOncePerTurnBase):
     folder
         Path to the target folder used for
         saving or loading files.
+
+    Examples
+    --------
+    >>> rf_station_observation = CavityPhaseObservation(each_turn_i=2, cavity=...)
+    >>> sim.run_simulation(
+    ...     beams=...,
+    ...     observe=(rf_station_observation,),
+    ... )
+    >>> before = 0  # before simulation
+    >>> turn_2 = 1  # after 2 turns, because `each_turn_i = 2`
+    >>> plt.scatter(
+    ...     rf_station_observation.turns_array[[before, turn_2]],
+    ...     rf_station_observation.phases[[before, turn_2]],
+    ... )
+    >>> plt.plot(
+    ...     rf_station_observation.turns_array[:], rf_station_observation.phases[:]
+    ... )
+
     """
 
     def __init__(
@@ -482,6 +519,22 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
     folder
         Path to the target folder used for
         saving or loading files.
+
+    Examples
+    --------
+    >>> profile_obs = StaticProfileObservation(each_turn_i=2, profile=...)
+    >>> sim.run_simulation(
+    ...     beams=...,
+    ...     observe=(profile_obs,),
+    ... )
+    >>> before = 0  # before simulation
+    >>> turn_2 = 1  # after 2 turns, because `each_turn_i = 2`
+    >>> for index in (before, turn_2):
+    ...     plt.plot(
+    ...         profile_obs.hist_x, profile_obs.hist_y[index, :]
+    ...     )
+
+
     """
 
     def __init__(
@@ -554,8 +607,13 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
         # else return without recording
 
     @property  # as readonly attributes
+    def hist_x(self) -> NumpyArray:
+        """Histogram x axis, always the same."""
+        return self._profile.hist_x
+
+    @property  # as readonly attributes
     def hist_y(self) -> NumpyArray:
-        """Histogram amplitude."""
+        """Histogram amplitude for each observed turn."""
         return self._hist_y.get_valid_entries()
 
 
@@ -573,6 +631,24 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
     folder
         Path to the target folder used for
         saving or loading files.
+
+    Examples
+    --------
+    >>> profile_obs = StaticMultiProfileObservation(each_turn_i=2, profiles=...)
+    >>> sim.run_simulation(
+    ...     beams=...,
+    ...     observe=(profile_obs,),
+    ... )
+    >>> # This example assumes that two profiles are in `profile_obs`
+    >>> before_profile0 = 0  # before simulation
+    >>> before_profile1 = 1  # before simulation
+    >>> turn_2_profile0 = 2  # after 2 turns, because `each_turn_i = 2`
+    >>> turn_2_profile1 = 3  # after 2 turns, because `each_turn_i = 2`
+    >>> for index in (before_profile0, before_profile1, turn_2_profile0, turn_2_profile1):
+    ...     plt.plot(
+    ...         profile_obs.hist_x[index % 2], profile_obs.hist_y[index, :]
+    ...     )
+
     """
 
     def __init__(
@@ -580,10 +656,16 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
         each_turn_i: int,
         profiles: list[StaticProfile],
         folder: str = "",
+        sort_profiles_by_section=True,
     ):
         super().__init__(each_turn_i=each_turn_i, folder=folder)
 
-        self._profiles = profiles
+        if sort_profiles_by_section:
+            self._profiles = sorted(
+                profiles, key=lambda prof: prof.section_index
+            )
+        else:
+            self._profiles = profiles
         assert all(
             prof.n_bins == self._profiles[0].n_bins for prof in self._profiles
         ), "n_bins should be equal for all given profiles"
@@ -643,15 +725,18 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
             return
         self._last_turn_i_observed = simulation.turn_i.value
         self._last_section_i_observed = simulation.section_i.value
-        for prof in sorted(
-            self._profiles, key=lambda prof: prof.section_index
-        ):
+        for prof in self._profiles:
             before_run = (
                 simulation.section_i.value is None
                 and simulation.turn_i.value == 0
             )
             if simulation.section_i.value == prof.section_index or before_run:
                 self._hist_y.write(prof.hist_y)
+
+    @property  # as readonly attributes
+    def hist_x(self) -> list[NumpyArray]:
+        """Histogram x axis, always the same."""
+        return [self._profiles[i].hist_x for i in range(len(self._profiles))]
 
     @property  # as readonly attributes
     def hist_y(self) -> NumpyArray:
@@ -672,6 +757,19 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
     folder
         Path to the target folder used for
         saving or loading files.
+
+    Examples
+    --------
+    >>> wake_obs = WakeFieldObservation(wakefield=..., each_turn_i=2)
+    >>> sim.run_simulation(
+    ...     beams=...,
+    ...     observe=(wake_obs,),
+    )
+    >>> before = 0  # before simulation
+    >>> turn_2 = 1  # after 2 turns, because `each_turn_i = 2`
+    >>> for index in (before, turn_2):
+    ...     plt.plot(wake_obs.induced_voltage[index, :])
+
     """
 
     def __init__(
@@ -769,6 +867,19 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
         Path to the target folder used for
         saving or loading files.
 
+    Examples
+    --------
+    >>> profile_obs = DynamicProfileConstNBinsObservation(each_turn_i=2, profile=...)
+    >>> sim.run_simulation(
+    ...     beams=...,
+    ...     observe=(profile_obs,),
+    ... )
+    >>> before = 0  # before simulation
+    >>> turn_2 = 1  # after 2 turns, because `each_turn_i = 2`
+    >>> for index in (before, turn_2):
+    ...     plt.plot(
+    ...         profile_obs.hist_x[index, :], profile_obs.hist_y[index, :]
+    ...     )
     """
 
     def __init__(
