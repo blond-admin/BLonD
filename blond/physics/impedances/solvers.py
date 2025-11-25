@@ -1059,7 +1059,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
             )
         except AssertionError as exc:
             raise exc
-        except ValueError as exc:
+        except TypeError as exc:
             # when mocking is involved
             warnings.warn(str(exc), UserWarning, stacklevel=1)
 
