@@ -10,6 +10,7 @@ from numpy._typing import NDArray as NumpyArray
 from scipy.signal import fftconvolve
 
 from blond import Simulation
+from blond._core.ring.helpers import requires
 from blond.experimental.physics.feedbacks.accelerators.sps.impulse_response import (  # NOQA
     SPS3Section200MHzTWC,
     SPS4Section200MHzTWC,
@@ -22,7 +23,15 @@ from blond.experimental.physics.feedbacks.helpers import cartesian_to_polar
 from blond.physics.cavities import MultiHarmonicRfStation
 from blond.physics.profiles import StaticProfile
 
-from .helpers import comb_filter, get_power_gen_i, modulator, moving_average
+from .helpers import (
+    comb_filter,
+    feedforward_filter_TWC3,
+    feedforward_filter_TWC4,
+    feedforward_filter_TWC5,
+    get_power_gen_i,
+    modulator,
+    moving_average,
+)
 
 if TYPE_CHECKING:
     from blond._core.beam.base import BeamBaseClass
@@ -112,7 +121,6 @@ class SPSOneTurnFeedback(IQCavityFeedback):
 
     def __init__(
         self,
-        _parent_cavity: MultiHarmonicRfStation,
         profile: StaticProfile,
         n_sections: int,
         n_cavities: int = 4,
@@ -129,7 +137,6 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         self.n_delay: int | None = None
 
         super().__init__(
-            _parent_cavity=_parent_cavity,
             profile=profile,
             n_cavities=n_cavities,
             n_periods_coarse=1,
@@ -172,8 +179,10 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         self.cpp_conv = commissioning.cpp_conv
         self.rot_iq = commissioning.rot_iq
         self.excitation = commissioning.excitation
+        self.debug = commissioning.debug
 
         self.n_sections = int(n_sections)
+        self.df = df
 
         self.V_part = float(V_part)
         if self.V_part * (1 - self.V_part) < 0:
@@ -185,17 +194,38 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         self.G_ff = float(G_ff)
         self.G_llrf = float(G_llrf)
         self.G_tx = float(G_tx)
+        self.a_comb = float(a_comb)
+
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        pass
+
+    @requires(["RfStationBaseClass"])
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        super().on_run_simulation(
+            simulation,
+            beam,
+            n_turns,
+            turn_i_init,
+            **kwargs
+        )
 
         # 200 MHz travelling wave cavity (TWC) model
-        if n_sections in [3, 4, 5]:
+        if self.n_sections in [3, 4, 5]:
             self.TWC = eval(
-                "SPS" + str(n_sections) + "Section200MHzTWC(" + str(df) + ")"
+                "SPS" + str(self.n_sections) + "Section200MHzTWC(" + str(self.df) + ")"
             )
             if self.open_ff == 1:
                 # Feed-forward filter
                 self.coeff_ff = getattr(
                     sys.modules[__name__],
-                    "feedforward_filter_TWC" + str(n_sections),
+                    "feedforward_filter_TWC" + str(self.n_sections),
                 )
                 self.n_ff = len(self.coeff_ff)  # Number of coefficients for FF
                 self.n_ff_delay = round(
@@ -209,7 +239,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
                 # Multiply gain by normalisation factors from filter and
                 # beam-to generator current
                 self.G_ff *= self.TWC.R_beam / (
-                    self.TWC.R_gen * np.sum(self.coeff_ff)
+                        self.TWC.R_gen * np.sum(self.coeff_ff)
                 )
 
         else:
@@ -219,7 +249,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         self.logger.debug(
             "SPS OTFB cavities: %d, sections: %d, voltage partition %.2f, gain: %.2e",
             self.n_cavities,
-            n_sections,
+            self.n_sections,
             self.V_part,
             self.G_tx,
         )
@@ -260,7 +290,6 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         # LLRF MODEL ARRAYS
         # Initialize comb filter
         self.DV_COMB_OUT = np.zeros(2 * self.n_coarse, dtype=complex)
-        self.a_comb = float(a_comb)
 
         # Initialize the delayed signal
         self.DV_DELAYED = np.zeros(2 * self.n_coarse, dtype=complex)
@@ -316,9 +345,6 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         self.V_ANT_START: NumpyArray | None = None
         self.V_ANT_FINE_START: NumpyArray | None = None
         self.phi_mod_0: Any | None = None
-
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        pass
 
     def circuit_track(self, no_beam: bool = False):
         r"""Tracking the SPS CL internally."""
@@ -685,7 +711,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         # TODO REMWORK/REMOVE
         t_rev = float(
             (2 * np.pi * self._parent_cavity.harmonic[self.harmonic_index])
-            / self._parent_cavity._omega_rf[self.harmonic_index]
+            / self._parent_cavity.omega_rf[self.harmonic_index]
         )
         # TODO REMWORK/REMOVE
         t_rf = t_rev / float(self._parent_cavity.harmonic[self.harmonic_index])
@@ -766,7 +792,6 @@ class SPSCavityFeedback:
 
     def __init__(
         self,
-        _parent_cavity: MultiHarmonicRfStation,
         profile: StaticProfile,
         G_ff: float | list = 1,
         G_llrf: float | list = 10,
@@ -783,11 +808,10 @@ class SPSCavityFeedback:
         self.alpha_sum: NumpyArray | None = None
         self.V_sum: NumpyArray | None = None
         self.V_corr: NumpyArray | None = None
+        self.profile = profile
 
         if commissioning is None:
             commissioning = SPSCavityLoopCommissioning()
-
-        self.rf_station = _parent_cavity
 
         # Parse input for gains
         if hasattr(G_ff, "__iter__"):
@@ -839,7 +863,6 @@ class SPSCavityFeedback:
             if V_part is None:
                 V_part = 6 / 10
             self.OTFB_1 = SPSOneTurnFeedback(
-                _parent_cavity=_parent_cavity,
                 profile=profile,
                 n_sections=3,
                 n_cavities=4,
@@ -853,7 +876,6 @@ class SPSCavityFeedback:
                 harmonic_index=n_h,
             )
             self.OTFB_2 = SPSOneTurnFeedback(
-                _parent_cavity=_parent_cavity,
                 profile=profile,
                 n_sections=4,
                 n_cavities=2,
@@ -873,7 +895,6 @@ class SPSCavityFeedback:
             if V_part is None:
                 V_part = 4 / 9
             self.OTFB_1 = SPSOneTurnFeedback(
-                _parent_cavity=_parent_cavity,
                 profile=profile,
                 n_sections=4,
                 n_cavities=2,
@@ -887,7 +908,6 @@ class SPSCavityFeedback:
                 harmonic_index=n_h,
             )
             self.OTFB_2 = SPSOneTurnFeedback(
-                _parent_cavity=_parent_cavity,
                 profile=profile,
                 n_sections=5,
                 n_cavities=2,
@@ -906,14 +926,46 @@ class SPSCavityFeedback:
 
         # Initialise OTFB without beam
         self.turns = int(turns)
-        if turns < 1:
+
+        self.logger.info("Class initialized")
+
+    def on_init_simulation(self, simulation: Simulation):
+        pass
+
+    @requires(["RfStationBaseClass"])
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        self.OTFB_1.on_run_simulation(
+            simulation,
+            beam,
+            n_turns,
+            turn_i_init,
+            **kwargs
+        )
+        self.OTFB_2.on_run_simulation(
+            simulation,
+            beam,
+            n_turns,
+            turn_i_init,
+            **kwargs
+        )
+
+        if self.turns < 1:
             # FeedbackError
             raise RuntimeError(
                 "ERROR in SPSCavityFeedback: 'turns' has to be a positive integer!"
             )
-        self.track_init(debug=commissioning_1.debug)
+        self.track_init(debug=self.OTFB_1.debug)
 
-        self.logger.info("Class initialized")
+    def set_parent_cavity(self, cavity: RfStationBaseClass):
+        self.OTFB_1.set_parent_cavity(cavity)
+        self.OTFB_2.set_parent_cavity(cavity)
 
     def track(self, beam: BeamBaseClass):
         r"""Main tracking method for the SPSCavityFeedback. This tracks both cavity types

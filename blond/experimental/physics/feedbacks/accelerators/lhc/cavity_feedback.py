@@ -10,6 +10,7 @@ from numpy._typing import NDArray as NumpyArray
 from scipy.interpolate import interp1d
 
 from blond import Simulation, StaticProfile
+from blond._core.ring.helpers import requires
 from blond.experimental.physics.feedbacks.cavity_feedback import (
     IQCavityFeedback,
 )
@@ -164,7 +165,6 @@ class LHCCavityLoop(IQCavityFeedback):
 
     def __init__(
         self,
-        _parent_cavity: MultiHarmonicRfStation,
         profile: StaticProfile,
         n_cavities: int = 8,
         f_c: float = 400.789e6,
@@ -179,7 +179,6 @@ class LHCCavityLoop(IQCavityFeedback):
         harmonic_index: int = 0,
     ):
         super().__init__(
-            _parent_cavity=_parent_cavity,
             profile=profile,
             n_cavities=n_cavities,
             n_periods_coarse=10,
@@ -242,6 +241,25 @@ class LHCCavityLoop(IQCavityFeedback):
         self.excitation_otfb_1 = self.RFFB.excitation_otfb_1
         self.excitation_otfb_2 = self.RFFB.excitation_otfb_2
 
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        pass
+
+    @requires(["RfStationBaseClass"])
+    def on_run_simulation(
+            self,
+            simulation: Simulation,
+            beam: BeamBaseClass,
+            n_turns: int,
+            turn_i_init: int,
+            **kwargs: dict[str, Any],
+    ) -> None:
+        super().on_run_simulation(
+            simulation,
+            beam,
+            n_turns,
+            turn_i_init,
+            **kwargs
+        )
         self.logger.debug(
             "Length of arrays in generator path %d", self.n_coarse
         )
@@ -297,8 +315,69 @@ class LHCCavityLoop(IQCavityFeedback):
         self.V_EXC_OUT: LateInit = None
         # self.xxx: LateInit = None
 
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        pass
+    def set_hardware_commissioning(self, omega_rf: float, harmonic: int):
+        super().set_hardware_commissioning(
+            omega_rf=omega_rf,
+            harmonic=harmonic
+        )
+        self.logger.debug(
+            "Length of arrays in generator path %d", self.n_coarse
+        )
+
+        # Initialise FIR filter for OTFB
+        self.fir_n_taps = 63
+        self.fir_coeff = fir_filter_lhc_otfb_coeff(n_taps=self.fir_n_taps)
+        self.logger.debug(
+            "Sum of FIR coefficients %.4e" % np.sum(self.fir_coeff)
+        )
+
+        self.update_rf_variables(
+            omega_rf=omega_rf,
+            harmonic=harmonic
+        )
+        self.update_fb_variables()
+        self.logger.debug("Relative detuning is %.4e", self.detuning)
+
+        # Arrays
+        self.V_EXC = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.V_FB_IN = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.V_AC_IN = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.V_AN_IN = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.V_AN_OUT = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.V_DI_OUT = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.V_OTFB = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.V_OTFB_INT = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.V_FIR_OUT = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.V_FB_OUT = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.V_SWAP_OUT = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.I_TEST = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.TUNER_INPUT = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.TUNER_INTEGRATED = np.zeros(2 * self.n_coarse, dtype=complex)
+
+        self.V_ANT_FINE = np.zeros(self.profile.n_bins + 1, dtype=complex)
+        self.I_GEN_FINE = np.zeros(self.profile.n_bins + 1, dtype=complex)
+
+        self.V_EXC_IN: LateInit = None
+        self.V_EXC_OUT: LateInit = None
+
+        # Pre-track without beam
+        self.logger.debug("Track without beam for %d turns", self.n_pretrack)
+        if self.excitation:
+            self.excitation_otfb = False
+            self.logger.debug("Injecting noise in voltage set point")
+            self.track_no_beam_excitation(self.n_pretrack)
+        elif self.excitation_otfb_1 or self.excitation_otfb_2:
+            self.excitation_otfb = True
+            self.logger.debug("Injecting noise at OTFB output")
+            self.track_no_beam_excitation_otfb(self.n_pretrack)
+        else:
+            self.excitation_otfb = False
+            self.logger.debug("Pre-tracking without beam")
+            self.track_no_beam(self.n_pretrack)
+
+        self.logger.info("LHCCavityLoop class initialized")
+
+        # self.xxx: LateInit = None
 
     def circuit_track(self, no_beam: bool = False):
         r"""Track the feedback model"""
@@ -349,7 +428,7 @@ class LHCCavityLoop(IQCavityFeedback):
         self.samples_fine = self.omega_rf * self.profile.hist_step
 
         # Find initial value of antenna voltage and generator current
-        t_at_init = self.profile.hist_x[0] - self.profile.hist_x
+        t_at_init = self.profile.hist_x[0] - self.profile.hist_step
         V_A_init = interp1d(
             np.concatenate(
                 (self.rf_centers - self.T_s * self.n_coarse, self.rf_centers)

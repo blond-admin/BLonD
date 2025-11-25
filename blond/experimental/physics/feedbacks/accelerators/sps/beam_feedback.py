@@ -4,15 +4,207 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
+    from numpy.typing import NDArray as NumpyArray
 
 import numpy as np
 
 from blond import Simulation
+from blond._core.backends.backend import backend
 from blond._core.beam.base import BeamBaseClass
 from blond.experimental.physics.feedbacks.beam_feedback import (
+    BeamFeedbackBase,
     Blond2BeamFeedback,
 )
 from blond.physics.profiles import ProfileBaseClass
+
+
+class SPSBeamControl(BeamFeedbackBase):
+
+    def __init__(
+            self,
+            profile: ProfileBaseClass,
+            k_phi_n: float | NumpyArray,
+            k_phi_nm1: float | NumpyArray,
+            k_eps_n: float | NumpyArray,
+            k_z_n: float | NumpyArray,
+            k_a_n: float | NumpyArray,
+            k_b_n: float | NumpyArray,
+            phi_sync: float | NumpyArray,
+            global_gain: float | NumpyArray,
+            action_delay: int,
+            window_coefficient: float = 0.0,
+            time_offset: float | None = None,
+            *args,
+            **kwargs
+    ):
+        super().__init__(profile=profile, *args, **kwargs)
+
+        self.k_phi_n = k_phi_n
+        self.k_phi_nm1 = k_phi_nm1
+        self.k_eps_n = k_eps_n
+        self.k_z_n = k_z_n
+        self.k_a_n = k_a_n
+        self.k_b_n = k_b_n
+        self.action_delay = action_delay
+
+        self.phi_sync = phi_sync
+        self.global_gain = global_gain
+
+        self.window_coefficient = window_coefficient
+        self.time_offset = time_offset
+
+        self.dphi_z1 = 0
+        self.dphi_z2 = 0
+        self.dphi_z3 = 0
+        self.epsilon_z1 = 0
+        self.epsilon_z2 = 0
+        self.epsilon_z3 = 0
+        self.Zeta = 0
+        self.Alpha = 0
+        self.Alpha_z1 = 0
+        self.Alpha_z2 = 0
+        self.Alpha_z3 = 0
+
+        self.domega_rf = 0.0
+        self.dphi = 0.0
+        self.reference = 0.0
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs,
+    ) -> None:
+
+        def convert_to_array(parameter, delay_action = 0):
+            delay_action = np.concatenate((np.zeros(delay_action), np.ones(n_turns + 1 - delay_action)))
+            return parameter * np.ones(n_turns + 1) * delay_action
+
+        if isinstance(self.k_phi_nm1, float):
+            self.k_phi_nm1 = convert_to_array(self.k_phi_nm1, self.action_delay)
+
+        if isinstance(self.k_phi_n, float):
+            self.k_phi_n = convert_to_array(self.k_phi_n, self.action_delay)
+
+        if isinstance(self.k_eps_n, float):
+            self.k_eps_n = convert_to_array(self.k_eps_n)
+
+        if isinstance(self.k_z_n, float):
+            self.k_z_n = convert_to_array(self.k_z_n)
+
+        if isinstance(self.k_a_n, float):
+            self.k_a_n = convert_to_array(self.k_a_n)
+
+        if isinstance(self.k_b_n, float):
+            self.k_b_n = convert_to_array(self.k_b_n)
+
+        if isinstance(self.phi_sync, float):
+            self.phi_sync = convert_to_array(self.phi_sync)
+
+        if isinstance(self.global_gain, float):
+            self.global_gain = convert_to_array(self.global_gain)
+
+    def beam_phase(self):
+        # Main RF frequency at the present turn
+        counter = self.cavities[0]._turn_i
+        omega_rf = self.cavities[0].omega_rf[0]
+        phi_rf = self.cavities[0].phi_rf[0]
+
+        if self.time_offset is None:
+            coeff = backend.specials.beam_phase(
+                self.profile.hist_x,
+                self.profile.hist_y,
+                self.window_coefficient,
+                omega_rf,
+                phi_rf,
+                self.profile.hist_step,
+            )
+        else:
+            indexes = self.profile.hist_x >= self.time_offset
+            coeff = backend.specials.beam_phase(
+                self.profile.hist_x[indexes],
+                self.profile.hist_y,
+                self.window_coefficient,
+                omega_rf,
+                phi_rf,
+                self.profile.hist_step,
+            )
+
+        # Project beam phase to (pi/2,3pi/2) range
+        self.phi_beam = np.arctan(coeff) + np.pi
+
+    def phase_difference(
+            self,
+            beam: BeamBaseClass,
+            RFnoise = None,
+            noiseFB = None
+    ):
+        """
+        *Phase difference between beam and RF phase of the main RF system.
+        Optional: add RF phase noise through dphi directly.*
+        """
+
+        # Correct for design stable phase
+        counter = self.cavities[0]._turn_i.value
+        self.dphi = self.phi_beam - self.cavities[0].calc_phi_s_single_harmonic(
+            beam, enable_rf_phase=False
+        )
+
+        # Possibility to add RF phase noise through the PL
+        if RFnoise is not None:
+            if noiseFB is not None:
+                self.dphi += noiseFB.x * RFnoise.dphi[counter]
+            else:
+                self.dphi += RFnoise.dphi[counter]
+
+    def get_beam_attribute(self, beam: BeamBaseClass):
+        self.beam_phase()
+
+    def apply_corrections(self, beam: BeamBaseClass):
+        counter = self.cavities[0]._turn_i.value
+
+        t_rev = float(
+            (2 * np.pi * self.cavities[0].harmonic[0])
+            / self.cavities[0].get_main_harmonic_omega_rf_design(
+                beam.reference_beta, self.cavities[0]._ring.circumference
+            )
+        )
+
+        # Phase loop
+        # self.beam_phase_multibunch()
+        # self.beam_phase_sharpWindow()
+        self.beam_phase()
+        self.phase_difference(beam)
+
+        self.domega_dphi = -self.k_phi_n[counter] * self.dphi_z2 - self.k_phi_nm1[counter] * self.dphi_z3
+
+        # Synchro Loop
+        self.epsilon = self.cavities[0].phi_rf - self.phi_sync[counter]
+        self.Zeta += self.epsilon_z1
+        self.domega_sync = -self.k_eps_n[counter] * self.epsilon - self.k_z_n[counter] * self.Zeta
+
+        # Frequency Loop
+        self.domega_freq = -self.k_a_n[counter] * self.Alpha_z1 - self.k_b_n[counter] * self.Alpha_z2
+
+        # Total frequency correction
+        self.domega_rf = self.domega_dphi + self.domega_sync + self.domega_freq
+
+        # Update some parameters for the next turn
+        self.Alpha_z3 = self.Alpha_z2
+        self.Alpha_z2 = self.Alpha_z1
+        self.Alpha_z1 = self.Alpha
+        self.Alpha = self.domega_rf * t_rev
+        self.epsilon_z3 = self.epsilon_z2
+        self.epsilon_z2 = self.epsilon_z1
+        self.epsilon_z1 = self.epsilon
+        self.dphi_z3 = self.dphi_z2
+        self.dphi_z2 = self.dphi_z1
+        self.dphi_z1 = self.dphi
+
+        # Apply global gain
+        self.domega_rf *= self.global_gain[counter]
 
 
 class SpsRlBeamFeedback(Blond2BeamFeedback):
