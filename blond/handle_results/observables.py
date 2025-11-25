@@ -6,6 +6,15 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
+"""Module holding all observables for the simulation.
+
+Author
+------
+Simon Lauber
+Leonard Thiele
+Elleanor Lamb
+"""
+
 from __future__ import annotations
 
 import logging
@@ -31,6 +40,15 @@ logger = logging.getLogger(__name__)
 
 
 class ObservablesBaseClass(MainLoopRelevant):
+    """Base class to define observations.
+
+    Parameters
+    ----------
+    folder
+        Target folder to save the data at.
+        Use `rename` to change the ddestination.
+    """
+
     def __init__(self, folder: str | None = None, **kwargs):
         super().__init__(**kwargs)
         if len(folder) > 0:
@@ -39,6 +57,13 @@ class ObservablesBaseClass(MainLoopRelevant):
         logger.info(f"Will save {self} to {self.common_filepath}_,,,")
 
     def get_recorders(self) -> list[tuple[str, DenseArrayRecorder]]:
+        """Get all `DenseArrayRecorder` inside the current instance.
+
+        Returns
+        -------
+        recorders
+            List of ((attribute name, attribute), ...)
+        """
         self.assert_lateinit()
         recorders = [
             (attribute, instance)
@@ -139,8 +164,10 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
 
     @property  # as readonly attributes
     def turns_array(self) -> NumpyArray | None:
-        """Helper method to get x-axis array with turn-number and decimal places in case
-        observations are performed more than once per turn.
+        """Helper method to get x-axis array with turn-number.
+
+        Helper method to get x-axis array with turn-number for which the
+        observations are performed.
         """
         return self._turns_array
 
@@ -533,26 +560,27 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
 
 
 class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
+    """Observation of multiple profiles in one observation object. The profiles need to have the same n_bins.
+
+    Parameters
+    ----------
+    each_turn_i
+        Value to control that the element is
+        callable each n-th turn.
+    profiles
+        List of class for the calculation of beam profile
+        that doesn't change its parameters
+    folder
+        Path to the target folder used for
+        saving or loading files.
+    """
+
     def __init__(
         self,
         each_turn_i: int,
         profiles: list[StaticProfile],
         folder: str = "",
     ):
-        """Observation of multiple profiles in one observation object. The profiles need to have the same n_bins.
-
-        Parameters
-        ----------
-        each_turn_i
-            Value to control that the element is
-            callable each n-th turn.
-        profiles
-            List of class for the calculation of beam profile
-            that doesn't change its parameters
-        folder
-            Path to the target folder used for
-            saving or loading files.
-        """
         super().__init__(each_turn_i=each_turn_i, folder=folder)
 
         self._profiles = profiles
@@ -626,25 +654,26 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
 
 
 class WakeFieldObservation(ObservablesOncePerTurnBase):
+    """Observe the calculation of wake-fields.
+
+    Parameters
+    ----------
+    each_turn_i
+        Value to control that the element is
+        callable each n-th turn.
+    wakefield
+        Manager class to calculate wake-fields
+    folder
+        Path to the target folder used for
+        saving or loading files.
+    """
+
     def __init__(
         self,
         each_turn_i: int,
         wakefield: WakeField,
         folder: str = "",
     ):
-        """Observe the calculation of wake-fields.
-
-        Parameters
-        ----------
-        each_turn_i
-            Value to control that the element is
-            callable each n-th turn.
-        wakefield
-            Manager class to calculate wake-fields
-        folder
-            Path to the target folder used for
-            saving or loading files.
-        """
         super().__init__(
             each_turn_i=each_turn_i,
             folder=folder,
@@ -708,7 +737,7 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
             )
 
     @property  # as readonly attributes
-    def induced_voltage(self):
+    def induced_voltage(self) -> NumpyArray:
         """Induced voltage, in [V] from given beam profile and sources.
 
         Returns
@@ -720,27 +749,28 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
 
 
 class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
+    """Observation of a dynamic beam profile with changing width, while keeping a constant bin number.
+
+    Parameters
+    ----------
+     each_turn_i
+        Value to control that the element is
+        callable each n-th turn
+    profile
+        Class for the calculation of beam profile
+        with a change in width, but a constant bin number
+    folder
+        Path to the target folder used for
+        saving or loading files.
+
+    """
+
     def __init__(
         self,
         each_turn_i: int,
         profile: DynamicProfileConstNBins,
         folder: str = "",
     ):
-        """Observation of a dynamic beam profile with changing width, while keeping a constant bin number.
-
-        Parameters
-        ----------
-         each_turn_i
-            Value to control that the element is
-            callable each n-th turn
-        profile
-            Class for the calculation of beam profile
-            with a change in width, but a constant bin number
-        folder
-            Path to the target folder used for
-            saving or loading files.
-
-        """
         super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._profile = profile
         self._hist_y: DenseArrayRecorder | None = None
@@ -798,11 +828,11 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
         self._hist_x.write(self._profile.hist_x)
 
     @property  # as readonly attributes
-    def hist_y(self):
+    def hist_y(self) -> NumpyArray:
         """Histogram amplitude."""
         return self._hist_y.get_valid_entries()
 
     @property  # as readonly attributes
-    def hist_x(self):
+    def hist_x(self) -> NumpyArray:
         """x-axis of histogram, in [s], i.e. `bin_centers`."""
         return self._hist_x.get_valid_entries()
