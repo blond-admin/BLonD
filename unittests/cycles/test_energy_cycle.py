@@ -337,13 +337,24 @@ class TestEnergyCycleByTime(unittest.TestCase):
 
 class TestBaseFunctions(unittest.TestCase):
     def test_error_throwing_to_magnetic_rigidity(self):
-        with self.assertRaisesRegex(ValueError,
-                                    "must be provided and cannot be None"):
-            _to_magnetic_rigidity(1.0, 2.0, 3.0,
-                                  convert_from="bending field", bending_radius=None)
+        with self.assertRaisesRegex(
+            ValueError, "must be provided and cannot be None"
+        ):
+            _to_magnetic_rigidity(
+                1.0,
+                2.0,
+                3.0,
+                convert_from="bending field",
+                bending_radius=None,
+            )
         with self.assertRaisesRegex(ValueError, "Unrecognized option"):
-            _to_magnetic_rigidity(1.0, 2.0, 3.0,
-                                  convert_from="not_my_option", bending_radius=None)
+            _to_magnetic_rigidity(
+                1.0,
+                2.0,
+                3.0,
+                convert_from="not_my_option",
+                bending_radius=None,
+            )
 
 
 class TestEnergyCyclePerTurn(unittest.TestCase):

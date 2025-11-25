@@ -464,6 +464,7 @@ class TestRing(unittest.TestCase):
 
     def test_is_below_transition(self):
         from blond.testing.mocks import beam_mock
+
         ring = Ring(circumference=123)
         ring.add_element(DriftSimple(orbit_length=100, transition_gamma=123))
         ring.add_element(DriftSimple(orbit_length=23, transition_gamma=123))
@@ -476,6 +477,7 @@ class TestRing(unittest.TestCase):
 
         beam_mock.reference_gamma = 124
         self.assertFalse(ring.is_below_transition(beam=beam_mock))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -14,6 +14,7 @@ class TestFunctions(unittest.TestCase):
     def test_int_from_float_with_exception(self):
         with self.assertRaises(TypeError):
             int_from_float_with_warning(type(int_from_float_with_warning), 2)
+
     def test_find_instances_with_method(self):
         class Test:
             def __init__(self):
@@ -85,9 +86,8 @@ class TestFunctions(unittest.TestCase):
 
         bar = Bar()
         car = Car()
-        foo = Foo((bar, car)) # a tuple
-        found = find_instances_with_method(root=foo,
-                                           method_name="to_be_found")
+        foo = Foo((bar, car))  # a tuple
+        found = find_instances_with_method(root=foo, method_name="to_be_found")
         self.assertTrue(foo in found)
         self.assertTrue(bar in found)
         self.assertTrue(len(found) == 2)
