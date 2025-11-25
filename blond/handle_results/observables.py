@@ -643,8 +643,14 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
             return
         self._last_turn_i_observed = simulation.turn_i.value
         self._last_section_i_observed = simulation.section_i.value
-        for prof in self._profiles:
-            if simulation.section_i.value == prof.section_index:
+        for prof in sorted(
+            self._profiles, key=lambda prof: prof.section_index
+        ):
+            before_run = (
+                simulation.section_i.value is None
+                and simulation.turn_i.value == 0
+            )
+            if simulation.section_i.value == prof.section_index or before_run:
                 self._hist_y.write(prof.hist_y)
 
     @property  # as readonly attributes
