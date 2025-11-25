@@ -3132,6 +3132,20 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
     def test_calc_induced_voltage_multi_turn(self):
         t_rf = 7.706144104735e-10
         Q_factor = 1.76e6
+        sources = (
+            Resonators(
+                shunt_impedances=np.array([518 * Q_factor]),
+                center_frequencies=np.array([1 / t_rf]),
+                quality_factors=np.array([Q_factor]),
+            ),
+            Resonators(
+                shunt_impedances=np.array([518 * Q_factor]),
+                center_frequencies=np.array([1 / t_rf]),
+                quality_factors=np.array([Q_factor]),
+            ),
+        )
+
+
         from blond.testing.mocks import beam_mock, static_profile_mock
 
         prof_single = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
@@ -3154,25 +3168,13 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         beam_mock.intensity = 1e-13
 
         wf_mutli = WakeField.headless(
-            sources=(
-                Resonators(
-                    shunt_impedances=np.array([518 * Q_factor]),
-                    center_frequencies=np.array([1 / t_rf]),
-                    quality_factors=np.array([Q_factor]),
-                ),
-            ),
+            sources=sources,
             solver=ContinuousMultiTurnTimeDomainSolver(n_turns=10),
             profile=prof_single,
             beam=beam_mock,
         )
         wf_single = WakeField.headless(
-            sources=(
-                Resonators(
-                    shunt_impedances=np.array([518 * Q_factor]),
-                    center_frequencies=np.array([1 / t_rf]),
-                    quality_factors=np.array([Q_factor]),
-                ),
-            ),
+            sources=sources,
             solver=TimeDomainFftSolver(allow_next_fast_len=False),
             profile=prof_two_turns,
             beam=beam_mock,
