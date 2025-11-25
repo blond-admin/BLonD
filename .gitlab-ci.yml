@@ -32,7 +32,7 @@ workflow:
     - nvcc --version # probe NVCC installation
 
     # Install project with extras
-    - python3 --version && gcc --version && mpirun --version
+    - python3 --version && mpirun --version
     - python3 -m pip install --upgrade pip
     - python3 -m pip install -v -e ${project_root}[all]
     - cd ${project_root}
@@ -40,6 +40,17 @@ workflow:
     - python3 blond/core/backends/cpp/compile.py --parallel
     - python3 blond/core/backends/cuda/compile.py
     - python3 blond/core/backends/fortran/compile.py
+
+.before_windows:
+  before_script:
+    - gcc --version  # verify compiler existence
+    # Install project with extras
+    - python3 --version
+    - python3 -m pip install --upgrade pip
+    - python3 -m pip install -v -e ${project_root}[all]
+    - cd ${project_root}
+    # Compile C++, CUDA, Fortran backends
+    - python3 blond/core/backends/cpp/compile.py --parallel
 
 
 .main:
@@ -60,6 +71,18 @@ workflow:
     - COV=$(python3 -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); rate = float(tree.getroot().attrib['line-rate']) * 100; print(rate)")
     - echo "XML_COVERAGE=$COV"
   coverage: '/XML_COVERAGE=(\d+\.\d+)/'
+
+.main_windows:
+  variables:
+    BLOND_BACKEND_MODE: "numba"     # Set the basic backend to numba. It is most verbose about wrong types
+  script:
+    - pip list
+    - cd ${project_root}
+    # Run all unittests + the examples
+    - python3 -m pytest
+      -v unittests/
+      --import-mode=importlib
+    # does not publish coverage, since not all backends are supported by the container
 
 .publish:
   artifacts:
@@ -124,6 +147,14 @@ test_py_312:
     # - .publish
   tags:
     - k8s-gpu
+
+test_py_310_windows:
+  image: gitlab-registry.cern.ch/blond/blond/python310_windows
+  stage: test
+  interruptible: true
+  extends:
+    - .before_windows
+    - .main_windows
 
 release_sdist_310:
   image: gitlab-registry.cern.ch/blond/blond/python310
