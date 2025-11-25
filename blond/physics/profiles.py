@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.optimize import curve_fit
 
 from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant, HasPropertyCache
@@ -573,6 +574,70 @@ class Fitting(ProfileBaseClass):
         self._hist_x = hist_x
         self._hist_y = hist_y
         self._fitting_result = self.gauss_fit()
+
+    def gauss_fit(self, hist_x: NumpyArray, hist_y: NumpyArray) -> NumpyArray:
+        """Performs a gaussian fit on a profile with a single bunches.
+
+            Returns the amplitude, the mean and the standard deviation of the fitted gaussian curve for each bunch.
+
+        Parameter
+        ----------
+        hist_x
+            X-axis of the histogram to perform the fitting on
+        hist_y
+            Y-axis of the histogram to perform the fitting on
+
+        Returns
+        -------
+        params
+            Amplitude, mean and standard deviation for each bunch
+        """
+        return Fitting.multi_gauss_fit(self, hist_x, hist_y, n_bunches=1)
+
+    def multi_gauss_fit(
+        self, hist_x: NumpyArray, hist_y: NumpyArray, n_bunches: int
+    ) -> NumpyArray:
+        """Performs a gaussian fit on a profile with multiple bunches.
+
+            Returns the amplitude, the mean and the standard deviation of the fitted gaussian curve for each bunch.
+
+        Parameter
+        ----------
+        hist_x
+            X-axis of the histogram to perform the fitting on
+        hist_y
+            Y-axis of the histogram to perform the fitting on
+        n_bunches
+            Number of bunches in the profile
+
+        Returns
+        -------
+        params
+            Amplitude, mean and standard deviation for each bunch
+        """
+        bucket_length = int(len(hist_x) / n_bunches)
+        params = backend.zeros([n_bunches, 3])
+
+        for bucket in range(n_bunches):
+            bucket_hist_x = hist_x[
+                bucket * bucket_length : (bucket + 1) * bucket_length
+            ]
+            bucket_hist_y = hist_y[
+                bucket * bucket_length : (bucket + 1) * bucket_length
+            ]
+
+            p = [
+                bucket_hist_y.max(),
+                bucket_hist_x[np.argmax(bucket_hist_y)],
+                bucket_hist_x[int(3 * bucket_length / 4)]
+                - bucket_hist_x[int(bucket_length / 4)],
+            ]
+
+            params[bucket, :] = curve_fit(
+                Fitting.gauss, bucket_hist_x, bucket_hist_y, p
+            )[0]
+
+        return params[0]
 
     def gauss(x: NumpyArray, *p) -> NumpyArray:
         r"""Returns a gaussian function.
