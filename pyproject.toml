@@ -97,7 +97,6 @@ ignore = [
 
 ]
 exclude = [
-    "blond/handle_results/observables.py",
     "blond/examples/*",
 ]
 
