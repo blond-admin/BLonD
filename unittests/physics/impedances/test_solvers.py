@@ -3069,8 +3069,6 @@ class TestHeadlessSolvers(unittest.TestCase):
 
 
 class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
-    def setUp(self):
-        pass
 
     def test_calc_induced_voltage_assert_profile_length_correct(self):
         t_rf = 7.706144104735e-10
