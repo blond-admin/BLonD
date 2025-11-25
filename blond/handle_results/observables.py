@@ -164,7 +164,7 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
 
     @property  # as readonly attributes
     def turns_array(self) -> NumpyArray | None:
-        """Helper method to get x-axis array with turn-number.
+        """Helper method to get x-axis array with turn-number of shape ``(n_observations, )``.
 
         Helper method to get x-axis array with turn-number for which the
         observations are performed.
@@ -350,27 +350,27 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
 
     @property  # as readonly attributes
     def reference_time(self):
-        """Returns reference time."""
+        """Returns reference time of shape ``(n_observations, n_bins)``."""
         return self._reference_time.get_valid_entries()
 
     @property  # as readonly attributes
     def reference_total_energy(self):
-        """Returns total energy."""
+        """Returns total energy of shape ``(n_observations, n_bins)``."""
         return self._reference_total_energy.get_valid_entries()
 
     @property  # as readonly attributes
     def dts(self):
-        """Returns array of dts."""
+        """Returns array of dts of shape ``(n_observations, n_macroparticles)``."""
         return self._dts.get_valid_entries()
 
     @property  # as readonly attributes
     def dEs(self):
-        """Returns array of dEs."""
+        """Returns array of dEs of shape ``(n_observations, n_macroparticles)``."""
         return self._dEs.get_valid_entries()
 
     @property  # as readonly attributes
     def flags(self):
-        """Returns flags of particles, eg if lost or not."""
+        """Returns flags of particles, eg if lost or not of shape ``(n_observations, n_macroparticles)``."""
         return self._flags.get_valid_entries()
 
 
@@ -491,17 +491,17 @@ class CavityPhaseObservation(ObservablesOncePerTurnBase):
 
     @property  # as readonly attributes
     def phases(self) -> NumpyArray:
-        """Cavity's effective phase, in [rad]."""
+        """Cavity's effective phase of shape ``(n_observations, )``, in [rad] ."""
         return self._phases.get_valid_entries()
 
     @property  # as readonly attributes
     def omegas(self) -> NumpyArray:
-        """Cavity's angular frequency, in [Hz]."""
+        """Cavity's angular frequency of shape ``(n_observations, )``, in [Hz]."""
         return self._omegas.get_valid_entries()
 
     @property  # as readonly attributes
     def voltages(self) -> NumpyArray:
-        """Cavity's effective voltage, in [V]."""
+        """Cavity's effective voltage of shape ``(n_observations, )``, in [V]."""
         return self._voltages.get_valid_entries()
 
 
@@ -735,12 +735,12 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
 
     @property  # as readonly attributes
     def hist_x(self) -> list[NumpyArray]:
-        """Histogram x axis, always the same."""
+        """Histogram x axis, always the same of shape ``((n_bins, ), ..)``."""
         return [self._profiles[i].hist_x for i in range(len(self._profiles))]
 
     @property  # as readonly attributes
     def hist_y(self) -> NumpyArray:
-        """Histogram of given profiles."""
+        """Histogram of given profiles of shape ``(n_observations, n_bins)``."""
         return self._hist_y.get_valid_entries()
 
 
@@ -842,7 +842,7 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
 
     @property  # as readonly attributes
     def induced_voltage(self) -> NumpyArray:
-        """Induced voltage, in [V] from given beam profile and sources.
+        """Induced voltage, in [V] from given beam profile and sources  of shape ``(n_observations, n_bins)``.
 
         Returns
         -------
@@ -946,10 +946,10 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
 
     @property  # as readonly attributes
     def hist_y(self) -> NumpyArray:
-        """Histogram amplitude."""
+        """Histogram amplitude of shape ``(n_observations, n_bins)``."""
         return self._hist_y.get_valid_entries()
 
     @property  # as readonly attributes
     def hist_x(self) -> NumpyArray:
-        """x-axis of histogram, in [s], i.e. `bin_centers`."""
+        """x-axis of histogram, in [s], i.e. `bin_centers` of shape ``(n_observations, n_bins)``."""
         return self._hist_x.get_valid_entries()
