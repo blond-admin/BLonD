@@ -7,6 +7,7 @@ import numpy as np
 
 from blond import StaticProfile
 from blond._core.helpers import int_from_float_with_warning
+from blond._core.ring.helpers import requires
 
 from .base import LocalFeedback
 from .helpers import cartesian_to_polar, polar_to_cartesian, rf_beam_current
@@ -154,6 +155,7 @@ class IQCavityFeedback(LocalFeedback):
         # Ratio between rf periods and coarse grid sampling period
         self.n_periods_coarse = int(n_periods_coarse)
 
+    @requires(["RfStationBaseClass"])
     def on_run_simulation(
         self,
         simulation: Simulation,
@@ -205,6 +207,49 @@ class IQCavityFeedback(LocalFeedback):
         self.T_s_prev: LateInit = None
         self.rf_centers_prev: LateInit = None
 
+    def set_hardware_commissioning(self, omega_rf: float, harmonic: int):
+        self.T_s = (
+                self.n_periods_coarse * 2 * np.pi
+        ) / omega_rf
+        # TODO REMWORK/REMOVE
+        t_rev = float(
+            (2 * np.pi * harmonic)
+            / omega_rf
+        )
+        # TODO REMWORK/REMOVE
+        t_rf = 2 * np.pi / omega_rf
+
+        self.n_coarse = round(t_rev / self.T_s)
+        self.omega_carrier = (
+                omega_rf
+                / self.n_periods_coarse
+        )
+        # FIXME NO REDECLARATION!
+
+        self.omega_rf = float(
+            omega_rf
+        )
+        self.dT = 0
+
+        # The least amount of arrays needed to feedback to the tracker object
+        self.rf_centers = np.arange(self.n_coarse) * self.T_s + 0.5 * t_rf
+
+        self.V_SET = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.I_BEAM_COARSE = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.I_BEAM_FINE = np.zeros(self.profile.n_bins, dtype=complex)
+        self.V_ANT_COARSE = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.V_ANT_FINE = np.zeros(self.profile.n_bins, dtype=complex)
+        self.I_GEN_COARSE = np.zeros(2 * self.n_coarse, dtype=complex)
+        self.I_GEN_FINE = np.zeros(self.profile.n_bins, dtype=complex)
+
+        # TODO REWORK LATEINIT
+        self.V_corr: LateInit = None
+        self.alpha_sum: LateInit = None
+        self.phi_corr: LateInit = None
+        self.omega_carrier_prev: LateInit = None
+        self.T_s_prev: LateInit = None
+        self.rf_centers_prev: LateInit = None
+
     @abstractmethod  # pragma: no cover
     def update_fb_variables(self) -> None:
         r"""Method to update the variables specific to the feedback.
@@ -213,20 +258,36 @@ class IQCavityFeedback(LocalFeedback):
         """
         pass
 
-    def update_rf_variables(self) -> None:
+    def update_rf_variables(
+            self,
+            omega_rf: float | None = None,
+            harmonic: float | None = None
+    ) -> None:
         r"""Updating variables from the other BLonD classes."""
         # Present time step
 
         # Present RF angular frequency
-        self.omega_rf = float(
-            self._parent_cavity.omega_rf[self.harmonic_index]
-        )
-        t_rev = float(  # TODO REMWORK/REMOVE
-            2
-            * np.pi
-            * self._parent_cavity.harmonic[self.harmonic_index]
-            / self.omega_rf
-        )
+        if omega_rf is None:
+            self.omega_rf = float(
+                self._parent_cavity.omega_rf[self.harmonic_index]
+            )
+        else:
+            self.omega_rf = omega_rf
+
+        if harmonic is None:
+            t_rev = float(  # TODO REMWORK/REMOVE
+                2
+                * np.pi
+                * self._parent_cavity.harmonic[self.harmonic_index]
+                / self.omega_rf
+            )
+        else:
+            t_rev = float(  # TODO REMWORK/REMOVE
+                2
+                * np.pi
+                * harmonic
+                / self.omega_rf
+            )
 
         # Present carrier frequency: main RF frequency
         self.omega_carrier_prev = self.omega_carrier
@@ -242,8 +303,9 @@ class IQCavityFeedback(LocalFeedback):
         # Present coarse grid and save previous turn coarse grid
         self.rf_centers_prev = np.copy(self.rf_centers)
 
-        # Residual part of last turn entering the current turn due to non-integer harmonic number
-        self.dT = -self._parent_cavity.phi_rf[self.harmonic_index] / self.omega_rf
+        if omega_rf is None:
+            # Residual part of last turn entering the current turn due to non-integer harmonic number
+            self.dT = -self._parent_cavity.phi_rf[self.harmonic_index] / self.omega_rf
 
         self.rf_centers = (
             np.arange(self.n_coarse) + 0.5 / self.n_periods_coarse
