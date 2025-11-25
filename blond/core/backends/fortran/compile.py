@@ -51,8 +51,8 @@ def compile_fortran_module(module_name: str, fortran_files: list[str]) -> bool:
 
     """
     print("\nTrying to compile Fortran backend.")
-    from numpy import (
-        f2py,  # NOQA must be installed to be compiled / force exception
+    from numpy import (  # NOQA must be installed to be compiled / force exception
+        f2py,
     )
 
     # Optimization and parallelization flags for the Fortran compiler
