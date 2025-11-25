@@ -26,7 +26,7 @@ from blond.acc_math.analytic.hamilton import (
 from blond.beam_preparation.base import MatchingRoutine
 from blond.core.backends.backend import backend
 from blond.core.helpers import int_from_float_with_warning
-from blond.generals._iterables import all_equal
+from blond.generals.iterables_ import all_equal
 
 if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass

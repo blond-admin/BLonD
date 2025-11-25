@@ -6,6 +6,13 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
+"""Functions that help dealing with iterables.
+
+Authors
+-------
+Simon Lauber
+"""
+
 from collections.abc import Iterable
 from typing import TypeVar
 
