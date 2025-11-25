@@ -1097,12 +1097,13 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         self._previous_wakes.appendleft(induced_voltage_this_turn)
         bins_per_profile = self._parent_wakefield.profile.n_bins
 
+        induced_voltage = None  # to be calculated
         for i, induced_voltage_tmp in enumerate(self._previous_wakes):
             sel_current_profile = slice(
                 i * bins_per_profile,  # start
                 (i + 1) * bins_per_profile,  # stop
             )
-            if i == 0:
+            if induced_voltage is None:
                 induced_voltage = induced_voltage_tmp[sel_current_profile]
             else:
                 induced_voltage += induced_voltage_tmp[sel_current_profile]
