@@ -1002,6 +1002,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         """
         self._parent_wakefield = parent_wakefield
         self._simulation = simulation
+        self._assert_profile_length_correct()
 
     def _update_wake_kernel(self) -> None:
         """Updates the wakefield kernel that is used for convolution with the beam profile."""
@@ -1033,6 +1034,28 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
                 wake_kernel += wake_kernel_tmp
 
         self._wake_kernel = wake_kernel
+
+    def _assert_profile_length_correct(self):
+        """Checks that the length of the profile corresponds to one turn.
+
+        Raises
+        ------
+        ValueError
+            If the profile length does not correspond to one turn.
+        """
+        profile = self._parent_wakefield.profile
+        profile_width = profile.cut_right - profile.cut_left
+        t_rev = self._simulation.magnetic_cycle.get_t_rev_init(
+            circumference=self._simulation.ring.circumference,
+            turn_i_init=0,
+            t_init=0,
+            particle_type=self._simulation.magnetic_cycle.reference_particle,
+        )
+        if abs(profile_width - t_rev) > profile.hist_step:
+            raise ValueError(
+                f"Expected profile length of {t_rev} s, but got "
+                f"{profile_width} s."
+            )
 
     def calc_induced_voltage(
         self, beam: BeamBaseClass
