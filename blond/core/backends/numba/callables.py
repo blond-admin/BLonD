@@ -76,13 +76,13 @@ def recompile_numba_backend(  # NOQA PLR0915 # ruff: noqa: D102
     """
     logger.info(f"Compiling numba for {floattype}")
 
+    nb_i = numba.int32
+
     if floattype == np.float32:
         nb_f = numba.float32
-        nb_i = numba.int32
 
     elif floattype == np.float64:
         nb_f = numba.float64
-        nb_i = numba.int64
 
     else:
         raise TypeError(floattype)

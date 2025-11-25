@@ -420,7 +420,7 @@ def reload_cuda_backend(  # ruff: noqa: D102
             assert flags.dtype == np.int32
             assert dt.dtype == backend.float
             assert dE.dtype == backend.float
-            assert ids.dtype == backend.int
+            assert ids.dtype == np.int32
 
             select = flags == flag
             order = cp.argsort(select)

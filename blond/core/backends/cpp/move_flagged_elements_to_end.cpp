@@ -18,7 +18,7 @@ extern "C" int move_flagged_elements_to_end(
     int* __restrict__ flags,
     real_t* __restrict__ dt,
     real_t* __restrict__ dE,
-    int_t* __restrict__ ids,
+    int* __restrict__ ids,
     const int n_macroparticles
 ) {
 
@@ -60,7 +60,7 @@ extern "C" int move_flagged_elements_to_end(
             flags[i] = flags[j];
             flags[j] = flags_tmp;
 
-            int_t ids_tmp = ids[i];
+            int ids_tmp = ids[i];
             ids[i] = ids[j];
             ids[j] = ids_tmp;
 

@@ -8,10 +8,8 @@
 
 #ifdef USEFLOAT
     typedef float real_t;
-    typedef int32_t int_t;
 #else
     typedef double real_t;
-    typedef int64_t int_t;
 #endif
 
 extern "C"

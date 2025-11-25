@@ -21,7 +21,6 @@ BLonD common header file
 #ifdef USEFLOAT
 
 typedef float real_t;
-typedef int32_t int_t;
 #define FAST_SIN vdt::fast_sinf
 #define FAST_COS vdt::fast_cosf
 #define FAST_EXP vdt::fast_expf
@@ -29,7 +28,6 @@ typedef int32_t int_t;
 #else
 
 typedef double real_t;
-typedef int64_t int_t;
 #define FAST_SIN vdt::fast_sin
 #define FAST_COS vdt::fast_cos
 #define FAST_EXP vdt::fast_exp

@@ -34,7 +34,6 @@ class TestBackendBaseClass(unittest.TestCase):
     def test_change_backend(self) -> None:
         self.backend_base_class.change_backend(new_backend=Numpy64Bit)
         self.assertEqual(self.backend_base_class.float, np.float64)
-        self.assertEqual(self.backend_base_class.int, np.int64)
         self.assertEqual(self.backend_base_class.complex, np.complex128)
 
     def test_set_specials(self) -> None:
@@ -86,17 +85,19 @@ class TestBackendBaseClass(unittest.TestCase):
 
     def test_change_backend(self):
         some_backend = Numpy32Bit()
-        some_backend.change_backend(some_backend) # shouldnt do anything
+        some_backend.change_backend(some_backend)  # shouldnt do anything
 
     def test_temporary_specials_mode(self):
-        specials_org = backend.specials_mode # prevent side effect on other tests
+        specials_org = (
+            backend.specials_mode
+        )  # prevent side effect on other tests
 
         backend.set_specials("numba")
         with backend.temporary_specials_mode(mode="python"):
             self.assertEqual(backend.specials_mode, "python")
         self.assertEqual(backend.specials_mode, "numba")
 
-        backend.set_specials(mode=specials_org) # prevent side effect on tests
+        backend.set_specials(mode=specials_org)  # prevent side effect on tests
 
 
 class TestCupy32Bit(unittest.TestCase):
@@ -118,26 +119,26 @@ class TestCupyBackend(unittest.TestCase):
         if not cupy_available:
             self.skipTest(f"{cupy_available=}")
         self.cupy_backend = CupyBackend(
-            float_=np.float32, int_=np.float32, complex_=np.complex64
+            float_=np.float32, complex_=np.complex64
         )
 
     def test_set_specials(self) -> None:
         if not cupy_available:
             self.skipTest(f"{cupy_available=}")
         self.cupy_backend = CupyBackend(
-            float_=np.float32, int_=np.float32, complex_=np.complex64
+            float_=np.float32, complex_=np.complex64
         )
         self.cupy_backend.set_specials(mode="cuda")
-
 
     def test_set_specials_fails(self):
         if not cupy_available:
             self.skipTest(f"{cupy_available=}")
         self.cupy_backend = CupyBackend(
-            float_=np.float32, int_=np.float32, complex_=np.complex64
+            float_=np.float32, complex_=np.complex64
         )
         with self.assertRaises(ValueError):
             self.cupy_backend.set_specials("doesnt exist")
+
 
 class TestNumpy64Bit(unittest.TestCase):
     def setUp(self) -> None:
@@ -146,11 +147,11 @@ class TestNumpy64Bit(unittest.TestCase):
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
+
 class TestNumpyBackend(unittest.TestCase):
     def setUp(self) -> None:
         self.numpy_backend = NumpyBackend(
             float_=np.float32,
-            int_=np.int32,
             complex_=np.complex64,
         )
 
@@ -175,10 +176,10 @@ class TestNumpyBackend(unittest.TestCase):
         except FileNotFoundError:
             self.skipTest(f"fortran not available!")
 
-
     def test_set_specials_fails(self):
         with self.assertRaises(ValueError):
             self.numpy_backend.set_specials("doesnt exist")
+
 
 class TestSpecials(unittest.TestCase):
     def setUp(self) -> None:
@@ -223,7 +224,7 @@ class TestSpecials(unittest.TestCase):
         self.alpha_2 = backend.float(1.0)
         self.beta = backend.float(0.9)
         self.energy = backend.float(10)
-        self.alpha_order = backend.int(0.3)
+        self.alpha_order = np.int32(0.3)
         self.eta_0 = backend.float(0.3)
         self.eta_1 = backend.float(0.3)
         self.eta_2 = backend.float(0.3)
@@ -461,7 +462,7 @@ class TestSpecials(unittest.TestCase):
                 flags[[0, 1, -1]] = 0
                 dt = backend.array(backend.linspace(0, 10, 10), backend.float)
                 dE = backend.array(backend.linspace(0, 10, 10), backend.float)
-                ids = backend.array(backend.arange(0, 10), backend.int)
+                ids = backend.array(backend.arange(0, 10), np.int32)
                 n_new = backend.specials.move_flagged_elements_to_end(
                     flag=flag,
                     flags=flags,
@@ -530,7 +531,7 @@ class TestSpecials(unittest.TestCase):
                 dE = backend.array(
                     backend.linspace(0, 10, len(flags)), backend.float
                 )
-                ids = backend.array(backend.arange(0, len(flags)), backend.int)
+                ids = backend.array(backend.arange(0, len(flags)), np.int32)
                 n_new = backend.specials.move_flagged_elements_to_end(
                     flag=flag,
                     flags=flags,
@@ -575,7 +576,7 @@ class TestSpecials(unittest.TestCase):
 
                 dt = backend.array(backend.linspace(0, 10, 10), backend.float)
                 dE = backend.array(backend.linspace(0, 10, 10), backend.float)
-                ids = backend.array(backend.arange(0, 10), backend.int)
+                ids = backend.array(backend.arange(0, 10), np.int32)
                 n_new = backend.specials.move_flagged_elements_to_end(
                     flag=flag,
                     flags=flags,
@@ -604,7 +605,7 @@ class TestSpecials(unittest.TestCase):
 
                 dt = backend.array(backend.linspace(0, 10, 10), backend.float)
                 dE = backend.array(backend.linspace(0, 10, 10), backend.float)
-                ids = backend.array(backend.arange(0, 10), backend.int)
+                ids = backend.array(backend.arange(0, 10), np.int32)
                 n_new = backend.specials.move_flagged_elements_to_end(
                     flag=flag,
                     flags=flags,
@@ -632,7 +633,7 @@ class TestSpecials(unittest.TestCase):
 
                 dt = backend.array(backend.linspace(0, 10, 10), backend.float)
                 dE = backend.array(backend.linspace(0, 10, 10), backend.float)
-                ids = backend.array(backend.arange(0, 10), backend.int)
+                ids = backend.array(backend.arange(0, 10), np.int32)
                 n_new = backend.specials.move_flagged_elements_to_end(
                     flag=flag,
                     flags=flags,
@@ -869,7 +870,6 @@ class TestNumbaCompilation(unittest.TestCase):
     def test_raising_of_error(self) -> None:
         with self.assertRaises(TypeError):
             recompile_numba_backend(floattype=np.float16)
-
 
 
 if __name__ == "__main__":

@@ -226,8 +226,6 @@ class BackendBaseClass(ABC):
     ----------
     float_
         Precision type for float, e.g. float32, float64.
-    int_:
-        Precision type for int, e.g. float32, float64.
     complex_
         Precision type for complex, e.g. float32, float64.
     specials_mode
@@ -238,13 +236,11 @@ class BackendBaseClass(ABC):
 
     # type annotations for MyPy
     float: type[np.float32 | np.float64]
-    int: type[np.int32] | type[np.int64]
     complex: type[np.complex128 | np.complex64]
 
     def __init__(
         self,
         float_: type[np.float32 | np.float64],
-        int_: type[np.int32] | type[np.int64],
         complex_: type[np.complex128 | np.complex64],
         specials_mode: Literal[
             "python",
@@ -261,7 +257,6 @@ class BackendBaseClass(ABC):
         self._is_gpu = is_gpu
 
         self.float = float_
-        self.int = int_
         self.complex = complex_
 
         self.twopi = self.float(2 * np.pi)
@@ -447,8 +442,6 @@ class NumpyBackend(BackendBaseClass):
     ----------
     float_
         Precision type for float, e.g. float32, float64.
-    int_
-        Precision type for int, e.g. float32, float64.
     complex_
         Precision type for complex, e.g. float32, float64.
     """
@@ -456,12 +449,10 @@ class NumpyBackend(BackendBaseClass):
     def __init__(
         self,
         float_: type[np.float32 | np.float64],
-        int_: type[np.int32 | np.int64],
         complex_: type[np.complex128 | np.complex64],
     ) -> None:
         super().__init__(
             float_,
-            int_,
             complex_,
             specials_mode="python",
             is_gpu=False,
@@ -547,7 +538,6 @@ class Numpy32Bit(NumpyBackend):
     ) -> None:
         super().__init__(
             np.float32,
-            np.int32,
             np.complex64,
         )
 
@@ -560,7 +550,6 @@ class Numpy64Bit(NumpyBackend):
     ) -> None:
         super().__init__(
             np.float64,
-            np.int64,
             np.complex128,
         )
 
@@ -572,8 +561,6 @@ class CupyBackend(BackendBaseClass):
     ----------
     float_
         Precision type for float, e.g. float32, float64.
-    int_
-        Precision type for int, e.g. float32, float64.
     complex_
         Precision type for complex, e.g. float32, float64.
     """
@@ -581,12 +568,10 @@ class CupyBackend(BackendBaseClass):
     def __init__(
         self,
         float_: type[np.float32 | np.float64],
-        int_: type[np.int32 | np.int64],
         complex_: type[np.complex128 | np.complex64],
     ) -> None:
         super().__init__(
             float_,
-            int_,
             complex_,
             specials_mode="cuda",  # no other backend implemented at the moment
             is_gpu=True,
@@ -645,7 +630,6 @@ class Cupy32Bit(CupyBackend):
     def __init__(self) -> None:
         super().__init__(
             np.float32,
-            np.int32,
             np.complex64,
         )
 
@@ -656,7 +640,6 @@ class Cupy64Bit(CupyBackend):
     def __init__(self) -> None:
         super().__init__(
             np.float64,
-            np.int64,
             np.complex128,
         )
 

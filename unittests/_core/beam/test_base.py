@@ -36,7 +36,7 @@ class BeamBaseClassTester(BeamBaseClass):
         self._dE = np.linspace(1, 10, 10, dtype=backend.float)
         self._dt = np.linspace(20, 30, 10, dtype=backend.float)
         self._flags = np.zeros(10, dtype=np.int32)
-        self._ids = np.arange(10, dtype=backend.int)
+        self._ids = np.arange(10, dtype=np.int32)
 
     @cached_property
     def ratio(self) -> float:
