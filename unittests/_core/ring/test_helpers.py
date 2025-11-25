@@ -85,6 +85,26 @@ class TestFunctions(unittest.TestCase):
         )
         assert sorted_classes == ["A", "B", "C", "D"]
 
+
+    def test_get_init_order_baseclass(self) -> None:
+        class BaseClass():
+            pass
+
+        class Areal(BaseClass):
+            def common(self):
+                pass
+
+        class Breal:
+            @requires(["BaseClass",]) # with should work
+            def common(self):
+                pass
+
+        sorted_classes = get_init_order(
+            instances=(Breal(), Areal()),
+            dependency_attribute="common.requires",
+        )
+        assert sorted_classes == ["Areal", "Breal"]
+
     def test_get_init_order3(self) -> None:
         a = A()
         b = D()
