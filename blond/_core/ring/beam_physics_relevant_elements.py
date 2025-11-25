@@ -175,6 +175,8 @@ class BeamPhysicsRelevantElements(Preparable):
 
             if insert_at is not None:
                 self.elements.insert(insert_at + 1, element)
+            else:
+                self.elements.append(element)
         else:
             self.elements.append(element)
 
