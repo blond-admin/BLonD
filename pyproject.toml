@@ -105,4 +105,4 @@ exclude = [
 convention = "numpy"
 [tool.pytest.ini_options]
 minversion = "8.4"
-addopts = "--import-mode=importlib --cov --cov-config=.coveragerc"
+addopts = "--import-mode=importlib"
