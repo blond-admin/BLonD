@@ -247,6 +247,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
 
     def attach_cavity_feedback(self, cavity_feedback: LocalFeedback):
         """Attach cavity feedback to the RF station after initialization."""
+        # TODO: This can also be list of cavity feedbacks and can also be called multiple times to keep adding CCFBs
         cavity_feedback.set_parent_cavity(cavity=self)
         self._cavity_feedback = cavity_feedback
 
@@ -666,6 +667,35 @@ class SingleHarmonicRfStation(RfStationBaseClass):
             TWOPI_C0 * beam_beta / ring_circumference
         )
 
+    def calc_gap_voltage(self):
+        """Calculates total gap voltage in the RF station.
+
+        This function calculates the total gap voltage including
+        both the beam-induced and generator-induced voltages inside the
+        RF cavities of the RF station.
+
+        Returns
+        -------
+        gap_voltage
+            Gap voltage in [V] within the length of the profile.
+        """
+        n_slices = self._cavity_feedback.profile.n_bins
+        x_arr = self._cavity_feedback.profile.hist_x
+
+        voltages = self.voltage * backend.ones(n_slices)
+        omega_rf = self.omega_rf * backend.ones(n_slices)
+        phi_rf = self.phi_rf * backend.ones(n_slices)
+
+        gap_voltage = (
+            voltages
+            * self._cavity_feedback.V_corr
+            * np.sin(
+                omega_rf * x_arr + phi_rf + self._cavity_feedback.phi_corr
+            )
+        )
+
+        return gap_voltage
+
     def voltage_waveform_tmp(self, ts: NumpyArray):
         """Calculate voltage of cavity for current turn.
 
@@ -913,6 +943,42 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             ring_circumference=ring_circumference,
         )[self.main_harmonic_idx]
 
+    def calc_gap_voltage(self):
+        """Calculates total gap voltage in the RF station.
+
+        This function calculates the total gap voltage including
+        both the beam-induced and generator-induced voltages inside the
+        RF cavities of the RF station.
+
+        Returns
+        -------
+        gap_voltage
+            Gap voltage in [V] within the length of the profile.
+        """
+        n_slices = self._cavity_feedback[0].profile.n_bins
+        x_arr = self._cavity_feedback[0].profile.hist_x
+
+        voltages = np.outer(self.voltage, backend.ones(n_slices))
+        omega_rf = np.outer(self.omega_rf, backend.ones(n_slices))
+        phi_rf = np.outer(self.phi_rf, backend.ones(n_slices))
+
+        gap_voltage = backend.zeros(n_slices)
+        for ind, feedback in enumerate(self._cavity_feedback):
+            if feedback is not None:
+                gap_voltage = (
+                    voltages[ind]
+                    * feedback.V_corr
+                    * np.sin(
+                        omega_rf[ind] * x_arr + phi_rf[ind] + feedback.phi_corr
+                    )
+                )
+            else:
+                gap_voltage = voltages[ind] * np.sin(
+                    omega_rf[ind] * x_arr + phi_rf[ind]
+                )
+
+        return gap_voltage
+
     def voltage_waveform_tmp(self, ts: NumpyArray):
         """Calculate voltage of cavity for current turn.
 
@@ -961,16 +1027,28 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             target_total_energy - beam.reference_total_energy
         )
 
-        backend.specials.kick_multi_harmonic(
-            dt=beam.read_partial_dt(),
-            dE=beam.write_partial_dE(),
-            voltage=(self.voltage).astype(backend.float),
-            phi_rf=(self.phi_rf).astype(backend.float),
-            omega_rf=(self.omega_rf).astype(backend.float),
-            charge=beam.particle_type.charge,
-            n_rf=self.n_rf,
-            acceleration_kick=-reference_energy_change,  # Mind the minus!
-        )
+        if self._cavity_feedback is None:
+            backend.specials.kick_multi_harmonic(
+                dt=beam.read_partial_dt(),
+                dE=beam.write_partial_dE(),
+                voltage=(self.voltage).astype(backend.float),
+                phi_rf=(self.phi_rf).astype(backend.float),
+                omega_rf=(self.omega_rf).astype(backend.float),
+                charge=beam.particle_type.charge,
+                n_rf=self.n_rf,
+                acceleration_kick=-reference_energy_change,  # Mind the minus!
+            )
+        else:
+            gap_voltage = self.calc_gap_voltage()
+            backend.specials.kick_induced_voltage(
+                dt=beam.read_partial_dt(),
+                dE=beam.write_partial_dE(),
+                voltage=gap_voltage,
+                bin_centers=self._cavity_feedback[0].profile.hist_x,
+                charge=beam.particle_type.charge,
+                acceleration_kick=-reference_energy_change,  # Mind the minus!
+            )
+
         beam.reference_total_energy += reference_energy_change
 
         if self._beam_feedback is not None and (
