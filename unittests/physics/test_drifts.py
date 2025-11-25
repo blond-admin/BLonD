@@ -62,7 +62,7 @@ class TestDriftSimple(unittest.TestCase):
             section_index=0,
         )
 
-        beam=Mock(BeamBaseClass)
+        beam = Mock(BeamBaseClass)
         beam.reference_time = 0.0
         beam.reference_gamma = 1.0
         beam.reference_velocity = 0.5
@@ -74,7 +74,9 @@ class TestDriftSimple(unittest.TestCase):
 
     def test_error_throwing_on_unscheduled(self):
         simulation = Mock(Simulation)
-        self.drift_simple = DriftSimple(section_index=1, orbit_length=0)  # will raise Exception because of missing transition gamma
+        self.drift_simple = DriftSimple(
+            section_index=1, orbit_length=0
+        )  # will raise Exception because of missing transition gamma
         with self.assertRaises(ValueError):
             self.drift_simple.on_init_simulation(simulation=simulation)
 
@@ -195,6 +197,7 @@ class TestDriftSimple(unittest.TestCase):
                 momentum_compaction_factor=2.5,
                 transition_gamma=2.5j,
             )
+
     @classmethod
     def tearDownClass(cls):
         backend.change_backend(Numpy32Bit)

@@ -102,16 +102,22 @@ class TestProfileBaseClass(unittest.TestCase):
 
     def test_weighted_avg_dt(self):
         result = self.profile_base_class.weighted_avg_dt()
-        expected = backend.average(self.profile_base_class.hist_x,
-                                   weights=(self.profile_base_class.hist_y))
+        expected = backend.average(
+            self.profile_base_class.hist_x,
+            weights=(self.profile_base_class.hist_y),
+        )
         self.assertAlmostEqual(result, expected)
 
     def test_sigma_weighted_avg_dt(self):
         result = self.profile_base_class.sigma_weighted_avg_dt()
-        average = backend.average(self.profile_base_class.hist_x,
-                                  weights=(self.profile_base_class.hist_y))
-        variance = backend.average((self.profile_base_class.hist_x - average) ** 2,
-                                   weights=(self.profile_base_class.hist_y))
+        average = backend.average(
+            self.profile_base_class.hist_x,
+            weights=(self.profile_base_class.hist_y),
+        )
+        variance = backend.average(
+            (self.profile_base_class.hist_x - average) ** 2,
+            weights=(self.profile_base_class.hist_y),
+        )
         expected = backend.sqrt(variance)
         self.assertAlmostEqual(result, expected)
 
@@ -216,6 +222,7 @@ class TestDynamicProfileConstNBins(unittest.TestCase):
             np.zeros(10),
             self.dynamic_profile_const_cutoff.hist_y,
         )
+
 
 if __name__ == "__main__":
     unittest.main()

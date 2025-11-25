@@ -92,7 +92,9 @@ class TestTimeDomainFftSolver(unittest.TestCase):
             self.beam.intensity / self.beam.n_macroparticles_partial()
         )
 
-        self.time_domain_fft_solver._parent_wakefield.profile.hist_y_to_density_factor = (1 / self.beam.n_macroparticles_partial())
+        self.time_domain_fft_solver._parent_wakefield.profile.hist_y_to_density_factor = (
+            1 / self.beam.n_macroparticles_partial()
+        )
 
         self.time_domain_fft_solver._parent_wakefield.profile.beam_spectrum.return_value = np.fft.rfft(
             self.time_domain_fft_solver._parent_wakefield.profile.hist_y,
@@ -197,8 +199,7 @@ class TestTimeDomainFftSolver(unittest.TestCase):
                     quality_factors=np.array([5e10, 5, 5]),
                 ),
             ),
-            solver=TimeDomainFftSolver(
-            ),
+            solver=TimeDomainFftSolver(),
             profile=profile,
         )
         ring = Ring(circumference=123)
@@ -210,7 +211,10 @@ class TestTimeDomainFftSolver(unittest.TestCase):
         profile.track(beam=beam)
 
         self.time_domain_fft_solver._wake_imp_y_needs_update = True
-        self.time_domain_fft_solver._wake_imp_y = np.ones_like(self.time_domain_fft_solver._parent_wakefield.profile.hist_x, dtype=complex)
+        self.time_domain_fft_solver._wake_imp_y = np.ones_like(
+            self.time_domain_fft_solver._parent_wakefield.profile.hist_x,
+            dtype=complex,
+        )
         self.time_domain_fft_solver._update_impedance_sources(beam=self.beam)
         assert np.sum(self.time_domain_fft_solver._wake_imp_y) != 0
 
@@ -487,9 +491,9 @@ class TestPeriodicFreqSolver(unittest.TestCase):
         induced_voltage_a = wf.calc_induced_voltage(beam=beam)
 
         dt = beam.write_partial_dt()
-        dt  -= 1
-        dt  /= 2
-        dt  += 1
+        dt -= 1
+        dt /= 2
+        dt += 1
         profile.update_attributes(beam=beam)
         profile.track(beam=beam)
 
@@ -535,7 +539,9 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         )
         self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_step = self.hist_step
         self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_x = self.hist_x
-        self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y_to_density_factor = 1 / self.beam.n_macroparticles_partial()
+        self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y_to_density_factor = (
+            1 / self.beam.n_macroparticles_partial()
+        )
 
         profile = np.zeros_like(
             self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_x
@@ -570,7 +576,9 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         profile[9:12] = 1  # symmetric profile around centerpoint
         profile /= np.sum(profile)
         analy_solver._parent_wakefield.profile.hist_y = profile
-        analy_solver._parent_wakefield.profile.hist_y_to_density_factor = 1 / self.beam.n_macroparticles_partial()
+        analy_solver._parent_wakefield.profile.hist_y_to_density_factor = (
+            1 / self.beam.n_macroparticles_partial()
+        )
 
         analy_solver._parent_wakefield.profile.hist_y_to_density_factor = (
             1 / self.beam.n_macroparticles_partial.return_value
@@ -580,18 +588,16 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         initial_wake_pot = analy_solver._wake_function_vals
         initial_wake_pot_time = analy_solver._wake_function_time
         assert len(initial_wake_pot) == len(initial_wake_pot_time)
-        initial_voltage = (
-            analy_solver.calc_induced_voltage(
-                beam=self.beam
-            )
-        )
+        initial_voltage = analy_solver.calc_induced_voltage(beam=self.beam)
 
         td_fft_solver = TimeDomainFftSolver()
         td_fft_solver._parent_wakefield = Mock(WakeField)
         td_fft_solver._parent_wakefield.profile = Mock(StaticProfile)
         td_fft_solver._parent_wakefield.profile.hist_step = hist_step
         td_fft_solver._parent_wakefield.profile.hist_x = hist_x
-        td_fft_solver._parent_wakefield.profile.hist_y_to_density_factor = 1 / self.beam.n_macroparticles_partial()
+        td_fft_solver._parent_wakefield.profile.hist_y_to_density_factor = (
+            1 / self.beam.n_macroparticles_partial()
+        )
 
         td_fft_solver._parent_wakefield.profile.hist_y = (
             analy_solver._parent_wakefield.profile.hist_y
@@ -613,7 +619,9 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
 
         td_solver = td_fft_solver.calc_induced_voltage(beam=self.beam)
         np.testing.assert_allclose(
-            initial_voltage, td_solver[0 : len(initial_voltage)], atol=1e-10,
+            initial_voltage,
+            td_solver[0 : len(initial_voltage)],
+            atol=1e-10,
         )
 
     def test___init__(self):
@@ -771,7 +779,8 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         beam.particle_type.charge = 1
         beam.n_macroparticles_partial.return_value = int(1e2)
         self.single_turn_resonator_convolution_solver._parent_wakefield.profile.hist_y_to_density_factor = (
-                1 / beam.n_macroparticles_partial())
+            1 / beam.n_macroparticles_partial()
+        )
 
         self.single_turn_resonator_convolution_solver._update_potential_sources(
             zero_pinning=True
@@ -875,7 +884,9 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         # intensity == n_macroparticles, integrated bunch is 1 --> all normalized to 1C
 
         analy._wake_function_vals_needs_update = True
-        analy._parent_wakefield.profile.hist_y_to_density_factor = 1 / beam.n_macroparticles_partial()
+        analy._parent_wakefield.profile.hist_y_to_density_factor = (
+            1 / beam.n_macroparticles_partial()
+        )
 
         calced_voltage = analy.calc_induced_voltage(beam=beam)
 
@@ -964,7 +975,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             shunt_impedances=np.array([1, 2, 3]),
             center_frequencies=np.array([500e6, 750e6, 1.5e9]),
             quality_factors=np.array([10e3, 10e3, 10e3]),
-            shunt_impedances_counter_rotating=np.array([-1, -2, -3])
+            shunt_impedances_counter_rotating=np.array([-1, -2, -3]),
         )
         self.multi_pass_resonator_solver = MultiPassResonatorSolver()
         self.hist_step, self.hist_x = (
@@ -1106,7 +1117,9 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.multi_pass_resonator_solver._past_profiles = deque(
             [np.array([1, 1, 1]), np.array([2, 2, 2]), np.array([3, 3, 3])]
         )
-        self.multi_pass_resonator_solver._past_profiles_counter_rotation_flag = deque([False, False, False])
+        self.multi_pass_resonator_solver._past_profiles_counter_rotation_flag = deque(
+            [False, False, False]
+        )
 
         self.multi_pass_resonator_solver._maximum_storage_time = 1.0
         self.multi_pass_resonator_solver._remove_fully_decayed_wake_profiles(
@@ -1225,7 +1238,9 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.multi_pass_resonator_solver._past_profiles = deque(
             [np.array([1, 1, 1]), np.array([2, 2, 2]), np.array([3, 3, 3])]
         )
-        self.multi_pass_resonator_solver._past_profiles_counter_rotation_flag = deque([False, False, False])
+        self.multi_pass_resonator_solver._past_profiles_counter_rotation_flag = deque(
+            [False, False, False]
+        )
 
         self.multi_pass_resonator_solver._maximum_storage_time = 2.0
         self.multi_pass_resonator_solver._remove_fully_decayed_wake_profiles(
@@ -1301,7 +1316,9 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         self.multi_pass_resonator_solver._past_profiles = deque(
             [np.array([1, 1, 1]), np.array([2, 2, 2]), np.array([3, 3, 3])]
         )
-        self.multi_pass_resonator_solver._past_profiles_counter_rotation_flag = deque([False, False, False])
+        self.multi_pass_resonator_solver._past_profiles_counter_rotation_flag = deque(
+            [False, False, False]
+        )
 
         self.multi_pass_resonator_solver._maximum_storage_time = 0.0
         self.multi_pass_resonator_solver._remove_fully_decayed_wake_profiles(
@@ -1519,10 +1536,14 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             == len(local_res._past_profiles)
             == 2
         )
-        np.testing.assert_allclose(local_res._wake_function_time[1],
-            local_res._wake_function_time[0] + tsteps[0])
-        np.testing.assert_allclose(local_res._past_profile_times[1],
-            local_res._past_profile_times[0] + tsteps[0])
+        np.testing.assert_allclose(
+            local_res._wake_function_time[1],
+            local_res._wake_function_time[0] + tsteps[0],
+        )
+        np.testing.assert_allclose(
+            local_res._past_profile_times[1],
+            local_res._past_profile_times[0] + tsteps[0],
+        )
         np.testing.assert_allclose(
             local_res._past_profiles[0], local_res._past_profiles[1]
         )
@@ -1538,11 +1559,13 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             == len(local_res._past_profiles)
             == 3
         )
-        np.testing.assert_allclose(local_res._wake_function_time[1],
-            local_res._wake_function_time[0] + tsteps[1] - tsteps[0]
+        np.testing.assert_allclose(
+            local_res._wake_function_time[1],
+            local_res._wake_function_time[0] + tsteps[1] - tsteps[0],
         )
-        np.testing.assert_allclose(local_res._past_profile_times[1],
-            local_res._past_profile_times[0] + tsteps[1] - tsteps[0]
+        np.testing.assert_allclose(
+            local_res._past_profile_times[1],
+            local_res._past_profile_times[0] + tsteps[1] - tsteps[0],
         )
         np.testing.assert_allclose(
             local_res._past_profiles[0], local_res._past_profiles[1]
@@ -1657,7 +1680,9 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         beam.is_counter_rotating = False
         ind_volt_corot = local_res_corot.calc_induced_voltage(beam=beam)
 
-        assert len(ind_volt_corot) == len(local_res_corot._parent_wakefield.profile.hist_x)
+        assert len(ind_volt_corot) == len(
+            local_res_corot._parent_wakefield.profile.hist_x
+        )
 
         local_res_counterrot = deepcopy(self.multi_pass_resonator_solver)
         local_res_counterrot.on_wakefield_init_simulation(
@@ -1667,21 +1692,30 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         beam = deepcopy(self.beam)
         beam.is_counter_rotating = True
         ind_volt_corot = local_res_counterrot.calc_induced_voltage(beam=beam)
-        np.testing.assert_allclose(ind_volt_corot, ind_volt_corot)  # first one needs to be the same as this is the self-field
+        np.testing.assert_allclose(
+            ind_volt_corot, ind_volt_corot
+        )  # first one needs to be the same as this is the self-field
 
-        local_res_counterrot._parent_wakefield.profile.hist_y = np.zeros_like(local_res_counterrot._parent_wakefield.profile.hist_y)
+        local_res_counterrot._parent_wakefield.profile.hist_y = np.zeros_like(
+            local_res_counterrot._parent_wakefield.profile.hist_y
+        )
         # avoid interference from current profile
         local_res_counterrot_corot = deepcopy(local_res_counterrot)
         local_res_counterrot_counterrot = deepcopy(local_res_counterrot)
         beam.is_counter_rotating = False
         beam.reference_time += np.finfo(float).eps
-        counterrot_corot_ind_volt = local_res_counterrot_corot.calc_induced_voltage(beam)
+        counterrot_corot_ind_volt = (
+            local_res_counterrot_corot.calc_induced_voltage(beam)
+        )
         beam.is_counter_rotating = True
-        counterrot_counterrot_ind_volt = local_res_counterrot_counterrot.calc_induced_voltage(beam)
+        counterrot_counterrot_ind_volt = (
+            local_res_counterrot_counterrot.calc_induced_voltage(beam)
+        )
 
-        np.testing.assert_allclose(counterrot_corot_ind_volt, -counterrot_counterrot_ind_volt)
+        np.testing.assert_allclose(
+            counterrot_corot_ind_volt, -counterrot_counterrot_ind_volt
+        )
         # should be inverted as all shunt impedances are inverted
-
 
     def test_calc_induced_voltage_counter_rotation_opposite_charge(self):
         sim = Mock(Simulation)
@@ -1695,19 +1729,29 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         beam.particle_type.charge = -1
         beam.is_counter_rotating = True
         ind_volt_corot = local_res_counterrot.calc_induced_voltage(beam=beam)
-        np.testing.assert_allclose(ind_volt_corot, ind_volt_corot)  # first one needs to be the same as this is the self-field
+        np.testing.assert_allclose(
+            ind_volt_corot, ind_volt_corot
+        )  # first one needs to be the same as this is the self-field
 
-        local_res_counterrot._parent_wakefield.profile.hist_y = np.zeros_like(local_res_counterrot._parent_wakefield.profile.hist_y)
+        local_res_counterrot._parent_wakefield.profile.hist_y = np.zeros_like(
+            local_res_counterrot._parent_wakefield.profile.hist_y
+        )
         # avoid interference from current profile
         local_res_counterrot_corot = deepcopy(local_res_counterrot)
         local_res_counterrot_counterrot = deepcopy(local_res_counterrot)
         beam.is_counter_rotating = False
         beam.reference_time += np.finfo(float).eps
-        beam.read_partial_dt.return_value = np.linspace(local_res_counterrot._parent_wakefield.profile.hist_x[0], local_res_counterrot._parent_wakefield.profile.hist_x[-1], num=100)
+        beam.read_partial_dt.return_value = np.linspace(
+            local_res_counterrot._parent_wakefield.profile.hist_x[0],
+            local_res_counterrot._parent_wakefield.profile.hist_x[-1],
+            num=100,
+        )
         beam.dE = np.zeros_like(beam.read_partial_dt())
 
         beam_corot = deepcopy(beam)
-        counterrot_corot_ind_volt = local_res_counterrot_corot.calc_induced_voltage(beam_corot)
+        counterrot_corot_ind_volt = (
+            local_res_counterrot_corot.calc_induced_voltage(beam_corot)
+        )
         backend.set_specials("python")
         backend.specials.kick_induced_voltage(
             dt=beam_corot.read_partial_dt(),
@@ -1725,10 +1769,14 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
         beam.is_counter_rotating = True
         beam.particle_type.charge = 1
-        counterrot_counterrot_ind_volt = local_res_counterrot_counterrot.calc_induced_voltage(beam)
+        counterrot_counterrot_ind_volt = (
+            local_res_counterrot_counterrot.calc_induced_voltage(beam)
+        )
 
         # opposite charge and opposite direction --> should be same kick but not same voltage
-        np.testing.assert_allclose(counterrot_corot_ind_volt, -counterrot_counterrot_ind_volt)
+        np.testing.assert_allclose(
+            counterrot_corot_ind_volt, -counterrot_counterrot_ind_volt
+        )
 
         backend.specials.kick_induced_voltage(
             dt=beam.read_partial_dt(),
@@ -1736,9 +1784,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             voltage=counterrot_counterrot_ind_volt,
             bin_centers=self.hist_x,  # base for induced voltage
             charge=beam.particle_type.charge,
-            acceleration_kick=backend.float(
-                0.0
-            ),
+            acceleration_kick=backend.float(0.0),
         )
         np.testing.assert_allclose(beam.read_partial_dt(), beam_corot_dt)
         np.testing.assert_allclose(beam.dE, beam_corot_dE)
@@ -1767,7 +1813,9 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         )
         local_res._parent_wakefield.profile.hist_x = bunch_time
         local_res._parent_wakefield.profile.hist_y = bunch / np.sum(bunch)
-        local_res._parent_wakefield.profile.hist_y_to_density_factor = 1 / self.beam.n_macroparticles_partial()
+        local_res._parent_wakefield.profile.hist_y_to_density_factor = (
+            1 / self.beam.n_macroparticles_partial()
+        )
 
         local_res._parent_wakefield.sources = (resonators,)
 
@@ -1859,7 +1907,9 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             )
             bunch = np.exp(-0.5 * (bunch_time / (sigma_z / c)) ** 2)
 
-            local_res = MultiPassResonatorSolver(decay_fraction_threshold=0.999)
+            local_res = MultiPassResonatorSolver(
+                decay_fraction_threshold=0.999
+            )
 
             local_res._parent_wakefield = Mock(WakeField)
             local_res._parent_wakefield.profile = Mock(spec=StaticProfile)
@@ -1868,7 +1918,9 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             )
             local_res._parent_wakefield.profile.hist_x = bunch_time
             local_res._parent_wakefield.profile.hist_y = bunch / np.sum(bunch)
-            local_res._parent_wakefield.profile.hist_y_to_density_factor = 1 / self.beam.n_macroparticles_partial()
+            local_res._parent_wakefield.profile.hist_y_to_density_factor = (
+                1 / self.beam.n_macroparticles_partial()
+            )
 
             local_res._parent_wakefield.sources = (resonators,)
             local_res._wake_function_vals_needs_update = True
@@ -1888,7 +1940,9 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
             local_res_analy._parent_wakefield.profile.hist_y = bunch / np.sum(
                 bunch
             )
-            local_res_analy._parent_wakefield.profile.hist_y_to_density_factor = 1 / self.beam.n_macroparticles_partial()
+            local_res_analy._parent_wakefield.profile.hist_y_to_density_factor = (
+                1 / self.beam.n_macroparticles_partial()
+            )
             local_res_analy._parent_wakefield.sources = (resonators,)
 
             local_res_analy._wake_function_vals_needs_update = True
@@ -2954,9 +3008,7 @@ class TestHeadlessSolvers(unittest.TestCase):
         Q_factor = 1.76e6
         beam = Mock(BeamBaseClass)
         beam.n_macroparticles_partial.return_value = 1e6
-        prof.hist_y_to_density_factor = (
-            1 / beam.n_macroparticles_partial()
-        )
+        prof.hist_y_to_density_factor = 1 / beam.n_macroparticles_partial()
         beam.intensity = 2.4e12
         beam.ratio = (
             beam.intensity / beam.n_macroparticles_partial.return_value

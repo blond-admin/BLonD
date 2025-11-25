@@ -247,6 +247,7 @@ class TestProbeBunch(unittest.TestCase):
                 dt=np.ones(10),
                 dE=np.ones(11),
             )
+
     def test___init__raises3(self) -> None:
         with self.assertRaises(ValueError):
             self.probe_bunch = ProbeBeam(
@@ -254,7 +255,6 @@ class TestProbeBunch(unittest.TestCase):
                 dt=None,
                 dE=None,
             )
-
 
     def test___init__1(self) -> None:
         self.probe_bunch = ProbeBeam(particle_type=proton, dt=np.ones(10))

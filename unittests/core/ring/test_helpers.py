@@ -85,9 +85,8 @@ class TestFunctions(unittest.TestCase):
         )
         assert sorted_classes == ["A", "B", "C", "D"]
 
-
     def test_get_init_order_baseclass(self) -> None:
-        class BaseClass():
+        class BaseClass:
             pass
 
         class Areal(BaseClass):
@@ -95,7 +94,11 @@ class TestFunctions(unittest.TestCase):
                 pass
 
         class Breal:
-            @requires(["BaseClass",]) # with should work
+            @requires(
+                [
+                    "BaseClass",
+                ]
+            )  # with should work
             def common(self):
                 pass
 
@@ -126,14 +129,17 @@ class TestFunctions(unittest.TestCase):
             @requires(["B_recursive"])
             def on_init_simulation(self):
                 pass
+
         class B_recursive:
             @requires(["A_recusive"])
             def on_init_simulation(self):
                 pass
+
         a_rec, b_rec = A_recusive(), B_recursive()
         with self.assertRaisesRegex(ValueError, "Cyclic dependency"):
             _ = get_init_order(
-                instances=(a_rec, b_rec), dependency_attribute="on_init_simulation.requires"
+                instances=(a_rec, b_rec),
+                dependency_attribute="on_init_simulation.requires",
             )
 
     def test_get_dependencies(self) -> None:

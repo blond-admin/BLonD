@@ -55,7 +55,9 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         third_cavity.name = "third_cavity"
         third_cavity.section_index = 1
         self.beam_physics_relevant_elements.add_element(third_cavity)
-        with self.assertRaisesRegex(ValueError, "Each cavity must be in a different section"):
+        with self.assertRaisesRegex(
+            ValueError, "Each cavity must be in a different section"
+        ):
             self.beam_physics_relevant_elements._check_section_indexing()
 
     def test_missing_drift_cavity(self):
@@ -70,7 +72,9 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         element = Mock(spec=RfStationBaseClass)
         element.section_index = 2
         element.name = "element"
-        self.beam_physics_relevant_elements.add_element(element)  # complete section 2 and open new one
+        self.beam_physics_relevant_elements.add_element(
+            element
+        )  # complete section 2 and open new one
         element = Mock(spec=RfStationBaseClass)
         element.section_index = 3
         element.name = "element"
@@ -319,7 +323,12 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         with self.assertRaises(AssertionError):
             sim.ring.insert_element(drift, insert_at=0)
         with self.assertRaises(AssertionError):
-            sim.ring.insert_elements([drift,], insert_at=0)
+            sim.ring.insert_elements(
+                [
+                    drift,
+                ],
+                insert_at=0,
+            )
 
 
 if __name__ == "__main__":
