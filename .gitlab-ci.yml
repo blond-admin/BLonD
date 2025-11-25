@@ -114,6 +114,19 @@ precommit-check:
     paths:
       - .cache/pre-commit
 
+precommit-check-windows:
+  image: gitlab-registry.cern.ch/blond/blond/python310_windows
+  stage: precommit
+  interruptible: true
+  before_script:
+    - pip install pre-commit
+  script:
+    - pre-commit run --all-files
+  cache:
+    key: pre-commit-cache-windows
+    paths:
+      - .cache/pre-commit
+
 test_py_310:
   image: gitlab-registry.cern.ch/blond/blond/python310
   stage: test
