@@ -3179,6 +3179,8 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
             profile=prof_two_turns,
             beam=beam_mock,
         )
+        wf_mutli.solver._simulation.get_t_rev_init.return_value = (
+            prof_single.cut_right - prof_single.cut_left)
         offset = 1.8e-17
         wf_single.calc_induced_voltage(beam=beam_mock)
 
