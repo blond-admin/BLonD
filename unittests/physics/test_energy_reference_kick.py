@@ -1,8 +1,8 @@
 import unittest
 from unittest.mock import MagicMock, PropertyMock
 
-from blond._core.beam.base import BeamBaseClass
-from blond._core.beam.particle_types import proton
+from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.particle_types import proton
 from blond.cycles.magnetic_cycle import MagneticCycleByTime
 from blond.physics.energy_reference_kick import ReferenceEnergyChange
 

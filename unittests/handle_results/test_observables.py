@@ -5,8 +5,8 @@ from unittest.mock import Mock, PropertyMock
 import numpy as np
 
 from blond import Simulation, SingleHarmonicRfStation, StaticProfile, WakeField
-from blond._core.base import DynamicParameter
-from blond._core.beam.base import BeamBaseClass
+from blond.core.base import DynamicParameter
+from blond.core.beam.base import BeamBaseClass
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
