@@ -20,7 +20,7 @@ from blond.experimental.physics.feedbacks.accelerators.lhc.cavity_feedback impor
 
 class TestLHCOpenDrive(unittest.TestCase):
     def setUp(self):
-        from blond._core.backends.backend import backend
+        from blond.core.backends.backend import backend
 
         # Bunch parameters (dummy)
         N_b = 1e9  # Intensity

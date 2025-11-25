@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from blond import Beam, Simulation, proton
-from blond._core.beam.base import BeamBaseClass
-from blond._core.beam.beams import ProbeBeam
+from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.beams import ProbeBeam
 
 
 class TestBeam(unittest.TestCase):

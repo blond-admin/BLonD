@@ -8,8 +8,8 @@ from scipy.constants import pi
 from scipy.constants import speed_of_light as c0
 from scipy.signal import find_peaks
 
-from blond._core.beam.base import BeamBaseClass
-from blond._core.simulation.simulation import Simulation
+from blond.core.beam.base import BeamBaseClass
+from blond.core.simulation.simulation import Simulation
 from blond.handle_results.helpers import callers_relative_path
 from blond.physics.impedances.readers import (
     CsvReader,

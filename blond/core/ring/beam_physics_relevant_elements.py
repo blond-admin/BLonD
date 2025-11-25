@@ -1,0 +1,456 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
+"""Holds the `BeamPhysicsRelevantElements`."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+import numpy as np
+
+from blond.core.base import Preparable
+from blond.core.beam.base import BeamBaseClass
+from blond.core.ring.helpers import get_elements
+from blond.core.simulation.simulation import Simulation
+
+if TYPE_CHECKING:  # pragma: no cover
+    from typing import Any, TypeVar
+
+    from numpy.typing import NDArray as NumpyArray
+
+    from blond.core.base import SimulationElementBase
+
+    T = TypeVar("T")
+
+
+class BeamPhysicsRelevantElements(Preparable):
+    """Container object to manage all beam interactions in `Ring`.
+
+    Attributes
+    ----------
+    elements
+        List of  :class:`~blond.core.ring.beam_physics_relevant_elements.BeamPhysicsRelevantElements`
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.elements: list[SimulationElementBase] = []
+        self._on_init_simulation_passed = False
+
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called.
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+        """
+        self._check_section_indexing()
+        self._on_init_simulation_passed = True
+
+    def _assert_no_init(self, msg: str) -> None:
+        """Raises `AssertionError`, if simulation was already initialized."""
+        assert not self._on_init_simulation_passed, msg
+
+    def _check_section_indexing(self) -> None:
+        """Verify that indices have been set correctly."""
+        from blond.physics.cavities import RfStationBaseClass
+        from blond.physics.drifts import DriftBaseClass
+
+        elem_section_indices = [e.section_index for e in self.elements]
+        assert min(elem_section_indices) == 0, "section_index=0 must be set"
+        assert np.all(np.diff(elem_section_indices) >= 0), (
+            f"Section indices must be increasing, but got {elem_section_indices}"
+        )
+        cavities = self.get_elements(RfStationBaseClass)
+        cav_section_indices = [c.section_index for c in cavities]
+        all_different = len(cav_section_indices) == len(
+            set(cav_section_indices)
+        )
+        if not all_different:
+            raise ValueError(
+                f"Each cavity must be in a different section, "
+                f"but got "
+                f"{[(cav.name, cav.section_index) for cav in cavities]}"
+            )
+
+        unique_section_indices = np.unique(elem_section_indices)
+        if len(unique_section_indices) > 1:
+            for section_index in np.sort(unique_section_indices):
+                cavities = self.get_elements(
+                    RfStationBaseClass,
+                    section_i=section_index,  # type: ignore
+                )
+                drifts = self.get_elements(
+                    DriftBaseClass, section_i=section_index
+                )
+                if len(cavities) == 0:
+                    raise RuntimeError(
+                        f"Missing cavity in section {section_index}"
+                    )
+                if len(drifts) == 0:
+                    raise RuntimeError(
+                        f"Missing drift in section {section_index}"
+                    )
+
+    def on_run_simulation(
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs: dict[str, Any],
+    ) -> None:
+        """Lateinit method when `simulation.run_simulation` is called.
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+        beam
+            Simulation `Beam` object
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
+        pass
+
+    def get_sections_indices(self) -> tuple[int, ...]:
+        """Get all unique section indices."""
+        unique_section_indices = set()
+        for e in self.elements:
+            unique_section_indices.add(e.section_index)
+        return tuple(sorted(unique_section_indices))
+
+    def get_sections_orbit_length(self) -> NumpyArray:
+        """Get `share_of_circumference` per section.
+
+        Notes
+        -----
+        This is different from per-drift listing
+        """
+        from blond.physics.drifts import DriftBaseClass
+
+        sections = self.get_sections_indices()
+        result = np.empty(len(sections))
+        for section_i in sections:
+            drifts = self.get_elements(DriftBaseClass, section_i=section_i)
+            if len(drifts) > 0:
+                result[section_i] = sum([d.orbit_length for d in drifts])
+            else:
+                result[section_i] = 0
+        return result
+
+    def add_element(self, element: SimulationElementBase) -> None:
+        """Append a beam physics-relevant element to the container.
+
+        This method appends the given element to the
+        internal sequence of elements, maintaining insertion order.
+        The element must have a valid integer `section_index`.
+
+        Parameters
+        ----------
+        element
+            An object representing a beamline component or any element
+            relevant to beam physics. Must have a valid  `section_index`
+            attribute of type `int`.
+
+        Raises
+        ------
+        AssertionError
+            If `element.section_index` is not an integer.
+        """
+        self._assert_no_init(
+            msg="Adding elements after initialization is forbidden!"
+        )
+        assert isinstance(element.section_index, int)
+
+        insert_at = None
+
+        for i, elem in enumerate(self.elements):
+            if elem.section_index == element.section_index:
+                insert_at = i
+
+        if insert_at is not None:
+            self.elements.insert(insert_at + 1, element)
+        else:
+            self.elements.append(element)
+
+    def check_section_index_compatibility(
+        self,
+        element: SimulationElementBase,
+        insert_at: int,
+    ) -> None:
+        """Method to check the element can be inserted in the defined section.
+
+        The method checks the input location is in [0 : len(
+        ring.elements.elements)], then assesses the element section index is
+        compatible with its neighbouring elements in the ring.
+
+        Parameters
+        ----------
+        element
+            An object representing a beamline component or any element
+            relevant to beam physics. Must have a valid  `section_index`
+            attribute of type `int`.
+        insert_at
+            Single location index.
+
+        Raises
+        ------
+        AssertionError
+            If 'element.section_index' is inconsistent with the section of
+            insertion.
+            If insert_at is not within [0:len(ring.elements.elements)]
+        """
+        if insert_at <= len(self.elements):
+            try:
+                if (insert_at != 0) and (insert_at < len(self.elements)):
+                    assert (
+                        self.elements[insert_at - 1].section_index
+                        <= element.section_index
+                        <= self.elements[insert_at].section_index
+                    )
+                elif insert_at == 0:
+                    assert (
+                        element.section_index
+                        == self.elements[insert_at].section_index
+                    )
+                elif insert_at == len(self.elements):
+                    assert (
+                        self.elements[insert_at - 1].section_index
+                        <= element.section_index
+                        <= self.elements[insert_at - 1].section_index + 1
+                    )
+            except AssertionError as exc:
+                raise AssertionError(
+                    "The element section index is incompatible "
+                    "with the requested location. Please allow "
+                    "overwrite for automatic handling."
+                ) from exc
+        else:
+            raise AssertionError(
+                f"The element must be inserted within ["
+                f"0:{len(self.elements)}] indexes. "
+            )
+
+    def insert(self, element: SimulationElementBase, insert_at: int) -> None:
+        """Insert an element to the container at the specified index.
+
+        Parameters
+        ----------
+        element
+            An object representing a beamline component or any element
+            relevant to beam physics. Must have a valid  `section_index`
+            attribute of type `int`.
+        insert_at:
+            Location of the element to be inserted.
+
+        Raises
+        ------
+        AssertionError
+            If `element.section_index` is not an integer.
+            If 'element.section_index' is inconsistent with the section of
+            insertion.
+            If insert_at is not within [0:len(ring.elements.elements)]
+        """
+        self._assert_no_init(
+            msg="Inserting elements after initialization is forbidden!"
+        )
+        assert isinstance(element.section_index, int)
+        self.check_section_index_compatibility(
+            element=element, insert_at=insert_at
+        )
+        self.elements.insert(insert_at, element)
+
+    @property  # as readonly attributes
+    def n_sections(self) -> int:
+        """Number of sections that are mentioned by elements."""
+        return len(np.unique([e.section_index for e in self.elements]))
+
+    @property  # as readonly attributes
+    def n_elements(self) -> int:
+        """Number of elements contained in this class."""
+        return len(self.elements)
+
+    def get_elements(
+        self, class_: type[T], section_i: int | None = None
+    ) -> tuple[T, ...]:
+        """Get all elements of specified type (potentially filtered by section).
+
+        Parameters
+        ----------
+        class_
+            Type of class to filter for
+        section_i
+            Optional filter to get instances only in one section
+        """
+
+        def is_in_section(element: T) -> bool:
+            return element.section_index == section_i
+
+        elements = get_elements(self.elements, class_)
+        if section_i is not None:
+            elements = tuple(filter(is_in_section, elements))
+        return elements
+
+    def get_element(self, class_: type[T], section_i: int | None = None) -> T:
+        """Retrieve a single element of the specified type, optionally filtered by section.
+
+        This method returns exactly one element of the given type. If
+        `section_i` is provided, only elements in that section are
+        considered.
+
+        Notes
+        -----
+        An assertion error is raised if the number of matching
+        elements is not exactly one.
+
+        Parameters
+        ----------
+        class_
+            The class type to filter elements by.
+        section_i
+            Optional section index to restrict the search to a specific section.
+
+        Returns
+        -------
+        signle_element
+            The single element of the specified type (and section, if provided).
+
+        Raises
+        ------
+        AssertionError
+            If the number of matching elements is not exactly one.
+        """
+        elements = self.get_elements(
+            class_=class_,
+            section_i=section_i,
+        )
+        assert len(elements) == 1, (
+            f"Expected exactly one `{class_.__name__}`,"
+            f" but found {len(elements)} of this type."
+        )
+        return elements[0]
+
+    def reorder(self) -> None:
+        """Reorder each section by `natural_order`."""
+        self._assert_no_init(
+            msg="Reordering of elements after initialization is forbidden!"
+        )
+        for section_index in range(self.n_sections):
+            self.reorder_section(
+                section_index=section_index,
+            )
+
+        self._check_section_indexing()
+
+    def reorder_section(self, section_index: int) -> None:
+        """Reorder section by `natural_order`.
+
+        Parameters
+        ----------
+        section_index
+            Section index to restrict the ordering to a specific section.
+        """
+        self._assert_no_init(
+            msg="Section reordering of elements after initialization is "
+            "forbidden!"
+        )
+        assert isinstance(section_index, int)
+        from blond.experimental.physics.feedbacks.base import FeedbackBaseClass
+        from blond.physics.cavities import RfStationBaseClass
+        from blond.physics.drifts import DriftBaseClass
+        from blond.physics.impedances.base import ImpedanceBaseClass
+        from blond.physics.losses import LossesBaseClass
+        from blond.physics.profiles import ProfileBaseClass
+
+        natural_order = (
+            LossesBaseClass,
+            ProfileBaseClass,
+            FeedbackBaseClass,
+            ImpedanceBaseClass,
+            RfStationBaseClass,
+            DriftBaseClass,
+        )
+        assert self.count(RfStationBaseClass, section_i=section_index) == 1, (
+            f"Only one cavity per section allowed, but got "
+            f"{self.count(RfStationBaseClass, section_i=section_index)}"
+        )
+        elements_in_section = [
+            e for e in self.elements if e.section_index == section_index
+        ]
+        elements_before_section = [
+            e for e in self.elements if e.section_index < section_index
+        ]
+        elements_after_section = [
+            e for e in self.elements if e.section_index > section_index
+        ]
+        # reorder elements based on natural order
+        # account for the fact that elements could be instanced of two base
+        # classes. In this case the first match in natural order is chosen.
+        _seen = set()
+        ordered_elements = []
+
+        for cls in natural_order:
+            for e in elements_in_section:
+                if e not in _seen and isinstance(e, cls):
+                    ordered_elements.append(e)
+                    _seen.add(e)
+
+        self.elements = list(
+            elements_before_section + ordered_elements + elements_after_section
+        )
+
+    def count(self, class_: type[T], section_i: int | None = None) -> int:
+        """Count instances in this class that match class-type.
+
+        Parameters
+        ----------
+        class_
+            The class type to filter elements by.
+        section_i
+            Optional section index to restrict the search to a specific section.
+
+        """
+        return len(self.get_elements(class_=class_, section_i=section_i))
+
+    def print_order(self) -> None:
+        """Print current execution order."""
+        print(self.get_order_info())
+
+    def get_order_info(self) -> str:
+        """Generate execution order string.
+
+        Notes
+        -----
+        Intended for logging and printing
+        """
+        sep = 78 * "-" + "\n"
+        content = ""
+        content += sep
+        content += "Execution order\n"
+        content += "---------------\n"
+        content += (
+            f"{'element.name':40s} {'type':20s} "
+            f"{('section_index'):13s} {'filtered_dict'}\n"
+        )
+        for element in self.elements:
+            content += element.info_string() + "\n"
+        content += sep
+        return content
+
+
+def pretty_string(v: NumpyArray | Any) -> Any:
+    """Pretty print an array."""
+    if isinstance(v, np.ndarray):
+        return f"array(min={v.min()}, max={v.max()}, shape={v.shape})"
+    else:
+        return v

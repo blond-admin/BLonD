@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """Collection of abstract classes to handle the calculation of wake potentials.
 
 Authors
@@ -10,9 +18,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from blond._core.backends.backend import backend
-from blond._core.base import BeamPhysicsRelevant
-from blond._core.ring.helpers import requires
+from blond.core.backends.backend import backend
+from blond.core.base import BeamPhysicsRelevant
+from blond.core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -20,8 +28,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
-    from blond._core.beam.base import BeamBaseClass
-    from blond._core.simulation.simulation import Simulation
+    from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
     from blond.physics.profiles import ProfileBaseClass
 
 
@@ -433,7 +441,7 @@ class WakeField(ImpedanceBaseClass):
         )
         from unittest.mock import Mock
 
-        from blond._core.simulation.simulation import Simulation
+        from blond.core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
         wf.on_init_simulation(simulation=simulation)

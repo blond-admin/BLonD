@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 from __future__ import annotations
 
 from abc import abstractmethod
@@ -6,7 +14,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond import StaticProfile
-from blond._core.helpers import int_from_float_with_warning
+from blond.core.helpers import int_from_float_with_warning
 from blond.experimental.physics.feedbacks.base import LocalFeedback
 from blond.experimental.physics.feedbacks.helpers import (
     cartesian_to_polar,
@@ -21,7 +29,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
 
     from blond import Simulation
-    from blond._core.beam.base import BeamBaseClass
+    from blond.core.beam.base import BeamBaseClass
     from blond.physics.cavities import MultiHarmonicRfStation
 
 # TODO rewrite all docstrings

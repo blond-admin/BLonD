@@ -4,7 +4,7 @@ from sys import flags
 import numpy as np
 
 from blond import Beam, Simulation, uranium_29
-from blond._core.beam.base import BeamBaseClass, BeamFlags
+from blond.core.beam.base import BeamBaseClass, BeamFlags
 from blond.physics.losses import LossesBaseClass
 
 
