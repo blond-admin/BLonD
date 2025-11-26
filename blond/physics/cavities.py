@@ -6,7 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Collection of implementations to handle lumped RF cavities in synchrotrons.
+"""Collection of implementations to handle lumped RF stations in synchrotrons.
 
 Authors
 -------
@@ -140,14 +140,14 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
             for feedback in cavity_feedback:
                 if isinstance(feedback, LocalFeedback):
                     pass  # TODO: fix, currently, one cannot setup the cavity without setting up the RF station first and vice versa
-                    # cavity_feedback.set_parent_cavity(cavity=self)
+                    # cavity_feedback.set_parent_rf_station(cavity=self)
                 else:
                     raise ValueError(cavity_feedback)
 
         if beam_feedback is None:
             pass
         elif isinstance(beam_feedback, LocalFeedback):
-            beam_feedback.set_parent_cavity(cavity=self)
+            beam_feedback.set_parent_rf_station(cavity=self)
         else:
             raise ValueError(beam_feedback)
         self._n_rf = n_rf
@@ -376,7 +376,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
 
     @abstractmethod  # pragma: no cover
     def voltage_waveform_tmp(self, ts: NumpyArray):
-        """Calculate voltage of cavity for current turn.
+        """Calculate voltage of RF staion for current turn.
 
         Parameters
         ----------
@@ -392,7 +392,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         beam_beta: float,
         closed_orbit_length: float,
     ):
-        """Calculate angular frequency of cavity, in [rad/s].
+        """Calculate angular frequency of RF station, in [rad/s].
 
         Parameters
         ----------
@@ -404,7 +404,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         Returns
         -------
         omega
-            Angular frequency (2 PI f) of cavity, in [rad/s]
+            Angular frequency (2 PI f) of RF station, in [rad/s]
         """
         pass
 
@@ -424,7 +424,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
 
 
 class SingleHarmonicRfStation(RfStationBaseClass):
-    """Cavity with only one RF wave for beam interaction.
+    """RF station with only one RF wave for beam interaction.
 
     Parameters
     ----------
@@ -438,11 +438,11 @@ class SingleHarmonicRfStation(RfStationBaseClass):
     Attributes
     ----------
     voltage
-        Cavity's effective voltage, in [V]
+        RF station's effective voltage, in [V]
     phi_rf
-        Cavity's design phase, in [rad]
+        RF station's design phase, in [rad]
     harmonic
-        Cavity's design harmonic []
+        RF station's design harmonic []
     """
 
     def __init__(
@@ -585,7 +585,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         beam_beta: float,
         ring_circumference: float,
     ) -> float:
-        """Calculate angular frequency of cavity, in [rad/s].
+        """Calculate angular frequency of RF station, in [rad/s].
 
         Parameters
         ----------
@@ -597,14 +597,14 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         Returns
         -------
         omega
-            Angular frequency (2 PI f) of cavity, in [rad/s]
+            Angular frequency (2 PI f) of RF station, in [rad/s]
         """
         return self.harmonic * backend.float(
             TWOPI_C0 * beam_beta / ring_circumference
         )
 
     def voltage_waveform_tmp(self, ts: NumpyArray):
-        """Calculate voltage of cavity for current turn.
+        """Calculate voltage of RF station for current turn.
 
         Note
         ----
@@ -620,7 +620,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         Returns
         -------
         voltages
-            Cavity voltage in [V] at time `ts`
+            RF station voltage in [V] at time `ts`
         """
         voltage = self.voltage
         phi_rf = self.phi_rf + self.delta_phi_rf
@@ -645,11 +645,11 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         section_index
             Section index to group elements into sections
         voltage
-            Cavity's effective voltage in [V]
+            RF station's effective voltage in [V]
         phi_rf
-            Cavity's design phase in [rad]
+            RF station's design phase in [rad]
         harmonic
-            Cavity's design harmonic []
+            RF station's design harmonic []
         circumference
             Synchrotron circumference in [m]
         total_energy
@@ -661,22 +661,22 @@ class SingleHarmonicRfStation(RfStationBaseClass):
 
         Returns
         -------
-        single_harmonic_cavity
+        single_harmonic_rf_station
         """
         from blond.core.beam.base import BeamBaseClass
         from blond.core.ring.ring import Ring
         from blond.core.simulation.simulation import Simulation
         from blond.cycles.magnetic_cycle import ConstantMagneticCycle
 
-        shc = SingleHarmonicRfStation(
+        single_harmonic_rf_station = SingleHarmonicRfStation(
             section_index=section_index,
             local_wakefield=local_wakefield,
             cavity_feedback=cavity_feedback,
         )
 
-        shc.voltage = voltage
-        shc.phi_rf = phi_rf
-        shc.harmonic = harmonic
+        single_harmonic_rf_station.voltage = voltage
+        single_harmonic_rf_station.phi_rf = phi_rf
+        single_harmonic_rf_station.harmonic = harmonic
 
         ring = Mock(Ring)
         ring.circumference = circumference
@@ -690,25 +690,25 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         simulation.turn_i = Mock(DynamicParameter)
         simulation.turn_i.value = 0
 
-        shc.on_init_simulation(simulation=simulation)
-        shc.on_run_simulation(
+        single_harmonic_rf_station.on_init_simulation(simulation=simulation)
+        single_harmonic_rf_station.on_run_simulation(
             simulation=simulation,
             n_turns=1,
             turn_i_init=simulation.turn_i.value,
             beam=Mock(BeamBaseClass),
         )
-        return shc
+        return single_harmonic_rf_station
 
 
 class MultiHarmonicRfStation(RfStationBaseClass):
-    """Cavity with several RF wave for beam interaction.
+    """RF station with several RF wave for beam interaction.
 
     Parameters
     ----------
     n_harmonics
         Number of different RF waves for interaction
     main_harmonic_idx
-        Index of the cavity's main harmonic
+        Index of the RF station's main harmonic
         Used to calculate attributes that rely on only one harmonic
     section_index
         Section index to group elements into sections
@@ -720,11 +720,11 @@ class MultiHarmonicRfStation(RfStationBaseClass):
     Attributes
     ----------
     voltage
-        Cavity's effective voltages (per harmonic) in [V]
+        RF station's effective voltages (per harmonic) in [V]
     phi_rf
-        Cavity's design phases (per harmonic) in [rad]
+        RF station's design phases (per harmonic) in [rad]
     harmonic
-        Cavity's design harmonics (per harmonic) []
+        RF station's design harmonics (per harmonic) []
     """
 
     def __init__(
@@ -825,7 +825,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         beam_beta: float,
         ring_circumference: float,
     ) -> NumpyArray:
-        """Calculate angular frequency of cavity in [rad/s].
+        """Calculate angular frequency of RF station in [rad/s].
 
         Parameters
         ----------
@@ -838,7 +838,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         Returns
         -------
         omega
-            Angular frequency (2 PI f) of cavity in [rad/s]
+            Angular frequency (2 PI f) of RF station in [rad/s]
         """
         return self.harmonic * (TWOPI_C0 * beam_beta / ring_circumference)
 
@@ -882,7 +882,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         )
 
     def voltage_waveform_tmp(self, ts: NumpyArray):  # pragma: no cover
-        """Calculate voltage of cavity for current turn.
+        """Calculate voltage of RF station for current turn.
 
         Note
         ----
@@ -929,11 +929,11 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         section_index
             Section index to group elements into sections
         voltage
-            Cavity's effective voltages (per harmonic) in [V]
+            RF station's effective voltages (per harmonic) in [V]
         phi_rf
-            Cavity's design phases (per harmonic) in [rad]
+            RF station's design phases (per harmonic) in [rad]
         harmonic
-            Cavity's design harmonics (per harmonic) []
+            RF station's design harmonics (per harmonic) []
         circumference
             Synchrotron circumference in [m]
         total_energy
@@ -945,14 +945,14 @@ class MultiHarmonicRfStation(RfStationBaseClass):
 
         Returns
         -------
-        multi_harmonic_cavity
+        multi_harmonic_rf_station
         """
         from blond.core.beam.base import BeamBaseClass
         from blond.core.ring.ring import Ring
         from blond.core.simulation.simulation import Simulation
         from blond.cycles.magnetic_cycle import ConstantMagneticCycle
 
-        mhc = MultiHarmonicRfStation(
+        multi_harmonic_rf_station = MultiHarmonicRfStation(
             harmonic=np.array(harmonic, dtype=backend.float),
             voltage=np.array(voltage, dtype=backend.float),
             phi_rf=np.array(phi_rf, dtype=backend.float),
@@ -975,8 +975,8 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         simulation.magnetic_cycle = energy_cycle
         simulation.turn_i = Mock(DynamicParameter)
         simulation.turn_i.value = 0
-        mhc.on_init_simulation(simulation=simulation)
-        mhc.on_run_simulation(
+        multi_harmonic_rf_station.on_init_simulation(simulation=simulation)
+        multi_harmonic_rf_station.on_run_simulation(
             simulation=simulation,
             n_turns=1,
             turn_i_init=simulation.turn_i.value,
@@ -985,8 +985,8 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         )
         beam = Mock(BeamBaseClass)
         beam.reference_beta = reference_beta
-        mhc._update_beam_based_attributes(beam)
-        return mhc
+        multi_harmonic_rf_station._update_beam_based_attributes(beam)
+        return multi_harmonic_rf_station
 
     def track(self, beam: BeamBaseClass) -> None:
         """Main simulation routine to be called in the mainloop.

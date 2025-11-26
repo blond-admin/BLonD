@@ -76,7 +76,7 @@ def main():
             value_init=sync_momentum,
             in_unit="momentum",
         )
-        cavity1 = SingleHarmonicRfStation(
+        rf_station = SingleHarmonicRfStation(
             harmonic=4620,
             voltage=0.9e6,
             phi_rf=0.0,
@@ -107,7 +107,7 @@ def main():
             profile=profile,
         )
         ring.add_elements(
-            (drift, cavity1, wakefield),
+            (drift, rf_station, wakefield),
             reorder=True,
         )
         sim = Simulation(

@@ -12,7 +12,7 @@ from blond.handle_results.observables_as_elements import (
 )
 
 simulation = Mock(Simulation)
-simulation.ring.n_cavities = 2
+simulation.ring.n_rf_stations = 2
 simulation.ring.section_lengths = [250, 250]
 simulation.ring.circumference = 500
 simulation.section_i = DynamicParameter(None)

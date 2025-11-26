@@ -43,50 +43,28 @@ from blond.core.ring.helpers import get_elements, get_init_order
 from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.generals.warnings_ import NotTestedWarning, PerformanceWarning
 from blond.physics.drifts import DriftBaseClass
-from blond.physics.profiles import ProfileBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
     from numpy.typing import NDArray as NumpyArray
 
-    from blond import (
-        SingleHarmonicRfStation,
-    )
-
-    from blond.legacy.blond2.beam.beam import Beam as Blond2Beam
-    from blond.legacy.blond2.beam.profile import Profile as Blond2Profile
-    from blond.legacy.blond2.impedances.impedance import (
-        TotalInducedVoltage as Blond2TotalInducedVoltage,
-    )
-    from blond.legacy.blond2.input_parameters.rf_parameters import (
-        RFStation as Blond2RFStation,
-    )
-    from blond.legacy.blond2.input_parameters.ring import Ring as Blond2Ring
-    from blond.legacy.blond2.trackers.tracker import (
-        FullRingAndRF as Blond2FullRingAndRF,
-    )
-    from blond.legacy.blond2.trackers.tracker import (
-        RingAndRFTracker as Blond2RingAndRFTracker,
-    )
-
+    from blond import BiGaussian
     from blond.beam_preparation.base import BeamPreparationRoutine
-    from blond.handle_results.observables import ObservablesEndOfTurnBase
     from blond.core.beam.base import BeamBaseClass
     from blond.core.beam.particle_types import ParticleType
     from blond.core.ring.ring import Ring
-    from blond.interfaces.xsuite.beam_preparation.rfbucket_matching import (
-        XsuiteRFBucketMatcher,
-    )
-    from blond import BiGaussian
     from blond.experimental.beam_preparation.empiric_matcher import (
         EmpiricMatcher,
     )
     from blond.experimental.beam_preparation.semi_empiric_matcher import (
         SemiEmpiricMatcher,
     )
+    from blond.handle_results.observables import ObservablesEndOfTurnBase
+    from blond.interfaces.xsuite.beam_preparation.rfbucket_matching import (
+        XsuiteRFBucketMatcher,
+    )
 
-from blond.physics.cavities import RfStationBaseClass
 
 logger = logging.getLogger(__name__)
 
@@ -807,7 +785,7 @@ class Simulation(Preparable):
         --------
         ConstantMagneticCycle
         MagneticCyclePerTurn
-        MagneticCyclePerTurnAllCavities
+        MagneticCyclePerTurnAllRfStations
         MagneticCycleByTime
         """
         return self._magnetic_cycle
@@ -970,7 +948,7 @@ class Simulation(Preparable):
             from a specific turn. Default is 0.
         observe
             Tuple of observable objects that record data during the simulation
-            (e.g., ``CavityPhaseObservation``, ``BeamObservationEndOfTurn``).
+            (e.g., ``RfStationPhaseObservation``, ``BeamObservationEndOfTurn``).
             Each observable is updated according to its own schedule. Default is empty tuple.
         show_progressbar
             If True, displays a progress bar showing simulation progress and turn rate.
@@ -1001,8 +979,8 @@ class Simulation(Preparable):
 
         Simulation with observables to record data:
 
-        >>> from blond import CavityPhaseObservation, BeamObservationEndOfTurn
-        >>> phase_obs = CavityPhaseObservation(each_turn_i=1, cavity=rf_station1)
+        >>> from blond import RfStationPhaseObservation, BeamObservationEndOfTurn
+        >>> phase_obs = RfStationPhaseObservation(each_turn_i=1, rf_station=rf_station1)
         >>> beam_obs = BeamObservationEndOfTurn(each_turn_i=1, beam=beam1)
         >>>
         >>> sim.run_simulation(
@@ -1260,117 +1238,6 @@ class Simulation(Preparable):
         self.turn_i.value = None
         self.section_i.value = None
 
-    def get_legacy_map(
-        self,
-    ) -> list[
-        Blond2Ring
-        | Blond2Beam
-        | Blond2RFStation
-        | Blond2Profile
-        | Blond2TotalInducedVoltage
-        | Blond2RingAndRFTracker
-        | Blond2FullRingAndRF
-    ]:
-        """Intended to give a BLonD2 compatible output. Not functional at the moment."""
-        raise NotImplementedError  # pragma: no cover
-        from blond.physics.cavities import (  # prevent cyclic import
-            MultiHarmonicRfStation,
-        )
-        from blond.physics.drifts import DriftBaseClass
-
-        ring_length = self.ring.closed_orbit_length
-        bending_radius = self.ring.bending_radius
-        drift = self.ring.elements.get_element(DriftBaseClass)  # type: ignore
-        alpha_0 = drift.alpha_0
-        synchronous_data = self.magnetic_cycle._synchronous_data
-        synchronous_data_type = self.magnetic_cycle._synchronous_data_type
-        particle = self.beams[0].particle_type
-        #  BLonD legacy Imports
-        from blond.legacy.blond2.beam.beam import Beam
-        from blond.legacy.blond2.beam.profile import CutOptions, Profile
-        from blond.legacy.blond2.impedances.impedance import (
-            TotalInducedVoltage,
-        )
-        from blond.legacy.blond2.input_parameters.rf_parameters import (
-            RFStation,
-        )
-        from blond.legacy.blond2.input_parameters.ring import Ring
-        from blond.legacy.blond2.trackers.tracker import (
-            FullRingAndRF,
-            RingAndRFTracker,
-        )
-
-        ring_blond2 = Ring(
-            ring_length=ring_length,
-            alpha_0=alpha_0,
-            synchronous_data=synchronous_data,
-            synchronous_data_type=synchronous_data_type,
-            particle=particle,
-            bending_radius=bending_radius,
-            n_sections=self.ring.elements.n_cavities,
-            alpha_1=getattr(drift, "alpha_1", None),
-            alpha_2=getattr(drift, "alpha_2", None),
-            ring_options=None,
-        )
-        beam_blond2 = Beam(
-            ring=ring_blond2,
-            n_macroparticles=self.beams[0]._n_macroparticles__init,
-            intensity=self.beams[0]._intensity__init,
-        )
-        # todo handle multiple RF stations
-        cavity_blond3: SingleHarmonicRfStation | MultiHarmonicRfStation = (
-            self.ring.elements.get_element(RfStationBaseClass)
-        )
-        # FIXME
-        rf_station = RFStation(
-            ring=ring_blond2,
-            harmonic=cavity_blond3.rf_program.harmonics,  # type: ignore # FIXME
-            voltage=cavity_blond3.rf_program.effective_voltages,  # type: ignore # FIXME
-            phi_rf_d=cavity_blond3.rf_program.phases,  # type: ignore # FIXME
-            n_rf=len(cavity_blond3.rf_program.phases),  # type: ignore # FIXME
-            section_index=0,
-            omega_rf=cavity_blond3.rf_program.omegas_rf,  # type: ignore # FIXME
-            phi_noise=cavity_blond3.rf_program.phase_noise,  # type: ignore # FIXME
-            phi_modulation=cavity_blond3.rf_program.phase_modulation,  # type: ignore # FIXME
-            rf_station_options=None,
-        )
-        profile_blond3 = self.ring.elements.get_element(ProfileBaseClass)
-        profile_blond2 = Profile(
-            beam=beam_blond2,
-            cut_options=CutOptions(
-                cut_left=profile_blond3.cut_left,
-                cut_right=profile_blond3.cut_right,
-                n_slices=profile_blond3.n_bins,
-            ),
-            fit_options=None,
-            filter_options=None,
-        )
-        total_induced_voltage = TotalInducedVoltage(
-            beam=beam_blond2, profile=profile_blond2, induced_voltage_list=None
-        )
-        ring_rf_tracker = RingAndRFTracker(
-            rf_station=rf_station,
-            beam=beam_blond2,
-            solver=None,  # todo
-            beam_feedback=None,  # todo as feature for blond3
-            noise_feedback=None,  # todo as feature for blond3
-            cavity_feedback=None,  # todo as feature for blond3
-            periodicity=False,  # todo as feature for blond3
-            # interpolation=None,
-            profile=profile_blond2,
-            total_induced_voltage=total_induced_voltage,
-        )
-        full_ring = FullRingAndRF(ring_and_rf_section=ring_rf_tracker)
-        return [
-            ring_blond2,
-            beam_blond2,
-            rf_station,
-            profile_blond2,
-            total_induced_voltage,
-            ring_rf_tracker,
-            full_ring,
-        ]
-
     def _run_simulation_counterrotating_beam(
         self,
         beams: tuple[BeamBaseClass, BeamBaseClass],
@@ -1548,7 +1415,7 @@ class Simulation(Preparable):
         Load previously saved results:
 
         >>> # Create observables (same as before)
-        >>> phase_obs = CavityPhaseObservation(each_turn_i=1, cavity=rf_station1)
+        >>> phase_obs = RfStationPhaseObservation(each_turn_i=1, rf_station=rf_station1)
         >>> beam_obs = BeamObservationEndOfTurn(each_turn_i=1, beam=beam1)
         >>>
         >>> # Load the saved data

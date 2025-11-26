@@ -45,16 +45,16 @@ class LocalFeedback(FeedbackBaseClass):
             section_index=section_index,
             name=name,
         )
-        self._parent_cavity: (
+        self._parent_rf_station: (
                 SingleHarmonicRfStation | MultiHarmonicRfStation | None
         ) = None
         self.profile = profile
 
-    def set_parent_cavity(self, cavity: RfStationBaseClass):
-        assert self._parent_cavity is None, (
+    def set_parent_rf_station(self, cavity: RfStationBaseClass):
+        assert self._parent_rf_station is None, (
             "This feedback has already one owner!"
         )
-        self._parent_cavity = cavity
+        self._parent_rf_station = cavity
 
     @abstractmethod  # pragma: no cover
     def track(self, beam: BeamBaseClass) -> None:
@@ -88,7 +88,7 @@ class GlobalFeedback(FeedbackBaseClass):
 
     # Use `requires` to automatically sort execution order of
     # `element.on_init_simulation` for all elements
-    @requires(["SingleHarmonicCavity"])
+    @requires(["SingleHarmonicRfStation"])
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called
 

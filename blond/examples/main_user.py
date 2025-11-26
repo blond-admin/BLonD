@@ -39,7 +39,7 @@ class Main:
         my_ring = Ring(circumference=6912)
 
         profile1 = StaticProfile(cut_left=0, cut_right=1, n_bins=128)
-        cavity = MultiHarmonicRfStation(
+        rf_station = MultiHarmonicRfStation(
             voltage=backend.array([6e6, 2e6]),
             phi_rf=backend.array([0, 0]),
             harmonic=backend.array([4620, 4 * 4620]),
@@ -50,13 +50,13 @@ class Main:
             DriftSimple(
                 orbit_length=1.0 * my_ring.circumference, transition_gamma=21
             ),
-            cavity,
+            rf_station,
             WakeField(
                 sources=(InductiveImpedance(34.6669349520904 / 10e9),),
                 solver=InductiveImpedanceSolver(),
             ),
             profile1,
-            # LocalFeedback(cavity1, profile1),
+            # LocalFeedback(rf_station, profile1),
             # GlobalFeedback(profile1),
             # DriftXSuite(orbit_length=0.1 * my_ring.circumference), # TODO
         )

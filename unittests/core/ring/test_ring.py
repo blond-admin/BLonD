@@ -363,7 +363,7 @@ class TestRing(unittest.TestCase):
             [element1 for i in range(10)] + [cavity1 for i in range(10)],
             deepcopy=True,
         )
-        self.assertEqual(self.ring.n_cavities, 10)
+        self.assertEqual(self.ring.n_rf_stations, 10)
 
     def test_on_init_simulation(self):
         simulation = Mock(spec=Simulation)

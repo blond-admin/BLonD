@@ -16,8 +16,8 @@ from blond import (
     Beam,
     BeamObservationEndOfTurn,
     BiGaussian,
-    CavityPhaseObservation,
     DriftSimple,
+    RfStationPhaseObservation,
     Ring,
     Simulation,
     SingleHarmonicRfStation,
@@ -32,10 +32,10 @@ logging.basicConfig(level=logging.INFO)
 def main():
     ring = Ring(26658.883)
 
-    cavity1 = SingleHarmonicRfStation()
-    cavity1.harmonic = 35640
-    cavity1.voltage = 6e6
-    cavity1.phi_rf = 0
+    rf_station = SingleHarmonicRfStation()
+    rf_station.harmonic = 35640
+    rf_station.voltage = 6e6
+    rf_station.phi_rf = 0
 
     N_TURNS = int(1e3)
 
@@ -82,9 +82,9 @@ def main():
             ),
         )
 
-    phase_observation = CavityPhaseObservation(
+    phase_observation = RfStationPhaseObservation(
         each_turn_i=1,
-        cavity=cavity1,
+        rf_station=rf_station,
     )
     bunch_observation = BeamObservationEndOfTurn(each_turn_i=1, beam=beam1)
 

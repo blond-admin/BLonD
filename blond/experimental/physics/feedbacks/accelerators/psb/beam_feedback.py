@@ -134,10 +134,10 @@ class PsbBeamFeedback(Blond2BeamFeedback):
             self.dphi_sum = 0.0
 
             # Radial loop
-            self.dR_over_R = (self._parent_cavity.delta_omega_rf[0]) / (
-                self._parent_cavity._omega_rf[0]
+            self.dR_over_R = (self._parent_rf_station.delta_omega_rf[0]) / (
+                self._parent_rf_station._omega_rf[0]
                 * (
-                    1.0 / (self.ring.alpha_0[0] * self._parent_cavity.gamma**2)
+                    1.0 / (self.ring.alpha_0[0] * self._parent_rf_station.gamma ** 2)
                     - 1.0
                 )
             )
