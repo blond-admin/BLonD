@@ -68,7 +68,6 @@ exclude = [
     "unittests",
     "legacy",
     "integrationtests_blond3",
-    "docs/",
 ]
 [tool.ruff.lint]
 # Enable broad set of useful lint rules
