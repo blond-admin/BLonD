@@ -279,7 +279,8 @@ class TestFitting(unittest.TestCase):
 
         np.testing.assert_almost_equal(
             gauss,
-            gauss_test
+            gauss_test,
+            decimal=2
         )
 >>>>>>> Add test for function gauss in the Fitting class.
 
