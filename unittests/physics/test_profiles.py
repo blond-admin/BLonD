@@ -232,6 +232,19 @@ class TestFitting(unittest.TestCase):
     def test___init__(self):
         pass
 
+    def test_gauss_fit(self):
+        x = np.arange(-4,4,0.001)
+        p = [0.4,0,1]
+
+        gauss_test = norm.pdf(x, p[1], p[2])
+
+        fit = Fitting.gauss_fit(self, x, gauss_test)
+
+        np.testing.assert_almost_equal(
+            fit,
+            p
+        )
+
     def test_gauss(self):
         x = np.arange(-4,4,0.001)
         p = [0.4,0,1]
