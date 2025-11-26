@@ -77,13 +77,7 @@ def _get_dE_from_dt(
     from blond.physics.drifts import DriftSimple
 
     drifts = simulation.ring.elements.get_elements(DriftSimple)
-    above_transition = [
-        beam.reference_gamma > drift.transition_gamma for drift in drifts
-    ]
-    assert all_equal(above_transition), (
-        f"expected all `above_transition` to be equal, but got {above_transition}"
-    )
-    above_transition = above_transition[0]
+    above_transition = not simulation.ring.is_below_transition(beam=beam)
 
     harmonic, omega_rf, phi_rf, voltage = get_main_harmonic_attributes(
         beam=beam,
@@ -261,6 +255,9 @@ class BiGaussian(MatchingRoutine):
         ----------
         simulation
             Simulation context manager
+        beam
+            Simulation :class:`~blond.core.beam.beam.Beam` object
+
         """
         from blond.physics.drifts import DriftSimple
 
@@ -268,16 +265,14 @@ class BiGaussian(MatchingRoutine):
             simulation=simulation,
             beam=beam,
         )
-        above_transition = (
-            beam.reference_gamma > simulation.ring.average_transition_gamma
-        )
+        above_transition = not simulation.ring.is_below_transition(beam=beam)
         harmonic, omega_rf, phi_rf, voltage = get_main_harmonic_attributes(
             beam=beam,
             simulation=simulation,
         )
 
-        drifts: DriftSimple = simulation.ring.elements.get_elements(
-            DriftSimple
+        drifts: tuple[DriftSimple, ...] = (
+            simulation.ring.elements.get_elements(DriftSimple)
         )
         for _drift in drifts:
             _drift.apply_schedules(
