@@ -17,7 +17,7 @@ import cupy as cp  # type: ignore
 import numpy as np
 
 from blond.core.backends.backend import Specials, backend
-from blond.generals._hashing import hash_in_folder
+from blond.generals.hashing_ import hash_in_folder
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore

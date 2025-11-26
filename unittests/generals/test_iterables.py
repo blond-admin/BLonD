@@ -1,6 +1,6 @@
 import unittest
 
-from blond.generals._iterables import all_equal
+from blond.generals.iterables_ import all_equal
 
 
 class TestFunctions(unittest.TestCase):

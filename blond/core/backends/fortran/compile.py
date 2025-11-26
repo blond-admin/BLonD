@@ -52,8 +52,8 @@ def compile_fortran_module(module_name: str, fortran_files: list[str]) -> bool:
 
     """
     print("\nTrying to compile Fortran backend.")
-    from numpy import (
-        f2py,  # NOQA must be installed to be compiled / force exception
+    from numpy import (  # NOQA must be installed to be compiled / force exception
+        f2py,
     )
 
     # Optimization and parallelization flags for the Fortran compiler
@@ -115,7 +115,7 @@ def move_compiled_file_to_subfolder(module_name: str) -> None:
 
 
     """
-    from blond.generals._hashing import hash_in_folder
+    from blond.generals.hashing_ import hash_in_folder
 
     folder = os.path.dirname(os.path.abspath(__file__))
     hash_ = hash_in_folder(

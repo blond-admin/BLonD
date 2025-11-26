@@ -86,17 +86,19 @@ class TestBackendBaseClass(unittest.TestCase):
 
     def test_change_backend(self):
         some_backend = Numpy32Bit()
-        some_backend.change_backend(some_backend) # shouldnt do anything
+        some_backend.change_backend(some_backend)  # shouldnt do anything
 
     def test_temporary_specials_mode(self):
-        specials_org = backend.specials_mode # prevent side effect on other tests
+        specials_org = (
+            backend.specials_mode
+        )  # prevent side effect on other tests
 
         backend.set_specials("numba")
         with backend.temporary_specials_mode(mode="python"):
             self.assertEqual(backend.specials_mode, "python")
         self.assertEqual(backend.specials_mode, "numba")
 
-        backend.set_specials(mode=specials_org) # prevent side effect on tests
+        backend.set_specials(mode=specials_org)  # prevent side effect on tests
 
 
 class TestCupy32Bit(unittest.TestCase):
@@ -129,7 +131,6 @@ class TestCupyBackend(unittest.TestCase):
         )
         self.cupy_backend.set_specials(mode="cuda")
 
-
     def test_set_specials_fails(self):
         if not cupy_available:
             self.skipTest(f"{cupy_available=}")
@@ -139,12 +140,14 @@ class TestCupyBackend(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.cupy_backend.set_specials("doesnt exist")
 
+
 class TestNumpy64Bit(unittest.TestCase):
     def setUp(self) -> None:
         self.numpy64_bit = Numpy64Bit()
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
+
 
 class TestNumpyBackend(unittest.TestCase):
     def setUp(self) -> None:
@@ -175,10 +178,10 @@ class TestNumpyBackend(unittest.TestCase):
         except FileNotFoundError:
             self.skipTest(f"fortran not available!")
 
-
     def test_set_specials_fails(self):
         with self.assertRaises(ValueError):
             self.numpy_backend.set_specials("doesnt exist")
+
 
 class TestSpecials(unittest.TestCase):
     def setUp(self) -> None:
@@ -869,7 +872,6 @@ class TestNumbaCompilation(unittest.TestCase):
     def test_raising_of_error(self) -> None:
         with self.assertRaises(TypeError):
             recompile_numba_backend(floattype=np.float16)
-
 
 
 if __name__ == "__main__":

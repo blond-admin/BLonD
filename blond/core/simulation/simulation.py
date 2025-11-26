@@ -41,7 +41,7 @@ from blond.core.helpers import (
 )
 from blond.core.ring.helpers import get_elements, get_init_order
 from blond.cycles.magnetic_cycle import MagneticCycleBase
-from blond.generals._warnings import NotTestedWarning, PerformanceWarning
+from blond.generals.warnings_ import NotTestedWarning, PerformanceWarning
 from blond.physics.drifts import DriftBaseClass
 from blond.physics.profiles import ProfileBaseClass
 

@@ -204,7 +204,5 @@ class TestBeamBaseClass(unittest.TestCase):
         np.testing.assert_equal(np.sort(ids_before[mask]), np.sort(ids_after))
 
 
-
-
 if __name__ == "__main__":
     unittest.main()

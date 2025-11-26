@@ -749,7 +749,8 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
             harmonic=np.array([h], dtype=backend.float),
             voltage=np.array([V], dtype=backend.float),
             phi_rf=np.array([phi], dtype=backend.float),
-            n_harmonics=1, main_harmonic_idx=0
+            n_harmonics=1,
+            main_harmonic_idx=0,
         )
         self.magnetic_cycle = ConstantMagneticCycle(
             reference_particle=proton,
