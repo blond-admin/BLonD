@@ -661,11 +661,9 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
         super().__init__(each_turn_i=each_turn_i, folder=folder)
 
         if sort_profiles_by_section:
-            self._profiles = sorted(
-                profiles, key=lambda prof: prof.section_index
-            )
-        else:
-            self._profiles = profiles
+            profiles = sorted(profiles, key=lambda prof: prof.section_index)
+        self._profiles = profiles
+
         assert all(
             prof.n_bins == self._profiles[0].n_bins for prof in self._profiles
         ), "n_bins should be equal for all given profiles"
