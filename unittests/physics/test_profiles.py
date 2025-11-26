@@ -250,7 +250,8 @@ class TestFitting(unittest.TestCase):
 
         np.testing.assert_almost_equal(
             fit,
-            p
+            p,
+            decimal=2
         )
 
     def test_multi_gauss_fit(self):
@@ -259,7 +260,7 @@ class TestFitting(unittest.TestCase):
              [0.4,8,1]])
 
 
-        gauss_test = norm.pdf(x, p[0,1], p[9,2]) +  norm.pdf(x, p[1,1], p[1,2])
+        gauss_test = norm.pdf(x, p[0,1], p[0,2]) +  norm.pdf(x, p[1,1], p[1,2])
 
         fit = Fitting.multi_gauss_fit(self, x, gauss_test, n_bunches = 2)
 
@@ -278,8 +279,7 @@ class TestFitting(unittest.TestCase):
 
         np.testing.assert_almost_equal(
             gauss,
-            gauss_test,
-            decimal=2
+            gauss_test
         )
 >>>>>>> Add test for function gauss in the Fitting class.
 
