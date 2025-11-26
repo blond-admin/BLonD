@@ -254,7 +254,7 @@ class BiGaussian(MatchingRoutine):
         Parameters
         ----------
         simulation
-            Simulation context managera
+            Simulation context manager
         beam
             Simulation :class:`~blond.core.beam.beam.Beam` object
 
