@@ -189,10 +189,8 @@ class TestSimulation(unittest.TestCase):
         self.assertNotEqual(None, self.simulation.magnetic_cycle)
 
     def test_from_locals(self):
-        from blond.testing.mocks import (
-            cycle_const_mock,  # NOQA required for locals()
-        )
-        from blond.testing.mocks import (
+        from blond.testing.mocks import (  # NOQA required for locals()
+            cycle_const_mock,
             drift_simple_mock,
             single_harmonic_rf_station_mock,
             static_profile_mock,
@@ -236,12 +234,11 @@ class TestSimulation(unittest.TestCase):
         sim = SimulationTwoRfStations()
         ts = np.linspace(-2e-9, 2e-9, 100)
 
-
         potential_well, factor, tilt_dt_per_dE = (
             sim.simulation.get_potential_well_empiric(
                 dt=ts,
                 particle_type=proton,
-                subtract_min=False # for tescase and repeated execution
+                subtract_min=False,  # for tescase and repeated execution
             )
         )
 
@@ -560,6 +557,7 @@ class TestSimulation(unittest.TestCase):
 
     def test_finalize_warns(self) -> None:
         from blond import backend
+
         beam_mock.common_array_size = int(1e32)
         special_mode_org = backend.specials_mode
         backend.set_specials(mode="python")

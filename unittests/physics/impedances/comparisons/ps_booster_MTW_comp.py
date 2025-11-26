@@ -51,6 +51,7 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
+
 def simulate_BLonD3():
     E_0 = m_p * c**2 / e  # [eV]
     tot_beam_energy = E_0 + 1.4e9  # [eV]
@@ -86,7 +87,7 @@ def simulate_BLonD3():
             Resonators(
                 quality_factors=1e4,
                 shunt_impedances=1e5,
-                center_frequencies=1e6
+                center_frequencies=1e6,
             ),
         ),
         solver=Multi(
