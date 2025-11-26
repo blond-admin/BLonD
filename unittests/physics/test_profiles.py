@@ -1,11 +1,21 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 import unittest
 
 import numpy as np
+from scipy.stats import norm
 
 from blond import Beam, backend, uranium_29
 from blond.physics.profiles import (
     DynamicProfileConstCutoff,
     DynamicProfileConstNBins,
+    Fitting,
     ProfileBaseClass,
     StaticProfile,
 )
@@ -215,6 +225,23 @@ class TestDynamicProfileConstNBins(unittest.TestCase):
         np.testing.assert_almost_equal(
             np.zeros(10),
             self.dynamic_profile_const_cutoff.hist_y,
+        )
+
+class TestFitting(unittest.TestCase):
+
+    def test___init__(self):
+        pass
+
+    def test_gauss(self):
+        x = np.arange(-4,4,0.001)
+        p = [0.4,0,1]
+
+        gauss = Fitting.gauss(x,p[0],p[1], p[2])
+        gauss_test = norm.pdf(x, p[1], p[2])
+
+        np.testing.assert_almost_equal(
+            gauss,
+            gauss_test
         )
 
 if __name__ == "__main__":
