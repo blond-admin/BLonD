@@ -871,16 +871,18 @@ class MultiHarmonicRfStation(RfStationBaseClass):
 
     def get_main_harmonic_omega_rf_current(self) -> float:
         """Returns the omega_rf of the main harmonic, in [rad/s]."""
-        return self._omega_rf[self.main_harmonic_idx]
+        return float(self._omega_rf[self.main_harmonic_idx])
 
     def calc_main_harmonic_omega_rf(
         self, beam_beta: float, ring_circumference: float
     ) -> float:
         """Returns the omega_rf of the main harmonic, in [rad/s]."""
-        return self.calc_omega(
-            beam_beta=beam_beta,
-            ring_circumference=ring_circumference,
-        )[self.main_harmonic_idx]
+        return float(
+            self.calc_omega(
+                beam_beta=beam_beta,
+                ring_circumference=ring_circumference,
+            )[self.main_harmonic_idx]
+        )
 
     def get_main_harmonic_t_rf_current(
         self,
@@ -953,10 +955,17 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             Synchrotron circumference in [m]
         total_energy
             Target total energy in [eV]
+        main_harmonic_idx
+            Index of the cavity's main harmonic
+            Used to calculate attributes that rely on only one harmonic.
+        reference_beta
+            Beam reference fraction of speed of light (v/c0) [].
         local_wakefield
             Optional wakefield to interact with beam
         cavity_feedback
             Optional cavity feedback to change cavity parameters
+        beam_feedback
+            Optional beam feedback to change cavity parameters
 
         Returns
         -------
@@ -1027,7 +1036,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         backend.specials.kick_multi_harmonic(
             dt=beam.read_partial_dt(),
             dE=beam.write_partial_dE(),
-            voltage=(self.voltage).astype(backend.float),
+            voltage=self.voltage.astype(backend.float),
             phi_rf=(self.phi_rf + self.delta_phi_rf).astype(backend.float),
             omega_rf=(self._omega_rf + self.delta_omega_rf).astype(
                 backend.float

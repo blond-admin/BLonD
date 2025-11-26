@@ -44,7 +44,8 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
     _ring:
          Reference to the ring being simulated.
 
-    Example:
+    Example
+    -------
         >>> elem = ReferenceEnergyChange(section_index=1, name="energy_reference_kick")
         >>> # Add to element map before simulation
     """
