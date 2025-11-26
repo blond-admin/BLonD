@@ -1393,13 +1393,14 @@ class Simulation(Preparable):
             that is called each turn.
 
         """
-        warn("Untested code", NotTestedWarning, stacklevel=1)
+        warn("Untested code", NotTestedWarning, stacklevel=2)
 
         if callback is not None:
             warn(
-                "callbacks are currently not supported for CR simulations",
+                "Callbacks are currently not supported for simulations"
+                " with counter-rotating beams.",
                 UserWarning,
-                stacklevel=1,
+                stacklevel=2,
             )
 
         logger.info("Starting simulation mainloop...")
