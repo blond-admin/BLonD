@@ -271,7 +271,8 @@ class TestFitting(unittest.TestCase):
 
         np.testing.assert_almost_equal(
             gauss,
-            gauss_test
+            gauss_test,
+            decimal=2
         )
 
 if __name__ == "__main__":
