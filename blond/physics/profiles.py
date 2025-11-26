@@ -592,7 +592,7 @@ class Fitting(ProfileBaseClass):
         params
             Amplitude, mean and standard deviation for each bunch
         """
-        return Fitting.multi_gauss_fit(self, hist_x, hist_y, n_bunches=1)
+        return Fitting.multi_gauss_fit(self, hist_x, hist_y, n_bunches=1)[0]
 
     def multi_gauss_fit(
         self, hist_x: NumpyArray, hist_y: NumpyArray, n_bunches: int
@@ -629,7 +629,7 @@ class Fitting(ProfileBaseClass):
             p = [
                 bucket_hist_y.max(),
                 bucket_hist_x[np.argmax(bucket_hist_y)],
-                bucket_hist_x[int(3 * bucket_length / 4)]
+                bucket_hist_x[int(2 * bucket_length / 4)]
                 - bucket_hist_x[int(bucket_length / 4)],
             ]
 
@@ -637,7 +637,7 @@ class Fitting(ProfileBaseClass):
                 Fitting.gauss, bucket_hist_x, bucket_hist_y, p
             )[0]
 
-        return params[0]
+        return params
 
     def gauss(x: NumpyArray, *p) -> NumpyArray:
         r"""Returns a gaussian function.
