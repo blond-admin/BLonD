@@ -163,7 +163,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     if flags:
         cflags += flags.split()
 
-    fftw_cflags, fftw_libs = prepare_fftw(
+    fftw_cflags, fftw_libs = _prepare_fftw(
         with_fftw=with_fftw,
         with_fftw_header=with_fftw_header,
         with_fftw_lib=with_fftw_lib,
@@ -171,7 +171,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
         with_fftw_threads=with_fftw_threads,
     )
 
-    cflags, libname_double, libname_single = prepare_cflags(
+    cflags, libname_double, libname_single = _prepare_cflags(
         cflags=cflags,
         compiler=compiler,
         libname=libname,
@@ -261,7 +261,7 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
             print(exception)
 
 
-def prepare_cflags(
+def _prepare_cflags(
     cflags: list[str],
     compiler: str,
     libname: str,
@@ -273,7 +273,7 @@ def prepare_cflags(
         if optimize:
             if "-ffast-math" not in cflags:
                 cflags += ["-ffast-math"]
-            cflags = add_avx_flags(
+            cflags = _add_avx_flags(
                 cflags=cflags,
                 compiler=compiler,
             )
@@ -301,7 +301,7 @@ def prepare_cflags(
     return cflags, str(libname_double), str(libname_single)
 
 
-def prepare_fftw(
+def _prepare_fftw(
     with_fftw: bool,
     with_fftw_header: str | None = None,
     with_fftw_lib: str | None = None,
@@ -330,7 +330,7 @@ def prepare_fftw(
     return fftw_cflags, fftw_libs
 
 
-def add_avx_flags(cflags: list[str], compiler: str) -> list[str]:
+def _add_avx_flags(cflags: list[str], compiler: str) -> list[str]:
     """TODO."""  # TODO undocumented port from BLOND2
     # Check compiler defined directives
     # This is compatible with python3.6 - python 3.9
