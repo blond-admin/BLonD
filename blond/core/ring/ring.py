@@ -92,12 +92,13 @@ class Ring(Preparable, Schedulable):
                 stacklevel=1,
             )
 
-        if not np.any(
-            np.diff([e.section_index for e in self.elements.elements]) >= 0
+        if np.any(
+            np.diff([e.section_index for e in self.elements.elements]) < 0
         ):
             warnings.warn(
                 "Section indices must be ascending, but section order:"
                 f" {[e.section_index for e in self.elements.elements]=}",
+                UserWarning,
                 stacklevel=1,
             )
 
