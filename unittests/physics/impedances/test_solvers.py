@@ -3069,7 +3069,6 @@ class TestHeadlessSolvers(unittest.TestCase):
 
 
 class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
-
     def test_calc_induced_voltage_assert_profile_length_correct(self):
         t_rf = 7.706144104735e-10
         Q_factor = 1.76e6
@@ -3095,9 +3094,39 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
             profile=prof,
             beam=beam_mock,
         )
-        wf_mutli.solver._simulation.magnetic_cycle.get_t_rev_init\
-            .return_value = 1e12
+        wf_mutli.solver._simulation.magnetic_cycle.get_t_rev_init.return_value = 1e12
         with self.assertRaises(AssertionError):
+            wf_mutli.solver._assert_profile_length_correct()
+
+    def test_calc_induced_voltage_assert_warns_profile(self):
+        t_rf = 7.706144104735e-10
+        Q_factor = 1.76e6
+        from blond.testing.mocks import beam_mock, static_profile_mock
+
+        prof = DynamicProfileConstNBins(n_bins=128)
+        prof.cut_left = -1e-9
+        prof.cut_right = 1e-9
+
+        prof.hist_y_to_density_factor = 0.3
+        prof._hist_y = np.array(np.exp(-((np.arange(128) - 64) ** 2) / 1e2))
+
+        beam_mock.particle_type = uranium_29
+        beam_mock.intensity = 1e-13
+
+        wf_mutli = WakeField.headless(
+            sources=(
+                Resonators(
+                    shunt_impedances=np.array([518 * Q_factor]),
+                    center_frequencies=np.array([1 / t_rf]),
+                    quality_factors=np.array([Q_factor]),
+                ),
+            ),
+            solver=ContinuousMultiTurnTimeDomainSolver(n_turns=10),
+            profile=prof,
+            beam=beam_mock,
+        )
+        wf_mutli.solver._simulation.magnetic_cycle.get_t_rev_init.return_value = 1e12
+        with self.assertWarnsRegex(UserWarning, "Expected StaticProfile"):
             wf_mutli.solver._assert_profile_length_correct()
 
     def test_calc_induced_voltage_single_turn(self):
@@ -3173,7 +3202,6 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
             ),
         )
 
-
         from blond.testing.mocks import beam_mock, static_profile_mock
 
         prof_single = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
@@ -3208,7 +3236,8 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
             beam=beam_mock,
         )
         wf_mutli.solver._simulation.magnetic_cycle.get_t_rev_init.return_value = (
-            prof_single.cut_right - prof_single.cut_left)
+            prof_single.cut_right - prof_single.cut_left
+        )
         offset = 1.8e-17
         wf_single.calc_induced_voltage(beam=beam_mock)
 
@@ -3219,7 +3248,9 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
         DEV_DEBUG = False
         if DEV_DEBUG:
             plt.figure()
-            plt.plot(np.fft.irfft(wf_single.solver._wake_imp_y), label="wf_single")
+            plt.plot(
+                np.fft.irfft(wf_single.solver._wake_imp_y), label="wf_single"
+            )
             plt.plot(wf_mutli.solver._wake_kernel, label="wf_mutli")
             plt.figure()
             plt.subplot(3, 1, 1)
@@ -3232,7 +3263,9 @@ class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
                 wf_single._induced_voltage[-128:], "--", label="wf_single"
             )
             plt.subplot(3, 1, 3)
-            plt.plot(wf_mutli.induced_voltage - wf_single.induced_voltage[-128:])
+            plt.plot(
+                wf_mutli.induced_voltage - wf_single.induced_voltage[-128:]
+            )
             plt.legend()
             plt.show()
         np.testing.assert_allclose(
