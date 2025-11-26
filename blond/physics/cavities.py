@@ -76,7 +76,7 @@ class RfManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(simulation=simulation)
 
@@ -174,7 +174,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(simulation=simulation)
         self._magnetic_cycle = simulation.magnetic_cycle
@@ -191,7 +191,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns
@@ -517,7 +517,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(simulation=simulation)
         if (self.voltage is None) and "voltage" not in self.schedules:
@@ -701,7 +701,16 @@ class SingleHarmonicRfStation(RfStationBaseClass):
 
 
 class MultiHarmonicRfStation(RfStationBaseClass):
-    """Cavity with several RF wave for beam interaction.
+    r"""Cavity with several RF wave for beam interaction.
+
+    Equation
+    --------
+    .. math::
+        dE = \sum_{j} \left( \text{charge} \cdot \text{voltage}[j] \cdot \sin\left(\omega_{\text{rf}}[j] \cdot dt + \phi_{\text{rf}}[j]\right) \right) + \text{acceleration\_kick}
+
+    where
+    `acceleration_kick` is the change of reference energy.
+
 
     Parameters
     ----------
@@ -710,6 +719,12 @@ class MultiHarmonicRfStation(RfStationBaseClass):
     main_harmonic_idx
         Index of the cavity's main harmonic
         Used to calculate attributes that rely on only one harmonic
+    voltage
+        Cavity's effective voltages (per harmonic) in [V]
+    phi_rf
+        Cavity's design phases (per harmonic) in [rad]
+    harmonic
+        Cavity's design harmonics (per harmonic) []
     section_index
         Section index to group elements into sections
     local_wakefield
@@ -785,7 +800,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(simulation=simulation)
         if (self.voltage is None) and "voltage" not in self.schedules:

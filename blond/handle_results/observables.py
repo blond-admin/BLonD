@@ -161,7 +161,7 @@ class ObservablesEndOfTurnBase(ObservablesBaseClass):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         pass
 
@@ -170,7 +170,7 @@ class ObservablesEndOfTurnBase(ObservablesBaseClass):
         Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         pass
 
@@ -187,7 +187,7 @@ class ObservablesEndOfTurnBase(ObservablesBaseClass):
         Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns
@@ -281,7 +281,7 @@ class BeamObservationEndOfTurn(ObservablesEndOfTurnBase):
         """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation :class:`~blond._cycles_core.beam.beam.Beam` object
         n_turns
@@ -331,7 +331,7 @@ class BeamObservationEndOfTurn(ObservablesEndOfTurnBase):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
 
         """
         # TODO allow several bunches
@@ -416,7 +416,7 @@ class BunchObservationMetaParams(ObservablesEndOfTurnBase):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation beam object
         n_turns
@@ -465,7 +465,7 @@ class BunchObservationMetaParams(ObservablesEndOfTurnBase):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
 
         """
         if (
@@ -557,7 +557,7 @@ class CavityPhaseObservation(ObservablesEndOfTurnBase):
         """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns
@@ -595,7 +595,7 @@ class CavityPhaseObservation(ObservablesEndOfTurnBase):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
 
         """
         self._phases.write(
@@ -673,7 +673,7 @@ class StaticProfileObservation(ObservablesEndOfTurnBase):
         """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns
@@ -704,7 +704,7 @@ class StaticProfileObservation(ObservablesEndOfTurnBase):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
 
         """
         if simulation.section_i.value in self._section_indices_to_observe:
@@ -773,7 +773,7 @@ class StaticMultiProfileObservation(ObservablesEndOfTurnBase):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation beam object
         n_turns
@@ -806,7 +806,7 @@ class StaticMultiProfileObservation(ObservablesEndOfTurnBase):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         if (
             self._last_turn_i_observed == simulation.turn_i.value
@@ -868,7 +868,7 @@ class WakeFieldObservation(ObservablesEndOfTurnBase):
         Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns
@@ -899,7 +899,7 @@ class WakeFieldObservation(ObservablesEndOfTurnBase):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
 
         """
         if simulation.section_i.value in self._section_indices_to_observe:
@@ -961,7 +961,7 @@ class DynamicProfileConstNBinsObservation(ObservablesEndOfTurnBase):
         """Lateinit method when :func:`blond.core.simulation.simulation.Simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation beam object
         n_turns
@@ -995,7 +995,7 @@ class DynamicProfileConstNBinsObservation(ObservablesEndOfTurnBase):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         self._hist_y.write(self._profile.hist_y)
         self._hist_x.write(self._profile.hist_x)

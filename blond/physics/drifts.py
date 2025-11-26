@@ -112,7 +112,7 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(simulation=simulation)
 
@@ -127,7 +127,7 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns
@@ -284,7 +284,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(simulation=simulation)
         self._simulation = simulation

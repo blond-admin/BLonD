@@ -94,7 +94,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns
@@ -227,7 +227,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         pass  # this gets never called
 

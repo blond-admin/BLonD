@@ -72,7 +72,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         pass
 
@@ -88,7 +88,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns
@@ -447,7 +447,7 @@ class DynamicProfile(ProfileBaseClass):
         """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns

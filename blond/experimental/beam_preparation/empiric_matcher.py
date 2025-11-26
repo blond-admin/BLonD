@@ -256,7 +256,7 @@ class EmpiricMatcher(MatchingRoutine):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Beam class to interact with this element
 

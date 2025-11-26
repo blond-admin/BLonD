@@ -69,7 +69,7 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(simulation=simulation)
         self._turn_i = simulation.turn_i
@@ -91,7 +91,7 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
         """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation beam object
         n_turns
