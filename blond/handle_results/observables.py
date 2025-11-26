@@ -6,10 +6,18 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
+"""Module holding all observables for the simulation.
+
+Author
+------
+Simon Lauber
+Leonard Thiele
+Elleanor Lamb
+"""
+
 from __future__ import annotations
 
 import logging
-import warnings
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
@@ -32,6 +40,15 @@ logger = logging.getLogger(__name__)
 
 
 class ObservablesBaseClass(MainLoopRelevant):
+    """Base class to define observations.
+
+    Parameters
+    ----------
+    folder
+        Target folder to save the data at.
+        Use `rename` to change the ddestination.
+    """
+
     def __init__(self, folder: str | None = None, **kwargs):
         super().__init__(**kwargs)
         if len(folder) > 0:
@@ -40,6 +57,13 @@ class ObservablesBaseClass(MainLoopRelevant):
         logger.info(f"Will save {self} to {self.common_filepath}_,,,")
 
     def get_recorders(self) -> list[tuple[str, DenseArrayRecorder]]:
+        """Get all `DenseArrayRecorder` inside the current instance.
+
+        Returns
+        -------
+        recorders
+            List of ((attribute name, attribute), ...)
+        """
         self.assert_lateinit()
         recorders = [
             (attribute, instance)
@@ -106,7 +130,7 @@ class ObservablesBaseClass(MainLoopRelevant):
                 assert value is not None, f"`{parameter}` was not initialized."
 
 
-class ObservablesEndOfTurnBase(ObservablesBaseClass):
+class ObservablesOncePerTurnBase(ObservablesBaseClass):
     """Base class to observe attributes during simulation.
 
     Parameters
@@ -114,9 +138,6 @@ class ObservablesEndOfTurnBase(ObservablesBaseClass):
     each_turn_i
         Value to control that the element is
         callable each n-th turn.
-    obs_per_turn
-        Number of observations per turn. Default is 1,
-        cannot be higher than number of cavities in turn map
     folder
         Path to the target folder used for
         saving or loading files.
@@ -126,16 +147,13 @@ class ObservablesEndOfTurnBase(ObservablesBaseClass):
     def __init__(
         self,
         each_turn_i: int,
-        obs_per_turn: int = 1,
         folder: str = "",
         **kwargs,
     ):
         super().__init__(folder=folder, **kwargs)
         self.each_turn_i = each_turn_i
-        self._obs_per_turn = obs_per_turn
 
         self._n_turns: int | None = None
-        self._section_indices_to_observe: NumpyArray | None = None
         self._turn_i_init: int | None = None
         self._turns_array: NumpyArray | None = None
 
@@ -146,8 +164,10 @@ class ObservablesEndOfTurnBase(ObservablesBaseClass):
 
     @property  # as readonly attributes
     def turns_array(self) -> NumpyArray | None:
-        """Helper method to get x-axis array with turn-number and decimal places in case
-        observations are performed more than once per turn.
+        """Helper method to get x-axis array with turn-number of shape ``(n_observations, )``.
+
+        Helper method to get x-axis array with turn-number for which the
+        observations are performed.
         """
         return self._turns_array
 
@@ -180,7 +200,6 @@ class ObservablesEndOfTurnBase(ObservablesBaseClass):
         beam: BeamBaseClass,  # this is not used in this context
         n_turns: int,
         turn_i_init: int,
-        obs_per_turn: int = 1,
         **kwargs: dict[str, Any],
     ) -> None:
         """
@@ -194,52 +213,20 @@ class ObservablesEndOfTurnBase(ObservablesBaseClass):
             Number of turns to simulate
         turn_i_init
             Initial turn to execute simulation
-        obs_per_turn
-            Number of observations per turn. Default is 1
         """
         self._n_turns = int(n_turns)
         self._turn_i_init = int(turn_i_init)
-        if obs_per_turn >= 0:
-            self._obs_per_turn = obs_per_turn
-        else:
-            self._obs_per_turn = 1
-            warnings.warn(
-                f"obs_per_turn must be greater than 0, got {obs_per_turn}, value was set to 1.",
-                UserWarning,
-            )
-        if obs_per_turn > simulation.ring.n_cavities:
-            self._obs_per_turn = simulation.ring.n_cavities
-            warnings.warn(
-                f"obs_per_turn must be smaller than n_cavities ({simulation.ring.n_cavities}), "
-                f"got {obs_per_turn}, value was set to {simulation.ring.n_cavities}.",
-                UserWarning,
-            )
 
-        self._section_indices_to_observe = np.arange(
-            0,
-            simulation.ring.n_cavities,
-            step=np.ceil(simulation.ring.n_cavities / self._obs_per_turn),
-            dtype=int,
+        self._turns_array = np.linspace(
+            0, n_turns, num=n_turns // self.each_turn_i + 1, dtype=int
         )
-        # To get the decimal point for the turns array, the distances of the individual sections in the ring
-        # need to be taken into account
-        section_lengths = (
-            np.array(
-                [
-                    np.sum(simulation.ring.section_lengths[0:ind])
-                    for ind in self._section_indices_to_observe
-                ]
-            )
-            / simulation.ring.circumference
-        )
-        self._turns_array = np.zeros((n_turns, len(section_lengths)))
-        for turn in range(turn_i_init, turn_i_init + n_turns):
-            self._turns_array[turn - turn_i_init] = turn + section_lengths
-        self._turns_array = self._turns_array.flatten()
+        self._turns_array = np.append(
+            np.array([0]), self._turns_array
+        )  # prepend 0 for pre-running
 
 
-class BeamObservationEndOfTurn(ObservablesEndOfTurnBase):
-    """Observe the bunch coordinates during simulation execution.
+class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
+    """Observe the bunch coordinates during simulation execution after a drift element.
 
     Parameters
     ----------
@@ -251,6 +238,25 @@ class BeamObservationEndOfTurn(ObservablesEndOfTurnBase):
     folder
         Path to the target folder used for
         saving or loading files.
+
+    Examples
+    --------
+    >>> bunch_observation = BeamObservationOncePerTurn(each_turn_i=2, beam=...)
+    >>>
+    >>> sim.run_simulation(
+    ...     beams=...,
+    ...     observe=(bunch_observation,),
+    ... )
+    >>> before = 0  # before simulation
+    >>> turn_2 = 1  # after 2 turns, because `each_turn_i = 2`
+    >>> for index in (before, turn_2)
+    ...     plt.hist2d(
+    ...         bunch_observation.dts[index, :],
+    ...         bunch_observation.dEs[index, :],
+    ...         bins=256,
+    ...         range=[[0, 2.5e-9], [-4e8, 4e8]],
+    ...     )
+
     """
 
     def __init__(
@@ -292,10 +298,11 @@ class BeamObservationEndOfTurn(ObservablesEndOfTurnBase):
         """
         super().on_run_simulation(
             simulation=simulation,
+            beam=beam,
             n_turns=n_turns,
             turn_i_init=turn_i_init,
-            beam=self._beam,
         )
+
         n_entries = n_turns // self.each_turn_i + 2
         n_macroparticles = int(beam.common_array_size)
         shape = (n_entries, n_macroparticles)
@@ -343,183 +350,31 @@ class BeamObservationEndOfTurn(ObservablesEndOfTurnBase):
 
     @property  # as readonly attributes
     def reference_time(self):
-        """Returns reference time."""
+        """Returns reference time of shape ``(n_observations, n_bins)``."""
         return self._reference_time.get_valid_entries()
 
     @property  # as readonly attributes
     def reference_total_energy(self):
-        """Returns total energy."""
+        """Returns total energy of shape ``(n_observations, n_bins)``."""
         return self._reference_total_energy.get_valid_entries()
 
     @property  # as readonly attributes
     def dts(self):
-        """Returns array of dts."""
+        """Returns array of dts of shape ``(n_observations, n_macroparticles)``."""
         return self._dts.get_valid_entries()
 
     @property  # as readonly attributes
     def dEs(self):
-        """Returns array of dEs."""
+        """Returns array of dEs of shape ``(n_observations, n_macroparticles)``."""
         return self._dEs.get_valid_entries()
 
     @property  # as readonly attributes
     def flags(self):
-        """Returns flags of particles, eg if lost or not."""
+        """Returns flags of particles, eg if lost or not of shape ``(n_observations, n_macroparticles)``."""
         return self._flags.get_valid_entries()
 
 
-class BunchObservationMetaParams(ObservablesEndOfTurnBase):
-    """Records mean and standard deviation of both energy and time coordinates and estimates the bunch emittance.
-
-    Parameters
-    ----------
-    each_turn_i
-        Value to control that the element is
-        callable each n-th turn.
-    obs_per_turn
-        Number of observations per turn. Default is 1,
-        cannot be more than number of cavities in turn map
-    beam
-        Simulation beam object
-    folder
-        Path to the target folder used for
-        saving or loading files.
-    """
-
-    def __init__(
-        self,
-        each_turn_i: int,
-        beam: BeamBaseClass,
-        folder: str = "",
-        obs_per_turn: int = 1,
-    ):
-        super().__init__(
-            each_turn_i=each_turn_i, obs_per_turn=obs_per_turn, folder=folder
-        )
-        self._beam = beam
-
-        self._sigma_dt: DenseArrayRecorder | None = None
-        self._sigma_dE: DenseArrayRecorder | None = None
-        self._mean_dt: DenseArrayRecorder | None = None
-        self._mean_dE: DenseArrayRecorder | None = None
-        self._emittance_stat: DenseArrayRecorder | None = None
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        turn_i_init: int,
-        **kwargs,
-    ) -> None:
-        """Lateinit method when :func:`blond.core.simulation.simulation.Simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            Simulation context manager
-        beam
-            Simulation beam object
-        n_turns
-            Number of turns to simulate
-        turn_i_init
-            Initial turn to execute simulation
-        """
-        super().on_run_simulation(
-            simulation=simulation,
-            beam=beam,
-            n_turns=n_turns,
-            turn_i_init=turn_i_init,
-            obs_per_turn=self._obs_per_turn,
-        )
-
-        n_entries = int(n_turns * self._obs_per_turn + 1)
-        shape = n_entries
-
-        self._mean_dt = DenseArrayRecorder(
-            f"{self.common_filepath}_mean_dt",
-            shape,
-        )
-        self._mean_dE = DenseArrayRecorder(
-            f"{self.common_filepath}_mean_dE",
-            shape,
-        )
-        self._sigma_dt = DenseArrayRecorder(
-            f"{self.common_filepath}_sigma_dt",
-            shape,
-        )
-        self._sigma_dE = DenseArrayRecorder(
-            f"{self.common_filepath}_sigma_dE",
-            shape,
-        )
-        self._emittance_stat = DenseArrayRecorder(
-            f"{self.common_filepath}_emittance_stat",
-            shape,
-        )
-
-    def update(
-        self,
-        simulation: Simulation,
-    ) -> None:
-        """Update memory with new values.
-
-        Parameters
-        ----------
-        simulation
-            Simulation context manager
-
-        """
-        if (
-            self._last_section_i_observed == simulation.section_i.value
-            and self._last_turn_i_observed == simulation.turn_i.value
-        ):
-            return
-        self._last_turn_i_observed = simulation.turn_i.value
-        self._last_section_i_observed = simulation.section_i.value
-        if simulation.section_i.value in self._section_indices_to_observe:
-            self._sigma_dt.write(np.std(self._beam._dt))
-            self._sigma_dE.write(np.std(self._beam._dE))
-            self._mean_dt.write(np.mean(self._beam._dt))
-            self._mean_dE.write(np.mean(self._beam._dE))
-            self._emittance_stat.write(
-                np.sqrt(
-                    np.average(self._beam._dE**2)
-                    * np.average(self._beam._dt**2)
-                    - np.average(self._beam._dE * self._beam._dt) ** 2
-                )
-            )
-
-    @property  # as readonly attributes
-    def sigma_dt(self):
-        """Standard deviation of the time coordinate."""
-        return self._sigma_dt.get_valid_entries()
-
-    @property  # as readonly attributes
-    def sigma_dE(self):
-        """Standard deviation of the energy coordinate, in [eV]."""
-        return self._sigma_dE.get_valid_entries()
-
-    @property  # as readonly attributes
-    def mean_dt(self):
-        """Mean of the time coordinate."""
-        return self._mean_dt.get_valid_entries()
-
-    @property  # as readonly attributes
-    def mean_dE(self):
-        """Mean of the time coordinate."""
-        return self._mean_dE.get_valid_entries()
-
-    @property  # as readonly attributes
-    def emittance_stat(self):
-        r"""Statistical emittance calculated with
-
-        .. math::
-            \epsilon = \sqrt{\langle \Delta t^2 \\rangle \langle \Delta E^2 \\rangle - \langle \Delta t \Delta E \\rangle^2}
-
-        """
-        return self._emittance_stat.get_valid_entries()
-
-
-class CavityPhaseObservation(ObservablesEndOfTurnBase):
+class CavityPhaseObservation(ObservablesOncePerTurnBase):
     """Observe the RF cavity parameters during the execution of the simulation.
 
     Parameters
@@ -532,6 +387,24 @@ class CavityPhaseObservation(ObservablesEndOfTurnBase):
     folder
         Path to the target folder used for
         saving or loading files.
+
+    Examples
+    --------
+    >>> rf_station_observation = CavityPhaseObservation(each_turn_i=2, cavity=...)
+    >>> sim.run_simulation(
+    ...     beams=...,
+    ...     observe=(rf_station_observation,),
+    ... )
+    >>> before = 0  # before simulation
+    >>> turn_2 = 1  # after 2 turns, because `each_turn_i = 2`
+    >>> plt.scatter(
+    ...     rf_station_observation.turns_array[[before, turn_2]],
+    ...     rf_station_observation.phases[[before, turn_2]],
+    ... )
+    >>> plt.plot(
+    ...     rf_station_observation.turns_array[:], rf_station_observation.phases[:]
+    ... )
+
     """
 
     def __init__(
@@ -567,23 +440,26 @@ class CavityPhaseObservation(ObservablesEndOfTurnBase):
         """
         super().on_run_simulation(
             simulation=simulation,
+            beam=beam,
             n_turns=n_turns,
             turn_i_init=turn_i_init,
-            beam=beam,
         )
+
         n_entries = n_turns // self.each_turn_i + 2
         n_harmonics = int(self._cavity.n_rf)
+        shape = (n_entries, n_harmonics)
+
         self._phases = DenseArrayRecorder(
             f"{self.common_filepath}_phases",
-            (n_entries, n_harmonics),
+            shape,
         )
         self._omegas = DenseArrayRecorder(
             f"{self.common_filepath}_omegas",
-            (n_entries, n_harmonics),
+            shape,
         )
         self._voltages = DenseArrayRecorder(
             f"{self.common_filepath}_voltages",
-            (n_entries, n_harmonics),
+            shape,
         )
 
     def update(
@@ -615,21 +491,21 @@ class CavityPhaseObservation(ObservablesEndOfTurnBase):
 
     @property  # as readonly attributes
     def phases(self) -> NumpyArray:
-        """Cavity's effective phase, in [rad]."""
+        """Cavity's effective phase of shape ``(n_observations, )``, in [rad] ."""
         return self._phases.get_valid_entries()
 
     @property  # as readonly attributes
     def omegas(self) -> NumpyArray:
-        """Cavity's angular frequency, in [Hz]."""
+        """Cavity's angular frequency of shape ``(n_observations, )``, in [Hz]."""
         return self._omegas.get_valid_entries()
 
     @property  # as readonly attributes
     def voltages(self) -> NumpyArray:
-        """Cavity's effective voltage, in [V]."""
+        """Cavity's effective voltage of shape ``(n_observations, )``, in [V]."""
         return self._voltages.get_valid_entries()
 
 
-class StaticProfileObservation(ObservablesEndOfTurnBase):
+class StaticProfileObservation(ObservablesOncePerTurnBase):
     """Observation of a static beam profile.
 
     Parameters
@@ -640,23 +516,35 @@ class StaticProfileObservation(ObservablesEndOfTurnBase):
     profile
         Class for the calculation of beam profile
         that doesn't change its parameters
-    obs_per_turn
-        Number of observations per turn, default is 1
     folder
         Path to the target folder used for
         saving or loading files.
+
+    Examples
+    --------
+    >>> profile_obs = StaticProfileObservation(each_turn_i=2, profile=...)
+    >>> sim.run_simulation(
+    ...     beams=...,
+    ...     observe=(profile_obs,),
+    ... )
+    >>> before = 0  # before simulation
+    >>> turn_2 = 1  # after 2 turns, because `each_turn_i = 2`
+    >>> for index in (before, turn_2):
+    ...     plt.plot(
+    ...         profile_obs.hist_x, profile_obs.hist_y[index, :]
+    ...     )
+
+
     """
 
     def __init__(
         self,
         each_turn_i: int,
         profile: StaticProfile,
-        obs_per_turn: int = 1,
         folder: str = "",
     ):
         super().__init__(
             each_turn_i=each_turn_i,
-            obs_per_turn=obs_per_turn,
             folder=folder,
         )
         self._profile = profile
@@ -685,10 +573,9 @@ class StaticProfileObservation(ObservablesEndOfTurnBase):
             simulation=simulation,
             n_turns=n_turns,
             turn_i_init=turn_i_init,
-            obs_per_turn=self._obs_per_turn,
             beam=beam,
         )
-        n_entries = len(self._turns_array)
+        n_entries = n_turns // self.each_turn_i + 2
         n_bins = int(self._profile.n_bins)
         self._hist_y = DenseArrayRecorder(
             f"{self.common_filepath}_hist_y",
@@ -707,54 +594,76 @@ class StaticProfileObservation(ObservablesEndOfTurnBase):
             Simulation context manager
 
         """
-        if simulation.section_i.value in self._section_indices_to_observe:
-            if (
-                self._last_turn_i_observed == simulation.turn_i.value
-                and self._last_section_i_observed == simulation.section_i.value
-            ):
-                return
-            self._last_turn_i_observed = simulation.turn_i.value
-            self._last_section_i_observed = simulation.section_i.value
-            self._hist_y.write(
-                self._profile.hist_y,
-            )
+        if (
+            self._last_turn_i_observed == simulation.turn_i.value
+            and self._last_section_i_observed == simulation.section_i.value
+        ):
+            return
+        self._last_turn_i_observed = simulation.turn_i.value
+        self._last_section_i_observed = simulation.section_i.value
+        self._hist_y.write(
+            self._profile.hist_y,
+        )
         # else return without recording
 
     @property  # as readonly attributes
+    def hist_x(self) -> NumpyArray:
+        """Histogram x axis, always the same."""
+        return self._profile.hist_x
+
+    @property  # as readonly attributes
     def hist_y(self) -> NumpyArray:
-        """Histogram amplitude."""
+        """Histogram amplitude for each observed turn."""
         return self._hist_y.get_valid_entries()
 
 
-class StaticMultiProfileObservation(ObservablesEndOfTurnBase):
+class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
+    """Observation of multiple profiles in one observation object. The profiles need to have the same n_bins.
+
+    Parameters
+    ----------
+    each_turn_i
+        Value to control that the element is
+        callable each n-th turn.
+    profiles
+        List of class for the calculation of beam profile
+        that doesn't change its parameters
+    folder
+        Path to the target folder used for
+        saving or loading files.
+
+    Examples
+    --------
+    >>> profile_obs = StaticMultiProfileObservation(each_turn_i=2, profiles=...)
+    >>> sim.run_simulation(
+    ...     beams=...,
+    ...     observe=(profile_obs,),
+    ... )
+    >>> # This example assumes that two profiles are in `profile_obs`
+    >>> before_profile0 = 0  # before simulation
+    >>> before_profile1 = 1  # before simulation
+    >>> turn_2_profile0 = 2  # after 2 turns, because `each_turn_i = 2`
+    >>> turn_2_profile1 = 3  # after 2 turns, because `each_turn_i = 2`
+    >>> for index in (before_profile0, before_profile1, turn_2_profile0, turn_2_profile1):
+    ...     plt.plot(
+    ...         profile_obs.hist_x[index % 2], profile_obs.hist_y[index, :]
+    ...     )
+
+    """
+
     def __init__(
         self,
         each_turn_i: int,
         profiles: list[StaticProfile],
         folder: str = "",
-        obs_per_turn: int = 1,
+        sort_profiles_by_section=True,
     ):
-        """Observation of multiple profiles in one observation object. The profiles need to have the same n_bins.
+        super().__init__(each_turn_i=each_turn_i, folder=folder)
 
-        Parameters
-        ----------
-        each_turn_i
-            Value to control that the element is
-            callable each n-th turn.
-        profiles
-            List of class for the calculation of beam profile
-            that doesn't change its parameters
-        obs_per_turn
-            Number of observations per turn, default is 1
-        folder
-            Path to the target folder used for
-            saving or loading files.
-        """
-        super().__init__(
-            each_turn_i=each_turn_i, obs_per_turn=obs_per_turn, folder=folder
-        )
-
+        if sort_profiles_by_section:
+            profiles = sorted(profiles, key=lambda prof: prof.section_index)
         self._profiles = profiles
+
         assert all(
             prof.n_bins == self._profiles[0].n_bins for prof in self._profiles
         ), "n_bins should be equal for all given profiles"
@@ -765,7 +674,6 @@ class StaticMultiProfileObservation(ObservablesEndOfTurnBase):
         beam: BeamBaseClass,  # this is not used in this context
         n_turns: int,
         turn_i_init: int,
-        obs_per_turn: int = 1,
         **kwargs,
     ) -> None:
         """Lateinit method when `simulation.run_simulation` is called.
@@ -780,17 +688,17 @@ class StaticMultiProfileObservation(ObservablesEndOfTurnBase):
             Number of turns to simulate
         turn_i_init
             Initial turn to execute simulation
-        obs_per_turn
-            Number of observations per turn, default is 1
         """
         super().on_run_simulation(
             simulation=simulation,
             beam=beam,
             n_turns=n_turns,
             turn_i_init=turn_i_init,
-            obs_per_turn=obs_per_turn,
         )
-        n_entries = len(self._turns_array) * len(self._profiles)
+        n_entries = int(
+            (len(self._turns_array) * len(self._profiles)) // self.each_turn_i
+            + 2 * len(self._profiles)
+        )
         n_bins = self._profiles[0].n_bins
         self._hist_y = DenseArrayRecorder(
             f"{self.common_filepath}_hist_y",
@@ -816,41 +724,60 @@ class StaticMultiProfileObservation(ObservablesEndOfTurnBase):
         self._last_turn_i_observed = simulation.turn_i.value
         self._last_section_i_observed = simulation.section_i.value
         for prof in self._profiles:
-            if simulation.section_i.value == prof.section_index:
+            before_run = (
+                simulation.section_i.value is None
+                and simulation.turn_i.value == 0
+            )
+            if simulation.section_i.value == prof.section_index or before_run:
                 self._hist_y.write(prof.hist_y)
 
     @property  # as readonly attributes
+    def hist_x(self) -> list[NumpyArray]:
+        """Histogram x axis, always the same of shape ``((n_bins, ), ..)``."""
+        return [self._profiles[i].hist_x for i in range(len(self._profiles))]
+
+    @property  # as readonly attributes
     def hist_y(self) -> NumpyArray:
-        """Histogram of given profiles."""
+        """Histogram of given profiles of shape ``(n_observations, n_bins)``."""
         return self._hist_y.get_valid_entries()
 
 
-class WakeFieldObservation(ObservablesEndOfTurnBase):
+class WakeFieldObservation(ObservablesOncePerTurnBase):
+    """Observe the calculation of wake-fields.
+
+    Parameters
+    ----------
+    each_turn_i
+        Value to control that the element is
+        callable each n-th turn.
+    wakefield
+        Manager class to calculate wake-fields
+    folder
+        Path to the target folder used for
+        saving or loading files.
+
+    Examples
+    --------
+    >>> wake_obs = WakeFieldObservation(wakefield=..., each_turn_i=2)
+    >>> sim.run_simulation(
+    ...     beams=...,
+    ...     observe=(wake_obs,),
+    )
+    >>> before = 0  # before simulation
+    >>> turn_2 = 1  # after 2 turns, because `each_turn_i = 2`
+    >>> for index in (before, turn_2):
+    ...     plt.plot(wake_obs.induced_voltage[index, :])
+
+    """
+
     def __init__(
         self,
         each_turn_i: int,
         wakefield: WakeField,
-        obs_per_turn: int = 1,
         folder: str = "",
     ):
-        """Observe the calculation of wake-fields.
-
-        Parameters
-        ----------
-        each_turn_i
-            Value to control that the element is
-            callable each n-th turn.
-        wakefield
-            Manager class to calculate wake-fields
-        obs_per_turn
-            Number of observations per turn
-        folder
-            Path to the target folder used for
-            saving or loading files.
-        """
         super().__init__(
             each_turn_i=each_turn_i,
-            obs_per_turn=obs_per_turn,
             folder=folder,
         )
         self._wakefield = wakefield
@@ -878,12 +805,12 @@ class WakeFieldObservation(ObservablesEndOfTurnBase):
         """
         super().on_run_simulation(
             simulation=simulation,
+            beam=beam,
             n_turns=n_turns,
             turn_i_init=turn_i_init,
-            obs_per_turn=self._obs_per_turn,
-            beam=beam,
         )
-        n_entries = len(self._turns_array)
+
+        n_entries = n_turns // self.each_turn_i + 2
         n_bins = int(self._wakefield._profile.n_bins)
         self._induced_voltage = DenseArrayRecorder(
             f"{self.common_filepath}_induced_voltage",
@@ -902,19 +829,18 @@ class WakeFieldObservation(ObservablesEndOfTurnBase):
             Simulation context manager
 
         """
-        if simulation.section_i.value in self._section_indices_to_observe:
-            try:
-                self._induced_voltage.write(
-                    self._wakefield.induced_voltage,
-                )
-            except AttributeError:
-                self._induced_voltage.write(
-                    np.zeros(self._wakefield._profile.n_bins)
-                )
+        try:
+            self._induced_voltage.write(
+                self._wakefield.induced_voltage,
+            )
+        except AttributeError:
+            self._induced_voltage.write(
+                np.zeros(self._wakefield._profile.n_bins)
+            )
 
     @property  # as readonly attributes
-    def induced_voltage(self):
-        """Induced voltage, in [V] from given beam profile and sources.
+    def induced_voltage(self) -> NumpyArray:
+        """Induced voltage, in [V] from given beam profile and sources  of shape ``(n_observations, n_bins)``.
 
         Returns
         -------
@@ -924,28 +850,42 @@ class WakeFieldObservation(ObservablesEndOfTurnBase):
         return self._induced_voltage.get_valid_entries()
 
 
-class DynamicProfileConstNBinsObservation(ObservablesEndOfTurnBase):
+class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
+    """Observation of a dynamic beam profile with changing width, while keeping a constant bin number.
+
+    Parameters
+    ----------
+     each_turn_i
+        Value to control that the element is
+        callable each n-th turn
+    profile
+        Class for the calculation of beam profile
+        with a change in width, but a constant bin number
+    folder
+        Path to the target folder used for
+        saving or loading files.
+
+    Examples
+    --------
+    >>> profile_obs = DynamicProfileConstNBinsObservation(each_turn_i=2, profile=...)
+    >>> sim.run_simulation(
+    ...     beams=...,
+    ...     observe=(profile_obs,),
+    ... )
+    >>> before = 0  # before simulation
+    >>> turn_2 = 1  # after 2 turns, because `each_turn_i = 2`
+    >>> for index in (before, turn_2):
+    ...     plt.plot(
+    ...         profile_obs.hist_x[index, :], profile_obs.hist_y[index, :]
+    ...     )
+    """
+
     def __init__(
         self,
         each_turn_i: int,
         profile: DynamicProfileConstNBins,
         folder: str = "",
     ):
-        """Observation of a dynamic beam profile with changing width, while keeping a constant bin number.
-
-        Parameters
-        ----------
-         each_turn_i
-            Value to control that the element is
-            callable each n-th turn
-        profile
-            Class for the calculation of beam profile
-            with a change in width, but a constant bin number
-        folder
-            Path to the target folder used for
-            saving or loading files.
-
-        """
         super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._profile = profile
         self._hist_y: DenseArrayRecorder | None = None
@@ -971,19 +911,21 @@ class DynamicProfileConstNBinsObservation(ObservablesEndOfTurnBase):
         """
         super().on_run_simulation(
             simulation=simulation,
+            beam=beam,
             n_turns=n_turns,
             turn_i_init=turn_i_init,
-            beam=beam,
         )
+
         n_entries = n_turns // self.each_turn_i + 2
         n_bins = int(self._profile.n_bins)
+        shape = (n_entries, n_bins)
         self._hist_y = DenseArrayRecorder(
             f"{self.common_filepath}_hist_y",
-            (n_entries, n_bins),
+            shape,
         )
         self._hist_x = DenseArrayRecorder(
             f"{self.common_filepath}_hist_x",
-            (n_entries, n_bins),
+            shape,
         )
 
     def update(
@@ -1001,11 +943,11 @@ class DynamicProfileConstNBinsObservation(ObservablesEndOfTurnBase):
         self._hist_x.write(self._profile.hist_x)
 
     @property  # as readonly attributes
-    def hist_y(self):
-        """Histogram amplitude."""
+    def hist_y(self) -> NumpyArray:
+        """Histogram amplitude of shape ``(n_observations, n_bins)``."""
         return self._hist_y.get_valid_entries()
 
     @property  # as readonly attributes
-    def hist_x(self):
-        """x-axis of histogram, in [s], i.e. `bin_centers`."""
+    def hist_x(self) -> NumpyArray:
+        """x-axis of histogram, in [s], i.e. `bin_centers` of shape ``(n_observations, n_bins)``."""
         return self._hist_x.get_valid_entries()
