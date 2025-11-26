@@ -144,7 +144,7 @@ def c_complex(
     return c_complex128(scalar)
 
 
-def reload_cpp_backend(  # noqa: PLR0915
+def reload_cpp_backend(  # NOQA: PLR0915
     floattype: type[np.float32] | type[np.float64],
 ) -> CppSpecials:
     """Load and link the according C++ backend.

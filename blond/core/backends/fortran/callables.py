@@ -134,7 +134,7 @@ def add_backend(module_name: str) -> ModuleType:
     return loaded_module
 
 
-def reload_fortran_backend(  # ruff: noqa: D102
+def reload_fortran_backend(  # NOQA: D102
     floattype: type[np.float32] | type[np.float64],
 ) -> FortranSpecials:
     """Reload the library according to the float precision.

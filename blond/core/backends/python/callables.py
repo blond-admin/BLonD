@@ -141,7 +141,7 @@ class PythonSpecials(Specials):
         )
 
     @staticmethod
-    def loss_box(  # noqa: D102
+    def loss_box(  # NOQA: D102
         top: float,
         bottom: float,
         left: float,
