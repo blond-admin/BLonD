@@ -966,10 +966,19 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
     """A solver for multi-turn wakefields, where the profiles span the entire revolution time.
 
-    This class calculates the wakefield in cases where the profile spans the entire
-    revolution time of the ring. The profiles from multiple turns are considered in a
-    continuous manner, with neighboring profiles connected seamlessly across turns.
+    This class calculates the wakefield in cases where the
+    profile spans the entire revolution time of the ring.
+    The profiles from multiple turns are considered in a
+    continuous manner, with neighboring profiles connected
+    seamlessly across turns.
 
+    Notes
+    -----
+    Expects the parent wakefield to use a `StaticProfile`.
+    This also means, that the length of a single turn should change only
+    insignificantly during the runtime of the simulation, because it is
+    assumed that the profile of the first turn is also a valid full turn
+    representation of the last turn.
 
     Parameters
     ----------
@@ -1007,7 +1016,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
 
         Notes
         -----
-        Expects the parent wakefield to use a StaticProfile.
+        Expects the parent wakefield to use a `StaticProfile`.
         """
         # The assumptions below work only with static profiles.
         # This could be rewritten if necessary.
