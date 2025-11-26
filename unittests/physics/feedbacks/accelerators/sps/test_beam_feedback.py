@@ -12,7 +12,7 @@ import numpy as np
 
 from blond import (
     Beam,
-    BeamObservationEndOfTurn,
+    BeamObservationOncePerTurn,
     BiGaussian,
     ConstantMagneticCycle,
     MultiHarmonicRfStation,
@@ -203,7 +203,7 @@ class TestBeamFeedback(unittest.TestCase):
         backend.change_backend(Numpy32Bit)
 
     def test_setup(self):
-        obs_bunch = BeamObservationEndOfTurn(each_turn_i=1, beam=self.beam)
+        obs_bunch = BeamObservationOncePerTurn(each_turn_i=1, beam=self.beam)
         cav_obs = RfStationPhaseObservation(
             each_turn_i=1,
             rf_station=self.cavity,

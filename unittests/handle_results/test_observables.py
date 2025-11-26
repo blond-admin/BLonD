@@ -10,9 +10,9 @@ from blond.core.beam.base import BeamBaseClass
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
-    BeamObservationEndOfTurn,
+    BeamObservationOncePerTurn,
     DynamicProfileConstNBinsObservation,
-    ObservablesEndOfTurnBase,
+    ObservablesOncePerTurnBase,
     RfStationPhaseObservation,
     StaticMultiProfileObservation,
     StaticProfileObservation,
@@ -44,7 +44,7 @@ beam._dE = np.ones(beam.common_array_size, dtype=float)
 beam._flags = np.ones(beam.common_array_size, dtype=int)
 
 
-class ObservablesHelper(ObservablesEndOfTurnBase):
+class ObservablesHelper(ObservablesOncePerTurnBase):
     def update(self, simulation: Simulation) -> None:
         pass
 
@@ -121,58 +121,21 @@ class TestObservables(unittest.TestCase):
             beam=beam,
             turn_i_init=0,
             n_turns=100,
-            obs_per_turn=1,
         )
 
-        assert len(self.observables._turns_array) == self.observables._n_turns
+        assert len(self.observables._turns_array) == self.observables._n_turns + 2
         assert np.all(
             np.where(np.diff(self.observables._turns_array) <= 0)
             == np.array([])
         )  # monotonic increase
-        assert np.mean(np.diff(self.observables._turns_array)) == 1
-        assert np.all(
-            self.observables._section_indices_to_observe == np.array([0])
-        )  # only first one is selected
+        assert np.mean(np.diff(self.observables._turns_array[1:])) == 1
 
         self.observables.on_run_simulation(
             simulation=simulation,
             beam=beam,
             turn_i_init=0,
             n_turns=100,
-            obs_per_turn=2,
         )
-
-        assert (
-            len(self.observables._turns_array) == self.observables._n_turns * 2
-        )
-        assert np.all(
-            np.where(np.diff(self.observables._turns_array) <= 0)
-            == np.array([])
-        )  # monotonic increase
-        assert np.isclose(np.mean(np.diff(self.observables._turns_array)), 0.5)
-        assert np.all(
-            self.observables._section_indices_to_observe == np.array([0, 1])
-        )  # only first one is selected
-
-        self.observables.on_run_simulation(
-            simulation=simulation,
-            beam=beam,
-            turn_i_init=50,
-            n_turns=100,
-            obs_per_turn=2,
-        )
-
-        assert (
-            len(self.observables._turns_array) == self.observables._n_turns * 2
-        )
-        assert np.all(
-            np.where(np.diff(self.observables._turns_array) <= 0)
-            == np.array([])
-        )  # monotonic increase
-        assert np.isclose(np.mean(np.diff(self.observables._turns_array)), 0.5)
-        assert np.all(
-            self.observables._section_indices_to_observe == np.array([0, 1])
-        )  # only first one is selected
 
     def test_rename(self) -> None:
         self.observables = ObservablesHelper(
@@ -188,7 +151,6 @@ class TestObservables(unittest.TestCase):
             beam=beam,
             turn_i_init=0,
             n_turns=100,
-            obs_per_turn=1,
         )
 
         # without recorders, should run through
@@ -210,7 +172,7 @@ class TestObservables(unittest.TestCase):
         assert self.observables.common_filepath == orig_name + "_2"
 
     def test_assert_lateinit_fail(self) -> None:
-        obs_helper = ObservablesHelper(obs_per_turn=1, each_turn_i=0)
+        obs_helper = ObservablesHelper(each_turn_i=0)
 
         obs_helper.dummy_value = None
 
@@ -248,14 +210,14 @@ class TestObservables(unittest.TestCase):
 
 class TestBunchObservation(unittest.TestCase):
     def setUp(self) -> None:
-        self.bunch_observation = BeamObservationEndOfTurn(
+        self.bunch_observation = BeamObservationOncePerTurn(
             each_turn_i=1,
             folder=callers_relative_path("results/", stacklevel=1),
             beam=beam,
         )
 
     def test___init__(self) -> None:
-        self.bunch_observation = BeamObservationEndOfTurn(
+        self.bunch_observation = BeamObservationOncePerTurn(
             each_turn_i=1,
             folder=callers_relative_path("results/", stacklevel=1),
             beam=beam,
@@ -353,6 +315,8 @@ class TestStaticProfileObservation(unittest.TestCase):
             turn_i_init=0,
             n_turns=100,
         )
+        simulation.section_i.value = 0
+        simulation.turn_i.value = 0
         self.static_profile_observation.update(
             simulation=simulation,
         )
@@ -419,7 +383,6 @@ class TestWakeFieldObservation(unittest.TestCase):
             wakefield=wf,
             folder=callers_relative_path("results/", stacklevel=1),
             each_turn_i=1,
-            obs_per_turn=2,
         )
 
         wf_obs.on_init_simulation(simulation=simulation)

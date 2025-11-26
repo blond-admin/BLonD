@@ -42,7 +42,6 @@ from blond.core.helpers import (
 from blond.core.ring.helpers import get_elements, get_init_order
 from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.generals.warnings_ import NotTestedWarning, PerformanceWarning
-from blond.physics.drifts import DriftBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -60,7 +59,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.experimental.beam_preparation.semi_empiric_matcher import (
         SemiEmpiricMatcher,
     )
-    from blond.handle_results.observables import ObservablesEndOfTurnBase
+    from blond.handle_results.observables import (
+        ObservablesOncePerTurnBase,
+    )
     from blond.interfaces.xsuite.beam_preparation.rfbucket_matching import (
         XsuiteRFBucketMatcher,
     )
@@ -915,7 +916,7 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass, ...],
         n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
+        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
     ) -> None:
@@ -979,9 +980,9 @@ class Simulation(Preparable):
 
         Simulation with observables to record data:
 
-        >>> from blond import RfStationPhaseObservation, BeamObservationEndOfTurn
+        >>> from blond import RfStationPhaseObservation, BeamObservationOncePerTurn
         >>> phase_obs = RfStationPhaseObservation(each_turn_i=1, rf_station=rf_station1)
-        >>> beam_obs = BeamObservationEndOfTurn(each_turn_i=1, beam=beam1)
+        >>> beam_obs = BeamObservationOncePerTurn(each_turn_i=1, beam=beam1)
         >>>
         >>> sim.run_simulation(
         ...     beams=(beam1,),
@@ -1077,7 +1078,7 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass, ...],
         n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
+        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
     ) -> int:
         """Initialize all simulation components before running or loading results.
 
@@ -1157,7 +1158,7 @@ class Simulation(Preparable):
                     f" {self._particle_performance_waning_threshold}"
                     f" particles in your beam."
                     f" Consider using another backend via\n"
-                    f" >>> from blond._core.backends.backend import backend\n"
+                    f" >>> from blond.core.backends.backend import backend\n"
                     f" >>> backend.set_specials(mode=...)",
                     PerformanceWarning,
                     stacklevel=2,
@@ -1182,7 +1183,7 @@ class Simulation(Preparable):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int = 0,
-        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
+        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
     ) -> None:
@@ -1221,16 +1222,11 @@ class Simulation(Preparable):
                 self.section_i.value = element.section_index
                 if element.is_active_this_turn(turn_i=self.turn_i.value):
                     element.track(beam)
-                if isinstance(
-                    element, DriftBaseClass
-                ):  # only observe after drifts
-                    for observable in observe:
-                        if observable.is_active_this_turn(
-                            turn_i=self.turn_i.value
-                        ):
-                            observable.update(
-                                simulation=self,
-                            )
+            for observable in observe:
+                if observable.is_active_this_turn(turn_i=self.turn_i.value):
+                    observable.update(
+                        simulation=self,
+                    )
             if callback is not None:
                 callback(simulation=self, beam=beam)
 
@@ -1243,7 +1239,7 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass, BeamBaseClass],
         n_turns: int,
         turn_i_init: int = 0,
-        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
+        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
     ) -> None:
@@ -1266,7 +1262,15 @@ class Simulation(Preparable):
             that is called each turn.
 
         """
-        warn("Untested code", NotTestedWarning, stacklevel=1)
+        warn("Untested code", NotTestedWarning, stacklevel=2)
+
+        if callback is not None:
+            warn(
+                "Callbacks are currently not supported for simulations"
+                " with counter-rotating beams.",
+                UserWarning,
+                stacklevel=2,
+            )
 
         logger.info("Starting simulation mainloop...")
         iterator = range(turn_i_init, turn_i_init + n_turns)
@@ -1275,6 +1279,11 @@ class Simulation(Preparable):
         self.turn_i.value = 0
 
         num_elements = len(self._ring.elements.elements)
+
+        for observable in observe:
+            observable.update(
+                simulation=self,
+            )
 
         for turn_i in iterator:
             for element_ind, element in enumerate(
@@ -1292,23 +1301,18 @@ class Simulation(Preparable):
                     turn_i=self.turn_i.value
                 ):
                     element_counterrot.track(beams[1])
-                if isinstance(
-                    element_counterrot, DriftBaseClass
-                ):  # only observe after drifts
-                    for observable in observe:
-                        if observable.is_active_this_turn(
-                            turn_i=self.turn_i.value
-                        ):
-                            observable.update(
-                                simulation=self,
-                            )
+            for observable in observe:
+                if observable.is_active_this_turn(turn_i=self.turn_i.value):
+                    observable.update(
+                        simulation=self,
+                    )
         # reset counters to uninitialized again
         self.turn_i.value = None
         self.section_i.value = None
 
     def save_results(
         self,
-        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
+        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         common_name: str | None = None,
     ) -> None:
         """Save observable data to disk for later analysis.
@@ -1373,7 +1377,7 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass],
         n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
+        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         common_name: str | None = None,
     ) -> None:
         """Load previously saved observable data from disk.

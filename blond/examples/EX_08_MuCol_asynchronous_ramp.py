@@ -6,6 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
+from copy import deepcopy
+
 import numpy as np
 from scipy.constants import c
 
@@ -14,13 +16,14 @@ from blond import (
     BiGaussian,
     DriftSimple,
     MagneticCycleByTime,
+    ReferenceEnergyChange,
     Ring,
     Simulation,
     SingleHarmonicRfStation,
     StaticProfile,
+    StaticProfileObservation,
     mu_plus,
 )
-from blond.physics.energy_reference_kick import ReferenceEnergyChange
 
 
 def main():
@@ -46,6 +49,7 @@ def main():
     )
 
     one_turn_model = []
+    observables = []
     for rf_station_i in range(n_sections):
         rf_station = SingleHarmonicRfStation(
             section_index=rf_station_i,
@@ -80,6 +84,9 @@ def main():
                 profile,
             ]
         )
+        observables.append(
+            StaticProfileObservation(profile=profile, each_turn_i=2)
+        )
 
     ring.add_elements(one_turn_model, reorder=False)
     sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
@@ -110,10 +117,28 @@ def main():
         ),
     )
 
+    def my_callback(
+        simulation: Simulation, beam: Beam
+    ) -> None:  # pragma: no cover
+        """Empty callback example.
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+        beam
+            Simulation `Beam` object
+        """
+        pass
+
+    beam2 = deepcopy(beam1)
+    beam2._is_counter_rotating = True
     sim.run_simulation(
-        beams=(beam1,),
+        beams=(beam1, beam2),
         turn_i_init=0,
         n_turns=n_turns,
+        callback=my_callback,  # not supported yet.
+        observe=observables,
     )
 
     return

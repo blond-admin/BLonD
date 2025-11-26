@@ -312,6 +312,12 @@ def calc_phi_s_single_harmonic(
         The synchronous phase, in [rad].
     """
     phi = np.arcsin(energy_gain / (voltage * charge))
-    if above_transition:
+
+    negative_charge = charge < 0  # for readability
+
+    if above_transition != negative_charge:
+        # Only if one of both conditions is met.
+        # Otherwise, they cancel each other out like ``-1 * -1 = 1``
         phi = np.pi - phi
+
     return phi - phase

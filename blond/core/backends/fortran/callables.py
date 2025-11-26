@@ -134,7 +134,7 @@ def add_backend(module_name: str) -> ModuleType:
     return loaded_module
 
 
-def reload_fortran_backend(  # ruff: noqa: D102
+def reload_fortran_backend(  # NOQA: D102
     floattype: type[np.float32] | type[np.float64],
 ) -> FortranSpecials:
     """Reload the library according to the float precision.
@@ -220,9 +220,31 @@ def reload_fortran_backend(  # ruff: noqa: D102
 
         @staticmethod
         def loss_box(
-            top: float, bottom: float, left: float, right: float
+            top: float,
+            bottom: float,
+            left: float,
+            right: float,
+            dt: NumpyArray,
+            dE: NumpyArray,
+            flags: NumpyArray,
         ) -> None:
-            pass
+            assert dt.dtype == backend.float
+            assert dE.dtype == backend.float
+            assert flags.dtype == np.int32
+            assert isinstance(top, backend.float)
+            assert isinstance(bottom, backend.float)
+            assert isinstance(left, backend.float)
+            assert isinstance(right, backend.float)
+            libblond_fortran.loss_box(
+                top=top,
+                bottom=bottom,
+                left=left,
+                right=right,
+                dt=dt,
+                de=dE,
+                flags=flags,
+                n=np.int32(len(dt)),
+            )
 
         @staticmethod
         def kick_single_harmonic(
@@ -256,7 +278,6 @@ def reload_fortran_backend(  # ruff: noqa: D102
                 acceleration_kick=acceleration_kick,
                 n=np.int32(len(dt)),
             )
-            pass
 
         @staticmethod
         def drift_simple(

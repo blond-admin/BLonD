@@ -286,6 +286,17 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         )
         return content
 
+    @abstractmethod  # pragma: no cover
+    def track(self, beam: BeamBaseClass) -> None:
+        """Apply the element’s physics effect to the beam.
+
+        Parameters
+        ----------
+        beam : BeamBaseClass
+            The beam object whose state will be updated by this element.
+        """
+        pass
+
 
 class BeamPhysicsRelevant(SimulationElementBase):
     """Abstract base class for elements that modify the beam state during tracking.
@@ -314,17 +325,6 @@ class BeamPhysicsRelevant(SimulationElementBase):
     ) -> None:
         super().__init__(section_index, name)
         type(self).n_instances += 1
-
-    @abstractmethod  # pragma: no cover
-    def track(self, beam: BeamBaseClass) -> None:
-        """Apply the element’s physics effect to the beam.
-
-        Parameters
-        ----------
-        beam : BeamBaseClass
-            The beam object whose state will be updated by this element.
-        """
-        pass
 
 
 class BeamObservationElement(SimulationElementBase):

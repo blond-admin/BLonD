@@ -126,8 +126,8 @@ Example Usage
 
 .. code-block:: python
 
-   from blond._core.simulation.simulation import Simulation
-   from blond._core.particles import ParticleType
+   from blond.core.simulation.simulation import Simulation
+   from blond.core.particles import ParticleType
    import numpy as np
    import matplotlib.pyplot as plt
 
