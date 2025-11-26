@@ -357,7 +357,6 @@ class TestWakeFieldObservation(unittest.TestCase):
             wakefield=wf,
             folder=callers_relative_path("results/", stacklevel=1),
             each_turn_i=1,
-            obs_per_turn=2,
         )
 
         wf_obs.on_init_simulation(simulation=simulation)
