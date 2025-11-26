@@ -22,9 +22,11 @@ from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
 from blond.generals.warnings_ import PerformanceWarning
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
-    BeamObservationEndOfTurn,
+    BeamObservationOncePerTurn,
+    ObservablesOncePerTurnBase,
+)
+from blond.handle_results.observables_as_elements import (
     BunchObservationMetaParams,
-    ObservablesEndOfTurnBase,
 )
 from blond.testing.mocks import beam_mock
 
@@ -110,6 +112,13 @@ class TestSimulation(unittest.TestCase):
         )
         harmonic = 25900
         transition_gamma = 1 / np.sqrt(11.4e-4)
+        bunch_observation = BunchObservationMetaParams(
+            each_turn_i=1, beam=beam
+        )
+        bunch_observation_CR = BunchObservationMetaParams(
+            each_turn_i=1, beam=beam_CR
+        )
+
         one_turn_model = []
         for cavity_i in range(n_cavities):
             one_turn_model.extend(
@@ -119,12 +128,14 @@ class TestSimulation(unittest.TestCase):
                         orbit_length=circumference / n_cavities / 2,
                         section_index=cavity_i,
                     ),
+                    bunch_observation_CR,
                     SingleHarmonicRfStation(
                         voltage=total_voltage / n_cavities,
                         phi_rf=0,
                         harmonic=harmonic,
                         section_index=cavity_i,
                     ),
+                    bunch_observation,
                     DriftSimple(
                         transition_gamma=transition_gamma,
                         orbit_length=circumference / n_cavities / 2,
@@ -135,19 +146,21 @@ class TestSimulation(unittest.TestCase):
         ring.add_elements(one_turn_model, reorder=False)
         sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
 
-        bunch_observation = BunchObservationMetaParams(
-            each_turn_i=1, obs_per_turn=n_cavities, beam=beam
-        )
-        bunch_observation_CR = BunchObservationMetaParams(
-            each_turn_i=1, obs_per_turn=n_cavities, beam=beam_CR
-        )
-
         sim.run_simulation(
             beams=(beam, beam_CR),
             n_turns=n_turns,
             turn_i_init=0,
-            observe=(bunch_observation, bunch_observation_CR),
         )
+        assert len(bunch_observation.mean_dE) == n_turns * n_cavities
+        assert len(bunch_observation.mean_dt) == n_turns * n_cavities
+        assert len(bunch_observation.sigma_dE) == n_turns * n_cavities
+        assert len(bunch_observation.sigma_dt) == n_turns * n_cavities
+        assert len(bunch_observation.rms_emittance) == n_turns * n_cavities
+        assert len(bunch_observation_CR.mean_dE) == n_turns * n_cavities
+        assert len(bunch_observation_CR.mean_dt) == n_turns * n_cavities
+        assert len(bunch_observation_CR.sigma_dE) == n_turns * n_cavities
+        assert len(bunch_observation_CR.sigma_dt) == n_turns * n_cavities
+        assert len(bunch_observation_CR.rms_emittance) == n_turns * n_cavities
         for member in ["mean_dE", "mean_dt", "sigma_dE", "sigma_dt"]:
             assert np.allclose(
                 getattr(bunch_observation, member),
@@ -155,7 +168,7 @@ class TestSimulation(unittest.TestCase):
             )
 
     def test__run_simulation_single_beam(self):
-        observe = Mock(spec=ObservablesEndOfTurnBase)
+        observe = Mock(spec=ObservablesOncePerTurnBase)
 
         def my_callback(simulation: Simulation, beam: Beam) -> None:
             return
@@ -286,7 +299,7 @@ class TestSimulation(unittest.TestCase):
         )
 
     def test_load_results(self):
-        observation = BeamObservationEndOfTurn(each_turn_i=10, beam=self.beam)
+        observation = BeamObservationOncePerTurn(each_turn_i=10, beam=self.beam)
         kwargs = dict(
             beams=(self.beam,),
             n_turns=10,
@@ -343,7 +356,7 @@ class TestSimulation(unittest.TestCase):
         self.assertIsInstance(self.simulation.ring, Ring)
 
     def test_run_simulation(self):
-        observe = BeamObservationEndOfTurn(each_turn_i=10, beam=self.beam)
+        observe = BeamObservationOncePerTurn(each_turn_i=10, beam=self.beam)
 
         def my_callback(simulation: Simulation, beam: BeamBaseClass) -> None:
             return
