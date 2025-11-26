@@ -32,17 +32,23 @@ class Specials(ABC):
     """Abstract listing of functions that need implementation for a new backend."""
 
     @staticmethod
-    @abstractmethod
-    def loss_box(  # noqa: D102
-        top: float, bottom: float, left: float, right: float
-    ) -> None:  # pragma: no cover
+    @abstractmethod  # pragma: no cover
+    def loss_box(  # NOQA: D102
+        top: float,
+        bottom: float,
+        left: float,
+        right: float,
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        flags: NumpyArray | CupyArray,
+    ) -> None:
         raise NotImplementedError(
             "Abstract method `loss_box` is not implemented."
         )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def kick_single_harmonic(  # noqa: D102
+    def kick_single_harmonic(  # NOQA: D102
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         voltage: float,
@@ -57,7 +63,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def kick_multi_harmonic(  # noqa: D102
+    def kick_multi_harmonic(  # NOQA: D102
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         voltage: NumpyArray,
@@ -73,7 +79,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def drift_simple(  # noqa: D102
+    def drift_simple(  # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,
         T: float,
@@ -87,7 +93,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def drift_legacy(  # noqa: D102
+    def drift_legacy(  # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,
         T: float,
@@ -104,7 +110,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def drift_exact(  # noqa: D102
+    def drift_exact(  # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,
         T: float,
@@ -120,7 +126,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def kick_induced_voltage(  # noqa: D102
+    def kick_induced_voltage(  # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,
         voltage: NumpyArray,
@@ -134,7 +140,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def histogram(  # noqa: D102
+    def histogram(  # NOQA: D102
         array_read: NumpyArray,
         array_write: NumpyArray,
         start: float,
@@ -146,7 +152,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def beam_phase(  # noqa: D102
+    def beam_phase(  # NOQA: D102
         hist_x: NumpyArray,
         hist_y: NumpyArray,
         alpha: float,

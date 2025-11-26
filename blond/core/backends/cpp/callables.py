@@ -50,7 +50,7 @@ def c_real_t(
         raise ValueError(floattype)
 
 
-def reload_cpp_backend(  # noqa: PLR0915
+def reload_cpp_backend(  # NOQA: PLR0915
     floattype: type[np.float32] | type[np.float64],
 ) -> CppSpecials:
     """Load and link the according C++ backend.
@@ -225,9 +225,24 @@ def reload_cpp_backend(  # noqa: PLR0915
 
         @staticmethod
         def loss_box(
-            top: float, bottom: float, left: float, right: float
+            top: float,
+            bottom: float,
+            left: float,
+            right: float,
+            dt: CupyArray,
+            dE: CupyArray,
+            flags: CupyArray,
         ) -> None:
-            pass
+            _LIBBLOND.loss_box(
+                c_real(top, floattype),
+                c_real(bottom, floattype),
+                c_real(left, floattype),
+                c_real(right, floattype),
+                _getPointer(dt),
+                _getPointer(dE),
+                _getPointer(flags),
+                _getLen(dt),
+            )
 
         @staticmethod
         def kick_single_harmonic(
