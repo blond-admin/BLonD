@@ -376,7 +376,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
 
     @abstractmethod  # pragma: no cover
     def voltage_waveform_tmp(self, ts: NumpyArray):
-        """Calculate voltage of RF staion for current turn.
+        """Calculate voltage of RF station for current turn.
 
         Parameters
         ----------
