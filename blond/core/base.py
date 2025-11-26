@@ -222,10 +222,14 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         Additional keyword arguments passed to the parent initializer.
     """
 
+    n_instances = 0
+
     def __init__(
         self, section_index: int = 0, name: str | None = None, **kwargs
     ) -> None:
         super().__init__(**kwargs)
+        type(self).n_instances += 1
+
         self._section_index = section_index
         if name is None:
             name = (
@@ -286,6 +290,17 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         )
         return content
 
+    @abstractmethod  # pragma: no cover
+    def track(self, beam: BeamBaseClass) -> None:
+        """Apply the element’s physics effect to the beam.
+
+        Parameters
+        ----------
+        beam : BeamBaseClass
+            The beam object whose state will be updated by this element.
+        """
+        pass
+
 
 class BeamPhysicsRelevant(SimulationElementBase):
     """Abstract base class for elements that modify the beam state during tracking.
@@ -307,24 +322,10 @@ class BeamPhysicsRelevant(SimulationElementBase):
         automatically generated.
     """
 
-    n_instances = 0
-
     def __init__(
         self, section_index: int = 0, name: str | None = None, **kwargs
     ) -> None:
         super().__init__(section_index, name)
-        type(self).n_instances += 1
-
-    @abstractmethod  # pragma: no cover
-    def track(self, beam: BeamBaseClass) -> None:
-        """Apply the element’s physics effect to the beam.
-
-        Parameters
-        ----------
-        beam : BeamBaseClass
-            The beam object whose state will be updated by this element.
-        """
-        pass
 
 
 class BeamObservationElement(SimulationElementBase):
@@ -353,17 +354,6 @@ class BeamObservationElement(SimulationElementBase):
     ) -> None:
         super().__init__(section_index=section_index, name=name, **kwargs)
         type(self).n_instances += 1
-
-    @abstractmethod  # pragma: no cover
-    def track(self, beam: BeamBaseClass) -> None:
-        """Inspect the beam state without modifying it.
-
-        Parameters
-        ----------
-        beam : BeamBaseClass
-            The beam object to be inspected or recorded.
-        """
-        pass
 
 
 class UserDefinedElement(BeamPhysicsRelevant, ABC):
