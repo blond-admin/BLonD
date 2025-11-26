@@ -1,4 +1,4 @@
-exclude: ^(legacy|docs|blond3/legacy/|builds)
+exclude: ^(legacy|blond3/legacy/|builds)
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
