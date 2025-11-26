@@ -18,6 +18,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+from scipy.constants import elementary_charge as e
+
 from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.ring.helpers import requires
@@ -89,8 +91,6 @@ class WakeFieldSolver:
             Factor converting between wakefield
             (macroparticles vs real particles).
         """
-        from scipy.constants import elementary_charge as e
-
         _factor = (-1 * beam.particle_type.charge * e) * (
             beam.intensity * profile.hist_y_to_density_factor
         )

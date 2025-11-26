@@ -535,15 +535,12 @@ class TimeDomainFftSolver(WakeFieldSolver):
         # This can be also done via fftconvolve.
         # Using ifft(fft(wake) * fft(beam)).
         # fft(wake)  is already precalculated in the memory.
+        n_fft = 2 * len(self._parent_wakefield.profile.hist_x)
+        if self._allow_next_fast_len:
+            n_fft = next_fast_len(n_fft)
         induced_voltage = _factor * np.fft.irfft(
             self._wake_imp_y
-            * self._parent_wakefield.profile.beam_spectrum(
-                n_fft=next_fast_len(
-                    2 * len(self._parent_wakefield.profile.hist_x)
-                )
-                if self._allow_next_fast_len
-                else 2 * len(self._parent_wakefield.profile.hist_x)
-            ),
+            * self._parent_wakefield.profile.beam_spectrum(n_fft=n_fft)
         )
 
         # calculation in frequency domain must be with full periodicity.
@@ -1006,11 +1003,12 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         self._assert_profile_length_correct()
 
     def _update_wake_kernel(self) -> None:
-        """Updates the wakefield kernel that is used for convolution with the beam profile."""
-        assert isinstance(self._parent_wakefield.profile, StaticProfile), (
-            f"Expected StaticProfile, but"
-            f" got {type(self._parent_wakefield.profile)=}"
-        )
+        """Updates the wakefield kernel that is used for convolution with the beam profile.
+
+        Notes
+        -----
+        Expects the parent wakefield to use a StaticProfile.
+        """
         # The assumptions below work only with static profiles.
         # This could be rewritten if necessary.
         width = (
@@ -1044,21 +1042,26 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         AssertionError
             If the profile length does not correspond to one turn.
         """
-        try:
-            profile = self._parent_wakefield.profile
-            profile_width = profile.cut_right - profile.cut_left
-            t_rev = self._simulation.magnetic_cycle.get_t_rev_init(
-                circumference=self._simulation.ring.circumference,
-                turn_i_init=0,
-                t_init=0,
-                particle_type=self._simulation.magnetic_cycle.reference_particle,
+        if not isinstance(self._parent_wakefield.profile, StaticProfile):
+            warnings.warn(
+                f"Expected StaticProfile, but"
+                f" got {type(self._parent_wakefield.profile)=}",
+                UserWarning,
+                stacklevel=2,
             )
+        profile = self._parent_wakefield.profile
+        profile_width = profile.cut_right - profile.cut_left
+        t_rev = self._simulation.magnetic_cycle.get_t_rev_init(
+            circumference=self._simulation.ring.circumference,
+            turn_i_init=0,
+            t_init=0,
+            particle_type=self._simulation.magnetic_cycle.reference_particle,
+        )
+        try:
             assert abs(profile_width - t_rev) < profile.hist_step, (
                 f"Expected profile length of {t_rev} s, but got "
                 f"{profile_width} s.",
             )
-        except AssertionError as exc:
-            raise exc
         except TypeError as exc:
             # when mocking is involved
             warnings.warn(str(exc), UserWarning, stacklevel=1)
