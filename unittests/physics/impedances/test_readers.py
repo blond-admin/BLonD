@@ -9,13 +9,13 @@ from blond.physics.impedances.readers import (
     ExampleImpedanceReader2,
     ModesExampleReader2,
 )
-from blond.physics.impedances.sources import ImpedanceTableFreq
+from blond.physics.impedances.sources import ImpedanceTableFreqMixIn
 
 
 class TestExampleReader2(unittest.TestCase):
     def test_reader(self):
         reader = ExampleImpedanceReader2(mode=ModesExampleReader2.SHORTED)
-        freq_table_short = ImpedanceTableFreq.from_file(
+        freq_table_short = ImpedanceTableFreqMixIn.from_file(
             Path(
                 callers_relative_path(
                     "../../../blond/examples/resources/EX_02_Finemet.txt",
@@ -27,7 +27,7 @@ class TestExampleReader2(unittest.TestCase):
         shorted_imp_freq_y = freq_table_short._freq_y
 
         reader = ExampleImpedanceReader2(mode=ModesExampleReader2.CLOSED_LOOP)
-        freq_table_short = ImpedanceTableFreq.from_file(
+        freq_table_short = ImpedanceTableFreqMixIn.from_file(
             Path(
                 callers_relative_path(
                     "../../../blond/examples/resources/EX_02_Finemet.txt",
@@ -39,7 +39,7 @@ class TestExampleReader2(unittest.TestCase):
         assert np.sum(shorted_imp_freq_y) != np.sum(freq_table_short._freq_y)
 
         reader = ExampleImpedanceReader2(mode=ModesExampleReader2.OPEN_LOOP)
-        freq_table_open = ImpedanceTableFreq.from_file(
+        freq_table_open = ImpedanceTableFreqMixIn.from_file(
             Path(
                 callers_relative_path(
                     "../../../blond/examples/resources/EX_02_Finemet.txt",
@@ -59,7 +59,7 @@ class TestExampleReader2(unittest.TestCase):
                 mode=fake_enum.NOT_IN_THE_MODE_TODAY
             )
             _ = (
-                ImpedanceTableFreq.from_file(
+                ImpedanceTableFreqMixIn.from_file(
                     callers_relative_path(
                         "../../../blond/examples/resources/EX_02_Finemet.txt",
                         stacklevel=1,

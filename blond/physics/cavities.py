@@ -24,7 +24,11 @@ import numpy as np
 from scipy.constants import speed_of_light as c0
 
 from blond.core.backends.backend import backend
-from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
+from blond.core.base import (
+    BeamPhysicsRelevant,
+    DynamicParameter,
+    SchedulableMixIn,
+)
 from blond.experimental.physics.feedbacks.beam_feedback import (
     Blond2BeamFeedback,
 )
@@ -44,7 +48,7 @@ if TYPE_CHECKING:  # pragma: no cover
 TWOPI_C0 = 2.0 * np.pi * c0
 
 
-class RfManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
+class RfManipulationBaseClass(BeamPhysicsRelevant, SchedulableMixIn, ABC):
     """Base class to implement beam-rf any interactions in synchrotrons.
 
     This class is intended to come with barely any feature to host all
@@ -99,7 +103,7 @@ class RfManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
             )
 
 
-class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
+class RfStationBaseClass(RfManipulationBaseClass, SchedulableMixIn, ABC):
     """Base class to implement beam-rf interactions in synchrotrons.
 
     Parameters

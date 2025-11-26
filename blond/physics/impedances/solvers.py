@@ -35,8 +35,8 @@ from blond.core.ring.helpers import requires
 from blond.core.simulation.simulation import Simulation
 from blond.generals.warnings_ import NotTestedWarning
 from blond.physics.impedances.base import (
-    FreqDomain,
-    TimeDomain,
+    FreqDomainMixIn,
+    TimeDomainMixIn,
     WakeField,
     WakeFieldSolver,
 )
@@ -292,7 +292,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         for source in (
             self._parent_wakefield.sources
         ):  # todo update only dynamic sources
-            if isinstance(source, FreqDomain):
+            if isinstance(source, FreqDomainMixIn):
                 freq_y = source.get_impedance(
                     freq_x=self._freq_x,
                     simulation=self._simulation,
@@ -482,7 +482,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
             self._wake_imp_y[:] = 0 + 0j
 
         for source in self._parent_wakefield.sources:
-            if isinstance(source, TimeDomain):
+            if isinstance(source, TimeDomainMixIn):
                 # get the wake functions in time
                 # but store already fft(wake) for convolution later
                 wake_imp_y_tmp = source.get_wake_impedance(

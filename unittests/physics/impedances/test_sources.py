@@ -17,7 +17,7 @@ from blond.physics.impedances.readers import (
     ModesExampleReader2,
 )
 from blond.physics.impedances.sources import (
-    ImpedanceTableFreq,
+    ImpedanceTableFreqMixIn,
     ImpedanceTableTime,
     InductiveImpedance,
     Resonators,
@@ -64,7 +64,7 @@ class TestImpedanceTableFreq(unittest.TestCase):
         beam = Mock(BeamBaseClass)
 
         reader = ExampleImpedanceReader2(mode=ModesExampleReader2.SHORTED)
-        freq_table_short = ImpedanceTableFreq.from_file(
+        freq_table_short = ImpedanceTableFreqMixIn.from_file(
             Path(
                 callers_relative_path(
                     "../../../blond/examples/resources/EX_02_Finemet.txt",

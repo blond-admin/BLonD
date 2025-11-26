@@ -77,7 +77,7 @@ class WakeFieldSource(ABC):
         self.is_dynamic = is_dynamic
 
 
-class TimeDomain(ABC):
+class TimeDomainMixIn(ABC):
     """Indication of a source is defined in time domain."""
 
     @abstractmethod  # pragma: no cover
@@ -109,7 +109,7 @@ class TimeDomain(ABC):
         pass
 
 
-class TimeDomainCounterRotation(ABC):
+class TimeDomainCounterRotationMixIn(ABC):
     """Indication of a source, which has a defined wakefield for the counterrotating case."""
 
     @abstractmethod  # pragma: no cover
@@ -171,7 +171,7 @@ class TimeDomainCounterRotation(ABC):
         pass
 
 
-class FreqDomain(ABC):
+class FreqDomainMixIn(ABC):
     """Indication of a source is defined in frequency domain."""
 
     @abstractmethod  # pragma: no cover

@@ -9,10 +9,10 @@ from blond.core.base import (
     BeamObservationElement,
     BeamPhysicsRelevant,
     DynamicParameter,
-    HasPropertyCache,
+    HasPropertyCacheMixIn,
     MainLoopRelevant,
     Preparable,
-    Schedulable,
+    SchedulableMixIn,
     ScheduledConstant,
     ScheduledInterpolation,
     get_scheduler,
@@ -153,7 +153,7 @@ class TestDynamicParameter(unittest.TestCase):
         self.assertEqual(array[0], 10)
 
 
-class HasPropertyCacheHelper(HasPropertyCache):
+class HasPropertyCacheMixInHelper(HasPropertyCacheMixIn):
     def __init__(self):
         self.foo = 1
 
@@ -167,7 +167,7 @@ class HasPropertyCacheHelper(HasPropertyCache):
 
 class TestHasPropertyCache(unittest.TestCase):
     def setUp(self):
-        self.has_property_cache = HasPropertyCacheHelper()
+        self.has_property_cache = HasPropertyCacheMixInHelper()
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
@@ -247,7 +247,7 @@ class TestFunctions(unittest.TestCase):
 
 class TestSchedulable(unittest.TestCase):
     def setUp(self):
-        self.schedulable = Schedulable()
+        self.schedulable = SchedulableMixIn()
         with self.assertRaisesRegex(AssertionError, "doesnt exist"):
             self.schedulable.schedule_from_file(
                 attribute="voltage",

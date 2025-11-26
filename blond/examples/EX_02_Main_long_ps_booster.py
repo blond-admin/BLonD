@@ -41,7 +41,7 @@ from blond.physics.impedances.solvers import (
     PeriodicFreqSolver,
 )
 from blond.physics.impedances.sources import (
-    ImpedanceTableFreq,
+    ImpedanceTableFreqMixIn,
     InductiveImpedance,
 )
 
@@ -84,14 +84,14 @@ def main():
     )
     wakefield1 = WakeField(
         sources=(
-            ImpedanceTableFreq.from_file(
+            ImpedanceTableFreqMixIn.from_file(
                 callers_relative_path(
                     "resources/EX_02_Ekicker_1.4GeV.txt",
                     stacklevel=1,
                 ),
                 ExampleImpedanceReader1(),
             ),
-            ImpedanceTableFreq.from_file(
+            ImpedanceTableFreqMixIn.from_file(
                 callers_relative_path(
                     "resources/EX_02_Finemet.txt",
                     stacklevel=1,

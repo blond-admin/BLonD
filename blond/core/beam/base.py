@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from scipy.constants import speed_of_light as c0  # type: ignore
 
-from blond.core.base import HasPropertyCache, Preparable
+from blond.core.base import HasPropertyCacheMixIn, Preparable
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.ring.helpers import requires
 
@@ -38,7 +38,7 @@ class BeamFlags(IntEnum):
     ACTIVE = 1
 
 
-class BeamBaseClass(Preparable, HasPropertyCache, ABC):
+class BeamBaseClass(Preparable, HasPropertyCacheMixIn, ABC):
     """Base class to make beam classes.
 
     Parameters

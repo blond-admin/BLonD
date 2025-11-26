@@ -43,7 +43,7 @@ from blond.physics.impedances.solvers import (
     PeriodicFreqSolver,
 )
 from blond.physics.impedances.sources import (
-    ImpedanceTableFreq,
+    ImpedanceTableFreqMixIn,
     InductiveImpedance,
 )
 

@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from blond.core.backends.backend import backend
-from blond.core.base import BeamPhysicsRelevant, HasPropertyCache
+from blond.core.base import BeamPhysicsRelevant, HasPropertyCacheMixIn
 from blond.core.helpers import int_from_float_with_warning
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -37,7 +37,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.simulation.simulation import Simulation
 
 
-class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
+class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCacheMixIn):
     """Base class to implement calculation of beam profiles.
 
     Parameters

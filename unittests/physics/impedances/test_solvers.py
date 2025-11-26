@@ -36,7 +36,10 @@ from blond.physics.impedances.solvers import (
     SingleTurnResonatorConvolutionSolver,
     TimeDomainFftSolver,
 )
-from blond.physics.impedances.sources import ImpedanceTableFreq, Resonators
+from blond.physics.impedances.sources import (
+    ImpedanceTableFreqMixIn,
+    Resonators,
+)
 from blond.physics.profiles import (
     DynamicProfileConstCutoff,
     DynamicProfileConstNBins,
@@ -119,7 +122,7 @@ class TestTimeDomainFftSolver(unittest.TestCase):
 
     def test_error_throwing_warning_throwing(self):
         local_solver = deepcopy(self.time_domain_fft_solver)
-        local_solver._parent_wakefield.sources = (ImpedanceTableFreq,)
+        local_solver._parent_wakefield.sources = (ImpedanceTableFreqMixIn,)
 
         with self.assertRaisesRegex(
             Exception, "Can only accept impedance that support"
@@ -1363,7 +1366,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
         with self.assertRaises(RuntimeError):
             local_solv._parent_wakefield.sources = (
-                ImpedanceTableFreq(np.array([0]), np.array([0])),
+                ImpedanceTableFreqMixIn(np.array([0]), np.array([0])),
             )
             local_solv.on_wakefield_init_simulation(
                 simulation=simulation,
@@ -1863,7 +1866,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
         assert np.argmax(ind_volt) == np.argmax(ind_volt_init)
 
     def test_on_wakefield_init_simulation_wrong_source(self):
-        src = ImpedanceTableFreq(
+        src = ImpedanceTableFreqMixIn(
             freq_x=np.array([1e12]), freq_y=np.array([500e6])
         )
         parent_wakefield = WakeField(

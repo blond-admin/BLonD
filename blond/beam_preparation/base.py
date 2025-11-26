@@ -18,7 +18,7 @@ from __future__ import annotations
 from abc import ABC
 from typing import TYPE_CHECKING
 
-from blond.core.base import Schedulable
+from blond.core.base import SchedulableMixIn
 from blond.core.beam.base import BeamBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -56,7 +56,7 @@ class BeamPreparationRoutine(ABC):
         beam.reference_time = 0  # FIXME
         # assign beams?
 
-        schedulables = simulation.ring.elements.get_elements(Schedulable)
+        schedulables = simulation.ring.elements.get_elements(SchedulableMixIn)
         for s in schedulables:
             s.apply_schedules(
                 turn_i=simulation.turn_i.value,

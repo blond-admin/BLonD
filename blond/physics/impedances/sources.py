@@ -33,9 +33,9 @@ from blond.core.backends.backend import backend
 from blond.core.simulation.simulation import Simulation
 from blond.generals.warnings_ import NotTestedWarning
 from blond.physics.impedances.base import (
-    FreqDomain,
-    TimeDomain,
-    TimeDomainCounterRotation,
+    FreqDomainMixIn,
+    TimeDomainCounterRotationMixIn,
+    TimeDomainMixIn,
     WakeFieldSource,
 )
 from blond.physics.impedances.readers import ImpedanceReader
@@ -107,7 +107,7 @@ def get_hash(array1d: NumpyArray) -> int:
     )
 
 
-class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
+class InductiveImpedance(WakeFieldSource, FreqDomainMixIn, TimeDomainMixIn):
     """Inductive impedance, i.e. only complex component in frequency domain.
 
     Parameters
@@ -231,7 +231,10 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
 
 
 class Resonators(
-    WakeFieldSource, TimeDomain, FreqDomain, TimeDomainCounterRotation
+    WakeFieldSource,
+    TimeDomainMixIn,
+    FreqDomainMixIn,
+    TimeDomainCounterRotationMixIn,
 ):
     r"""Multiple resonances of RLC circuits for impedance calculations.
 
@@ -607,7 +610,7 @@ class ImpedanceTable(WakeFieldSource):
         pass
 
 
-class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
+class ImpedanceTableFreqMixIn(ImpedanceTable, FreqDomainMixIn):
     """Impedance table in frequency domain.
 
     Parameters
@@ -669,7 +672,7 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
     @staticmethod
     def from_file(
         filepath: PathLike, reader: ImpedanceReader
-    ) -> ImpedanceTableFreq:
+    ) -> ImpedanceTableFreqMixIn:
         """Instance table from a file on the disk.
 
         Parameters
@@ -687,10 +690,10 @@ class ImpedanceTableFreq(ImpedanceTable, FreqDomain):
         x_array, y_array = reader.load_file(filepath=filepath)
         assert not np.any(np.isnan(x_array))
         assert not np.any(np.isnan(y_array))
-        return ImpedanceTableFreq(freq_x=x_array, freq_y=y_array)
+        return ImpedanceTableFreqMixIn(freq_x=x_array, freq_y=y_array)
 
 
-class ImpedanceTableTime(ImpedanceTable, TimeDomain):
+class ImpedanceTableTime(ImpedanceTable, TimeDomainMixIn):
     """Impedance table in frequency domain.
 
     Parameters
@@ -778,7 +781,7 @@ class ImpedanceTableTime(ImpedanceTable, TimeDomain):
 
 
 # TODO rework docstring
-class TravelingWaveCavity(WakeFieldSource, TimeDomain, FreqDomain):
+class TravelingWaveCavity(WakeFieldSource, TimeDomainMixIn, FreqDomainMixIn):
     r"""Impedance of travelling wave cavities.
 
     Notes

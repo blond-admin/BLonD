@@ -98,7 +98,7 @@ class MainLoopRelevant(Preparable):
             return False
 
 
-class Schedulable:
+class SchedulableMixIn:
     """Base class for objects with schedule parameters.
 
     Attributes
@@ -598,7 +598,7 @@ class DynamicParameter:  # TODO add code generation for this method with type-hi
         self._value = new_val
 
 
-class HasPropertyCache:
+class HasPropertyCacheMixIn:
     """Helper objet to use @cached_property() for class methods."""
 
     def _invalidate_cache(self, props: tuple[str, ...]) -> None:

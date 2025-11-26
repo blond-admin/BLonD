@@ -22,7 +22,11 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 from blond.core.backends.backend import backend
-from blond.core.base import BeamPhysicsRelevant, HasPropertyCache, Schedulable
+from blond.core.base import (
+    BeamPhysicsRelevant,
+    HasPropertyCacheMixIn,
+    SchedulableMixIn,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -67,7 +71,7 @@ def _assert_purely_real_or_imaginary(val: complex):
         )
 
 
-class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
+class DriftBaseClass(BeamPhysicsRelevant, SchedulableMixIn, ABC):
     """Base class of a drift.
 
     Parameters
@@ -138,7 +142,7 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         pass
 
 
-class DriftSimple(DriftBaseClass, HasPropertyCache):
+class DriftSimple(DriftBaseClass, HasPropertyCacheMixIn):
     """Base class to implement beam drifts in synchrotrons.
 
     Parameters
