@@ -141,13 +141,18 @@ class PythonSpecials(Specials):
         )
 
     @staticmethod
-    def loss_box(  # noqa: D102
+    def loss_box(  # NOQA: D102
         top: float,
         bottom: float,
         left: float,
         right: float,
-    ) -> None:  # pragma: no cover
-        raise NotImplementedError
+        dt: NumpyArray,
+        dE: NumpyArray,
+        flags: NumpyArray,
+    ) -> None:
+        # select particles outside box
+        select = (dE > top) | (dE < bottom) | (dt < left) | (dt > right)
+        flags[select] = -500  # assume (BeamFlags.LOST.value)
 
     @staticmethod
     def kick_single_harmonic(
