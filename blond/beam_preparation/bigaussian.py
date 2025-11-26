@@ -261,6 +261,9 @@ class BiGaussian(MatchingRoutine):
         ----------
         simulation
             Simulation context manager
+        beam
+            Simulation :class:`~blond.core.beam.beam.Beam` object
+
         """
         from blond.physics.drifts import DriftSimple
 
@@ -268,16 +271,14 @@ class BiGaussian(MatchingRoutine):
             simulation=simulation,
             beam=beam,
         )
-        above_transition = (
-            beam.reference_gamma > simulation.ring.average_transition_gamma
-        )
+        above_transition = not simulation.ring.is_below_transition(beam=beam)
         harmonic, omega_rf, phi_rf, voltage = get_main_harmonic_attributes(
             beam=beam,
             simulation=simulation,
         )
 
-        drifts: DriftSimple = simulation.ring.elements.get_elements(
-            DriftSimple
+        drifts: tuple[DriftSimple, ...] = (
+            simulation.ring.elements.get_elements(DriftSimple)
         )
         for _drift in drifts:
             _drift.apply_schedules(
