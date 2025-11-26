@@ -20,6 +20,10 @@ def perform_check():
         if EXCLUDE in dirpath:
             continue
         for name in filenames:
+            if (
+                name == "_version.py"
+            ):  # is dynamically written during pip install
+                continue
             is_python_file = name.endswith(".py")
             is_cpp_file = (
                 name.endswith(".h")

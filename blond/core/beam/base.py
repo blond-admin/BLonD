@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
-from enum import Enum
+from enum import IntEnum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
@@ -31,7 +31,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.simulation.simulation import Simulation
 
 
-class BeamFlags(int, Enum):
+class BeamFlags(IntEnum):
     """Flags that define the beam state."""
 
     LOST = -500  # by convention with XSuite team

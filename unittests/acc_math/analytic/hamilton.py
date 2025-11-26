@@ -34,22 +34,22 @@ class TestPhaseModuloBelowTransition(unittest.TestCase):
         self.assertTrue(np.all(result >= -np.pi))
 
 
-
 class TestPhaseModuloAboveTransition(unittest.TestCase):
     def test_scalar_values(self):
         # 0 stays 0
         self.assertAlmostEqual(phase_modulo_above_transition(0.0), 0.0)
 
         # Positive values below 2π remain unchanged
-        self.assertAlmostEqual(phase_modulo_above_transition(np.pi / 2), np.pi / 2)
+        self.assertAlmostEqual(
+            phase_modulo_above_transition(np.pi / 2), np.pi / 2
+        )
 
         # Values above 2π wrap around
         self.assertAlmostEqual(phase_modulo_above_transition(3 * np.pi), np.pi)
 
         # Negative values wrap into the positive range
         self.assertAlmostEqual(
-            phase_modulo_above_transition(-np.pi / 2),
-            3 * np.pi / 2
+            phase_modulo_above_transition(-np.pi / 2), 3 * np.pi / 2
         )
 
     def test_array_values(self):
@@ -66,9 +66,10 @@ class TestPhaseModuloAboveTransition(unittest.TestCase):
         self.assertTrue(
             np.allclose(
                 phase_modulo_above_transition(vals),
-                phase_modulo_above_transition(vals + 2 * np.pi)
+                phase_modulo_above_transition(vals + 2 * np.pi),
             )
         )
+
 
 if __name__ == "__main__":
     unittest.main()

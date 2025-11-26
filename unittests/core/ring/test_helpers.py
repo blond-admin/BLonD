@@ -2,7 +2,6 @@ import unittest
 
 from blond.core.ring.helpers import (
     _build_dependency_graph,
-    _topological_sort,
     get_dependencies,
     get_elements,
     get_init_order,
@@ -85,6 +84,29 @@ class TestFunctions(unittest.TestCase):
         )
         assert sorted_classes == ["A", "B", "C", "D"]
 
+    def test_get_init_order_baseclass(self) -> None:
+        class BaseClass:
+            pass
+
+        class Areal(BaseClass):
+            def common(self):
+                pass
+
+        class Breal:
+            @requires(
+                [
+                    "BaseClass",
+                ]
+            )  # with should work
+            def common(self):
+                pass
+
+        sorted_classes = get_init_order(
+            instances=(Breal(), Areal()),
+            dependency_attribute="common.requires",
+        )
+        assert sorted_classes == ["Areal", "Breal"]
+
     def test_get_init_order3(self) -> None:
         a = A()
         b = D()
@@ -106,14 +128,17 @@ class TestFunctions(unittest.TestCase):
             @requires(["B_recursive"])
             def on_init_simulation(self):
                 pass
+
         class B_recursive:
             @requires(["A_recusive"])
             def on_init_simulation(self):
                 pass
+
         a_rec, b_rec = A_recusive(), B_recursive()
         with self.assertRaisesRegex(ValueError, "Cyclic dependency"):
             _ = get_init_order(
-                instances=(a_rec, b_rec), dependency_attribute="on_init_simulation.requires"
+                instances=(a_rec, b_rec),
+                dependency_attribute="on_init_simulation.requires",
             )
 
     def test_get_dependencies(self) -> None:

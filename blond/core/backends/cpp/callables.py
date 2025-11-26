@@ -26,122 +26,28 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
 
-class PrecisionClass:
-    """Singleton class. Holds information about the floating point precision of the calculations."""
-
-    int_t: type[np.int32 | np.int64]
-    real_t: type[np.float32 | np.float64]
-    c_real_t: type[ct.c_float | ct.c_double]
-    complex_t: type[np.complex64 | np.complex128]
-
-    __instance = None
-
-    def __init__(self, _precision: str = "double") -> None:
-        """Constructor.
-
-        Args:
-            _precision (str, optional): _description_. Defaults to 'double'.
-        """
-        PrecisionClass.__instance = self
-        self.set(_precision)
-
-    def set(self, _precision: str = "double") -> None:
-        """Set the precision to single or double.
-
-        Args:
-            _precision (str, optional): _description_. Defaults to 'double'.
-        """
-        if _precision in ["single", "s", "32", "float32", "float", "f"]:
-            self.str = "single"
-            self.int_t = np.int32
-            self.real_t = np.float32
-            self.c_real_t = ct.c_float
-            self.complex_t = np.complex64
-            self.num = 1
-        elif _precision in ["double", "d", "64", "float64"]:
-            self.str = "double"
-            self.int_t = np.int64
-            self.real_t = np.float64
-            self.c_real_t = ct.c_double
-            self.complex_t = np.complex128
-            self.num = 2
-        else:
-            msg = f"{_precision=} is not recognized, use 'single' or 'double'"
-            raise ValueError(msg)
-
-
-class c_complex128(ct.Structure):
-    """128-bit (64+64) Complex number, compatible with std::complex layout."""
-
-    real: ct.c_double
-    imag: ct.c_double
-
-    def __init__(self, pycomplex: complex) -> None:
-        """Init from Python complex.
-
-        Args:
-            pycomplex (_type_): _description_
-        """
-        # FIXME this seems broken from the type hint side, but is anyway not used
-        self.real = pycomplex.real.astype(np.float64, order="C")  # type: ignore
-        self.imag = pycomplex.imag.astype(np.float64, order="C")  # type: ignore
-
-    def to_complex(self) -> complex:
-        """Convert to Python complex.
-
-        Returns
-        -------
-            _type_: _description_
-        """
-        return self.real + 1.0j * self.imag  # type: ignore
-
-
-class c_complex64(ct.Structure):
-    """64-bit (32+32) Complex number, compatible with std::complex layout."""
-
-    _fields_ = [("real", ct.c_float), ("imag", ct.c_float)]
-
-    def __init__(self, pycomplex: complex) -> None:
-        """Init from Python complex.
-
-        Args:
-            pycomplex (_type_): _description_
-        """
-        # FIXME this seems broken from the type hint side, but is anyway not used
-        self.real = pycomplex.real.astype(np.float32, order="C")  # type: ignore
-        self.imag = pycomplex.imag.astype(np.float32, order="C")  # type: ignore
-
-    def to_complex(self) -> complex:
-        """Convert to Python complex.
-
-        Returns
-        -------
-            _type_: _description_
-        """
-        return self.real + 1.0j * self.imag
-
-
-def c_int(scalar: int, precision: PrecisionClass) -> ct.c_int32 | ct.c_int64:
-    """Convert input to default precision."""
-    return ct.c_int32(scalar) if precision.num == 1 else ct.c_int64(scalar)
-
-
 def c_real(
-    scalar: float, precision: PrecisionClass
+    scalar: float, floattype: type[np.float32] | type[np.float64]
 ) -> ct.c_float | ct.c_double:
     """Convert input to default precision."""
-    if precision.num == 1:
+    if floattype == np.float32:
         return ct.c_float(scalar)
-    return ct.c_double(scalar)
+    elif floattype == np.float64:
+        return ct.c_double(scalar)
+    else:
+        raise ValueError(floattype)
 
 
-def c_complex(
-    scalar: complex, precision: PrecisionClass
-) -> c_complex128 | c_complex64:
-    """Convert input to default precision."""
-    if precision.num == 1:
-        return c_complex64(scalar)
-    return c_complex128(scalar)
+def c_real_t(
+    floattype: type[np.float32] | type[np.float64],
+) -> type[ct.c_float | ct.c_double]:
+    """Get default precision."""
+    if floattype == np.float32:
+        return ct.c_float
+    elif floattype == np.float64:
+        return ct.c_double
+    else:
+        raise ValueError(floattype)
 
 
 def reload_cpp_backend(  # noqa: PLR0915
@@ -161,14 +67,6 @@ def reload_cpp_backend(  # noqa: PLR0915
         The `CppSpecials` class.
 
     """
-    if floattype == np.float32:
-        # By default, use double precision
-        precision = PrecisionClass("single")
-    elif floattype == np.float64:
-        # By default, use double precision
-        precision = PrecisionClass("double")
-    else:
-        raise TypeError(floattype)
 
     def load_libblond(precision: str = "single") -> CDLL:
         """Locates and initializes the blond compiled library.
@@ -182,7 +80,7 @@ def reload_cpp_backend(  # noqa: PLR0915
         """
         libblond_path_ = os.environ.get("LIBBLOND", None)
 
-        from blond.generals._hashing import hash_in_folder
+        from blond.generals.hashing_ import hash_in_folder
 
         folder = os.path.dirname(os.path.abspath(__file__))
 
@@ -234,7 +132,7 @@ def reload_cpp_backend(  # noqa: PLR0915
     def _getLen(x: NumpyArray) -> ct.c_int:
         return ct.c_int(len(x))
 
-    _LIBBLOND.beam_phase.restype = precision.c_real_t
+    _LIBBLOND.beam_phase.restype = c_real_t(floattype)
 
     class CppSpecials(Specials):
         @staticmethod
@@ -260,10 +158,10 @@ def reload_cpp_backend(  # noqa: PLR0915
             return _LIBBLOND.beam_phase(
                 hist_x.ctypes.data_as(ct.c_void_p),  # bin_centers
                 hist_y.ctypes.data_as(ct.c_void_p),  # profile
-                c_real(alpha, precision),  # alpha
-                c_real(omega_rf, precision),  # omega_rf
-                c_real(phi_rf, precision),  # phi_rf
-                c_real(bin_size, precision),  # bin_size
+                c_real(alpha, floattype),  # alpha
+                c_real(omega_rf, floattype),  # omega_rf
+                c_real(phi_rf, floattype),  # phi_rf
+                c_real(bin_size, floattype),  # bin_size
                 ct.c_int(len(hist_x)),  # n_bins
             )
 
@@ -286,8 +184,8 @@ def reload_cpp_backend(  # noqa: PLR0915
             _LIBBLOND.histogram(
                 array_read.ctypes.data_as(ct.c_void_p),
                 array_write.ctypes.data_as(ct.c_void_p),
-                c_real(start, precision),
-                c_real(stop, precision),
+                c_real(start, floattype),
+                c_real(stop, floattype),
                 ct.c_int(len(array_write)),
                 ct.c_int(len(array_read)),
             )
@@ -319,10 +217,10 @@ def reload_cpp_backend(  # noqa: PLR0915
                 dE.ctypes.data_as(ct.c_void_p),
                 voltage.ctypes.data_as(ct.c_void_p),
                 bin_centers.ctypes.data_as(ct.c_void_p),
-                c_real(charge, precision),
+                c_real(charge, floattype),
                 ct.c_int(len(bin_centers)),
                 ct.c_int(len(dt)),
-                c_real(acceleration_kick, precision),
+                c_real(acceleration_kick, floattype),
             )
 
         @staticmethod
@@ -356,12 +254,12 @@ def reload_cpp_backend(  # noqa: PLR0915
             _LIBBLOND.kick_single_harmonic(
                 dt.ctypes.data_as(ct.c_void_p),
                 dE.ctypes.data_as(ct.c_void_p),
-                c_real(charge, precision),
-                c_real(voltage, precision),
-                c_real(omega_rf, precision),
-                c_real(phi_rf, precision),
+                c_real(charge, floattype),
+                c_real(voltage, floattype),
+                c_real(omega_rf, floattype),
+                c_real(phi_rf, floattype),
                 ct.c_int(len(dt)),
-                c_real(acceleration_kick, precision),
+                c_real(acceleration_kick, floattype),
             )
 
         @staticmethod
@@ -394,12 +292,12 @@ def reload_cpp_backend(  # noqa: PLR0915
                 _getPointer(dt),
                 _getPointer(dE),
                 ct.c_int(n_rf),
-                c_real(charge, precision),
+                c_real(charge, floattype),
                 _getPointer(voltage),
                 _getPointer(omega_rf),
                 _getPointer(phi_rf),
                 _getLen(dt),
-                c_real(acceleration_kick, precision),
+                c_real(acceleration_kick, floattype),
             )
 
         @staticmethod
@@ -425,10 +323,10 @@ def reload_cpp_backend(  # noqa: PLR0915
             _LIBBLOND.drift_simple(
                 _getPointer(dt),
                 _getPointer(dE),
-                c_real(T, precision),
-                c_real(eta_0, precision),
-                c_real(beta, precision),
-                c_real(energy, precision),
+                c_real(T, floattype),
+                c_real(eta_0, floattype),
+                c_real(beta, floattype),
+                c_real(energy, floattype),
                 _getLen(dt),
             )
 

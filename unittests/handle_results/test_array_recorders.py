@@ -73,7 +73,6 @@ class TestDenseArrayRecorder(unittest.TestCase):
             self.dense_array_recorder.get_valid_entries()[0, :], newdata
         )
 
-
     def test_overwrite(self):
         rec1 = DenseArrayRecorder(
             filepath=callers_relative_path("deleteme2", 1),
@@ -82,7 +81,7 @@ class TestDenseArrayRecorder(unittest.TestCase):
             order="C",
             overwrite=True,
         )
-        rec1.to_disk() # creates deleteme2
+        rec1.to_disk()  # creates deleteme2
         rec2 = DenseArrayRecorder(
             filepath=callers_relative_path("deleteme2", 1),
             shape=(20, 10),

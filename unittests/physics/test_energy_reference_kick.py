@@ -16,8 +16,11 @@ class DummyMagneticCycleByTime(MagneticCycleByTime):
             base_values=[1e9],  # initial energy
         )
 
-    def get_target_total_energy(self, *, turn_i, section_i, reference_time, particle_type):
+    def get_target_total_energy(
+        self, *, turn_i, section_i, reference_time, particle_type
+    ):
         return 1e9 + turn_i * 1e6
+
 
 class DummyTurn:
     def __init__(self):
@@ -26,6 +29,7 @@ class DummyTurn:
 
 class DummyBeam(BeamBaseClass):
     """Minimal Beam implementation for testing EnergyReferenceKick."""
+
     def __init__(self):
         self.reference_total_energy = 1e9
         self._dE = 0.0
@@ -46,7 +50,6 @@ class DummyBeam(BeamBaseClass):
 
 
 class TestEnergyReferenceKick(unittest.TestCase):
-
     def setUp(self):
         self.simulation = MagicMock()
         self.simulation.turn_i = DummyTurn()
@@ -90,7 +93,9 @@ class TestEnergyReferenceKick(unittest.TestCase):
         )
         expected_change = target_energy - original_ref_energy
 
-        self.assertEqual(beam.reference_total_energy, original_ref_energy + expected_change)
+        self.assertEqual(
+            beam.reference_total_energy, original_ref_energy + expected_change
+        )
         self.assertEqual(beam._dE, original_dE - expected_change)
 
     def test_track_with_schedule_applies_schedules(self):
@@ -102,17 +107,17 @@ class TestEnergyReferenceKick(unittest.TestCase):
         called = {}
 
         def fake_apply_schedules(turn_i, reference_time):
-            called['called'] = True
-            called['turn_i'] = turn_i
-            called['reference_time'] = reference_time
+            called["called"] = True
+            called["turn_i"] = turn_i
+            called["reference_time"] = reference_time
 
         self.energy_kick.apply_schedules = fake_apply_schedules
 
         self.energy_kick.track(beam)
 
-        self.assertTrue(called.get('called', False))
-        self.assertEqual(called.get('turn_i'), 3)
-        self.assertEqual(called.get('reference_time'), beam.reference_time)
+        self.assertTrue(called.get("called", False))
+        self.assertEqual(called.get("turn_i"), 3)
+        self.assertEqual(called.get("reference_time"), beam.reference_time)
 
 
 if __name__ == "__main__":
