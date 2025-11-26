@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -65,9 +66,11 @@ class BeamPhysicsRelevantElements(Preparable):
 
         elem_section_indices = [e.section_index for e in self.elements]
         assert min(elem_section_indices) == 0, "section_index=0 must be set"
-        assert np.all(np.diff(elem_section_indices) >= 0), (
-            f"Section indices must be increasing, but got {elem_section_indices}"
-        )
+        if not np.all(np.diff(elem_section_indices) >= 0):
+            warnings.warn(
+                f"Section indices must be increasing, but got {elem_section_indices}",
+                stacklevel=1,
+            )
         cavities = self.get_elements(RfStationBaseClass)
         cav_section_indices = [c.section_index for c in cavities]
         all_different = len(cav_section_indices) == len(
@@ -148,7 +151,9 @@ class BeamPhysicsRelevantElements(Preparable):
                 result[section_i] = 0
         return result
 
-    def add_element(self, element: SimulationElementBase) -> None:
+    def add_element(
+        self, element: SimulationElementBase, reorder: bool = True
+    ) -> None:
         """Append a beam physics-relevant element to the container.
 
         This method appends the given element to the
@@ -172,14 +177,16 @@ class BeamPhysicsRelevantElements(Preparable):
         )
         assert isinstance(element.section_index, int)
 
-        insert_at = None
+        if reorder:
+            insert_at = None
+            for i, elem in enumerate(self.elements):
+                if elem.section_index == element.section_index:
+                    insert_at = i
 
-        for i, elem in enumerate(self.elements):
-            if elem.section_index == element.section_index:
-                insert_at = i
-
-        if insert_at is not None:
-            self.elements.insert(insert_at + 1, element)
+            if insert_at is not None:
+                self.elements.insert(insert_at + 1, element)
+            else:
+                self.elements.append(element)
         else:
             self.elements.append(element)
 

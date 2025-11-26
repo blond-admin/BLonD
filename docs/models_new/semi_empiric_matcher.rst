@@ -200,9 +200,9 @@ Example
 
 .. code-block:: python
 
-   from blond._core.simulation.simulation import Simulation
+   from blond.core.simulation.simulation import Simulation
    from blond.experimental.beam_preparation.semi_empiric_matcher import SemiEmpiricMatcher
-   from blond._core.particles import ParticleType
+   from blond.core.particles import ParticleType
 
    # Assume you have already initialized a simulation with RF systems,
    # impedances, and a ring definition
