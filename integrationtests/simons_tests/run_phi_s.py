@@ -25,7 +25,7 @@ backend.set_specials("cpp")
 def main():
     """Runs a several small simulations to see if phi_s is calculated correctly.
 
-    It is expected that the red line is at the stable pojnt of the bunch.
+    It is expected that the red line is at the stable point of the bunch.
     """
     splt_i = 0
     for charge in (-1, 1):
