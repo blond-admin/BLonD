@@ -245,6 +245,20 @@ class TestFitting(unittest.TestCase):
             p
         )
 
+    def test_multi_gauss_fit(self):
+        x = np.arange(-4,12,0.001)
+        p = [0.4,0,1]
+        p2 = [0.4,8,1]
+
+        gauss_test = norm.pdf(x, p[1], p[2]) +  norm.pdf(x, p2[1], p2[2])
+
+        fit = Fitting.multi_gauss_fit(self, x, gauss_test, n_bunches = 2)
+
+        np.testing.assert_almost_equal(
+            fit,
+            p
+        )
+
     def test_gauss(self):
         x = np.arange(-4,4,0.001)
         p = [0.4,0,1]
