@@ -234,10 +234,10 @@ def reload_cpp_backend(  # NOQA: PLR0915
             flags: CupyArray,
         ) -> None:
             _LIBBLOND.loss_box(
-                c_real(top, precision),
-                c_real(bottom, precision),
-                c_real(left, precision),
-                c_real(right, precision),
+                c_real(top, floattype),
+                c_real(bottom, floattype),
+                c_real(left, floattype),
+                c_real(right, floattype),
                 _getPointer(dt),
                 _getPointer(dE),
                 _getPointer(flags),
