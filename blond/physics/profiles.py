@@ -204,6 +204,25 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             backend.square(self._hist_x - average), weights=self._hist_y
         )
         return backend.sqrt(variance)
+    
+    def gauss_fit(self) -> NumpyArray: 
+        """Performs a gaussian fit on a profile with a single bunches.
+
+        Returns the amplitude, the mean and the standard deviation of the fitted gaussian curve.
+        """
+        return gauss_fit(self._hist_x, self._hist_y)
+    
+    def multibunch_gauss_fit(self, n_bunches: int) -> NumpyArray: 
+        """Performs a gaussian fit on a profile with multiple bunches.
+
+        Returns the amplitude, the mean and the standard deviation of the fitted gaussian curve for each bunch.
+
+        Parameters
+        ----------
+        n_bunches
+            Number of bunches
+        """
+        return multi_gauss_fit(self._hist_x, self._hist_y, n_bunches)
 
     def track(self, beam: BeamBaseClass) -> None:
         """Main simulation routine to be called in the mainloop.
