@@ -558,105 +558,88 @@ class DynamicProfileConstNBins(DynamicProfile):
             cut_left=cut_left, cut_right=cut_right, n_bins=self.n_bins
         )
 
+def gauss_fit(hist_x: NumpyArray, hist_y: NumpyArray) -> NumpyArray:
+    """Performs a gaussian fit on a profile with a single bunches.
 
-class Fitting(ProfileBaseClass):
-    """Contains all methods that use fitting for performing statistics on the profile.
+        Returns the amplitude, the mean and the standard deviation of the fitted gaussian curve for each bunch.
 
     Parameter
     ----------
     hist_x
-        x-axis of the histogram to perform the fitting on
+        X-axis of the histogram to perform the fitting on
     hist_y
-        y-axis of the histogram to perform the fitting on
+        Y-axis of the histogram to perform the fitting on
+
+    Returns
+    -------
+    params
+        Amplitude, mean and standard deviation for each bunch
     """
+    return multi_gauss_fit(hist_x, hist_y, n_bunches=1)[0]
 
-    def __init__(self, hist_x: NumpyArray, hist_y: NumpyArray):
-        self._hist_x = hist_x
-        self._hist_y = hist_y
-        self._fitting_result = self.gauss_fit()
+def multi_gauss_fit(
+    hist_x: NumpyArray, hist_y: NumpyArray, n_bunches: int
+) -> NumpyArray:
+    """Performs a gaussian fit on a profile with multiple bunches.
 
-    def gauss_fit(self, hist_x: NumpyArray, hist_y: NumpyArray) -> NumpyArray:
-        """Performs a gaussian fit on a profile with a single bunches.
+        Returns the amplitude, the mean and the standard deviation of the fitted gaussian curve for each bunch.
 
-            Returns the amplitude, the mean and the standard deviation of the fitted gaussian curve for each bunch.
+    Parameter
+    ----------
+    hist_x
+        X-axis of the histogram to perform the fitting on
+    hist_y
+        Y-axis of the histogram to perform the fitting on
+    n_bunches
+        Number of bunches in the profile
 
-        Parameter
-        ----------
-        hist_x
-            X-axis of the histogram to perform the fitting on
-        hist_y
-            Y-axis of the histogram to perform the fitting on
+    Returns
+    -------
+    params
+        Amplitude, mean and standard deviation for each bunch
+    """
+    bucket_length = int(len(hist_x) / n_bunches)
+    params = backend.zeros([n_bunches, 3])
 
-        Returns
-        -------
-        params
-            Amplitude, mean and standard deviation for each bunch
-        """
-        return Fitting.multi_gauss_fit(self, hist_x, hist_y, n_bunches=1)[0]
+    for bucket in range(n_bunches):
+        bucket_hist_x = hist_x[
+            bucket * bucket_length : (bucket + 1) * bucket_length
+        ]
+        bucket_hist_y = hist_y[
+            bucket * bucket_length : (bucket + 1) * bucket_length
+        ]
 
-    def multi_gauss_fit(
-        self, hist_x: NumpyArray, hist_y: NumpyArray, n_bunches: int
-    ) -> NumpyArray:
-        """Performs a gaussian fit on a profile with multiple bunches.
+        p = [
+            bucket_hist_y.max(),
+            bucket_hist_x[np.argmax(bucket_hist_y)],
+            bucket_hist_x[int(2 * bucket_length / 4)]
+            - bucket_hist_x[int(bucket_length / 4)],
+        ]
 
-            Returns the amplitude, the mean and the standard deviation of the fitted gaussian curve for each bunch.
+        params[bucket, :] = curve_fit(
+            gauss, bucket_hist_x, bucket_hist_y, p
+        )[0]
 
-        Parameter
-        ----------
-        hist_x
-            X-axis of the histogram to perform the fitting on
-        hist_y
-            Y-axis of the histogram to perform the fitting on
-        n_bunches
-            Number of bunches in the profile
+    return params
 
-        Returns
-        -------
-        params
-            Amplitude, mean and standard deviation for each bunch
-        """
-        bucket_length = int(len(hist_x) / n_bunches)
-        params = backend.zeros([n_bunches, 3])
+def gauss(x: NumpyArray, *p: NumpyArray) -> NumpyArray:
+    r"""Returns a gaussian function.
 
-        for bucket in range(n_bunches):
-            bucket_hist_x = hist_x[
-                bucket * bucket_length : (bucket + 1) * bucket_length
-            ]
-            bucket_hist_y = hist_y[
-                bucket * bucket_length : (bucket + 1) * bucket_length
-            ]
+    .. math::
 
-            p = [
-                bucket_hist_y.max(),
-                bucket_hist_x[np.argmax(bucket_hist_y)],
-                bucket_hist_x[int(2 * bucket_length / 4)]
-                - bucket_hist_x[int(bucket_length / 4)],
-            ]
+    A\, e^{\frac{(x - x_0)^2}{2\sigma_x^2}}.
 
-            params[bucket, :] = curve_fit(
-                Fitting.gauss, bucket_hist_x, bucket_hist_y, p
-            )[0]
+    Parameters
+    ----------
+    x
+        Input array at which points to calculate the gaussian
+    p
+        Parameters necessary to calculate the Gaussian
+        p = [A, x_0, \\sigma_x]
+        A = Amplitude of the function
+        x_0 = mean
+        \\sigma_x = standard deviation
+    """
+    A, x_0, sigma_x = p
 
-        return params
-
-    def gauss(x: NumpyArray, *p) -> NumpyArray:
-        r"""Returns a gaussian function.
-
-        .. math::
-
-        A\, e^{\frac{(x - x_0)^2}{2\sigma_x^2}}.
-
-        Parameters
-        ----------
-        x
-            Input array at which points to calculate the gaussian
-        p
-            Parameters necessary to calculate the Gaussian
-            p = [A, x_0, \\sigma_x]
-            A = Amplitude of the function
-            x_0 = mean
-            \\sigma_x = standard deviation
-        """
-        A, x_0, sigma_x = p
-
-        return A * np.exp(-((x - x_0) ** 2) / 2.0 / sigma_x**2)
+    return A * np.exp(-((x - x_0) ** 2) / 2.0 / sigma_x**2)
