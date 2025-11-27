@@ -49,15 +49,18 @@ def _get_dE_from_dt_core(
     if eta0 < 0:
         phi_rf -= np.pi
     # Calculate dE_amplitude from dt_amplitude using single-harmonic Hamiltonian
-    voltage = particle_charge * voltage
     phi_b = omega_rf * dt_amplitude + phi_s
     dE_amplitude = np.sqrt(
         voltage
+        * particle_charge
         * energy
         * beta**2
-        * (np.cos(phi_b) - np.cos(phi_s) + (phi_b - phi_s) * np.sin(phi_s))
+        * np.abs(
+            (np.cos(phi_b) - np.cos(phi_s)) + (phi_b - phi_s) * np.sin(phi_s)
+        )
         / (np.pi * harmonic * np.fabs(eta0))
     )
+    # dE_amplitude = dt_amplitude * np.sqrt(voltage * particle_charge * energy * np.cos(phi_s) * beta**2 * omega_rf / np.fabs(eta0))
     return dE_amplitude
 
 
@@ -309,9 +312,9 @@ class BiGaussian(MatchingRoutine):
         )
         eta0 = eta0[0]
 
-        # RF wave is shifted by Pi below transition
-        if eta0 < 0:
-            phi_rf -= np.pi
+        # # RF wave is shifted by Pi below transition
+        # if eta0 < 0:
+        #     phi_rf -= np.pi
 
         # Generate coordinates. For reproducibility, a separate random number stream is used for dt and dE
         rng_dt = backend.random.default_rng(self._seed)
