@@ -461,6 +461,11 @@ class TestRing(unittest.TestCase):
         self.ring._circumference = 2 * 123
         self.ring.assert_circumference()  # works
 
+    def test_add_drifts2_fails(self):
+        self.ring._circumference = 129
+        with self.assertRaises(ValueError):
+            self.ring.assert_circumference()  # works
+
     def test_add_drifts2(self):
         self.ring._circumference = 129
         self.ring.add_drifts(12, 3)

@@ -59,9 +59,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.experimental.beam_preparation.semi_empiric_matcher import (
         SemiEmpiricMatcher,
     )
-    from blond.handle_results.observables import (
-        ObservablesOncePerTurnBase,
-    )
+    from blond.handle_results.observables import ObservablesOncePerTurnBase
     from blond.interfaces.xsuite.beam_preparation.rfbucket_matching import (
         XsuiteRFBucketMatcher,
     )
@@ -184,7 +182,9 @@ class Simulation(Preparable):
         Examples
         --------
         Profile 100 turns after a 10-turn warmup:
-
+        >>> from blond import Simulation, Beam
+        >>> sim = Simulation(...)
+        >>> beam1 = Beam(...)
         >>> from pstats import SortKey
         >>> sim.profiling(
         ...     beams=(beam1,),
@@ -215,6 +215,15 @@ class Simulation(Preparable):
 
         # trigger profiling later than turn 0
         def start_profiling(simulation: Simulation, beam: BeamBaseClass):
+            """Enable the profiling in the mainloop.
+
+            Parameters
+            ----------
+            simulation
+                `Simulation` context manager
+            beam
+                The `Beam` object.
+            """
             if simulation.turn_i.value == profile_start_turn_i:
                 pr.enable()
 
@@ -269,6 +278,9 @@ class Simulation(Preparable):
         Plot the potential well with default settings:
 
         >>> import numpy as np
+        >>> from blond import Simulation, Beam, proton
+        >>> sim = Simulation(...)
+        >>> beam1 = Beam(...)
         >>> dt_array = np.linspace(0, 2.5e-9, 500)
         >>> plt.title('RF Bucket Structure')
         >>> sim.plot_potential_well_empiric(dt=dt_array, particle_type=proton)
@@ -346,6 +358,8 @@ class Simulation(Preparable):
 
         >>> import numpy as np
         >>> import matplotlib.pyplot as plt
+        >>> from blond import Simulation, proton
+        >>> sim = Simulation(...)
         >>>
         >>> dE_array = np.linspace(-1e8, 1e8, 500)  # Energy offsets in eV
         >>> drift = sim.get_drift_term_empiric(dE=dE_array, particle_type=proton)
@@ -448,6 +462,10 @@ class Simulation(Preparable):
         >>> import numpy as np
         >>> import matplotlib.pyplot as plt
         >>>
+        >>> from blond import Simulation, Beam, proton
+        >>>
+        >>> sim = Simulation(...)
+        >>> beam1 = Beam(...)
         >>> dt_array = np.linspace(0, 2.5e-9, 500)
         >>> potential, factor, tilt = sim.get_potential_well_empiric(
         ...     dt=dt_array,
@@ -491,7 +509,7 @@ class Simulation(Preparable):
         t_1 = probe_bunch.reference_time
         t_rev = t_1 - t_0
         # Calculate scaling factor
-        factor = (dt[-1] - dt[0]) / t_rev
+        factor = float((dt[-1] - dt[0]) / t_rev)
 
         # Calculate tilt of phase space
         change_t = probe_bunch._dt - bunch_before._dt
@@ -741,7 +759,7 @@ class Simulation(Preparable):
         )
         magnetic_cycle = _magnetic_cycle[0]
 
-        elements = get_elements(locals_list, (SimulationElementBase))
+        elements = get_elements(locals_list, SimulationElementBase)
         ring.add_elements(elements=elements, reorder=True)
 
         logger.debug(f"{ring=}")
@@ -859,7 +877,9 @@ class Simulation(Preparable):
         --------
         Prepare a beam with a simple Gaussian distribution:
 
-        >>> from blond import BiGaussian
+        >>> from blond import Simulation, Beam, BiGaussian
+        >>> sim = Simulation(...)
+        >>> beam1 = Beam(...)
         >>> sim.prepare_beam(
         ...     beam=beam1,
         ...     preparation_routine=BiGaussian(
@@ -973,6 +993,9 @@ class Simulation(Preparable):
         --------
         Basic simulation for 1000 turns:
 
+        >>> from blond import Simulation, Beam, BiGaussian
+        >>> sim = Simulation(...)
+        >>> beam1 = Beam(...)
         >>> sim.run_simulation(
         ...     beams=(beam1,),
         ...     n_turns=1000,
@@ -981,6 +1004,10 @@ class Simulation(Preparable):
         Simulation with observables to record data:
 
         >>> from blond import RfStationPhaseObservation, BeamObservationOncePerTurn
+        >>> from blond import Simulation, Beam, BiGaussian, SingleHarmonicRfStation
+        >>> sim = Simulation(...)
+        >>> beam1 = Beam(...)
+        >>> rf_station1 = SingleHarmonicRfStation(...)
         >>> phase_obs = RfStationPhaseObservation(each_turn_i=1, rf_station=rf_station1)
         >>> beam_obs = BeamObservationOncePerTurn(each_turn_i=1, beam=beam1)
         >>>
@@ -1066,7 +1093,7 @@ class Simulation(Preparable):
                 observe=observe,
                 show_progressbar=show_progressbar,
                 callback=callback,
-                beams=beams,
+                beams=beams,  # type: ignore
             )
         else:
             raise NotImplementedError(
@@ -1228,7 +1255,7 @@ class Simulation(Preparable):
                         simulation=self,
                     )
             if callback is not None:
-                callback(simulation=self, beam=beam)
+                callback(self, beam)
 
         # reset counters to uninitialized again
         self.turn_i.value = None
@@ -1339,6 +1366,9 @@ class Simulation(Preparable):
         --------
         Save results after a simulation:
 
+        >>> from blond import Simulation, Beam
+        >>> sim = Simulation(...)
+        >>> beam1 = Beam(...)
         >>> # Run simulation with observables
         >>> sim.run_simulation(
         ...     beams=(beam1,),
@@ -1351,6 +1381,10 @@ class Simulation(Preparable):
 
         Save with a custom name prefix:
 
+
+        >>> from blond import Simulation
+        >>> sim = Simulation(...)
+        >>> sim.run_simulation(observe=(phase_obs, beam_obs), ...)
         >>> sim.save_results(
         ...     observe=(phase_obs, beam_obs),
         ...     common_name="simulation_450GeV_1000turns"

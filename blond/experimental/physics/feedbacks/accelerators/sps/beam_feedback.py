@@ -55,7 +55,7 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         """Lateinit method when `simulation.__init__` is called
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         from blond.physics.drifts import DriftSimple
 

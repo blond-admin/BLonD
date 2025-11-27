@@ -299,7 +299,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation beam object
         """
@@ -436,7 +436,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         beam
             Simulation beam object
         simulation
-            Simulation context manager
+            `Simulation` context manager
         ts
             Time coordinate, in [s] for observation of the potential well.
         """

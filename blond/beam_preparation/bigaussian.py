@@ -70,6 +70,8 @@ def _get_dE_from_dt(
 
     Returns
     -------
+    beam : BeamBaseClass
+        The `Beam` object which state will be updated by this element.
     dE_amplitude : float
         Full amplitude of the particle oscillation, in [eV]
 
@@ -127,10 +129,10 @@ def get_main_harmonic_attributes(
 
     Parameters
     ----------
-    simulation
-        Simulation context manager
     beam
         Simulation :class:`~blond.core.beam.beam.Beam` object
+    simulation
+        `Simulation` context manager
 
     Returns
     -------
@@ -254,10 +256,9 @@ class BiGaussian(MatchingRoutine):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation :class:`~blond.core.beam.beam.Beam` object
-
         """
         from blond.physics.drifts import DriftSimple
 

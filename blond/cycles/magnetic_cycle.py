@@ -87,7 +87,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(simulation=simulation)
         self._n_turns_max = kwargs["n_turns_max"]
@@ -106,7 +106,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation :class:`~blond._cycles_core.beam.beam.Beam` object
         n_turns
@@ -330,7 +330,7 @@ class ConstantMagneticCycle(MagneticCycleBase):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(
             simulation=simulation,
@@ -486,7 +486,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         n_rf_stations = simulation.ring.n_rf_stations
         n_turns_max = self._values_after_turn.shape[0]
@@ -692,7 +692,7 @@ class MagneticCyclePerTurnAllRfStations(MagneticCycleBase):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         magnetic_rigidity_after_rf_station_per_turn = _to_magnetic_rigidity(
             data=self._values_after_rf_station_per_turn[:, :],
@@ -889,7 +889,7 @@ class MagneticCycleByTime(MagneticCycleBase):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(
             simulation=simulation,

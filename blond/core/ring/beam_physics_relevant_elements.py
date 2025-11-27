@@ -50,7 +50,7 @@ class BeamPhysicsRelevantElements(Preparable):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         self._check_section_indexing()
         self._on_init_simulation_passed = True
@@ -113,7 +113,7 @@ class BeamPhysicsRelevantElements(Preparable):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns

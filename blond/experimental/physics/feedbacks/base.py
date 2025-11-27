@@ -93,7 +93,7 @@ class GlobalFeedback(FeedbackBaseClass):
         """Lateinit method when `simulation.__init__` is called
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         self.cavities = simulation.ring.elements.get_elements(
             SingleHarmonicRfStation

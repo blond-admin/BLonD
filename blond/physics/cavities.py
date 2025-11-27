@@ -76,7 +76,7 @@ class RfManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(simulation=simulation)
 
@@ -174,7 +174,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(simulation=simulation)
         self._magnetic_cycle = simulation.magnetic_cycle
@@ -191,7 +191,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns
@@ -516,7 +516,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(simulation=simulation)
         if (self.voltage is None) and "voltage" not in self.schedules:
@@ -700,7 +700,15 @@ class SingleHarmonicRfStation(RfStationBaseClass):
 
 
 class MultiHarmonicRfStation(RfStationBaseClass):
-    """RF station with several RF wave for beam interaction.
+    r"""RF station with several RF wave for beam interaction.
+
+    Equation
+    --------
+    .. math::
+        dE = \sum_{j} \left( \text{charge} \cdot \text{voltage}[j] \cdot \sin\left(\omega_{\text{rf}}[j] \cdot dt + \phi_{\text{rf}}[j]\right) \right) + \text{acceleration\_kick}
+
+    where
+    `acceleration_kick` is the change of reference energy.
 
     Parameters
     ----------
@@ -709,6 +717,12 @@ class MultiHarmonicRfStation(RfStationBaseClass):
     main_harmonic_idx
         Index of the RF station's main harmonic
         Used to calculate attributes that rely on only one harmonic
+    voltage
+        Cavity's effective voltages (per harmonic) in [V]
+    phi_rf
+        Cavity's design phases (per harmonic) in [rad]
+    harmonic
+        Cavity's design harmonics (per harmonic) []
     section_index
         Section index to group elements into sections
     local_wakefield
@@ -784,7 +798,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(simulation=simulation)
         if (self.voltage is None) and "voltage" not in self.schedules:
@@ -855,16 +869,18 @@ class MultiHarmonicRfStation(RfStationBaseClass):
 
     def get_main_harmonic_omega_rf_current(self) -> float:
         """Returns the omega_rf of the main harmonic, in [rad/s]."""
-        return self._omega_rf[self.main_harmonic_idx]
+        return float(self._omega_rf[self.main_harmonic_idx])
 
     def calc_main_harmonic_omega_rf(
         self, beam_beta: float, ring_circumference: float
     ) -> float:
         """Returns the omega_rf of the main harmonic, in [rad/s]."""
-        return self.calc_omega(
-            beam_beta=beam_beta,
-            ring_circumference=ring_circumference,
-        )[self.main_harmonic_idx]
+        return float(
+            self.calc_omega(
+                beam_beta=beam_beta,
+                ring_circumference=ring_circumference,
+            )[self.main_harmonic_idx]
+        )
 
     def get_main_harmonic_t_rf_current(
         self,
@@ -937,10 +953,17 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             Synchrotron circumference in [m]
         total_energy
             Target total energy in [eV]
+        main_harmonic_idx
+            Index of the cavity's main harmonic
+            Used to calculate attributes that rely on only one harmonic.
+        reference_beta
+            Beam reference fraction of speed of light (v/c0) [].
         local_wakefield
             Optional wakefield to interact with beam
         cavity_feedback
             Optional cavity feedback to change cavity parameters
+        beam_feedback
+            Optional beam feedback to change cavity parameters
 
         Returns
         -------
@@ -1011,7 +1034,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         backend.specials.kick_multi_harmonic(
             dt=beam.read_partial_dt(),
             dE=beam.write_partial_dE(),
-            voltage=(self.voltage).astype(backend.float),
+            voltage=self.voltage.astype(backend.float),
             phi_rf=(self.phi_rf + self.delta_phi_rf).astype(backend.float),
             omega_rf=(self._omega_rf + self.delta_omega_rf).astype(
                 backend.float
