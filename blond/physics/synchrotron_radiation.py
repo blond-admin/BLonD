@@ -58,7 +58,7 @@ class SynchrotronRadiation(BeamPhysicsRelevant):  # pragma: no cover
         """Lateinit method when :func:`blond.core.simulation.simulation.Simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         self._simulation = simulation
 
@@ -73,7 +73,7 @@ class SynchrotronRadiation(BeamPhysicsRelevant):  # pragma: no cover
         """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns
