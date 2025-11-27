@@ -13,7 +13,7 @@ from blond import (
     WakeField,
     mu_plus,
 )
-from blond._core.backends.backend import Numpy64Bit, backend
+from blond.core.backends.backend import Numpy64Bit, backend
 from blond.handle_results.observables import (
     BunchObservationMetaParams,
     StaticProfileObservation,
@@ -58,9 +58,7 @@ from blond.specifics.muon_collider.beam_preparation import (
     load_beam_data_counterrot_from_file,
 )
 
-backend.change_backend(
-    Numpy64Bit
-)
+backend.change_backend(Numpy64Bit)
 backend.set_specials("numba")
 
 # RCS2
@@ -141,14 +139,14 @@ def setup_and_run_blond3(multi_turn_wake: bool = False):
         shunt_impedances=R_over_Q * Q_factor * cav_per_station,
     )  # FM only
     wf = WakeField(
-                    sources=(local_res,),
-                    solver=MultiPassResonatorSolver(
-                        decay_fraction_threshold=decay_fraction_threshold
-                    )
-                    if multi_turn_wake
-                    else SingleTurnResonatorConvolutionSolver(),
-                    profile=prof,
-                )
+        sources=(local_res,),
+        solver=MultiPassResonatorSolver(
+            decay_fraction_threshold=decay_fraction_threshold
+        )
+        if multi_turn_wake
+        else SingleTurnResonatorConvolutionSolver(),
+        profile=prof,
+    )
     one_turn_model.extend(
         [
             prof,
@@ -193,7 +191,9 @@ def setup_and_run_blond3(multi_turn_wake: bool = False):
     profile_observation = StaticProfileObservation(
         each_turn_i=1, obs_per_turn=1, profile=prof
     )
-    wf_observation = WakeFieldObservation(wakefield=wf, each_turn_i=1, obs_per_turn=1)
+    wf_observation = WakeFieldObservation(
+        wakefield=wf, each_turn_i=1, obs_per_turn=1
+    )
     sim.run_simulation(
         beams=([beam]),
         turn_i_init=0,
@@ -205,11 +205,7 @@ def setup_and_run_blond3(multi_turn_wake: bool = False):
         ),
     )
 
-    return (
-        bunch_observation,
-        profile_observation,
-        wf_observation
-    )
+    return (bunch_observation, profile_observation, wf_observation)
 
 
 def setup_and_run_blond2(mtw=False):
@@ -273,10 +269,18 @@ def setup_and_run_blond2(mtw=False):
     total_ind_volt = total_ind_volt_b2(beam, profile, [ind_volt_res])
     # total_ind_volt.induced_voltage_sum()
 
-    total_ind_volt_matcher = total_ind_volt_b2(beam, profile, [ind_volt_time_matching])
+    total_ind_volt_matcher = total_ind_volt_b2(
+        beam, profile, [ind_volt_time_matching]
+    )
     total_ind_volt_matcher.induced_voltage_sum()
 
-    long_tracker_match = RingAndRFTracker(rf_station, beam, profile=profile, total_induced_voltage=total_ind_volt_matcher, interpolation=False)
+    long_tracker_match = RingAndRFTracker(
+        rf_station,
+        beam,
+        profile=profile,
+        total_induced_voltage=total_ind_volt_matcher,
+        interpolation=False,
+    )
     full_ring_and_rf_tracker_matcher = FullRingAndRF([long_tracker_match])
 
     matching = matched_from_distribution_function(
@@ -309,7 +313,9 @@ def setup_and_run_blond2(mtw=False):
 
     save_bunch_centroid = []
     save_energy_centroid = []
-    save_ind_volt = np.zeros((ring.n_turns, len(total_ind_volt.induced_voltage)))
+    save_ind_volt = np.zeros(
+        (ring.n_turns, len(total_ind_volt.induced_voltage))
+    )
 
     from tqdm import tqdm
 
@@ -329,13 +335,21 @@ def setup_and_run_blond2(mtw=False):
         save_bunch_centroid.append(np.mean(beam.dt))
         save_energy_centroid.append(np.mean(beam.dE))
 
-    return np.array(save_bunch_centroid), np.array(save_energy_centroid), np.array(save_ind_volt)
+    return (
+        np.array(save_bunch_centroid),
+        np.array(save_energy_centroid),
+        np.array(save_ind_volt),
+    )
 
 
 def plot_and_compare():
-    bunch_centroid_b2, energy_centroid_b2, save_ind_volt_b2 = setup_and_run_blond2(mtw=mtw)
+    bunch_centroid_b2, energy_centroid_b2, save_ind_volt_b2 = (
+        setup_and_run_blond2(mtw=mtw)
+    )
 
-    bunch_observation, profile_observation, ind_volt_obs = setup_and_run_blond3(multi_turn_wake=mtw)
+    bunch_observation, profile_observation, ind_volt_obs = (
+        setup_and_run_blond3(multi_turn_wake=mtw)
+    )
 
     DEBUG_PLOTTING = True
     if DEBUG_PLOTTING:
@@ -359,8 +373,13 @@ def plot_and_compare():
         plt.legend()
         plt.show()
 
-    np.testing.assert_allclose(energy_centroid_b2, bunch_observation.mean_dE, rtol=1e-4)
-    np.testing.assert_allclose(bunch_centroid_b2, bunch_observation.mean_dt, rtol=1e-4)
+    np.testing.assert_allclose(
+        energy_centroid_b2, bunch_observation.mean_dE, rtol=1e-4
+    )
+    np.testing.assert_allclose(
+        bunch_centroid_b2, bunch_observation.mean_dt, rtol=1e-4
+    )
+
 
 if __name__ == "__main__":
     plot_and_compare()

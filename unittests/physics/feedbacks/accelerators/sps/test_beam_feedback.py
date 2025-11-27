@@ -12,7 +12,7 @@ import numpy as np
 
 from blond import (
     Beam,
-    BeamObservationEndOfTurn,
+    BeamObservationOncePerTurn,
     BiGaussian,
     CavityPhaseObservation,
     ConstantMagneticCycle,
@@ -22,7 +22,7 @@ from blond import (
     StaticProfile,
     proton,
 )
-from blond._core.backends.backend import Numpy32Bit, Numpy64Bit, backend
+from blond.core.backends.backend import Numpy32Bit, Numpy64Bit, backend
 from blond.experimental.physics.feedbacks.accelerators.sps.beam_feedback import (
     SpsRlBeamFeedback,
 )
@@ -203,7 +203,7 @@ class TestBeamFeedback(unittest.TestCase):
         backend.change_backend(Numpy32Bit)
 
     def test_setup(self):
-        obs_bunch = BeamObservationEndOfTurn(each_turn_i=1, beam=self.beam)
+        obs_bunch = BeamObservationOncePerTurn(each_turn_i=1, beam=self.beam)
         cav_obs = CavityPhaseObservation(
             each_turn_i=1,
             cavity=self.cavity,

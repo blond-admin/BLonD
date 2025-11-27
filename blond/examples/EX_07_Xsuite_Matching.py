@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 # pragma: no cover
 import logging
 
@@ -9,7 +17,7 @@ from xpart.longitudinal.rfbucket_matching import (  # ThermalDistribution,; Para
 
 from blond import (
     Beam,
-    BeamObservationEndOfTurn,
+    BeamObservationOncePerTurn,
     CavityPhaseObservation,
     DriftSimple,
     Ring,
@@ -69,7 +77,7 @@ def main():
         each_turn_i=1,
         cavity=cavity1,
     )
-    bunch_observation = BeamObservationEndOfTurn(beam=beam1, each_turn_i=1)
+    bunch_observation = BeamObservationOncePerTurn(beam=beam1, each_turn_i=1)
 
     def custom_action(simulation: Simulation):  # pragma: no cover
         if simulation.turn_i.value % 10 != 0:

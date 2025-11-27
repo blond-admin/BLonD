@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 from __future__ import annotations
 
 import math
@@ -7,8 +15,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from blond import AllowPlotting, backend
-from blond._core.helpers import int_from_float_with_warning
 from blond.beam_preparation.base import MatchingRoutine
+from blond.core.helpers import int_from_float_with_warning
 from blond.experimental.beam_preparation.helpers import populate_beam
 
 # Oversampling factor for potential well calculation
@@ -23,7 +31,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond import (
         Simulation,
     )
-    from blond._core.beam.base import BeamBaseClass
+    from blond.core.beam.base import BeamBaseClass
 
 
 def hamilton_to_density_by_max(
@@ -291,7 +299,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation beam object
         """
@@ -428,7 +436,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         beam
             Simulation beam object
         simulation
-            Simulation context manager
+            `Simulation` context manager
         ts
             Time coordinate, in [s] for observation of the potential well.
         """

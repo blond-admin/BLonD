@@ -15,7 +15,7 @@ from blond import (
     WakeField,
     proton,
 )
-from blond._core.backends.backend import Numpy64Bit, backend
+from blond.core.backends.backend import Numpy64Bit, backend
 from blond.physics.impedances.solvers import PeriodicFreqSolver
 from blond.physics.impedances.sources import InductiveImpedance
 

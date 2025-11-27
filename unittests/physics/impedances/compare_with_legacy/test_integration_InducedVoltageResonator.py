@@ -14,9 +14,8 @@ from blond import (
     WakeField,
     proton,
 )
-from blond._core.backends.backend import Numpy64Bit, backend
+from blond.core.backends.backend import Numpy64Bit, backend
 from blond.physics.impedances.solvers import (
-    PeriodicFreqSolver,
     SingleTurnResonatorConvolutionSolver,
 )
 from blond.physics.impedances.sources import Resonators
@@ -52,9 +51,7 @@ class Blond2:
             InducedVoltageResonator,
             # InducedVoltageFreq,
         ):
-            ring = Ring(
-                6911.56, 0.00192, 25.92e9, Proton(), 10
-            )
+            ring = Ring(6911.56, 0.00192, 25.92e9, Proton(), 10)
             rf_station = RFStation(ring, [4620], [0.9e6], [0.0], 1)
             beam = Beam(ring, n_macroparticles, 1e10)
             bigaussian(ring, rf_station, beam, bunch_length, seed=1)
@@ -197,9 +194,14 @@ class TestBothBlonds(unittest.TestCase):
         if DEBUG_PLOT:
             plt.title(f"{n_macroparticles} {n_slices} {bunch_length}")
             plt.plot(
-                self.blond3.blond2.induced_voltage[0], label="blond2 ind_volt time"
+                self.blond3.blond2.induced_voltage[0],
+                label="blond2 ind_volt time",
             )
-            plt.plot(self.blond3.blond2.induced_voltage[1], label="blond2 ind volt res", ls=":")
+            plt.plot(
+                self.blond3.blond2.induced_voltage[1],
+                label="blond2 ind volt res",
+                ls=":",
+            )
             # plt.plot(self.blond3.blond2.induced_voltage[2], label="blond2 ind volt freq", ls="--")
             plt.plot(self.blond3.induced_voltage, label="blond3", ls="dashdot")
             plt.legend()
@@ -212,24 +214,28 @@ class TestBothBlonds(unittest.TestCase):
                 )
             except AssertionError:
                 np.testing.assert_allclose(
-                    blond2_ind_volt, self.blond3.induced_voltage, atol=20  # of 120000
+                    blond2_ind_volt,
+                    self.blond3.induced_voltage,
+                    atol=20,  # of 120000
                 )
 
     def test_diff_params(self):
         DEBUG_MODE = False
         if DEBUG_MODE:
             n_macroparts = [int(1e4), int(1e5), int(1e6)]
-            bunch_lengths = [1e-8 / 12, 1e-9 / 8,  1e-9 / 4, ]
+            bunch_lengths = [
+                1e-8 / 12,
+                1e-9 / 8,
+                1e-9 / 4,
+            ]
             n_slices_lst = [1024]
         else:
             n_macroparts = [int(2e4)]
             bunch_lengths = [5e-10]
             n_slices_lst = [128]
-        for mac_ind, n_macroparticles in enumerate(
-            n_macroparts
-        ):
+        for mac_ind, n_macroparticles in enumerate(n_macroparts):
             for slic_ind, n_slices in enumerate(n_slices_lst):
-            # for slic_ind, n_slices in enumerate([1024]):
+                # for slic_ind, n_slices in enumerate([1024]):
                 # for b_ind, bunch_length in enumerate([1e-9 / 4, 1e-9, 4e-9]):
                 for b_ind, bunch_length in enumerate(bunch_lengths):
                     self.blond3 = Blond3(
@@ -238,7 +244,9 @@ class TestBothBlonds(unittest.TestCase):
 
                     DEBUG_PLOT = False
                     if DEBUG_PLOT:
-                        plt.title(f"{n_macroparticles} {n_slices} {bunch_length}")
+                        plt.title(
+                            f"{n_macroparticles} {n_slices} {bunch_length}"
+                        )
                         plt.plot(
                             self.blond3.blond2.induced_voltage[0],
                             label="blond2 ind_volt time",
@@ -264,5 +272,8 @@ class TestBothBlonds(unittest.TestCase):
                             )
                         except AssertionError:
                             np.testing.assert_allclose(
-                                blond2_ind_volt, self.blond3.induced_voltage, rtol=1e-2, atol=200
+                                blond2_ind_volt,
+                                self.blond3.induced_voltage,
+                                rtol=1e-2,
+                                atol=200,
                             )

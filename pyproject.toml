@@ -45,9 +45,9 @@ Repository = "https://gitlab.cern.ch/blond/BLonD"
 
 
 [project.scripts]
-blond-compile-cpp = "blond._core.backends.cpp.compile:main_cli"
-blond-compile-cuda = "blond._core.backends.cuda.compile:main_cli"
-blond-compile-fortran = "blond._core.backends.fortran.compile:main_cli"
+blond-compile-cpp = "blond.core.backends.cpp.compile:main_cli"
+blond-compile-cuda = "blond.core.backends.cuda.compile:main_cli"
+blond-compile-fortran = "blond.core.backends.fortran.compile:main_cli"
 
 [tool.setuptools_scm]
 write_to = 'blond/_version.py' # autogenerates version string using git
@@ -68,7 +68,6 @@ exclude = [
     "unittests",
     "legacy",
     "integrationtests_blond3",
-    "docs/",
 ]
 [tool.ruff.lint]
 # Enable broad set of useful lint rules
@@ -97,7 +96,6 @@ ignore = [
 
 ]
 exclude = [
-    "blond/handle_results/observables.py",
     "blond/examples/*",
 ]
 
@@ -105,4 +103,4 @@ exclude = [
 convention = "numpy"
 [tool.pytest.ini_options]
 minversion = "8.4"
-addopts = "--import-mode=importlib --cov --cov-config=.coveragerc"
+addopts = "--import-mode=importlib"

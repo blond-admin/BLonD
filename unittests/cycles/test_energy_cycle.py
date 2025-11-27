@@ -15,8 +15,6 @@ from blond import (
     MagneticCyclePerTurnAllCavities,
     proton,
 )
-from blond._core.beam.base import BeamBaseClass
-from blond._core.beam.particle_types import ParticleType, uranium_29
 from blond.acc_math.analytic.simple_math import (
     beta_by_momentum,
     calc_beta,
@@ -24,6 +22,8 @@ from blond.acc_math.analytic.simple_math import (
     calc_gamma,
     calc_total_energy,
 )
+from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.particle_types import ParticleType, uranium_29
 from blond.cycles.magnetic_cycle import (
     MagneticCycleBase,
     _to_magnetic_rigidity,
@@ -337,13 +337,24 @@ class TestEnergyCycleByTime(unittest.TestCase):
 
 class TestBaseFunctions(unittest.TestCase):
     def test_error_throwing_to_magnetic_rigidity(self):
-        with self.assertRaisesRegex(ValueError,
-                                    "must be provided and cannot be None"):
-            _to_magnetic_rigidity(1.0, 2.0, 3.0,
-                                  convert_from="bending field", bending_radius=None)
+        with self.assertRaisesRegex(
+            ValueError, "must be provided and cannot be None"
+        ):
+            _to_magnetic_rigidity(
+                1.0,
+                2.0,
+                3.0,
+                convert_from="bending field",
+                bending_radius=None,
+            )
         with self.assertRaisesRegex(ValueError, "Unrecognized option"):
-            _to_magnetic_rigidity(1.0, 2.0, 3.0,
-                                  convert_from="not_my_option", bending_radius=None)
+            _to_magnetic_rigidity(
+                1.0,
+                2.0,
+                3.0,
+                convert_from="not_my_option",
+                bending_radius=None,
+            )
 
 
 class TestEnergyCyclePerTurn(unittest.TestCase):

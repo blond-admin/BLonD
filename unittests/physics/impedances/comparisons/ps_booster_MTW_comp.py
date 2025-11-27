@@ -3,7 +3,7 @@
 # coding: utf8
 # Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.md.
+# copied verbatim in the file LICENCE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -51,6 +51,7 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
+
 def simulate_BLonD3():
     E_0 = m_p * c**2 / e  # [eV]
     tot_beam_energy = E_0 + 1.4e9  # [eV]
@@ -86,7 +87,7 @@ def simulate_BLonD3():
             Resonators(
                 quality_factors=1e4,
                 shunt_impedances=1e5,
-                center_frequencies=1e6
+                center_frequencies=1e6,
             ),
         ),
         solver=Multi(

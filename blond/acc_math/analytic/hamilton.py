@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """Collection of equations to deal with a single RF Hamiltonian."""
 
 from __future__ import annotations
@@ -304,6 +312,12 @@ def calc_phi_s_single_harmonic(
         The synchronous phase, in [rad].
     """
     phi = np.arcsin(energy_gain / (voltage * charge))
-    if above_transition:
+
+    negative_charge = charge < 0  # for readability
+
+    if above_transition != negative_charge:
+        # Only if one of both conditions is met.
+        # Otherwise, they cancel each other out like ``-1 * -1 = 1``
         phi = np.pi - phi
+
     return phi - phase

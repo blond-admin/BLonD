@@ -5,16 +5,16 @@ from unittest.mock import Mock, PropertyMock
 import numpy as np
 
 from blond import Simulation, SingleHarmonicRfStation, StaticProfile, WakeField
-from blond._core.base import DynamicParameter
-from blond._core.beam.base import BeamBaseClass
+from blond.core.base import DynamicParameter
+from blond.core.beam.base import BeamBaseClass
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
-    BeamObservationEndOfTurn,
+    BeamObservationOncePerTurn,
     CavityPhaseObservation,
     DynamicProfileConstNBinsObservation,
     MultiBunchObservationMetaParams,
-    ObservablesEndOfTurnBase,
+    ObservablesOncePerTurnBase,
     StaticMultiProfileObservation,
     StaticProfileObservation,
     WakeFieldObservation,
@@ -45,7 +45,7 @@ beam._dE = np.ones(beam.common_array_size, dtype=float)
 beam._flags = np.ones(beam.common_array_size, dtype=int)
 
 
-class ObservablesHelper(ObservablesEndOfTurnBase):
+class ObservablesHelper(ObservablesOncePerTurnBase):
     def update(self, simulation: Simulation) -> None:
         pass
 
@@ -67,17 +67,20 @@ class TestDenseArrayRecorder(unittest.TestCase):
             dtype=float,
             overwrite=True,
         )
+
     def test___init___warns(self):
         with self.assertWarns(UserWarning):
             DenseArrayRecorder(
-            filepath=callers_relative_path("resources/exists", stacklevel=1),
-            shape=(
-                1,
-                1,
-            ),
-            dtype=float,
-            overwrite=False,
-        )
+                filepath=callers_relative_path(
+                    "resources/exists", stacklevel=1
+                ),
+                shape=(
+                    1,
+                    1,
+                ),
+                dtype=float,
+                overwrite=False,
+            )
 
 
 class TestObservables(unittest.TestCase):
@@ -119,58 +122,21 @@ class TestObservables(unittest.TestCase):
             beam=beam,
             turn_i_init=0,
             n_turns=100,
-            obs_per_turn=1,
         )
 
-        assert len(self.observables._turns_array) == self.observables._n_turns
+        assert len(self.observables._turns_array) == self.observables._n_turns + 2
         assert np.all(
             np.where(np.diff(self.observables._turns_array) <= 0)
             == np.array([])
         )  # monotonic increase
-        assert np.mean(np.diff(self.observables._turns_array)) == 1
-        assert np.all(
-            self.observables._section_indices_to_observe == np.array([0])
-        )  # only first one is selected
+        assert np.mean(np.diff(self.observables._turns_array[1:])) == 1
 
         self.observables.on_run_simulation(
             simulation=simulation,
             beam=beam,
             turn_i_init=0,
             n_turns=100,
-            obs_per_turn=2,
         )
-
-        assert (
-            len(self.observables._turns_array) == self.observables._n_turns * 2
-        )
-        assert np.all(
-            np.where(np.diff(self.observables._turns_array) <= 0)
-            == np.array([])
-        )  # monotonic increase
-        assert np.isclose(np.mean(np.diff(self.observables._turns_array)), 0.5)
-        assert np.all(
-            self.observables._section_indices_to_observe == np.array([0, 1])
-        )  # only first one is selected
-
-        self.observables.on_run_simulation(
-            simulation=simulation,
-            beam=beam,
-            turn_i_init=50,
-            n_turns=100,
-            obs_per_turn=2,
-        )
-
-        assert (
-            len(self.observables._turns_array) == self.observables._n_turns * 2
-        )
-        assert np.all(
-            np.where(np.diff(self.observables._turns_array) <= 0)
-            == np.array([])
-        )  # monotonic increase
-        assert np.isclose(np.mean(np.diff(self.observables._turns_array)), 0.5)
-        assert np.all(
-            self.observables._section_indices_to_observe == np.array([0, 1])
-        )  # only first one is selected
 
     def test_rename(self) -> None:
         self.observables = ObservablesHelper(
@@ -186,7 +152,6 @@ class TestObservables(unittest.TestCase):
             beam=beam,
             turn_i_init=0,
             n_turns=100,
-            obs_per_turn=1,
         )
 
         # without recorders, should run through
@@ -208,7 +173,7 @@ class TestObservables(unittest.TestCase):
         assert self.observables.common_filepath == orig_name + "_2"
 
     def test_assert_lateinit_fail(self) -> None:
-        obs_helper = ObservablesHelper(obs_per_turn=1, each_turn_i=0)
+        obs_helper = ObservablesHelper(each_turn_i=0)
 
         obs_helper.dummy_value = None
 
@@ -217,43 +182,17 @@ class TestObservables(unittest.TestCase):
         with self.assertRaises(AssertionError):
             obs_helper.assert_lateinit()
 
-    def test_on_run_simulation_warnings(self):
-        self.observables.on_init_simulation(
-            simulation=simulation,
-        )
-
-        with self.assertWarnsRegex(
-            UserWarning, "obs_per_turn must be greater"
-        ):
-            self.observables.on_run_simulation(
-                simulation=simulation,
-                beam=beam,
-                turn_i_init=0,
-                n_turns=100,
-                obs_per_turn=-1,
-            )
-        with self.assertWarnsRegex(
-            UserWarning, "obs_per_turn must be smaller"
-        ):
-            self.observables.on_run_simulation(
-                simulation=simulation,
-                beam=beam,
-                turn_i_init=0,
-                n_turns=100,
-                obs_per_turn=3,
-            )
-
 
 class TestBunchObservation(unittest.TestCase):
     def setUp(self) -> None:
-        self.bunch_observation = BeamObservationEndOfTurn(
+        self.bunch_observation = BeamObservationOncePerTurn(
             each_turn_i=1,
             folder=callers_relative_path("results/", stacklevel=1),
             beam=beam,
         )
 
     def test___init__(self) -> None:
-        self.bunch_observation = BeamObservationEndOfTurn(
+        self.bunch_observation = BeamObservationOncePerTurn(
             each_turn_i=1,
             folder=callers_relative_path("results/", stacklevel=1),
             beam=beam,
@@ -312,7 +251,7 @@ class TestMultiBunchObservationMetaParams(unittest.TestCase):
         emittance = np.sqrt(np.mean(beam._dE ** 2)
                               * np.mean(beam._dt ** 2)
                               - np.mean(beam._dE * beam._dt) ** 2)
-        assert np.isclose(self.multi_bunch_observation_meta_params.emittance_stat,
+        assert np.isclose(self.multi_bunch_observation_meta_params.rms_emittance,
                           emittance)
         assert np.isclose(self.multi_bunch_observation_meta_params.sigma_dE,
                           np.std(beam._dE))
@@ -357,12 +296,12 @@ class TestMultiBunchObservationMetaParams(unittest.TestCase):
         emittance_1 = np.sqrt(np.mean(beam_local._dE[0:orig_bunch_length] ** 2)
                               * np.mean(beam_local._dt[0:orig_bunch_length] ** 2)
                               - np.mean(beam_local._dE[0:orig_bunch_length] * beam_local._dt[0:orig_bunch_length]) ** 2)
-        assert np.isclose(self.multi_bunch_observation_meta_params.emittance_stat[0, 0],
+        assert np.isclose(self.multi_bunch_observation_meta_params.rms_emittance[0, 0],
                           emittance_1)
         emittance_2 = np.sqrt(np.mean(beam_local._dE[orig_bunch_length:] ** 2)
                               * np.mean(beam_local._dt[orig_bunch_length:] ** 2)
                               - np.mean(beam_local._dE[orig_bunch_length:] * beam_local._dt[orig_bunch_length:]) ** 2)
-        assert np.isclose(self.multi_bunch_observation_meta_params.emittance_stat[1, 0],
+        assert np.isclose(self.multi_bunch_observation_meta_params.rms_emittance[1, 0],
                           emittance_2)
 
         assert np.isclose(self.multi_bunch_observation_meta_params.sigma_dE[0, 0],
@@ -433,7 +372,9 @@ class TestStaticProfileObservation(unittest.TestCase):
     def setUp(self) -> None:
         profile = Mock(StaticProfile)
         profile.n_bins = 12
-        type(profile).hist_y = PropertyMock(return_value=np.ones(profile.n_bins, dtype=float))
+        type(profile).hist_y = PropertyMock(
+            return_value=np.ones(profile.n_bins, dtype=float)
+        )
         # no changeback required, as this is changed on mocked object
         self.static_profile_observation = StaticProfileObservation(
             each_turn_i=1,
@@ -458,6 +399,8 @@ class TestStaticProfileObservation(unittest.TestCase):
             turn_i_init=0,
             n_turns=100,
         )
+        simulation.section_i.value = 0
+        simulation.turn_i.value = 0
         self.static_profile_observation.update(
             simulation=simulation,
         )
@@ -500,9 +443,9 @@ class TestWakeFieldObservation(unittest.TestCase):
             wakefield=self.wakefield,
             folder=callers_relative_path("results/", stacklevel=1),
         )
-        type(self.wakefield).induced_voltage = PropertyMock(return_value=np.ones(
-            self.wakefield._profile.n_bins, dtype=float
-        ))
+        type(self.wakefield).induced_voltage = PropertyMock(
+            return_value=np.ones(self.wakefield._profile.n_bins, dtype=float)
+        )
         # no changeback required, as this is changed on mocked object
 
     def test___init__(self) -> None:
@@ -514,14 +457,27 @@ class TestWakeFieldObservation(unittest.TestCase):
 
     def test_error_in_aquisition(self) -> None:
         prof = StaticProfile.from_cutoff(0, 1e-9, 3e9)
-        wf = WakeField(section_index=0, profile=prof, sources=Mock(Resonators), solver=Mock(SingleTurnResonatorConvolutionSolver))
-        wf_obs = WakeFieldObservation(wakefield=wf, folder=callers_relative_path("results/", stacklevel=1), each_turn_i=1, obs_per_turn=2)
+        wf = WakeField(
+            section_index=0,
+            profile=prof,
+            sources=Mock(Resonators),
+            solver=Mock(SingleTurnResonatorConvolutionSolver),
+        )
+        wf_obs = WakeFieldObservation(
+            wakefield=wf,
+            folder=callers_relative_path("results/", stacklevel=1),
+            each_turn_i=1,
+        )
 
         wf_obs.on_init_simulation(simulation=simulation)
-        wf_obs.on_run_simulation(simulation=simulation, beam=beam, turn_i_init=0, n_turns=100)
+        wf_obs.on_run_simulation(
+            simulation=simulation, beam=beam, turn_i_init=0, n_turns=100
+        )
 
         orig_save = type(wf).induced_voltage
-        type(wf).induced_voltage = PropertyMock(side_effect=AttributeError("ind_volt_calc_failed"))
+        type(wf).induced_voltage = PropertyMock(
+            side_effect=AttributeError("ind_volt_calc_failed")
+        )
 
         simulation.section_i.value = 0
         wf_obs.update(simulation=simulation)
@@ -529,7 +485,9 @@ class TestWakeFieldObservation(unittest.TestCase):
         with self.assertRaises(AttributeError):
             _ = wf.induced_voltage
 
-        type(wf).induced_voltage = orig_save  # important, otherwise the type is changed for the entire runtime
+        type(
+            wf
+        ).induced_voltage = orig_save  # important, otherwise the type is changed for the entire runtime
 
     def test_from_disk(self) -> None:
         self.wake_field_observation.on_init_simulation(
@@ -548,16 +506,26 @@ class TestWakeFieldObservation(unittest.TestCase):
         self.wake_field_observation.to_disk()
         self.wake_field_observation.from_disk()
 
-        assert len(self.wake_field_observation.induced_voltage[0]) == self.wakefield.induced_voltage.shape[0]
+        assert (
+            len(self.wake_field_observation.induced_voltage[0])
+            == self.wakefield.induced_voltage.shape[0]
+        )
         np.testing.assert_allclose(
-            self.wake_field_observation.induced_voltage[0], self.wakefield.induced_voltage)
+            self.wake_field_observation.induced_voltage[0],
+            self.wakefield.induced_voltage,
+        )
+
 
 class TestDynamicProfileConstNBinsObservation(unittest.TestCase):
     def setUp(self) -> None:
         self.profile = Mock(DynamicProfileConstNBins)
         self.profile.n_bins = 12
-        type(self.profile).hist_y = PropertyMock(return_value=np.ones(self.profile.n_bins, dtype=float))
-        type(self.profile).hist_x = PropertyMock(return_value=np.arange(self.profile.n_bins, dtype=float))
+        type(self.profile).hist_y = PropertyMock(
+            return_value=np.ones(self.profile.n_bins, dtype=float)
+        )
+        type(self.profile).hist_x = PropertyMock(
+            return_value=np.arange(self.profile.n_bins, dtype=float)
+        )
         # no changeback required, as this is changed on mocked object
 
         self.dynamic_profile_observation = DynamicProfileConstNBinsObservation(
@@ -590,28 +558,39 @@ class TestDynamicProfileConstNBinsObservation(unittest.TestCase):
 
         self.dynamic_profile_observation.from_disk()
 
-        assert len(
-            self.dynamic_profile_observation.hist_y) == 1
+        assert len(self.dynamic_profile_observation.hist_y) == 1
         assert len(self.dynamic_profile_observation.hist_x) == 1
-        assert len(
-            self.dynamic_profile_observation.hist_y[0]) == self.profile.n_bins
-        assert len(
-            self.dynamic_profile_observation.hist_x[0]) == self.profile.n_bins
-        np.testing.assert_allclose(self.profile.hist_y, self.dynamic_profile_observation.hist_y[0])
-        np.testing.assert_allclose(self.profile.hist_x, self.dynamic_profile_observation.hist_x[0])
+        assert (
+            len(self.dynamic_profile_observation.hist_y[0])
+            == self.profile.n_bins
+        )
+        assert (
+            len(self.dynamic_profile_observation.hist_x[0])
+            == self.profile.n_bins
+        )
+        np.testing.assert_allclose(
+            self.profile.hist_y, self.dynamic_profile_observation.hist_y[0]
+        )
+        np.testing.assert_allclose(
+            self.profile.hist_x, self.dynamic_profile_observation.hist_x[0]
+        )
 
 
 class TestStaticMultiProfileObservation(unittest.TestCase):
     def setUp(self) -> None:
         self.profile = Mock(StaticProfile)
         self.profile.n_bins = 12
-        type(self.profile).hist_y = PropertyMock(return_value=np.ones(self.profile.n_bins, dtype=float))
+        type(self.profile).hist_y = PropertyMock(
+            return_value=np.ones(self.profile.n_bins, dtype=float)
+        )
         # no changeback required, as this is changed on mocked object
         self.profile.section_index = 0
 
         self.profile_2 = Mock(StaticProfile)
         self.profile_2.n_bins = 12
-        type(self.profile_2).hist_y = PropertyMock(return_value=np.ones(self.profile_2.n_bins, dtype=float) * 2)
+        type(self.profile_2).hist_y = PropertyMock(
+            return_value=np.ones(self.profile_2.n_bins, dtype=float) * 2
+        )
         # no changeback required, as this is changed on mocked object
         self.profile_2.section_index = 1
 
@@ -661,7 +640,10 @@ class TestStaticMultiProfileObservation(unittest.TestCase):
 
         self.static_multi_profile_observation.from_disk()
 
-        np.testing.assert_allclose(self.static_multi_profile_observation.hist_y[0], self.profile.hist_y)
+        np.testing.assert_allclose(
+            self.static_multi_profile_observation.hist_y[0],
+            self.profile.hist_y,
+        )
         assert len(self.static_multi_profile_observation.hist_y) == 1
 
         simulation.section_i.value = 1
@@ -669,14 +651,20 @@ class TestStaticMultiProfileObservation(unittest.TestCase):
             simulation=simulation,
         )
         assert len(self.static_multi_profile_observation.hist_y) == 2
-        np.testing.assert_allclose(self.static_multi_profile_observation.hist_y[1], self.profile_2.hist_y)
+        np.testing.assert_allclose(
+            self.static_multi_profile_observation.hist_y[1],
+            self.profile_2.hist_y,
+        )
 
         # no update if we repeat
         self.static_multi_profile_observation.update(
             simulation=simulation,
         )
         assert len(self.static_multi_profile_observation.hist_y) == 2
-        np.testing.assert_allclose(self.static_multi_profile_observation.hist_y[1], self.profile_2.hist_y)
+        np.testing.assert_allclose(
+            self.static_multi_profile_observation.hist_y[1],
+            self.profile_2.hist_y,
+        )
 
 
 if __name__ == "__main__":

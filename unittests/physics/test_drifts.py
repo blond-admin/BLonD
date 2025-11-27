@@ -1,13 +1,13 @@
 import cmath
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import numpy as np
 from scipy.constants import speed_of_light as c0
 
 from blond import Simulation
-from blond._core.backends.backend import Numpy32Bit, Numpy64Bit, backend
-from blond._core.beam.base import BeamBaseClass
+from blond.core.backends.backend import Numpy32Bit, Numpy64Bit, backend
+from blond.core.beam.base import BeamBaseClass
 from blond.physics.drifts import DriftBaseClass, DriftSimple
 
 
@@ -62,7 +62,7 @@ class TestDriftSimple(unittest.TestCase):
             section_index=0,
         )
 
-        beam=Mock(BeamBaseClass)
+        beam = Mock(BeamBaseClass)
         beam.reference_time = 0.0
         beam.reference_gamma = 1.0
         beam.reference_velocity = 0.5
@@ -74,7 +74,9 @@ class TestDriftSimple(unittest.TestCase):
 
     def test_error_throwing_on_unscheduled(self):
         simulation = Mock(Simulation)
-        self.drift_simple = DriftSimple(section_index=1, orbit_length=0)  # will raise Exception because of missing transition gamma
+        self.drift_simple = DriftSimple(
+            section_index=1, orbit_length=0
+        )  # will raise Exception because of missing transition gamma
         with self.assertRaises(ValueError):
             self.drift_simple.on_init_simulation(simulation=simulation)
 
@@ -109,7 +111,7 @@ class TestDriftSimple(unittest.TestCase):
         self.drift_simple.invalidate_cache()
 
     def test_on_init_simulation(self):
-        from blond._core.simulation.simulation import Simulation
+        from blond.core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
         simulation.ring.circumference = 10
@@ -195,6 +197,7 @@ class TestDriftSimple(unittest.TestCase):
                 momentum_compaction_factor=2.5,
                 transition_gamma=2.5j,
             )
+
     @classmethod
     def tearDownClass(cls):
         backend.change_backend(Numpy32Bit)

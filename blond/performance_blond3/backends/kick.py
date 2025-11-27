@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """Testing the performance of `kick_multi_harmonic`.
 
 Authors
@@ -9,7 +17,7 @@ import time
 
 import cupy as cp
 
-from blond._core.backends.backend import Numpy32Bit, backend
+from blond.core.backends.backend import Numpy32Bit, backend
 
 
 def main():  # pragma: no cover
@@ -55,10 +63,10 @@ def main():  # pragma: no cover
     charge = backend.float(2.0)
     acceleration_kick = backend.float(0.0)
 
-    from blond._core.backends.cpp.callables import CppSpecials
-    from blond._core.backends.cuda.callables import CudaSpecials
-    from blond._core.backends.fortran.callables import FortranSpecials
-    from blond._core.backends.numba.callables import recompile_numba_backend
+    from blond.core.backends.cpp.callables import CppSpecials
+    from blond.core.backends.cuda.callables import CudaSpecials
+    from blond.core.backends.fortran.callables import FortranSpecials
+    from blond.core.backends.numba.callables import recompile_numba_backend
 
     NumbaSpecials = recompile_numba_backend(backend.float)
 

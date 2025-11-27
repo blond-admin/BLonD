@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """Several classes to manage and describe the ramp of the magnets.
 
 Notes
@@ -23,10 +31,10 @@ from unittest.mock import Mock
 import numpy as np
 from scipy.constants import speed_of_light as c0
 
-from blond._core.base import HasPropertyCache
-from blond._core.beam.base import BeamBaseClass
-from blond._core.beam.particle_types import ParticleType, proton
 from blond.acc_math.analytic.simple_math import calc_total_energy
+from blond.core.base import HasPropertyCache
+from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.particle_types import ParticleType, proton
 from blond.cycles.base import ProgrammedCycle
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -34,7 +42,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from numpy.typing import NDArray as NumpyArray
 
-    from blond._core.simulation.simulation import Simulation
+    from blond.core.simulation.simulation import Simulation
 
     FloatOrArray = float | NumpyArray
 
@@ -79,7 +87,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(simulation=simulation)
         self._n_turns_max = kwargs["n_turns_max"]
@@ -98,7 +106,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation :class:`~blond._cycles_core.beam.beam.Beam` object
         n_turns
@@ -322,7 +330,7 @@ class ConstantMagneticCycle(MagneticCycleBase):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(
             simulation=simulation,
@@ -403,7 +411,7 @@ class ConstantMagneticCycle(MagneticCycleBase):
             in_unit=in_unit,
             reference_particle=proton,
         )
-        from blond._core.simulation.simulation import Simulation
+        from blond.core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
         simulation.ring.bending_radius = bending_radius
@@ -478,7 +486,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         n_cavities = simulation.ring.n_cavities
         n_turns_max = self._values_after_turn.shape[0]
@@ -597,9 +605,9 @@ class MagneticCyclePerTurn(MagneticCycleBase):
             reference_particle=reference_particle,
         )
 
-        from blond._core.beam.base import BeamBaseClass
-        from blond._core.beam.particle_types import ParticleType
-        from blond._core.simulation.simulation import Simulation
+        from blond.core.beam.base import BeamBaseClass
+        from blond.core.beam.particle_types import ParticleType
+        from blond.core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
         beam = Mock(BeamBaseClass)
@@ -678,7 +686,7 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         magnetic_rigidity_after_cavity_per_turn = _to_magnetic_rigidity(
             data=self._values_after_cavity_per_turn[:, :],
@@ -789,9 +797,9 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
             in_unit=in_unit,
             reference_particle=reference_particle,
         )
-        from blond._core.beam.base import BeamBaseClass
-        from blond._core.beam.particle_types import ParticleType
-        from blond._core.simulation.simulation import Simulation
+        from blond.core.beam.base import BeamBaseClass
+        from blond.core.beam.particle_types import ParticleType
+        from blond.core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
         beam = Mock(BeamBaseClass)
@@ -872,7 +880,7 @@ class MagneticCycleByTime(MagneticCycleBase):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(
             simulation=simulation,
@@ -956,9 +964,9 @@ class MagneticCycleByTime(MagneticCycleBase):
         -------
         Magnetic_cycle_by_time
         """
-        from blond._core.beam.base import BeamBaseClass
-        from blond._core.beam.particle_types import ParticleType
-        from blond._core.simulation.simulation import Simulation
+        from blond.core.beam.base import BeamBaseClass
+        from blond.core.beam.particle_types import ParticleType
+        from blond.core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
         beam = Mock(BeamBaseClass)

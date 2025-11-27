@@ -1,3 +1,13 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
+from copy import deepcopy
+
 import numpy as np
 from scipy.constants import c
 
@@ -6,13 +16,14 @@ from blond import (
     BiGaussian,
     DriftSimple,
     MagneticCycleByTime,
+    ReferenceEnergyChange,
     Ring,
     Simulation,
     SingleHarmonicRfStation,
     StaticProfile,
+    StaticProfileObservation,
     mu_plus,
 )
-from blond.physics.energy_reference_kick import ReferenceEnergyChange
 
 
 def main():
@@ -38,6 +49,7 @@ def main():
     )
 
     one_turn_model = []
+    observables = []
     for cavity_i in range(n_sections):
         cavity = SingleHarmonicRfStation(
             section_index=cavity_i,
@@ -72,6 +84,9 @@ def main():
                 profile,
             ]
         )
+        observables.append(
+            StaticProfileObservation(profile=profile, each_turn_i=2)
+        )
 
     ring.add_elements(one_turn_model, reorder=False)
     sim = Simulation(ring=ring, magnetic_cycle=energy_cycle)
@@ -102,10 +117,28 @@ def main():
         ),
     )
 
+    def my_callback(
+        simulation: Simulation, beam: Beam
+    ) -> None:  # pragma: no cover
+        """Empty callback example.
+
+        Parameters
+        ----------
+        simulation
+            Simulation context manager
+        beam
+            Simulation `Beam` object
+        """
+        pass
+
+    beam2 = deepcopy(beam1)
+    beam2._is_counter_rotating = True
     sim.run_simulation(
-        beams=(beam1,),
+        beams=(beam1, beam2),
         turn_i_init=0,
         n_turns=n_turns,
+        callback=my_callback,  # not supported yet.
+        observe=observables,
     )
 
     return

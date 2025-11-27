@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """Collection of implementations to handle lumped RF cavities in synchrotrons.
 
 Authors
@@ -15,8 +23,8 @@ from unittest.mock import Mock
 import numpy as np
 from scipy.constants import speed_of_light as c0
 
-from blond._core.backends.backend import backend
-from blond._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
+from blond.core.backends.backend import backend
+from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
 from blond.experimental.physics.feedbacks.beam_feedback import (
     Blond2BeamFeedback,
 )
@@ -27,8 +35,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
     from blond import Ring
-    from blond._core.beam.base import BeamBaseClass
-    from blond._core.simulation.simulation import Simulation
+    from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
     from blond.cycles.magnetic_cycle import MagneticCycleBase
     from blond.experimental.physics.feedbacks.base import LocalFeedback
     from blond.physics.impedances.base import WakeField
@@ -68,7 +76,7 @@ class RfManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(simulation=simulation)
 
@@ -166,7 +174,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(simulation=simulation)
         self._magnetic_cycle = simulation.magnetic_cycle
@@ -183,7 +191,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns
@@ -276,8 +284,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
             voltage=float(self.get_main_harmonic_voltage()),
             phase=float(self.get_main_harmonic_phi_rf()),
             energy_gain=reference_energy_change,
-            above_transition=beam.reference_gamma
-            > self._ring.average_transition_gamma,
+            above_transition=not self._ring.is_below_transition(beam=beam),
         )
 
         return phi_s
@@ -432,7 +439,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
     voltage
         Cavity's effective voltage, in [V]
     phi_rf
-        Cavity's design phase, in [deg]
+        Cavity's design phase, in [rad]
     harmonic
         Cavity's design harmonic []
     """
@@ -509,7 +516,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(simulation=simulation)
         if (self.voltage is None) and "voltage" not in self.schedules:
@@ -538,7 +545,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         try:
             self.phi_s = self.calc_phi_s_single_harmonic(beam=beam)
         except Exception as exc:
-            warnings.warn(str(exc))
+            warnings.warn(str(exc), UserWarning, stacklevel=1)
             self.phi_s = np.nan"""
 
     def track(self, beam: BeamBaseClass) -> None:
@@ -639,7 +646,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         voltage
             Cavity's effective voltage in [V]
         phi_rf
-            Cavity's design phase in [deg]
+            Cavity's design phase in [rad]
         harmonic
             Cavity's design harmonic []
         circumference
@@ -655,9 +662,9 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         -------
         single_harmonic_cavity
         """
-        from blond._core.beam.base import BeamBaseClass
-        from blond._core.ring.ring import Ring
-        from blond._core.simulation.simulation import Simulation
+        from blond.core.beam.base import BeamBaseClass
+        from blond.core.ring.ring import Ring
+        from blond.core.simulation.simulation import Simulation
         from blond.cycles.magnetic_cycle import ConstantMagneticCycle
 
         shc = SingleHarmonicRfStation(
@@ -693,7 +700,16 @@ class SingleHarmonicRfStation(RfStationBaseClass):
 
 
 class MultiHarmonicRfStation(RfStationBaseClass):
-    """Cavity with several RF wave for beam interaction.
+    r"""Cavity with several RF wave for beam interaction.
+
+    Equation
+    --------
+    .. math::
+        dE = \sum_{j} \left( \text{charge} \cdot \text{voltage}[j] \cdot \sin\left(\omega_{\text{rf}}[j] \cdot dt + \phi_{\text{rf}}[j]\right) \right) + \text{acceleration\_kick}
+
+    where
+    `acceleration_kick` is the change of reference energy.
+
 
     Parameters
     ----------
@@ -702,6 +718,12 @@ class MultiHarmonicRfStation(RfStationBaseClass):
     main_harmonic_idx
         Index of the cavity's main harmonic
         Used to calculate attributes that rely on only one harmonic
+    voltage
+        Cavity's effective voltages (per harmonic) in [V]
+    phi_rf
+        Cavity's design phases (per harmonic) in [rad]
+    harmonic
+        Cavity's design harmonics (per harmonic) []
     section_index
         Section index to group elements into sections
     local_wakefield
@@ -714,7 +736,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
     voltage
         Cavity's effective voltages (per harmonic) in [V]
     phi_rf
-        Cavity's design phases (per harmonic) in [deg]
+        Cavity's design phases (per harmonic) in [rad]
     harmonic
         Cavity's design harmonics (per harmonic) []
     """
@@ -777,7 +799,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(simulation=simulation)
         if (self.voltage is None) and "voltage" not in self.schedules:
@@ -848,16 +870,18 @@ class MultiHarmonicRfStation(RfStationBaseClass):
 
     def get_main_harmonic_omega_rf_current(self) -> float:
         """Returns the omega_rf of the main harmonic, in [rad/s]."""
-        return self._omega_rf[self.main_harmonic_idx]
+        return float(self._omega_rf[self.main_harmonic_idx])
 
     def calc_main_harmonic_omega_rf(
         self, beam_beta: float, ring_circumference: float
     ) -> float:
         """Returns the omega_rf of the main harmonic, in [rad/s]."""
-        return self.calc_omega(
-            beam_beta=beam_beta,
-            ring_circumference=ring_circumference,
-        )[self.main_harmonic_idx]
+        return float(
+            self.calc_omega(
+                beam_beta=beam_beta,
+                ring_circumference=ring_circumference,
+            )[self.main_harmonic_idx]
+        )
 
     def get_main_harmonic_t_rf_current(
         self,
@@ -923,25 +947,32 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         voltage
             Cavity's effective voltages (per harmonic) in [V]
         phi_rf
-            Cavity's design phases (per harmonic) in [deg]
+            Cavity's design phases (per harmonic) in [rad]
         harmonic
             Cavity's design harmonics (per harmonic) []
         circumference
             Synchrotron circumference in [m]
         total_energy
             Target total energy in [eV]
+        main_harmonic_idx
+            Index of the cavity's main harmonic
+            Used to calculate attributes that rely on only one harmonic.
+        reference_beta
+            Beam reference fraction of speed of light (v/c0) [].
         local_wakefield
             Optional wakefield to interact with beam
         cavity_feedback
             Optional cavity feedback to change cavity parameters
+        beam_feedback
+            Optional beam feedback to change cavity parameters
 
         Returns
         -------
         multi_harmonic_cavity
         """
-        from blond._core.beam.base import BeamBaseClass
-        from blond._core.ring.ring import Ring
-        from blond._core.simulation.simulation import Simulation
+        from blond.core.beam.base import BeamBaseClass
+        from blond.core.ring.ring import Ring
+        from blond.core.simulation.simulation import Simulation
         from blond.cycles.magnetic_cycle import ConstantMagneticCycle
 
         mhc = MultiHarmonicRfStation(
@@ -1004,7 +1035,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         backend.specials.kick_multi_harmonic(
             dt=beam.read_partial_dt(),
             dE=beam.write_partial_dE(),
-            voltage=(self.voltage).astype(backend.float),
+            voltage=self.voltage.astype(backend.float),
             phi_rf=(self.phi_rf + self.delta_phi_rf).astype(backend.float),
             omega_rf=(self._omega_rf + self.delta_omega_rf).astype(
                 backend.float
