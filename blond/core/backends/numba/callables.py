@@ -170,7 +170,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
         sig_energy,
     )
 
-    sig_mask = numba.bool[:, :]
+    sig_mask = nb_i[:, :]
     sig_buffer = nb_f[:]
     sig_meta_params_multibunch = (
         sig_dt,
@@ -418,21 +418,21 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             sigma_dE_buffer: NumpyArray,
             mean_dt_buffer: NumpyArray,
             mean_dE_buffer: NumpyArray,
-            emittance_buffer: NumpyArray,
+            rms_emittance_buffer: NumpyArray,
             t_rf: float,
         ) -> None:
             for bucket in prange(len(mask)):
                 sigma_dt_buffer[bucket] = np.std(dt[mask[bucket]])
                 sigma_dE_buffer[bucket] = np.std(dE[mask[bucket]])
-                mean_dt_buffer[bucket] = (
-                    np.mean(dt[mask[bucket]]) - bucket * t_rf
-                )
+                dt_corrected_axis = dt[mask[bucket]] - bucket * t_rf
+                mean_dt_buffer[bucket] = np.mean(dt_corrected_axis)
                 # correct to value of first bucket
                 mean_dE_buffer[bucket] = np.mean(dE[mask[bucket]])
-                emittance_buffer[bucket] = np.sqrt(
+
+                rms_emittance_buffer[bucket] = np.sqrt(
                     np.average(dE[mask[bucket]] ** 2)
-                    * np.average(dt[mask[bucket]] ** 2)
-                    - np.average(dE[mask[bucket]] * dt[mask[bucket]]) ** 2
+                    * np.average(dt_corrected_axis**2)
+                    - np.average(dE[mask[bucket]] * dt_corrected_axis) ** 2
                 )
 
         @staticmethod

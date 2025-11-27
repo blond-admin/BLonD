@@ -204,7 +204,7 @@ class Specials(ABC):
         sigma_dE_buffer: NumpyArray | CupyArray,
         mean_dt_buffer: NumpyArray | CupyArray,
         mean_dE_buffer: NumpyArray | CupyArray,
-        emittance_buffer: NumpyArray | CupyArray,
+        rms_emittance_buffer: NumpyArray | CupyArray,
         t_rf: float,
     ) -> None:
         """
@@ -226,7 +226,7 @@ class Specials(ABC):
             output buffer for mean of time axis
         mean_dE_buffer
             output buffer for mean of energy axis
-        emittance_buffer
+        rms_emittance_buffer
             output buffer for rms emittance
         t_rf
             period of main RF, used to correct the mean of bunches, which are behind the first bucket

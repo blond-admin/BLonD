@@ -76,7 +76,7 @@ class PythonSpecials(Specials):
         sigma_dE_buffer: NumpyArray,
         mean_dt_buffer: NumpyArray,
         mean_dE_buffer: NumpyArray,
-        emittance_buffer: NumpyArray,
+        rms_emittance_buffer: NumpyArray,
         t_rf: float,
     ) -> None:
         """
@@ -98,7 +98,7 @@ class PythonSpecials(Specials):
             output buffer for mean of time axis
         mean_dE_buffer
             output buffer for mean of energy axis
-        emittance_buffer
+        rms_emittance_buffer
             output buffer for rms emittance
         t_rf
             period of main RF, used to correct the mean of bunches, which are behind the first bucket
@@ -114,10 +114,11 @@ class PythonSpecials(Specials):
             mean_dt_buffer[bucket] = np.mean(dt[mask[bucket]]) - bucket * t_rf
             # correct to value of first bucket
             mean_dE_buffer[bucket] = np.mean(dE[mask[bucket]])
-            emittance_buffer[bucket] = np.sqrt(
+            dt_corrected_axis = dt[mask[bucket]] - bucket * t_rf
+            rms_emittance_buffer[bucket] = np.sqrt(
                 np.average(dE[mask[bucket]] ** 2)
-                * np.average(dt[mask[bucket]] ** 2)
-                - np.average(dE[mask[bucket]] * dt[mask[bucket]]) ** 2
+                * np.average(dt_corrected_axis**2)
+                - np.average(dE[mask[bucket]] * dt_corrected_axis) ** 2
             )
 
     @staticmethod

@@ -862,6 +862,42 @@ class TestSpecials(unittest.TestCase):
                         rtol=self.rtol,
                         err_msg=f"{special=} {dtype=}",
                     )
+    def test_meta_params_multibunch(self):
+        result_python=None
+        for dtype in (np.float32, np.float64,):
+            for i, special in enumerate(["python", "numba"]):
+                try:
+                    self._setUp(dtype=dtype, special_mode=special)
+                except (FileNotFoundError, OSError):
+                    print(f"Could not perform `{special}` test for {dtype}")
+                    continue
+                set_num_threads(8)
+                dt = np.linspace(-50e-9, 50e-9, 20, dtype=backend.float)
+                dE = dt * 1e18 + 50e9
+                dE = np.append(dE, dE)
+                t_rf = backend.float(1e-5)
+                dt = np.append(dt, dt + t_rf)
+
+                mask = np.array([np.linspace(0, 19, num=20, dtype=backend.int), np.linspace(20, 39, num=20, dtype=backend.int)])
+                mean_dt_buffer = np.zeros(len(mask), dtype=backend.float)
+                mean_dE_buffer = np.zeros(len(mask), dtype=backend.float)
+                sigma_dt_buffer = np.zeros(len(mask), dtype=backend.float)
+                sigma_dE_buffer = np.zeros(len(mask), dtype=backend.float)
+                rms_emittance_buffer = np.zeros(len(mask), dtype=backend.float)
+                backend.specials.meta_params_multibunch(dt, dE, mask, sigma_dt_buffer, sigma_dE_buffer, mean_dt_buffer, mean_dE_buffer,
+                                       rms_emittance_buffer, t_rf)
+
+                assert len(mean_dt_buffer) == len(mask)
+                assert np.isclose(mean_dt_buffer[0], mean_dt_buffer[1])
+                assert np.isclose(mean_dE_buffer[0], mean_dE_buffer[1])
+                assert np.isclose(sigma_dt_buffer[0], sigma_dt_buffer[1])
+                assert np.isclose(sigma_dE_buffer[0], sigma_dE_buffer[1])
+                assert np.isclose(rms_emittance_buffer[0], rms_emittance_buffer[1])
+                resarr = np.array([mean_dt_buffer, mean_dE_buffer, sigma_dt_buffer, sigma_dE_buffer, rms_emittance_buffer])
+                if i == 0:
+                    result_python = resarr
+                else:
+                    np.testing.assert_allclose(result_python, resarr, atol=1e-12)
 
     def tearDown(self) -> None:
         backend.change_backend(Numpy32Bit)

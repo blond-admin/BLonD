@@ -28,5 +28,3 @@ class TestPythonSpecials(unittest.TestCase):
             + acceleration_kick
         )
         np.testing.assert_allclose(dE, expected)
-
-    def test_multi_bunch_
