@@ -54,7 +54,7 @@ class LhcRfFeedback(LocalFeedback):
     ):
         super().__init__(
             profile=profile,
-            cavity=cavity,
+            rf_station=cavity,
             section_index=section_index,
         )
 

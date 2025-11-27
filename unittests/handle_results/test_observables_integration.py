@@ -14,8 +14,8 @@ from blond import (
     uranium_29,
 )
 from blond.handle_results.observables import (
-    CavityPhaseObservation,
     DynamicProfileConstNBinsObservation,
+    RfStationPhaseObservation,
     StaticMultiProfileObservation,
     StaticProfileObservation,
     WakeFieldObservation,
@@ -55,8 +55,8 @@ class TestObservables(unittest.TestCase):
 
         each_turn_i = 1
         # define all available observations
-        cavity_phase_observation = CavityPhaseObservation(
-            each_turn_i=each_turn_i, cavity=rf_station
+        cavity_phase_observation = RfStationPhaseObservation(
+            each_turn_i=each_turn_i, rf_station=rf_station
         )
         static_orofile_observation = StaticProfileObservation(
             each_turn_i=each_turn_i, profile=static_profile_01

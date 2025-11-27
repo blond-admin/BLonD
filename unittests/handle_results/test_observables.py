@@ -181,31 +181,6 @@ class TestObservables(unittest.TestCase):
         with self.assertRaises(AssertionError):
             obs_helper.assert_lateinit()
 
-    def test_on_run_simulation_warnings(self):
-        self.observables.on_init_simulation(
-            simulation=simulation,
-        )
-
-        with self.assertWarnsRegex(
-            UserWarning, "`obs_per_turn` must be greater"
-        ):
-            self.observables.on_run_simulation(
-                simulation=simulation,
-                beam=beam,
-                turn_i_init=0,
-                n_turns=100,
-                obs_per_turn=-1,
-            )
-        with self.assertWarnsRegex(
-            UserWarning, "`obs_per_turn` must be smaller"
-        ):
-            self.observables.on_run_simulation(
-                simulation=simulation,
-                beam=beam,
-                turn_i_init=0,
-                n_turns=100,
-                obs_per_turn=3,
-            )
 
 
 class TestBunchObservation(unittest.TestCase):

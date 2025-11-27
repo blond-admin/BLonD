@@ -146,7 +146,7 @@ class BirksCavityFeedback(LocalFeedback):
             section_index=section_index,
             name=name,
         )
-        self.set_parent_rf_station(cavity=_parent_rf_station)
+        self.set_parent_rf_station(rf_station=_parent_rf_station)
         # Number of cavities the feedback is working on
         assert n_cavities > 0, f"{n_cavities=}, but must be bigger 0."
         self.n_cavities = int_from_float_with_warning(

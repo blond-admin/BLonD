@@ -50,11 +50,11 @@ class LocalFeedback(FeedbackBaseClass):
         ) = None
         self.profile = profile
 
-    def set_parent_rf_station(self, cavity: RfStationBaseClass):
+    def set_parent_rf_station(self, rf_station: RfStationBaseClass):
         assert self._parent_rf_station is None, (
             "This feedback has already one owner!"
         )
-        self._parent_rf_station = cavity
+        self._parent_rf_station = rf_station
 
     @abstractmethod  # pragma: no cover
     def track(self, beam: BeamBaseClass) -> None:

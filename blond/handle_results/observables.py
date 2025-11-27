@@ -390,7 +390,7 @@ class RfStationPhaseObservation(ObservablesOncePerTurnBase):
 
     Examples
     --------
-    >>> rf_station_observation = CavityPhaseObservation(each_turn_i=2, cavity=...)
+    >>> rf_station_observation = RfStationPhaseObservation(each_turn_i=2, rf_station=...)
     >>> sim.run_simulation(
     ...     beams=...,
     ...     observe=(rf_station_observation,),

@@ -140,14 +140,14 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
             for feedback in cavity_feedback:
                 if isinstance(feedback, LocalFeedback):
                     pass  # TODO: fix, currently, one cannot setup the cavity without setting up the RF station first and vice versa
-                    # cavity_feedback.set_parent_rf_station(cavity=self)
+                    # cavity_feedback.set_parent_rf_station(rf_station=self)
                 else:
                     raise ValueError(cavity_feedback)
 
         if beam_feedback is None:
             pass
         elif isinstance(beam_feedback, LocalFeedback):
-            beam_feedback.set_parent_rf_station(cavity=self)
+            beam_feedback.set_parent_rf_station(rf_station=self)
         else:
             raise ValueError(beam_feedback)
         self._n_rf = n_rf
