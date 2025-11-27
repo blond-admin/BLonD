@@ -17,6 +17,7 @@ import cupy as cp  # type: ignore
 import numpy as np
 
 from blond.core.backends.backend import Specials, backend
+from blond.core.backends.python.callables import PythonSpecials
 from blond.generals.hashing_ import hash_in_folder
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -432,6 +433,30 @@ def reload_cuda_backend(  # NOQA: D102
 
             n_new = len(ids) - cp.sum(select)
             return n_new
+
+        @staticmethod
+        def meta_params_multibunch(
+            dt: CupyArray,
+            dE: CupyArray,
+            mask: CupyArray,
+            sigma_dt_buffer: CupyArray,
+            sigma_dE_buffer: CupyArray,
+            mean_dt_buffer: CupyArray,
+            mean_dE_buffer: CupyArray,
+            rms_emittance_buffer: CupyArray,
+            t_rf: float,
+        ) -> None:
+            PythonSpecials.meta_params_multibunch(
+                dt.get(),
+                dE.get(),
+                mask.get(),
+                sigma_dt_buffer.get(),
+                sigma_dE_buffer.get(),
+                mean_dt_buffer.get(),
+                mean_dE_buffer.get(),
+                rms_emittance_buffer.get(),
+                t_rf,
+            )
 
     return CudaSpecials
 

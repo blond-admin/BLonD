@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.backends.backend import Specials, backend
+from blond.core.backends.python.callables import PythonSpecials
 from blond.generals.hashing_ import hash_in_folder
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -478,6 +479,30 @@ def reload_fortran_backend(  # NOQA: D102
                 n=np.int32(len(dt)),
             )
             return n_new
+
+        @staticmethod
+        def meta_params_multibunch(
+            dt: NumpyArray,
+            dE: NumpyArray,
+            mask: NumpyArray,
+            sigma_dt_buffer: NumpyArray,
+            sigma_dE_buffer: NumpyArray,
+            mean_dt_buffer: NumpyArray,
+            mean_dE_buffer: NumpyArray,
+            rms_emittance_buffer: NumpyArray,
+            t_rf: float,
+        ) -> None:
+            PythonSpecials.meta_params_multibunch(
+                dt,
+                dE,
+                mask,
+                sigma_dt_buffer,
+                sigma_dE_buffer,
+                mean_dt_buffer,
+                mean_dE_buffer,
+                rms_emittance_buffer,
+                t_rf,
+            )
 
     return FortranSpecials
 
