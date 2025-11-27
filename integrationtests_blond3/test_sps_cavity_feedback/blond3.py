@@ -36,12 +36,12 @@ class TestSPSCavityFeedback(unittest.TestCase):
             reference_particle=proton, value=p_s, in_unit="momentum"
         )
         self.ring = Ring()
-        self.cavity = MultiHarmonicRfStation(
+        self.rf_station = MultiHarmonicRfStation(
             n_harmonics=1
         )  # TODO as single harmonic
-        self.cavity.harmonic = np.array([h])
-        self.cavity.voltage = np.array([V])
-        self.cavity.phi_rf_effective = np.array([phi])
+        self.rf_station.harmonic = np.array([h])
+        self.rf_station.voltage = np.array([V])
+        self.rf_station.phi_rf_effective = np.array([phi])
         self.drift = DriftSimple(orbit_length=C)
         self.drift.transition_gamma = gamma_t
 
@@ -52,17 +52,17 @@ class TestSPSCavityFeedback(unittest.TestCase):
         # TODO self.beam = Beam( N_m)
         self.beam = Beam(intensity=N_b, particle_type=proton)
         sigma = 1.0e-9
-        # bigaussian(self.ring, self.cavity, self.beam, sigma, seed=1234, reinsertion=False)
+        # bigaussian(self.ring, self.rf_station, self.beam, sigma, seed=1234, reinsertion=False)
         Simulation(ring=self.ring, magnetic_cycle=self.magnetic_cycle)
 
         n_shift = 1550  # how many rf-buckets to shift beam
-        self.beam.dt += n_shift * self.cavity.t_rf[0, 0]
+        self.beam.dt += n_shift * self.rf_station.t_rf[0, 0]
 
         self.profile = Profile(
             self.beam,
             cut_options=CutOptions(
-                cut_left=(n_shift - 1.5) * self.cavity.t_rf[0, 0],
-                cut_right=(n_shift + 2.5) * self.cavity.t_rf[0, 0],
+                cut_left=(n_shift - 1.5) * self.rf_station.t_rf[0, 0],
+                cut_right=(n_shift + 2.5) * self.rf_station.t_rf[0, 0],
                 n_slices=4 * 64,
             ),
         )
@@ -95,7 +95,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
         self.induced_voltage.induced_voltage_sum()
 
         self.cavity_tracker = RingAndRFTracker(
-            self.cavity,
+            self.rf_station,
             self.beam,
             profile=self.profile,
             interpolation=True,
@@ -103,7 +103,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
         )
 
         self.OTFB = SPSCavityFeedback(
-            self.cavity,
+            self.rf_station,
             self.profile,
             G_llrf=20,
             G_tx=[1.0355739238973907, 1.078403005653143],
@@ -115,7 +115,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
         )
 
         self.OTFB_tracker = RingAndRFTracker(
-            self.cavity,
+            self.rf_station,
             self.beam,
             profile=self.profile,
             total_induced_voltage=None,

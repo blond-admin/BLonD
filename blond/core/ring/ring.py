@@ -79,15 +79,15 @@ class Ring(Preparable, Schedulable):
         simulation
             The `Simulation` context manager that owns this ring.
         """
-        if self.n_cavities > 1:
+        if self.n_rf_stations > 1:
             assert (
-                len(self.elements.get_sections_indices()) == self.n_cavities
+                len(self.elements.get_sections_indices()) == self.n_rf_stations
             ), (
-                f"{len(self.elements.get_sections_indices())=}, but {self.n_cavities=}"
+                f"{len(self.elements.get_sections_indices())=}, but {self.n_rf_stations=}"
             )
-        elif self.n_cavities == 0:
+        elif self.n_rf_stations == 0:
             warnings.warn(
-                "The simulation has been initialized without cavity.",
+                "The simulation has been initialized without RF station.",
                 UserWarning,
                 stacklevel=1,
             )
@@ -240,13 +240,13 @@ class Ring(Preparable, Schedulable):
         return bool(self.calc_average_eta_0(gamma=beam.reference_gamma) < 0)
 
     @property
-    def n_cavities(self) -> int:
+    def n_rf_stations(self) -> int:
         """Get the total number of RF stations in the ring.
 
         Returns
         -------
-        n_cavities
-            The count of all cavity elements currently in the ring.
+        n_rf_stations
+            The count of all RF station elements currently in the ring.
         """
         from blond.physics.cavities import RfStationBaseClass
 
@@ -403,7 +403,7 @@ class Ring(Preparable, Schedulable):
         Parameters
         ----------
         element
-            A beam physics element (cavity, drift, monitor, etc.) to add.
+            A beam physics element (RF station, drift, monitor, etc.) to add.
             Must have a valid integer `section_index` attribute.
         reorder
             If True, automatically reorder elements within each section by their

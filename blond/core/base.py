@@ -204,7 +204,7 @@ class SimulationElementBase(MainLoopRelevant, ABC):
     Elements derived from this class are executed as part of the simulation's
     main turn-by-turn loop. They can be:
 
-      * :class:`BeamPhysicsRelevant` — modify the beam state (e.g., drifts, cavities, kicks)
+      * :class:`BeamPhysicsRelevant` — modify the beam state (e.g., drifts, rf stations, kicks)
       * :class:`BeamObservationElement — record or analyze beam information without modifying it
 
     Subclasses must implement:
@@ -319,7 +319,7 @@ class BeamPhysicsRelevant(SimulationElementBase):
 
     This class defines the interface for all *physics-relevant* elements in the
     simulation — that is, elements which actively change the beam’s longitudinal
-    or transverse coordinates (e.g., drifts, cavities, kicks).
+    or transverse coordinates (e.g., drifts, rf stations, kicks).
 
     Each subclass must implement the :meth:`track` method, which applies its
     specific transformation to the beam state during each simulation turn.

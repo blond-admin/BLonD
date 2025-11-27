@@ -56,7 +56,7 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         third_cavity.section_index = 1
         self.beam_physics_relevant_elements.add_element(third_cavity)
         with self.assertRaisesRegex(
-            ValueError, "Each cavity must be in a different section"
+            ValueError, "Each RF station must be in a different section"
         ):
             self.beam_physics_relevant_elements._check_section_indexing()
 
@@ -66,7 +66,9 @@ class TestBeamPhysicsRelevantElements(unittest.TestCase):
         element.section_index = 2
         element.name = "element"
         self.beam_physics_relevant_elements.add_element(element)
-        with self.assertRaisesRegex(RuntimeError, "Missing cavity in section"):
+        with self.assertRaisesRegex(
+            RuntimeError, "Missing RF station in section"
+        ):
             self.beam_physics_relevant_elements._check_section_indexing()
 
         element = Mock(spec=RfStationBaseClass)
