@@ -195,7 +195,7 @@ class Specials(ABC):
         )
 
     @staticmethod
-    @abstractmethod
+    @abstractmethod  # pragma: no cover
     def meta_params_multibunch(
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
