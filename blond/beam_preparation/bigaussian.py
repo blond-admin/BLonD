@@ -71,7 +71,7 @@ def _get_dE_from_dt(
     Returns
     -------
     beam : BeamBaseClass
-        The `Beam` object whose state will be updated by this element.
+        The `Beam` object which state will be updated by this element.
     dE_amplitude : float
         Full amplitude of the particle oscillation, in [eV]
 

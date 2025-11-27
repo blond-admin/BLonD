@@ -414,7 +414,7 @@ class WakeField(ImpedanceBaseClass):
         Parameters
         ----------
         beam : BeamBaseClass
-            The `Beam` object whose state will be updated by this element.
+            The `Beam` object which state will be updated by this element.
         sources
             List of sources that cause wake-fields
         solver

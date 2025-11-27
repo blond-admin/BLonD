@@ -46,7 +46,7 @@ class BeamPreparationRoutine(ABC):
         simulation
             `Simulation` context manager
         beam : BeamBaseClass
-            The `Beam` object whose state will be updated by this element.
+            The `Beam` object which state will be updated by this element.
         """
         beam.reference_total_energy = (
             simulation.magnetic_cycle.get_total_energy_init(
