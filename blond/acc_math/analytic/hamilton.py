@@ -44,7 +44,7 @@ def is_in_separatrix(
     harmonic
         RF Harmonic, i.e. number of RF cycles per synchrotron turn
     voltage
-        RF voltage of the cavity, in [V]
+        RF voltage of the RF station, in [V]
     omega_rf
         Angular frequency of the RF system, in [rad/s]
     phi_rf_d
@@ -232,7 +232,7 @@ def single_rf_sin_hamiltonian(
     harmonic
         RF Harmonic, i.e. number of RF cycles per synchrotron turn
     voltage
-        RF voltage of the cavity, in [V]
+        RF voltage of the RF station, in [V]
     omega_rf
         Angular frequency of the RF system, in [rad/s]
     phi_rf_d
@@ -298,7 +298,7 @@ def calc_phi_s_single_harmonic(
         Particle charge, i.e. number of elementary charges `e`
         Example: For an electron `charge=-1`.
     voltage
-        RF voltage of the cavity, in [V].
+        RF voltage of the RF station, in [V].
     phase
         phi_rf of the main harmonic, in [rad].
     energy_gain

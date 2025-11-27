@@ -90,7 +90,7 @@ class TestRFStationBaseClass(unittest.TestCase):
             reference_beta=1,
         )
         cavity_feedback_good = SPSOneTurnFeedback(
-            profile=prof, _parent_cavity=mhc, n_sections=3
+            profile=prof, _parent_rf_station=mhc, n_sections=3
         )
 
         # TODO: remove this, once cavity feedback setup is fixed
@@ -124,7 +124,7 @@ class TestRFStationBaseClass(unittest.TestCase):
         #                                       total_energy=1, reference_beta=1)
         cavity_feedback_good = Mock(
             SPSOneTurnFeedback
-        )  # profile=prof, _parent_cavity=mhc, n_sections=3)
+        )  # profile=prof, _parent_rf_station=mhc, n_sections=3)
         cavity_feedback_good.info_string.return_value = (
             "Unnamed-LocalFeedback-000"
         )

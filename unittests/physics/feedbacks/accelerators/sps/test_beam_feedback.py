@@ -14,9 +14,9 @@ from blond import (
     Beam,
     BeamObservationOncePerTurn,
     BiGaussian,
-    CavityPhaseObservation,
     ConstantMagneticCycle,
     MultiHarmonicRfStation,
+    RfStationPhaseObservation,
     Ring,
     Simulation,
     StaticProfile,
@@ -204,9 +204,9 @@ class TestBeamFeedback(unittest.TestCase):
 
     def test_setup(self):
         obs_bunch = BeamObservationOncePerTurn(each_turn_i=1, beam=self.beam)
-        cav_obs = CavityPhaseObservation(
+        cav_obs = RfStationPhaseObservation(
             each_turn_i=1,
-            cavity=self.cavity,
+            rf_station=self.cavity,
         )
 
         def callback(simulation: Simulation):
@@ -224,7 +224,7 @@ class TestBeamFeedback(unittest.TestCase):
 
             plt.plot(
                 simulation.turn_i.value,
-                self.sps_beam_feedback._parent_cavity.phi_s,
+                self.sps_beam_feedback._parent_rf_station.phi_s,
                 "o",
                 c="C0",
             )

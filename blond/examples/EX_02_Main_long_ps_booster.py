@@ -64,10 +64,10 @@ def main():
         value=sync_momentum,
         reference_particle=proton,
     )
-    cavity1 = SingleHarmonicRfStation()
-    cavity1.harmonic = 1
-    cavity1.voltage = 8e3
-    cavity1.phi_rf = np.pi
+    rf_station_1 = SingleHarmonicRfStation()
+    rf_station_1.harmonic = 1
+    rf_station_1.voltage = 8e3
+    rf_station_1.phi_rf = np.pi
 
     drift = DriftSimple(
         orbit_length=ring.circumference,

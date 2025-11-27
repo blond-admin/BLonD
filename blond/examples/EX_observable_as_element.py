@@ -36,10 +36,10 @@ def main():
 
     ring = Ring(26658.883)
 
-    cavity1 = SingleHarmonicRfStation()
-    cavity1.harmonic = 35640
-    cavity1.voltage = 6e6
-    cavity1.phi_rf = 0
+    rf_station = SingleHarmonicRfStation()
+    rf_station.harmonic = 35640
+    rf_station.voltage = 6e6
+    rf_station.phi_rf = 0
 
     N_TURNS = int(10)
 
@@ -69,7 +69,7 @@ def main():
 
     one_turn_execution_order = (
         drift1,
-        cavity1,
+        rf_station,
         beam_logger_element,
     )
     ring.add_elements(one_turn_execution_order)

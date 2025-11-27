@@ -374,15 +374,15 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         return self._flags.get_valid_entries()
 
 
-class CavityPhaseObservation(ObservablesOncePerTurnBase):
-    """Observe the RF cavity parameters during the execution of the simulation.
+class RfStationPhaseObservation(ObservablesOncePerTurnBase):
+    """Observe the RF station parameters during the execution of the simulation.
 
     Parameters
     ----------
     each_turn_i
         Value to control that the element is
         callable each n-th turn.
-    cavity
+    rf_station
         Class that implements beam-RF interactions in a synchrotron
     folder
         Path to the target folder used for
@@ -390,7 +390,7 @@ class CavityPhaseObservation(ObservablesOncePerTurnBase):
 
     Examples
     --------
-    >>> rf_station_observation = CavityPhaseObservation(each_turn_i=2, cavity=...)
+    >>> rf_station_observation = RfStationPhaseObservation(each_turn_i=2, rf_station=...)
     >>> sim.run_simulation(
     ...     beams=...,
     ...     observe=(rf_station_observation,),
@@ -410,11 +410,11 @@ class CavityPhaseObservation(ObservablesOncePerTurnBase):
     def __init__(
         self,
         each_turn_i: int,
-        cavity: SingleHarmonicRfStation,
+        rf_station: SingleHarmonicRfStation,
         folder: str = "",
     ):
         super().__init__(each_turn_i=each_turn_i, folder=folder)
-        self._cavity = cavity
+        self._rf_station = rf_station
         self._phases: DenseArrayRecorder | None = None
         self._omegas: DenseArrayRecorder | None = None
         self._voltages: DenseArrayRecorder | None = None
@@ -446,9 +446,8 @@ class CavityPhaseObservation(ObservablesOncePerTurnBase):
         )
 
         n_entries = n_turns // self.each_turn_i + 2
-        n_harmonics = int(self._cavity.n_rf)
+        n_harmonics = int(self._rf_station.n_rf)
         shape = (n_entries, n_harmonics)
-
         self._phases = DenseArrayRecorder(
             f"{self.common_filepath}_phases",
             shape,
@@ -476,32 +475,32 @@ class CavityPhaseObservation(ObservablesOncePerTurnBase):
         """
         self._phases.write(
             None
-            if self._cavity.phi_rf is None
-            else (self._cavity.phi_rf + self._cavity.delta_phi_rf)
+            if self._rf_station.phi_rf is None
+            else (self._rf_station.phi_rf + self._rf_station.delta_phi_rf)
         )
         self._omegas.write(
             None
-            if self._cavity._omega_rf is None
-            else (self._cavity._omega_rf + self._cavity.delta_omega_rf)
+            if self._rf_station._omega_rf is None
+            else (self._rf_station._omega_rf + self._rf_station.delta_omega_rf)
             # TODO: should be property call instead of private member
         )
         self._voltages.write(
-            self._cavity.voltage,
+            self._rf_station.voltage,
         )
 
     @property  # as readonly attributes
     def phases(self) -> NumpyArray:
-        """Cavity's effective phase of shape ``(n_observations, )``, in [rad] ."""
+        """RF station's effective phase of shape ``(n_observations, )``, in [rad] ."""
         return self._phases.get_valid_entries()
 
     @property  # as readonly attributes
     def omegas(self) -> NumpyArray:
-        """Cavity's angular frequency of shape ``(n_observations, )``, in [Hz]."""
+        """RF station's angular frequency of shape ``(n_observations, )``, in [Hz]."""
         return self._omegas.get_valid_entries()
 
     @property  # as readonly attributes
     def voltages(self) -> NumpyArray:
-        """Cavity's effective voltage of shape ``(n_observations, )``, in [V]."""
+        """RF station's effective voltage of shape ``(n_observations, )``, in [V]."""
         return self._voltages.get_valid_entries()
 
 
