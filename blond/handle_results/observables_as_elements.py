@@ -293,7 +293,7 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
 
     @property  # as readonly attributes
     def rms_emittance(self):
-        r"""Root-Mean=Square emittance.
+        r"""Root-mean-square emittance.
 
         The statistical emittance is calculated with
 
