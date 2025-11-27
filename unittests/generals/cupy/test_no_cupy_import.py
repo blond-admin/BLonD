@@ -22,6 +22,7 @@ class TestFunctions(unittest.TestCase):
         plt.figure()
         from blond.core.backends.backend import Cupy32Bit, backend
 
+        backend_org = type(backend)
         backend.change_backend(Cupy32Bit)
         with AllowPlotting():
             # would crash without AllowPlotting
@@ -29,6 +30,7 @@ class TestFunctions(unittest.TestCase):
             plt.plot(array)
             plt.plot(array2)
 
+        backend.change_backend(backend_org)
         plt.close()
 
     def test_is_cupy_array(self):
@@ -49,6 +51,7 @@ class TestFunctions(unittest.TestCase):
 
         with self.assertRaises(TypeError):
             from numba.cuda import to_device
+
             arr_numba_cuda = to_device(np.ones(10))
             is_cupy_array(arr_numba_cuda)
 

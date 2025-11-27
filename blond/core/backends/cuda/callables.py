@@ -17,7 +17,7 @@ import cupy as cp  # type: ignore
 import numpy as np
 
 from blond.core.backends.backend import Specials, backend
-from blond.generals._hashing import hash_in_folder
+from blond.generals.hashing_ import hash_in_folder
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -36,7 +36,7 @@ hash_ = hash_in_folder(
 _basepath = os.path.join(folder, "compiled", hash_)
 
 
-def reload_cuda_backend(  # ruff: noqa: D102
+def reload_cuda_backend(  # NOQA: D102
     floattype: type[np.float32 | np.float64],
 ) -> CudaSpecials:
     """Load and link the according CUDA backend.

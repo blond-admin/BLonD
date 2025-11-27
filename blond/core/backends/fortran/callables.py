@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.backends.backend import Specials, backend
-from blond.generals._hashing import hash_in_folder
+from blond.generals.hashing_ import hash_in_folder
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -134,7 +134,7 @@ def add_backend(module_name: str) -> ModuleType:
     return loaded_module
 
 
-def reload_fortran_backend(  # ruff: noqa: D102
+def reload_fortran_backend(  # NOQA: D102
     floattype: type[np.float32] | type[np.float64],
 ) -> FortranSpecials:
     """Reload the library according to the float precision.

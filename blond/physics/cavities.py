@@ -284,8 +284,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
             voltage=float(self.get_main_harmonic_voltage()),
             phase=float(self.get_main_harmonic_phi_rf()),
             energy_gain=reference_energy_change,
-            above_transition=beam.reference_gamma
-            > self._ring.average_transition_gamma,
+            above_transition=not self._ring.is_below_transition(beam=beam),
         )
 
         return phi_s
@@ -546,7 +545,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         try:
             self.phi_s = self.calc_phi_s_single_harmonic(beam=beam)
         except Exception as exc:
-            warnings.warn(str(exc))
+            warnings.warn(str(exc), UserWarning, stacklevel=1)
             self.phi_s = np.nan"""
 
     def track(self, beam: BeamBaseClass) -> None:

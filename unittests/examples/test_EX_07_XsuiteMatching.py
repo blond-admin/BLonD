@@ -10,6 +10,7 @@ from blond.core.backends.backend import (
 
 try:
     import xpart
+
     HAS_XSUITE = True
 except ImportError:
     HAS_XSUITE = False
@@ -22,6 +23,7 @@ class TestEX_07_Xsuite_Matching(unittest.TestCase):
             import xpart
         except ModuleNotFoundError as exception:
             self.skipTest(str(exception))
+
     @unittest.skip("Too slow")
     def test_executable_numba32(self):
         backend.change_backend(Numpy32Bit)

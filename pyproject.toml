@@ -68,7 +68,6 @@ exclude = [
     "unittests",
     "legacy",
     "integrationtests_blond3",
-    "docs/",
 ]
 [tool.ruff.lint]
 # Enable broad set of useful lint rules
@@ -97,7 +96,6 @@ ignore = [
 
 ]
 exclude = [
-    "blond/handle_results/observables.py",
     "blond/examples/*",
 ]
 
@@ -105,4 +103,4 @@ exclude = [
 convention = "numpy"
 [tool.pytest.ini_options]
 minversion = "8.4"
-addopts = "--import-mode=importlib --cov --cov-config=.coveragerc"
+addopts = "--import-mode=importlib"

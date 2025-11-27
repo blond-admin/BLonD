@@ -16,7 +16,6 @@ from blond import (
 )
 from blond.core.backends.backend import Numpy64Bit, backend
 from blond.physics.impedances.solvers import (
-    PeriodicFreqSolver,
     SingleTurnResonatorConvolutionSolver,
 )
 from blond.physics.impedances.sources import Resonators
@@ -228,17 +227,19 @@ class TestBothBlonds(unittest.TestCase):
         DEBUG_MODE = False
         if DEBUG_MODE:
             n_macroparts = [int(1e4), int(1e5), int(1e6)]
-            bunch_lengths = [1e-8 / 12, 1e-9 / 8,  1e-9 / 4, ]
+            bunch_lengths = [
+                1e-8 / 12,
+                1e-9 / 8,
+                1e-9 / 4,
+            ]
             n_slices_lst = [1024]
         else:
             n_macroparts = [int(2e4)]
             bunch_lengths = [5e-10]
             n_slices_lst = [128]
-        for mac_ind, n_macroparticles in enumerate(
-            n_macroparts
-        ):
+        for mac_ind, n_macroparticles in enumerate(n_macroparts):
             for slic_ind, n_slices in enumerate(n_slices_lst):
-            # for slic_ind, n_slices in enumerate([1024]):
+                # for slic_ind, n_slices in enumerate([1024]):
                 # for b_ind, bunch_length in enumerate([1e-9 / 4, 1e-9, 4e-9]):
                 for b_ind, bunch_length in enumerate(
                     bunch_lengths
