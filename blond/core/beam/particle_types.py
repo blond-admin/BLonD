@@ -106,6 +106,11 @@ uranium_29: ParticleType = ParticleType(
     charge=29,
 )
 
+lead_82: ParticleType = ParticleType(
+    mass=207.93 * m_p * c**2 / e,  # approximate mass-energy in eV
+    charge=82,
+)
+
 electron: ParticleType = ParticleType(
     mass=m_e * c**2 / e,
     charge=-1,
