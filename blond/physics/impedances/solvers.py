@@ -1031,11 +1031,17 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
 
         wake_kernel = None  # This needs to be derived
         for source in self._parent_wakefield.sources:
-            assert isinstance(source, TimeDomain), f"{type(source)=}"
-            wake_kernel_tmp = source.get_wake(
-                time_axis,
-            )
-
+            source: TimeDomain  # type hint what the we expect
+            try:
+                wake_kernel_tmp = source.get_wake(time_axis)
+            except Exception as exc:
+                if not isinstance(source, TimeDomain):
+                    raise TypeError(
+                        f"The {source=} should implement "
+                        f"`TimeDomain.get_wake`."
+                    ) from exc
+                else:
+                    raise exc
             if wake_kernel is None:
                 wake_kernel = wake_kernel_tmp
             else:
