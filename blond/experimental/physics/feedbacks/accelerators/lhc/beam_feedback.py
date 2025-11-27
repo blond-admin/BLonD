@@ -50,10 +50,10 @@ class LhcBeamFeedback(Blond2BeamFeedback):
 
         if self.gain2 != 0:
             #: | *LHC Synchronisation loop coefficient [1]*
-            self.lhc_a = 5.25 - self._parent_cavity.omega_s0 / (np.pi * 40.0)
+            self.lhc_a = 5.25 - self._parent_rf_station.omega_s0 / (np.pi * 40.0)
             #: | *LHC Synchronisation loop time constant [turns]*
             self.lhc_t = (
-                2 * np.pi * self._parent_cavity.Q_s * np.sqrt(self.lhc_a)
+                                 2 * np.pi * self._parent_rf_station.Q_s * np.sqrt(self.lhc_a)
             ) / np.sqrt(
                 1
                 + self.gain
@@ -62,8 +62,8 @@ class LhcBeamFeedback(Blond2BeamFeedback):
             )
 
         else:
-            self.lhc_a = np.zeros(self._parent_cavity.n_turns + 1)
-            self.lhc_t = np.zeros(self._parent_cavity.n_turns + 1)
+            self.lhc_a = np.zeros(self._parent_rf_station.n_turns + 1)
+            self.lhc_t = np.zeros(self._parent_rf_station.n_turns + 1)
 
     def track(self, beam: BeamBaseClass) -> None:
         """Calculation of the LHC RF frequency correction from the phase difference
@@ -97,7 +97,7 @@ class LhcBeamFeedback(Blond2BeamFeedback):
         self.update_domega_rf(beam=beam)
 
     def update_domega_rf(self, beam: BeamBaseClass) -> None:
-        dphi_rf = self._parent_cavity.delta_phi_rf[0]
+        dphi_rf = self._parent_rf_station.delta_phi_rf[0]
         self.update_phi_beam()
         self.update_dphi(beam=beam)
         # Frequency correction from phase loop and synchro loop
@@ -158,5 +158,5 @@ class LhcFBeamFeedback(Blond2BeamFeedback):
 
         # Frequency correction from phase loop and frequency loop
         self.domega_rf = -self.gain * self.dphi - self.gain2 * (
-            self._parent_cavity.delta_omega_rf[0] + self.reference
+                self._parent_rf_station.delta_omega_rf[0] + self.reference
         )

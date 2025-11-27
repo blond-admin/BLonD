@@ -48,9 +48,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from numpy.typing import NDArray as NumpyArray
 
-    from blond import (
-        BiGaussian,
-    )
+    from blond import BiGaussian
     from blond.beam_preparation.base import BeamPreparationRoutine
     from blond.core.beam.base import BeamBaseClass
     from blond.core.beam.particle_types import ParticleType
@@ -65,6 +63,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.interfaces.xsuite.beam_preparation.rfbucket_matching import (
         XsuiteRFBucketMatcher,
     )
+
 
 logger = logging.getLogger(__name__)
 
@@ -805,7 +804,7 @@ class Simulation(Preparable):
         --------
         ConstantMagneticCycle
         MagneticCyclePerTurn
-        MagneticCyclePerTurnAllCavities
+        MagneticCyclePerTurnAllRfStations
         MagneticCycleByTime
         """
         return self._magnetic_cycle
@@ -970,7 +969,7 @@ class Simulation(Preparable):
             from a specific turn. Default is 0.
         observe
             Tuple of observable objects that record data during the simulation
-            (e.g., ``CavityPhaseObservation``, ``BeamObservationEndOfTurn``).
+            (e.g., ``RfStationPhaseObservation``, ``BeamObservationEndOfTurn``).
             Each observable is updated according to its own schedule. Default is empty tuple.
         show_progressbar
             If True, displays a progress bar showing simulation progress and turn rate.
@@ -1004,12 +1003,12 @@ class Simulation(Preparable):
 
         Simulation with observables to record data:
 
-        >>> from blond import CavityPhaseObservation, BeamObservationOncePerTurn
+        >>> from blond import RfStationPhaseObservation, BeamObservationOncePerTurn
         >>> from blond import Simulation, Beam, BiGaussian, SingleHarmonicRfStation
         >>> sim = Simulation(...)
         >>> beam1 = Beam(...)
         >>> rf_station1 = SingleHarmonicRfStation(...)
-        >>> phase_obs = CavityPhaseObservation(each_turn_i=1, cavity=rf_station1)
+        >>> phase_obs = RfStationPhaseObservation(each_turn_i=1, rf_station=rf_station1)
         >>> beam_obs = BeamObservationOncePerTurn(each_turn_i=1, beam=beam1)
         >>>
         >>> sim.run_simulation(
@@ -1454,7 +1453,7 @@ class Simulation(Preparable):
         Load previously saved results:
 
         >>> # Create observables (same as before)
-        >>> phase_obs = CavityPhaseObservation(each_turn_i=1, cavity=rf_station1)
+        >>> phase_obs = RfStationPhaseObservation(each_turn_i=1, rf_station=rf_station1)
         >>> beam_obs = BeamObservationEndOfTurn(each_turn_i=1, beam=beam1)
         >>>
         >>> # Load the saved data

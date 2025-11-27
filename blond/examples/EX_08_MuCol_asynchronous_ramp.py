@@ -50,36 +50,36 @@ def main():
 
     one_turn_model = []
     observables = []
-    for cavity_i in range(n_sections):
-        cavity = SingleHarmonicRfStation(
-            section_index=cavity_i,
+    for rf_station_i in range(n_sections):
+        rf_station = SingleHarmonicRfStation(
+            section_index=rf_station_i,
         )
         profile = StaticProfile(
-            cut_left=0, cut_right=1, n_bins=256, section_index=cavity_i
+            cut_left=0, cut_right=1, n_bins=256, section_index=rf_station_i
         )
-        cavity.voltage = voltage_per_section
-        cavity.phi_rf = phi_s
-        cavity.harmonic = 25900
+        rf_station.voltage = voltage_per_section
+        rf_station.phi_rf = phi_s
+        rf_station.harmonic = 25900
 
         one_turn_model.extend(
             [
-                cavity,
+                rf_station,
                 DriftSimple(
                     transition_gamma=transition_gamma,
                     orbit_length=ring.circumference / n_sections / 3,
-                    section_index=cavity_i,
+                    section_index=rf_station_i,
                 ),
-                ReferenceEnergyChange(section_index=cavity_i),
+                ReferenceEnergyChange(section_index=rf_station_i),
                 DriftSimple(
                     transition_gamma=transition_gamma,
                     orbit_length=ring.circumference / n_sections / 3,
-                    section_index=cavity_i,
+                    section_index=rf_station_i,
                 ),
-                ReferenceEnergyChange(section_index=cavity_i),
+                ReferenceEnergyChange(section_index=rf_station_i),
                 DriftSimple(
                     transition_gamma=transition_gamma,
                     orbit_length=ring.circumference / n_sections / 3,
-                    section_index=cavity_i,
+                    section_index=rf_station_i,
                 ),
                 profile,
             ]
@@ -99,13 +99,13 @@ def main():
 
     zmax = ring.circumference / (2 * 25900)  # maximum bunch length z
 
-    total_cavity = SingleHarmonicRfStation(
-        section_index=cavity_i,
+    total_rf_station = SingleHarmonicRfStation(
+        section_index=rf_station_i,
     )
 
-    total_cavity.voltage = voltage_per_section
-    total_cavity.phi_rf = phi_s
-    total_cavity.harmonic = 25900
+    total_rf_station.voltage = voltage_per_section
+    total_rf_station.phi_rf = phi_s
+    total_rf_station.harmonic = 25900
 
     sim.prepare_beam(
         beam=beam1,
