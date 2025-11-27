@@ -194,6 +194,52 @@ class Specials(ABC):
             "The backend for `move_flagged_elements_to_end` is missing."
         )
 
+    @staticmethod
+    @abstractmethod
+    def meta_params_multibunch(
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        mask: NumpyArray | CupyArray,
+        sigma_dt_buffer: NumpyArray | CupyArray,
+        sigma_dE_buffer: NumpyArray | CupyArray,
+        mean_dt_buffer: NumpyArray | CupyArray,
+        mean_dE_buffer: NumpyArray | CupyArray,
+        emittance_buffer: NumpyArray | CupyArray,
+        t_rf: float,
+    ) -> None:
+        """
+        Calculates mean and standard deviation of both energy and time coordinates as well as rms bunch emittance.
+
+        Parameters
+        ----------
+        dt
+            input array of time values [s]
+        dE
+            input array of energies [eV]
+        mask
+            mask to be used on dt and dE for the calculation of the meta parameters
+        sigma_dt_buffer
+            output buffer for standard deviation of time axis
+        sigma_dE_buffer
+            output buffer for standard deviation of energy axis
+        mean_dt_buffer
+            output buffer for mean of time axis
+        mean_dE_buffer
+            output buffer for mean of energy axis
+        emittance_buffer
+            output buffer for rms emittance
+        t_rf
+            period of main RF, used to correct the mean of bunches, which are behind the first bucket
+
+        Notes
+        -----
+        The mean of dt is corrected to the first bucket.
+
+        """
+        raise NotImplementedError(
+            "The backend implementation for `meta_params_multibunch` is missing."
+        )
+
 
 class _ModeSwitchHelper:
     """Helper to be used in a `with` statement to set the specials temporarily.

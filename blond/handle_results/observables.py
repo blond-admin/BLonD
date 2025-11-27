@@ -409,11 +409,8 @@ class MultiBunchObservationMetaParams(ObservablesOncePerTurnBase):
         recompute_mask: bool = True,
         n_bunches: int = 1,
         folder: str = "",
-        obs_per_turn: int = 1,
     ):
-        super().__init__(
-            each_turn_i=each_turn_i, obs_per_turn=obs_per_turn, folder=folder
-        )
+        super().__init__(each_turn_i=each_turn_i, folder=folder)
         self._beam = beam
 
         assert n_bunches >= 1, "Number of bunches to record needs to be >= 1"
@@ -468,10 +465,9 @@ class MultiBunchObservationMetaParams(ObservablesOncePerTurnBase):
             beam=beam,
             n_turns=n_turns,
             turn_i_init=turn_i_init,
-            obs_per_turn=self._obs_per_turn,
         )
 
-        n_entries = int(n_turns * self._obs_per_turn + 1)
+        n_entries = int(n_turns + 1)
         shape = (n_entries, self.n_bunches)
 
         self._mean_dt_buffer = np.zeros(self.n_bunches)
@@ -513,41 +509,32 @@ class MultiBunchObservationMetaParams(ObservablesOncePerTurnBase):
             Simulation context manager
 
         """
-        if (
-            self._last_section_i_observed == simulation.section_i.value
-            and self._last_turn_i_observed == simulation.turn_i.value
-        ):
-            return
-        self._last_turn_i_observed = simulation.turn_i.value
-        self._last_section_i_observed = simulation.section_i.value
-
-        if simulation.section_i.value in self._section_indices_to_observe:
-            if self.recompute_mask or len(self._mask[0]) == 0:
-                self._mask = np.zeros(
-                    (self.n_bunches, self._beam.common_array_size), dtype=bool
-                )
-                for bucket in range(self.n_bunches):
-                    self._mask[bucket] = (
-                        self._beam._dt < self.t_rf * (bucket + 1)
-                    ) & (self._beam._dt > self.t_rf * bucket)
-
-            backend.specials.meta_params_multibunch(
-                self._beam._dt,
-                self._beam._dE,
-                self._mask,
-                self._sigma_dt_buffer,
-                self._sigma_dE_buffer,
-                self._mean_dt_buffer,
-                self._mean_dE_buffer,
-                self._emittance_stat_buffer,
-                self.t_rf,
+        if self.recompute_mask or len(self._mask[0]) == 0:
+            self._mask = np.zeros(
+                (self.n_bunches, self._beam.common_array_size), dtype=bool
             )
+            for bucket in range(self.n_bunches):
+                self._mask[bucket] = (
+                    self._beam._dt < self.t_rf * (bucket + 1)
+                ) & (self._beam._dt > self.t_rf * bucket)
 
-            self._sigma_dt.write(self._sigma_dt_buffer)
-            self._sigma_dE.write(self._sigma_dE_buffer)
-            self._mean_dt.write(self._mean_dt_buffer)
-            self._mean_dE.write(self._mean_dE_buffer)
-            self._rms_emittance.write(self._emittance_stat_buffer)
+        backend.specials.meta_params_multibunch(
+            self._beam._dt,
+            self._beam._dE,
+            self._mask,
+            self._sigma_dt_buffer,
+            self._sigma_dE_buffer,
+            self._mean_dt_buffer,
+            self._mean_dE_buffer,
+            self._emittance_stat_buffer,
+            self.t_rf,
+        )
+
+        self._sigma_dt.write(self._sigma_dt_buffer)
+        self._sigma_dE.write(self._sigma_dE_buffer)
+        self._mean_dt.write(self._mean_dt_buffer)
+        self._mean_dE.write(self._mean_dE_buffer)
+        self._rms_emittance.write(self._emittance_stat_buffer)
 
     @property  # as readonly attributes
     def sigma_dt(self):

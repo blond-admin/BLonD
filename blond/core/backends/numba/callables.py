@@ -403,6 +403,7 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
                 dt[i] += coeff * dE[i]
 
         @staticmethod
+        @enforce_precision(floattype)
         @njit(
             sig_meta_params_multibunch,
             parallel=True,
@@ -410,14 +411,14 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             cache=True,
         )
         def meta_params_multibunch(
-            dt: NumpyArray | CupyArray,
-            dE: NumpyArray | CupyArray,
-            mask: NumpyArray | CupyArray,
-            sigma_dt_buffer: NumpyArray | CupyArray,
-            sigma_dE_buffer: NumpyArray | CupyArray,
-            mean_dt_buffer: NumpyArray | CupyArray,
-            mean_dE_buffer: NumpyArray | CupyArray,
-            emittance_buffer: NumpyArray | CupyArray,
+            dt: NumpyArray,
+            dE: NumpyArray,
+            mask: NumpyArray,
+            sigma_dt_buffer: NumpyArray,
+            sigma_dE_buffer: NumpyArray,
+            mean_dt_buffer: NumpyArray,
+            mean_dE_buffer: NumpyArray,
+            emittance_buffer: NumpyArray,
             t_rf: float,
         ) -> None:
             for bucket in prange(len(mask)):

@@ -69,14 +69,14 @@ class PythonSpecials(Specials):
 
     @staticmethod
     def meta_params_multibunch(
-        dt: NumpyArray | CupyArray,
-        dE: NumpyArray | CupyArray,
-        mask: NumpyArray | CupyArray,
-        sigma_dt_buffer: NumpyArray | CupyArray,
-        sigma_dE_buffer: NumpyArray | CupyArray,
-        mean_dt_buffer: NumpyArray | CupyArray,
-        mean_dE_buffer: NumpyArray | CupyArray,
-        emittance_buffer: NumpyArray | CupyArray,
+        dt: NumpyArray,
+        dE: NumpyArray,
+        mask: NumpyArray,
+        sigma_dt_buffer: NumpyArray,
+        sigma_dE_buffer: NumpyArray,
+        mean_dt_buffer: NumpyArray,
+        mean_dE_buffer: NumpyArray,
+        emittance_buffer: NumpyArray,
         t_rf: float,
     ) -> None:
         """
