@@ -213,21 +213,6 @@ class TestSimulation(unittest.TestCase):
         ring = Ring(circumference=12)
         self.simulation.from_locals(locals=locals(), verbose=True)
 
-    @unittest.skip
-    def test_get_legacy_map(self):
-        # TODO: implement test for `get_legacy_map`
-        self.simulation.get_legacy_map()
-
-    @unittest.skip
-    def test_get_potential_well(self):
-        # TODO: implement test for `get_potential_well`
-        self.simulation.get_potential_well()
-
-    @unittest.skip
-    def test_get_potential_well_analytic(self):
-        # TODO: implement test for `get_potential_well_analytic`
-        self.simulation.get_potential_well_analytic()
-
     def test_get_potential_well_empiric(self):
         from blond.testing.simulation import SimulationTwoRfStations
 
@@ -299,7 +284,9 @@ class TestSimulation(unittest.TestCase):
         )
 
     def test_load_results(self):
-        observation = BeamObservationOncePerTurn(each_turn_i=10, beam=self.beam)
+        observation = BeamObservationOncePerTurn(
+            each_turn_i=10, beam=self.beam
+        )
         kwargs = dict(
             beams=(self.beam,),
             n_turns=10,
@@ -425,6 +412,40 @@ class TestSimulation(unittest.TestCase):
             potential_well_analytic / potential_well_analytic.max() + 1,
             potential_well / potential_well.max() + 1,
             rtol=1e-4,
+        )
+
+    def test_get_potential_well_empiric_charge(self):
+        cavity = self.simulation.ring.elements.get_element(
+            SingleHarmonicRfStation
+        )
+        from blond.core.beam.particle_types import ParticleType, c, e, m_p
+
+        noton = ParticleType(
+            mass=m_p * c**2 / e,
+            charge=2,
+        )
+        potential_wells = {proton: None, noton: None}
+        ts = np.linspace(
+            0,
+            self.simulation.magnetic_cycle.get_t_rev_init(
+                circumference=self.simulation.ring.circumference,
+                t_init=0,
+                turn_i_init=0,
+                particle_type=proton,
+            )
+            / cavity.harmonic,
+            20000,
+        )
+        for particle_type in (proton, noton):
+            potential_well, factor, tilt_dt_per_dE = (
+                self.simulation.get_potential_well_empiric(
+                    ts, particle_type=particle_type
+                )
+            )
+            potential_wells[particle_type] = potential_well
+        np.testing.assert_allclose(
+            potential_wells[proton]+1e6, potential_wells[noton] / 2 + 1e6,
+            rtol=1e-5,
         )
 
     def test_get_potential_well_empiric_shape_acceleration(self):
