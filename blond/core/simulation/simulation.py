@@ -533,9 +533,7 @@ class Simulation(Preparable):
             # Align potential so that the visible minimum is 0
             potential_well -= potential_well.min()
         return (
-            backend.array(
-                potential_well / particle_type.charge, dtype=backend.float
-            ),
+            backend.array(potential_well, dtype=backend.float),
             factor,
             tilt_dt_per_dE,
         )
