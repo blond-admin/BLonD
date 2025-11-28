@@ -12,11 +12,9 @@ from blond import (
     ConstantMagneticCycle,
     MagneticCycleByTime,
     MagneticCyclePerTurn,
-    MagneticCyclePerTurnAllCavities,
+    MagneticCyclePerTurnAllRfStations,
     proton,
 )
-from blond._core.beam.base import BeamBaseClass
-from blond._core.beam.particle_types import ParticleType, uranium_29
 from blond.acc_math.analytic.simple_math import (
     beta_by_momentum,
     calc_beta,
@@ -24,6 +22,8 @@ from blond.acc_math.analytic.simple_math import (
     calc_gamma,
     calc_total_energy,
 )
+from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.particle_types import ParticleType, uranium_29
 from blond.cycles.magnetic_cycle import (
     MagneticCycleBase,
     _to_magnetic_rigidity,
@@ -337,13 +337,24 @@ class TestEnergyCycleByTime(unittest.TestCase):
 
 class TestBaseFunctions(unittest.TestCase):
     def test_error_throwing_to_magnetic_rigidity(self):
-        with self.assertRaisesRegex(ValueError,
-                                    "must be provided and cannot be None"):
-            _to_magnetic_rigidity(1.0, 2.0, 3.0,
-                                  convert_from="bending field", bending_radius=None)
+        with self.assertRaisesRegex(
+            ValueError, "must be provided and cannot be None"
+        ):
+            _to_magnetic_rigidity(
+                1.0,
+                2.0,
+                3.0,
+                convert_from="bending field",
+                bending_radius=None,
+            )
         with self.assertRaisesRegex(ValueError, "Unrecognized option"):
-            _to_magnetic_rigidity(1.0, 2.0, 3.0,
-                                  convert_from="not_my_option", bending_radius=None)
+            _to_magnetic_rigidity(
+                1.0,
+                2.0,
+                3.0,
+                convert_from="not_my_option",
+                bending_radius=None,
+            )
 
 
 class TestEnergyCyclePerTurn(unittest.TestCase):
@@ -387,7 +398,7 @@ class TestEnergyCyclePerTurn(unittest.TestCase):
         evpt = MagneticCyclePerTurn.headless(
             reference_particle=uranium_29,
             value_init=0,
-            n_cavities=2,
+            n_rf_stations=2,
             values_after_turn=np.ones(10),
         )
         self.assertEqual(evpt._magnetic_rigidity.shape, (2, 10))
@@ -397,8 +408,8 @@ class TestEnergyCyclePerTurnAllCavities(unittest.TestCase):
     def setUp(self):
         self.momentum = np.ones((1, 10))
         self.magnetic_cycle_per_turn_all_cavities = (
-            MagneticCyclePerTurnAllCavities(
-                values_after_cavity_per_turn=self.momentum,
+            MagneticCyclePerTurnAllRfStations(
+                values_after_rf_station_per_turn=self.momentum,
                 value_init=1,
                 reference_particle=uranium_29,
             )
@@ -411,8 +422,8 @@ class TestEnergyCyclePerTurnAllCavities(unittest.TestCase):
         # simulation has only one cavity, but give program for 10 cavities
         with self.assertRaises(AssertionError):
             self.magnetic_cycle_per_turn_all_cavities = (
-                MagneticCyclePerTurnAllCavities(
-                    values_after_cavity_per_turn=np.ones((10, 10)),
+                MagneticCyclePerTurnAllRfStations(
+                    values_after_rf_station_per_turn=np.ones((10, 10)),
                     value_init=10,
                     reference_particle=uranium_29,
                 )
@@ -432,28 +443,28 @@ class TestEnergyCyclePerTurnAllCavities(unittest.TestCase):
         assert_allclose(
             self.momentum,
             magnetic_rigidity_to_momentum(
-                self.magnetic_cycle_per_turn_all_cavities._magnetic_rigidity_after_cavity_per_turn,
+                self.magnetic_cycle_per_turn_all_cavities._magnetic_rigidity_after_rf_station_per_turn,
                 uranium_29.charge,
             ),
         )
 
     def test_headless(self):
-        ecptac = MagneticCyclePerTurnAllCavities.headless(
+        ecptac = MagneticCyclePerTurnAllRfStations.headless(
             value_init=10,
-            values_after_cavity_per_turn=np.ones((2, 20)),
+            values_after_rf_station_per_turn=np.ones((2, 20)),
             reference_particle=uranium_29,
         )
         self.assertEqual(
             (2, 20),
             magnetic_rigidity_to_momentum(
-                ecptac._magnetic_rigidity_after_cavity_per_turn, proton.charge
+                ecptac._magnetic_rigidity_after_rf_station_per_turn, proton.charge
             ).shape,
         )
 
     def test_get_target_total_energy(self):
-        cycle = MagneticCyclePerTurnAllCavities.headless(
+        cycle = MagneticCyclePerTurnAllRfStations.headless(
             value_init=10,
-            values_after_cavity_per_turn=np.ones((2, 20)),
+            values_after_rf_station_per_turn=np.ones((2, 20)),
             reference_particle=uranium_29,
         )
         e_tot_1 = cycle.get_target_total_energy(

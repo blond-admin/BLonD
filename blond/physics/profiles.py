@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """Collection of implementations to calculate the beam profile.
 
 Authors
@@ -15,9 +23,9 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import numpy as np
 
-from blond._core.backends.backend import backend
-from blond._core.base import BeamPhysicsRelevant, HasPropertyCache
-from blond._core.helpers import int_from_float_with_warning
+from blond.core.backends.backend import backend
+from blond.core.base import BeamPhysicsRelevant, HasPropertyCache
+from blond.core.helpers import int_from_float_with_warning
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -25,8 +33,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
-    from blond._core.beam.base import BeamBaseClass
-    from blond._core.simulation.simulation import Simulation
+    from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
 
 
 class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
@@ -64,7 +72,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         pass
 
@@ -80,7 +88,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns
@@ -439,7 +447,7 @@ class DynamicProfile(ProfileBaseClass):
         """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns

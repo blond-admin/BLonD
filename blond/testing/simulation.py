@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """Several setups of simulations that are intended for testcases.
 
 Authors
@@ -11,11 +19,11 @@ from matplotlib import pyplot as plt
 from blond import (
     Beam,
     BiGaussian,
-    CavityPhaseObservation,
     ConstantMagneticCycle,
     DriftSimple,
     MagneticCyclePerTurn,
     MultiHarmonicRfStation,
+    RfStationPhaseObservation,
     Ring,
     Simulation,
     SingleHarmonicRfStation,
@@ -36,10 +44,10 @@ class ExampleSimulation01:
     def __init__(self):
         ring = Ring(circumference=26658.883)
 
-        cavity1 = SingleHarmonicRfStation()
-        cavity1.harmonic = 35640
-        cavity1.voltage = 6e6
-        cavity1.phi_rf = 0
+        rf_station = SingleHarmonicRfStation()
+        rf_station.harmonic = 35640
+        rf_station.voltage = 6e6
+        rf_station.phi_rf = 0
 
         N_TURNS = 10
         energy_cycle = MagneticCyclePerTurn(
@@ -72,8 +80,8 @@ class ExampleSimulation01:
             turn_i=10,
         )
 
-        phase_observation = CavityPhaseObservation(
-            each_turn_i=1, cavity=cavity1
+        phase_observation = RfStationPhaseObservation(
+            each_turn_i=1, rf_station=rf_station
         )
 
         # bunch_observation = BunchObservation(each_turn_i=10, batch_size=)
@@ -100,7 +108,7 @@ class SimulationTwoRfStations:
         circumference = 26658.883
         ring = Ring(circumference=circumference)
 
-        cavity1 = MultiHarmonicRfStation(
+        rf_station_1 = MultiHarmonicRfStation(
             harmonic=np.array(
                 [35640],
             ),
@@ -115,12 +123,12 @@ class SimulationTwoRfStations:
             main_harmonic_idx=0,
         )
 
-        cavity2 = SingleHarmonicRfStation(
+        rf_station_2 = SingleHarmonicRfStation(
             section_index=1,
         )
-        cavity2.harmonic = backend.float(35640)
-        cavity2.voltage = backend.float(6e6)
-        cavity2.phi_rf = backend.float(0)
+        rf_station_2.harmonic = backend.float(35640)
+        rf_station_2.voltage = backend.float(6e6)
+        rf_station_2.phi_rf = backend.float(0)
 
         N_TURNS = int(1e6)
         energy_cycle = ConstantMagneticCycle(
@@ -160,7 +168,7 @@ class SimulationTwoRfStationsWithWake:
         circumference = 26658.883
         ring = Ring(circumference=circumference)
 
-        cavity1 = MultiHarmonicRfStation(
+        rf_station_1 = MultiHarmonicRfStation(
             harmonic=np.array(
                 [35640],
             ),
@@ -175,12 +183,12 @@ class SimulationTwoRfStationsWithWake:
             main_harmonic_idx=0,
         )
 
-        cavity2 = SingleHarmonicRfStation(
+        rf_station_2 = SingleHarmonicRfStation(
             section_index=1,
         )
-        cavity2.harmonic = 35640
-        cavity2.voltage = 6e6
-        cavity2.phi_rf = 0
+        rf_station_2.harmonic = 35640
+        rf_station_2.voltage = 6e6
+        rf_station_2.phi_rf = 0
 
         N_TURNS = int(1e6)
         energy_cycle = MagneticCyclePerTurn(

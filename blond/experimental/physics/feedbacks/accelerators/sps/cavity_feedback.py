@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 from __future__ import annotations
 
 import logging
@@ -29,7 +37,7 @@ from blond.physics.cavities import MultiHarmonicRfStation
 from blond.physics.profiles import StaticProfile
 
 if TYPE_CHECKING:
-    from blond._core.beam.base import BeamBaseClass
+    from blond.core.beam.base import BeamBaseClass
 
 
 class SPSCavityLoopCommissioning:
@@ -89,7 +97,7 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
     Parameters
     ----------
-    _parent_cavity : class
+    _parent_rf_station : class
         An RFStation type class
     profile : class
         A Profile type class
@@ -116,7 +124,7 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
     def __init__(
         self,
-        _parent_cavity: MultiHarmonicRfStation,
+        _parent_rf_station: MultiHarmonicRfStation,
         profile: StaticProfile,
         n_sections: int,
         n_cavities: int = 4,
@@ -133,7 +141,7 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
         self.n_delay: int | None = None
 
         super().__init__(
-            _parent_cavity=_parent_cavity,
+            _parent_rf_station=_parent_rf_station,
             profile=profile,
             n_cavities=n_cavities,
             n_periods_coarse=1,
@@ -274,7 +282,7 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
         # Initialize moving average
         self.n_mov_av = round(
-            self.TWC.tau / self._parent_cavity.get_main_harmonic_t_rf_current()
+            self.TWC.tau / self._parent_rf_station.get_main_harmonic_t_rf_current()
         )
         self.DV_MOV_AVG = np.zeros(2 * self.n_coarse, dtype=complex)
         self.logger.debug("Moving average over %d points", self.n_mov_av)
@@ -688,11 +696,11 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
         r"""Update variables in the feedback"""
         # TODO REMWORK/REMOVE
         t_rev = float(
-            (2 * np.pi * self._parent_cavity.harmonic[self.harmonic_index])
-            / self._parent_cavity._omega_rf[self.harmonic_index]
+            (2 * np.pi * self._parent_rf_station.harmonic[self.harmonic_index])
+            / self._parent_rf_station._omega_rf[self.harmonic_index]
         )
         # TODO REMWORK/REMOVE
-        t_rf = t_rev / float(self._parent_cavity.harmonic[self.harmonic_index])
+        t_rf = t_rev / float(self._parent_rf_station.harmonic[self.harmonic_index])
 
         # Phase offset at the end of a 1-turn modulated signal (for demodulated, multiply by -1 as c and r reversed)
         self.phi_mod_0 = (
@@ -733,7 +741,7 @@ class SPSCavityFeedback:
 
     Parameters
     ----------
-    _parent_cavity : class
+    _parent_rf_station : class
         An RFStation type class
     profile : class
         A Profile type class
@@ -770,7 +778,7 @@ class SPSCavityFeedback:
 
     def __init__(
         self,
-        _parent_cavity: MultiHarmonicRfStation,
+        _parent_rf_station: MultiHarmonicRfStation,
         profile: StaticProfile,
         G_ff: float | list = 1,
         G_llrf: float | list = 10,
@@ -791,7 +799,7 @@ class SPSCavityFeedback:
         if commissioning is None:
             commissioning = SPSCavityLoopCommissioning()
 
-        self.rf_station = _parent_cavity
+        self.rf_station = _parent_rf_station
 
         # Parse input for gains
         if hasattr(G_ff, "__iter__"):
@@ -843,7 +851,7 @@ class SPSCavityFeedback:
             if V_part is None:
                 V_part = 6 / 10
             self.OTFB_1 = SPSOneTurnFeedback(
-                _parent_cavity=_parent_cavity,
+                _parent_rf_station=_parent_rf_station,
                 profile=profile,
                 n_sections=3,
                 n_cavities=4,
@@ -857,7 +865,7 @@ class SPSCavityFeedback:
                 harmonic_index=n_h,
             )
             self.OTFB_2 = SPSOneTurnFeedback(
-                _parent_cavity=_parent_cavity,
+                _parent_rf_station=_parent_rf_station,
                 profile=profile,
                 n_sections=4,
                 n_cavities=2,
@@ -877,7 +885,7 @@ class SPSCavityFeedback:
             if V_part is None:
                 V_part = 4 / 9
             self.OTFB_1 = SPSOneTurnFeedback(
-                _parent_cavity=_parent_cavity,
+                _parent_rf_station=_parent_rf_station,
                 profile=profile,
                 n_sections=4,
                 n_cavities=2,
@@ -891,7 +899,7 @@ class SPSCavityFeedback:
                 harmonic_index=n_h,
             )
             self.OTFB_2 = SPSOneTurnFeedback(
-                _parent_cavity=_parent_cavity,
+                _parent_rf_station=_parent_rf_station,
                 profile=profile,
                 n_sections=5,
                 n_cavities=2,
@@ -940,7 +948,7 @@ class SPSCavityFeedback:
         self.V_corr, self.alpha_sum = cartesian_to_polar(self.V_sum)
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
-        self.V_corr /= self.OTFB_1._parent_cavity.voltage[
+        self.V_corr /= self.OTFB_1._parent_rf_station.voltage[
             self.OTFB_1.harmonic_index
         ]
         self.phi_corr = self.alpha_sum - np.angle(
@@ -1000,7 +1008,7 @@ class SPSCavityFeedback:
         self.V_corr, self.alpha_sum = cartesian_to_polar(self.V_sum)
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
-        self.V_corr /= self.OTFB_1._parent_cavity.voltage[
+        self.V_corr /= self.OTFB_1._parent_rf_station.voltage[
             self.OTFB_1.harmonic_index
         ]
         self.phi_corr = self.alpha_sum - np.angle(

@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """A minimum working example of how to start a simulation with BLonD."""
 
 import matplotlib.pyplot as plt
@@ -19,9 +27,13 @@ n_macroparticles = 1e6
 
 def main():
     ring = Ring(26658.883)  # general definition of ring
-    cavity1 = SingleHarmonicRfStation(harmonic=35640, voltage=6e6, phi_rf=0)
+    rf_station_1 = SingleHarmonicRfStation(
+        harmonic=35640, voltage=6e6, phi_rf=0
+    )
     drift1 = DriftSimple(orbit_length=26658.883, transition_gamma=55.759505)
-    ring.add_elements([cavity1, drift1])  # add elements that resemble one turn
+    ring.add_elements(
+        [rf_station_1, drift1]
+    )  # add elements that resemble one turn
 
     # Define the ramp
     magnetic_cycle = ConstantMagneticCycle(

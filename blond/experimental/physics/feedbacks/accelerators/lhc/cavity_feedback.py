@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 from __future__ import annotations
 
 import logging
@@ -46,7 +54,7 @@ class LhcRfFeedback(LocalFeedback):
     ):
         super().__init__(
             profile=profile,
-            cavity=cavity,
+            rf_station=cavity,
             section_index=section_index,
         )
 
@@ -161,7 +169,7 @@ class LHCCavityLoop(BirksCavityFeedback):
 
     Parameters
     ----------
-    _parent_cavity : class
+    _parent_rf_station : class
         An RFStation type class
     profile : class
         Beam profile object
@@ -190,7 +198,7 @@ class LHCCavityLoop(BirksCavityFeedback):
 
     def __init__(
         self,
-        _parent_cavity: MultiHarmonicRfStation,
+        _parent_rf_station: MultiHarmonicRfStation,
         profile: StaticProfile,
         n_cavities: int = 8,
         f_c: float = 400.789e6,
@@ -205,7 +213,7 @@ class LHCCavityLoop(BirksCavityFeedback):
         harmonic_index: int = 0,
     ):
         super().__init__(
-            _parent_cavity=_parent_cavity,
+            _parent_rf_station=_parent_rf_station,
             profile=profile,
             n_cavities=n_cavities,
             n_periods_coarse=10,
@@ -329,9 +337,9 @@ class LHCCavityLoop(BirksCavityFeedback):
     def circuit_track(self, no_beam: bool = False):
         r"""Track the feedback model"""
         if not no_beam:
-            self.I_BEAM_FINE *= -1j * np.exp(1j * self._parent_cavity.phi_s)
+            self.I_BEAM_FINE *= -1j * np.exp(1j * self._parent_rf_station.phi_s)
             self.I_BEAM_COARSE[-self.n_coarse :] *= -1j * np.exp(
-                1j * self._parent_cavity.phi_s
+                1j * self._parent_rf_station.phi_s
             )
 
         # Track the different parts of the model
@@ -545,7 +553,7 @@ class LHCCavityLoop(BirksCavityFeedback):
                 + np.max(self.TUNER_INTEGRATED[-self.n_coarse :].imag)
             )
             / (
-                self._parent_cavity.voltage[self.harmonic_index]
+                self._parent_rf_station.voltage[self.harmonic_index]
                 / self.n_cavities
             )
             ** 2

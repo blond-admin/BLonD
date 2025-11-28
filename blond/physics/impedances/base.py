@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """Collection of abstract classes to handle the calculation of wake potentials.
 
 Authors
@@ -10,9 +18,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from blond._core.backends.backend import backend
-from blond._core.base import BeamPhysicsRelevant
-from blond._core.ring.helpers import requires
+from blond.core.backends.backend import backend
+from blond.core.base import BeamPhysicsRelevant
+from blond.core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -20,8 +28,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
-    from blond._core.beam.base import BeamBaseClass
-    from blond._core.simulation.simulation import Simulation
+    from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
     from blond.physics.profiles import ProfileBaseClass
 
 
@@ -37,7 +45,7 @@ class WakeFieldSolver:
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         parent_wakefield
             Wakefield that this solver affiliated to
         """
@@ -237,7 +245,7 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns
@@ -256,7 +264,7 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         from blond.physics.profiles import (
             ProfileBaseClass,  # prevent cyclic import
@@ -297,6 +305,14 @@ class WakeField(ImpedanceBaseClass):
         List of sources that cause wake-fields
     solver
         Solver to calculate the induced voltage from the sources
+
+
+    Examples
+    --------
+    >>> wakefield2 = WakeField(
+    ...     sources=(InductiveImpedance(34.6669349520904 / 10e9),),
+    ...     solver=InductiveImpedanceSolver(),
+    ... )
     """
 
     def __init__(
@@ -306,20 +322,6 @@ class WakeField(ImpedanceBaseClass):
         section_index: int = 0,
         profile: ProfileBaseClass | None = None,
     ):
-        """Manager class to calculate wake-fields.
-
-        Parameters
-        ----------
-        sources
-            List of sources that cause wake-fields
-        solver
-            Solver to calculate the induced voltage from the sources
-        section_index
-            Section index to group elements into sections
-        profile
-            Object for calculation of beam profiles
-
-        """
         super().__init__(section_index=section_index, profile=profile)
 
         self.solver = solver
@@ -346,7 +348,7 @@ class WakeField(ImpedanceBaseClass):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(simulation=simulation)
         assert len(self.sources) > 0, (
@@ -411,6 +413,8 @@ class WakeField(ImpedanceBaseClass):
 
         Parameters
         ----------
+        beam : BeamBaseClass
+            The `Beam` object which state will be updated by this element.
         sources
             List of sources that cause wake-fields
         solver
@@ -433,7 +437,7 @@ class WakeField(ImpedanceBaseClass):
         )
         from unittest.mock import Mock
 
-        from blond._core.simulation.simulation import Simulation
+        from blond.core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
         wf.on_init_simulation(simulation=simulation)

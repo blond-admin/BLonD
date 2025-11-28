@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """Solvers to calculate the wake potential from impedance sources.
 
 Authors
@@ -20,12 +28,12 @@ import numpy as np
 from scipy.constants import elementary_charge as e
 from scipy.fft import next_fast_len
 
-from blond._core.backends.backend import backend
-from blond._core.base import DynamicParameter
-from blond._core.beam.base import BeamBaseClass
-from blond._core.ring.helpers import requires
-from blond._core.simulation.simulation import Simulation
-from blond.generals._warnings import NotTestedWarning
+from blond.core.backends.backend import backend
+from blond.core.base import DynamicParameter
+from blond.core.beam.base import BeamBaseClass
+from blond.core.ring.helpers import requires
+from blond.core.simulation.simulation import Simulation
+from blond.generals.warnings_ import NotTestedWarning
 from blond.physics.impedances.base import (
     FreqDomain,
     TimeDomain,
@@ -63,7 +71,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         parent_wakefield
             Wakefield that this solver affiliated to
         """
@@ -168,7 +176,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         parent_wakefield
             Wakefield that this solver affiliated to
         """
@@ -405,7 +413,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         parent_wakefield
             Wakefield that this solver affiliated to
         """
@@ -573,7 +581,7 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         parent_wakefield
             Wakefield that this solver affiliated to
         """
@@ -740,7 +748,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         parent_wakefield
             Wakefield that this solver affiliated to
         """

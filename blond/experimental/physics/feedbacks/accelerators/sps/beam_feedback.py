@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -8,7 +16,7 @@ if TYPE_CHECKING:  # pragma: no cover
 import numpy as np
 
 from blond import Simulation
-from blond._core.beam.base import BeamBaseClass
+from blond.core.beam.base import BeamBaseClass
 from blond.experimental.physics.feedbacks.beam_feedback import (
     Blond2BeamFeedback,
 )
@@ -47,7 +55,7 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         """Lateinit method when `simulation.__init__` is called
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         from blond.physics.drifts import DriftSimple
 
@@ -122,34 +130,34 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
             " this code must fix this code."
         )
         self.radial_steering_domega_rf = (
-            -self._parent_cavity._omega_rf[0]
-            * self._parent_cavity.eta_
+            -self._parent_rf_station._omega_rf[0]
+            * self._parent_rf_station.eta_
             / self.ring.alpha_0[0]
             * self.reference
             / self.ring.ring_radius
         )
 
-        self._parent_cavity.delta_omega_rf += (
+        self._parent_rf_station.delta_omega_rf += (
             self.radial_steering_domega_rf
-            * self._parent_cavity.harmonic[:]
-            / self._parent_cavity.harmonic[0]
+            * self._parent_rf_station.harmonic[:]
+            / self._parent_rf_station.harmonic[0]
         )
 
         # Update the RF phase of all systems for the next turn
         # Accumulated phase offset due to PL in each RF system
         # FIXME dphi_rf_steering never declared, this will crash
-        self._parent_cavity.dphi_rf_steering += (
+        self._parent_rf_station.dphi_rf_steering += (
             (2.0 * np.pi)
             * (
-                self._parent_cavity.harmonic[:]
-                / self._parent_cavity._omega_rf[:]
+                    self._parent_rf_station.harmonic[:]
+                / self._parent_rf_station._omega_rf[:]
             )
-            * (self._parent_cavity.delta_omega_rf[:])
+            * (self._parent_rf_station.delta_omega_rf[:])
         )
 
         # Total phase offset
-        self._parent_cavity.delta_phi_rf[:] += (
-            self._parent_cavity.dphi_rf_steering
+        self._parent_rf_station.delta_phi_rf[:] += (
+            self._parent_rf_station.dphi_rf_steering
         )
 
 
@@ -190,7 +198,7 @@ class SpsFBeamFeedback(Blond2BeamFeedback):
 
         # Frequency correction from phase loop and frequency loop
         self.domega_dphi = -self.gain * self.dphi
-        self.domega_df = -self.gain2 * (self._parent_cavity.delta_omega_rf[0])
+        self.domega_df = -self.gain2 * (self._parent_rf_station.delta_omega_rf[0])
 
         self.domega_rf = self.domega_dphi + self.domega_df
 
@@ -202,11 +210,11 @@ class SpsFBeamFeedback(Blond2BeamFeedback):
         """
         # Main RF frequency at the present turn
         omega_rf = (
-            self._parent_cavity._omega_rf[0]
-            + self._parent_cavity.delta_omega_rf[0]
+            self._parent_rf_station._omega_rf[0]
+            + self._parent_rf_station.delta_omega_rf[0]
         )
         phi_rf = (
-            self._parent_cavity.phi_rf[0] + self._parent_cavity.delta_phi_rf
+                self._parent_rf_station.phi_rf[0] + self._parent_rf_station.delta_phi_rf
         )
 
         if self.alpha != 0.0:
