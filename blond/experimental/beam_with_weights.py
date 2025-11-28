@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import numpy as np
 from cupy.typing import NDArray as CupyArray
 from numpy._typing import NDArray as NumpyArray
 
@@ -54,7 +55,7 @@ class WeightenedBeam(Beam):
         assert weights is not None
         assert len(dt) == len(weights)
         super().setup_beam(dt=dt, dE=dE, flags=flags)
-        self._weights = weights.astype(backend.int)
+        self._weights = weights.astype(np.int32)
 
     @staticmethod
     def from_beam(beam: Beam):
