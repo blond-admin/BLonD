@@ -1,6 +1,12 @@
-"""
-Collection of implementations to simulate the effect of synchrotron
-radiation damping and quantum excitation effect.
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
+r"""Collection to include synchrotron radiation and quantum excitation effects.
 
 First five synchrotron radiation integrals are required as an input of the
 simulated ring:
@@ -13,7 +19,6 @@ simulated ring:
             horizontal dispersion function, 'K' the focusing strength and 'H =
             \beta_x D^2 + \alpha_x D {D'} + \gamma_x {D'}^2 ' the
             H-function
-
 Further information on synchrotron radiation damping and quantum excitation
 can be found in:
 - H. Wiedemann, Synchrotron Radiation, Springer, 2003
@@ -67,17 +72,19 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
     On initialisation, it inserts subclasses along the ring after the
     specified elements (either drifts or section.)
     To be described better #fixme
-    """
 
-    def __str__(self):
-        is_iso = ""
-        if self.is_isomagnetic:
-            is_iso = "isomagnetic"
-        return (
-            f"Synchrotron radiation master class set up for the {is_iso}"
-            f" ring. Simulation currently set for turn "
-            f"{self._turn_i}."
-        )
+    Parameters
+    ----------
+    section_index
+        Section index to group elements into sections
+    name: str, optional
+        Human-readable name for the element. If not provided, a unique name is
+        automatically generated.
+    is_isomagnetic
+        In the case of an isomagnetic ring, the synchrotron radiation
+        integrals will be computed from the ring bending radius. Default:
+        False.
+    """
 
     def __init__(
         self,
@@ -92,7 +99,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
 
         self._longitudinal_damping_time = None
         self._energy_loss_per_turn = None
-        self.is_isomagnetic: bool | None = False
+        self.is_isomagnetic: bool | None = is_isomagnetic
         self.get_synchrotron_radiation_info_turn_by_turn: bool | None = True
         self.synchrotron_radiation_integrals: NumpyArray | None = None
         self._simulation: Simulation | None = None
@@ -105,16 +112,32 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
 
         self.generated_children: list[SynchrotronRadiationBaseClass] = []
 
+    def __str__(self):
+        """Method to print general information about the created class."""
+        is_iso = ""
+        if self.is_isomagnetic:
+            is_iso = "isomagnetic"
+        return (
+            f"Synchrotron radiation master class set up for the {is_iso}"
+            f" ring. Simulation currently set for turn "
+            f"{self._turn_i}. \n Generated "
+            f"{self.number_of_generated_synchrotron_radiation_classes} "
+            f"synchrotron radiation elements."
+        )
+
     @cached_property  # TODO property enough?
     def energy_loss_per_turn(self) -> NumpyArray:
+        """Energy loss per turn, eV per turn."""
         return self._energy_loss_per_turn
 
     @cached_property  # TODO property enough?
     def damping_times(self) -> NumpyArray:
+        """Damping times, in turns."""
         return self._damping_times
 
     @property
     def number_of_generated_synchrotron_radiation_classes(self):
+        """Number of generated synchrotron radiation classes."""
         return len(self.generated_children)
 
     # TODO : Add a function to calculate the length of the sections/ drifts
@@ -132,17 +155,17 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         | list[int]
         | None = None,
     ):
-        """
-        Function which creates, inserts and initialises the synchrotron
-        radiation elements in the ring.
+        """Function to create synchrotron radiation elements in the ring.
+
+        This method automatically creates, inserts and initialises the
+        synchrotron radiation elements in the ring.
 
         Parameters
         ----------
         element_list
             List of elements before which a synchrotron radiation element
-            will be inserted.
-
-        """  # FIXME SR tracker BEFORE Drifts and AFTER Cavity -- do I agree now?
+            will be inserted
+        """
         if not empty(self.generated_children):
             raise Warning(
                 "Synchrotron radiation subclasses have already been "
@@ -152,10 +175,8 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
             i = 0
             if element_list is not None:
                 if all(
-                    [
-                        isinstance(e, DriftBaseClass | RfStationBaseClass)
-                        for e in element_list
-                    ]
+                    isinstance(e, DriftBaseClass | RfStationBaseClass)
+                    for e in element_list
                 ):
                     for element in element_list:
                         i += 1
@@ -172,7 +193,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
                         )
                         self.generated_children.append(SRClass_child)
 
-                elif all([isinstance(e, int) for e in element_list]):
+                elif all(isinstance(e, int) for e in element_list):
                     for section_index in element_list:
                         i += 1
                         length_to_consider = 0
@@ -190,7 +211,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
                         )
                         self.generated_children.append(SRClass_child)
                 else:
-                    raise TypeError()
+                    raise TypeError("Inhomogeneous element classes.")
 
             else:
                 element_list = self._simulation.ring.elements.get_elements(
@@ -208,7 +229,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
                         reorder=True,
                     )
                     self.generated_children.append(SRClass_child)
-
+        # FIXME SR tracker BEFORE Drifts and AFTER Cavity -- do I agree now?
         return print(
             f"{len(self.generated_children)} synchrotron radiation "
             f"trackers generated"

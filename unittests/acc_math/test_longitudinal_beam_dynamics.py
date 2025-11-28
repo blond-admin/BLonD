@@ -5,7 +5,8 @@ from numpy.ma.testutils import assert_equal
 
 from blond import backend, electron
 from blond.acc_math.analytic.longitudinal_beam_dynamics import (
-    get_linear_angular_synchrotron_frequency,
+    get_small_amplitude_angular_synchrotron_frequency,
+    get_small_amplitude_angular_synchrotron_tune,
 )
 
 
@@ -22,7 +23,7 @@ class TestLongitudinalBeamDynamics_float_inputs(unittest.TestCase):
         self.synchronous_phase = 3.10
 
     def test_get_linear_angular_synchrotron_frequency_single_value(self):
-        angular_frequency = get_linear_angular_synchrotron_frequency(
+        angular_frequency = get_small_amplitude_angular_synchrotron_frequency(
             energy=self.beam_energy,
             voltage=self.voltage,
             harmonic_number=self.harmonic_number,
@@ -31,7 +32,7 @@ class TestLongitudinalBeamDynamics_float_inputs(unittest.TestCase):
             revolution_frequency=self.revolution_frequency,
         )
         self.assertAlmostEqual(
-            1.0870031405066292e-07,
+            2 * 1.0870031405066292e-07,
             angular_frequency,
             msg="Expected value = 1.1e-7 rad/s",
             places=6 if backend.float == np.float32 else 12,
@@ -50,7 +51,7 @@ class TestLongitudinalBeamDynamics_array_inputs(unittest.TestCase):
 
     def test_get_linear_angular_synchrotron_frequency(self):
         with self.assertRaises(ValueError):
-            get_linear_angular_synchrotron_frequency(
+            get_small_amplitude_angular_synchrotron_frequency(
                 energy=self.energy,
                 voltage=self.voltage[0:3],
                 harmonic_number=self.harmonic_number,
@@ -59,7 +60,7 @@ class TestLongitudinalBeamDynamics_array_inputs(unittest.TestCase):
                 revolution_frequency=self.revolution_frequency,
             )
 
-        angular_frequency = get_linear_angular_synchrotron_frequency(
+        angular_frequency = get_small_amplitude_angular_synchrotron_frequency(
             energy=self.energy,
             voltage=self.voltage,
             harmonic_number=self.harmonic_number,
@@ -70,7 +71,7 @@ class TestLongitudinalBeamDynamics_array_inputs(unittest.TestCase):
 
         assert_equal(
             angular_frequency,
-            np.array(
+            2 * np.array(
                 [
                     1.6497648478537963e-07,
                     5.902378154705098e-08,

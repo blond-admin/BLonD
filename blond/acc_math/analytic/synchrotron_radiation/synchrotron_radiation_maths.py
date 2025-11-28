@@ -1,3 +1,18 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
+"""
+Collection of functions to compute synchrotron radiation related quantities.
+
+Author:
+L. Valle
+"""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -15,7 +30,7 @@ def calculate_partition_numbers(
     synchrotron_radiation_integrals: NumpyArray,
 ) -> NumpyArray:
     """
-    Compute the damping partition numbers.
+    Computes the damping partition numbers.
 
     Parameters
     ----------
@@ -44,7 +59,7 @@ def calculate_horizontal_damping_partition_number(
     synchrotron_radiation_integrals: NumpyArray,
 ) -> float:
     """
-    Compute the horizontal damping partition number.
+    Computes the horizontal damping partition number.
 
     Parameters
     ----------
@@ -66,7 +81,7 @@ def calculate_longitudinal_damping_partition_number(
     synchrotron_radiation_integrals: NumpyArray,
 ) -> float:
     """
-    Compute the longitudinal damping partition number.
+    Computes the longitudinal damping partition number.
 
     Parameters
     ----------
@@ -90,7 +105,7 @@ def calculate_damping_times_in_turns(
     particle_type: ParticleType,
 ) -> NumpyArray:
     """
-    Calculate the damping times in turns.
+    Calculates the damping times in turns.
 
     Parameters
     ----------
@@ -128,7 +143,7 @@ def calculate_horizontal_damping_time_in_turns(
     particle_type: ParticleType,
 ) -> float | NumpyArray:
     """
-    Calculate the horizontal damping time in turns.
+    Calculates the horizontal damping time in turns.
 
     Parameters
     ----------
@@ -164,7 +179,7 @@ def calculate_longitudinal_damping_time_in_turns(
     particle_type: ParticleType,
 ) -> float | NumpyArray:
     """
-    Calculate the longitudinal damping time in turns.
+    Calculates the longitudinal damping time in turns.
 
     Parameters
     ----------
@@ -204,7 +219,7 @@ def calculate_damping_times_in_seconds(
     revolution_frequency: float | NumpyArray,
 ) -> NumpyArray:
     """
-    Calculate the damping times in seconds.
+    Calculates the damping times in seconds.
 
     Parameters
     ----------
@@ -256,7 +271,7 @@ def calculate_horizontal_damping_time_in_seconds(
     revolution_frequency: float | NumpyArray,
 ) -> float | NumpyArray:
     """
-    Calculate the horizontal damping time in seconds.
+    Calculates the horizontal damping time in seconds.
 
     Parameters
     ----------
@@ -299,7 +314,7 @@ def calculate_longitudinal_damping_time_in_seconds(
     revolution_frequency: float | NumpyArray,
 ) -> float | NumpyArray:
     """
-    Calculate the longitudinal damping time in seconds.
+    Calculates the longitudinal damping time in seconds.
 
     Parameters
     ----------
@@ -341,8 +356,7 @@ def calculate_energy_loss_per_turn(
     particle_type: ParticleType,
 ) -> float | NumpyArray:
     """
-    Function to calculate the expected energy loss per turn due to synchrotron
-    radiation
+    Computes the energy loss per turn from synchrotron radiation.
 
     Parameters
     ----------
