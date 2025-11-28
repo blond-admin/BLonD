@@ -1,3 +1,5 @@
+"""Synchrotron radiation ring elements."""
+
 from __future__ import annotations
 
 from abc import ABC
@@ -12,7 +14,6 @@ from blond.acc_math.analytic.synchrotron_radiation.utilities import (
 )
 
 if TYPE_CHECKING:
-
     from numpy.typing import NDArray as NumpyArray
 
     from blond._core.beam.base import BeamBaseClass
@@ -162,6 +163,7 @@ class SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
             section_index=section_index,
             name=name,
         )
+        self._energy_lost_due_to_synchrotron_radiation = None
         self._fraction_of_ring_circumference = fraction_of_ring_circumference
         self._share_of_synchrotron_radiation_integrals = (
             share_of_synchrotron_radiation_integrals
@@ -219,8 +221,12 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         self._number_poles = (number_poles,)
 
         self._simulation: Simulation | None = None
-        self._contribution_to_synchrotron_radiation_integrals_without_energy: NumpyArray | None = np.zeros((1, 5))
-        self._contribution_to_synchrotron_radiation_integrals_with_energy: NumpyArray | None = np.zeros((1, 5))
+        self._contribution_to_synchrotron_radiation_integrals_without_energy: (
+            NumpyArray | None
+        ) = np.zeros((1, 5))
+        self._contribution_to_synchrotron_radiation_integrals_with_energy: (
+            NumpyArray | None
+        ) = np.zeros((1, 5))
 
     @property
     def number_of_wigglers(self):

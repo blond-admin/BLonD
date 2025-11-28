@@ -6,7 +6,7 @@ from blond import (
     DriftSimple,
     MagneticCyclePerTurn,
     Simulation,
-    SingleHarmonicCavity,
+    SingleHarmonicRfStation,
     electron,
 )
 
@@ -22,7 +22,7 @@ class SynchrotronRadiationSimulation:
                 1.71368060083 - 11,
             ]
         )
-        cavity1 = SingleHarmonicCavity()
+        cavity1 = SingleHarmonicRfStation()
         cavity1.harmonic = 35640
         cavity1.voltage = 6e6
         cavity1.phi_rf = 0
