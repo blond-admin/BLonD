@@ -27,8 +27,6 @@ extern "C" int move_flagged_elements_to_end(
     // and j is moved to one position left.
     // Like that all particles that match the flag will be transferred to the
     // end of the array.
-
-
     // Use sequential two-pointer approach for correctness
     // Parallelizing in-place partition with swaps causes data races
     int i = 0;  // scan from front

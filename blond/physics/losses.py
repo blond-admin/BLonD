@@ -56,7 +56,7 @@ class LossesBaseClass(BeamPhysicsRelevant, ABC):
         super().__init__()
         self.purge_flagged_macroparticles = purge_flagged_macroparticles
 
-    def track(self, beam: BeamBaseClass) -> None:  #  # pragma: no cover
+    def track(self, beam: BeamBaseClass) -> None:  # pragma: no cover
         """Main simulation routine to be called in the mainloop.
 
         Parameters
