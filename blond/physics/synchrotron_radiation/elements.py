@@ -8,16 +8,16 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.constants import c, e
 
-from blond._core.base import BeamPhysicsRelevant, DynamicParameter
 from blond.acc_math.analytic.synchrotron_radiation.utilities import (
     gather_longitudinal_synchrotron_radiation_parameters,
 )
+from blond.core.base import BeamPhysicsRelevant, DynamicParameter
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
 
-    from blond._core.beam.base import BeamBaseClass
-    from blond._core.simulation.simulation import Simulation
+    from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
 
 
 class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):

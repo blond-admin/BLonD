@@ -4,12 +4,12 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ...._core.beam.particle_types import ParticleType, electron
-from .synchrotron_radiation_maths import (
+from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
     calculate_energy_loss_per_turn,
     calculate_longitudinal_damping_time_in_turns,
     calculate_natural_energy_spread,
 )
+from blond.core.beam.particle_types import ParticleType, electron
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray

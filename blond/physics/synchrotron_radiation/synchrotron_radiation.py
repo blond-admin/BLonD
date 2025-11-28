@@ -34,12 +34,12 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from numpy.matlib import empty
 
-from blond._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
 from blond.acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
     calculate_damping_times_in_turns,
     calculate_energy_loss_per_turn,
     calculate_natural_energy_spread,
 )
+from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
 from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.physics.synchrotron_radiation.elements import (
     SynchrotronRadiationBaseClass,
@@ -48,13 +48,12 @@ from blond.physics.synchrotron_radiation.elements import (
 )
 
 if TYPE_CHECKING:
-
     from numpy.typing import NDArray as NumpyArray
 
-    from blond._core.beam.base import BeamBaseClass
-    from blond._core.ring.ring import Ring
-    from blond._core.simulation.simulation import Simulation
-    from blond.physics.cavities import CavityBaseClass
+    from blond.core.beam.base import BeamBaseClass
+    from blond.core.ring.ring import Ring
+    from blond.core.simulation.simulation import Simulation
+    from blond.physics.cavities import RfStationBaseClass
     from blond.physics.drifts import DriftBaseClass
 
 
@@ -113,6 +112,10 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
     def damping_times(self) -> NumpyArray:
         return self._damping_times
 
+    @property
+    def number_of_generated_synchrotron_radiation_classes(self):
+        return len(self.generated_children)
+
     # TODO : Add a function to calculate the length of the sections/ drifts
     # before the children and store it for later SR integrals update.
     # Question: How to handle modification from wigglers and other classes.
@@ -124,7 +127,9 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
     # TODO: transmit the share of SRI to the children.
     def generate_children(
         self,
-        element_list: list[DriftBaseClass | CavityBaseClass] | list[int] | None = None,
+        element_list: list[DriftBaseClass | RfStationBaseClass]
+        | list[int]
+        | None = None,
     ):
         """
         Function which creates, inserts and initialises the synchrotron
@@ -147,7 +152,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
             if element_list is not None:
                 if all(
                     [
-                        isinstance(e, DriftBaseClass | CavityBaseClass)
+                        isinstance(e, DriftBaseClass | RfStationBaseClass)
                         for e in element_list
                     ]
                 ):
@@ -265,12 +270,10 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
             pass
 
     def init_synchrotron_radiation_integrals_ring(self):
-        pass
-
-    def update_synchrotron_radiation_integrals(self):
         """
-        Function to update the synchrotron radiation integrals of the
-        generated children, if decided to store everything in the master for faster tracking.
-        :return:
+
+        Returns
+        -------
+
         """
         pass
