@@ -204,15 +204,15 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             backend.square(self._hist_x - average), weights=self._hist_y
         )
         return backend.sqrt(variance)
-    
-    def singlebunch_gauss_fit(self) -> NumpyArray: 
+
+    def singlebunch_gauss_fit(self) -> NumpyArray:
         """Performs a gaussian fit on a profile with a single bunches.
 
         Returns the amplitude, the mean and the standard deviation of the fitted gaussian curve.
         """
         return gauss_fit(self._hist_x, self._hist_y)
-    
-    def multibunch_gauss_fit(self, n_bunches: int) -> NumpyArray: 
+
+    def multibunch_gauss_fit(self, n_bunches: int) -> NumpyArray:
         """Performs a gaussian fit on a profile with multiple bunches.
 
         Returns the amplitude, the mean and the standard deviation of the fitted gaussian curve for each bunch.
@@ -577,6 +577,7 @@ class DynamicProfileConstNBins(DynamicProfile):
             cut_left=cut_left, cut_right=cut_right, n_bins=self.n_bins
         )
 
+
 def gauss_fit(hist_x: NumpyArray, hist_y: NumpyArray) -> NumpyArray:
     """Performs a gaussian fit on a profile with a single bunches.
 
@@ -595,6 +596,7 @@ def gauss_fit(hist_x: NumpyArray, hist_y: NumpyArray) -> NumpyArray:
         Amplitude, mean and standard deviation for each bunch
     """
     return multi_gauss_fit(hist_x, hist_y, n_bunches=1)[0]
+
 
 def multi_gauss_fit(
     hist_x: NumpyArray, hist_y: NumpyArray, n_bunches: int
@@ -635,11 +637,12 @@ def multi_gauss_fit(
             - bucket_hist_x[int(bucket_length / 4)],
         ]
 
-        params[bucket, :] = curve_fit(
-            gauss, bucket_hist_x, bucket_hist_y, p
-        )[0]
+        params[bucket, :] = curve_fit(gauss, bucket_hist_x, bucket_hist_y, p)[
+            0
+        ]
 
     return params
+
 
 def gauss(x: NumpyArray, *p: NumpyArray) -> NumpyArray:
     r"""Returns a gaussian function.
