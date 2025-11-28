@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.constants import c
 
-from ...._core.beam.particle_types import ParticleType
+from blond.core.beam.particle_types import ParticleType
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray

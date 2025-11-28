@@ -68,10 +68,6 @@ class Ring(Preparable, Schedulable):
             \beta_x D^2 + \alpha_x D {D'} + \gamma_x {D'}^2 ' the
             H-function
         """
-def __init__(
-        self,
-        circumference: float,
-    ) -> None:
         from blond.core.ring.beam_physics_relevant_elements import (
             BeamPhysicsRelevantElements,
         )
