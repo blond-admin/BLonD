@@ -298,6 +298,19 @@ class TestSimulation(unittest.TestCase):
             particle_type=proton,
         )
 
+    def test_plot_potential_well_empiric2(self):
+        from blond.core.beam.particle_types import _noton_dev  # NOQA
+
+        self.simulation.plot_potential_well_empiric(
+            dt=np.linspace(0, 2e-9),
+            particle_type=proton,
+        )
+        self.simulation.plot_potential_well_empiric(
+            dt=np.linspace(0, 2e-9),
+            particle_type=_noton_dev,
+        )
+        self.fail("TODO assert something")
+
     def test_load_results(self):
         observation = BeamObservationOncePerTurn(each_turn_i=10, beam=self.beam)
         kwargs = dict(
