@@ -205,7 +205,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         )
         return backend.sqrt(variance)
     
-    def gauss_fit(self) -> NumpyArray: 
+    def singlebunch_gauss_fit(self) -> NumpyArray: 
         """Performs a gaussian fit on a profile with a single bunches.
 
         Returns the amplitude, the mean and the standard deviation of the fitted gaussian curve.
