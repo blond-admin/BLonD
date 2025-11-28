@@ -363,13 +363,10 @@ class BeamObservationElement(SimulationElementBase):
         Additional keyword arguments passed to the parent :class:`SimulationElementBase`.
     """
 
-    n_instances = 0
-
     def __init__(
         self, section_index: int = 0, name: str | None = None, **kwargs
     ) -> None:
         super().__init__(section_index=section_index, name=name, **kwargs)
-        type(self).n_instances += 1
 
 
 class UserDefinedElement(BeamPhysicsRelevant, ABC):
