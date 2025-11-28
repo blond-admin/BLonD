@@ -220,10 +220,10 @@ def reload_fortran_backend(  # NOQA: D102
 
         @staticmethod
         def loss_box(
-            top: float,
-            bottom: float,
-            left: float,
-            right: float,
+            e_max: float,
+            e_min: float,
+            t_min: float,
+            t_max: float,
             dt: NumpyArray,
             dE: NumpyArray,
             flags: NumpyArray,
@@ -231,15 +231,15 @@ def reload_fortran_backend(  # NOQA: D102
             assert dt.dtype == backend.float
             assert dE.dtype == backend.float
             assert flags.dtype == np.int32
-            assert isinstance(top, backend.float)
-            assert isinstance(bottom, backend.float)
-            assert isinstance(left, backend.float)
-            assert isinstance(right, backend.float)
+            assert isinstance(e_max, backend.float)
+            assert isinstance(e_min, backend.float)
+            assert isinstance(t_min, backend.float)
+            assert isinstance(t_max, backend.float)
             libblond_fortran.loss_box(
-                top=top,
-                bottom=bottom,
-                left=left,
-                right=right,
+                e_max=e_max,
+                e_min=e_min,
+                t_min=t_min,
+                t_max=t_max,
                 dt=dt,
                 de=dE,
                 flags=flags,

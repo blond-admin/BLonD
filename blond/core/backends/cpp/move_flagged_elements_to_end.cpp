@@ -18,9 +18,15 @@ extern "C" int move_flagged_elements_to_end(
     int* __restrict__ flags,
     real_t* __restrict__ dt,
     real_t* __restrict__ dE,
-    int_t* __restrict__ ids,
+    int* __restrict__ ids,
     const int n_macroparticles
 ) {
+
+    // Set j to the end of the array.
+    // Later every entry matching the flag is put to the end of the array
+    // and j is moved to one position left.
+    // Like that all particles that match the flag will be transferred to the
+    // end of the array.
     // Use sequential two-pointer approach for correctness
     // Parallelizing in-place partition with swaps causes data races
     int i = 0;  // scan from front
@@ -52,7 +58,7 @@ extern "C" int move_flagged_elements_to_end(
             flags[i] = flags[j];
             flags[j] = flags_tmp;
 
-            int_t ids_tmp = ids[i];
+            int ids_tmp = ids[i];
             ids[i] = ids[j];
             ids[j] = ids_tmp;
 

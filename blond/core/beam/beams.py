@@ -131,7 +131,7 @@ class Beam(BeamBaseClass):
         self._flags: NumpyArray | CupyArray = flags.astype(np.int32)
 
         self._ids: NumpyArray | CupyArray = backend.arange(
-            len(dt), dtype=backend.int
+            len(dt), dtype=np.int32
         )
 
         if reference_time:
@@ -200,7 +200,7 @@ class Beam(BeamBaseClass):
         return self.intensity / self.common_array_size
 
     @cached_property
-    def dt_min(self) -> np.int32 | np.int64:
+    def dt_min(self) -> float:
         """Minimum time coordinate among all macro-particles in the beam in [s].
 
         Returns
@@ -211,7 +211,7 @@ class Beam(BeamBaseClass):
         return self._dt.min()
 
     @cached_property
-    def dt_max(self) -> np.int32 | np.int64:
+    def dt_max(self) -> float:
         """Maximum time coordinate among all macro-particles in the beam in [s].
 
         Returns
@@ -222,7 +222,7 @@ class Beam(BeamBaseClass):
         return self._dt.max()
 
     @cached_property
-    def dE_min(self) -> np.int32 | np.int64:
+    def dE_min(self) -> float:
         """Minimum energy coordinate among all macro-particles in the beam in [eV].
 
         Returns
@@ -233,7 +233,7 @@ class Beam(BeamBaseClass):
         return self._dE.min()
 
     @cached_property
-    def dE_max(self) -> np.int32 | np.int64:
+    def dE_max(self) -> float:
         """Maximum energy coordinate among all macro-particles in the beam in [eV].
 
         Returns
