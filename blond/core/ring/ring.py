@@ -149,7 +149,7 @@ class Ring(Preparable, Schedulable):
         return self._circumference
 
     @cached_property
-    def average_transition_gamma(self) -> float:
+    def average_transition_gamma(self) -> complex:
         """Calculate the orbit-length weighted average transition gamma.
 
         The transition gamma is the Lorentz factor at which particles cross from
@@ -176,7 +176,7 @@ class Ring(Preparable, Schedulable):
             e.orbit_length for e in self.elements.get_elements(DriftSimple)
         ]
         # todo not only simple dirft
-        transition_gamma_average = float(np.average(gammas, weights=weights))
+        transition_gamma_average = complex(np.average(gammas, weights=weights))
         return transition_gamma_average
 
     def calc_average_eta_0(self, gamma: float) -> float:
