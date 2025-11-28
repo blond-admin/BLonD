@@ -34,7 +34,6 @@ class TestBackendBaseClass(unittest.TestCase):
     def test_change_backend(self) -> None:
         self.backend_base_class.change_backend(new_backend=Numpy64Bit)
         self.assertEqual(self.backend_base_class.float, np.float64)
-        self.assertEqual(self.backend_base_class.int, np.int64)
         self.assertEqual(self.backend_base_class.complex, np.complex128)
 
     def test_set_specials(self) -> None:
@@ -120,14 +119,14 @@ class TestCupyBackend(unittest.TestCase):
         if not cupy_available:
             self.skipTest(f"{cupy_available=}")
         self.cupy_backend = CupyBackend(
-            float_=np.float32, int_=np.float32, complex_=np.complex64
+            float_=np.float32, complex_=np.complex64
         )
 
     def test_set_specials(self) -> None:
         if not cupy_available:
             self.skipTest(f"{cupy_available=}")
         self.cupy_backend = CupyBackend(
-            float_=np.float32, int_=np.float32, complex_=np.complex64
+            float_=np.float32, complex_=np.complex64
         )
         self.cupy_backend.set_specials(mode="cuda")
 
@@ -135,7 +134,7 @@ class TestCupyBackend(unittest.TestCase):
         if not cupy_available:
             self.skipTest(f"{cupy_available=}")
         self.cupy_backend = CupyBackend(
-            float_=np.float32, int_=np.float32, complex_=np.complex64
+            float_=np.float32, complex_=np.complex64
         )
         with self.assertRaises(ValueError):
             self.cupy_backend.set_specials("doesnt exist")
@@ -153,7 +152,6 @@ class TestNumpyBackend(unittest.TestCase):
     def setUp(self) -> None:
         self.numpy_backend = NumpyBackend(
             float_=np.float32,
-            int_=np.int32,
             complex_=np.complex64,
         )
 
@@ -226,7 +224,7 @@ class TestSpecials(unittest.TestCase):
         self.alpha_2 = backend.float(1.0)
         self.beta = backend.float(0.9)
         self.energy = backend.float(10)
-        self.alpha_order = backend.int(0.3)
+        self.alpha_order = np.int32(3)
         self.eta_0 = backend.float(0.3)
         self.eta_1 = backend.float(0.3)
         self.eta_2 = backend.float(0.3)
@@ -464,7 +462,7 @@ class TestSpecials(unittest.TestCase):
                 flags[[0, 1, -1]] = 0
                 dt = backend.array(backend.linspace(0, 10, 10), backend.float)
                 dE = backend.array(backend.linspace(0, 10, 10), backend.float)
-                ids = backend.array(backend.arange(0, 10), backend.int)
+                ids = backend.array(backend.arange(0, 10), np.int32)
                 n_new = backend.specials.move_flagged_elements_to_end(
                     flag=flag,
                     flags=flags,
@@ -533,7 +531,7 @@ class TestSpecials(unittest.TestCase):
                 dE = backend.array(
                     backend.linspace(0, 10, len(flags)), backend.float
                 )
-                ids = backend.array(backend.arange(0, len(flags)), backend.int)
+                ids = backend.array(backend.arange(0, len(flags)), np.int32)
                 n_new = backend.specials.move_flagged_elements_to_end(
                     flag=flag,
                     flags=flags,
@@ -578,7 +576,7 @@ class TestSpecials(unittest.TestCase):
 
                 dt = backend.array(backend.linspace(0, 10, 10), backend.float)
                 dE = backend.array(backend.linspace(0, 10, 10), backend.float)
-                ids = backend.array(backend.arange(0, 10), backend.int)
+                ids = backend.array(backend.arange(0, 10), np.int32)
                 n_new = backend.specials.move_flagged_elements_to_end(
                     flag=flag,
                     flags=flags,
@@ -607,7 +605,7 @@ class TestSpecials(unittest.TestCase):
 
                 dt = backend.array(backend.linspace(0, 10, 10), backend.float)
                 dE = backend.array(backend.linspace(0, 10, 10), backend.float)
-                ids = backend.array(backend.arange(0, 10), backend.int)
+                ids = backend.array(backend.arange(0, 10), np.int32)
                 n_new = backend.specials.move_flagged_elements_to_end(
                     flag=flag,
                     flags=flags,
@@ -635,7 +633,7 @@ class TestSpecials(unittest.TestCase):
 
                 dt = backend.array(backend.linspace(0, 10, 10), backend.float)
                 dE = backend.array(backend.linspace(0, 10, 10), backend.float)
-                ids = backend.array(backend.arange(0, 10), backend.int)
+                ids = backend.array(backend.arange(0, 10), np.int32)
                 n_new = backend.specials.move_flagged_elements_to_end(
                     flag=flag,
                     flags=flags,
@@ -659,20 +657,20 @@ class TestSpecials(unittest.TestCase):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
 
-                top = backend.float(1)
-                bottom = backend.float(-1)
-                left = backend.float(-10)
-                right = backend.float(10)
+                e_max = backend.float(1)
+                e_min = backend.float(-1)
+                t_min = backend.float(-10)
+                t_max = backend.float(10)
                 dt = backend.linspace(-20, 20, dtype=backend.float)
                 dE = backend.linspace(-2, 2, dtype=backend.float)
                 flags = backend.arange(len(dt), dtype=np.int32)
                 result = flags
 
                 backend.specials.loss_box(
-                    top=top,
-                    bottom=bottom,
-                    left=left,
-                    right=right,
+                    e_max=e_max,
+                    e_min=e_min,
+                    t_min=t_min,
+                    t_max=t_max,
                     dt=dt,
                     dE=dE,
                     flags=flags,

@@ -225,19 +225,19 @@ def reload_cpp_backend(  # NOQA: PLR0915
 
         @staticmethod
         def loss_box(
-            top: float,
-            bottom: float,
-            left: float,
-            right: float,
+            e_max: float,
+            e_min: float,
+            t_min: float,
+            t_max: float,
             dt: CupyArray,
             dE: CupyArray,
             flags: CupyArray,
         ) -> None:
             _LIBBLOND.loss_box(
-                c_real(top, floattype),
-                c_real(bottom, floattype),
-                c_real(left, floattype),
-                c_real(right, floattype),
+                c_real(e_max, floattype),
+                c_real(e_min, floattype),
+                c_real(t_min, floattype),
+                c_real(t_max, floattype),
                 _getPointer(dt),
                 _getPointer(dE),
                 _getPointer(flags),
@@ -388,7 +388,7 @@ def reload_cpp_backend(  # NOQA: PLR0915
                 dt.ctypes.data_as(ct.c_void_p),
                 dE.ctypes.data_as(ct.c_void_p),
                 ids.ctypes.data_as(ct.c_void_p),
-                ct.c_int(len(dt)),  # n_macroparticles
+                ct.c_int32(len(dt)),  # n_macroparticles
             )
             n_new = int(n_new)
             return n_new
