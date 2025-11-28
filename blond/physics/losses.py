@@ -195,10 +195,10 @@ class BoxLosses(LossesBaseClass):
             Beam class to interact with this element
         """
         backend.specials.loss_box(
-            top=self.e_max,
-            bottom=self.e_min,
-            left=self.t_min,
-            right=self.t_max,
+            e_max=self.e_max,
+            e_min=self.e_min,
+            t_min=self.t_min,
+            t_max=self.t_max,
             dt=beam.read_partial_dt(),
             dE=beam.read_partial_dE(),
             flags=beam.write_partial_flags(),

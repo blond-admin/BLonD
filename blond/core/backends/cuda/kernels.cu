@@ -308,10 +308,10 @@ __global__ void lik_only_gm_comp(
 
 extern "C"
 __global__ void loss_box(
-                     const real_t top,
-                     const real_t bottom,
-                     const real_t left,
-                     const real_t right,
+                     const real_t e_max,
+                     const real_t e_min,
+                     const real_t t_min,
+                     const real_t t_max,
                      const real_t * dt,
                      const real_t * dE,
                      int * __restrict__ flags,
@@ -320,7 +320,7 @@ __global__ void loss_box(
 {
     int tid = threadIdx.x + blockDim.x * blockIdx.x;
     for (int i=tid; i<n_macroparticles; i=i+blockDim.x*gridDim.x){
-        const bool outside = (dE[i] > top) || (dE[i] < bottom) || (dt[i] < left) || (dt[i] > right);
+        const bool outside = (dE[i] > e_max) || (dE[i] < e_min) || (dt[i] < t_min) || (dt[i] > t_max);
         if (outside){
             flags[i] =  -500; // assume (BeamFlags.LOST.value)
         }

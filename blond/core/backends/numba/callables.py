@@ -323,20 +323,20 @@ def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
             cache=True,
         )
         def loss_box(
-            top: np.float32 | np.float64,
-            bottom: np.float32 | np.float64,
-            left: np.float32 | np.float64,
-            right: np.float32 | np.float64,
+            e_max: np.float32 | np.float64,
+            e_min: np.float32 | np.float64,
+            t_min: np.float32 | np.float64,
+            t_max: np.float32 | np.float64,
             dt: NumpyArray,
             dE: NumpyArray,
             flags: NumpyArray,
         ) -> None:
             for i in prange(len(dt)):
                 select = (
-                    (dE[i] > top)
-                    | (dE[i] < bottom)
-                    | (dt[i] < left)
-                    | (dt[i] > right)
+                    (dE[i] > e_max)
+                    | (dE[i] < e_min)
+                    | (dt[i] < t_min)
+                    | (dt[i] > t_max)
                 )
                 if select:
                     flags[i] = _lost

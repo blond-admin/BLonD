@@ -657,20 +657,20 @@ class TestSpecials(unittest.TestCase):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
 
-                top = backend.float(1)
-                bottom = backend.float(-1)
-                left = backend.float(-10)
-                right = backend.float(10)
+                e_max = backend.float(1)
+                e_min = backend.float(-1)
+                t_min = backend.float(-10)
+                t_max = backend.float(10)
                 dt = backend.linspace(-20, 20, dtype=backend.float)
                 dE = backend.linspace(-2, 2, dtype=backend.float)
                 flags = backend.arange(len(dt), dtype=np.int32)
                 result = flags
 
                 backend.specials.loss_box(
-                    top=top,
-                    bottom=bottom,
-                    left=left,
-                    right=right,
+                    e_max=e_max,
+                    e_min=e_min,
+                    t_min=t_min,
+                    t_max=t_max,
                     dt=dt,
                     dE=dE,
                     flags=flags,

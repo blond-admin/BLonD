@@ -34,10 +34,10 @@ class Specials(ABC):
     @staticmethod
     @abstractmethod  # pragma: no cover
     def loss_box(  # NOQA: D102
-        top: float,
-        bottom: float,
-        left: float,
-        right: float,
+        e_max: float,
+        e_min: float,
+        t_min: float,
+        t_max: float,
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         flags: NumpyArray | CupyArray,
