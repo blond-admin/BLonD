@@ -15,7 +15,9 @@ from blond import Beam, backend, uranium_29
 from blond.physics.profiles import (
     DynamicProfileConstCutoff,
     DynamicProfileConstNBins,
-    Fitting,
+    gauss,
+    gauss_fit,
+    multi_gauss_fit,
     ProfileBaseClass,
     StaticProfile,
 )
@@ -227,53 +229,48 @@ class TestDynamicProfileConstNBins(unittest.TestCase):
             self.dynamic_profile_const_cutoff.hist_y,
         )
 
-class TestFitting(unittest.TestCase):
+def test_gauss_fit():
+    x = np.arange(-4,4,0.001)
+    p = [0.4,0,1]
 
-    def test___init__(self):
-        pass
+    gauss_test = norm.pdf(x, p[1], p[2])
 
-    def test_gauss_fit(self):
-        x = np.arange(-4,4,0.001)
-        p = [0.4,0,1]
+    fit = gauss_fit( x, gauss_test)
 
-        gauss_test = norm.pdf(x, p[1], p[2])
+    np.testing.assert_almost_equal(
+        fit,
+        p,
+        decimal=2
+    )
 
-        fit = Fitting.gauss_fit(self, x, gauss_test)
-
-        np.testing.assert_almost_equal(
-            fit,
-            p,
-            decimal=2
-        )
-
-    def test_multi_gauss_fit(self):
-        x = np.arange(-4,12,0.001)
-        p = np.array([[0.4,0,1],
-             [0.4,8,1]])
+def test_multi_gauss_fit():
+    x = np.arange(-4,12,0.001)
+    p = np.array([[0.4,0,1],
+            [0.4,8,1]])
 
 
-        gauss_test = norm.pdf(x, p[0,1], p[0,2]) +  norm.pdf(x, p[1,1], p[1,2])
+    gauss_test = norm.pdf(x, p[0,1], p[0,2]) +  norm.pdf(x, p[1,1], p[1,2])
 
-        fit = Fitting.multi_gauss_fit(self, x, gauss_test, n_bunches = 2)
+    fit = multi_gauss_fit(x, gauss_test, n_bunches = 2)
 
-        np.testing.assert_almost_equal(
-            fit,
-            p,
-            decimal=2
-        )
+    np.testing.assert_almost_equal(
+        fit,
+        p,
+        decimal=2
+    )
 
-    def test_gauss(self):
-        x = np.arange(-4,4,0.001)
-        p = [0.4,0,1]
+def test_gauss():
+    x = np.arange(-4,4,0.001)
+    p = [0.4,0,1]
 
-        gauss = Fitting.gauss(x,p[0],p[1], p[2])
-        gauss_test = norm.pdf(x, p[1], p[2])
+    gauss_func = gauss(x,p[0],p[1], p[2])
+    gauss_test = norm.pdf(x, p[1], p[2])
 
-        np.testing.assert_almost_equal(
-            gauss,
-            gauss_test,
-            decimal=2
-        )
+    np.testing.assert_almost_equal(
+        gauss_func,
+        gauss_test,
+        decimal=2
+    )
 
 if __name__ == "__main__":
     unittest.main()
