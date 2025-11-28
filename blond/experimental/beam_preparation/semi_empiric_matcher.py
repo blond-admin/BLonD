@@ -268,7 +268,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             )
         )
 
-        self.internal_grid_shape = internal_grid_shape
+        self.internal_grid_shape: Tuple[int, int] = internal_grid_shape
         self.seed = (
             int_from_float_with_warning(
                 seed,
@@ -277,7 +277,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             if seed is not None
             else None
         )
-        self.time_limit = time_limit
+        self.time_limit: Tuple[float, float] = time_limit
         assert callable(hamilton_to_density_function)
         self.hamilton_to_density_function = hamilton_to_density_function
         self.hamilton_to_density_kwargs = hamilton_to_density_kwargs
@@ -299,7 +299,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation beam object
         """
@@ -436,7 +436,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         beam
             Simulation beam object
         simulation
-            Simulation context manager
+            `Simulation` context manager
         ts
             Time coordinate, in [s] for observation of the potential well.
         """

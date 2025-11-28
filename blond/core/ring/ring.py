@@ -77,27 +77,30 @@ class Ring(Preparable, Schedulable):
         Parameters
         ----------
         simulation
-            The simulation context manager that owns this ring.
+            The `Simulation` context manager that owns this ring.
         """
-        if self.n_cavities > 1:
+        if self.n_rf_stations > 1:
             assert (
-                len(self.elements.get_sections_indices()) == self.n_cavities
+                len(self.elements.get_sections_indices()) == self.n_rf_stations
             ), (
-                f"{len(self.elements.get_sections_indices())=}, but {self.n_cavities=}"
+                f"{len(self.elements.get_sections_indices())=}, but {self.n_rf_stations=}"
             )
-        elif self.n_cavities == 0:
+        elif self.n_rf_stations == 0:
             warnings.warn(
-                "The simulation has been initialized without cavity.",
+                "The simulation has been initialized without RF station.",
                 UserWarning,
                 stacklevel=1,
             )
 
-        assert np.all(
-            np.diff([e.section_index for e in self.elements.elements]) >= 0
-        ), (
-            "Section indices must be ascending, but section order:"
-            f" {[e.section_index for e in self.elements.elements]=}"
-        )
+        if np.any(
+            np.diff([e.section_index for e in self.elements.elements]) < 0
+        ):
+            warnings.warn(
+                "Section indices must be ascending, but section order:"
+                f" {[e.section_index for e in self.elements.elements]=}",
+                UserWarning,
+                stacklevel=1,
+            )
 
     def on_run_simulation(
         self,
@@ -115,7 +118,7 @@ class Ring(Preparable, Schedulable):
         Parameters
         ----------
         simulation
-            The simulation context manager.
+            The `Simulation` context manager.
         beam
             The beam object being simulated.
         n_turns
@@ -173,7 +176,7 @@ class Ring(Preparable, Schedulable):
             e.orbit_length for e in self.elements.get_elements(DriftSimple)
         ]
         # todo not only simple dirft
-        transition_gamma_average = np.average(gammas, weights=weights)
+        transition_gamma_average = float(np.average(gammas, weights=weights))
         return transition_gamma_average
 
     def calc_average_eta_0(self, gamma: float) -> float:
@@ -237,13 +240,13 @@ class Ring(Preparable, Schedulable):
         return bool(self.calc_average_eta_0(gamma=beam.reference_gamma) < 0)
 
     @property
-    def n_cavities(self) -> int:
+    def n_rf_stations(self) -> int:
         """Get the total number of RF stations in the ring.
 
         Returns
         -------
-        n_cavities
-            The count of all cavity elements currently in the ring.
+        n_rf_stations
+            The count of all RF station elements currently in the ring.
         """
         from blond.physics.cavities import RfStationBaseClass
 
@@ -316,9 +319,17 @@ class Ring(Preparable, Schedulable):
 
         Examples
         --------
+        >>> from blond import Ring, DriftSimple
+        >>> ring = Ring(123)
+        >>> ring.add_element(DriftSimple(orbit_length=ring.circumference))
         >>> ring.assert_circumference()  # Check with default tolerance
         >>> ring.assert_circumference(atol=1e-3)  # Check with 1 mm tolerance
         """
+        if self.closed_orbit_length == 0 and self.circumference > 0:
+            raise ValueError(
+                f"{self.closed_orbit_length=} m. "
+                f"Did you forget to add drift elements?"
+            )
         assert np.isclose(
             self.closed_orbit_length,
             self.circumference,
@@ -355,6 +366,8 @@ class Ring(Preparable, Schedulable):
 
         Examples
         --------
+        >>> from blond import Ring
+        >>> ring = Ring(...)
         >>> ring.add_drifts(n_drifts_per_section=10, n_sections=4)
         >>> # Creates 40 drifts total, 10 per section, each with length = circumference/40
         """
@@ -390,7 +403,7 @@ class Ring(Preparable, Schedulable):
         Parameters
         ----------
         element
-            A beam physics element (cavity, drift, monitor, etc.) to add.
+            A beam physics element (RF station, drift, monitor, etc.) to add.
             Must have a valid integer `section_index` attribute.
         reorder
             If True, automatically reorder elements within each section by their
@@ -409,7 +422,8 @@ class Ring(Preparable, Schedulable):
 
         Examples
         --------
-        >>> from blond import MultiHarmonicRfStation
+        >>> from blond import MultiHarmonicRfStation, Ring
+        >>> ring = Ring(...)
         >>> rf_station = MultiHarmonicRfStation(voltage=1e6, harmonic=400, section_index=0)
         >>> ring.add_element(rf_station)
         """
@@ -417,7 +431,7 @@ class Ring(Preparable, Schedulable):
             element = copy.deepcopy(element)
         if section_index is not None:
             element._section_index = int(section_index)
-        self.elements.add_element(element)
+        self.elements.add_element(element, reorder=reorder)
 
         if reorder:
             self.elements.reorder()
@@ -454,7 +468,9 @@ class Ring(Preparable, Schedulable):
 
         Examples
         --------
-        >>> rf_stations = [SingleHarmonicRfStation(..., section_index=i) for i in range(4)]
+        >>> from blond import Ring, SingleHarmonicRfStation
+        >>> ring = Ring(...)
+        >>> rf_stations = [SingleHarmonicRfStation(section_index=i, ...) for i in range(4)]
         >>> ring.add_elements(rf_stations)
         """
         for element in elements:
@@ -512,6 +528,8 @@ class Ring(Preparable, Schedulable):
 
         Examples
         --------
+        >>> from blond import Ring, DriftSimple
+        >>> ring = Ring(...)
         >>> drift = DriftSimple(section_index=0, ...)
         >>> ring.insert_element(drift, insert_at=5)
         [5]
@@ -580,6 +598,8 @@ class Ring(Preparable, Schedulable):
 
         Examples
         --------
+        >>> from blond import Ring, DriftSimple
+        >>> ring = Ring(...)
         >>> drifts = [DriftSimple(section_index=0, ...) for _ in range(3)]
         >>> ring.insert_elements(drifts, insert_at=10)
         """

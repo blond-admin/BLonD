@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -49,7 +50,7 @@ class BeamPhysicsRelevantElements(Preparable):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         self._check_section_indexing()
         self._on_init_simulation_passed = True
@@ -65,34 +66,34 @@ class BeamPhysicsRelevantElements(Preparable):
 
         elem_section_indices = [e.section_index for e in self.elements]
         assert min(elem_section_indices) == 0, "section_index=0 must be set"
-        assert np.all(np.diff(elem_section_indices) >= 0), (
-            f"Section indices must be increasing, but got {elem_section_indices}"
-        )
-        cavities = self.get_elements(RfStationBaseClass)
-        cav_section_indices = [c.section_index for c in cavities]
-        all_different = len(cav_section_indices) == len(
-            set(cav_section_indices)
-        )
+        if not np.all(np.diff(elem_section_indices) >= 0):
+            warnings.warn(
+                f"Section indices must be increasing, but got {elem_section_indices}",
+                stacklevel=1,
+            )
+        rf_stations = self.get_elements(RfStationBaseClass)
+        rf_section_indices = [c.section_index for c in rf_stations]
+        all_different = len(rf_section_indices) == len(set(rf_section_indices))
         if not all_different:
             raise ValueError(
-                f"Each cavity must be in a different section, "
+                f"Each RF station must be in a different section, "
                 f"but got "
-                f"{[(cav.name, cav.section_index) for cav in cavities]}"
+                f"{[(cav.name, cav.section_index) for cav in rf_stations]}"
             )
 
         unique_section_indices = np.unique(elem_section_indices)
         if len(unique_section_indices) > 1:
             for section_index in np.sort(unique_section_indices):
-                cavities = self.get_elements(
+                rf_stations = self.get_elements(
                     RfStationBaseClass,
                     section_i=section_index,  # type: ignore
                 )
                 drifts = self.get_elements(
                     DriftBaseClass, section_i=section_index
                 )
-                if len(cavities) == 0:
+                if len(rf_stations) == 0:
                     raise RuntimeError(
-                        f"Missing cavity in section {section_index}"
+                        f"Missing RF station in section {section_index}"
                     )
                 if len(drifts) == 0:
                     raise RuntimeError(
@@ -112,7 +113,7 @@ class BeamPhysicsRelevantElements(Preparable):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns
@@ -148,7 +149,9 @@ class BeamPhysicsRelevantElements(Preparable):
                 result[section_i] = 0
         return result
 
-    def add_element(self, element: SimulationElementBase) -> None:
+    def add_element(
+        self, element: SimulationElementBase, reorder: bool = True
+    ) -> None:
         """Append a beam physics-relevant element to the container.
 
         This method appends the given element to the
@@ -172,14 +175,16 @@ class BeamPhysicsRelevantElements(Preparable):
         )
         assert isinstance(element.section_index, int)
 
-        insert_at = None
+        if reorder:
+            insert_at = None
+            for i, elem in enumerate(self.elements):
+                if elem.section_index == element.section_index:
+                    insert_at = i
 
-        for i, elem in enumerate(self.elements):
-            if elem.section_index == element.section_index:
-                insert_at = i
-
-        if insert_at is not None:
-            self.elements.insert(insert_at + 1, element)
+            if insert_at is not None:
+                self.elements.insert(insert_at + 1, element)
+            else:
+                self.elements.append(element)
         else:
             self.elements.append(element)
 
@@ -381,7 +386,7 @@ class BeamPhysicsRelevantElements(Preparable):
             DriftBaseClass,
         )
         assert self.count(RfStationBaseClass, section_i=section_index) == 1, (
-            f"Only one cavity per section allowed, but got "
+            f"Only one RF station per section allowed, but got "
             f"{self.count(RfStationBaseClass, section_i=section_index)}"
         )
         elements_in_section = [

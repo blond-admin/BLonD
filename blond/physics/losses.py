@@ -17,10 +17,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:  # pragma: no cover
-    pass
-
 from blond.core.base import BeamPhysicsRelevant
+
+if TYPE_CHECKING:  # pragma: no cover
+    from blond.core.beam.base import BeamBaseClass
 
 
 class LossesBaseClass(BeamPhysicsRelevant):
@@ -28,3 +28,13 @@ class LossesBaseClass(BeamPhysicsRelevant):
 
     def __init__(self) -> None:
         super().__init__()
+
+    def track(self, beam: BeamBaseClass) -> None:
+        """Main simulation routine to be called in the mainloop.
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element
+        """
+        beam.purge_flagged_entries()

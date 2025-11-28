@@ -13,7 +13,7 @@ Notes
 The following classes are currently available:
 - :class:`~blond.cycles.magnetic_cycles.ConstantMagneticCycle`
 - :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurn`
-- :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllCavities`
+- :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllRfStations`
 - :class:`~blond.cycles.magnetic_cycles.MagneticCycleByTime`
 
 Authors
@@ -87,7 +87,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(simulation=simulation)
         self._n_turns_max = kwargs["n_turns_max"]
@@ -106,7 +106,7 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation :class:`~blond._cycles_core.beam.beam.Beam` object
         n_turns
@@ -330,7 +330,7 @@ class ConstantMagneticCycle(MagneticCycleBase):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(
             simulation=simulation,
@@ -425,7 +425,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
 
     Notes
     -----
-    Assumes each cavity has the same increment of beam energy.
+    Assumes each RF station has the same increment of beam energy.
 
     Parameters
     ----------
@@ -486,9 +486,9 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
-        n_cavities = simulation.ring.n_cavities
+        n_rf_stations = simulation.ring.n_rf_stations
         n_turns_max = self._values_after_turn.shape[0]
 
         magnetic_rigidity_per_turn = _to_magnetic_rigidity(
@@ -502,12 +502,14 @@ class MagneticCyclePerTurn(MagneticCycleBase):
                 else None
             ),
         )
-        assert n_cavities > 0
-        shape = (n_cavities, n_turns_max)
+        assert n_rf_stations > 0
+        shape = (n_rf_stations, n_turns_max)
         _magnetic_rigidity = np.empty(shape)
-        # assume that each cavity gives an
+        # assume that each RF station gives an
         # even part of the kick
-        stair_like = np.linspace(1 / n_cavities, 1, n_cavities, endpoint=True)
+        stair_like = np.linspace(
+            1 / n_rf_stations, 1, n_rf_stations, endpoint=True
+        )
         base = np.concatenate(
             (
                 [self._magnetic_rigidity_before_turn_0],
@@ -515,7 +517,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
             )
         )
         step = np.diff(base)
-        for cav_i in range(n_cavities):
+        for cav_i in range(n_rf_stations):
             _magnetic_rigidity[cav_i, :] = base[:-1] + stair_like[cav_i] * step
 
         super().on_init_simulation(
@@ -569,7 +571,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         reference_particle: ParticleType,
         value_init: float,
         values_after_turn: NumpyArray,
-        n_cavities: int,
+        n_rf_stations: int,
         in_unit: SynchronousDataTypes = "momentum",
         bending_radius: float | None = None,
     ) -> MagneticCyclePerTurn:
@@ -583,8 +585,8 @@ class MagneticCyclePerTurn(MagneticCycleBase):
             Initial value at start of simulation in of unit `in_unit`
         values_after_turn
             Value after turn in Synchrotron in of unit `in_unit`
-        n_cavities
-            Number of cavities
+        n_rf_stations
+            Number of RF stations
         in_unit
             - 'momentum' [eV/c], (no conversion is done)
             - 'total energy' [eV],
@@ -615,7 +617,7 @@ class MagneticCyclePerTurn(MagneticCycleBase):
 
         simulation.ring.bending_radius = bending_radius
         beam.particle_type = reference_particle
-        simulation.ring.n_cavities = n_cavities
+        simulation.ring.n_rf_stations = n_rf_stations
         ret.on_init_simulation(simulation=simulation)
         ret.on_run_simulation(
             simulation=simulation,
@@ -627,8 +629,8 @@ class MagneticCyclePerTurn(MagneticCycleBase):
         return ret
 
 
-class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
-    """Magnetic program per turn, defined for each cavity.
+class MagneticCyclePerTurnAllRfStations(MagneticCycleBase):
+    """Magnetic program per turn, defined for each RF station.
 
     Parameters
     ----------
@@ -636,8 +638,8 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
         Type of particles, e.g. protons
     value_init
         Initial value at start of simulation in of unit `in_unit`
-    values_after_cavity_per_turn
-        Value after each cavity and each turn in Synchrotron
+    values_after_rf_station_per_turn
+        Value after each RF station and each turn in Synchrotron
          in of unit `in_unit`
     in_unit
         - 'momentum' [eV/c], (no conversion is done)
@@ -652,7 +654,7 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
         self,
         reference_particle: ParticleType,
         value_init: float,
-        values_after_cavity_per_turn: NumpyArray,
+        values_after_rf_station_per_turn: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
         bending_radius: float | None = None,
     ):
@@ -670,12 +672,16 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
             magnetic_rigidity_init=magnetic_rigidity_init,
         )
         self._value_init = value_init
-        self._values_after_cavity_per_turn = values_after_cavity_per_turn[:, :]
-        self._n_turns_max = self._values_after_cavity_per_turn.shape[1]
+        self._values_after_rf_station_per_turn = (
+            values_after_rf_station_per_turn[:, :]
+        )
+        self._n_turns_max = self._values_after_rf_station_per_turn.shape[1]
         self._in_unit = in_unit
         self._bending_radius = bending_radius
 
-        self._magnetic_rigidity_after_cavity_per_turn: NumpyArray | None = None
+        self._magnetic_rigidity_after_rf_station_per_turn: (
+            NumpyArray | None
+        ) = None
         self._momentum_cached: dict[int, NumpyArray] = {}
 
     def on_init_simulation(
@@ -686,10 +692,10 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
-        magnetic_rigidity_after_cavity_per_turn = _to_magnetic_rigidity(
-            data=self._values_after_cavity_per_turn[:, :],
+        magnetic_rigidity_after_rf_station_per_turn = _to_magnetic_rigidity(
+            data=self._values_after_rf_station_per_turn[:, :],
             mass=self._reference_particle.mass,
             charge=self._reference_particle.charge,
             convert_from=self._in_unit,
@@ -699,12 +705,13 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
                 else None
             ),
         )
-        n_cavities = simulation.ring.n_cavities
-        n_turns_max = magnetic_rigidity_after_cavity_per_turn.shape[1]
+        n_rf_stations = simulation.ring.n_rf_stations
+        n_turns_max = magnetic_rigidity_after_rf_station_per_turn.shape[1]
         assert (
-            n_cavities == magnetic_rigidity_after_cavity_per_turn.shape[0]
+            n_rf_stations
+            == magnetic_rigidity_after_rf_station_per_turn.shape[0]
         ), (
-            f"{n_cavities=}, but {magnetic_rigidity_after_cavity_per_turn.shape=}"
+            f"{n_rf_stations=}, but {magnetic_rigidity_after_rf_station_per_turn.shape=}"
         )
 
         super().on_init_simulation(
@@ -712,8 +719,8 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
             n_turns_max=n_turns_max,
             magnetic_rigidity_init=self._magnetic_rigidity_before_turn_0,
         )
-        self._magnetic_rigidity_after_cavity_per_turn = (
-            magnetic_rigidity_after_cavity_per_turn
+        self._magnetic_rigidity_after_rf_station_per_turn = (
+            magnetic_rigidity_after_rf_station_per_turn
         )
 
     def get_target_total_energy(
@@ -748,7 +755,7 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
         key = hash(particle_type)
         if key not in self._momentum_cached:
             self._momentum_cached[key] = magnetic_rigidity_to_momentum(
-                magnetic_rigidity=self._magnetic_rigidity_after_cavity_per_turn[
+                magnetic_rigidity=self._magnetic_rigidity_after_rf_station_per_turn[
                     :, :
                 ],
                 charge=particle_type.charge,
@@ -762,10 +769,10 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
     def headless(
         reference_particle: ParticleType,
         value_init: float,
-        values_after_cavity_per_turn: NumpyArray,
+        values_after_rf_station_per_turn: NumpyArray,
         in_unit: SynchronousDataTypes = "momentum",
         bending_radius: float | None = None,
-    ) -> MagneticCyclePerTurnAllCavities:
+    ) -> MagneticCyclePerTurnAllRfStations:
         """Initialize object without simulation context.
 
         Parameters
@@ -774,8 +781,8 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
             Type of particles, e.g. protons.
         value_init
             Initial value at start of simulation in of unit `in_unit`.
-        values_after_cavity_per_turn
-            Value after each cavity and each turn in Synchrotron
+        values_after_rf_station_per_turn
+            Value after each RF Station and each turn in Synchrotron
              in of unit `in_unit`.
         in_unit
             - 'momentum' [eV/c], (no conversion is done)
@@ -788,12 +795,12 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
         Returns
         -------
         magnetic_cycle
-            Fully initialized :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllCavities`.
+            Fully initialized :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllRfStations`.
 
         """
-        ret = MagneticCyclePerTurnAllCavities(
+        ret = MagneticCyclePerTurnAllRfStations(
             value_init=value_init,
-            values_after_cavity_per_turn=values_after_cavity_per_turn,
+            values_after_rf_station_per_turn=values_after_rf_station_per_turn,
             in_unit=in_unit,
             reference_particle=reference_particle,
         )
@@ -807,13 +814,15 @@ class MagneticCyclePerTurnAllCavities(MagneticCycleBase):
 
         simulation.ring.bending_radius = bending_radius
         beam.particle_type = reference_particle
-        simulation.ring.n_cavities = values_after_cavity_per_turn.shape[0]
+        simulation.ring.n_rf_stations = values_after_rf_station_per_turn.shape[
+            0
+        ]
 
         ret.on_init_simulation(simulation=simulation)
         ret.on_run_simulation(
             simulation=simulation,
             beam=beam,
-            n_turns=values_after_cavity_per_turn.shape[1],
+            n_turns=values_after_rf_station_per_turn.shape[1],
             turn_i_init=0,
         )
         return ret
@@ -880,7 +889,7 @@ class MagneticCycleByTime(MagneticCycleBase):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(
             simulation=simulation,

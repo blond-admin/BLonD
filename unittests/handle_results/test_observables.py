@@ -10,10 +10,10 @@ from blond.core.beam.base import BeamBaseClass
 from blond.handle_results.array_recorders import DenseArrayRecorder
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables import (
-    BeamObservationEndOfTurn,
-    CavityPhaseObservation,
+    BeamObservationOncePerTurn,
     DynamicProfileConstNBinsObservation,
-    ObservablesEndOfTurnBase,
+    ObservablesOncePerTurnBase,
+    RfStationPhaseObservation,
     StaticMultiProfileObservation,
     StaticProfileObservation,
     WakeFieldObservation,
@@ -27,7 +27,7 @@ from blond.physics.profiles import DynamicProfileConstNBins
 simulation = Mock(
     Simulation,
 )
-simulation.ring.n_cavities = 2
+simulation.ring.n_rf_stations = 2
 simulation.ring.section_lengths = [250, 250]
 simulation.ring.circumference = 500
 simulation.section_i = DynamicParameter(None)
@@ -44,7 +44,7 @@ beam._dE = np.ones(beam.common_array_size, dtype=float)
 beam._flags = np.ones(beam.common_array_size, dtype=int)
 
 
-class ObservablesHelper(ObservablesEndOfTurnBase):
+class ObservablesHelper(ObservablesOncePerTurnBase):
     def update(self, simulation: Simulation) -> None:
         pass
 
@@ -121,58 +121,21 @@ class TestObservables(unittest.TestCase):
             beam=beam,
             turn_i_init=0,
             n_turns=100,
-            obs_per_turn=1,
         )
 
-        assert len(self.observables._turns_array) == self.observables._n_turns
+        assert len(self.observables._turns_array) == self.observables._n_turns + 2
         assert np.all(
             np.where(np.diff(self.observables._turns_array) <= 0)
             == np.array([])
         )  # monotonic increase
-        assert np.mean(np.diff(self.observables._turns_array)) == 1
-        assert np.all(
-            self.observables._section_indices_to_observe == np.array([0])
-        )  # only first one is selected
+        assert np.mean(np.diff(self.observables._turns_array[1:])) == 1
 
         self.observables.on_run_simulation(
             simulation=simulation,
             beam=beam,
             turn_i_init=0,
             n_turns=100,
-            obs_per_turn=2,
         )
-
-        assert (
-            len(self.observables._turns_array) == self.observables._n_turns * 2
-        )
-        assert np.all(
-            np.where(np.diff(self.observables._turns_array) <= 0)
-            == np.array([])
-        )  # monotonic increase
-        assert np.isclose(np.mean(np.diff(self.observables._turns_array)), 0.5)
-        assert np.all(
-            self.observables._section_indices_to_observe == np.array([0, 1])
-        )  # only first one is selected
-
-        self.observables.on_run_simulation(
-            simulation=simulation,
-            beam=beam,
-            turn_i_init=50,
-            n_turns=100,
-            obs_per_turn=2,
-        )
-
-        assert (
-            len(self.observables._turns_array) == self.observables._n_turns * 2
-        )
-        assert np.all(
-            np.where(np.diff(self.observables._turns_array) <= 0)
-            == np.array([])
-        )  # monotonic increase
-        assert np.isclose(np.mean(np.diff(self.observables._turns_array)), 0.5)
-        assert np.all(
-            self.observables._section_indices_to_observe == np.array([0, 1])
-        )  # only first one is selected
 
     def test_rename(self) -> None:
         self.observables = ObservablesHelper(
@@ -188,7 +151,6 @@ class TestObservables(unittest.TestCase):
             beam=beam,
             turn_i_init=0,
             n_turns=100,
-            obs_per_turn=1,
         )
 
         # without recorders, should run through
@@ -210,7 +172,7 @@ class TestObservables(unittest.TestCase):
         assert self.observables.common_filepath == orig_name + "_2"
 
     def test_assert_lateinit_fail(self) -> None:
-        obs_helper = ObservablesHelper(obs_per_turn=1, each_turn_i=0)
+        obs_helper = ObservablesHelper(each_turn_i=0)
 
         obs_helper.dummy_value = None
 
@@ -219,43 +181,18 @@ class TestObservables(unittest.TestCase):
         with self.assertRaises(AssertionError):
             obs_helper.assert_lateinit()
 
-    def test_on_run_simulation_warnings(self):
-        self.observables.on_init_simulation(
-            simulation=simulation,
-        )
-
-        with self.assertWarnsRegex(
-            UserWarning, "obs_per_turn must be greater"
-        ):
-            self.observables.on_run_simulation(
-                simulation=simulation,
-                beam=beam,
-                turn_i_init=0,
-                n_turns=100,
-                obs_per_turn=-1,
-            )
-        with self.assertWarnsRegex(
-            UserWarning, "obs_per_turn must be smaller"
-        ):
-            self.observables.on_run_simulation(
-                simulation=simulation,
-                beam=beam,
-                turn_i_init=0,
-                n_turns=100,
-                obs_per_turn=3,
-            )
 
 
 class TestBunchObservation(unittest.TestCase):
     def setUp(self) -> None:
-        self.bunch_observation = BeamObservationEndOfTurn(
+        self.bunch_observation = BeamObservationOncePerTurn(
             each_turn_i=1,
             folder=callers_relative_path("results/", stacklevel=1),
             beam=beam,
         )
 
     def test___init__(self) -> None:
-        self.bunch_observation = BeamObservationEndOfTurn(
+        self.bunch_observation = BeamObservationOncePerTurn(
             each_turn_i=1,
             folder=callers_relative_path("results/", stacklevel=1),
             beam=beam,
@@ -278,48 +215,48 @@ class TestBunchObservation(unittest.TestCase):
         self.bunch_observation.from_disk()
 
 
-class TestCavityPhaseObservation(unittest.TestCase):
+class TestRfStationPhaseObservation(unittest.TestCase):
     def setUp(self) -> None:
-        cavity = Mock(
+        rf_station = Mock(
             SingleHarmonicRfStation,
         )
-        cavity.n_rf = 12
-        cavity.phi_rf = 1
-        cavity.delta_phi_rf = 1
-        cavity._omega_rf = 1
-        cavity.delta_omega_rf = 1
-        cavity.voltage = 1
-        self.cavity_phase_observation = CavityPhaseObservation(
+        rf_station.n_rf = 12
+        rf_station.phi_rf = 1
+        rf_station.delta_phi_rf = 1
+        rf_station._omega_rf = 1
+        rf_station.delta_omega_rf = 1
+        rf_station.voltage = 1
+        self.rf_station_phase_observation = RfStationPhaseObservation(
             each_turn_i=1,
-            cavity=cavity,
+            rf_station=rf_station,
             folder=callers_relative_path("results/", stacklevel=1),
         )
 
     def test___init__(self) -> None:
-        self.cavity_phase_observation = CavityPhaseObservation(
+        self.rf_station_phase_observation = RfStationPhaseObservation(
             each_turn_i=1,
-            cavity=Mock(
+            rf_station=Mock(
                 SingleHarmonicRfStation,
                 folder=callers_relative_path("results/", stacklevel=1),
             ),
         )
 
     def test_from_disk(self) -> None:
-        self.cavity_phase_observation.on_init_simulation(
+        self.rf_station_phase_observation.on_init_simulation(
             simulation=simulation,
         )
-        self.cavity_phase_observation.on_run_simulation(
+        self.rf_station_phase_observation.on_run_simulation(
             simulation=simulation,
             beam=beam,
             turn_i_init=0,
             n_turns=100,
         )
-        self.cavity_phase_observation.update(
+        self.rf_station_phase_observation.update(
             simulation=simulation,
         )
-        self.cavity_phase_observation.to_disk()
+        self.rf_station_phase_observation.to_disk()
 
-        self.cavity_phase_observation.from_disk()
+        self.rf_station_phase_observation.from_disk()
 
 
 class TestStaticProfileObservation(unittest.TestCase):
@@ -353,6 +290,8 @@ class TestStaticProfileObservation(unittest.TestCase):
             turn_i_init=0,
             n_turns=100,
         )
+        simulation.section_i.value = 0
+        simulation.turn_i.value = 0
         self.static_profile_observation.update(
             simulation=simulation,
         )
@@ -419,7 +358,6 @@ class TestWakeFieldObservation(unittest.TestCase):
             wakefield=wf,
             folder=callers_relative_path("results/", stacklevel=1),
             each_turn_i=1,
-            obs_per_turn=2,
         )
 
         wf_obs.on_init_simulation(simulation=simulation)

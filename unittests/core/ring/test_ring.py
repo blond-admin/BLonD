@@ -8,6 +8,7 @@ from blond.core.base import BeamPhysicsRelevant
 from blond.core.beam.base import BeamBaseClass
 from blond.physics.cavities import RfStationBaseClass
 from blond.physics.drifts import DriftBaseClass, DriftSimple
+from blond.testing.mocks import simulation_mock
 
 
 class BeamPhysicsRelevantHelper(BeamPhysicsRelevant):
@@ -61,6 +62,42 @@ class TestRing(unittest.TestCase):
             section_index=None,
         )
         assert self.ring.elements.elements[0] is element
+
+    def test_add_element_warning(self):
+        element = Mock(spec=BeamPhysicsRelevant)
+        element.section_index = 0
+        self.ring.add_element(
+            element=element,
+            reorder=False,
+            deepcopy=False,
+            section_index=None,
+        )
+        print([e.section_index for e in self.ring.elements.elements])
+        element = Mock(spec=BeamPhysicsRelevant)
+        element.section_index = 1
+        self.ring.add_element(
+            element=element,
+            reorder=False,
+            deepcopy=False,
+            section_index=None,
+        )
+        print([e.section_index for e in self.ring.elements.elements])
+        element = Mock(spec=BeamPhysicsRelevant)
+        element.section_index = 0
+        self.ring.add_element(
+            element=element,
+            reorder=False,
+            deepcopy=False,
+            section_index=None,
+        )
+        print([e.section_index for e in self.ring.elements.elements])
+
+        with self.assertWarnsRegex(
+            UserWarning, "Section indices must be ascending"
+        ):
+            print([e.section_index for e in self.ring.elements.elements])
+
+            self.ring.on_init_simulation(simulation=simulation_mock)
 
     def test_add_element_section_index(self):
         element = Mock(spec=BeamPhysicsRelevant)
@@ -363,7 +400,7 @@ class TestRing(unittest.TestCase):
             [element1 for i in range(10)] + [cavity1 for i in range(10)],
             deepcopy=True,
         )
-        self.assertEqual(self.ring.n_cavities, 10)
+        self.assertEqual(self.ring.n_rf_stations, 10)
 
     def test_on_init_simulation(self):
         simulation = Mock(spec=Simulation)
@@ -423,6 +460,11 @@ class TestRing(unittest.TestCase):
             self.ring.assert_circumference()  # fails
         self.ring._circumference = 2 * 123
         self.ring.assert_circumference()  # works
+
+    def test_add_drifts2_fails(self):
+        self.ring._circumference = 129
+        with self.assertRaises(ValueError):
+            self.ring.assert_circumference()  # works
 
     def test_add_drifts2(self):
         self.ring._circumference = 129

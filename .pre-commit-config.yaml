@@ -1,4 +1,4 @@
-exclude: ^(legacy|docs|blond3/legacy/|builds)
+exclude: ^(legacy|blond3/legacy/|builds)
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -31,5 +31,5 @@ repos:
     hooks:
       - id: custom-py-check
         name: check copyright
-        entry: python3 dev_tools/precommit_check_copyright.py
+        entry: python dev_tools/precommit_check_copyright.py
         language: system

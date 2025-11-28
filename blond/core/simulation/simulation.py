@@ -42,51 +42,28 @@ from blond.core.helpers import (
 from blond.core.ring.helpers import get_elements, get_init_order
 from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.generals.warnings_ import NotTestedWarning, PerformanceWarning
-from blond.physics.drifts import DriftBaseClass
-from blond.physics.profiles import ProfileBaseClass
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
     from numpy.typing import NDArray as NumpyArray
 
-    from blond import (
-        SingleHarmonicRfStation,
-    )
-
-    from blond.legacy.blond2.beam.beam import Beam as Blond2Beam
-    from blond.legacy.blond2.beam.profile import Profile as Blond2Profile
-    from blond.legacy.blond2.impedances.impedance import (
-        TotalInducedVoltage as Blond2TotalInducedVoltage,
-    )
-    from blond.legacy.blond2.input_parameters.rf_parameters import (
-        RFStation as Blond2RFStation,
-    )
-    from blond.legacy.blond2.input_parameters.ring import Ring as Blond2Ring
-    from blond.legacy.blond2.trackers.tracker import (
-        FullRingAndRF as Blond2FullRingAndRF,
-    )
-    from blond.legacy.blond2.trackers.tracker import (
-        RingAndRFTracker as Blond2RingAndRFTracker,
-    )
-
+    from blond import BiGaussian
     from blond.beam_preparation.base import BeamPreparationRoutine
-    from blond.handle_results.observables import ObservablesEndOfTurnBase
     from blond.core.beam.base import BeamBaseClass
     from blond.core.beam.particle_types import ParticleType
     from blond.core.ring.ring import Ring
-    from blond.interfaces.xsuite.beam_preparation.rfbucket_matching import (
-        XsuiteRFBucketMatcher,
-    )
-    from blond import BiGaussian
     from blond.experimental.beam_preparation.empiric_matcher import (
         EmpiricMatcher,
     )
     from blond.experimental.beam_preparation.semi_empiric_matcher import (
         SemiEmpiricMatcher,
     )
+    from blond.handle_results.observables import ObservablesOncePerTurnBase
+    from blond.interfaces.xsuite.beam_preparation.rfbucket_matching import (
+        XsuiteRFBucketMatcher,
+    )
 
-from blond.physics.cavities import RfStationBaseClass
 
 logger = logging.getLogger(__name__)
 
@@ -205,7 +182,9 @@ class Simulation(Preparable):
         Examples
         --------
         Profile 100 turns after a 10-turn warmup:
-
+        >>> from blond import Simulation, Beam
+        >>> sim = Simulation(...)
+        >>> beam1 = Beam(...)
         >>> from pstats import SortKey
         >>> sim.profiling(
         ...     beams=(beam1,),
@@ -236,6 +215,15 @@ class Simulation(Preparable):
 
         # trigger profiling later than turn 0
         def start_profiling(simulation: Simulation, beam: BeamBaseClass):
+            """Enable the profiling in the mainloop.
+
+            Parameters
+            ----------
+            simulation
+                `Simulation` context manager
+            beam
+                The `Beam` object.
+            """
             if simulation.turn_i.value == profile_start_turn_i:
                 pr.enable()
 
@@ -290,6 +278,9 @@ class Simulation(Preparable):
         Plot the potential well with default settings:
 
         >>> import numpy as np
+        >>> from blond import Simulation, Beam, proton
+        >>> sim = Simulation(...)
+        >>> beam1 = Beam(...)
         >>> dt_array = np.linspace(0, 2.5e-9, 500)
         >>> plt.title('RF Bucket Structure')
         >>> sim.plot_potential_well_empiric(dt=dt_array, particle_type=proton)
@@ -367,6 +358,8 @@ class Simulation(Preparable):
 
         >>> import numpy as np
         >>> import matplotlib.pyplot as plt
+        >>> from blond import Simulation, proton
+        >>> sim = Simulation(...)
         >>>
         >>> dE_array = np.linspace(-1e8, 1e8, 500)  # Energy offsets in eV
         >>> drift = sim.get_drift_term_empiric(dE=dE_array, particle_type=proton)
@@ -469,6 +462,10 @@ class Simulation(Preparable):
         >>> import numpy as np
         >>> import matplotlib.pyplot as plt
         >>>
+        >>> from blond import Simulation, Beam, proton
+        >>>
+        >>> sim = Simulation(...)
+        >>> beam1 = Beam(...)
         >>> dt_array = np.linspace(0, 2.5e-9, 500)
         >>> potential, factor, tilt = sim.get_potential_well_empiric(
         ...     dt=dt_array,
@@ -512,7 +509,7 @@ class Simulation(Preparable):
         t_1 = probe_bunch.reference_time
         t_rev = t_1 - t_0
         # Calculate scaling factor
-        factor = (dt[-1] - dt[0]) / t_rev
+        factor = float((dt[-1] - dt[0]) / t_rev)
 
         # Calculate tilt of phase space
         change_t = probe_bunch._dt - bunch_before._dt
@@ -762,7 +759,7 @@ class Simulation(Preparable):
         )
         magnetic_cycle = _magnetic_cycle[0]
 
-        elements = get_elements(locals_list, (SimulationElementBase))
+        elements = get_elements(locals_list, SimulationElementBase)
         ring.add_elements(elements=elements, reorder=True)
 
         logger.debug(f"{ring=}")
@@ -807,7 +804,7 @@ class Simulation(Preparable):
         --------
         ConstantMagneticCycle
         MagneticCyclePerTurn
-        MagneticCyclePerTurnAllCavities
+        MagneticCyclePerTurnAllRfStations
         MagneticCycleByTime
         """
         return self._magnetic_cycle
@@ -880,7 +877,9 @@ class Simulation(Preparable):
         --------
         Prepare a beam with a simple Gaussian distribution:
 
-        >>> from blond import BiGaussian
+        >>> from blond import Simulation, Beam, BiGaussian
+        >>> sim = Simulation(...)
+        >>> beam1 = Beam(...)
         >>> sim.prepare_beam(
         ...     beam=beam1,
         ...     preparation_routine=BiGaussian(
@@ -937,7 +936,7 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass, ...],
         n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
+        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
     ) -> None:
@@ -970,7 +969,7 @@ class Simulation(Preparable):
             from a specific turn. Default is 0.
         observe
             Tuple of observable objects that record data during the simulation
-            (e.g., ``CavityPhaseObservation``, ``BeamObservationEndOfTurn``).
+            (e.g., ``RfStationPhaseObservation``, ``BeamObservationEndOfTurn``).
             Each observable is updated according to its own schedule. Default is empty tuple.
         show_progressbar
             If True, displays a progress bar showing simulation progress and turn rate.
@@ -994,6 +993,9 @@ class Simulation(Preparable):
         --------
         Basic simulation for 1000 turns:
 
+        >>> from blond import Simulation, Beam, BiGaussian
+        >>> sim = Simulation(...)
+        >>> beam1 = Beam(...)
         >>> sim.run_simulation(
         ...     beams=(beam1,),
         ...     n_turns=1000,
@@ -1001,9 +1003,13 @@ class Simulation(Preparable):
 
         Simulation with observables to record data:
 
-        >>> from blond import CavityPhaseObservation, BeamObservationEndOfTurn
-        >>> phase_obs = CavityPhaseObservation(each_turn_i=1, cavity=rf_station1)
-        >>> beam_obs = BeamObservationEndOfTurn(each_turn_i=1, beam=beam1)
+        >>> from blond import RfStationPhaseObservation, BeamObservationOncePerTurn
+        >>> from blond import Simulation, Beam, BiGaussian, SingleHarmonicRfStation
+        >>> sim = Simulation(...)
+        >>> beam1 = Beam(...)
+        >>> rf_station1 = SingleHarmonicRfStation(...)
+        >>> phase_obs = RfStationPhaseObservation(each_turn_i=1, rf_station=rf_station1)
+        >>> beam_obs = BeamObservationOncePerTurn(each_turn_i=1, beam=beam1)
         >>>
         >>> sim.run_simulation(
         ...     beams=(beam1,),
@@ -1087,7 +1093,7 @@ class Simulation(Preparable):
                 observe=observe,
                 show_progressbar=show_progressbar,
                 callback=callback,
-                beams=beams,
+                beams=beams,  # type: ignore
             )
         else:
             raise NotImplementedError(
@@ -1099,7 +1105,7 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass, ...],
         n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
+        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
     ) -> int:
         """Initialize all simulation components before running or loading results.
 
@@ -1179,7 +1185,7 @@ class Simulation(Preparable):
                     f" {self._particle_performance_waning_threshold}"
                     f" particles in your beam."
                     f" Consider using another backend via\n"
-                    f" >>> from blond._core.backends.backend import backend\n"
+                    f" >>> from blond.core.backends.backend import backend\n"
                     f" >>> backend.set_specials(mode=...)",
                     PerformanceWarning,
                     stacklevel=2,
@@ -1204,7 +1210,7 @@ class Simulation(Preparable):
         beam: BeamBaseClass,
         n_turns: int,
         turn_i_init: int = 0,
-        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
+        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
     ) -> None:
@@ -1243,140 +1249,24 @@ class Simulation(Preparable):
                 self.section_i.value = element.section_index
                 if element.is_active_this_turn(turn_i=self.turn_i.value):
                     element.track(beam)
-                if isinstance(
-                    element, DriftBaseClass
-                ):  # only observe after drifts
-                    for observable in observe:
-                        if observable.is_active_this_turn(
-                            turn_i=self.turn_i.value
-                        ):
-                            observable.update(
-                                simulation=self,
-                            )
+            for observable in observe:
+                if observable.is_active_this_turn(turn_i=self.turn_i.value):
+                    observable.update(
+                        simulation=self,
+                    )
             if callback is not None:
-                callback(simulation=self, beam=beam)
+                callback(self, beam)
 
         # reset counters to uninitialized again
         self.turn_i.value = None
         self.section_i.value = None
-
-    def get_legacy_map(
-        self,
-    ) -> list[
-        Blond2Ring
-        | Blond2Beam
-        | Blond2RFStation
-        | Blond2Profile
-        | Blond2TotalInducedVoltage
-        | Blond2RingAndRFTracker
-        | Blond2FullRingAndRF
-    ]:
-        """Intended to give a BLonD2 compatible output. Not functional at the moment."""
-        raise NotImplementedError  # pragma: no cover
-        from blond.physics.cavities import (  # prevent cyclic import
-            MultiHarmonicRfStation,
-        )
-        from blond.physics.drifts import DriftBaseClass
-
-        ring_length = self.ring.closed_orbit_length
-        bending_radius = self.ring.bending_radius
-        drift = self.ring.elements.get_element(DriftBaseClass)  # type: ignore
-        alpha_0 = drift.alpha_0
-        synchronous_data = self.magnetic_cycle._synchronous_data
-        synchronous_data_type = self.magnetic_cycle._synchronous_data_type
-        particle = self.beams[0].particle_type
-        #  BLonD legacy Imports
-        from blond.legacy.blond2.beam.beam import Beam
-        from blond.legacy.blond2.beam.profile import CutOptions, Profile
-        from blond.legacy.blond2.impedances.impedance import (
-            TotalInducedVoltage,
-        )
-        from blond.legacy.blond2.input_parameters.rf_parameters import (
-            RFStation,
-        )
-        from blond.legacy.blond2.input_parameters.ring import Ring
-        from blond.legacy.blond2.trackers.tracker import (
-            FullRingAndRF,
-            RingAndRFTracker,
-        )
-
-        ring_blond2 = Ring(
-            ring_length=ring_length,
-            alpha_0=alpha_0,
-            synchronous_data=synchronous_data,
-            synchronous_data_type=synchronous_data_type,
-            particle=particle,
-            bending_radius=bending_radius,
-            n_sections=self.ring.elements.n_cavities,
-            alpha_1=getattr(drift, "alpha_1", None),
-            alpha_2=getattr(drift, "alpha_2", None),
-            ring_options=None,
-        )
-        beam_blond2 = Beam(
-            ring=ring_blond2,
-            n_macroparticles=self.beams[0]._n_macroparticles__init,
-            intensity=self.beams[0]._intensity__init,
-        )
-        # todo handle multiple RF stations
-        cavity_blond3: SingleHarmonicRfStation | MultiHarmonicRfStation = (
-            self.ring.elements.get_element(RfStationBaseClass)
-        )
-        # FIXME
-        rf_station = RFStation(
-            ring=ring_blond2,
-            harmonic=cavity_blond3.rf_program.harmonics,  # type: ignore # FIXME
-            voltage=cavity_blond3.rf_program.effective_voltages,  # type: ignore # FIXME
-            phi_rf_d=cavity_blond3.rf_program.phases,  # type: ignore # FIXME
-            n_rf=len(cavity_blond3.rf_program.phases),  # type: ignore # FIXME
-            section_index=0,
-            omega_rf=cavity_blond3.rf_program.omegas_rf,  # type: ignore # FIXME
-            phi_noise=cavity_blond3.rf_program.phase_noise,  # type: ignore # FIXME
-            phi_modulation=cavity_blond3.rf_program.phase_modulation,  # type: ignore # FIXME
-            rf_station_options=None,
-        )
-        profile_blond3 = self.ring.elements.get_element(ProfileBaseClass)
-        profile_blond2 = Profile(
-            beam=beam_blond2,
-            cut_options=CutOptions(
-                cut_left=profile_blond3.cut_left,
-                cut_right=profile_blond3.cut_right,
-                n_slices=profile_blond3.n_bins,
-            ),
-            fit_options=None,
-            filter_options=None,
-        )
-        total_induced_voltage = TotalInducedVoltage(
-            beam=beam_blond2, profile=profile_blond2, induced_voltage_list=None
-        )
-        ring_rf_tracker = RingAndRFTracker(
-            rf_station=rf_station,
-            beam=beam_blond2,
-            solver=None,  # todo
-            beam_feedback=None,  # todo as feature for blond3
-            noise_feedback=None,  # todo as feature for blond3
-            cavity_feedback=None,  # todo as feature for blond3
-            periodicity=False,  # todo as feature for blond3
-            # interpolation=None,
-            profile=profile_blond2,
-            total_induced_voltage=total_induced_voltage,
-        )
-        full_ring = FullRingAndRF(ring_and_rf_section=ring_rf_tracker)
-        return [
-            ring_blond2,
-            beam_blond2,
-            rf_station,
-            profile_blond2,
-            total_induced_voltage,
-            ring_rf_tracker,
-            full_ring,
-        ]
 
     def _run_simulation_counterrotating_beam(
         self,
         beams: tuple[BeamBaseClass, BeamBaseClass],
         n_turns: int,
         turn_i_init: int = 0,
-        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
+        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
         callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
     ) -> None:
@@ -1399,7 +1289,15 @@ class Simulation(Preparable):
             that is called each turn.
 
         """
-        warn("Untested code", NotTestedWarning, stacklevel=1)
+        warn("Untested code", NotTestedWarning, stacklevel=2)
+
+        if callback is not None:
+            warn(
+                "Callbacks are currently not supported for simulations"
+                " with counter-rotating beams.",
+                UserWarning,
+                stacklevel=2,
+            )
 
         logger.info("Starting simulation mainloop...")
         iterator = range(turn_i_init, turn_i_init + n_turns)
@@ -1408,6 +1306,11 @@ class Simulation(Preparable):
         self.turn_i.value = 0
 
         num_elements = len(self._ring.elements.elements)
+
+        for observable in observe:
+            observable.update(
+                simulation=self,
+            )
 
         for turn_i in iterator:
             for element_ind, element in enumerate(
@@ -1425,23 +1328,18 @@ class Simulation(Preparable):
                     turn_i=self.turn_i.value
                 ):
                     element_counterrot.track(beams[1])
-                if isinstance(
-                    element_counterrot, DriftBaseClass
-                ):  # only observe after drifts
-                    for observable in observe:
-                        if observable.is_active_this_turn(
-                            turn_i=self.turn_i.value
-                        ):
-                            observable.update(
-                                simulation=self,
-                            )
+            for observable in observe:
+                if observable.is_active_this_turn(turn_i=self.turn_i.value):
+                    observable.update(
+                        simulation=self,
+                    )
         # reset counters to uninitialized again
         self.turn_i.value = None
         self.section_i.value = None
 
     def save_results(
         self,
-        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
+        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         common_name: str | None = None,
     ) -> None:
         """Save observable data to disk for later analysis.
@@ -1468,6 +1366,9 @@ class Simulation(Preparable):
         --------
         Save results after a simulation:
 
+        >>> from blond import Simulation, Beam
+        >>> sim = Simulation(...)
+        >>> beam1 = Beam(...)
         >>> # Run simulation with observables
         >>> sim.run_simulation(
         ...     beams=(beam1,),
@@ -1480,6 +1381,10 @@ class Simulation(Preparable):
 
         Save with a custom name prefix:
 
+
+        >>> from blond import Simulation
+        >>> sim = Simulation(...)
+        >>> sim.run_simulation(observe=(phase_obs, beam_obs), ...)
         >>> sim.save_results(
         ...     observe=(phase_obs, beam_obs),
         ...     common_name="simulation_450GeV_1000turns"
@@ -1506,7 +1411,7 @@ class Simulation(Preparable):
         beams: tuple[BeamBaseClass],
         n_turns: int | None = None,
         turn_i_init: int = 0,
-        observe: tuple[ObservablesEndOfTurnBase, ...] = (),
+        observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         common_name: str | None = None,
     ) -> None:
         """Load previously saved observable data from disk.
@@ -1548,7 +1453,7 @@ class Simulation(Preparable):
         Load previously saved results:
 
         >>> # Create observables (same as before)
-        >>> phase_obs = CavityPhaseObservation(each_turn_i=1, cavity=rf_station1)
+        >>> phase_obs = RfStationPhaseObservation(each_turn_i=1, rf_station=rf_station1)
         >>> beam_obs = BeamObservationEndOfTurn(each_turn_i=1, beam=beam1)
         >>>
         >>> # Load the saved data

@@ -23,6 +23,7 @@ from blond.core.backends.backend import Specials
 from blond.core.backends.python.callables import (
     _move_flagged_elements_to_end_py,
 )
+from blond.core.beam.base import BeamFlags
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -57,7 +58,7 @@ def enforce_precision(dtype):
 
 
 @cache  # or set a limit like maxsize=128
-def recompile_numba_backend(  # NOQA PLR0915 # ruff: noqa: D102
+def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
     floattype: type[np.float32 | np.float64],
 ):
     """Helper to recompile `NumbaSpecials` when the backend changed.
@@ -217,9 +218,25 @@ def recompile_numba_backend(  # NOQA PLR0915 # ruff: noqa: D102
         sig_ids,
     )
 
+    sig_top = nb_f
+    sig_bottom = nb_f
+    sig_left = nb_f
+    sig_right = nb_f
+
+    sig_loss_box = (
+        sig_top,
+        sig_bottom,
+        sig_left,
+        sig_right,
+        sig_dt,
+        sig_dE,
+        sig_flags,
+    )
+
     _move_flagged_elements_to_end_nb = njit(sig_move_flagged_elements_to_end)(
         _move_flagged_elements_to_end_py
     )
+    _lost = BeamFlags.LOST.value
 
     class NumbaSpecials(Specials):  # pragma: no cover
         @staticmethod
@@ -299,10 +316,30 @@ def recompile_numba_backend(  # NOQA PLR0915 # ruff: noqa: D102
 
         @staticmethod
         @enforce_precision(floattype)
+        @njit(
+            sig_loss_box,
+            parallel=True,
+            fastmath=True,
+            cache=True,
+        )
         def loss_box(
-            top: float, bottom: float, left: float, right: float
+            top: np.float32 | np.float64,
+            bottom: np.float32 | np.float64,
+            left: np.float32 | np.float64,
+            right: np.float32 | np.float64,
+            dt: NumpyArray,
+            dE: NumpyArray,
+            flags: NumpyArray,
         ) -> None:
-            pass
+            for i in prange(len(dt)):
+                select = (
+                    (dE[i] > top)
+                    | (dE[i] < bottom)
+                    | (dt[i] < left)
+                    | (dt[i] > right)
+                )
+                if select:
+                    flags[i] = _lost
 
         @staticmethod
         @enforce_precision(floattype)
