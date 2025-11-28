@@ -131,6 +131,16 @@ class TestProfileBaseClass(unittest.TestCase):
         expected = backend.sqrt(variance)
         self.assertAlmostEqual(result, expected)
 
+    def test_singlebunch_gauss_fit(self): 
+        result = self.singlebunch_gauss_fit()
+        expected = gauss_fit(self.profile_base_class.hist_x, self.profile_base_class.hist_y)
+        self.assertAlmostEqual(result, expected)
+    
+    def test_multibunch_gauss_fit(self):
+        result = self.multibunch_gauss_fit(n_bunches =1)
+        expected = multi_gauss_fit(self.profile_base_class.hist_x, self.profile_base_class.hist_y, n_bunches =1)
+        self.assertAlmostEqual(result, expected)
+
 
 class TestStaticProfile(unittest.TestCase):
     def setUp(self):
