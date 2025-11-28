@@ -224,7 +224,7 @@ class TestSpecials(unittest.TestCase):
         self.alpha_2 = backend.float(1.0)
         self.beta = backend.float(0.9)
         self.energy = backend.float(10)
-        self.alpha_order = np.int32(0.3)
+        self.alpha_order = np.int32(3)
         self.eta_0 = backend.float(0.3)
         self.eta_1 = backend.float(0.3)
         self.eta_2 = backend.float(0.3)
