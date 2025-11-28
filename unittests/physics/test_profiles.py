@@ -125,12 +125,12 @@ class TestProfileBaseClass(unittest.TestCase):
         variance = backend.average((self.profile_base_class.hist_x - average) ** 2,
                                    weights=(self.profile_base_class.hist_y))
         expected = backend.sqrt(variance)
-        np.testing.assert_almost_equal(result, expected)
+        self.assertAlmostEqual(result, expected)
 
     def test_singlebunch_gauss_fit(self):
         result = self.profile_base_class.singlebunch_gauss_fit()
         expected = gauss_fit(self.profile_base_class.hist_x, self.profile_base_class.hist_y)
-        self.assertAlmostEqual(result, expected)
+        np.testing.assert_almost_equal(result, expected)
 
     def test_multibunch_gauss_fit(self):
         result = self.profile_base_class.multibunch_gauss_fit(n_bunches =1)
