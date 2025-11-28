@@ -15,11 +15,11 @@ from blond import Beam, backend, uranium_29
 from blond.physics.profiles import (
     DynamicProfileConstCutoff,
     DynamicProfileConstNBins,
+    ProfileBaseClass,
+    StaticProfile,
     gauss,
     gauss_fit,
     multi_gauss_fit,
-    ProfileBaseClass,
-    StaticProfile,
 )
 
 
@@ -127,11 +127,11 @@ class TestProfileBaseClass(unittest.TestCase):
         expected = backend.sqrt(variance)
         self.assertAlmostEqual(result, expected)
 
-    def test_singlebunch_gauss_fit(self): 
+    def test_singlebunch_gauss_fit(self):
         result = self.singlebunch_gauss_fit()
         expected = gauss_fit(self.profile_base_class.hist_x, self.profile_base_class.hist_y)
         self.assertAlmostEqual(result, expected)
-    
+
     def test_multibunch_gauss_fit(self):
         result = self.multibunch_gauss_fit(n_bunches =1)
         expected = multi_gauss_fit(self.profile_base_class.hist_x, self.profile_base_class.hist_y, n_bunches =1)
@@ -239,6 +239,7 @@ class TestDynamicProfileConstNBins(unittest.TestCase):
             self.dynamic_profile_const_cutoff.hist_y,
         )
 
+
 def test_gauss_fit():
     x = np.arange(-4,4,0.001)
     p = [0.4,0,1]
@@ -257,7 +258,6 @@ def test_multi_gauss_fit():
     x = np.arange(-4,12,0.001)
     p = np.array([[0.4,0,1],
             [0.4,8,1]])
-
 
     gauss_test = norm.pdf(x, p[0,1], p[0,2]) +  norm.pdf(x, p[1,1], p[1,2])
 
