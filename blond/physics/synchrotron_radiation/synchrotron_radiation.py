@@ -57,6 +57,8 @@ if TYPE_CHECKING:
     from blond.physics.drifts import DriftBaseClass
 
 
+# TODO allow schedulable synchrotron radiation integrals in the master (e.g.
+# tapering)
 class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
     """
     Master class for handling synchrotron radiation along the ring.
@@ -73,8 +75,7 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
             is_iso = "isomagnetic"
         return (
             f"Synchrotron radiation master class set up for the {is_iso}"
-            f" ring {self._simulation.ring.name}. Simulation "
-            f"{self._simulation.name} currently set for turn "
+            f" ring. Simulation currently set for turn "
             f"{self._turn_i}."
         )
 
@@ -214,9 +215,13 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        self._simulation = simulation
-        self.init_synchrotron_radiation_integrals_ring()
+        """
+        Lateinit method when `simulation.__init__` is called.
 
+        simulation
+            `Simulation` context manager
+        """
+        self._simulation = simulation
         self._turn_i = simulation.turn_i
         self._magnetic_cycle = simulation.magnetic_cycle
         self._ring = simulation.ring
@@ -231,16 +236,33 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
+        """
+        Lateinit method when `simulation.run_simulation` is called.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager
+        beam
+            Simulation `Beam` object
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
         if self.get_synchrotron_radiation_info_turn_by_turn:
             self._energy_loss_per_turn = np.empty(n_turns)
             self._longitudinal_damping_time = np.empty(n_turns)
             self._natural_energy_spread = np.empty(n_turns)
-        pass
 
     def track(self, beam: BeamBaseClass) -> None:
-        self.update_synchrotron_radiation_integrals()
-        # Updates the SRI to be implemented in all children classes
+        """Main simulation routine to be called in the mainloop.
 
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element
+        """
         # Get the turn-by-turn data if requested, from the synchrotron
         # radiation integrals
         # TODO create observable
@@ -268,12 +290,3 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
             )
         else:
             pass
-
-    def init_synchrotron_radiation_integrals_ring(self):
-        """
-
-        Returns
-        -------
-
-        """
-        pass
