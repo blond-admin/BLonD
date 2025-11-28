@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """Example of user interfacing with BLonD."""
 
 # pragma: no cover
@@ -12,9 +20,9 @@ from blond import (
     WakeField,
     proton,
 )
-from blond._core.backends.backend import backend
-from blond._core.beam.beams import Beam
-from blond._core.ring.ring import Ring
+from blond.core.backends.backend import backend
+from blond.core.beam.beams import Beam
+from blond.core.ring.ring import Ring
 from blond.cycles.magnetic_cycle import MagneticCycleBase, MagneticCyclePerTurn
 from blond.physics.cavities import MultiHarmonicRfStation
 from blond.physics.impedances.solvers import InductiveImpedanceSolver
@@ -26,47 +34,37 @@ class Main:
 
     @staticmethod
     def describe_accelerator() -> tuple[Ring, MagneticCyclePerTurn, Beam]:
-        """Describes the hardware that is simulated within the :class:`blond._core.ring.ring.Ring`."""
+        """Describes the hardware that is simulated within the :class:`blond.core.ring.ring.Ring`."""
         # Description of accelerator
-        my_ring = Ring(circumference=20)
+        my_ring = Ring(circumference=6912)
 
         profile1 = StaticProfile(cut_left=0, cut_right=1, n_bins=128)
-        cavity = MultiHarmonicRfStation(
-            n_harmonics=10,
+        rf_station = MultiHarmonicRfStation(
+            voltage=backend.array([6e6, 2e6]),
+            phi_rf=backend.array([0, 0]),
+            harmonic=backend.array([4620, 4 * 4620]),
+            n_harmonics=2,
             main_harmonic_idx=0,
         )
-        cavity.voltage = 1e3 * backend.ones(10)  # TODO
-        # should
-        # be
-        # reasonable
-        # value
-        cavity.phi_rf = 0 * backend.ones(10)  # TODO
-        # should be
-        # reasonable
-        # value
-        cavity.harmonic = backend.ones(10)  # TODO
-        # should be
-        # reasonable
-        # value
         one_turn_execution_order = (
             DriftSimple(
-                orbit_length=0.4 * my_ring.circumference, transition_gamma=11
+                orbit_length=1.0 * my_ring.circumference, transition_gamma=21
             ),
-            cavity,
+            rf_station,
             WakeField(
                 sources=(InductiveImpedance(34.6669349520904 / 10e9),),
                 solver=InductiveImpedanceSolver(),
             ),
             profile1,
-            # LocalFeedback(cavity1, profile1),
+            # LocalFeedback(rf_station, profile1),
             # GlobalFeedback(profile1),
             # DriftXSuite(orbit_length=0.1 * my_ring.circumference), # TODO
         )
 
         my_cycle = MagneticCyclePerTurn(
             reference_particle=proton,
-            values_after_turn=np.linspace(1e9, 3e9, 110),
-            value_init=1e9,
+            values_after_turn=np.linspace(25e9, 30e9, 110),
+            value_init=25e9,
         )
 
         my_beam = Beam(
@@ -84,7 +82,7 @@ class Main:
         my_cycle: MagneticCycleBase,
         my_beam: Beam,
     ) -> tuple:
-        """Assembles the :class:`blond._core.simulation.simulation.Simulation` object. and matches the beam.
+        """Assembles the :class:`blond.core.simulation.simulation.Simulation` object. and matches the beam.
 
         Parameters
         ----------

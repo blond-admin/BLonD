@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """Functions needed for :class:`~blond.blond.beam_preparation.bigaussian.BiGaussian`.
 
 Authors
@@ -11,18 +19,18 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from .._core.backends.backend import backend
-from .._core.helpers import int_from_float_with_warning
-from .._generals._iterables import all_equal
-from ..acc_math.analytic.hamilton import (
+from blond.acc_math.analytic.hamilton import (
     calc_phi_s_single_harmonic,
     is_in_separatrix,
 )
-from .base import MatchingRoutine
+from blond.beam_preparation.base import MatchingRoutine
+from blond.core.backends.backend import backend
+from blond.core.helpers import int_from_float_with_warning
+from blond.generals.iterables_ import all_equal
 
 if TYPE_CHECKING:  # pragma: no cover
-    from .._core.beam.base import BeamBaseClass
-    from .._core.simulation.simulation import Simulation
+    from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
 
 
 def _get_dE_from_dt_core(
@@ -62,20 +70,16 @@ def _get_dE_from_dt(
 
     Returns
     -------
+    beam : BeamBaseClass
+        The `Beam` object which state will be updated by this element.
     dE_amplitude : float
         Full amplitude of the particle oscillation, in [eV]
 
     """
-    from ..physics.drifts import DriftSimple
+    from blond.physics.drifts import DriftSimple
 
     drifts = simulation.ring.elements.get_elements(DriftSimple)
-    above_transition = [
-        beam.reference_gamma > drift.transition_gamma for drift in drifts
-    ]
-    assert all_equal(above_transition), (
-        f"expected all `above_transition` to be equal, but got {above_transition}"
-    )
-    above_transition = above_transition[0]
+    above_transition = not simulation.ring.is_below_transition(beam=beam)
 
     harmonic, omega_rf, phi_rf, voltage = get_main_harmonic_attributes(
         beam=beam,
@@ -121,14 +125,14 @@ def _get_dE_from_dt(
 def get_main_harmonic_attributes(
     beam: BeamBaseClass, simulation: Simulation
 ) -> tuple[float, float, float, float]:
-    """Relevant main harmonic attributes of all RF stations in :class:`~blond._core.ring.ring.Ring`.
+    """Relevant main harmonic attributes of all RF stations in :class:`~blond.core.ring.ring.Ring`.
 
     Parameters
     ----------
-    simulation
-        Simulation context manager
     beam
-        Simulation :class:`~blond._core.beam.beam.Beam` object
+        Simulation :class:`~blond.core.beam.beam.Beam` object
+    simulation
+        `Simulation` context manager
 
     Returns
     -------
@@ -143,8 +147,8 @@ def get_main_harmonic_attributes(
 
     """
     # TODO move this into ring.
-    from .. import MultiHarmonicRfStation
-    from ..physics.cavities import SingleHarmonicRfStation
+    from blond import MultiHarmonicRfStation
+    from blond.physics.cavities import SingleHarmonicRfStation
 
     rf_stations = simulation.ring.elements.get_elements(
         SingleHarmonicRfStation
@@ -156,7 +160,7 @@ def get_main_harmonic_attributes(
         )
     # omega_rf should be all same
     omega_rf = [
-        rf.get_main_harmonic_omega_rf(
+        rf.calc_main_harmonic_omega_rf(
             beam_beta=beam.reference_beta,
             ring_circumference=simulation.ring.circumference,
         )
@@ -206,23 +210,23 @@ class BiGaussian(MatchingRoutine):
         Number of macroparticles to be generated
     sigma_dt
         Normal distribution length, in [s].
-            Effective `sigma_dt` might be smaller, if `reinsertion=True `
-        sigma_dE
-            Normal distribution height, in [eV].
-            Effective `sigma_dE` might be smaller, if `reinsertion=True `
-        reinsertion
-            If True, only particles within the separatrix are generated.
-            This affects the effective `sigma_dt` and `sigma_dE`
-        seed
-            Random seed parameter
+        Effective `sigma_dt` might be smaller, if `reinsertion=True`
+    sigma_dE
+        Normal distribution height, in [eV].
+        Effective `sigma_dE` might be smaller, if `reinsertion=True`
+    reinsertion
+        If True, only particles within the separatrix are generated.
+        This affects the effective `sigma_dt` and `sigma_dE`
+    seed
+        Random seed parameter
 
     Examples
     --------
-        >>> simulation = Simulation( ... )
-        >>> simulation.prepare_beam(
-        >>>     beam= ... ,
-        >>>     preparation_routine=BiGaussian( ... ),
-        >>> )
+    >>> simulation = Simulation( ... )
+    >>> simulation.prepare_beam(
+    >>>     beam= ... ,
+    >>>     preparation_routine=BiGaussian( ... ),
+    >>> )
     """
 
     def __init__(
@@ -252,24 +256,24 @@ class BiGaussian(MatchingRoutine):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
+        beam
+            Simulation :class:`~blond.core.beam.beam.Beam` object
         """
-        from ..physics.drifts import DriftSimple
+        from blond.physics.drifts import DriftSimple
 
         super().prepare_beam(
             simulation=simulation,
             beam=beam,
         )
-        above_transition = (
-            beam.reference_gamma > simulation.ring.average_transition_gamma
-        )
+        above_transition = not simulation.ring.is_below_transition(beam=beam)
         harmonic, omega_rf, phi_rf, voltage = get_main_harmonic_attributes(
             beam=beam,
             simulation=simulation,
         )
 
-        drifts: DriftSimple = simulation.ring.elements.get_elements(
-            DriftSimple
+        drifts: tuple[DriftSimple, ...] = (
+            simulation.ring.elements.get_elements(DriftSimple)
         )
         for _drift in drifts:
             _drift.apply_schedules(

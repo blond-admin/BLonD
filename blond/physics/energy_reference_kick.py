@@ -1,15 +1,23 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """Gives a kick to the beam to update its reference energy."""
 
 from typing import TYPE_CHECKING
 
-from .._core.backends.backend import backend
-from .._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
-from .._core.beam.base import BeamBaseClass
-from .._core.simulation.simulation import Simulation
-from ..cycles.magnetic_cycle import MagneticCycleBase, MagneticCycleByTime
+from blond.core.backends.backend import backend
+from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
+from blond.core.beam.base import BeamBaseClass
+from blond.core.simulation.simulation import Simulation
+from blond.cycles.magnetic_cycle import MagneticCycleBase, MagneticCycleByTime
 
 if TYPE_CHECKING:  # pragma: no cover
-    from .. import Ring
+    from blond import Ring
 
 
 class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
@@ -36,7 +44,8 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
     _ring:
          Reference to the ring being simulated.
 
-    Example:
+    Example
+    -------
         >>> elem = ReferenceEnergyChange(section_index=1, name="energy_reference_kick")
         >>> # Add to element map before simulation
     """
@@ -61,7 +70,7 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(simulation=simulation)
         self._turn_i = simulation.turn_i
@@ -83,7 +92,7 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
         """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation beam object
         n_turns

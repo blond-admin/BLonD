@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 from __future__ import annotations
 
 import math
@@ -14,8 +22,8 @@ from blond.experimental.beam_preparation.bucket_filler_functions import (
     hamilton_to_density_by_max,
 )
 
-from ..._core.helpers import int_from_float_with_warning
-from .helpers import populate_beam
+from blond.core.helpers import int_from_float_with_warning
+from blond.experimental.beam_preparation.helpers import populate_beam
 
 # Oversampling factor for potential well calculation
 _POTENTIAL_WELL_OVERSAMPLING = 10
@@ -29,7 +37,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond import (
         Simulation,
     )
-    from blond._core.beam.base import BeamBaseClass
+    from blond.core.beam.base import BeamBaseClass
 
 
 def get_hamilton_semi_analytic(
@@ -131,8 +139,7 @@ def get_hamilton_semi_analytic(
 
 
 class SemiEmpiricMatcher(MatchingRoutine):
-    """
-    Match a distribution to ``potential_well_empiric`` using an analytic drift term.
+    r"""Match a distribution to ``potential_well_empiric`` using an analytic drift term.
 
     This function matches a beam distribution to the empirically determined potential well,
     including an analytic drift term. The process iteratively adjusts the distribution until
@@ -150,7 +157,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         For the default function, the following keys may be used:
 
         - ``density_modifier`` : float
-          Exponent that shapes the density distribution according to :math:`H^{\text{density\_modifier}}`.
+          Exponent that shapes the density distribution according to :math:`H^{\text{density_modifier}}`.
         - ``hamilton_max`` : float
           Maximum value of the Hamiltonian, in arbitrary units.
     hamilton_to_density_function : callable
@@ -211,7 +218,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             )
         )
 
-        self.internal_grid_shape = internal_grid_shape
+        self.internal_grid_shape: Tuple[int, int] = internal_grid_shape
         self.seed = (
             int_from_float_with_warning(
                 seed,
@@ -220,7 +227,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             if seed is not None
             else None
         )
-        self.time_limit = time_limit
+        self.time_limit: Tuple[float, float] = time_limit
         assert callable(hamilton_to_density_function)
         self.hamilton_to_density_function = hamilton_to_density_function
         self.hamilton_to_density_kwargs = hamilton_to_density_kwargs
@@ -242,7 +249,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation beam object
         """
@@ -379,7 +386,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         beam
             Simulation beam object
         simulation
-            Simulation context manager
+            `Simulation` context manager
         ts
             Time coordinate, in [s] for observation of the potential well.
         """

@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """Collection of abstract classes to handle the calculation of wake potentials.
 
 Authors
@@ -10,9 +18,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from ..._core.backends.backend import backend
-from ..._core.base import BeamPhysicsRelevant
-from ..._core.ring.helpers import requires
+from blond.core.backends.backend import backend
+from blond.core.base import BeamPhysicsRelevant
+from blond.core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -20,9 +28,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
-    from ..._core.beam.base import BeamBaseClass
-    from ..._core.simulation.simulation import Simulation
-    from ..profiles import ProfileBaseClass
+    from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
+    from blond.physics.profiles import ProfileBaseClass
 
 
 class WakeFieldSolver:
@@ -37,7 +45,7 @@ class WakeFieldSolver:
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         parent_wakefield
             Wakefield that this solver affiliated to
         """
@@ -70,7 +78,7 @@ class WakeFieldSource(ABC):
 
 
 class TimeDomain(ABC):
-    """Indication of a source is defined in time or frequency domain."""
+    """Indication of a source is defined in time domain."""
 
     @abstractmethod  # pragma: no cover
     def get_wake_impedance(
@@ -90,6 +98,70 @@ class TimeDomain(ABC):
             Simulation object containing turn index and RF info.
         beam
             Simulation `Beam` object
+        n_fft
+            number of points to be used in the fft
+
+        Returns
+        -------
+        wake_impedance
+
+        """
+        pass
+
+
+class TimeDomainCounterRotation(ABC):
+    """Indication of a source, which has a defined wakefield for the counterrotating case."""
+
+    @abstractmethod  # pragma: no cover
+    def get_wake(
+        self, time: NumpyArray
+    ) -> NumpyArray:  # TODO: this function should be moved to TimeDomain
+        """Get wake potential equivalent to the partial wake in time domain.
+
+        Parameters
+        ----------
+        time : NumpyArray
+            time array at which the wake is calculated [V]
+        """
+        pass
+
+    @abstractmethod  # pragma: no cover
+    def get_wake_counter_rotation(self, time: NumpyArray) -> NumpyArray:
+        """Get wake potential equivalent to the partial wake in time domain for the counter-rotating case.
+
+        Parameters
+        ----------
+        time : NumpyArray
+            time array at which the wake is calculated, in [s]
+
+        Returns
+        -------
+        wake_potential: NumpyArray
+            potential array, in [V]
+
+        """
+        pass
+
+    @abstractmethod  # pragma: no cover
+    def get_wake_impedance_counter_rotation(
+        self,
+        time: NumpyArray,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_fft: int,
+    ) -> NumpyArray:
+        """Get impedance equivalent to the partial wake in time domain for the counter-rotating case.
+
+        Parameters
+        ----------
+        time
+            Time array to get wake, in [s]
+        simulation : Simulation
+            Simulation object containing turn index and RF info.
+        beam
+            Simulation `Beam` object
+        n_fft
+            number of points used in the fft
 
         Returns
         -------
@@ -100,7 +172,7 @@ class TimeDomain(ABC):
 
 
 class FreqDomain(ABC):
-    """Indication of a source is defined in time or frequency domain."""
+    """Indication of a source is defined in frequency domain."""
 
     @abstractmethod  # pragma: no cover
     def get_impedance(
@@ -126,28 +198,6 @@ class FreqDomain(ABC):
             Complex impedance array.
         """
         pass
-
-
-class AnalyticWakeFieldSource(WakeFieldSource):
-    """Indication on which calculation method a WakeFieldSolver uses.
-
-    Notes
-    -----
-    This is intended for ``isinstance`` checks.
-    """
-
-    pass
-
-
-class DiscreteWakeFieldSource(WakeFieldSource):
-    """Indication on which calculation method a WakeFieldSolver uses.
-
-    Notes
-    -----
-    This is intended for ``isinstance`` checks.
-    """
-
-    pass
 
 
 class ImpedanceBaseClass(BeamPhysicsRelevant):
@@ -195,7 +245,7 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns
@@ -214,9 +264,11 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
-        from ..profiles import ProfileBaseClass  # prevent cyclic import
+        from blond.physics.profiles import (
+            ProfileBaseClass,  # prevent cyclic import
+        )
 
         if self._profile is None:
             profiles = simulation.ring.elements.get_elements(
@@ -253,6 +305,14 @@ class WakeField(ImpedanceBaseClass):
         List of sources that cause wake-fields
     solver
         Solver to calculate the induced voltage from the sources
+
+
+    Examples
+    --------
+    >>> wakefield2 = WakeField(
+    ...     sources=(InductiveImpedance(34.6669349520904 / 10e9),),
+    ...     solver=InductiveImpedanceSolver(),
+    ... )
     """
 
     def __init__(
@@ -262,20 +322,6 @@ class WakeField(ImpedanceBaseClass):
         section_index: int = 0,
         profile: ProfileBaseClass | None = None,
     ):
-        """Manager class to calculate wake-fields.
-
-        Parameters
-        ----------
-        sources
-            List of sources that cause wake-fields
-        solver
-            Solver to calculate the induced voltage from the sources
-        section_index
-            Section index to group elements into sections
-        profile
-            Object for calculation of beam profiles
-
-        """
         super().__init__(section_index=section_index, profile=profile)
 
         self.solver = solver
@@ -302,7 +348,7 @@ class WakeField(ImpedanceBaseClass):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(simulation=simulation)
         assert len(self.sources) > 0, (
@@ -367,6 +413,8 @@ class WakeField(ImpedanceBaseClass):
 
         Parameters
         ----------
+        beam : BeamBaseClass
+            The `Beam` object which state will be updated by this element.
         sources
             List of sources that cause wake-fields
         solver
@@ -389,7 +437,7 @@ class WakeField(ImpedanceBaseClass):
         )
         from unittest.mock import Mock
 
-        from ..._core.simulation.simulation import Simulation
+        from blond.core.simulation.simulation import Simulation
 
         simulation = Mock(Simulation)
         wf.on_init_simulation(simulation=simulation)

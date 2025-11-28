@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """Solvers to calculate the wake potential from impedance sources.
 
 Authors
@@ -20,19 +28,24 @@ import numpy as np
 from scipy.constants import elementary_charge as e
 from scipy.fft import next_fast_len
 
-from ..._core.backends.backend import backend
-from ..._core.base import DynamicParameter
-from ..._core.beam.base import BeamBaseClass
-from ..._core.ring.helpers import requires
-from ..._core.simulation.simulation import Simulation
-from ..._generals._warnings import NotTestedWarning
-from ..profiles import (
+from blond.core.backends.backend import backend
+from blond.core.base import DynamicParameter
+from blond.core.beam.base import BeamBaseClass
+from blond.core.ring.helpers import requires
+from blond.core.simulation.simulation import Simulation
+from blond.generals.warnings_ import NotTestedWarning
+from blond.physics.impedances.base import (
+    FreqDomain,
+    TimeDomain,
+    WakeField,
+    WakeFieldSolver,
+)
+from blond.physics.impedances.sources import InductiveImpedance, Resonators
+from blond.physics.profiles import (
     DynamicProfileConstCutoff,
     DynamicProfileConstNBins,
     StaticProfile,
 )
-from .base import FreqDomain, TimeDomain, WakeField, WakeFieldSolver
-from .sources import InductiveImpedance, Resonators
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
@@ -58,7 +71,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         parent_wakefield
             Wakefield that this solver affiliated to
         """
@@ -129,6 +142,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         If true, reloads internal data on each
         `calc_induced_voltage` for proper updating with
         dynamic parameters
+
     """
 
     def __init__(
@@ -162,7 +176,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         parent_wakefield
             Wakefield that this solver affiliated to
         """
@@ -312,8 +326,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         induced_voltage
             Induced voltage, in [V]
         """
-        if self.expect_profile_change:
-            # always trigger update
+        if self.expect_profile_change:  # dynamic profiles
             self._update_internal_data()  # might cause performance issues :(
         elif self.expect_impedance_change:
             # always trigger update
@@ -400,7 +413,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         parent_wakefield
             Wakefield that this solver affiliated to
         """
@@ -462,7 +475,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
         n_t = (n_fft // 2) + 1
 
         if (self._wake_imp_y is None) or (
-            _wake_x.shape != self._wake_imp_y.shape
+            (n_t,) != self._wake_imp_y.shape  # tuple vs shape-tuple
         ):
             self._wake_imp_y = backend.zeros(n_t, dtype=backend.complex)
         else:
@@ -568,7 +581,7 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         parent_wakefield
             Wakefield that this solver affiliated to
         """
@@ -647,7 +660,8 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
             self._update_potential_sources()
 
         _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
-            beam.intensity / beam.n_macroparticles_partial()
+            beam.intensity
+            * self._parent_wakefield.profile.hist_y_to_density_factor
         )
 
         return _charge_per_macroparticle * np.convolve(
@@ -700,6 +714,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._past_profiles: deque[NumpyArray] = deque()
         self._past_profile_times: deque[NumpyArray] = deque()
         self._past_charge_per_macroparticle: deque[float] = deque()
+        self._past_profiles_counter_rotation_flag: deque[bool] = deque()
 
         self._wake_function_vals: deque[NumpyArray] = deque()
         self._wake_function_time: deque[NumpyArray] = deque()
@@ -733,7 +748,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         parent_wakefield
             Wakefield that this solver affiliated to
         """
@@ -786,6 +801,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 # the time is shifted
                 self._past_profile_times.pop()
                 self._past_profiles.pop()
+                self._past_profiles_counter_rotation_flag.pop()
                 self._wake_function_time.pop()
                 self._wake_function_vals.pop()
             else:
@@ -859,11 +875,21 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 )
             # now that everything is initialized, same operation for all arrays
             for source in self._parent_wakefield.sources:  # TODO: do we ever need multiple resonstors objects in here --> probably not, resonators are defined in the Sources
-                self._wake_function_vals[prof_ind] += source.get_wake(
-                    self._wake_function_time[prof_ind]
+                self._wake_function_vals[prof_ind] += (
+                    source.get_wake_counter_rotation(
+                        self._wake_function_time[prof_ind]
+                    )
+                    if (
+                        self._past_profiles_counter_rotation_flag[prof_ind]
+                        ^ self._past_profiles_counter_rotation_flag[0]
+                    )
+                    else source.get_wake(self._wake_function_time[prof_ind])
                 )
+                # exclusive OR, only if directionality of current profile and past profile differ,
+                # its actually counter-rotating
+                # first one is always corotating, as it's the one of the current turn
 
-    def _update_potential_sources(self, current_time: float = 0) -> None:
+    def _update_potential_sources(self, beam: BeamBaseClass) -> None:
         """Updates `_wake_function_time`  and `_wake_function_vals` arrays.
 
         The time axis is chosen based on
@@ -875,7 +901,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
             simulation time at the moment of calling, default is 0.
 
         """
-        self._update_past_profile_times_wake_times(current_time)
+        self._update_past_profile_times_wake_times(beam.reference_time)
         self._remove_fully_decayed_wake_profiles()
 
         if len(self._past_profiles) != 0:  # ensure same time axis for profiles
@@ -897,6 +923,9 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._past_profiles.appendleft(
             np.copy(self._parent_wakefield.profile.hist_y)
         )
+        self._past_profiles_counter_rotation_flag.appendleft(
+            beam.is_counter_rotating
+        )
 
         self._update_past_profile_wake_functions()
 
@@ -914,10 +943,11 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         beam:
             instance on which the induced voltage is to be calculated, important for reference time
         """
-        self._update_potential_sources(beam.reference_time)
+        self._update_potential_sources(beam)
 
         _charge_per_macroparticle = (-1 * beam.particle_type.charge * e) * (
-            beam.intensity / beam.n_macroparticles_partial()
+            beam.intensity
+            * self._parent_wakefield.profile.hist_y_to_density_factor
         )
         self._past_charge_per_macroparticle.appendleft(
             _charge_per_macroparticle

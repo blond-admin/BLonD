@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """Example input for simulation with RF noise.
 
 Notes
@@ -10,15 +18,6 @@ Helga Timko
 
 """
 # pragma: no cover
-
-# coding: utf8
-# Copyright 2014-2017 CERN. This software is distributed under the
-# terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.md.
-# In applying this licence, CERN does not waive the privileges and immunities
-# granted to it by virtue of its status as an Intergovernmental Organization or
-# submit itself to any jurisdiction.
-# Project website: http://blond.web.cern.ch/
 
 import os
 
@@ -42,14 +41,14 @@ this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 
 def main():
     ring = Ring(circumference=26658.883)
-    cavity1 = SingleHarmonicRfStation()
-    cavity1.voltage = 6e6
-    cavity1.schedule(
+    rf_station_1 = SingleHarmonicRfStation()
+    rf_station_1.voltage = 6e6
+    rf_station_1.schedule(
         attribute="phi_rf",
         value=VariNoise().get_noise(n_turns=200),
         mode="per-turn",
     )
-    cavity1.harmonic = 35640
+    rf_station_1.harmonic = 35640
     energy_cycle = MagneticCyclePerTurn(
         value_init=450.0e9,
         values_after_turn=np.linspace(450.0e9, 450.0e9, 200),

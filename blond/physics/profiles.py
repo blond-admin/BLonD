@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """Collection of implementations to calculate the beam profile.
 
 Authors
@@ -15,9 +23,9 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .._core.backends.backend import backend
-from .._core.base import BeamPhysicsRelevant, HasPropertyCache
-from .._core.helpers import int_from_float_with_warning
+from blond.core.backends.backend import backend
+from blond.core.base import BeamPhysicsRelevant, HasPropertyCache
+from blond.core.helpers import int_from_float_with_warning
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -25,8 +33,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
-    from .._core.beam.base import BeamBaseClass
-    from .._core.simulation.simulation import Simulation
+    from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
 
 
 class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
@@ -64,7 +72,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         pass
 
@@ -80,7 +88,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns
@@ -184,9 +192,9 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         return backend.average(self._hist_x, weights=self._hist_y)
 
     def sigma_weighted_avg_dt(self) -> float:
-        """Bunch length (1σ), in [s].
+        r"""Bunch length (:math:`1 \sigma`), in [s].
 
-        Calculates the 1-σ bunch length by
+        Calculates the :math:`1 \sigma` bunch length by
         determining the std about the weighted average
         calculated as in `weighted_avg_dt`.
         """
@@ -257,16 +265,6 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
     def cutoff_frequency(self) -> float:
         """Cutoff frequency if the profile is fourier transformed, in [Hz]."""
         return 1 / (2 * self.hist_step)
-
-    def _calc_gauss(self) -> None:
-        """Gaussian fit for the beam profile."""
-        raise NotImplementedError
-
-    @cached_property
-    def gauss_fit_params(self) -> None:
-        """Gaussian fit for the beam profile."""
-        raise NotImplementedError
-        return self._calc_gauss()
 
     def beam_spectrum(self, n_fft: int | None) -> NumpyArray:
         """Calculate fourier transform of the profile."""
@@ -449,7 +447,7 @@ class DynamicProfile(ProfileBaseClass):
         """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns

@@ -1,13 +1,23 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ...beam_feedback import Blond2BeamFeedback
+from blond.experimental.physics.feedbacks.beam_feedback import (
+    Blond2BeamFeedback,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
-    from blond._core.beam.base import BeamBaseClass
+    from blond.core.beam.base import BeamBaseClass
     from blond.physics.profiles import ProfileBaseClass
 
 
@@ -40,10 +50,10 @@ class LhcBeamFeedback(Blond2BeamFeedback):
 
         if self.gain2 != 0:
             #: | *LHC Synchronisation loop coefficient [1]*
-            self.lhc_a = 5.25 - self._parent_cavity.omega_s0 / (np.pi * 40.0)
+            self.lhc_a = 5.25 - self._parent_rf_station.omega_s0 / (np.pi * 40.0)
             #: | *LHC Synchronisation loop time constant [turns]*
             self.lhc_t = (
-                2 * np.pi * self._parent_cavity.Q_s * np.sqrt(self.lhc_a)
+                                 2 * np.pi * self._parent_rf_station.Q_s * np.sqrt(self.lhc_a)
             ) / np.sqrt(
                 1
                 + self.gain
@@ -52,8 +62,8 @@ class LhcBeamFeedback(Blond2BeamFeedback):
             )
 
         else:
-            self.lhc_a = np.zeros(self._parent_cavity.n_turns + 1)
-            self.lhc_t = np.zeros(self._parent_cavity.n_turns + 1)
+            self.lhc_a = np.zeros(self._parent_rf_station.n_turns + 1)
+            self.lhc_t = np.zeros(self._parent_rf_station.n_turns + 1)
 
     def track(self, beam: BeamBaseClass) -> None:
         """Calculation of the LHC RF frequency correction from the phase difference
@@ -87,7 +97,7 @@ class LhcBeamFeedback(Blond2BeamFeedback):
         self.update_domega_rf(beam=beam)
 
     def update_domega_rf(self, beam: BeamBaseClass) -> None:
-        dphi_rf = self._parent_cavity.delta_phi_rf[0]
+        dphi_rf = self._parent_rf_station.delta_phi_rf[0]
         self.update_phi_beam()
         self.update_dphi(beam=beam)
         # Frequency correction from phase loop and synchro loop
@@ -148,5 +158,5 @@ class LhcFBeamFeedback(Blond2BeamFeedback):
 
         # Frequency correction from phase loop and frequency loop
         self.domega_rf = -self.gain * self.dphi - self.gain2 * (
-            self._parent_cavity.delta_omega_rf[0] + self.reference
+                self._parent_rf_station.delta_omega_rf[0] + self.reference
         )

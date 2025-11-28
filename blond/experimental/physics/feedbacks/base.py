@@ -1,14 +1,22 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 from __future__ import annotations
 
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-from blond._core.base import BeamPhysicsRelevant
-from blond._core.ring.helpers import requires
+from blond.core.base import BeamPhysicsRelevant
+from blond.core.ring.helpers import requires
 
 if TYPE_CHECKING:  # pragma: no cover
-    from blond._core.beam.base import BeamBaseClass
-    from blond._core.simulation.simulation import Simulation
+    from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
     from blond.physics.cavities import (
         MultiHarmonicRfStation,
         RfStationBaseClass,
@@ -37,16 +45,16 @@ class LocalFeedback(FeedbackBaseClass):
             section_index=section_index,
             name=name,
         )
-        self._parent_cavity: (
+        self._parent_rf_station: (
                 SingleHarmonicRfStation | MultiHarmonicRfStation | None
         ) = None
         self.profile = profile
 
-    def set_parent_cavity(self, cavity: RfStationBaseClass):
-        assert self._parent_cavity is None, (
+    def set_parent_rf_station(self, rf_station: RfStationBaseClass):
+        assert self._parent_rf_station is None, (
             "This feedback has already one owner!"
         )
-        self._parent_cavity = cavity
+        self._parent_rf_station = rf_station
 
     @abstractmethod  # pragma: no cover
     def track(self, beam: BeamBaseClass) -> None:
@@ -80,12 +88,12 @@ class GlobalFeedback(FeedbackBaseClass):
 
     # Use `requires` to automatically sort execution order of
     # `element.on_init_simulation` for all elements
-    @requires(["SingleHarmonicCavity"])
+    @requires(["SingleHarmonicRfStation"])
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         self.cavities = simulation.ring.elements.get_elements(
             SingleHarmonicRfStation

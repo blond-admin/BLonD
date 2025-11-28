@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 from __future__ import annotations
 
 from abc import abstractmethod
@@ -6,10 +14,13 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond import StaticProfile
-from blond._core.helpers import int_from_float_with_warning
-
-from .base import LocalFeedback
-from .helpers import cartesian_to_polar, polar_to_cartesian, rf_beam_current
+from blond.core.helpers import int_from_float_with_warning
+from blond.experimental.physics.feedbacks.base import LocalFeedback
+from blond.experimental.physics.feedbacks.helpers import (
+    cartesian_to_polar,
+    polar_to_cartesian,
+    rf_beam_current,
+)
 
 if TYPE_CHECKING:
     from typing import Any
@@ -18,7 +29,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
 
     from blond import Simulation
-    from blond._core.beam.base import BeamBaseClass
+    from blond.core.beam.base import BeamBaseClass
     from blond.physics.cavities import MultiHarmonicRfStation
 
 # TODO rewrite all docstrings
@@ -96,12 +107,12 @@ class BirksCavityFeedback(LocalFeedback):
     # TODO docstring
 
     # TODO remove after development
-    _parent_cavity: MultiHarmonicRfStation
+    _parent_rf_station: MultiHarmonicRfStation
     profile: StaticProfile
 
     def __init__(
         self,
-        _parent_cavity: MultiHarmonicRfStation,
+        _parent_rf_station: MultiHarmonicRfStation,
         profile: StaticProfile,
         n_cavities: int,
         n_periods_coarse: int,
@@ -135,7 +146,7 @@ class BirksCavityFeedback(LocalFeedback):
             section_index=section_index,
             name=name,
         )
-        self.set_parent_cavity(cavity=_parent_cavity)
+        self.set_parent_rf_station(rf_station=_parent_rf_station)
         # Number of cavities the feedback is working on
         assert n_cavities > 0, f"{n_cavities=}, but must be bigger 0."
         self.n_cavities = int_from_float_with_warning(
@@ -151,7 +162,7 @@ class BirksCavityFeedback(LocalFeedback):
             harmonic_index,
             warning_stacklevel=2,
         )
-        if self.harmonic_index > self._parent_cavity.n_rf - 1:
+        if self.harmonic_index > self._parent_rf_station.n_rf - 1:
             raise RuntimeError(
                 "ERROR in CavityFeedback: argument"
                 " n_h is greater than the number of n_rf in RFStation"
@@ -162,24 +173,24 @@ class BirksCavityFeedback(LocalFeedback):
 
         self.T_s = (
             self.n_periods_coarse * 2 * np.pi
-        ) / self._parent_cavity._omega_rf[self.harmonic_index]
+        ) / self._parent_rf_station._omega_rf[self.harmonic_index]
         # TODO REMWORK/REMOVE
         t_rev = float(
-            (2 * np.pi * self._parent_cavity.harmonic[self.harmonic_index])
-            / self._parent_cavity._omega_rf[self.harmonic_index]
+            (2 * np.pi * self._parent_rf_station.harmonic[self.harmonic_index])
+            / self._parent_rf_station._omega_rf[self.harmonic_index]
         )
         # TODO REMWORK/REMOVE
-        t_rf = t_rev / float(self._parent_cavity.harmonic[self.harmonic_index])
+        t_rf = t_rev / float(self._parent_rf_station.harmonic[self.harmonic_index])
 
         self.n_coarse = round(t_rev / self.T_s)
         self.omega_carrier = (
-            self._parent_cavity._omega_rf[self.harmonic_index]
+            self._parent_rf_station._omega_rf[self.harmonic_index]
             / self.n_periods_coarse
         )
         # FIXME NO REDECLARATION!
 
         self.omega_rf = float(
-            self._parent_cavity._omega_rf[self.harmonic_index]
+            self._parent_rf_station._omega_rf[self.harmonic_index]
         )
         self.dT = 0
 
@@ -226,12 +237,12 @@ class BirksCavityFeedback(LocalFeedback):
 
         # Present RF angular frequency
         self.omega_rf = float(
-            self._parent_cavity._omega_rf[self.harmonic_index]
+            self._parent_rf_station._omega_rf[self.harmonic_index]
         )
         t_rev = float(  # TODO REMWORK/REMOVE
             2
             * np.pi
-            * self._parent_cavity.harmonic[self.harmonic_index]
+            * self._parent_rf_station.harmonic[self.harmonic_index]
             / self.omega_rf
         )
 
@@ -252,8 +263,8 @@ class BirksCavityFeedback(LocalFeedback):
         # Residual part of last turn entering the current turn due to non-integer harmonic number
         self.dT = (
             -(
-                self._parent_cavity.phi_rf[self.harmonic_index]
-                + self._parent_cavity.phi_rf[self.harmonic_index]
+                self._parent_rf_station.phi_rf[self.harmonic_index]
+                + self._parent_rf_station.phi_rf[self.harmonic_index]
             )
             / self.omega_rf
         )
@@ -313,7 +324,7 @@ class BirksCavityFeedback(LocalFeedback):
         )
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
-        self.V_corr /= self._parent_cavity.voltage[self.harmonic_index]
+        self.V_corr /= self._parent_rf_station.voltage[self.harmonic_index]
         self.phi_corr = self.alpha_sum - np.angle(
             np.interp(
                 self.profile.hist_x,
@@ -329,7 +340,7 @@ class BirksCavityFeedback(LocalFeedback):
     ) -> None:
         r"""Calculate RF beam current from beam profile"""
         t_rev = float(  # TODO REMWORK/REMOVE
-            (2 * np.pi * self._parent_cavity.harmonic[self.harmonic_index])
+            (2 * np.pi * self._parent_rf_station.harmonic[self.harmonic_index])
             / self.omega_rf
         )
         # Beam current from profile
@@ -358,7 +369,7 @@ class BirksCavityFeedback(LocalFeedback):
     def set_point_from_rfstation(self) -> NumpyArray:
         r"""Computes the setpoint in I/Q based on the RF voltage in the RFStation"""
         V_set = polar_to_cartesian(
-            self._parent_cavity.voltage[self.harmonic_index] / self.n_cavities,
+            self._parent_rf_station.voltage[self.harmonic_index] / self.n_cavities,
             0,
         )
 

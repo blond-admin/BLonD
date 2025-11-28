@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 # pragma: no cover
 import logging
 
@@ -9,9 +17,9 @@ from xpart.longitudinal.rfbucket_matching import (  # ThermalDistribution,; Para
 
 from blond import (
     Beam,
-    BeamObservationEndOfTurn,
-    CavityPhaseObservation,
+    BeamObservationOncePerTurn,
     DriftSimple,
+    RfStationPhaseObservation,
     Ring,
     Simulation,
     SingleHarmonicRfStation,
@@ -28,10 +36,10 @@ logging.basicConfig(level=logging.INFO)
 def main():
     ring = Ring(26_658.883)
 
-    cavity1 = SingleHarmonicRfStation()
-    cavity1.harmonic = 35640
-    cavity1.voltage = 6e6
-    cavity1.phi_rf = 85  # 45*(np.pi/180)
+    rf_station = SingleHarmonicRfStation()
+    rf_station.harmonic = 35640
+    rf_station.voltage = 6e6
+    rf_station.phi_rf = 85  # 45*(np.pi/180)
 
     N_TURNS = int(1)
     energy_init = 450e9
@@ -53,7 +61,7 @@ def main():
     sim = Simulation.from_locals(locals())
     sim.print_one_turn_execution_order()
 
-    zmax = ring.circumference / (2 * np.amin(cavity1.harmonic))
+    zmax = ring.circumference / (2 * np.amin(rf_station.harmonic))
 
     sim.prepare_beam(
         beam=beam1,
@@ -65,13 +73,13 @@ def main():
         ),
     )
 
-    phase_observation = CavityPhaseObservation(
+    phase_observation = RfStationPhaseObservation(
         each_turn_i=1,
-        cavity=cavity1,
+        rf_station=rf_station,
     )
-    bunch_observation = BeamObservationEndOfTurn(beam=beam1, each_turn_i=1)
+    bunch_observation = BeamObservationOncePerTurn(beam=beam1, each_turn_i=1)
 
-    def custom_action(simulation: Simulation):
+    def custom_action(simulation: Simulation):  # pragma: no cover
         if simulation.turn_i.value % 10 != 0:
             return
 
@@ -99,7 +107,7 @@ def main():
         )
 
     ANIMATE = False
-    if ANIMATE:
+    if ANIMATE:  # pragma: no cover
         plt.figure()
         for i in range(N_TURNS):
             plt.clf()

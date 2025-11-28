@@ -1,15 +1,24 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 import numpy as np
 
 from blond import (
     Beam,
     ConstantMagneticCycle,
+    DriftSimple,
     Ring,
     Simulation,
     UserDefinedElement,
     backend,
     proton,
 )
-from blond._core.beam.base import BeamBaseClass
+from blond.core.beam.base import BeamBaseClass
 
 
 class TimeRandomizer(UserDefinedElement):
@@ -24,6 +33,9 @@ class TimeRandomizer(UserDefinedElement):
 def main():
     ring = Ring(circumference=42)
     ring.add_element(TimeRandomizer())
+    ring.add_element(
+        DriftSimple(orbit_length=ring.circumference, transition_gamma=12)
+    )
     sim = Simulation(
         ring=ring,
         magnetic_cycle=ConstantMagneticCycle(
@@ -47,4 +59,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main()  # pragma: no cover

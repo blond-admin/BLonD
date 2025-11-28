@@ -4,15 +4,15 @@ from unittest.mock import Mock
 import numpy as np
 
 from blond import Simulation
-from blond._core.base import DynamicParameter
-from blond._core.beam.base import BeamBaseClass
+from blond.core.base import DynamicParameter
+from blond.core.beam.base import BeamBaseClass
 from blond.handle_results.helpers import callers_relative_path
 from blond.handle_results.observables_as_elements import (
     BeamObservationInRingElement,
 )
 
 simulation = Mock(Simulation)
-simulation.ring.n_cavities = 2
+simulation.ring.n_rf_stations = 2
 simulation.ring.section_lengths = [250, 250]
 simulation.ring.circumference = 500
 simulation.section_i = DynamicParameter(None)
@@ -38,7 +38,7 @@ class TestBeamObservationInRingElement(unittest.TestCase):
             folder=callers_relative_path("results/", stacklevel=1),
             name="test_obs",
         )
-        self.observation.common_name = "test"
+        self.observation.common_filepath = "test"
         self.observation.on_run_simulation(
             simulation=simulation,
             beam=beam,

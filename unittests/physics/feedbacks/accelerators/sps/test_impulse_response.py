@@ -1,7 +1,7 @@
 # coding: utf8
 # Copyright 2014-2017 CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.md.
+# copied verbatim in the file LICENCE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
@@ -30,7 +30,7 @@ from blond import (
     WakeField,
     proton,
 )
-from blond._core.backends.backend import Numpy32Bit, Numpy64Bit, backend
+from blond.core.backends.backend import Numpy32Bit, Numpy64Bit, backend
 from blond.experimental.physics.feedbacks.accelerators.sps.cavity_feedback import (
     SPSCavityLoopCommissioning,
     SPSOneTurnFeedback,
@@ -187,6 +187,9 @@ class TestTravelingWaveCavity(unittest.TestCase):
             particle_type=proton,
         )
         rf = MultiHarmonicRfStation(
+            voltage=np.array([V], dtype=backend.float),
+            harmonic=np.array([h], dtype=backend.float),
+            phi_rf=np.array([phi], dtype=backend.float),
             n_harmonics=1,
             main_harmonic_idx=0,
         )
@@ -194,9 +197,6 @@ class TestTravelingWaveCavity(unittest.TestCase):
             orbit_length=C,
             transition_gamma=gamma_t,
         )
-        rf.voltage = np.array([V], dtype=backend.float)
-        rf.phi_rf = np.array([phi], dtype=backend.float)
-        rf.harmonic = np.array([h], dtype=backend.float)
         t_rf = t_rev / rf.harmonic[0]
 
         n_shift = 5  # how many rf-buckets to shift beam
@@ -312,12 +312,12 @@ class TestTravelingWaveCavity(unittest.TestCase):
         ring = Ring(circumference=2 * np.pi * 1100.009)
 
         rf = MultiHarmonicRfStation(
+            harmonic=np.array([4620], dtype=backend.float),
+            voltage=np.array([4.5e6], dtype=backend.float),
+            phi_rf=np.array([0], dtype=backend.float),
             n_harmonics=1,
             main_harmonic_idx=0,
         )
-        rf.harmonic = np.array([4620], backend.float)
-        rf.voltage = np.array([4.5e6], backend.float)
-        rf.phi_rf = np.array([0], backend.float)
         ring.add_element(rf)
         ring.add_element(
             DriftSimple(

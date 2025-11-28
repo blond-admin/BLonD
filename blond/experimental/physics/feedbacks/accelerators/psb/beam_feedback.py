@@ -1,8 +1,16 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 from __future__ import annotations
 
 import numpy as np
 
-from blond._core.beam.base import BeamBaseClass
+from blond.core.beam.base import BeamBaseClass
 from blond.experimental.physics.feedbacks.beam_feedback import (
     Blond2BeamFeedback,
 )
@@ -126,10 +134,10 @@ class PsbBeamFeedback(Blond2BeamFeedback):
             self.dphi_sum = 0.0
 
             # Radial loop
-            self.dR_over_R = (self._parent_cavity.delta_omega_rf[0]) / (
-                self._parent_cavity._omega_rf[0]
+            self.dR_over_R = (self._parent_rf_station.delta_omega_rf[0]) / (
+                self._parent_rf_station._omega_rf[0]
                 * (
-                    1.0 / (self.ring.alpha_0[0] * self._parent_cavity.gamma**2)
+                    1.0 / (self.ring.alpha_0[0] * self._parent_rf_station.gamma ** 2)
                     - 1.0
                 )
             )

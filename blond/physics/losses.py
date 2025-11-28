@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """Collection of implementations to handle beam losses in synchrotrons.
 
 Authors
@@ -9,13 +17,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any
+from blond.core.base import BeamPhysicsRelevant
 
-from .._core.backends.backend import backend
-from .._core.base import BeamPhysicsRelevant
-from .._core.beam.base import BeamBaseClass
-from .._core.simulation.simulation import Simulation
+if TYPE_CHECKING:  # pragma: no cover
+    from blond.core.beam.base import BeamBaseClass
 
 
 class LossesBaseClass(BeamPhysicsRelevant):
@@ -24,65 +29,6 @@ class LossesBaseClass(BeamPhysicsRelevant):
     def __init__(self) -> None:
         super().__init__()
 
-
-class BoxLosses(LossesBaseClass):
-    """Label particles that are outside a box.
-
-    Parameters
-    ----------
-    t_min
-        Minimum of the bounding box, in [s].
-    t_max
-        Maximum of the bounding box, in [s].
-    e_min
-        Minimum of the bounding box, in [eV].
-    e_max
-        Maximum of the bounding box, in [eV].
-    """
-
-    def __init__(
-        self,
-        t_min: float | None = None,
-        t_max: float | None = None,
-        e_min: float | None = None,
-        e_max: float | None = None,
-    ) -> None:
-        super().__init__()
-
-        self.t_min = float(t_min)
-        self.t_max = float(t_max)
-        self.e_min = float(e_min)
-        self.e_max = float(e_max)
-
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
-
-        simulation
-            Simulation context manager
-        """
-        pass
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        turn_i_init: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        """Lateinit method when :func:`blond._core.simulation.simulation.Simulation.run_simulation` is called.
-
-        simulation
-            Simulation context manager
-        beam
-            Simulation `Beam` object
-        n_turns
-            Number of turns to simulate
-        turn_i_init
-            Initial turn to execute simulation
-        """
-        pass
-
     def track(self, beam: BeamBaseClass) -> None:
         """Main simulation routine to be called in the mainloop.
 
@@ -91,59 +37,4 @@ class BoxLosses(LossesBaseClass):
         beam
             Beam class to interact with this element
         """
-        backend.loss_box(
-            beam.write_partial_flags(),
-            self.t_min,
-            self.t_max,
-            self.e_min,
-            self.e_max,
-        )
-
-
-class SeparatrixLosses(LossesBaseClass):
-    """Label particles that are outside of a separatrix."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self._simulation: Simulation | None = None
-
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
-
-        simulation
-            Simulation context manager
-        """
-        self._simulation = simulation
-
-    def on_run_simulation(
-        self,
-        simulation: Simulation,
-        beam: BeamBaseClass,
-        n_turns: int,
-        turn_i_init: int,
-        **kwargs: dict[str, Any],
-    ) -> None:
-        """Lateinit method when :func:`blond._core.simulation.simulation.Simulation.run_simulation` is called.
-
-        Parameters
-        ----------
-        simulation
-            Simulation context manager
-        beam
-            Simulation `Beam` object
-        n_turns
-            Number of turns to simulate
-        turn_i_init
-            Initial turn to execute simulation
-        """
-        pass
-
-    def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop.
-
-        Parameters
-        ----------
-        beam
-            Beam class to interact with this element
-        """
-        self._simulation.get_separatrix()  # TODO
+        beam.purge_flagged_entries()

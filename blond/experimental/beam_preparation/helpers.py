@@ -1,10 +1,18 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ..._core.backends.backend import backend
+from blond.core.backends.backend import backend
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Optional, Tuple
@@ -12,7 +20,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
-    from blond._core.beam.base import BeamBaseClass
+    from blond.core.beam.base import BeamBaseClass
 
 
 def generate_particle_coordinates(
