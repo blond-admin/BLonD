@@ -133,7 +133,6 @@ def get_angular_synchrotron_tune(
     harmonic_number: float | NumpyArray,
     synchronous_phase: float | NumpyArray,
     phase_slip_factor: float | NumpyArray,
-    revolution_frequency: float | NumpyArray,
 ) -> float | NumpyArray:
     """
     Calculation of the synchrotron angular tune.
@@ -150,8 +149,6 @@ def get_angular_synchrotron_tune(
         Phase of the synchronous particle, in [rad]
     phase_slip_factor
         Phase slip factor, [dimensionless]
-    revolution_frequency
-        Revolution frequency, in [Hz]
 
     Returns
     -------
