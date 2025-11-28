@@ -619,32 +619,31 @@ def multi_gauss_fit(
     params
         Amplitude, mean and standard deviation for each bunch
     """
-    bucket_length = int(len(hist_x) / n_bunches)
+    n_bins_per_bunch = int(len(hist_x) / n_bunches)
     params = backend.zeros([n_bunches, 3])
 
-    for bucket in range(n_bunches):
-        bucket_hist_x = hist_x[
-            bucket * bucket_length : (bucket + 1) * bucket_length
-        ]
-        bucket_hist_y = hist_y[
-            bucket * bucket_length : (bucket + 1) * bucket_length
-        ]
+    for bucket_i in range(n_bunches):
+        selection = slice(
+            bucket_i * n_bins_per_bunch, (bucket_i + 1) * n_bins_per_bunch
+        )
+
+        bucket_hist_x = hist_x[selection]
+        bucket_hist_y = hist_y[selection]
 
         p = [
             bucket_hist_y.max(),
             bucket_hist_x[np.argmax(bucket_hist_y)],
-            bucket_hist_x[int(2 * bucket_length / 4)]
-            - bucket_hist_x[int(bucket_length / 4)],
+            bucket_hist_x[int(2 * n_bins_per_bunch / 4)]
+            - bucket_hist_x[int(n_bins_per_bunch / 4)],
         ]
 
-        params[bucket, :] = curve_fit(gauss, bucket_hist_x, bucket_hist_y, p)[
-            0
-        ]
+        popt, _ = curve_fit(gauss, bucket_hist_x, bucket_hist_y, p)
+        params[bucket_i, :] = popt
 
     return params
 
 
-def gauss(x: NumpyArray, *p: NumpyArray) -> NumpyArray:
+def gauss(x: NumpyArray, A: int, x_0: int, sigma_x: int) -> NumpyArray:
     r"""Returns a gaussian function.
 
     .. math::
@@ -662,6 +661,4 @@ def gauss(x: NumpyArray, *p: NumpyArray) -> NumpyArray:
         x_0 = mean
         \\sigma_x = standard deviation
     """
-    A, x_0, sigma_x = p
-
     return A * np.exp(-((x - x_0) ** 2) / 2.0 / sigma_x**2)
