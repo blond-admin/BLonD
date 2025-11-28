@@ -91,10 +91,13 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         dE[:] += energy_change
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        pass
+        """
+        Lateinit method when `simulation.__init__` is called.
 
+        simulation
+            `Simulation` context manager
+        """
         self._turn_i = simulation.turn_i
-        # generate the synchrotron radiation integrals
 
     def on_run_simulation(
         self,
@@ -104,10 +107,32 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         turn_i_init: int,
         **kwargs,
     ) -> None:
+        """
+        Lateinit method when `simulation.run_simulation` is called.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager
+        beam
+            Simulation `Beam` object
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        """
         self._turn_i = simulation.turn_i
         self._simulation = simulation
 
     def track(self, beam: BeamBaseClass) -> None:
+        """
+        Main simulation routine to be called in the mainloop.
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element
+        """
         self._turn_i = self._simulation.turn_i
         self._update_beam_energy(beam)
 
@@ -145,7 +170,12 @@ class SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
         return self._share_of_synchrotron_radiation_integrals
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        pass
+        """
+        Lateinit method when `simulation.__init__` is called.
+
+        simulation
+            `Simulation` context manager
+        """
         self._turn_i = simulation.turn_i
 
 
@@ -163,6 +193,7 @@ class SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
             section_index=section_index,
             name=name,
         )
+        self._synchrotron_radiation_integrals = None
         self._energy_lost_due_to_synchrotron_radiation = None
         self._fraction_of_ring_circumference = fraction_of_ring_circumference
         self._share_of_synchrotron_radiation_integrals = (
@@ -181,10 +212,15 @@ class SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
     @property
     def synchrotron_radiation_integrals_section(self):
         """Synchrotron radiation integrals of the section"""
-        return self._share_of_synchrotron_radiation_integrals
+        return self._share_of_synchrotron_radiation_integrals* self._synchrotron_radiation_integrals
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        pass
+        """
+        Lateinit method when `simulation.__init__` is called.
+
+        simulation
+            `Simulation` context manager
+        """
         self._turn_i = simulation.turn_i
         lengths_sections = self._simulation.ring.section_lengths
         share_synchrotron_radiation_integrals = (
@@ -262,6 +298,12 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
         )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
+        """
+        Lateinit method when `simulation.__init__` is called.
+
+        simulation
+            `Simulation` context manager
+        """
         self._simulation = simulation
         self.calculate_contribution_to_synchrotron_radiation_integrals()
 
@@ -332,9 +374,15 @@ class WigglerMagnet(SynchrotronRadiationBaseClass):
             self._contribution_to_synchrotron_radiation_integrals_without_energy,
             energy_contribution_wiggler_integrals,
         )
-        pass
 
     def track(self, beam: BeamBaseClass) -> None:
+        """Main simulation routine to be called in the mainloop.
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element
+        """
         self._turn_i = self._simulation.turn_i
         self.update_synchrotron_radiation_integrals(beam=beam)
         self._update_beam_energy(beam)

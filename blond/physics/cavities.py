@@ -29,8 +29,8 @@ from blond.experimental.physics.feedbacks.beam_feedback import (
     Blond2BeamFeedback,
 )
 
-from .._core.backends.backend import backend
-from .._core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
+from blond.core.backends.backend import backend
+from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
 from ..acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
     calculate_energy_loss_per_turn,
 )
