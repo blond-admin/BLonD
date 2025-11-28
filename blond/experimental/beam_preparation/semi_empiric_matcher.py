@@ -129,11 +129,14 @@ def get_hamilton_semi_analytic(
 
     # Create 2D meshgrid: time_grid is time [s], deltaE_grid is ΔE [eV]
     deltaE_grid, time_grid = backend.meshgrid(_dE_base, ts, indexing="ij")
+
     # Expand potential V(t) to 2D grid
     V = potential_well[None, :]  # [V]
 
     # Compute the Hamiltonian hamilton_2D(t, ΔE) = 0.5 * const * ΔE² + V(t)
     hamilton_2D = 0.5 * drift_term * backend.square(deltaE_grid) + V  # [eV]
+
+
 
     return deltaE_grid, time_grid, hamilton_2D
 

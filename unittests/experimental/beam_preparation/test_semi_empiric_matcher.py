@@ -297,6 +297,8 @@ class TestCallables:
         reference_total_energy = 1.0  # Placeholder
 
         # Call the function
+
+
         deltaE_grid, time_grid, hamilton_2D = get_hamilton_semi_analytic(
             ts=ts,
             potential_well=potential_values,
@@ -308,8 +310,9 @@ class TestCallables:
 
         hamilton_2D_expected = (
             0.5 * eta / reference_total_energy * deltaE_grid.T * deltaE_grid.T
-            + potential_values
+            + potential_values[:, None]
         ).T  # [eV]
+
         DEV_PLOT = False
         if DEV_PLOT:
             plt.figure()

@@ -159,7 +159,7 @@ def generalized_bucket_filler(
     if (
         free_parameter_guess is None
     ):  # typically the free parameter is in units of eV so setting it to max of hamiltonian makes sense in most cases
-        free_parameter_guess = np.max(_hamilton) / 1000
+        free_parameter_guess = np.max(_hamilton) / 10000
 
     n_slices_per_bucket = int(time_grid.shape[1] / n_buckets)
     min_hamilton = np.min(_hamilton)

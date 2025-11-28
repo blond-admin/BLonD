@@ -10,7 +10,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
-from blond._core.backends.backend import Numpy64Bit, backend
+from blond.core.backends.backend import Numpy64Bit, backend
 from blond.experimental.beam_preparation.bucket_filler_functions import (
     generalized_bucket_filler,
 )
@@ -24,7 +24,7 @@ from blond.experimental.beam_preparation.semi_empiric_matcher import (
 
 backend.change_backend(Numpy64Bit)
 
-from blond import SingleHarmonicCavity  # NOQA
+from blond import SingleHarmonicRfStation  # NOQA
 from blond import (  # NOQA
     Beam,
     DriftSimple,
@@ -80,6 +80,9 @@ def bucket_fill_by_emittance_gaussian(
             2D array containing the density distribution of the beam.
     """
 
+    plt.imshow(hamilton_2D)
+    plt.show()
+
     _density = generalized_bucket_filler(
         time_grid,
         deltaE_grid,
@@ -124,7 +127,7 @@ def main():
         reference_particle=proton,
     )
 
-    cavity = SingleHarmonicCavity()
+    cavity = SingleHarmonicRfStation()
     cavity.harmonic = HARMONIC
     cavity.voltage = VOLTAGE
     cavity.schedule(
