@@ -22,13 +22,13 @@ from blond import (
 )
 
 n_turns = 1e4
-n_macroparticles = 1e6
+n_macroparticles = 1e4
 
 
 def main():
     ring = Ring(26658.883)  # general definition of ring
     rf_station_1 = SingleHarmonicRfStation(
-        harmonic=35640, voltage=6e6, phi_rf=0
+        harmonic=35640, voltage=6e6, phi_rf=90
     )
     drift1 = DriftSimple(orbit_length=26658.883, transition_gamma=55.759505)
     ring.add_elements(
@@ -64,12 +64,21 @@ def main():
 
     # Artificially introduce offset to show filamentation
     dts = beam1.write_partial_dt()
-    dts += 0.05e-9
+    # dts += 0.05e-9
+
+    def plot_beam(simulation, beam):
+        if simulation.turn_i.value % 1000 == 0:  # Every 100 turns
+            plt.figure(11)
+            plt.clf()
+            plt.scatter(beam.read_partial_dt(), beam.read_partial_dE())
+            plt.draw()
+            plt.pause(0.01)
 
     sim.run_simulation(
         beams=(beam1,),
         turn_i_init=0,
         n_turns=n_turns,
+        callback=plot_beam,
     )
     plt.figure(0)
     plt.subplot(2, 1, 2)

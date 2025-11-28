@@ -41,26 +41,21 @@ def _get_dE_from_dt_core(
     harmonic: float,
     omega_rf: float,
     particle_charge: float,
-    phi_rf: float,
     phi_s: float,
     voltage: float,
 ) -> float:
-    # RF wave is shifted by Pi below transition
-    if eta0 < 0:
-        phi_rf -= np.pi
     # Calculate dE_amplitude from dt_amplitude using single-harmonic Hamiltonian
     phi_b = omega_rf * dt_amplitude + phi_s
     dE_amplitude = np.sqrt(
         voltage
-        * particle_charge
+        * abs(particle_charge)
         * energy
-        * beta**2
+        * np.square(beta)
         * np.abs(
             (np.cos(phi_b) - np.cos(phi_s)) + (phi_b - phi_s) * np.sin(phi_s)
         )
         / (np.pi * harmonic * np.fabs(eta0))
     )
-    # dE_amplitude = dt_amplitude * np.sqrt(voltage * particle_charge * energy * np.cos(phi_s) * beta**2 * omega_rf / np.fabs(eta0))
     return dE_amplitude
 
 
@@ -92,15 +87,18 @@ def _get_dE_from_dt(
     energy = beam.reference_total_energy
     beta = beam.reference_beta
 
-    phi_s = calc_phi_s_single_harmonic(
-        charge=beam.particle_type.charge,
-        voltage=voltage,
-        phase=phi_rf,
-        energy_gain=simulation.magnetic_cycle.get_target_total_energy(
-            1, 0, 0, particle_type=beam.particle_type
+    phi_s = (
+        calc_phi_s_single_harmonic(
+            charge=beam.particle_type.charge,
+            voltage=voltage,
+            phase=phi_rf,
+            energy_gain=simulation.magnetic_cycle.get_target_total_energy(
+                1, 0, 0, particle_type=beam.particle_type
+            )
+            - beam.reference_total_energy,
+            above_transition=above_transition,
         )
-        - beam.reference_total_energy,
-        above_transition=above_transition,
+        + phi_rf
     )
 
     eta0 = [drift.eta_0(gamma=beam.reference_gamma) for drift in drifts]
@@ -119,7 +117,6 @@ def _get_dE_from_dt(
         harmonic=float(harmonic),
         omega_rf=float(omega_rf),
         particle_charge=particle_charge,
-        phi_rf=float(phi_rf),
         phi_s=float(phi_s),
         voltage=float(voltage),
     )
@@ -290,8 +287,6 @@ class BiGaussian(MatchingRoutine):
                 simulation=simulation,
                 dt_amplitude=self._sigma_dt,
             )
-            # IMPORT
-            assert not backend.isnan(sigma_dE), "BUG, fix phi_s"
         else:
             sigma_dE = self._sigma_dE
 
@@ -305,12 +300,6 @@ class BiGaussian(MatchingRoutine):
             - beam.reference_total_energy,
             above_transition=above_transition,
         )
-        # call to legacy
-        eta0 = [drift.eta_0(gamma=beam.reference_gamma) for drift in drifts]
-        assert all_equal(eta0), (
-            f"Expected all `eta0` to be the same, but got {eta0}."
-        )
-        eta0 = eta0[0]
 
         # # RF wave is shifted by Pi below transition
         # if eta0 < 0:
@@ -325,7 +314,7 @@ class BiGaussian(MatchingRoutine):
             * rng_dt.standard_normal(size=self.n_macroparticles).astype(
                 dtype=backend.float, order="C", copy=False
             )
-            + (phi_s - phi_rf) / omega_rf
+            + phi_s / omega_rf
         )
         dE = sigma_dE * rng_dE.standard_normal(
             size=self.n_macroparticles
@@ -333,6 +322,15 @@ class BiGaussian(MatchingRoutine):
 
         # Re-insert if necessary
         if self._reinsertion:
+            # call to legacy
+            eta0 = [
+                drift.eta_0(gamma=beam.reference_gamma) for drift in drifts
+            ]
+            assert all_equal(eta0), (
+                f"Expected all `eta0` to be the same, but got {eta0}."
+            )
+            eta0 = eta0[0]
+
             while True:
                 sel = (
                     is_in_separatrix(

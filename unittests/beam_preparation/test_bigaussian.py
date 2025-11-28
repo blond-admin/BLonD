@@ -20,7 +20,6 @@ class TestFunctions(unittest.TestCase):
             harmonic=1,
             omega_rf=400e3,
             particle_charge=1,
-            phi_rf=2,
             phi_s=2,
             voltage=1e3,
         )
@@ -28,6 +27,30 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual(dE_amplitude, 336852503.57639045)  # pinned to some
         # random values.
         # would be better if this would be pinned to a theoretic expected value
+
+    def test__get_dE_from_dt_core_always_positive(self):
+        # prevent that we get nan or negative values
+        pha_range = np.linspace(-3 * np.pi, 3 * np.pi)
+        for particle_charge in (-1, 1):
+            for eta in (-0.1, 0.1):
+                for phi_s in pha_range:
+                    dE_amplitude = _get_dE_from_dt_core(
+                        beta=0.99,
+                        dt_amplitude=0.1,
+                        energy=1e9,
+                        eta0=eta,
+                        harmonic=1,
+                        omega_rf=400e3,
+                        particle_charge=particle_charge,
+                        phi_s=phi_s,
+                        voltage=1e3,
+                    )
+
+            self.assertGreater(
+                dE_amplitude,
+                0,
+                msg=f"{particle_charge=} {eta=} " f"{phi_s=}",
+            )
 
     @unittest.skip("Implement phi_s in RF first")  # TODO
     def test_get_dE_from_dt(self):

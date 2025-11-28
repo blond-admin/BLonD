@@ -292,6 +292,12 @@ def calc_phi_s_single_harmonic(
 ) -> float:
     """Derives the analytical synchronous phase for a single harmonic RF.
 
+    The phase for which
+    ``sin(omega * t + phi_offset) = sin(phi_s + phi_offset) = energy_gain``
+    For a sinus, there are two phases to solve this equation.
+    The stable phase is returned, considering th particle charge and
+    transition crossing.
+
     Parameters
     ----------
     charge

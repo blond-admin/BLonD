@@ -932,7 +932,7 @@ class Simulation(Preparable):
     def run_simulation(
         self,
         beams: tuple[BeamBaseClass, ...],
-        n_turns: int | None = None,
+        n_turns: int | float | None = None,
         turn_i_init: int = 0,
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
@@ -1058,6 +1058,7 @@ class Simulation(Preparable):
 
 
         """
+        n_turns = int_from_float_with_warning(n_turns, warning_stacklevel=2)
         logger.info(f"Running `run_simulation` with {locals()}")
         _n_turns = self.finalize(
             beams=beams,

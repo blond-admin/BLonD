@@ -10,6 +10,8 @@ import numpy as np
 
 from blond import (
     Beam,
+    BiGaussian,
+    ConstantMagneticCycle,
     DriftSimple,
     MagneticCyclePerTurn,
     Ring,
@@ -20,6 +22,7 @@ from blond import (
 from blond.core.beam.particle_types import ParticleType, c, e, m_p
 
 backend.set_specials("cpp")
+interactive = False
 
 
 def main():
@@ -28,6 +31,7 @@ def main():
     It is expected that the red line is at the stable point of the bunch.
     """
     splt_i = 0
+    cycle_const = True
     for charge in (-1, 1):
         for momentum_compaction_factor in (-1, 1):
             plt.subplot(2, 2, 1 + splt_i)
@@ -38,7 +42,7 @@ def main():
             )
             ring = Ring(circumference=20e3)
             rf_station = SingleHarmonicRfStation(
-                voltage=1e6, harmonic=10, phi_rf=np.deg2rad(-90)
+                voltage=1e6, harmonic=10, phi_rf=np.deg2rad(45)
             )
             beam = Beam(
                 intensity=12,
@@ -50,58 +54,39 @@ def main():
                 np.linspace(-2e8, 2e8),
             )
 
-            beam.setup_beam(
-                dt=dt.flatten(),
-                dE=dE.flatten(),
-                reference_total_energy=test_particle.mass + 1e12,
-            )
             drift = DriftSimple(
                 orbit_length=ring.circumference,
                 momentum_compaction_factor=momentum_compaction_factor,
             )
-            print(f"{drift.transition_gamma=}")
-            print(f"{drift.momentum_compaction_factor=}")
-            print(f"{drift.eta_0(beam.reference_gamma)=}")
+
+            reference_total_energy = test_particle.mass + 1e12
 
             ramp = np.linspace(
-                beam.reference_total_energy,
-                1.005 * beam.reference_total_energy,
+                reference_total_energy,
+                1.005 * reference_total_energy,
                 10000 + 1,
             )
             print(ramp[1] - ramp[0], "V")
-            print(f"{beam.reference_beta=}")
-            print(f"{beam.reference_gamma=}")
-            cycle = MagneticCyclePerTurn(
-                reference_particle=test_particle,
-                value_init=float(ramp[0]),
-                values_after_turn=ramp[1:],
-                in_unit="total energy",
-            )
-            """cycle = ConstantMagneticCycle(reference_particle=test_particle,
-                                          value= beam.reference_total_energy,
-                                          in_unit="total energy")"""
-            simulation = Simulation.from_locals(locals())
-            simulation.print_one_turn_execution_order()
-
-            def plot_beam(simulation, beam):
-                if simulation.turn_i.value % 100 == 0:  # Every 100 turns
-                    plt.figure(11)
-                    plt.clf()
-                    plt.scatter(beam.read_partial_dt(), beam.read_partial_dE())
-                    plt.draw()
-                    plt.pause(0.01)
-
-            simulation.run_simulation(
-                beams=(beam,),
-                n_turns=10000,
-                # callback=plot_beam,
-            )
-
-            beam.plot_hist2d(
-                range=(
-                    (0, ring.circumference / c / rf_station.harmonic),
-                    (-0.5e9, 0.5e9),
+            if not cycle_const:
+                cycle = MagneticCyclePerTurn(
+                    reference_particle=test_particle,
+                    value_init=float(ramp[0]),
+                    values_after_turn=ramp[1:],
+                    in_unit="total energy",
                 )
+            else:
+                cycle = ConstantMagneticCycle(
+                    reference_particle=test_particle,
+                    value=reference_total_energy,
+                    in_unit="total energy",
+                )
+                simulation = Simulation.from_locals(locals())
+            simulation.print_one_turn_execution_order()
+            simulation.prepare_beam(
+                beam=beam,
+                preparation_routine=BiGaussian(
+                    n_macroparticles=1000, sigma_dt=1e-6 / 10
+                ),
             )
             T_rev = cycle.get_t_rev_init(
                 circumference=ring.circumference,
@@ -109,15 +94,45 @@ def main():
                 t_init=0,
                 particle_type=test_particle,
             )
-            # val = rf_station.phi_s / (2 * np.pi) * T_rev / rf_station.harmonic
+
+            def plot_beam(simulation, beam):
+                if simulation.turn_i.value % 100 == 0:  # Every 100 turns
+                    plt.figure(11)
+                    plt.clf()
+                    plt.scatter(beam.read_partial_dt(), beam.read_partial_dE())
+                    val = (
+                        rf_station.phi_s  # NOQA:  B023
+                        / (2 * np.pi)
+                        * T_rev  # NOQA:  B023
+                        / rf_station.harmonic  # NOQA:  B023
+                    )
+
+                    plt.axvline(
+                        val,
+                        color="red",
+                        zorder=10,
+                    )
+                    plt.draw()
+                    plt.pause(0.01)
+
+            simulation.run_simulation(
+                beams=(beam,),
+                n_turns=10000,
+                callback=plot_beam if interactive else None,
+            )
+
+            beam.plot_hist2d(range=((-2.8e-6, 5e-6), (-5e7, 5e7)))
+            val = rf_station.phi_s / (2 * np.pi) * T_rev / rf_station.harmonic
+
+            plt.axvline(
+                val,
+                color="red",
+                zorder=10,
+            )
             print(f"{rf_station.phi_s=}")
             print(f"{T_rev=}")
-            # print(f"{val=}")
-            # plt.axvline(
-            #    val,
-            #    color="red",
-            ##   zorder=10,
-            # )
+            print(f"{val=}")
+
             splt_i += 1
     # todo assertions
     plt.show()
