@@ -1124,7 +1124,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         i = 0
         induced_voltage = self._previous_wakes[i][sel_current_profile(i)]
 
-        for i, induced_voltage_tmp in enumerate(self._previous_wakes[1:]):
-            induced_voltage += induced_voltage_tmp[sel_current_profile(i)]
+        for i in range(1, len(self._previous_wakes)):
+            induced_voltage += self._previous_wakes[i][sel_current_profile(i)]
 
         return induced_voltage
