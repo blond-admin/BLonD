@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.optimize import curve_fit
 
 from blond.acc_math.empiric.empiric import gauss_fit, multi_gauss_fit
 from blond.core.backends.backend import backend
@@ -577,92 +576,3 @@ class DynamicProfileConstNBins(DynamicProfile):
         self._hist_x, self._hist_y = ProfileBaseClass.get_arrays(
             cut_left=cut_left, cut_right=cut_right, n_bins=self.n_bins
         )
-
-
-def gauss_fit(hist_x: NumpyArray, hist_y: NumpyArray) -> NumpyArray:
-    """Performs a gaussian fit on a profile with a single bunches.
-
-        Returns the amplitude, the mean and the standard deviation of the fitted gaussian curve for each bunch.
-
-    Parameter
-    ----------
-    hist_x
-        X-axis of the histogram to perform the fitting on
-    hist_y
-        Y-axis of the histogram to perform the fitting on
-
-    Returns
-    -------
-    params
-        Amplitude, mean and standard deviation for each bunch
-    """
-    return multi_gauss_fit(hist_x, hist_y, n_bunches=1)[0]
-
-
-def multi_gauss_fit(
-    hist_x: NumpyArray, hist_y: NumpyArray, n_bunches: int
-) -> NumpyArray:
-    """Performs a gaussian fit on a profile with multiple bunches.
-
-        Returns the amplitude, the mean and the standard deviation of the fitted gaussian curve for each bunch.
-
-    Parameter
-    ----------
-    hist_x
-        X-axis of the histogram to perform the fitting on
-    hist_y
-        Y-axis of the histogram to perform the fitting on
-    n_bunches
-        Number of bunches in the profile
-
-    Returns
-    -------
-    params
-        Amplitude, mean and standard deviation for each bunch
-    """
-    bucket_length = int(len(hist_x) / n_bunches)
-    params = backend.zeros([n_bunches, 3])
-
-    for bucket in range(n_bunches):
-        bucket_hist_x = hist_x[
-            bucket * bucket_length : (bucket + 1) * bucket_length
-        ]
-        bucket_hist_y = hist_y[
-            bucket * bucket_length : (bucket + 1) * bucket_length
-        ]
-
-        p = [
-            bucket_hist_y.max(),
-            bucket_hist_x[np.argmax(bucket_hist_y)],
-            bucket_hist_x[int(2 * bucket_length / 4)]
-            - bucket_hist_x[int(bucket_length / 4)],
-        ]
-
-        params[bucket, :] = curve_fit(gauss, bucket_hist_x, bucket_hist_y, p)[
-            0
-        ]
-
-    return params
-
-
-def gauss(x: NumpyArray, *p: NumpyArray) -> NumpyArray:
-    r"""Returns a gaussian function.
-
-    .. math::
-
-    A\, e^{\frac{(x - x_0)^2}{2\sigma_x^2}}.
-
-    Parameters
-    ----------
-    x
-        Input array at which points to calculate the gaussian
-    p
-        Parameters necessary to calculate the Gaussian
-        p = [A, x_0, \\sigma_x]
-        A = Amplitude of the function
-        x_0 = mean
-        \\sigma_x = standard deviation
-    """
-    A, x_0, sigma_x = p
-
-    return A * np.exp(-((x - x_0) ** 2) / 2.0 / sigma_x**2)
