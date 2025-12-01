@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.constants import c as clight
 
-from xtrack import ReferenceEnergyIncrease, ZetaShift
 from blond.trackers.tracker import RingAndRFTracker
 from blond.impedances.impedance import TotalInducedVoltage
 
@@ -163,6 +162,8 @@ class BlondElement:
     def __init__(
         self, trackable: Trackable, beam: Beam, update_zeta: bool = False
     ):
+        from xtrack import ReferenceEnergyIncrease, ZetaShift
+
         self.trackable = trackable
         self.beam = beam
         self.update_zeta = update_zeta
@@ -370,6 +371,8 @@ class EnergyUpdate:
     """
 
     def __init__(self, momentum: Sequence):
+        from xtrack import ReferenceEnergyIncrease, ZetaShift
+
         # Load momentum program
         self.momentum = momentum
 
@@ -443,6 +446,8 @@ class EnergyFrequencyUpdate:
     def __init__(
         self, momentum: Sequence, f_rf: Sequence, line: Line, cavity_name: str
     ):
+        from xtrack import ReferenceEnergyIncrease, ZetaShift
+
         # Load the parameters
         self.momentum = momentum
         self.f_rf = f_rf

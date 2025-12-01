@@ -32,7 +32,7 @@ if Version(scipy.__version__) >= Version("1.14"):
 else:
     from scipy.integrate import cumtrapz
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from typing import Literal, Optional, Iterable
 
     from numpy.typing import NDArray
@@ -538,7 +538,7 @@ class RFStation:
             If None, the present value of self.counter is used.
         design : bool, optional
             Flag to force using the design value (ignore the influence
-                                                  of feedbacks)
+            of feedbacks)
             The default is False.
             If True, the design value is used, if False the actual
             value is used.

@@ -22,7 +22,7 @@ import numpy as np
 from ..impedances.impedance_sources import InputTable
 from ..utils.legacy_support import handle_legacy_kwargs
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from os import PathLike
     from typing import Optional
 
@@ -54,10 +54,11 @@ def plot_impedance_vs_frequency(
     """
     Plots Impedance in frequency domain. Given an InducedVoltageFreq object, i.e. one
     that was created from a list of impedances:
-     - can plot either the total, summed impedance or each individual one from the list
-     - can additionally plot the beam spectrum
-     - and can plot the impedances on an interpolated frequency axis, if the table
-        given to induced_voltage_time has been interpolated on a new axis
+
+    - can plot either the total, summed impedance or each individual one from the list
+    - can additionally plot the beam spectrum
+    - and can plot the impedances on an interpolated frequency axis, if the table
+      given to induced_voltage_time has been interpolated on a new axis
 
     Additionally, either outputs the plots in the console, or save them on disk.
 
@@ -284,9 +285,10 @@ def plot_wake_vs_time(
     """
     Plots wakes in time domain. Given an InducedVoltageTime object, i.e. one
     that was created from a list of wakes:
-     - can plot either the total, summed wake or each individual one from the list
-     - and can plot the wakes  on an interpolated wake axis, if the table
-        given to induced_voltage_time has been interpolated on a new axis
+
+    - can plot either the total, summed wake or each individual one from the list
+    - and can plot the wakes  on an interpolated wake axis, if the table
+      given to induced_voltage_time has been interpolated on a new axis
 
     Additionally, either outputs the plots in the console, or save them on disk.
 
