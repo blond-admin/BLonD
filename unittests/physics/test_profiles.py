@@ -132,7 +132,7 @@ class TestProfileBaseClass(unittest.TestCase):
         np.testing.assert_almost_equal(result, expected)
 
     def test_singlebunch_gauss_fit(self):
-        result = self.singlebunch_gauss_fit()
+        result = self.profile_base_class.singlebunch_gauss_fit()
         expected = gauss_fit(self.profile_base_class.hist_x, self.profile_base_class.hist_y)
         np.testing.assert_almost_equal(result, expected)
 
