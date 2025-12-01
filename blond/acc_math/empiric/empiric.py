@@ -92,21 +92,22 @@ def multi_gauss_fit(
 
 
 def gauss(x: NumpyArray, A: int, x_0: int, sigma_x: int) -> NumpyArray:
-    r"""Returns a gaussian function.
+    r"""
+    Returns a gaussian function.
 
     .. math::
 
-    A\, e^{\frac{(x - x_0)^2}{2\sigma_x^2}}.
+        A\, e^{\frac{(x - x_0)^2}{2\sigma_x^2}}.
 
     Parameters
     ----------
     x
         Input array at which points to calculate the gaussian
-    p
-        Parameters necessary to calculate the Gaussian
-        p = [A, x_0, \\sigma_x]
-        A = Amplitude of the function
-        x_0 = mean
-        \\sigma_x = standard deviation
+    A
+        Amplitude of the function
+    x_0
+        Mean of the Gaussian
+    sigma_x
+        Standard Deviation
     """
     return A * np.exp(-((x - x_0) ** 2) / 2.0 / sigma_x**2)
