@@ -20,8 +20,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.optimize import curve_fit
 
-from blond.core.backends.backend import backend
-
 if TYPE_CHECKING:  # pragma: no cover
     from numpy.typing import NDArray as NumpyArray
 
@@ -29,9 +27,10 @@ if TYPE_CHECKING:  # pragma: no cover
 def gauss_fit(hist_x: NumpyArray, hist_y: NumpyArray) -> NumpyArray:
     """Performs a gaussian fit on a profile with a single bunches.
 
-        Returns the amplitude, the mean and the standard deviation of the fitted gaussian curve for each bunch.
+    Returns the amplitude, the mean and the standard deviation
+    of the fitted gaussian curve for each bunch.
 
-    Parameter
+    Parameters
     ----------
     hist_x
         X-axis of the histogram to perform the fitting on
@@ -42,6 +41,8 @@ def gauss_fit(hist_x: NumpyArray, hist_y: NumpyArray) -> NumpyArray:
     -------
     params
         Amplitude, mean and standard deviation for each bunch
+        Shape (n_bunches,).
+
     """
     return multi_gauss_fit(hist_x, hist_y, n_bunches=1)[0]
 
@@ -51,9 +52,10 @@ def multi_gauss_fit(
 ) -> NumpyArray:
     """Performs a gaussian fit on a profile with multiple bunches.
 
-        Returns the amplitude, the mean and the standard deviation of the fitted gaussian curve for each bunch.
+    Returns the amplitude, the mean and the standard
+    deviation of the fitted gaussian curve for each bunch.
 
-    Parameter
+    Parameters
     ----------
     hist_x
         X-axis of the histogram to perform the fitting on
@@ -65,10 +67,11 @@ def multi_gauss_fit(
     Returns
     -------
     params
-        Amplitude, mean and standard deviation for each bunch
+        Amplitude, mean and standard deviation for each bunch.
+        Shape (n_bunches, 3).
     """
     n_bins_per_bunch = int(len(hist_x) / n_bunches)
-    params = backend.zeros([n_bunches, 3])
+    params = np.zeros([n_bunches, 3], dtype=float)
 
     for bucket_i in range(n_bunches):
         selection = slice(
@@ -86,14 +89,16 @@ def multi_gauss_fit(
         ]
 
         popt, _ = curve_fit(gauss, bucket_hist_x, bucket_hist_y, p)
-        params[bucket_i, :] = popt
+        for i in range(3):
+            params[bucket_i, i] = popt[i]
 
     return params
 
 
-def gauss(x: NumpyArray, A: int, x_0: int, sigma_x: int) -> NumpyArray:
-    r"""
-    Returns a gaussian function.
+def gauss(
+    x: NumpyArray, amplitude: int, center: int, sigma_x: int
+) -> NumpyArray:
+    r"""Calculate the Gauss function.
 
     .. math::
 
@@ -103,11 +108,18 @@ def gauss(x: NumpyArray, A: int, x_0: int, sigma_x: int) -> NumpyArray:
     ----------
     x
         Input array at which points to calculate the gaussian
-    A
-        Amplitude of the function
-    x_0
-        Mean of the Gaussian
     sigma_x
         Standard Deviation
+    amplitude
+        Amplitude of the function
+    center
+        Mean
+    sigma_x
+        Standard deviation
+
+    Returns
+    -------
+    gauss_y
+        Values of the Gauss curve.
     """
-    return A * np.exp(-((x - x_0) ** 2) / 2.0 / sigma_x**2)
+    return amplitude * np.exp(-((x - center) ** 2) / 2.0 / sigma_x**2)

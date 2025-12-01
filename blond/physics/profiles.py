@@ -27,6 +27,7 @@ from blond.acc_math.empiric.empiric import gauss_fit, multi_gauss_fit
 from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant, HasPropertyCache
 from blond.core.helpers import int_from_float_with_warning
+from blond.generals.cupy.no_cupy_import import is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -110,7 +111,10 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             Keyword arguments for `matplotlib.pyplot.plot`.
 
         """
-        plt.plot(self.hist_x, self.hist_y, **kwargs_plot)
+        from blond import AllowPlotting
+
+        with AllowPlotting():
+            plt.plot(self.hist_x, self.hist_y, **kwargs_plot)
 
     @property  # as readonly attributes
     def hist_x(self) -> NumpyArray | CupyArray:
@@ -208,21 +212,48 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
     def singlebunch_gauss_fit(self) -> NumpyArray:
         """Performs a gaussian fit on a profile with a single bunches.
 
-        Returns the amplitude, the mean and the standard deviation of the fitted gaussian curve.
+        Returns the amplitude, the mean and the standard deviation
+        of the fitted gaussian curve the bunch.
+
+        Returns
+        -------
+        params
+            Amplitude, mean and standard deviation the bunch.
         """
-        return gauss_fit(self._hist_x, self._hist_y)
+        _hist_x = self._hist_x
+        _hist_y = self._hist_y
+
+        if is_cupy_array(self._hist_x):
+            _hist_x = _hist_x.get()
+            _hist_y = _hist_y.get()
+
+        return gauss_fit(_hist_x, _hist_y)
 
     def multibunch_gauss_fit(self, n_bunches: int) -> NumpyArray:
         """Performs a gaussian fit on a profile with multiple bunches.
 
-        Returns the amplitude, the mean and the standard deviation of the fitted gaussian curve for each bunch.
+        Returns the amplitude, the mean and the standard deviation of the fitted
+        gaussian curve for each bunch.
 
         Parameters
         ----------
         n_bunches
             Number of bunches
+
+        Returns
+        -------
+        params
+            Amplitude, mean and standard deviation for each bunch.
+            Shape (n_bunches, 3).
         """
-        return multi_gauss_fit(self._hist_x, self._hist_y, n_bunches)
+        _hist_x = self._hist_x
+        _hist_y = self._hist_y
+
+        if is_cupy_array(self._hist_x):
+            _hist_x = _hist_x.get()
+            _hist_y = _hist_y.get()
+
+        return multi_gauss_fit(_hist_x, _hist_y, n_bunches)
 
     def track(self, beam: BeamBaseClass) -> None:
         """Main simulation routine to be called in the mainloop.
@@ -286,7 +317,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         """Cutoff frequency if the profile is fourier transformed, in [Hz]."""
         return 1 / (2 * self.hist_step)
 
-    def beam_spectrum(self, n_fft: int | None) -> NumpyArray:
+    def beam_spectrum(self, n_fft: int | None) -> NumpyArray | CupyArray:
         """Calculate fourier transform of the profile."""
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
