@@ -31,8 +31,8 @@ class SynchrotronRadiationSimulation:
             ]
         )
         cavity1 = SingleHarmonicRfStation()
-        cavity1.harmonic = 35640
-        cavity1.voltage = 6e6
+        cavity1.harmonic = 242400
+        cavity1.voltage = 516e6
         cavity1.phi_rf = 0
 
         n_turns = int(10)
@@ -40,7 +40,7 @@ class SynchrotronRadiationSimulation:
             value_init=20e9,
             values_after_turn=np.linspace(20e9, 20e9, n_turns),
             reference_particle=electron,
-            in_unit="momentum",
+            in_unit="total energy",
         )
 
         drift1 = DriftSimple(
@@ -71,4 +71,5 @@ class SynchrotronRadiationSimulation:
 
 
 def main():
-    raise ValueError("Synchrotron Radiation example is not ready")
+    pass
+    # raise ValueError("Synchrotron Radiation example is not ready")
