@@ -16,7 +16,6 @@ from blond.acc_math.empiric.empiric import gauss_fit, multi_gauss_fit
 from blond.physics.profiles import (
     DynamicProfileConstCutoff,
     DynamicProfileConstNBins,
-    Fitting,
     ProfileBaseClass,
     StaticProfile,
 )
