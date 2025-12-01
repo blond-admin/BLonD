@@ -138,16 +138,6 @@ class TestProfileBaseClass(unittest.TestCase):
         self.assertAlmostEqual(result, expected)
 
     def test_multibunch_gauss_fit(self):
-        result = self.multibunch_gauss_fit(n_bunches =1)
-        expected = multi_gauss_fit(self.profile_base_class.hist_x, self.profile_base_class.hist_y, n_bunches =1)
-        np.testing.assert_almost_equal(result, expected)
-
-    def test_singlebunch_gauss_fit(self):
-        result = self.profile_base_class.singlebunch_gauss_fit()
-        expected = gauss_fit(self.profile_base_class.hist_x, self.profile_base_class.hist_y)
-        np.testing.assert_almost_equal(result, expected)
-
-    def test_multibunch_gauss_fit(self):
         result = self.profile_base_class.multibunch_gauss_fit(n_bunches =1)
         expected = multi_gauss_fit(self.profile_base_class.hist_x, self.profile_base_class.hist_y, n_bunches =1)
         np.testing.assert_almost_equal(result, expected)
