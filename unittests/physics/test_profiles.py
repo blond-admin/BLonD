@@ -1,8 +1,25 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 import unittest
 
 import numpy as np
 
-from blond import Beam, backend, uranium_29
+from blond import (
+    AllowPlotting,
+    Beam,
+    Cupy64Bit,
+    Numpy64Bit,
+    backend,
+    uranium_29,
+)
+from blond.acc_math.empiric.empiric import gauss_fit, multi_gauss_fit
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 from blond.physics.profiles import (
     DynamicProfileConstCutoff,
     DynamicProfileConstNBins,
@@ -12,10 +29,19 @@ from blond.physics.profiles import (
 
 
 class TestProfileBaseClass(unittest.TestCase):
+    def setUpClass():
+        try:
+            backend.change_backend(Cupy64Bit)
+        except Exception as exc:
+            pass
+
     def setUp(self):
         self.profile_base_class = ProfileBaseClass()
         self.profile_base_class._hist_x = backend.linspace(-5, 5, 11)
         self.profile_base_class._hist_y = backend.linspace(5, 5, 11)
+
+    def tearDownClass():
+        backend.change_backend(Numpy64Bit)
 
     def test___init__(self):
         pass
@@ -60,9 +86,11 @@ class TestProfileBaseClass(unittest.TestCase):
         self.assertEqual(5.5, self.profile_base_class.cut_right)
 
     def test_bin_edges(self):
-        np.testing.assert_almost_equal(
-            np.linspace(-5.5, 5.5, 12), self.profile_base_class.bin_edges
-        )
+        with AllowPlotting():
+            np.testing.assert_almost_equal(
+                np.linspace(-5.5, 5.5, 12),
+                copy_to_cpu(self.profile_base_class.bin_edges),
+            )
 
     def test_track(self):
         from blond.testing.mocks import beam_mock
@@ -93,9 +121,11 @@ class TestProfileBaseClass(unittest.TestCase):
 
     def test_beam_spectrum(self):
         beam_spectrum = self.profile_base_class.beam_spectrum(n_fft=None)
-        np.testing.assert_almost_equal(
-            beam_spectrum, np.fft.rfft(self.profile_base_class.hist_y)
-        )
+        with AllowPlotting():
+            np.testing.assert_almost_equal(
+                copy_to_cpu(beam_spectrum),
+                np.fft.rfft(copy_to_cpu(self.profile_base_class.hist_y)),
+            )
 
     def test_invalidate_cache(self):
         self.profile_base_class.invalidate_cache()
@@ -119,7 +149,26 @@ class TestProfileBaseClass(unittest.TestCase):
             weights=(self.profile_base_class.hist_y),
         )
         expected = backend.sqrt(variance)
-        self.assertAlmostEqual(result, expected)
+        np.testing.assert_almost_equal(result, expected)
+
+    def test_singlebunch_gauss_fit(self):
+        result = self.profile_base_class.singlebunch_gauss_fit()
+        with AllowPlotting():
+            expected = gauss_fit(
+                copy_to_cpu(self.profile_base_class.hist_x),
+                copy_to_cpu(self.profile_base_class.hist_y),
+            )
+        np.testing.assert_allclose(result, expected)
+
+    def test_multibunch_gauss_fit(self):
+        result = self.profile_base_class.multibunch_gauss_fit(n_bunches=1)
+        with AllowPlotting():
+            expected = multi_gauss_fit(
+                copy_to_cpu(self.profile_base_class.hist_x),
+                copy_to_cpu(self.profile_base_class.hist_y),
+                n_bunches=1,
+            )
+        np.testing.assert_allclose(result[0, :], expected[0, :])
 
 
 class TestStaticProfile(unittest.TestCase):

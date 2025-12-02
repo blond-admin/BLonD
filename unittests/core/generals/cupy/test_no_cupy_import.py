@@ -4,6 +4,7 @@ import numpy as np
 
 from blond.generals.cupy.no_cupy_import import (
     _AsarrayOverrideManager,
+    copy_to_cpu,
     is_cupy_array,
 )
 
@@ -18,6 +19,20 @@ class TestCallables(unittest.TestCase):
         except ModuleNotFoundError:
             self.skipTest("Cupy not available")
         self.assertTrue(is_cupy_array(cp.ones(10)))
+
+    def test_copy_to_cpu1(self):
+        array1 = np.ones(10)
+        array2 = copy_to_cpu(array1)
+        self.assertTrue(array1 is not array2)
+
+    def test_copy_to_cpu2(self):
+        try:
+            import cupy as cp
+        except (ImportError, ModuleNotFoundError) as exc:
+            self.skipTest(str(exc))
+        array1 = cp.ones(10)
+        array2 = copy_to_cpu(array1)
+        self.assertTrue(array1 is not array2)
 
 
 class TestAsarrayOverrideManager(unittest.TestCase):
