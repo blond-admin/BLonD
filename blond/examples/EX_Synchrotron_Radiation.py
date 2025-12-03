@@ -27,7 +27,7 @@ class SynchrotronRadiationSimulation:
                 0.0005936549319,
                 5.6814536525e-08,
                 5.92870407301e-09,
-                1.71368060083 - 11,
+                1.71368060083e-11,
             ]
         )
         cavity1 = SingleHarmonicRfStation()
@@ -54,22 +54,21 @@ class SynchrotronRadiationSimulation:
 
         self.beam = beam
 
-        simulation = Simulation.from_locals(locals())
-        simulation.print_one_turn_execution_order()
-
-        simulation.prepare_beam(
-            beam=beam,
-            preparation_routine=BiGaussian(
-                sigma_dt=0.4e-9 / 4,
-                sigma_dE=1e9 / 4,
-                reinsertion=False,
-                seed=1,
-                n_macroparticles=10,
-            ),
-            turn_i=1,
-        )
-
 
 def main():
+    simulation = Simulation.from_locals(locals())
+    simulation.print_one_turn_execution_order()
+
+    simulation.prepare_beam(
+        beam=beam,
+        preparation_routine=BiGaussian(
+            sigma_dt=0.4e-9 / 4,
+            sigma_dE=1e9 / 4,
+            reinsertion=False,
+            seed=1,
+            n_macroparticles=10,
+        ),
+        turn_i=1,
+    )
     pass
     # raise ValueError("Synchrotron Radiation example is not ready")
