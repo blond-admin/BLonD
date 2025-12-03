@@ -120,7 +120,8 @@ def main():
     def my_callback(
         simulation: Simulation, beam: Beam
     ) -> None:  # pragma: no cover
-        """Empty callback example.
+        """
+        Empty callback example.
 
         Parameters
         ----------

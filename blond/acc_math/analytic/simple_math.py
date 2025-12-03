@@ -31,7 +31,8 @@ def calc_beta(mass: float, momentum: NumpyArray) -> NumpyArray: ...
 
 
 def calc_beta(mass: float, momentum: float | NumpyArray) -> float | NumpyArray:
-    """Relativistic beta factor (v = beta * c0).
+    """
+    Relativistic beta factor (v = beta * c0).
 
     Parameters
     ----------
@@ -59,7 +60,8 @@ def calc_gamma(mass: float, momentum: NumpyArray) -> NumpyArray: ...
 def calc_gamma(
     mass: float, momentum: float | NumpyArray
 ) -> float | NumpyArray:
-    """Relativistic gamma factor (Lorentz factor).
+    """
+    Relativistic gamma factor (Lorentz factor).
 
     Parameters
     ----------
@@ -88,7 +90,8 @@ def calc_total_energy(mass: float, momentum: NumpyArray) -> NumpyArray: ...
 def calc_total_energy(
     mass: float, momentum: float | NumpyArray
 ) -> float | NumpyArray:
-    """Total relativistic energy of the particle.
+    """
+    Total relativistic energy of the particle.
 
     Parameters
     ----------
@@ -116,7 +119,8 @@ def calc_energy_kin(mass: float, momentum: NumpyArray) -> NumpyArray: ...
 def calc_energy_kin(
     mass: float, momentum: float | NumpyArray
 ) -> float | NumpyArray:
-    """Relativistic kinetic energy of the particle.
+    """
+    Relativistic kinetic energy of the particle.
 
     Parameters
     ----------
@@ -144,7 +148,8 @@ def beta_by_momentum(momentum: NumpyArray, mass: float) -> NumpyArray: ...
 def beta_by_momentum(
     momentum: float | NumpyArray, mass: float
 ) -> float | NumpyArray:
-    """Calculate fraction of velocity over speed of light.
+    """
+    Calculate fraction of velocity over speed of light.
 
     Notes
     -----

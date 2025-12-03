@@ -41,7 +41,8 @@ class BeamFlags(IntEnum):
 
 
 class BeamBaseClass(Preparable, HasPropertyCache, ABC):
-    """Base class to make beam classes.
+    """
+    Base class to make beam classes.
 
     Parameters
     ----------
@@ -93,7 +94,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """
+        Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             `Simulation` context manager
@@ -197,7 +199,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
     ) -> None:
-        """Sets beam array attributes for simulation.
+        """
+        Sets beam array attributes for simulation.
 
         Parameters
         ----------
@@ -226,7 +229,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     @requires(["EnergyCycleBase"])
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """
+        Lateinit method when `simulation.__init__` is called.
 
         simulation
             `Simulation` context manager
@@ -313,7 +317,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         self._invalidate_cache(BeamBaseClass.cached_props)
 
     def n_macroparticles_partial(self) -> int:
-        """Size of the beam, ignoring that beam might be distributed.
+        """
+        Size of the beam, ignoring that beam might be distributed.
 
         Note
         ----
@@ -333,7 +338,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             )
 
     def read_partial_ids(self) -> NumpyArray | CupyArray:
-        """Returns id-array on current node (distributed computing ready).
+        """
+        Returns id-array on current node (distributed computing ready).
 
         Note
         ----
@@ -347,7 +353,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         return self._ids
 
     def read_partial_dt(self) -> NumpyArray | CupyArray:
-        """Returns dt-array on current node (distributed computing ready), in [s].
+        """
+        Returns dt-array on current node (distributed computing ready), in [s].
 
         Note
         ----
@@ -361,7 +368,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         return self._dt
 
     def write_partial_dt(self) -> NumpyArray | CupyArray:
-        """Returns dt-array on current node (distributed computing ready), in [s].
+        """
+        Returns dt-array on current node (distributed computing ready), in [s].
 
         Note
         ----
@@ -376,7 +384,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         return self._dt
 
     def read_partial_dE(self) -> NumpyArray | CupyArray:
-        """Returns dE-array on current node (distributed computing ready), in [eV].
+        """
+        Returns dE-array on current node (distributed computing ready), in [eV].
 
         Note
         ----
@@ -390,7 +399,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         return self._dE
 
     def write_partial_dE(self) -> NumpyArray | CupyArray:
-        """Returns dE-array on current node (distributed computing ready), in [eV].
+        """
+        Returns dE-array on current node (distributed computing ready), in [eV].
 
         Note
         ----
@@ -405,7 +415,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         return self._dE
 
     def write_partial_flags(self) -> NumpyArray | CupyArray:
-        """Returns flags-array on current node (distributed computing ready).
+        """
+        Returns flags-array on current node (distributed computing ready).
 
         Note
         ----
@@ -421,7 +432,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         return self._flags
 
     def read_partial_flags(self) -> NumpyArray | CupyArray:
-        """Returns flags-array on current node (distributed computing ready).
+        """
+        Returns flags-array on current node (distributed computing ready).
 
         Note
         ----
@@ -435,7 +447,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         return self._flags
 
     def purge_flagged_entries(self, flag: int = BeamFlags.LOST.value) -> None:
-        """Delete flagged array entries from the array.
+        """
+        Delete flagged array entries from the array.
 
         Parameters
         ----------

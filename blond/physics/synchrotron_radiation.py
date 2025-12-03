@@ -6,7 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Collection of implementations to calculate the synchrotron radiation.
+"""
+Collection of implementations to calculate the synchrotron radiation.
 
 Authors
 -------
@@ -35,7 +36,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class SynchrotronRadiation(BeamPhysicsRelevant):  # pragma: no cover
-    """Synchrotron radiation module.
+    """
+    Synchrotron radiation module.
 
     Parameters
     ----------
@@ -55,7 +57,8 @@ class SynchrotronRadiation(BeamPhysicsRelevant):  # pragma: no cover
         self._simulation: DriftSimple | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when :func:`blond.core.simulation.simulation.Simulation.__init__` is called.
+        """
+        Lateinit method when :func:`blond.core.simulation.simulation.Simulation.__init__` is called.
 
         simulation
             `Simulation` context manager
@@ -70,7 +73,8 @@ class SynchrotronRadiation(BeamPhysicsRelevant):  # pragma: no cover
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """
+        Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             `Simulation` context manager
@@ -84,7 +88,8 @@ class SynchrotronRadiation(BeamPhysicsRelevant):  # pragma: no cover
         pass
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop.
+        """
+        Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------

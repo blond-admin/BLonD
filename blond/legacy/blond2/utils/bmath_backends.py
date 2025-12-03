@@ -1,4 +1,5 @@
-"""**File to deal with dependencies to numpy, cupy, c++, numba, etc.**
+"""
+**File to deal with dependencies to numpy, cupy, c++, numba, etc.**
 
 :Authors: **Simon Lauber**, **Stefan Hegglin**, **Konstantinos Iliakis**,
  **Panagiotis Tsapatsaris**, **Georgios Typaldos**
@@ -201,7 +202,8 @@ class MasterBackend:
         # self.interp_const_space = None # todo required??
 
     def verify_backend(self):
-        """Checks if all attributes from init are declared correctly
+        """
+        Checks if all attributes from init are declared correctly
 
         Raises
         ------
@@ -256,7 +258,8 @@ class MasterBackend:
         PyBackend.__init__(self)
 
     def use_cpu(self):
-        """Try using one of the CPU backends
+        """
+        Try using one of the CPU backends
 
         Notes
         -----
@@ -299,7 +302,8 @@ class MasterBackend:
     def use_precision(
         self, _precision: Literal["single", "double"] = "double"
     ):
-        """Change the precision used in calculations.
+        """
+        Change the precision used in calculations.
 
         Parameters
         ----------
@@ -314,7 +318,8 @@ class MasterBackend:
         raise NotImplementedError()
 
     def get_gpu_device(self) -> GPU_DEV:
-        """Get the GPU device object
+        """
+        Get the GPU device object
 
         Returns:
             GPU_DEV: TODO
@@ -324,7 +329,8 @@ class MasterBackend:
         return GPU_DEV
 
     def use_gpu(self, gpu_id: int = 0):
-        """Use the GPU device to perform the calculations.
+        """
+        Use the GPU device to perform the calculations.
 
         Parameters
         ----------
@@ -350,7 +356,8 @@ class MasterBackend:
 
 class __NumpyBackend(MasterBackend):
     def __init__(self):
-        """All numpy  function definitions. Accelerator science definitions
+        """
+        All numpy  function definitions. Accelerator science definitions
         missing"""
 
         super().__init__()
@@ -451,7 +458,8 @@ class __NumpyBackend(MasterBackend):
 
 class __CupyBackend(MasterBackend):
     def __init__(self):
-        """All cupy  function definitions. Accelerator science definitions
+        """
+        All cupy  function definitions. Accelerator science definitions
         missing"""
         super().__init__()
         if not _cupy_available:
@@ -555,7 +563,8 @@ class __CupyBackend(MasterBackend):
 
 class CppBackend(__NumpyBackend):
     def __init__(self):
-        """Mostly numpy backend, with some declarations from
+        """
+        Mostly numpy backend, with some declarations from
         blond.utils.butils_wrap_cpp"""
         super().__init__()
 
@@ -612,7 +621,8 @@ class CppBackend(__NumpyBackend):
     def use_precision(
         self, _precision: Literal["single", "double"] = "double"
     ):
-        """Change the precision used in calculations.
+        """
+        Change the precision used in calculations.
 
         Parameters
         ----------
@@ -628,7 +638,8 @@ class CppBackend(__NumpyBackend):
 
 class NumbaBackend(__NumpyBackend):
     def __init__(self):
-        """Mostly numpy backend, with some declarations from
+        """
+        Mostly numpy backend, with some declarations from
         blond.utils.butils_wrap_numba"""
         super().__init__()
 
@@ -664,7 +675,8 @@ class NumbaBackend(__NumpyBackend):
 
 
 class PyBackend(__NumpyBackend):
-    """Mostly numpy backend, with some declarations from
+    """
+    Mostly numpy backend, with some declarations from
     blond.utils.butils_wrap_python"""
 
     def __init__(self):
@@ -763,7 +775,8 @@ class GpuBackend(__CupyBackend):
     def use_precision(
         self, _precision: Literal["single", "double"] = "double"
     ):
-        """Change the precision used in calculations.
+        """
+        Change the precision used in calculations.
 
         Parameters
         ----------
@@ -799,7 +812,8 @@ for __my_backend in available_backends:
 # static type hints are done to PyBackend
 class BlondMathBackend(PyBackend):
     def __init__(self):
-        """Initialized as PyBackend (Numpy based)
+        """
+        Initialized as PyBackend (Numpy based)
 
         Notes
         -----

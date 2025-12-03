@@ -6,7 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Functions needed for :class:`~blond.blond.beam_preparation.bigaussian.BiGaussian`.
+"""
+Functions needed for :class:`~blond.blond.beam_preparation.bigaussian.BiGaussian`.
 
 Authors
 -------
@@ -66,7 +67,8 @@ def _get_dE_from_dt(
     beam: BeamBaseClass,
     dt_amplitude: float,
 ) -> float:
-    r"""Evaluates the dE amplitude from dt following a single RF Hamiltonian.
+    r"""
+    Evaluates the dE amplitude from dt following a single RF Hamiltonian.
 
     Returns
     -------

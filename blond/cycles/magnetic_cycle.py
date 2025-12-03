@@ -6,7 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Several classes to manage and describe the ramp of the magnets.
+"""
+Several classes to manage and describe the ramp of the magnets.
 
 Notes
 -----
@@ -57,7 +58,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
-    """Programmed magnetic cycle of the synchrotron.
+    """
+    Programmed magnetic cycle of the synchrotron.
 
     Parameters
     ----------
@@ -84,7 +86,8 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         simulation: Simulation,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """
+        Lateinit method when `simulation.__init__` is called.
 
         simulation
             `Simulation` context manager
@@ -140,7 +143,8 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         reference_time: float,
         particle_type: ParticleType,
     ):
-        """Calculate the total energy [eV] that is foreseen by the magnetic cycle.
+        """
+        Calculate the total energy [eV] that is foreseen by the magnetic cycle.
 
         Parameters
         ----------
@@ -169,7 +173,8 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         t_init: float,
         particle_type: ParticleType,
     ) -> float:
-        """Compute the initial the total energy [eV] for the initial turn.
+        """
+        Compute the initial the total energy [eV] for the initial turn.
 
         Parameters
         ----------
@@ -213,7 +218,8 @@ class MagneticCycleBase(ProgrammedCycle, HasPropertyCache):
         t_init: float,
         particle_type: ParticleType,
     ) -> float:
-        r"""Compute the initial revolution period of a reference particle, in [s].
+        r"""
+        Compute the initial revolution period of a reference particle, in [s].
 
         Parameters
         ----------

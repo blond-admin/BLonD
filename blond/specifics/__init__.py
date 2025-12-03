@@ -6,7 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Utility functions for specific accelerators.
+"""
+Utility functions for specific accelerators.
 
 Authors
 -------

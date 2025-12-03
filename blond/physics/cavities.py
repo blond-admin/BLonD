@@ -725,7 +725,8 @@ class SingleHarmonicRfStation(RfStationBaseClass):
             beam_beta=beam.reference_beta,
             ring_circumference=self._ring.circumference,
         )
-        """self._t_rf = (2 * np.pi) / self._omega_rf
+        """
+        self._t_rf = (2 * np.pi) / self._omega_rf
         self._t_rev = self._t_rf * self.harmonic
         try:
             self.phi_s = self.calc_phi_s_single_harmonic(beam=beam)

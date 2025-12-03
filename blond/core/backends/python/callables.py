@@ -30,7 +30,8 @@ def _move_flagged_elements_to_end_py(
     dE: NumpyArray,
     ids: NumpyArray,
 ):
-    """Reorders entries where ``flags == flag`` to the array end.
+    """
+    Reorders entries where ``flags == flag`` to the array end.
 
     This is only intended for `purge_flagged_entries`.
 
@@ -77,7 +78,8 @@ class PythonSpecials(Specials):
         phi_rf: float,
         bin_size: float,
     ) -> float:
-        """Calculates the beam phase.
+        """
+        Calculates the beam phase.
 
         Parameters
         ----------
@@ -121,7 +123,8 @@ class PythonSpecials(Specials):
         start: float,
         stop: float,
     ) -> None:
-        """Calculate the histogram of an array.
+        """
+        Calculate the histogram of an array.
 
         Parameters
         ----------
@@ -165,7 +168,8 @@ class PythonSpecials(Specials):
         charge: float,
         acceleration_kick: float,
     ) -> None:
-        """Apply ``dE += .. * sin(.. * dt + ..)``.
+        """
+        Apply ``dE += .. * sin(.. * dt + ..)``.
 
         Parameters
         ----------
@@ -202,7 +206,8 @@ class PythonSpecials(Specials):
         n_rf: int,
         acceleration_kick: float,
     ) -> None:
-        """Apply ``dE += .. * sin(.. * dt + ..)``.
+        """
+        Apply ``dE += .. * sin(.. * dt + ..)``.
 
         Parameters
         ----------
@@ -237,7 +242,8 @@ class PythonSpecials(Specials):
         beta: float,
         energy: float,
     ) -> None:
-        r"""Function to apply drift equation of motion.
+        r"""
+        Function to apply drift equation of motion.
 
         Parameters
         ----------

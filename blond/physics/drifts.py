@@ -6,7 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Collection of implementations to handle movement in bent synchrotron sections.
+"""
+Collection of implementations to handle movement in bent synchrotron sections.
 
 Authors
 -------
@@ -68,7 +69,8 @@ def _assert_purely_real_or_imaginary(val: complex):
 
 
 class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
-    """Base class of a drift.
+    """
+    Base class of a drift.
 
     Parameters
     ----------
@@ -99,7 +101,8 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         pass
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop.
+        """
+        Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------
@@ -109,7 +112,8 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         super().track(beam=beam)
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """
+        Lateinit method when `simulation.__init__` is called.
 
         simulation
             `Simulation` context manager
@@ -124,7 +128,8 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """
+        Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             `Simulation` context manager
@@ -139,7 +144,8 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
 
 
 class DriftSimple(DriftBaseClass, HasPropertyCache):
-    """Base class to implement beam drifts in synchrotrons.
+    """
+    Base class to implement beam drifts in synchrotrons.
 
     Parameters
     ----------
@@ -159,7 +165,8 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         momentum_compaction_factor: float | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ) -> None:
-        """Base class to implement beam drifts in synchrotrons.
+        """
+        Base class to implement beam drifts in synchrotrons.
 
         Parameters
         ----------
@@ -239,7 +246,8 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         orbit_length: float,
         section_index: int = 0,
     ) -> DriftSimple:
-        """Initialize object without simulation context.
+        """
+        Initialize object without simulation context.
 
         Parameters
         ----------
@@ -281,7 +289,8 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         return d
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """
+        Lateinit method when `simulation.__init__` is called.
 
         simulation
             `Simulation` context manager
@@ -297,7 +306,8 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             )
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop.
+        """
+        Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------

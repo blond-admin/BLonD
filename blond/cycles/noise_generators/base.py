@@ -6,7 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Base classes for :class:`~blond.cycles.noise_generators.base.NoiseGenerator`.
+"""
+Base classes for :class:`~blond.cycles.noise_generators.base.NoiseGenerator`.
 
 Authors
 -------

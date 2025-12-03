@@ -20,7 +20,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class IntensityEffectManager:
-    """Activate/deactivate Wakes and Profiles globally.
+    """
+    Activate/deactivate Wakes and Profiles globally.
 
     Parameters
     ----------
@@ -45,7 +46,8 @@ class IntensityEffectManager:
         return len(wakefields) > 0
 
     def is_active_wakefields(self) -> bool:  # TODO testcae
-        """Checks whehther all `Wakefields` are active or inactive.
+        """
+        Checks whehther all `Wakefields` are active or inactive.
 
         Raises
         ------
@@ -64,7 +66,8 @@ class IntensityEffectManager:
         return actives.pop()
 
     def set_wakefields(self, active: bool) -> None:
-        """Activate/deactivate `WakeField`.
+        """
+        Activate/deactivate `WakeField`.
 
         Parameters
         ----------
@@ -78,7 +81,8 @@ class IntensityEffectManager:
             wakefield.active = active
 
     def set_profiles(self, active: bool) -> None:
-        """Activate/deactivate `ProfileBaseClass`.
+        """
+        Activate/deactivate `ProfileBaseClass`.
 
         Parameters
         ----------
@@ -100,7 +104,8 @@ class IntensityEffectManager:
             wakefield.profile.active = active
 
     def is_active_profiles(self) -> bool:  # TODO testcae
-        """Checks whether all `Profiles` are active or inactive.
+        """
+        Checks whether all `Profiles` are active or inactive.
 
         Raises
         ------

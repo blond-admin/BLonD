@@ -21,7 +21,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
-    """Updates beam's `reference_total_energy` and `dE` array, but constant in absolute terms.
+    """
+    Updates beam's `reference_total_energy` and `dE` array, but constant in absolute terms.
 
     Can be used in simulations where RF ramping is asynchronous with respect to the
     beam’s energy.
@@ -67,7 +68,8 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
         self._ring: Ring | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """
+        Lateinit method when `simulation.__init__` is called.
 
         simulation
             `Simulation` context manager
@@ -89,7 +91,8 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
         turn_i_init: int,
         **kwargs,
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """
+        Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             `Simulation` context manager
@@ -103,7 +106,8 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
         pass
 
     def track(self, beam: BeamBaseClass):
-        """Updates reference energy of the beam.
+        """
+        Updates reference energy of the beam.
 
         beam
             Simulation beam object

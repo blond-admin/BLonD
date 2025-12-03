@@ -6,7 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Utility functions for the CERN Large Hadron Collider.
+"""
+Utility functions for the CERN Large Hadron Collider.
 
 Authors
 -------

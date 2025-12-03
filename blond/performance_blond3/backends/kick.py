@@ -6,7 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Testing the performance of `kick_multi_harmonic`.
+"""
+Testing the performance of `kick_multi_harmonic`.
 
 Authors
 -------

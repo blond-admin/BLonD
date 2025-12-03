@@ -24,7 +24,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def is_cupy_array(arr: NumpyArray | CupyArray | Any) -> bool:
-    """Checks if the array is a Cupy array.
+    """
+    Checks if the array is a Cupy array.
 
     Parameters
     ----------
@@ -48,7 +49,8 @@ def is_cupy_array(arr: NumpyArray | CupyArray | Any) -> bool:
 
 
 def copy_to_cpu(array: NumpyArray | CupyArray):
-    """Copies array from GPU/CPU to CPU.
+    """
+    Copies array from GPU/CPU to CPU.
 
     Notes
     -----
@@ -104,7 +106,8 @@ class _AsarrayOverrideManager:
 
 
 class AllowPlotting:
-    """Allows implicitly casting of Cupy arrays to Numpy arrays.
+    """
+    Allows implicitly casting of Cupy arrays to Numpy arrays.
 
     Notes
     -----

@@ -6,7 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Holds the `Simulation` class.
+"""
+Holds the `Simulation` class.
 
 Authores
 --------
@@ -69,7 +70,8 @@ logger = logging.getLogger(__name__)
 
 
 class Simulation(Preparable):
-    """Main simulation manager for beam dynamics in synchrotrons.
+    """
+    Main simulation manager for beam dynamics in synchrotrons.
 
     The ``Simulation`` class is the central object that coordinates all aspects of a
     beam dynamics simulation. It manages the ring structure, energy evolution, beam
@@ -153,7 +155,8 @@ class Simulation(Preparable):
         profile_n_turns: int,
         sortby: SortKey = SortKey.CUMULATIVE,
     ) -> None:
-        """Profile the simulation to identify performance bottlenecks.
+        """
+        Profile the simulation to identify performance bottlenecks.
 
         Runs the Python profiler during simulation execution to measure where time
         is being spent. This is useful for optimizing slow simulations by identifying
@@ -215,7 +218,8 @@ class Simulation(Preparable):
 
         # trigger profiling later than turn 0
         def start_profiling(simulation: Simulation, beam: BeamBaseClass):
-            """Enable the profiling in the mainloop.
+            """
+            Enable the profiling in the mainloop.
 
             Parameters
             ----------
@@ -249,7 +253,8 @@ class Simulation(Preparable):
         subtract_min: bool = True,
         **kwargs_plot,
     ) -> None:
-        """Plot the RF potential well by tracking particles through one turn.
+        """
+        Plot the RF potential well by tracking particles through one turn.
 
         This is a convenience method that calculates and immediately plots the RF
         potential well. It internally calls ``get_potential_well_empiric()`` and
@@ -324,7 +329,8 @@ class Simulation(Preparable):
         particle_type: ParticleType,
         intensity: int = 0,
     ) -> NumpyArray:
-        """Calculate how particles drift in time as a function of energy offset.
+        """
+        Calculate how particles drift in time as a function of energy offset.
 
         This method empirically determines the time drift (chromaticity effect) by
         tracking probe particles with different energy offsets through one complete turn.
@@ -412,7 +418,8 @@ class Simulation(Preparable):
         subtract_min: bool = True,
         intensity: int = 0,
     ) -> tuple[NumpyArray, float, float]:
-        """Calculate the RF potential well by tracking particles through one turn.
+        """
+        Calculate the RF potential well by tracking particles through one turn.
 
         The potential well represents the effective RF voltage "landscape" that particles
         experience as they move through the synchrotron. This method computes it empirically
@@ -539,7 +546,8 @@ class Simulation(Preparable):
         )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Hook called when the Simulation object is initialized.
+        """
+        Hook called when the Simulation object is initialized.
 
         This is used by simulation elements to perform
         initialization tasks. It is called automatically
@@ -573,7 +581,8 @@ class Simulation(Preparable):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Hook called when ``run_simulation`` is invoked.
+        """
+        Hook called when ``run_simulation`` is invoked.
 
         This is a lifecycle hook that can be overridden by subclasses or used by
         simulation elements to perform setup tasks before the main simulation loop
@@ -609,7 +618,8 @@ class Simulation(Preparable):
         pass
 
     def _exec_all_in_tree(self, method: str, **kwargs) -> None:
-        """Execute all methods that are somewhere in the attribute hierarchy of `Simulation`.
+        """
+        Execute all methods that are somewhere in the attribute hierarchy of `Simulation`.
 
         Parameters
         ----------
@@ -646,7 +656,8 @@ class Simulation(Preparable):
         n_turns: int,
         turn_i_init: int,
     ) -> None:
-        """Execute all `on_run_simulation` in the attribute hierarchy of `Simulation`.
+        """
+        Execute all `on_run_simulation` in the attribute hierarchy of `Simulation`.
 
         Parameters
         ----------
@@ -667,7 +678,8 @@ class Simulation(Preparable):
     def from_locals(
         locals: dict[str, Any], verbose: bool = False
     ) -> Simulation:
-        """Automatically create a Simulation by discovering components in the current scope.
+        """
+        Automatically create a Simulation by discovering components in the current scope.
 
         It automatically detects and assembles all simulation components (
         Ring, RF stations, drifts, magnetic cycle, beams) from the local
@@ -773,7 +785,8 @@ class Simulation(Preparable):
 
     @property  # as readonly attributes
     def ring(self) -> Ring:
-        """The synchrotron ring containing all simulation elements.
+        """
+        The synchrotron ring containing all simulation elements.
 
         Returns the ``Ring`` object that holds all physical elements (RF stations,
         drifts, impedances, etc.) through which the beam is tracked each turn.
@@ -788,7 +801,8 @@ class Simulation(Preparable):
 
     @property  # as readonly attributes
     def magnetic_cycle(self) -> MagneticCycleBase:
-        """The energy evolution program for the synchrotron.
+        """
+        The energy evolution program for the synchrotron.
 
         Returns the ``MagneticCycleBase`` object that defines how the beam's reference
         energy changes during the simulation (constant, ramping, or time-dependent).
@@ -808,7 +822,8 @@ class Simulation(Preparable):
         return self._magnetic_cycle
 
     def print_one_turn_execution_order(self) -> None:
-        """Display the order in which elements are executed during each turn.
+        """
+        Display the order in which elements are executed during each turn.
 
         This prints a human-readable list showing the sequence of elements (RF stations,
         drifts, etc.) that the beam encounters during one complete turn through the ring.
@@ -844,7 +859,8 @@ class Simulation(Preparable):
         ),
         turn_i: int = 0,
     ) -> None:
-        """Populate the beam's with macroparticles.
+        """
+        Populate the beam's with macroparticles.
 
         Before running a simulation, the beam must be "prepared" by populating its
         longitudinal particle distribution (time and energy coordinates) with
@@ -938,7 +954,8 @@ class Simulation(Preparable):
         show_progressbar: bool = True,
         callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
     ) -> None:
-        """Execute the main beam dynamics simulation loop.
+        """
+        Execute the main beam dynamics simulation loop.
 
         This is the core method that tracks the beam(s) through the synchrotron for
         a specified number of turns. Each turn, the beam passes through all elements
@@ -1105,7 +1122,8 @@ class Simulation(Preparable):
         turn_i_init: int = 0,
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
     ) -> int:
-        """Initialize all simulation components before running or loading results.
+        """
+        Initialize all simulation components before running or loading results.
 
         This method is called internally by both ``run_simulation()`` and ``load_results()``
         to set up the simulation state. It:
@@ -1212,7 +1230,8 @@ class Simulation(Preparable):
         show_progressbar: bool = True,
         callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
     ) -> None:
-        """Execute the beam dynamics simulation for only one beam.
+        """
+        Execute the beam dynamics simulation for only one beam.
 
         Parameters
         ----------
@@ -1268,7 +1287,8 @@ class Simulation(Preparable):
         show_progressbar: bool = True,
         callback: Callable[[Simulation, BeamBaseClass], None] | None = None,
     ) -> None:
-        """Execute the beam dynamics simulation for only one beam.
+        """
+        Execute the beam dynamics simulation for only one beam.
 
         Parameters
         ----------
@@ -1340,7 +1360,8 @@ class Simulation(Preparable):
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         common_name: str | None = None,
     ) -> None:
-        """Save observable data to disk for later analysis.
+        """
+        Save observable data to disk for later analysis.
 
         After running a simulation, this method saves the data collected by observables
         (like RF phase evolution, beam profiles, etc.) to disk. This is useful for:
@@ -1412,7 +1433,8 @@ class Simulation(Preparable):
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         common_name: str | None = None,
     ) -> None:
-        """Load previously saved observable data from disk.
+        """
+        Load previously saved observable data from disk.
 
         This method loads data from observables that were saved with ``save_results()``
         in a previous session. This allows you to analyze results without re-running

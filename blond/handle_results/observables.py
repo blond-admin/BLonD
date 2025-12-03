@@ -6,7 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Module holding all observables for the simulation.
+"""
+Module holding all observables for the simulation.
 
 Author
 ------
@@ -40,7 +41,8 @@ logger = logging.getLogger(__name__)
 
 
 class ObservablesBaseClass(MainLoopRelevant):
-    """Base class to define observations.
+    """
+    Base class to define observations.
 
     Parameters
     ----------
@@ -57,7 +59,8 @@ class ObservablesBaseClass(MainLoopRelevant):
         logger.info(f"Will save {self} to {self.common_filepath}_,,,")
 
     def get_recorders(self) -> list[tuple[str, DenseArrayRecorder]]:
-        """Get all `DenseArrayRecorder` inside the current instance.
+        """
+        Get all `DenseArrayRecorder` inside the current instance.
 
         Returns
         -------
@@ -73,7 +76,8 @@ class ObservablesBaseClass(MainLoopRelevant):
         return recorders
 
     def rename(self, new_common_filepath: str) -> None:
-        """Change the common save name of all internal arrays.
+        """
+        Change the common save name of all internal arrays.
 
         Notes
         -----
@@ -131,7 +135,8 @@ class ObservablesBaseClass(MainLoopRelevant):
 
 
 class ObservablesOncePerTurnBase(ObservablesBaseClass):
-    """Base class to observe attributes during simulation.
+    """
+    Base class to observe attributes during simulation.
 
     Parameters
     ----------
@@ -164,7 +169,8 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
 
     @property  # as readonly attributes
     def turns_array(self) -> NumpyArray | None:
-        """Helper method to get x-axis array with turn-number of shape ``(n_observations, )``.
+        """
+        Helper method to get x-axis array with turn-number of shape ``(n_observations, )``.
 
         Helper method to get x-axis array with turn-number for which the
         observations are performed.
@@ -176,7 +182,8 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         self,
         simulation: Simulation,
     ) -> None:
-        """Update memory with new values.
+        """
+        Update memory with new values.
 
         Parameters
         ----------
@@ -226,7 +233,8 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
 
 
 class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
-    """Observe the bunch coordinates during simulation execution after a drift element.
+    """
+    Observe the bunch coordinates during simulation execution after a drift element.
 
     Parameters
     ----------
@@ -284,7 +292,8 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """
+        Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             `Simulation` context manager
@@ -333,7 +342,8 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         self,
         simulation: Simulation,
     ) -> None:
-        """Update memory with new values.
+        """
+        Update memory with new values.
 
         Parameters
         ----------
@@ -375,7 +385,8 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
 
 
 class RfStationPhaseObservation(ObservablesOncePerTurnBase):
-    """Observe the RF station parameters during the execution of the simulation.
+    """
+    Observe the RF station parameters during the execution of the simulation.
 
     Parameters
     ----------
@@ -427,7 +438,8 @@ class RfStationPhaseObservation(ObservablesOncePerTurnBase):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """
+        Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             `Simulation` context manager
@@ -465,7 +477,8 @@ class RfStationPhaseObservation(ObservablesOncePerTurnBase):
         self,
         simulation: Simulation,
     ) -> None:
-        """Update memory with new values.
+        """
+        Update memory with new values.
 
         Parameters
         ----------
@@ -505,7 +518,8 @@ class RfStationPhaseObservation(ObservablesOncePerTurnBase):
 
 
 class StaticProfileObservation(ObservablesOncePerTurnBase):
-    """Observation of a static beam profile.
+    """
+    Observation of a static beam profile.
 
     Parameters
     ----------
@@ -557,7 +571,8 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """
+        Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             `Simulation` context manager
@@ -585,7 +600,8 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
         self,
         simulation: Simulation,
     ) -> None:
-        """Update memory with new values.
+        """
+        Update memory with new values.
 
         Parameters
         ----------
@@ -617,7 +633,8 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
 
 
 class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
-    """Observation of multiple profiles in one observation object. The profiles need to have the same n_bins.
+    """
+    Observation of multiple profiles in one observation object. The profiles need to have the same n_bins.
 
     Parameters
     ----------
@@ -675,7 +692,8 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
         turn_i_init: int,
         **kwargs,
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """
+        Lateinit method when `simulation.run_simulation` is called.
 
         Parameters
         ----------
@@ -708,7 +726,8 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
         self,
         simulation: Simulation,
     ) -> None:
-        """Updates the data in case the function has not been called on the current section and turn already.
+        """
+        Updates the data in case the function has not been called on the current section and turn already.
 
         Parameters
         ----------
@@ -742,7 +761,8 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
 
 
 class WakeFieldObservation(ObservablesOncePerTurnBase):
-    """Observe the calculation of wake-fields.
+    """
+    Observe the calculation of wake-fields.
 
     Parameters
     ----------
@@ -820,7 +840,8 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
         self,
         simulation: Simulation,
     ) -> None:
-        """Update memory with new values.
+        """
+        Update memory with new values.
 
         Parameters
         ----------
@@ -839,7 +860,8 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
 
     @property  # as readonly attributes
     def induced_voltage(self) -> NumpyArray:
-        """Induced voltage, in [V] from given beam profile and sources  of shape ``(n_observations, n_bins)``.
+        """
+        Induced voltage, in [V] from given beam profile and sources  of shape ``(n_observations, n_bins)``.
 
         Returns
         -------
@@ -850,7 +872,8 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
 
 
 class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
-    """Observation of a dynamic beam profile with changing width, while keeping a constant bin number.
+    """
+    Observation of a dynamic beam profile with changing width, while keeping a constant bin number.
 
     Parameters
     ----------
@@ -897,7 +920,8 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when :func:`blond.core.simulation.simulation.Simulation.run_simulation` is called.
+        """
+        Lateinit method when :func:`blond.core.simulation.simulation.Simulation.run_simulation` is called.
 
         simulation
             `Simulation` context manager
@@ -931,7 +955,8 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
         self,
         simulation: Simulation,
     ) -> None:
-        """Update memory with new values.
+        """
+        Update memory with new values.
 
         Parameters
         ----------

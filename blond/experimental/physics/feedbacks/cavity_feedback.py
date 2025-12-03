@@ -36,7 +36,8 @@ if TYPE_CHECKING:
 
 
 class BirksCavityFeedback(LocalFeedback):
-    """Base class to design cavity feedbacks.
+    """
+    Base class to design cavity feedbacks.
 
     Parameters
     ----------
@@ -121,7 +122,8 @@ class BirksCavityFeedback(LocalFeedback):
         section_index: int = 0,
         name: str | None = None,
     ):
-        """Base class to design cavity feedbacks.
+        """
+        Base class to design cavity feedbacks.
 
         Parameters
         ----------
@@ -225,7 +227,8 @@ class BirksCavityFeedback(LocalFeedback):
 
     @abstractmethod  # pragma: no cover
     def update_fb_variables(self) -> None:
-        r"""Method to update the variables specific to the feedback.
+        r"""
+        Method to update the variables specific to the feedback.
 
         This is meant to be implemented in the child class by the user.
         """
@@ -274,7 +277,8 @@ class BirksCavityFeedback(LocalFeedback):
 
     @abstractmethod  # pragma: no cover
     def circuit_track(self, no_beam: bool = False) -> None:
-        r"""Method to track circuit of the feedback.
+        r"""
+        Method to track circuit of the feedback.
 
         Notes
         -----
@@ -297,7 +301,8 @@ class BirksCavityFeedback(LocalFeedback):
             self.circuit_track(no_beam=True)
 
     def track(self, beam: BeamBaseClass) -> None:
-        r"""Tracking method of the cavity feedback.
+        r"""
+        Tracking method of the cavity feedback.
 
         Parameters
         ----------

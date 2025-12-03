@@ -41,7 +41,8 @@ def populate_beam(
     n_macroparticles: int,
     seed: int | None,
 ) -> None:
-    """Fill bunch with macroparticles according to density_distribution.
+    """
+    Fill bunch with macroparticles according to density_distribution.
 
     Notes
     -----
@@ -92,7 +93,8 @@ def populate_beam(
 
 
 def normalize_as_density(hamilton_2D: NumpyArray):
-    """Convert 2D Hamiltonian to density.
+    """
+    Convert 2D Hamiltonian to density.
 
     Parameters
     ----------
@@ -133,7 +135,8 @@ class EmpiricMatcher(MatchingRoutine):
             [NumpyArray], NumpyArray
         ] = normalize_as_density,
     ):
-        """Matching routine based on the particle movement within one turn.
+        """
+        Matching routine based on the particle movement within one turn.
 
         Step 1:
         This routine uses a 2D grid (dt vs dE) and executes one turn
@@ -247,7 +250,8 @@ class EmpiricMatcher(MatchingRoutine):
         simulation: Simulation,
         beam: BeamBaseClass,
     ) -> None:
-        """Carries out the empiric matching.
+        """
+        Carries out the empiric matching.
 
         Notes
         -----

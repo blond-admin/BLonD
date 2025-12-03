@@ -6,7 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Implementations of beam impedance sources.
+"""
+Implementations of beam impedance sources.
 
 Module to describe classes for the calculation of wakes and impedances.
 
@@ -108,7 +109,8 @@ def get_hash(array1d: NumpyArray) -> int:
 
 
 class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
-    """Inductive impedance, i.e. only complex component in frequency domain.
+    """
+    Inductive impedance, i.e. only complex component in frequency domain.
 
     Parameters
     ----------
@@ -133,7 +135,8 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         simulation: Simulation,
         beam: BeamBaseClass,
     ) -> NumpyArray:
-        """Return the impedance in the frequency domain.
+        """
+        Return the impedance in the frequency domain.
 
         Notes
         -----
@@ -199,7 +202,8 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
         beam: BeamBaseClass,
         n_fft: int,
     ) -> NumpyArray:
-        """Get impedance equivalent to the partial wake in time domain.
+        """
+        Get impedance equivalent to the partial wake in time domain.
 
         Parameters
         ----------
@@ -233,7 +237,8 @@ class InductiveImpedance(WakeFieldSource, FreqDomain, TimeDomain):
 class Resonators(
     WakeFieldSource, TimeDomain, FreqDomain, TimeDomainCounterRotation
 ):
-    r"""Multiple resonances of RLC circuits for impedance calculations.
+    r"""
+    Multiple resonances of RLC circuits for impedance calculations.
 
     Parameters
     ----------

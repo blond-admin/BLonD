@@ -82,7 +82,8 @@ class Main:
         my_cycle: MagneticCycleBase,
         my_beam: Beam,
     ) -> tuple:
-        """Assembles the :class:`blond.core.simulation.simulation.Simulation` object. and matches the beam.
+        """
+        Assembles the :class:`blond.core.simulation.simulation.Simulation` object. and matches the beam.
 
         Parameters
         ----------
@@ -121,7 +122,8 @@ class Main:
         simulation: Simulation,
         my_beam: Beam,
     ) -> None:
-        """Runs the simulation.
+        """
+        Runs the simulation.
 
         Parameters
         ----------

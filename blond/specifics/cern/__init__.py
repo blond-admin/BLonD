@@ -6,7 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Utility functions for CERN synchrotrons.
+"""
+Utility functions for CERN synchrotrons.
 
 Authors
 -------

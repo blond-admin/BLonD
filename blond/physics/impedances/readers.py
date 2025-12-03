@@ -6,7 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Implementations to handle the readout of impedance files from the disk.
+"""
+Implementations to handle the readout of impedance files from the disk.
 
 Authors
 -------
@@ -31,7 +32,8 @@ class ImpedanceReader(ABC):
 
     @abstractmethod  # pragma: no cover
     def load_file(self, filepath: PathLike) -> tuple[NumpyArray, NumpyArray]:
-        """Load a textfile from a file on the disk.
+        """
+        Load a textfile from a file on the disk.
 
         Parameters
         ----------
@@ -49,7 +51,8 @@ class ImpedanceReader(ABC):
 
 
 class CsvReader(ImpedanceReader):
-    """Simple CSV file reader for two rows of data.
+    """
+    Simple CSV file reader for two rows of data.
 
     Parameters
     ----------
@@ -62,7 +65,8 @@ class CsvReader(ImpedanceReader):
         self.kwargs = kwargs
 
     def load_file(self, filepath: PathLike) -> tuple[NumpyArray, NumpyArray]:
-        """Load a textfile from a file on the disk.
+        """
+        Load a textfile from a file on the disk.
 
         Parameters
         ----------
@@ -87,7 +91,8 @@ class ExampleImpedanceReader1(ImpedanceReader):
         super().__init__()
 
     def load_file(self, filepath: PathLike) -> tuple[NumpyArray, NumpyArray]:
-        """Load a textfile from a file on the disk.
+        """
+        Load a textfile from a file on the disk.
 
         Parameters
         ----------
@@ -141,7 +146,8 @@ class ExampleImpedanceReader2(ImpedanceReader):
         self._mode = mode
 
     def load_file(self, filepath: PathLike) -> tuple[NumpyArray, NumpyArray]:
-        """Load a textfile from a file on the disk.
+        """
+        Load a textfile from a file on the disk.
 
         Parameters
         ----------

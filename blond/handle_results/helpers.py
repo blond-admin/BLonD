@@ -24,7 +24,8 @@ def filesafe_datetime() -> str:
 
 
 def callers_relative_path(filename: str, stacklevel: int) -> str:
-    """Absolute path according to filepath of the python script at given stacklevel.
+    """
+    Absolute path according to filepath of the python script at given stacklevel.
 
     Parameters
     ----------

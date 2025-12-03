@@ -3,7 +3,8 @@ from warnings import warn
 
 
 def _handle_legacy_kwargs(new_by_old: dict[str, str]):
-    """Handles renamed keyword arguments and warns user
+    """
+    Handles renamed keyword arguments and warns user
 
     Parameters
     ----------

@@ -66,7 +66,8 @@ def compile_cpp_library(  # NOQA:  PLR0915 PLR0912
     optimize: bool = False,
     libname: str | None = None,
 ) -> None:
-    """Compile the BLonD C++ library with optional FFTW, OpenMP, and Boost support.
+    """
+    Compile the BLonD C++ library with optional FFTW, OpenMP, and Boost support.
 
     Parameters
     ----------

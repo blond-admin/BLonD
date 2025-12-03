@@ -31,7 +31,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class BeamPhysicsRelevantElements(Preparable):
-    """Container object to manage all beam interactions in `Ring`.
+    """
+    Container object to manage all beam interactions in `Ring`.
 
     Attributes
     ----------
@@ -45,7 +46,8 @@ class BeamPhysicsRelevantElements(Preparable):
         self._on_init_simulation_passed = False
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """
+        Lateinit method when `simulation.__init__` is called.
 
         Parameters
         ----------
@@ -108,7 +110,8 @@ class BeamPhysicsRelevantElements(Preparable):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """
+        Lateinit method when `simulation.run_simulation` is called.
 
         Parameters
         ----------
@@ -131,7 +134,8 @@ class BeamPhysicsRelevantElements(Preparable):
         return tuple(sorted(unique_section_indices))
 
     def get_sections_orbit_length(self) -> NumpyArray:
-        """Get `share_of_circumference` per section.
+        """
+        Get `share_of_circumference` per section.
 
         Notes
         -----
@@ -152,7 +156,8 @@ class BeamPhysicsRelevantElements(Preparable):
     def add_element(
         self, element: SimulationElementBase, reorder: bool = True
     ) -> None:
-        """Append a beam physics-relevant element to the container.
+        """
+        Append a beam physics-relevant element to the container.
 
         This method appends the given element to the
         internal sequence of elements, maintaining insertion order.
@@ -193,7 +198,8 @@ class BeamPhysicsRelevantElements(Preparable):
         element: SimulationElementBase,
         insert_at: int,
     ) -> None:
-        """Method to check the element can be inserted in the defined section.
+        """
+        Method to check the element can be inserted in the defined section.
 
         The method checks the input location is in [0 : len(
         ring.elements.elements)], then assesses the element section index is
@@ -247,7 +253,8 @@ class BeamPhysicsRelevantElements(Preparable):
             )
 
     def insert(self, element: SimulationElementBase, insert_at: int) -> None:
-        """Insert an element to the container at the specified index.
+        """
+        Insert an element to the container at the specified index.
 
         Parameters
         ----------
@@ -288,7 +295,8 @@ class BeamPhysicsRelevantElements(Preparable):
     def get_elements(
         self, class_: type[T], section_i: int | None = None
     ) -> tuple[T, ...]:
-        """Get all elements of specified type (potentially filtered by section).
+        """
+        Get all elements of specified type (potentially filtered by section).
 
         Parameters
         ----------
@@ -307,7 +315,8 @@ class BeamPhysicsRelevantElements(Preparable):
         return elements
 
     def get_element(self, class_: type[T], section_i: int | None = None) -> T:
-        """Retrieve a single element of the specified type, optionally filtered by section.
+        """
+        Retrieve a single element of the specified type, optionally filtered by section.
 
         This method returns exactly one element of the given type. If
         `section_i` is provided, only elements in that section are
@@ -358,7 +367,8 @@ class BeamPhysicsRelevantElements(Preparable):
         self._check_section_indexing()
 
     def reorder_section(self, section_index: int) -> None:
-        """Reorder section by `natural_order`.
+        """
+        Reorder section by `natural_order`.
 
         Parameters
         ----------
@@ -415,7 +425,8 @@ class BeamPhysicsRelevantElements(Preparable):
         )
 
     def count(self, class_: type[T], section_i: int | None = None) -> int:
-        """Count instances in this class that match class-type.
+        """
+        Count instances in this class that match class-type.
 
         Parameters
         ----------
@@ -432,7 +443,8 @@ class BeamPhysicsRelevantElements(Preparable):
         print(self.get_order_info())
 
     def get_order_info(self) -> str:
-        """Generate execution order string.
+        """
+        Generate execution order string.
 
         Notes
         -----

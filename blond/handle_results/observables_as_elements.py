@@ -29,7 +29,8 @@ from blond.handle_results.observables import ObservablesBaseClass
 class BeamObservationInRingElement(
     BeamObservationElement, ObservablesBaseClass
 ):
-    """Observation element placed in the ring, records beam data mid-turn.
+    """
+    Observation element placed in the ring, records beam data mid-turn.
 
     This element should be placed at a specific location in your pipeline. It
     cannot be used with .from_locals().
@@ -64,7 +65,8 @@ class BeamObservationInRingElement(
         self.n_turns = n_turns
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """
+        Lateinit method when `simulation.__init__` is called.
 
         simulation
             `Simulation` context manager
@@ -83,7 +85,8 @@ class BeamObservationInRingElement(
             Any,
         ],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """
+        Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             `Simulation` context manager
@@ -150,7 +153,8 @@ class BeamObservationInRingElement(
 
 
 class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
-    """Records mean and standard deviation of both energy and time coordinates and estimates the bunch emittance.
+    """
+    Records mean and standard deviation of both energy and time coordinates and estimates the bunch emittance.
 
     The observation object needs to be placed in a section. Only one recording will be performed per section.
 
@@ -191,7 +195,8 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         turn_i_init: int,
         **kwargs,
     ) -> None:
-        """Lateinit method when :func:`blond.core.simulation.simulation.Simulation.run_simulation` is called.
+        """
+        Lateinit method when :func:`blond.core.simulation.simulation.Simulation.run_simulation` is called.
 
         Parameters
         ----------
@@ -250,7 +255,8 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         self,
         beam: BeamBaseClass,
     ) -> None:
-        """Update memory with new values.
+        """
+        Update memory with new values.
 
         Parameters
         ----------
@@ -293,7 +299,8 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
 
     @property  # as readonly attributes
     def rms_emittance(self):
-        r"""Root-Mean=Square emittance.
+        r"""
+        Root-Mean=Square emittance.
 
         The statistical emittance is calculated with
 

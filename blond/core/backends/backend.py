@@ -173,7 +173,8 @@ class Specials(ABC):
         dE: NumpyArray | CupyArray,
         ids: NumpyArray | CupyArray,
     ):
-        """Reorders entries where ``flags == flag`` to the array end.
+        """
+        Reorders entries where ``flags == flag`` to the array end.
 
         Parameters
         ----------
@@ -196,7 +197,8 @@ class Specials(ABC):
 
 
 class _ModeSwitchHelper:
-    """Helper to be used in a `with` statement to set the specials temporarily.
+    """
+    Helper to be used in a `with` statement to set the specials temporarily.
 
     Parameters
     ----------
@@ -220,7 +222,8 @@ class _ModeSwitchHelper:
 
 
 class BackendBaseClass(ABC):
-    """Base class for a backend.
+    """
+    Base class for a backend.
 
     Parameters
     ----------
@@ -292,7 +295,8 @@ class BackendBaseClass(ABC):
         self,
         new_backend: type[Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit],
     ) -> None:
-        """Changes the backend precision.
+        """
+        Changes the backend precision.
 
         Parameters
         ----------
@@ -314,7 +318,8 @@ class BackendBaseClass(ABC):
 
     @abstractmethod  # pragma: no cover
     def set_specials(self, mode: Any) -> None:
-        """Set the special compiled functions.
+        """
+        Set the special compiled functions.
 
         Parameters
         ----------
@@ -332,7 +337,8 @@ class BackendBaseClass(ABC):
         return self._is_gpu
 
     def apply_environment_variables(self) -> None:  # NOQA PLR0912
-        """Load the environment variables and set up the backend accordingly.
+        """
+        Load the environment variables and set up the backend accordingly.
 
         Notes
         -----
@@ -418,7 +424,8 @@ class BackendBaseClass(ABC):
             self.set_specials(mode=_backend_mode)  # type: ignore
 
     def temporary_specials_mode(self, mode: str):
-        """Helper to be used in a `with` statement to set the specials temporarily.
+        """
+        Helper to be used in a `with` statement to set the specials temporarily.
 
         Examples
         --------
@@ -436,7 +443,8 @@ class BackendBaseClass(ABC):
 
 
 class NumpyBackend(BackendBaseClass):
-    """Base class for Numpy based backends.
+    """
+    Base class for Numpy based backends.
 
     Parameters
     ----------
@@ -487,7 +495,8 @@ class NumpyBackend(BackendBaseClass):
             "fortran",
         ],
     ) -> None:
-        """Set the special compiled functions.
+        """
+        Set the special compiled functions.
 
         Parameters
         ----------
@@ -555,7 +564,8 @@ class Numpy64Bit(NumpyBackend):
 
 
 class CupyBackend(BackendBaseClass):
-    """Base class for Cupy based backends.
+    """
+    Base class for Cupy based backends.
 
     Parameters
     ----------
@@ -604,7 +614,8 @@ class CupyBackend(BackendBaseClass):
         self._finalize()
 
     def set_specials(self, mode: Literal["cuda"]) -> None:
-        """Set the special compiled functions.
+        """
+        Set the special compiled functions.
 
         Parameters
         ----------

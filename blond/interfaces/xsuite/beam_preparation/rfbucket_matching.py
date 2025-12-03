@@ -36,7 +36,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class XsuiteRFBucketMatcher(MatchingRoutine):
-    """Use the XSuite `RFBucketMatcher` for beam matching.
+    """
+    Use the XSuite `RFBucketMatcher` for beam matching.
 
     Beam preparation routine that matches a longitudinal beam distribution
     using the Xsuite RFBucketMatcher and populates the beam with macroparticles.
@@ -101,7 +102,8 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
         simulation: Simulation,
         beam: BeamBaseClass,
     ) -> None:
-        """Generate and apply a matched longitudinal beam distribution.
+        """
+        Generate and apply a matched longitudinal beam distribution.
 
         This method constructs an RF bucket from the simulation and rf_station
         parameters, computes a stationary longitudinal distribution using

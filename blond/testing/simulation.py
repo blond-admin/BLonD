@@ -6,7 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Several setups of simulations that are intended for testcases.
+"""
+Several setups of simulations that are intended for testcases.
 
 Authors
 -------

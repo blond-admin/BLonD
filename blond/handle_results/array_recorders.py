@@ -6,7 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Classes that deal with memory management of simulation results.
+"""
+Classes that deal with memory management of simulation results.
 
 Authors
 -------
@@ -41,7 +42,8 @@ class ArrayRecorder(ABC):
 
     @abstractmethod  # pragma: no cover
     def write(self, newdata: NumpyArray) -> None:
-        """Write new data to the internal array.
+        """
+        Write new data to the internal array.
 
         Parameters
         ----------
@@ -68,7 +70,8 @@ class ArrayRecorder(ABC):
 
 
 class DenseArrayRecorder(ArrayRecorder):
-    """Record all data in a single array that is held entirely in the memory.
+    """
+    Record all data in a single array that is held entirely in the memory.
 
     Notes
     -----
@@ -148,7 +151,8 @@ class DenseArrayRecorder(ArrayRecorder):
         return dense_recorder
 
     def write(self, newdata: NumpyArray | CupyArray | float):
-        """Write new data to the internal array.
+        """
+        Write new data to the internal array.
 
         Parameters
         ----------

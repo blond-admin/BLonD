@@ -6,7 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Collection of implementations to do statistics.
+"""
+Collection of implementations to do statistics.
 
 Authors
 -------
@@ -25,7 +26,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def gauss_fit(hist_x: NumpyArray, hist_y: NumpyArray) -> NumpyArray:
-    """Performs a gaussian fit on a profile with a single bunches.
+    """
+    Performs a gaussian fit on a profile with a single bunches.
 
     Returns the amplitude, the mean and the standard deviation
     of the fitted gaussian curve for each bunch.
@@ -50,7 +52,8 @@ def gauss_fit(hist_x: NumpyArray, hist_y: NumpyArray) -> NumpyArray:
 def multi_gauss_fit(
     hist_x: NumpyArray, hist_y: NumpyArray, n_bunches: int
 ) -> NumpyArray:
-    """Performs a gaussian fit on a profile with multiple bunches.
+    """
+    Performs a gaussian fit on a profile with multiple bunches.
 
     Returns the amplitude, the mean and the standard
     deviation of the fitted gaussian curve for each bunch.
@@ -98,7 +101,8 @@ def multi_gauss_fit(
 def gauss(
     x: NumpyArray, amplitude: int, center: int, sigma_x: int
 ) -> NumpyArray:
-    r"""Calculate the Gauss function.
+    r"""
+    Calculate the Gauss function.
 
     .. math::
 

@@ -23,7 +23,8 @@ if TYPE_CHECKING:  # pragma: no cover
 def int_from_float_with_warning(
     value: float | int, warning_stacklevel: int
 ) -> int:
-    """Make int from float, warn if there are fractional digits.
+    """
+    Make int from float, warn if there are fractional digits.
 
     Parameters
     ----------
@@ -50,7 +51,8 @@ def int_from_float_with_warning(
 
 
 def find_instances_with_method(root: Any, method_name: str) -> Any:
-    """Find all instances within root that have a callable `methodname`.
+    """
+    Find all instances within root that have a callable `methodname`.
 
     This method does a tree walk on all objects within root.
     Class attributes that should not be searched for `method_name`

@@ -6,7 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Testing the performance of `beam_phase`.
+"""
+Testing the performance of `beam_phase`.
 
 Authors
 -------

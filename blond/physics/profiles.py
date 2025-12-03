@@ -6,7 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Collection of implementations to calculate the beam profile.
+"""
+Collection of implementations to calculate the beam profile.
 
 Authors
 -------
@@ -40,7 +41,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
-    """Base class to implement calculation of beam profiles.
+    """
+    Base class to implement calculation of beam profiles.
 
     Parameters
     ----------
@@ -71,7 +73,8 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         self._beam_spectrum_buffer: dict[int, NumpyArray] = {}
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """
+        Lateinit method when `simulation.__init__` is called.
 
         simulation
             `Simulation` context manager
@@ -103,7 +106,8 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         self.invalidate_cache()
 
     def plot(self, **kwargs_plot: dict[str, Any]) -> None:
-        """Plots the current histogram.
+        """
+        Plots the current histogram.
 
         Parameters
         ----------
@@ -188,7 +192,8 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         )
 
     def weighted_avg_dt(self) -> float:
-        """Bunch center of weight, in [s].
+        """
+        Bunch center of weight, in [s].
 
         calculates the bunch position by calculating
         the average of `hist_x` (time coordinate)
@@ -197,7 +202,8 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         return backend.average(self._hist_x, weights=self._hist_y)
 
     def sigma_weighted_avg_dt(self) -> float:
-        r"""Bunch length (:math:`1 \sigma`), in [s].
+        r"""
+        Bunch length (:math:`1 \sigma`), in [s].
 
         Calculates the :math:`1 \sigma` bunch length by
         determining the std about the weighted average

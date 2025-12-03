@@ -33,7 +33,8 @@ def is_in_separatrix(
     dt: NumpyArray,
     dE: NumpyArray,
 ) -> NumpyArray:
-    r"""Function checking whether coordinate `dt` & `dE` are inside the separatrix.
+    r"""
+    Function checking whether coordinate `dt` & `dE` are inside the separatrix.
 
     Uses the single-RF sinusoidal Hamiltonian.
 

@@ -6,7 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Collection of implementations to handle beam losses in synchrotrons.
+"""
+Collection of implementations to handle beam losses in synchrotrons.
 
 Authors
 -------
@@ -31,7 +32,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class LossesBaseClass(BeamPhysicsRelevant, ABC):
-    """Base class for labeling/removing lost particles.
+    """
+    Base class for labeling/removing lost particles.
 
     Parameters
     ----------
@@ -57,7 +59,8 @@ class LossesBaseClass(BeamPhysicsRelevant, ABC):
         self.purge_flagged_macroparticles = purge_flagged_macroparticles
 
     def track(self, beam: BeamBaseClass) -> None:  # pragma: no cover
-        """Main simulation routine to be called in the mainloop.
+        """
+        Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------
@@ -69,7 +72,8 @@ class LossesBaseClass(BeamPhysicsRelevant, ABC):
     def _purge_particles(
         self, beam: BeamBaseClass, force: bool = False
     ) -> None:
-        """Potentially remove flagged particles.
+        """
+        Potentially remove flagged particles.
 
         Parameters
         ----------
@@ -86,7 +90,8 @@ class LossesBaseClass(BeamPhysicsRelevant, ABC):
 
 
 class BoxLosses(LossesBaseClass):
-    """Particles outside a rectangle will be flagged lost.
+    """
+    Particles outside a rectangle will be flagged lost.
 
     Parameters
     ----------
@@ -158,7 +163,8 @@ class BoxLosses(LossesBaseClass):
         self.e_max = float(e_max)
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """
+        Lateinit method when `simulation.__init__` is called.
 
         simulation
             Simulation context manager
@@ -173,7 +179,8 @@ class BoxLosses(LossesBaseClass):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """
+        Lateinit method when `simulation.run_simulation` is called.
 
         simulation
             Simulation context manager
@@ -187,7 +194,8 @@ class BoxLosses(LossesBaseClass):
         pass
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop.
+        """
+        Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------
