@@ -445,7 +445,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
 
     Examples
     --------
-    Parameters can be schedules along the simulation execution
+    Parameters can be scheduled along the simulation execution
     >>> from blond import SingleHarmonicRfStation
     >>> rf_station = SingleHarmonicRfStation(...)
     >>> rf_station.schedule(attribute='phi_rf', value=np.array(...), mode="per-turn")
@@ -750,7 +750,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
 
     Examples
     --------
-    Parameters can be schedules along the simulation execution
+    Parameters can be scheduled along the simulation execution
     >>> from blond import MultiHarmonicRfStation
     >>> rf_station = MultiHarmonicRfStation(...)
     >>> rf_station.schedule(attribute='phi_rf', value=np.array(...), mode="per-turn")
