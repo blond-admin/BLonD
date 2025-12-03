@@ -6,17 +6,16 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Solvers to calculate the wake potential from impedance sources.
+"""Solvers to calculate the wake potential from impedance sources."""
 
-Authors
--------
-Alexandre Lasheen
-Danilo Quartullo,
-Juan F. Esteban Mueller
-Leonard Thiele
-Markus Schwarz
-Simon Lauber
-"""
+# Authors
+# -------
+# Alexandre Lasheen
+# Danilo Quartullo,
+# Juan F. Esteban Mueller
+# Leonard Thiele
+# Markus Schwarz
+# Simon Lauber
 
 from __future__ import annotations
 
@@ -66,14 +65,15 @@ class InductiveImpedanceSolver(WakeFieldSolver):
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ):
-        """Lateinit method when WakeField is late-initialized.
+        """
+        Lateinit method when WakeField is late-initialized.
 
         Parameters
         ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         parent_wakefield
-            Wakefield that this solver affiliated to
+            Wakefield that this solver affiliated to.
         """
         self._parent_wakefield = parent_wakefield
         assert all(
@@ -89,17 +89,18 @@ class InductiveImpedanceSolver(WakeFieldSolver):
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
-        """Calculates the induced voltage based on the beam profile and beam parameters.
+        """
+        Calculate the induced voltage based on the beam profile and beam parameters.
 
         Parameters
         ----------
         beam
-            Simulation object of a particle beam
+            Simulation object of a particle beam.
 
         Returns
         -------
         induced_voltage
-            Induced voltage, in [V]
+            Induced voltage, in [V].
         """
         factor = -backend.float(
             (beam.particle_type.charge * e)
@@ -116,33 +117,32 @@ class InductiveImpedanceSolver(WakeFieldSolver):
 
 
 class PeriodicFreqSolver(WakeFieldSolver):
-    """General wakefield solver to calculate wake-fields via frequency domain.
+    """
+    General wakefield solver to calculate wake-fields via frequency domain.
+
+    Parameters
+    ----------
+    t_periodicity
+        Periodicity that is assumed for fast fourier transform, in [s].
+    allow_next_fast_len
+        Allow to slightly change `t_periodicity` for
+        faster execution of fft via `scipy.fft.next_fast_len`.
+
+    Attributes
+    ----------
+    allow_next_fast_len
+        Allow to slightly change `t_periodicity` for
+        faster execution of fft via `scipy.fft.next_fast_len`.
+    expect_profile_change
+        If true, reloads internal data on each
+        `calc_induced_voltage` for proper updating with
+        dynamic parameters.
 
     Notes
     -----
     This solver is intended for the case, that the
     length of the beam profile is in the order of time as one revolution
     around the synchrotron takes ( long profiles).
-
-
-    Parameters
-    ----------
-    t_periodicity
-        Periodicity that is assumed for fast fourier transform, in [s]
-    allow_next_fast_len
-        Allow to slightly change `t_periodicity` for
-        faster execution of fft via `scipy.fft.next_fast_len`
-
-    Attributes
-    ----------
-    allow_next_fast_len
-        Allow to slightly change `t_periodicity` for
-        faster execution of fft via `scipy.fft.next_fast_len`
-    expect_profile_change
-        If true, reloads internal data on each
-        `calc_induced_voltage` for proper updating with
-        dynamic parameters
-
     """
 
     def __init__(
@@ -171,14 +171,15 @@ class PeriodicFreqSolver(WakeFieldSolver):
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ):
-        """Lateinit method when WakeField is late-initialized.
+        """
+        Lateinit method when WakeField is late-initialized.
 
         Parameters
         ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         parent_wakefield
-            Wakefield that this solver affiliated to
+            Wakefield that this solver affiliated to.
         """
         if self._t_periodicity is None:
             self._t_periodicity = simulation.magnetic_cycle.get_t_rev_init(
@@ -233,7 +234,14 @@ class PeriodicFreqSolver(WakeFieldSolver):
 
     @property
     def t_periodicity(self) -> float:
-        """Periodicity that is assumed for fast fourier transform in  [s]."""
+        """
+        Periodicity that is assumed for fast fourier transform in  [s].
+
+        Returns
+        -------
+        t_periodicity
+            Periodicity for FFT, in [s].
+        """
         return self._t_periodicity
 
     @t_periodicity.setter
@@ -270,12 +278,13 @@ class PeriodicFreqSolver(WakeFieldSolver):
         self._freq_y_needs_update = True
 
     def _update_impedance_sources(self, beam: BeamBaseClass) -> None:
-        """Updates `_freq_y` array if `self._freq_y_needs_update=True`.
+        """
+        Update `_freq_y` array if `self._freq_y_needs_update=True`.
 
         Parameters
         ----------
         beam
-            Beam class to interact with this element
+            Beam class to interact with this element.
         """
         # be lazy
         if not self._freq_y_needs_update:
@@ -314,17 +323,18 @@ class PeriodicFreqSolver(WakeFieldSolver):
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
-        """Calculates the induced voltage based on the beam profile and beam parameters.
+        """
+        Calculate the induced voltage based on the beam profile and beam parameters.
 
         Parameters
         ----------
         beam
-            Simulation object of a particle beam
+            Simulation object of a particle beam.
 
         Returns
         -------
         induced_voltage
-            Induced voltage, in [V]
+            Induced voltage, in [V].
         """
         if self.expect_profile_change:  # dynamic profiles
             self._update_internal_data()  # might cause performance issues :(
@@ -385,13 +395,13 @@ class PeriodicFreqSolver(WakeFieldSolver):
 
 
 class TimeDomainFftSolver(WakeFieldSolver):
-    """Solver to calculate induced voltage using fftconvolve(wake,profile).
+    """
+    Solver to calculate induced voltage using fftconvolve(wake,profile).
 
     Notes
     -----
     This method is intended for beam profiles that are only a fraction of
     the synchrotron revolution time (short profiles).
-
     """
 
     def __init__(self):
@@ -408,14 +418,15 @@ class TimeDomainFftSolver(WakeFieldSolver):
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:
-        """Lateinit method when WakeField is late-initialized.
+        """
+        Lateinit method when WakeField is late-initialized.
 
         Parameters
         ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         parent_wakefield
-            Wakefield that this solver affiliated to
+            Wakefield that this solver affiliated to.
         """
         self._simulation = simulation
         if parent_wakefield.profile is not None:
@@ -458,13 +469,13 @@ class TimeDomainFftSolver(WakeFieldSolver):
                 break
 
     def _update_impedance_sources(self, beam: BeamBaseClass) -> None:
-        """Updates `_wake_imp_y` array if `self.__wake_imp_y_needs_update=True`.
+        """
+        Update `_wake_imp_y` array if `self.__wake_imp_y_needs_update=True`.
 
         Parameters
         ----------
         beam
-            Beam class to interact with this element
-
+            Beam class to interact with this element.
         """
         if not self._wake_imp_y_needs_update:
             return
@@ -508,17 +519,18 @@ class TimeDomainFftSolver(WakeFieldSolver):
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
-        """Calculates the induced voltage based on the beam profile and beam parameters.
+        """
+        Calculate the induced voltage based on the beam profile and beam parameters.
 
         Parameters
         ----------
         beam
-            Simulation object of a particle beam
+            Simulation object of a particle beam.
 
         Returns
         -------
         induced_voltage
-            Induced voltage, in [V]
+            Induced voltage, in [V].
         """
         if self.expect_impedance_change:
             self._wake_imp_y_needs_update = True
@@ -576,14 +588,15 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:
-        """Lateinit method when WakeField is late-initialized.
+        """
+        Lateinit method when WakeField is late-initialized.
 
         Parameters
         ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         parent_wakefield
-            Wakefield that this solver affiliated to
+            Wakefield that this solver affiliated to.
         """
         self._simulation = simulation
         if parent_wakefield.profile is None:
@@ -603,18 +616,19 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
                 )
 
     def _update_potential_sources(self, zero_pinning: bool = False) -> None:
-        """Updates the internal wake kernels.
+        """
+        Update the internal wake kernels.
 
-        Updates `_wake_function_time`  and `_wake_function_vals` arrays
+        Update `_wake_function_time`  and `_wake_function_vals` arrays
         if `self._wake_function_vals_needs_update=True`
 
         The time axis is chosen based on the profile in `_parent_wakefield.profile`
 
         Parameters
         ----------
-        zero_pinning: boolean
-            causes values <= self._parent_wakefield.profile.hist_step * np.finfo(float).eps * len(self._wake_function_time)
-            to be pinned to exactly zero. This prevents issues with the heaviside function around the 0 timestamp
+        zero_pinning
+            Causes values <= self._parent_wakefield.profile.hist_step * np.finfo(float).eps * len(self._wake_function_time)
+            to be pinned to exactly zero. This prevents issues with the heaviside function around the 0 timestamp.
         """
         if not self._wake_function_vals_needs_update:
             return
@@ -644,17 +658,18 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
-        """Calculates the induced voltage with the beam profile and parameters.
+        """
+        Calculate the induced voltage with the beam profile and parameters.
 
         Parameters
         ----------
         beam
-            Simulation object of a particle beam
+            Simulation object of a particle beam.
 
         Returns
         -------
         induced_voltage
-            Induced voltage in [V]
+            Induced voltage in [V].
         """
         if self._wake_function_vals_needs_update:
             self._update_potential_sources()
@@ -672,14 +687,15 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
 
 
 class MultiPassResonatorSolver(WakeFieldSolver):
-    """Calculates the multi-turn wake function.
+    """
+    Calculates the multi-turn wake function.
 
     Solver, which saves the profiles of past passes and sums the
     wake fields of all previous and the current pass together.
 
     Parameters
     ----------
-    decay_fraction_threshold: float
+    decay_fraction_threshold
         Until which fraction of the decay will the profile
         still be considered for multi-pass wake calculation.
 
@@ -720,9 +736,10 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._wake_function_time: deque[NumpyArray] = deque()
 
     def _determine_storage_time(self):
-        """Determines the maxumum storage time, in [s].
+        """
+        Determine the maximum storage time, in [s].
 
-        Sums up the contributions of all resonators and
+        Sum up the contributions of all resonators and
         determine how long they should be stored in time.
         """
         if self._parent_wakefield is None:
@@ -743,14 +760,15 @@ class MultiPassResonatorSolver(WakeFieldSolver):
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:
-        """Lateinit method when WakeField is late-initialized.
+        """
+        Lateinit method when WakeField is late-initialized.
 
         Parameters
         ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         parent_wakefield
-            Wakefield that this solver affiliated to
+            Wakefield that this solver affiliated to.
         """
         self._simulation = simulation
         if parent_wakefield.profile is None:
@@ -776,7 +794,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
     def _remove_fully_decayed_wake_profiles(
         self, indexes_to_check: int = 2
     ) -> None:
-        """Goes through wake functions and removes all arrays above storage time.
+        """
+        Go through wake functions and remove all arrays above storage time.
 
         Goes through _wake_function_time from the back (oldest profile)
         and removes all arrays from it, which are beyond
@@ -785,8 +804,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
         Parameters
         ----------
-        indexes_to_check: int
-            number of indices in the list, that get checked. this is the number of indices, which starts from the back
+        indexes_to_check
+            Number of indices in the list, that get checked. This is the number of indices, which starts from the back.
         """
         if len(self._past_profiles) == 0:
             return
@@ -808,15 +827,16 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 return
 
     def _update_past_profile_times_wake_times(self, current_time):
-        """Advances the times in the past profile arrays.
+        """
+        Advance the times in the past profile arrays.
 
-        Advances the times in the past profile arrays by delta_t = current_time - self._last_reference_time and
-        sets self._last_reference_time to current_time afterwards.
+        Advance the times in the past profile arrays by delta_t = current_time - self._last_reference_time and
+        set self._last_reference_time to current_time afterwards.
 
         Parameters
         ----------
         current_time
-            simulation time at the moment of calling, has to be > self._last_reference_time
+            Simulation time at the moment of calling, has to be > self._last_reference_time.
         """
         delta_t = current_time - self._last_reference_time
         assert delta_t > 0  # TODO: performance = ?
@@ -827,21 +847,20 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         self._last_reference_time = current_time
 
     def _update_past_profile_wake_functions(self, zero_pinning: bool = False):
-        """Updates the wake functions according to the new timestamps.
+        """
+        Update the wake functions according to the new timestamps.
 
         The arrays are expected to be cleaned before, such that they don't
         include arrays past self._maximum_storage_time.
 
         Parameters
         ----------
-        zero_pinning: bool
+        zero_pinning
             Clips small values to zero.
-
             Causes ``values <= self._parent_wakefield.profile.hist_step * np.finfo(float).eps * len(self._wake_function_time)``
             to be pinned to exactly zero.
             This prevents issues with the heaviside function
             around the 0 timestamp.
-
         """
         for prof_ind in range(len(self._past_profiles)):
             if (
@@ -890,16 +909,16 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 # first one is always corotating, as it's the one of the current turn
 
     def _update_potential_sources(self, beam: BeamBaseClass) -> None:
-        """Updates `_wake_function_time`  and `_wake_function_vals` arrays.
+        """
+        Update `_wake_function_time`  and `_wake_function_vals` arrays.
 
         The time axis is chosen based on
         the profile in `_parent_wakefield.profile`
 
         Parameters
         ----------
-        current_time
-            simulation time at the moment of calling, default is 0.
-
+        beam
+            Beam class to interact with this element.
         """
         self._update_past_profile_times_wake_times(beam.reference_time)
         self._remove_fully_decayed_wake_profiles()
@@ -932,7 +951,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
-        """Calculate the voltage induced by the beam profile.
+        """
+        Calculate the voltage induced by the beam profile.
 
         The function will call :func:`_update_potential_sources` and
         then compute the induced voltage based on all profiles
@@ -940,8 +960,13 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
         Parameters
         ----------
-        beam:
-            instance on which the induced voltage is to be calculated, important for reference time
+        beam
+            Instance on which the induced voltage is to be calculated, important for reference time.
+
+        Returns
+        -------
+        induced_voltage
+            Induced voltage in [V].
         """
         self._update_potential_sources(beam)
 
