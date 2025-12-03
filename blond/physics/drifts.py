@@ -232,10 +232,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
 
     @staticmethod
     def headless(
-        transition_gamma: float
-        | int
-        | NumpyArray
-        | tuple[NumpyArray, NumpyArray],
+        transition_gamma: complex | NumpyArray | tuple[NumpyArray, NumpyArray],
         orbit_length: float,
         section_index: int = 0,
     ) -> DriftSimple:
@@ -261,10 +258,10 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             orbit_length=orbit_length,
             section_index=section_index,
         )
-        if isinstance(transition_gamma, float):
+        if isinstance(transition_gamma, complex):
             d.transition_gamma = transition_gamma
         else:
-            d.schedule("transition_gamma", transition_gamma, mode="per-turn")
+            d.schedule("transition_gamma", transition_gamma)
         from blond.core.beam.base import BeamBaseClass
         from blond.core.simulation.simulation import Simulation
 
