@@ -258,8 +258,8 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
             orbit_length=orbit_length,
             section_index=section_index,
         )
-        if isinstance(transition_gamma, complex):
-            d.transition_gamma = transition_gamma
+        if isinstance(transition_gamma, complex | int | float):
+            d.transition_gamma = complex(transition_gamma)
         else:
             d.schedule("transition_gamma", transition_gamma)
         from blond.core.beam.base import BeamBaseClass
