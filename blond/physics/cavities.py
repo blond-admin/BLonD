@@ -186,7 +186,9 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         self._magnetic_cycle = simulation.magnetic_cycle
         self._ring = simulation.ring
 
-        self._use_synchrotron_radiation = bool(self._ring.radiation_integrals)
+        self._use_synchrotron_radiation = bool(
+            self._ring.radiation_integrals.any()
+        )
 
     def on_run_simulation(
         self,
