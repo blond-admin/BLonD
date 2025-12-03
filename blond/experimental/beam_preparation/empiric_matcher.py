@@ -44,25 +44,25 @@ def populate_beam(
     """
     Fill bunch with macroparticles according to density_distribution.
 
-    Notes
-    -----
-    The beam coordinate dt and dE will be overwritten.
-
     Parameters
     ----------
     beam
-        Simulation `Beam` object
+        Simulation `Beam` object.
     time_grid
-        2D grid of positions in time, in [s]
+        2D grid of positions in time, in [s].
     deltaE_grid
-        2D grid of energies, in [eV]
+        2D grid of energies, in [eV].
     density_grid
-        2D grid of densities according to time vs. energy
+        2D grid of densities according to time vs. energy.
     n_macroparticles
-        Number of macroparticles to distribute, according to the grid
+        Number of macroparticles to distribute, according to the grid.
     seed
         Random seed, to make function with same seed
-        always return the same value
+        always return the same value.
+
+    Notes
+    -----
+    The beam coordinate dt and dE will be overwritten.
     """
     # Initialise the random number generator
     if seed is not None:
@@ -99,12 +99,12 @@ def normalize_as_density(hamilton_2D: NumpyArray):
     Parameters
     ----------
     hamilton_2D
-        2D array containing the Hamiltonian
+        2D array containing the Hamiltonian.
 
     Returns
     -------
     density
-
+        Normalized density distribution.
     """
     h_levels = separatrixes(hamilton_2D=hamilton_2D)
     h_max = np.max(h_levels)
@@ -156,17 +156,6 @@ class EmpiricMatcher(MatchingRoutine):
         Repeat 1-3 until the shape of the beam converges to a stable solution.
         Use `maxiter_hamiltonian` for to control the convergence.
 
-        Notes
-        -----
-        Due to using an internal 2D grid, this method can be very demanding
-        in terms of runtime and memory. It is better to use
-        `SemiEmpiricMatcher`, as it works on a 1D data format.
-
-
-        Notes
-        -----
-        This routine only works properly if the phase advance is low enough
-
         Parameters
         ----------
         grid_base_dt
@@ -180,32 +169,46 @@ class EmpiricMatcher(MatchingRoutine):
             i.e. where the bunch is going to be defined.
             This can also span several RF buckets.
         n_macroparticles
-            Number of macroparticles to distribute, according to the grid
+            Number of macroparticles to distribute, according to the grid.
         seed
             Random seed, to make function with same seed
-            always return the same value
+            always return the same value.
         maxiter_intensity_effects
             Maximum number of iterations to refine the matched beam
-            for intensity effects
+            for intensity effects.
+        maxiter_hamiltonian
+            Maximum number of iterations to refine the Hamiltonian calculation.
+        atol_hamiltonian
+            Absolute tolerance for Hamiltonian convergence.
+        animate
+            If True, display animation of matching process.
         hamiltonian_to_density_function
             A function that converts from the 2D Hamiltonian to the 2D density.
             The 2D density is used to create the beam dt and dE coordinates.
             The default is `normalize_as_density`.
             It is intended to be replaced by user-defined functions.
 
+        Notes
+        -----
+        Due to using an internal 2D grid, this method can be very demanding
+        in terms of runtime and memory. It is better to use
+        `SemiEmpiricMatcher`, as it works on a 1D data format.
+
+        This routine only works properly if the phase advance is low enough
+
         Examples
         --------
         >>> simulation.prepare_beam(
-        >>>     beam=beam1,
-        >>>     preparation_routine=EmpiricMatcher(
-        >>>         grid_base_dt=np.linspace(0, 2.5e-9, 100),
-        >>>         grid_base_dE=np.linspace(
-        >>>             -(777538700.0 * 2), 777538700.0 * 2, 100
-        >>>         ),
-        >>>         n_macroparticles=1e6,
-        >>>         seed=0, # For reproducible results
-        >>>     ),
-        >>> )
+        ...     beam=beam1,
+        ...     preparation_routine=EmpiricMatcher(
+        ...         grid_base_dt=np.linspace(0, 2.5e-9, 100),
+        ...         grid_base_dE=np.linspace(
+        ...             -(777538700.0 * 2), 777538700.0 * 2, 100
+        ...         ),
+        ...         n_macroparticles=1e6,
+        ...         seed=0, # For reproducible results
+        ...     ),
+        ... )
         """
         assert callable(hamiltonian_to_density_function)
         self.hamiltonian_to_density_function = hamiltonian_to_density_function
@@ -251,19 +254,18 @@ class EmpiricMatcher(MatchingRoutine):
         beam: BeamBaseClass,
     ) -> None:
         """
-        Carries out the empiric matching.
-
-        Notes
-        -----
-        The beam coordinate dt and dE will be overwritten.
+        Carry out the empiric matching.
 
         Parameters
         ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         beam
-            Beam class to interact with this element
+            Beam class to interact with this element.
 
+        Notes
+        -----
+        The beam coordinate dt and dE will be overwritten.
         """
         super().prepare_beam(
             simulation=simulation,
