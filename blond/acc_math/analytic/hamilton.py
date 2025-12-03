@@ -41,29 +41,29 @@ def is_in_separatrix(
     Parameters
     ----------
     charge
-        Particle charge, as number of elementary charges `e` []
+        Particle charge, as number of elementary charges `e` [].
     harmonic
-        RF Harmonic, i.e. number of RF cycles per synchrotron turn
+        RF Harmonic, i.e. number of RF cycles per synchrotron turn.
     voltage
-        RF voltage of the RF station, in [V]
+        RF voltage of the RF station, in [V].
     omega_rf
-        Angular frequency of the RF system, in [rad/s]
+        Angular frequency of the RF system, in [rad/s].
     phi_rf_d
-        Design phase, in [rad]
+        Design phase, in [rad].
     phi_s
-        Stable phase, in [rad]
+        Stable phase, in [rad].
     etas
-        Drift in arc parameter eta for one turn in synchrotron
+        Drift in arc parameter eta for one turn in synchrotron.
     beta
-        Beam reference fraction of speed of light (v/c0)
+        Beam reference fraction of speed of light (v/c0).
     total_energy
-        Total energy of the reference beam (global total energy), in [eV]
+        Total energy of the reference beam (global total energy), in [eV].
     ring_circumference
-        One turn length of the beam, in [m]
+        One turn length of the beam, in [m].
     dt
-        Macro-particle time coordinates, in [s]
+        Macro-particle time coordinates, in [s].
     dE
-        Macro-particle energy coordinates, in [eV]
+        Macro-particle energy coordinates, in [eV].
 
     Returns
     -------
@@ -117,7 +117,8 @@ def phase_modulo_above_transition(phi: NumpyArray) -> NumpyArray: ...
 def phase_modulo_above_transition(
     phi: float | NumpyArray,
 ) -> float | NumpyArray:
-    r"""Wraps phase values into the range :math:`[0, 2\\pi)`.
+    r"""
+    Wrap phase values into the range :math:`[0, 2\\pi)`.
 
     This function projects scalar or array phase values (in radians)
     into the range from :math:`0` (inclusive) to :math:`2\\pi` (exclusive),
@@ -130,7 +131,7 @@ def phase_modulo_above_transition(
 
     Returns
     -------
-    phi_corrected : float or ndarray
+    phi_corrected
         Phase value(s) wrapped into the range :math:`[0, 2\\pi)`.
 
     Notes
@@ -169,7 +170,8 @@ def phase_modulo_below_transition(phi: NumpyArray) -> NumpyArray: ...
 def phase_modulo_below_transition(
     phi: float | NumpyArray,
 ) -> float | NumpyArray:
-    r"""Wraps phase values into the range :math:`[0, 2\\pi)`.
+    r"""
+    Wrap phase values into the range :math:`[0, 2\\pi)`.
 
     This function projects scalar or array phase values (in radians)
     into the range from :math:`0` (inclusive) to :math:`2\\pi` (exclusive),
@@ -182,7 +184,7 @@ def phase_modulo_below_transition(
 
     Returns
     -------
-    phi_corrected : float or ndarray
+    phi_corrected
         Phase value(s) wrapped into the range :math:`[0, 2\\pi)`.
 
     Notes
@@ -224,40 +226,40 @@ def single_rf_sin_hamiltonian(
     dt: float | NumpyArray,
     dE: float | NumpyArray,
 ) -> float | NumpyArray:
-    """Single RF sinusoidal Hamiltonian.
+    """
+    Single RF sinusoidal Hamiltonian.
 
     Parameters
     ----------
     charge
-        Particle charge, as number of elementary charges `e` []
+        Particle charge, as number of elementary charges `e` [].
     harmonic
-        RF Harmonic, i.e. number of RF cycles per synchrotron turn
+        RF Harmonic, i.e. number of RF cycles per synchrotron turn.
     voltage
-        RF voltage of the RF station, in [V]
+        RF voltage of the RF station, in [V].
     omega_rf
-        Angular frequency of the RF system, in [rad/s]
+        Angular frequency of the RF system, in [rad/s].
     phi_rf_d
-        Design phase, in [rad]
+        Design phase, in [rad].
     phi_s
-        Stable phase, in [rad]
+        Stable phase, in [rad].
     etas
-        Drift in arc parameter eta for one turn in synchrotron
+        Drift in arc parameter eta for one turn in synchrotron.
     beta
-        Beam reference fraction of speed of light (v/c0)
+        Beam reference fraction of speed of light (v/c0).
     total_energy
-        Total energy of the reference beam (global total energy), in [eV]
+        Total energy of the reference beam (global total energy), in [eV].
     ring_circumference
-        One turn length of the beam, in [m]
+        One turn length of the beam, in [m].
     dt
-        Macro-particle time coordinates, in [s]
+        Macro-particle time coordinates, in [s].
     dE
-        Macro-particle energy coordinates, in [eV]
+        Macro-particle energy coordinates, in [eV].
 
     Returns
     -------
     hamiltonians
-        Hamiltonian values at dt and dE
-
+        Hamiltonian values at dt and dE.
     """
     h0 = harmonic
     V0 = float(voltage * charge)
@@ -291,7 +293,8 @@ def calc_phi_s_single_harmonic(
     energy_gain: float,
     above_transition: bool,
 ) -> float:
-    """Derives the analytical synchronous phase for a single harmonic RF.
+    """
+    Derive the analytical synchronous phase for a single harmonic RF.
 
     Parameters
     ----------
@@ -301,7 +304,7 @@ def calc_phi_s_single_harmonic(
     voltage
         RF voltage of the RF station, in [V].
     phase
-        phi_rf of the main harmonic, in [rad].
+        Phi_rf of the main harmonic, in [rad].
     energy_gain
         Energy gain per turn, in [eV].
     above_transition
