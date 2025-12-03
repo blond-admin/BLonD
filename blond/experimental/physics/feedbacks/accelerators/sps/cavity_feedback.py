@@ -282,7 +282,8 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
         # Initialize moving average
         self.n_mov_av = round(
-            self.TWC.tau / self._parent_rf_station.get_main_harmonic_t_rf_current()
+            self.TWC.tau
+            / self._parent_rf_station.get_main_harmonic_t_rf_current()
         )
         self.DV_MOV_AVG = np.zeros(2 * self.n_coarse, dtype=complex)
         self.logger.debug("Moving average over %d points", self.n_mov_av)
@@ -700,7 +701,9 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
             / self._parent_rf_station._omega_rf[self.harmonic_index]
         )
         # TODO REMWORK/REMOVE
-        t_rf = t_rev / float(self._parent_rf_station.harmonic[self.harmonic_index])
+        t_rf = t_rev / float(
+            self._parent_rf_station.harmonic[self.harmonic_index]
+        )
 
         # Phase offset at the end of a 1-turn modulated signal (for demodulated, multiply by -1 as c and r reversed)
         self.phi_mod_0 = (

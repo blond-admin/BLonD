@@ -1,7 +1,6 @@
 import os
 import unittest
 from copy import deepcopy
-from typing import List
 
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
@@ -42,6 +41,7 @@ def rf_volt_comp(
         bin_centers (NumpyArray): _description_
 
     Returns
+    -------
         NumpyArray: _description_
     """
     rf_voltage = np.zeros(len(bin_centers))
@@ -56,7 +56,7 @@ def rf_volt_comp(
 
 def rf_voltage_calculation(
     rf_params: MultiHarmonicRfStation,
-    cavityFB: List[SPSCavityFeedback],
+    cavityFB: list[SPSCavityFeedback],
     profile: StaticProfile,
 ):
     """Function calculating the total, discretised RF voltage seen by the
