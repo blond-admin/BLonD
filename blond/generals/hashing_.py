@@ -23,7 +23,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 def hash_files(file_paths: list[str]) -> str:
     """
-    Computes a SHA-256 hash from the contents of a list of files.
+    Compute a SHA-256 hash from the contents of a list of files.
 
     Each file is read in binary mode and processed in chunks.
     The file paths are sorted to ensure consistent ordering,
