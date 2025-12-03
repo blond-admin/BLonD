@@ -11,7 +11,7 @@
 from typing import TYPE_CHECKING
 
 from blond.core.backends.backend import backend
-from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
+from blond.core.base import BeamPhysicsRelevant, DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.simulation.simulation import Simulation
 from blond.cycles.magnetic_cycle import MagneticCycleBase, MagneticCycleByTime
@@ -20,7 +20,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond import Ring
 
 
-class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
+class ReferenceEnergyChange(BeamPhysicsRelevant):
     """Updates beam's `reference_total_energy` and `dE` array, but constant in absolute terms.
 
     Can be used in simulations where RF ramping is asynchronous with respect to the
