@@ -105,7 +105,7 @@ def rf_voltage_calculation(
 
 class TestSPSCavityFeedback(unittest.TestCase):
     # activate again when the feedbacks are working
-    @unittest.skip("too slow and beam feedback is anyway not working for not")
+    @unittest.skip("too slow and beam feedback is anyway not working for now")
     def setUp(self):
         backend.change_backend(Numpy64Bit)
         # backend.set_specials("fortran")
