@@ -109,11 +109,6 @@ class ReferenceEnergyChange(BeamPhysicsRelevant):
             Simulation beam object
         """
         super().track(beam=beam)
-        if self.schedule_active:
-            self.apply_schedules(
-                turn_i=self._turn_i.value,
-                reference_time=beam.reference_time,
-            )
 
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,
