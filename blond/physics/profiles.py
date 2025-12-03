@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """Collection of implementations to calculate the beam profile.
 
 Authors
@@ -15,9 +23,11 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .._core.backends.backend import backend
-from .._core.base import BeamPhysicsRelevant, HasPropertyCache
-from .._core.helpers import int_from_float_with_warning
+from blond.acc_math.empiric.empiric import gauss_fit, multi_gauss_fit
+from blond.core.backends.backend import backend
+from blond.core.base import BeamPhysicsRelevant, HasPropertyCache
+from blond.core.helpers import int_from_float_with_warning
+from blond.generals.cupy.no_cupy_import import is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
@@ -25,8 +35,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
 
-    from .._core.beam.base import BeamBaseClass
-    from .._core.simulation.simulation import Simulation
+    from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
 
 
 class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
@@ -64,7 +74,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         pass
 
@@ -80,7 +90,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns
@@ -101,7 +111,10 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             Keyword arguments for `matplotlib.pyplot.plot`.
 
         """
-        plt.plot(self.hist_x, self.hist_y, **kwargs_plot)
+        from blond import AllowPlotting
+
+        with AllowPlotting():
+            plt.plot(self.hist_x, self.hist_y, **kwargs_plot)
 
     @property  # as readonly attributes
     def hist_x(self) -> NumpyArray | CupyArray:
@@ -184,9 +197,9 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         return backend.average(self._hist_x, weights=self._hist_y)
 
     def sigma_weighted_avg_dt(self) -> float:
-        """Bunch length (1σ), in [s].
+        r"""Bunch length (:math:`1 \sigma`), in [s].
 
-        Calculates the 1-σ bunch length by
+        Calculates the :math:`1 \sigma` bunch length by
         determining the std about the weighted average
         calculated as in `weighted_avg_dt`.
         """
@@ -195,6 +208,52 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
             backend.square(self._hist_x - average), weights=self._hist_y
         )
         return backend.sqrt(variance)
+
+    def singlebunch_gauss_fit(self) -> NumpyArray:
+        """Performs a gaussian fit on a profile with a single bunches.
+
+        Returns the amplitude, the mean and the standard deviation
+        of the fitted gaussian curve the bunch.
+
+        Returns
+        -------
+        params
+            Amplitude, mean and standard deviation the bunch.
+        """
+        _hist_x = self._hist_x
+        _hist_y = self._hist_y
+
+        if is_cupy_array(self._hist_x):
+            _hist_x = _hist_x.get()
+            _hist_y = _hist_y.get()
+
+        return gauss_fit(_hist_x, _hist_y)
+
+    def multibunch_gauss_fit(self, n_bunches: int) -> NumpyArray:
+        """Performs a gaussian fit on a profile with multiple bunches.
+
+        Returns the amplitude, the mean and the standard deviation of the fitted
+        gaussian curve for each bunch.
+
+        Parameters
+        ----------
+        n_bunches
+            Number of bunches
+
+        Returns
+        -------
+        params
+            Amplitude, mean and standard deviation for each bunch.
+            Shape (n_bunches, 3).
+        """
+        _hist_x = self._hist_x
+        _hist_y = self._hist_y
+
+        if is_cupy_array(self._hist_x):
+            _hist_x = _hist_x.get()
+            _hist_y = _hist_y.get()
+
+        return multi_gauss_fit(_hist_x, _hist_y, n_bunches)
 
     def track(self, beam: BeamBaseClass) -> None:
         """Main simulation routine to be called in the mainloop.
@@ -258,17 +317,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         """Cutoff frequency if the profile is fourier transformed, in [Hz]."""
         return 1 / (2 * self.hist_step)
 
-    def _calc_gauss(self) -> None:
-        """Gaussian fit for the beam profile."""
-        raise NotImplementedError
-
-    @cached_property
-    def gauss_fit_params(self) -> None:
-        """Gaussian fit for the beam profile."""
-        raise NotImplementedError
-        return self._calc_gauss()
-
-    def beam_spectrum(self, n_fft: int | None) -> NumpyArray:
+    def beam_spectrum(self, n_fft: int | None) -> NumpyArray | CupyArray:
         """Calculate fourier transform of the profile."""
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
@@ -449,7 +498,7 @@ class DynamicProfile(ProfileBaseClass):
         """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns

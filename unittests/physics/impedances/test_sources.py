@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 from unittest.mock import Mock
 
 import numpy as np
@@ -7,10 +8,14 @@ from scipy.constants import pi
 from scipy.constants import speed_of_light as c0
 from scipy.signal import find_peaks
 
-from blond._core.beam.base import BeamBaseClass
-from blond._core.simulation.simulation import Simulation
+from blond.core.beam.base import BeamBaseClass
+from blond.core.simulation.simulation import Simulation
 from blond.handle_results.helpers import callers_relative_path
-from blond.physics.impedances.readers import CsvReader
+from blond.physics.impedances.readers import (
+    CsvReader,
+    ExampleImpedanceReader2,
+    ModesExampleReader2,
+)
 from blond.physics.impedances.sources import (
     ImpedanceTableFreq,
     ImpedanceTableTime,
@@ -28,12 +33,12 @@ class TestImpedanceTable(unittest.TestCase):
 
 
 class TestImpedanceTableFreq(unittest.TestCase):
-    @unittest.skip
     def setUp(self):
-        # TODO: implement test for `__init__`
-        self.impedance_table_freq = ImpedanceTableFreq(
-            freq_x=None, freq_y=None
-        )
+        pass
+        # # TODO: implement test for `__init__`
+        # self.impedance_table_freq = ImpedanceTableFreq(
+        #     freq_x=None, freq_y=None
+        # )
 
     @unittest.skip
     def test___init__(self):
@@ -53,6 +58,34 @@ class TestImpedanceTableFreq(unittest.TestCase):
     def test_get_freq_y(self):
         # TODO: implement test for `get_freq_y`
         self.impedance_table_freq.get_freq_y(freq_x=None, sim=None)
+
+    def test_hashing(self):
+        simulation = Mock(Simulation)
+        beam = Mock(BeamBaseClass)
+
+        reader = ExampleImpedanceReader2(mode=ModesExampleReader2.SHORTED)
+        freq_table_short = ImpedanceTableFreq.from_file(
+            Path(
+                callers_relative_path(
+                    "../../../blond/examples/resources/EX_02_Finemet.txt",
+                    stacklevel=1,
+                )
+            ),
+            reader,
+        )
+
+        freq_x = np.linspace(0, 1e9, 30)
+        hash_before = freq_table_short._cache_impedance_hash
+        _ = freq_table_short.get_impedance(
+            freq_x=freq_x, simulation=simulation, beam=beam
+        )
+        assert hash_before != freq_table_short._cache_impedance_hash
+
+        hash_before = freq_table_short._cache_impedance_hash
+        _ = freq_table_short.get_impedance(
+            freq_x=freq_x, simulation=simulation, beam=beam
+        )
+        assert hash_before == freq_table_short._cache_impedance_hash
 
 
 class TestImpedanceTableTime(unittest.TestCase):
@@ -84,6 +117,30 @@ class TestImpedanceTableTime(unittest.TestCase):
         np.testing.assert_allclose(wake_impedance, wake_impedance2)
         # assert cache miss
         self.assertTrue(np.all(wake_impedance3 != wake_impedance2))
+
+    def test_hashing(self):
+        simulation = Mock(Simulation)
+        beam = Mock(BeamBaseClass)
+
+        impedance_table = ImpedanceTableTime.from_file(
+            filepath=callers_relative_path(
+                "resources/example_impedance_table.csv", stacklevel=1
+            ),
+            reader=CsvReader(delimiter=","),
+        )
+
+        t_arr = np.linspace(0, 1e-9, 30)
+        hash_before = impedance_table._cache_wake_impedance_hash
+        _ = impedance_table.get_wake_impedance(
+            time=t_arr, n_fft=30, simulation=simulation, beam=beam
+        )
+        assert hash_before != impedance_table._cache_wake_impedance_hash
+
+        hash_before = impedance_table._cache_wake_impedance_hash
+        _ = impedance_table.get_wake_impedance(
+            time=t_arr, n_fft=30, simulation=simulation, beam=beam
+        )
+        assert hash_before == impedance_table._cache_wake_impedance_hash
 
 
 class TestInductiveImpedance(unittest.TestCase):
@@ -152,6 +209,51 @@ class TestInductiveImpedance(unittest.TestCase):
         # and guarantee that the result did not change
         np.testing.assert_allclose(freq_y, pinned_freq_y)
 
+    def test_hashing(self):
+        simulation = Mock(Simulation)
+        simulation.ring.circumference = 27e3
+        beam = Mock(BeamBaseClass)
+        beam.reference_velocity = 0.8 / c0
+
+        hash_before = self.inductive_impedance._cache_wake_impedance_hash
+        _ = self.inductive_impedance.get_wake_impedance(
+            time=np.array([0.5, 1.5]),
+            n_fft=5,
+            simulation=simulation,
+            beam=beam,
+        )
+        assert (
+            hash_before != self.inductive_impedance._cache_wake_impedance_hash
+        )
+        hash_before = self.inductive_impedance._cache_wake_impedance_hash
+        _ = self.inductive_impedance.get_wake_impedance(
+            time=np.array([0.5, 1.5]),
+            n_fft=5,
+            simulation=simulation,
+            beam=beam,
+        )
+        # already hashed
+        assert (
+            hash_before == self.inductive_impedance._cache_wake_impedance_hash
+        )
+
+        hash_before = self.inductive_impedance._cache_derivative_hash
+        freq_x = np.linspace(0, 1e9, 30)
+        _ = self.inductive_impedance.get_impedance(
+            freq_x=freq_x,
+            simulation=simulation,
+            beam=beam,
+        )
+        assert hash_before != self.inductive_impedance._cache_derivative_hash
+
+        hash_before = self.inductive_impedance._cache_derivative_hash
+        _ = self.inductive_impedance.get_impedance(
+            freq_x=freq_x,
+            simulation=simulation,
+            beam=beam,
+        )
+        assert hash_before == self.inductive_impedance._cache_derivative_hash
+
 
 class TestResonators(unittest.TestCase):
     def setUp(self):
@@ -159,6 +261,7 @@ class TestResonators(unittest.TestCase):
             shunt_impedances=np.array([1, 2, 3]),
             center_frequencies=np.array([500e6, 750e6, 2.0e9]),
             quality_factors=np.array([5, 5, 5]),
+            shunt_impedances_counter_rotating=np.array([-1, -2, -3]),
         )  # values chosen such that they are easily reproducible in test of test_get_impedance
 
     def test___init__(self):
@@ -177,6 +280,14 @@ class TestResonators(unittest.TestCase):
                 center_frequencies=np.array([400e6, 600e6]),
                 quality_factors=np.array([1, 2, 3]),
             )
+
+    def test___init__floats_counter_rotating(self):
+        _ = Resonators(
+            shunt_impedances=float(1),
+            center_frequencies=float(1),
+            quality_factors=float(1),
+            shunt_impedances_counter_rotating=float(1),
+        )
 
     def test___init__neg_freq(self):
         with self.assertRaises(RuntimeError):
@@ -266,9 +377,20 @@ class TestResonators(unittest.TestCase):
         beam = Mock(BeamBaseClass)
         min_freq, max_freq, num = 0, 4e9, 801
         freq_x = np.linspace(min_freq, max_freq, num)
-        freq_y = self.resonators.get_impedance(
+
+        before_hashes = (
+            self.resonators._cache_impedance_hash
+        )  # check when hashed get changed and when not
+        _ = self.resonators.get_impedance(
             freq_x=freq_x, simulation=simulation, beam=beam
         )
+        assert before_hashes != self.resonators._cache_impedance_hash
+        in_between_hashes = self.resonators._cache_impedance_hash
+        freq_y = self.resonators.get_impedance(
+            freq_x=freq_x, simulation=simulation, beam=beam
+        )  # should not be recalculated as time did not change
+        assert in_between_hashes == self.resonators._cache_impedance_hash
+
         DEV_DEBBUG = False
         if DEV_DEBBUG:
             plt.plot(freq_x, np.abs(freq_y))
@@ -291,6 +413,9 @@ class TestResonators(unittest.TestCase):
                 quality_factors=np.array(
                     [self.resonators._quality_factors[freq_ind]]
                 ),
+                shunt_impedances_counter_rotating=np.array(
+                    [-self.resonators._shunt_impedances[freq_ind]]
+                ),
             )
             freq_y = local_res.get_impedance(
                 freq_x=freq_x, simulation=simulation, beam=beam
@@ -309,6 +434,77 @@ class TestResonators(unittest.TestCase):
                     ).argmin()
                 ],
             )
+
+            freq_y_counterrot = local_res.get_impedance(
+                freq_x=freq_x,
+                simulation=simulation,
+                beam=beam,
+                counter_rotation=True,
+            )
+            np.testing.assert_allclose(freq_y, -freq_y_counterrot)
+
+    def test_hashing(self):
+        simulation = Mock(Simulation)
+        beam = Mock(BeamBaseClass)
+        local_res = Resonators(
+            shunt_impedances=np.array([1, 2, 3]),
+            center_frequencies=np.array([400e6, 600e6, 1.2e9]),
+            quality_factors=np.array([1, 2, 3]),
+            shunt_impedances_counter_rotating=np.array([-1, -2, -3]),
+        )
+        hash_before = local_res._cache_wake_impedance_hash
+        _ = local_res.get_wake_impedance(
+            time=np.array([0.5, 1.5]),
+            n_fft=6,
+            simulation=simulation,
+            beam=beam,
+        )
+        assert hash_before != local_res._cache_wake_impedance_hash
+        hash_before = local_res._cache_wake_impedance_hash
+        _ = local_res.get_wake_impedance(
+            time=np.array([0.5, 1.5]),
+            n_fft=6,
+            simulation=simulation,
+            beam=beam,
+        )
+        assert hash_before == local_res._cache_wake_impedance_hash
+
+        hash_before = local_res._cache_wake_impedance_counter_rotation_hash
+        _ = local_res.get_wake_impedance_counter_rotation(
+            time=np.array([0.5, 1.5]),
+            n_fft=6,
+            simulation=simulation,
+            beam=beam,
+        )
+        assert (
+            hash_before
+            != local_res._cache_wake_impedance_counter_rotation_hash
+        )
+        hash_before = local_res._cache_wake_impedance_counter_rotation_hash
+        _ = local_res.get_wake_impedance_counter_rotation(
+            time=np.array([0.5, 1.5]),
+            n_fft=6,
+            simulation=simulation,
+            beam=beam,
+        )
+        assert (
+            hash_before
+            == local_res._cache_wake_impedance_counter_rotation_hash
+        )
+
+        freq_x = np.linspace(0, 1e9, 30)
+
+        hash_before = local_res._cache_impedance_hash
+        _ = local_res.get_impedance(
+            freq_x=freq_x, simulation=simulation, beam=beam
+        )
+        assert hash_before != local_res._cache_impedance_hash
+
+        hash_before = local_res._cache_impedance_hash
+        _ = local_res.get_impedance(
+            freq_x=freq_x, simulation=simulation, beam=beam
+        )
+        assert hash_before == local_res._cache_impedance_hash
 
     def test_get_wake(self):
         freq, q_factor, shut_imp = (
@@ -355,20 +551,126 @@ class TestResonators(unittest.TestCase):
                 # plt.savefig("")
                 plt.show()
 
+    def test_get_wake_counterrotation(self):
+        freq, q_factor, shut_imp = (
+            self.resonators._center_frequencies[0],
+            1e10,
+            self.resonators._shunt_impedances[0],
+        )
+        res = Resonators(
+            shunt_impedances=np.array([shut_imp]),
+            center_frequencies=np.array([freq]),
+            quality_factors=np.array([q_factor]),
+            shunt_impedances_counter_rotating=np.array([-shut_imp]),
+        )  # high Q to avoid smearing of frequency --> minimum getting
+        time = np.linspace(-1e-9, 1.5e-9, 751)
+
+        wake_potential = res.get_wake_counter_rotation(time=time)
+        assert wake_potential.shape == time.shape
+        DEV_DEBBUG = False
+        if DEV_DEBBUG:
+            with plt.rc_context({"font.size": 22}):
+                plt.plot(time * 1e9, wake_potential, linewidth=3)
+                plt.xlabel("time [ns]")
+                plt.ylabel("Wake kernel [V/pC]")
+                plt.tight_layout()
+                # plt.savefig("")
+                plt.show()
+
+        # check value at 0-time
+        assert np.isclose(
+            wake_potential[np.abs(time).argmin()],
+            0.5 * np.min(wake_potential),
+            rtol=1e-2,
+        )
+        # equivalent to above, just that the induced voltage should be negative
+
+        # check maximum value
+        assert np.isclose(
+            wake_potential[wake_potential.argmax()],
+            2 * 2 * pi * freq * shut_imp / (2 * q_factor),
+            rtol=1e-4,
+        )  # *2 from heaviside
+
+        wake_potential_corot = res.get_wake(time=time)
+        np.testing.assert_allclose(wake_potential, -wake_potential_corot)
+
+        # check periodicity
+        t_min = 1 / res._center_frequencies[0]
+        assert np.isclose(time[wake_potential.argmin()], t_min / 2)
+
+        DEV_DEBBUG = False
+        if DEV_DEBBUG:
+            with plt.rc_context({"font.size": 22}):
+                plt.plot(time * 1e9, wake_potential, linewidth=3)
+                plt.xlabel("time [ns]")
+                plt.ylabel("Wake kernel [V/pC]")
+                plt.tight_layout()
+                # plt.savefig("")
+                plt.show()
+
     def test_get_wake_impedance(self):
         simulation = Mock(Simulation)
         beam = Mock(BeamBaseClass)
         time = np.linspace(-1e-9, 1e-9, int(1e3))
-        wake_imp = self.resonators.get_wake_impedance(
+
+        before_hashes = (
+            self.resonators._cache_wake_impedance_hash
+        )  # check when hashed get changed and when not
+        _ = self.resonators.get_wake_impedance(
             time=time, simulation=simulation, beam=beam, n_fft=len(time)
         )
+        assert before_hashes != self.resonators._cache_wake_impedance_hash
+        in_between_hashes = self.resonators._cache_wake_impedance_hash
+        wake_imp = self.resonators.get_wake_impedance(
+            time=time, simulation=simulation, beam=beam, n_fft=len(time)
+        )  # should not be recalculated as time did not change
+        assert in_between_hashes == self.resonators._cache_wake_impedance_hash
+
         wake_freq = self.resonators.get_wake_impedance_freq(time=time)
-        DEV_DEBBUG = False
-        if DEV_DEBBUG:
+
+        pinned_result = np.load(
+            callers_relative_path(
+                "resources/get_wake_impedance_pinning.npz", stacklevel=1
+            )
+        )
+        np.testing.assert_allclose(wake_imp, pinned_result["wake_imp"])
+        np.testing.assert_allclose(wake_freq, pinned_result["wake_freq"])
+        DEV_DEBUG = False
+        if DEV_DEBUG:
             plt.plot(wake_freq, np.abs(wake_imp))
             plt.xlim(0, 1.5e9)
             plt.show()
-        # TODO PIN VALUE!
+
+    def test_get_wake_impedance_counterrotation(self):
+        simulation = Mock(Simulation)
+        beam = Mock(BeamBaseClass)
+        time = np.linspace(-1e-9, 1e-9, int(1e3))
+        wake_imp_counter_rotation = (
+            self.resonators.get_wake_impedance_counter_rotation(
+                time=time, simulation=simulation, beam=beam, n_fft=len(time)
+            )
+        )
+        wake_imp = self.resonators.get_wake_impedance(
+            time=time,
+            simulation=simulation,
+            beam=beam,
+            n_fft=len(time),
+        )
+        wake_freq = self.resonators.get_wake_impedance_freq(time=time)
+
+        np.testing.assert_allclose(wake_imp_counter_rotation, -wake_imp)
+        DEV_DEBUG = False
+        if DEV_DEBUG:
+            plt.plot(wake_freq, np.abs(wake_imp))
+            plt.xlim(0, 1.5e9)
+            plt.show()
+
+        save_cr_wake_imp = self.resonators._shunt_impedances_counter_rotating
+        with self.assertRaises(RuntimeError):
+            self.resonators._shunt_impedances_counter_rotating = None
+            self.resonators.get_wake_counter_rotation(time=time)
+        self.resonators._shunt_impedances_counter_rotating = save_cr_wake_imp
 
 
 class TestTravelingWaveCavity(unittest.TestCase):

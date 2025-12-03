@@ -12,17 +12,17 @@ import numpy as np
 
 from blond import (
     Beam,
-    BeamObservationEndOfTurn,
+    BeamObservationOncePerTurn,
     BiGaussian,
-    CavityPhaseObservation,
     ConstantMagneticCycle,
     MultiHarmonicRfStation,
+    RfStationPhaseObservation,
     Ring,
     Simulation,
     StaticProfile,
     proton,
 )
-from blond._core.backends.backend import Numpy32Bit, Numpy64Bit, backend
+from blond.core.backends.backend import Numpy32Bit, Numpy64Bit, backend
 from blond.experimental.physics.feedbacks.accelerators.sps.beam_feedback import (
     SpsRlBeamFeedback,
 )
@@ -153,15 +153,15 @@ class TestBeamFeedback(unittest.TestCase):
             PL_gain=1000,  # gain of phase loop
         )
         self.cavity = MultiHarmonicRfStation(
+            harmonic=np.array([4620.0]),
+            voltage=np.array([4.5e6]),
+            phi_rf=np.array([0.0]),
             n_harmonics=1,
             main_harmonic_idx=0,
             beam_feedback=self.sps_beam_feedback,
         )
 
         # RF parameters SPS
-        self.cavity.harmonic = np.array([4620.0])  # Harmonic numbers
-        self.cavity.voltage = np.array([4.5e6])  # [V]
-        self.cavity.phi_rf = np.array([0.0])
         self.ring.add_element(self.cavity)
         self.ring.add_drifts(
             n_sections=1,
@@ -203,10 +203,10 @@ class TestBeamFeedback(unittest.TestCase):
         backend.change_backend(Numpy32Bit)
 
     def test_setup(self):
-        obs_bunch = BeamObservationEndOfTurn(each_turn_i=1, beam=self.beam)
-        cav_obs = CavityPhaseObservation(
+        obs_bunch = BeamObservationOncePerTurn(each_turn_i=1, beam=self.beam)
+        cav_obs = RfStationPhaseObservation(
             each_turn_i=1,
-            cavity=self.cavity,
+            rf_station=self.cavity,
         )
 
         def callback(simulation: Simulation):
@@ -224,7 +224,7 @@ class TestBeamFeedback(unittest.TestCase):
 
             plt.plot(
                 simulation.turn_i.value,
-                self.sps_beam_feedback._parent_cavity.phi_s,
+                self.sps_beam_feedback._parent_rf_station.phi_s,
                 "o",
                 c="C0",
             )

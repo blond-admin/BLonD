@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 from __future__ import annotations
 
 import logging
@@ -10,7 +18,7 @@ from numpy._typing import NDArray as NumpyArray
 from scipy.signal import fftconvolve
 
 from blond import Simulation
-from blond._core.ring.helpers import requires
+from blond.core.ring.helpers import requires
 from blond.experimental.physics.feedbacks.accelerators.sps.impulse_response import (  # NOQA
     SPS3Section200MHzTWC,
     SPS4Section200MHzTWC,
@@ -34,7 +42,7 @@ from .helpers import (
 )
 
 if TYPE_CHECKING:
-    from blond._core.beam.base import BeamBaseClass
+    from blond.core.beam.base import BeamBaseClass
 
 
 class SPSCavityLoopCommissioning:
@@ -94,7 +102,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
 
     Parameters
     ----------
-    _parent_cavity : class
+    _parent_rf_station : class
         An RFStation type class
     profile : class
         A Profile type class
@@ -299,7 +307,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
 
         # Initialize moving average
         self.n_mov_av = round(
-            self.TWC.tau / self._parent_cavity._t_rf[self.harmonic_index]
+            self.TWC.tau / self._parent_rf_station.get_main_harmonic_t_rf_current()
         )
         self.DV_MOV_AVG = np.zeros(2 * self.n_coarse, dtype=complex)
         self.logger.debug("Moving average over %d points", self.n_mov_av)
@@ -710,11 +718,11 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         r"""Update variables in the feedback"""
         # TODO REMWORK/REMOVE
         t_rev = float(
-            (2 * np.pi * self._parent_cavity.harmonic[self.harmonic_index])
-            / self._parent_cavity.omega_rf[self.harmonic_index]
+            (2 * np.pi * self._parent_rf_station.harmonic[self.harmonic_index])
+            / self._parent_rf_station.omega_rf[self.harmonic_index]
         )
         # TODO REMWORK/REMOVE
-        t_rf = t_rev / float(self._parent_cavity.harmonic[self.harmonic_index])
+        t_rf = t_rev / float(self._parent_rf_station.harmonic[self.harmonic_index])
 
         # Phase offset at the end of a 1-turn modulated signal (for demodulated, multiply by -1 as c and r reversed)
         self.phi_mod_0 = (
@@ -755,7 +763,7 @@ class SPSCavityFeedback:
 
     Parameters
     ----------
-    _parent_cavity : class
+    _parent_rf_station : class
         An RFStation type class
     profile : class
         A Profile type class
@@ -985,7 +993,7 @@ class SPSCavityFeedback:
         self.V_corr, self.alpha_sum = cartesian_to_polar(self.V_sum)
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
-        self.V_corr /= self.OTFB_1._parent_cavity.voltage[
+        self.V_corr /= self.OTFB_1._parent_rf_station.voltage[
             self.OTFB_1.harmonic_index
         ]
         self.phi_corr = self.alpha_sum - np.angle(
@@ -1045,7 +1053,7 @@ class SPSCavityFeedback:
         self.V_corr, self.alpha_sum = cartesian_to_polar(self.V_sum)
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
-        self.V_corr /= self.OTFB_1._parent_cavity.voltage[
+        self.V_corr /= self.OTFB_1._parent_rf_station.voltage[
             self.OTFB_1.harmonic_index
         ]
         self.phi_corr = self.alpha_sum - np.angle(

@@ -1,10 +1,12 @@
-# Copyright 2014-2017 CERN. This software is distributed under the
+# Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.md.
+# copied verbatim in the file LICENCE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
+
+
 
 """**Various beam phase loops with optional synchronisation/frequency/radial loops
 for the CERN machines**
@@ -19,18 +21,18 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond._core.backends.backend import backend
+from blond.core.backends.backend import backend
 
 from .base import GlobalFeedback, LocalFeedback
 
 if TYPE_CHECKING:  # pragma: no cover
-    from blond._core.beam.base import BeamBaseClass
+    from blond.core.beam.base import BeamBaseClass
     from blond.physics.cavities import RfStationBaseClass
     from blond.physics.profiles import ProfileBaseClass
 
 
 class BeamFeedbackBase(GlobalFeedback):
-    _parent_cavity: RfStationBaseClass
+    _parent_rf_station: RfStationBaseClass
 
     def __init__(
             self,
@@ -47,7 +49,7 @@ class BeamFeedbackBase(GlobalFeedback):
 
     @abstractmethod
     def apply_corrections(self, beam: BeamBaseClass):
-        # shift the cavity phase or so
+        # shift the RF station phase or so
         pass
 
     def track(self, beam: BeamBaseClass):
@@ -184,11 +186,11 @@ class Blond2BeamFeedback(LocalFeedback):
         """
         # Main RF frequency at the present turn
         omega_rf = (
-            self._parent_cavity._omega_rf[0]
-            + self._parent_cavity.delta_omega_rf
+            self._parent_rf_station._omega_rf[0]
+            + self._parent_rf_station.delta_omega_rf
         )
         phi_rf = (
-            self._parent_cavity.phi_rf[0] + self._parent_cavity.delta_phi_rf
+                self._parent_rf_station.phi_rf[0] + self._parent_rf_station.delta_phi_rf
         )
 
         if self.time_offset is None:
@@ -219,7 +221,7 @@ class Blond2BeamFeedback(LocalFeedback):
         Optional: add RF phase noise through dphi directly.
         """
         # Correct for design stable phase
-        self.dphi = self.phi_beam - self._parent_cavity.phi_s
+        self.dphi = self.phi_beam - self._parent_rf_station.phi_s
 
         # TODO fix this code
         # Possibility to add RF phase noise through the PL

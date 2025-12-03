@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """Collection of implementations to calculate the synchrotron radiation.
 
 Authors
@@ -6,20 +14,27 @@ Simon Lauber
 Lina Valle
 """
 
-from __future__ import annotations
+from __future__ import (
+    annotations,  # pragma: no cover # TODO remove when SR is implemented
+)
 
-from typing import TYPE_CHECKING
+from typing import (
+    TYPE_CHECKING,  # pragma: no cover # TODO remove when SR is implemented
+)
 
-from blond._core.base import BeamPhysicsRelevant
-from blond._core.beam.base import BeamBaseClass
-from blond._core.simulation.simulation import Simulation
-from blond.physics.drifts import DriftSimple
+from blond.core.base import (
+    BeamPhysicsRelevant,  # pragma: no cover # TODO remove when SR is implemented
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from typing import Any
 
+    from blond.core.beam.base import BeamBaseClass
+    from blond.core.simulation.simulation import Simulation
+    from blond.physics.drifts import DriftSimple
 
-class SynchrotronRadiation(BeamPhysicsRelevant):
+
+class SynchrotronRadiation(BeamPhysicsRelevant):  # pragma: no cover
     """Synchrotron radiation module.
 
     Parameters
@@ -36,13 +51,14 @@ class SynchrotronRadiation(BeamPhysicsRelevant):
             name=name,
         )
         raise NotImplementedError("For Lina")
+        # TODO remove # pragma: no cover if implemented
         self._simulation: DriftSimple | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when :func:`blond._core.simulation.simulation.Simulation.__init__` is called.
+        """Lateinit method when :func:`blond.core.simulation.simulation.Simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         self._simulation = simulation
 
@@ -57,7 +73,7 @@ class SynchrotronRadiation(BeamPhysicsRelevant):
         """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns

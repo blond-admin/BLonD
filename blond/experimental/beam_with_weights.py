@@ -1,11 +1,20 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 from __future__ import annotations
 
+import numpy as np
 from cupy.typing import NDArray as CupyArray
 from numpy._typing import NDArray as NumpyArray
 
 from blond import Beam
-from blond._core.backends.backend import backend
-from blond._core.beam.particle_types import ParticleType
+from blond.core.backends.backend import backend
+from blond.core.beam.particle_types import ParticleType
 
 
 class WeightenedBeam(Beam):
@@ -46,7 +55,7 @@ class WeightenedBeam(Beam):
         assert weights is not None
         assert len(dt) == len(weights)
         super().setup_beam(dt=dt, dE=dE, flags=flags)
-        self._weights = weights.astype(backend.int)
+        self._weights = weights.astype(np.int32)
 
     @staticmethod
     def from_beam(beam: Beam):

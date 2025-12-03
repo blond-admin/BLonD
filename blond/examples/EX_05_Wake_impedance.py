@@ -1,12 +1,12 @@
-# pragma: no cover
-
-# Copyright 2014-2017 CERN. This software is distributed under the
+# Copyright CERN. This software is distributed under the
 # terms of the GNU General Public Licence version 3 (GPL Version 3),
-# copied verbatim in the file LICENCE.md.
+# copied verbatim in the file LICENCE.txt.
 # In applying this licence, CERN does not waive the privileges and immunities
 # granted to it by virtue of its status as an Intergovernmental Organization or
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
+
+# pragma: no cover
 
 """SPS simulation with intensity effects in time and frequency domains using
 a table of resonators. The input beam has been cloned to show that the two
@@ -24,7 +24,7 @@ from matplotlib import pyplot as plt
 from blond import (
     AllowPlotting,
     Beam,
-    BeamObservationEndOfTurn,
+    BeamObservationOncePerTurn,
     BiGaussian,
     DriftSimple,
     MagneticCyclePerTurn,
@@ -35,7 +35,7 @@ from blond import (
     WakeField,
     proton,
 )
-from blond._core.backends.backend import backend
+from blond.core.backends.backend import backend
 from blond.handle_results.helpers import callers_relative_path
 from blond.legacy.blond2.impedances.induced_voltage_analytical import (
     analytical_gaussian_resonator,
@@ -76,7 +76,7 @@ def main():
             value_init=sync_momentum,
             in_unit="momentum",
         )
-        cavity1 = SingleHarmonicRfStation(
+        rf_station = SingleHarmonicRfStation(
             harmonic=4620,
             voltage=0.9e6,
             phi_rf=0.0,
@@ -107,7 +107,7 @@ def main():
             profile=profile,
         )
         ring.add_elements(
-            (drift, cavity1, wakefield),
+            (drift, rf_station, wakefield),
             reorder=True,
         )
         sim = Simulation(
@@ -122,7 +122,9 @@ def main():
             ),
             beam=beam,
         )
-        bunch_observable = BeamObservationEndOfTurn(each_turn_i=10, beam=beam)
+        bunch_observable = BeamObservationOncePerTurn(
+            each_turn_i=10, beam=beam
+        )
         sim.run_simulation(
             observe=(bunch_observable,),
             beams=(beam,),

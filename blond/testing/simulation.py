@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """Several setups of simulations that are intended for testcases.
 
 Authors
@@ -5,41 +13,41 @@ Authors
 Simon Lauber
 """
 
+import numpy as np
 from matplotlib import pyplot as plt
 
-from blond import MultiHarmonicRfStation, WakeField
-from blond._core.backends.backend import backend
+from blond import (
+    Beam,
+    BiGaussian,
+    ConstantMagneticCycle,
+    DriftSimple,
+    MagneticCyclePerTurn,
+    MultiHarmonicRfStation,
+    RfStationPhaseObservation,
+    Ring,
+    Simulation,
+    SingleHarmonicRfStation,
+    StaticProfile,
+    WakeField,
+    backend,
+    proton,
+)
 from blond.physics.impedances.solvers import (
     TimeDomainFftSolver,
 )
 from blond.physics.impedances.sources import Resonators
-from blond.physics.profiles import StaticProfile
 
 
 class ExampleSimulation01:
     """Simulation with only one drift, one RF."""
 
     def __init__(self):
-        import numpy as np
-
-        from blond import (
-            Beam,
-            BiGaussian,
-            CavityPhaseObservation,
-            DriftSimple,
-            Ring,
-            Simulation,
-            SingleHarmonicRfStation,
-            proton,
-        )
-        from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
-
         ring = Ring(circumference=26658.883)
 
-        cavity1 = SingleHarmonicRfStation()
-        cavity1.harmonic = 35640
-        cavity1.voltage = 6e6
-        cavity1.phi_rf = 0
+        rf_station = SingleHarmonicRfStation()
+        rf_station.harmonic = 35640
+        rf_station.voltage = 6e6
+        rf_station.phi_rf = 0
 
         N_TURNS = 10
         energy_cycle = MagneticCyclePerTurn(
@@ -72,8 +80,8 @@ class ExampleSimulation01:
             turn_i=10,
         )
 
-        phase_observation = CavityPhaseObservation(
-            each_turn_i=1, cavity=cavity1
+        phase_observation = RfStationPhaseObservation(
+            each_turn_i=1, rf_station=rf_station
         )
 
         # bunch_observation = BunchObservation(each_turn_i=10, batch_size=)
@@ -96,48 +104,31 @@ class ExampleSimulation01:
 class SimulationTwoRfStations:
     """A simulation with two RF stations and according drifts."""
 
-    def __init__(self, below_transition_crossing=False):
-        from blond import (
-            Beam,
-            DriftSimple,
-            Ring,
-            Simulation,
-            SingleHarmonicRfStation,
-            proton,
-        )
-        from blond.cycles.magnetic_cycle import ConstantMagneticCycle
-
+    def __init__(self, below_transition_crossing: bool = False):
         circumference = 26658.883
         ring = Ring(circumference=circumference)
 
-        cavity1 = MultiHarmonicRfStation(
-            section_index=0, n_harmonics=1, main_harmonic_idx=0
-        )
-        cavity1.harmonic = backend.array(
-            [
-                35640.0,
-            ],
-            dtype=backend.float,
-        )
-        cavity1.voltage = backend.array(
-            [
-                6e6,
-            ],
-            dtype=backend.float,
-        )
-        cavity1.phi_rf = backend.array(
-            [
-                0.0,
-            ],
-            dtype=backend.float,
+        rf_station_1 = MultiHarmonicRfStation(
+            harmonic=np.array(
+                [35640],
+            ),
+            voltage=np.array(
+                [6e6],
+            ),
+            phi_rf=np.array(
+                [0.0],
+            ),
+            section_index=0,
+            n_harmonics=1,
+            main_harmonic_idx=0,
         )
 
-        cavity2 = SingleHarmonicRfStation(
+        rf_station_2 = SingleHarmonicRfStation(
             section_index=1,
         )
-        cavity2.harmonic = backend.float(35640)
-        cavity2.voltage = backend.float(6e6)
-        cavity2.phi_rf = backend.float(0)
+        rf_station_2.harmonic = backend.float(35640)
+        rf_station_2.voltage = backend.float(6e6)
+        rf_station_2.phi_rf = backend.float(0)
 
         N_TURNS = int(1e6)
         energy_cycle = ConstantMagneticCycle(
@@ -173,47 +164,31 @@ class SimulationTwoRfStations:
 class SimulationTwoRfStationsWithWake:
     """A simulation with two RF stations and according drifts, plus wake."""
 
-    def __init__(self, below_transition_crossing=False):
-        import numpy as np
-
-        from blond import (
-            Beam,
-            DriftSimple,
-            Ring,
-            Simulation,
-            SingleHarmonicRfStation,
-            proton,
-        )
-        from blond.cycles.magnetic_cycle import MagneticCyclePerTurn
-
+    def __init__(self, below_transition_crossing: bool = False):
         circumference = 26658.883
         ring = Ring(circumference=circumference)
 
-        cavity1 = MultiHarmonicRfStation(
-            section_index=0, n_harmonics=1, main_harmonic_idx=0
-        )
-        cavity1.harmonic = np.array(
-            [
-                35640.0,
-            ],
-        )
-        cavity1.voltage = np.array(
-            [
-                6e6,
-            ],
-        )
-        cavity1.phi_rf = np.array(
-            [
-                0.0,
-            ],
+        rf_station_1 = MultiHarmonicRfStation(
+            harmonic=np.array(
+                [35640],
+            ),
+            voltage=np.array(
+                [6e6],
+            ),
+            phi_rf=np.array(
+                [0.0],
+            ),
+            section_index=0,
+            n_harmonics=1,
+            main_harmonic_idx=0,
         )
 
-        cavity2 = SingleHarmonicRfStation(
+        rf_station_2 = SingleHarmonicRfStation(
             section_index=1,
         )
-        cavity2.harmonic = 35640
-        cavity2.voltage = 6e6
-        cavity2.phi_rf = 0
+        rf_station_2.harmonic = 35640
+        rf_station_2.voltage = 6e6
+        rf_station_2.phi_rf = 0
 
         N_TURNS = int(1e6)
         energy_cycle = MagneticCyclePerTurn(

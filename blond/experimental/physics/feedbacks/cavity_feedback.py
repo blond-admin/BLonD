@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 from __future__ import annotations
 
 from abc import abstractmethod
@@ -6,8 +14,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond import StaticProfile
-from blond._core.helpers import int_from_float_with_warning
-from blond._core.ring.helpers import requires
+from blond.core.helpers import int_from_float_with_warning
+from blond.core.ring.helpers import requires
 
 from .base import LocalFeedback
 from .helpers import cartesian_to_polar, polar_to_cartesian, rf_beam_current
@@ -19,7 +27,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray as NumpyArray
 
     from blond import Simulation
-    from blond._core.beam.base import BeamBaseClass
+    from blond.core.beam.base import BeamBaseClass
     from blond.physics.cavities import MultiHarmonicRfStation
 
 # TODO rewrite all docstrings
@@ -97,7 +105,7 @@ class IQCavityFeedback(LocalFeedback):
     # TODO docstring
 
     # TODO remove after development
-    _parent_cavity: MultiHarmonicRfStation
+    _parent_rf_station: MultiHarmonicRfStation
     profile: StaticProfile
 
     def __init__(
@@ -167,24 +175,24 @@ class IQCavityFeedback(LocalFeedback):
 
         self.T_s = (
                            self.n_periods_coarse * 2 * np.pi
-                   ) / self._parent_cavity.omega_rf[self.harmonic_index]
+                   ) / self._parent_rf_station.omega_rf[self.harmonic_index]
         # TODO REMWORK/REMOVE
         t_rev = float(
-            (2 * np.pi * self._parent_cavity.harmonic[self.harmonic_index])
-            / self._parent_cavity.omega_rf[self.harmonic_index]
+            (2 * np.pi * self._parent_rf_station.harmonic[self.harmonic_index])
+            / self._parent_rf_station.omega_rf[self.harmonic_index]
         )
         # TODO REMWORK/REMOVE
-        t_rf = t_rev / float(self._parent_cavity.harmonic[self.harmonic_index])
+        t_rf = t_rev / float(self._parent_rf_station.harmonic[self.harmonic_index])
 
         self.n_coarse = round(t_rev / self.T_s)
         self.omega_carrier = (
-                self._parent_cavity.omega_rf[self.harmonic_index]
+                self._parent_rf_station.omega_rf[self.harmonic_index]
                 / self.n_periods_coarse
         )
         # FIXME NO REDECLARATION!
 
         self.omega_rf = float(
-            self._parent_cavity.omega_rf[self.harmonic_index]
+            self._parent_rf_station.omega_rf[self.harmonic_index]
         )
         self.dT = 0
 
@@ -269,7 +277,7 @@ class IQCavityFeedback(LocalFeedback):
         # Present RF angular frequency
         if omega_rf is None:
             self.omega_rf = float(
-                self._parent_cavity.omega_rf[self.harmonic_index]
+                self._parent_rf_station.omega_rf[self.harmonic_index]
             )
         else:
             self.omega_rf = omega_rf
@@ -278,7 +286,7 @@ class IQCavityFeedback(LocalFeedback):
             t_rev = float(  # TODO REMWORK/REMOVE
                 2
                 * np.pi
-                * self._parent_cavity.harmonic[self.harmonic_index]
+                * self._parent_rf_station.harmonic[self.harmonic_index]
                 / self.omega_rf
             )
         else:
@@ -305,7 +313,7 @@ class IQCavityFeedback(LocalFeedback):
 
         if omega_rf is None:
             # Residual part of last turn entering the current turn due to non-integer harmonic number
-            self.dT = -self._parent_cavity.phi_rf[self.harmonic_index] / self.omega_rf
+            self.dT = -self._parent_rf_station.phi_rf[self.harmonic_index] / self.omega_rf
 
         self.rf_centers = (
             np.arange(self.n_coarse) + 0.5 / self.n_periods_coarse
@@ -363,7 +371,7 @@ class IQCavityFeedback(LocalFeedback):
         )
 
         # Calculate OTFB correction w.r.t. RF voltage and phase in RFStation
-        self.V_corr /= self._parent_cavity.voltage[self.harmonic_index]
+        self.V_corr /= self._parent_rf_station.voltage[self.harmonic_index]
         self.phi_corr = self.alpha_sum - np.angle(
             np.interp(
                 self.profile.hist_x,
@@ -379,7 +387,7 @@ class IQCavityFeedback(LocalFeedback):
     ) -> None:
         r"""Calculate RF beam current from beam profile"""
         t_rev = float(  # TODO REMWORK/REMOVE
-            (2 * np.pi * self._parent_cavity.harmonic[self.harmonic_index])
+            (2 * np.pi * self._parent_rf_station.harmonic[self.harmonic_index])
             / self.omega_rf
         )
         # Beam current from profile
@@ -408,7 +416,7 @@ class IQCavityFeedback(LocalFeedback):
     def set_point_from_rfstation(self) -> NumpyArray:
         r"""Computes the setpoint in I/Q based on the RF voltage in the RFStation"""
         V_set = polar_to_cartesian(
-            self._parent_cavity.voltage[self.harmonic_index] / self.n_cavities,
+            self._parent_rf_station.voltage[self.harmonic_index] / self.n_cavities,
             0,
         )
 

@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 """Classes that deal with memory management of simulation results.
 
 Authors
@@ -17,7 +25,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from .._generals.cupy.no_cupy_import import is_cupy_array
+from blond.generals.cupy.no_cupy_import import is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
     from os import PathLike
@@ -86,6 +94,7 @@ class DenseArrayRecorder(ArrayRecorder):
         if not self.overwrite and os.path.exists(self.filepath_array):
             warnings.warn(
                 f"{self.filepath_array} already exists!",
+                UserWarning,
                 stacklevel=1,
             )
 

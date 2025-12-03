@@ -18,7 +18,7 @@ Code that is not mature enough to be inside the standard codebase should be deve
 
 ```
 blond/
-├── __doc/                    # Sphinx documentation
+├── docs/                    # Sphinx documentation
 ├── blond/                    # Core Python package
 ├──── experimental/           # Untested/unstable code
 ├──── legacy/                 # The recent version of BLonD 2
@@ -164,12 +164,12 @@ To build the documentation locally:
 
 ```bash
 python -m pip install .[doc]
-python3 -m sphinx build -b html -W -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=5 --keep-going __doc __doc/_build/html
+python3 -m sphinx build -b html -W -D html_theme=sphinx_rtd_theme -D html_theme_options.navigation_depth=5 --keep-going docs docs/_build/html
 ```
 
-Built files appear in `__doc/_build/html/`.
+Built files appear in `docs/_build/html/`.
 
-Then, [index.html](__doc/_build/html/index.html) can be opened with a web browser
+Then, [index.html](docs/_build/html/index.html) can be opened with a web browser
 
 ## Contributing
 
@@ -211,3 +211,24 @@ The [GitLab CI Pipeline](.gitlab-ci.yml) is configured for an automatic release 
 - Uploads **BLonD** from `master` to [PyPi](https://pypi.org/project/blond/)  if a new tag is created (see [BLonD Tags](https://gitlab.cern.ch/blond/BLonD/-/tags))
 - Build/updates the **documentation** hosted at [BLonD Documentation Website](https://blond-code.docs.cern.ch/)
   - The linking between the GitLab project and the website can be adjusted in the [GitLab project settings](https://gitlab.cern.ch/blond/BLonD/pages#domains-settings)
+
+---
+
+Here is a clean, ready-to-use version of that section tailored for a **CONTRIBUTING.md** file.
+(If you want it longer, shorter, or formatted differently, just tell me!)
+
+---
+
+## CI/CD
+
+The project uses GitLab CI/CD to automate testing, building, and deployment.
+
+* The full pipeline configuration is defined in the root-level **[`.gitlab-ci.yml`](.gitlab-ci.yml)** file.
+  Please review it before modifying or extending any part of the CI workflow.
+
+* The Docker images used by the various pipeline stages are maintained in the
+  **[GitLab CI Docker project](https://gitlab.cern.ch/blond/developer-tools/gitlab-ci-docker)**.
+  If your contribution requires changes to these images, please open a merge request in that repository as well.
+
+
+---
