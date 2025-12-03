@@ -55,6 +55,24 @@ class TestDriftSimple(unittest.TestCase):
             section_index=0,
         )
 
+    def test_setters1(self):
+        drift_simple = DriftSimple(
+            transition_gamma=20.0,  # highly relativistic
+            orbit_length=0.25 * 25,
+            section_index=0,
+        )
+        drift_simple.transition_gamma = 1.0
+        drift_simple.transition_gamma = 1.0j
+
+    def test_setters2(self):
+        drift_simple = DriftSimple(
+            momentum_compaction_factor=20.0,  # highly relativistic
+            orbit_length=0.25 * 25,
+            section_index=0,
+        )
+        drift_simple.momentum_compaction_factor = 1.0
+        drift_simple.momentum_compaction_factor = -1.0
+
     def test_array_setup(self):
         self.drift_simple = DriftSimple.headless(
             transition_gamma=np.array([20.0]),  # highly relativistic
