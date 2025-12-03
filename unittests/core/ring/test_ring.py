@@ -520,6 +520,21 @@ class TestRing(unittest.TestCase):
         beam_mock.reference_gamma = 124
         self.assertFalse(ring.is_below_transition(beam=beam_mock))
 
+    def test_synchrotron_radiation_integrals(self):
+        self.assertIsNone(self.ring.radiation_integrals)
 
+        radiation_integrals = np.array(
+            [
+                0.646747216157,
+                0.0005936549319,
+                5.6814536525e-08,
+                5.92870407301e-09,
+                1.71368060083e-11,
+            ]
+        )
+        SR_ring = Ring(10.0, radiation_integrals=radiation_integrals)
+
+        np.testing.assert_equal(SR_ring.radiation_integrals,
+                               radiation_integrals)
 if __name__ == "__main__":
     unittest.main()
