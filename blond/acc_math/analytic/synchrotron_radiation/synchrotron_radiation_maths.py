@@ -6,8 +6,48 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""
+r"""
 Collection of functions to compute synchrotron radiation related quantities.
+
+For relativistic charged particles, synchrotron radiation is emitted
+along its direction of motion, which recoil induces small perturbation of
+the betatron motion in all planes. This effect damps the beam amplitudes,
+with typical damping times.
+Practically, the synchrotron radiation damping times are proportional to the
+inverse of 'U_0 / (2 T_0 E)', where 'U_0' is the energy loss per turn,
+'T_0' the revolution period, and 'E' the beam energy. The proportionality
+coefficient are the damping partition numbers:
+
+'j_x = 1 - D'
+'j_y = 1' (no vertical dispersion)
+'j_z = 2 + D'
+
+with D the damping partition.
+
+Spontaneous emission of a quanta yields to an immediate energy change and
+random small energy oscillations which tend to blow the beam sizes. Quantum
+excitation and synchrotron radiation damping combined define a natural
+equilibrium state of transverse and longitudinal beam emittances.
+
+First five synchrotron radiation integrals are required in BLonD3 as an input
+of the simulated ring:
+            'I_1' = \int, related to the momentum compaction factor,
+            'I_2' = , related to the energy loss per turn,
+            'I_3' = , related to the natural energy spread,
+            'I_4' =  , required for the damping times,
+            'I_5' =  , required for the natural horizontal emittance
+            with '\rho' the bending radius of bending elements, 'D' the
+            horizontal dispersion function, 'K' the focusing strength and 'H =
+            \beta_x D^2 + \alpha_x D {D'} + \gamma_x {D'}^2 ' the
+            H-function
+Further information on synchrotron radiation damping and quantum excitation
+can be found in:
+- H. Wiedemann, Synchrotron Radiation, Springer, 2003
+- S.Y. Lee, Accelerator Physics, World Scientific, Third edition,
+2014 #check date
+- A. Wolski, Introduction to Beam Dynamics in High-Energy Electron Storage
+Rings, Morgan & Claypool Publishers, 2018
+
 
 Author:
 L. Valle
