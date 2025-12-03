@@ -29,8 +29,6 @@ from blond.experimental.physics.feedbacks.beam_feedback import (
     Blond2BeamFeedback,
 )
 
-from blond.core.backends.backend import backend
-from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
 from ..acc_math.analytic.synchrotron_radiation.synchrotron_radiation_maths import (
     calculate_energy_loss_per_turn,
 )
@@ -188,9 +186,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         self._magnetic_cycle = simulation.magnetic_cycle
         self._ring = simulation.ring
 
-        self._use_synchrotron_radiation = (
-            False if (self._ring.radiation_integrals()) is None else True
-        )
+        self._use_synchrotron_radiation = bool(self._ring.radiation_integrals)
 
     def on_run_simulation(
         self,
@@ -284,7 +280,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         if self._use_synchrotron_radiation:
             energy_loss_per_turn = calculate_energy_loss_per_turn(
                 energy=target_total_energy,
-                synchrotron_radiation_integrals=self._ring.radiation_integrals(),
+                synchrotron_radiation_integrals=self._ring.radiation_integrals,
                 particle_type=beam.particle_type,
             )  # TODO: check the indexing (using target total_energy or
             # beam.reference_energy?)

@@ -35,12 +35,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class Ring(Preparable, Schedulable):
-    def __init__(
-        self,
-        circumference: float,
-        radiation_integrals: NumpyArray | None = None,
-    ) -> None:
-        """Create a `Ring` object representing a synchrotron accelerator.
+    r"""Create a `Ring` object representing a synchrotron accelerator.
 
     A Ring (synchrotron) is the fundamental structure that contains all beam
     physics elements like RF stations, drifts, and other components. It maintains
@@ -67,7 +62,13 @@ class Ring(Preparable, Schedulable):
             horizontal dispersion function, 'K' the focusing strength and 'H =
             \beta_x D^2 + \alpha_x D {D'} + \gamma_x {D'}^2 ' the
             H-function
-        """
+    """
+
+    def __init__(
+        self,
+        circumference: float,
+        radiation_integrals: NumpyArray | None = None,
+    ) -> None:
         from blond.core.ring.beam_physics_relevant_elements import (
             BeamPhysicsRelevantElements,
         )
@@ -161,11 +162,9 @@ class Ring(Preparable, Schedulable):
         """
         return self._circumference
 
+    @property
     def radiation_integrals(self) -> NumpyArray | None:
-        """
-        Synchrotron radiation integrals integrated along the full
-        circumference of the ring.
-        """
+        """Synchrotron radiation integrals of the ring."""
         return self._radiation_integrals
 
     @cached_property
