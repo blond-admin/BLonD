@@ -6,12 +6,11 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Functions that help with hashing.
+"""Functions that help with hashing."""
 
-Authors
--------
-Simon Lauber
-"""
+# Authors
+# -------
+# Simon Lauber
 
 from __future__ import annotations
 
@@ -23,7 +22,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def hash_files(file_paths: list[str]) -> str:
-    """Computes a SHA-256 hash from the contents of a list of files.
+    """
+    Computes a SHA-256 hash from the contents of a list of files.
 
     Each file is read in binary mode and processed in chunks.
     The file paths are sorted to ensure consistent ordering,
@@ -60,7 +60,8 @@ def hash_in_folder(
     extensions: tuple[str, ...],
     recursive: bool = True,
 ):
-    """Load file contents of all files in folder and generate hash from it.
+    """
+    Load file contents of all files in folder and generate hash from it.
 
     Parameters
     ----------

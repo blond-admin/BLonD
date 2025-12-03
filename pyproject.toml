@@ -117,6 +117,16 @@ checks = [
 
 ]
 exclude_files = [ # don't process filepaths that match these regex
+    '^dev_tools/.*',
+    '^docs/.*',
+    '^integrationtests/.*',
+    '^integrationtests_blond3/.*',
+    '^legacy/.*',
     '^unittests/.*',
     '^blond/legacy/.*',
+    '^blond/core/backends/fortran/callables.py',
+    '^blond/core/backends/cpp/callables.py',
+    '^blond/core/backends/cuda/callables.py',
+    '^blond/core/backends/numba/callables.py',
+
 ]
