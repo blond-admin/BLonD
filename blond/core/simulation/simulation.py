@@ -634,7 +634,7 @@ class Simulation(Preparable):
             for element in instances:
                 if type(element).__name__ != cls:
                     continue
-                if isinstance(element, Beam):
+                if type(element) is Beam:
                     # With BunchObservationMetaParams holding the beam, this would fail in case of using
                     # the semi-empiric matcher, as this tries to init all modules in the simulation
                     continue
