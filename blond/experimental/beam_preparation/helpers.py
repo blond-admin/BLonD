@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
+import scipy
 
 from blond.core.backends.backend import backend
 
@@ -94,6 +95,8 @@ def populate_beam(
     density_grid: NumpyArray,
     n_macroparticles: int,
     seed: int | None,
+    apply_tilt: bool = False,
+    dt_de_tilt: float = 0.0,
 ) -> None:
     """
     Fill bunch with macroparticles according to `density_distribution`
@@ -117,6 +120,10 @@ def populate_beam(
     seed
         Random seed, to make function with same seed
         always return the same value
+    apply_tilt
+        applies a tilt to the dt coordinate based on dt += dE * `dt_de_tilt`
+    dt_de_tilt
+        coordinate transformation based on a given tilt
     """
     dt, dE = generate_particle_coordinates(
         time_grid=time_grid,
@@ -125,6 +132,9 @@ def populate_beam(
         n_macroparticles=n_macroparticles,
         seed=seed,
     )
+    if apply_tilt:
+        print(f"imma tilt dis {dt_de_tilt}")
+        dt += dE * -2.012e-19
 
     beam.setup_beam(dt=dt, dE=dE)
 

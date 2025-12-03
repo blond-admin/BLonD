@@ -249,6 +249,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         increment_intensity_effects_until_iteration_i: int = 0,
         animate: bool = False,
         verbose: bool = True,
+        apply_tilt: bool = False,
     ) -> None:
         self.n_macroparticles = int_from_float_with_warning(
             n_macroparticles,
@@ -281,6 +282,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         self.animate = animate
         self.tolerance = tolerance
         self.verbose = verbose
+        self._apply_tilt = apply_tilt
 
         # For error calculation and plotting during `prepare_beam`
         self._last_potential_well: NumpyArray | CupyArray | None = None
@@ -477,6 +479,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
             density_grid=density.T,
             n_macroparticles=self.n_macroparticles,
             seed=self.seed,
+            dt_de_tilt=tilt_dt_per_dE,
+            apply_tilt=self._apply_tilt,
         )
 
     def _plot_current_state(
