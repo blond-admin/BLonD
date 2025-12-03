@@ -35,6 +35,7 @@ from blond.core.base import (
     Preparable,
     SimulationElementBase,
 )
+from blond.core.beam.beams import Beam
 from blond.core.helpers import (
     find_instances_with_method,
     int_from_float_with_warning,
@@ -632,6 +633,10 @@ class Simulation(Preparable):
         for cls in ordered_classes:
             for element in instances:
                 if type(element).__name__ != cls:
+                    continue
+                if isinstance(element, Beam):
+                    # With BunchObservationMetaParams holding the beam, this would fail in case of using
+                    # the semi-empiric matcher, as this tries to init all modules in the simulation
                     continue
                 logger.info(f"Running `{method}` of {element}")
                 getattr(element, method)(**kwargs)
