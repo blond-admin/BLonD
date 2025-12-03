@@ -123,7 +123,9 @@ class TestObservables(unittest.TestCase):
             n_turns=100,
         )
 
-        assert len(self.observables._turns_array) == self.observables._n_turns + 2
+        assert (
+            len(self.observables._turns_array) == self.observables._n_turns + 2
+        )
         assert np.all(
             np.where(np.diff(self.observables._turns_array) <= 0)
             == np.array([])
@@ -180,7 +182,6 @@ class TestObservables(unittest.TestCase):
             obs_helper.get_recorders()
         with self.assertRaises(AssertionError):
             obs_helper.assert_lateinit()
-
 
 
 class TestBunchObservation(unittest.TestCase):

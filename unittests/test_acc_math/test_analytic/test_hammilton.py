@@ -21,8 +21,7 @@ class TestPhiS(unittest.TestCase):
         energy_gain = 4
         DEV_PLOT = False
         for charge in (-5, 5):
-            for above_transition in (1,0):
-
+            for above_transition in (1, 0):
                 phi_s = calc_phi_s_single_harmonic(
                     charge,
                     voltage,
