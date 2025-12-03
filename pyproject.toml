@@ -128,5 +128,6 @@ exclude_files = [ # don't process filepaths that match these regex
     '^blond/core/backends/cpp/callables.py',
     '^blond/core/backends/cuda/callables.py',
     '^blond/core/backends/numba/callables.py',
+    '^blond/experimental/.*',
 
 ]

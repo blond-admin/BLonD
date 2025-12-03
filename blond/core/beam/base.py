@@ -47,14 +47,14 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
     Parameters
     ----------
     intensity
-        Actual/real number of particles
-        a.k.a. beam intensity
+        Actual/real number of particles.
+        a.k.a. beam intensity.
     particle_type
-        Type of particles, e.g. protons
+        Type of particles, e.g. protons.
     is_counter_rotating
-        If this is a normal or counter-rotating beam
+        If this is a normal or counter-rotating beam.
     is_distributed
-        Developer option to allow distributed computing
+        Developer option to allow distributed computing.
     """
 
     def __init__(
@@ -97,14 +97,18 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """
         Lateinit method when `simulation.run_simulation` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate.
         turn_i_init
-            Initial turn to execute simulation
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments.
         """
         super().on_run_simulation(
             beam=beam,
@@ -147,12 +151,26 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     @property
     def particle_type(self) -> ParticleType:
-        """Type of particles, e.g. protons."""
+        """
+        Type of particles, e.g. protons.
+
+        Returns
+        -------
+        particle_type
+            Type of particles, e.g. protons.
+        """
         return self._particle_type
 
     @property
     def reference_total_energy(self) -> float:
-        """Total beam energy [eV]."""
+        """
+        Total beam energy [eV].
+
+        Returns
+        -------
+        reference_total_energy
+            Total beam energy [eV].
+        """
         if self._reference_total_energy is None:
             raise ValueError(
                 "Beam is not properly set up, please set "
@@ -162,13 +180,27 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     @reference_total_energy.setter
     def reference_total_energy(self, reference_total_energy: float) -> None:
-        """Total beam energy [eV]."""
+        """
+        Total beam energy [eV].
+
+        Parameters
+        ----------
+        reference_total_energy
+            Total beam energy [eV].
+        """
         self.invalidate_cache_reference()
         self._reference_total_energy = reference_total_energy
 
     @cached_property
     def reference_gamma(self) -> float:
-        """Beam reference gamma a.k.a. Lorentz factor []."""
+        """
+        Beam reference gamma a.k.a. Lorentz factor [].
+
+        Returns
+        -------
+        reference_gamma
+            Beam reference gamma a.k.a. Lorentz factor [].
+        """
         # reference_total_energy in eV and mass_inv in [c²/eV]
         if self._reference_total_energy is None:
             raise ValueError(
@@ -180,14 +212,28 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     @cached_property
     def reference_beta(self) -> float:
-        """Beam reference fraction of speed of light (v/c0) []."""
+        """
+        Beam reference fraction of speed of light (v/c0) [].
+
+        Returns
+        -------
+        reference_beta
+            Beam reference fraction of speed of light (v/c0) [].
+        """
         gamma = self.reference_gamma
         val = np.sqrt(1.0 - 1.0 / (gamma * gamma))
         return val
 
     @cached_property
     def reference_velocity(self) -> float:
-        """Beam reference speed [m/s]."""
+        """
+        Beam reference speed [m/s].
+
+        Returns
+        -------
+        reference_velocity
+            Beam reference speed [m/s].
+        """
         return self.reference_beta * c0
 
     @abstractmethod  # pragma: no cover
@@ -200,31 +246,45 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         reference_total_energy: float | None = None,
     ) -> None:
         """
-        Sets beam array attributes for simulation.
+        Set beam array attributes for simulation.
 
         Parameters
         ----------
         dt
-            Macro-particle time coordinates, in [s]
+            Macro-particle time coordinates, in [s].
         dE
-            Macro-particle energy coordinates, in [eV]
+            Macro-particle energy coordinates, in [eV].
         flags
-            Macro-particle flags
+            Macro-particle flags.
         reference_time
-            Time of the reference frame (global time), in [s]
+            Time of the reference frame (global time), in [s].
         reference_total_energy
-            Time of the reference frame (global total energy), in [eV]
+            Time of the reference frame (global total energy), in [eV].
         """
         pass
 
     @property  # as readonly attributes
     def is_distributed(self) -> bool:
-        """Developer option to allow distributed computing."""
+        """
+        Developer option to allow distributed computing.
+
+        Returns
+        -------
+        is_distributed
+            Developer option to allow distributed computing.
+        """
         return self._is_distributed
 
     @property  # as readonly attributes
     def is_counter_rotating(self) -> bool:
-        """If this is a normal or counter-rotating beam."""
+        """
+        If this is a normal or counter-rotating beam.
+
+        Returns
+        -------
+        is_counter_rotating
+            If this is a normal or counter-rotating beam.
+        """
         return self._is_counter_rotating
 
     @requires(["EnergyCycleBase"])
@@ -232,8 +292,10 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """
         Lateinit method when `simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         pass  # this gets never called
 
@@ -318,10 +380,15 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     def n_macroparticles_partial(self) -> int:
         """
-        Size of the beam, ignoring that beam might be distributed.
+        Return size of the beam, ignoring that beam might be distributed.
 
-        Note
-        ----
+        Returns
+        -------
+        n_macroparticles_partial
+            Size of the beam, ignoring that beam might be distributed.
+
+        Notes
+        -----
         Depends on `is_distributed`
         If not distributed, returns all particles.
         Using `_dt` and `_dE` will result in the same behaviour.
@@ -339,10 +406,15 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     def read_partial_ids(self) -> NumpyArray | CupyArray:
         """
-        Returns id-array on current node (distributed computing ready).
+        Return id-array on current node (distributed computing ready).
 
-        Note
-        ----
+        Returns
+        -------
+        ids
+            Id-array on current node (distributed computing ready).
+
+        Notes
+        -----
         Depends on `is_distributed`
         If not distributed, returns all particles.
         Using `_dt` and `_dE` will result in the same behaviour
@@ -354,10 +426,15 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     def read_partial_dt(self) -> NumpyArray | CupyArray:
         """
-        Returns dt-array on current node (distributed computing ready), in [s].
+        Return dt-array on current node (distributed computing ready), in [s].
 
-        Note
-        ----
+        Returns
+        -------
+        dt
+            Dt-array on current node (distributed computing ready), in [s].
+
+        Notes
+        -----
         Depends on `is_distributed`
         If not distributed, returns all particles.
         Using `_dt` and `_dE` will result in the same behaviour
@@ -369,10 +446,15 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     def write_partial_dt(self) -> NumpyArray | CupyArray:
         """
-        Returns dt-array on current node (distributed computing ready), in [s].
+        Return dt-array on current node (distributed computing ready), in [s].
 
-        Note
-        ----
+        Returns
+        -------
+        dt
+            Dt-array on current node (distributed computing ready), in [s].
+
+        Notes
+        -----
         Depends on `is_distributed`
         If not distributed, returns all particles.
         Using `_dt` and `_dE` will result in the same behaviour.
@@ -385,10 +467,15 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     def read_partial_dE(self) -> NumpyArray | CupyArray:
         """
-        Returns dE-array on current node (distributed computing ready), in [eV].
+        Return dE-array on current node (distributed computing ready), in [eV].
 
-        Note
-        ----
+        Returns
+        -------
+        dE
+            DE-array on current node (distributed computing ready), in [eV].
+
+        Notes
+        -----
         Depends on `is_distributed`
         If not distributed, returns all particles.
         Using `_dt` and `_dE` will result in the same behaviour.
@@ -400,10 +487,15 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     def write_partial_dE(self) -> NumpyArray | CupyArray:
         """
-        Returns dE-array on current node (distributed computing ready), in [eV].
+        Return dE-array on current node (distributed computing ready), in [eV].
 
-        Note
-        ----
+        Returns
+        -------
+        dE
+            DE-array on current node (distributed computing ready), in [eV].
+
+        Notes
+        -----
         Depends on `is_distributed`
         If not distributed, returns all particles.
         Using `_dt` and `_dE` will result in the same behaviour.
@@ -416,10 +508,15 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     def write_partial_flags(self) -> NumpyArray | CupyArray:
         """
-        Returns flags-array on current node (distributed computing ready).
+        Return flags-array on current node (distributed computing ready).
 
-        Note
-        ----
+        Returns
+        -------
+        flags
+            Flags-array on current node (distributed computing ready).
+
+        Notes
+        -----
         Depends on `is_distributed`
         If not distributed, returns all particles.
         Using `_dt` and `_dE` will result in the same behaviour.
@@ -433,10 +530,15 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     def read_partial_flags(self) -> NumpyArray | CupyArray:
         """
-        Returns flags-array on current node (distributed computing ready).
+        Return flags-array on current node (distributed computing ready).
 
-        Note
-        ----
+        Returns
+        -------
+        flags
+            Flags-array on current node (distributed computing ready).
+
+        Notes
+        -----
         Depends on `is_distributed`
         If not distributed, returns all particles.
         Using `_dt` and `_dE` will result in the same behaviour.
@@ -455,7 +557,6 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         flag
             The flag to be used as a selector what to place at the end.
             Default is to remove lost particles ``flag=0``.
-
         """
         from blond.core.backends.backend import (
             backend,  # prevent cyclic import
