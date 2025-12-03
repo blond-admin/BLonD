@@ -7,7 +7,6 @@
 # Project website: http://blond.web.cern.ch/
 
 
-
 """
 **Filters and methods for control loops**
 

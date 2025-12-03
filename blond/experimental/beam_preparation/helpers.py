@@ -15,8 +15,6 @@ import numpy as np
 from blond.core.backends.backend import backend
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional, Tuple
-
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
@@ -28,8 +26,8 @@ def generate_particle_coordinates(
     deltaE_grid: NumpyArray,
     density_grid: NumpyArray,
     n_macroparticles: int,
-    seed: Optional[int],
-) -> Tuple[NumpyArray | CupyArray, NumpyArray | CupyArray]:
+    seed: int | None,
+) -> tuple[NumpyArray | CupyArray, NumpyArray | CupyArray]:
     """
     Fill bunch with macroparticles according to `density_distribution`
 
@@ -96,7 +94,7 @@ def populate_beam(
     deltaE_grid: NumpyArray,
     density_grid: NumpyArray,
     n_macroparticles: int,
-    seed: Optional[int],
+    seed: int | None,
 ) -> None:
     """
     Fill bunch with macroparticles according to `density_distribution`

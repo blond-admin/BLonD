@@ -27,9 +27,6 @@ from blond.legacy.blond2.beam.distributions import (
 from blond.legacy.blond2.beam.profile import CutOptions as cut_options_b2
 from blond.legacy.blond2.beam.profile import Profile as profile_b2
 from blond.legacy.blond2.impedances.impedance import (
-    InducedVoltageFreq,
-)
-from blond.legacy.blond2.impedances.impedance import (
     InducedVoltageResonator as ind_volt_res_b2,
 )
 from blond.legacy.blond2.impedances.impedance import (

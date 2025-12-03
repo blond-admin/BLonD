@@ -63,13 +63,16 @@ line-length = 79
 target-version = "py310"  # Minimum supported version (no quotes)
 fix = true  # Enable autofix
 exclude = [
-    "blond/legacy",
-    "blond/experimental",
-    "unittests",
-    "legacy",
-    "integrationtests_blond3",
+    "blond/legacy/*",
+    "legacy/*",
+    "integrationtests_blond3/*",
 ]
 [tool.ruff.lint]
+exclude = [
+    "blond/experimental/*",
+    "unittests/*",
+    "blond/examples/*",
+]
 # Enable broad set of useful lint rules
 select = [
     "E",    # pycodestyle errors
@@ -94,9 +97,6 @@ ignore = [
     "B024", # ... is an abstract base class, but it has no abstract methods or properties
     "E712", #  Avoid equality comparisons to `False`; use `if not ...:` for false checks
 
-]
-exclude = [
-    "blond/examples/*",
 ]
 
 [tool.ruff.lint.pydocstyle]

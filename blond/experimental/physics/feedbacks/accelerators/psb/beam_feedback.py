@@ -138,7 +138,8 @@ class PsbBeamFeedback(Blond2BeamFeedback):
             self.dR_over_R = (self._parent_rf_station.delta_omega_rf[0]) / (
                 self._parent_rf_station._omega_rf[0]
                 * (
-                    1.0 / (self.ring.alpha_0[0] * self._parent_rf_station.gamma ** 2)
+                    1.0
+                    / (self.ring.alpha_0[0] * self._parent_rf_station.gamma**2)
                     - 1.0
                 )
             )

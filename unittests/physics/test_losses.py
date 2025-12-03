@@ -23,6 +23,7 @@ class LossesBaseClassHelper(LossesBaseClass):
     ) -> None:
         pass
 
+
 class TestLossesBaseClass(unittest.TestCase):
     def test_init(self):
         LossesBaseClassHelper(purge_flagged_macroparticles=True)
@@ -32,12 +33,15 @@ class TestLossesBaseClass(unittest.TestCase):
         flags = np.ones(10)
         flags[:5] = BeamFlags.LOST.value
         beam.setup_beam(dt=np.arange(10), dE=np.ones(10), flags=flags)
-        LossesBaseClassHelper(purge_flagged_macroparticles=True)._purge_particles(beam=beam)
+        LossesBaseClassHelper(
+            purge_flagged_macroparticles=True
+        )._purge_particles(beam=beam)
         self.assertEqual(beam.common_array_size, 5)
         np.testing.assert_almost_equal(
             np.sort(beam.read_partial_dt()),
             np.sort(np.arange(10)[5:]),
         )
+
 
 class TestBoxLosses(unittest.TestCase):
     def setUp(self):
@@ -226,12 +230,15 @@ class TestBoxLosses(unittest.TestCase):
         flags = np.ones(10)
         flags[:5] = BeamFlags.LOST.value
         beam.setup_beam(dt=np.arange(10), dE=np.ones(10), flags=flags)
-        LossesBaseClassHelper(purge_flagged_macroparticles=True)._purge_particles(beam=beam)
+        LossesBaseClassHelper(
+            purge_flagged_macroparticles=True
+        )._purge_particles(beam=beam)
         self.assertEqual(beam.common_array_size, 5)
         np.testing.assert_almost_equal(
             np.sort(beam.read_partial_dt()),
             np.sort(np.arange(10)[5:]),
         )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -182,7 +182,9 @@ class BirksCavityFeedback(LocalFeedback):
             / self._parent_rf_station._omega_rf[self.harmonic_index]
         )
         # TODO REMWORK/REMOVE
-        t_rf = t_rev / float(self._parent_rf_station.harmonic[self.harmonic_index])
+        t_rf = t_rev / float(
+            self._parent_rf_station.harmonic[self.harmonic_index]
+        )
 
         self.n_coarse = round(t_rev / self.T_s)
         self.omega_carrier = (
@@ -374,7 +376,8 @@ class BirksCavityFeedback(LocalFeedback):
     def set_point_from_rfstation(self) -> NumpyArray:
         r"""Computes the setpoint in I/Q based on the RF voltage in the RFStation"""
         V_set = polar_to_cartesian(
-            self._parent_rf_station.voltage[self.harmonic_index] / self.n_cavities,
+            self._parent_rf_station.voltage[self.harmonic_index]
+            / self.n_cavities,
             0,
         )
 

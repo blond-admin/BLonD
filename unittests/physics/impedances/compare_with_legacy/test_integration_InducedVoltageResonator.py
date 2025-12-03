@@ -241,9 +241,7 @@ class TestBothBlonds(unittest.TestCase):
             for slic_ind, n_slices in enumerate(n_slices_lst):
                 # for slic_ind, n_slices in enumerate([1024]):
                 # for b_ind, bunch_length in enumerate([1e-9 / 4, 1e-9, 4e-9]):
-                for b_ind, bunch_length in enumerate(
-                    bunch_lengths
-                ):
+                for b_ind, bunch_length in enumerate(bunch_lengths):
                     self.blond3 = Blond3(
                         n_macroparticles, n_slices, bunch_length
                     )

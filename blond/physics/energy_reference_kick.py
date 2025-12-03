@@ -11,7 +11,7 @@
 from typing import TYPE_CHECKING
 
 from blond.core.backends.backend import backend
-from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
+from blond.core.base import BeamPhysicsRelevant, DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.simulation.simulation import Simulation
 from blond.cycles.magnetic_cycle import MagneticCycleBase, MagneticCycleByTime
@@ -20,7 +20,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond import Ring
 
 
-class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
+class ReferenceEnergyChange(BeamPhysicsRelevant):
     """
     Update beam's `reference_total_energy` and `dE` array, but constant in absolute terms.
 
@@ -121,11 +121,6 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
             Simulation beam object.
         """
         super().track(beam=beam)
-        if self.schedule_active:
-            self.apply_schedules(
-                turn_i=self._turn_i.value,
-                reference_time=beam.reference_time,
-            )
 
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,

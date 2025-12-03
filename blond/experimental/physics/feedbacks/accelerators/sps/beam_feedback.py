@@ -151,7 +151,7 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         self._parent_rf_station.dphi_rf_steering += (
             (2.0 * np.pi)
             * (
-                    self._parent_rf_station.harmonic[:]
+                self._parent_rf_station.harmonic[:]
                 / self._parent_rf_station._omega_rf[:]
             )
             * (self._parent_rf_station.delta_omega_rf[:])
@@ -201,7 +201,9 @@ class SpsFBeamFeedback(Blond2BeamFeedback):
 
         # Frequency correction from phase loop and frequency loop
         self.domega_dphi = -self.gain * self.dphi
-        self.domega_df = -self.gain2 * (self._parent_rf_station.delta_omega_rf[0])
+        self.domega_df = (
+            -self.gain2 * (self._parent_rf_station.delta_omega_rf[0])
+        )
 
         self.domega_rf = self.domega_dphi + self.domega_df
 
@@ -218,7 +220,8 @@ class SpsFBeamFeedback(Blond2BeamFeedback):
             + self._parent_rf_station.delta_omega_rf[0]
         )
         phi_rf = (
-                self._parent_rf_station.phi_rf[0] + self._parent_rf_station.delta_phi_rf
+            self._parent_rf_station.phi_rf[0]
+            + self._parent_rf_station.delta_phi_rf
         )
 
         if self.alpha != 0.0:

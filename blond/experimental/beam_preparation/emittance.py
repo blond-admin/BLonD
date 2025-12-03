@@ -6,7 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Implementation to match beam coordinates to an emittance. """
+"""Implementation to match beam coordinates to an emittance."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -21,6 +22,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 class EmittanceMatcher(MatchingRoutine):
     """Matches the beam coordinates to a given emittance."""
+
     def __init__(self, some_emittance: float, n_macroparticles: int):
         raise NotImplementedError("To be developed")  # TODO
         super().__init__()

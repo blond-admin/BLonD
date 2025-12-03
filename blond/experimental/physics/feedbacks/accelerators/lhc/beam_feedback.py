@@ -50,10 +50,12 @@ class LhcBeamFeedback(Blond2BeamFeedback):
 
         if self.gain2 != 0:
             #: | *LHC Synchronisation loop coefficient [1]*
-            self.lhc_a = 5.25 - self._parent_rf_station.omega_s0 / (np.pi * 40.0)
+            self.lhc_a = 5.25 - self._parent_rf_station.omega_s0 / (
+                np.pi * 40.0
+            )
             #: | *LHC Synchronisation loop time constant [turns]*
             self.lhc_t = (
-                                 2 * np.pi * self._parent_rf_station.Q_s * np.sqrt(self.lhc_a)
+                2 * np.pi * self._parent_rf_station.Q_s * np.sqrt(self.lhc_a)
             ) / np.sqrt(
                 1
                 + self.gain
@@ -160,5 +162,5 @@ class LhcFBeamFeedback(Blond2BeamFeedback):
 
         # Frequency correction from phase loop and frequency loop
         self.domega_rf = -self.gain * self.dphi - self.gain2 * (
-                self._parent_rf_station.delta_omega_rf[0] + self.reference
+            self._parent_rf_station.delta_omega_rf[0] + self.reference
         )

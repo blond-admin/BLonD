@@ -178,6 +178,14 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         transition_gamma
             Gamma of transition crossing
 
+
+        Examples
+        --------
+        Parameters can be scheduled along the simulation execution
+        >>> from blond import DriftSimple
+        >>> drift = DriftSimple(...)
+        >>> drift.schedule(attribute='momentum_compaction_factor', value=np.array(...), mode="per-turn")
+
         """
         super().__init__(
             orbit_length=orbit_length,

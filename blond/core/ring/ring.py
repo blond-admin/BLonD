@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond.core.base import Preparable, Schedulable
+from blond.core.base import Preparable
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
@@ -34,7 +34,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.physics.drifts import DriftBaseClass
 
 
-class Ring(Preparable, Schedulable):
+class Ring(Preparable):
     """
     Create a `Ring` object representing a synchrotron accelerator.
 

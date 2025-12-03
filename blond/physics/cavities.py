@@ -561,6 +561,13 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         RF station's design phase, in [rad].
     harmonic
         RF station's design harmonic [].
+
+    Examples
+    --------
+    Parameters can be scheduled along the simulation execution
+    >>> from blond import SingleHarmonicRfStation
+    >>> rf_station = SingleHarmonicRfStation(...)
+    >>> rf_station.schedule(attribute='phi_rf', value=np.array(...), mode="per-turn")
     """
 
     def __init__(
@@ -925,6 +932,14 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         RF station's design phases (per harmonic) in [rad].
     harmonic
         RF station's design harmonics (per harmonic) [].
+
+
+    Examples
+    --------
+    Parameters can be scheduled along the simulation execution
+    >>> from blond import MultiHarmonicRfStation
+    >>> rf_station = MultiHarmonicRfStation(...)
+    >>> rf_station.schedule(attribute='phi_rf', value=np.array(...), mode="per-turn")
 
     Notes
     -----

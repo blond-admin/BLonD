@@ -46,7 +46,7 @@ class LocalFeedback(FeedbackBaseClass):
             name=name,
         )
         self._parent_rf_station: (
-                SingleHarmonicRfStation | MultiHarmonicRfStation | None
+            SingleHarmonicRfStation | MultiHarmonicRfStation | None
         ) = None
         self.profile = profile
 
