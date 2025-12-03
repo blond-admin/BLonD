@@ -6,12 +6,11 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Helper functions to initialize the beam.
+"""Helper functions to initialize the beam."""
 
-Authors
--------
-Leonard Thiele, Simon Lauber
-"""
+# Authors
+# -------
+# Leonard Thiele, Simon Lauber
 
 from os import PathLike
 
@@ -25,22 +24,22 @@ def load_beam_coordinates_counterrot_from_file(
     beam: BeamBaseClass,
     beam_counterrot: BeamBaseClass,
 ) -> None:
-    """Load single file to initialize beam coordinates.
-
-    Notes
-    -----
-    Both beams will be initialized with the same coordinates.
+    """
+    Load single file to initialize beam coordinates.
 
     Parameters
     ----------
     filename
         File that was saved with ``np.save(...)``
-        that holds the dt and dE coordinates
+        that holds the dt and dE coordinates.
     beam
-        Simulation :class:`~blond._cycles_core.beam.beam.Beam` object
+        Simulation :class:`~blond._cycles_core.beam.beam.Beam` object.
     beam_counterrot
-        Simulation :class:`~blond._cycles_core.beam.beam.Beam` object
+        Simulation :class:`~blond._cycles_core.beam.beam.Beam` object.
 
+    Notes
+    -----
+    Both beams will be initialized with the same coordinates.
     """
     loaded_dict = np.load(filename)
     beam.setup_beam(
@@ -57,20 +56,20 @@ def load_beam_coordinates_from_file(
     filename: PathLike | str,
     beam: BeamBaseClass,
 ) -> None:
-    """Load single file to initialize beam coordinates.
-
-    Notes
-    -----
-    Both beams will be initialized with the same coordinates.
+    """
+    Load single file to initialize beam coordinates.
 
     Parameters
     ----------
     filename
         File that was saved with ``np.save(...)``
-        that holds the dt and dE coordinates
+        that holds the dt and dE coordinates.
     beam
-        Simulation :class:`~blond._cycles_core.beam.beam.Beam` object
+        Simulation :class:`~blond._cycles_core.beam.beam.Beam` object.
 
+    Notes
+    -----
+    Both beams will be initialized with the same coordinates.
     """
     loaded_dict = np.load(filename)
     beam.setup_beam(
