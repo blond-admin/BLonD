@@ -56,5 +56,5 @@ class TestFunctions(unittest.TestCase):
             is_cupy_array(arr_numba_cuda)
 
         numba_array_dummy = Mock()
-        setattr(numba_array_dummy, "gpu_data", True)
+        numba_array_dummy.gpu_data = True
         self.assertEqual(is_cupy_array(numba.cuda), False)

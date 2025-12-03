@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.backends.backend import Specials
+from blond.core.beam.base import BeamFlags
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -141,13 +142,18 @@ class PythonSpecials(Specials):
         )
 
     @staticmethod
-    def loss_box(  # noqa: D102
-        top: float,
-        bottom: float,
-        left: float,
-        right: float,
-    ) -> None:  # pragma: no cover
-        raise NotImplementedError
+    def loss_box(  # NOQA: D102
+        e_max: float,
+        e_min: float,
+        t_min: float,
+        t_max: float,
+        dt: NumpyArray,
+        dE: NumpyArray,
+        flags: NumpyArray,
+    ) -> None:
+        # select particles outside box
+        select = (dE > e_max) | (dE < e_min) | (dt < t_min) | (dt > t_max)
+        flags[select] = BeamFlags.LOST.value
 
     @staticmethod
     def kick_single_harmonic(
@@ -168,11 +174,11 @@ class PythonSpecials(Specials):
         dE
             Macro-particle energy coordinates, in [eV]
         voltage
-            RF voltage of the cavity, in [V]
+            RF voltage of the RF station, in [V]
         omega_rf
             Angular frequency of the RF system, in [rad/s]
         phi_rf
-            Cavity's design phase (per harmonic) in [rad]
+            RF station's design phase (per harmonic) in [rad]
         charge
             Particle charge, as number of elementary charges `e` []
         acceleration_kick
@@ -205,11 +211,11 @@ class PythonSpecials(Specials):
         dE
             Macro-particle energy coordinates, in [eV]
         voltage
-            RF voltages of the cavity, in [V]
+            RF voltages of the RF station, in [V]
         omega_rf
             Angular frequencies of the RF system, in [rad/s]
         phi_rf
-            Cavity's design phases (per harmonic) in [rad]
+            RF station's design phases (per harmonic) in [rad]
         charge
             Particle charge, as number of elementary charges `e` []
         acceleration_kick

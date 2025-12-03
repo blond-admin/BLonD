@@ -30,6 +30,7 @@ _fortran_files32 = [
     "histogram_32.f90",
     "kick_32.f90",
     "kick_induced_32.f90",
+    "loss_box_32.f90",
     "move_flagged_elements_to_end_32.f90",
 ]
 

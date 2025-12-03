@@ -15,7 +15,7 @@ in the :class:`Simulation` environment, including all active RF systems and othe
 beam relevant effects comprised in the simulation pipeline.
 
 Unlike purely analytic models, this method captures **realistic distortions**
-introduced by multiple RF cavities, synchrotron phase shifts, and drifts between stations.
+introduced by multiple RF stations, synchrotron phase shifts, and drifts between stations.
 
 The potential well is obtained using the method
 :func:`Simulation.get_potential_well_empiric`, which integrates the *energy gain and loss*
@@ -30,7 +30,7 @@ For a single turn, a set of probe particles is defined with initial time offset 
 and zero energy deviation :math:`\Delta E_0 = 0`.
 
 As the probe beam drifts between RF stations, its *arrival time* changes.
-When it reaches the next RF cavity, the local phase has shifted accordingly.
+When it reaches the next RF station, the local phase has shifted accordingly.
 This causes apparent **distortion and phase shifts** in the reconstructed potential
 because each station sees a slightly different particle phase advance.
 
@@ -126,8 +126,8 @@ Example Usage
 
 .. code-block:: python
 
-   from blond._core.simulation.simulation import Simulation
-   from blond._core.particles import ParticleType
+   from blond.core.simulation.simulation import Simulation
+   from blond.core.particles import ParticleType
    import numpy as np
    import matplotlib.pyplot as plt
 

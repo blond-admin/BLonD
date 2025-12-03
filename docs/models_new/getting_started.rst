@@ -106,13 +106,13 @@ The cycle assumes each RF station provides an equal fraction of the energy kick 
 Advanced Cycle Options
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-**Per-RF-Station Control (MagneticCyclePerTurnAllCavities)**
+**Per-RF-Station Control (MagneticCyclePerTurnAllRfStations)**
 
 For full control over each RF station's contribution at each turn:
 
 .. code-block:: python
 
-    from blond.cycles.magnetic_cycle import MagneticCyclePerTurnAllCavities
+    from blond.cycles.magnetic_cycle import MagneticCyclePerTurnAllRfStations
 
     # REQUIRED: 2D array with shape (n_rf_stations, n_turns)
     # Each row represents one RF station, each column represents one turn
@@ -122,10 +122,10 @@ For full control over each RF station's contribution at each turn:
 
     energy_per_rf_station = np.zeros((n_rf_stations, N_TURNS))
     # Write the desired values in `energy_per_rf_station`
-    energy_cycle = MagneticCyclePerTurnAllCavities(
+    energy_cycle = MagneticCyclePerTurnAllRfStations(
         reference_particle=proton,
         value_init=450e9,
-        values_after_cavity_per_turn=energy_per_rf_station,  # 2D array: (cavities, turns)
+        values_after_rf_station_per_turn=energy_per_rf_station,  # 2D array: (rf_stations, turns)
         in_unit="total energy",
     )
 
@@ -325,17 +325,17 @@ Access recorded data via:
 - ``stats_observation.sigma_dE``: Energy deviation standard deviation [eV]
 - ``stats_observation.emittance_stat``: Statistical emittance
 
-**CavityPhaseObservation** - RF Station Parameters
+**RfStationPhaseObservation** - RF Station Parameters
 
 Tracks the evolution of RF station parameters (phase, frequency, voltage):
 
 .. code-block:: python
 
-    from blond import CavityPhaseObservation
+    from blond import RfStationPhaseObservation
 
-    phase_observation = CavityPhaseObservation(
+    phase_observation = RfStationPhaseObservation(
         each_turn_i=1,        # record every turn
-        cavity=rf_station1,   # which RF station to observe
+        rf_station=rf_station1,   # which RF station to observe
     )
 
 Access recorded data via:
@@ -414,7 +414,7 @@ All observations support these common parameters:
 - ``each_turn_i``: Controls recording frequency. Set to 1 to record every turn, 10 to record every 10th turn, etc.
 - ``folder``: Optional path prefix for saving/loading data to disk.
  Some observation support also:
-- ``obs_per_turn``: For observations that support it, allows multiple recordings per turn at different RF sections. Maximum value is the number of cavities.
+- ``obs_per_turn``: For observations that support it, allows multiple recordings per turn at different RF sections. Maximum value is the number of RF stations.
 
 Contributing New Observations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -547,12 +547,12 @@ Here is the complete example putting it all together:
         Beam,
         BeamObservationEndOfTurn,
         BiGaussian,
-        CavityPhaseObservation,
+        RfStationPhaseObservation,
         ConstantMagneticCycle,
         DriftSimple,
         Ring,
         Simulation,
-        SingleHarmonicCavity,
+        SingleHarmonicRfStation,
         proton,
     )
 
@@ -560,7 +560,7 @@ Here is the complete example putting it all together:
     ring = Ring(26658.883)
 
     # Define RF station (SingleHarmonicCavity will be renamed to SingleHarmonicRfStation)
-    rf_station1 = SingleHarmonicCavity()
+    rf_station1 = SingleHarmonicRfStation()
     rf_station1.harmonic = 35640
     rf_station1.voltage = 6e6
     rf_station1.phi_rf = 0
@@ -593,7 +593,7 @@ Here is the complete example putting it all together:
     )
 
     # Setup observations
-    phase_observation = CavityPhaseObservation(each_turn_i=1, cavity=rf_station1)
+    phase_observation = RfStationPhaseObservation(each_turn_i=1, rf_station=rf_station1)
     bunch_observation = BeamObservationEndOfTurn(each_turn_i=1, beam=beam1)
 
     # Run simulation

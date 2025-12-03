@@ -72,9 +72,9 @@ from blond import (
 backend.set_specials("cpp")  # set any backend you want
 
 ring = Ring(26658.883)  # general definition of ring
-cavity1 = SingleHarmonicRfStation(harmonic=35640, voltage=6e6, phi_rf=0)
+rf_station_1 = SingleHarmonicRfStation(harmonic=35640, voltage=6e6, phi_rf=0)
 drift1 = DriftSimple(orbit_length=26658.883, transition_gamma=55.759505)
-ring.add_elements([cavity1, drift1])  # add elements that resemble one turn
+ring.add_elements([rf_station_1, drift1])  # add elements that resemble one turn
 
 # Define the ramp
 magnetic_cycle = ConstantMagneticCycle(value=450e9, reference_particle=proton)

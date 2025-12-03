@@ -301,7 +301,7 @@ class TestPeriodicFreqSolver(unittest.TestCase):
             0, 1, 6
         )
         self.periodic_freq_solver._parent_wakefield.profile.hist_step = 1
-        self.periodic_freq_solver._parent_wakefield.profile.n_bins = int(8)
+        self.periodic_freq_solver._parent_wakefield.profile.n_bins = 8
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
@@ -632,7 +632,7 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         self,
     ):  # in principle, this is a test for the dynamic profile, currently not implemented
         """
-        ensure that the profile does not change on application of different profile lengths with 0-padding
+        Ensure that the profile does not change on application of different profile lengths with 0-padding
         """
         self.single_turn_resonator_convolution_solver._update_potential_sources(
             zero_pinning=True
@@ -839,7 +839,6 @@ class TestAnalyticSingleTurnResonatorSolver(unittest.TestCase):
         print("__file__ dir =", Path(__file__).parent)
         with open(
             str(Path(__file__).parent) + r"/resources/TESLA_until_4.5GHz.json",
-            "r",
             encoding="utf-8",
         ) as cst_modes_EM_file:
             cst_modes_dict = json.load(cst_modes_EM_file)
@@ -1512,7 +1511,7 @@ class TestMultiPassResonatorSolver(unittest.TestCase):
 
     def test__update_potential_sources(self):
         """
-        test presence of arrays and correct shifting of timing
+        Test presence of arrays and correct shifting of timing
         """
         sim = Mock(Simulation)
 

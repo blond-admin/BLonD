@@ -54,15 +54,9 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
         Type of stationary distribution to use for matching. Must be a class from
         `xpart.longitudinal.rfbucket_matching`, such as `QGaussianDistribution`
         or `ThermalDistribution`.
-    cavity : SingleHarmonicCavity, optional
-        RF cavity to use when constructing the RF bucket. Required for voltage,
-        harmonic number, and phase.
     sigma_z : float, optional
         RMS bunch length, in [m]
         for use in the distribution generation.
-    energy_init : float, optional
-        Initial beam energy, in [eV].
-        Required for relativistic and bucket parameters.
     verbose_regeneration : bool, default=False
         Whether to print verbose logs during the matching routine.
 
@@ -72,8 +66,6 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
     >>>     beam= ... ,
     >>>     preparation_routine=XsuiteRFBucketMatcher(
     >>>         distribution_type=QGaussianDistribution,
-    >>>         energy_init= ... ,
-    >>>         cavity= ...,
     >>>         sigma_z= ... ,
     >>>         n_macroparticles= ...,
     >>>     ),
@@ -82,7 +74,7 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
     Raises
     ------
     ValueError
-        If the cavity is not set, energy is not provided, or transition gamma is missing.
+        If the RF station is not set, energy is not provided, or transition gamma is missing.
 
     """
 
@@ -111,7 +103,7 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
     ) -> None:
         """Generate and apply a matched longitudinal beam distribution.
 
-        This method constructs an RF bucket from the simulation and cavity
+        This method constructs an RF bucket from the simulation and rf_station
         parameters, computes a stationary longitudinal distribution using
         `RFBucketMatcher`, and populates the `Beam` object with macroparticles
         matched to the bucket.
@@ -129,7 +121,7 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
         ------
         ValueError
             If:
-            - The cavity is not provided.
+            - The rf_station is not provided.
             - Initial beam energy is not set.
             - No `DriftSimple` elements are found in the ring.
             - `transition_gamma` is not defined in the first drift element.
@@ -149,11 +141,11 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             turn_i=0,
             reference_time=0,
         )
-        cavity: SingleHarmonicRfStation = simulation.ring.elements.get_element(
-            SingleHarmonicRfStation
+        rf_station: SingleHarmonicRfStation = (
+            simulation.ring.elements.get_element(SingleHarmonicRfStation)
         )
 
-        cavity.apply_schedules(turn_i=0, reference_time=0.0)
+        rf_station.apply_schedules(turn_i=0, reference_time=0.0)
 
         if drift.transition_gamma is None:
             raise ValueError(
@@ -170,9 +162,9 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             mass_kg=mass_kg,
             charge_coulomb=charge_coulomb,
             alpha_array=np.atleast_1d(alpha_c),
-            harmonic_list=np.atleast_1d(cavity.harmonic),
-            voltage_list=np.atleast_1d(cavity.voltage),
-            phi_offset_list=np.atleast_1d(cavity.phi_rf + np.pi),
+            harmonic_list=np.atleast_1d(rf_station.harmonic),
+            voltage_list=np.atleast_1d(rf_station.voltage),
+            phi_offset_list=np.atleast_1d(rf_station.phi_rf + np.pi),
             p_increment=0,
         )
 
@@ -189,7 +181,7 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             macroparticlenumber=self.n_macroparticles
         )
 
-        omega = cavity.calc_omega(
+        omega = rf_station.calc_omega(
             beam_beta=beam.reference_beta,
             ring_circumference=simulation.ring.circumference,
         )

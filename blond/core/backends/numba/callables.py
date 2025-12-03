@@ -23,6 +23,7 @@ from blond.core.backends.backend import Specials
 from blond.core.backends.python.callables import (
     _move_flagged_elements_to_end_py,
 )
+from blond.core.beam.base import BeamFlags
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -57,7 +58,7 @@ def enforce_precision(dtype):
 
 
 @cache  # or set a limit like maxsize=128
-def recompile_numba_backend(  # NOQA PLR0915 # ruff: noqa: D102
+def recompile_numba_backend(  # NOQA PLR0915 # NOQA: D102
     floattype: type[np.float32 | np.float64],
 ):
     """Helper to recompile `NumbaSpecials` when the backend changed.
@@ -75,13 +76,13 @@ def recompile_numba_backend(  # NOQA PLR0915 # ruff: noqa: D102
     """
     logger.info(f"Compiling numba for {floattype}")
 
+    nb_i = numba.int32
+
     if floattype == np.float32:
         nb_f = numba.float32
-        nb_i = numba.int32
 
     elif floattype == np.float64:
         nb_f = numba.float64
-        nb_i = numba.int64
 
     else:
         raise TypeError(floattype)
@@ -217,9 +218,25 @@ def recompile_numba_backend(  # NOQA PLR0915 # ruff: noqa: D102
         sig_ids,
     )
 
+    sig_top = nb_f
+    sig_bottom = nb_f
+    sig_left = nb_f
+    sig_right = nb_f
+
+    sig_loss_box = (
+        sig_top,
+        sig_bottom,
+        sig_left,
+        sig_right,
+        sig_dt,
+        sig_dE,
+        sig_flags,
+    )
+
     _move_flagged_elements_to_end_nb = njit(sig_move_flagged_elements_to_end)(
         _move_flagged_elements_to_end_py
     )
+    _lost = BeamFlags.LOST.value
 
     class NumbaSpecials(Specials):  # pragma: no cover
         @staticmethod
@@ -299,10 +316,30 @@ def recompile_numba_backend(  # NOQA PLR0915 # ruff: noqa: D102
 
         @staticmethod
         @enforce_precision(floattype)
+        @njit(
+            sig_loss_box,
+            parallel=True,
+            fastmath=True,
+            cache=True,
+        )
         def loss_box(
-            top: float, bottom: float, left: float, right: float
+            e_max: np.float32 | np.float64,
+            e_min: np.float32 | np.float64,
+            t_min: np.float32 | np.float64,
+            t_max: np.float32 | np.float64,
+            dt: NumpyArray,
+            dE: NumpyArray,
+            flags: NumpyArray,
         ) -> None:
-            pass
+            for i in prange(len(dt)):
+                select = (
+                    (dE[i] > e_max)
+                    | (dE[i] < e_min)
+                    | (dt[i] < t_min)
+                    | (dt[i] > t_max)
+                )
+                if select:
+                    flags[i] = _lost
 
         @staticmethod
         @enforce_precision(floattype)

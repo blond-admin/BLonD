@@ -47,7 +47,7 @@ class WakeFieldSolver:
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         parent_wakefield
             Wakefield that this solver affiliated to
         """
@@ -272,7 +272,7 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns
@@ -291,7 +291,7 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         from blond.physics.profiles import (
             ProfileBaseClass,  # prevent cyclic import
@@ -332,6 +332,14 @@ class WakeField(ImpedanceBaseClass):
         List of sources that cause wake-fields
     solver
         Solver to calculate the induced voltage from the sources
+
+
+    Examples
+    --------
+    >>> wakefield2 = WakeField(
+    ...     sources=(InductiveImpedance(34.6669349520904 / 10e9),),
+    ...     solver=InductiveImpedanceSolver(),
+    ... )
     """
 
     def __init__(
@@ -341,20 +349,6 @@ class WakeField(ImpedanceBaseClass):
         section_index: int = 0,
         profile: ProfileBaseClass | None = None,
     ):
-        """Manager class to calculate wake-fields.
-
-        Parameters
-        ----------
-        sources
-            List of sources that cause wake-fields
-        solver
-            Solver to calculate the induced voltage from the sources
-        section_index
-            Section index to group elements into sections
-        profile
-            Object for calculation of beam profiles
-
-        """
         super().__init__(section_index=section_index, profile=profile)
 
         self.solver = solver
@@ -381,7 +375,7 @@ class WakeField(ImpedanceBaseClass):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(simulation=simulation)
         assert len(self.sources) > 0, (
@@ -446,6 +440,8 @@ class WakeField(ImpedanceBaseClass):
 
         Parameters
         ----------
+        beam : BeamBaseClass
+            The `Beam` object which state will be updated by this element.
         sources
             List of sources that cause wake-fields
         solver

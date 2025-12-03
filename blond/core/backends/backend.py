@@ -32,17 +32,23 @@ class Specials(ABC):
     """Abstract listing of functions that need implementation for a new backend."""
 
     @staticmethod
-    @abstractmethod
-    def loss_box(  # noqa: D102
-        top: float, bottom: float, left: float, right: float
-    ) -> None:  # pragma: no cover
+    @abstractmethod  # pragma: no cover
+    def loss_box(  # NOQA: D102
+        e_max: float,
+        e_min: float,
+        t_min: float,
+        t_max: float,
+        dt: NumpyArray | CupyArray,
+        dE: NumpyArray | CupyArray,
+        flags: NumpyArray | CupyArray,
+    ) -> None:
         raise NotImplementedError(
             "Abstract method `loss_box` is not implemented."
         )
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def kick_single_harmonic(  # noqa: D102
+    def kick_single_harmonic(  # NOQA: D102
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         voltage: float,
@@ -57,7 +63,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def kick_multi_harmonic(  # noqa: D102
+    def kick_multi_harmonic(  # NOQA: D102
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         voltage: NumpyArray,
@@ -73,7 +79,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def drift_simple(  # noqa: D102
+    def drift_simple(  # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,
         T: float,
@@ -87,7 +93,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def drift_legacy(  # noqa: D102
+    def drift_legacy(  # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,
         T: float,
@@ -104,7 +110,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def drift_exact(  # noqa: D102
+    def drift_exact(  # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,
         T: float,
@@ -120,7 +126,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def kick_induced_voltage(  # noqa: D102
+    def kick_induced_voltage(  # NOQA: D102
         dt: NumpyArray,
         dE: NumpyArray,
         voltage: NumpyArray,
@@ -134,7 +140,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def histogram(  # noqa: D102
+    def histogram(  # NOQA: D102
         array_read: NumpyArray,
         array_write: NumpyArray,
         start: float,
@@ -146,7 +152,7 @@ class Specials(ABC):
 
     @staticmethod
     @abstractmethod  # pragma: no cover
-    def beam_phase(  # noqa: D102
+    def beam_phase(  # NOQA: D102
         hist_x: NumpyArray,
         hist_y: NumpyArray,
         alpha: float,
@@ -220,8 +226,6 @@ class BackendBaseClass(ABC):
     ----------
     float_
         Precision type for float, e.g. float32, float64.
-    int_:
-        Precision type for int, e.g. float32, float64.
     complex_
         Precision type for complex, e.g. float32, float64.
     specials_mode
@@ -232,13 +236,11 @@ class BackendBaseClass(ABC):
 
     # type annotations for MyPy
     float: type[np.float32 | np.float64]
-    int: type[np.int32] | type[np.int64]
     complex: type[np.complex128 | np.complex64]
 
     def __init__(
         self,
         float_: type[np.float32 | np.float64],
-        int_: type[np.int32] | type[np.int64],
         complex_: type[np.complex128 | np.complex64],
         specials_mode: Literal[
             "python",
@@ -255,7 +257,6 @@ class BackendBaseClass(ABC):
         self._is_gpu = is_gpu
 
         self.float = float_
-        self.int = int_
         self.complex = complex_
 
         self.twopi = self.float(2 * np.pi)
@@ -442,8 +443,6 @@ class NumpyBackend(BackendBaseClass):
     ----------
     float_
         Precision type for float, e.g. float32, float64.
-    int_
-        Precision type for int, e.g. float32, float64.
     complex_
         Precision type for complex, e.g. float32, float64.
     """
@@ -451,12 +450,10 @@ class NumpyBackend(BackendBaseClass):
     def __init__(
         self,
         float_: type[np.float32 | np.float64],
-        int_: type[np.int32 | np.int64],
         complex_: type[np.complex128 | np.complex64],
     ) -> None:
         super().__init__(
             float_,
-            int_,
             complex_,
             specials_mode="python",
             is_gpu=False,
@@ -545,7 +542,6 @@ class Numpy32Bit(NumpyBackend):
     ) -> None:
         super().__init__(
             np.float32,
-            np.int32,
             np.complex64,
         )
 
@@ -558,7 +554,6 @@ class Numpy64Bit(NumpyBackend):
     ) -> None:
         super().__init__(
             np.float64,
-            np.int64,
             np.complex128,
         )
 
@@ -570,8 +565,6 @@ class CupyBackend(BackendBaseClass):
     ----------
     float_
         Precision type for float, e.g. float32, float64.
-    int_
-        Precision type for int, e.g. float32, float64.
     complex_
         Precision type for complex, e.g. float32, float64.
     """
@@ -579,12 +572,10 @@ class CupyBackend(BackendBaseClass):
     def __init__(
         self,
         float_: type[np.float32 | np.float64],
-        int_: type[np.int32 | np.int64],
         complex_: type[np.complex128 | np.complex64],
     ) -> None:
         super().__init__(
             float_,
-            int_,
             complex_,
             specials_mode="cuda",  # no other backend implemented at the moment
             is_gpu=True,
@@ -645,7 +636,6 @@ class Cupy32Bit(CupyBackend):
     def __init__(self) -> None:
         super().__init__(
             np.float32,
-            np.int32,
             np.complex64,
         )
 
@@ -656,7 +646,6 @@ class Cupy64Bit(CupyBackend):
     def __init__(self) -> None:
         super().__init__(
             np.float64,
-            np.int64,
             np.complex128,
         )
 

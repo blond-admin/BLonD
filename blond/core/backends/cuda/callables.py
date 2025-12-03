@@ -36,7 +36,7 @@ hash_ = hash_in_folder(
 _basepath = os.path.join(folder, "compiled", hash_)
 
 
-def reload_cuda_backend(  # ruff: noqa: D102
+def reload_cuda_backend(  # NOQA: D102
     floattype: type[np.float32 | np.float64],
 ) -> CudaSpecials:
     """Load and link the according CUDA backend.
@@ -88,6 +88,7 @@ def reload_cuda_backend(  # ruff: noqa: D102
     _hybrid_histogram = gpu_module.get_function("hybrid_histogram")
     _gm_linear_interp_kick_help = gpu_module.get_function("lik_only_gm_copy")
     _gm_linear_interp_kick_comp = gpu_module.get_function("lik_only_gm_comp")
+    _loss_box = gpu_module.get_function("loss_box")
 
     default_blocks = 2 * cp.cuda.Device(0).attributes["MultiProcessorCount"]
     default_threads = cp.cuda.Device(0).attributes["MaxThreadsPerBlock"]
@@ -102,9 +103,36 @@ def reload_cuda_backend(  # ruff: noqa: D102
     class CudaSpecials(Specials):
         @staticmethod
         def loss_box(
-            top: float, bottom: float, left: float, right: float
+            e_max: float,
+            e_min: float,
+            t_min: float,
+            t_max: float,
+            dt: CupyArray,
+            dE: CupyArray,
+            flags: CupyArray,
         ) -> None:
-            raise NotImplementedError()
+            assert dt.dtype == backend.float
+            assert dE.dtype == backend.float
+            assert dE.dtype == backend.float
+            assert isinstance(e_max, backend.float)
+            assert isinstance(e_min, backend.float)
+            assert isinstance(t_min, backend.float)
+            assert isinstance(t_max, backend.float)
+
+            _loss_box(
+                args=(
+                    e_max,
+                    e_min,
+                    t_min,
+                    t_max,
+                    dt,
+                    dE,
+                    flags,
+                    np.int32(len(dE)),  # n_macroparticles
+                ),
+                block=block_size,
+                grid=grid_size,
+            )
 
         @staticmethod
         def kick_single_harmonic(
@@ -392,7 +420,7 @@ def reload_cuda_backend(  # ruff: noqa: D102
             assert flags.dtype == np.int32
             assert dt.dtype == backend.float
             assert dE.dtype == backend.float
-            assert ids.dtype == backend.int
+            assert ids.dtype == np.int32
 
             select = flags == flag
             order = cp.argsort(select)

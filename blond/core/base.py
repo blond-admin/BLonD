@@ -39,7 +39,7 @@ class Preparable(ABC):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         pass
 
@@ -55,7 +55,7 @@ class Preparable(ABC):
         """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns
@@ -204,7 +204,7 @@ class SimulationElementBase(MainLoopRelevant, ABC):
     Elements derived from this class are executed as part of the simulation's
     main turn-by-turn loop. They can be:
 
-      * :class:`BeamPhysicsRelevant` — modify the beam state (e.g., drifts, cavities, kicks)
+      * :class:`BeamPhysicsRelevant` — modify the beam state (e.g., drifts, rf stations, kicks)
       * :class:`BeamObservationElement — record or analyze beam information without modifying it
 
     Subclasses must implement:
@@ -242,7 +242,11 @@ class SimulationElementBase(MainLoopRelevant, ABC):
 
     @abstractmethod  # pragma: no cover
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Hook called when simulation initializes."""
+        """Lateinit method when `simulation.__init__` is called.
+
+        simulation
+            `Simulation` context manager
+        """
         pass
 
     @abstractmethod  # pragma: no cover
@@ -254,7 +258,19 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         turn_i_init: int,
         **kwargs,
     ) -> None:
-        """Hook called when simulation.run_simulation starts."""
+        """Lateinit method when `simulation.run_simulation` is called.
+
+        simulation
+            `Simulation` context manager
+        beam
+            Simulation `Beam` object
+        n_turns
+            Number of turns to simulate
+        turn_i_init
+            Initial turn to execute simulation
+        obs_per_turn
+            Number of observations per turn
+        """
         pass
 
     def info_string(self, prefix="") -> str:
@@ -286,13 +302,24 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         )
         return content
 
+    @abstractmethod  # pragma: no cover
+    def track(self, beam: BeamBaseClass) -> None:
+        """Apply the element’s physics effect to the beam.
+
+        Parameters
+        ----------
+        beam : BeamBaseClass
+            The beam object whose state will be updated by this element.
+        """
+        pass
+
 
 class BeamPhysicsRelevant(SimulationElementBase):
     """Abstract base class for elements that modify the beam state during tracking.
 
     This class defines the interface for all *physics-relevant* elements in the
     simulation — that is, elements which actively change the beam’s longitudinal
-    or transverse coordinates (e.g., drifts, cavities, kicks).
+    or transverse coordinates (e.g., drifts, rf stations, kicks).
 
     Each subclass must implement the :meth:`track` method, which applies its
     specific transformation to the beam state during each simulation turn.
@@ -314,17 +341,6 @@ class BeamPhysicsRelevant(SimulationElementBase):
     ) -> None:
         super().__init__(section_index, name)
         type(self).n_instances += 1
-
-    @abstractmethod  # pragma: no cover
-    def track(self, beam: BeamBaseClass) -> None:
-        """Apply the element’s physics effect to the beam.
-
-        Parameters
-        ----------
-        beam : BeamBaseClass
-            The beam object whose state will be updated by this element.
-        """
-        pass
 
 
 class BeamObservationElement(SimulationElementBase):
@@ -375,6 +391,7 @@ class UserDefinedElement(BeamPhysicsRelevant, ABC):
 
     Examples
     --------
+    >>> from blond import backend
     >>> class TimeRandomizer(UserDefinedElement):
     ...     def __init__(self):
     ...         super().__init__()
@@ -388,7 +405,7 @@ class UserDefinedElement(BeamPhysicsRelevant, ABC):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         pass
 
@@ -403,7 +420,7 @@ class UserDefinedElement(BeamPhysicsRelevant, ABC):
         """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns

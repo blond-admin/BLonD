@@ -34,7 +34,9 @@ if TYPE_CHECKING:  # pragma: no cover
 class BeamFlags(IntEnum):
     """Flags that define the beam state."""
 
-    LOST = -500  # by convention with XSuite team
+    # Please mind that the LOST flag is hardcoded in all backends
+    # for loss_box
+    LOST = -500  # by convention with XSuite team.
     ACTIVE = 1
 
 
@@ -94,7 +96,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation `Beam` object
         n_turns
@@ -227,7 +229,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         pass  # this gets never called
 

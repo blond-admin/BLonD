@@ -11,7 +11,7 @@
 from typing import TYPE_CHECKING
 
 from blond.core.backends.backend import backend
-from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
+from blond.core.base import BeamPhysicsRelevant, DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.simulation.simulation import Simulation
 from blond.cycles.magnetic_cycle import MagneticCycleBase, MagneticCycleByTime
@@ -20,7 +20,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond import Ring
 
 
-class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
+class ReferenceEnergyChange(BeamPhysicsRelevant):
     """Updates beam's `reference_total_energy` and `dE` array, but constant in absolute terms.
 
     Can be used in simulations where RF ramping is asynchronous with respect to the
@@ -44,7 +44,8 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
     _ring:
          Reference to the ring being simulated.
 
-    Example:
+    Example
+    -------
         >>> elem = ReferenceEnergyChange(section_index=1, name="energy_reference_kick")
         >>> # Add to element map before simulation
     """
@@ -69,7 +70,7 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
         """Lateinit method when `simulation.__init__` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         """
         super().on_init_simulation(simulation=simulation)
         self._turn_i = simulation.turn_i
@@ -91,7 +92,7 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
         """Lateinit method when `simulation.run_simulation` is called.
 
         simulation
-            Simulation context manager
+            `Simulation` context manager
         beam
             Simulation beam object
         n_turns
@@ -108,11 +109,6 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
             Simulation beam object
         """
         super().track(beam=beam)
-        if self.schedule_active:
-            self.apply_schedules(
-                turn_i=self._turn_i.value,
-                reference_time=beam.reference_time,
-            )
 
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,

@@ -72,7 +72,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         parent_wakefield
             Wakefield that this solver affiliated to
         """
@@ -176,7 +176,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         parent_wakefield
             Wakefield that this solver affiliated to
         """
@@ -412,7 +412,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         parent_wakefield
             Wakefield that this solver affiliated to
         """
@@ -577,7 +577,7 @@ class SingleTurnResonatorConvolutionSolver(WakeFieldSolver):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         parent_wakefield
             Wakefield that this solver affiliated to
         """
@@ -744,7 +744,7 @@ class MultiPassResonatorSolver(WakeFieldSolver):
         Parameters
         ----------
         simulation
-            Simulation context manager
+            `Simulation` context manager
         parent_wakefield
             Wakefield that this solver affiliated to
         """

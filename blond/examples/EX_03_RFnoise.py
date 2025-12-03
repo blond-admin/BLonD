@@ -41,14 +41,14 @@ this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
 
 def main():
     ring = Ring(circumference=26658.883)
-    cavity1 = SingleHarmonicRfStation()
-    cavity1.voltage = 6e6
-    cavity1.schedule(
+    rf_station_1 = SingleHarmonicRfStation()
+    rf_station_1.voltage = 6e6
+    rf_station_1.schedule(
         attribute="phi_rf",
         value=VariNoise().get_noise(n_turns=200),
         mode="per-turn",
     )
-    cavity1.harmonic = 35640
+    rf_station_1.harmonic = 35640
     energy_cycle = MagneticCyclePerTurn(
         value_init=450.0e9,
         values_after_turn=np.linspace(450.0e9, 450.0e9, 200),
