@@ -17,8 +17,6 @@ Typical usage:
     python compile_all_backends.py
 """
 
-import warnings
-
 
 def main():  # pragma: no cover `main_cli_xxx` gets executed anyway by CI/CD  pipeline
     """Compile all BLonD backends sequentially.
@@ -28,6 +26,8 @@ def main():  # pragma: no cover `main_cli_xxx` gets executed anyway by CI/CD  pi
     when initializing or rebuilding the BLonD environment to ensure
     all compiled modules are up to date.
     """
+    import warnings
+
     from blond.core.backends.cpp.compile import main_cli as main_cli_cpp
     from blond.core.backends.cuda.compile import main_cli as main_cli_cuda
     from blond.core.backends.fortran.compile import (

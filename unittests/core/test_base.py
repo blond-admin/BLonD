@@ -13,6 +13,7 @@ from blond.core.base import (
     MainLoopRelevant,
     Preparable,
     Schedulable,
+    ScheduledArray,
     ScheduledInterpolation,
     get_scheduler,
 )
@@ -52,7 +53,6 @@ class TestBeamPhysicsRelevant(unittest.TestCase):
     def test_track(self):
         # self.beam_physics_relevant.track(beam=None)
         pass
-
 
 
 class TestScheduledInterpolation(unittest.TestCase):
@@ -214,10 +214,16 @@ class TestPreparable(unittest.TestCase):
 
 class TestFunctions(unittest.TestCase):
     def test_get_scheduler_1(self):
-        get_scheduler(np.ones(10), )
-        get_scheduler((np.ones(10), np.ones(10)), )
+        get_scheduler(
+            np.ones(10),
+        )
+        get_scheduler(
+            (np.ones(10), np.ones(10)),
+        )
         with self.assertRaises(TypeError):
-            get_scheduler("a string", )
+            get_scheduler(
+                "a string",
+            )
         with self.assertRaises(TypeError):
             get_scheduler(np.ones(10), mode="not_in_the_mode_today")
 
@@ -243,6 +249,22 @@ class TestSchedulable(unittest.TestCase):
 
     def test___init__(self):
         pass
+
+    def test_schedule(self):
+        schedulable = Schedulable()
+        schedulable.voltage = None
+        with self.assertRaises(TypeError):
+            schedulable.schedule("voltage", 1)
+        schedulable.schedule("voltage", np.ones(10))
+        schedulable.schedule(
+            "voltage",
+            ScheduledInterpolation(np.linspace(1, 10, 20), np.ones(20)),
+        )
+        schedulable.schedule(
+            "voltage",
+            ScheduledArray(np.ones(10)),
+        )
+        schedulable.schedule("voltage", np.ones(10))
 
 
 if __name__ == "__main__":
