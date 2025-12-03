@@ -24,14 +24,6 @@ from blond.physics.drifts import _assert_purely_real_or_imaginary
 from blond.physics.impedances.base import WakeField
 
 
-class RfStationBaseClassHelper(RfStationBaseClass):
-    def voltage_waveform_tmp(self, ts: NumpyArray):
-        pass
-
-    def calc_omega(self, beam_beta: float, ring_circumference: float):
-        pass
-
-
 class TestRFStationBaseClass(unittest.TestCase):
     def setUp(self) -> None:
         self.beam = Mock(BeamBaseClass)
@@ -178,6 +170,18 @@ class TestRFStationBaseClass(unittest.TestCase):
             shc.track(beam=self.beam)
             assert wf.track.assert_called_once()
 
+    def test_with_wakefields(self):
+        shc = SingleHarmonicRfStation(
+            section_index=0,
+            harmonic=1,
+            voltage=1,
+            phi_rf=1,
+        )
+        shc._turn_i = DynamicParameter(0)
+        shc._ring = Mock(Ring)
+        shc._ring.circumference = 456
+        shc.track(beam=self.beam)
+
 
 class TestCallables(unittest.TestCase):
     def test_valid_purely_real_or_imaginary(self):
@@ -226,6 +230,19 @@ class TestMultiHarmonicCavity(unittest.TestCase):
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
+
+    def test_track_increments(self) -> None:
+        self.multi_harmonic_cavity
+        self.multi_harmonic_cavity.delta_omega_rf = (
+            0.1 * self.multi_harmonic_cavity._omega_rf
+        )
+        phi_a = self.multi_harmonic_cavity.delta_phi_rf.copy()
+        self.multi_harmonic_cavity.track(beam=self.beam)
+        phi_b = self.multi_harmonic_cavity.delta_phi_rf.copy()
+        self.multi_harmonic_cavity.track(beam=self.beam)
+        phi_c = self.multi_harmonic_cavity.delta_phi_rf.copy()
+        print(phi_a, phi_b, phi_c)
+        self.assertTrue(phi_a[0] < phi_b[0] < phi_c[0])
 
     def test_track(self) -> None:
         self.multi_harmonic_cavity.track(beam=self.beam)
