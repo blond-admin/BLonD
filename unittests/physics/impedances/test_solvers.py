@@ -3068,6 +3068,30 @@ class TestHeadlessSolvers(unittest.TestCase):
 
 
 class TestContinuousMultiTurnTimeDomainSolver(unittest.TestCase):
+    def test_update_wake_kernel_fails(self):
+        from blond.testing.mocks import beam_mock, static_profile_mock
+
+        prof = StaticProfile(cut_left=-1e-9, cut_right=1e-9, n_bins=128)
+
+        prof.hist_y_to_density_factor = 0.3
+        prof._hist_y = np.array(np.exp(-((np.arange(128) - 64) ** 2) / 1e2))
+
+        beam_mock.particle_type = uranium_29
+        beam_mock.intensity = 1e-13
+
+        class FaultyResonators:
+            def get_wake(self):  # emulate wroing implementation
+                return
+
+        wf_mutli = WakeField.headless(
+            sources=(FaultyResonators(),),
+            solver=ContinuousMultiTurnTimeDomainSolver(n_turns=10),
+            profile=prof,
+            beam=beam_mock,
+        )
+        with self.assertRaises(TypeError):
+            wf_mutli.solver._update_wake_kernel()
+
     def test_calc_induced_voltage_assert_profile_length_correct(self):
         t_rf = 7.706144104735e-10
         Q_factor = 1.76e6
