@@ -104,3 +104,19 @@ convention = "numpy"
 [tool.pytest.ini_options]
 minversion = "8.4"
 addopts = "--import-mode=importlib"
+
+
+[tool.numpydoc_validation]
+checks = [
+    "all",   # report on all checks, except the below
+    "SA01", # See Also section not found
+    "EX01", # No examples section found
+    "GL08", # The object does not have a docstring
+    "ES01", # No extended summary found
+    "PR04", # Parameter "..." has no type
+
+]
+exclude_files = [ # don't process filepaths that match these regex
+    '^unittests/.*',
+    '^blond/legacy/.*',
+]
