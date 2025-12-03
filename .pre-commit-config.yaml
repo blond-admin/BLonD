@@ -36,17 +36,6 @@ repos:
         entry: python dev_tools/precommit_check_copyright.py
         language: system
 
-  - repo: https://github.com/PyCQA/docformatter
-    rev: v1.7.7  # Check for latest version
-    hooks:
-      - id: docformatter
-        args:
-          - --in-place
-          - --wrap-summaries=79
-          - --wrap-descriptions=79
-          - --make-summary-multi-line
-          - --style=numpy
-
   # https://numpydoc.readthedocs.io/en/latest/validation.html
   # use `numpydoc lint --help` to debug this hook
   - repo: https://github.com/numpy/numpydoc
