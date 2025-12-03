@@ -102,7 +102,7 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         induced_voltage
             Induced voltage, in [V]
         """
-        _factor = self._normalization_factor(
+        _factor = self._hist_y_to_intensity_factor(
             beam=beam,
             profile=self._parent_wakefield.profile,
         )
@@ -334,7 +334,7 @@ class PeriodicFreqSolver(WakeFieldSolver):
 
         self._update_impedance_sources(beam=beam)
 
-        _factor = self._normalization_factor(
+        _factor = self._hist_y_to_intensity_factor(
             beam=beam,
             profile=self._parent_wakefield.profile,
         )
@@ -526,7 +526,7 @@ class TimeDomainFftSolver(WakeFieldSolver):
             self._wake_imp_y_needs_update = True
         self._update_impedance_sources(beam=beam)
 
-        _factor = self._normalization_factor(
+        _factor = self._hist_y_to_intensity_factor(
             beam=beam,
             profile=self._parent_wakefield.profile,
         )
@@ -1099,7 +1099,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         if self._wake_kernel is None:
             self._update_wake_kernel()
 
-        _factor = self._normalization_factor(
+        _factor = self._hist_y_to_intensity_factor(
             beam=beam, profile=self._parent_wakefield.profile
         )
 

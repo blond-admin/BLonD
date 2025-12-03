@@ -71,25 +71,31 @@ class WakeFieldSolver:
         """
         pass
 
-    def _normalization_factor(
+    def _hist_y_to_intensity_factor(
         self,
         beam: BeamBaseClass,
         profile: ProfileBaseClass,
     ) -> float:
-        """Factor converting between wakefield (macroparticles vs real particles).
+        """
+        Calculate a conversion factor between histogram values and physical wakefield intensity.
+
+        This factor converts quantities based on macroparticles in a simulation
+        to their equivalent real-particle values, taking into account the particle charge,
+        beam intensity, and profile scaling.
+
 
         Parameters
         ----------
         beam
-            Simulation object of a particle beam.
+            `Simulation` object of a particle beam.
         profile
             Beam profile object.
 
         Returns
         -------
-        _factor
+        hist_y_to_intensity_factor
             Factor converting between wakefield
-            (macroparticles vs real particles).
+            (macroparticles vs. real particles).
         """
         _factor = (-1 * beam.particle_type.charge * e) * (
             beam.intensity * profile.hist_y_to_density_factor
