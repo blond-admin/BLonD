@@ -6,13 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""
-Collection of implementations to handle movement in bent synchrotron sections.
-
-Authors
--------
-Simon Lauber
-"""
+"""Collection of implementations to handle movement in bent synchrotron sections."""
 
 from __future__ import annotations
 
@@ -76,10 +70,11 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
     ----------
     orbit_length
         Length of drift, in [m].
-        Length / Velocity => Time to pass the element
+        Length / Velocity => Time to pass the element.
     section_index
-        Section index to group elements into sections
-
+        Section index to group elements into sections.
+    **kwargs
+        Additional keyword arguments for MRO of fused elements.
     """
 
     def __init__(
@@ -97,7 +92,19 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
 
     @abc.abstractmethod  # pragma: no cover
     def eta_0(self, gamma: float) -> backend.float:
-        """Drift in arc parameter eta for one turn in synchrotron."""
+        """
+        Drift in arc parameter eta for one turn in synchrotron.
+
+        Parameters
+        ----------
+        gamma
+            Lorentz gamma factor.
+
+        Returns
+        -------
+        eta_0
+            Drift in arc parameter eta for one turn in synchrotron.
+        """
         pass
 
     def track(self, beam: BeamBaseClass) -> None:
@@ -107,7 +114,7 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         Parameters
         ----------
         beam
-            Beam class to interact with this element
+            Beam class to interact with this element.
         """
         super().track(beam=beam)
 
@@ -115,8 +122,10 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         """
         Lateinit method when `simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         super().on_init_simulation(simulation=simulation)
 
@@ -131,14 +140,18 @@ class DriftBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         """
         Lateinit method when `simulation.run_simulation` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate.
         turn_i_init
-            Initial turn to execute simulation
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments.
         """
         pass
 
@@ -150,11 +163,15 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
     Parameters
     ----------
     orbit_length
-        Length of drift, in [m]
+        Length of drift, in [m].
     section_index
-        Section index to group elements into sections
+        Section index to group elements into sections.
     transition_gamma
-        Gamma of transition crossing
+        Gamma of transition crossing.
+    momentum_compaction_factor
+        Momentum compaction factor.
+    **kwargs
+        Additional keyword arguments for MRO of fused elements.
     """
 
     def __init__(
@@ -172,12 +189,15 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         ----------
         orbit_length
             Length of drift, in [m].
-            Length / Velocity => Time to pass the element
+            Length / Velocity => Time to pass the element.
         section_index
-            Section index to group elements into sections
+            Section index to group elements into sections.
         transition_gamma
-            Gamma of transition crossing
-
+            Gamma of transition crossing.
+        momentum_compaction_factor
+            Momentum compaction factor.
+        **kwargs
+            Additional keyword arguments for MRO of fused elements.
 
         Examples
         --------
@@ -185,7 +205,6 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         >>> from blond import DriftSimple
         >>> drift = DriftSimple(...)
         >>> drift.schedule(attribute='momentum_compaction_factor', value=np.array(...), mode="per-turn")
-
         """
         super().__init__(
             orbit_length=orbit_length,
@@ -214,25 +233,53 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
 
     @property  # read only, set by `transition_gamma`
     def momentum_compaction_factor(self) -> float | None:
-        """Momentum compaction factor."""
+        """
+        Momentum compaction factor.
+
+        Returns
+        -------
+        momentum_compaction_factor
+            Momentum compaction factor.
+        """
         return self._momentum_compaction_factor
 
     @momentum_compaction_factor.setter  # read only, set by `transition_gamma`
     def momentum_compaction_factor(
         self, momentum_compaction_factor: float
     ) -> None:
-        """Momentum compaction factor."""
+        """
+        Momentum compaction factor.
+
+        Parameters
+        ----------
+        momentum_compaction_factor
+            Momentum compaction factor.
+        """
         self._momentum_compaction_factor = momentum_compaction_factor
         self._transition_gamma = 1 / cmath.sqrt(momentum_compaction_factor)
 
     @property
     def transition_gamma(self) -> complex | None:
-        """Gamma of transition crossing."""
+        """
+        Gamma of transition crossing.
+
+        Returns
+        -------
+        transition_gamma
+            Gamma of transition crossing.
+        """
         return self._transition_gamma
 
     @transition_gamma.setter
     def transition_gamma(self, transition_gamma: complex) -> None:
-        """Gamma of transition crossing."""
+        """
+        Gamma of transition crossing.
+
+        Parameters
+        ----------
+        transition_gamma
+            Gamma of transition crossing.
+        """
         _assert_purely_real_or_imaginary(transition_gamma)
 
         _momentum_compaction_factor = 1.0 / (
@@ -260,16 +307,17 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         Parameters
         ----------
         transition_gamma
-            Gamma of transition crossing
+            Gamma of transition crossing.
         orbit_length
             Length of drift, in [m].
-            Length / Velocity => Time to pass the element
+            Length / Velocity => Time to pass the element.
         section_index
-            Section index to group elements into sections
+            Section index to group elements into sections.
 
         Returns
         -------
         drift_simple
+            DriftSimple object without simulation context.
         """
         from blond.core.base import DynamicParameter
 
@@ -300,8 +348,10 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         """
         Lateinit method when `simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         super().on_init_simulation(simulation=simulation)
         self._simulation = simulation
@@ -320,7 +370,7 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         Parameters
         ----------
         beam
-            Beam class to interact with this element
+            Beam class to interact with this element.
         """
         super().track(beam=beam)
         if self.schedule_active:
@@ -342,13 +392,32 @@ class DriftSimple(DriftBaseClass, HasPropertyCache):
         beam.reference_time += dt
 
     def eta_0(self, gamma: float) -> float:
-        """Drift in arc parameter eta for one turn in synchrotron."""
+        """
+        Drift in arc parameter eta for one turn in synchrotron.
+
+        Parameters
+        ----------
+        gamma
+            Lorentz gamma factor.
+
+        Returns
+        -------
+        eta_0
+            Drift in arc parameter eta for one turn in synchrotron.
+        """
         return self.alpha_0 - (1 / (gamma * gamma))
 
     # alias of momentum_compaction_factor
     @property  # as readonly attributes
     def alpha_0(self) -> float:
-        """Momentum compaction factor."""
+        """
+        Momentum compaction factor.
+
+        Returns
+        -------
+        alpha_0
+            Momentum compaction factor.
+        """
         return self.momentum_compaction_factor
 
     def invalidate_cache(self):
