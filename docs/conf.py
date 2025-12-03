@@ -42,6 +42,7 @@ folder = os.path.abspath("modules")
 sys.path.insert(0, folder)
 extensions = [
     "sphinx.ext.autodoc",
+    "numpydoc",
     # "sphinx.ext.autosummary",
     #    "sphinx.ext.doctest",
     #    "sphinx.ext.intersphinx",
