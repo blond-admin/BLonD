@@ -337,7 +337,9 @@ class LHCCavityLoop(BirksCavityFeedback):
     def circuit_track(self, no_beam: bool = False):
         r"""Track the feedback model"""
         if not no_beam:
-            self.I_BEAM_FINE *= -1j * np.exp(1j * self._parent_rf_station.phi_s)
+            self.I_BEAM_FINE *= -1j * np.exp(
+                1j * self._parent_rf_station.phi_s
+            )
             self.I_BEAM_COARSE[-self.n_coarse :] *= -1j * np.exp(
                 1j * self._parent_rf_station.phi_s
             )
@@ -419,6 +421,7 @@ class LHCCavityLoop(BirksCavityFeedback):
         r"""Generator response
 
         Attributes
+        ----------
         I_TEST : complex array
             Test point for open loop measurements (when injecting a generator
             offset)

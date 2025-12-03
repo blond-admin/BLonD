@@ -37,6 +37,7 @@ def inplace_partition_bool(arr):
             j -= 1
     return j + 1
 
+
 def test():
     import numpy as np
 
@@ -52,6 +53,7 @@ def test():
     assert np.all(arr[:] == False)
     assert np.all(arr2[:] == False)
     print(arr.shape)
+
 
 if __name__ == "__main__":
     test()

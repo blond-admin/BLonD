@@ -309,8 +309,8 @@ class TestResonators(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.resonators = Resonators(
                 shunt_impedances=float(1),
-                center_frequencies=float(400e6),
-                quality_factors=float(0.49),
+                center_frequencies=400e6,
+                quality_factors=0.49,
             )
 
     def test_get_impedance_pinned(self):
