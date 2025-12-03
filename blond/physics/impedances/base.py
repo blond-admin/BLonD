@@ -97,6 +97,7 @@ class WakeFieldSolver:
             Factor converting between wakefield
             (macroparticles vs. real particles).
         """
+        # TODO this might fail with MOI?
         _factor = (-1 * beam.particle_type.charge * e) * (
             beam.intensity * profile.hist_y_to_density_factor
         )

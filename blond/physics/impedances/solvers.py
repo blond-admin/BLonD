@@ -964,7 +964,8 @@ class MultiPassResonatorSolver(WakeFieldSolver):
 
 
 class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
-    """A solver for multi-turn wakefields, where the profiles span the entire revolution time.
+    """
+    A solver for multi-turn wakefields, where the profile spans the entire revolution time.
 
     This class calculates the wakefield in cases where the
     profile spans the entire revolution time of the ring.
@@ -987,7 +988,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
     """
 
     def __init__(self, n_turns: int) -> None:
-        self._n_profiles = n_turns
+        self._n_wakes_full_turn = n_turns
 
         self._parent_wakefield: WakeField | None = None
         self._wake_kernel: NumpyArray | CupyArray | None = None
@@ -1025,8 +1026,10 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
             - self._parent_wakefield.profile.cut_left
         )
 
-        t_max = self._n_profiles * width
-        total_bins = self._n_profiles * self._parent_wakefield.profile.n_bins
+        t_max = self._n_wakes_full_turn * width
+        total_bins = (
+            self._n_wakes_full_turn * self._parent_wakefield.profile.n_bins
+        )
         time_axis = np.linspace(0, t_max, total_bins + 1)
 
         wake_kernel = None  # This needs to be derived
@@ -1050,7 +1053,8 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         self._wake_kernel = wake_kernel
 
     def _assert_profile_length_correct(self):
-        """Checks that the length of the profile corresponds to one turn.
+        """
+        Checks that the length of the profile corresponds to one full turn.
 
         Raises
         ------
