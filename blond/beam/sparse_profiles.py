@@ -395,7 +395,7 @@ class SparseBucket(_SparseProfileBaseClass):
      >>> alpha = 0.00001, momentum = 1e9)
      >>> self.beam = Beam(self.ring, 10000, 1e10)
      >>> self.rf_params = RFStation(ring=self.ring, n_rf=1, harmonic=[4620],
-     >>>                  voltage=[7e6], phi_rf_d=[0.])
+     ...                  voltage=[7e6], phi_rf_d=[0.])
      >>> bunch_spacing = 10
      >>> bunch_list = np.zeros(self.rf_params.harmonic[0])
      >>> bunch_list[::bunch_spacing] = 1
