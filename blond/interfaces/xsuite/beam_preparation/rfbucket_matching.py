@@ -60,6 +60,13 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
         for use in the distribution generation.
     verbose_regeneration : bool, default=False
         Whether to print verbose logs during the matching routine.
+    seed : int or None, default=None
+        Random seed for reproducible matching.
+
+    Raises
+    ------
+    ValueError
+        If the RF station is not set, energy is not provided, or transition gamma is missing.
 
     Examples
     --------
@@ -71,12 +78,6 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
     >>>         n_macroparticles= ...,
     >>>     ),
     >>> )
-
-    Raises
-    ------
-    ValueError
-        If the RF station is not set, energy is not provided, or transition gamma is missing.
-
     """
 
     def __init__(
@@ -127,7 +128,6 @@ class XsuiteRFBucketMatcher(MatchingRoutine):
             - Initial beam energy is not set.
             - No `DriftSimple` elements are found in the ring.
             - `transition_gamma` is not defined in the first drift element.
-
         """
         # prevent crash if xpart not installed
         from xpart.longitudinal.rf_bucket import RFBucket

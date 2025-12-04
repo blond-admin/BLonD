@@ -174,18 +174,18 @@ class Specials(ABC):
         ids: NumpyArray | CupyArray,
     ):
         """
-        Reorders entries where ``flags == flag`` to the array end.
+        Reorder entries where ``flags == flag`` to the array end.
 
         Parameters
         ----------
         flag
             The flag to be used as a selector what to place at the end.
         flags
-            Macro-particle flags
+            Macro-particle flags.
         dt
-            Macro-particle time coordinates [s]
+            Macro-particle time coordinates [s].
         dE
-            Macro-particle energy coordinates [eV]
+            Macro-particle energy coordinates [eV].
         ids
             Macro-particle ids.
             This allows to identify single particles,
@@ -235,6 +235,8 @@ class BackendBaseClass(ABC):
         Default mode to load special libraries.
     is_gpu
         Whether the backend is using the GPU.
+    verbose
+        Enable verbose output.
     """
 
     # type annotations for MyPy
@@ -296,13 +298,12 @@ class BackendBaseClass(ABC):
         new_backend: type[Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit],
     ) -> None:
         """
-        Changes the backend precision.
+        Change the backend precision.
 
         Parameters
         ----------
         new_backend
-            One of the available backends
-
+            One of the available backends.
         """
         if self.__class__ == new_backend.__class__:
             return
@@ -324,8 +325,7 @@ class BackendBaseClass(ABC):
         Parameters
         ----------
         mode
-            One of the available backend modes
-
+            One of the available backend modes.
         """
         raise NotImplementedError(
             "Abstract method `set_specials` is not implemented."
@@ -333,7 +333,14 @@ class BackendBaseClass(ABC):
 
     @property
     def is_gpu(self) -> bool:
-        """Whether the backend is using the GPU."""
+        """
+        Whether the backend is using the GPU.
+
+        Returns
+        -------
+        is_gpu
+            True if the backend is using the GPU, False otherwise.
+        """
         return self._is_gpu
 
     def apply_environment_variables(self) -> None:  # NOQA PLR0912
@@ -346,9 +353,6 @@ class BackendBaseClass(ABC):
 
         - `BLOND_BACKEND_MODE` can be 'python', 'cpp', 'numba', 'fortran', 'cuda'
         - `BLOND_BACKEND_BITS` can be '32' or '64'
-
-
-
         """
         _backend_mode_raw: str = os.environ.get(
             "BLOND_BACKEND_MODE",
@@ -427,17 +431,22 @@ class BackendBaseClass(ABC):
         """
         Helper to be used in a `with` statement to set the specials temporarily.
 
+        Parameters
+        ----------
+        mode
+            The mode to temporarily switch to.
+
+        Returns
+        -------
+        mode_switch_helper
+            Context manager for temporarily switching modes.
+
         Examples
         --------
         >>> with backend.temporary_specials_mode("python"):
         >>>     print(backend.specials_mode)
         >>>     ...
         >>> print(backend.specials_mode)
-
-        Returns
-        -------
-        _mode_switch_helper
-
         """
         return _ModeSwitchHelper(backend=self, mode=mode)
 
@@ -501,8 +510,7 @@ class NumpyBackend(BackendBaseClass):
         Parameters
         ----------
         mode
-            One of the available backend modes
-
+            One of the available backend modes.
         """
         onchange = self.specials_mode != mode
 
@@ -620,8 +628,7 @@ class CupyBackend(BackendBaseClass):
         Parameters
         ----------
         mode
-            One of the available backend modes
-
+            One of the available backend modes.
         """
         if mode == "cuda":
             from blond.core.backends.cuda.callables import reload_cuda_backend

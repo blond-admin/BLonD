@@ -6,13 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""
-Collection of implementations to handle beam losses in synchrotrons.
-
-Authors
--------
-Simon Lauber
-"""
+"""Collection of implementations to handle beam losses in synchrotrons."""
 
 from __future__ import annotations
 
@@ -65,7 +59,7 @@ class LossesBaseClass(BeamPhysicsRelevant, ABC):
         Parameters
         ----------
         beam
-            Beam class to interact with this element
+            Beam class to interact with this element.
         """
         pass
 
@@ -78,12 +72,10 @@ class LossesBaseClass(BeamPhysicsRelevant, ABC):
         Parameters
         ----------
         beam
-            Beam to remove the particles from
+            Beam to remove the particles from.
         force
             If true, will definitely purge particles.
-            Otherwise, it depends on `self.purge_flagged_macroparticles`
-
-
+            Otherwise, it depends on `self.purge_flagged_macroparticles`.
         """
         if self.purge_flagged_macroparticles or force:
             beam.purge_flagged_entries()
@@ -102,24 +94,24 @@ class BoxLosses(LossesBaseClass):
         If false, the ``Beam.flags`` will be set, but particles will still
         be considered for beam physics.
     t_min
-        Macro-particles with ``dt < t_min`` will be labeled/removed, in [s],
+        Macro-particles with ``dt < t_min`` will be labeled/removed, in [s].
     t_max
-        Macro-particles with ``dt > t_max`` will be labeled/removed, in [s],
+        Macro-particles with ``dt > t_max`` will be labeled/removed, in [s].
     e_min
-        Macro-particles with ``dE < t_min`` will be labeled/removed, in [s],
+        Macro-particles with ``dE < t_min`` will be labeled/removed, in [s].
     e_max
-        Macro-particles with ``dE > t_min`` will be labeled/removed, in [s],
+        Macro-particles with ``dE > t_min`` will be labeled/removed, in [s].
 
     Attributes
     ----------
     t_min
-        Macro-particles with ``dt < t_min`` will be labeled/removed, in [s],
+        Macro-particles with ``dt < t_min`` will be labeled/removed, in [s].
     t_max
-        Macro-particles with ``dt > t_max`` will be labeled/removed, in [s],
+        Macro-particles with ``dt > t_max`` will be labeled/removed, in [s].
     e_min
-        Macro-particles with ``dE < t_min`` will be labeled/removed, in [s],
+        Macro-particles with ``dE < t_min`` will be labeled/removed, in [s].
     e_max
-        Macro-particles with ``dE > t_min`` will be labeled/removed, in [s],
+        Macro-particles with ``dE > t_min`` will be labeled/removed, in [s].
     """
 
     def __init__(
@@ -166,8 +158,10 @@ class BoxLosses(LossesBaseClass):
         """
         Lateinit method when `simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            Simulation context manager
+            Simulation context manager.
         """
         pass
 
@@ -182,14 +176,18 @@ class BoxLosses(LossesBaseClass):
         """
         Lateinit method when `simulation.run_simulation` is called.
 
+        Parameters
+        ----------
         simulation
-            Simulation context manager
+            Simulation context manager.
         beam
-            Simulation beam object
+            Simulation beam object.
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate.
         turn_i_init
-            Initial turn to execute simulation
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments.
         """
         pass
 
@@ -200,7 +198,7 @@ class BoxLosses(LossesBaseClass):
         Parameters
         ----------
         beam
-            Beam class to interact with this element
+            Beam class to interact with this element.
         """
         backend.specials.loss_box(
             e_max=self.e_max,

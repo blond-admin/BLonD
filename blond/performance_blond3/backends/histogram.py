@@ -6,13 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""
-Measures the performance of the histogram function.
-
-Authors
--------
-Leonard Thiele
-"""
+"""Measure the performance of the histogram function."""
 
 import time
 
@@ -23,7 +17,7 @@ from blond.core.backends.backend import backend
 
 
 def main():
-    """Measures the performance of the histogram function."""
+    """Measure the performance of the histogram function."""
     rng = np.random.default_rng(42)
     arr_sizes = np.array([1e3, 1e5, 1e7, 1e9], dtype=int)
     specials = ["numba", "python", "cpp"]

@@ -260,15 +260,15 @@ class Beam(BeamBaseClass):
         This property returns the size of the particle arrays (`dt`, `dE`, `flags`).
         For distributed beams, this accounts for particles across all processes.
 
-        Notes
-        -----
-        Particles that are labeled LOST will be nevertheless counted,
-        as they still exist in the array.
-
         Returns
         -------
         common_array_size
             The number of macro-particles being tracked in the simulation.
+
+        Notes
+        -----
+        Particles that are labeled LOST will be nevertheless counted,
+        as they still exist in the array.
         """
         return len(self._dt)
 
@@ -315,8 +315,8 @@ class Beam(BeamBaseClass):
 
         Parameters
         ----------
-        kwargs
-            Keyword arguments for ``matplotlib.pyplot.scatter``
+        **kwargs
+            Keyword arguments for ``matplotlib.pyplot.scatter``.
         """
         if self._dt is None or self._dE is None:
             raise ValueError(
@@ -350,7 +350,6 @@ class Beam(BeamBaseClass):
             - bins: number of bins (default: 256)
             - range: data range (min, max)
             - density: if True, normalize to form a probability density
-
         """
         if self._dt is None or self._dE is None:
             raise ValueError(

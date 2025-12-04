@@ -25,17 +25,17 @@ if TYPE_CHECKING:  # pragma: no cover
 
 def is_cupy_array(arr: NumpyArray | CupyArray | Any) -> bool:
     """
-    Checks if the array is a Cupy array.
+    Check if the array is a Cupy array.
 
     Parameters
     ----------
     arr
-        A Numpy or Cupy array
+        A Numpy or Cupy array.
 
     Returns
     -------
-    True, if it's an GPU array
-
+    is_cupy
+        True if it's a GPU array, False otherwise.
     """
     if hasattr(arr, "device"):
         return arr.device != "cpu"  # type: ignore
@@ -50,17 +50,22 @@ def is_cupy_array(arr: NumpyArray | CupyArray | Any) -> bool:
 
 def copy_to_cpu(array: NumpyArray | CupyArray):
     """
-    Copies array from GPU/CPU to CPU.
+    Copy array from GPU/CPU to CPU.
 
-    Notes
-    -----
-    Changes to the returned array will not
-    be reflected on the original memory.
+    Parameters
+    ----------
+    array
+        Array to copy (can be on GPU or CPU).
 
     Returns
     -------
     array
         CPU copy of the original array.
+
+    Notes
+    -----
+    Changes to the returned array will not
+    be reflected on the original memory.
     """
     if is_cupy_array(array):
         return array.get()
@@ -119,8 +124,6 @@ class AllowPlotting:
     >>> y = cupy.ones(12)
     >>> with AllowPlotting():
     >>>     plt.plot(y)
-
-
     """
 
     def __init__(self) -> None:
@@ -143,7 +146,18 @@ class AllowPlotting:
         exc_val: BaseException | None,
         exc_tb: Any | None,
     ):
-        """Reset np.asarray to original Numpy function."""
+        """
+        Reset np.asarray to original Numpy function.
+
+        Parameters
+        ----------
+        exc_type
+            Exception type if an exception occurred.
+        exc_val
+            Exception value if an exception occurred.
+        exc_tb
+            Exception traceback if an exception occurred.
+        """
         if not backend.is_gpu:
             return  # do nothing
         # reset to original numpy function

@@ -6,13 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""
-Base classes to define :class:`~blond.blond.beam_preparation.base.BeamPreparationRoutine` and :class:`~blond.blond.beam_preparation.base.MatchingRoutine`.
-
-Authors
--------
-Simon Lauber
-"""
+"""Base classes to define :class:`~blond.blond.beam_preparation.base.BeamPreparationRoutine` and :class:`~blond.blond.beam_preparation.base.MatchingRoutine`."""
 
 from __future__ import annotations
 
@@ -42,12 +36,12 @@ class BeamPreparationRoutine(ABC):
         beam: BeamBaseClass,
     ) -> None:
         """
-        Populates the `Beam` object with macro-particles.
+        Populate the `Beam` object with macro-particles.
 
         Parameters
         ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         beam : BeamBaseClass
             The `Beam` object which state will be updated by this element.
         """

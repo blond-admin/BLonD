@@ -6,10 +6,4 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""
-Utility functions for the CERN Super Proton Synchrotron.
-
-Authors
--------
-Simon Lauber
-"""
+"""Utility functions for the CERN Super Proton Synchrotron."""

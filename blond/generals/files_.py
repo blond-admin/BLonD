@@ -6,13 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""
-Functions that help working with files.
-
-Authors
--------
-Simon Lauber
-"""
+"""Functions that help working with files."""
 
 from __future__ import annotations
 
@@ -25,7 +19,7 @@ def get_files_with_extensions(
     recursive: bool = True,
 ) -> list[Path]:
     """
-    Retrieves all files in a folder that match a set of file extensions.
+    Retrieve all files in a folder that match a set of file extensions.
 
     Parameters
     ----------

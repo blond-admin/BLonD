@@ -933,14 +933,6 @@ class MultiHarmonicRfStation(RfStationBaseClass):
     harmonic
         RF station's design harmonics (per harmonic) [].
 
-
-    Examples
-    --------
-    Parameters can be scheduled along the simulation execution
-    >>> from blond import MultiHarmonicRfStation
-    >>> rf_station = MultiHarmonicRfStation(...)
-    >>> rf_station.schedule(attribute='phi_rf', value=np.array(...), mode="per-turn")
-
     Notes
     -----
     The energy change is calculated as:
@@ -949,6 +941,13 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         dE = \sum_{j} \left( \text{charge} \cdot \text{voltage}[j] \cdot \sin\left(\omega_{\text{rf}}[j] \cdot dt + \phi_{\text{rf}}[j]\right) \right) + \text{acceleration\_kick}
 
     where `acceleration_kick` is the change of reference energy.
+
+    Examples
+    --------
+    Parameters can be scheduled along the simulation execution
+    >>> from blond import MultiHarmonicRfStation
+    >>> rf_station = MultiHarmonicRfStation(...)
+    >>> rf_station.schedule(attribute='phi_rf', value=np.array(...), mode="per-turn")
     """
 
     def __init__(

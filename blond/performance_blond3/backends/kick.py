@@ -6,13 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""
-Testing the performance of `kick_multi_harmonic`.
-
-Authors
--------
-Simon Lauber
-"""
+"""Testing the performance of `kick_multi_harmonic`."""
 
 import time
 

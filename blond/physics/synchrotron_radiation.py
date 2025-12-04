@@ -6,14 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""
-Collection of implementations to calculate the synchrotron radiation.
-
-Authors
--------
-Simon Lauber
-Lina Valle
-"""
+"""Collection of implementations to calculate the synchrotron radiation."""
 
 from __future__ import (
     annotations,  # pragma: no cover # TODO remove when SR is implemented
@@ -42,9 +35,9 @@ class SynchrotronRadiation(BeamPhysicsRelevant):  # pragma: no cover
     Parameters
     ----------
     section_index
-        Section index to group elements into sections
+        Section index to group elements into sections.
     name
-        User given name of the element
+        User given name of the element.
     """
 
     def __init__(self, section_index: int = 0, name: str | None = None):
@@ -60,8 +53,10 @@ class SynchrotronRadiation(BeamPhysicsRelevant):  # pragma: no cover
         """
         Lateinit method when :func:`blond.core.simulation.simulation.Simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         self._simulation = simulation
 
@@ -76,14 +71,18 @@ class SynchrotronRadiation(BeamPhysicsRelevant):  # pragma: no cover
         """
         Lateinit method when `simulation.run_simulation` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate.
         turn_i_init
-            Initial turn to execute simulation
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments.
         """
         pass
 
@@ -94,6 +93,6 @@ class SynchrotronRadiation(BeamPhysicsRelevant):  # pragma: no cover
         Parameters
         ----------
         beam
-            Beam class to interact with this element
+            Beam class to interact with this element.
         """
         pass

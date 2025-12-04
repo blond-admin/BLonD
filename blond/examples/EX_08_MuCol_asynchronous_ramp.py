@@ -126,9 +126,9 @@ def main():
         Parameters
         ----------
         simulation
-            Simulation context manager
+            Simulation context manager.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         """
         pass
 

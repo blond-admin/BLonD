@@ -6,13 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""
-Implementations to handle the readout of impedance files from the disk.
-
-Authors
--------
-Simon Lauber
-"""
+"""Implementations to handle the readout of impedance files from the disk."""
 
 from __future__ import annotations
 
@@ -38,14 +32,14 @@ class ImpedanceReader(ABC):
         Parameters
         ----------
         filepath
-            path of the file to lead
+            Path of the file to load.
 
         Returns
         -------
         freq
-            Frequency axis
+            Frequency axis.
         amplitude
-            Amplitude axis
+            Amplitude axis.
         """
         ...
 
@@ -56,8 +50,8 @@ class CsvReader(ImpedanceReader):
 
     Parameters
     ----------
-    **kwargs:
-        Additional keyword arguments for `numpy.loadtxt`
+    **kwargs
+        Additional keyword arguments for `numpy.loadtxt`.
     """
 
     def __init__(self, **kwargs) -> None:
@@ -71,14 +65,14 @@ class CsvReader(ImpedanceReader):
         Parameters
         ----------
         filepath
-            path of the file to lead
+            Path of the file to load.
 
         Returns
         -------
         freq
-            Frequency axis
+            Frequency axis.
         amplitude
-            Amplitude axis
+            Amplitude axis.
         """
         data = np.loadtxt(filepath, **self.kwargs)
         return data[:, 0], data[:, 1]
@@ -97,14 +91,14 @@ class ExampleImpedanceReader1(ImpedanceReader):
         Parameters
         ----------
         filepath
-            path of the file to lead
+            Path of the file to load.
 
         Returns
         -------
         freq
-            Frequency axis
+            Frequency axis.
         amplitude
-            Amplitude axis
+            Amplitude axis.
         """
         table = np.loadtxt(
             filepath,
@@ -137,7 +131,14 @@ class ModesExampleReader2(str, Enum):
 
 
 class ExampleImpedanceReader2(ImpedanceReader):
-    """Example of how to implement a ImpedanceReader."""
+    """
+    Example of how to implement a ImpedanceReader.
+
+    Parameters
+    ----------
+    mode
+        Mode of how to process the impedance table.
+    """
 
     def __init__(
         self, mode: ModesExampleReader2 = ModesExampleReader2.CLOSED_LOOP
@@ -152,14 +153,14 @@ class ExampleImpedanceReader2(ImpedanceReader):
         Parameters
         ----------
         filepath
-            path of the file to lead
+            Path of the file to load.
 
         Returns
         -------
         freq_x
-            Frequency axis
+            Frequency axis.
         freq_y
-            Amplitude axis
+            Amplitude axis.
         """
         data = np.loadtxt(filepath, dtype=float, skiprows=1)
         data[:, 3] = np.deg2rad(data[:, 3])

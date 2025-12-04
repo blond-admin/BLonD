@@ -6,15 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""
-Module holding all observables for the simulation.
-
-Author
-------
-Simon Lauber
-Leonard Thiele
-Elleanor Lamb
-"""
+"""Module holding all observables for the simulation."""
 
 from __future__ import annotations
 
@@ -49,6 +41,8 @@ class ObservablesBaseClass(MainLoopRelevant):
     folder
         Target folder to save the data at.
         Use `rename` to change the ddestination.
+    **kwargs
+        Additional keyword arguments.
     """
 
     def __init__(self, folder: str | None = None, **kwargs):
@@ -65,7 +59,7 @@ class ObservablesBaseClass(MainLoopRelevant):
         Returns
         -------
         recorders
-            List of ((attribute name, attribute), ...)
+            List of ((attribute name, attribute), ...).
         """
         self.assert_lateinit()
         recorders = [
@@ -79,15 +73,14 @@ class ObservablesBaseClass(MainLoopRelevant):
         """
         Change the common save name of all internal arrays.
 
-        Notes
-        -----
-        This has no effect on files that are already saved to the disk.
-
         Parameters
         ----------
         new_common_filepath
             The new common name of all internal arrays.
 
+        Notes
+        -----
+        This has no effect on files that are already saved to the disk.
         """
         old_common_filepath = self.common_filepath
         for _attribute_name, instance in self.get_recorders():
@@ -128,7 +121,7 @@ class ObservablesBaseClass(MainLoopRelevant):
             )
 
     def assert_lateinit(self):
-        """Checks that DenseArrays are already initialized."""
+        """Check that DenseArrays are already initialized."""
         for parameter, value in self.__dict__.items():
             if value is None:  # uninitialized
                 assert value is not None, f"`{parameter}` was not initialized."
@@ -136,7 +129,7 @@ class ObservablesBaseClass(MainLoopRelevant):
 
 class ObservablesOncePerTurnBase(ObservablesBaseClass):
     """
-    Base class to observe attributes during simulation.
+    Observe attributes during simulation.
 
     Parameters
     ----------
@@ -146,7 +139,8 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
     folder
         Path to the target folder used for
         saving or loading files.
-
+    **kwargs
+        Additional keyword arguments.
     """
 
     def __init__(
@@ -174,6 +168,11 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
 
         Helper method to get x-axis array with turn-number for which the
         observations are performed.
+
+        Returns
+        -------
+        turns_array
+            Array with turn numbers for observations.
         """
         return self._turns_array
 
@@ -188,7 +187,7 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         Parameters
         ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         pass
 
@@ -196,8 +195,10 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         """
         Lateinit method when `simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         pass
 
@@ -212,14 +213,18 @@ class ObservablesOncePerTurnBase(ObservablesBaseClass):
         """
         Lateinit method when `simulation.run_simulation` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate.
         turn_i_init
-            Initial turn to execute simulation
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments.
         """
         self._n_turns = int(n_turns)
         self._turn_i_init = int(turn_i_init)
@@ -242,7 +247,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         Value to control that the element is
         callable each n-th turn.
     beam
-        Simulation beam object
+        Simulation beam object.
     folder
         Path to the target folder used for
         saving or loading files.
@@ -264,7 +269,6 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
     ...         bins=256,
     ...         range=[[0, 2.5e-9], [-4e8, 4e8]],
     ...     )
-
     """
 
     def __init__(
@@ -295,15 +299,18 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         """
         Lateinit method when `simulation.run_simulation` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         beam
-            Simulation :class:`~blond._cycles_core.beam.beam.Beam` object
+            Simulation :class:`~blond._cycles_core.beam.beam.Beam` object.
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate.
         turn_i_init
-            Initial turn to execute simulation
-
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments.
         """
         super().on_run_simulation(
             simulation=simulation,
@@ -348,8 +355,7 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
         Parameters
         ----------
         simulation
-            `Simulation` context manager
-
+            `Simulation` context manager.
         """
         # TODO allow several bunches
         self._reference_time.write(self._beam.reference_time)
@@ -360,27 +366,62 @@ class BeamObservationOncePerTurn(ObservablesOncePerTurnBase):
 
     @property  # as readonly attributes
     def reference_time(self):
-        """Returns reference time of shape ``(n_observations, n_bins)``."""
+        """
+        Return reference time of shape ``(n_observations, n_bins)``.
+
+        Returns
+        -------
+        reference_time
+            Reference time array.
+        """
         return self._reference_time.get_valid_entries()
 
     @property  # as readonly attributes
     def reference_total_energy(self):
-        """Returns total energy of shape ``(n_observations, n_bins)``."""
+        """
+        Return total energy of shape ``(n_observations, n_bins)``.
+
+        Returns
+        -------
+        reference_total_energy
+            Total energy array.
+        """
         return self._reference_total_energy.get_valid_entries()
 
     @property  # as readonly attributes
     def dts(self):
-        """Returns array of dts of shape ``(n_observations, n_macroparticles)``."""
+        """
+        Return array of dts of shape ``(n_observations, n_macroparticles)``.
+
+        Returns
+        -------
+        dts
+            Time coordinate array.
+        """
         return self._dts.get_valid_entries()
 
     @property  # as readonly attributes
     def dEs(self):
-        """Returns array of dEs of shape ``(n_observations, n_macroparticles)``."""
+        """
+        Return array of dEs of shape ``(n_observations, n_macroparticles)``.
+
+        Returns
+        -------
+        dEs
+            Energy coordinate array.
+        """
         return self._dEs.get_valid_entries()
 
     @property  # as readonly attributes
     def flags(self):
-        """Returns flags of particles, eg if lost or not of shape ``(n_observations, n_macroparticles)``."""
+        """
+        Return flags of particles, eg if lost or not of shape ``(n_observations, n_macroparticles)``.
+
+        Returns
+        -------
+        flags
+            Particle flags array.
+        """
         return self._flags.get_valid_entries()
 
 
@@ -394,7 +435,7 @@ class RfStationPhaseObservation(ObservablesOncePerTurnBase):
         Value to control that the element is
         callable each n-th turn.
     rf_station
-        Class that implements beam-RF interactions in a synchrotron
+        Class that implements beam-RF interactions in a synchrotron.
     folder
         Path to the target folder used for
         saving or loading files.
@@ -415,7 +456,6 @@ class RfStationPhaseObservation(ObservablesOncePerTurnBase):
     >>> plt.plot(
     ...     rf_station_observation.turns_array[:], rf_station_observation.phases[:]
     ... )
-
     """
 
     def __init__(
@@ -441,14 +481,18 @@ class RfStationPhaseObservation(ObservablesOncePerTurnBase):
         """
         Lateinit method when `simulation.run_simulation` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate.
         turn_i_init
-            Initial turn to execute simulation
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments.
         """
         super().on_run_simulation(
             simulation=simulation,
@@ -483,8 +527,7 @@ class RfStationPhaseObservation(ObservablesOncePerTurnBase):
         Parameters
         ----------
         simulation
-            `Simulation` context manager
-
+            `Simulation` context manager.
         """
         self._phases.write(
             None
@@ -503,17 +546,38 @@ class RfStationPhaseObservation(ObservablesOncePerTurnBase):
 
     @property  # as readonly attributes
     def phases(self) -> NumpyArray:
-        """RF station's effective phase of shape ``(n_observations, )``, in [rad] ."""
+        """
+        RF station's effective phase of shape ``(n_observations, )``, in [rad].
+
+        Returns
+        -------
+        phases
+            Array of RF phases.
+        """
         return self._phases.get_valid_entries()
 
     @property  # as readonly attributes
     def omegas(self) -> NumpyArray:
-        """RF station's angular frequency of shape ``(n_observations, )``, in [Hz]."""
+        """
+        RF station's angular frequency of shape ``(n_observations, )``, in [Hz].
+
+        Returns
+        -------
+        omegas
+            Array of RF angular frequencies.
+        """
         return self._omegas.get_valid_entries()
 
     @property  # as readonly attributes
     def voltages(self) -> NumpyArray:
-        """RF station's effective voltage of shape ``(n_observations, )``, in [V]."""
+        """
+        RF station's effective voltage of shape ``(n_observations, )``, in [V].
+
+        Returns
+        -------
+        voltages
+            Array of RF voltages.
+        """
         return self._voltages.get_valid_entries()
 
 
@@ -528,7 +592,7 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
         callable each n-th turn.
     profile
         Class for the calculation of beam profile
-        that doesn't change its parameters
+        that doesn't change its parameters.
     folder
         Path to the target folder used for
         saving or loading files.
@@ -546,8 +610,6 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
     ...     plt.plot(
     ...         profile_obs.hist_x, profile_obs.hist_y[index, :]
     ...     )
-
-
     """
 
     def __init__(
@@ -574,14 +636,18 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
         """
         Lateinit method when `simulation.run_simulation` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate.
         turn_i_init
-            Initial turn to execute simulation
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments.
         """
         super().on_run_simulation(
             simulation=simulation,
@@ -606,8 +672,7 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
         Parameters
         ----------
         simulation
-            `Simulation` context manager
-
+            `Simulation` context manager.
         """
         if (
             self._last_turn_i_observed == simulation.turn_i.value
@@ -623,12 +688,26 @@ class StaticProfileObservation(ObservablesOncePerTurnBase):
 
     @property  # as readonly attributes
     def hist_x(self) -> NumpyArray:
-        """Histogram x axis, always the same."""
+        """
+        Histogram x axis, always the same.
+
+        Returns
+        -------
+        hist_x
+            Histogram x-axis array.
+        """
         return self._profile.hist_x
 
     @property  # as readonly attributes
     def hist_y(self) -> NumpyArray:
-        """Histogram amplitude for each observed turn."""
+        """
+        Histogram amplitude for each observed turn.
+
+        Returns
+        -------
+        hist_y
+            Histogram amplitude array.
+        """
         return self._hist_y.get_valid_entries()
 
 
@@ -643,10 +722,12 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
         callable each n-th turn.
     profiles
         List of class for the calculation of beam profile
-        that doesn't change its parameters
+        that doesn't change its parameters.
     folder
         Path to the target folder used for
         saving or loading files.
+    sort_profiles_by_section
+        Whether to sort profiles by section index.
 
     Examples
     --------
@@ -664,7 +745,6 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
     ...     plt.plot(
     ...         profile_obs.hist_x[index % 2], profile_obs.hist_y[index, :]
     ...     )
-
     """
 
     def __init__(
@@ -698,13 +778,15 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
         Parameters
         ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         beam
-            Simulation beam object
+            Simulation beam object.
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate.
         turn_i_init
-            Initial turn to execute simulation
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments.
         """
         super().on_run_simulation(
             simulation=simulation,
@@ -727,12 +809,12 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
         simulation: Simulation,
     ) -> None:
         """
-        Updates the data in case the function has not been called on the current section and turn already.
+        Update the data in case the function has not been called on the current section and turn already.
 
         Parameters
         ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         if (
             self._last_turn_i_observed == simulation.turn_i.value
@@ -751,12 +833,26 @@ class StaticMultiProfileObservation(ObservablesOncePerTurnBase):
 
     @property  # as readonly attributes
     def hist_x(self) -> list[NumpyArray]:
-        """Histogram x axis, always the same of shape ``((n_bins, ), ..)``."""
+        """
+        Histogram x axis, always the same of shape ``((n_bins, ), ..)``.
+
+        Returns
+        -------
+        hist_x
+            List of histogram x-axis arrays.
+        """
         return [self._profiles[i].hist_x for i in range(len(self._profiles))]
 
     @property  # as readonly attributes
     def hist_y(self) -> NumpyArray:
-        """Histogram of given profiles of shape ``(n_observations, n_bins)``."""
+        """
+        Histogram of given profiles of shape ``(n_observations, n_bins)``.
+
+        Returns
+        -------
+        hist_y
+            Histogram amplitude array.
+        """
         return self._hist_y.get_valid_entries()
 
 
@@ -770,7 +866,7 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
         Value to control that the element is
         callable each n-th turn.
     wakefield
-        Manager class to calculate wake-fields
+        Manager class to calculate wake-fields.
     folder
         Path to the target folder used for
         saving or loading files.
@@ -786,7 +882,6 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
     >>> turn_2 = 1  # after 2 turns, because `each_turn_i = 2`
     >>> for index in (before, turn_2):
     ...     plt.plot(wake_obs.induced_voltage[index, :])
-
     """
 
     def __init__(
@@ -813,14 +908,18 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
         """
         Lateinit method when `simulation.run_simulation` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate.
         turn_i_init
-            Initial turn to execute simulation
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments.
         """
         super().on_run_simulation(
             simulation=simulation,
@@ -846,8 +945,7 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
         Parameters
         ----------
         simulation
-            `Simulation` context manager
-
+            `Simulation` context manager.
         """
         try:
             self._induced_voltage.write(
@@ -866,7 +964,7 @@ class WakeFieldObservation(ObservablesOncePerTurnBase):
         Returns
         -------
         induced_voltage
-
+            Array of induced voltages.
         """
         return self._induced_voltage.get_valid_entries()
 
@@ -879,10 +977,10 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
     ----------
      each_turn_i
         Value to control that the element is
-        callable each n-th turn
+        callable each n-th turn.
     profile
         Class for the calculation of beam profile
-        with a change in width, but a constant bin number
+        with a change in width, but a constant bin number.
     folder
         Path to the target folder used for
         saving or loading files.
@@ -923,14 +1021,18 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
         """
         Lateinit method when :func:`blond.core.simulation.simulation.Simulation.run_simulation` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         beam
-            Simulation beam object
+            Simulation beam object.
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate.
         turn_i_init
-            Initial turn to execute simulation
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments.
         """
         super().on_run_simulation(
             simulation=simulation,
@@ -961,17 +1063,31 @@ class DynamicProfileConstNBinsObservation(ObservablesOncePerTurnBase):
         Parameters
         ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         self._hist_y.write(self._profile.hist_y)
         self._hist_x.write(self._profile.hist_x)
 
     @property  # as readonly attributes
     def hist_y(self) -> NumpyArray:
-        """Histogram amplitude of shape ``(n_observations, n_bins)``."""
+        """
+        Histogram amplitude of shape ``(n_observations, n_bins)``.
+
+        Returns
+        -------
+        hist_y
+            Histogram amplitude array.
+        """
         return self._hist_y.get_valid_entries()
 
     @property  # as readonly attributes
     def hist_x(self) -> NumpyArray:
-        """x-axis of histogram, in [s], i.e. `bin_centers` of shape ``(n_observations, n_bins)``."""
+        """
+        Get x-axis of histogram, in [s], i.e. `bin_centers` of shape ``(n_observations, n_bins)``.
+
+        Returns
+        -------
+        hist_x
+            Histogram x-axis array.
+        """
         return self._hist_x.get_valid_entries()

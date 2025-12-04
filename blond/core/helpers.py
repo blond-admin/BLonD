@@ -29,9 +29,14 @@ def int_from_float_with_warning(
     Parameters
     ----------
     value
-        Some float value, potentially with fractional values
+        Some float value, potentially with fractional values.
     warning_stacklevel
-        `warnings.warn` parameter
+        `warnings.warn` parameter.
+
+    Returns
+    -------
+    int_value
+        Integer value converted from input.
     """
     if isinstance(value, int):
         return value
@@ -64,9 +69,14 @@ def find_instances_with_method(root: Any, method_name: str) -> Any:
     root
         Base instance to be inspected.
         All attributes are recursively scanned
-        for classes with a method `methodname`
+        for classes with a method `methodname`.
     method_name
-        Name of the method to be searched for
+        Name of the method to be searched for.
+
+    Returns
+    -------
+    found_instances
+        Set of instances that have the specified method.
 
     Examples
     --------
@@ -80,7 +90,6 @@ def find_instances_with_method(root: Any, method_name: str) -> Any:
     >>>     @property # will be accessed
     >>>     def not_a_problem(self):
     >>>         pass
-
     """
     found = set()
     seen = set()

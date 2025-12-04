@@ -41,7 +41,21 @@ cpp_files = [os.path.join(_basepath, f) for f in cpp_files]
 
 
 def run_compile(command: list[str], libname: str) -> int:
-    """TODO."""  # TODO undocumented port from BLOND2
+    """
+    Run compilation command and check result.
+
+    Parameters
+    ----------
+    command
+        Compilation command as list of strings.
+    libname
+        Name of the library to be compiled.
+
+    Returns
+    -------
+    status
+        0 if successful, -1 if failed.
+    """  # TODO undocumented port from BLOND2
     if os.path.exists(libname):
         os.remove(libname)
     print(" ".join(command))
@@ -269,7 +283,29 @@ def _prepare_cflags(
     libname: str,
     optimize: bool,
 ) -> tuple[list[str], str, str]:
-    """TODO."""  # TODO undocumented port from BLOND2
+    """
+    Prepare compiler flags and library names.
+
+    Parameters
+    ----------
+    cflags
+        List of compiler flags.
+    compiler
+        The C++ compiler to use.
+    libname
+        Base name of the output library.
+    optimize
+        If True, enable optimization flags.
+
+    Returns
+    -------
+    cflags
+        Updated compiler flags.
+    libname_double
+        Path to double-precision library.
+    libname_single
+        Path to single-precision library.
+    """  # TODO undocumented port from BLOND2
     if "posix" in os.name:
         cflags += ["-fPIC"]
         if optimize:
@@ -310,7 +346,29 @@ def _prepare_fftw(
     with_fftw_omp: bool | None = False,
     with_fftw_threads: bool | None = False,
 ) -> tuple[list[str], list[str]]:
-    """TODO."""  # TODO undocumented port from BLOND2
+    """
+    Prepare FFTW compiler flags and library links.
+
+    Parameters
+    ----------
+    with_fftw
+        Whether to include FFTW3 support.
+    with_fftw_header
+        Path to FFTW3 header files.
+    with_fftw_lib
+        Path to FFTW3 library file.
+    with_fftw_omp
+        Enable OpenMP FFTW3 usage.
+    with_fftw_threads
+        Enable multi-threaded FFTW3 usage.
+
+    Returns
+    -------
+    fftw_cflags
+        FFTW compiler flags.
+    fftw_libs
+        FFTW library links.
+    """  # TODO undocumented port from BLOND2
     fftw_cflags = []
     fftw_libs = []
     if with_fftw:
@@ -333,7 +391,21 @@ def _prepare_fftw(
 
 
 def _add_avx_flags(cflags: list[str], compiler: str) -> list[str]:
-    """TODO."""  # TODO undocumented port from BLOND2
+    """
+    Add AVX/SSE flags to compiler flags.
+
+    Parameters
+    ----------
+    cflags
+        List of compiler flags.
+    compiler
+        The C++ compiler to use.
+
+    Returns
+    -------
+    cflags
+        Updated compiler flags with AVX/SSE optimization.
+    """  # TODO undocumented port from BLOND2
     # Check compiler defined directives
     # This is compatible with python3.6 - python 3.9
     # The universal_newlines argument transforms output to text (from binary)

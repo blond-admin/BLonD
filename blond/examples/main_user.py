@@ -34,7 +34,18 @@ class Main:
 
     @staticmethod
     def describe_accelerator() -> tuple[Ring, MagneticCyclePerTurn, Beam]:
-        """Describes the hardware that is simulated within the :class:`blond.core.ring.ring.Ring`."""
+        """
+        Describe the hardware that is simulated within the :class:`blond.core.ring.ring.Ring`.
+
+        Returns
+        -------
+        my_ring
+            Ring object representing the synchrotron.
+        my_cycle
+            Magnetic cycle describing energy evolution.
+        my_beam
+            Beam object for the simulation.
+        """
         # Description of accelerator
         my_ring = Ring(circumference=6912)
 
@@ -83,7 +94,7 @@ class Main:
         my_beam: Beam,
     ) -> tuple:
         """
-        Assembles the :class:`blond.core.simulation.simulation.Simulation` object. and matches the beam.
+        Assemble the :class:`blond.core.simulation.simulation.Simulation` object and match the beam.
 
         Parameters
         ----------
@@ -101,7 +112,6 @@ class Main:
             `Simulation` object.
         my_beam
             `Beam` object, matched.
-
         """
         # Preparation of simulation
         # Here everything might be interconnected
@@ -123,7 +133,7 @@ class Main:
         my_beam: Beam,
     ) -> None:
         """
-        Runs the simulation.
+        Run the simulation.
 
         Parameters
         ----------
@@ -131,7 +141,6 @@ class Main:
             `Simulation` object.
         my_beam
             `Beam` object, matched.
-
         """
         # Full simulation. everything here should be optimized
         simulation.run_simulation(
@@ -140,7 +149,7 @@ class Main:
 
 
 def main() -> None:
-    """Executes the predefined simulation."""
+    """Execute the predefined simulation."""
     my_ring, my_cycle, my_beam = Main.describe_accelerator()
     simulation, my_beam = Main.ready_simulation_and_beam(
         my_ring=my_ring,

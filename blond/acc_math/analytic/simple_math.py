@@ -36,15 +36,15 @@ def calc_beta(mass: float, momentum: float | NumpyArray) -> float | NumpyArray:
 
     Parameters
     ----------
-    mass : float
-        Particle mass, in [eV/c²]
-    momentum : float or NumpyArray
-        Particle momentum, in [eV/c]
+    mass
+        Particle mass, in [eV/c²].
+    momentum
+        Particle momentum, in [eV/c].
 
     Returns
     -------
-    beta : float or NumpyArray
-        Relativistic beta factor (unitless), such that v = beta * c
+    beta
+        Relativistic beta factor (unitless), such that v = beta * c.
     """
     return np.sqrt(1 / (1 + (mass / momentum) ** 2))
 
@@ -65,15 +65,15 @@ def calc_gamma(
 
     Parameters
     ----------
-    mass : float
-        Particle mass, in [eV/c²]
-    momentum : float or NumpyArray
-        Particle momentum, in [eV/c]
+    mass
+        Particle mass, in [eV/c²].
+    momentum
+        Particle momentum, in [eV/c].
 
     Returns
     -------
-    gamma : float or NumpyArray
-        Lorentz factor (unitless)
+    gamma
+        Lorentz factor (unitless).
     """
     my_fraction = momentum / mass
     return np.sqrt(1 + (my_fraction * my_fraction))
@@ -95,15 +95,15 @@ def calc_total_energy(
 
     Parameters
     ----------
-    mass : float
-        Particle mass, in [eV/c²]
-    momentum : float or NumpyArray
-        Particle momentum, in [eV/c]
+    mass
+        Particle mass, in [eV/c²].
+    momentum
+        Particle momentum, in [eV/c].
 
     Returns
     -------
-    energy : float or NumpyArray
-        Total relativistic energy, in [eV]
+    energy
+        Total relativistic energy, in [eV].
     """
     return np.sqrt(momentum * momentum + mass * mass)
 
@@ -124,15 +124,15 @@ def calc_energy_kin(
 
     Parameters
     ----------
-    mass : float
-        Particle mass, in [eV/c²]
-    momentum : float or NumpyArray
-        Particle momentum, in [eV/c]
+    mass
+        Particle mass, in [eV/c²].
+    momentum
+        Particle momentum, in [eV/c].
 
     Returns
     -------
-    kinetic_energy : float or NumpyArray
-        Kinetic energy, in [eV], defined as total energy - rest energy
+    kinetic_energy
+        Kinetic energy, in [eV], defined as total energy - rest energy.
     """
     return calc_total_energy(mass, momentum) - mass
 
@@ -151,15 +151,10 @@ def beta_by_momentum(
     """
     Calculate fraction of velocity over speed of light.
 
-    Notes
-    -----
-    Internal assumption is :math:`c_0=1`.
-
     Parameters
     ----------
     momentum
         Particle momentum, in [eV/c].
-        float or NumpyArray expected.
     mass
         Particle mass, in [eV/c²].
 
@@ -168,5 +163,8 @@ def beta_by_momentum(
     beta
         Fraction of velocity over speed of light.
 
+    Notes
+    -----
+    Internal assumption is :math:`c_0=1`.
     """
     return np.sqrt(1 / (1 + (mass / momentum) ** 2))

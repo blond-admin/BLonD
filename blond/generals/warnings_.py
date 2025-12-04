@@ -6,13 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""
-Custom warning definitions for BLonD3.
-
-Authors
--------
-Simon Lauber
-"""
+"""Custom warning definitions for BLonD3."""
 
 
 class PerformanceWarning(UserWarning):

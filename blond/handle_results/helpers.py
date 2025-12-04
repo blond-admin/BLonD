@@ -14,7 +14,14 @@ from datetime import datetime
 
 
 def filesafe_datetime() -> str:
-    """Datetime string suitable as filename."""
+    """
+    Datetime string suitable as filename.
+
+    Returns
+    -------
+    datetime_str
+        Formatted datetime string safe for use in filenames.
+    """
     # Get current datetime
     now = datetime.now()
 
@@ -30,15 +37,15 @@ def callers_relative_path(filename: str, stacklevel: int) -> str:
     Parameters
     ----------
     filename
-        Local filepath, e.g. resources/file1.txt
+        Local filepath, e.g. resources/file1.txt.
     stacklevel
         Use global filepath according to the file at the level of
-        the python call stack
+        the python call stack.
 
     Returns
     -------
-    Absolute path according to filepath of the python script at given stacklevel
-
+    absolute_path
+        Absolute path according to filepath of the python script at given stacklevel.
     """
     # Get the path of the file that called this function
     caller_frame = inspect.stack()[stacklevel]

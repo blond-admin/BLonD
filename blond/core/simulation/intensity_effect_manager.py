@@ -26,7 +26,7 @@ class IntensityEffectManager:
     Parameters
     ----------
     simulation
-        `Simulation` context manager
+        `Simulation` context manager.
     """
 
     def __init__(self, simulation: Simulation) -> None:
@@ -34,11 +34,12 @@ class IntensityEffectManager:
 
     def has_wakefields(self):
         """
-        Checks if there are any `WakeField` instances in the `Simulation`.
+        Check if there are any `WakeField` instances in the `Simulation`.
 
         Returns
         -------
-        True if there is any WakeField
+        has_wakefields
+            True if there is any WakeField.
         """
         wakefields = self._parent_simulation.ring.elements.get_elements(
             WakeField
@@ -47,7 +48,12 @@ class IntensityEffectManager:
 
     def is_active_wakefields(self) -> bool:  # TODO testcae
         """
-        Checks whehther all `Wakefields` are active or inactive.
+        Check whehther all `Wakefields` are active or inactive.
+
+        Returns
+        -------
+        is_active
+            True if wakefields are active, False otherwise.
 
         Raises
         ------
@@ -72,7 +78,7 @@ class IntensityEffectManager:
         Parameters
         ----------
         active
-            True or False, so that simulation can skip the elements
+            True or False, so that simulation can skip the elements.
         """
         wakefields = self._parent_simulation.ring.elements.get_elements(
             WakeField
@@ -87,8 +93,7 @@ class IntensityEffectManager:
         Parameters
         ----------
         active
-            True or False, so that simulation can skip the elements
-
+            True or False, so that simulation can skip the elements.
         """
         profiles = self._parent_simulation.ring.elements.get_elements(
             ProfileBaseClass
@@ -105,7 +110,12 @@ class IntensityEffectManager:
 
     def is_active_profiles(self) -> bool:  # TODO testcae
         """
-        Checks whether all `Profiles` are active or inactive.
+        Check whether all `Profiles` are active or inactive.
+
+        Returns
+        -------
+        is_active
+            True if profiles are active, False otherwise.
 
         Raises
         ------
