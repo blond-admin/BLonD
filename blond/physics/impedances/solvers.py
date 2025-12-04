@@ -996,6 +996,17 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
 
         self._previous_wakes = deque(maxlen=n_turns)
 
+        self._check_source_ducktypes()
+
+    def _check_source_ducktypes(self):
+        """Check that the sources implement ```get_wake``."""
+        for source in self._parent_wakefield.sources:
+            source: TimeDomain  # type hint what the we expect
+            if not hasattr(source, "get_wake"):
+                raise AttributeError(
+                    f"The {source=} should implement `TimeDomain.get_wake`."
+                )
+
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:
@@ -1035,16 +1046,8 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         wake_kernel = None  # This needs to be derived
         for source in self._parent_wakefield.sources:
             source: TimeDomain  # type hint what the we expect
-            try:
-                wake_kernel_tmp = source.get_wake(time_axis)
-            except Exception as exc:
-                if not isinstance(source, TimeDomain):
-                    raise TypeError(
-                        f"The {source=} should implement "
-                        f"`TimeDomain.get_wake`."
-                    ) from exc
-                else:
-                    raise exc
+            wake_kernel_tmp = source.get_wake(time_axis)
+
             if wake_kernel is None:
                 wake_kernel = wake_kernel_tmp
             else:
