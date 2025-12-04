@@ -179,6 +179,8 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
 
         self._sigma_dt: DenseArrayRecorder | None = None
         self._sigma_dE: DenseArrayRecorder | None = None
+        self._skew_dE: DenseArrayRecorder | None = None
+        self._skew_dt: DenseArrayRecorder | None = None
         self._mean_dt: DenseArrayRecorder | None = None
         self._mean_dE: DenseArrayRecorder | None = None
         self._rms_emittance: DenseArrayRecorder | None = None
@@ -232,6 +234,14 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
             f"{self.common_filepath}_sigma_dE",
             shape,
         )
+        self._skew_dt = DenseArrayRecorder(
+            f"{self.common_filepath}_skew_dt",
+            shape,
+        )
+        self._skew_dE = DenseArrayRecorder(
+            f"{self.common_filepath}_skew_dE",
+            shape,
+        )
         self._rms_emittance = DenseArrayRecorder(
             f"{self.common_filepath}_emittance_stat",
             shape,
@@ -264,6 +274,18 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         self._sigma_dE.write(np.std(self._beam._dE))
         self._mean_dt.write(np.mean(self._beam._dt))
         self._mean_dE.write(np.mean(self._beam._dE))
+        self._skew_dt.write(
+            np.sum(
+                (self._beam._dt - self._mean_dt.get_valid_entries()[-1]) ** 3
+            )
+            / len(self._beam._dt)
+        )
+        self._skew_dE.write(
+            np.sum(
+                (self._beam._dE - self._mean_dE.get_valid_entries()[-1]) ** 3
+            )
+            / len(self._beam._dE)
+        )
         self._rms_emittance.write(
             np.sqrt(
                 np.average(self._beam._dE**2) * np.average(self._beam._dt**2)
@@ -280,6 +302,16 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
     def sigma_dE(self):
         """Standard deviation of the energy coordinate, in [eV]."""
         return self._sigma_dE.get_valid_entries()
+
+    @property  # as readonly attributes
+    def skew_dt(self):
+        """Skew of the time coordinate."""
+        return self._skew_dt.get_valid_entries()
+
+    @property  # as readonly attributes
+    def skew_dE(self):
+        """Skew of the energy coordinate, in [eV]."""
+        return self._skew_dE.get_valid_entries()
 
     @property  # as readonly attributes
     def mean_dt(self):
