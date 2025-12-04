@@ -250,7 +250,10 @@ class SemiEmpiricMatcher(MatchingRoutine):
         animate: bool = False,
         verbose: bool = True,
         apply_tilt: bool = False,
+        bunch_length=1.5e-10,
     ) -> None:
+        self._bunch_length = bunch_length
+
         self.n_macroparticles = int_from_float_with_warning(
             n_macroparticles,
             warning_stacklevel=2,
@@ -438,20 +441,29 @@ class SemiEmpiricMatcher(MatchingRoutine):
         ts
             Time coordinate, in [s] for observation of the potential well.
         """
+        dt_pot_well = np.linspace(
+            ts.min(),
+            ts.max(),
+            len(ts) * _POTENTIAL_WELL_OVERSAMPLING,
+        )
         potential_well, factor, tilt_dt_per_dE = (
             simulation.get_potential_well_empiric(
-                dt=np.linspace(
-                    ts.min(),
-                    ts.max(),
-                    len(ts) * _POTENTIAL_WELL_OVERSAMPLING,
-                ),
+                dt=dt_pot_well,
                 particle_type=beam.particle_type,
                 intensity=beam.intensity,
             )
         )
+
         potential_well = (
             potential_well[::_POTENTIAL_WELL_OVERSAMPLING] * factor
         )
+        dt_pot_well = dt_pot_well[::_POTENTIAL_WELL_OVERSAMPLING]
+        max_hamiltonian = potential_well[
+            np.argmin(np.abs(dt_pot_well - self._bunch_length))
+        ]
+        print(max_hamiltonian)
+        if self.hamilton_to_density_function == hamilton_to_density_by_max:
+            self.hamilton_to_density_kwargs["hamilton_max"] = max_hamiltonian
         self._prelast_potential_well = self._last_potential_well
         self._last_potential_well = potential_well
         if self._prelast_potential_well is None:
