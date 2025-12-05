@@ -6,20 +6,25 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
+"""Cavity feedback stubs for the muon collider."""
+
 from warnings import warn
+
+import numpy as np
 
 from blond import StaticProfile
 from blond.experimental.physics.feedbacks.cavity_feedback import (
     IQCavityFeedback,
 )
 
+MINIMUM_QL_FEEDBACK_MODEL = 0.5
 
 class PassiveCavity(IQCavityFeedback):
-    """
+    r"""
     Passive Cavity, implementing the beam-cavity interaction formulas without a feedback involved.
 
-            Parameters
-        ----------
+    Parameters
+    ----------
         profile
             profile on which the feedback should act
         R_over_Q
@@ -53,6 +58,7 @@ class PassiveCavity(IQCavityFeedback):
         name
             If not given, is automatically chosen
     """
+
     def __init__(self,
                  profile: StaticProfile,  # is this stricly necessary?
                  R_over_Q: float,
@@ -75,7 +81,7 @@ class PassiveCavity(IQCavityFeedback):
         assert R_over_Q >= 0, "R_over_Q must be >= 0"
         self.R_over_Q = R_over_Q
 
-        assert Q_L >= 0.5, "Q_L must be >= 0.5"
+        assert Q_L >= MINIMUM_QL_FEEDBACK_MODEL, "Q_L must be >= 0.5"
         self.Q_L = Q_L
 
         assert f_center >= 0, "f_center must be >= 0"  # TODO: does this make sense here?
@@ -83,23 +89,23 @@ class PassiveCavity(IQCavityFeedback):
 
         assert f_detuning >= 0, "fset must be >= 0"
         self.f_detuning = f_detuning
+        self.omega_center = 2 * np.pi * self.f_center - 2 * np.pi * self.f_detuning
 
         assert n_cavities > 0, "n_cavities must be > 0"
         self.n_cavities = n_cavities
 
-        assert generator_current > 0, "i_g must be > 0"
         self.generator_current = generator_current
-
         self.generator_phase = generator_phase
         self.injection_phase = injection_phase
         self.injection_voltage = injection_voltage
 
         if use_lowpass_filter:
-            warn("lowpass filter is not used in this class")
+            warn("lowpass filter is not used in this class", stacklevel=2)
 
         super().__init__(profile=profile,
                          n_cavities=n_cavities,
-                         section_index=section_index,  # TODO: this should not be necessary or? The parent cavity already has this information
+                         section_index=section_index,
+                         # TODO: this should not be necessary or? The parent cavity already has this information
                          name=name,
                          n_periods_coarse=n_periods_coarse,
                          harmonic_index=harmonic_index)
