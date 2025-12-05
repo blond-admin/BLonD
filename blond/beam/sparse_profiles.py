@@ -425,18 +425,19 @@ class SparseBucket(_SparseProfileBaseClass):
     --------
     >>> import numpy as np
     >>> from blond.beam.sparse_profiles import SparseBucket
+    >>> from blond.input_parameters.ring import Ring
     >>> from blond.beam.beam import Beam
     >>> from blond.input_parameters.rf_parameters import RFStation
-    >>> self.ring = Ring(n_turns = 1, ring_length = 100,
+    >>> ring = Ring(n_turns = 1, ring_length = 100,
     >>> alpha = 0.00001, momentum = 1e9)
-    >>> self.beam = Beam(self.ring, 10000, 1e10)
-    >>> self.rf_params = RFStation(ring=self.ring, n_rf=1, harmonic=[4620],
+    >>> beam = Beam(ring, 10000, 1e10)
+    >>> rf_params = RFStation(ring=ring, n_rf=1, harmonic=[4620],
     ...                  voltage=[7e6], phi_rf_d=[0.])
     >>> bunch_spacing = 10
-    >>> bunch_list = np.zeros(self.rf_params.harmonic[0])
+    >>> bunch_list = np.zeros(rf_params.harmonic[0])
     >>> bunch_list[::bunch_spacing] = 1
-    >>> sparse_profile = SparseBucket(rf_station=self.rf_params,
-    >>>                                beam = self.beam,
+    >>> sparse_profile = SparseBucket(rf_station=rf_params,
+    >>>                                beam = beam,
     >>>                                number_of_slices_per_profile = 1e4,
     >>>                                bunch_list = bunch_list)
     >>>
@@ -528,10 +529,11 @@ class SparseBatch(_SparseProfileBaseClass):
     >>> import numpy as np
     >>> from blond.beam.sparse_profiles import SparseBatch
     >>> from blond.beam.beam import Beam
+    >>> from blond.input_parameters.ring import Ring
     >>> from blond.input_parameters.rf_parameters import RFStation
     >>> ring = Ring(n_turns = 1, ring_length = 100,
     >>> alpha = 0.00001, momentum = 1e9)
-    >>> beam = Beam(self.ring, 10000, 1e10)
+    >>> beam = Beam(ring, 10000, 1e10)
     >>> rf_params = RFStation(ring=ring, n_rf=1, harmonic=[4620],
     ...                  voltage=[7e6], phi_rf_d=[0.])
     >>> number_of_bunches_per_batch = 5
