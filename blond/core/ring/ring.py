@@ -55,13 +55,16 @@ class Ring(Preparable):
     def __init__(
         self,
         circumference: float,
+        check_section_indices: bool = True,
     ) -> None:
         from blond.core.ring.beam_physics_relevant_elements import (
             BeamPhysicsRelevantElements,
         )
 
         super().__init__()
-        self._elements = BeamPhysicsRelevantElements()
+        self._elements = BeamPhysicsRelevantElements(
+            check_section_indices=check_section_indices
+        )
         assert circumference > 0, (
             f"`circumference` must be bigger 0, but is {circumference}"
         )
