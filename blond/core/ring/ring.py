@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond.core.base import Preparable, Schedulable
+from blond.core.base import Preparable
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
@@ -34,7 +34,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.physics.drifts import DriftBaseClass
 
 
-class Ring(Preparable, Schedulable):
+class Ring(Preparable):
     """Create a `Ring` object representing a synchrotron accelerator.
 
     A Ring (synchrotron) is the fundamental structure that contains all beam
@@ -55,13 +55,16 @@ class Ring(Preparable, Schedulable):
     def __init__(
         self,
         circumference: float,
+        check_section_indices: bool = True,
     ) -> None:
         from blond.core.ring.beam_physics_relevant_elements import (
             BeamPhysicsRelevantElements,
         )
 
         super().__init__()
-        self._elements = BeamPhysicsRelevantElements()
+        self._elements = BeamPhysicsRelevantElements(
+            check_section_indices=check_section_indices
+        )
         assert circumference > 0, (
             f"`circumference` must be bigger 0, but is {circumference}"
         )
@@ -149,7 +152,7 @@ class Ring(Preparable, Schedulable):
         return self._circumference
 
     @cached_property
-    def average_transition_gamma(self) -> float:
+    def average_transition_gamma(self) -> complex:
         """Calculate the orbit-length weighted average transition gamma.
 
         The transition gamma is the Lorentz factor at which particles cross from
@@ -176,7 +179,7 @@ class Ring(Preparable, Schedulable):
             e.orbit_length for e in self.elements.get_elements(DriftSimple)
         ]
         # todo not only simple dirft
-        transition_gamma_average = float(np.average(gammas, weights=weights))
+        transition_gamma_average = complex(np.average(gammas, weights=weights))
         return transition_gamma_average
 
     def calc_average_eta_0(self, gamma: float) -> float:

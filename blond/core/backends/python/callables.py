@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.backends.backend import Specials
+from blond.core.beam.base import BeamFlags
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
@@ -142,17 +143,17 @@ class PythonSpecials(Specials):
 
     @staticmethod
     def loss_box(  # NOQA: D102
-        top: float,
-        bottom: float,
-        left: float,
-        right: float,
+        e_max: float,
+        e_min: float,
+        t_min: float,
+        t_max: float,
         dt: NumpyArray,
         dE: NumpyArray,
         flags: NumpyArray,
     ) -> None:
         # select particles outside box
-        select = (dE > top) | (dE < bottom) | (dt < left) | (dt > right)
-        flags[select] = -500  # assume (BeamFlags.LOST.value)
+        select = (dE > e_max) | (dE < e_min) | (dt < t_min) | (dt > t_max)
+        flags[select] = BeamFlags.LOST.value
 
     @staticmethod
     def kick_single_harmonic(

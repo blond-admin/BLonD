@@ -533,9 +533,7 @@ class Simulation(Preparable):
             # Align potential so that the visible minimum is 0
             potential_well -= potential_well.min()
         return (
-            backend.array(
-                potential_well / particle_type.charge, dtype=backend.float
-            ),
+            backend.array(potential_well, dtype=backend.float),
             factor,
             tilt_dt_per_dE,
         )
@@ -1061,6 +1059,11 @@ class Simulation(Preparable):
 
         """
         logger.info(f"Running `run_simulation` with {locals()}")
+        n_turns = (
+            int_from_float_with_warning(n_turns, warning_stacklevel=2)
+            if n_turns is not None
+            else None
+        )
         _n_turns = self.finalize(
             beams=beams,
             n_turns=n_turns,

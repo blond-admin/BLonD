@@ -7,18 +7,18 @@
 ! Project website: http://blond.web.cern.ch/
 
 ! loss_box.f90
-subroutine loss_box(top, bottom, left, right, dt, dE, flags, n)
+subroutine loss_box(e_max, e_min, t_min, t_max, dt, dE, flags, n)
    implicit none
    integer, intent(in) :: n
    integer(kind=4), intent(inout) :: flags(n)
    real(8), intent(in) :: dE(n)
    real(8), intent(in) :: dt(n)
-   real(8), intent(in) :: top, bottom, left, right
+   real(8), intent(in) :: e_max, e_min, t_min, t_max
    integer :: i
 
-   !$omp parallel do private(i) shared(top, bottom, left, right, dt, dE, flags)
+   !$omp parallel do private(i) shared(e_max, e_min, t_min, t_max, dt, dE, flags)
    do i = 1, n
-      if (dE(i) > top .or. dE(i) < bottom .or. dt(i) < left .or. dt(i) > right) then
+      if (dE(i) > e_max .or. dE(i) < e_min .or. dt(i) < t_min .or. dt(i) > t_max) then
          flags(i) = -500 ! assume (BeamFlags.LOST.value)
       end if
    end do

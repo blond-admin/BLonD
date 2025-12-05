@@ -7,7 +7,6 @@
 # Project website: http://blond.web.cern.ch/
 
 
-
 """**Various beam phase loops with optional synchronisation/frequency/radial loops
 for the CERN machines**
 
@@ -182,7 +181,8 @@ class Blond2BeamFeedback(LocalFeedback):
             + self._parent_rf_station.delta_omega_rf
         )
         phi_rf = (
-                self._parent_rf_station.phi_rf[0] + self._parent_rf_station.delta_phi_rf
+            self._parent_rf_station.phi_rf[0]
+            + self._parent_rf_station.delta_phi_rf
         )
 
         if self.time_offset is None:

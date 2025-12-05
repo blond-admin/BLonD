@@ -94,8 +94,8 @@ class TestObservables(unittest.TestCase):
                 array_shape = rec.get_valid_entries().shape
                 print(array_shape)
                 if isinstance(obs, StaticMultiProfileObservation):
-                    assert array_shape[0] == (2*(n_turns_half + 1)), " ".join(
-                        [str(obs), str(attribute), str(array_shape)]
+                    assert array_shape[0] == (2 * (n_turns_half + 1)), (
+                        " ".join([str(obs), str(attribute), str(array_shape)])
                     )
                 else:
                     assert array_shape[0] == (n_turns_half + 1), " ".join(

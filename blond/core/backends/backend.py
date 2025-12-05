@@ -34,10 +34,10 @@ class Specials(ABC):
     @staticmethod
     @abstractmethod  # pragma: no cover
     def loss_box(  # NOQA: D102
-        top: float,
-        bottom: float,
-        left: float,
-        right: float,
+        e_max: float,
+        e_min: float,
+        t_min: float,
+        t_max: float,
         dt: NumpyArray | CupyArray,
         dE: NumpyArray | CupyArray,
         flags: NumpyArray | CupyArray,
@@ -226,8 +226,6 @@ class BackendBaseClass(ABC):
     ----------
     float_
         Precision type for float, e.g. float32, float64.
-    int_:
-        Precision type for int, e.g. float32, float64.
     complex_
         Precision type for complex, e.g. float32, float64.
     specials_mode
@@ -238,13 +236,11 @@ class BackendBaseClass(ABC):
 
     # type annotations for MyPy
     float: type[np.float32 | np.float64]
-    int: type[np.int32] | type[np.int64]
     complex: type[np.complex128 | np.complex64]
 
     def __init__(
         self,
         float_: type[np.float32 | np.float64],
-        int_: type[np.int32] | type[np.int64],
         complex_: type[np.complex128 | np.complex64],
         specials_mode: Literal[
             "python",
@@ -261,7 +257,6 @@ class BackendBaseClass(ABC):
         self._is_gpu = is_gpu
 
         self.float = float_
-        self.int = int_
         self.complex = complex_
 
         self.twopi = self.float(2 * np.pi)
@@ -287,6 +282,7 @@ class BackendBaseClass(ABC):
         self.mean: Callable = None  # type: ignore
         self.arange: Callable = None  # type: ignore
         self.average: Callable = None  # type: ignore
+        self.fftconvolve: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -447,8 +443,6 @@ class NumpyBackend(BackendBaseClass):
     ----------
     float_
         Precision type for float, e.g. float32, float64.
-    int_
-        Precision type for int, e.g. float32, float64.
     complex_
         Precision type for complex, e.g. float32, float64.
     """
@@ -456,16 +450,16 @@ class NumpyBackend(BackendBaseClass):
     def __init__(
         self,
         float_: type[np.float32 | np.float64],
-        int_: type[np.int32 | np.int64],
         complex_: type[np.complex128 | np.complex64],
     ) -> None:
         super().__init__(
             float_,
-            int_,
             complex_,
             specials_mode="python",
             is_gpu=False,
         )
+        from scipy.signal import fftconvolve
+
         self.array = np.array
         self.gradient = np.gradient
         self.linspace = np.linspace
@@ -484,6 +478,7 @@ class NumpyBackend(BackendBaseClass):
         self.mean = np.mean
         self.arange = np.arange
         self.average = np.average
+        self.fftconvolve = fftconvolve
 
         self._finalize()
 
@@ -547,7 +542,6 @@ class Numpy32Bit(NumpyBackend):
     ) -> None:
         super().__init__(
             np.float32,
-            np.int32,
             np.complex64,
         )
 
@@ -560,7 +554,6 @@ class Numpy64Bit(NumpyBackend):
     ) -> None:
         super().__init__(
             np.float64,
-            np.int64,
             np.complex128,
         )
 
@@ -572,8 +565,6 @@ class CupyBackend(BackendBaseClass):
     ----------
     float_
         Precision type for float, e.g. float32, float64.
-    int_
-        Precision type for int, e.g. float32, float64.
     complex_
         Precision type for complex, e.g. float32, float64.
     """
@@ -581,17 +572,16 @@ class CupyBackend(BackendBaseClass):
     def __init__(
         self,
         float_: type[np.float32 | np.float64],
-        int_: type[np.int32 | np.int64],
         complex_: type[np.complex128 | np.complex64],
     ) -> None:
         super().__init__(
             float_,
-            int_,
             complex_,
             specials_mode="cuda",  # no other backend implemented at the moment
             is_gpu=True,
         )
         import cupy as cp  # type: ignore # import only if needed, which is not always the case
+        from cupyx.scipy.signal import fftconvolve
 
         self.array = cp.array
         self.gradient = cp.gradient
@@ -611,6 +601,7 @@ class CupyBackend(BackendBaseClass):
         self.mean = cp.mean
         self.arange = cp.arange
         self.average = cp.average
+        self.fftconvolve = fftconvolve
 
         from blond.core.backends.cuda.callables import CudaSpecials
 
@@ -645,7 +636,6 @@ class Cupy32Bit(CupyBackend):
     def __init__(self) -> None:
         super().__init__(
             np.float32,
-            np.int32,
             np.complex64,
         )
 
@@ -656,7 +646,6 @@ class Cupy64Bit(CupyBackend):
     def __init__(self) -> None:
         super().__init__(
             np.float64,
-            np.int64,
             np.complex128,
         )
 

@@ -20,6 +20,7 @@ Simon Lauber
 
 from __future__ import annotations
 
+import warnings
 from collections import deque
 from typing import TYPE_CHECKING
 from warnings import warn
@@ -101,13 +102,12 @@ class InductiveImpedanceSolver(WakeFieldSolver):
         induced_voltage
             Induced voltage, in [V]
         """
-        factor = -backend.float(
-            (beam.particle_type.charge * e)
-            / (2 * np.pi)
-            * (
-                beam.intensity  # this used to be ratio
-                * self._parent_wakefield.profile.hist_y_to_density_factor
-            )
+        _factor = self._hist_y_to_intensity_factor(
+            beam=beam,
+            profile=self._parent_wakefield.profile,
+        )
+        factor = backend.float(
+            (_factor / (2 * np.pi))
             * (self._simulation.ring.circumference / beam.reference_velocity)
             / self._parent_wakefield.profile.hist_step
         )
@@ -334,14 +334,9 @@ class PeriodicFreqSolver(WakeFieldSolver):
 
         self._update_impedance_sources(beam=beam)
 
-        _factor = backend.float(
-            (-1 * beam.particle_type.charge * e)
-            *
-            # TODO this might be a problem with MPI
-            (
-                beam.intensity  # this used to be ratio
-                * self._parent_wakefield.profile.hist_y_to_density_factor
-            )
+        _factor = self._hist_y_to_intensity_factor(
+            beam=beam,
+            profile=self._parent_wakefield.profile,
         )
 
         key = len(self._freq_y)  # todo
@@ -394,9 +389,13 @@ class TimeDomainFftSolver(WakeFieldSolver):
 
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        allow_next_fast_len: bool = True,
+    ):
         super().__init__()
         self.expect_impedance_change = False
+        self._allow_next_fast_len = allow_next_fast_len
 
         self._parent_wakefield: WakeField | None = None
         self._wake_imp_y: NumpyArray | None = None
@@ -471,7 +470,10 @@ class TimeDomainFftSolver(WakeFieldSolver):
         _wake_x = self._parent_wakefield.profile.hist_x
         _wake_x = _wake_x - _wake_x.min()
 
-        n_fft = next_fast_len(2 * len(_wake_x))
+        n_fft = 2 * len(_wake_x)
+        if self._allow_next_fast_len:
+            n_fft = next_fast_len(n_fft)
+
         n_t = (n_fft // 2) + 1
 
         if (self._wake_imp_y is None) or (
@@ -524,27 +526,21 @@ class TimeDomainFftSolver(WakeFieldSolver):
             self._wake_imp_y_needs_update = True
         self._update_impedance_sources(beam=beam)
 
-        _factor = (
-            (-1 * beam.particle_type.charge * e)
-            *
-            # TODO this might be a problem with MPI
-            (
-                beam.intensity  # this used to be ratio
-                * self._parent_wakefield.profile.hist_y_to_density_factor
-            )
+        _factor = self._hist_y_to_intensity_factor(
+            beam=beam,
+            profile=self._parent_wakefield.profile,
         )
         # Calculate the convolution of the wake and the beam
         # Usually this would be np.convolve(wake, beam).
         # This can be also done via fftconvolve.
         # Using ifft(fft(wake) * fft(beam)).
         # fft(wake)  is already precalculated in the memory.
+        n_fft = 2 * len(self._parent_wakefield.profile.hist_x)
+        if self._allow_next_fast_len:
+            n_fft = next_fast_len(n_fft)
         induced_voltage = _factor * np.fft.irfft(
             self._wake_imp_y
-            * self._parent_wakefield.profile.beam_spectrum(
-                n_fft=next_fast_len(
-                    2 * len(self._parent_wakefield.profile.hist_x)
-                )
-            ),
+            * self._parent_wakefield.profile.beam_spectrum(n_fft=n_fft)
         )
 
         # calculation in frequency domain must be with full periodicity.
@@ -965,3 +961,175 @@ class MultiPassResonatorSolver(WakeFieldSolver):
                 mode="valid",
             )
         return wake_sum
+
+
+class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
+    """
+    A solver for multi-turn wakefields, where the profile spans the entire revolution time.
+
+    This class calculates the wakefield in cases where the
+    profile spans the entire revolution time of the ring.
+    The profiles from multiple turns are considered in a
+    continuous manner, with neighboring profiles connected
+    seamlessly across turns.
+
+    Notes
+    -----
+    Expects the parent wakefield to use a `StaticProfile`.
+    This also means, that the length of a single turn should change only
+    insignificantly during the runtime of the simulation, because it is
+    assumed that the profile of the first turn is also a valid full turn
+    representation of the last turn.
+
+    Parameters
+    ----------
+    n_turns
+        Number of turns that the multi-turn wake consists of.
+    """
+
+    def __init__(self, n_turns: int) -> None:
+        self._n_wakes_full_turn = n_turns
+
+        self._parent_wakefield: WakeField | None = None
+        self._wake_kernel: NumpyArray | CupyArray | None = None
+        self._simulation: Simulation | None = None
+
+        self._previous_wakes = deque(maxlen=n_turns)
+
+    def _check_source_ducktypes(self):
+        """Check that the sources implement ```get_wake``."""
+        for source in self._parent_wakefield.sources:
+            source: TimeDomain  # type hint what the we expect
+            if not hasattr(source, "get_wake"):
+                raise AttributeError(
+                    f"The {source=} should implement `TimeDomain.get_wake`."
+                )
+
+    def on_wakefield_init_simulation(
+        self, simulation: Simulation, parent_wakefield: WakeField
+    ) -> None:
+        """Lateinit method when WakeField is late-initialized.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager.
+        parent_wakefield
+            `WakeField` that this solver affiliated to.
+        """
+        self._parent_wakefield = parent_wakefield
+        self._simulation = simulation
+        self._assert_profile_length_correct()
+        self._check_source_ducktypes()
+
+    def _update_wake_kernel(self) -> None:
+        """Updates the wakefield kernel that is used for convolution with the beam profile.
+
+        Notes
+        -----
+        Expects the parent wakefield to use a `StaticProfile`.
+        """
+        # The assumptions below work only with static profiles.
+        # This could be rewritten if necessary.
+        width = (
+            self._parent_wakefield.profile.cut_right
+            - self._parent_wakefield.profile.cut_left
+        )
+
+        t_max = self._n_wakes_full_turn * width
+        total_bins = (
+            self._n_wakes_full_turn * self._parent_wakefield.profile.n_bins
+        )
+        time_axis = np.linspace(0, t_max, total_bins + 1)
+
+        wake_kernel = None  # This needs to be derived
+        for source in self._parent_wakefield.sources:
+            source: TimeDomain  # type hint what the we expect
+            wake_kernel_tmp = source.get_wake(time_axis)
+
+            if wake_kernel is None:
+                wake_kernel = wake_kernel_tmp
+            else:
+                wake_kernel += wake_kernel_tmp
+
+        self._wake_kernel = wake_kernel
+
+    def _assert_profile_length_correct(self):
+        """
+        Checks that the length of the profile corresponds to one full turn.
+
+        Raises
+        ------
+        AssertionError
+            If the profile length does not correspond to one turn.
+        """
+        if not isinstance(self._parent_wakefield.profile, StaticProfile):
+            warnings.warn(
+                f"Expected StaticProfile, but"
+                f" got {type(self._parent_wakefield.profile)=}",
+                UserWarning,
+                stacklevel=2,
+            )
+        profile = self._parent_wakefield.profile
+
+        profile_width = profile.cut_right - profile.cut_left
+        # todo check that the time of n_revolutions matches n * length_profile
+        t_rev = self._simulation.magnetic_cycle.get_t_rev_init(
+            circumference=self._simulation.ring.circumference,
+            turn_i_init=0,
+            t_init=0,
+            particle_type=self._simulation.magnetic_cycle.reference_particle,
+        )
+        if isinstance(t_rev, float):
+            assert abs(profile_width - t_rev) < profile.hist_step, (
+                f"Expected profile length of {t_rev} s, but got "
+                f"{profile_width} s.",
+            )
+
+    def calc_induced_voltage(
+        self, beam: BeamBaseClass
+    ) -> NumpyArray | CupyArray:
+        """Calculates the induced voltage in this turn based on the last profiles.
+
+        Parameters
+        ----------
+        beam
+            Simulation object of a particle beam.
+
+        Returns
+        -------
+        induced_voltage
+            The induced voltage, in [V].
+        """
+        if self._wake_kernel is None:
+            self._update_wake_kernel()
+
+        _factor = self._hist_y_to_intensity_factor(
+            beam=beam, profile=self._parent_wakefield.profile
+        )
+
+        # The speed of this function can be improved.
+        # But: first correct, then fast!
+        # Could use buffered fft convolution for example.
+
+        induced_voltage_this_turn = _factor * backend.fftconvolve(
+            self._parent_wakefield.profile.hist_y,
+            self._wake_kernel,
+            mode="full",
+        )
+        self._previous_wakes.appendleft(induced_voltage_this_turn)
+        bins_per_profile = self._parent_wakefield.profile.n_bins
+
+        def sel_current_profile(i: int) -> slice:
+            return slice(
+                i * bins_per_profile,  # start
+                (i + 1) * bins_per_profile,  # stop
+            )
+
+        i = 0
+        induced_voltage = self._previous_wakes[i][sel_current_profile(i)]
+
+        for i in range(1, len(self._previous_wakes)):
+            induced_voltage += self._previous_wakes[i][sel_current_profile(i)]
+
+        return induced_voltage
