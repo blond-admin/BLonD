@@ -996,8 +996,6 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
 
         self._previous_wakes = deque(maxlen=n_turns)
 
-        self._check_source_ducktypes()
-
     def _check_source_ducktypes(self):
         """Check that the sources implement ```get_wake``."""
         for source in self._parent_wakefield.sources:
@@ -1022,6 +1020,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         self._parent_wakefield = parent_wakefield
         self._simulation = simulation
         self._assert_profile_length_correct()
+        self._check_source_ducktypes()
 
     def _update_wake_kernel(self) -> None:
         """Updates the wakefield kernel that is used for convolution with the beam profile.
