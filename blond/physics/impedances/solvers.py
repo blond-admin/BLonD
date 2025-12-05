@@ -1071,7 +1071,9 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
                 stacklevel=2,
             )
         profile = self._parent_wakefield.profile
+
         profile_width = profile.cut_right - profile.cut_left
+        # todo check that the time of n_revolutions matches n * length_profile
         t_rev = self._simulation.magnetic_cycle.get_t_rev_init(
             circumference=self._simulation.ring.circumference,
             turn_i_init=0,
