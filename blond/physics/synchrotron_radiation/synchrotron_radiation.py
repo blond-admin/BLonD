@@ -80,7 +80,9 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
     name: str, optional
         Human-readable name for the element. If not provided, a unique name is
         automatically generated.
-    is_isomagnetic
+    radiation_integrals: NumpyArray, None
+        Synchrotron radiation integrals. If None, the ring will be
+        considered isomagnetic.
         In the case of an isomagnetic ring, the synchrotron radiation
         integrals will be computed from the ring bending radius. Default:
         False.
@@ -90,18 +92,50 @@ class SynchrotronRadiationMaster(BeamPhysicsRelevant, Schedulable):
         self,
         section_index: int = 0,
         name: str | None = None,
-        is_isomagnetic: bool = False,
+        radiation_integrals: NumpyArray | None = None,
     ):
         super().__init__(
             section_index=section_index,
             name=name,
         )
 
+        minimum_number_of_expected_synchrotron_radiation_integrals = 5
+        if radiation_integrals is None:
+            self.is_isomagnetic = True
+        else:
+            self.is_isomagnetic = False
+            if type(radiation_integrals) in {np.ndarray, list}:
+                try:
+                    integrals = np.array(radiation_integrals)
+                except ValueError as ve:
+                    raise ValueError(
+                        "Could not transform the input into an array"
+                    ) from ve
+                if (
+                    integrals.__len__()
+                    >= minimum_number_of_expected_synchrotron_radiation_integrals
+                ):
+                    self.I2 = integrals[1]
+                    self.I3 = integrals[2]
+                    self.I4 = integrals[3]
+                    self.jz = 2.0 + self.I4 / self.I2
+                else:
+                    raise ValueError(
+                        "The first five synchrotron "
+                        + "radiation integrals are requires "
+                        + "Ignoring input."
+                    )
+            else:
+                raise TypeError(
+                    f"Expected a list or numpy.ndarray as an input. Received {type(radiation_integrals)}."
+                )
+
         self._longitudinal_damping_time = None
         self._energy_loss_per_turn = None
-        self.is_isomagnetic: bool | None = is_isomagnetic
         self.get_synchrotron_radiation_info_turn_by_turn: bool | None = True
-        self.synchrotron_radiation_integrals: NumpyArray | None = None
+        self.synchrotron_radiation_integrals: NumpyArray | None = (
+            radiation_integrals
+        )
         self._simulation: Simulation | None = None
         self._damping_times: NumpyArray | None = None
 
