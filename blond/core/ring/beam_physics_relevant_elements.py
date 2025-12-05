@@ -327,7 +327,7 @@ class BeamPhysicsRelevantElements(Preparable):
 
         Returns
         -------
-        signle_element
+        single_element
             The single element of the specified type (and section, if provided).
 
         Raises
