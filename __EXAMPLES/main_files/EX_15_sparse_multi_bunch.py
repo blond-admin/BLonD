@@ -144,7 +144,7 @@ for i in range(int(np.sum(filling_pattern))):
 
 
 slice_beam = SparseBucket(
-    RF_sct_par, beam, n_slices, filling_pattern, tracker="onebyone"
+    RF_sct_par, beam, n_slices, filling_pattern, tracker_mode="onebyone"
 )
 
 t0 = time.time()
