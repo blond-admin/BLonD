@@ -932,7 +932,7 @@ class Simulation(Preparable):
     def run_simulation(
         self,
         beams: tuple[BeamBaseClass, ...],
-        n_turns: int | float | None = None,
+        n_turns: int | None = None,
         turn_i_init: int = 0,
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
