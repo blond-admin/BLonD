@@ -487,7 +487,8 @@ class SemiEmpiricMatcher(MatchingRoutine):
             delta_t=2 * (ts.max() - ts.min()) / len(ts),
             intensity=beam.intensity,
         )
-        beam._dE *= scale_y**2
+        beam._dE *= scale_y  #    increase the max coordinate
+        beam._dt /= scale_y**2  # but shrink the emittance
         beam._dt += shear_x * beam._dE
 
     def _plot_current_state(
