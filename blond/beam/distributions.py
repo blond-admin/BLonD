@@ -57,6 +57,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from .beam import Beam
     from ..impedances.impedance import TotalInducedVoltage
     from ..trackers.tracker import FullRingAndRF, MainHarmonicOptionType
+    from ..synchrotron_radiation.synchrotron_radiation import SynchrotronRadiation
     from ..utils.types import (
         DistributionUserTableType,
         LineDensityInputType,
@@ -1025,10 +1026,11 @@ def populate_bunch(
     particle density in phase space.*
     """
     # Initialise the random number generator
-    np.random.seed(seed=seed)
+    # np.random.seed(seed=seed)
+    rng = np.random.default_rng(seed)
     # Generating particles randomly inside the grid cells according to the
     # provided density_grid
-    indexes = np.random.choice(
+    indexes = rng.choice(
         np.arange(0, np.size(density_grid)),
         beam.n_macroparticles,
         p=density_grid.flatten(),
@@ -1038,13 +1040,13 @@ def populate_bunch(
     beam.dt = (
         np.ascontiguousarray(
             time_grid.flatten()[indexes]
-            + (np.random.rand(beam.n_macroparticles) - 0.5) * time_step
+            + (rng.random(beam.n_macroparticles) - 0.5) * time_step
         )
     ).astype(dtype=bm.precision.real_t, order="C", copy=False)
     beam.dE = (
         np.ascontiguousarray(
             deltaE_grid.flatten()[indexes]
-            + (np.random.rand(beam.n_macroparticles) - 0.5) * deltaE_step
+            + (rng.random(beam.n_macroparticles) - 0.5) * deltaE_step
         )
     ).astype(dtype=bm.precision.real_t, order="C", copy=False)
 
@@ -1428,3 +1430,92 @@ def _get_dE_from_dt(
     )
 
     return dE_amplitude
+
+def Haissinski(ring_tracker: FullRingAndRF, isr: SynchrotronRadiation,
+               verbose=True, seed: int = 1234):
+    
+    def Gauss(t, sigma):
+        return np.exp(-0.5 * t**2 / sigma**2) / np.sqrt(2*np.pi) / sigma
+
+    # computes the induced voltage for a given profile lam
+    def Vind(lam, induced_voltage):
+        # update profile used in the computation of Vind
+        profile.n_macroparticles = lam * profile.bin_size * n_macroparticles
+    
+        induced_voltage.induced_voltage_sum()
+        return induced_voltage.induced_voltage
+
+    tracker = ring_tracker.ring_and_rf_section[0]
+    counter = tracker.counter
+    
+    rf_station = tracker.rf_params
+    
+    profile = tracker.profile
+    
+    n_macroparticles = tracker.beam.n_macroparticles
+    
+    beam = tracker.beam
+    
+    energy = rf_station.energy[counter]
+    q = rf_station.particle.charge
+    eta0 = rf_station.eta_0[counter]
+    tRev = rf_station.t_rev[counter]
+    # equilibrium energy spread [eV]
+    sigmaE = energy * isr.sigma_dE  
+    
+    # zero-current bunch length [s]
+    sigma0 = np.abs(eta0) \
+        / (rf_station.beta[counter] * energy) \
+        * sigmaE / rf_station.omega_s0[counter]
+
+    # initial Gaussian profile
+    lam0 = Gauss(profile.bin_centers, sigma0)
+    # also initialize Profile object
+    profile.n_macroparticles = lam0 * profile.bin_size * n_macroparticles
+
+    # args = Delta t [s], q [1], omegaRF [1/s], VRF [V], phiRF [rad], U0 [eV]
+    args = profile.bin_centers, q, rf_station.omega_rf[0, counter], \
+        rf_station.voltage[0, counter], rf_station.phi_rf[0, counter], \
+        isr.U0, tracker.totalInducedVoltage
+
+    def N(lam, Delta_t, q, omegaRF, VRF, phiRF, U0, induced_voltage):
+        Tau = -eta0 * sigmaE**2 / energy / (q*VRF) * tRev  # [s]
+        # primitive of the potential energy
+        exponent = scipy.integrate.cumulative_trapezoid(np.sin(omegaRF*Delta_t + phiRF)
+            + Vind(lam, induced_voltage)/VRF - U0/(q*VRF), Delta_t, initial=0)
+        # integration constant
+        exponent += -np.cos(omegaRF*Delta_t[0]+phiRF)/omegaRF + np.cos(phiRF)/omegaRF
+    
+        term2 = np.exp(-exponent / Tau)
+    
+        fac1 = scipy.integrate.trapezoid(term2, Delta_t)
+        
+        return lam * fac1 - term2
+
+
+    # obtain the Haissinski solution
+    fun = lambda l: N(l, *args)  # helper function since root needs a function of one argument
+    sol = scipy.optimize.root(fun, lam0, jac=False)
+    haiss_dt = sol.x
+    
+    # create macro-particles from distribution
+    
+    deltaE_array = np.linspace(-4*sigmaE, 4*sigmaE, num=profile.n_slices)
+    time_grid, deltaE_grid = np.meshgrid(profile.bin_centers, 
+                                         deltaE_array)
+
+    haiss_dE = Gauss(deltaE_array, sigmaE)
+
+    # create phase space distribution from which to draw (psi~exp(-H(tau,dE)))
+    density_grid = np.zeros((profile.n_slices, len(deltaE_array)))
+    for i in range(profile.n_slices):
+        for j in range(len(deltaE_array)):
+            density_grid[i,j] = haiss_dt[i] * haiss_dE[j]
+    density_grid /= np.sum(density_grid)  # normalize
+    
+    populate_bunch(tracker.beam, time_grid, deltaE_grid, density_grid.T,
+                   profile.bin_size, deltaE_array[1] - deltaE_array[0], 
+                   seed=seed)
+
+    if verbose:
+        return sol
