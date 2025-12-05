@@ -160,7 +160,9 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         Value to control that the element is
         callable each n-th turn.
     beam
-        Simulation beam object
+        Simulation beam object that should be observed.
+        Must be given when simulating with counter-rotating beams.
+        If `None`, any beam that is simulated is also observed.
     folder
         Path to the target folder used for
         saving or loading files.
@@ -169,13 +171,18 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
     def __init__(
         self,
         each_turn_i: int,
-        beam: BeamBaseClass,
+        beam: BeamBaseClass | None = None,
         folder: str = "",
     ):
         super().__init__(folder=folder)
 
         self.each_turn_i = each_turn_i
-        self._beam = beam
+        # use ID because `prepare_beam` would trigger
+        # bugs when setting ``self.beam = beam``
+
+        self._beam_id_filter: int | None = (
+            id(beam) if beam is not None else None
+        )
 
         self._sigma_dt: DenseArrayRecorder | None = None
         self._sigma_dE: DenseArrayRecorder | None = None
@@ -258,18 +265,17 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
             Simulation context manager
 
         """
-        if self._beam is not beam:
-            return
-        self._sigma_dt.write(np.std(self._beam._dt))
-        self._sigma_dE.write(np.std(self._beam._dE))
-        self._mean_dt.write(np.mean(self._beam._dt))
-        self._mean_dE.write(np.mean(self._beam._dE))
-        self._rms_emittance.write(
-            np.sqrt(
-                np.average(self._beam._dE**2) * np.average(self._beam._dt**2)
-                - np.average(self._beam._dE * self._beam._dt) ** 2
+        if self._beam_id_filter is None or self._beam_id_filter == id(beam):
+            self._sigma_dt.write(np.std(beam._dt))
+            self._sigma_dE.write(np.std(beam._dE))
+            self._mean_dt.write(np.mean(beam._dt))
+            self._mean_dE.write(np.mean(beam._dE))
+            self._rms_emittance.write(
+                np.sqrt(
+                    np.average(beam._dE**2) * np.average(beam._dt**2)
+                    - np.average(beam._dE * beam._dt) ** 2
+                )
             )
-        )
 
     @property  # as readonly attributes
     def sigma_dt(self):

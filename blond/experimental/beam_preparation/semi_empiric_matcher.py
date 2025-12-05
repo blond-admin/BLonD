@@ -18,6 +18,7 @@ from blond import AllowPlotting, backend
 from blond.beam_preparation.base import MatchingRoutine
 from blond.core.helpers import int_from_float_with_warning
 from blond.experimental.beam_preparation.helpers import populate_beam
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 
 # Oversampling factor for potential well calculation
 _POTENTIAL_WELL_OVERSAMPLING = 10
@@ -508,7 +509,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 f"Iteration {i}, Intensity strength {(scalar * 100):3.1f}%"
             )
             plt.hist(
-                beam.read_partial_dt(),
+                copy_to_cpu(beam.read_partial_dt()),
                 bins=self.internal_grid_shape[0],
                 range=self.time_limit,
                 density=True,
