@@ -50,6 +50,20 @@ class _SparseProfileBaseClass:
         """
         Common initialization of Sparse objects.
 
+        This object takes the input _filling_pattern and creates a profile
+        object of length _profile_length_in_buckets (in number of buckets)
+        per non-zero elements in the _filling_pattern.
+        Initialisation happens in the following order:
+        - input storage,
+        - _set_cuts(): defines the cut left and right options for the
+        profile to focus on the filled buckets. The left cut starts at the bucket index considered and
+        the right cut is defined by its distance, in number of RF buckets (
+        input length_in_buckets), from the bucket index considered.
+        - _generate_profile_lists(): creates the profile objects per
+        non-zero elements in the _filling_pattern, using the cut_left and
+        cut_right properties defined at the previous stage.
+        - if do_track_on_init, tracks at initialisation.
+
         Parameters
         ----------
         rf_station
