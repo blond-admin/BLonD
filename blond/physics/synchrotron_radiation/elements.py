@@ -41,22 +41,32 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
     name: str, optional
         Human-readable name for the element. If not provided, a unique name is
         automatically generated.
-    section_index
+    section_index: int
         Section index to group elements into sections
+    share_of_synchrotron_radiation_integrals: NumpyArray
+        Fractional synchrotron radiation integrals.
+
     """
 
     def __init__(
         self,
         name: str | None = None,
         section_index: int | None = None,
+        share_of_synchrotron_radiation_integrals: NumpyArray | None = None,
     ):
         super().__init__(name=name, section_index=section_index)
 
         self._simulation: Simulation | None = None
         self._turn_i: DynamicParameter | None = 0
-        self._fractional_radiation_integrals: NumpyArray | None = None
+        self._fractional_radiation_integrals = (
+            share_of_synchrotron_radiation_integrals
+        )
 
-    def _calculate_kick(self, beam: BeamBaseClass) -> NumpyArray:
+    def _calculate_kick(
+        self,
+        beam: BeamBaseClass,
+        seed: int | None = None,
+    ) -> NumpyArray:
         """
         Energy kick induced by synchrotron radiation and quantum excitation.
 
@@ -68,11 +78,17 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         ----------
         beam
              BeamBaseClass object
+        seed
+            Random seed, to make function with same seed
+            always return the same value
 
         Returns
         -------
             Energy kick to be applied on the energy coordinates of the beam
         """
+        if seed is not None:
+            np.random.seed(seed=seed)
+
         U0, tau_z, sigma0 = (
             gather_longitudinal_synchrotron_radiation_parameters(
                 particle_type=beam.particle_type,
@@ -85,14 +101,18 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         self._natural_energy_spread = sigma0
         self._energy_lost_due_to_synchrotron_radiation = U0
         self._damping_time = tau_z
-
+        # fixme How to integrate the random generator??? Best practice?
         return -2.0 / tau_z * beam.read_partial_dE() - 2.0 * sigma0 / np.sqrt(
             tau_z
-        ) * beam.reference_total_energy * np.random.Generator.normal(
-            size=len(beam.n_macroparticles_partial())
+        ) * beam.reference_total_energy * np.random.normal(
+            size=beam.n_macroparticles_partial()
         )
 
-    def _update_beam_energy(self, beam: BeamBaseClass):
+    def _update_beam_energy(
+        self,
+        beam: BeamBaseClass,
+        seed: int | None = None,
+    ):
         """
         Update the beam partial energy with radiation damping and excitation.
 
@@ -105,8 +125,11 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         beam
             BeamBaseClass object
         """
+        if seed is not None:
+            np.random.seed(seed=seed)
+
         # TODO write C++ routine
-        energy_change = self._calculate_kick(beam=beam)
+        energy_change = self._calculate_kick(beam=beam, seed=seed)
         dE = beam.write_partial_dE()
         dE[:] += energy_change
 
@@ -117,6 +140,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         simulation
             `Simulation` context manager
         """
+        self._simulation = simulation
         self._turn_i = simulation.turn_i
 
     def on_run_simulation(
@@ -181,9 +205,7 @@ class SynchrotronRadiationDrift(SynchrotronRadiationBaseClass):
         super().__init__(
             section_index=section_index,
             name=name,
-        )
-        self._fractional_radiation_integrals = (
-            share_of_synchrotron_radiation_integrals
+            share_of_synchrotron_radiation_integrals=share_of_synchrotron_radiation_integrals,
         )
 
     @property
@@ -227,7 +249,7 @@ class SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
     """
 
     # TODO : enforce a constraint on the number of
-    # SynchrotronRadiationSection per section
+    #  SynchrotronRadiationSection per section
     def __init__(
         self,
         section_index: int = 0,
@@ -237,12 +259,9 @@ class SynchrotronRadiationSection(SynchrotronRadiationBaseClass):
         super().__init__(
             section_index=section_index,
             name=name,
+            share_of_synchrotron_radiation_integrals=share_of_synchrotron_radiation_integrals,
         )
         self._energy_lost_due_to_synchrotron_radiation = None
-
-        self._fractional_radiation_integrals = (
-            share_of_synchrotron_radiation_integrals
-        )
 
     @property
     def energy_lost_due_to_synchrotron_radiation_section(self):

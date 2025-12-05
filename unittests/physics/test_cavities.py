@@ -57,6 +57,7 @@ class TestRFStationBaseClass(unittest.TestCase):
         )  # delta t
         # in s
         self.beam.read_partial_dt.return_value = self.beam.dt
+        self.beam.read_partial_dt.return_value = self.beam.dt
         self.beam.write_partial_dE.return_value = self.beam.dE
 
     def test_init_of_feedbacks(self):
