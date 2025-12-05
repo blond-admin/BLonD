@@ -22,10 +22,11 @@ from scipy.constants import speed_of_light as c0  # type: ignore
 from blond.core.base import HasPropertyCache, Preparable
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.ring.helpers import requires
+from blond.core.backends.backend import backend
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from numpy.typing import NDArray as NumpyArray
+    from numpy.typing import NDArray as NumpyArray, ArrayLike
 
     from blond.core.beam.particle_types import ParticleType
     from blond.core.simulation.simulation import Simulation
@@ -84,6 +85,52 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         self._reference_total_energy: float | None = (
             None  # todo cached  properties
         )
+
+    def __iadd__(self, other: BeamBaseClass | ArrayLike):
+
+        if isinstance(other, BeamBaseClass):
+            self.add_beam(other)
+        else:
+            self.add_particles(other)
+
+    def add_beam(self, other: BeamBaseClass, purge: bool = False):
+
+        self._dt = backend.concatenate(self._dt, other._dt)
+        self._dE = backend.concatenate(self._dE, other._dE)
+        self.intensity += other.intensity
+
+        new_ids = backend.arange(backend.max(self._ids) + 1,
+                                 len(self._dt) + len(other._dt) + 1,
+                                 dtype=int)
+
+        self._ids = backend.concatenate(self._ids, new_ids)
+
+        self._flags = backend.concatenate(self._flags, other._flags)
+
+        if purge:
+            for f in backend.unique(self._flags):
+                if f != BeamFlags.ACTIVE.value:
+                    self.purge_flagged_entries(f)
+
+    def add_particles(self, new_particles: ArrayLike):
+
+        new_dt = new_particles[0]
+        new_dE = new_particles[1]
+
+        self.intensity += self.ratio + len(new_dt)
+
+        self._dt = backend.concatenate(self._dt, new_dt)
+        self._dE = backend.concatenate(self._dE, new_dE)
+
+        new_ids = backend.arange(len(self._dt) + 1,
+                                 len(self._dt) + len(new_dt) + 1,
+                                 dtype=int)
+
+        self._ids = backend.concatenate(self._ids, new_ids)
+
+        self._flags = backend.concatenate(self._flags,
+                                          np.arange(len(new_dt))
+                                          * BeamFlags.ACTIVE.value)
 
     @requires(["EnergyCycleBase"])
     def on_run_simulation(
