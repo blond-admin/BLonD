@@ -437,7 +437,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
         ts
             Time coordinate, in [s] for observation of the potential well.
         """
-        potential_well, factor, tilt_dt_per_dE = (
+        potential_well, factor, t_stable = (
             simulation.get_potential_well_empiric(
                 dt=np.linspace(
                     ts.min(),
@@ -448,6 +448,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 intensity=beam.intensity,
             )
         )
+
         potential_well = (
             potential_well[::_POTENTIAL_WELL_OVERSAMPLING] * factor
         )
@@ -479,6 +480,15 @@ class SemiEmpiricMatcher(MatchingRoutine):
             n_macroparticles=self.n_macroparticles,
             seed=self.seed,
         )
+
+        scale_y, shear_x = simulation.get_matched_ellipse(
+            t_stable=t_stable,
+            particle_type=beam.particle_type,
+            delta_t=2 * (ts.max() - ts.min()) / len(ts),
+            intensity=beam.intensity,
+        )
+        beam._dE *= scale_y**2
+        beam._dt += shear_x * beam._dE
 
     def _plot_current_state(
         self,

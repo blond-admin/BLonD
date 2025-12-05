@@ -29,6 +29,7 @@ import numpy as np
 from scipy.integrate import cumulative_simpson  # type: ignore[import-untyped]
 from tqdm import tqdm  # type: ignore
 
+from blond.acc_math.analytic.ellipse import calc_ellipse_gamma, plot_ellipse
 from blond.core.backends.backend import backend
 from blond.core.base import (
     DynamicParameter,
@@ -512,10 +513,12 @@ class Simulation(Preparable):
         factor = float((dt[-1] - dt[0]) / t_rev)
 
         # Calculate tilt of phase space
-        change_t = probe_bunch._dt - bunch_before._dt
-        change_E = probe_bunch._dE - bunch_before._dE
-        idx = np.argmax(change_t)
-        tilt_dt_per_dE = change_t[idx] / change_E[idx]
+        idx = (
+            0  # this is an arbitrary choice, we assume they are all the same.
+        )
+        change_t = probe_bunch._dt[idx] - bunch_before._dt[idx]
+        change_E = probe_bunch._dE[idx] - bunch_before._dE[idx]
+        tilt_dt_per_dE = change_t / change_E
 
         # Derive potential well by integrating over energy change
         potential_well = -cumulative_simpson(
@@ -532,11 +535,91 @@ class Simulation(Preparable):
         if subtract_min:
             # Align potential so that the visible minimum is 0
             potential_well -= potential_well.min()
+        t_stable = bunch_before._dt[
+            np.argmin(np.abs(probe_bunch._dE))
+        ]  # todo more accurate with local interpolation
+        # todo fix docstring
+
         return (
             backend.array(potential_well, dtype=backend.float),
             factor,
-            tilt_dt_per_dE,
+            t_stable,
         )
+
+    def get_matched_ellipse(
+        self,
+        t_stable: float,
+        particle_type: ParticleType,
+        delta_t: float = 1e-21,
+        intensity: int = 0,
+    ):
+        from blond.acc_math.analytic.ellipse import fit_ellipse
+        from blond.core.beam.beams import ProbeBeam  # prevent circular import
+
+        # generate a bunch close to the stable point
+        # which will oscillate around this point
+        # in an elliptic orbit in phase space
+        probe_bunch = ProbeBeam(
+            dt=[
+                t_stable + delta_t,
+            ],
+            particle_type=particle_type,
+            intensity=intensity,
+        )
+        result = np.empty((20, 2))  # 4 steps, dE&dt
+        reference_time = 0
+        reference_total_energy = self.magnetic_cycle.get_target_total_energy(
+            0, 0, 0, probe_bunch.particle_type
+        )
+
+        for i in range(len(result) - 1):
+            result[i, 0] = probe_bunch._dt
+            result[i, 1] = probe_bunch._dE
+
+            probe_bunch.reference_time = reference_time
+            probe_bunch.reference_total_energy = reference_total_energy
+
+            deepcopy(self).run_simulation(
+                beams=(probe_bunch,),
+                n_turns=1,
+                turn_i_init=0,
+                show_progressbar=False,
+            )
+        result[i + 1, 0] = probe_bunch._dt
+        result[i + 1, 1] = probe_bunch._dE
+        print(list(result[:, 0]))
+        print(list(result[:, 1]))
+        plt.plot()
+        # See https://en.wikipedia.org/wiki/Courant%E2%80%93Snyder_parameters
+        alpha, beta, epsilon = fit_ellipse(
+            result[:, 0],  # so that the center of motion is 0
+            result[:, 1],
+            scale_x=np.max(result[:, 0]),
+            scale_y=np.max(result[:, 1]),
+        )
+        plt.figure()
+        plt.scatter(result[:, 0], result[:, 1])
+        plot_ellipse(alpha=alpha, beta=beta, epsilon=epsilon)
+        gamma = calc_ellipse_gamma(alpha=alpha, beta=beta)
+        y_at_x0 = np.sqrt(epsilon / beta)
+        y_max = np.sqrt(epsilon * gamma)
+        x_at_y_max = -alpha * np.sqrt(epsilon / gamma)
+
+        x_max = np.sqrt(epsilon * beta)
+        x_at_y0 = np.sqrt(epsilon / gamma)
+        plot_ellipse(
+            alpha=0, beta=np.square(x_at_y0) / epsilon, epsilon=epsilon
+        )
+
+        plt.axhline(0)
+        plt.axvline(0)
+        plt.scatter(x_at_y_max, y_max, marker="x")
+        plt.scatter(0, y_at_x0, marker="x")
+        plt.legend()
+        plt.draw()
+        scale_y = y_max / y_at_x0
+        shear_x = x_at_y_max / y_max
+        return scale_y, shear_x
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Hook called when the Simulation object is initialized.
