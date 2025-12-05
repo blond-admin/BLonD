@@ -1080,14 +1080,11 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
             t_init=0,
             particle_type=self._simulation.magnetic_cycle.reference_particle,
         )
-        try:
+        if isinstance(t_rev, float):
             assert abs(profile_width - t_rev) < profile.hist_step, (
                 f"Expected profile length of {t_rev} s, but got "
                 f"{profile_width} s.",
             )
-        except TypeError as exc:
-            # when mocking is involved
-            warnings.warn(str(exc), UserWarning, stacklevel=1)
 
     def calc_induced_voltage(
         self, beam: BeamBaseClass
