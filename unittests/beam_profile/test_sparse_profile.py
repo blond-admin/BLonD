@@ -186,7 +186,7 @@ class testProfileClass(unittest.TestCase):
             self.n_slices_rf,
             self.filling_pattern,
             self.profile_length_in_buckets,
-            tracker="something horribly wrong",
+            tracker_mode="something horribly wrong",
         )
         with self.assertRaises(RuntimeError):
             sparse_profile.track()
@@ -214,8 +214,8 @@ class testProfileClass(unittest.TestCase):
             self.n_slices_rf,
             self.filling_pattern,
             self.profile_length_in_buckets,
-            tracker="onebyone",
-            initialisation_slicing=True,
+            tracker_mode="onebyone",
+            do_track_on_init=True,
         )
 
         for bunch in range(2):
@@ -233,7 +233,7 @@ class testProfileClass(unittest.TestCase):
                 rtol=rtol,
                 atol=atol,
                 err_msg=f"Bins for bunch {bunch} do not agree "
-                + 'for tracker="onebyone"',
+                + 'for tracker_mode="onebyone"',
             )
 
             np.testing.assert_allclose(
@@ -242,7 +242,7 @@ class testProfileClass(unittest.TestCase):
                 rtol=rtol,
                 atol=atol,
                 err_msg=f"Profiles for bunch {bunch} do not agree "
-                + 'for tracker="onebyone"',
+                + 'for tracker_mode="onebyone"',
             )
 
     def test_Ctracker(self):
@@ -255,8 +255,8 @@ class testProfileClass(unittest.TestCase):
             self.n_slices_rf,
             self.filling_pattern,
             self.profile_length_in_buckets,
-            tracker="C",
-            initialisation_slicing=True,
+            tracker_mode="C",
+            do_track_on_init=True,
         )
 
         for bunch in range(2):
@@ -274,7 +274,7 @@ class testProfileClass(unittest.TestCase):
                 rtol=rtol,
                 atol=atol,
                 err_msg=f"Bins for bunch {bunch} do not agree "
-                + 'for tracker="C"',
+                + 'for tracker_mode="C"',
             )
 
             np.testing.assert_allclose(
@@ -283,7 +283,7 @@ class testProfileClass(unittest.TestCase):
                 rtol=rtol,
                 atol=atol,
                 err_msg=f"Profiles for bunch {bunch} do not agree "
-                + 'for tracker="C"',
+                + 'for tracker_mode="C"',
             )
 
     def test_set_additional_cuts(self):
