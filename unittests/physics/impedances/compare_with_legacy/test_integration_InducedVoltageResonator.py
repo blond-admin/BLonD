@@ -20,7 +20,11 @@ from blond.physics.impedances.solvers import (
 )
 from blond.physics.impedances.sources import Resonators
 
-from .test_integration_InducedVoltageFreq import Q_factor, R_shunt, f_res
+from .test_integration_InducedVoltageFreq import (
+    Q_factor,
+    R_shunt,
+    f_res,
+)
 
 DEV_PLOT = False
 

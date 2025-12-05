@@ -534,7 +534,10 @@ class TestRing(unittest.TestCase):
         )
         SR_ring = Ring(10.0, radiation_integrals=radiation_integrals)
 
-        np.testing.assert_equal(SR_ring.radiation_integrals,
-                               radiation_integrals)
+        np.testing.assert_equal(
+            SR_ring.radiation_integrals, radiation_integrals
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

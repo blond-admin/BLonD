@@ -103,10 +103,10 @@ def reload_cuda_backend(  # NOQA: D102
     class CudaSpecials(Specials):
         @staticmethod
         def loss_box(
-            top: float,
-            bottom: float,
-            left: float,
-            right: float,
+            e_max: float,
+            e_min: float,
+            t_min: float,
+            t_max: float,
             dt: CupyArray,
             dE: CupyArray,
             flags: CupyArray,
@@ -114,17 +114,17 @@ def reload_cuda_backend(  # NOQA: D102
             assert dt.dtype == backend.float
             assert dE.dtype == backend.float
             assert dE.dtype == backend.float
-            assert isinstance(top, backend.float)
-            assert isinstance(bottom, backend.float)
-            assert isinstance(left, backend.float)
-            assert isinstance(right, backend.float)
+            assert isinstance(e_max, backend.float)
+            assert isinstance(e_min, backend.float)
+            assert isinstance(t_min, backend.float)
+            assert isinstance(t_max, backend.float)
 
             _loss_box(
                 args=(
-                    top,
-                    bottom,
-                    left,
-                    right,
+                    e_max,
+                    e_min,
+                    t_min,
+                    t_max,
                     dt,
                     dE,
                     flags,
@@ -420,7 +420,7 @@ def reload_cuda_backend(  # NOQA: D102
             assert flags.dtype == np.int32
             assert dt.dtype == backend.float
             assert dE.dtype == backend.float
-            assert ids.dtype == backend.int
+            assert ids.dtype == np.int32
 
             select = flags == flag
             order = cp.argsort(select)

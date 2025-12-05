@@ -31,14 +31,6 @@ from blond.physics.drifts import DriftSimple, _assert_purely_real_or_imaginary
 from blond.physics.impedances.base import WakeField
 
 
-class RfStationBaseClassHelper(RfStationBaseClass):
-    def voltage_waveform_tmp(self, ts: NumpyArray):
-        pass
-
-    def calc_omega(self, beam_beta: float, ring_circumference: float):
-        pass
-
-
 class TestRFStationBaseClass(unittest.TestCase):
     def setUp(self) -> None:
         self.beam = Mock(BeamBaseClass)
@@ -234,6 +226,19 @@ class TestMultiHarmonicCavity(unittest.TestCase):
 
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
+
+    def test_track_increments(self) -> None:
+        self.multi_harmonic_cavity
+        self.multi_harmonic_cavity.delta_omega_rf = (
+            0.1 * self.multi_harmonic_cavity._omega_rf
+        )
+        phi_a = self.multi_harmonic_cavity.delta_phi_rf.copy()
+        self.multi_harmonic_cavity.track(beam=self.beam)
+        phi_b = self.multi_harmonic_cavity.delta_phi_rf.copy()
+        self.multi_harmonic_cavity.track(beam=self.beam)
+        phi_c = self.multi_harmonic_cavity.delta_phi_rf.copy()
+        print(phi_a, phi_b, phi_c)
+        self.assertTrue(phi_a[0] < phi_b[0] < phi_c[0])
 
     def test_track(self) -> None:
         self.multi_harmonic_cavity.track(beam=self.beam)
@@ -497,21 +502,24 @@ class TestSingleHarmonicCavity(unittest.TestCase):
 
         self.assertIsNone(shc._use_synchrotron_radiation)
 
-        SR_ring = Ring(90.65874532 * 1e3, radiation_integrals=radiation_integrals)
+        SR_ring = Ring(
+            90.65874532 * 1e3, radiation_integrals=radiation_integrals
+        )
         drift1 = DriftSimple(
             orbit_length=90.65874532 * 1e3,
         )
-        drift1.momentum_compaction_factor = (0.646747216157 / 90.65874532 /
-                                              1e3)
+        drift1.momentum_compaction_factor = 0.646747216157 / 90.65874532 / 1e3
         SR_ring.add_elements([drift1, shc])
-        simulation = Simulation(SR_ring,
-                               MagneticCyclePerTurn(
-            value_init=20e9,
-            values_after_turn=np.linspace(20e9, 20e9, 1),
-            reference_particle=electron,
-            in_unit="total energy",
-        ))
-        shc.on_init_simulation(simulation = simulation)
+        simulation = Simulation(
+            SR_ring,
+            MagneticCyclePerTurn(
+                value_init=20e9,
+                values_after_turn=np.linspace(20e9, 20e9, 1),
+                reference_particle=electron,
+                in_unit="total energy",
+            ),
+        )
+        shc.on_init_simulation(simulation=simulation)
         self.assertTrue(shc._use_synchrotron_radiation)
 
 

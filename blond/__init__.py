@@ -46,12 +46,13 @@ from blond.physics.cavities import (  # NOQA
 from blond.physics.drifts import DriftSimple  # NOQA
 from blond.physics.energy_reference_kick import ReferenceEnergyChange  # NOQA
 from blond.physics.impedances.base import WakeField  # NOQA
+from blond.physics.losses import BoxLosses  # NOQA
 from blond.physics.profiles import StaticProfile  # NOQA
-from blond.physics.synchrotron_radiation.elements import (
+from blond.physics.synchrotron_radiation.elements import (  # NOQA
     SynchrotronRadiationBaseClass,
     SynchrotronRadiationDrift,
     SynchrotronRadiationSection,
 )
-from blond.physics.synchrotron_radiation.synchrotron_radiation import (
+from blond.physics.synchrotron_radiation.synchrotron_radiation import (  # NOQA
     SynchrotronRadiationMaster,
 )

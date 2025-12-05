@@ -26,15 +26,18 @@ class TestLongitudinalBeamDynamics_float_inputs(unittest.TestCase):
 
         self.expected_small_amplitude_tune = np.sqrt(
             (
-                    self.harmonic_number
-                    * e
-                    * self.voltage
-                    * abs(
-                self.phase_slip_factor * np.cos(self.synchronous_phase))
-            ) / (2 * np.pi * self.beam_energy)
+                self.harmonic_number
+                * e
+                * self.voltage
+                * abs(self.phase_slip_factor * np.cos(self.synchronous_phase))
+            )
+            / (2 * np.pi * self.beam_energy)
         )
         self.expected_small_amplitude_frequency = (
-                2 * np.pi * self.revolution_frequency * self.expected_small_amplitude_tune
+            2
+            * np.pi
+            * self.revolution_frequency
+            * self.expected_small_amplitude_tune
         )
 
         self.places = 6 if backend.float == np.float32 else 12
@@ -118,15 +121,18 @@ class TestLongitudinalBeamDynamics_array_inputs(unittest.TestCase):
 
         self.expected_small_amplitude_tune = np.sqrt(
             (
-                    self.harmonic_number
-                    * e
-                    * self.voltage
-                    * abs(
-                self.phase_slip_factor * np.cos(self.synchronous_phase))
-            ) / (2 * np.pi * self.energy)
+                self.harmonic_number
+                * e
+                * self.voltage
+                * abs(self.phase_slip_factor * np.cos(self.synchronous_phase))
+            )
+            / (2 * np.pi * self.energy)
         )
         self.expected_small_amplitude_frequency = (
-                2 * np.pi * self.revolution_frequency * self.expected_small_amplitude_tune
+            2
+            * np.pi
+            * self.revolution_frequency
+            * self.expected_small_amplitude_tune
         )
 
         self.places = 6 if backend.float == np.float32 else 12

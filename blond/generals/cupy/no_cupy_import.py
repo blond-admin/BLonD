@@ -47,6 +47,25 @@ def is_cupy_array(arr: NumpyArray | CupyArray | Any) -> bool:
         return False
 
 
+def copy_to_cpu(array: NumpyArray | CupyArray):
+    """Copies array from GPU/CPU to CPU.
+
+    Notes
+    -----
+    Changes to the returned array will not
+    be reflected on the original memory.
+
+    Returns
+    -------
+    array
+        CPU copy of the original array.
+    """
+    if is_cupy_array(array):
+        return array.get()
+    else:
+        return array.copy()
+
+
 # pin original numpy function for `AllowPlotting`
 _numpy_asarray_original = np.asarray
 

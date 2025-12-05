@@ -53,6 +53,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         name: str | None = None,
         section_index: int | None = None,
         share_of_synchrotron_radiation_integrals: NumpyArray | None = None,
+        seed: int | None = None,
     ):
         super().__init__(name=name, section_index=section_index)
 
@@ -61,6 +62,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         self._fractional_radiation_integrals = (
             share_of_synchrotron_radiation_integrals
         )
+        self.rng = np.random.default_rng(seed=seed)
 
     def _calculate_kick(
         self,
@@ -78,17 +80,11 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         ----------
         beam
              BeamBaseClass object
-        seed
-            Random seed, to make function with same seed
-            always return the same value
 
         Returns
         -------
             Energy kick to be applied on the energy coordinates of the beam
         """
-        if seed is not None:
-            np.random.seed(seed=seed)
-
         U0, tau_z, sigma0 = (
             gather_longitudinal_synchrotron_radiation_parameters(
                 particle_type=beam.particle_type,
@@ -104,7 +100,7 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         # fixme How to integrate the random generator??? Best practice?
         return -2.0 / tau_z * beam.read_partial_dE() - 2.0 * sigma0 / np.sqrt(
             tau_z
-        ) * beam.reference_total_energy * np.random.normal(
+        ) * beam.reference_total_energy * self.rng.normal(
             size=beam.n_macroparticles_partial()
         )
 
@@ -125,11 +121,8 @@ class SynchrotronRadiationBaseClass(BeamPhysicsRelevant, ABC):
         beam
             BeamBaseClass object
         """
-        if seed is not None:
-            np.random.seed(seed=seed)
-
         # TODO write C++ routine
-        energy_change = self._calculate_kick(beam=beam, seed=seed)
+        energy_change = self._calculate_kick(beam=beam)
         dE = beam.write_partial_dE()
         dE[:] += energy_change
 

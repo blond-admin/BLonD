@@ -26,7 +26,6 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
         self.revolution_frequency = 3300
         self.angular_synchrotron_frequency = 1
 
-
         self.circumference = 90.65874532 * 1e3
         self.momentum_compaction_factor = 7.120435962 * 1e-6
         self.bending_radius = 14428.78745218723
@@ -34,10 +33,11 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
     def test_gather_longitudinal_synchrotron_radiation_parameters(self):
         energy_loss, tau_z, sigmaE = (
             gather_longitudinal_synchrotron_radiation_parameters(
-            energy=self.beam_energy,
-            synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
-            particle_type=self.particle_type,
-        ))
+                energy=self.beam_energy,
+                synchrotron_radiation_integrals=self.synchrotron_radiation_integrals,
+                particle_type=self.particle_type,
+            )
+        )
 
         self.assertAlmostEqual(
             1337317.6296824566,
@@ -60,11 +60,15 @@ class TestSynchrotronRadiationMaths_float_inputs(unittest.TestCase):
 
     def test_calculate_isomagnetic_radiation_integrals(self):
         np.testing.assert_array_almost_equal(
-            np.array([0.6455297904463271,
-                      0.0004354617689116441,
-                      3.018006678347967e-08,
-                      3.100677639434604e-09,
-                      0]),
+            np.array(
+                [
+                    0.6455297904463271,
+                    0.0004354617689116441,
+                    3.018006678347967e-08,
+                    3.100677639434604e-09,
+                    0,
+                ]
+            ),
             calculate_isomagnetic_radiation_integrals(
                 circumference=self.circumference,
                 bending_radius=self.bending_radius,
