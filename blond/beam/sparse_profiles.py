@@ -44,8 +44,8 @@ class _SparseProfileBaseClass:
         number_of_slices_per_profile: int,
         _filling_pattern: NumpyArray,
         _profile_length_in_buckets: int,
-        tracker: TrackerTypes = "C",
-        initialisation_slicing: bool = False,
+        tracker_mode: TrackerTypes = "C",
+        do_track_on_init: bool = False,
     ):
         """
         Common initialization of Sparse objects.
@@ -62,12 +62,11 @@ class _SparseProfileBaseClass:
             Filling pattern / Bunch list/ Batch list of the synchrotron
         _profile_length_in_buckets
             Profile lengths in number of RF buckets. Should be greater than 1.
-        tracker
+        tracker_mode
             Choice of tracker. Can be "C" or "onebyone". Default is "C".
-        initialisation_slicing
+        do_track_on_init
             Enables tracking at initialisation. FALSE by default.
-
-        """
+    """
         if (len(_filling_pattern) > rf_station.harmonic).any():
             raise ValueError(
                 f"The length of filling_pattern exceeds "
@@ -102,15 +101,15 @@ class _SparseProfileBaseClass:
         self.cut_left_array = None
         self.cut_right_array = None
 
-        self.tracker = tracker
-        self.initialisation_slicing = initialisation_slicing
+        self.tracker_mode = tracker_mode
+        self.do_track_on_init = do_track_on_init
 
         # Pre-processing the slicing edges
         self._set_cuts(length_in_buckets=_profile_length_in_buckets)
         self._generate_profile_list()
 
         # Track at initialisation
-        if self.initialisation_slicing:
+        if self.do_track_on_init:
             self.track()
 
     @property
@@ -215,9 +214,9 @@ class _SparseProfileBaseClass:
         """
         Tracking method of the profile, depending on the tracker choice.
         """
-        if self.tracker == "C":
+        if self.tracker_mode == "C":
             self._histogram_c()
-        elif self.tracker == "onebyone":
+        elif self.tracker_mode == "onebyone":
             self._histogram_one_by_one()
         else:
             # WrongCalcError
@@ -379,13 +378,13 @@ class SparseBucket(_SparseProfileBaseClass):
          Number of slices per profile
      bunch_list
          Bunch list (or filling pattern) of the synchrotron
-     tracker
+     tracker_mode
          Choice of tracker. Can be "C" or "onebyone". Default is "C".
-     initialisation_slicing
+     do_track_on_init
          Track at initialisation. FALSE by default.
 
 
-    Example
+     Example
      --------
      >>> import numpy as np
      >>> from blond.beam.sparse_profiles import SparseBucket
@@ -400,9 +399,9 @@ class SparseBucket(_SparseProfileBaseClass):
      >>> bunch_list = np.zeros(self.rf_params.harmonic[0])
      >>> bunch_list[::bunch_spacing] = 1
      >>> sparse_profile = SparseBucket(rf_station=self.rf_params,
-     >>>                                 beam = self.beam,
-     >>>number_of_slices_per_profile = 1e4,
-     >>>bunch_list = bunch_list)
+     >>>                                beam = self.beam,
+     >>>                                number_of_slices_per_profile = 1e4,
+     >>>                                bunch_list = bunch_list)
      >>>
     """
 
@@ -412,8 +411,8 @@ class SparseBucket(_SparseProfileBaseClass):
         beam: Beam,
         number_of_slices_per_profile: int,
         bunch_list: NumpyArray,
-        tracker: TrackerTypes = "C",
-        initialisation_slicing: bool = False,
+        tracker_mode: TrackerTypes = "C",
+        do_track_on_init: bool = False,
     ):
         #: *Filling pattern as a boolean array where True (1) means filled
         # bucket*
@@ -423,8 +422,8 @@ class SparseBucket(_SparseProfileBaseClass):
             number_of_slices_per_profile=number_of_slices_per_profile,
             _filling_pattern=bunch_list,
             _profile_length_in_buckets=1,
-            tracker=tracker,
-            initialisation_slicing=initialisation_slicing,
+            tracker_mode=tracker_mode,
+            do_track_on_init=do_track_on_init,
         )
 
     @property
@@ -483,9 +482,9 @@ class SparseBatch(_SparseProfileBaseClass):
         Batch list (or filling pattern) of the synchrotron
     batch_length
         Batch length in number of RF buckets.
-    tracker
+    tracker_mode
         Choice of tracker. Can be "C" or "onebyone". Default is "C".
-    initialisation_slicing
+    do_track_on_init
         Track at initialisation. FALSE by default.
     """
 
@@ -496,8 +495,8 @@ class SparseBatch(_SparseProfileBaseClass):
         number_of_slices_per_profile: int,
         batch_list: NumpyArray,
         batch_length: int = 1,
-        tracker: TrackerTypes = "C",
-        initialisation_slicing: bool = False,
+        tracker_mode: TrackerTypes = "C",
+        do_track_on_init: bool = False,
     ):
         #: *Filling pattern as a boolean array where True (1) means filled
         # bucket*
@@ -507,8 +506,8 @@ class SparseBatch(_SparseProfileBaseClass):
             number_of_slices_per_profile=number_of_slices_per_profile,
             _filling_pattern=batch_list,
             _profile_length_in_buckets=batch_length,
-            tracker=tracker,
-            initialisation_slicing=initialisation_slicing,
+            tracker_mode=tracker_mode,
+            do_track_on_init=do_track_on_init,
         )
 
     @property
@@ -563,8 +562,8 @@ def SparseSlices(
     beam: Beam,
     n_slices_bucket: int,
     filling_pattern: NumpyArray,
-    tracker: TrackerTypes = "C",
-    direct_slicing: bool = False,
+    tracker_mode: TrackerTypes = "C",
+    do_track_on_init: bool = False,
 ):
     """
     Deprecated: please use SparseBucket
@@ -581,9 +580,9 @@ def SparseSlices(
         Number of slices per profile
     filling_pattern
         Bunch list (or filling pattern) of the synchrotron
-    tracker
+    tracker_mode
         Choice of tracker. Can be "C" or "onebyone". Default is "C".
-    direct_slicing
+    do_track_on_init
         Track at initialisation. FALSE by default.
     """
     from warnings import warn
@@ -599,6 +598,6 @@ def SparseSlices(
         beam=beam,
         number_of_slices_per_profile=n_slices_bucket,
         bunch_list=filling_pattern,
-        tracker=tracker,
-        initialisation_slicing=direct_slicing,
+        tracker_mode=tracker_mode,
+        do_track_on_init=do_track_on_init,
     )
