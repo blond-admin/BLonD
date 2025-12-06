@@ -549,6 +549,7 @@ class Simulation(Preparable):
     def get_matched_ellipse(
         self,
         t_stable: float,
+        beta_twiss_notilt: float,
         particle_type: ParticleType,
         delta_t: float = 1e-21,
         intensity: int = 0,
@@ -601,6 +602,9 @@ class Simulation(Preparable):
         plt.scatter(result[:, 0], result[:, 1])
         plot_ellipse(alpha=alpha, beta=beta, epsilon=epsilon)
         gamma = calc_ellipse_gamma(alpha=alpha, beta=beta)
+        gamma_twiss_notilt = calc_ellipse_gamma(
+            alpha=0, beta=beta_twiss_notilt
+        )
         y_at_x0 = np.sqrt(epsilon / beta)
         y_max = np.sqrt(epsilon * gamma)
         x_at_y_max = -alpha * np.sqrt(epsilon / gamma)
@@ -617,9 +621,12 @@ class Simulation(Preparable):
         plt.scatter(0, y_at_x0, marker="x")
         plt.legend()
         plt.draw()
-        scale_y = y_max / y_at_x0
         shear_x = x_at_y_max / y_max
-        return scale_y, shear_x
+        scale_y, scale_x = (
+            (gamma / gamma_twiss_notilt),
+            (beta / beta_twiss_notilt),
+        )
+        return scale_x, scale_y, shear_x
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Hook called when the Simulation object is initialized.

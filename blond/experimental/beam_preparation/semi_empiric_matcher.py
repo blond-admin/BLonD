@@ -91,6 +91,31 @@ def hamilton_to_density_by_max(
     return _density
 
 
+def get_twiss_beta_semi_analytic(
+    ts: NumpyArray | CupyArray,
+    potential_well: NumpyArray | CupyArray,
+    reference_total_energy: float,
+    eta: float,
+    beta: float,
+) -> float:
+    idx = np.argmin(potential_well)
+    t0 = ts[idx]
+    t1 = ts[idx + 2]
+    h0 = potential_well[idx]
+    h1 = potential_well[idx + 2]
+    E0 = reference_total_energy  # [eV]
+
+    # Compute kinetic energy term constant
+    drift_term = np.abs(eta) / (np.square(beta) * E0)  # [1/eV]
+
+    # Auto-estimate ΔE range if not provided
+    dE_separatrix = backend.sqrt((h1 - h0) / (0.5 * abs(drift_term)))
+    dt_separatrix = t1 - t0
+    epsilon_twiss = dt_separatrix * dE_separatrix
+    beta_twiss = dt_separatrix**2 / epsilon_twiss
+    return beta_twiss
+
+
 def get_hamilton_semi_analytic(
     ts: NumpyArray | CupyArray,
     potential_well: NumpyArray | CupyArray,
@@ -468,6 +493,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             ),
             shape=self.internal_grid_shape,
         )
+
         density = self.hamilton_to_density_function(
             hamilton_2D=hamilton_2D, **self.hamilton_to_density_kwargs
         )  # type: ignore
@@ -481,14 +507,24 @@ class SemiEmpiricMatcher(MatchingRoutine):
             seed=self.seed,
         )
 
-        scale_y, shear_x = simulation.get_matched_ellipse(
+        beta_twiss = get_twiss_beta_semi_analytic(
+            ts=ts,
+            potential_well=avg_pot_well,
+            reference_total_energy=beam.reference_total_energy,
+            beta=beam.reference_beta,
+            eta=float(
+                simulation.ring.calc_average_eta_0(beam.reference_gamma)
+            ),
+        )
+
+        scale_x, scale_y, shear_x = simulation.get_matched_ellipse(
             t_stable=t_stable,
+            beta_twiss_notilt=beta_twiss,
             particle_type=beam.particle_type,
             delta_t=2 * (ts.max() - ts.min()) / len(ts),
             intensity=beam.intensity,
         )
-        beam._dE *= scale_y  #    increase the max coordinate
-        beam._dt /= scale_y**2  # but shrink the emittance
+        beam._dE *= scale_y  # increase the max coordinate
         beam._dt += shear_x * beam._dE
 
     def _plot_current_state(
