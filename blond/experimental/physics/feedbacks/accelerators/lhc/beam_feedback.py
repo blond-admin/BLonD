@@ -68,7 +68,8 @@ class LhcBeamFeedback(Blond2BeamFeedback):
             self.lhc_t = np.zeros(self._parent_rf_station.n_turns + 1)
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Calculation of the LHC RF frequency correction from the phase difference
+        """
+        Calculation of the LHC RF frequency correction from the phase difference
         between beam and RF (actual synchronous phase). The transfer function is
 
         .. math::
@@ -138,7 +139,8 @@ class LhcFBeamFeedback(Blond2BeamFeedback):
         self.gain2 = FL_gain
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Calculation of the LHC RF frequency correction from the phase difference
+        """
+        Calculation of the LHC RF frequency correction from the phase difference
         between beam and RF (actual synchronous phase). The transfer function is
 
         .. math::

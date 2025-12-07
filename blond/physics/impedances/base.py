@@ -6,12 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Collection of abstract classes to handle the calculation of wake potentials.
-
-Authors
--------
-Simon Lauber
-"""
+"""Collection of abstract classes to handle the calculation of wake potentials."""
 
 from __future__ import annotations
 
@@ -42,14 +37,15 @@ class WakeFieldSolver:
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:
-        """Lateinit method when :class:`blond.physics.impedances.base.WakeField` is late-initialized.
+        """
+        Lateinit method when :class:`blond.physics.impedances.base.WakeField` is late-initialized.
 
         Parameters
         ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         parent_wakefield
-            Wakefield that this solver affiliated to
+            Wakefield that this solver affiliated to.
         """
         pass
 
@@ -57,17 +53,18 @@ class WakeFieldSolver:
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
-        """Calculates the induced voltage based on the beam profile and beam parameters.
+        """
+        Calculate the induced voltage based on the beam profile and beam parameters.
 
         Parameters
         ----------
         beam
-            Simulation object of a particle beam
+            Simulation object of a particle beam.
 
         Returns
         -------
         induced_voltage
-            Induced voltage, in [V]
+            Induced voltage, in [V].
         """
         pass
 
@@ -105,7 +102,14 @@ class WakeFieldSolver:
 
 
 class WakeFieldSource(ABC):
-    """General abstract class for wake fields."""
+    """
+    General abstract class for wake fields.
+
+    Parameters
+    ----------
+    is_dynamic
+        Whether the wake field source changes with time.
+    """
 
     def __init__(self, is_dynamic: bool):
         self.is_dynamic = is_dynamic
@@ -122,23 +126,24 @@ class TimeDomain(ABC):
         beam: BeamBaseClass,
         n_fft: int,
     ) -> NumpyArray:
-        """Get impedance equivalent to the partial wake in time domain.
+        """
+        Get impedance equivalent to the partial wake in time domain.
 
         Parameters
         ----------
         time
-            Time array to get wake, in [s]
+            Time array to get wake, in [s].
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         n_fft
-            number of points to be used in the fft
+            Number of points to be used in the fft.
 
         Returns
         -------
         wake_impedance
-
+            Impedance array.
         """
         pass
 
@@ -150,29 +155,30 @@ class TimeDomainCounterRotation(ABC):
     def get_wake(
         self, time: NumpyArray
     ) -> NumpyArray:  # TODO: this function should be moved to TimeDomain
-        """Get wake potential equivalent to the partial wake in time domain.
+        """
+        Get wake potential equivalent to the partial wake in time domain.
 
         Parameters
         ----------
         time : NumpyArray
-            time array at which the wake is calculated [V]
+            Time array at which the wake is calculated [V].
         """
         pass
 
     @abstractmethod  # pragma: no cover
     def get_wake_counter_rotation(self, time: NumpyArray) -> NumpyArray:
-        """Get wake potential equivalent to the partial wake in time domain for the counter-rotating case.
+        """
+        Get wake potential equivalent to the partial wake in time domain for the counter-rotating case.
 
         Parameters
         ----------
         time : NumpyArray
-            time array at which the wake is calculated, in [s]
+            Time array at which the wake is calculated, in [s].
 
         Returns
         -------
         wake_potential: NumpyArray
-            potential array, in [V]
-
+            Potential array, in [V].
         """
         pass
 
@@ -184,23 +190,24 @@ class TimeDomainCounterRotation(ABC):
         beam: BeamBaseClass,
         n_fft: int,
     ) -> NumpyArray:
-        """Get impedance equivalent to the partial wake in time domain for the counter-rotating case.
+        """
+        Get impedance equivalent to the partial wake in time domain for the counter-rotating case.
 
         Parameters
         ----------
         time
-            Time array to get wake, in [s]
+            Time array to get wake, in [s].
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         n_fft
-            number of points used in the fft
+            Number of points used in the fft.
 
         Returns
         -------
         wake_impedance
-
+            Impedance array.
         """
         pass
 
@@ -215,7 +222,8 @@ class FreqDomain(ABC):
         simulation: Simulation,
         beam: BeamBaseClass,
     ) -> NumpyArray | CupyArray:
-        """Return the impedance in the frequency domain.
+        """
+        Return the impedance in the frequency domain.
 
         Parameters
         ----------
@@ -224,7 +232,7 @@ class FreqDomain(ABC):
         simulation : Simulation
             Simulation object containing turn index and RF info.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
 
         Returns
         -------
@@ -235,7 +243,16 @@ class FreqDomain(ABC):
 
 
 class ImpedanceBaseClass(BeamPhysicsRelevant):
-    """Abstract class on how to calculate induced voltages."""
+    """
+    Abstract class on how to calculate induced voltages.
+
+    Parameters
+    ----------
+    section_index
+        Section index to group elements into sections.
+    profile
+        Object for calculation of beam profiles.
+    """
 
     def __init__(
         self,
@@ -247,24 +264,32 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
 
     @property  # as readonly attributes
     def profile(self) -> ProfileBaseClass:
-        """The reference profile that is causing the wake."""
+        """
+        The reference profile that is causing the wake.
+
+        Returns
+        -------
+        profile
+            The reference profile object.
+        """
         return self._profile
 
     @abstractmethod  # pragma: no cover
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
-        """Calculates the induced voltage based on the beam profile and beam parameters.
+        """
+        Calculate the induced voltage based on the beam profile and beam parameters.
 
         Parameters
         ----------
         beam
-            Simulation object of a particle beam
+            Simulation object of a particle beam.
 
         Returns
         -------
         induced_voltage
-            Induced voltage, in [V]
+            Induced voltage, in [V].
         """
         pass
 
@@ -276,16 +301,21 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """
+        Lateinit method when `simulation.run_simulation` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate.
         turn_i_init
-            Initial turn to execute simulation
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments.
         """
         pass
 
@@ -295,10 +325,13 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
         ]
     )
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """
+        Lateinit method when `simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         from blond.physics.profiles import (
             ProfileBaseClass,  # prevent cyclic import
@@ -320,26 +353,26 @@ class ImpedanceBaseClass(BeamPhysicsRelevant):
 
 
 class WakeField(ImpedanceBaseClass):
-    """Manager class to calculate wake-fields.
+    """
+    Manager class to calculate wake-fields.
 
     Parameters
     ----------
     sources
-        List of sources that cause wake-fields
+        List of sources that cause wake-fields.
     solver
-        Solver to calculate the induced voltage from the sources
+        Solver to calculate the induced voltage from the sources.
     section_index
-        Section index to group elements into sections
+        Section index to group elements into sections.
     profile
-        Object for calculation of beam profiles
+        Object for calculation of beam profiles.
 
     Attributes
     ----------
     sources
-        List of sources that cause wake-fields
+        List of sources that cause wake-fields.
     solver
-        Solver to calculate the induced voltage from the sources
-
+        Solver to calculate the induced voltage from the sources.
 
     Examples
     --------
@@ -363,7 +396,19 @@ class WakeField(ImpedanceBaseClass):
         self._induced_voltage = None
 
     def info_string(self, prefix="") -> str:
-        """Inform that the profile is also executed within the track method."""
+        """
+        Inform that the profile is also executed within the track method.
+
+        Parameters
+        ----------
+        prefix
+            Prefix string for formatting.
+
+        Returns
+        -------
+        str
+            Information string.
+        """
         content = (
             f"{self.profile.info_string(prefix=prefix + ' ↓ ')}\n"
             f"{super().info_string(prefix=prefix)}"
@@ -372,17 +417,27 @@ class WakeField(ImpedanceBaseClass):
 
     @property
     def induced_voltage(self) -> NumpyArray | CupyArray:
-        """Induced voltage in [V] from given beam profile and sources."""
+        """
+        Induced voltage in [V] from given beam profile and sources.
+
+        Returns
+        -------
+        NumpyArray | CupyArray
+            Induced voltage array.
+        """
         if self._induced_voltage is None:
             raise AttributeError("Use `calc_induced_voltage` first!")
         return self._induced_voltage
 
     @requires(["EnergyCycleBase", "BeamBaseClass", "Beam"])  # because
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """
+        Lateinit method when `simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         super().on_init_simulation(simulation=simulation)
         assert len(self.sources) > 0, (
@@ -395,16 +450,18 @@ class WakeField(ImpedanceBaseClass):
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
-        """Calculation of induced voltage from all sources.
+        """
+        Calculate induced voltage from all sources.
 
         Parameters
         ----------
         beam
-            Simulation object of a particle beam
+            Simulation object of a particle beam.
 
         Returns
         -------
         induced_voltage
+            Induced voltage along the profile, in [V].
         """
         self._induced_voltage = self.solver.calc_induced_voltage(beam=beam)[
             : self.profile.n_bins
@@ -414,12 +471,13 @@ class WakeField(ImpedanceBaseClass):
         return self.induced_voltage[: self.profile.n_bins]
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Calculate induced voltage and apply this voltage to the beam.
+        """
+        Calculate induced voltage and apply this voltage to the beam.
 
         Parameters
         ----------
         beam
-            Beam class to interact with this element
+            Beam class to interact with this element.
         """
         if self.profile.active:
             self.profile.track(beam=beam)
@@ -443,25 +501,26 @@ class WakeField(ImpedanceBaseClass):
         section_index: int = 0,
         profile: ProfileBaseClass | None = None,
     ):
-        """Initialize the full class.
+        """
+        Initialize the full class.
 
         Parameters
         ----------
         beam : BeamBaseClass
             The `Beam` object which state will be updated by this element.
         sources
-            List of sources that cause wake-fields
+            List of sources that cause wake-fields.
         solver
-            Solver to calculate the induced voltage from the sources
+            Solver to calculate the induced voltage from the sources.
         section_index
-            Section index to group elements into sections
+            Section index to group elements into sections.
         profile
-            Object for calculation of beam profiles
+            Object for calculation of beam profiles.
 
         Returns
         -------
-        Instance with lateinit methods executed.
-
+        wakefield
+            Instance with lateinit methods executed.
         """
         wf = WakeField(
             sources=sources,

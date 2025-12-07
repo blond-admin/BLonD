@@ -39,7 +39,8 @@ _basepath = os.path.join(folder, "compiled", hash_)
 def reload_cuda_backend(  # NOQA: D102
     floattype: type[np.float32 | np.float64],
 ) -> CudaSpecials:
-    """Load and link the according CUDA backend.
+    """
+    Load and link the according CUDA backend.
 
     Parameters
     ----------

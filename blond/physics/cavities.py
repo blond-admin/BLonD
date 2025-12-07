@@ -6,12 +6,11 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Collection of implementations to handle lumped RF stations in synchrotrons.
+"""Collection of implementations to handle lumped RF stations in synchrotrons."""
 
-Authors
--------
-Simon Lauber
-"""
+# Authors
+# -------
+# Simon Lauber
 
 from __future__ import annotations
 
@@ -45,7 +44,8 @@ TWOPI_C0 = 2.0 * np.pi * c0
 
 
 class RfManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
-    """Base class to implement beam-rf any interactions in synchrotrons.
+    """
+    Base class to implement beam-rf any interactions in synchrotrons.
 
     This class is intended to come with barely any feature to host all
     beam-rf interactions, whereas `RfStationBaseClass` has already several
@@ -54,9 +54,11 @@ class RfManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
     Parameters
     ----------
     section_index
-        Section index to group elements into sections
+        Section index to group elements into sections.
     name
-        User given name of the element
+        User given name of the element.
+    **kwargs
+        Additional keyword arguments for MRO of fused elements.
     """
 
     def __init__(
@@ -73,22 +75,26 @@ class RfManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
         self._turn_i: DynamicParameter | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """
+        Lateinit method when `simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         super().on_init_simulation(simulation=simulation)
 
         self._turn_i = simulation.turn_i
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop.
+        """
+        Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------
         beam
-            Beam class to interact with this element
+            Beam class to interact with this element.
         """
         super().track(beam=beam)
         assert self._turn_i is not None
@@ -100,18 +106,25 @@ class RfManipulationBaseClass(BeamPhysicsRelevant, Schedulable, ABC):
 
 
 class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
-    """Base class to implement beam-rf interactions in synchrotrons.
+    """
+    Base class to implement beam-rf interactions in synchrotrons.
 
     Parameters
     ----------
     n_rf
-        Number of different rf waves for interaction
+        Number of different rf waves for interaction.
     section_index
-        Section index to group elements into sections
+        Section index to group elements into sections.
     local_wakefield
-        Optional wakefield to interact with beam
+        Optional wakefield to interact with beam.
     cavity_feedback
-        Optional cavity feedback to change cavity parameters
+        Optional cavity feedback to change cavity parameters.
+    beam_feedback
+        Optional beam feedback.
+    name
+        User given name of the element.
+    **kwargs
+        Additional keyword arguments for MRO of fused elements.
     """
 
     def __init__(
@@ -171,10 +184,13 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         self.phi_s: float | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """
+        Lateinit method when `simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         super().on_init_simulation(simulation=simulation)
         self._magnetic_cycle = simulation.magnetic_cycle
@@ -188,32 +204,58 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """
+        Lateinit method when `simulation.run_simulation` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate.
         turn_i_init
-            Initial turn to execute simulation
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments.
         """
         pass
 
     @abstractmethod  # pragma: no cover
     def get_main_harmonic(self) -> float:
-        """Returns the harmonic number of the main harmonic."""
+        """
+        Return the harmonic number of the main harmonic.
+
+        Returns
+        -------
+        main_harmonic
+            Harmonic number of the main harmonic.
+        """
         pass
 
     @abstractmethod  # pragma: no cover
     def get_main_harmonic_voltage(self) -> float:
-        """Returns the voltage of the main harmonic, in [V]."""
+        """
+        Return the voltage of the main harmonic, in [V].
+
+        Returns
+        -------
+        main_harmonic_voltage
+            Voltage of the main harmonic, in [V].
+        """
         pass
 
     @abstractmethod  # pragma: no cover
     def get_main_harmonic_phi_rf(self) -> float:
-        """Returns the phi_rf of the main harmonic, in [rad]."""
+        """
+        Return the phi_rf of the main harmonic, in [rad].
+
+        Returns
+        -------
+        main_harmonic_phi_rf
+            The phi_rf of the main harmonic, in [rad].
+        """
         pass
 
     @abstractmethod  # pragma: no cover
@@ -222,12 +264,33 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         beam_beta: float,
         ring_circumference: float,
     ) -> float:
-        """Calculates the omega_rf of the main harmonic, in [rad/s]."""
+        """
+        Calculate the omega_rf of the main harmonic, in [rad/s].
+
+        Parameters
+        ----------
+        beam_beta
+            Relativistic beta of the beam.
+        ring_circumference
+            Ring circumference, in [m].
+
+        Returns
+        -------
+        main_harmonic_omega_rf
+            The omega_rf of the main harmonic, in [rad/s].
+        """
         pass
 
     @abstractmethod  # pragma: no cover
     def get_main_harmonic_omega_rf_current(self) -> float:
-        """Returns the omega_rf of the main harmonic, in [rad/s]."""
+        """
+        Return the omega_rf of the main harmonic, in [rad/s].
+
+        Returns
+        -------
+        main_harmonic_omega_rf_current
+            The omega_rf of the main harmonic, in [rad/s].
+        """
         pass
 
     @abstractmethod  # pragma: no cover
@@ -236,26 +299,48 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         beam_beta: float,
         ring_circumference: float,
     ) -> float:
-        """Calculates the t_rf of the main harmonic."""
+        """
+        Calculate the t_rf of the main harmonic.
+
+        Parameters
+        ----------
+        beam_beta
+            Relativistic beta of the beam.
+        ring_circumference
+            Ring circumference, in [m].
+
+        Returns
+        -------
+        main_harmonic_t_rf(
+            The t_rf of the main harmonic, in [s].
+        """
         pass
 
     @abstractmethod  # pragma: no cover
     def get_main_harmonic_t_rf_current(self) -> float:
-        """Returns the current t_rf of the main harmonic."""
+        """
+        Return the current t_rf of the main harmonic.
+
+        Returns
+        -------
+        main_harmonic_t_rf_curren
+            The t_rf of the main harmonic, in [s].
+        """
         pass
 
     def calc_phi_s_single_harmonic(self, beam: BeamBaseClass) -> float:
-        """Calculates the main harmonic synchronous phase.
+        """
+        Calculate the main harmonic synchronous phase.
 
         Parameters
         ----------
         beam
-            Beam class to interact with this element
+            Beam class to interact with this element.
 
         Returns
         -------
-        phi_s
-            Synchronous phase for the current RF parameters, in [rad]
+        phi_s_single_harmonic
+            Synchronous phase for the current RF parameters, in [rad].
         """
         assert self._magnetic_cycle is not None
         assert self._turn_i is not None
@@ -291,7 +376,14 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
 
     @property  # as readonly attributes
     def n_rf(self) -> int:
-        """Number of different rf waves for interaction."""
+        """
+        Number of different rf waves for interaction.
+
+        Returns
+        -------
+        n_rf
+            Number of different rf waves.
+        """
         return self._n_rf
 
     @abstractmethod  # pragma: no cover
@@ -299,12 +391,13 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         pass
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop.
+        """
+        Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------
         beam
-            Beam class to interact with this element
+            Beam class to interact with this element.
         """
         super().track(beam=beam)
 
@@ -375,13 +468,13 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
 
     @abstractmethod  # pragma: no cover
     def voltage_waveform_tmp(self, ts: NumpyArray):
-        """Calculate voltage of RF station for current turn.
+        """
+        Calculate voltage of RF station for current turn.
 
         Parameters
         ----------
         ts
-            Time array, in [s]
-            to calculate voltage
+            Time array, in [s] to calculate voltage.
         """
         pass
 
@@ -391,24 +484,37 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         beam_beta: float,
         closed_orbit_length: float,
     ):
-        """Calculate angular frequency of RF station, in [rad/s].
+        """
+        Calculate angular frequency of RF station, in [rad/s].
 
         Parameters
         ----------
         beam_beta
-            Beam reference fraction of speed of light (v/c0)
+            Beam reference fraction of speed of light (v/c0).
         closed_orbit_length
-            Length of the closed orbit, in [m]
+            Length of the closed orbit, in [m].
 
         Returns
         -------
         omega
-            Angular frequency (2 PI f) of RF station, in [rad/s]
+            Angular frequency (2 PI f) of RF station, in [rad/s].
         """
         pass
 
     def info_string(self, prefix="") -> str:
-        """Inform that the feedback/wakefield is also executed within the track method."""
+        """
+        Inform that the feedback/wakefield is also executed within the track method.
+
+        Parameters
+        ----------
+        prefix
+            Prefix to add to the output string.
+
+        Returns
+        -------
+        string
+            Information string.
+        """
         content = ""
         if self._cavity_feedback is not None:
             for feedback in self._cavity_feedback:
@@ -423,25 +529,38 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
 
 
 class SingleHarmonicRfStation(RfStationBaseClass):
-    """RF station with only one RF wave for beam interaction.
+    """
+    RF station with only one RF wave for beam interaction.
 
     Parameters
     ----------
     section_index
-        Section index to group elements into sections
+        Section index to group elements into sections.
     local_wakefield
-        Optional wakefield to interact with beam
+        Optional wakefield to interact with beam.
     cavity_feedback
-        Optional cavity feedback to change cavity parameters
+        Optional cavity feedback to change cavity parameters.
+    beam_feedback
+        Optional beam feedback.
+    name
+        User given name of the element.
+    voltage
+        RF station's effective voltage, in [V].
+    phi_rf
+        RF station's design phase, in [rad].
+    harmonic
+        RF station's design harmonic [].
+    **kwargs
+        Additional keyword arguments for MRO of fused elements.
 
     Attributes
     ----------
     voltage
-        RF station's effective voltage, in [V]
+        RF station's effective voltage, in [V].
     phi_rf
-        RF station's design phase, in [rad]
+        RF station's design phase, in [rad].
     harmonic
-        RF station's design harmonic []
+        RF station's design harmonic [].
 
     Examples
     --------
@@ -449,7 +568,6 @@ class SingleHarmonicRfStation(RfStationBaseClass):
     >>> from blond import SingleHarmonicRfStation
     >>> rf_station = SingleHarmonicRfStation(...)
     >>> rf_station.schedule(attribute='phi_rf', value=np.array(...), mode="per-turn")
-
     """
 
     def __init__(
@@ -480,15 +598,36 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         self.delta_omega_rf: float = 0.0
 
     def get_main_harmonic(self) -> float:
-        """Returns the harmonic number of the main harmonic."""
+        """
+        Return the harmonic number of the main harmonic.
+
+        Returns
+        -------
+        main_harmonic
+            Harmonic number of the main harmonic.
+        """
         return self.harmonic
 
     def get_main_harmonic_voltage(self) -> float:
-        """Returns the voltage of the main harmonic, in [V]."""
+        """
+        Return the voltage of the main harmonic, in [V].
+
+        Returns
+        -------
+        main_harmonic_voltage
+            Voltage of the main harmonic, in [V].
+        """
         return self.voltage
 
     def get_main_harmonic_phi_rf(self) -> float:
-        """Returns the phi_rf of the main harmonic, in [rad]."""
+        """
+        Return the phi_rf of the main harmonic, in [rad].
+
+        Returns
+        -------
+        main_harmonic_phi_rf
+            The phi_rf of the main harmonic, in [rad].
+        """
         return self.phi_rf
 
     def calc_main_harmonic_omega_rf(
@@ -496,35 +635,80 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         beam_beta: float,
         ring_circumference: float,
     ) -> float:
-        """Returns the omega_rf of the main harmonic, in [rad/s]."""
+        """
+        Return the omega_rf of the main harmonic, in [rad/s].
+
+        Parameters
+        ----------
+        beam_beta
+            Relativistic beta of the beam.
+        ring_circumference
+            Ring circumference, in [m].
+
+        Returns
+        -------
+        _main_harmonic_omega_rf
+            The omega_rf of the main harmonic, in [rad/s].
+        """
         return self.calc_omega(
             beam_beta=beam_beta,
             ring_circumference=ring_circumference,
         )
 
     def get_main_harmonic_omega_rf_current(self) -> float:
-        """Returns the omega_rf of the main harmonic, in [rad/s]."""
+        """
+        Return the omega_rf of the main harmonic, in [rad/s].
+
+        Returns
+        -------
+        main_harmonic_omega_rf_current
+            The omega_rf of the main harmonic, in [rad/s].
+        """
         return self._omega_rf
 
     def get_main_harmonic_t_rf_current(
         self,
     ) -> float:
-        """Returns the t_rf of the main harmonic, in [s]."""
+        """
+        Return the t_rf of the main harmonic, in [s].
+
+        Returns
+        -------
+        main_harmonic_t_rf_current
+            The t_rf of the main harmonic, in [s].
+        """
         return (2 * np.pi) / self.get_main_harmonic_omega_rf_current()
 
     def calc_main_harmonic_t_rf(
         self, beam_beta: float, ring_circumference: float
     ) -> float:
-        """Returns the t_rf of the main harmonic, in [s]."""
+        """
+        Return the t_rf of the main harmonic, in [s].
+
+        Parameters
+        ----------
+        beam_beta
+            Relativistic beta of the beam.
+        ring_circumference
+            Ring circumference, in [m].
+
+        Returns
+        -------
+        main_harmonic_t_rf
+            The t_rf of the main harmonic, in [s].
+        """
         return (2 * np.pi) / self.calc_main_harmonic_omega_rf(
             beam_beta, ring_circumference
         )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """
+        Lateinit method when `simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         super().on_init_simulation(simulation=simulation)
         if (self.voltage is None) and "voltage" not in self.schedules:
@@ -548,7 +732,8 @@ class SingleHarmonicRfStation(RfStationBaseClass):
             beam_beta=beam.reference_beta,
             ring_circumference=self._ring.circumference,
         )
-        """self._t_rf = (2 * np.pi) / self._omega_rf
+        """
+        self._t_rf = (2 * np.pi) / self._omega_rf
         self._t_rev = self._t_rf * self.harmonic
         try:
             self.phi_s = self.calc_phi_s_single_harmonic(beam=beam)
@@ -557,12 +742,13 @@ class SingleHarmonicRfStation(RfStationBaseClass):
             self.phi_s = np.nan"""
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop.
+        """
+        Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------
         beam
-            Beam class to interact with this element
+            Beam class to interact with this element.
         """
         super().track(beam=beam)
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
@@ -592,42 +778,43 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         beam_beta: float,
         ring_circumference: float,
     ) -> float:
-        """Calculate angular frequency of RF station, in [rad/s].
+        """
+        Calculate angular frequency of RF station, in [rad/s].
 
         Parameters
         ----------
         beam_beta
-            Beam reference fraction of speed of light (v/c0)
+            Beam reference fraction of speed of light (v/c0).
         ring_circumference
             Reference synchrotron circumference, in [m].
 
         Returns
         -------
-        omega
-            Angular frequency (2 PI f) of RF station, in [rad/s]
+        oemga
+            Angular frequency (2 PI f) of RF station, in [rad/s].
         """
         return self.harmonic * backend.float(
             TWOPI_C0 * beam_beta / ring_circumference
         )
 
     def voltage_waveform_tmp(self, ts: NumpyArray):
-        """Calculate voltage of RF station for current turn.
-
-        Note
-        ----
-        This function is intended for small `ts` arrays
-        and not executed in parallel.
+        """
+        Calculate voltage of RF station for current turn.
 
         Parameters
         ----------
         ts
-            Time array, in [s]
-            to calculate voltage
+            Time array, in [s] to calculate voltage.
 
         Returns
         -------
-        voltages
-            RF station voltage in [V] at time `ts`
+        voltage_waveform
+            RF station voltage in [V] at time `ts`.
+
+        Notes
+        -----
+        This function is intended for small `ts` arrays
+        and not executed in parallel.
         """
         voltage = self.voltage
         phi_rf = self.phi_rf + self.delta_phi_rf
@@ -645,30 +832,32 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
     ) -> SingleHarmonicRfStation:
-        """Initialize object without simulation context.
+        """
+        Initialize object without simulation context.
 
         Parameters
         ----------
         section_index
-            Section index to group elements into sections
+            Section index to group elements into sections.
         voltage
-            RF station's effective voltage in [V]
+            RF station's effective voltage in [V].
         phi_rf
-            RF station's design phase in [rad]
+            RF station's design phase in [rad].
         harmonic
-            RF station's design harmonic []
+            RF station's design harmonic [].
         circumference
-            Synchrotron circumference in [m]
+            Synchrotron circumference in [m].
         total_energy
-            Target total energy in [eV]
+            Target total energy in [eV].
         local_wakefield
-            Optional wakefield to interact with beam
+            Optional wakefield to interact with beam.
         cavity_feedback
-            Optional cavity feedback to change cavity parameters
+            Optional cavity feedback to change cavity parameters.
 
         Returns
         -------
-        single_harmonic_rf_station
+        rf_station
+            Initialized RF station object.
         """
         from blond.core.beam.base import BeamBaseClass
         from blond.core.ring.ring import Ring
@@ -708,45 +897,50 @@ class SingleHarmonicRfStation(RfStationBaseClass):
 
 
 class MultiHarmonicRfStation(RfStationBaseClass):
-    r"""RF station with several RF wave for beam interaction.
-
-    Equation
-    --------
-    .. math::
-        dE = \sum_{j} \left( \text{charge} \cdot \text{voltage}[j] \cdot \sin\left(\omega_{\text{rf}}[j] \cdot dt + \phi_{\text{rf}}[j]\right) \right) + \text{acceleration\_kick}
-
-    where
-    `acceleration_kick` is the change of reference energy.
+    r"""
+    RF station with several RF wave for beam interaction.
 
     Parameters
     ----------
     n_harmonics
-        Number of different RF waves for interaction
+        Number of different RF waves for interaction.
     main_harmonic_idx
-        Index of the RF station's main harmonic
-        Used to calculate attributes that rely on only one harmonic
+        Index of the RF station's main harmonic.
+        Used to calculate attributes that rely on only one harmonic.
     voltage
-        Cavity's effective voltages (per harmonic) in [V]
+        Cavity's effective voltages (per harmonic) in [V].
     phi_rf
-        Cavity's design phases (per harmonic) in [rad]
+        Cavity's design phases (per harmonic) in [rad].
     harmonic
-        Cavity's design harmonics (per harmonic) []
+        Cavity's design harmonics (per harmonic) [].
     section_index
-        Section index to group elements into sections
+        Section index to group elements into sections.
     local_wakefield
-        Optional wakefield to interact with beam
+        Optional wakefield to interact with beam.
     cavity_feedback
-        Optional cavity feedback to change cavity parameters
+        Optional cavity feedback to change cavity parameters.
+    beam_feedback
+        Optional beam feedback.
+    name
+        User given name of the element.
 
     Attributes
     ----------
     voltage
-        RF station's effective voltages (per harmonic) in [V]
+        RF station's effective voltages (per harmonic) in [V].
     phi_rf
-        RF station's design phases (per harmonic) in [rad]
+        RF station's design phases (per harmonic) in [rad].
     harmonic
-        RF station's design harmonics (per harmonic) []
+        RF station's design harmonics (per harmonic) [].
 
+    Notes
+    -----
+    The energy change is calculated as:
+
+    .. math::
+        dE = \sum_{j} \left( \text{charge} \cdot \text{voltage}[j] \cdot \sin\left(\omega_{\text{rf}}[j] \cdot dt + \phi_{\text{rf}}[j]\right) \right) + \text{acceleration\_kick}
+
+    where `acceleration_kick` is the change of reference energy.
 
     Examples
     --------
@@ -754,7 +948,6 @@ class MultiHarmonicRfStation(RfStationBaseClass):
     >>> from blond import MultiHarmonicRfStation
     >>> rf_station = MultiHarmonicRfStation(...)
     >>> rf_station.schedule(attribute='phi_rf', value=np.array(...), mode="per-turn")
-
     """
 
     def __init__(
@@ -812,10 +1005,13 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         self._t_rev: float | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """
+        Lateinit method when `simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         super().on_init_simulation(simulation=simulation)
         if (self.voltage is None) and "voltage" not in self.schedules:
@@ -855,43 +1051,85 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         beam_beta: float,
         ring_circumference: float,
     ) -> NumpyArray:
-        """Calculate angular frequency of RF station in [rad/s].
+        """
+        Calculate angular frequency of RF station in [rad/s].
 
         Parameters
         ----------
         beam_beta
-            Beam reference fraction of speed of light (v/c0)
-
+            Beam reference fraction of speed of light (v/c0).
         ring_circumference
             Reference synchrotron circumference, in [m].
 
         Returns
         -------
         omega
-            Angular frequency (2 PI f) of RF station in [rad/s]
+            Angular frequency (2 PI f) of RF station in [rad/s].
         """
         return self.harmonic * (TWOPI_C0 * beam_beta / ring_circumference)
 
     def get_main_harmonic(self) -> float:
-        """Returns the harmonic number of the main harmonic."""
+        """
+        Return the harmonic number of the main harmonic.
+
+        Returns
+        -------
+        main_harmonic
+            Harmonic number of the main harmonic.
+        """
         return self.harmonic[self.main_harmonic_idx]
 
     def get_main_harmonic_voltage(self) -> float:
-        """Returns the voltage of the main harmonic, in [V]."""
+        """
+        Return the voltage of the main harmonic, in [V].
+
+        Returns
+        -------
+        main_harmonic_voltage
+            Voltage of the main harmonic, in [V].
+        """
         return self.voltage[self.main_harmonic_idx]
 
     def get_main_harmonic_phi_rf(self) -> float:
-        """Returns the phi_rf of the main harmonic, in [rad]."""
+        """
+        Return the phi_rf of the main harmonic, in [rad].
+
+        Returns
+        -------
+        main_harmonic_phi_rf
+            The phi_rf of the main harmonic, in [rad].
+        """
         return self.phi_rf[self.main_harmonic_idx]
 
     def get_main_harmonic_omega_rf_current(self) -> float:
-        """Returns the omega_rf of the main harmonic, in [rad/s]."""
+        """
+        Return the omega_rf of the main harmonic, in [rad/s].
+
+        Returns
+        -------
+        main_harmonic_omega_rf_current
+            The omega_rf of the main harmonic, in [rad/s].
+        """
         return float(self._omega_rf[self.main_harmonic_idx])
 
     def calc_main_harmonic_omega_rf(
         self, beam_beta: float, ring_circumference: float
     ) -> float:
-        """Returns the omega_rf of the main harmonic, in [rad/s]."""
+        """
+        Return the omega_rf of the main harmonic, in [rad/s].
+
+        Parameters
+        ----------
+        beam_beta
+            Relativistic beta of the beam.
+        ring_circumference
+            Ring circumference, in [m].
+
+        Returns
+        -------
+        main_harmonic_omega_rf
+            The omega_rf of the main harmonic, in [rad/s].
+        """
         return float(
             self.calc_omega(
                 beam_beta=beam_beta,
@@ -902,30 +1140,51 @@ class MultiHarmonicRfStation(RfStationBaseClass):
     def get_main_harmonic_t_rf_current(
         self,
     ) -> float:
-        """Returns the t_rf of the main harmonic, in [s]."""
+        """
+        Return the t_rf of the main harmonic, in [s].
+
+        Returns
+        -------
+        main_harmonic_t_rf_current
+            The t_rf of the main harmonic, in [s].
+        """
         return (2 * np.pi) / self.get_main_harmonic_omega_rf_current()
 
     def calc_main_harmonic_t_rf(
         self, beam_beta: float, ring_circumference: float
     ) -> float:
-        """Returns the t_rf of the main harmonic, in [s]."""
+        """
+        Return the t_rf of the main harmonic, in [s].
+
+        Parameters
+        ----------
+        beam_beta
+            Relativistic beta of the beam.
+        ring_circumference
+            Ring circumference, in [m].
+
+        Returns
+        -------
+        main_harmonic_t_rf
+            The t_rf of the main harmonic, in [s].
+        """
         return (2 * np.pi) / self.calc_main_harmonic_omega_rf(
             beam_beta, ring_circumference
         )
 
     def voltage_waveform_tmp(self, ts: NumpyArray):  # pragma: no cover
-        """Calculate voltage of RF station for current turn.
-
-        Note
-        ----
-        This function is intended for small ts arrays
-        and not executed in parallel.
+        """
+        Calculate voltage of RF station for current turn.
 
         Parameters
         ----------
         ts
-            Time array, in [s]
-            to calculate voltage
+            Time array, in [s] to calculate voltage.
+
+        Notes
+        -----
+        This function is intended for small ts arrays
+        and not executed in parallel.
         """
         raise NotImplementedError
         voltage = self.voltage[0] * np.sin(
@@ -954,37 +1213,39 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         cavity_feedback: LocalFeedback | None = None,
         beam_feedback: Blond2BeamFeedback | None = None,
     ) -> MultiHarmonicRfStation:
-        """Initialize object without simulation context.
+        """
+        Initialize object without simulation context.
 
         Parameters
         ----------
         section_index
-            Section index to group elements into sections
+            Section index to group elements into sections.
         voltage
-            RF station's effective voltages (per harmonic) in [V]
+            RF station's effective voltages (per harmonic) in [V].
         phi_rf
-            RF station's design phases (per harmonic) in [rad]
+            RF station's design phases (per harmonic) in [rad].
         harmonic
-            RF station's design harmonics (per harmonic) []
+            RF station's design harmonics (per harmonic) [].
         circumference
-            Synchrotron circumference in [m]
+            Synchrotron circumference in [m].
         total_energy
-            Target total energy in [eV]
+            Target total energy in [eV].
         main_harmonic_idx
-            Index of the cavity's main harmonic
+            Index of the cavity's main harmonic.
             Used to calculate attributes that rely on only one harmonic.
         reference_beta
             Beam reference fraction of speed of light (v/c0) [].
         local_wakefield
-            Optional wakefield to interact with beam
+            Optional wakefield to interact with beam.
         cavity_feedback
-            Optional cavity feedback to change cavity parameters
+            Optional cavity feedback to change cavity parameters.
         beam_feedback
-            Optional beam feedback to change cavity parameters
+            Optional beam feedback to change cavity parameters.
 
         Returns
         -------
-        multi_harmonic_rf_station
+        rf_station
+            Initialized RF station object.
         """
         from blond.core.beam.base import BeamBaseClass
         from blond.core.ring.ring import Ring
@@ -1028,12 +1289,13 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         return multi_harmonic_rf_station
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop.
+        """
+        Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------
         beam
-            Beam class to interact with this element
+            Beam class to interact with this element.
         """
         super().track(beam=beam)
         target_total_energy = self._magnetic_cycle.get_target_total_energy(

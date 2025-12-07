@@ -52,7 +52,8 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         self.sample_dE = sample_dE
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """
+        Lateinit method when `simulation.__init__` is called
 
         simulation
             `Simulation` context manager
@@ -75,7 +76,8 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         self.energy = beam.reference_total_energy
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Calculation of the SPS RF frequency correction from the phase difference
+        """
+        Calculation of the SPS RF frequency correction from the phase difference
         between beam and RF (actual synchronous phase). The transfer function is
 
         .. math::
@@ -186,7 +188,8 @@ class SpsFBeamFeedback(Blond2BeamFeedback):
         self.gain2 = FL_gain
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Calculation of the SPS RF frequency correction from the phase
+        """
+        Calculation of the SPS RF frequency correction from the phase
         difference between beam and RF (actual synchronous phase). Same as
         LHC_F, except the calculation of the beam phase.
         """
@@ -205,7 +208,8 @@ class SpsFBeamFeedback(Blond2BeamFeedback):
         self.domega_rf = self.domega_dphi + self.domega_df
 
     def beam_phase_sharpWindow(self):
-        """Beam phase measured at the main RF frequency and phase. The beam is
+        """
+        Beam phase measured at the main RF frequency and phase. The beam is
         averaged over a window. The coefficients of sine and cosine components
         determine the beam phase, projected to the range -Pi/2 to 3/2 Pi.
         Note that this beam phase is already w.r.t. the instantaneous RF phase.

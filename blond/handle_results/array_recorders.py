@@ -6,13 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Classes that deal with memory management of simulation results.
-
-Authors
--------
-Leonard Thiele
-Simon Lauber
-"""
+"""Classes that deal with memory management of simulation results."""
 
 from __future__ import annotations
 
@@ -41,18 +35,26 @@ class ArrayRecorder(ABC):
 
     @abstractmethod  # pragma: no cover
     def write(self, newdata: NumpyArray) -> None:
-        """Write new data to the internal array.
+        """
+        Write new data to the internal array.
 
         Parameters
         ----------
         newdata
-            A new array to save into the internal array
+            A new array to save into the internal array.
         """
         pass
 
     @abstractmethod  # pragma: no cover
     def get_valid_entries(self) -> NumpyArray:
-        """Get a part of the internal array that is written so far."""
+        """
+        Get a part of the internal array that is written so far.
+
+        Returns
+        -------
+        valid_entries
+            The portion of the array that contains valid data.
+        """
         pass
 
     @abstractmethod  # pragma: no cover
@@ -63,12 +65,38 @@ class ArrayRecorder(ABC):
     @staticmethod
     @abstractmethod  # pragma: no cover
     def from_disk(filepath: str | PathLike) -> ArrayRecorder:
-        """Load the entire array from the disk."""
+        """
+        Load the entire array from the disk.
+
+        Parameters
+        ----------
+        filepath
+            Path to the file to load.
+
+        Returns
+        -------
+        recorder
+            Loaded array recorder instance.
+        """
         pass
 
 
 class DenseArrayRecorder(ArrayRecorder):
-    """Record all data in a single array that is held entirely in the memory.
+    """
+    Record all data in a single array that is held entirely in the memory.
+
+    Parameters
+    ----------
+    filepath
+        Path for saving the array.
+    shape
+        Shape of the array to allocate.
+    dtype
+        Data type of the array.
+    order
+        Memory layout order ('C' or 'F').
+    overwrite
+        Whether to overwrite existing files.
 
     Notes
     -----
@@ -100,16 +128,37 @@ class DenseArrayRecorder(ArrayRecorder):
 
     @property
     def filepath_array(self) -> str:
-        """Path of the file that holds the numpy-array."""
+        """
+        Path of the file that holds the numpy-array.
+
+        Returns
+        -------
+        path
+            Path to the numpy array file.
+        """
         return f"{self.filepath}.npy"
 
     @property
     def filepath_attributes(self) -> str:
-        """Path of the file that holds the properties."""
+        """
+        Path of the file that holds the properties.
+
+        Returns
+        -------
+        path
+            Path to the attributes JSON file.
+        """
         return f"{self.filepath}.json"
 
     def purge_from_disk(self, verbose: bool = True):
-        """Delete the saved array from the disk."""
+        """
+        Delete the saved array from the disk.
+
+        Parameters
+        ----------
+        verbose
+            Whether to print removal messages.
+        """
         if os.path.exists(self.filepath_array):
             os.remove(self.filepath_array)
             if verbose:
@@ -133,7 +182,19 @@ class DenseArrayRecorder(ArrayRecorder):
 
     @staticmethod
     def from_disk(filepath: str | PathLike) -> DenseArrayRecorder:
-        """Load the entire array from the disk."""
+        """
+        Load the entire array from the disk.
+
+        Parameters
+        ----------
+        filepath
+            Path to the file to load.
+
+        Returns
+        -------
+        recorder
+            Loaded DenseArrayRecorder instance.
+        """
         dense_recorder = DenseArrayRecorder(
             filepath=filepath,
             shape=(1, 1),
@@ -148,12 +209,13 @@ class DenseArrayRecorder(ArrayRecorder):
         return dense_recorder
 
     def write(self, newdata: NumpyArray | CupyArray | float):
-        """Write new data to the internal array.
+        """
+        Write new data to the internal array.
 
         Parameters
         ----------
         newdata
-            An new array to save into the internal array
+            A new array to save into the internal array.
         """
         if is_cupy_array(newdata):
             newdata = newdata.get()  # type: ignore
@@ -161,5 +223,12 @@ class DenseArrayRecorder(ArrayRecorder):
         self._write_idx += 1
 
     def get_valid_entries(self) -> NumpyArray:
-        """Get a part of the internal array that is written so far."""
+        """
+        Get a part of the internal array that is written so far.
+
+        Returns
+        -------
+        valid_entries
+            The portion of the array that contains valid data.
+        """
         return self._memory[: self._write_idx]

@@ -27,14 +27,19 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def requires(argument: list[str]) -> Callable:
-    """Decorator to manage execution order of decorated functions.
+    """
+    Decorator to manage execution order of decorated functions.
 
     Parameters
     ----------
     argument
         List of class names that are required before executing
-        the decorated function
+        the decorated function.
 
+    Returns
+    -------
+    decorator
+        Decorator function that wraps the target function.
     """
 
     def decorator(function: Callable) -> Callable:
@@ -50,20 +55,20 @@ def requires(argument: list[str]) -> Callable:
 
 
 def get_elements(elements: Iterable, _class: type[T]) -> tuple[T, ...]:
-    """Find all elements of a certain type.
+    """
+    Find all elements of a certain type.
 
     Parameters
     ----------
     elements
-        List of instances that might match isinstance(element, _class)
+        List of instances that might match isinstance(element, _class).
     _class
-        Return only elements that are instance of this class
+        Return only elements that are instance of this class.
 
     Returns
     -------
     filtered_elements
-        List of filtered elements that match _class
-
+        List of filtered elements that match _class.
     """
     return tuple(filter(lambda x: isinstance(x, _class), elements))
 
@@ -71,25 +76,25 @@ def get_elements(elements: Iterable, _class: type[T]) -> tuple[T, ...]:
 def get_init_order(
     instances: Iterable[Any], dependency_attribute: str
 ) -> list[Any]:
-    """Get order to be initialized elements.
-
-    Notes
-    -----
-    To be used in combination with `@requires(["ClassName1", "ClassName2"])`
+    """
+    Get order to be initialized elements.
 
     Parameters
     ----------
     instances
-        Instances to be sorted
+        Instances to be sorted.
     dependency_attribute
         Attribute that is used for sorting
-        e.g. "on_init_simulation.requires"
+        e.g. "on_init_simulation.requires".
 
     Returns
     -------
     sorted_classes_filtered
-        Sorted `instances`
+        Sorted `instances`.
 
+    Notes
+    -----
+    To be used in combination with `@requires(["ClassName1", "ClassName2"])`.
     """
     graph, in_degree, all_classes = _build_dependency_graph(
         instances, dependency_attribute
@@ -106,15 +111,25 @@ def get_init_order(
 def _build_dependency_graph(
     instances: Iterable[Any], dependency_attribute: str
 ) -> tuple[defaultdict[Any, list], defaultdict[Any, int], set]:
-    """Function to build a dependency graph.
+    """
+    Function to build a dependency graph.
 
     Parameters
     ----------
     instances
-        Instances to be sorted
+        Instances to be sorted.
     dependency_attribute
         Attribute that is used for sorting
-        e.g. "on_init_simulation.requires"
+        e.g. "on_init_simulation.requires".
+
+    Returns
+    -------
+    graph
+        Directed graph mapping dependencies to dependent classes.
+    in_degree
+        Count of incoming edges for each class.
+    all_classes
+        Set of all involved class names.
     """
     graph = defaultdict(
         list
@@ -144,20 +159,21 @@ def _build_dependency_graph(
 
 
 def get_dependencies(cls_: type, dependency_attribute: str) -> list:
-    """Investigate on which classes this class depends.
+    """
+    Investigate on which classes this class depends.
 
     Parameters
     ----------
     cls_
-        Investigated class
+        Investigated class.
     dependency_attribute
         Attribute that is used for sorting
-        e.g. "on_init_simulation.requires"
-
+        e.g. "on_init_simulation.requires".
 
     Returns
     -------
-    # TODO
+    dependencies
+        List of class names this class depends on.
     """
     if "." in dependency_attribute:
         if dependency_attribute.count(".") != 1:
@@ -184,7 +200,23 @@ def _topological_sort(
     in_degree: defaultdict[Any, int],
     all_classes: set,
 ) -> list[Any]:
-    """Function to perform topological sort on the dependency graph."""
+    """
+    Function to perform topological sort on the dependency graph.
+
+    Parameters
+    ----------
+    graph
+        Directed graph mapping dependencies to dependent classes.
+    in_degree
+        Count of incoming edges for each class.
+    all_classes
+        Set of all involved class names.
+
+    Returns
+    -------
+    sorted_classes
+        List of class names in topologically sorted order.
+    """
     # Initialize queue with classes that have no dependencies (in-degree 0)
     queue = deque([cls for cls in all_classes if in_degree[cls] == 0])
     sorted_classes = []  # List to store the sorted order

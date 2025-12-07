@@ -6,12 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Collection of implementations to calculate the beam profile.
-
-Authors
--------
-Simon Lauber
-"""
+"""Collection of implementations to calculate the beam profile."""
 
 from __future__ import annotations
 
@@ -40,14 +35,15 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
-    """Base class to implement calculation of beam profiles.
+    """
+    Base class to implement calculation of beam profiles.
 
     Parameters
     ----------
     section_index
-        Section index to group elements into sections
+        Section index to group elements into sections.
     name
-        User given name of the element
+        User given name of the element.
 
     Attributes
     ----------
@@ -71,10 +67,13 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         self._beam_spectrum_buffer: dict[int, NumpyArray] = {}
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """
+        Lateinit method when `simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         pass
 
@@ -89,27 +88,31 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         """
         Lateinit method when `simulation.run_simulation` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate.
         turn_i_init
-            Initial turn to execute simulation
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments.
         """
         assert self._hist_x is not None
         assert self._hist_y is not None
         self.invalidate_cache()
 
     def plot(self, **kwargs_plot: dict[str, Any]) -> None:
-        """Plots the current histogram.
+        """
+        Plot the current histogram.
 
         Parameters
         ----------
-        kwargs_plot
+        **kwargs_plot
             Keyword arguments for `matplotlib.pyplot.plot`.
-
         """
         from blond import AllowPlotting
 
@@ -118,17 +121,38 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
 
     @property  # as readonly attributes
     def hist_x(self) -> NumpyArray | CupyArray:
-        """x-axis of histogram, in [s], i.e. `bin_centers`."""
+        """
+        Return x-axis of histogram, in [s], i.e. `bin_centers`.
+
+        Returns
+        -------
+        hist_x
+            X-axis of histogram, in [s], i.e. `bin_centers`.
+        """
         return self._hist_x
 
     @property  # as readonly attributes
     def hist_y(self) -> NumpyArray | CupyArray:
-        """y-axis of histogram."""
+        """
+        Return y-axis of histogram.
+
+        Returns
+        -------
+        hist_y
+            Y-axis of histogram.
+        """
         return self._hist_y
 
     @cached_property  # as readonly attributes
     def n_bins(self) -> int:
-        """Number of bins in the histogram."""
+        """
+        Number of bins in the histogram.
+
+        Returns
+        -------
+        n_bins
+            Number of bins in the histogram.
+        """
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
         # This is intentionally ignored, we want to get an exception.
@@ -136,12 +160,26 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
 
     @cached_property
     def gradient_hist_y(self) -> NumpyArray | CupyArray:
-        """Derivative of the histogram."""
+        """
+        Derivative of the histogram.
+
+        Returns
+        -------
+        gradient_hist_y
+            Derivative of the histogram.
+        """
         return backend.gradient(self._hist_y, self.hist_step, edge_order=2)
 
     @cached_property
     def hist_step(self) -> float:
-        """Size of a single histogram bin."""
+        """
+        Size of a single histogram bin.
+
+        Returns
+        -------
+        hist_step
+            Size of a single histogram bin.
+        """
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
         # This is intentionally ignored, we want to get an exception.
@@ -154,7 +192,14 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
 
     @cached_property
     def cut_left(self) -> float:
-        """Left outer edge of the histogram."""
+        """
+        Left outer edge of the histogram.
+
+        Returns
+        -------
+        cut_left
+            Left outer edge of the histogram.
+        """
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
         # This is intentionally ignored, we want to get an exception.
@@ -165,7 +210,14 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
 
     @cached_property
     def cut_right(self) -> float:
-        """Right outer edge of the histogram."""
+        """
+        Right outer edge of the histogram.
+
+        Returns
+        -------
+        cut_right
+            Right outer edge of the histogram.
+        """
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
         # This is intentionally ignored, we want to get an exception.
@@ -176,7 +228,14 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
 
     @cached_property
     def bin_edges(self) -> NumpyArray | CupyArray:
-        """Get the edges from cut_left to cut_right of the histogram."""
+        """
+        Get the edges from cut_left to cut_right of the histogram.
+
+        Returns
+        -------
+        bin_edges
+            Edges from cut_left to cut_right of the histogram.
+        """
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
         # This is intentionally ignored, we want to get an exception.
@@ -188,20 +247,32 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         )
 
     def weighted_avg_dt(self) -> float:
-        """Bunch center of weight, in [s].
+        """
+        Bunch center of weight, in [s].
 
         calculates the bunch position by calculating
         the average of `hist_x` (time coordinate)
         weighted by `hist_y` (number of particles).
+
+        Returns
+        -------
+        weighted_avg_dt
+            Bunch center of weight, in [s].
         """
         return backend.average(self._hist_x, weights=self._hist_y)
 
     def sigma_weighted_avg_dt(self) -> float:
-        r"""Bunch length (:math:`1 \sigma`), in [s].
+        r"""
+        Bunch length (:math:`1 \sigma`), in [s].
 
         Calculates the :math:`1 \sigma` bunch length by
         determining the std about the weighted average
         calculated as in `weighted_avg_dt`.
+
+        Returns
+        -------
+        sigma_weighted_avg_dt
+            Bunch length (:math:`1 \sigma`), in [s].
         """
         average = backend.average(self._hist_x, weights=self._hist_y)
         variance = backend.average(
@@ -210,7 +281,8 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         return backend.sqrt(variance)
 
     def singlebunch_gauss_fit(self) -> NumpyArray:
-        """Performs a gaussian fit on a profile with a single bunches.
+        """
+        Perform a gaussian fit on a profile with a single bunches.
 
         Returns the amplitude, the mean and the standard deviation
         of the fitted gaussian curve the bunch.
@@ -230,7 +302,8 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         return gauss_fit(_hist_x, _hist_y)
 
     def multibunch_gauss_fit(self, n_bunches: int) -> NumpyArray:
-        """Performs a gaussian fit on a profile with multiple bunches.
+        """
+        Perform a gaussian fit on a profile with multiple bunches.
 
         Returns the amplitude, the mean and the standard deviation of the fitted
         gaussian curve for each bunch.
@@ -238,7 +311,7 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         Parameters
         ----------
         n_bunches
-            Number of bunches
+            Number of bunches.
 
         Returns
         -------
@@ -256,12 +329,13 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         return multi_gauss_fit(_hist_x, _hist_y, n_bunches)
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop.
+        """
+        Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------
         beam
-            Beam class to interact with this element
+            Beam class to interact with this element.
         """
         if beam.is_distributed:
             raise NotImplementedError(
@@ -286,23 +360,24 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
     def get_arrays(
         cut_left: float, cut_right: float, n_bins: int
     ) -> tuple[NumpyArray, NumpyArray] | tuple[CupyArray, CupyArray]:
-        """Helper method to initialize beam profiles.
+        """
+        Helper method to initialize beam profiles.
 
         Parameters
         ----------
         cut_left
-            Left outer edge of the histogram
+            Left outer edge of the histogram.
         cut_right
-            Right outer edge of the histogram
+            Right outer edge of the histogram.
         n_bins
-            Number of bins in the histogram
+            Number of bins in the histogram.
 
         Returns
         -------
         hist_x
-            x-axis of histogram, in [s], i.e. `bin_centers`
+            X-axis of histogram, in [s], i.e. `bin_centers`.
         hist_y
-            y-axis of histogram
+            Y-axis of histogram.
         """
         step = (cut_right - cut_left) / n_bins
         offset = step / 2
@@ -314,11 +389,30 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
 
     @property  # as readonly attributes
     def cutoff_frequency(self) -> float:
-        """Cutoff frequency if the profile is fourier transformed, in [Hz]."""
+        """
+        Cutoff frequency if the profile is fourier transformed, in [Hz].
+
+        Returns
+        -------
+        cutoff_frequency
+            Cutoff frequency if the profile is fourier transformed, in [Hz].
+        """
         return 1 / (2 * self.hist_step)
 
     def beam_spectrum(self, n_fft: int | None) -> NumpyArray | CupyArray:
-        """Calculate fourier transform of the profile."""
+        """
+        Calculate fourier transform of the profile.
+
+        Parameters
+        ----------
+        n_fft
+            Number of FFT points.
+
+        Returns
+        -------
+        spectrum
+            Fourier transform of the profile.
+        """
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
         # This is intentionally ignored, we want to get an exception.
@@ -362,20 +456,21 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
 
 
 class StaticProfile(ProfileBaseClass):
-    """Calculation of beam profile that doesn't change its parameters.
+    """
+    Calculation of beam profile that doesn't change its parameters.
 
     Parameters
     ----------
     cut_left
-        Left outer edge of the histogram, in [s]
+        Left outer edge of the histogram, in [s].
     cut_right
-        Right outer edge of the histogram, in [s]
+        Right outer edge of the histogram, in [s].
     n_bins
-        Number of bins in the histogram
+        Number of bins in the histogram.
     section_index
-        Section index to group elements into sections
+        Section index to group elements into sections.
     name
-        User given name of the element
+        User given name of the element.
     """
 
     def __init__(
@@ -404,22 +499,24 @@ class StaticProfile(ProfileBaseClass):
         cutoff_frequency: float,
         **static_profile_kwargs,
     ) -> StaticProfile:
-        """Initialization method from `cutoff_frequency` in [Hz].
+        """
+        Initialization method from `cutoff_frequency` in [Hz].
 
         Parameters
         ----------
         cut_left
-            Left outer edge of the histogram
+            Left outer edge of the histogram.
         cut_right
-            Right outer edge of the histogram
+            Right outer edge of the histogram.
         cutoff_frequency
-            Cutoff frequency if the profile is fourier transformed, in [Hz]
+            Cutoff frequency if the profile is fourier transformed, in [Hz].
+        **static_profile_kwargs
+            Additional keyword arguments for StaticProfile initialization.
 
         Returns
         -------
         static_profile
-            Profile that doesn't change its parameters
-
+            Profile that doesn't change its parameters.
         """
         dt = 1 / (2 * cutoff_frequency)
         n_bins = int(math.ceil((cut_right - cut_left) / dt))
@@ -438,24 +535,26 @@ class StaticProfile(ProfileBaseClass):
         t_period: float,
         **static_profile_kwargs,
     ) -> StaticProfile:
-        """Initialization method in [rad].
+        """
+        Initialization method in [rad].
 
         Parameters
         ----------
         cut_left_rad
-            Left outer edge of the histogram, in [rad]
+            Left outer edge of the histogram, in [rad].
         cut_right_rad
-            Right outer edge of the histogram, in [rad]
+            Right outer edge of the histogram, in [rad].
         n_bins
-            Number of bins in the histogram
+            Number of bins in the histogram.
         t_period
-            Period according to radian, in [s]
+            Period according to radian, in [s].
+        **static_profile_kwargs
+            Additional keyword arguments for StaticProfile initialization.
 
         Returns
         -------
         static_profile
-            Profile that doesn't change its parameters
-
+            Profile that doesn't change its parameters.
         """
         rad_to_frac = 1 / (2 * np.pi)
         cut_left = cut_left_rad * rad_to_frac * t_period
@@ -469,14 +568,15 @@ class StaticProfile(ProfileBaseClass):
 
 
 class DynamicProfile(ProfileBaseClass):
-    """Profile that can change its parameters during runtime.
+    """
+    Profile that can change its parameters during runtime.
 
     Parameters
     ----------
     section_index
-        Section index to group elements into sections
+        Section index to group elements into sections.
     name
-        User given name of the element
+        User given name of the element.
     """
 
     def __init__(
@@ -495,53 +595,61 @@ class DynamicProfile(ProfileBaseClass):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """
+        Lateinit method when `simulation.run_simulation` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate.
         turn_i_init
-            Initial turn to execute simulation
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments.
         """
         self.update_attributes(beam=beam)
 
     @abstractmethod  # pragma: no cover
     def update_attributes(self, beam: BeamBaseClass) -> None:
-        """Update the histogram limits and according arrays.
+        """
+        Update the histogram limits and according arrays.
 
         Parameters
         ----------
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         """
         pass
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop.
+        """
+        Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------
         beam
-            Beam class to interact with this element
+            Beam class to interact with this element.
         """
         self.update_attributes(beam=beam)
         super().track(beam=beam)
 
 
 class DynamicProfileConstCutoff(DynamicProfile):
-    """Profile that changes its width, keeping a constant cutoff frequency.
+    """
+    Profile that changes its width, keeping a constant cutoff frequency.
 
     Parameters
     ----------
     timestep
-        Time step, in [s] to keep the cutoff constant
+        Time step, in [s] to keep the cutoff constant.
     section_index
-        Section index to group elements into sections
+        Section index to group elements into sections.
     name
-        User given name of the element
+        User given name of the element.
     """
 
     def __init__(
@@ -557,12 +665,13 @@ class DynamicProfileConstCutoff(DynamicProfile):
         self.timestep = timestep
 
     def update_attributes(self, beam: BeamBaseClass) -> None:
-        """Update the histogram limits and according arrays.
+        """
+        Update the histogram limits and according arrays.
 
         Parameters
         ----------
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         """
         cut_left = beam.dt_min  # TODO caching of attribute access
         cut_right = beam.dt_max  # TODO caching of attribute access
@@ -573,16 +682,17 @@ class DynamicProfileConstCutoff(DynamicProfile):
 
 
 class DynamicProfileConstNBins(DynamicProfile):
-    """Profile that changes its width, keeping a constant bin number.
+    """
+    Profile that changes its width, keeping a constant bin number.
 
     Parameters
     ----------
     n_bins
-        Number of bins in the histogram
+        Number of bins in the histogram.
     section_index
-        Section index to group elements into sections
+        Section index to group elements into sections.
     name
-        User given name of the element
+        User given name of the element.
     """
 
     def __init__(
@@ -595,12 +705,13 @@ class DynamicProfileConstNBins(DynamicProfile):
         self.n_bins = int_from_float_with_warning(n_bins, warning_stacklevel=2)
 
     def update_attributes(self, beam: BeamBaseClass) -> None:
-        """Update the histogram limits and according arrays.
+        """
+        Update the histogram limits and according arrays.
 
         Parameters
         ----------
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         """
         cut_left = beam.dt_min  # TODO caching of attribute access
         cut_right = beam.dt_max  # TODO caching of attribute access

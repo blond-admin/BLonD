@@ -41,7 +41,8 @@ def hamilton_to_density_by_max(
     density_modifier: float,
     hamilton_max: float,
 ) -> NumpyArray | CupyArray:
-    """Converts a 2D Hamilton 2D array into a density distribution.
+    """
+    Converts a 2D Hamilton 2D array into a density distribution.
 
     This function normalizes the input Hamilton by a specified maximum value,
     inverts it to represent particle density (i.e., lower energy = higher density),

@@ -6,12 +6,7 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Functions that help dealing with iterables.
-
-Authors
--------
-Simon Lauber
-"""
+"""Functions that help dealing with iterables."""
 
 from collections.abc import Iterable
 from typing import TypeVar
@@ -20,7 +15,8 @@ T = TypeVar("T")
 
 
 def all_equal(iterable: Iterable[T]) -> bool:
-    """Check if all elements in the iterable are equal.
+    """
+    Check if all elements in the iterable are equal.
 
     Parameters
     ----------
