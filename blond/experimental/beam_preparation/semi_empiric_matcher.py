@@ -15,6 +15,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from blond import AllowPlotting, backend
+from blond.acc_math.analytic.ellipse import (
+    transform_twiss,
+)
 from blond.beam_preparation.base import MatchingRoutine
 from blond.core.helpers import int_from_float_with_warning
 from blond.experimental.beam_preparation.helpers import populate_beam
@@ -98,21 +101,41 @@ def get_twiss_beta_semi_analytic(
     eta: float,
     beta: float,
 ) -> float:
-    idx = np.argmin(potential_well)
-    t0 = ts[idx]
-    t1 = ts[idx + 2]
-    h0 = potential_well[idx]
-    h1 = potential_well[idx + 2]
-    E0 = reference_total_energy  # [eV]
+    assert len(ts) == len(potential_well)
+    idx_min = np.argmin(potential_well)
+    h0 = potential_well[idx_min]
+    t0 = ts[idx_min]
 
-    # Compute kinetic energy term constant
-    drift_term = np.abs(eta) / (np.square(beta) * E0)  # [1/eV]
+    v_step = potential_well.max() - potential_well.min()
+    h_threshold = v_step * 1 / 1000  # at least 1 permille change of potential
+    idx_max = idx_min
+    h1 = h0
+    while (h1 - h0) < h_threshold:
+        idx_max += 1
+        t1 = ts[idx_max]
+        h1 = potential_well[idx_max]
 
-    # Auto-estimate ΔE range if not provided
-    dE_separatrix = backend.sqrt((h1 - h0) / (0.5 * abs(drift_term)))
-    dt_separatrix = t1 - t0
-    epsilon_twiss = dt_separatrix * dE_separatrix
-    beta_twiss = dt_separatrix**2 / epsilon_twiss
+    dH = h1 - h0
+    dt_sep = t1 - t0
+
+    if dH <= 0:
+        raise ValueError(
+            "Potential well top is not above the bottom. Check data."
+        )
+
+    E0 = reference_total_energy
+
+    drift_term = np.abs(eta) / (2 * np.square(beta) * E0)  # [1/eV]
+
+    if drift_term <= 0:
+        raise ValueError("drift coefficient is zero or negative.")
+
+    dE_sep = np.sqrt(dH / drift_term)
+    if dE_sep == 0:
+        raise ValueError("dE_sep is zero → Twiss parameters undefined.")
+
+    beta_twiss = dt_sep / dE_sep
+
     return beta_twiss
 
 
@@ -179,13 +202,12 @@ def get_hamilton_semi_analytic(
     E0 = reference_total_energy  # [eV]
 
     # Compute kinetic energy term constant
-    drift_term = np.abs(eta) / (np.square(beta) * E0)  # [1/eV]
+    drift_term = np.abs(eta) / (2 * np.square(beta) * E0)  # [1/eV]
 
     # Auto-estimate ΔE range if not provided
     if energy_range is None:
         dE_max = backend.sqrt(
-            (potential_well.max() - potential_well.min())
-            / (0.5 * abs(drift_term))
+            (potential_well.max() - potential_well.min()) / (abs(drift_term))
         )
         _energy_range = (-dE_max, dE_max)
     else:
@@ -205,8 +227,8 @@ def get_hamilton_semi_analytic(
     # Expand potential V(t) to 2D grid
     V = potential_well[:, None]  # [V]
 
-    # Compute the Hamiltonian hamilton_2D(t, ΔE) = 0.5 * const * ΔE² + V(t)
-    hamilton_2D = 0.5 * drift_term * backend.square(deltaE_grid) + V  # [eV]
+    # Compute the Hamiltonian hamilton_2D(t, ΔE) =  const * ΔE² + V(t)
+    hamilton_2D = drift_term * backend.square(deltaE_grid) + V  # [eV]
 
     return deltaE_grid, time_grid, hamilton_2D
 
@@ -462,20 +484,31 @@ class SemiEmpiricMatcher(MatchingRoutine):
         ts
             Time coordinate, in [s] for observation of the potential well.
         """
-        potential_well, factor, t_stable = (
+        dt_oversampled = np.linspace(
+            ts.min(),
+            ts.max(),
+            len(ts) * _POTENTIAL_WELL_OVERSAMPLING,
+        )
+        potential_well_oversampled, factor, t_stable = (
             simulation.get_potential_well_empiric(
-                dt=np.linspace(
-                    ts.min(),
-                    ts.max(),
-                    len(ts) * _POTENTIAL_WELL_OVERSAMPLING,
-                ),
+                dt=dt_oversampled,
                 particle_type=beam.particle_type,
                 intensity=beam.intensity,
             )
         )
 
+        beta_twiss = get_twiss_beta_semi_analytic(
+            ts=dt_oversampled,
+            potential_well=potential_well_oversampled * factor,
+            reference_total_energy=beam.reference_total_energy,
+            beta=beam.reference_beta,
+            eta=float(
+                simulation.ring.calc_average_eta_0(beam.reference_gamma)
+            ),
+        )
+
         potential_well = (
-            potential_well[::_POTENTIAL_WELL_OVERSAMPLING] * factor
+            potential_well_oversampled[::_POTENTIAL_WELL_OVERSAMPLING] * factor
         )
         self._prelast_potential_well = self._last_potential_well
         self._last_potential_well = potential_well
@@ -507,25 +540,20 @@ class SemiEmpiricMatcher(MatchingRoutine):
             seed=self.seed,
         )
 
-        beta_twiss = get_twiss_beta_semi_analytic(
-            ts=ts,
-            potential_well=avg_pot_well,
-            reference_total_energy=beam.reference_total_energy,
-            beta=beam.reference_beta,
-            eta=float(
-                simulation.ring.calc_average_eta_0(beam.reference_gamma)
-            ),
-        )
-
-        scale_x, scale_y, shear_x = simulation.get_matched_ellipse(
+        twiss_parameters_new = simulation.get_matched_ellipse(
             t_stable=t_stable,
-            beta_twiss_notilt=beta_twiss,
             particle_type=beam.particle_type,
             delta_t=2 * (ts.max() - ts.min()) / len(ts),
             intensity=beam.intensity,
         )
-        beam._dE *= scale_y  # increase the max coordinate
-        beam._dt += shear_x * beam._dE
+        twiss_parameters_before = (
+            0,  # no tilt before
+            beta_twiss,
+            twiss_parameters_new[2],  # conserve emittance
+        )
+        beam._dt, beam._dE = transform_twiss(
+            beam._dt, beam._dE, *twiss_parameters_before, *twiss_parameters_new
+        )
 
     def _plot_current_state(
         self,

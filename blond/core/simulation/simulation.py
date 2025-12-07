@@ -29,7 +29,7 @@ import numpy as np
 from scipy.integrate import cumulative_simpson  # type: ignore[import-untyped]
 from tqdm import tqdm  # type: ignore
 
-from blond.acc_math.analytic.ellipse import calc_ellipse_gamma, plot_ellipse
+from blond.acc_math.analytic.ellipse import plot_ellipse
 from blond.core.backends.backend import backend
 from blond.core.base import (
     DynamicParameter,
@@ -549,7 +549,6 @@ class Simulation(Preparable):
     def get_matched_ellipse(
         self,
         t_stable: float,
-        beta_twiss_notilt: float,
         particle_type: ParticleType,
         delta_t: float = 1e-21,
         intensity: int = 0,
@@ -588,9 +587,7 @@ class Simulation(Preparable):
             )
         result[i + 1, 0] = probe_bunch._dt
         result[i + 1, 1] = probe_bunch._dE
-        print(list(result[:, 0]))
-        print(list(result[:, 1]))
-        plt.plot()
+
         # See https://en.wikipedia.org/wiki/Courant%E2%80%93Snyder_parameters
         alpha, beta, epsilon = fit_ellipse(
             result[:, 0],  # so that the center of motion is 0
@@ -598,35 +595,9 @@ class Simulation(Preparable):
             scale_x=np.max(result[:, 0]),
             scale_y=np.max(result[:, 1]),
         )
-        plt.figure()
-        plt.scatter(result[:, 0], result[:, 1])
         plot_ellipse(alpha=alpha, beta=beta, epsilon=epsilon)
-        gamma = calc_ellipse_gamma(alpha=alpha, beta=beta)
-        gamma_twiss_notilt = calc_ellipse_gamma(
-            alpha=0, beta=beta_twiss_notilt
-        )
-        y_at_x0 = np.sqrt(epsilon / beta)
-        y_max = np.sqrt(epsilon * gamma)
-        x_at_y_max = -alpha * np.sqrt(epsilon / gamma)
 
-        x_max = np.sqrt(epsilon * beta)
-        x_at_y0 = np.sqrt(epsilon / gamma)
-        plot_ellipse(
-            alpha=0, beta=np.square(x_at_y0) / epsilon, epsilon=epsilon
-        )
-
-        plt.axhline(0)
-        plt.axvline(0)
-        plt.scatter(x_at_y_max, y_max, marker="x")
-        plt.scatter(0, y_at_x0, marker="x")
-        plt.legend()
-        plt.draw()
-        shear_x = x_at_y_max / y_max
-        scale_y, scale_x = (
-            (gamma / gamma_twiss_notilt),
-            (beta / beta_twiss_notilt),
-        )
-        return scale_x, scale_y, shear_x
+        return alpha, beta, epsilon
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Hook called when the Simulation object is initialized.
