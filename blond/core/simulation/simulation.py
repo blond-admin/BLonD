@@ -29,7 +29,6 @@ import numpy as np
 from scipy.integrate import cumulative_simpson  # type: ignore[import-untyped]
 from tqdm import tqdm  # type: ignore
 
-from blond.acc_math.analytic.ellipse import plot_ellipse
 from blond.core.backends.backend import backend
 from blond.core.base import (
     DynamicParameter,
@@ -553,6 +552,63 @@ class Simulation(Preparable):
         delta_t: float = 1e-21,
         intensity: int = 0,
     ):
+        """Compute matched beam ellipse parameters by tracking a probe particle.
+
+        This method determines the matched beam distribution in longitudinal phase space
+        by tracking a single probe particle displaced slightly from the stable synchronous
+        phase. The particle's oscillation trajectory is recorded over multiple turns and
+        fitted to an ellipse, yielding the Courant-Snyder (Twiss) parameters that describe
+        the matched beam envelope.
+
+        Parameters
+        ----------
+        t_stable
+            Time coordinate [s] of the stable synchronous phase around which the probe
+            particle will oscillate. This is typically the center of the RF bucket.
+        particle_type
+            Type of particle to track (e.g., proton, electron). Determines the mass
+            and charge used in tracking calculations.
+        delta_t
+            Initial time displacement [s] from the stable point. The probe particle
+            starts at ``t_stable + delta_t``. Default is 1e-21 s, a very small
+            displacement to ensure linear oscillations.
+        intensity
+            Number of particles represented by the probe beam. Default is 0,
+            meaning space-charge effects are ignored during tracking.
+
+        Returns
+        -------
+        alpha
+            Courant-Snyder alpha parameter (dimensionless), describing the correlation
+            between position and momentum in phase space. Related to the tilt of the
+            ellipse.
+        beta
+            Courant-Snyder beta parameter [s²/eV], describing the ratio of position
+            spread to momentum spread. Larger beta means larger spatial extent.
+        epsilon
+            Emittance [s·eV], the area of the ellipse in phase space. Represents the
+            phase space volume occupied by the matched beam distribution.
+
+        Notes
+        -----
+        - The method tracks a probe particle for 20 turns to map out its phase space
+          trajectory (dt, dE coordinates).
+        - The trajectory is fitted to an ellipse.
+        - The returned parameters satisfy the relation: ``gamma = (1 + alpha²) / beta``,
+          where gamma is the third Courant-Snyder parameter.
+        - For accurate results, ``delta_t`` should be small enough that the particle
+          remains in the linear regime of the RF potential.
+§
+        See Also
+        --------
+        blond.acc_math.analytic.ellipse.fit_ellipse : Ellipse fitting routine
+        blond.acc_math.analytic.ellipse.plot_ellipse : Visualization of fitted ellipse
+        get_potential_well_empiric : Related method for computing the RF potential well
+
+        References
+        ----------
+        .. [1] Courant-Snyder parameters: https://en.wikipedia.org/wiki/Courant%E2%80%93Snyder_parameters
+        """
         from blond.acc_math.analytic.ellipse import fit_ellipse
         from blond.core.beam.beams import ProbeBeam  # prevent circular import
 
@@ -595,7 +651,6 @@ class Simulation(Preparable):
             scale_x=np.max(result[:, 0]),
             scale_y=np.max(result[:, 1]),
         )
-        plot_ellipse(alpha=alpha, beta=beta, epsilon=epsilon)
 
         return alpha, beta, epsilon
 
