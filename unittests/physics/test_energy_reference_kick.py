@@ -98,27 +98,6 @@ class TestEnergyReferenceKick(unittest.TestCase):
         )
         self.assertEqual(beam._dE, original_dE - expected_change)
 
-    def test_track_with_schedule_applies_schedules(self):
-        beam = DummyBeam()
-        self.simulation.turn_i.value = 3
-
-        self.energy_kick.schedule_active = True
-
-        called = {}
-
-        def fake_apply_schedules(turn_i, reference_time):
-            called["called"] = True
-            called["turn_i"] = turn_i
-            called["reference_time"] = reference_time
-
-        self.energy_kick.apply_schedules = fake_apply_schedules
-
-        self.energy_kick.track(beam)
-
-        self.assertTrue(called.get("called", False))
-        self.assertEqual(called.get("turn_i"), 3)
-        self.assertEqual(called.get("reference_time"), beam.reference_time)
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -165,7 +165,7 @@ class TestNumpyBackend(unittest.TestCase):
         try:
             self.numpy_backend.set_specials(mode="cpp")
         except FileNotFoundError:
-            self.skipTest(f"cpp not available!")
+            self.skipTest("cpp not available!")
 
     def test_set_specials_numba(self) -> None:
         self.numpy_backend.set_specials(mode="numba")
@@ -174,7 +174,7 @@ class TestNumpyBackend(unittest.TestCase):
         try:
             self.numpy_backend.set_specials(mode="fortran")
         except FileNotFoundError:
-            self.skipTest(f"fortran not available!")
+            self.skipTest("fortran not available!")
 
     def test_set_specials_fails(self):
         with self.assertRaises(ValueError):
@@ -596,7 +596,7 @@ class TestSpecials(unittest.TestCase):
             for i, special in enumerate(self.special_modes):
                 try:
                     self._setUp(dtype=dtype, special_mode=special)
-                except (FileNotFoundError, OSError) as exc:
+                except (FileNotFoundError, OSError):
                     print(f"Could not perform `{special}` test for {dtype}")
                     continue
                 flag = 0
@@ -836,7 +836,6 @@ class TestSpecials(unittest.TestCase):
                     continue
                 set_num_threads(8)
                 array_write = backend.ones(21, dtype=backend.float)
-                #
                 backend.specials.histogram(
                     array_read=backend.array(
                         array_read, dtype=backend.float

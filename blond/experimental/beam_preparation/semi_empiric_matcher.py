@@ -18,12 +18,14 @@ from blond import AllowPlotting, backend
 from blond.beam_preparation.base import MatchingRoutine
 from blond.core.helpers import int_from_float_with_warning
 from blond.experimental.beam_preparation.helpers import populate_beam
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 
 # Oversampling factor for potential well calculation
 _POTENTIAL_WELL_OVERSAMPLING = 10
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Any, Callable, Dict, Tuple
+    from collections.abc import Callable
+    from typing import Any
 
     from cupy.typing import NDArray as CupyArray  # type: ignore
     from numpy.typing import NDArray as NumpyArray
@@ -73,7 +75,6 @@ def hamilton_to_density_by_max(
 
 
     """
-
     _density = hamilton_2D.copy()  # So the changes stay in this scope
 
     _density /= hamilton_max
@@ -96,11 +97,11 @@ def get_hamilton_semi_analytic(
     reference_total_energy: float,
     eta: float,
     beta: float,
-    shape: Tuple[int, int],
-    energy_range: Tuple[float, float] | None = None,
+    shape: tuple[int, int],
+    energy_range: tuple[float, float] | None = None,
 ) -> (
-    Tuple[NumpyArray, NumpyArray, NumpyArray]
-    | Tuple[CupyArray, CupyArray, CupyArray]
+    tuple[NumpyArray, NumpyArray, NumpyArray]
+    | tuple[CupyArray, CupyArray, CupyArray]
 ):
     r"""
     Compute the 2D Hamiltonian :math:`H_{2D}(t, \Delta E)` based on an arbitrary potential well.
@@ -146,9 +147,6 @@ def get_hamilton_semi_analytic(
         2D array representing the semi-analytic Hamiltonian evaluated on a grid of
         time vs. energy difference [eV]. Uses the same device (NumPy or CuPy) as the inputs.
     """
-
-
-
     assert len(ts) == len(potential_well), (
         f"{len(ts)=}, but {len(potential_well)=}"
     )
@@ -238,13 +236,14 @@ class SemiEmpiricMatcher(MatchingRoutine):
     This routine is intended for iterative beam-matching workflows where
     the potential well and intensity effects are both considered analytically.
     """
+
     def __init__(
         self,
-        time_limit: Tuple[float, float],
+        time_limit: tuple[float, float],
         n_macroparticles: int | float,
-        hamilton_to_density_kwargs: Dict[str, Any],
+        hamilton_to_density_kwargs: dict[str, Any],
         hamilton_to_density_function: Callable = hamilton_to_density_by_max,
-        internal_grid_shape: Tuple[int, int] = (1023, 1023),
+        internal_grid_shape: tuple[int, int] = (1023, 1023),
         seed: int | None = 0,
         tolerance: float = 1e-6,
         maxiter_intensity_effects=1000,
@@ -252,7 +251,6 @@ class SemiEmpiricMatcher(MatchingRoutine):
         animate: bool = False,
         verbose: bool = True,
     ) -> None:
-
         self.n_macroparticles = int_from_float_with_warning(
             n_macroparticles,
             warning_stacklevel=2,
@@ -268,7 +266,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             )
         )
 
-        self.internal_grid_shape: Tuple[int, int] = internal_grid_shape
+        self.internal_grid_shape: tuple[int, int] = internal_grid_shape
         self.seed = (
             int_from_float_with_warning(
                 seed,
@@ -277,7 +275,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             if seed is not None
             else None
         )
-        self.time_limit: Tuple[float, float] = time_limit
+        self.time_limit: tuple[float, float] = time_limit
         assert callable(hamilton_to_density_function)
         self.hamilton_to_density_function = hamilton_to_density_function
         self.hamilton_to_density_kwargs = hamilton_to_density_kwargs
@@ -311,7 +309,6 @@ class SemiEmpiricMatcher(MatchingRoutine):
         # make sure there is not a mixed state
         simulation.intensity_effect_manager.is_active_wakefields()
         simulation.intensity_effect_manager.is_active_profiles()
-
 
         ts = backend.linspace(
             self.time_limit[0], self.time_limit[1], self.internal_grid_shape[0]
@@ -512,7 +509,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 f"Iteration {i}, Intensity strength {(scalar * 100):3.1f}%"
             )
             plt.hist(
-                beam.read_partial_dt(),
+                copy_to_cpu(beam.read_partial_dt()),
                 bins=self.internal_grid_shape[0],
                 range=self.time_limit,
                 density=True,

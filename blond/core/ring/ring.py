@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond.core.base import Preparable, Schedulable
+from blond.core.base import Preparable
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
@@ -34,7 +34,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.physics.drifts import DriftBaseClass
 
 
-class Ring(Preparable, Schedulable):
+class Ring(Preparable):
     """Create a `Ring` object representing a synchrotron accelerator.
 
     A Ring (synchrotron) is the fundamental structure that contains all beam
@@ -55,13 +55,16 @@ class Ring(Preparable, Schedulable):
     def __init__(
         self,
         circumference: float,
+        check_section_indices: bool = True,
     ) -> None:
         from blond.core.ring.beam_physics_relevant_elements import (
             BeamPhysicsRelevantElements,
         )
 
         super().__init__()
-        self._elements = BeamPhysicsRelevantElements()
+        self._elements = BeamPhysicsRelevantElements(
+            check_section_indices=check_section_indices
+        )
         assert circumference > 0, (
             f"`circumference` must be bigger 0, but is {circumference}"
         )
