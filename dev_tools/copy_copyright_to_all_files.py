@@ -27,7 +27,7 @@ def insert_copyright_notes():
             if is_python_file or is_cpp_file or is_fortran_file:
                 full_path = os.path.join(dirpath, name)
                 if os.path.getsize(full_path) > 0:  # skip empty files
-                    with open(full_path, "r+") as f:
+                    with open(full_path, "r+", encoding="utf-8") as f:
                         content = f.read()
                         if "copyright" in content.lower():
                             print("Skipped:")

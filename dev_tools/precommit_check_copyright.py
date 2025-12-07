@@ -34,7 +34,7 @@ def perform_check():
             if is_python_file or is_cpp_file or is_fortran_file:
                 full_path = os.path.join(dirpath, name)
                 if os.path.getsize(full_path) > 0:  # skip empty files
-                    with open(full_path) as f:
+                    with open(full_path, encoding="utf-8") as f:
                         content = f.read()
                     if is_python_file:
                         copyright_message = text_py
