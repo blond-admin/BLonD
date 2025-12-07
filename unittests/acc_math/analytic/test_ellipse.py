@@ -7,7 +7,9 @@ from blond.acc_math.analytic.ellipse import (
     calc_ellipse_gamma,
     ellipse_residuals,
     fit_ellipse,
+    get_points_on_ellipse,
     plot_ellipse,
+    transform_twiss,
 )
 
 
@@ -123,3 +125,18 @@ class TestCallables(unittest.TestCase):
 
     def test_plot_ellipse(self):
         plot_ellipse(alpha=1, beta=2, epsilon=3)
+
+    def test_transform_twiss(self):
+        n_points = 21
+        twiss_before = (0, 2, 3)
+        twiss_after = (4, 1.5, 3)
+
+        x, y = get_points_on_ellipse(*twiss_before, n_points)
+        plt.scatter(x, y)
+        x, y = transform_twiss(x, y, *twiss_before, *twiss_after)
+        plt.scatter(x, y)
+
+        plot_ellipse(*twiss_before, n_points)
+        plot_ellipse(*twiss_after, n_points)
+
+        plt.show()

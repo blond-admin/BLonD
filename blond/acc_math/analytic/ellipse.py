@@ -81,12 +81,24 @@ def fit_ellipse(
     return ret
 
 
+def get_points_on_ellipse(alpha, beta, epsilon, n_points):
+    # parameter angle
+    theta = np.linspace(0, 2 * np.pi, n_points)
+    # parametric form of the ellipse in Courant–Snyder variables
+    x = np.sqrt(beta * epsilon) * np.cos(theta)
+    y = -alpha * np.sqrt(epsilon / beta) * np.cos(theta) + np.sqrt(
+        epsilon / beta
+    ) * np.sin(theta)
+    return x, y
+
+
 def plot_ellipse(
     alpha: float,
     beta: float,
     epsilon: float,
     n_points: int = 400,
     ax: matplotlib.axes.Axes | None = None,
+    **kwargs_plot,
 ):
     """Plot the Courant–Snyder (Twiss) ellipse.
 
@@ -103,18 +115,46 @@ def plot_ellipse(
     -------
     ax : matplotlib.axes.Axes
     """
-    # parameter angle
-    theta = np.linspace(0, 2 * np.pi, n_points)
-
-    # parametric form of the ellipse in Courant–Snyder variables
-    x = np.sqrt(beta * epsilon) * np.cos(theta)
-    y = -alpha * np.sqrt(epsilon / beta) * np.cos(theta) + np.sqrt(
-        epsilon / beta
-    ) * np.sin(theta)
+    x, y = get_points_on_ellipse(alpha, beta, epsilon, n_points)
 
     if ax is None:
         ax = plt.gca()
 
-    ax.plot(x, y, label=f"α={alpha}, β={beta}, ε={epsilon}")
+    ax.plot(x, y, label=f"α={alpha}, β={beta}, ε={epsilon}", **kwargs_plot)
 
     return ax
+
+
+def transform_twiss(x, xp, alpha1, beta1, eps1, alpha2, beta2, eps2):
+    A1 = np.sqrt(eps1) * np.array(
+        [[np.sqrt(beta1), 0], [-alpha1 / np.sqrt(beta1), 1 / np.sqrt(beta1)]]
+    )
+
+    A2 = np.sqrt(eps2) * np.array(
+        [[np.sqrt(beta2), 0], [-alpha2 / np.sqrt(beta2), 1 / np.sqrt(beta2)]]
+    )
+
+    M = A2 @ np.linalg.inv(A1)
+
+    x2, xp2 = M @ np.vstack([x, xp])
+
+    return x2, xp2
+
+
+
+
+def twiss_from_cloud(x, xp):
+    # compute second moments
+    x2 = np.mean(x**2)
+    xp2 = np.mean(xp**2)
+    xxp = np.mean(x * xp)
+
+    # rms emittance
+    eps = np.sqrt(x2 * xp2 - xxp**2)
+
+    # Twiss parameters
+    beta = x2 / eps
+    alpha = -xxp / eps
+    gamma = xp2 / eps
+
+    return beta, alpha, gamma, eps
