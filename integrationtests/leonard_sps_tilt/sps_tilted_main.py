@@ -1,10 +1,8 @@
 """SPS IONS."""
 
-
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.ndimage import gaussian_filter
-from sps_tilted_plotting import plot_fitted_ellipse
 
 from blond import (
     AllowPlotting,
@@ -32,11 +30,15 @@ backend.set_specials("cpp")
 
 def run_simulation_SPS_ions_flat_bot(
     voltage_multiplier: float,
-    phase_jump: float,
-    bunch_length,
-    no_obs_mode: bool = False,
 ):
-    """Execute the SPS simulation main script."""
+    """
+    Execute the SPS simulation main script.
+
+    Parameters
+    ----------
+    voltage_multiplier
+        Scales the strength of the voltage.
+    """
     ring = Ring(circumference=6912)
 
     magnetic_cycle = ConstantMagneticCycle(
@@ -52,43 +54,45 @@ def run_simulation_SPS_ions_flat_bot(
         is_counter_rotating=False,
     )
 
-    bunch_obs = BunchObservationMetaParams(each_turn_i=1, beam=beam)
+    BunchObservationMetaParams(each_turn_i=1, beam=beam)
 
     one_turn_model = []
     # after_turn_prof = StaticProfile.from_rad(cut_left_rad=-0.1*np.pi, cut_right_rad=0.1*np.pi, t_period=5e-9, n_bins=256)
     # prof_obs = StaticProfileObservation(profile=after_turn_prof, each_turn_i=each_turn_i)
 
-    one_turn_model.extend(
-        [
-            DriftSimple(
-                transition_gamma=-22.774,
-                orbit_length=ring.circumference / 2,
-                section_index=0,
-            ),
-            SingleHarmonicRfStation(
-                voltage=(10e6 * voltage_multiplier / 2),
-                phi_rf=0,
-                harmonic=4620,
-                section_index=0,
-            ),
-        ]
-    )
+    n_sections = 2
+    for i in range(n_sections):
+        one_turn_model.extend(
+            [
+                DriftSimple(
+                    transition_gamma=-22.774,
+                    orbit_length=ring.circumference / n_sections,
+                    section_index=i,
+                ),
+                SingleHarmonicRfStation(
+                    voltage=(10e6 * voltage_multiplier / n_sections),
+                    phi_rf=0,
+                    harmonic=4620,
+                    section_index=i,
+                ),
+            ]
+        )
 
-    one_turn_model.extend(
+    """one_turn_model.extend(
         [
             DriftSimple(
                 transition_gamma=-22.774,
-                orbit_length=ring.circumference / 2,
+                orbit_length=ring.circumference / n_sections,
                 section_index=1,
             ),
             SingleHarmonicRfStation(
-                voltage=(10e6 * voltage_multiplier / 2),
+                voltage=(10e6 * voltage_multiplier / n_sections),
                 phi_rf=0,
                 harmonic=4620,
                 section_index=1,
             ),
         ]
-    )
+    )"""
     # if not no_obs_mode:
     #    one_turn_model.append(bunch_obs)
 
@@ -109,7 +113,7 @@ def run_simulation_SPS_ions_flat_bot(
                 "hamilton_max": scalar * 5000,
             },
             animate=True,
-            internal_grid_shape=(1024 * 8, 1024 * 8),
+            internal_grid_shape=(1024, 1024),
         ),
     )
     plt.figure("debug")
@@ -119,74 +123,7 @@ def run_simulation_SPS_ions_flat_bot(
     beam._dt += (1 / SHEAR_X) * beam._dE"""
     show_stability = False
     if show_stability:
-        plt.figure("debug")
-        beam.plot_hist2d()
-        x, y = copy_to_cpu(beam._dt), copy_to_cpu(beam._dE)
-        ax = plt.gca()
-        hist, xedges, yedges, img = ax.hist2d(x, y, bins=128, cmap="viridis")
-
-        # Compute the centers of bins for plotting contours
-        xcenters = 0.5 * (xedges[:-1] + xedges[1:])
-        ycenters = 0.5 * (yedges[:-1] + yedges[1:])
-
-        # Plot contour lines (equipotentials of the histogram density)
-        CS = ax.contour(
-            xcenters,
-            ycenters,
-            gaussian_filter(hist, sigma=10).T,
-            colors="white",
-            linewidths=1,
-        )
-        memory = np.zeros((11, 2))
-        memory2 = np.zeros((11, 2, 10000))
-
-        def plot_beam(simulation, beam):
-            if simulation.turn_i.value % 1 == 0:  # Every 100 turns
-                memory2[:, 0, simulation.turn_i.value] = beam._dt
-                memory2[:, 1, simulation.turn_i.value] = beam._dE
-                colors = [
-                    "red",
-                    "green",
-                    "blue",
-                    "orange",
-                    "purple",
-                    "cyan",
-                    "magenta",
-                    "yellow",
-                    "black",
-                    "brown",
-                    "pink",
-                ]
-                for i in range(len(memory)):
-                    if memory[i, 0] < beam._dE[i]:
-                        memory[i, 0] = beam._dE[i]
-                        memory[i, 1] = beam._dE[i] / beam._dt[i]
-                plt.figure("debug_2")
-                plt.cla()
-                plt.scatter(
-                    np.arange(len(memory[:, 0])), memory[:, 1], c=colors
-                )
-                plt.figure("debug")
-                # plt.clf()
-                beam.plot_scatter(c=colors)
-                if simulation.turn_i.value == 10:
-                    for inmdex in [2, 8]:
-                        plot_fitted_ellipse(
-                            memory2[inmdex, 0, : simulation.turn_i.value],
-                            memory2[inmdex, 1, : simulation.turn_i.value],
-                        )
-                plt.draw()
-                plt.pause(0.01)
-
-        beam2 = ProbeBeam(
-            particle_type=beam.particle_type,
-            dt=np.linspace(0.01 * beam.dt_max, 0.8 * beam.dt_max, 11),
-            intensity=beam.intensity,
-        )
-        plt.figure("debug")
-        plt.axvline(np.mean(copy_to_cpu(beam._dt)))
-
-        sim.run_simulation(beams=(beam2,), n_turns=10, callback=plot_beam)
+        stabiility_plot(beam, sim)
     else:
         plt.figure("debug2")
         ax1 = plt.subplot(1, 2, 1)
@@ -220,14 +157,95 @@ def run_simulation_SPS_ions_flat_bot(
         sim.run_simulation(beams=(beam,), n_turns=1e12, callback=plot_beam)
 
 
+def stabiility_plot(beam, simulation):
+    """
+    Plot a figure that compares the beam distribution and particles on a stable orbit.
+
+    Parameters
+    ----------
+    beam
+        Simulation :class:`~blond._cycles_core.beam.beam.Beam` object
+    simulation
+        `Simulation` context manager
+    """
+    plt.figure("debug")
+    beam.plot_hist2d()
+    x, y = copy_to_cpu(beam._dt), copy_to_cpu(beam._dE)
+    ax = plt.gca()
+    hist, xedges, yedges, img = ax.hist2d(x, y, bins=128, cmap="viridis")
+    # Compute the centers of bins for plotting contours
+    xcenters = 0.5 * (xedges[:-1] + xedges[1:])
+    ycenters = 0.5 * (yedges[:-1] + yedges[1:])
+    # Plot contour lines (equipotentials of the histogram density)
+    ax.contour(
+        xcenters,
+        ycenters,
+        gaussian_filter(hist, sigma=10).T,
+        colors="white",
+        linewidths=1,
+    )
+    memory = np.zeros((11, 2))
+    memory2 = np.zeros((11, 2, 10000))
+
+    def plot_beam(simulation: Simulation, beam: Beam):
+        """
+        Plot the current state of the beam.
+
+        Parameters
+        ----------
+        simulation
+            `Simulation` context manager
+        beam
+            Simulation :class:`~blond._cycles_core.beam.beam.Beam` object
+        """
+        if simulation.turn_i.value % 1 == 0:  # Every 100 turns
+            memory2[:, 0, simulation.turn_i.value] = beam._dt
+            memory2[:, 1, simulation.turn_i.value] = beam._dE
+            colors = [
+                "red",
+                "green",
+                "blue",
+                "orange",
+                "purple",
+                "cyan",
+                "magenta",
+                "yellow",
+                "black",
+                "brown",
+                "pink",
+            ]
+            for i in range(len(memory)):
+                if memory[i, 0] < beam._dE[i]:
+                    memory[i, 0] = beam._dE[i]
+                    memory[i, 1] = beam._dE[i] / beam._dt[i]
+            plt.figure("debug_2")
+            plt.cla()
+            plt.scatter(np.arange(len(memory[:, 0])), memory[:, 1], c=colors)
+            plt.figure("debug")
+            # plt.clf()
+            beam.plot_scatter(c=colors)
+            """if simulation.turn_i.value == 10:
+                for inmdex in [2, 8]:
+                    plot_fitted_ellipse(
+                        memory2[inmdex, 0, : simulation.turn_i.value],
+                        memory2[inmdex, 1, : simulation.turn_i.value],
+                    )"""
+            plt.draw()
+            plt.pause(0.01)
+
+    beam2 = ProbeBeam(
+        particle_type=beam.particle_type,
+        dt=np.linspace(0.01 * beam.dt_max, 0.8 * beam.dt_max, 11),
+        intensity=beam.intensity,
+    )
+    plt.figure("debug")
+    plt.axvline(np.mean(copy_to_cpu(beam._dt)))
+    simulation.run_simulation(beams=(beam2,), n_turns=10, callback=plot_beam)
+
+
 if __name__ == "__main__":
-    for bunch_length in [1.5e-10, 3e-10, 1e-9, 2e-9]:
-        for phase_jump in [10, 30, 50, 70]:  # , 30, 50, 70, 90]:
-            for volt_mult in [3.0, 0.1]:
-                run_simulation_SPS_ions_flat_bot(
-                    voltage_multiplier=volt_mult,
-                    phase_jump=phase_jump,
-                    bunch_length=bunch_length,
-                    no_obs_mode=False,
-                )
-            plt.show()
+    for volt_mult in [3.0, 0.1]:
+        run_simulation_SPS_ions_flat_bot(
+            voltage_multiplier=volt_mult,
+        )
+    plt.show()

@@ -219,7 +219,7 @@ class TestSimulation(unittest.TestCase):
         sim = SimulationTwoRfStations()
         ts = np.linspace(-2e-9, 2e-9, 100)
 
-        potential_well, factor, tilt_dt_per_dE = (
+        potential_well, factor, t_stable = (
             sim.simulation.get_potential_well_empiric(
                 dt=ts,
                 particle_type=proton,
@@ -227,7 +227,7 @@ class TestSimulation(unittest.TestCase):
             )
         )
 
-        potential_well, factor, tilt_dt_per_dE = (
+        potential_well, factor, t_stable = (
             sim.simulation.get_potential_well_empiric(
                 dt=ts,
                 particle_type=proton,
@@ -381,7 +381,7 @@ class TestSimulation(unittest.TestCase):
             beam_beta=self.beam.reference_beta,
             ring_circumference=self.simulation.ring.circumference,
         )
-        potential_well, factor, tilt_dt_per_dE = (
+        potential_well, factor, t_stable = (
             self.simulation.get_potential_well_empiric(
                 ts, particle_type=particle_type
             )
@@ -437,7 +437,7 @@ class TestSimulation(unittest.TestCase):
             20000,
         )
         for particle_type in (proton, noton):
-            potential_well, factor, tilt_dt_per_dE = (
+            potential_well, factor, t_stable = (
                 self.simulation.get_potential_well_empiric(
                     ts, particle_type=particle_type
                 )
@@ -500,7 +500,7 @@ class TestSimulation(unittest.TestCase):
             beam_beta=beam.reference_beta,
             ring_circumference=simulation.ring.circumference,
         )
-        potential_well, factor, tilt_dt_per_dE = (
+        potential_well, factor, t_stable = (
             simulation.get_potential_well_empiric(
                 ts, particle_type=particle_type
             )

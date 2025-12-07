@@ -511,14 +511,6 @@ class Simulation(Preparable):
         # Calculate scaling factor
         factor = float((dt[-1] - dt[0]) / t_rev)
 
-        # Calculate tilt of phase space
-        idx = (
-            0  # this is an arbitrary choice, we assume they are all the same.
-        )
-        change_t = probe_bunch._dt[idx] - bunch_before._dt[idx]
-        change_E = probe_bunch._dE[idx] - bunch_before._dE[idx]
-        tilt_dt_per_dE = change_t / change_E
-
         # Derive potential well by integrating over energy change
         potential_well = -cumulative_simpson(
             probe_bunch.read_partial_dE()
@@ -598,7 +590,7 @@ class Simulation(Preparable):
           where gamma is the third Courant-Snyder parameter.
         - For accurate results, ``delta_t`` should be small enough that the particle
           remains in the linear regime of the RF potential.
-§
+
         See Also
         --------
         blond.acc_math.analytic.ellipse.fit_ellipse : Ellipse fitting routine
