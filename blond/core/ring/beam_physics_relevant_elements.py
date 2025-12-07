@@ -40,10 +40,11 @@ class BeamPhysicsRelevantElements(Preparable):
         List of  :class:`~blond.core.ring.beam_physics_relevant_elements.BeamPhysicsRelevantElements`.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, check_section_indices: bool = True) -> None:
         super().__init__()
         self.elements: list[SimulationElementBase] = []
         self._on_init_simulation_passed = False
+        self._check_section_indices = check_section_indices
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """
@@ -54,7 +55,8 @@ class BeamPhysicsRelevantElements(Preparable):
         simulation
             `Simulation` context manager.
         """
-        self._check_section_indexing()
+        if self._check_section_indices:
+            self._check_section_indexing()
         self._on_init_simulation_passed = True
 
     def _assert_no_init(self, msg: str) -> None:

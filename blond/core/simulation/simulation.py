@@ -1066,6 +1066,11 @@ class Simulation(Preparable):
         ... )
         """
         logger.info(f"Running `run_simulation` with {locals()}")
+        n_turns = (
+            int_from_float_with_warning(n_turns, warning_stacklevel=2)
+            if n_turns is not None
+            else None
+        )
         _n_turns = self.finalize(
             beams=beams,
             n_turns=n_turns,

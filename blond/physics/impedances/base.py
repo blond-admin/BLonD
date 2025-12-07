@@ -13,6 +13,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+from scipy.constants import elementary_charge as e
+
 from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.ring.helpers import requires
@@ -65,6 +67,38 @@ class WakeFieldSolver:
             Induced voltage, in [V].
         """
         pass
+
+    def _hist_y_to_intensity_factor(
+        self,
+        beam: BeamBaseClass,
+        profile: ProfileBaseClass,
+    ) -> float:
+        """
+        Calculate a conversion factor between histogram values and physical wakefield intensity.
+
+        This factor converts quantities based on macroparticles in a simulation
+        to their equivalent real-particle values, taking into account the particle charge,
+        beam intensity, and profile scaling.
+
+
+        Parameters
+        ----------
+        beam
+            `Simulation` object of a particle beam.
+        profile
+            Beam profile object.
+
+        Returns
+        -------
+        hist_y_to_intensity_factor
+            Factor converting between wakefield
+            (macroparticles vs. real particles).
+        """
+        # TODO this might fail with MOI?
+        _factor = (-1 * beam.particle_type.charge * e) * (
+            beam.intensity * profile.hist_y_to_density_factor
+        )
+        return _factor
 
 
 class WakeFieldSource(ABC):

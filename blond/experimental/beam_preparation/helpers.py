@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.backends.backend import backend
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray
@@ -59,7 +60,7 @@ def generate_particle_coordinates(
     indexes = np.random.choice(
         np.arange(0, np.size(density_grid)),
         n_macroparticles,
-        p=density_grid.flatten() / np.sum(density_grid),
+        p=copy_to_cpu(density_grid.flatten() / np.sum(density_grid)),
     )
     indexes = backend.array(
         indexes
