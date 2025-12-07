@@ -1,3 +1,11 @@
+# Copyright CERN. This software is distributed under the
+# terms of the GNU General Public Licence version 3 (GPL Version 3),
+# copied verbatim in the file LICENCE.txt.
+# In applying this licence, CERN does not waive the privileges and immunities
+# granted to it by virtue of its status as an Intergovernmental Organization or
+# submit itself to any jurisdiction.
+# Project website: http://blond.web.cern.ch/
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -139,8 +147,6 @@ def transform_twiss(x, xp, alpha1, beta1, eps1, alpha2, beta2, eps2):
     x2, xp2 = M @ np.vstack([x, xp])
 
     return x2, xp2
-
-
 
 
 def twiss_from_cloud(x, xp):
