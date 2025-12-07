@@ -43,18 +43,15 @@ sys.path.insert(0, folder)
 extensions = [
     "sphinx.ext.autodoc",
     "numpydoc",
-    # "sphinx.ext.autosummary",
-    #    "sphinx.ext.doctest",
-    #    "sphinx.ext.intersphinx",
-    #    "sphinx.ext.todo",
-    #    "sphinx.ext.coverage",
+    "sphinx.ext.autosummary",
     "sphinx.ext.mathjax",
-    #    "sphinx.ext.viewcode",
-    #    "sphinx.ext.githubpages",
-    # "sphinxcontrib.napoleon"
     "sphinx.ext.inheritance_diagram",
     "sphinx.ext.napoleon",
 ]
+
+autosummary_generate = True
+autosummary_imported_members = True
+
 
 inheritance_graph_attrs = {
     "rankdir": "TB",  # "TB" = Top → Bottom (vertical)
