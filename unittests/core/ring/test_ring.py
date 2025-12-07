@@ -3,9 +3,16 @@ from unittest.mock import Mock
 
 import numpy as np
 
-from blond import Ring, Simulation
+from blond import (
+    Beam,
+    MagneticCyclePerTurn,
+    Ring,
+    Simulation,
+    SingleHarmonicRfStation,
+)
 from blond.core.base import BeamPhysicsRelevant
 from blond.core.beam.base import BeamBaseClass
+from blond.core.beam.particle_types import lead_82
 from blond.physics.cavities import RfStationBaseClass
 from blond.physics.drifts import DriftBaseClass, DriftSimple
 from blond.testing.mocks import simulation_mock
@@ -519,6 +526,67 @@ class TestRing(unittest.TestCase):
 
         beam_mock.reference_gamma = 124
         self.assertFalse(ring.is_below_transition(beam=beam_mock))
+
+    def test_non_mandatory_element_checking_drifts(self):
+        ring = Ring(circumference=300, check_section_indices=False)
+        ring.add_element(
+            DriftSimple(
+                orbit_length=100, transition_gamma=123, section_index=0
+            )
+        )
+        ring.add_element(
+            DriftSimple(
+                orbit_length=100, transition_gamma=123, section_index=0
+            )
+        )
+        # two drifts should cause a problem in the same section
+        ring.add_element(
+            DriftSimple(
+                orbit_length=100, transition_gamma=123, section_index=1
+            )
+        )
+
+        ring.on_init_simulation(simulation_mock)
+        sim = Simulation(ring, Mock(MagneticCyclePerTurn))
+        beam = Beam(intensity=1, particle_type=lead_82)
+        beam._dt = [1]
+        beam._dE = [2]
+        beam._flags = [3]
+        beam._ids = [4]
+        sim.finalize((beam,))
+
+    def test_non_mandatory_element_checking_kicks(self):
+        ring = Ring(circumference=200, check_section_indices=False)
+        ring.add_element(
+            SingleHarmonicRfStation(
+                voltage=1, phi_rf=1, harmonic=1, section_index=0
+            )
+        )
+        ring.add_element(
+            SingleHarmonicRfStation(
+                voltage=1, phi_rf=1, harmonic=1, section_index=0
+            )
+        )
+        # two kicks should cause a problem in the same section
+        ring.add_element(
+            DriftSimple(
+                orbit_length=100, transition_gamma=123, section_index=0
+            )
+        )
+        ring.add_element(
+            DriftSimple(
+                orbit_length=100, transition_gamma=123, section_index=1
+            )
+        )
+
+        ring.on_init_simulation(simulation_mock)
+        sim = Simulation(ring, Mock(MagneticCyclePerTurn))
+        beam = Beam(intensity=1, particle_type=lead_82)
+        beam._dt = [1]
+        beam._dE = [2]
+        beam._flags = [3]
+        beam._ids = [4]
+        sim.finalize((beam,))
 
 
 if __name__ == "__main__":
