@@ -234,7 +234,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         pass  # this gets never called
 
     @abstractmethod  # pragma: no cover
-    def plot_hist2d(self) -> None:
+    def plot_hist2d(self, **kwargs) -> None:
         """Plot 2D histogram of beam coordinates."""
         pass
 
