@@ -75,7 +75,7 @@ def cavity_response_sparse_matrix(
         Initial condition for the antenna voltage
     I_gen_init : complex float
         Initial condition of the generator current, i.e. one sample before the I_gen array
-    samples_per_rf : int
+    samples_per_rf : float
         Number of samples per RF period
     R_over_Q : float
         The R over Q of the cavity
