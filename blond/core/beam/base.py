@@ -95,8 +95,17 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     def add_beam(self, other: BeamBaseClass, purge: bool = False):
 
+
+        if self.ratio != other.ratio:
+            raise ValueError("Cannot add beams with a different ratio")
+
+        if self.particle_type != other.particle_type:
+            raise TypeError("Cannot add beams with different "
+                            "particle_type")
+
         self._dt = backend.concatenate((self._dt, other._dt))
         self._dE = backend.concatenate((self._dE, other._dE))
+
         self.intensity += other.intensity
 
         new_ids = backend.arange(backend.max(self._ids) + 1,
