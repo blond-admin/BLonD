@@ -78,7 +78,15 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         )
 
     def __iadd__(self, other: BeamBaseClass | ArrayLike):
+        """
+        Inplace addition to the beam object.  Either adds two instances
+        of BeamBaseClass together or adds an 2D array of particle
+        coordinates (format: [dt, dE]) to the beam.
 
+        Args
+            other : Either an instance of BeamBaseClass or an ArrayLike
+                    of [dt, dE].
+        """
         if isinstance(other, BeamBaseClass):
             self.add_beam(other)
         else:
