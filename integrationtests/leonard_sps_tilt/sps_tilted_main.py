@@ -57,8 +57,6 @@ def run_simulation_SPS_ions_flat_bot(
     BunchObservationMetaParams(each_turn_i=1, beam=beam)
 
     one_turn_model = []
-    # after_turn_prof = StaticProfile.from_rad(cut_left_rad=-0.1*np.pi, cut_right_rad=0.1*np.pi, t_period=5e-9, n_bins=256)
-    # prof_obs = StaticProfileObservation(profile=after_turn_prof, each_turn_i=each_turn_i)
 
     n_sections = 2
     for i in range(n_sections):
@@ -78,42 +76,24 @@ def run_simulation_SPS_ions_flat_bot(
             ]
         )
 
-    """one_turn_model.extend(
-        [
-            DriftSimple(
-                transition_gamma=-22.774,
-                orbit_length=ring.circumference / n_sections,
-                section_index=1,
-            ),
-            SingleHarmonicRfStation(
-                voltage=(10e6 * voltage_multiplier / n_sections),
-                phi_rf=0,
-                harmonic=4620,
-                section_index=1,
-            ),
-        ]
-    )"""
-    # if not no_obs_mode:
-    #    one_turn_model.append(bunch_obs)
-
     ring.add_elements(one_turn_model, reorder=False)
     sim = Simulation(ring=ring, magnetic_cycle=magnetic_cycle)
     # sim.print_one_turn_execution_order()
     # if no_obs_mode:
-
+    fac = 1
     scalar = voltage_multiplier / 3.0
     sim.prepare_beam(
         beam=beam,
-        # preparation_routine=BiGaussian(n_macroparticles=1e6, sigma_dt=bunch_length))
         preparation_routine=SemiEmpiricMatcher(
-            time_limit=(-0.5e-9, 0.5e-9),
+            time_limit=(-fac * 0.5e-9, fac * 0.5e-9),
             n_macroparticles=1e6,
             hamilton_to_density_kwargs={
                 "density_modifier": 2,
-                "hamilton_max": scalar * 5000,
+                "hamilton_max": 10000,
             },
             animate=True,
             internal_grid_shape=(1024, 1024),
+            linear_tilt=True,
         ),
     )
     plt.figure("debug")
@@ -136,8 +116,11 @@ def run_simulation_SPS_ions_flat_bot(
                     plt.cla()
                     beam.plot_hist2d(
                         range=(
-                            (-5e-10, 5e-10),
-                            (-np.sqrt(scalar) * 12e8, np.sqrt(scalar) * 12e8),
+                            (-fac * 5e-10, fac * 5e-10),
+                            (
+                                -fac * np.sqrt(scalar) * 12e8,
+                                fac * np.sqrt(scalar) * 12e8,
+                            ),
                         ),
                         bins=256 * 2,
                     )
@@ -147,8 +130,8 @@ def run_simulation_SPS_ions_flat_bot(
         plt.sca(ax1)
         beam.plot_hist2d(
             range=(
-                (-5e-10, 5e-10),
-                (-np.sqrt(scalar) * 12e8, np.sqrt(scalar) * 12e8),
+                (-fac * 5e-10, fac * 5e-10),
+                (-fac * np.sqrt(scalar) * 12e8, fac * np.sqrt(scalar) * 12e8),
             ),
             bins=256 * 2,
         )

@@ -101,7 +101,10 @@ def get_twiss_beta_semi_analytic(
     eta: float,
     beta: float,
 ) -> float:
-    assert len(ts) == len(potential_well)
+    assert len(ts) == len(potential_well), (
+        f"Input length of `ts` and `potential_well` do not match: "
+        f"{len(ts)=}, but {len(potential_well)=}."
+    )
     idx_min = np.argmin(potential_well)
     h0 = potential_well[idx_min]
     t0 = ts[idx_min]
@@ -277,10 +280,12 @@ class SemiEmpiricMatcher(MatchingRoutine):
         falls below this tolerance.
     verbose : bool, default=False
         If ``True``, prints convergence and status messages to the console.
-    linear_tilt
+    rotate_distr_matching_tilt
         If False, the beam distribution is generated in canonic orientation.
-        If False, the distribution is transformed to fit the twiss parameters
+        If True, the distribution is transformed to fit the twiss parameters
         for the effective oscillation around the stable point in phase space.
+        Please mind that this method does not work properly work close to the
+        separatrix.
 
     Notes
     -----
@@ -301,9 +306,9 @@ class SemiEmpiricMatcher(MatchingRoutine):
         increment_intensity_effects_until_iteration_i: int = 0,
         animate: bool = False,
         verbose: bool = True,
-        linear_tilt: bool = False,
+        rotate_distr_matching_tilt: bool = False,
     ) -> None:
-        self.linear_tilt = linear_tilt
+        self.rotate_distr_matching_tilt = rotate_distr_matching_tilt
         self.n_macroparticles = int_from_float_with_warning(
             n_macroparticles,
             warning_stacklevel=2,
@@ -536,7 +541,7 @@ class SemiEmpiricMatcher(MatchingRoutine):
             n_macroparticles=self.n_macroparticles,
             seed=self.seed,
         )
-        if self.linear_tilt:
+        if self.rotate_distr_matching_tilt:
             beta_twiss = get_twiss_beta_semi_analytic(
                 ts=dt_oversampled,
                 potential_well=potential_well_oversampled,

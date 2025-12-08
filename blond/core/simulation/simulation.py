@@ -614,7 +614,7 @@ class Simulation(Preparable):
             particle_type=particle_type,
             intensity=intensity,
         )
-        result = np.empty((20, 2))  # 4 steps, dE&dt
+        result = np.empty((4, 2))  # 4 steps, dE&dt
         reference_time = 0
         reference_total_energy = self.magnetic_cycle.get_target_total_energy(
             0, 0, 0, probe_bunch.particle_type
@@ -1040,7 +1040,7 @@ class Simulation(Preparable):
     def run_simulation(
         self,
         beams: tuple[BeamBaseClass, ...],
-        n_turns: int | float | None = None,
+        n_turns: int | None = None,
         turn_i_init: int = 0,
         observe: tuple[ObservablesOncePerTurnBase, ...] = (),
         show_progressbar: bool = True,
