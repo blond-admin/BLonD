@@ -85,6 +85,29 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             self.add_particles(other)
 
     def add_beam(self, other: BeamBaseClass, purge: bool = False):
+        """
+        Function to add the particles from another beam to this beam.
+        Requires that both beams specify the same ParticleType and have
+        the same intensity per macroparticle.  The coordinates and
+        flags of the new beam will be concatenated with those of the
+        existing beam.  The ids of the new beam will be replaced, with
+        the values incremeted from the number of macroparticles in the
+        original beam.
+
+        Args:
+            other: The BeamBaseClass object to add to this Beam
+            purge (optional): Specify if flagged particles should be
+                              purged when adding the beams.
+                              If True, all particles with flag different
+                              to the Active value will be purged.
+                              Defaults to False.
+
+        Raises
+        ------
+            ValueError: If self.ratio != other.ratio, a ValueError is
+                        raised.
+            TypeError: If self.particle_type != other.particle_type
+        """
 
 
         if self.ratio != other.ratio:
@@ -113,6 +136,16 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
                     self.purge_flagged_entries(f)
 
     def add_particles(self, new_particles: ArrayLike):
+        """
+        Function to add new particles to the beam from an array.  The
+        input array must be 2D with format [dt, dE].  The new
+        particles will be assumed to have the same intensity per
+        macroparticle as the original beam.
+
+        Args:
+            new_particles: 2D array of [dt, dE] defining the coordinates
+                           of the new particles.
+        """
 
         new_dt = new_particles[0]
         new_dE = new_particles[1]
