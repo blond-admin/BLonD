@@ -147,6 +147,7 @@ class TestCallables(unittest.TestCase):
         x, y = transform_twiss(x, y, *twiss_before, *twiss_after)
         twiss_after_points = fit_ellipse(x, y)
         np.testing.assert_allclose(twiss_after_points, twiss_after)
+        DEV_PLOT = True
         if DEV_PLOT:
             plt.scatter(x, y)
 
