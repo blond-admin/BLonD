@@ -285,6 +285,47 @@ class testProfileClass(unittest.TestCase):
                 err_msg=f"Profiles for bunch {bunch} do not agree "
                 + 'for tracker_mode="C"',
             )
+    def test_tracker_consistency(self):
+        rtol = 1e-6  # relative tolerance
+        atol = 0  # absolute tolerance
+
+        nonuniform_profile_python = _SparseProfileBaseClass(
+            self.rf_station,
+            self.beam,
+            self.n_slices_rf,
+            self.filling_pattern,
+            self.profile_length_in_buckets,
+            tracker_mode="onebyone",
+            do_track_on_init=True,
+        )
+
+        nonuniform_profile_cpp = _SparseProfileBaseClass(
+            self.rf_station,
+            self.beam,
+            self.n_slices_rf,
+            self.filling_pattern,
+            self.profile_length_in_buckets,
+            tracker_mode="C",
+            do_track_on_init=True,
+        )
+        for bunch in range(2):
+            np.testing.assert_allclose(
+                nonuniform_profile_python.bin_centers_array[bunch],
+                nonuniform_profile_cpp.bin_centers_array[bunch],
+                rtol=rtol,
+                atol=atol,
+                err_msg=f"Bins for bunch {bunch} do not agree "
+                        + 'for both trackers',
+            )
+
+            np.testing.assert_allclose(
+                nonuniform_profile_python.n_macroparticles_array[bunch],
+                nonuniform_profile_cpp.n_macroparticles_array[bunch],
+                rtol=rtol,
+                atol=atol,
+                err_msg=f"Profiles for bunch {bunch} do not agree "
+                        + 'for both trackers',
+            )
 
     def test_set_additional_cuts(self):
         updated_filling_pattern = np.array([1, 1, 0, 0, 0, 1])
