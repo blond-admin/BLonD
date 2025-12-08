@@ -224,7 +224,6 @@ class PassiveCavity(IQCavityFeedback):
 
     def circuit_track(self, no_beam: bool = False) -> None:
         r"""Tracking of the LLRF circuit."""
-
         # Compute antenna voltage
         self.V_ANT_COARSE[:self.n_coarse] = self.V_ANT_COARSE[-self.n_coarse:]
         time = np.arange(0, self.n_coarse) * self.T_s
@@ -257,6 +256,7 @@ class PassiveCavity(IQCavityFeedback):
 
     def runge_kutta_tryout_2nd_order(self, V_init, bin_centers, omega, delta_omega,
                                      method="RK23", min_val=True, dV_ant_init=0+0j):
+        """DOCM."""
         max_tstep = bin_centers[1] - bin_centers[0]
 
         dcurrent = interp1d(bin_centers, -.5 * self.i_beam_gradient_coarse[-self.n_coarse:] + 2j * omega * self.I_GEN_COARSE[-self.n_coarse:])
@@ -284,8 +284,7 @@ class PassiveCavity(IQCavityFeedback):
         return sol["t"], sol["y"][0]
 
     def cavity_response_fine(self):
-        r'''ACS cavity response model in matrix form on the fine-grid'''
-
+        r"""ACS cavity response model in matrix form on the fine-grid."""
         # Number of samples on fine grid
         self.samples_fine = self.omega_rf * self.profile.hist_step
 
@@ -359,8 +358,9 @@ class PassiveCavity(IQCavityFeedback):
                                  external_reference: bool = True,
                                  delta_t: float = 0,
                                  ) -> tuple[NumpyArray, NumpyArray]:
-        r"""Function calculating the beam charge gradient at the (RF) frequency, slice by
-        slice. The charge distribution [C] of the beam is determined from the beam
+        r"""Function calculating the beam charge gradient at the (RF) frequency.
+
+        The charge distribution [C] of the beam is determined from the beam
         profile :math:`\lambda_i`, the particle charge :math:`q_p` and the real vs.
         macro-particle ratio :math:`N_{\mathsf{real}}/N_{\mathsf{macro}}`
 
@@ -410,9 +410,7 @@ class PassiveCavity(IQCavityFeedback):
         (complex array)
             If time_coarse is specified, returns also the RF beam charge gradient array [C]
             on the coarse time grid
-
         """
-
         # Convert from dimensionless to Coulomb/Ampères
         # Take into account macro-particle charge with real-to-macro-particle ratio
         charges = (self.profile.hist_y_to_density_factor * beam.particle_type.charge * e
@@ -447,8 +445,8 @@ class PassiveCavity(IQCavityFeedback):
             try:
                 T_s = float(downsample['Ts'])
                 n_points = int(downsample['points'])
-            except Exception:
-                raise RuntimeError('Downsampling input erroneous in rf_beam_current')
+            except Exception as exception:
+                raise RuntimeError('Downsampling input erroneous in rf_beam_current') from exception
 
             # Find which index in fine grid matches index in coarse grid
             ind_fine = np.round((self.profile.hist_x + delta_t - np.pi / self.omega_carrier) / T_s)
@@ -471,72 +469,90 @@ class PassiveCavity(IQCavityFeedback):
     # TODO: remove following section
     @property
     def V_ANT_COARSE(self) -> NumpyArray:
+        """Translates to v_antenna_coarse."""
         return self.v_antenna_coarse
 
     @V_ANT_COARSE.setter
     def V_ANT_COARSE(self, value: NumpyArray) -> None:
+        """Translates to v_antenna_coarse."""
         self.v_antenna_coarse = value
 
     @property
     def V_ANT_FINE(self) -> NumpyArray:
+        """Translates to v_antenna_fine."""
         return self.v_antenna_fine
 
     @V_ANT_FINE.setter
     def V_ANT_FINE(self, value: NumpyArray) -> None:
+        """Translates to v_antenna_fine."""
         self.v_antenna_fine = value
 
     @property
     def I_GEN_COARSE(self) -> NumpyArray:
+        """Translates to i_generator_coarse."""
         return self.i_generator_coarse
 
     @I_GEN_COARSE.setter
     def I_GEN_COARSE(self, value: NumpyArray) -> None:
+        """Translates to i_generator_coarse."""
         self.i_generator_coarse = value
 
     @property
     def I_GEN_FINE(self) -> NumpyArray:
+        """Translates to i_generator_fine."""
         return self.i_generator_fine
 
     @I_GEN_FINE.setter
     def I_GEN_FINE(self, value: NumpyArray) -> None:
+        """Translates to i_generator_fine."""
         self.i_generator_fine = value
 
     @property
     def I_BEAM_COARSE(self) -> NumpyArray:
+        """Translates to i_beam_coarse."""
         return self.i_beam_coarse
 
     @I_BEAM_COARSE.setter
     def I_BEAM_COARSE(self, value: NumpyArray) -> None:
+        """Translates to i_beam_coarse."""
         self.i_beam_coarse = value
 
     @property
     def I_BEAM_FINE(self) -> NumpyArray:
+        """Translates to i_beam_fine."""
         return self.i_beam_fine
 
     @I_BEAM_FINE.setter
     def I_BEAM_FINE(self, value: NumpyArray) -> None:
+        """Translates to i_beam_fine."""
         self.i_beam_fine = value
 
     @property
     def V_corr(self) -> float:
+        """Translates to relative_voltage_correction."""
         return self.relative_voltage_correction
 
     @V_corr.setter
     def V_corr(self, value: float) -> None:
+        """Translates to relative_voltage_correction."""
         self.relative_voltage_correction = value
 
     @property
     def phi_corr(self) -> float:
+        """Translates to phase_correction."""
         return self.phase_correction
 
     @phi_corr.setter
     def phi_corr(self, value: NumpyArray) -> None:
+        """Translates to phase_correction."""
         self.phase_correction = value
 
     @property
     def T_s(self) -> float:
+        """Translates to sampling_time."""
         return self.sampling_time
 
     @T_s.setter
     def T_s(self, value: float) -> None:
+        """Translates to sampling_time."""
         self.sampling_time = value
