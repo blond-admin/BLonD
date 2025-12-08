@@ -66,8 +66,22 @@ class ParticleType:
         self._quantum_radiation_constant = c_q
 
     def __eq__(self, other: Self) -> bool:
-        return self.__class__ == other.__class__
-        return hash(self) == hash(other)
+        """
+        Compares
+
+        Args:
+            other: The ParticleType instance to compare to.
+
+        Returns:
+            bool: True if both ParticleTypes are the same.
+        """
+
+        other_tuple = (other._mass, other._charge, other._user_decay_rate,
+                       other._classical_particle_radius)
+        self_tuple = (self._mass, self._charge, self._user_decay_rate,
+                      self._classical_particle_radius)
+
+        return other_tuple == self_tuple
 
     @property
     def mass(self) -> float:
