@@ -1,14 +1,15 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-Created on Fri Dec  5 17:46:40 2025
+Solves for the Haissinski solution and tracks for one synchrotron period.
 
-@author: MarkusArbeit
+:Author: **Markus Schwarz**
 """
 
+# imports
 import numpy as np
-np.set_printoptions(legacy="1.25")
 from matplotlib import pyplot as plt
+import os
+
+# BLonD objects
 from blond.input_parameters.ring import Ring
 from blond.beam.beam import Electron, Beam
 from blond.input_parameters.rf_parameters import RFStation
@@ -21,7 +22,6 @@ from blond.synchrotron_radiation.synchrotron_radiation import SynchrotronRadiati
 from scipy.constants import e
 from blond.beam.distributions import Haissinski
 
-import os
 
 # Directory to save files
 this_directory = os.path.dirname(os.path.realpath(__file__)) + "/"
@@ -30,53 +30,51 @@ os.makedirs(results_directory, exist_ok=True)
 
 seed = 1789 * 1989
 
-V0 = 1.0e6
+V0 = 1.0e6  # [V]
 h = 184
 
-n_turns = int(1*300)  # T_s ~ 300 turns
-energy = 1.3e9
+n_turns = int(1*300)  # synchrotron period ~ 300 turns
+energy = 1.3e9  # [eV]
 
 n_bins = 128
-n_macroparticles = int(1e6)
+# increase number of macro-particles for smoother beam
+n_macroparticles = int(1e5)  
 
-current = 2 * 0.1e-3  # [A], threshold for V=1MV, alpha0=5e-4 at ~ 0.2 mA
+current = 1.5 * 0.1e-3  # [A], threshold for V=1MV, alpha0=5e-4 at ~ 0.2 mA
 
-Rbend = 5.559  # [m]
-dipole_chamber_height = 32e-3  # [m]
+R_bend = 5.559  # dipole bending radius [m]
 
-alpha0 = 5e-4
-
-ring = Ring(110.4, alpha0, energy, Electron(), n_turns=n_turns, 
+ring = Ring(110.4, 5e-4, energy, Electron(), n_turns=n_turns, 
             synchronous_data_type='total energy')
 tRev = ring.t_rev[0]
 
 
 beam = Beam(ring, n_macroparticles, current * tRev / e)
 
-iSR = SynchrotronRadiation(ring, RFStation(ring, h, V0, 0), beam, Rbend, n_kicks=1, 
+iSR = SynchrotronRadiation(ring, RFStation(ring, h, V0, 0), beam, R_bend, n_kicks=1, 
                            quantum_excitation=True, seed=seed, shift_beam=False)
 # equilibrium energy spread [eV]
-sigmaE = energy * iSR.sigma_dE  
+sigma_E = energy * iSR.sigma_dE  
 
 # shift rf phase to synchronous phase
-rf_station = RFStation(ring, h, V0, 
-                       np.arcsin(iSR.U0 / ring.particle.charge / V0))
+phi_sync = np.arcsin(iSR.U0 / ring.particle.charge / V0)
+rf_station = RFStation(ring, h, V0, phi_sync)
 phi_rf = rf_station.phi_rf_d[0,0]
 eta0 = ring.eta_0[0,0]
 t_rf = rf_station.t_rf[0,0]
 omega_rf = rf_station.omega_rf_d[0,0]
 fs0 = rf_station.omega_s0[0]/2/np.pi
 
-# zero-current bunch length [s]
-sigma0 = np.abs(ring.eta_0[0,0]) / (ring.beta[0,0]*ring.energy[0,0]) \
-    * sigmaE / rf_station.omega_s0[0]
+# zero-current bunch duration [s]
+sigma_dt = np.abs(ring.eta_0[0,0]) / (ring.beta[0,0]*ring.energy[0,0]) \
+    * sigma_E / rf_station.omega_s0[0]
 
-profile = Profile(beam, cut_options = CutOptions(cut_left=-5*sigma0, cut_right=5*sigma0,
+profile = Profile(beam, cut_options = CutOptions(cut_left=-5*sigma_dt, cut_right=5*sigma_dt,
                                                 n_slices=n_bins))
 # free-space CSR impedance
-cSR_source = CoherentSynchrotronRadiation(Rbend)
+cSR_source = CoherentSynchrotronRadiation(R_bend)
 cSR_impedance = InducedVoltageFreq(beam, profile, [cSR_source],
-                                   frequency_resolution=1/np.sqrt(2)/np.pi/sigma0 / 8)
+                                   frequency_resolution=1/np.sqrt(2)/np.pi/sigma_dt / 8)
 inducedVoltage = TotalInducedVoltage(beam, profile, [cSR_impedance])
 
 tracker = RingAndRFTracker(rf_station, beam, profile=profile,
@@ -86,7 +84,9 @@ ring_tracker = FullRingAndRF([tracker])
 
 haissinski_solution = Haissinski(ring_tracker, iSR, verbose=True, seed=seed)
 
-# create profile for plotting
+print(haissinski_solution.message)
+
+# create histogram for plotting
 profile.track()
 
 fig_h, ax_h = plt.subplots(num='Haissinski', clear=True)
@@ -102,7 +102,7 @@ ax_h.plot(profile.bin_centers*1e12,
 init_beam_dt = np.copy(beam.dt)
 init_beam_dE = np.copy(beam.dE)
 
-
+# Plot initial phase space density
 fig_di, ax_di = plt.subplots(num='distribution before tracking', clear=True)
 ax_di.set_xlabel('time / ps')
 ax_di.set_ylabel(r'$\Delta E$ / MeV')
@@ -110,29 +110,29 @@ ax_di.hist2d(init_beam_dt*1e12, init_beam_dE/1e6, bins=n_bins)
 fig_di.tight_layout()
 fig_di.savefig(results_directory + "/figure_final_distribution.png")
 
-#%%
-### Tracker object
+
+# store orbit of individual particle with initial conditions (-sigma_dt, 0)
+beam.dt[0] = - sigma_dt
+beam.dE[0] = 0
 frodo_dt = np.zeros(n_turns)
 frodo_dE = np.zeros(n_turns)
 
-ind = np.argmin(np.abs(beam.dt - sigma0) * np.abs(beam.dE - 0))
-
+# track for one synchrotron period
 for turn in range(n_turns):
-    frodo_dt[turn] = beam.dt[ind]
-    frodo_dE[turn] = beam.dE[ind]
+    frodo_dt[turn] = beam.dt[0]
+    frodo_dE[turn] = beam.dE[0]
     profile.track()
 
     # compute induced voltage; kick applied later by tracker.track()    
     inducedVoltage.induced_voltage_sum()
 
-    # energy loss due to incoherent SR
+    # energy loss and quantum excitation due to incoherent SR
     iSR.track()
-    # beam.dE -= iSR.U0
 
     # kick and drift
-    tracker.track()
+    ring_tracker.track()
 
-#%%
+
 ax_h.plot(profile.bin_centers*1e12, 
          profile.n_macroparticles / n_macroparticles / profile.bin_size * beam.intensity * e, 
          'C3.', label='final profile')
@@ -141,12 +141,13 @@ fig_h.tight_layout()
 fig_h.savefig(results_directory + "/figure_Haissinksi_profile.png")
 
 
-#%%
+# Plot final phase space density
 indexes = (beam.dt > profile.cut_left) * (beam.dt < profile.cut_right)
 fig_df, ax_df = plt.subplots(num='distribution after tracking', clear=True)
 ax_df.grid(True)
 ax_df.set_xlabel('time / ps')
 ax_df.set_ylabel(r'$\Delta E$ / MeV')
+ax_df.set_xlim(*ax_di.get_xlim())
 ax_df.hist2d(beam.dt[indexes]*1e12, beam.dE[indexes]/1e6, bins=n_bins)
 ax_df.plot(frodo_dt*1e12, frodo_dE/1e6, 'C3.')
 fig_df.tight_layout()

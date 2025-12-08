@@ -11,7 +11,7 @@
 
 :Authors: **Danilo Quartullo**, **Helga Timko**, **Alexandre Lasheen**,
           **Juan F. Esteban Mueller**, **Theodoros Argyropoulos**,
-          **Joel Repond**
+          **Joel Repond**, **Markus Schwarz**
 """
 
 from __future__ import annotations
@@ -1432,8 +1432,44 @@ def _get_dE_from_dt(
     return dE_amplitude
 
 def Haissinski(ring_tracker: FullRingAndRF, isr: SynchrotronRadiation,
-               verbose=True, seed: int = 1234):
+               verbose = True, seed: int = 1234):
+    r"""Solves the Haissinksi equation to find the equilibrum bunch distribution of the
+    Vlasov-Fokker-Planck equation. The algorithm is based on root-finding, as described
+    in [Warnock2018]_. The function requires a :class:`~blond.trackers.tracker.FullRingAndRF`
+    with the :class:`~blond.beam.beam.Beam`, :class:`~input_parameters.rf_parameters.RFStation`
+    and :class:`~impedances.impedance.TotalInducedVoltage`. The
+    :class:`~blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation` object
+    is needed for the energy loss due to synchrotron radiation.
     
+    The Beam object of the Tracker will contain the Haissinski distribution. If `verbose`
+    is True, the `OptimizeResult` object will be returned.
+
+    Parameters
+    ----------
+    ring_tracker : class
+        A FullRingAndRF type class
+    isr : class
+        A SynchrotronRadiation type class
+    verbose : bool, optional
+        If True, returns the `scipy.optimize._optimize.OptimizeResult` object of the
+        root finding algorithm
+    seed : int, optional
+        Seed to use for the creation of the macro-particle distribtution
+
+    References
+    ----------
+    .. [Warnock2018] R. Warnock, K. Bane, "Numerical solution of the Haissinski equation
+    for the equilibrium state of a stored electron beam", *Phys. Rev. Accl. Beams*,
+    vol 21, p. 124401, 2018.
+
+
+    Returns
+    -------
+    Haissinski_solution : scipy.optimize._optimize.OptimizeResult
+        The result of the root finding algorithm is returned when verbose is True.
+
+    """
+
     def Gauss(t, sigma):
         return np.exp(-0.5 * t**2 / sigma**2) / np.sqrt(2*np.pi) / sigma
 
@@ -1441,28 +1477,30 @@ def Haissinski(ring_tracker: FullRingAndRF, isr: SynchrotronRadiation,
     def Vind(lam, induced_voltage):
         # update profile used in the computation of Vind
         profile.n_macroparticles = lam * profile.bin_size * n_macroparticles
-    
+
         induced_voltage.induced_voltage_sum()
         return induced_voltage.induced_voltage
 
     tracker = ring_tracker.ring_and_rf_section[0]
     counter = tracker.counter
-    
+
     rf_station = tracker.rf_params
-    
+
     profile = tracker.profile
-    
+
     n_macroparticles = tracker.beam.n_macroparticles
-    
-    beam = tracker.beam
-    
+
     energy = rf_station.energy[counter]
     q = rf_station.particle.charge
     eta0 = rf_station.eta_0[counter]
     tRev = rf_station.t_rev[counter]
+
+    voltage_rf = rf_station.voltage[0, counter]
+    omega_rf = rf_station.omega_rf[0, counter]
+    phi_rf = rf_station.phi_rf[0, counter]
     # equilibrium energy spread [eV]
-    sigmaE = energy * isr.sigma_dE  
-    
+    sigmaE = energy * isr.sigma_dE
+
     # zero-current bunch length [s]
     sigma0 = np.abs(eta0) \
         / (rf_station.beta[counter] * energy) \
@@ -1473,23 +1511,27 @@ def Haissinski(ring_tracker: FullRingAndRF, isr: SynchrotronRadiation,
     # also initialize Profile object
     profile.n_macroparticles = lam0 * profile.bin_size * n_macroparticles
 
-    # args = Delta t [s], q [1], omegaRF [1/s], VRF [V], phiRF [rad], U0 [eV]
-    args = profile.bin_centers, q, rf_station.omega_rf[0, counter], \
-        rf_station.voltage[0, counter], rf_station.phi_rf[0, counter], \
-        isr.U0, tracker.totalInducedVoltage
+    # scale factor [s]
+    Tau = -eta0 * sigmaE**2 / energy / (q*voltage_rf) * tRev  
 
-    def N(lam, Delta_t, q, omegaRF, VRF, phiRF, U0, induced_voltage):
-        Tau = -eta0 * sigmaE**2 / energy / (q*VRF) * tRev  # [s]
+    # arguments passed to the root finding algorithm
+    args = tracker, Tau, isr.U0
+
+    def N(lam, tracker, Tau, U0):
+        # compute rf voltage
+        tracker.rf_voltage_calculation()
         # primitive of the potential energy
-        exponent = scipy.integrate.cumulative_trapezoid(np.sin(omegaRF*Delta_t + phiRF)
-            + Vind(lam, induced_voltage)/VRF - U0/(q*VRF), Delta_t, initial=0)
+        exponent = scipy.integrate.cumulative_trapezoid(tracker.rf_voltage
+            + Vind(lam, tracker.totalInducedVoltage)
+            - U0/q, tracker.profile.bin_centers, initial=0) / rf_station.voltage[0, counter]
         # integration constant
-        exponent += -np.cos(omegaRF*Delta_t[0]+phiRF)/omegaRF + np.cos(phiRF)/omegaRF
-    
+        exponent += -np.cos(omega_rf*tracker.profile.bin_centers[0]+phi_rf) / omega_rf \
+            + np.cos(phi_rf) / omega_rf
+
         term2 = np.exp(-exponent / Tau)
-    
-        fac1 = scipy.integrate.trapezoid(term2, Delta_t)
-        
+
+        fac1 = scipy.integrate.trapezoid(term2, tracker.profile.bin_centers)
+
         return lam * fac1 - term2
 
 
@@ -1497,11 +1539,11 @@ def Haissinski(ring_tracker: FullRingAndRF, isr: SynchrotronRadiation,
     fun = lambda l: N(l, *args)  # helper function since root needs a function of one argument
     sol = scipy.optimize.root(fun, lam0, jac=False)
     haiss_dt = sol.x
-    
+
     # create macro-particles from distribution
-    
+
     deltaE_array = np.linspace(-4*sigmaE, 4*sigmaE, num=profile.n_slices)
-    time_grid, deltaE_grid = np.meshgrid(profile.bin_centers, 
+    time_grid, deltaE_grid = np.meshgrid(profile.bin_centers,
                                          deltaE_array)
 
     haiss_dE = Gauss(deltaE_array, sigmaE)
@@ -1512,9 +1554,9 @@ def Haissinski(ring_tracker: FullRingAndRF, isr: SynchrotronRadiation,
         for j in range(len(deltaE_array)):
             density_grid[i,j] = haiss_dt[i] * haiss_dE[j]
     density_grid /= np.sum(density_grid)  # normalize
-    
+
     populate_bunch(tracker.beam, time_grid, deltaE_grid, density_grid.T,
-                   profile.bin_size, deltaE_array[1] - deltaE_array[0], 
+                   profile.bin_size, deltaE_array[1] - deltaE_array[0],
                    seed=seed)
 
     if verbose:
