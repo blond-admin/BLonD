@@ -51,18 +51,24 @@ class Ring(Preparable):
         during simulation (e.g., due to energy changes), the circumference stays
         fixed. Orbit length changes result in timing delays but don't affect
         the RF frequency program.
+    check_section_indices : bool, optional
+        If True, validate section indices during initialization.
+        Default is True.
     """
 
     def __init__(
         self,
         circumference: float,
+        check_section_indices: bool = True,
     ) -> None:
         from blond.core.ring.beam_physics_relevant_elements import (
             BeamPhysicsRelevantElements,
         )
 
         super().__init__()
-        self._elements = BeamPhysicsRelevantElements()
+        self._elements = BeamPhysicsRelevantElements(
+            check_section_indices=check_section_indices
+        )
         assert circumference > 0, (
             f"`circumference` must be bigger 0, but is {circumference}"
         )

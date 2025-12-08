@@ -183,12 +183,12 @@ class ProfileBaseClass(BeamPhysicsRelevant, HasPropertyCache):
         # `_hist_x`, `_hist_x` could be None, which is not handled and
         # causes a MyPy type error,
         # This is intentionally ignored, we want to get an exception.
-        fist_hist_x = self._hist_x[0]  # type: ignore
+        first_hist_x = self._hist_x[0]  # type: ignore
         second_hist_x = self._hist_x[1]  # type: ignore
         if backend.is_gpu:
-            fist_hist_x = fist_hist_x.get()
+            first_hist_x = first_hist_x.get()
             second_hist_x = second_hist_x.get()
-        return float(second_hist_x - fist_hist_x)  # type: ignore
+        return float(second_hist_x - first_hist_x)  # type: ignore
 
     @cached_property
     def cut_left(self) -> float:
