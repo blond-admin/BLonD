@@ -11,7 +11,10 @@
 """
 Example script to take into account intensity effects from impedance tables.
 
-:Authors: **Danilo Quartullo**
+Authors
+-------
+Simon Lauber
+Danilo Quartullo
 """
 
 import logging

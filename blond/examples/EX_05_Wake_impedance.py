@@ -16,6 +16,11 @@ The input beam has been cloned to show that the two methods are equivalent
 beam, the option seed=0 in the generation has been used. This script shows
 also an example of how to use the class SliceMonitor (check the corresponding
 h5 files).
+
+Authors
+-------
+Simon Lauber
+Danilo Quartullo
 """
 
 import numpy as np

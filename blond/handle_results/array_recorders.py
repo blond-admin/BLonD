@@ -6,7 +6,13 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Classes that deal with memory management of simulation results."""
+"""Classes that deal with memory management of simulation results.
+
+Authors
+-------
+Leonard Thiele
+Simon Lauber
+"""
 
 from __future__ import annotations
 

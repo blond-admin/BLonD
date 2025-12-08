@@ -6,7 +6,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Collection of implementations to handle beam losses in synchrotrons."""
+"""Collection of implementations to handle beam losses in synchrotrons.
+
+Authors
+-------
+Simon Lauber
+"""
 
 from __future__ import annotations
 
