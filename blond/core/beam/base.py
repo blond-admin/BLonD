@@ -448,6 +448,7 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             backend,  # prevent cyclic import
         )
 
+        n_old = len(self._flags)
         n_new = backend.specials.move_flagged_elements_to_end(
             flag=flag,
             flags=self._flags,
@@ -459,3 +460,5 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         self._dt = self._dt[:n_new]
         self._dE = self._dE[:n_new]
         self._ids = self._ids[:n_new]
+
+        self.intensity *= n_new / n_old
