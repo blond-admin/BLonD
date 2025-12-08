@@ -49,15 +49,15 @@ def smooth_step(x: NumpyArray, x_min: float = 0, x_max: float = 1, N: int = 1):
 
 
 def cavity_response_sparse_matrix(
-    I_beam,
-    I_gen,
-    n_samples,
-    V_ant_init,
-    I_gen_init,
-    samples_per_rf,
-    R_over_Q,
-    Q_L,
-    detuning,
+    I_beam: NumpyArray,
+    I_gen: NumpyArray,
+    n_samples: int,
+    V_ant_init: float,
+    I_gen_init: float,
+    samples_per_rf: float,  # TODO: is this float or int
+    R_over_Q: float,
+    Q_L: float,
+    detuning: float,
 ):
     """Solving the ACS cavity response model as a sparse matrix problem
     for a given set of initial conditions, resonator parameters and
@@ -75,7 +75,7 @@ def cavity_response_sparse_matrix(
         Initial condition for the antenna voltage
     I_gen_init : complex float
         Initial condition of the generator current, i.e. one sample before the I_gen array
-    samples_per_rf : int
+    samples_per_rf : float
         Number of samples per RF period
     R_over_Q : float
         The R over Q of the cavity

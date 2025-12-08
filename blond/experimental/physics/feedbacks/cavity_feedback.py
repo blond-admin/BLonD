@@ -163,6 +163,42 @@ class IQCavityFeedback(LocalFeedback):
         # Ratio between rf periods and coarse grid sampling period
         self.n_periods_coarse = int(n_periods_coarse)
 
+        self.omega_carrier_prev: float | None = None
+        self.omega_carrier: float | None = None
+        self.omega_rf: float | None = None
+
+        # Present sampling time
+        self.T_s_prev: float | None = None
+        self.T_s: float | None = None
+
+        # Update the coarse grid sampling
+        self.n_coarse: int | None = None
+
+        # Present coarse grid and save previous turn coarse grid
+        self.rf_centers_prev: float | None = None
+
+        # Residual part of last turn entering the current turn due to non-integer harmonic number
+        self.dT: float | None = None
+
+        self.rf_centers: NumpyArray | None = None
+
+        self.V_corr: float | None = None
+        self.alpha_sum: float | None = None
+        self.phi_corr: float | None = None
+        self.omega_carrier_prev: float | None = None
+        self.T_s_prev: float | None = None
+        self.rf_centers_prev: NumpyArray | None = None
+
+        self.V_SET: NumpyArray | None = None
+        self.I_BEAM_COARSE: NumpyArray | None = None
+        self.I_BEAM_FINE: NumpyArray | None = None
+        self.V_ANT_COARSE: NumpyArray | None = None
+        self.V_ANT_FINE: NumpyArray | None = None
+        self.I_GEN_COARSE: NumpyArray | None = None
+        self.I_GEN_FINE: NumpyArray | None = None
+
+        self.dT: float | None = None
+
     @requires(["RfStationBaseClass"])
     def on_run_simulation(
         self,
@@ -207,14 +243,6 @@ class IQCavityFeedback(LocalFeedback):
         self.I_GEN_COARSE = np.zeros(2 * self.n_coarse, dtype=complex)
         self.I_GEN_FINE = np.zeros(self.profile.n_bins, dtype=complex)
 
-        # TODO REWORK LATEINIT
-        self.V_corr: LateInit = None
-        self.alpha_sum: LateInit = None
-        self.phi_corr: LateInit = None
-        self.omega_carrier_prev: LateInit = None
-        self.T_s_prev: LateInit = None
-        self.rf_centers_prev: LateInit = None
-
     def set_hardware_commissioning(self, omega_rf: float, harmonic: int):
         self.T_s = (
                 self.n_periods_coarse * 2 * np.pi
@@ -249,14 +277,6 @@ class IQCavityFeedback(LocalFeedback):
         self.V_ANT_FINE = np.zeros(self.profile.n_bins, dtype=complex)
         self.I_GEN_COARSE = np.zeros(2 * self.n_coarse, dtype=complex)
         self.I_GEN_FINE = np.zeros(self.profile.n_bins, dtype=complex)
-
-        # TODO REWORK LATEINIT
-        self.V_corr: LateInit = None
-        self.alpha_sum: LateInit = None
-        self.phi_corr: LateInit = None
-        self.omega_carrier_prev: LateInit = None
-        self.T_s_prev: LateInit = None
-        self.rf_centers_prev: LateInit = None
 
     @abstractmethod  # pragma: no cover
     def update_fb_variables(self) -> None:
