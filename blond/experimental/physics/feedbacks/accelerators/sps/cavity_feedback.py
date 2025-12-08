@@ -28,7 +28,7 @@ from blond.experimental.physics.feedbacks.cavity_feedback import (
     IQCavityFeedback,
 )
 from blond.experimental.physics.feedbacks.helpers import cartesian_to_polar
-from blond.physics.cavities import MultiHarmonicRfStation
+from blond.physics.cavities import MultiHarmonicRfStation, RfStationBaseClass
 from blond.physics.profiles import StaticProfile
 
 from .helpers import (
@@ -972,8 +972,8 @@ class SPSCavityFeedback:
         self.track_init(debug=self.OTFB_1.debug)
 
     def set_parent_cavity(self, cavity: RfStationBaseClass):
-        self.OTFB_1.set_parent_cavity(cavity)
-        self.OTFB_2.set_parent_cavity(cavity)
+        self.OTFB_1.set_parent_rf_station(cavity)
+        self.OTFB_2.set_parent_rf_station(cavity)
 
     def track(self, beam: BeamBaseClass):
         r"""Main tracking method for the SPSCavityFeedback. This tracks both cavity types
