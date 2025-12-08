@@ -95,17 +95,17 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     def add_beam(self, other: BeamBaseClass, purge: bool = False):
 
-        self._dt = backend.concatenate(self._dt, other._dt)
-        self._dE = backend.concatenate(self._dE, other._dE)
+        self._dt = backend.concatenate((self._dt, other._dt))
+        self._dE = backend.concatenate((self._dE, other._dE))
         self.intensity += other.intensity
 
         new_ids = backend.arange(backend.max(self._ids) + 1,
                                  len(self._dt) + len(other._dt) + 1,
                                  dtype=int)
 
-        self._ids = backend.concatenate(self._ids, new_ids)
+        self._ids = backend.concatenate((self._ids, new_ids))
 
-        self._flags = backend.concatenate(self._flags, other._flags)
+        self._flags = backend.concatenate((self._flags, other._flags))
 
         if purge:
             for f in backend.unique(self._flags):
@@ -119,14 +119,16 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
         self.intensity += self.ratio + len(new_dt)
 
-        self._dt = backend.concatenate(self._dt, new_dt)
-        self._dE = backend.concatenate(self._dE, new_dE)
+        self._dt = backend.concatenate((self._dt, new_dt))
+        self._dE = backend.concatenate((self._dE, new_dE))
 
-        new_ids = backend.arange(len(self._dt) + 1,
-                                 len(self._dt) + len(new_dt) + 1,
-                                 dtype=int)
+        new_ids = backend.arange(
+            backend.max(self._ids) + 1,
+            len(self._dt) + len(new_dt) + 1,
+            dtype=int,
+        )
 
-        self._ids = backend.concatenate(self._ids, new_ids)
+        self._ids = backend.concatenate((self._ids, new_ids))
 
         self._flags = backend.concatenate(self._flags,
                                           np.arange(len(new_dt))
