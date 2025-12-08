@@ -277,6 +277,10 @@ class SemiEmpiricMatcher(MatchingRoutine):
         falls below this tolerance.
     verbose : bool, default=False
         If ``True``, prints convergence and status messages to the console.
+    linear_tilt
+        If False, the beam distribution is generated in canonic orientation.
+        If False, the distribution is transformed to fit the twiss parameters
+        for the effective oscillation around the stable point in phase space.
 
     Notes
     -----
@@ -297,7 +301,9 @@ class SemiEmpiricMatcher(MatchingRoutine):
         increment_intensity_effects_until_iteration_i: int = 0,
         animate: bool = False,
         verbose: bool = True,
+        linear_tilt: bool = False,
     ) -> None:
+        self.linear_tilt = linear_tilt
         self.n_macroparticles = int_from_float_with_warning(
             n_macroparticles,
             warning_stacklevel=2,
@@ -496,20 +502,11 @@ class SemiEmpiricMatcher(MatchingRoutine):
                 intensity=beam.intensity,
             )
         )
+        potential_well_oversampled *= factor
 
-        beta_twiss = get_twiss_beta_semi_analytic(
-            ts=dt_oversampled,
-            potential_well=potential_well_oversampled * factor,
-            reference_total_energy=beam.reference_total_energy,
-            beta=beam.reference_beta,
-            eta=float(
-                simulation.ring.calc_average_eta_0(beam.reference_gamma)
-            ),
-        )
-
-        potential_well = (
-            potential_well_oversampled[::_POTENTIAL_WELL_OVERSAMPLING] * factor
-        )
+        potential_well = potential_well_oversampled[
+            ::_POTENTIAL_WELL_OVERSAMPLING
+        ]
         self._prelast_potential_well = self._last_potential_well
         self._last_potential_well = potential_well
         if self._prelast_potential_well is None:
@@ -539,21 +536,33 @@ class SemiEmpiricMatcher(MatchingRoutine):
             n_macroparticles=self.n_macroparticles,
             seed=self.seed,
         )
-
-        twiss_parameters_new = simulation.get_matched_ellipse(
-            t_stable=t_stable,
-            particle_type=beam.particle_type,
-            delta_t=2 * (ts.max() - ts.min()) / len(ts),
-            intensity=beam.intensity,
-        )
-        twiss_parameters_before = (
-            0,  # no tilt before
-            beta_twiss,
-            twiss_parameters_new[2],  # conserve emittance
-        )
-        beam._dt, beam._dE = transform_twiss(
-            beam._dt, beam._dE, *twiss_parameters_before, *twiss_parameters_new
-        )
+        if self.linear_tilt:
+            beta_twiss = get_twiss_beta_semi_analytic(
+                ts=dt_oversampled,
+                potential_well=potential_well_oversampled,
+                reference_total_energy=beam.reference_total_energy,
+                beta=beam.reference_beta,
+                eta=float(
+                    simulation.ring.calc_average_eta_0(beam.reference_gamma)
+                ),
+            )
+            twiss_parameters_new = simulation.get_matched_ellipse(
+                t_stable=t_stable,
+                particle_type=beam.particle_type,
+                delta_t=2 * (ts.max() - ts.min()) / len(ts),
+                intensity=beam.intensity,
+            )
+            twiss_parameters_before = (
+                0,  # no tilt before
+                beta_twiss,
+                twiss_parameters_new[2],  # conserve emittance
+            )
+            beam._dt, beam._dE = transform_twiss(
+                beam._dt,
+                beam._dE,
+                *twiss_parameters_before,
+                *twiss_parameters_new,
+            )
 
     def _plot_current_state(
         self,
