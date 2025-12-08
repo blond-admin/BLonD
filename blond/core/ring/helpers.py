@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import inspect
 from collections import defaultdict, deque
+from functools import wraps
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -56,6 +57,7 @@ def requires(dependencies: list[str]) -> Callable:
         raise TypeError("All dependencies must be strings.")
 
     def decorator(func: Callable) -> Callable:
+        @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             # No additional behavior—simply pass through to the wrapped function.
             return func(*args, **kwargs)
