@@ -18,15 +18,16 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from scipy.constants import speed_of_light as c0  # type: ignore
 
+from blond.core.backends.backend import backend
 from blond.core.base import HasPropertyCache, Preparable
 from blond.core.beam.flags import BeamFlags
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.ring.helpers import requires
-from blond.core.backends.backend import backend
 
 if TYPE_CHECKING:  # pragma: no cover
     from cupy.typing import NDArray as CupyArray  # type: ignore
-    from numpy.typing import NDArray as NumpyArray, ArrayLike
+    from numpy.typing import ArrayLike
+    from numpy.typing import NDArray as NumpyArray
 
     from blond.core.beam.particle_types import ParticleType
     from blond.core.simulation.simulation import Simulation
@@ -79,13 +80,17 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     def __iadd__(self, other: BeamBaseClass | ArrayLike):
         """
+        Inplace addition function.
+
         Inplace addition to the beam object.  Either adds two instances
         of BeamBaseClass together or adds an 2D array of particle
         coordinates (format: [dt, dE]) to the beam.
 
-        Args
-            other : Either an instance of BeamBaseClass or an ArrayLike
-                    of [dt, dE].
+        Parameters
+        ----------
+            other
+                Either an instance of BeamBaseClass or an ArrayLike of
+                [dt, dE].
         """
         if isinstance(other, BeamBaseClass):
             self.add_beam(other)
@@ -94,6 +99,8 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     def add_beam(self, other: BeamBaseClass, purge: bool = False):
         """
+        Add the contents of another beam to this one.
+
         Function to add the particles from another beam to this beam.
         Requires that both beams specify the same ParticleType and have
         the same intensity per macroparticle.  The coordinates and
@@ -102,13 +109,15 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
         the values incremeted from the number of macroparticles in the
         original beam.
 
-        Args:
-            other: The BeamBaseClass object to add to this Beam
-            purge (optional): Specify if flagged particles should be
-                              purged when adding the beams.
-                              If True, all particles with flag different
-                              to the Active value will be purged.
-                              Defaults to False.
+        Parameters
+        ----------
+            other
+                The BeamBaseClass object to add to this Beam
+            purge (optional):
+                Specify if flagged particles should be purged when
+                adding the beams.  If True, all particles with flag
+                different to the Active value will be purged.
+                Defaults to False.
 
         Raises
         ------
@@ -116,23 +125,22 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
                         raised.
             TypeError: If self.particle_type != other.particle_type
         """
-
-
         if self.ratio != other.ratio:
             raise ValueError("Cannot add beams with a different ratio")
 
         if self.particle_type != other.particle_type:
-            raise TypeError("Cannot add beams with different "
-                            "particle_type")
+            raise TypeError("Cannot add beams with different particle_type")
 
         self._dt = backend.concatenate((self._dt, other._dt))
         self._dE = backend.concatenate((self._dE, other._dE))
 
         self.intensity += other.intensity
 
-        new_ids = backend.arange(backend.max(self._ids) + 1,
-                                 len(self._dt) + len(other._dt) + 1,
-                                 dtype=int)
+        new_ids = backend.arange(
+            backend.max(self._ids) + 1,
+            len(self._dt) + len(other._dt) + 1,
+            dtype=int,
+        )
 
         self._ids = backend.concatenate((self._ids, new_ids))
 
@@ -145,16 +153,19 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
     def add_particles(self, new_particles: ArrayLike):
         """
+        Add new particles to the beam.
+
         Function to add new particles to the beam from an array.  The
         input array must be 2D with format [dt, dE].  The new
         particles will be assumed to have the same intensity per
         macroparticle as the original beam.
 
-        Args:
-            new_particles: 2D array of [dt, dE] defining the coordinates
+        Parameters
+        ----------
+        new_particles
+            2D array of [dt, dE] defining the coordinates
                            of the new particles.
         """
-
         new_dt = new_particles[0]
         new_dE = new_particles[1]
 
@@ -171,9 +182,9 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
 
         self._ids = backend.concatenate((self._ids, new_ids))
 
-        self._flags = backend.concatenate(self._flags,
-                                          np.arange(len(new_dt))
-                                          * BeamFlags.ACTIVE.value)
+        self._flags = backend.concatenate(
+            self._flags, np.arange(len(new_dt)) * BeamFlags.ACTIVE.value
+        )
 
     @requires(["EnergyCycleBase"])
     def on_run_simulation(

@@ -67,6 +67,8 @@ class ParticleType:
 
     def __eq__(self, other: Self) -> bool:
         """
+        Equality comparison of the paticle.
+
         Compares with another ParticleType object to ensure they have
         the same value.  The values of mass, charge, decay rate and
         particle radius are compared.
@@ -74,27 +76,44 @@ class ParticleType:
         Args:
             other: The ParticleType instance to compare to.
 
-        Returns:
+        Returns
+        -------
             bool: True if both ParticleTypes are the same.
         """
-
-        other_tuple = (other._mass, other._charge, other._user_decay_rate,
-                       other._classical_particle_radius)
-        self_tuple = (self._mass, self._charge, self._user_decay_rate,
-                      self._classical_particle_radius)
+        other_tuple = (
+            other._mass,
+            other._charge,
+            other._user_decay_rate,
+            other._classical_particle_radius,
+        )
+        self_tuple = (
+            self._mass,
+            self._charge,
+            self._user_decay_rate,
+            self._classical_particle_radius,
+        )
 
         return other_tuple == self_tuple
 
     def __hash__(self):
-        return hash((self._mass, self._charge, self._user_decay_rate,
-                     self._classical_particle_radius))
         """
+        Compute the hash of the particle.
+
         Compares the hash value of the particle.  Uses the hash of a
         tuple of (mass, charge, decay rate, particle radius).
 
-        Returns:
+        Returns
+        -------
             hash: The computed hash value
         """
+        return hash(
+            (
+                self._mass,
+                self._charge,
+                self._user_decay_rate,
+                self._classical_particle_radius,
+            )
+        )
 
     @property
     def mass(self) -> float:
