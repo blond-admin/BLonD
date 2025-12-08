@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
-from enum import IntEnum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
@@ -20,6 +19,7 @@ import numpy as np
 from scipy.constants import speed_of_light as c0  # type: ignore
 
 from blond.core.base import HasPropertyCache, Preparable
+from blond.core.beam.flags import BeamFlags
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.ring.helpers import requires
 from blond.core.backends.backend import backend
@@ -30,15 +30,6 @@ if TYPE_CHECKING:  # pragma: no cover
 
     from blond.core.beam.particle_types import ParticleType
     from blond.core.simulation.simulation import Simulation
-
-
-class BeamFlags(IntEnum):
-    """Flags that define the beam state."""
-
-    # Please mind that the LOST flag is hardcoded in all backends
-    # for loss_box
-    LOST = -500  # by convention with XSuite team.
-    ACTIVE = 1
 
 
 class BeamBaseClass(Preparable, HasPropertyCache, ABC):

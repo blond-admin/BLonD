@@ -18,7 +18,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from blond.core.backends.backend import backend
-from blond.core.beam.base import BeamBaseClass, BeamFlags
+from blond.core.beam.flags import BeamFlags
+from blond.core.beam.base import BeamBaseClass
 from blond.generals.cupy.no_cupy_import import is_cupy_array
 
 if TYPE_CHECKING:  # pragma: no cover
