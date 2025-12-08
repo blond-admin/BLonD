@@ -50,6 +50,19 @@ class AD(A, D):
 
 
 class TestFunctions(unittest.TestCase):
+    def test_requires_raises(self):
+        with self.assertRaisesRegex(
+            TypeError, "All dependencies must be strings."
+        ):
+
+            class B:
+                def __init__(self) -> None:
+                    pass
+
+                @requires([object])
+                def common(self):
+                    pass
+
     def test_build_dependency_graph_executes(self) -> None:
         a = A()
         b = B()
