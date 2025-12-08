@@ -13,6 +13,7 @@ from warnings import warn
 import numpy as np
 from numpy.typing import NDArray as NumpyArray
 from scipy.constants import e
+from scipy.integrate import solve_ivp
 from scipy.interpolate import interp1d
 
 from blond import Simulation, StaticProfile
@@ -131,9 +132,9 @@ class PassiveCavity(IQCavityFeedback):
                          use_lowpass_filter=False)
 
         # lateinit arrays
-        self.sampling_time: NumpyArray | None = None
-        self.n_coarse: NumpyArray | None = None
-        self.omega_carrier: NumpyArray | None = None
+        self.sampling_time: float | None = None
+        self.n_coarse: int | None = None
+        self.omega_carrier: float | None = None
 
         self.i_generator_fine: NumpyArray | None = None
         self.i_generator_coarse: NumpyArray | None = None
@@ -144,10 +145,29 @@ class PassiveCavity(IQCavityFeedback):
         self.i_beam_fine: NumpyArray | None = None
         self.i_beam_coarse: NumpyArray | None = None
 
+        self.i_beam_gradient_fine: NumpyArray | None = None
+        self.i_beam_gradient_coarse: NumpyArray | None = None
+
+        self.voltage_correction: float | None = None
+        self.phase_correction: float | None = None
+
         self.fine_RK = fine_RK
         self.coarse_RK = coarse_RK
 
+        self.samples_coarse: int | None = None
+        self.samples_fine: int | None = None
+        self.relative_detuning: float | None = None
+
         self.delta_t: float | None = None
+
+        #B2 naming convention
+        self.V_ANT_COARSE = self.v_antenna_coarse
+        self.V_ANT_FINE = self.v_antenna_fine
+        self.I_GEN_COARSE = self.i_generator_coarse
+        self.I_GEN_FINE = self.i_generator_fine
+
+        self.V_corr = self.voltage_correction
+        self.phi_corr = self.phase_correction
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Hook called when the Simulation object is initialized.
@@ -175,6 +195,15 @@ class PassiveCavity(IQCavityFeedback):
         on_run_simulation
         """
         pass
+
+    def update_fb_variables(self) -> None:
+        """Method to update the variables specific to the turn."""
+        self.omega_center = self.omega_rf - self.omega_detuning
+        omega_deviation = self.omega_center - self.omega_rf
+        # Dimensionless
+        self.samples_coarse = self.omega_rf * self.T_s
+        self.samples_fine = self.omega_rf * self.profile.hist_step
+        self.relative_detuning = omega_deviation / self.omega_center
 
     def on_run_simulation(
         self,
@@ -230,8 +259,8 @@ class PassiveCavity(IQCavityFeedback):
 
         t_rf = 2 * np.pi / self._parent_rf_station.omega_rf
         self.sampling_time = self.n_periods_coarse * t_rf
-        self.n_coarse = t_rf * self._parent_rf_station.harmonic / self.sampling_time
-        self.omega_carrier = self._parent_rf_station.omega_rf / self.n_periods_coarse
+        self.n_coarse = t_rf * self._parent_rf_station.get_main_harmonic() / self.sampling_time
+        self.omega_carrier = self._parent_rf_station.omega_rf[self.harmonic_index] / self.n_periods_coarse
 
         self.i_generator_fine = np.zeros(self.profile.n_bins, dtype=complex)  # TODO: does this need to be backend.complex?
         self.i_generator_coarse = np.zeros(2 * self.n_coarse, dtype=complex)
@@ -242,13 +271,18 @@ class PassiveCavity(IQCavityFeedback):
         self.i_beam_fine = np.zeros(self.profile.n_bins, dtype=complex)
         self.i_beam_coarse = np.zeros(2 * self.n_coarse, dtype=complex)
 
-        self.delta_t = 0
+        self.i_beam_gradient_fine = np.zeros(self.profile.n_bins, dtype=complex)
+        self.i_beam_gradient_coarse = np.zeros(2 * self.n_coarse, dtype=complex)
+
+        self.samples_coarse = 0
+
+        self.delta_t = self.dT
 
     def track(self, beam: BeamBaseClass) -> None:
         super().track(beam)
 
     def circuit_track(self, no_beam: bool = False) -> None:
-        r'''Tracking of the LLRF circuit'''
+        r"""Tracking of the LLRF circuit."""
 
         # Compute antenna voltage
         self.V_ANT_COARSE[:self.n_coarse] = self.V_ANT_COARSE[-self.n_coarse:]
@@ -257,11 +291,7 @@ class PassiveCavity(IQCavityFeedback):
         dV_init = (self.V_ANT_COARSE[-(2 + self.n_coarse)] - self.V_ANT_COARSE[-(1 + self.n_coarse)]) / self.T_s
         v_ant = None
         if self.coarse_RK:
-            _, v_ant = self.runge_kutta_tryout_2nd_order(I_beam_grad=self.I_BEAM_GRADIENT_COARSE[-self.n_coarse:],
-                                                         # np.zeros_like(self.I_BEAM_COARSE[-self.n_coarse:]),#,
-                                                         I_gen=self.I_GEN_COARSE[-self.n_coarse:],
-                                                         V_init=V_init, dV_ant_init=dV_init,
-                                                         R_over_Q=self.R_over_Q, Q_L=self.Q_L,
+            _, v_ant = self.runge_kutta_tryout_2nd_order(V_init=V_init, dV_ant_init=dV_init,
                                                          delta_omega=self.omega_detuning,
                                                          omega=self.omega_carrier, bin_centers=time)
         else:
@@ -270,8 +300,8 @@ class PassiveCavity(IQCavityFeedback):
                                                   n_samples=self.n_coarse,
                                                   V_ant_init=self.V_ANT_COARSE[-(1 + self.n_coarse)],
                                                   I_gen_init=self.I_GEN_COARSE[-(1 + self.n_coarse)],
-                                                  samples_per_rf=self.samples,
-                                                  R_over_Q=self.R_over_Q, Q_L=self.Q_L, detuning=self.detuning)
+                                                  samples_per_rf=self.samples_coarse,
+                                                  R_over_Q=self.R_over_Q, Q_L=self.Q_L, detuning=self.relative_detuning)
         self.V_ANT_COARSE[-self.n_coarse:] = v_ant[-self.n_coarse:]
         # np.savez("coarse_array_elements_2.npz", I_GEN_COARSE=self.I_GEN_COARSE, I_BEAM_COARSE=self.I_BEAM_COARSE,
         #          samples_per_rf=self.samples, n_samples=self.n_coarse,
@@ -279,19 +309,47 @@ class PassiveCavity(IQCavityFeedback):
         #          V_ANT_COARSE=self.V_ANT_COARSE)
         if not no_beam:
             # Compute generator current on fine-grid
-            self.I_GEN_FINE = np.interp(self.profile.bin_centers, self.rf_centers,
+            self.I_GEN_FINE = np.interp(self.profile.hist_x, self.rf_centers,
                                         self.I_GEN_COARSE[-self.n_coarse:])
             # Compute antenna voltage on the fine-grid
             self.cavity_response_fine()
+
+    def runge_kutta_tryout_2nd_order(self, V_init, bin_centers, omega, delta_omega,
+                                     method="RK23", min_val=True, dV_ant_init=0+0j):
+        max_tstep = bin_centers[1] - bin_centers[0]
+
+        dcurrent = interp1d(bin_centers, -.5 * self.i_beam_gradient_coarse[-self.n_coarse:] + 2j * omega * self.I_GEN_COARSE[-self.n_coarse:])
+
+        coeff_A = -2 * (0.5 * delta_omega ** 2 + delta_omega * omega) / (omega * self.R_over_Q ) + 1j * omega / (
+                    self.R_over_Q * self.Q_L)
+        coeff_dA = (2j * (1 + delta_omega / omega) + 1 / self.Q_L) / self.R_over_Q
+
+        def fun(t, Y, curr):
+            a, dA = Y
+            res = omega * self.R_over_Q * (curr(t) - coeff_A * a - coeff_dA * dA)  #TODO: find out, why /2 is required
+            return [dA, res]
+
+        A0 = V_init
+        dA0 = dV_ant_init
+        init_vals = [A0, dA0]
+        if min_val:
+            sol = solve_ivp(fun, (bin_centers[0], bin_centers[-1]), init_vals, t_eval=bin_centers, method=method,
+                             max_step=max_tstep,
+                             args=[dcurrent])
+        else:
+            sol = solve_ivp(fun, (bin_centers[0], bin_centers[-1]), init_vals, t_eval=bin_centers, method=method,
+                             args=[dcurrent])
+
+        return sol["t"], sol["y"][0]
 
     def cavity_response_fine(self):
         r'''ACS cavity response model in matrix form on the fine-grid'''
 
         # Number of samples on fine grid
-        self.samples_fine = self.omega_rf * self.profile.bin_size
+        self.samples_fine = self.omega_rf * self.profile.hist_step
 
         # Find initial value of antenna voltage and generator current
-        t_at_init = self.profile.bin_centers[0] - self.profile.bin_size
+        t_at_init = self.profile.hist_x[0] - self.profile.hist_step
 
         V_A_init = interp1d(np.concatenate((self.rf_centers - self.T_s * self.n_coarse, self.rf_centers)),
                             self.V_ANT_COARSE)(t_at_init)
@@ -300,10 +358,7 @@ class PassiveCavity(IQCavityFeedback):
         # print(dV_A_init)
         # dV_A_init = 0 + 0j
         if self.fine_RK:
-            _, self.V_ANT_FINE = self.runge_kutta_tryout_2nd_order(I_gen=self.I_GEN_FINE,
-                                                                   I_beam_grad=self.I_BEAM_GRADIENT_FINE,
-                                                                   Q_L=self.Q_L, R_over_Q=self.R_over_Q,
-                                                                   dV_ant_init=dV_A_init,
+            _, self.V_ANT_FINE = self.runge_kutta_tryout_2nd_order(dV_ant_init=dV_A_init,
                                                                    delta_omega=self.omega_detuning,
                                                                    V_init=V_A_init, bin_centers=self.profile.hist_x,
                                                                    min_val=True, omega=self.omega_center)
@@ -342,26 +397,21 @@ class PassiveCavity(IQCavityFeedback):
         if not self.fine_RK and not self.coarse_RK:
             super().rf_beam_current(beam=beam, use_lowpass_filter=use_lowpass_filter)
         else:
-            t_rev = self._parent_rf_station.omega_rf / (2 * np.pi) * self._parent_rf_station.harmonic
-            self.i_beam_gradient_fine, self.i_beam_gradient_coarse[-self.n_coarse:] = rf_beam_current_gradient(
-            self.profile,
-            self.omega_rf,
-            t_rev,,
-            lpf=use_lowpass_filter,
-            downsample={"Ts": self.T_s, "points": self.n_coarse},
-            external_reference=True,
-            dT=self.dT,)
+            self.i_beam_gradient_fine, self.i_beam_gradient_coarse[-self.n_coarse:] = self.rf_beam_current_gradient(
+                beam=beam,
+                lpf=use_lowpass_filter,
+                downsample={"Ts": self.T_s, "points": self.n_coarse},
+                external_reference=True,
+                delta_t=self.delta_t,
+            )
 
             # Convert RF beam current gradients to be in units of Amperes
-            self.I_BEAM_GRADIENT_FINE = -self.I_BEAM_GRADIENT_FINE / self.profile.bin_size
-            self.I_BEAM_GRADIENT_COARSE[-self.n_coarse:] = (
-                    -self.I_BEAM_GRADIENT_COARSE[-self.n_coarse:] / self.T_s
+            self.i_beam_gradient_fine = -self.i_beam_gradient_fine / self.profile.hist_step
+            self.i_beam_gradient_coarse[-self.n_coarse:] = (
+                    -self.i_beam_gradient_coarse[-self.n_coarse:] / self.T_s
             )
 
     def rf_beam_current_gradient(self,
-                                 profile: StaticProfile, #remove
-                                 omega_c: float, #remove
-                                 T_rev: float, # remove
                                  beam: BeamBaseClass,
                                  lpf: bool = True,
                                  downsample: dict | None = None,
@@ -432,23 +482,23 @@ class PassiveCavity(IQCavityFeedback):
 
         # Convert from dimensionless to Coulomb/Ampères
         # Take into account macro-particle charge with real-to-macro-particle ratio
-        charges = (profile.hist_y_to_density_factor * beam.particle_type.charge * e
-                   * np.copy(profile.hist_y))
+        charges = (self.profile.hist_y_to_density_factor * beam.particle_type.charge * e
+                   * np.copy(self.profile.hist_y))
         # logger.debug("Sum of particles: %d, total charge: %.4e C",
         #              np.sum(profile.hist_y), np.sum(charges))
         # logger.debug("DC current is %.4e A", np.sum(charges) / T_rev)
 
         # Mix with frequency of interest; remember factor 2 demodulation
-        charge_gradient = np.gradient(charges, profile.hist_x)
-        I_f_gradient = 2. * (1j * omega_c * charges + charge_gradient) * np.cos(
-            omega_c * profile.hist_x)
-        Q_f_gradient = -2. * (1j * omega_c * charges + charge_gradient) * np.sin(
-            omega_c * profile.hist_x)
+        charge_gradient = np.gradient(charges, self.profile.hist_x)
+        I_f_gradient = 2. * (1j * self.omega_carrier * charges + charge_gradient) * np.cos(
+            self.omega_carrier * self.profile.hist_x)
+        Q_f_gradient = -2. * (1j * self.omega_carrier * charges + charge_gradient) * np.sin(
+            self.omega_carrier * self.profile.hist_x)
 
         # Pass through a low-pass filter
         if lpf is True:
             # Nyquist frequency 0.5*f_slices; cutoff at 20 MHz
-            cutoff = 20.e6 * 2. * profile.hist_x
+            cutoff = 20.e6 * 2. * self.profile.hist_x
             I_f_gradient = low_pass_filter(I_f_gradient, cutoff_frequency=cutoff)
             Q_f_gradient = low_pass_filter(Q_f_gradient, cutoff_frequency=cutoff)
 
