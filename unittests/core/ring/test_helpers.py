@@ -4,7 +4,7 @@ from blond.core.ring.helpers import (
     _build_dependency_graph,
     get_dependencies,
     get_elements,
-    get_init_order,
+    get_required_order,
     requires,
 )
 
@@ -82,22 +82,22 @@ class TestFunctions(unittest.TestCase):
         assert elements_selected[0] is a
         assert elements_selected[1] is ad
 
-    def test_get_init_order(self) -> None:
+    def test_get_required_order(self) -> None:
         a = A()
         b = B()
-        sorted_classes = get_init_order(
+        sorted_classes = get_required_order(
             instances=(a, b), dependency_attribute="common.requires"
         )
         assert sorted_classes == ["A", "B"]
 
-    def test_get_init_order2(self) -> None:
-        sorted_classes = get_init_order(
+    def test_get_required_order2(self) -> None:
+        sorted_classes = get_required_order(
             instances=(A(), B(), C(), D()),
             dependency_attribute="common.requires",
         )
         assert sorted_classes == ["A", "B", "C", "D"]
 
-    def test_get_init_order_baseclass(self) -> None:
+    def test_get_required_order_baseclass(self) -> None:
         class BaseClass:
             pass
 
@@ -106,24 +106,20 @@ class TestFunctions(unittest.TestCase):
                 pass
 
         class Breal:
-            @requires(
-                [
-                    "BaseClass",
-                ]
-            )  # with should work
+            @requires(["BaseClass"])  # with should work
             def common(self):
                 pass
 
-        sorted_classes = get_init_order(
+        sorted_classes = get_required_order(
             instances=(Breal(), Areal()),
             dependency_attribute="common.requires",
         )
         assert sorted_classes == ["Areal", "Breal"]
 
-    def test_get_init_order3(self) -> None:
+    def test_get_required_order3(self) -> None:
         a = A()
         b = D()
-        sorted_classes = get_init_order(
+        sorted_classes = get_required_order(
             instances=(a, b), dependency_attribute="common.requires"
         )
         assert sorted_classes == ["A", "D"]
@@ -149,7 +145,7 @@ class TestFunctions(unittest.TestCase):
 
         a_rec, b_rec = A_recusive(), B_recursive()
         with self.assertRaisesRegex(ValueError, "Cyclic dependency"):
-            _ = get_init_order(
+            _ = get_required_order(
                 instances=(a_rec, b_rec),
                 dependency_attribute="on_init_simulation.requires",
             )

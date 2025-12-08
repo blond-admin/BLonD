@@ -45,13 +45,38 @@ def requires(dependencies: list[str]) -> Callable:
     Parameters
     ----------
     dependencies
-        A list of class names or identifiers that must be satisfied before the
-        decorated function should be executed.
+        A list of class names that are intended to be initialized
+        before the decorated function should be executed.
 
     Returns
     -------
     Callable
         A decorator that adds a `requires` attribute to the decorated function.
+
+    Examples
+    --------
+    >>> from blond.core.ring.helpers import requires, get_required_order
+    >>>
+    >>>
+    >>> class ClassA:
+    >>>     def common(self):
+    >>>         pass
+    >>>
+    >>>
+    >>> class ClassB:
+    >>>     @requires(["ClassA",])
+    >>>     def common(self):
+    >>>         pass
+    >>>
+    >>>
+    >>> sorted_classes = get_required_order(
+    >>>     instances=(ClassB(), ClassA()),
+    >>>     dependency_attribute="common.requires",
+    >>> )
+    >>> # The classes are sorted according to their requirements
+    >>> # sorted_classes = ['ClassA', 'ClassB']
+
+
     """
     if not all(isinstance(dep, str) for dep in dependencies):
         raise TypeError("All dependencies must be strings.")
@@ -88,7 +113,7 @@ def get_elements(elements: Iterable, _class: type[T]) -> tuple[T, ...]:
     return tuple(filter(lambda x: isinstance(x, _class), elements))
 
 
-def get_init_order(
+def get_required_order(
     instances: Iterable[Any], dependency_attribute: str
 ) -> list[Any]:
     """Get order to be initialized elements.
