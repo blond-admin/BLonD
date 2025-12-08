@@ -25,10 +25,8 @@ from blond.experimental.physics.feedbacks.cavity_feedback import (
     IQCavityFeedback,
 )
 from blond.experimental.physics.feedbacks.helpers import (
-    cartesian_to_polar,
     low_pass_filter,
 )
-from unittests.physics.impedances.comparisons.mtw import harmonic
 
 MINIMUM_QL_FEEDBACK_MODEL = 0.5
 
@@ -148,7 +146,7 @@ class PassiveCavity(IQCavityFeedback):
         self.i_beam_gradient_fine: NumpyArray | None = None
         self.i_beam_gradient_coarse: NumpyArray | None = None
 
-        self.voltage_correction: float | None = None
+        self.relative_voltage_correction: float | None = None
         self.phase_correction: float | None = None
 
         self.fine_RK = fine_RK
@@ -159,42 +157,6 @@ class PassiveCavity(IQCavityFeedback):
         self.relative_detuning: float | None = None
 
         self.delta_t: float | None = None
-
-        #B2 naming convention
-        self.V_ANT_COARSE = self.v_antenna_coarse
-        self.V_ANT_FINE = self.v_antenna_fine
-        self.I_GEN_COARSE = self.i_generator_coarse
-        self.I_GEN_FINE = self.i_generator_fine
-
-        self.V_corr = self.voltage_correction
-        self.phi_corr = self.phase_correction
-
-    def on_init_simulation(self, simulation: Simulation) -> None:
-        """Hook called when the Simulation object is initialized.
-
-        This is used by simulation elements to perform
-        initialization tasks. It is called automatically
-        when ``Simulation.__init__()`` is executed.
-
-        All objects in the simulation hierarchy that have an ``on_init_simulation``
-        method will have it called in a specific dependency order.
-
-        Parameters
-        ----------
-        simulation
-            The simulation instance being initialized (usually ``self``).
-
-        Notes
-        -----
-        - This is called once when the Simulation is created, before any beams are prepared.
-        - Subclasses and simulation elements can override this to set up initial state.
-        - The base implementation does nothing.
-
-        See Also
-        --------
-        on_run_simulation
-        """
-        pass
 
     def update_fb_variables(self) -> None:
         """Method to update the variables specific to the turn."""
@@ -259,27 +221,6 @@ class PassiveCavity(IQCavityFeedback):
 
         t_rf = 2 * np.pi / self._parent_rf_station.omega_rf
         self.sampling_time = self.n_periods_coarse * t_rf
-        self.n_coarse = t_rf * self._parent_rf_station.get_main_harmonic() / self.sampling_time
-        self.omega_carrier = self._parent_rf_station.omega_rf[self.harmonic_index] / self.n_periods_coarse
-
-        self.i_generator_fine = np.zeros(self.profile.n_bins, dtype=complex)  # TODO: does this need to be backend.complex?
-        self.i_generator_coarse = np.zeros(2 * self.n_coarse, dtype=complex)
-
-        self.v_antenna_fine = np.zeros(self.profile.n_bins, dtype=complex)
-        self.v_antenna_coarse = np.zeros(2 * self.n_coarse, dtype=complex)
-
-        self.i_beam_fine = np.zeros(self.profile.n_bins, dtype=complex)
-        self.i_beam_coarse = np.zeros(2 * self.n_coarse, dtype=complex)
-
-        self.i_beam_gradient_fine = np.zeros(self.profile.n_bins, dtype=complex)
-        self.i_beam_gradient_coarse = np.zeros(2 * self.n_coarse, dtype=complex)
-
-        self.samples_coarse = 0
-
-        self.delta_t = self.dT
-
-    def track(self, beam: BeamBaseClass) -> None:
-        super().track(beam)
 
     def circuit_track(self, no_beam: bool = False) -> None:
         r"""Tracking of the LLRF circuit."""
@@ -417,7 +358,7 @@ class PassiveCavity(IQCavityFeedback):
                                  downsample: dict | None = None,
                                  external_reference: bool = True,
                                  delta_t: float = 0,
-                                 ) -> NumpyArray:
+                                 ) -> tuple[NumpyArray, NumpyArray]:
         r"""Function calculating the beam charge gradient at the (RF) frequency, slice by
         slice. The charge distribution [C] of the beam is determined from the beam
         profile :math:`\lambda_i`, the particle charge :math:`q_p` and the real vs.
@@ -452,12 +393,6 @@ class PassiveCavity(IQCavityFeedback):
 
         Parameters
         ----------
-        profile : class
-            A Profile type class
-        omega_c : float
-            Revolution frequency [1/s] at which the current should be calculated
-        T_rev : float
-            Revolution period [s] of the machine
         lpf : bool
             Apply low-pass filter; default is True
         downsample : dict
@@ -466,8 +401,6 @@ class PassiveCavity(IQCavityFeedback):
             grid with 'Ts' sampling time and 'points' points.
         external_reference : bool
             Option to include the changing external reference of the time-grid
-        dT : float
-            The shift in time due to shifting reference frames
 
         Returns
         -------
@@ -496,7 +429,7 @@ class PassiveCavity(IQCavityFeedback):
             self.omega_carrier * self.profile.hist_x)
 
         # Pass through a low-pass filter
-        if lpf is True:
+        if lpf:
             # Nyquist frequency 0.5*f_slices; cutoff at 20 MHz
             cutoff = 20.e6 * 2. * self.profile.hist_x
             I_f_gradient = low_pass_filter(I_f_gradient, cutoff_frequency=cutoff)
@@ -505,7 +438,7 @@ class PassiveCavity(IQCavityFeedback):
         gradient_fine = I_f_gradient + 1j * Q_f_gradient
         if external_reference:
             # slippage in phase due to a non-integer harmonic number
-            dphi = delta_t * omega_c
+            dphi = delta_t * self.omega_carrier
             # Total phase correction
             phase = dphi
             gradient_fine = gradient_fine * np.exp(1j * phase)
@@ -518,7 +451,7 @@ class PassiveCavity(IQCavityFeedback):
                 raise RuntimeError('Downsampling input erroneous in rf_beam_current')
 
             # Find which index in fine grid matches index in coarse grid
-            ind_fine = np.round((profile.bin_centers + delta_t - np.pi / omega_c) / T_s)
+            ind_fine = np.round((self.profile.hist_x + delta_t - np.pi / self.omega_carrier) / T_s)
             ind_fine = np.array(ind_fine, dtype=int)
             indices = np.where((ind_fine[1:] - ind_fine[:-1]) == 1)[0]
             if len(indices) == 0:
@@ -534,3 +467,76 @@ class PassiveCavity(IQCavityFeedback):
 
         else:
             return gradient_fine
+
+    # TODO: remove following section
+    @property
+    def V_ANT_COARSE(self) -> NumpyArray:
+        return self.v_antenna_coarse
+
+    @V_ANT_COARSE.setter
+    def V_ANT_COARSE(self, value: NumpyArray) -> None:
+        self.v_antenna_coarse = value
+
+    @property
+    def V_ANT_FINE(self) -> NumpyArray:
+        return self.v_antenna_fine
+
+    @V_ANT_FINE.setter
+    def V_ANT_FINE(self, value: NumpyArray) -> None:
+        self.v_antenna_fine = value
+
+    @property
+    def I_GEN_COARSE(self) -> NumpyArray:
+        return self.i_generator_coarse
+
+    @I_GEN_COARSE.setter
+    def I_GEN_COARSE(self, value: NumpyArray) -> None:
+        self.i_generator_coarse = value
+
+    @property
+    def I_GEN_FINE(self) -> NumpyArray:
+        return self.i_generator_fine
+
+    @I_GEN_FINE.setter
+    def I_GEN_FINE(self, value: NumpyArray) -> None:
+        self.i_generator_fine = value
+
+    @property
+    def I_BEAM_COARSE(self) -> NumpyArray:
+        return self.i_beam_coarse
+
+    @I_BEAM_COARSE.setter
+    def I_BEAM_COARSE(self, value: NumpyArray) -> None:
+        self.i_beam_coarse = value
+
+    @property
+    def I_BEAM_FINE(self) -> NumpyArray:
+        return self.i_beam_fine
+
+    @I_BEAM_FINE.setter
+    def I_BEAM_FINE(self, value: NumpyArray) -> None:
+        self.i_beam_fine = value
+
+    @property
+    def V_corr(self) -> float:
+        return self.relative_voltage_correction
+
+    @V_corr.setter
+    def V_corr(self, value: float) -> None:
+        self.relative_voltage_correction = value
+
+    @property
+    def phi_corr(self) -> float:
+        return self.phase_correction
+
+    @phi_corr.setter
+    def phi_corr(self, value: NumpyArray) -> None:
+        self.phase_correction = value
+
+    @property
+    def T_s(self) -> float:
+        return self.sampling_time
+
+    @T_s.setter
+    def T_s(self, value: float) -> None:
+        self.sampling_time = value
