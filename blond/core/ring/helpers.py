@@ -26,24 +26,42 @@ if TYPE_CHECKING:  # pragma: no cover
     T = TypeVar("T")
 
 
-def requires(argument: list[str]) -> Callable:
-    """Decorator to manage execution order of decorated functions.
+def requires(dependencies: list[str]) -> Callable:
+    """
+    Decorator that annotates a function with a list of prerequisite class names.
+
+    This is useful when you need to enforce or track an execution order between
+    functions or methods—especially in frameworks, pipelines, or initialization
+    sequences where certain components must be processed first.
+
+    Notes
+    -----
+    - Dependencies are expressed as strings to avoid cyclic imports.
+    - The decorator does *not* enforce order by itself; it simply attaches
+      metadata (`.requires`) to the wrapped function that other systems can
+      inspect.
 
     Parameters
     ----------
-    argument
-        List of class names that are required before executing
-        the decorated function
+    dependencies
+        A list of class names or identifiers that must be satisfied before the
+        decorated function should be executed.
 
+    Returns
+    -------
+    Callable
+        A decorator that adds a `requires` attribute to the decorated function.
     """
+    if not all(isinstance(dep, str) for dep in dependencies):
+        raise TypeError("All dependencies must be strings.")
 
-    def decorator(function: Callable) -> Callable:
-        def wrapper(*args: list[Any], **kwargs: dict[Any, Any]) -> Any:
-            return function(*args, **kwargs)
+    def decorator(func: Callable) -> Callable:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            # No additional behavior—simply pass through to the wrapped function.
+            return func(*args, **kwargs)
 
-        # allow strings to prevent cyclic imports
-        assert all(isinstance(a, str) for a in argument)
-        wrapper.requires = argument  # type: ignore
+        # Attach the dependency metadata
+        wrapper.requires = dependencies  # type: ignore[attr-defined]
         return wrapper
 
     return decorator
