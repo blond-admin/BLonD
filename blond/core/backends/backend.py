@@ -288,6 +288,8 @@ class BackendBaseClass(ABC):
         self.arange: Callable = None  # type: ignore
         self.average: Callable = None  # type: ignore
         self.fftconvolve: Callable = None  # type: ignore
+        self.concatenate: Callable = None  # type: ignore
+        self.unique: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -496,6 +498,8 @@ class NumpyBackend(BackendBaseClass):
         self.arange = np.arange
         self.average = np.average
         self.fftconvolve = fftconvolve
+        self.concatenate = np.concatenate
+        self.unique = np.unique
 
         self._finalize()
 
@@ -620,6 +624,8 @@ class CupyBackend(BackendBaseClass):
         self.arange = cp.arange
         self.average = cp.average
         self.fftconvolve = fftconvolve
+        self.concatenate = cp.concatenate
+        self.unique = cp.unique
 
         from blond.core.backends.cuda.callables import CudaSpecials
 
