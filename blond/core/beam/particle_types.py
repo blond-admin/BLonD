@@ -83,6 +83,10 @@ class ParticleType:
 
         return other_tuple == self_tuple
 
+    def __hash__(self):
+        return hash((self._mass, self._charge, self._user_decay_rate,
+                     self._classical_particle_radius))
+
     @property
     def mass(self) -> float:
         """
