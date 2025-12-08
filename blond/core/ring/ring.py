@@ -51,6 +51,9 @@ class Ring(Preparable):
         during simulation (e.g., due to energy changes), the circumference stays
         fixed. Orbit length changes result in timing delays but don't affect
         the RF frequency program.
+    check_section_indices : bool, optional
+        If True, validate section indices during initialization.
+        Default is True.
     """
 
     def __init__(
