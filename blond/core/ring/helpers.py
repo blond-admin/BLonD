@@ -29,7 +29,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 def requires(dependencies: list[str]) -> Callable:
     """
-    Decorator to manage execution order of decorated functions..
+    Decorator to manage execution order of decorated functions.
 
     This is useful when you need to enforce or track an execution order between
     functions or methods—especially in frameworks, pipelines, or initialization
