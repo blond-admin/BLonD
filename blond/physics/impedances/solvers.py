@@ -6,16 +6,17 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Solvers to calculate the wake potential from impedance sources."""
+"""Solvers to calculate the wake potential from impedance sources.
 
-# Authors
-# -------
-# Alexandre Lasheen
-# Danilo Quartullo,
-# Juan F. Esteban Mueller
-# Leonard Thiele
-# Markus Schwarz
-# Simon Lauber
+Authors
+-------
+Alexandre Lasheen
+Danilo Quartullo,
+Juan F. Esteban Mueller
+Leonard Thiele
+Markus Schwarz
+Simon Lauber
+"""
 
 from __future__ import annotations
 

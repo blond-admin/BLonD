@@ -11,7 +11,10 @@
 **Various beam phase loops with optional synchronisation/frequency/radial loops
 for the CERN machines**
 
-:Authors: **Helga Timko**, **Alexandre Lasheen**
+Authors
+-------
+Helga Timko
+Alexandre Lasheen
 """
 
 from __future__ import annotations

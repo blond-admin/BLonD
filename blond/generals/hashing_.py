@@ -6,7 +6,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Functions that help with hashing."""
+"""Functions that help with hashing.
+
+Authors
+-------
+Simon Lauber
+"""
 
 # Authors
 # -------

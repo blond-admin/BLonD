@@ -16,6 +16,10 @@ The following classes are currently available:
 - :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurn`
 - :class:`~blond.cycles.magnetic_cycles.MagneticCyclePerTurnAllRfStations`
 - :class:`~blond.cycles.magnetic_cycles.MagneticCycleByTime`
+
+Authors
+-------
+Simon Lauber
 """
 
 from __future__ import annotations

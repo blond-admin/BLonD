@@ -12,6 +12,12 @@ Example input for simulation with RF noise.
 Notes
 -----
 No intensity effects.
+
+
+Authors
+-------
+Simon Lauber
+Helga Timko
 """
 # pragma: no cover
 

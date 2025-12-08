@@ -6,7 +6,12 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Collection of abstract classes to handle the calculation of wake potentials."""
+"""Collection of abstract classes to handle the calculation of wake potentials.
+
+Authors
+-------
+Simon Lauber
+"""
 
 from __future__ import annotations
 

@@ -6,7 +6,14 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Module holding all observables for the simulation."""
+"""Module holding all observables for the simulation.
+
+Author
+------
+Simon Lauber
+Leonard Thiele
+Elleanor Lamb
+"""
 
 from __future__ import annotations
 

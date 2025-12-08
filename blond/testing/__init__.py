@@ -6,4 +6,9 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Utilities for testing of BLonD."""
+"""Utilities for testing of BLonD.
+
+Authors
+-------
+Simon Lauber
+"""

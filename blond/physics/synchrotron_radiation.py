@@ -6,7 +6,13 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Collection of implementations to calculate the synchrotron radiation."""
+"""Collection of implementations to calculate the synchrotron radiation.
+
+Authors
+-------
+Simon Lauber
+Lina Valle
+"""
 
 from __future__ import (
     annotations,  # pragma: no cover # TODO remove when SR is implemented
