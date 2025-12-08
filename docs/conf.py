@@ -24,6 +24,8 @@ from importlib.metadata import version as get_version
 
 print(">>> Sphinx loaded THIS conf.py:", __file__)
 
+sys.path.insert(0, os.path.abspath(".."))
+
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
@@ -64,6 +66,8 @@ inheritance_graph_attrs = {
     "nodesep": "0.2",
     "layout": "dot",
 }
+
+numpydoc_show_class_members = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -138,10 +142,14 @@ pygments_style = "sphinx"
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 # todo_include_todos = True
 
+setuptools_scm_git_archive = False
+
 autodoc_member_order = "bysource"
 autodoc_preserve_defaults = True  # optional
 # autodoc_inherit_docstrings = False
 autodoc_typehints = "signature"  # or 'description'
+
+autodoc_search_path = [os.path.abspath("../")]
 
 # -- Options for HTML output ----------------------------------------------
 
