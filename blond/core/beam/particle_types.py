@@ -10,6 +10,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 from numpy import float32, float64
 from scipy.constants import (  # type: ignore[import-untyped]
@@ -23,6 +25,9 @@ from scipy.constants import (  # type: ignore[import-untyped]
 )
 
 m_mu = physical_constants["muon mass"][0]
+
+if TYPE_CHECKING:
+    from typing import Self
 
 
 class ParticleType:
@@ -59,6 +64,10 @@ class ParticleType:
         # Quantum radiation constant [m]
         c_q = 55.0 / (32.0 * np.sqrt(3.0)) * hbar * c / (mass * e)
         self._quantum_radiation_constant = c_q
+
+    def __eq__(self, other: Self) -> bool:
+        return self.__class__ == other.__class__
+        return hash(self) == hash(other)
 
     @property
     def mass(self) -> float:
