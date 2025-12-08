@@ -155,8 +155,8 @@ def _ellipse_residuals_helper(
         x,
         y,
         alpha=params[0],
-        beta=params[1],
-        epsilon=params[2],
+        beta=abs(params[1]),
+        epsilon=abs(params[2]),
     )
 
 
@@ -229,6 +229,8 @@ def fit_ellipse(
     get_points_on_ellipse : Generate points on the fitted ellipse
     plot_ellipse : Visualize the fitted ellipse
     """
+    assert scale_x > 0, f"{scale_x=}"
+    assert scale_y > 0, f"{scale_y=}"
     xmax = np.max(np.abs(x))
     ymax = np.max(np.abs(y))
     epsilon = xmax * ymax
@@ -244,8 +246,8 @@ def fit_ellipse(
     alpha, beta, epsilon = sol.x
     ret = (
         float(alpha),
-        float(beta * scale_x / scale_y),
-        float(epsilon * scale_x * scale_y),
+        float(abs(beta * scale_x / scale_y)),
+        float(abs(epsilon * scale_x * scale_y)),
     )
     return ret
 

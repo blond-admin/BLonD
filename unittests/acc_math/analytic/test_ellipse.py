@@ -2,6 +2,9 @@ import unittest
 
 import matplotlib.pyplot as plt
 import numpy as np
+from physics.impedances.compare_with_legacy.test_integration_InducedVoltageFreq import (
+    DEV_PLOT,
+)
 
 from blond.acc_math.analytic.ellipse import (
     calc_ellipse_gamma,
@@ -59,6 +62,7 @@ class TestCallables(unittest.TestCase):
         epsilon_expected = scale_x * scale_y
         beta_expected = 2000000000000
         alpha, beta, epsilon = fit_ellipse(x, y, scale_x=1e3, scale_y=1e-9)
+        print(alpha, beta, epsilon)
         DEV_DEBUG = False
         if DEV_DEBUG:
             plt.plot(x, y)
@@ -114,17 +118,24 @@ class TestCallables(unittest.TestCase):
             -362787.9230721302,
         ]
         scale = np.max(x)
-        alpha, beta, epsilon = fit_ellipse(
-            x, y, scale_x=np.max(x), scale_y=np.max(y)
-        )
-        DEV_DEBUG = True
+        twiss = fit_ellipse(x, y, scale_x=np.max(x), scale_y=np.max(y))
+        DEV_DEBUG = False
         if DEV_DEBUG:
             plt.plot(x, y)
-            plot_ellipse(alpha=alpha, beta=beta, epsilon=epsilon)
+            plot_ellipse(*twiss)
             plt.show()
+        np.testing.assert_allclose(
+            twiss,
+            (
+                -0.24165788308183464,
+                3.1511321926481105e-19,
+                7.208585223392236e-08,
+            ),
+        )
 
     def test_plot_ellipse(self):
         plot_ellipse(alpha=1, beta=2, epsilon=3)
+        plt.clf()
 
     def test_transform_twiss(self):
         n_points = 21
@@ -134,9 +145,12 @@ class TestCallables(unittest.TestCase):
         x, y = get_points_on_ellipse(*twiss_before, n_points)
         plt.scatter(x, y)
         x, y = transform_twiss(x, y, *twiss_before, *twiss_after)
-        plt.scatter(x, y)
+        twiss_after_points = fit_ellipse(x, y)
+        np.testing.assert_allclose(twiss_after_points, twiss_after)
+        if DEV_PLOT:
+            plt.scatter(x, y)
 
-        plot_ellipse(*twiss_before, n_points)
-        plot_ellipse(*twiss_after, n_points)
+            plot_ellipse(*twiss_before, n_points)
+            plot_ellipse(*twiss_after, n_points)
 
-        plt.show()
+            plt.show()
