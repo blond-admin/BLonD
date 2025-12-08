@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.backends.backend import backend
-from blond.experimental.physics.feedbacks.beam_feedbac import (
+from blond.experimental.physics.feedbacks.beam_feedback import (
     BeamFeedbackBase,
     Blond2BeamFeedback,
 )

@@ -584,7 +584,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
 
     def get_main_harmonic_omega_rf_current(self) -> float:
         """Returns the omega_rf of the main harmonic, in [rad/s]."""
-        return self._omega_rf
+        return self.omega_rf
 
     def get_main_harmonic_t_rf_current(
         self,
@@ -1030,6 +1030,24 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             beam_beta=beam_beta,
             ring_circumference=ring_circumference,
         )[self.main_harmonic_idx]
+
+    def get_main_harmonic_omega_rf_current(self) -> float:
+        """Returns the omega_rf of the main harmonic, in [rad/s]."""
+        return self.omega_rf[self.main_harmonic_idx]
+
+    def get_main_harmonic_t_rf_current(
+        self,
+    ) -> float:
+        """Returns the t_rf of the main harmonic, in [s]."""
+        return (2 * np.pi) / self.get_main_harmonic_omega_rf_current()
+
+    def calc_main_harmonic_t_rf(
+        self, beam_beta: float, ring_circumference: float
+    ) -> float:
+        """Returns the t_rf of the main harmonic, in [s]."""
+        return (2 * np.pi) / self.get_main_harmonic_omega_rf_design(
+            beam_beta, ring_circumference
+        )
 
     def calc_gap_voltage(self):
         """Calculates total gap voltage in the RF station.
