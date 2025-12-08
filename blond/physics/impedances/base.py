@@ -80,7 +80,6 @@ class WakeFieldSolver:
         to their equivalent real-particle values, taking into account the particle charge,
         beam intensity, and profile scaling.
 
-
         Parameters
         ----------
         beam

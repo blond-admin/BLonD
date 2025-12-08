@@ -393,6 +393,12 @@ class TimeDomainFftSolver(WakeFieldSolver):
     """
     Solver to calculate induced voltage using fftconvolve(wake,profile).
 
+    Parameters
+    ----------
+    allow_next_fast_len : bool, optional
+        If True, use scipy's next_fast_len to optimize FFT length.
+        Default is True.
+
     Notes
     -----
     This method is intended for beam profiles that are only a fraction of
@@ -998,6 +1004,11 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
     continuous manner, with neighboring profiles connected
     seamlessly across turns.
 
+    Parameters
+    ----------
+    n_turns
+        Number of turns that the multi-turn wake consists of.
+
     Notes
     -----
     Expects the parent wakefield to use a `StaticProfile`.
@@ -1005,11 +1016,6 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
     insignificantly during the runtime of the simulation, because it is
     assumed that the profile of the first turn is also a valid full turn
     representation of the last turn.
-
-    Parameters
-    ----------
-    n_turns
-        Number of turns that the multi-turn wake consists of.
     """
 
     def __init__(self, n_turns: int) -> None:
@@ -1022,7 +1028,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         self._previous_wakes = deque(maxlen=n_turns)
 
     def _check_source_ducktypes(self):
-        """Check that the sources implement ```get_wake``."""
+        """Check that the sources implement ```get_wake```."""
         for source in self._parent_wakefield.sources:
             source: TimeDomain  # type hint what the we expect
             if not hasattr(source, "get_wake"):
@@ -1033,7 +1039,8 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
     def on_wakefield_init_simulation(
         self, simulation: Simulation, parent_wakefield: WakeField
     ) -> None:
-        """Lateinit method when WakeField is late-initialized.
+        """
+        Lateinit method when WakeField is late-initialized.
 
         Parameters
         ----------
@@ -1048,7 +1055,8 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
         self._check_source_ducktypes()
 
     def _update_wake_kernel(self) -> None:
-        """Updates the wakefield kernel that is used for convolution with the beam profile.
+        """
+        Update the wakefield kernel that is used for convolution with the beam profile.
 
         Notes
         -----
@@ -1081,7 +1089,7 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
 
     def _assert_profile_length_correct(self):
         """
-        Checks that the length of the profile corresponds to one full turn.
+        Check that the length of the profile corresponds to one full turn.
 
         Raises
         ------
@@ -1114,7 +1122,8 @@ class ContinuousMultiTurnTimeDomainSolver(WakeFieldSolver):
     def calc_induced_voltage(
         self, beam: BeamBaseClass
     ) -> NumpyArray | CupyArray:
-        """Calculates the induced voltage in this turn based on the last profiles.
+        """
+        Calculate the induced voltage in this turn based on the last profiles.
 
         Parameters
         ----------

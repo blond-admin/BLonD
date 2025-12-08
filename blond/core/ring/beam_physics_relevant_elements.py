@@ -34,6 +34,12 @@ class BeamPhysicsRelevantElements(Preparable):
     """
     Container object to manage all beam interactions in `Ring`.
 
+    Parameters
+    ----------
+    check_section_indices : bool, optional
+        If True, validate section indices during initialization.
+        Default is True.
+
     Attributes
     ----------
     elements
