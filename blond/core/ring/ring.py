@@ -683,4 +683,5 @@ class Ring(Preparable):
                     f"The element must be inserted within ["
                     f"0:{len(self.elements.elements)}] indexes."
                 )
+
         return element
