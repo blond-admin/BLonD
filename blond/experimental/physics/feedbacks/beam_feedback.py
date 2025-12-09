@@ -7,10 +7,14 @@
 # Project website: http://blond.web.cern.ch/
 
 
-"""**Various beam phase loops with optional synchronisation/frequency/radial loops
+"""
+**Various beam phase loops with optional synchronisation/frequency/radial loops
 for the CERN machines**
 
-:Authors: **Helga Timko**, **Alexandre Lasheen**
+Authors
+-------
+Helga Timko
+Alexandre Lasheen
 """
 
 from __future__ import annotations
@@ -53,7 +57,8 @@ class GeneralBeamFeedback(LocalFeedback):
 
 
 class Blond2BeamFeedback(LocalFeedback):
-    """One-turn beam phase loop
+    """
+    One-turn beam phase loop
 
     One-turn beam phase loop for different machines with different hardware.
     Use 'period' for a phase loop that is active only in certain turns.
@@ -111,7 +116,8 @@ class Blond2BeamFeedback(LocalFeedback):
         section_index: int = 0,
         name: str | None = None,
     ):
-        """One-turn beam phase loop base class
+        """
+        One-turn beam phase loop base class
 
         One-turn beam phase loop for different machines with different hardware.
         Use 'period' for a phase loop that is active only in certain turns.
@@ -167,7 +173,8 @@ class Blond2BeamFeedback(LocalFeedback):
         pass
 
     def update_phi_beam(self):
-        """Beam phase measured at the main RF frequency and phase
+        """
+        Beam phase measured at the main RF frequency and phase
 
         Beam phase measured at the main RF frequency and phase. The beam is
         convolved with the window function of the band-pass filter of the
@@ -209,7 +216,8 @@ class Blond2BeamFeedback(LocalFeedback):
         self.phi_beam = np.arctan(coeff) + np.pi
 
     def update_dphi(self, beam: BeamBaseClass):
-        """Phase difference between beam and RF phase of the main RF system.
+        """
+        Phase difference between beam and RF phase of the main RF system.
         Optional: add RF phase noise through dphi directly.
         """
         # Correct for design stable phase

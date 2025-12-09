@@ -10,7 +10,6 @@
 Logs energy and time at some points around the simulation, is inserted like all other elements.
 
 Cannot be used with from_locals.
-
 """
 
 from __future__ import annotations
@@ -29,7 +28,8 @@ from blond.handle_results.observables import ObservablesBaseClass
 class BeamObservationInRingElement(
     BeamObservationElement, ObservablesBaseClass
 ):
-    """Observation element placed in the ring, records beam data mid-turn.
+    """
+    Observation element placed in the ring, records beam data mid-turn.
 
     This element should be placed at a specific location in your pipeline. It
     cannot be used with .from_locals().
@@ -64,10 +64,13 @@ class BeamObservationInRingElement(
         self.n_turns = n_turns
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """
+        Lateinit method when `simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         pass
 
@@ -83,18 +86,23 @@ class BeamObservationInRingElement(
             Any,
         ],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """
+        Lateinit method when `simulation.run_simulation` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate.
         turn_i_init
-            Initial turn to execute simulation
+            Initial turn to execute simulation.
         obs_per_turn
-            Number of observations per turn
+            Number of observations per turn.
+        **kwargs
+            Additional keyword arguments.
         """
         n_entries = n_turns // self.each_turn_i + 2
 
@@ -116,7 +124,14 @@ class BeamObservationInRingElement(
         )
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Record beam data without modifying it."""
+        """
+        Record beam data without modifying it.
+
+        Parameters
+        ----------
+        beam
+            Beam class to interact with this element.
+        """
         self._dEs.write(beam.read_partial_dE())
         self._dts.write(beam.read_partial_dt())
         self._reference_time.write(beam.reference_time)
@@ -125,32 +140,68 @@ class BeamObservationInRingElement(
 
     @property  # as readonly attributes
     def reference_time(self):
-        """Returns reference_time [s]."""
+        """
+        Return reference_time [s].
+
+        Returns
+        -------
+        reference_time
+            Reference time in seconds.
+        """
         return self._reference_time.get_valid_entries()
 
     @property
     def reference_total_energy(self):
-        """Returns Total beam energy [eV].."""
+        """
+        Return Total beam energy [eV].
+
+        Returns
+        -------
+        reference_total_energy
+            Total beam energy in eV.
+        """
         return self._reference_total_energy.get_valid_entries()
 
     @property  # as readonly attributes
     def dts(self):
-        """Returns dt coordinates of the beam [s]."""
+        """
+        Return dt coordinates of the beam [s].
+
+        Returns
+        -------
+        dts
+            Time coordinates of the beam in seconds.
+        """
         return self._dts.get_valid_entries()
 
     @property  # as readonly attributes
     def dEs(self):
-        """Returns dEs coordinates of the beam [eV]."""
+        """
+        Return dEs coordinates of the beam [eV].
+
+        Returns
+        -------
+        dEs
+            Energy coordinates of the beam in eV.
+        """
         return self._dEs.get_valid_entries()
 
     @property  # as readonly attributes
     def flags(self):
-        """Returns flags-arrays."""
+        """
+        Return flags-arrays.
+
+        Returns
+        -------
+        flags
+            Flags arrays.
+        """
         return self._flags.get_valid_entries()
 
 
 class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
-    """Records mean and standard deviation of both energy and time coordinates and estimates the bunch emittance.
+    """
+    Records mean and standard deviation of both energy and time coordinates and estimates the bunch emittance.
 
     The observation object needs to be placed in a section. Only one recording will be performed per section.
 
@@ -198,18 +249,21 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         turn_i_init: int,
         **kwargs,
     ) -> None:
-        """Lateinit method when :func:`blond.core.simulation.simulation.Simulation.run_simulation` is called.
+        """
+        Lateinit method when :func:`blond.core.simulation.simulation.Simulation.run_simulation` is called.
 
         Parameters
         ----------
         simulation
-            Simulation context manager
+            Simulation context manager.
         beam
-            Simulation beam object
+            Simulation beam object.
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate.
         turn_i_init
-            Initial turn to execute simulation
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments.
         """
         super().on_run_simulation(
             simulation=simulation,
@@ -248,8 +302,10 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         """
         Lateinit method when `simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            Simulation context manager
+            Simulation context manager.
         """
         pass
 
@@ -257,13 +313,13 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         self,
         beam: BeamBaseClass,
     ) -> None:
-        """Update memory with new values.
+        """
+        Update memory with new values.
 
         Parameters
         ----------
-        simulation
-            Simulation context manager
-
+        beam
+            Beam class to interact with this element.
         """
         if self._beam_id_filter is None or self._beam_id_filter == id(beam):
             self._sigma_dt.write(np.std(beam._dt))
@@ -279,31 +335,65 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
 
     @property  # as readonly attributes
     def sigma_dt(self):
-        """Standard deviation of the time coordinate."""
+        """
+        Standard deviation of the time coordinate.
+
+        Returns
+        -------
+        sigma_dt
+            Standard deviation of the time coordinate.
+        """
         return self._sigma_dt.get_valid_entries()
 
     @property  # as readonly attributes
     def sigma_dE(self):
-        """Standard deviation of the energy coordinate, in [eV]."""
+        """
+        Standard deviation of the energy coordinate, in [eV].
+
+        Returns
+        -------
+        sigma_dE
+            Standard deviation of the energy coordinate in eV.
+        """
         return self._sigma_dE.get_valid_entries()
 
     @property  # as readonly attributes
     def mean_dt(self):
-        """Mean of the time coordinate."""
+        """
+        Mean of the time coordinate.
+
+        Returns
+        -------
+        mean_dt
+            Mean of the time coordinate.
+        """
         return self._mean_dt.get_valid_entries()
 
     @property  # as readonly attributes
     def mean_dE(self):
-        """Mean of the time coordinate."""
+        """
+        Mean of the energy coordinate.
+
+        Returns
+        -------
+        mean_dE
+            Mean of the energy coordinate.
+        """
         return self._mean_dE.get_valid_entries()
 
     @property  # as readonly attributes
     def rms_emittance(self):
-        r"""Root-Mean=Square emittance.
+        r"""
+        Root-Mean=Square emittance.
 
         The statistical emittance is calculated with
 
         .. math::
-            \epsilon = \sqrt{\langle \Delta t^2 \\rangle \langle \Delta E^2 \\rangle - \langle \Delta t \Delta E \\rangle^2}
+            \epsilon = \sqrt{\langle \Delta t^2 \rangle \langle \Delta E^2 \rangle - \langle \Delta t \Delta E \rangle^2}
+
+        Returns
+        -------
+        rms_emittance
+            Root-Mean-Square emittance.
         """
         return self._rms_emittance.get_valid_entries()

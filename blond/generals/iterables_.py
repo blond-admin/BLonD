@@ -20,7 +20,8 @@ T = TypeVar("T")
 
 
 def all_equal(iterable: Iterable[T]) -> bool:
-    """Check if all elements in the iterable are equal.
+    """
+    Check if all elements in the iterable are equal.
 
     Parameters
     ----------

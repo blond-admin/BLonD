@@ -60,7 +60,8 @@ class LhcRfFeedback(LocalFeedback):
 
 
 class LHCCavityLoopCommissioning:
-    r"""RF Feedback settings for LHC ACS cavity loop.
+    r"""
+    RF Feedback settings for LHC ACS cavity loop.
 
     Parameters
     ----------
@@ -162,7 +163,8 @@ class LHCCavityLoopCommissioning:
 
 
 class LHCCavityLoop(BirksCavityFeedback):
-    r"""Cavity loop to regulate the RF voltage in the LHC ACS cavities.
+    r"""
+    Cavity loop to regulate the RF voltage in the LHC ACS cavities.
     The loop contains a generator, a switch-and-protect device, an RF FB and a
     OTFB. The arrays of the LLRF system cover one turn with exactly one tenth
     of the harmonic (i.e.\ the typical sampling time is about 25 ns).
@@ -418,7 +420,8 @@ class LHCCavityLoop(BirksCavityFeedback):
         )
 
     def generator_current(self):
-        r"""Generator response
+        r"""
+        Generator response
 
         Attributes
         ----------
@@ -513,7 +516,8 @@ class LHCCavityLoop(BirksCavityFeedback):
         )
 
     def update_set_point(self):
-        r"""Updates the set point for the next turn based on the design RF
+        r"""
+        Updates the set point for the next turn based on the design RF
         voltage.
         """
         coeff = np.polyfit(
@@ -598,7 +602,8 @@ class LHCCavityLoop(BirksCavityFeedback):
             self.tuner_input()
 
     def update_arrays(self):
-        r"""Moves the array indices by one turn (n_coarse points) from the
+        r"""
+        Moves the array indices by one turn (n_coarse points) from the
         present turn to prepare the next turn. All arrays except for V_SET.
         """
         self.V_ANT_COARSE = np.concatenate(
@@ -707,7 +712,8 @@ class LHCCavityLoop(BirksCavityFeedback):
         self.detuning = self.d_omega / self.omega_c
 
     def update_set_point_excitation(self, excitation: NumpyArray, turn: int):
-        r"""Updates the set point for the next turn based on the excitation to
+        r"""
+        Updates the set point for the next turn based on the excitation to
         be injected.
         """
         self.V_SET = np.concatenate(

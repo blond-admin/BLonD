@@ -32,7 +32,8 @@ logger = logging.getLogger(__name__)
 def low_pass_filter(
     signal: NumpyArray, cutoff_frequency: float = 0.5
 ) -> NumpyArray:
-    """Low-pass filter based on Butterworth 5th order digital filter.
+    """
+    Low-pass filter based on Butterworth 5th order digital filter.
 
     Notes
     -----
@@ -67,7 +68,8 @@ def rf_beam_current(
     external_reference: bool = True,
     dT: float = 0,
 ) -> NumpyArray | tuple[NumpyArray, NumpyArray]:
-    r"""Calculates the beam charge at the (RF) frequency slice by slice
+    r"""
+    Calculates the beam charge at the (RF) frequency slice by slice
 
     Function calculating the beam charge at the (RF) frequency, slice by
     slice. The charge distribution [C] of the beam is determined from the beam
