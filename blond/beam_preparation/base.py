@@ -26,7 +26,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class BeamPreparationRoutine(ABC):
-    """Base class to write beam preparation routines.
+    """
+    Base class to write beam preparation routines.
 
     Notes
     -----
@@ -39,12 +40,13 @@ class BeamPreparationRoutine(ABC):
         simulation: Simulation,
         beam: BeamBaseClass,
     ) -> None:
-        """Populates the `Beam` object with macro-particles.
+        """
+        Populate the `Beam` object with macro-particles.
 
         Parameters
         ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         beam : BeamBaseClass
             The `Beam` object which state will be updated by this element.
         """

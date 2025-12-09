@@ -34,7 +34,7 @@ class ParticleType:
     mass : float
         Rest mass energy of the particle, in [eV].
     charge : float
-        Number of electric charges of the particle, in []
+        Number of electric charges of the particle, in [].
     user_decay_rate : float, optional
         Optional user-specified decay rate. Default is 0.0.
     """
@@ -62,37 +62,86 @@ class ParticleType:
 
     @property
     def mass(self) -> float:
-        """Rest mass energy of the particle, in [eV]."""
+        """
+        Rest mass energy of the particle, in [eV].
+
+        Returns
+        -------
+        mass
+            Rest mass energy of the particle, in [eV].
+        """
         return self._mass
 
     @property
     def charge(self) -> float:
-        """Number of electrons of the particle, unitless."""
+        """
+        Number of electrons of the particle, unitless.
+
+        Returns
+        -------
+        charge
+            Number of electrons of the particle, unitless.
+        """
         return self._charge
 
     @property
     def user_decay_rate(self) -> float:
-        """Optional user-specified decay rate. Default is 0.0."""
+        """
+        Optional user-specified decay rate. Default is 0.0.
+
+        Returns
+        -------
+        user_decay_rate
+            Optional user-specified decay rate. Default is 0.0.
+        """
         return self._user_decay_rate
 
     @property
     def mass_inv(self) -> float:
-        """Inverse of the mass (1/mass), in [1/eV]."""
+        """
+        Inverse of the mass (1/mass), in [1/eV].
+
+        Returns
+        -------
+        mass_inv
+            Inverse of the mass (1/mass), in [1/eV].
+        """
         return self._mass_inv
 
     @property
     def classical_particle_radius(self) -> float:
-        """Classical particle radius [m]."""
+        """
+        Classical particle radius [m].
+
+        Returns
+        -------
+        classical_particle_radius
+            Classical particle radius [m].
+        """
         return self._classical_particle_radius
 
     @property
     def sands_radiation_constant(self) -> float:
-        """Sand's radiation constant [ m / eV^3]."""
+        """
+        Return Sand's radiation constant [ m / eV^3].
+
+        Returns
+        -------
+        sands_radiation_constant
+            Sand's radiation constant [ m / eV^3].
+        """
         return self._sands_radiation_constant
 
     @property
     def quantum_radiation_constant(self) -> float32 | float64:
-        """Quantum radiation constant [m]."""
+        """
+        Quantum radiation constant [m].
+
+        Returns
+        -------
+        quantum_radiation_constant
+            Quantum radiation constant [m].
+        """
         return self._quantum_radiation_constant
 
 

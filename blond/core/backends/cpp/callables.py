@@ -53,7 +53,8 @@ def c_real_t(
 def reload_cpp_backend(  # NOQA: PLR0915
     floattype: type[np.float32] | type[np.float64],
 ) -> CppSpecials:
-    """Load and link the according C++ backend.
+    """
+    Load and link the according C++ backend.
 
     Parameters
     ----------
@@ -69,7 +70,8 @@ def reload_cpp_backend(  # NOQA: PLR0915
     """
 
     def load_libblond(precision: str = "single") -> CDLL:
-        """Locates and initializes the blond compiled library.
+        """
+        Locates and initializes the blond compiled library.
 
         Parameters
         ----------

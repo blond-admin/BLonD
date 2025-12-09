@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import inspect
 from collections import defaultdict, deque
+from functools import wraps
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -26,70 +27,118 @@ if TYPE_CHECKING:  # pragma: no cover
     T = TypeVar("T")
 
 
-def requires(argument: list[str]) -> Callable:
-    """Decorator to manage execution order of decorated functions.
+def requires(dependencies: list[str]) -> Callable:
+    """
+    Decorator to manage execution order of decorated functions.
+
+    This is useful when you need to enforce or track an execution order between
+    functions or methods—especially in frameworks, pipelines, or initialization
+    sequences where certain components must be processed first.
+
+    Notes
+    -----
+    - Dependencies are expressed as strings to avoid cyclic imports.
+    - The decorator does *not* enforce order by itself; it simply attaches
+      metadata (`.requires`) to the wrapped function that other systems can
+      inspect.
 
     Parameters
     ----------
-    argument
-        List of class names that are required before executing
-        the decorated function
+    dependencies
+        A list of class names that are intended to be initialized
+        before the decorated function should be executed.
 
+    Returns
+    -------
+    Callable
+        A decorator that adds a `requires` attribute to the decorated function.
+
+    Examples
+    --------
+    >>> from blond.core.ring.helpers import requires, get_required_order
+    >>>
+    >>>
+    >>> class ClassA:
+    >>>     def common(self):
+    >>>         pass
+    >>>
+    >>>
+    >>> class ClassB:
+    >>>     @requires(["ClassA",])
+    >>>     def common(self):
+    >>>         pass
+    >>>
+    >>>
+    >>> sorted_classes = get_required_order(
+    >>>     instances=(ClassB(), ClassA()),
+    >>>     dependency_attribute="common.requires",
+    >>> )
+    >>> # The classes are sorted according to their requirements
+    >>> # sorted_classes = ['ClassA', 'ClassB']
+
+
+    Returns
+    -------
+    decorator
+        Decorator function that wraps the target function.
     """
+    if not all(isinstance(dep, str) for dep in dependencies):
+        raise TypeError("All dependencies must be strings.")
 
-    def decorator(function: Callable) -> Callable:
-        def wrapper(*args: list[Any], **kwargs: dict[Any, Any]) -> Any:
-            return function(*args, **kwargs)
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            # No additional behavior—simply pass through to the wrapped function.
+            return func(*args, **kwargs)
 
-        # allow strings to prevent cyclic imports
-        assert all(isinstance(a, str) for a in argument)
-        wrapper.requires = argument  # type: ignore
+        # Attach the dependency metadata
+        wrapper.requires = dependencies  # type: ignore[attr-defined]
         return wrapper
 
     return decorator
 
 
 def get_elements(elements: Iterable, _class: type[T]) -> tuple[T, ...]:
-    """Find all elements of a certain type.
+    """
+    Find all elements of a certain type.
 
     Parameters
     ----------
     elements
-        List of instances that might match isinstance(element, _class)
+        List of instances that might match isinstance(element, _class).
     _class
-        Return only elements that are instance of this class
+        Return only elements that are instance of this class.
 
     Returns
     -------
     filtered_elements
-        List of filtered elements that match _class
-
+        List of filtered elements that match _class.
     """
     return tuple(filter(lambda x: isinstance(x, _class), elements))
 
 
-def get_init_order(
+def get_required_order(
     instances: Iterable[Any], dependency_attribute: str
 ) -> list[Any]:
-    """Get order to be initialized elements.
-
-    Notes
-    -----
-    To be used in combination with `@requires(["ClassName1", "ClassName2"])`
+    """
+    Get order to be initialized elements.
 
     Parameters
     ----------
     instances
-        Instances to be sorted
+        Instances to be sorted.
     dependency_attribute
         Attribute that is used for sorting
-        e.g. "on_init_simulation.requires"
+        e.g. "on_init_simulation.requires".
 
     Returns
     -------
     sorted_classes_filtered
-        Sorted `instances`
+        Sorted `instances`.
 
+    Notes
+    -----
+    To be used in combination with `@requires(["ClassName1", "ClassName2"])`.
     """
     graph, in_degree, all_classes = _build_dependency_graph(
         instances, dependency_attribute
@@ -106,15 +155,25 @@ def get_init_order(
 def _build_dependency_graph(
     instances: Iterable[Any], dependency_attribute: str
 ) -> tuple[defaultdict[Any, list], defaultdict[Any, int], set]:
-    """Function to build a dependency graph.
+    """
+    Function to build a dependency graph.
 
     Parameters
     ----------
     instances
-        Instances to be sorted
+        Instances to be sorted.
     dependency_attribute
         Attribute that is used for sorting
-        e.g. "on_init_simulation.requires"
+        e.g. "on_init_simulation.requires".
+
+    Returns
+    -------
+    graph
+        Directed graph mapping dependencies to dependent classes.
+    in_degree
+        Count of incoming edges for each class.
+    all_classes
+        Set of all involved class names.
     """
     graph = defaultdict(
         list
@@ -144,20 +203,21 @@ def _build_dependency_graph(
 
 
 def get_dependencies(cls_: type, dependency_attribute: str) -> list:
-    """Investigate on which classes this class depends.
+    """
+    Investigate on which classes this class depends.
 
     Parameters
     ----------
     cls_
-        Investigated class
+        Investigated class.
     dependency_attribute
         Attribute that is used for sorting
-        e.g. "on_init_simulation.requires"
-
+        e.g. "on_init_simulation.requires".
 
     Returns
     -------
-    # TODO
+    dependencies
+        List of class names this class depends on.
     """
     if "." in dependency_attribute:
         if dependency_attribute.count(".") != 1:
@@ -184,7 +244,23 @@ def _topological_sort(
     in_degree: defaultdict[Any, int],
     all_classes: set,
 ) -> list[Any]:
-    """Function to perform topological sort on the dependency graph."""
+    """
+    Function to perform topological sort on the dependency graph.
+
+    Parameters
+    ----------
+    graph
+        Directed graph mapping dependencies to dependent classes.
+    in_degree
+        Count of incoming edges for each class.
+    all_classes
+        Set of all involved class names.
+
+    Returns
+    -------
+    sorted_classes
+        List of class names in topologically sorted order.
+    """
     # Initialize queue with classes that have no dependencies (in-degree 0)
     queue = deque([cls for cls in all_classes if in_degree[cls] == 0])
     sorted_classes = []  # List to store the sorted order

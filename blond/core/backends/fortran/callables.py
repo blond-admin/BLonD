@@ -33,7 +33,8 @@ logger = logging.getLogger(__name__)
 
 
 def _add_dll_directory(command: str):
-    """Add the bin directory of some executable to the DLL search path.
+    """
+    Add the bin directory of some executable to the DLL search path.
 
     Parameters
     ----------
@@ -104,7 +105,8 @@ def find_module_so(file: str) -> str:
 
 
 def add_backend(module_name: str) -> ModuleType:
-    """Add the backend to the sys modules, preventing `ModuleNotFoundError`.
+    """
+    Add the backend to the sys modules, preventing `ModuleNotFoundError`.
 
     Parameters
     ----------
@@ -137,7 +139,8 @@ def add_backend(module_name: str) -> ModuleType:
 def reload_fortran_backend(  # NOQA: D102
     floattype: type[np.float32] | type[np.float64],
 ) -> FortranSpecials:
-    """Reload the library according to the float precision.
+    """
+    Reload the library according to the float precision.
 
     Parameters
     ----------

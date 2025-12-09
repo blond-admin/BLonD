@@ -120,14 +120,15 @@ def main():
     def my_callback(
         simulation: Simulation, beam: Beam
     ) -> None:  # pragma: no cover
-        """Empty callback example.
+        """
+        Empty callback example.
 
         Parameters
         ----------
         simulation
-            Simulation context manager
+            Simulation context manager.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         """
         pass
 

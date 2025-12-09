@@ -29,7 +29,8 @@ def generate_particle_coordinates(
     n_macroparticles: int,
     seed: int | None,
 ) -> tuple[NumpyArray | CupyArray, NumpyArray | CupyArray]:
-    """Fill bunch with macroparticles according to `density_distribution`
+    """
+    Fill bunch with macroparticles according to `density_distribution`
 
     Notes
     -----
@@ -138,7 +139,8 @@ def repopulate_beam(
     n_macroparticles_overwrite: int,
     seed: int,
 ) -> None:
-    """Partially overwrite bunch with macroparticles according to `density_distribution`
+    """
+    Partially overwrite bunch with macroparticles according to `density_distribution`
 
     Notes
     -----
