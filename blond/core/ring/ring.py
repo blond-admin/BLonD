@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from blond.core.base import Preparable, Schedulable
+from blond.core.base import Preparable
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
@@ -34,8 +34,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.physics.drifts import DriftBaseClass
 
 
-class Ring(Preparable, Schedulable):
-    """Create a `Ring` object representing a synchrotron accelerator.
+class Ring(Preparable):
+    """
+    Create a `Ring` object representing a synchrotron accelerator.
 
     A Ring (synchrotron) is the fundamental structure that contains all beam
     physics elements like RF stations, drifts, and other components. It maintains
@@ -50,25 +51,32 @@ class Ring(Preparable, Schedulable):
         during simulation (e.g., due to energy changes), the circumference stays
         fixed. Orbit length changes result in timing delays but don't affect
         the RF frequency program.
+    check_section_indices : bool, optional
+        If True, validate section indices during initialization.
+        Default is True.
     """
 
     def __init__(
         self,
         circumference: float,
+        check_section_indices: bool = True,
     ) -> None:
         from blond.core.ring.beam_physics_relevant_elements import (
             BeamPhysicsRelevantElements,
         )
 
         super().__init__()
-        self._elements = BeamPhysicsRelevantElements()
+        self._elements = BeamPhysicsRelevantElements(
+            check_section_indices=check_section_indices
+        )
         assert circumference > 0, (
             f"`circumference` must be bigger 0, but is {circumference}"
         )
         self._circumference = circumference
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Initialize the ring when a simulation is created.
+        """
+        Initialize the ring when a simulation is created.
 
         This method is automatically called during simulation initialization to
         validate the ring configuration. It checks that RF stations are properly
@@ -110,7 +118,8 @@ class Ring(Preparable, Schedulable):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Prepare the ring when simulation execution begins.
+        """
+        Prepare the ring when simulation execution begins.
 
         This method is automatically called
         when ``simulation.run_simulation()`` starts.
@@ -132,7 +141,8 @@ class Ring(Preparable, Schedulable):
 
     @property
     def circumference(self) -> float:
-        """Get the reference circumference of the synchrotron, in [m].
+        """
+        Get the reference circumference of the synchrotron, in [m].
 
         Returns
         -------
@@ -150,7 +160,8 @@ class Ring(Preparable, Schedulable):
 
     @cached_property
     def average_transition_gamma(self) -> complex:
-        """Calculate the orbit-length weighted average transition gamma.
+        """
+        Calculate the orbit-length weighted average transition gamma.
 
         The transition gamma is the Lorentz factor at which particles cross from
         below to above transition energy. This property computes a weighted average
@@ -180,7 +191,8 @@ class Ring(Preparable, Schedulable):
         return transition_gamma_average
 
     def calc_average_eta_0(self, gamma: float) -> float:
-        """Calculate the orbit-length weighted average slip factor `eta_0`.
+        """
+        Calculate the orbit-length weighted average slip factor `eta_0`.
 
         The slip factor `eta_0` describes the relationship between relative momentum
         deviation and relative path length change. This method computes a weighted
@@ -199,7 +211,7 @@ class Ring(Preparable, Schedulable):
 
         See Also
         --------
-        average_transition_gamma
+        eta_0 : Internally used for calculation.
         """
         from blond.physics.drifts import (
             DriftBaseClass,  # prevent circular import
@@ -216,7 +228,8 @@ class Ring(Preparable, Schedulable):
         )
 
     def is_below_transition(self, beam: BeamBaseClass) -> bool:
-        """Check if the beam velocity is below the transition energy.
+        """
+        Check if the beam velocity is below the transition energy.
 
         Below transition, higher energy particles take longer to complete an orbit.
         Above transition, higher energy particles complete orbits faster. This
@@ -235,13 +248,14 @@ class Ring(Preparable, Schedulable):
 
         See Also
         --------
-        average_transition_gamma
+        average_transition_gamma : This method is interlnally used.
         """
         return bool(self.calc_average_eta_0(gamma=beam.reference_gamma) < 0)
 
     @property
     def n_rf_stations(self) -> int:
-        """Get the total number of RF stations in the ring.
+        """
+        Get the total number of RF stations in the ring.
 
         Returns
         -------
@@ -254,7 +268,8 @@ class Ring(Preparable, Schedulable):
 
     @property  # as readonly attributes
     def elements(self) -> BeamPhysicsRelevantElements:
-        """Get the container of all beam physics elements in the ring.
+        """
+        Get the container of all beam physics elements in the ring.
 
         Returns
         -------
@@ -266,7 +281,8 @@ class Ring(Preparable, Schedulable):
 
     @property  # as readonly attributes
     def closed_orbit_length(self) -> float:
-        """Get the actual closed orbit length, in [m].
+        """
+        Get the actual closed orbit length, in [m].
 
         Returns
         -------
@@ -286,7 +302,8 @@ class Ring(Preparable, Schedulable):
 
     @property
     def section_lengths(self) -> NumpyArray:
-        """Get the orbit length of each section in the ring, in [m].
+        """
+        Get the orbit length of each section in the ring, in [m].
 
         Returns
         -------
@@ -299,7 +316,8 @@ class Ring(Preparable, Schedulable):
         self,
         atol: float = 1e-6,
     ) -> None:
-        """Verify that the closed orbit length matches the reference circumference.
+        """
+        Verify that the closed orbit length matches the reference circumference.
 
         This method checks that the sum of all drift orbit lengths equals the
         reference circumference within the specified tolerance. Use this to
@@ -346,7 +364,8 @@ class Ring(Preparable, Schedulable):
         driftclass: type[DriftBaseClass] | None = None,
         **kwargs_drift,
     ) -> None:
-        """Add uniformly distributed drift sections to the ring.
+        """
+        Add uniformly distributed drift sections to the ring.
 
         This convenience method creates and adds drift elements distributed equally
         across multiple sections. Each drift will have the same length, calculated
@@ -394,7 +413,8 @@ class Ring(Preparable, Schedulable):
         deepcopy: bool = False,
         section_index: int | None = None,
     ):
-        """Add a single element to the end of the ring.
+        """
+        Add a single element to the end of the ring.
 
         This is the primary method for adding beam physics elements (RF stations,
         drifts, monitors, etc.) to the ring. Elements are appended in the order
@@ -443,7 +463,8 @@ class Ring(Preparable, Schedulable):
         deepcopy: bool = False,
         section_index: int | None = None,
     ):
-        """Add multiple elements to the ring at once.
+        """
+        Add multiple elements to the ring at once.
 
         Convenience method for adding several beam physics elements in a single call.
         Elements are added in the order they appear in the iterable.
@@ -490,7 +511,8 @@ class Ring(Preparable, Schedulable):
         deepcopy: bool = True,
         allow_section_index_overwrite: bool = False,
     ) -> list[int]:
-        """Insert an element at specific position(s) in the ring.
+        """
+        Insert an element at specific position(s) in the ring.
 
         Unlike `add_element` which appends to the end, this method inserts an
         element at precise locations within the existing element sequence. Useful
@@ -564,7 +586,8 @@ class Ring(Preparable, Schedulable):
         deepcopy: bool = True,
         allow_section_index_overwrite: bool = False,
     ):
-        """Insert multiple elements at a specific position in the ring.
+        """
+        Insert multiple elements at a specific position in the ring.
 
         This method inserts a list of elements as a contiguous block at the
         specified position. The elements maintain their order from the input list.
@@ -617,7 +640,8 @@ class Ring(Preparable, Schedulable):
     def _force_section_index_compatibility(
         self, element: SimulationElementBase, insert_at: int
     ) -> SimulationElementBase:
-        """Internal method to automatically fix element section index for insertion.
+        """
+        Internal method to automatically fix element section index for insertion.
 
         This private method is called by insert methods when
         `allow_section_index_overwrite=True`. It adjusts the element's `section_index`

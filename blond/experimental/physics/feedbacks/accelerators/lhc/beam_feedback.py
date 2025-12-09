@@ -25,16 +25,15 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class LHCBeamControl(BeamFeedbackBase):
-
     def __init__(
-            self,
-            profile: ProfileBaseClass,
-            pl_gain: float,
-            sl_gain: float,
-            window_coefficient: float = 0.0,
-            time_offset: float | None = None,
-            *args,
-            **kwargs
+        self,
+        profile: ProfileBaseClass,
+        pl_gain: float,
+        sl_gain: float,
+        window_coefficient: float = 0.0,
+        time_offset: float | None = None,
+        *args,
+        **kwargs,
     ):
         super().__init__(profile=profile, *args, **kwargs)
 
@@ -50,18 +49,20 @@ class LHCBeamControl(BeamFeedbackBase):
         self.reference = 0.0
 
     def on_run_simulation(
-            self,
-            simulation: Simulation,
-            beam: BeamBaseClass,
-            n_turns: int,
-            turn_i_init: int,
-            **kwargs,
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs,
     ) -> None:
         """Hook called when simulation.run_simulation starts."""
 
         if self.sl_gain != 0:
             Q_s0 = self.cavities[0].calc_synchrotron_tune_single_harmonic(
-                beam, np.pi, simulation.ring.calc_average_eta_0(beam.reference_gamma)
+                beam,
+                np.pi,
+                simulation.ring.calc_average_eta_0(beam.reference_gamma),
             ) * np.ones(n_turns + 1)
 
             omega_rf = self.cavities[0].get_main_harmonic_omega_rf_design(
@@ -75,9 +76,11 @@ class LHCBeamControl(BeamFeedbackBase):
             #: | *LHC Synchronisation loop coefficient [1]*
             self.lhc_a = 5.25 - omega_s0 / (np.pi * 40.0)
             #: | *LHC Synchronisation loop time constant [turns]*
-            self.lhc_t = (
-                         2 * np.pi * Q_s0 * np.sqrt(self.lhc_a)
-                 ) / np.sqrt(1 + self.pl_gain / self.sl_gain * np.sqrt((1 + 1 / self.lhc_a) / (1 + self.lhc_a))
+            self.lhc_t = (2 * np.pi * Q_s0 * np.sqrt(self.lhc_a)) / np.sqrt(
+                1
+                + self.pl_gain
+                / self.sl_gain
+                * np.sqrt((1 + 1 / self.lhc_a) / (1 + self.lhc_a))
             )
         else:
             self.lhc_a = np.zeros(n_turns + 1)
@@ -113,10 +116,7 @@ class LHCBeamControl(BeamFeedbackBase):
         self.phi_beam = np.arctan(coeff) + np.pi
 
     def phase_difference(
-            self,
-            beam: BeamBaseClass,
-            RFnoise = None,
-            noiseFB = None
+        self, beam: BeamBaseClass, RFnoise=None, noiseFB=None
     ):
         """
         *Phase difference between beam and RF phase of the main RF system.
@@ -125,7 +125,9 @@ class LHCBeamControl(BeamFeedbackBase):
 
         # Correct for design stable phase
         counter = self.cavities[0]._turn_i.value
-        self.dphi = self.phi_beam - self.cavities[0].calc_phi_s_single_harmonic(beam, enable_rf_phase=False)
+        self.dphi = self.phi_beam - self.cavities[
+            0
+        ].calc_phi_s_single_harmonic(beam, enable_rf_phase=False)
 
         # Possibility to add RF phase noise through the PL
         if RFnoise is not None:
@@ -145,12 +147,12 @@ class LHCBeamControl(BeamFeedbackBase):
 
         # Frequency correction from phase loop and synchro loop
         self.domega_rf = -self.pl_gain * self.dphi - self.sl_gain * (
-                self.lhc_y + self.lhc_a[counter] * (dphi_rf + self.reference)
+            self.lhc_y + self.lhc_a[counter] * (dphi_rf + self.reference)
         )
 
         # Update recursion variable
         self.lhc_y = (1 - self.lhc_t[counter]) * self.lhc_y + (
-                1 - self.lhc_a[counter]
+            1 - self.lhc_a[counter]
         ) * self.lhc_t[counter] * (dphi_rf + self.reference)
 
 
@@ -183,10 +185,12 @@ class LhcBeamFeedback(Blond2BeamFeedback):
 
         if self.gain2 != 0:
             #: | *LHC Synchronisation loop coefficient [1]*
-            self.lhc_a = 5.25 - self._parent_rf_station.omega_s0 / (np.pi * 40.0)
+            self.lhc_a = 5.25 - self._parent_rf_station.omega_s0 / (
+                np.pi * 40.0
+            )
             #: | *LHC Synchronisation loop time constant [turns]*
             self.lhc_t = (
-                                 2 * np.pi * self._parent_rf_station.Q_s * np.sqrt(self.lhc_a)
+                2 * np.pi * self._parent_rf_station.Q_s * np.sqrt(self.lhc_a)
             ) / np.sqrt(
                 1
                 + self.gain
@@ -291,5 +295,5 @@ class LhcFBeamFeedback(Blond2BeamFeedback):
 
         # Frequency correction from phase loop and frequency loop
         self.domega_rf = -self.gain * self.dphi - self.gain2 * (
-                self._parent_rf_station.delta_omega_rf[0] + self.reference
+            self._parent_rf_station.delta_omega_rf[0] + self.reference
         )

@@ -11,7 +11,7 @@
 from typing import TYPE_CHECKING
 
 from blond.core.backends.backend import backend
-from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
+from blond.core.base import BeamPhysicsRelevant, DynamicParameter
 from blond.core.beam.base import BeamBaseClass
 from blond.core.simulation.simulation import Simulation
 from blond.cycles.magnetic_cycle import MagneticCycleBase, MagneticCycleByTime
@@ -20,32 +20,33 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond import Ring
 
 
-class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
-    """Updates beam's `reference_total_energy` and `dE` array, but constant in absolute terms.
+class ReferenceEnergyChange(BeamPhysicsRelevant):
+    """
+    Update beam's `reference_total_energy` and `dE` array, but constant in absolute terms.
 
     Can be used in simulations where RF ramping is asynchronous with respect to the
-    beam’s energy.
+    beam's energy.
 
     Parameters
     ----------
-    section_index:
+    section_index
         Index of the ring section where this element is placed.
-    name:
+    name
         An optional name for the element.
-    **kwargs:
+    **kwargs
         Additional keyword arguments for compatibility.
 
     Attributes
     ----------
-    _turn_i:
+    _turn_i
         Current simulation turn number (initialized during simulation).
-    _magnetic_cycle:
-        Reference to the simulation’s magnetic cycle.
-    _ring:
-         Reference to the ring being simulated.
+    _magnetic_cycle
+        Reference to the simulation's magnetic cycle.
+    _ring
+        Reference to the ring being simulated.
 
-    Example
-    -------
+    Examples
+    --------
         >>> elem = ReferenceEnergyChange(section_index=1, name="energy_reference_kick")
         >>> # Add to element map before simulation
     """
@@ -67,10 +68,13 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
         self._ring: Ring | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """
+        Lateinit method when `simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         super().on_init_simulation(simulation=simulation)
         self._turn_i = simulation.turn_i
@@ -89,31 +93,34 @@ class ReferenceEnergyChange(BeamPhysicsRelevant, Schedulable):
         turn_i_init: int,
         **kwargs,
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """
+        Lateinit method when `simulation.run_simulation` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         beam
-            Simulation beam object
+            Simulation beam object.
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate.
         turn_i_init
-            Initial turn to execute simulation
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments.
         """
         pass
 
     def track(self, beam: BeamBaseClass):
-        """Updates reference energy of the beam.
+        """
+        Update reference energy of the beam.
 
+        Parameters
+        ----------
         beam
-            Simulation beam object
+            Simulation beam object.
         """
         super().track(beam=beam)
-        if self.schedule_active:
-            self.apply_schedules(
-                turn_i=self._turn_i.value,
-                reference_time=beam.reference_time,
-            )
 
         target_total_energy = self._magnetic_cycle.get_target_total_energy(
             turn_i=self._turn_i.value,

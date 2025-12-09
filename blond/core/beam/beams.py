@@ -30,7 +30,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class Beam(BeamBaseClass):
-    """Initialize a beam of particles for simulation.
+    """
+    Initialize a beam of particles for simulation.
 
     The Beam class represents a collection of macro-particles that model
     the behavior of a real particle beam in an accelerator. Each macro-particle
@@ -65,7 +66,8 @@ class Beam(BeamBaseClass):
         )
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Initialize beam parameters when the simulation is created.
+        """
+        Initialize beam parameters when the simulation is created.
 
         This method is automatically called during simulation initialization
         to set up the beam within the simulation context.
@@ -85,7 +87,8 @@ class Beam(BeamBaseClass):
         reference_time: float | None = None,
         reference_total_energy: float | None = None,
     ) -> None:
-        """Configure the beam with an initial particle distributions.
+        """
+        Configure the beam with an initial particle distributions.
 
         This method sets the time and energy coordinates for all macro-particles
         in the beam. It must be called before running a simulation to initialize
@@ -149,7 +152,8 @@ class Beam(BeamBaseClass):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Prepare the beam before the simulation starts running.
+        """
+        Prepare the beam before the simulation starts running.
 
         This method is automatically called when `simulation.run_simulation()`
         is invoked, allowing the beam to perform any necessary setup before
@@ -177,7 +181,8 @@ class Beam(BeamBaseClass):
 
     @property
     def ratio(self) -> float:
-        """Number of real particles represented by each macro-particle.
+        """
+        Number of real particles represented by each macro-particle.
 
         This is the ratio of the total beam intensity (real particles) to the
         number of macro-particles in the simulation. For example, if the beam
@@ -201,7 +206,8 @@ class Beam(BeamBaseClass):
 
     @cached_property
     def dt_min(self) -> float:
-        """Minimum time coordinate among all macro-particles in the beam in [s].
+        """
+        Minimum time coordinate among all macro-particles in the beam in [s].
 
         Returns
         -------
@@ -212,7 +218,8 @@ class Beam(BeamBaseClass):
 
     @cached_property
     def dt_max(self) -> float:
-        """Maximum time coordinate among all macro-particles in the beam in [s].
+        """
+        Maximum time coordinate among all macro-particles in the beam in [s].
 
         Returns
         -------
@@ -223,7 +230,8 @@ class Beam(BeamBaseClass):
 
     @cached_property
     def dE_min(self) -> float:
-        """Minimum energy coordinate among all macro-particles in the beam in [eV].
+        """
+        Minimum energy coordinate among all macro-particles in the beam in [eV].
 
         Returns
         -------
@@ -234,7 +242,8 @@ class Beam(BeamBaseClass):
 
     @cached_property
     def dE_max(self) -> float:
-        """Maximum energy coordinate among all macro-particles in the beam in [eV].
+        """
+        Maximum energy coordinate among all macro-particles in the beam in [eV].
 
         Returns
         -------
@@ -245,25 +254,27 @@ class Beam(BeamBaseClass):
 
     @cached_property
     def common_array_size(self) -> int:
-        """Total number of macro-particles in the beam regardless of `flags` state.
+        """
+        Total number of macro-particles in the beam regardless of `flags` state.
 
         This property returns the size of the particle arrays (`dt`, `dE`, `flags`).
         For distributed beams, this accounts for particles across all processes.
-
-        Notes
-        -----
-        Particles that are labeled LOST will be nevertheless counted,
-        as they still exist in the array.
 
         Returns
         -------
         common_array_size
             The number of macro-particles being tracked in the simulation.
+
+        Notes
+        -----
+        Particles that are labeled LOST will be nevertheless counted,
+        as they still exist in the array.
         """
         return len(self._dt)
 
     def plot_hist2d(self, **kwargs) -> None:
-        """Plot a 2D histogram of the beam distribution.
+        """
+        Plot a 2D histogram of the beam distribution.
 
         Creates a visualization showing the distribution of macro-particles in
         the time-energy distribution (`dt` vs `dE`). This is useful for visualizing
@@ -299,12 +310,13 @@ class Beam(BeamBaseClass):
             plt.hist2d(self._dt, self._dE, **kwargs)
 
     def plot_scatter(self, **kwargs) -> None:
-        """Scatter-plot of beam coordinates.
+        """
+        Scatter-plot of beam coordinates.
 
         Parameters
         ----------
-        kwargs
-            Keyword arguments for ``matplotlib.pyplot.scatter``
+        **kwargs
+            Keyword arguments for ``matplotlib.pyplot.scatter``.
         """
         if self._dt is None or self._dE is None:
             raise ValueError(
@@ -319,7 +331,8 @@ class Beam(BeamBaseClass):
             plt.scatter(self._dt, self._dE, **kwargs)
 
     def plot_hist(self, axis=0, **kwargs) -> None:
-        """Plot a 1D histogram of beam coordinates along a single axis.
+        """
+        Plot a 1D histogram of beam coordinates along a single axis.
 
         Creates a histogram showing the distribution of macro-particles projected
         onto either the time axis or the energy axis.
@@ -337,7 +350,6 @@ class Beam(BeamBaseClass):
             - bins: number of bins (default: 256)
             - range: data range (min, max)
             - density: if True, normalize to form a probability density
-
         """
         if self._dt is None or self._dE is None:
             raise ValueError(
@@ -365,7 +377,8 @@ class Beam(BeamBaseClass):
 
 
 class ProbeBeam(Beam):
-    """Create a test beam for probing simulation dynamics.
+    """
+    Create a test beam for probing simulation dynamics.
 
     A ProbeBeam is a special beam type, designed for testing and
     analysis purposes.

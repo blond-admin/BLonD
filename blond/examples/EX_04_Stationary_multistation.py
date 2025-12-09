@@ -8,7 +8,8 @@
 
 # pragma: no cover
 
-"""Example input for simulating a ring with multiple RF stations.
+"""
+Example input for simulating a ring with multiple RF stations.
 
 No intensity effects.
 

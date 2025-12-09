@@ -31,32 +31,49 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class BeamPhysicsRelevantElements(Preparable):
-    """Container object to manage all beam interactions in `Ring`.
+    """
+    Container object to manage all beam interactions in `Ring`.
+
+    Parameters
+    ----------
+    check_section_indices : bool, optional
+        If True, validate section indices during initialization.
+        Default is True.
 
     Attributes
     ----------
     elements
-        List of  :class:`~blond.core.ring.beam_physics_relevant_elements.BeamPhysicsRelevantElements`
+        List of  :class:`~blond.core.ring.beam_physics_relevant_elements.BeamPhysicsRelevantElements`.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, check_section_indices: bool = True) -> None:
         super().__init__()
         self.elements: list[SimulationElementBase] = []
         self._on_init_simulation_passed = False
+        self._check_section_indices = check_section_indices
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """
+        Lateinit method when `simulation.__init__` is called.
 
         Parameters
         ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
-        self._check_section_indexing()
+        if self._check_section_indices:
+            self._check_section_indexing()
         self._on_init_simulation_passed = True
 
     def _assert_no_init(self, msg: str) -> None:
-        """Raises `AssertionError`, if simulation was already initialized."""
+        """
+        Raise `AssertionError`, if simulation was already initialized.
+
+        Parameters
+        ----------
+        msg
+            Error message to display if assertion fails.
+        """
         assert not self._on_init_simulation_passed, msg
 
     def _check_section_indexing(self) -> None:
@@ -108,30 +125,46 @@ class BeamPhysicsRelevantElements(Preparable):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """
+        Lateinit method when `simulation.run_simulation` is called.
 
         Parameters
         ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate.
         turn_i_init
-            Initial turn to execute simulation
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments.
         """
         pass
 
     def get_sections_indices(self) -> tuple[int, ...]:
-        """Get all unique section indices."""
+        """
+        Get all unique section indices.
+
+        Returns
+        -------
+        section_indices
+            All unique section indices.
+        """
         unique_section_indices = set()
         for e in self.elements:
             unique_section_indices.add(e.section_index)
         return tuple(sorted(unique_section_indices))
 
     def get_sections_orbit_length(self) -> NumpyArray:
-        """Get `share_of_circumference` per section.
+        """
+        Get `share_of_circumference` per section.
+
+        Returns
+        -------
+        orbit_lengths
+            `share_of_circumference` per section.
 
         Notes
         -----
@@ -152,7 +185,8 @@ class BeamPhysicsRelevantElements(Preparable):
     def add_element(
         self, element: SimulationElementBase, reorder: bool = True
     ) -> None:
-        """Append a beam physics-relevant element to the container.
+        """
+        Append a beam physics-relevant element to the container.
 
         This method appends the given element to the
         internal sequence of elements, maintaining insertion order.
@@ -164,6 +198,8 @@ class BeamPhysicsRelevantElements(Preparable):
             An object representing a beamline component or any element
             relevant to beam physics. Must have a valid  `section_index`
             attribute of type `int`.
+        reorder
+            Whether to reorder elements by section index.
 
         Raises
         ------
@@ -193,7 +229,8 @@ class BeamPhysicsRelevantElements(Preparable):
         element: SimulationElementBase,
         insert_at: int,
     ) -> None:
-        """Method to check the element can be inserted in the defined section.
+        """
+        Method to check the element can be inserted in the defined section.
 
         The method checks the input location is in [0 : len(
         ring.elements.elements)], then assesses the element section index is
@@ -247,7 +284,8 @@ class BeamPhysicsRelevantElements(Preparable):
             )
 
     def insert(self, element: SimulationElementBase, insert_at: int) -> None:
-        """Insert an element to the container at the specified index.
+        """
+        Insert an element to the container at the specified index.
 
         Parameters
         ----------
@@ -255,7 +293,7 @@ class BeamPhysicsRelevantElements(Preparable):
             An object representing a beamline component or any element
             relevant to beam physics. Must have a valid  `section_index`
             attribute of type `int`.
-        insert_at:
+        insert_at
             Location of the element to be inserted.
 
         Raises
@@ -277,25 +315,45 @@ class BeamPhysicsRelevantElements(Preparable):
 
     @property  # as readonly attributes
     def n_sections(self) -> int:
-        """Number of sections that are mentioned by elements."""
+        """
+        Number of sections that are mentioned by elements.
+
+        Returns
+        -------
+        n_sections
+            Number of sections that are mentioned by elements.
+        """
         return len(np.unique([e.section_index for e in self.elements]))
 
     @property  # as readonly attributes
     def n_elements(self) -> int:
-        """Number of elements contained in this class."""
+        """
+        Number of elements contained in this class.
+
+        Returns
+        -------
+        n_elements
+            Number of elements contained in this class.
+        """
         return len(self.elements)
 
     def get_elements(
         self, class_: type[T], section_i: int | None = None
     ) -> tuple[T, ...]:
-        """Get all elements of specified type (potentially filtered by section).
+        """
+        Get all elements of specified type (potentially filtered by section).
 
         Parameters
         ----------
         class_
-            Type of class to filter for
+            Type of class to filter for.
         section_i
-            Optional filter to get instances only in one section
+            Optional filter to get instances only in one section.
+
+        Returns
+        -------
+        elements
+            All elements of specified type (potentially filtered by section).
         """
 
         def is_in_section(element: T) -> bool:
@@ -307,16 +365,12 @@ class BeamPhysicsRelevantElements(Preparable):
         return elements
 
     def get_element(self, class_: type[T], section_i: int | None = None) -> T:
-        """Retrieve a single element of the specified type, optionally filtered by section.
+        """
+        Retrieve a single element of the specified type, optionally filtered by section.
 
         This method returns exactly one element of the given type. If
         `section_i` is provided, only elements in that section are
         considered.
-
-        Notes
-        -----
-        An assertion error is raised if the number of matching
-        elements is not exactly one.
 
         Parameters
         ----------
@@ -334,6 +388,11 @@ class BeamPhysicsRelevantElements(Preparable):
         ------
         AssertionError
             If the number of matching elements is not exactly one.
+
+        Notes
+        -----
+        An assertion error is raised if the number of matching
+        elements is not exactly one.
         """
         elements = self.get_elements(
             class_=class_,
@@ -358,7 +417,8 @@ class BeamPhysicsRelevantElements(Preparable):
         self._check_section_indexing()
 
     def reorder_section(self, section_index: int) -> None:
-        """Reorder section by `natural_order`.
+        """
+        Reorder section by `natural_order`.
 
         Parameters
         ----------
@@ -415,7 +475,8 @@ class BeamPhysicsRelevantElements(Preparable):
         )
 
     def count(self, class_: type[T], section_i: int | None = None) -> int:
-        """Count instances in this class that match class-type.
+        """
+        Count instances in this class that match class-type.
 
         Parameters
         ----------
@@ -424,6 +485,10 @@ class BeamPhysicsRelevantElements(Preparable):
         section_i
             Optional section index to restrict the search to a specific section.
 
+        Returns
+        -------
+        count
+            Number of instances that match class-type.
         """
         return len(self.get_elements(class_=class_, section_i=section_i))
 
@@ -432,7 +497,13 @@ class BeamPhysicsRelevantElements(Preparable):
         print(self.get_order_info())
 
     def get_order_info(self) -> str:
-        """Generate execution order string.
+        """
+        Generate execution order string.
+
+        Returns
+        -------
+        order_info
+            Execution order string.
 
         Notes
         -----
@@ -454,7 +525,19 @@ class BeamPhysicsRelevantElements(Preparable):
 
 
 def pretty_string(v: NumpyArray | Any) -> Any:
-    """Pretty print an array."""
+    """
+    Pretty print an array.
+
+    Parameters
+    ----------
+    v
+        Value to format (array or other type).
+
+    Returns
+    -------
+    formatted_string
+        Formatted string representation of the input value.
+    """
     if isinstance(v, np.ndarray):
         return f"array(min={v.min()}, max={v.max()}, shape={v.shape})"
     else:

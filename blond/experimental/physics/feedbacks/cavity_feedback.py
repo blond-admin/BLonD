@@ -16,9 +16,12 @@ import numpy as np
 from blond import StaticProfile
 from blond.core.helpers import int_from_float_with_warning
 from blond.core.ring.helpers import requires
-
-from .base import LocalFeedback
-from .helpers import cartesian_to_polar, polar_to_cartesian, rf_beam_current
+from blond.experimental.physics.feedbacks.base import LocalFeedback
+from blond.experimental.physics.feedbacks.helpers import (
+    cartesian_to_polar,
+    polar_to_cartesian,
+    rf_beam_current,
+)
 
 if TYPE_CHECKING:
     from typing import Any
@@ -34,7 +37,8 @@ if TYPE_CHECKING:
 
 
 class IQCavityFeedback(LocalFeedback):
-    """Base class to design cavity feedbacks.
+    """
+    Base class to design cavity feedbacks.
 
     Parameters
     ----------
@@ -118,7 +122,8 @@ class IQCavityFeedback(LocalFeedback):
         section_index: int = 0,
         name: str | None = None,
     ):
-        """Base class to design cavity feedbacks.
+        """
+        Base class to design cavity feedbacks.
 
         Parameters
         ----------
@@ -199,7 +204,7 @@ class IQCavityFeedback(LocalFeedback):
 
         self.dT: float | None = None
 
-    @requires(["RfStationBaseClass"])
+    @requires(["RfStationBaseClass", "BeamBaseClass"])
     def on_run_simulation(
         self,
         simulation: Simulation,
@@ -208,22 +213,21 @@ class IQCavityFeedback(LocalFeedback):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-
         self.T_s = (
-                           self.n_periods_coarse * 2 * np.pi
-                   ) / self._parent_rf_station.omega_rf[self.harmonic_index]
+            self.n_periods_coarse * 2 * np.pi
+        ) / self._parent_rf_station.omega_rf[self.harmonic_index]
         # TODO REMWORK/REMOVE
         t_rev = float(
             (2 * np.pi * self._parent_rf_station.harmonic[self.harmonic_index])
             / self._parent_rf_station.omega_rf[self.harmonic_index]
         )
         # TODO REMWORK/REMOVE
-        t_rf = t_rev / float(self._parent_rf_station.harmonic[self.harmonic_index])
+        t_rf = t_rev / float(self._parent_rf_station.get_main_harmonic())
 
         self.n_coarse = round(t_rev / self.T_s)
         self.omega_carrier = (
-                self._parent_rf_station.omega_rf[self.harmonic_index]
-                / self.n_periods_coarse
+            self._parent_rf_station.omega_rf[self.harmonic_index]
+            / self.n_periods_coarse
         )
         # FIXME NO REDECLARATION!
 
@@ -244,27 +248,17 @@ class IQCavityFeedback(LocalFeedback):
         self.I_GEN_FINE = np.zeros(self.profile.n_bins, dtype=complex)
 
     def set_hardware_commissioning(self, omega_rf: float, harmonic: int):
-        self.T_s = (
-                self.n_periods_coarse * 2 * np.pi
-        ) / omega_rf
+        self.T_s = (self.n_periods_coarse * 2 * np.pi) / omega_rf
         # TODO REMWORK/REMOVE
-        t_rev = float(
-            (2 * np.pi * harmonic)
-            / omega_rf
-        )
+        t_rev = float((2 * np.pi * harmonic) / omega_rf)
         # TODO REMWORK/REMOVE
         t_rf = 2 * np.pi / omega_rf
 
         self.n_coarse = round(t_rev / self.T_s)
-        self.omega_carrier = (
-                omega_rf
-                / self.n_periods_coarse
-        )
+        self.omega_carrier = omega_rf / self.n_periods_coarse
         # FIXME NO REDECLARATION!
 
-        self.omega_rf = float(
-            omega_rf
-        )
+        self.omega_rf = float(omega_rf)
         self.dT = 0
 
         # The least amount of arrays needed to feedback to the tracker object
@@ -280,16 +274,15 @@ class IQCavityFeedback(LocalFeedback):
 
     @abstractmethod  # pragma: no cover
     def update_fb_variables(self) -> None:
-        r"""Method to update the variables specific to the feedback.
+        r"""
+        Method to update the variables specific to the feedback.
 
         This is meant to be implemented in the child class by the user.
         """
         pass
 
     def update_rf_variables(
-            self,
-            omega_rf: float | None = None,
-            harmonic: float | None = None
+        self, omega_rf: float | None = None, harmonic: float | None = None
     ) -> None:
         r"""Updating variables from the other BLonD classes."""
         # Present time step
@@ -306,15 +299,12 @@ class IQCavityFeedback(LocalFeedback):
             t_rev = float(  # TODO REMWORK/REMOVE
                 2
                 * np.pi
-                * self._parent_rf_station.harmonic[self.harmonic_index]
+                * self._parent_rf_station.get_main_harmonic()
                 / self.omega_rf
             )
         else:
             t_rev = float(  # TODO REMWORK/REMOVE
-                2
-                * np.pi
-                * harmonic
-                / self.omega_rf
+                2 * np.pi * harmonic / self.omega_rf
             )
 
         # Present carrier frequency: main RF frequency
@@ -333,7 +323,10 @@ class IQCavityFeedback(LocalFeedback):
 
         if omega_rf is None:
             # Residual part of last turn entering the current turn due to non-integer harmonic number
-            self.dT = -self._parent_rf_station.phi_rf[self.harmonic_index] / self.omega_rf
+            self.dT = (
+                -self._parent_rf_station.phi_rf[self.harmonic_index]
+                / self.omega_rf
+            )
 
         self.rf_centers = (
             np.arange(self.n_coarse) + 0.5 / self.n_periods_coarse
@@ -341,7 +334,8 @@ class IQCavityFeedback(LocalFeedback):
 
     @abstractmethod  # pragma: no cover
     def circuit_track(self, no_beam: bool = False) -> None:
-        r"""Method to track circuit of the feedback.
+        r"""
+        Method to track circuit of the feedback.
 
         Notes
         -----
@@ -436,7 +430,8 @@ class IQCavityFeedback(LocalFeedback):
     def set_point_from_rfstation(self) -> NumpyArray:
         r"""Computes the setpoint in I/Q based on the RF voltage in the RFStation"""
         V_set = polar_to_cartesian(
-            self._parent_rf_station.voltage[self.harmonic_index] / self.n_cavities,
+            self._parent_rf_station.voltage[self.harmonic_index]
+            / self.n_cavities,
             0,
         )
 

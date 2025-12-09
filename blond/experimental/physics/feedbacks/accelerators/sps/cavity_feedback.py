@@ -19,6 +19,15 @@ from scipy.signal import fftconvolve
 
 from blond import Simulation
 from blond.core.ring.helpers import requires
+from blond.experimental.physics.feedbacks.accelerators.sps.helpers import (
+    comb_filter,
+    feedforward_filter_TWC3,
+    feedforward_filter_TWC4,
+    feedforward_filter_TWC5,
+    get_power_gen_i,
+    modulator,
+    moving_average,
+)
 from blond.experimental.physics.feedbacks.accelerators.sps.impulse_response import (  # NOQA
     SPS3Section200MHzTWC,
     SPS4Section200MHzTWC,
@@ -31,22 +40,13 @@ from blond.experimental.physics.feedbacks.helpers import cartesian_to_polar
 from blond.physics.cavities import MultiHarmonicRfStation, RfStationBaseClass
 from blond.physics.profiles import StaticProfile
 
-from .helpers import (
-    comb_filter,
-    feedforward_filter_TWC3,
-    feedforward_filter_TWC4,
-    feedforward_filter_TWC5,
-    get_power_gen_i,
-    modulator,
-    moving_average,
-)
-
 if TYPE_CHECKING:
     from blond.core.beam.base import BeamBaseClass
 
 
 class SPSCavityLoopCommissioning:
-    r"""Class containing commissioning settings for the cavity feedback
+    r"""
+    Class containing commissioning settings for the cavity feedback
 
     Parameters
     ----------
@@ -217,17 +217,17 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         **kwargs: dict[str, Any],
     ) -> None:
         super().on_run_simulation(
-            simulation,
-            beam,
-            n_turns,
-            turn_i_init,
-            **kwargs
+            simulation, beam, n_turns, turn_i_init, **kwargs
         )
 
         # 200 MHz travelling wave cavity (TWC) model
         if self.n_sections in [3, 4, 5]:
             self.TWC = eval(
-                "SPS" + str(self.n_sections) + "Section200MHzTWC(" + str(self.df) + ")"
+                "SPS"
+                + str(self.n_sections)
+                + "Section200MHzTWC("
+                + str(self.df)
+                + ")"
             )
             if self.open_ff == 1:
                 # Feed-forward filter
@@ -247,7 +247,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
                 # Multiply gain by normalisation factors from filter and
                 # beam-to generator current
                 self.G_ff *= self.TWC.R_beam / (
-                        self.TWC.R_gen * np.sum(self.coeff_ff)
+                    self.TWC.R_gen * np.sum(self.coeff_ff)
                 )
 
         else:
@@ -307,7 +307,8 @@ class SPSOneTurnFeedback(IQCavityFeedback):
 
         # Initialize moving average
         self.n_mov_av = round(
-            self.TWC.tau / self._parent_rf_station.get_main_harmonic_t_rf_current()
+            self.TWC.tau
+            / self._parent_rf_station.get_main_harmonic_t_rf_current()
         )
         self.DV_MOV_AVG = np.zeros(2 * self.n_coarse, dtype=complex)
         self.logger.debug("Moving average over %d points", self.n_mov_av)
@@ -399,7 +400,8 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         )
 
     def llrf_model(self):
-        r"""The LLRF model of the SPSOneTurnFeedback. This function calles the functions related
+        r"""
+        The LLRF model of the SPSOneTurnFeedback. This function calles the functions related
         to the LLRF part of the model in the correct order.
         """
         # Track all the modules of the LLRF-part of the model
@@ -552,7 +554,8 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         self.V_SET[-self.n_coarse :] = self.V_set
 
     def set_point_mod(self):
-        r"""This function is called instead of set_point_std if a modulated set point is used.
+        r"""
+        This function is called instead of set_point_std if a modulated set point is used.
         That is, if the set point is non-constant over a turn with the periodicity of a turn.
         """
         self.logger.debug(
@@ -603,7 +606,8 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         )
 
     def one_turn_delay(self):
-        r"""This function applies the complementary delay such that the correction is applied
+        r"""
+        This function applies the complementary delay such that the correction is applied
         with exactly the delay of one turn.
         """
         # Store last turn delayed signal and compute current turn error signal
@@ -627,7 +631,8 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         )
 
     def mov_avg(self):
-        r"""This function applies the cavity filter, modelled as a moving average, to the modulated
+        r"""
+        This function applies the cavity filter, modelled as a moving average, to the modulated
         error signal.
         """
         # Store last turn moving average signal
@@ -722,7 +727,9 @@ class SPSOneTurnFeedback(IQCavityFeedback):
             / self._parent_rf_station.omega_rf[self.harmonic_index]
         )
         # TODO REMWORK/REMOVE
-        t_rf = t_rev / float(self._parent_rf_station.harmonic[self.harmonic_index])
+        t_rf = t_rev / float(
+            self._parent_rf_station.harmonic[self.harmonic_index]
+        )
 
         # Phase offset at the end of a 1-turn modulated signal (for demodulated, multiply by -1 as c and r reversed)
         self.phi_mod_0 = (
@@ -755,7 +762,8 @@ class SPSOneTurnFeedback(IQCavityFeedback):
 
 
 class SPSCavityFeedback:
-    """Class determining the turn-by-turn total RF voltage and phase correction
+    """
+    Class determining the turn-by-turn total RF voltage and phase correction
     originating from the individual cavity feedbacks. Assumes two 4-section and
     two 5-section travelling wave cavities in the pre-LS2 scenario and four
     3-section and two 4-section cavities in the post-LS2 scenario. The voltage
@@ -940,7 +948,7 @@ class SPSCavityFeedback:
     def on_init_simulation(self, simulation: Simulation):
         pass
 
-    @requires(["Mu", "RfStationBaseClass"])
+    @requires(["RfStationBaseClass"])
     def on_run_simulation(
         self,
         simulation: Simulation,
@@ -950,18 +958,10 @@ class SPSCavityFeedback:
         **kwargs: dict[str, Any],
     ) -> None:
         self.OTFB_1.on_run_simulation(
-            simulation,
-            beam,
-            n_turns,
-            turn_i_init,
-            **kwargs
+            simulation, beam, n_turns, turn_i_init, **kwargs
         )
         self.OTFB_2.on_run_simulation(
-            simulation,
-            beam,
-            n_turns,
-            turn_i_init,
-            **kwargs
+            simulation, beam, n_turns, turn_i_init, **kwargs
         )
 
         if self.turns < 1:
@@ -976,7 +976,8 @@ class SPSCavityFeedback:
         self.OTFB_2.set_parent_rf_station(rf_station)
 
     def track(self, beam: BeamBaseClass):
-        r"""Main tracking method for the SPSCavityFeedback. This tracks both cavity types
+        r"""
+        Main tracking method for the SPSCavityFeedback. This tracks both cavity types
         with beam.
         """
         # Track the feedbacks for the two TWC types

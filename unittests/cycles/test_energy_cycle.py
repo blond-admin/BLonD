@@ -35,8 +35,6 @@ from blond.testing.simulation import (
 )
 
 if TYPE_CHECKING:
-    from typing import Optional
-
     from numpy.typing import NDArray as NumpyArray
 
     from blond.cycles.magnetic_cycle import SynchronousDataTypes
@@ -48,7 +46,7 @@ def _to_momentum(
     mass: float,
     charge: float,
     convert_from: SynchronousDataTypes = "momentum",
-    bending_radius: Optional[float] = None,
+    bending_radius: float | None = None,
 ) -> NumpyArray:
     magnetic_rigidity = _to_magnetic_rigidity(
         data=data,
@@ -457,7 +455,8 @@ class TestEnergyCyclePerTurnAllCavities(unittest.TestCase):
         self.assertEqual(
             (2, 20),
             magnetic_rigidity_to_momentum(
-                ecptac._magnetic_rigidity_after_rf_station_per_turn, proton.charge
+                ecptac._magnetic_rigidity_after_rf_station_per_turn,
+                proton.charge,
             ).shape,
         )
 

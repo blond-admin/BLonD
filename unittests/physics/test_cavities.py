@@ -24,14 +24,6 @@ from blond.physics.drifts import _assert_purely_real_or_imaginary
 from blond.physics.impedances.base import WakeField
 
 
-class RfStationBaseClassHelper(RfStationBaseClass):
-    def voltage_waveform_tmp(self, ts: NumpyArray):
-        pass
-
-    def calc_omega(self, beam_beta: float, ring_circumference: float):
-        pass
-
-
 class TestRFStationBaseClass(unittest.TestCase):
     def setUp(self) -> None:
         self.beam = Mock(BeamBaseClass)
@@ -79,9 +71,7 @@ class TestRFStationBaseClass(unittest.TestCase):
                 cavity_feedback=None,
             )
 
-        cavity_feedback_good = SPSOneTurnFeedback(
-            profile=prof, n_sections=3
-        )
+        cavity_feedback_good = SPSOneTurnFeedback(profile=prof, n_sections=3)
 
         mhc = MultiHarmonicRfStation.headless(
             section_index=1,
@@ -92,9 +82,8 @@ class TestRFStationBaseClass(unittest.TestCase):
             circumference=1,
             total_energy=1,
             beam_reference_beta=1,
-            cavity_feedback=cavity_feedback_good
+            cavity_feedback=cavity_feedback_good,
         )
-
 
         # TODO: remove this, once cavity feedback setup is fixed
         MultiHarmonicRfStation(
@@ -233,6 +222,19 @@ class TestMultiHarmonicCavity(unittest.TestCase):
     def test___init__(self):
         pass  # calls __init__ in  self.setUp
 
+    def test_track_increments(self) -> None:
+        self.multi_harmonic_cavity
+        self.multi_harmonic_cavity.delta_omega_rf = (
+            0.1 * self.multi_harmonic_cavity._omega_rf
+        )
+        phi_a = self.multi_harmonic_cavity.delta_phi_rf.copy()
+        self.multi_harmonic_cavity.track(beam=self.beam)
+        phi_b = self.multi_harmonic_cavity.delta_phi_rf.copy()
+        self.multi_harmonic_cavity.track(beam=self.beam)
+        phi_c = self.multi_harmonic_cavity.delta_phi_rf.copy()
+        print(phi_a, phi_b, phi_c)
+        self.assertTrue(phi_a[0] < phi_b[0] < phi_c[0])
+
     def test_track(self) -> None:
         self.multi_harmonic_cavity.track(beam=self.beam)
 
@@ -322,7 +324,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             self.multi_harmonic_cavity.get_main_harmonic_t_rf_current()
             == 2
             * np.pi
-            / self.multi_harmonic_cavity.get_main_harmonic_omega_rf_actual()
+            / self.multi_harmonic_cavity.get_main_harmonic_omega_rf_design()
         )
         assert (
             self.multi_harmonic_cavity.calc_main_harmonic_t_rf(

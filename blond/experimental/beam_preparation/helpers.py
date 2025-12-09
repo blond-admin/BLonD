@@ -13,10 +13,9 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from blond.core.backends.backend import backend
+from blond.generals.cupy.no_cupy_import import copy_to_cpu
 
 if TYPE_CHECKING:  # pragma: no cover
-    from typing import Optional, Tuple
-
     from cupy.typing import NDArray as CupyArray
     from numpy.typing import NDArray as NumpyArray
 
@@ -28,9 +27,10 @@ def generate_particle_coordinates(
     deltaE_grid: NumpyArray,
     density_grid: NumpyArray,
     n_macroparticles: int,
-    seed: Optional[int],
-) -> Tuple[NumpyArray | CupyArray, NumpyArray | CupyArray]:
-    """Fill bunch with macroparticles according to `density_distribution`
+    seed: int | None,
+) -> tuple[NumpyArray | CupyArray, NumpyArray | CupyArray]:
+    """
+    Fill bunch with macroparticles according to `density_distribution`
 
     Notes
     -----
@@ -60,7 +60,7 @@ def generate_particle_coordinates(
     indexes = np.random.choice(
         np.arange(0, np.size(density_grid)),
         n_macroparticles,
-        p=density_grid.flatten() / np.sum(density_grid),
+        p=copy_to_cpu(density_grid.flatten() / np.sum(density_grid)),
     )
     indexes = backend.array(
         indexes
@@ -95,7 +95,7 @@ def populate_beam(
     deltaE_grid: NumpyArray,
     density_grid: NumpyArray,
     n_macroparticles: int,
-    seed: Optional[int],
+    seed: int | None,
 ) -> None:
     """
     Fill bunch with macroparticles according to `density_distribution`
@@ -139,7 +139,8 @@ def repopulate_beam(
     n_macroparticles_overwrite: int,
     seed: int,
 ) -> None:
-    """Partially overwrite bunch with macroparticles according to `density_distribution`
+    """
+    Partially overwrite bunch with macroparticles according to `density_distribution`
 
     Notes
     -----

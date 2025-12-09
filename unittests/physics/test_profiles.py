@@ -32,7 +32,7 @@ class TestProfileBaseClass(unittest.TestCase):
     def setUpClass():
         try:
             backend.change_backend(Cupy64Bit)
-        except Exception as exc:
+        except Exception:
             pass
 
     def setUp(self):

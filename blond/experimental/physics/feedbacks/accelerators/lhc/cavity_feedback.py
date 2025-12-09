@@ -35,7 +35,8 @@ from .helpers import (
 
 
 class LHCCavityLoopCommissioning:
-    r"""RF Feedback settings for LHC ACS cavity loop.
+    r"""
+    RF Feedback settings for LHC ACS cavity loop.
 
     Parameters
     ----------
@@ -137,7 +138,8 @@ class LHCCavityLoopCommissioning:
 
 
 class LHCCavityLoop(IQCavityFeedback):
-    r"""Cavity loop to regulate the RF voltage in the LHC ACS cavities.
+    r"""
+    Cavity loop to regulate the RF voltage in the LHC ACS cavities.
     The loop contains a generator, a switch-and-protect device, an RF FB and a
     OTFB. The arrays of the LLRF system cover one turn with exactly one tenth
     of the harmonic (i.e.\ the typical sampling time is about 25 ns).
@@ -254,19 +256,15 @@ class LHCCavityLoop(IQCavityFeedback):
 
     @requires(["RfStationBaseClass"])
     def on_run_simulation(
-            self,
-            simulation: Simulation,
-            beam: BeamBaseClass,
-            n_turns: int,
-            turn_i_init: int,
-            **kwargs: dict[str, Any],
+        self,
+        simulation: Simulation,
+        beam: BeamBaseClass,
+        n_turns: int,
+        turn_i_init: int,
+        **kwargs: dict[str, Any],
     ) -> None:
         super().on_run_simulation(
-            simulation,
-            beam,
-            n_turns,
-            turn_i_init,
-            **kwargs
+            simulation, beam, n_turns, turn_i_init, **kwargs
         )
         self.logger.debug(
             "Length of arrays in generator path %d", self.n_coarse
@@ -325,8 +323,7 @@ class LHCCavityLoop(IQCavityFeedback):
 
     def set_hardware_commissioning(self, omega_rf: float, harmonic: int):
         super().set_hardware_commissioning(
-            omega_rf=omega_rf,
-            harmonic=harmonic
+            omega_rf=omega_rf, harmonic=harmonic
         )
         self.logger.debug(
             "Length of arrays in generator path %d", self.n_coarse
@@ -339,10 +336,7 @@ class LHCCavityLoop(IQCavityFeedback):
             "Sum of FIR coefficients %.4e" % np.sum(self.fir_coeff)
         )
 
-        self.update_rf_variables(
-            omega_rf=omega_rf,
-            harmonic=harmonic
-        )
+        self.update_rf_variables(omega_rf=omega_rf, harmonic=harmonic)
         self.update_fb_variables()
         self.logger.debug("Relative detuning is %.4e", self.detuning)
 
@@ -390,11 +384,9 @@ class LHCCavityLoop(IQCavityFeedback):
     def circuit_track(self, no_beam: bool = False):
         r"""Track the feedback model"""
         if not no_beam:
-            phi_s = np.pi # TODO: change with changing phi_s
+            phi_s = np.pi  # TODO: change with changing phi_s
             self.I_BEAM_FINE *= -1j * np.exp(1j * phi_s)
-            self.I_BEAM_COARSE[-self.n_coarse :] *= -1j * np.exp(
-                1j * phi_s
-            )
+            self.I_BEAM_COARSE[-self.n_coarse :] *= -1j * np.exp(1j * phi_s)
 
         # Track the different parts of the model
         self.update_arrays()
@@ -470,9 +462,11 @@ class LHCCavityLoop(IQCavityFeedback):
         )
 
     def generator_current(self):
-        r"""Generator response
+        r"""
+        Generator response
 
         Attributes
+        ----------
         I_TEST : complex array
             Test point for open loop measurements (when injecting a generator
             offset)
@@ -564,7 +558,8 @@ class LHCCavityLoop(IQCavityFeedback):
         )
 
     def update_set_point(self):
-        r"""Updates the set point for the next turn based on the design RF
+        r"""
+        Updates the set point for the next turn based on the design RF
         voltage.
         """
         coeff = np.polyfit(
@@ -649,7 +644,8 @@ class LHCCavityLoop(IQCavityFeedback):
             self.tuner_input()
 
     def update_arrays(self):
-        r"""Moves the array indices by one turn (n_coarse points) from the
+        r"""
+        Moves the array indices by one turn (n_coarse points) from the
         present turn to prepare the next turn. All arrays except for V_SET.
         """
         self.V_ANT_COARSE = np.concatenate(
@@ -758,7 +754,8 @@ class LHCCavityLoop(IQCavityFeedback):
         self.detuning = self.d_omega / self.omega_c
 
     def update_set_point_excitation(self, excitation: NumpyArray, turn: int):
-        r"""Updates the set point for the next turn based on the excitation to
+        r"""
+        Updates the set point for the next turn based on the excitation to
         be injected.
         """
         self.V_SET = np.concatenate(
