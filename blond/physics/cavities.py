@@ -147,6 +147,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
 
         self._n_rf = n_rf
         self._local_wakefield = local_wakefield
+        self._cavity_feedback = cavity_feedback
         self._beam_feedback = beam_feedback
 
         self._magnetic_cycle: MagneticCycleBase | None = None
@@ -194,7 +195,10 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         self._magnetic_cycle = simulation.magnetic_cycle
         self._ring = simulation.ring
 
-        if isinstance(self._cavity_feedback, tuple):
+        if (
+            isinstance(self._cavity_feedback, tuple)
+            or self._cavity_feedback is None
+        ):
             self._cavity_feedback = self._cavity_feedback
         else:
             self._cavity_feedback = (self._cavity_feedback,)
@@ -271,7 +275,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
     def attach_cavity_feedback(self, cavity_feedback: LocalFeedback):
         """Attach cavity feedback to the RF station after initialization."""
         # TODO: This can also be list of cavity feedbacks and can also be called multiple times to keep adding CCFBs
-        cavity_feedback.set_parent_rf_station(cavity=self)
+        cavity_feedback.set_parent_rf_station(rf_station=self)
         self._cavity_feedback = cavity_feedback
 
     def calc_synchrotron_tune_single_harmonic(
@@ -586,7 +590,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         self, beam_beta: float, ring_circumference: float
     ) -> float:
         """Returns the t_rf of the main harmonic, in [s]."""
-        return (2 * np.pi) / self.calc_main_harmonic_omega_rf(
+        return (2 * np.pi) / self.get_main_harmonic_omega_rf_design(
             beam_beta, ring_circumference
         )
 
