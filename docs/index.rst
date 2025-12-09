@@ -29,6 +29,7 @@ Modules
     models_new/getting_started
     models_new/potential_well_empiric
     models_new/semi_empiric_matcher
+    modules/blond_main_objects
     modules/blond
 
 Indices and tables

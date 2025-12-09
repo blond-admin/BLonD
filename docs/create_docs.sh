@@ -2,7 +2,7 @@ rm -f modules/*.rst
 rm -rf _build/*
 
 shopt -s globstar nullglob
-sphinx-apidoc --implicit-namespaces -o modules ../blond ../blond/*/*/__init__.py -f -e -M -d 5 -P
+sphinx-apidoc --implicit-namespaces -o modules ../blond ../blond/*/*/__init__.py -f -e -M -d 2 -P
 
 rm -f modules/modules.rst
 
@@ -25,7 +25,7 @@ API Documentation
    blond.physics
    blond.specifics
 EOF
-
+python make_main_functions_doc.py
 # Add diagrams to each .rst file automatically
 for f in ./modules/blond.*.rst; do
     modname="${f##*/}"       # strip path
