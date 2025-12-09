@@ -971,7 +971,7 @@ class SPSCavityFeedback:
             )
         self.track_init(debug=self.OTFB_1.debug)
 
-    def set_parent_cavity(self, cavity: RfStationBaseClass):
+    def set_parent_rf_station(self, cavity: RfStationBaseClass):
         self.OTFB_1.set_parent_rf_station(cavity)
         self.OTFB_2.set_parent_rf_station(cavity)
 

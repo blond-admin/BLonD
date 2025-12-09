@@ -25,6 +25,7 @@ from scipy.constants import speed_of_light as c0
 
 from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
+from blond.experimental.physics.feedbacks.base import LocalFeedback
 from blond.experimental.physics.feedbacks.beam_feedback import (
     BeamFeedbackBase,
     Blond2BeamFeedback,
@@ -39,7 +40,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from blond.core.beam.base import BeamBaseClass
     from blond.core.simulation.simulation import Simulation
     from blond.cycles.magnetic_cycle import MagneticCycleBase
-    from blond.experimental.physics.feedbacks.base import LocalFeedback
     from blond.physics.impedances.base import WakeField
 
 TWOPI_C0 = 2.0 * np.pi * c0
@@ -120,7 +120,9 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         n_rf: int,
         section_index: int,
         local_wakefield: WakeField | None,
-        cavity_feedback: tuple[LocalFeedback, ...] | None = None,
+        cavity_feedback: LocalFeedback
+        | tuple[LocalFeedback, ...]
+        | None = None,
         beam_feedback: Blond2BeamFeedback | None = None,
         name: str | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
@@ -143,17 +145,8 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
                 )
                 feedback.set_parent_rf_station(rf_station=self)
 
-        if beam_feedback is None:
-            pass
-        elif isinstance(beam_feedback, LocalFeedback):
-            beam_feedback.set_parent_rf_station(rf_station=self)
-        else:
-            raise ValueError(beam_feedback)
         self._n_rf = n_rf
         self._local_wakefield = local_wakefield
-        self._cavity_feedback: tuple[LocalFeedback, ...] | None = (
-            cavity_feedback
-        )
         self._beam_feedback = beam_feedback
 
         self._magnetic_cycle: MagneticCycleBase | None = None
@@ -200,6 +193,11 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         super().on_init_simulation(simulation=simulation)
         self._magnetic_cycle = simulation.magnetic_cycle
         self._ring = simulation.ring
+
+        if isinstance(self._cavity_feedback, tuple):
+            self._cavity_feedback = self._cavity_feedback
+        else:
+            self._cavity_feedback = (self._cavity_feedback,)
 
     def on_run_simulation(
         self,
@@ -885,7 +883,9 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         main_harmonic_idx: int,
         section_index: int = 0,
         local_wakefield: WakeField | None = None,
-        cavity_feedback: tuple[LocalFeedback, ...] | None = None,
+        cavity_feedback: LocalFeedback
+        | tuple[LocalFeedback, ...]
+        | None = None,
         beam_feedback: Blond2BeamFeedback | None = None,
         name: str | None = None,
     ):
