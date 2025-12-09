@@ -448,14 +448,17 @@ class BeamBaseClass(Preparable, HasPropertyCache, ABC):
             backend,  # prevent cyclic import
         )
 
-        n_new = backend.specials.move_flagged_elements_to_end(
+        n_before_truncation = len(self._flags)
+        n_after_truncation = backend.specials.move_flagged_elements_to_end(
             flag=flag,
             flags=self._flags,
             dt=self._dt,
             dE=self._dE,
             ids=self._ids,
         )
-        self._flags = self._flags[:n_new]
-        self._dt = self._dt[:n_new]
-        self._dE = self._dE[:n_new]
-        self._ids = self._ids[:n_new]
+        self._flags = self._flags[:n_after_truncation]
+        self._dt = self._dt[:n_after_truncation]
+        self._dE = self._dE[:n_after_truncation]
+        self._ids = self._ids[:n_after_truncation]
+
+        self.intensity *= n_after_truncation / n_before_truncation
