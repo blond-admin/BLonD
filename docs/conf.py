@@ -265,6 +265,62 @@ autodoc_default_options = {
 
 show_warning_types = True
 
+
+def skip_specific_functions(app, what, name, obj, skip, options):
+    """
+    Determine whether Sphinx should skip documenting a specific member.
+
+    This function is used as a callback for the
+    ``autodoc-skip-member`` event in Sphinx. It allows selectively
+    skipping members during the autodoc process. In this case, the
+    function skips the internal member ``_abc_impl`` while deferring
+    to Sphinx’s default behavior for all other members.
+
+    Parameters
+    ----------
+    app : sphinx.application.Sphinx
+        The Sphinx application object.
+    what : str
+        The type of the object being documented (e.g., ``"module"``,
+        ``"class"``, ``"method"``, etc.).
+    name : str
+        The fully qualified name of the member.
+    obj : object
+        The member object itself.
+    skip : bool
+        The current skip decision made by Sphinx. If ``True``, Sphinx
+        already intends to skip this member.
+    options : sphinx.ext.autodoc.Options
+        Additional options passed to autodoc about the member.
+
+    Returns
+    -------
+    bool
+        ``True`` if the member should be skipped,
+        ``False`` otherwise. Members named ``"_abc_impl"`` are always
+        skipped.
+    """
+    if name == "_abc_impl":
+        return True
+    return skip
+
+
+def setup(app):
+    """
+    Register Sphinx event handlers for this extension.
+
+    Parameters
+    ----------
+    app : sphinx.application.Sphinx
+        The Sphinx application object.
+
+    Returns
+    -------
+    None
+    """
+    app.connect("autodoc-skip-member", skip_specific_functions)
+
+
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = get_intersphinx_mapping(
     packages=["python", "numpy", "sklearn"]
