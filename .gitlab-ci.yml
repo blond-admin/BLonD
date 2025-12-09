@@ -129,18 +129,14 @@ test_minimum:
   image: gitlab-registry.cern.ch/blond/blond/python310
   stage: test
   interruptible: true
+  variables:
+    BLOND_BACKEND_MODE: "numba"     # Set the basic backend to numba. It is most verbose about wrong types
 
   # Replace .before to use uv
   before_script:
-    # Verify CUDA installation
-    - nvidia-smi
-    - gcc --version
-    - nvcc --version # probe NVCC installation
-
     # Create venv to avoid permission error when installing packages
     - python3 -m venv .venv
     - . .venv/bin/activate
-
     # Install uv
     - python -m pip install uv
     - python -m uv pip install --resolution lowest-direct ${project_root}[all]
@@ -149,8 +145,6 @@ test_minimum:
     - python blond/core/backends/cpp/compile.py --parallel
     - python blond/core/backends/cuda/compile.py
     - python blond/core/backends/fortran/compile.py
-  variables:
-    BLOND_BACKEND_MODE: "numba"     # Set the basic backend to numba. It is most verbose about wrong types
 
   # Replace .main to use python from venv not python3 from system
   script:
@@ -160,13 +154,6 @@ test_minimum:
     - python -m pytest
       -v unittests/
       --import-mode=importlib
-      --cov
-      --cov-config=.coveragerc
-      --cov-report html:coverage-html
-      --cov-report xml:coverage.xml
-      --junitxml=junit-report.xml
-    - COV=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); rate = float(tree.getroot().attrib['line-rate']) * 100; print(rate)")
-    - echo "XML_COVERAGE=$COV"
   tags:
     - k8s-gpu
 
