@@ -220,9 +220,9 @@ class TestRing(unittest.TestCase):
         element4.section_index = 5
         location = [0, 2]
 
-        with self.assertRaises(
+        with self.assertRaisesRegex(
             AssertionError,
-            msg="The element section index is incompatible "
+            expected_regex="The element section index is incompatible "
             "with the requested location. Please allow "
             "overwrite for automatic handling.",
         ):
@@ -233,9 +233,11 @@ class TestRing(unittest.TestCase):
                 allow_section_index_overwrite=False,
             )
 
-        with self.assertRaises(
+        with self.assertRaisesRegex(
             AssertionError,
-            msg="Cannot overwrite the section indexes with deepcopy == False.",
+            expected_regex=(
+                "Cannot overwrite the section indexes with deepcopy == False."
+            ),
         ):
             self.ring.insert_element(
                 element=element4,
@@ -243,18 +245,17 @@ class TestRing(unittest.TestCase):
                 deepcopy=False,
                 allow_section_index_overwrite=True,
             )
-        element4 = Mock(spec=BeamPhysicsRelevant)
-        element4.section_index = 5
+        element4 = BeamPhysicsRelevantHelper()
+        element4._section_index = 5
         location = [1, 2, 5]
         with self.assertRaises(
             AssertionError,
-            msg=f"The element must be inserted within ["
-            f"0:{len(self.ring.elements.elements) + 1}] indexes.",
+            msg="The element must be inserted within [0:6] indexes.",
         ):
             self.ring.insert_element(
                 element=element4,
                 insert_at=location,
-                deepcopy=False,
+                deepcopy=True,
                 allow_section_index_overwrite=True,
             )
 

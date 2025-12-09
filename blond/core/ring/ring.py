@@ -567,10 +567,10 @@ class Ring(Preparable):
                         element=element,
                         insert_at=k + already_inserted,
                     )
-                else:
-                    raise AssertionError(
-                        "Cannot overwrite the section indexes with deepcopy == False."
-                    )
+            elif allow_section_index_overwrite:
+                raise AssertionError(
+                    "Cannot overwrite the section indexes with deepcopy == False."
+                )
             self.elements.insert(
                 element=element,
                 insert_at=k + already_inserted,
@@ -662,6 +662,12 @@ class Ring(Preparable):
         SimulationElementBase
             The same element with potentially modified section_index.
         """
+        if insert_at > len(self.elements.elements):
+            raise AssertionError(
+                f"The element must be inserted within ["
+                f"0:{len(self.elements.elements)}] indexes."
+            )
+
         try:
             self.elements.check_section_index_compatibility(
                 element=element,
