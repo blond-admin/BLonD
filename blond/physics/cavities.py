@@ -116,6 +116,8 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         Optional cavity feedback to change cavity parameters
     """
 
+    skip_find_instances_attributes = ["omega_rf_design"]
+
     def __init__(
         self,
         n_rf: int,

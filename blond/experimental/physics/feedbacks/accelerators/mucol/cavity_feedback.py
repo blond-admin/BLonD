@@ -228,6 +228,9 @@ class PassiveCavity(IQCavityFeedback):
         t_rf = 2 * np.pi / self._parent_rf_station.omega_rf_actual
         self.sampling_time = self.n_periods_coarse * t_rf
 
+        self.i_generator_fine = np.ones_like(self.I_BEAM_FINE, dtype=complex) * self.generator_current * np.exp(1j * self.generator_phase)
+        self.i_generator_coarse = np.ones_like(self.I_BEAM_COARSE * 2, dtype=complex) * self.generator_current * np.exp(1j * self.generator_phase)
+
         if self._initial_v_coarse is None:
             self.track_no_beam(self.n_pretrack)
         else:
@@ -248,6 +251,7 @@ class PassiveCavity(IQCavityFeedback):
                 if self.injection_voltage != -1:
                     pretrack_helper[0:self.n_coarse * 2] = pretrack_helper[self.n_coarse: self.n_coarse * 3]
                     pretrack_helper[self.n_coarse:self.n_coarse * 3] = self.v_antenna_coarse
+                    print(np.abs(self.v_antenna_coarse[-1]))
                     if np.abs(self.v_antenna_coarse[-1]) > self.injection_voltage:
                         inj_ind = np.argmin(np.abs(np.abs(pretrack_helper) - self.injection_voltage))
                         self.v_antenna_coarse = pretrack_helper[inj_ind - self.n_coarse * 2:inj_ind]

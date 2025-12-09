@@ -618,22 +618,22 @@ class Simulation(Preparable):
         kwargs
             Extra keyword arguments
         """
-        logger.debug(f"Calling all {method}({kwargs}) in {self}")
+        print(f"Calling all {method}({kwargs}) in {self}")
         instances = find_instances_with_method(self, f"{method}")
-        logger.debug(f"Found {instances} to be initialized")
+        print(f"Found {instances} to be initialized")
         ordered_classes = get_init_order(instances, f"{method}.requires")
 
         classes_check = set()
         for ins in instances:
             classes_check.add(type(ins))
 
-        logger.info(f"Execution order for `{method}` is {ordered_classes}")
+        print(f"Execution order for `{method}` is {ordered_classes}")
 
         for cls in ordered_classes:
             for element in instances:
                 if type(element).__name__ != cls:
                     continue
-                logger.info(f"Running `{method}` of {element}")
+                print(f"Running `{method}` of {element}")
                 getattr(element, method)(**kwargs)
 
     def _exec_on_init_simulation(self) -> None:

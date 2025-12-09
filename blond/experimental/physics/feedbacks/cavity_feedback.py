@@ -199,7 +199,7 @@ class IQCavityFeedback(LocalFeedback):
 
         self.dT: float | None = None
 
-    @requires(["RfStationBaseClass"])
+    @requires(["SingleHarmonicRfStation", "MultiHarmonicRfStation", "BeamBaseClass"])
     def on_run_simulation(
         self,
         simulation: Simulation,
@@ -211,24 +211,24 @@ class IQCavityFeedback(LocalFeedback):
 
         self.T_s = (
                            self.n_periods_coarse * 2 * np.pi
-                   ) / self._parent_rf_station.omega_rf_actual[self.harmonic_index]
+                   ) / self._parent_rf_station.get_main_harmonic_omega_rf_actual()
         # TODO REMWORK/REMOVE
         t_rev = float(
-            (2 * np.pi * self._parent_rf_station.harmonic[self.harmonic_index])
-            / self._parent_rf_station.omega_rf_actual[self.harmonic_index]
+            (2 * np.pi * self._parent_rf_station.get_main_harmonic())
+            / self._parent_rf_station.get_main_harmonic_omega_rf_actual()
         )
         # TODO REMWORK/REMOVE
-        t_rf = t_rev / float(self._parent_rf_station.harmonic[self.harmonic_index])
+        t_rf = t_rev / float(self._parent_rf_station.get_main_harmonic())
 
         self.n_coarse = round(t_rev / self.T_s)
         self.omega_carrier = (
-                self._parent_rf_station.omega_rf_actual[self.harmonic_index]
+                self._parent_rf_station.get_main_harmonic_omega_rf_actual()
                 / self.n_periods_coarse
         )
         # FIXME NO REDECLARATION!
 
         self.omega_rf = float(
-            self._parent_rf_station.omega_rf_actual[self.harmonic_index]
+            self._parent_rf_station.get_main_harmonic_omega_rf_actual()
         )
         self.dT = 0
 
@@ -297,7 +297,7 @@ class IQCavityFeedback(LocalFeedback):
         # Present RF angular frequency
         if omega_rf is None:
             self.omega_rf = float(
-                self._parent_rf_station.omega_rf_actual[self.harmonic_index]
+                self._parent_rf_station.get_main_harmonic_omega_rf_actual()
             )
         else:
             self.omega_rf = omega_rf
@@ -306,7 +306,7 @@ class IQCavityFeedback(LocalFeedback):
             t_rev = float(  # TODO REMWORK/REMOVE
                 2
                 * np.pi
-                * self._parent_rf_station.harmonic[self.harmonic_index]
+                * self._parent_rf_station.get_main_harmonic()
                 / self.omega_rf
             )
         else:
@@ -333,7 +333,7 @@ class IQCavityFeedback(LocalFeedback):
 
         if omega_rf is None:
             # Residual part of last turn entering the current turn due to non-integer harmonic number
-            self.dT = -self._parent_rf_station.phi_rf[self.harmonic_index] / self.omega_rf
+            self.dT = -self._parent_rf_station.get_main_harmonic_phi_rf() / self.omega_rf
 
         self.rf_centers = (
             np.arange(self.n_coarse) + 0.5 / self.n_periods_coarse
