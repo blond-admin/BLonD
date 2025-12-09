@@ -82,6 +82,8 @@ class PassiveCavity(IQCavityFeedback):
                  f_detuning: float,
                  n_cavities: int,
                  generator_current: float,
+                 n_pretrack: int = 0,
+                 initial_v_coarse: NumpyArray | None = None,
                  generator_phase: float = 0,
                  injection_phase: float = -1,
                  injection_voltage: float = -1,
@@ -111,6 +113,11 @@ class PassiveCavity(IQCavityFeedback):
 
         assert n_cavities > 0, "n_cavities must be > 0"
         self.n_cavities = n_cavities
+
+        assert n_pretrack > 0, "n_pretrack must be > 0"
+        self.n_pretrack: float | None = n_pretrack
+
+        self._initial_v_coarse = initial_v_coarse
 
         self.generator_current = generator_current
         self.generator_phase = generator_phase
@@ -221,6 +228,41 @@ class PassiveCavity(IQCavityFeedback):
 
         t_rf = 2 * np.pi / self._parent_rf_station.omega_rf
         self.sampling_time = self.n_periods_coarse * t_rf
+
+        if self._initial_v_coarse is None:
+            self.track_no_beam(self.n_pretrack)
+        else:
+            assert len(self._initial_v_coarse) == len(
+                self.V_ANT_COARSE), f"initial v_coarse should have length of V_ANT_COARSE ({len(self.V_ANT_COARSE)}), but was {len(self._initial_v_coarse)}."
+            self.V_ANT_COARSE = self._initial_v_coarse
+
+    def track_no_beam(self, n_pretrack: int | None = None) -> None:
+        r"""Tracking method of the cavity feedback without beam in the accelerator."""
+        self.update_rf_variables()
+        self.update_fb_variables()
+        if n_pretrack is None:
+            self.circuit_track(no_beam=True)
+        else:
+            pretrack_helper = np.zeros(self.n_coarse * 3, dtype=np.complex128)
+            for _i in range(n_pretrack):
+                self.circuit_track(no_beam=True)
+                if self.injection_voltage != -1:
+                    pretrack_helper[0:self.n_coarse * 2] = pretrack_helper[self.n_coarse: self.n_coarse * 3]
+                    pretrack_helper[self.n_coarse:self.n_coarse * 3] = self.v_antenna_coarse
+                    if np.abs(self.v_antenna_coarse[-1]) > self.injection_voltage:
+                        inj_ind = np.argmin(np.abs(np.abs(pretrack_helper) - self.injection_voltage))
+                        self.v_antenna_coarse = pretrack_helper[inj_ind - self.n_coarse * 2:inj_ind]
+                        if len(self.v_antenna_coarse) != 2 * self.n_coarse:
+                            raise RuntimeError("too much was cut off")
+                        break
+
+    def on_init_simulation(self, simulation: Simulation) -> None:
+        """Lateinit method when `simulation.__init__` is called.
+
+        simulation
+            `Simulation` context manager
+        """
+        pass
 
     def circuit_track(self, no_beam: bool = False) -> None:
         r"""Tracking of the LLRF circuit."""
