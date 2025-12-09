@@ -46,7 +46,7 @@ class LocalFeedback(FeedbackBaseClass):
             name=name,
         )
         self._parent_rf_station: (
-                SingleHarmonicRfStation | MultiHarmonicRfStation | None
+            SingleHarmonicRfStation | MultiHarmonicRfStation | None
         ) = None
         self.profile = profile
 
@@ -87,12 +87,14 @@ class GlobalFeedback(FeedbackBaseClass):
     # `element.on_init_simulation` for all elements
     @requires(["RfStationBaseClass"])
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """
+        Lateinit method when `simulation.__init__` is called
 
         simulation
             `Simulation` context manager
         """
         from blond.physics.cavities import RfStationBaseClass
+
         self.cavities = simulation.ring.elements.get_elements(
             RfStationBaseClass,
         )

@@ -1,6 +1,5 @@
 import unittest
 from functools import cached_property
-from typing import Optional
 
 import numpy as np
 
@@ -22,7 +21,7 @@ from blond.handle_results.helpers import callers_relative_path
 
 
 class BeamPhysicsRelevantTester(BeamPhysicsRelevant):
-    def __init__(self, section_index: int = 0, name: Optional[str] = None):
+    def __init__(self, section_index: int = 0, name: str | None = None):
         super().__init__(section_index=section_index, name=name)
 
     def track(self, beam: BeamBaseClass) -> None:
@@ -102,7 +101,7 @@ class TestScheduledInterpolation(unittest.TestCase):
 
 
 class BeamObservationElementTester(BeamObservationElement):
-    def __init__(self, section_index: int = 0, name: Optional[str] = None):
+    def __init__(self, section_index: int = 0, name: str | None = None):
         super().__init__(section_index=section_index, name=name)
 
     def track(self, beam: BeamBaseClass) -> None:

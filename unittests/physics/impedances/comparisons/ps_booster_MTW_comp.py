@@ -15,7 +15,6 @@
 """
 
 import logging
-import os
 
 import numpy as np
 from physics.impedances.sources import Resonators
@@ -32,19 +31,6 @@ from blond import (
     StaticProfile,
     WakeField,
     proton,
-)
-from blond.handle_results.helpers import callers_relative_path
-from blond.physics.impedances.readers import (
-    ExampleImpedanceReader1,
-    ExampleImpedanceReader2,
-)
-from blond.physics.impedances.solvers import (
-    InductiveImpedanceSolver,
-    PeriodicFreqSolver,
-)
-from blond.physics.impedances.sources import (
-    ImpedanceTableFreq,
-    InductiveImpedance,
 )
 
 logging.basicConfig(

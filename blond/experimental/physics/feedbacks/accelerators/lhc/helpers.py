@@ -16,7 +16,8 @@ from scipy.special import comb
 
 
 def smooth_step(x: NumpyArray, x_min: float = 0, x_max: float = 1, N: int = 1):
-    """Function to make a smooth step.
+    """
+    Function to make a smooth step.
 
     Parameters
     ----------
@@ -59,7 +60,8 @@ def cavity_response_sparse_matrix(
     Q_L: float,
     detuning: float,
 ):
-    """Solving the ACS cavity response model as a sparse matrix problem
+    """
+    Solving the ACS cavity response model as a sparse matrix problem
     for a given set of initial conditions, resonator parameters and
     generator and RF beam currents.
 
@@ -126,7 +128,8 @@ def cavity_response_sparse_matrix(
 def fir_filter_lhc_otfb_coeff(
     n_taps: int = 63,
 ) -> list[float]:  # pragma: no cover
-    """FIR filter designed for the LHC OTFB, for a sampling frequency of
+    """
+    FIR filter designed for the LHC OTFB, for a sampling frequency of
     40 MS/s, with 63 taps.
 
     Parameters

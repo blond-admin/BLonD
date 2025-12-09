@@ -173,18 +173,19 @@ class Specials(ABC):
         dE: NumpyArray | CupyArray,
         ids: NumpyArray | CupyArray,
     ):
-        """Reorders entries where ``flags == flag`` to the array end.
+        """
+        Reorder entries where ``flags == flag`` to the array end.
 
         Parameters
         ----------
         flag
             The flag to be used as a selector what to place at the end.
         flags
-            Macro-particle flags
+            Macro-particle flags.
         dt
-            Macro-particle time coordinates [s]
+            Macro-particle time coordinates [s].
         dE
-            Macro-particle energy coordinates [eV]
+            Macro-particle energy coordinates [eV].
         ids
             Macro-particle ids.
             This allows to identify single particles,
@@ -196,7 +197,8 @@ class Specials(ABC):
 
 
 class _ModeSwitchHelper:
-    """Helper to be used in a `with` statement to set the specials temporarily.
+    """
+    Helper to be used in a `with` statement to set the specials temporarily.
 
     Parameters
     ----------
@@ -220,7 +222,8 @@ class _ModeSwitchHelper:
 
 
 class BackendBaseClass(ABC):
-    """Base class for a backend.
+    """
+    Base class for a backend.
 
     Parameters
     ----------
@@ -232,6 +235,8 @@ class BackendBaseClass(ABC):
         Default mode to load special libraries.
     is_gpu
         Whether the backend is using the GPU.
+    verbose
+        Enable verbose output.
     """
 
     # type annotations for MyPy
@@ -282,6 +287,7 @@ class BackendBaseClass(ABC):
         self.mean: Callable = None  # type: ignore
         self.arange: Callable = None  # type: ignore
         self.average: Callable = None  # type: ignore
+        self.fftconvolve: Callable = None  # type: ignore
 
     def _finalize(self) -> None:
         for attribute, val in self.__dict__.items():
@@ -292,13 +298,13 @@ class BackendBaseClass(ABC):
         self,
         new_backend: type[Numpy32Bit | Numpy64Bit | Cupy32Bit | Cupy64Bit],
     ) -> None:
-        """Changes the backend precision.
+        """
+        Change the backend precision.
 
         Parameters
         ----------
         new_backend
-            One of the available backends
-
+            One of the available backends.
         """
         if self.__class__ == new_backend.__class__:
             return
@@ -314,13 +320,13 @@ class BackendBaseClass(ABC):
 
     @abstractmethod  # pragma: no cover
     def set_specials(self, mode: Any) -> None:
-        """Set the special compiled functions.
+        """
+        Set the special compiled functions.
 
         Parameters
         ----------
         mode
-            One of the available backend modes
-
+            One of the available backend modes.
         """
         raise NotImplementedError(
             "Abstract method `set_specials` is not implemented."
@@ -328,11 +334,19 @@ class BackendBaseClass(ABC):
 
     @property
     def is_gpu(self) -> bool:
-        """Whether the backend is using the GPU."""
+        """
+        Whether the backend is using the GPU.
+
+        Returns
+        -------
+        is_gpu
+            True if the backend is using the GPU, False otherwise.
+        """
         return self._is_gpu
 
     def apply_environment_variables(self) -> None:  # NOQA PLR0912
-        """Load the environment variables and set up the backend accordingly.
+        """
+        Load the environment variables and set up the backend accordingly.
 
         Notes
         -----
@@ -340,9 +354,6 @@ class BackendBaseClass(ABC):
 
         - `BLOND_BACKEND_MODE` can be 'python', 'cpp', 'numba', 'fortran', 'cuda'
         - `BLOND_BACKEND_BITS` can be '32' or '64'
-
-
-
         """
         _backend_mode_raw: str = os.environ.get(
             "BLOND_BACKEND_MODE",
@@ -418,7 +429,18 @@ class BackendBaseClass(ABC):
             self.set_specials(mode=_backend_mode)  # type: ignore
 
     def temporary_specials_mode(self, mode: str):
-        """Helper to be used in a `with` statement to set the specials temporarily.
+        """
+        Helper to be used in a `with` statement to set the specials temporarily.
+
+        Parameters
+        ----------
+        mode
+            The mode to temporarily switch to.
+
+        Returns
+        -------
+        mode_switch_helper
+            Context manager for temporarily switching modes.
 
         Examples
         --------
@@ -426,17 +448,13 @@ class BackendBaseClass(ABC):
         >>>     print(backend.specials_mode)
         >>>     ...
         >>> print(backend.specials_mode)
-
-        Returns
-        -------
-        _mode_switch_helper
-
         """
         return _ModeSwitchHelper(backend=self, mode=mode)
 
 
 class NumpyBackend(BackendBaseClass):
-    """Base class for Numpy based backends.
+    """
+    Base class for Numpy based backends.
 
     Parameters
     ----------
@@ -457,6 +475,8 @@ class NumpyBackend(BackendBaseClass):
             specials_mode="python",
             is_gpu=False,
         )
+        from scipy.signal import fftconvolve
+
         self.array = np.array
         self.gradient = np.gradient
         self.linspace = np.linspace
@@ -475,6 +495,7 @@ class NumpyBackend(BackendBaseClass):
         self.mean = np.mean
         self.arange = np.arange
         self.average = np.average
+        self.fftconvolve = fftconvolve
 
         self._finalize()
 
@@ -487,13 +508,13 @@ class NumpyBackend(BackendBaseClass):
             "fortran",
         ],
     ) -> None:
-        """Set the special compiled functions.
+        """
+        Set the special compiled functions.
 
         Parameters
         ----------
         mode
-            One of the available backend modes
-
+            One of the available backend modes.
         """
         onchange = self.specials_mode != mode
 
@@ -555,7 +576,8 @@ class Numpy64Bit(NumpyBackend):
 
 
 class CupyBackend(BackendBaseClass):
-    """Base class for Cupy based backends.
+    """
+    Base class for Cupy based backends.
 
     Parameters
     ----------
@@ -577,6 +599,7 @@ class CupyBackend(BackendBaseClass):
             is_gpu=True,
         )
         import cupy as cp  # type: ignore # import only if needed, which is not always the case
+        from cupyx.scipy.signal import fftconvolve
 
         self.array = cp.array
         self.gradient = cp.gradient
@@ -596,6 +619,7 @@ class CupyBackend(BackendBaseClass):
         self.mean = cp.mean
         self.arange = cp.arange
         self.average = cp.average
+        self.fftconvolve = fftconvolve
 
         from blond.core.backends.cuda.callables import CudaSpecials
 
@@ -604,13 +628,13 @@ class CupyBackend(BackendBaseClass):
         self._finalize()
 
     def set_specials(self, mode: Literal["cuda"]) -> None:
-        """Set the special compiled functions.
+        """
+        Set the special compiled functions.
 
         Parameters
         ----------
         mode
-            One of the available backend modes
-
+            One of the available backend modes.
         """
         if mode == "cuda":
             from blond.core.backends.cuda.callables import reload_cuda_backend

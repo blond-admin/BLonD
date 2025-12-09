@@ -13,7 +13,6 @@ from cupy.typing import NDArray as CupyArray
 from numpy._typing import NDArray as NumpyArray
 
 from blond import Beam
-from blond.core.backends.backend import backend
 from blond.core.beam.particle_types import ParticleType
 
 

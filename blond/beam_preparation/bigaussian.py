@@ -6,12 +6,10 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Functions needed for :class:`~blond.blond.beam_preparation.bigaussian.BiGaussian`.
+# Authors: Simon Lauber
+# TODO add original author of bigaussian()
 
-Authors
--------
-Simon Lauber
-"""  # TODO add original author of bigaussian()
+"""Functions needed for :class:`~blond.blond.beam_preparation.bigaussian.BiGaussian`."""
 
 from __future__ import annotations
 
@@ -66,15 +64,22 @@ def _get_dE_from_dt(
     beam: BeamBaseClass,
     dt_amplitude: float,
 ) -> float:
-    r"""Evaluates the dE amplitude from dt following a single RF Hamiltonian.
+    r"""
+    Evaluate the dE amplitude from dt following a single RF Hamiltonian.
+
+    Parameters
+    ----------
+    simulation
+        Simulation context manager.
+    beam
+        The Beam object which state will be updated by this element.
+    dt_amplitude
+        Time amplitude, in [s].
 
     Returns
     -------
-    beam : BeamBaseClass
-        The `Beam` object which state will be updated by this element.
-    dE_amplitude : float
-        Full amplitude of the particle oscillation, in [eV]
-
+    dE_amplitude
+        Full amplitude of the particle oscillation, in [eV].
     """
     from blond.physics.drifts import DriftSimple
 
@@ -125,14 +130,15 @@ def _get_dE_from_dt(
 def get_main_harmonic_attributes(
     beam: BeamBaseClass, simulation: Simulation
 ) -> tuple[float, float, float, float]:
-    """Relevant main harmonic attributes of all RF stations in :class:`~blond.core.ring.ring.Ring`.
+    """
+    Relevant main harmonic attributes of all RF stations in :class:`~blond.core.ring.ring.Ring`.
 
     Parameters
     ----------
     beam
-        Simulation :class:`~blond.core.beam.beam.Beam` object
+        Simulation :class:`~blond.core.beam.beam.Beam` object.
     simulation
-        `Simulation` context manager
+        `Simulation` context manager.
 
     Returns
     -------
@@ -144,7 +150,6 @@ def get_main_harmonic_attributes(
         Main phase, in [rad].
     voltage
         Main voltage, in [V].
-
     """
     # TODO move this into ring.
     from blond import MultiHarmonicRfStation
@@ -202,31 +207,32 @@ def get_main_harmonic_attributes(
 
 
 class BiGaussian(MatchingRoutine):
-    """Beam matching routine to generate a 2D Gaussian particle distribution.
+    """
+    Beam matching routine to generate a 2D Gaussian particle distribution.
 
     Parameters
     ----------
     n_macroparticles
-        Number of macroparticles to be generated
+        Number of macroparticles to be generated.
     sigma_dt
         Normal distribution length, in [s].
-        Effective `sigma_dt` might be smaller, if `reinsertion=True`
+        Effective `sigma_dt` might be smaller, if `reinsertion=True`.
     sigma_dE
         Normal distribution height, in [eV].
-        Effective `sigma_dE` might be smaller, if `reinsertion=True`
+        Effective `sigma_dE` might be smaller, if `reinsertion=True`.
     reinsertion
         If True, only particles within the separatrix are generated.
-        This affects the effective `sigma_dt` and `sigma_dE`
+        This affects the effective `sigma_dt` and `sigma_dE`.
     seed
-        Random seed parameter
+        Random seed parameter.
 
     Examples
     --------
     >>> simulation = Simulation( ... )
     >>> simulation.prepare_beam(
-    >>>     beam= ... ,
-    >>>     preparation_routine=BiGaussian( ... ),
-    >>> )
+    ...     beam= ... ,
+    ...     preparation_routine=BiGaussian( ... ),
+    ... )
     """
 
     def __init__(
@@ -251,14 +257,15 @@ class BiGaussian(MatchingRoutine):
         simulation: Simulation,
         beam: BeamBaseClass,
     ) -> None:
-        """Populates the `Beam` object with macro-particles.
+        """
+        Populate the `Beam` object with macro-particles.
 
         Parameters
         ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         beam
-            Simulation :class:`~blond.core.beam.beam.Beam` object
+            Simulation :class:`~blond.core.beam.beam.Beam` object.
         """
         from blond.physics.drifts import DriftSimple
 

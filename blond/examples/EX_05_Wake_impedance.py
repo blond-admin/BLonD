@@ -8,14 +8,19 @@
 
 # pragma: no cover
 
-"""SPS simulation with intensity effects in time and frequency domains using
-a table of resonators. The input beam has been cloned to show that the two
-methods are equivalent (compare the two figure folders). Note that to create an
-exact clone of the beam, the option seed=0 in the generation has been used.
-This script shows also an example of how to use the class SliceMonitor (check
-the corresponding h5 files).
+"""
+SPS simulation with intensity effects in time and frequency domains.
 
-:Authors: **Danilo Quartullo**
+The input beam has been cloned to show that the two methods are equivalent
+(compare the two figure folders). Note that to create an exact clone of the
+beam, the option seed=0 in the generation has been used. This script shows
+also an example of how to use the class SliceMonitor (check the corresponding
+h5 files).
+
+Authors
+-------
+Simon Lauber
+Danilo Quartullo
 """
 
 import numpy as np

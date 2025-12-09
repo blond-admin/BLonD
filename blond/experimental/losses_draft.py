@@ -11,7 +11,8 @@ from numba import njit
 
 @njit
 def inplace_partition_bool(arr):
-    """Move all True entries to the end of the array.
+    """
+    Move all True entries to the end of the array.
 
     Parameters
     ----------
@@ -20,10 +21,10 @@ def inplace_partition_bool(arr):
 
     Returns
     -------
-    Index that divides the array into
-    ``arr[:cutoff] == False`` and
-    ``arr[cutoff:] == True``.
-
+    Index
+        Index that divides the array into
+        ``arr[:cutoff] == False`` and
+        ``arr[cutoff:] == True``.
     """
     i = 0
     j = arr.size - 1
@@ -36,6 +37,7 @@ def inplace_partition_bool(arr):
             arr[i], arr[j] = arr[j], arr[i]
             j -= 1
     return j + 1
+
 
 def test():
     import numpy as np
@@ -52,6 +54,7 @@ def test():
     assert np.all(arr[:] == False)
     assert np.all(arr2[:] == False)
     print(arr.shape)
+
 
 if __name__ == "__main__":
     test()

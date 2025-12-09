@@ -31,7 +31,7 @@ from blond.handle_results.observables_as_elements import (
 from blond.testing.mocks import beam_mock
 
 if TYPE_CHECKING:  # pragma: no cover
-    from cupy.typing import NDArray as CupyArray  # type: ignore
+    pass  # type: ignore
 
 
 class TestSimulation(unittest.TestCase):
@@ -39,9 +39,7 @@ class TestSimulation(unittest.TestCase):
         ring = Ring(circumference=26658.883)
 
         cavity1 = SingleHarmonicRfStation(
-            harmonic=35640,
-            voltage=6e6,
-            phi_rf=0
+            harmonic=35640, voltage=6e6, phi_rf=0
         )
 
         N_TURNS = int(1e3)
@@ -445,7 +443,8 @@ class TestSimulation(unittest.TestCase):
             )
             potential_wells[particle_type] = potential_well
         np.testing.assert_allclose(
-            potential_wells[proton]+1e6, potential_wells[noton] / 2 + 1e6,
+            potential_wells[proton] + 1e6,
+            potential_wells[noton] / 2 + 1e6,
             rtol=1e-5,
         )
 

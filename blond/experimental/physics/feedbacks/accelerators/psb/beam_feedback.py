@@ -87,7 +87,8 @@ class PsbBeamFeedback(Blond2BeamFeedback):
         self.dR_over_R = 0
 
     def precalculate_time(self, ring: Ring):
-        """For machines like the PSB, where the PL acts only in certain time
+        """
+        For machines like the PSB, where the PL acts only in certain time
         intervals, pre-calculate on which turns to act.
         """
         if self.dt > 0:
@@ -137,7 +138,8 @@ class PsbBeamFeedback(Blond2BeamFeedback):
             self.dR_over_R = (self._parent_rf_station.delta_omega_rf[0]) / (
                 self._parent_rf_station._omega_rf[0]
                 * (
-                    1.0 / (self.ring.alpha_0[0] * self._parent_rf_station.gamma ** 2)
+                    1.0
+                    / (self.ring.alpha_0[0] * self._parent_rf_station.gamma**2)
                     - 1.0
                 )
             )
