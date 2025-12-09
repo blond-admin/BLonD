@@ -177,12 +177,12 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         self.omega_s0: NumpyArray | None = None
 
     @property
-    def omega_rf_actual(self):
+    def omega_rf_actual(self) -> NumpyArray | float:
         """RF angular frequency."""
         return self.omega_rf_design + self.delta_omega_rf
 
     @property
-    def phi_rf_actual(self):
+    def phi_rf_actual(self) -> NumpyArray | float:
         """RF phase."""
         return self.phi_rf_design + self.delta_phi_rf
 
@@ -921,8 +921,6 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             n_harmonics
         )  # TODO
         self.voltage: NumpyArray | None = voltage
-        self.phi_rf: NumpyArray | None = phi_rf
-        self.harmonic: NumpyArray | None = harmonic
 
         for array_name, input_array in (
             ("voltage", voltage),
@@ -958,10 +956,12 @@ class MultiHarmonicRfStation(RfStationBaseClass):
                 f"You need to define `voltage` for '{self.name}' via "
                 f"`.voltage=...` or `.schedule(attribute='voltage', value=...)`"
             )
-        if (self.phi_rf is None) and "phi_rf" not in self.schedules:
+        if (
+            self.phi_rf_design is None
+        ) and "phi_rf_design" not in self.schedules:
             raise ValueError(
-                f"You need to define `phi_rf` for '{self.name}' via "
-                f"`.phi_rf=...` or `.schedule(attribute='phi_rf', value=...)`"
+                f"You need to define `phi_rf_design` for '{self.name}' via "
+                f"`.phi_rf_design=...` or `.schedule(attribute='phi_rf_design', value=...)`"
             )
         if (self.harmonic is None) and "harmonic" not in self.schedules:
             raise ValueError(
@@ -1016,8 +1016,8 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         return self.voltage[self.main_harmonic_idx]
 
     def get_main_harmonic_phi_rf(self) -> float:
-        """Returns the phi_rf of the main harmonic, in [rad]."""
-        return self.phi_rf[self.main_harmonic_idx]
+        """Returns the phi_rf_actual of the main harmonic, in [rad]."""
+        return self.phi_rf_actual[self.main_harmonic_idx]
 
     def get_main_harmonic_omega_rf_design(
         self, beam_beta: float, ring_circumference: float
@@ -1063,14 +1063,14 @@ class MultiHarmonicRfStation(RfStationBaseClass):
 
         voltages = np.outer(self.voltage, backend.ones(n_slices))
         omega_rf = np.outer(self.omega_rf_actual, backend.ones(n_slices))
-        phi_rf = np.outer(self.phi_rf, backend.ones(n_slices))
+        phi_rf = np.outer(self.phi_rf_actual, backend.ones(n_slices))
 
         gap_voltage = backend.zeros(n_slices)
         for ind, feedback in enumerate(self._cavity_feedback):
             if feedback is not None:
                 gap_voltage = (
                     voltages[ind]
-                    * feedback.V_corr
+                    * feedback.V_corr  # TODO: this is not defined in the parent class --> needs to be added
                     * np.sin(
                         omega_rf[ind] * x_arr + phi_rf[ind] + feedback.phi_corr
                     )
@@ -1134,9 +1134,9 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             backend.specials.kick_multi_harmonic(
                 dt=beam.read_partial_dt(),
                 dE=beam.write_partial_dE(),
-                voltage=(self.voltage).astype(backend.float),
-                phi_rf=(self.phi_rf).astype(backend.float),
-                omega_rf=(self.omega_rf_actual).astype(backend.float),
+                voltage=self.voltage.astype(backend.float),
+                phi_rf=self.phi_rf_actual.astype(backend.float),
+                omega_rf=self.omega_rf_actual.astype(backend.float),
                 charge=beam.particle_type.charge,
                 n_rf=self.n_rf,
                 acceleration_kick=-reference_energy_change,  # Mind the minus!
