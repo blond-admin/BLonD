@@ -874,7 +874,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         self,
         voltage: NumpyArray,
         phi_rf: NumpyArray,
-        harmonics: NumpyArray,
+        harmonic: NumpyArray,
         n_harmonics: int,
         main_harmonic_idx: int,
         section_index: int = 0,
@@ -900,7 +900,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
 
         self.voltage = voltage
         self._phi_rf_design = phi_rf
-        self.harmonic = harmonics
+        self.harmonic = harmonic
         self.delta_phi_rf: NumpyArray | None = backend.zeros(
             n_harmonics
         )  # TODO
@@ -909,12 +909,12 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         )  # TODO
         self.voltage: NumpyArray | None = voltage
         self.phi_rf: NumpyArray | None = phi_rf
-        self.harmonic: NumpyArray | None = harmonics
+        self.harmonic: NumpyArray | None = harmonic
 
         for array_name, input_array in (
             ("voltage", voltage),
             ("phi_rf", phi_rf),
-            ("harmonic", harmonics),
+            ("harmonic", harmonic),
         ):
             if input_array is not None and len(input_array) != n_harmonics:
                 raise ValueError(
