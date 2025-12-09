@@ -408,7 +408,7 @@ class IQCavityFeedback(LocalFeedback):
         r"""Calculate RF beam current from beam profile"""
         t_rev = float(  # TODO REMWORK/REMOVE
             (2 * np.pi * self._parent_rf_station.harmonic[self.harmonic_index])
-            / self.omega_rf
+            / self._parent_rf_station._omega_rf_design[self.harmonic_index]
         )
         # Beam current from profile
         self.I_BEAM_COARSE[: self.n_coarse] = self.I_BEAM_COARSE[
