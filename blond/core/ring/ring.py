@@ -640,8 +640,7 @@ class Ring(Preparable):
     def _force_section_index_compatibility(
         self, element: SimulationElementBase, insert_at: int
     ) -> SimulationElementBase:
-        """
-        Internal method to automatically fix element section index for insertion.
+        """Internal method to automatically fix element section index for insertion.
 
         This private method is called by insert methods when
         `allow_section_index_overwrite=True`. It adjusts the element's `section_index`
@@ -664,6 +663,12 @@ class Ring(Preparable):
         SimulationElementBase
             The same element with potentially modified section_index.
         """
+        if insert_at > len(self.elements.elements):
+            raise AssertionError(
+                f"The element must be inserted within ["
+                f"0:{len(self.elements.elements)}] indexes."
+            )
+
         try:
             self.elements.check_section_index_compatibility(
                 element=element,
@@ -674,14 +679,8 @@ class Ring(Preparable):
                 element._section_index = self.elements.elements[
                     insert_at - 1
                 ].section_index
-            elif insert_at < len(self.elements.elements):
+            else:
                 element._section_index = self.elements.elements[
                     insert_at
                 ].section_index
-            else:
-                raise AssertionError(
-                    f"The element must be inserted within ["
-                    f"0:{len(self.elements.elements)}] indexes."
-                )
-
         return element
