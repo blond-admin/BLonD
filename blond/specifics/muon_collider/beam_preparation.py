@@ -6,11 +6,13 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Helper functions to initialize the beam."""
+"""Helper functions to initialize the beam.
 
-# Authors
-# -------
-# Leonard Thiele, Simon Lauber
+Authors
+-------
+Leonard Thiele
+Simon Lauber
+"""
 
 from os import PathLike
 

@@ -389,7 +389,7 @@ class BunchObservationMetaParams(BeamObservationElement, ObservablesBaseClass):
         The statistical emittance is calculated with
 
         .. math::
-            \epsilon = \sqrt{\langle \Delta t^2 \\rangle \langle \Delta E^2 \\rangle - \langle \Delta t \Delta E \\rangle^2}
+            \epsilon = \sqrt{\langle \Delta t^2 \rangle \langle \Delta E^2 \rangle - \langle \Delta t \Delta E \rangle^2}
 
         Returns
         -------

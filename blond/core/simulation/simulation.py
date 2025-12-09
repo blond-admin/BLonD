@@ -6,7 +6,13 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Holds the `Simulation` class."""
+"""Holds the `Simulation` class.
+
+Authores
+--------
+S. Lauber
+L. Thiele
+"""
 
 from __future__ import annotations
 
