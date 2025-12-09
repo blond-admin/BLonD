@@ -27,23 +27,22 @@ from blond.physics.profiles import ProfileBaseClass
 
 
 class SPSBeamControl(BeamFeedbackBase):
-
     def __init__(
-            self,
-            profile: ProfileBaseClass,
-            k_phi_n: float | NumpyArray,
-            k_phi_nm1: float | NumpyArray,
-            k_eps_n: float | NumpyArray,
-            k_z_n: float | NumpyArray,
-            k_a_n: float | NumpyArray,
-            k_b_n: float | NumpyArray,
-            phi_sync: float | NumpyArray,
-            global_gain: float | NumpyArray,
-            action_delay: int,
-            window_coefficient: float = 0.0,
-            time_offset: float | None = None,
-            *args,
-            **kwargs
+        self,
+        profile: ProfileBaseClass,
+        k_phi_n: float | NumpyArray,
+        k_phi_nm1: float | NumpyArray,
+        k_eps_n: float | NumpyArray,
+        k_z_n: float | NumpyArray,
+        k_a_n: float | NumpyArray,
+        k_b_n: float | NumpyArray,
+        phi_sync: float | NumpyArray,
+        global_gain: float | NumpyArray,
+        action_delay: int,
+        window_coefficient: float = 0.0,
+        time_offset: float | None = None,
+        *args,
+        **kwargs,
     ):
         super().__init__(profile=profile, *args, **kwargs)
 
@@ -85,13 +84,16 @@ class SPSBeamControl(BeamFeedbackBase):
         turn_i_init: int,
         **kwargs,
     ) -> None:
-
-        def convert_to_array(parameter, delay_action = 0):
-            delay_action = np.concatenate((np.zeros(delay_action), np.ones(n_turns + 1 - delay_action)))
+        def convert_to_array(parameter, delay_action=0):
+            delay_action = np.concatenate(
+                (np.zeros(delay_action), np.ones(n_turns + 1 - delay_action))
+            )
             return parameter * np.ones(n_turns + 1) * delay_action
 
         if isinstance(self.k_phi_nm1, float):
-            self.k_phi_nm1 = convert_to_array(self.k_phi_nm1, self.action_delay)
+            self.k_phi_nm1 = convert_to_array(
+                self.k_phi_nm1, self.action_delay
+            )
 
         if isinstance(self.k_phi_n, float):
             self.k_phi_n = convert_to_array(self.k_phi_n, self.action_delay)
@@ -144,10 +146,7 @@ class SPSBeamControl(BeamFeedbackBase):
         self.phi_beam = np.arctan(coeff) + np.pi
 
     def phase_difference(
-            self,
-            beam: BeamBaseClass,
-            RFnoise = None,
-            noiseFB = None
+        self, beam: BeamBaseClass, RFnoise=None, noiseFB=None
     ):
         """
         *Phase difference between beam and RF phase of the main RF system.
@@ -156,9 +155,9 @@ class SPSBeamControl(BeamFeedbackBase):
 
         # Correct for design stable phase
         counter = self.cavities[0]._turn_i.value
-        self.dphi = self.phi_beam - self.cavities[0].calc_phi_s_single_harmonic(
-            beam, enable_rf_phase=False
-        )
+        self.dphi = self.phi_beam - self.cavities[
+            0
+        ].calc_phi_s_single_harmonic(beam, enable_rf_phase=False)
 
         # Possibility to add RF phase noise through the PL
         if RFnoise is not None:
@@ -186,15 +185,24 @@ class SPSBeamControl(BeamFeedbackBase):
         self.beam_phase()
         self.phase_difference(beam)
 
-        self.domega_dphi = -self.k_phi_n[counter] * self.dphi_z2 - self.k_phi_nm1[counter] * self.dphi_z3
+        self.domega_dphi = (
+            -self.k_phi_n[counter] * self.dphi_z2
+            - self.k_phi_nm1[counter] * self.dphi_z3
+        )
 
         # Synchro Loop
         self.epsilon = self.cavities[0].phi_rf_actual - self.phi_sync[counter]
         self.Zeta += self.epsilon_z1
-        self.domega_sync = -self.k_eps_n[counter] * self.epsilon - self.k_z_n[counter] * self.Zeta
+        self.domega_sync = (
+            -self.k_eps_n[counter] * self.epsilon
+            - self.k_z_n[counter] * self.Zeta
+        )
 
         # Frequency Loop
-        self.domega_freq = -self.k_a_n[counter] * self.Alpha_z1 - self.k_b_n[counter] * self.Alpha_z2
+        self.domega_freq = (
+            -self.k_a_n[counter] * self.Alpha_z1
+            - self.k_b_n[counter] * self.Alpha_z2
+        )
 
         # Total frequency correction
         self.domega_rf = self.domega_dphi + self.domega_sync + self.domega_freq
@@ -244,7 +252,8 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         self.sample_dE = sample_dE
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """
+        Lateinit method when `simulation.__init__` is called
 
         simulation
             `Simulation` context manager
@@ -267,11 +276,12 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         self.energy = beam.reference_total_energy
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Calculation of the SPS RF frequency correction from the phase difference
+        r"""
+        Calculation of the SPS RF frequency correction from the phase difference
         between beam and RF (actual synchronous phase). The transfer function is
 
         .. math::
-            \\Delta \\omega_{rf}^{PL} = - g_{PL} (\\Delta\\varphi_{PL} + \\phi_{N})
+            \Delta \omega_{rf}^{PL} = - g_{PL} (\Delta\varphi_{PL} + \phi_{N})
 
         where the phase noise for the controlled blow-up can be optionally
         activated.
@@ -341,7 +351,7 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         self._parent_rf_station.dphi_rf_steering += (
             (2.0 * np.pi)
             * (
-                    self._parent_rf_station.harmonic[:]
+                self._parent_rf_station.harmonic[:]
                 / self._parent_rf_station._omega_rf[:]
             )
             * (self._parent_rf_station.delta_omega_rf[:])
@@ -378,7 +388,8 @@ class SpsFBeamFeedback(Blond2BeamFeedback):
         self.gain2 = FL_gain
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Calculation of the SPS RF frequency correction from the phase
+        """
+        Calculation of the SPS RF frequency correction from the phase
         difference between beam and RF (actual synchronous phase). Same as
         LHC_F, except the calculation of the beam phase.
         """
@@ -390,12 +401,15 @@ class SpsFBeamFeedback(Blond2BeamFeedback):
 
         # Frequency correction from phase loop and frequency loop
         self.domega_dphi = -self.gain * self.dphi
-        self.domega_df = -self.gain2 * (self._parent_rf_station.delta_omega_rf[0])
+        self.domega_df = (
+            -self.gain2 * (self._parent_rf_station.delta_omega_rf[0])
+        )
 
         self.domega_rf = self.domega_dphi + self.domega_df
 
     def beam_phase_sharpWindow(self):
-        """Beam phase measured at the main RF frequency and phase. The beam is
+        """
+        Beam phase measured at the main RF frequency and phase. The beam is
         averaged over a window. The coefficients of sine and cosine components
         determine the beam phase, projected to the range -Pi/2 to 3/2 Pi.
         Note that this beam phase is already w.r.t. the instantaneous RF phase.
