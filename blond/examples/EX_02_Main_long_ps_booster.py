@@ -11,7 +11,7 @@
 """
 Example script to take into account intensity effects from impedance tables.
 
-Authors
+References
 -------
 Simon Lauber
 Danilo Quartullo

@@ -8,7 +8,7 @@
 
 """Solvers to calculate the wake potential from impedance sources."""
 
-# Authors
+# References
 # -------
 # Alexandre Lasheen
 # Danilo Quartullo,

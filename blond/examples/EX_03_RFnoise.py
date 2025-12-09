@@ -13,8 +13,7 @@ Notes
 -----
 No intensity effects.
 
-
-Authors
+References
 -------
 Simon Lauber
 Helga Timko

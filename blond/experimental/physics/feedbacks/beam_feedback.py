@@ -11,7 +11,7 @@
 **Various beam phase loops with optional synchronisation/frequency/radial loops
 for the CERN machines**
 
-Authors
+References
 -------
 Helga Timko
 Alexandre Lasheen

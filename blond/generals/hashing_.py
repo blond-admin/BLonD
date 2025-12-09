@@ -8,7 +8,7 @@
 
 """Functions that help with hashing."""
 
-# Authors
+# References
 # -------
 # Simon Lauber
 

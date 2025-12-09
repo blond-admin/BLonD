@@ -12,7 +12,7 @@
 
 
 
-Authors
+References
 -------
 Birk Emil Karlsen-Bæck
 Helga Timko

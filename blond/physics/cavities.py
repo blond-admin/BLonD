@@ -8,7 +8,7 @@
 
 """Collection of implementations to handle lumped RF stations in synchrotrons."""
 
-# Authors
+# References
 # -------
 # Simon Lauber
 
