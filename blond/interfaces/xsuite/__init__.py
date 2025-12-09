@@ -6,8 +6,6 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-# Authors: Birk Emil Karlsen-Bæck, Elleanor Lamb, Simon Lauber
-
 """
 Glue code for XSuite.
 
