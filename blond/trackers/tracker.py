@@ -21,7 +21,7 @@ import numpy as np
 import scipy
 from packaging.version import Version
 
-from ..beam.sparse_slices import _SparseBaseClass
+from ..beam.sparse_profiles import _SparseProfileBaseClass
 
 if Version(scipy.__version__) >= Version("1.14"):
     from scipy.integrate import cumulative_trapezoid as cumtrapz
