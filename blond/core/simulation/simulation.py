@@ -39,7 +39,7 @@ from blond.core.helpers import (
     find_instances_with_method,
     int_from_float_with_warning,
 )
-from blond.core.ring.helpers import get_elements, get_init_order
+from blond.core.ring.helpers import get_elements, get_required_order
 from blond.cycles.magnetic_cycle import MagneticCycleBase
 from blond.generals.warnings_ import NotTestedWarning, PerformanceWarning
 
@@ -621,7 +621,7 @@ class Simulation(Preparable):
         logger.debug(f"Calling all {method}({kwargs}) in {self}")
         instances = find_instances_with_method(self, f"{method}")
         logger.debug(f"Found {instances} to be initialized")
-        ordered_classes = get_init_order(instances, f"{method}.requires")
+        ordered_classes = get_required_order(instances, f"{method}.requires")
 
         classes_check = set()
         for ins in instances:
@@ -1059,6 +1059,11 @@ class Simulation(Preparable):
 
         """
         logger.info(f"Running `run_simulation` with {locals()}")
+        n_turns = (
+            int_from_float_with_warning(n_turns, warning_stacklevel=2)
+            if n_turns is not None
+            else None
+        )
         _n_turns = self.finalize(
             beams=beams,
             n_turns=n_turns,
