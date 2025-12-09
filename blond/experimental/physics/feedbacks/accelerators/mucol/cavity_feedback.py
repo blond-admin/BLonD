@@ -106,7 +106,6 @@ class PassiveCavity(IQCavityFeedback):
         assert f_center >= 0, "f_center must be >= 0"  # TODO: does this make sense here?
         self.f_center = f_center
 
-        assert f_detuning >= 0, "fset must be >= 0"
         self.f_detuning = f_detuning
         self.omega_detuning = 2 * np.pi * self.f_detuning
         self.omega_center = 2 * np.pi * self.f_center - self.omega_detuning
