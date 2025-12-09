@@ -567,10 +567,10 @@ class Ring(Preparable):
                         element=element,
                         insert_at=k + already_inserted,
                     )
-                else:
-                    raise AssertionError(
-                        "Cannot overwrite the section indexes with deepcopy == False."
-                    )
+            elif allow_section_index_overwrite:
+                raise AssertionError(
+                    "Cannot overwrite the section indexes with deepcopy == False."
+                )
             self.elements.insert(
                 element=element,
                 insert_at=k + already_inserted,
