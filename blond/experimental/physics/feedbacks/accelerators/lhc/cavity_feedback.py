@@ -390,9 +390,10 @@ class LHCCavityLoop(IQCavityFeedback):
     def circuit_track(self, no_beam: bool = False):
         r"""Track the feedback model"""
         if not no_beam:
-            self.I_BEAM_FINE *= -1j * np.exp(1j * self._parent_rf_station.phi_s)
+            phi_s = np.pi # TODO: change with changing phi_s
+            self.I_BEAM_FINE *= -1j * np.exp(1j * phi_s)
             self.I_BEAM_COARSE[-self.n_coarse :] *= -1j * np.exp(
-                1j * self._parent_rf_station.phi_s
+                1j * phi_s
             )
 
         # Track the different parts of the model

@@ -61,7 +61,7 @@ class LHCBeamControl(BeamFeedbackBase):
 
         if self.sl_gain != 0:
             Q_s0 = self.cavities[0].calc_synchrotron_tune_single_harmonic(
-                beam,
+                beam, np.pi, simulation.ring.calc_average_eta_0(beam.reference_gamma)
             ) * np.ones(n_turns + 1)
 
             omega_rf = self.cavities[0].get_main_harmonic_omega_rf_design(
@@ -75,11 +75,10 @@ class LHCBeamControl(BeamFeedbackBase):
             #: | *LHC Synchronisation loop coefficient [1]*
             self.lhc_a = 5.25 - omega_s0 / (np.pi * 40.0)
             #: | *LHC Synchronisation loop time constant [turns]*
-            self.lhc_t = ((
+            self.lhc_t = (
                          2 * np.pi * Q_s0 * np.sqrt(self.lhc_a)
                  ) / np.sqrt(1 + self.pl_gain / self.sl_gain * np.sqrt((1 + 1 / self.lhc_a) / (1 + self.lhc_a))
-            ))
-
+            )
         else:
             self.lhc_a = np.zeros(n_turns + 1)
             self.lhc_t = np.zeros(n_turns + 1)

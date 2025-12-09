@@ -370,6 +370,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
             phase=float(self.get_main_harmonic_phi_rf()),
             energy_gain=reference_energy_change,
             above_transition=not self._ring.is_below_transition(beam=beam),
+            enable_rf_phase=enable_rf_phase,
         )
 
         return phi_s

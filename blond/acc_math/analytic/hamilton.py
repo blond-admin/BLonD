@@ -289,6 +289,7 @@ def calc_phi_s_single_harmonic(
     phase: float,
     energy_gain: float,
     above_transition: bool,
+    enable_rf_phase: bool = True,
 ) -> float:
     """Derives the analytical synchronous phase for a single harmonic RF.
 
@@ -320,7 +321,10 @@ def calc_phi_s_single_harmonic(
         # Otherwise, they cancel each other out like ``-1 * -1 = 1``
         phi = np.pi - phi
 
-    return phi - phase
+    if enable_rf_phase:
+        return phi - phase
+    else:
+        return phi
 
 
 def calc_synchrotron_tune_single_harmonic(
