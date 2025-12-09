@@ -6,16 +6,18 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Example input for simulation with RF noise.
+"""
+Example input for simulation with RF noise.
 
 Notes
 -----
 No intensity effects.
 
+
 Authors
 -------
+Simon Lauber
 Helga Timko
-
 """
 # pragma: no cover
 

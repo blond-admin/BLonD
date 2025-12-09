@@ -13,7 +13,8 @@ from numpy._typing import NDArray as NumpyArray
 
 
 def get_power_gen_i(I_gen_per_cav: NumpyArray, Z_0: float) -> float:
-    """RF generator power from generator current (physical, in [A]), for any
+    """
+    RF generator power from generator current (physical, in [A]), for any
     f_r (and thus any tau)
 
     Parameters
@@ -34,7 +35,8 @@ def get_power_gen_i(I_gen_per_cav: NumpyArray, Z_0: float) -> float:
 def moving_average(
     x: NumpyArray, N: int, x_prev: NumpyArray | None = None
 ) -> NumpyArray:
-    """Function to calculate the moving average (or running mean) of the input
+    """
+    Function to calculate the moving average (or running mean) of the input
     data.
 
     Parameters
@@ -69,7 +71,8 @@ def comb_filter(
     x: NumpyArray,
     a: float,
 ) -> NumpyArray:
-    """Feedback comb filter.
+    """
+    Feedback comb filter.
 
     Notes
     -----
@@ -95,7 +98,8 @@ def modulator(
     phi_0: float = 0.0,
     dt: float = 0.0,
 ) -> NumpyArray:
-    """Demodulate a signal from initial frequency to final frequency. The two
+    """
+    Demodulate a signal from initial frequency to final frequency. The two
     frequencies should be close.
 
     Parameters

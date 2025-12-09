@@ -6,7 +6,8 @@
 # submit itself to any jurisdiction.
 # Project website: http://blond.web.cern.ch/
 
-"""Glue code for XSuite.
+"""
+Glue code for XSuite.
 
 Notes
 -----

@@ -36,10 +36,13 @@ class Preparable(ABC):
 
     @abstractmethod  # pragma: no cover
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """
+        Lateinit method when `simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         pass
 
@@ -52,31 +55,34 @@ class Preparable(ABC):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """
+        Lateinit method when `simulation.run_simulation` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate.
         turn_i_init
-            Initial turn to execute simulation
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments.
         """
         pass
 
 
 class MainLoopRelevant(Preparable):
-    """Base class for objects that are relevant for the simulation main loop.
+    """
+    Base class for objects that are relevant for the simulation main loop.
 
     Attributes
     ----------
     each_turn_i
         Value to control that the element is
         callable each n-th turn.
-
-
-
     """
 
     def __init__(self) -> None:
@@ -85,12 +91,18 @@ class MainLoopRelevant(Preparable):
         self.active = True
 
     def is_active_this_turn(self, turn_i: int) -> bool:
-        """Whether the element is active or not.
+        """
+        Whether the element is active or not.
 
         Parameters
         ----------
         turn_i
-            Current index of turn
+            Current index of turn.
+
+        Returns
+        -------
+        bool
+            True if the element is active this turn, False otherwise.
         """
         if self.active:
             return turn_i % self.each_turn_i == 0
@@ -99,7 +111,8 @@ class MainLoopRelevant(Preparable):
 
 
 class Schedulable:
-    """Base class for objects with schedule parameters.
+    """
+    Base class for objects with schedule parameters.
 
     Attributes
     ----------
@@ -173,16 +186,24 @@ class Schedulable:
         filename: str | PathLike,
         **kwargs_loadtxt,
     ) -> None:
-        """Schedule a parameter to be changed during simulation.
+        """
+        Schedule a parameter to be changed during simulation.
 
         Parameters
         ----------
         attribute
-            Attribute that shall be changed by scheduler
+            Attribute that shall be changed by scheduler.
         filename
-            Filename to read the parameters from
-        kwargs_loadtxt
-            Additional keyword arguments to be passed to `numpy.loadtxt`
+            Filename to read the parameters from.
+        mode
+            Required when arrays are handed over.
+            "per-turn" or "constant".
+        **kwargs_loadtxt
+            Additional keyword arguments to be passed to `numpy.loadtxt`.
+
+        Notes
+        -----
+        Can be constant, per turn or interpolated in time.
         """
         assert hasattr(self, attribute), (
             f"Attribute {attribute} doesnt exist, choose from {vars(self)}"
@@ -196,14 +217,15 @@ class Schedulable:
         turn_i: int,
         reference_time: float,
     ) -> None:
-        """Set value of schedule to the target parameter for current turn/time.
+        """
+        Set value of schedule to the target parameter for current turn/time.
 
         Parameters
         ----------
         turn_i
-            Currently turn index
+            Currently turn index.
         reference_time
-            Current time, in [s]
+            Current time, in [s].
         """
         for attribute, schedule in self.schedules.items():
             self.__setattr__(
@@ -215,7 +237,8 @@ class Schedulable:
 
 
 class SimulationElementBase(MainLoopRelevant, ABC):
-    """Abstract base class for all elements participating in the main simulation loop.
+    """
+    Abstract base class for all elements participating in the main simulation loop.
 
     Elements derived from this class are executed as part of the simulation's
     main turn-by-turn loop. They can be:
@@ -230,11 +253,11 @@ class SimulationElementBase(MainLoopRelevant, ABC):
 
     Parameters
     ----------
-    section_index : int, optional
+    section_index
         Identifier used to group elements that belong to the same section of the ring.
-    name : str, optional
+    name
         Optional human-readable name for the element.
-    **kwargs :
+    **kwargs
         Additional keyword arguments passed to the parent initializer.
     """
 
@@ -253,15 +276,25 @@ class SimulationElementBase(MainLoopRelevant, ABC):
 
     @property  # as readonly attributes
     def section_index(self) -> int:
-        """Section index to group elements into sections."""
+        """
+        Section index to group elements into sections.
+
+        Returns
+        -------
+        int
+            The section index.
+        """
         return self._section_index
 
     @abstractmethod  # pragma: no cover
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """
+        Lateinit method when `simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         pass
 
@@ -274,34 +307,37 @@ class SimulationElementBase(MainLoopRelevant, ABC):
         turn_i_init: int,
         **kwargs,
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """
+        Lateinit method when `simulation.run_simulation` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate.
         turn_i_init
-            Initial turn to execute simulation
-        obs_per_turn
-            Number of observations per turn
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments.
         """
         pass
 
     def info_string(self, prefix="") -> str:
-        """Prints the state of the object.
+        """
+        Print the state of the object.
 
         Parameters
         ----------
         prefix
-            Add this to the start of the line
+            Add this to the start of the line.
 
         Returns
         -------
-        info_string
-            The state of the object
-
+        str
+            The state of the object.
         """
         from blond.core.ring.beam_physics_relevant_elements import (
             pretty_string,  # prevent circular import
@@ -320,21 +356,23 @@ class SimulationElementBase(MainLoopRelevant, ABC):
 
     @abstractmethod  # pragma: no cover
     def track(self, beam: BeamBaseClass) -> None:
-        """Apply the element’s physics effect to the beam.
+        """
+        Apply the element's physics effect to the beam.
 
         Parameters
         ----------
-        beam : BeamBaseClass
+        beam
             The beam object whose state will be updated by this element.
         """
         pass
 
 
 class BeamPhysicsRelevant(SimulationElementBase):
-    """Abstract base class for elements that modify the beam state during tracking.
+    """
+    Abstract base class for elements that modify the beam state during tracking.
 
     This class defines the interface for all *physics-relevant* elements in the
-    simulation — that is, elements which actively change the beam’s longitudinal
+    simulation — that is, elements which actively change the beam's longitudinal
     or transverse coordinates (e.g., drifts, rf stations, kicks).
 
     Each subclass must implement the :meth:`track` method, which applies its
@@ -342,12 +380,14 @@ class BeamPhysicsRelevant(SimulationElementBase):
 
     Parameters
     ----------
-    section_index : int, optional
+    section_index
         Identifier grouping elements that belong to the same section of the ring.
         Defaults to 0.
-    name : str, optional
+    name
         Human-readable name for the element. If not provided, a unique name is
         automatically generated.
+    **kwargs
+        Additional keyword arguments passed to the parent.
     """
 
     n_instances = 0
@@ -360,7 +400,8 @@ class BeamPhysicsRelevant(SimulationElementBase):
 
 
 class BeamObservationElement(SimulationElementBase):
-    """Abstract base class for elements that observe the beam state during tracking.
+    """
+    Abstract base class for elements that observe the beam state during tracking.
 
     Subclasses must implement the :meth:`track` method, which is called during
     each simulation step to access the beam data and record or process relevant
@@ -368,10 +409,10 @@ class BeamObservationElement(SimulationElementBase):
 
     Parameters
     ----------
-    section_index : int, optional
+    section_index
         Identifier grouping elements that belong to the same section of the ring.
         Defaults to 0.
-    name : str, optional
+    name
         Human-readable name for the element. If not provided, a unique name is
         automatically generated.
     **kwargs
@@ -388,18 +429,20 @@ class BeamObservationElement(SimulationElementBase):
 
     @abstractmethod  # pragma: no cover
     def track(self, beam: BeamBaseClass) -> None:
-        """Inspect the beam state without modifying it.
+        """
+        Inspect the beam state without modifying it.
 
         Parameters
         ----------
-        beam : BeamBaseClass
+        beam
             The beam object to be inspected or recorded.
         """
         pass
 
 
 class UserDefinedElement(BeamPhysicsRelevant, ABC):
-    """Element that can be defined by the user.
+    """
+    Element that can be defined by the user.
 
     Notes
     -----
@@ -418,10 +461,13 @@ class UserDefinedElement(BeamPhysicsRelevant, ABC):
     """
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """
+        Lateinit method when `simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         pass
 
@@ -433,16 +479,21 @@ class UserDefinedElement(BeamPhysicsRelevant, ABC):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """
+        Lateinit method when `simulation.run_simulation` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate.
         turn_i_init
-            Initial turn to execute simulation
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments.
         """
         pass
 
@@ -456,14 +507,15 @@ class SchedulederBaseClass:
         turn_i: int,
         reference_time: float,
     ):
-        """Get the value of the schedule for the current turn/time.
+        """
+        Get the value of the schedule for the current turn/time.
 
         Parameters
         ----------
         turn_i
-            Currently turn index
+            Currently turn index.
         reference_time
-            Current time, in [s]
+            Current time, in [s].
         """
         pass
 
@@ -474,8 +526,8 @@ class ScheduledArray(SchedulederBaseClass):
     Parameters
     ----------
     values
-        Values per turn
-        (indexing is done via self.values[turn_i])
+        Values per turn.
+        (indexing is done via self.values[turn_i]).
     """
 
     def __init__(self, values: NumpyArray) -> None:
@@ -487,27 +539,34 @@ class ScheduledArray(SchedulederBaseClass):
         turn_i: int,
         reference_time: float,
     ) -> NumpyArray:
-        """Get the value of the schedule for the current turn.
+        """
+        Get the value of the schedule for the current turn.
 
         Parameters
         ----------
         turn_i
-            Currently turn index
+            Currently turn index.
         reference_time
-            Current time, in [s]
+            Current time, in [s].
+
+        Returns
+        -------
+        value
+            The scheduled value for the current turn.
         """
         return self.values[turn_i]
 
 
 class ScheduledInterpolation(SchedulederBaseClass):
-    """Schedule values that change along time.
+    """
+    Schedule values that change along time.
 
     Parameters
     ----------
     times
-        Values alon the times axis, in [s].
+        Values along the times axis, in [s].
     values
-        Values alon the values axis.
+        Values along the values axis.
     interpolator
         Interpolation routine that works like ``np.interp(x, xp, fp)``
     """
@@ -525,14 +584,20 @@ class ScheduledInterpolation(SchedulederBaseClass):
         turn_i: int,
         reference_time: float,
     ):
-        """Get the value of the schedule for the current time.
+        """
+        Get the value of the schedule for the current time.
 
         Parameters
         ----------
         turn_i
-            Currently turn index
+            Currently turn index.
         reference_time
-            Current time, in [s]
+            Current time, in [s].
+
+        Returns
+        -------
+        value
+            The interpolated value for the current time.
         """
         return self.interpolator(reference_time, self.times, self.values)
 
@@ -540,13 +605,19 @@ class ScheduledInterpolation(SchedulederBaseClass):
 def get_scheduler(
     value: NumpyArray | tuple[NumpyArray, NumpyArray],
 ) -> SchedulederBaseClass:
-    """Auto-select the correct class of the schedulers.
+    """
+    Auto-select the correct class of the schedulers.
 
     Parameters
     ----------
     value
         Array - per turn
         (Array, Array) - time vs value, to be interpolated.
+
+    Returns
+    -------
+    scheduler
+        The appropriate scheduler instance.
     """
     if isinstance(value, np.ndarray):
         return ScheduledArray(values=value)
@@ -557,12 +628,13 @@ def get_scheduler(
 
 
 class DynamicParameter:  # TODO add code generation for this method with type-hints
-    """Changeable parameter tact can be subscribed on_change.
+    """
+    Changeable parameter tact can be subscribed on_change.
 
     Parameters
     ----------
     value_init
-        Initial parameter that is set as parameter.value
+        Initial parameter that is set as parameter.value.
     """
 
     def __init__(self, value_init: Any) -> None:
@@ -570,28 +642,50 @@ class DynamicParameter:  # TODO add code generation for this method with type-hi
         self._observers: list[Callable[[Any], None]] = []
 
     def on_change(self, callback: Callable[[Any], None]) -> None:
-        """Subscribe to changes on a specific parameter.
+        """
+        Subscribe to changes on a specific parameter.
 
         Parameters
         ----------
         callback
-            User defined callback `def my_callback(new_value): ...`
+            User defined callback `def my_callback(new_value): ...`.
         """
         self._observers.append(callback)
 
     def _notify(self, value: Any) -> None:
-        """Execute all callbacks of subscribed observers."""
+        """
+        Execute all callbacks of subscribed observers.
+
+        Parameters
+        ----------
+        value
+            The new value to notify observers about.
+        """
         for callback in self._observers:
             callback(value)
 
     @property
     def value(self):
-        """Get the current value."""
+        """
+        Get the current value.
+
+        Returns
+        -------
+        value
+            The current value.
+        """
         return self._value
 
     @value.setter
     def value(self, new_val: T) -> None:
-        """Set the current value."""
+        """
+        Set the current value.
+
+        Parameters
+        ----------
+        new_val
+            The new value to set.
+        """
         if new_val != self._value:
             self._notify(new_val)
         self._value = new_val
@@ -601,7 +695,14 @@ class HasPropertyCache:
     """Helper objet to use @cached_property() for class methods."""
 
     def _invalidate_cache(self, props: tuple[str, ...]) -> None:
-        """Delete the stored values of functions with @cached_property."""
+        """
+        Delete the stored values of functions with @cached_property.
+
+        Parameters
+        ----------
+        props
+            Tuple of property names to invalidate.
+        """
         for prop in props:
             self.__dict__.pop(prop, None)
 

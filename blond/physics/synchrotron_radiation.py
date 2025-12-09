@@ -35,14 +35,15 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class SynchrotronRadiation(BeamPhysicsRelevant):  # pragma: no cover
-    """Synchrotron radiation module.
+    """
+    Synchrotron radiation module.
 
     Parameters
     ----------
     section_index
-        Section index to group elements into sections
+        Section index to group elements into sections.
     name
-        User given name of the element
+        User given name of the element.
     """
 
     def __init__(self, section_index: int = 0, name: str | None = None):
@@ -55,10 +56,13 @@ class SynchrotronRadiation(BeamPhysicsRelevant):  # pragma: no cover
         self._simulation: DriftSimple | None = None
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when :func:`blond.core.simulation.simulation.Simulation.__init__` is called.
+        """
+        Lateinit method when :func:`blond.core.simulation.simulation.Simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         """
         self._simulation = simulation
 
@@ -70,25 +74,31 @@ class SynchrotronRadiation(BeamPhysicsRelevant):  # pragma: no cover
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """
+        Lateinit method when `simulation.run_simulation` is called.
 
+        Parameters
+        ----------
         simulation
-            `Simulation` context manager
+            `Simulation` context manager.
         beam
-            Simulation `Beam` object
+            Simulation `Beam` object.
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate.
         turn_i_init
-            Initial turn to execute simulation
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments.
         """
         pass
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop.
+        """
+        Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------
         beam
-            Beam class to interact with this element
+            Beam class to interact with this element.
         """
         pass

@@ -23,7 +23,8 @@ _basepath = os.sep.join(_filepath.split(os.sep)[:-1])
 
 
 def run_compile(command: list[str], libname: str) -> int:
-    """Executes the compile command for the library.
+    """
+    Execute the compile command for the library.
 
     Parameters
     ----------
@@ -50,14 +51,14 @@ def run_compile(command: list[str], libname: str) -> int:
 def compile_cuda_library(  # NOQA: PLR0915
     compute_capability: int | Literal["discover"] = "discover",
 ) -> None:
-    """Compile the GPU library.
+    """
+    Compile the GPU library.
 
     Parameters
     ----------
     compute_capability
         The compute capability of your GPU,
         see https://developer.nvidia.com/cuda-gpus.
-
     """
     print("\nTrying to compile CUDA backend.")
 

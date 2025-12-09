@@ -36,7 +36,8 @@ if TYPE_CHECKING:
 
 
 class BirksCavityFeedback(LocalFeedback):
-    """Base class to design cavity feedbacks.
+    """
+    Base class to design cavity feedbacks.
 
     Parameters
     ----------
@@ -121,7 +122,8 @@ class BirksCavityFeedback(LocalFeedback):
         section_index: int = 0,
         name: str | None = None,
     ):
-        """Base class to design cavity feedbacks.
+        """
+        Base class to design cavity feedbacks.
 
         Parameters
         ----------
@@ -180,7 +182,9 @@ class BirksCavityFeedback(LocalFeedback):
             / self._parent_rf_station._omega_rf[self.harmonic_index]
         )
         # TODO REMWORK/REMOVE
-        t_rf = t_rev / float(self._parent_rf_station.harmonic[self.harmonic_index])
+        t_rf = t_rev / float(
+            self._parent_rf_station.harmonic[self.harmonic_index]
+        )
 
         self.n_coarse = round(t_rev / self.T_s)
         self.omega_carrier = (
@@ -225,7 +229,8 @@ class BirksCavityFeedback(LocalFeedback):
 
     @abstractmethod  # pragma: no cover
     def update_fb_variables(self) -> None:
-        r"""Method to update the variables specific to the feedback.
+        r"""
+        Method to update the variables specific to the feedback.
 
         This is meant to be implemented in the child class by the user.
         """
@@ -274,7 +279,8 @@ class BirksCavityFeedback(LocalFeedback):
 
     @abstractmethod  # pragma: no cover
     def circuit_track(self, no_beam: bool = False) -> None:
-        r"""Method to track circuit of the feedback.
+        r"""
+        Method to track circuit of the feedback.
 
         Notes
         -----
@@ -297,7 +303,8 @@ class BirksCavityFeedback(LocalFeedback):
             self.circuit_track(no_beam=True)
 
     def track(self, beam: BeamBaseClass) -> None:
-        r"""Tracking method of the cavity feedback.
+        r"""
+        Tracking method of the cavity feedback.
 
         Parameters
         ----------
@@ -369,7 +376,8 @@ class BirksCavityFeedback(LocalFeedback):
     def set_point_from_rfstation(self) -> NumpyArray:
         r"""Computes the setpoint in I/Q based on the RF voltage in the RFStation"""
         V_set = polar_to_cartesian(
-            self._parent_rf_station.voltage[self.harmonic_index] / self.n_cavities,
+            self._parent_rf_station.voltage[self.harmonic_index]
+            / self.n_cavities,
             0,
         )
 

@@ -102,7 +102,14 @@ class ExampleSimulation01:
 
 
 class SimulationTwoRfStations:
-    """A simulation with two RF stations and according drifts."""
+    """
+    A simulation with two RF stations and according drifts.
+
+    Parameters
+    ----------
+    below_transition_crossing
+        Whether the beam is below the transition crossing.
+    """
 
     def __init__(self, below_transition_crossing: bool = False):
         circumference = 26658.883
@@ -162,7 +169,14 @@ class SimulationTwoRfStations:
 
 
 class SimulationTwoRfStationsWithWake:
-    """A simulation with two RF stations and according drifts, plus wake."""
+    """
+    A simulation with two RF stations and according drifts, plus wake.
+
+    Parameters
+    ----------
+    below_transition_crossing
+        Whether the beam is below the transition crossing.
+    """
 
     def __init__(self, below_transition_crossing: bool = False):
         circumference = 26658.883

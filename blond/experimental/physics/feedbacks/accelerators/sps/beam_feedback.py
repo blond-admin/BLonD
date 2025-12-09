@@ -52,7 +52,8 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         self.sample_dE = sample_dE
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called
+        """
+        Lateinit method when `simulation.__init__` is called
 
         simulation
             `Simulation` context manager
@@ -75,11 +76,12 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         self.energy = beam.reference_total_energy
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Calculation of the SPS RF frequency correction from the phase difference
+        r"""
+        Calculation of the SPS RF frequency correction from the phase difference
         between beam and RF (actual synchronous phase). The transfer function is
 
         .. math::
-            \\Delta \\omega_{rf}^{PL} = - g_{PL} (\\Delta\\varphi_{PL} + \\phi_{N})
+            \Delta \omega_{rf}^{PL} = - g_{PL} (\Delta\varphi_{PL} + \phi_{N})
 
         where the phase noise for the controlled blow-up can be optionally
         activated.
@@ -149,7 +151,7 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         self._parent_rf_station.dphi_rf_steering += (
             (2.0 * np.pi)
             * (
-                    self._parent_rf_station.harmonic[:]
+                self._parent_rf_station.harmonic[:]
                 / self._parent_rf_station._omega_rf[:]
             )
             * (self._parent_rf_station.delta_omega_rf[:])
@@ -186,7 +188,8 @@ class SpsFBeamFeedback(Blond2BeamFeedback):
         self.gain2 = FL_gain
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Calculation of the SPS RF frequency correction from the phase
+        """
+        Calculation of the SPS RF frequency correction from the phase
         difference between beam and RF (actual synchronous phase). Same as
         LHC_F, except the calculation of the beam phase.
         """
@@ -198,12 +201,15 @@ class SpsFBeamFeedback(Blond2BeamFeedback):
 
         # Frequency correction from phase loop and frequency loop
         self.domega_dphi = -self.gain * self.dphi
-        self.domega_df = -self.gain2 * (self._parent_rf_station.delta_omega_rf[0])
+        self.domega_df = (
+            -self.gain2 * (self._parent_rf_station.delta_omega_rf[0])
+        )
 
         self.domega_rf = self.domega_dphi + self.domega_df
 
     def beam_phase_sharpWindow(self):
-        """Beam phase measured at the main RF frequency and phase. The beam is
+        """
+        Beam phase measured at the main RF frequency and phase. The beam is
         averaged over a window. The coefficients of sine and cosine components
         determine the beam phase, projected to the range -Pi/2 to 3/2 Pi.
         Note that this beam phase is already w.r.t. the instantaneous RF phase.
@@ -214,7 +220,8 @@ class SpsFBeamFeedback(Blond2BeamFeedback):
             + self._parent_rf_station.delta_omega_rf[0]
         )
         phi_rf = (
-                self._parent_rf_station.phi_rf[0] + self._parent_rf_station.delta_phi_rf
+            self._parent_rf_station.phi_rf[0]
+            + self._parent_rf_station.delta_phi_rf
         )
 
         if self.alpha != 0.0:

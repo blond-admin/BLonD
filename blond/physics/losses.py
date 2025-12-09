@@ -31,7 +31,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class LossesBaseClass(BeamPhysicsRelevant, ABC):
-    """Base class for labeling/removing lost particles.
+    """
+    Base class for labeling/removing lost particles.
 
     Parameters
     ----------
@@ -57,36 +58,37 @@ class LossesBaseClass(BeamPhysicsRelevant, ABC):
         self.purge_flagged_macroparticles = purge_flagged_macroparticles
 
     def track(self, beam: BeamBaseClass) -> None:  # pragma: no cover
-        """Main simulation routine to be called in the mainloop.
+        """
+        Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------
         beam
-            Beam class to interact with this element
+            Beam class to interact with this element.
         """
         pass
 
     def _purge_particles(
         self, beam: BeamBaseClass, force: bool = False
     ) -> None:
-        """Potentially remove flagged particles.
+        """
+        Potentially remove flagged particles.
 
         Parameters
         ----------
         beam
-            Beam to remove the particles from
+            Beam to remove the particles from.
         force
             If true, will definitely purge particles.
-            Otherwise, it depends on `self.purge_flagged_macroparticles`
-
-
+            Otherwise, it depends on `self.purge_flagged_macroparticles`.
         """
         if self.purge_flagged_macroparticles or force:
             beam.purge_flagged_entries()
 
 
 class BoxLosses(LossesBaseClass):
-    """Particles outside a rectangle will be flagged lost.
+    """
+    Particles outside a rectangle will be flagged lost.
 
     Parameters
     ----------
@@ -97,24 +99,24 @@ class BoxLosses(LossesBaseClass):
         If false, the ``Beam.flags`` will be set, but particles will still
         be considered for beam physics.
     t_min
-        Macro-particles with ``dt < t_min`` will be labeled/removed, in [s],
+        Macro-particles with ``dt < t_min`` will be labeled/removed, in [s].
     t_max
-        Macro-particles with ``dt > t_max`` will be labeled/removed, in [s],
+        Macro-particles with ``dt > t_max`` will be labeled/removed, in [s].
     e_min
-        Macro-particles with ``dE < t_min`` will be labeled/removed, in [s],
+        Macro-particles with ``dE < t_min`` will be labeled/removed, in [s].
     e_max
-        Macro-particles with ``dE > t_min`` will be labeled/removed, in [s],
+        Macro-particles with ``dE > t_min`` will be labeled/removed, in [s].
 
     Attributes
     ----------
     t_min
-        Macro-particles with ``dt < t_min`` will be labeled/removed, in [s],
+        Macro-particles with ``dt < t_min`` will be labeled/removed, in [s].
     t_max
-        Macro-particles with ``dt > t_max`` will be labeled/removed, in [s],
+        Macro-particles with ``dt > t_max`` will be labeled/removed, in [s].
     e_min
-        Macro-particles with ``dE < t_min`` will be labeled/removed, in [s],
+        Macro-particles with ``dE < t_min`` will be labeled/removed, in [s].
     e_max
-        Macro-particles with ``dE > t_min`` will be labeled/removed, in [s],
+        Macro-particles with ``dE > t_min`` will be labeled/removed, in [s].
     """
 
     def __init__(
@@ -158,10 +160,13 @@ class BoxLosses(LossesBaseClass):
         self.e_max = float(e_max)
 
     def on_init_simulation(self, simulation: Simulation) -> None:
-        """Lateinit method when `simulation.__init__` is called.
+        """
+        Lateinit method when `simulation.__init__` is called.
 
+        Parameters
+        ----------
         simulation
-            Simulation context manager
+            Simulation context manager.
         """
         pass
 
@@ -173,26 +178,32 @@ class BoxLosses(LossesBaseClass):
         turn_i_init: int,
         **kwargs: dict[str, Any],
     ) -> None:
-        """Lateinit method when `simulation.run_simulation` is called.
+        """
+        Lateinit method when `simulation.run_simulation` is called.
 
+        Parameters
+        ----------
         simulation
-            Simulation context manager
+            Simulation context manager.
         beam
-            Simulation beam object
+            Simulation beam object.
         n_turns
-            Number of turns to simulate
+            Number of turns to simulate.
         turn_i_init
-            Initial turn to execute simulation
+            Initial turn to execute simulation.
+        **kwargs
+            Additional keyword arguments.
         """
         pass
 
     def track(self, beam: BeamBaseClass) -> None:
-        """Main simulation routine to be called in the mainloop.
+        """
+        Main simulation routine to be called in the mainloop.
 
         Parameters
         ----------
         beam
-            Beam class to interact with this element
+            Beam class to interact with this element.
         """
         backend.specials.loss_box(
             e_max=self.e_max,
