@@ -208,12 +208,12 @@ class TestRing(unittest.TestCase):
             allow_section_index_overwrite=False,
         )
         assert (
-                self.ring.elements.elements[locations_in_the_new_ring[0]]
-                is element3
+            self.ring.elements.elements[locations_in_the_new_ring[0]]
+            is element3
         )
         assert (
-                self.ring.elements.elements[locations_in_the_new_ring[1]]
-                is element3
+            self.ring.elements.elements[locations_in_the_new_ring[1]]
+            is element3
         )
 
         element4 = Mock(spec=BeamPhysicsRelevant)
@@ -221,10 +221,10 @@ class TestRing(unittest.TestCase):
         location = [0, 2]
 
         with self.assertRaisesRegex(
-                AssertionError,
-                expected_regex="The element section index is incompatible "
-                               "with the requested location. Please allow "
-                               "overwrite for automatic handling.",
+            AssertionError,
+            expected_regex="The element section index is incompatible "
+            "with the requested location. Please allow "
+            "overwrite for automatic handling.",
         ):
             self.ring.insert_element(
                 element=element4,
@@ -234,9 +234,10 @@ class TestRing(unittest.TestCase):
             )
 
         with self.assertRaisesRegex(
-                AssertionError,
-                expected_regex=("Cannot overwrite the section indexes with "
-                                "deepcopy == False."),
+            AssertionError,
+            expected_regex=(
+                "Cannot overwrite the section indexes with deepcopy == False."
+            ),
         ):
             self.ring.insert_element(
                 element=element4,
@@ -248,8 +249,8 @@ class TestRing(unittest.TestCase):
         element4._section_index = 5
         location = [1, 2, 5]
         with self.assertRaises(
-                AssertionError,
-                msg="The element must be inserted within [0:6] indexes.",
+            AssertionError,
+            msg="The element must be inserted within [0:6] indexes.",
         ):
             self.ring.insert_element(
                 element=element4,
