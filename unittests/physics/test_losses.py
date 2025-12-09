@@ -41,6 +41,7 @@ class TestLossesBaseClass(unittest.TestCase):
             np.sort(beam.read_partial_dt()),
             np.sort(np.arange(10)[5:]),
         )
+        np.testing.assert_equal(beam.intensity, 0.5)
 
 
 class TestBoxLosses(unittest.TestCase):
@@ -123,6 +124,7 @@ class TestBoxLosses(unittest.TestCase):
         np.testing.assert_equal(beam._dt <= 2, True)
         np.testing.assert_equal(beam._dE >= -10, True)
         np.testing.assert_equal(beam._dE <= 20, True)
+        self.assertLess(beam.intensity, 1e12)
 
     def test_track3(self):
         self.box_losses = BoxLosses(
@@ -145,6 +147,7 @@ class TestBoxLosses(unittest.TestCase):
         # np.testing.assert_equal(beam._dt <= 2, True)
         np.testing.assert_equal(beam._dE >= -10, True)
         np.testing.assert_equal(beam._dE <= 20, True)
+        self.assertLess(beam.intensity, 1e12)
 
     def test_track4(self):
         self.box_losses = BoxLosses(
@@ -183,6 +186,7 @@ class TestBoxLosses(unittest.TestCase):
         np.testing.assert_equal(beam._dt <= 2, True)
         np.testing.assert_equal(beam._dE >= -10, True)
         # np.testing.assert_equal(beam._dE <= 20, True)
+        self.assertLess(beam.intensity, 1e12)
 
     def test_track6(self):
         self.box_losses = BoxLosses(
@@ -224,6 +228,7 @@ class TestBoxLosses(unittest.TestCase):
             | (beam._dE > 20),
             ~beam._flags.astype(bool),
         )
+        self.assertLess(beam.intensity, 1e12)
 
     def test_track7(self):
         beam = Beam(intensity=1.0, particle_type=uranium_29)
@@ -238,6 +243,8 @@ class TestBoxLosses(unittest.TestCase):
             np.sort(beam.read_partial_dt()),
             np.sort(np.arange(10)[5:]),
         )
+
+        self.assertLess(beam.intensity, 1e12)
 
 
 if __name__ == "__main__":
