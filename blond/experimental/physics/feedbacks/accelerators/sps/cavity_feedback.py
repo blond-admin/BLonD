@@ -940,7 +940,7 @@ class SPSCavityFeedback:
     def on_init_simulation(self, simulation: Simulation):
         pass
 
-    @requires(["RfStationBaseClass"])
+    @requires(["Mu", "RfStationBaseClass"])
     def on_run_simulation(
         self,
         simulation: Simulation,
@@ -971,9 +971,9 @@ class SPSCavityFeedback:
             )
         self.track_init(debug=self.OTFB_1.debug)
 
-    def set_parent_rf_station(self, cavity: RfStationBaseClass):
-        self.OTFB_1.set_parent_rf_station(cavity)
-        self.OTFB_2.set_parent_rf_station(cavity)
+    def set_parent_rf_station(self, rf_station: RfStationBaseClass):
+        self.OTFB_1.set_parent_rf_station(rf_station)
+        self.OTFB_2.set_parent_rf_station(rf_station)
 
     def track(self, beam: BeamBaseClass):
         r"""Main tracking method for the SPSCavityFeedback. This tracks both cavity types

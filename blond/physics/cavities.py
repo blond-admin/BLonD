@@ -25,7 +25,6 @@ from scipy.constants import speed_of_light as c0
 
 from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
-from blond.core.ring.helpers import requires
 from blond.experimental.physics.feedbacks.base import LocalFeedback
 from blond.experimental.physics.feedbacks.beam_feedback import (
     BeamFeedbackBase,
@@ -206,7 +205,6 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         else:
             self._cavity_feedback = (self._cavity_feedback,)
 
-    @requires(["Beam", "BeamBaseClass"])
     def on_run_simulation(
         self,
         simulation: Simulation,
