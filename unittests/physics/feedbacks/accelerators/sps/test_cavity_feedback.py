@@ -746,26 +746,11 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         self.ring = Ring(circumference=C)
 
         # RFStation
-        self.rfstation = MultiHarmonicRfStation(
-            harmonic=np.array([h], dtype=backend.float),
-            voltage=np.array([V], dtype=backend.float),
-            phi_rf=np.array([phi], dtype=backend.float),
-            n_harmonics=1,
-            main_harmonic_idx=0,
-        )
         self.magnetic_cycle = ConstantMagneticCycle(
             reference_particle=proton,
             value=p_s,
             in_unit="momentum",
         )
-        self.ring.add_element(self.rfstation)
-        self.ring.add_drifts(
-            n_drifts_per_section=1,
-            n_sections=1,
-            driftclass=DriftSimple,
-            transition_gamma=gamma_t,
-        )
-        sim = Simulation(ring=self.ring, magnetic_cycle=self.magnetic_cycle)
 
         # Beam
         self.beam = Beam(intensity=N_b, particle_type=proton)
@@ -778,27 +763,56 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
                 particle_type=proton,
             ),
         )
-        beam_2 = deepcopy(self.beam)
-        self.rfstation.track(beam_2)
-        del beam_2
-
-        self.profile = StaticProfile(
-            cut_left=0.0e-9, cut_right=self.rfstation._t_rev, n_bins=4620
-        )
-        self.profile.track(self.beam)
+        # beam_2 = deepcopy(self.beam)
+        # self.rfstation.track(beam_2)
+        # del beam_2
 
         # Cavity
         self.Commissioning = SPSCavityLoopCommissioning(
             open_ff=True, rot_iq=-1, cpp_conv=False
         )
 
+        t_rf = (
+            self.magnetic_cycle.get_t_rev_init(
+                self.ring.circumference,
+                turn_i_init=0,
+                t_init=0,
+                particle_type=proton,
+            )
+            / h
+        )
+
+        self.profile = StaticProfile(
+            cut_left=0.0e-9, cut_right=t_rf * h, n_bins=4620
+        )
+        self.profile.track(self.beam)
+
         self.OTFB = SPSOneTurnFeedback(
-            self.rfstation,
             self.profile,
             3,
             a_comb=63 / 64,
             commissioning=self.Commissioning,
         )
+
+        self.rfstation = MultiHarmonicRfStation(
+            harmonic=np.array([h], dtype=backend.float),
+            voltage=np.array([V], dtype=backend.float),
+            phi_rf=np.array([phi], dtype=backend.float),
+            n_harmonics=1,
+            main_harmonic_idx=0,
+            cavity_feedback=self.OTFB,
+        )
+
+        self.ring.add_element(self.rfstation)
+        self.ring.add_drifts(
+            n_drifts_per_section=1,
+            n_sections=1,
+            driftclass=DriftSimple,
+            transition_gamma=gamma_t,
+        )
+        sim = Simulation(ring=self.ring, magnetic_cycle=self.magnetic_cycle)
+
+        sim.finalize(beams=(self.beam,), n_turns=N_t)
 
         self.OTFB.update_rf_variables()
         self.OTFB.update_fb_variables()
@@ -819,7 +833,7 @@ class TestSPSOneTurnFeedback(unittest.TestCase):
         t_sig[-self.OTFB.n_coarse :] = (
             (1 / 9)
             * 10e6
-            * np.exp(1j * (np.pi / 2 - self.rfstation.phi_rf[0]))
+            * np.exp(1j * (np.pi / 2 - self.rfstation.phi_rf_actual[0]))
         )
 
         np.testing.assert_allclose(self.OTFB.V_SET, t_sig)

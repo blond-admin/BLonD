@@ -390,7 +390,6 @@ class TestTravelingWaveCavity(unittest.TestCase):
 
         # Calculate impulse response and induced voltage
         OTFB = SPSOneTurnFeedback(
-            rf,
             profile2,
             3,
             n_cavities=1,

@@ -225,7 +225,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
     def test_track_increments(self) -> None:
         self.multi_harmonic_cavity
         self.multi_harmonic_cavity.delta_omega_rf = (
-            0.1 * self.multi_harmonic_cavity._omega_rf
+            0.1 * self.multi_harmonic_cavity.omega_rf_design
         )
         phi_a = self.multi_harmonic_cavity.delta_phi_rf.copy()
         self.multi_harmonic_cavity.track(beam=self.beam)
@@ -273,7 +273,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
             harmonic=np.array([5, 6]),
         )
         np.testing.assert_allclose(local_cav.voltage, np.array([1, 2]))
-        np.testing.assert_allclose(local_cav.phi_rf, np.array([3, 4]))
+        np.testing.assert_allclose(local_cav.phi_rf_actual, np.array([3, 4]))
         np.testing.assert_allclose(local_cav.harmonic, np.array([5, 6]))
 
         with self.assertRaises(ValueError):
@@ -337,7 +337,7 @@ class TestMultiHarmonicCavity(unittest.TestCase):
         simulation = Mock(Simulation)
         simulation.turn_i = DynamicParameter(0)
         with self.assertRaises(ValueError):
-            self.multi_harmonic_cavity.phi_rf = None
+            self.multi_harmonic_cavity.phi_rf_design = None
             self.multi_harmonic_cavity.on_init_simulation(
                 simulation=simulation
             )
