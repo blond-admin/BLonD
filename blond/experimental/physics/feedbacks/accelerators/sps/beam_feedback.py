@@ -401,7 +401,7 @@ class SpsFBeamFeedback(Blond2BeamFeedback):
         Note that this beam phase is already w.r.t. the instantaneous RF phase.
         """
         # Main RF frequency at the present turn
-        omega_rf = self._parent_rf_station.get_main_harmonic_omega_rf_current()
+        omega_rf = self._parent_rf_station.get_main_harmonic_omega_rf_actual()
         phi_rf = self._parent_rf_station.get_main_harmonic_phi_rf_current()
 
         if self.alpha != 0.0:

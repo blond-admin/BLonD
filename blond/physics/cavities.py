@@ -177,20 +177,10 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         """RF angular frequency."""
         return self.omega_rf_design + self.delta_omega_rf
 
-    # @omega_rf.setter
-    # def omega_rf(self, value: float | NumpyArray):
-    #     """Setting RF angular frequency."""
-    #     self.delta_omega_rf = value - self._omega_rf_design
-
     @property
     def phi_rf_actual(self):
         """RF phase."""
         return self.phi_rf_design + self.delta_phi_rf
-
-    # @phi_rf.setter
-    # def phi_rf(self, value: float | NumpyArray):
-    #     """Setting RF angular frequency."""
-    #     self.delta_phi_rf = value - self._phi_rf_design
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called.
@@ -250,7 +240,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         pass
 
     @abstractmethod  # pragma: no cover
-    def get_main_harmonic_omega_rf_current(self) -> float:
+    def get_main_harmonic_omega_rf_actual(self) -> float:
         """Returns the omega_rf of the main harmonic, in [rad/s]."""
         pass
 
@@ -264,7 +254,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         pass
 
     @abstractmethod  # pragma: no cover
-    def get_main_harmonic_t_rf_current(self) -> float:
+    def get_main_harmonic_t_rf_actual(self) -> float:
         """Returns the current t_rf of the main harmonic."""
         pass
 
@@ -413,14 +403,14 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         # Accumulated phase offset due to beam phase loop or frequency offset
         if np.any(self.delta_omega_rf != 0):
             assert self.harmonic is not None
-            assert self._omega_rf is not None
+            assert self.omega_rf_actual is not None
             assert self.delta_omega_rf is not None
             phi_increment = (
                 2.0
                 * np.pi
                 * self.harmonic[:]
                 * self.delta_omega_rf
-                / self._omega_rf[:]
+                / self.omega_rf_actual[:]
             )
 
             self.delta_phi_rf += phi_increment
@@ -576,15 +566,15 @@ class SingleHarmonicRfStation(RfStationBaseClass):
             ring_circumference=ring_circumference,
         )
 
-    def get_main_harmonic_omega_rf_current(self) -> float:
+    def get_main_harmonic_omega_rf_actual(self) -> float:
         """Returns the omega_rf of the main harmonic, in [rad/s]."""
         return self.omega_rf_actual
 
-    def get_main_harmonic_t_rf_current(
+    def get_main_harmonic_t_rf_actual(
         self,
     ) -> float:
         """Returns the t_rf of the main harmonic, in [s]."""
-        return (2 * np.pi) / self.get_main_harmonic_omega_rf_current()
+        return (2 * np.pi) / self.get_main_harmonic_omega_rf_actual()
 
     def calc_main_harmonic_t_rf(
         self, beam_beta: float, ring_circumference: float
@@ -620,11 +610,11 @@ class SingleHarmonicRfStation(RfStationBaseClass):
             )
 
     def _update_beam_based_attributes(self, beam: BeamBaseClass) -> None:
-        self._omega_rf_design = self.calc_omega_rf_design(
+        self.omega_rf_design = self.calc_omega_rf_design(
             beam_beta=beam.reference_beta,
             ring_circumference=self._ring.circumference,
         )
-        """self._t_rf = (2 * np.pi) / self._omega_rf
+        """self._t_rf = (2 * np.pi) / self.omega_rf_actual
         self._t_rev = self._t_rf * self.harmonic
         try:
             self.phi_s = self.calc_phi_s_single_harmonic(beam=beam)
@@ -685,7 +675,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
                 * np.pi
                 * self.harmonic
                 * (self.delta_omega_rf)
-                / self._omega_rf_design
+                / self.omega_rf_design
             )
 
             self.delta_phi_rf += phi_increment
@@ -967,14 +957,14 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             )
 
     def _update_beam_based_attributes(self, beam: BeamBaseClass) -> None:
-        self._omega_rf_design = self.calc_omega_rf_design(
+        self.omega_rf_design = self.calc_omega_rf_design(
             beam_beta=beam.reference_beta,
             ring_circumference=self._ring.circumference,
         )
 
-        self._t_rf = (2 * np.pi) / self._omega_rf_design
+        self._t_rf = (2 * np.pi) / self.omega_rf_design
         self._t_rev = (
-            self.get_main_harmonic_t_rf_current() * self.get_main_harmonic()
+            self.get_main_harmonic_t_rf_actual() * self.get_main_harmonic()
         )
         try:
             self.phi_s = self.calc_phi_s_single_harmonic(beam=beam)
@@ -1025,15 +1015,15 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             ring_circumference=ring_circumference,
         )[self.main_harmonic_idx]
 
-    def get_main_harmonic_omega_rf_current(self) -> float:
+    def get_main_harmonic_omega_rf_actual(self) -> float:
         """Returns the omega_rf of the main harmonic, in [rad/s]."""
         return self.omega_rf_actual[self.main_harmonic_idx]
 
-    def get_main_harmonic_t_rf_current(
+    def get_main_harmonic_t_rf_actual(
         self,
     ) -> float:
         """Returns the t_rf of the main harmonic, in [s]."""
-        return (2 * np.pi) / self.get_main_harmonic_omega_rf_current()
+        return (2 * np.pi) / self.get_main_harmonic_omega_rf_actual()
 
     def calc_main_harmonic_t_rf(
         self, beam_beta: float, ring_circumference: float
@@ -1095,13 +1085,13 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         """
         raise NotImplementedError
         voltage = self.voltage[0] * np.sin(
-            self._omega_rf_effective[0] * ts
+            self.omega_rf_actual[0] * ts
             + self.phi_rf_design[0]
             + self.delta_phi_rf[0]
         )
         for i in range(1, len(self.voltage)):
             voltage += self.voltage[i] * np.sin(
-                self._omega_rf_effective[i] * ts
+                self.omega_rf_actual[i] * ts
                 + self.phi_rf_design[i]
                 + self.delta_phi_rf[i]
             )
