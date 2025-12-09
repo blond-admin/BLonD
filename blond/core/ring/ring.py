@@ -674,8 +674,13 @@ class Ring(Preparable):
                 element._section_index = self.elements.elements[
                     insert_at - 1
                 ].section_index
-            else:
+            elif insert_at < len(self.elements.elements):
                 element._section_index = self.elements.elements[
                     insert_at
                 ].section_index
+            else:
+                raise AssertionError(
+                    f"The element must be inserted within ["
+                    f"0:{len(self.elements.elements)}] indexes."
+                )
         return element
