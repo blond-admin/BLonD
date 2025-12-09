@@ -580,7 +580,9 @@ class TestRing(unittest.TestCase):
         )
 
         ring.on_init_simulation(simulation_mock)
-        sim = Simulation(ring, Mock(MagneticCyclePerTurn))
+        mag_cycle = Mock(MagneticCyclePerTurn)
+        mag_cycle.get_total_energy_init.return_value = 5
+        sim = Simulation(ring, mag_cycle)
         beam = Beam(intensity=1, particle_type=lead_82)
         beam._dt = [1]
         beam._dE = [2]

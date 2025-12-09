@@ -315,7 +315,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
 
         Returns
         -------
-        main_harmonic_omega_rf_current
+        main_harmonic_omega_rf_actual
             The omega_rf of the main harmonic, in [rad/s].
         """
         pass
@@ -344,9 +344,9 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         pass
 
     @abstractmethod  # pragma: no cover
-    def get_main_harmonic_t_rf_current(self) -> float:
+    def get_main_harmonic_t_rf_actual(self) -> float:
         """
-        Return the current t_rf of the main harmonic.
+        Return the actual t_rf of the main harmonic.
 
         Returns
         -------
@@ -1319,7 +1319,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         main_harmonic_t_rf
             The t_rf of the main harmonic, in [s].
         """
-        return (2 * np.pi) / self.calc_main_harmonic_omega_rf(
+        return (2 * np.pi) / self.get_main_harmonic_omega_rf_design(
             beam_beta, ring_circumference
         )
 

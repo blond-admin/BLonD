@@ -77,7 +77,7 @@ class TestLHCOpenDrive(unittest.TestCase):
         self.RFFB = LHCCavityLoopCommissioning(
             open_drive=True,
         )
-        omega = self.rf.calc_omega(
+        omega = self.rf.get_main_harmonic_omega_rf_design(
             beam_beta=beam.reference_beta,
             ring_circumference=ring.circumference,
         )
@@ -89,7 +89,6 @@ class TestLHCOpenDrive(unittest.TestCase):
 
     def test_1(self):
         CL = LHCCavityLoop(
-            self.rf,
             self.profile,
             f_c=self.f_c,
             G_gen=1,
@@ -115,7 +114,6 @@ class TestLHCOpenDrive(unittest.TestCase):
 
     def test_2(self):
         CL = LHCCavityLoop(
-            self.rf,
             self.profile,
             f_c=self.f_c,
             G_gen=1,
