@@ -966,10 +966,12 @@ class MultiHarmonicRfStation(RfStationBaseClass):
                 f"You need to define `voltage` for '{self.name}' via "
                 f"`.voltage=...` or `.schedule(attribute='voltage', value=...)`"
             )
-        if (self.phi_rf is None) and "phi_rf" not in self.schedules:
+        if (
+            self.phi_rf_design is None
+        ) and "phi_rf_design" not in self.schedules:
             raise ValueError(
-                f"You need to define `phi_rf` for '{self.name}' via "
-                f"`.phi_rf=...` or `.schedule(attribute='phi_rf', value=...)`"
+                f"You need to define `phi_rf_design` for '{self.name}' via "
+                f"`.phi_rf_design=...` or `.schedule(attribute='phi_rf_design', value=...)`"
             )
         if (self.harmonic is None) and "harmonic" not in self.schedules:
             raise ValueError(
