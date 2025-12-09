@@ -1432,17 +1432,21 @@ def _get_dE_from_dt(
     return dE_amplitude
 
 def Haissinski(ring_tracker: FullRingAndRF, isr: SynchrotronRadiation,
-               verbose = True, seed: int = 1234):
+               verbose: bool = True, seed: int = 1234,
+               root_kwargs: dict = {}):
     r"""Solves the Haissinksi equation to find the equilibrum bunch distribution of the
     Vlasov-Fokker-Planck equation. The algorithm is based on root-finding, as described
     in [Warnock2018]_. The function requires a :class:`~blond.trackers.tracker.FullRingAndRF`
-    with the :class:`~blond.beam.beam.Beam`, :class:`~input_parameters.rf_parameters.RFStation`
-    and :class:`~impedances.impedance.TotalInducedVoltage`. The
+    with the :class:`~blond.beam.beam.Beam`, :class:`~input_parameters.rf_parameters.RFStation`.
+    Collective effects are included if `ring_tracker` includes an
+    :class:`~impedances.impedance.TotalInducedVoltage` object. The
     :class:`~blond.synchrotron_radiation.synchrotron_radiation.SynchrotronRadiation` object
     is needed for the energy loss due to synchrotron radiation.
-    
-    The Beam object of the Tracker will contain the Haissinski distribution. If `verbose`
+
+    The Beam object of `ring_tracker` will contain the Haissinski distribution. If `verbose`
     is True, the `OptimizeResult` object will be returned.
+    The behavior of the root finding algorithm, such as the method used, can be controlled
+    by `root_kwargs`, which gets passed on to `scipy.optimize.root`.
 
     Parameters
     ----------
@@ -1455,6 +1459,9 @@ def Haissinski(ring_tracker: FullRingAndRF, isr: SynchrotronRadiation,
         root finding algorithm
     seed : int, optional
         Seed to use for the creation of the macro-particle distribtution
+    root_kwargs: dict, optional
+        Options passed on to `scipy.optimize.root` such as the method. Default parameters
+        are used if it is empty.
 
     References
     ----------
@@ -1475,11 +1482,14 @@ def Haissinski(ring_tracker: FullRingAndRF, isr: SynchrotronRadiation,
 
     # computes the induced voltage for a given profile lam
     def Vind(lam, induced_voltage):
-        # update profile used in the computation of Vind
-        profile.n_macroparticles = lam * profile.bin_size * n_macroparticles
+        if induced_voltage is None:
+            return 0.0
+        else:
+            # update profile used in the computation of Vind
+            profile.n_macroparticles = lam * profile.bin_size * n_macroparticles
 
-        induced_voltage.induced_voltage_sum()
-        return induced_voltage.induced_voltage
+            induced_voltage.induced_voltage_sum()
+            return induced_voltage.induced_voltage
 
     tracker = ring_tracker.ring_and_rf_section[0]
     counter = tracker.counter
@@ -1512,7 +1522,7 @@ def Haissinski(ring_tracker: FullRingAndRF, isr: SynchrotronRadiation,
     profile.n_macroparticles = lam0 * profile.bin_size * n_macroparticles
 
     # scale factor [s]
-    Tau = -eta0 * sigmaE**2 / energy / (q*voltage_rf) * tRev  
+    Tau = -eta0 * sigmaE**2 / energy / (q*voltage_rf) * tRev
 
     # arguments passed to the root finding algorithm
     args = tracker, Tau, isr.U0
@@ -1537,7 +1547,7 @@ def Haissinski(ring_tracker: FullRingAndRF, isr: SynchrotronRadiation,
 
     # obtain the Haissinski solution
     fun = lambda l: N(l, *args)  # helper function since root needs a function of one argument
-    sol = scipy.optimize.root(fun, lam0, jac=False)
+    sol = scipy.optimize.root(fun, lam0, **root_kwargs)
     haiss_dt = sol.x
 
     # create macro-particles from distribution

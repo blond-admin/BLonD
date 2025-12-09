@@ -38,23 +38,23 @@ energy = 1.3e9  # [eV]
 
 n_bins = 128
 # increase number of macro-particles for smoother beam
-n_macroparticles = int(1e5)  
+n_macroparticles = int(1e5)
 
 current = 1.5 * 0.1e-3  # [A], threshold for V=1MV, alpha0=5e-4 at ~ 0.2 mA
 
 R_bend = 5.559  # dipole bending radius [m]
 
-ring = Ring(110.4, 5e-4, energy, Electron(), n_turns=n_turns, 
+ring = Ring(110.4, 5e-4, energy, Electron(), n_turns=n_turns,
             synchronous_data_type='total energy')
 tRev = ring.t_rev[0]
 
 
 beam = Beam(ring, n_macroparticles, current * tRev / e)
 
-iSR = SynchrotronRadiation(ring, RFStation(ring, h, V0, 0), beam, R_bend, n_kicks=1, 
+iSR = SynchrotronRadiation(ring, RFStation(ring, h, V0, 0), beam, R_bend, n_kicks=1,
                            quantum_excitation=True, seed=seed, shift_beam=False)
 # equilibrium energy spread [eV]
-sigma_E = energy * iSR.sigma_dE  
+sigma_E = energy * iSR.sigma_dE
 
 # shift rf phase to synchronous phase
 phi_sync = np.arcsin(iSR.U0 / ring.particle.charge / V0)
@@ -82,7 +82,9 @@ tracker = RingAndRFTracker(rf_station, beam, profile=profile,
                            interpolation=True)
 ring_tracker = FullRingAndRF([tracker])
 
-haissinski_solution = Haissinski(ring_tracker, iSR, verbose=True, seed=seed)
+# obtain Haissinski solution
+haissinski_solution = Haissinski(ring_tracker, iSR, verbose=True, seed=seed,
+                                 root_kwargs={'method':'hybr'})
 
 print(haissinski_solution.message)
 
@@ -93,10 +95,10 @@ fig_h, ax_h = plt.subplots(num='Haissinski', clear=True)
 ax_h.grid(True)
 ax_h.set_xlabel('time / ps')
 ax_h.set_ylabel('peak current / A')
-ax_h.plot(profile.bin_centers*1e12, haissinski_solution.x * beam.intensity * e, 
+ax_h.plot(profile.bin_centers*1e12, haissinski_solution.x * beam.intensity * e,
          'C1', label='Haissinski')
-ax_h.plot(profile.bin_centers*1e12, 
-          profile.n_macroparticles / n_macroparticles / profile.bin_size * beam.intensity * e, 
+ax_h.plot(profile.bin_centers*1e12,
+          profile.n_macroparticles / n_macroparticles / profile.bin_size * beam.intensity * e,
           'C2--', label='initial profile')
 
 init_beam_dt = np.copy(beam.dt)
@@ -123,7 +125,7 @@ for turn in range(n_turns):
     frodo_dE[turn] = beam.dE[0]
     profile.track()
 
-    # compute induced voltage; kick applied later by tracker.track()    
+    # compute induced voltage; kick applied later by tracker.track()
     inducedVoltage.induced_voltage_sum()
 
     # energy loss and quantum excitation due to incoherent SR
@@ -133,8 +135,8 @@ for turn in range(n_turns):
     ring_tracker.track()
 
 
-ax_h.plot(profile.bin_centers*1e12, 
-         profile.n_macroparticles / n_macroparticles / profile.bin_size * beam.intensity * e, 
+ax_h.plot(profile.bin_centers*1e12,
+         profile.n_macroparticles / n_macroparticles / profile.bin_size * beam.intensity * e,
          'C3.', label='final profile')
 fig_h.legend()
 fig_h.tight_layout()
