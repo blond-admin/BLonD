@@ -76,12 +76,12 @@ class SpsRlBeamFeedback(Blond2BeamFeedback):
         self.energy = beam.reference_total_energy
 
     def track(self, beam: BeamBaseClass) -> None:
-        """
+        r"""
         Calculation of the SPS RF frequency correction from the phase difference
         between beam and RF (actual synchronous phase). The transfer function is
 
         .. math::
-            \\Delta \\omega_{rf}^{PL} = - g_{PL} (\\Delta\\varphi_{PL} + \\phi_{N})
+            \Delta \omega_{rf}^{PL} = - g_{PL} (\Delta\varphi_{PL} + \phi_{N})
 
         where the phase noise for the controlled blow-up can be optionally
         activated.

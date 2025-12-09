@@ -68,12 +68,12 @@ class LhcBeamFeedback(Blond2BeamFeedback):
             self.lhc_t = np.zeros(self._parent_rf_station.n_turns + 1)
 
     def track(self, beam: BeamBaseClass) -> None:
-        """
+        r"""
         Calculation of the LHC RF frequency correction from the phase difference
         between beam and RF (actual synchronous phase). The transfer function is
 
         .. math::
-            \\Delta \\omega_{rf}^{PL} = - g_{PL} (\\Delta\\varphi_{PL} + \\phi_{N})
+            \Delta \omega_{rf}^{PL} = - g_{PL} (\Delta\varphi_{PL} + \phi_{N})
 
         where the phase noise for the controlled blow-up can be optionally
         activated.
@@ -81,21 +81,21 @@ class LhcBeamFeedback(Blond2BeamFeedback):
         long-term frequency drifts:
 
         .. math::
-            \\Delta \\omega_{rf}^{SL} = - g_{SL} (y + a \\Delta\\varphi_{rf}) ,
+            \Delta \omega_{rf}^{SL} = - g_{SL} (y + a \Delta\varphi_{rf}) ,
 
         where we use the recursion
 
         .. math::
-            y_{n+1} = (1 - \\tau) y_n + (1 - a) \\tau \\Delta\\varphi_{rf} ,
+            y_{n+1} = (1 - \tau) y_n + (1 - a) \tau \Delta\varphi_{rf} ,
 
         with a and \tau being defined through the synchrotron frequency f_s and
         the synchrotron tune Q_s as
 
         .. math::
-            a (f_s) \\equiv 5.25 - \\frac{f_s}{\\pi 40~\\text{Hz}} ,
+            a (f_s) \equiv 5.25 - \frac{f_s}{\pi 40~\text{Hz}} ,
 
         .. math::
-            \\tau(f_s) \\equiv 2 \\pi Q_s \\sqrt{ \\frac{a}{1 + \\frac{g_{PL}}{g_{SL}} \\sqrt{\\frac{1 + 1/a}{1 + a}} }}
+            \tau(f_s) \equiv 2 \pi Q_s \sqrt{ \frac{a}{1 + \frac{g_{PL}}{g_{SL}} \sqrt{\frac{1 + 1/a}{1 + a}} }}
         """
         self.update_domega_rf(beam=beam)
 
@@ -139,12 +139,12 @@ class LhcFBeamFeedback(Blond2BeamFeedback):
         self.gain2 = FL_gain
 
     def track(self, beam: BeamBaseClass) -> None:
-        """
+        r"""
         Calculation of the LHC RF frequency correction from the phase difference
         between beam and RF (actual synchronous phase). The transfer function is
 
         .. math::
-            \\Delta \\omega_{rf}^{PL} = - g_{PL} (\\Delta\\varphi_{PL} + \\phi_{N})
+            \Delta \omega_{rf}^{PL} = - g_{PL} (\Delta\varphi_{PL} + \phi_{N})
 
         where the phase noise for the controlled blow-up can be optionally
         activated.
@@ -152,7 +152,7 @@ class LhcFBeamFeedback(Blond2BeamFeedback):
         long-term frequency drifts:
 
         .. math::
-            \\Delta \\omega_{rf}^{FL} = - g_{FL} (\\omega_{rf} - h \\omega_{0})
+            \Delta \omega_{rf}^{FL} = - g_{FL} (\omega_{rf} - h \omega_{0})
         """
         self.update_domega_rf(beam=beam)
 

@@ -118,11 +118,11 @@ def phase_modulo_above_transition(
     phi: float | NumpyArray,
 ) -> float | NumpyArray:
     r"""
-    Wrap phase values into the range :math:`[0, 2\\pi)`.
+    Wrap phase values into the range :math:`[0, 2\pi)`.
 
     This function projects scalar or array phase values (in radians)
-    into the range from :math:`0` (inclusive) to :math:`2\\pi` (exclusive),
-    ensuring continuity across multiples of :math:`2\\pi`.
+    into the range from :math:`0` (inclusive) to :math:`2\pi` (exclusive),
+    ensuring continuity across multiples of :math:`2\pi`.
 
     Parameters
     ----------
@@ -132,18 +132,18 @@ def phase_modulo_above_transition(
     Returns
     -------
     phi_corrected
-        Phase value(s) wrapped into the range :math:`[0, 2\\pi)`.
+        Phase value(s) wrapped into the range :math:`[0, 2\pi)`.
 
     Notes
     -----
-    This operation performs a modulo of :math:`2\\pi` such that negative phase
+    This operation performs a modulo of :math:`2\pi` such that negative phase
     values are shifted into the positive domain.
 
     The transformation is defined as:
 
     .. math::
 
-        \\phi_{corrected} = \\phi - 2\\pi \\left\\lfloor \\frac{\\phi}{2\\pi} \\right\\rfloor
+        \phi_{corrected} = \phi - 2\pi \left\lfloor \frac{\phi}{2\pi} \right\rfloor
 
     Examples
     --------
@@ -171,11 +171,11 @@ def phase_modulo_below_transition(
     phi: float | NumpyArray,
 ) -> float | NumpyArray:
     r"""
-    Wrap phase values into the range :math:`[0, 2\\pi)`.
+    Wrap phase values into the range :math:`[0, 2\pi)`.
 
     This function projects scalar or array phase values (in radians)
-    into the range from :math:`0` (inclusive) to :math:`2\\pi` (exclusive),
-    ensuring continuity across multiples of :math:`2\\pi`.
+    into the range from :math:`0` (inclusive) to :math:`2\pi` (exclusive),
+    ensuring continuity across multiples of :math:`2\pi`.
 
     Parameters
     ----------
@@ -185,18 +185,18 @@ def phase_modulo_below_transition(
     Returns
     -------
     phi_corrected
-        Phase value(s) wrapped into the range :math:`[0, 2\\pi)`.
+        Phase value(s) wrapped into the range :math:`[0, 2\pi)`.
 
     Notes
     -----
-    This operation performs a modulo of :math:`2\\pi` such that negative phase
+    This operation performs a modulo of :math:`2\pi` such that negative phase
     values are shifted into the positive domain.
 
     The transformation is defined as:
 
     .. math::
 
-        \\phi_{corrected} = \\phi - 2\\pi \\left\\lfloor \\frac{\\phi}{2\\pi} \\right\\rfloor
+        \phi_{corrected} = \phi - 2\pi \left\lfloor \frac{\phi}{2\pi} \right\rfloor
 
     Examples
     --------
