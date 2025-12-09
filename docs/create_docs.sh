@@ -25,7 +25,7 @@ API Documentation
    blond.physics
    blond.specifics
 EOF
-python make_main_functions_doc.py
+python3 make_main_functions_doc.py
 # Add diagrams to each .rst file automatically
 for f in ./modules/blond.*.rst; do
     modname="${f##*/}"       # strip path
