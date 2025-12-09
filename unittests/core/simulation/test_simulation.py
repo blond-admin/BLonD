@@ -581,6 +581,7 @@ class TestSimulation(unittest.TestCase):
         from blond import backend
 
         beam_mock.common_array_size = int(1e32)
+        beam_mock.reference_beta = 1  # cavity initialisation
         special_mode_org = backend.specials_mode
         backend.set_specials(mode="python")
         with self.assertWarns(PerformanceWarning):
