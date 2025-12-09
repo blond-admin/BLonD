@@ -41,7 +41,8 @@ if TYPE_CHECKING:
 
 
 class SPSCavityLoopCommissioning:
-    r"""Class containing commissioning settings for the cavity feedback
+    r"""
+    Class containing commissioning settings for the cavity feedback
 
     Parameters
     ----------
@@ -378,7 +379,8 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
         )
 
     def llrf_model(self):
-        r"""The LLRF model of the SPSOneTurnFeedback. This function calles the functions related
+        r"""
+        The LLRF model of the SPSOneTurnFeedback. This function calles the functions related
         to the LLRF part of the model in the correct order.
         """
         # Track all the modules of the LLRF-part of the model
@@ -531,7 +533,8 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
         self.V_SET[-self.n_coarse :] = self.V_set
 
     def set_point_mod(self):
-        r"""This function is called instead of set_point_std if a modulated set point is used.
+        r"""
+        This function is called instead of set_point_std if a modulated set point is used.
         That is, if the set point is non-constant over a turn with the periodicity of a turn.
         """
         self.logger.debug(
@@ -582,7 +585,8 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
         )
 
     def one_turn_delay(self):
-        r"""This function applies the complementary delay such that the correction is applied
+        r"""
+        This function applies the complementary delay such that the correction is applied
         with exactly the delay of one turn.
         """
         # Store last turn delayed signal and compute current turn error signal
@@ -606,7 +610,8 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
         )
 
     def mov_avg(self):
-        r"""This function applies the cavity filter, modelled as a moving average, to the modulated
+        r"""
+        This function applies the cavity filter, modelled as a moving average, to the modulated
         error signal.
         """
         # Store last turn moving average signal
@@ -736,7 +741,8 @@ class SPSOneTurnFeedback(BirksCavityFeedback):
 
 
 class SPSCavityFeedback:
-    """Class determining the turn-by-turn total RF voltage and phase correction
+    """
+    Class determining the turn-by-turn total RF voltage and phase correction
     originating from the individual cavity feedbacks. Assumes two 4-section and
     two 5-section travelling wave cavities in the pre-LS2 scenario and four
     3-section and two 4-section cavities in the post-LS2 scenario. The voltage
@@ -934,7 +940,8 @@ class SPSCavityFeedback:
         pass
 
     def track(self, beam: BeamBaseClass):
-        r"""Main tracking method for the SPSCavityFeedback. This tracks both cavity types
+        r"""
+        Main tracking method for the SPSCavityFeedback. This tracks both cavity types
         with beam.
         """
         # Track the feedbacks for the two TWC types

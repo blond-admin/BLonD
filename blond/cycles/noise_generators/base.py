@@ -30,5 +30,17 @@ class NoiseGenerator(ABC):
 
     @abstractmethod  # pragma: no cover
     def get_noise(self, n_turns: int) -> NumpyArray:
-        """Generate noise for n turns."""
+        """
+        Generate noise for n turns.
+
+        Parameters
+        ----------
+        n_turns
+            Number of turns to generate noise for.
+
+        Returns
+        -------
+        noise
+            Generated noise array.
+        """
         pass

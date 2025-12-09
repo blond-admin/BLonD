@@ -25,7 +25,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def gauss_fit(hist_x: NumpyArray, hist_y: NumpyArray) -> NumpyArray:
-    """Performs a gaussian fit on a profile with a single bunches.
+    """
+    Perform a gaussian fit on a profile with a single bunches.
 
     Returns the amplitude, the mean and the standard deviation
     of the fitted gaussian curve for each bunch.
@@ -33,16 +34,15 @@ def gauss_fit(hist_x: NumpyArray, hist_y: NumpyArray) -> NumpyArray:
     Parameters
     ----------
     hist_x
-        X-axis of the histogram to perform the fitting on
+        X-axis of the histogram to perform the fitting on.
     hist_y
-        Y-axis of the histogram to perform the fitting on
+        Y-axis of the histogram to perform the fitting on.
 
     Returns
     -------
     params
         Amplitude, mean and standard deviation for each bunch
         Shape (n_bunches,).
-
     """
     return multi_gauss_fit(hist_x, hist_y, n_bunches=1)[0]
 
@@ -50,7 +50,8 @@ def gauss_fit(hist_x: NumpyArray, hist_y: NumpyArray) -> NumpyArray:
 def multi_gauss_fit(
     hist_x: NumpyArray, hist_y: NumpyArray, n_bunches: int
 ) -> NumpyArray:
-    """Performs a gaussian fit on a profile with multiple bunches.
+    """
+    Perform a gaussian fit on a profile with multiple bunches.
 
     Returns the amplitude, the mean and the standard
     deviation of the fitted gaussian curve for each bunch.
@@ -58,11 +59,11 @@ def multi_gauss_fit(
     Parameters
     ----------
     hist_x
-        X-axis of the histogram to perform the fitting on
+        X-axis of the histogram to perform the fitting on.
     hist_y
-        Y-axis of the histogram to perform the fitting on
+        Y-axis of the histogram to perform the fitting on.
     n_bunches
-        Number of bunches in the profile
+        Number of bunches in the profile.
 
     Returns
     -------
@@ -98,7 +99,8 @@ def multi_gauss_fit(
 def gauss(
     x: NumpyArray, amplitude: int, center: int, sigma_x: int
 ) -> NumpyArray:
-    r"""Calculate the Gauss function.
+    r"""
+    Calculate the Gauss function.
 
     .. math::
 
@@ -107,15 +109,13 @@ def gauss(
     Parameters
     ----------
     x
-        Input array at which points to calculate the gaussian
-    sigma_x
-        Standard Deviation
+        Input array at which points to calculate the gaussian.
     amplitude
-        Amplitude of the function
+        Amplitude of the function.
     center
-        Mean
+        Mean.
     sigma_x
-        Standard deviation
+        Standard deviation.
 
     Returns
     -------

@@ -39,17 +39,26 @@ _fortran_files32 = [os.path.join(_basepath, f) for f in _fortran_files32]
 
 
 def compile_fortran_module(module_name: str, fortran_files: list[str]) -> bool:
-    """Compile the Fortran source files into a Python module using f2py.
+    """
+    Compile the Fortran source files into a Python module using f2py.
 
-    See Also
-    --------
-    https://numpy.org/doc/stable/f2py/index.html
+    Parameters
+    ----------
+    module_name
+        Name of the Python module to create.
+    fortran_files
+        List of Fortran source files to compile.
+
+    Returns
+    -------
+    success
+        True if compilation succeeded, False otherwise.
 
     Notes
     -----
     Applies high-performance compilation flags.
     Use the command `f2py` in your terminal to debug problems with your compiler setup.
-
+    For more information on f2py, see https://numpy.org/doc/stable/f2py/index.html.
     """
     print("\nTrying to compile Fortran backend.")
     from numpy import (  # NOQA must be installed to be compiled / force exception
@@ -106,14 +115,13 @@ def compile_fortran_module(module_name: str, fortran_files: list[str]) -> bool:
 
 
 def move_compiled_file_to_subfolder(module_name: str) -> None:
-    """Moves a compiled file to the 'compiled' subfolder.
+    """
+    Move a compiled file to the 'compiled' subfolder.
 
     Parameters
     ----------
     module_name
         A module name, e.g. "beam_phase_32.f90".
-
-
     """
     from blond.generals.hashing_ import hash_in_folder
 
@@ -139,7 +147,8 @@ def move_compiled_file_to_subfolder(module_name: str) -> None:
 
 
 def main_cli() -> None:
-    """Entry point for running from the command line.
+    """
+    Entry point for running from the command line.
 
     Calls the Fortran compilation function.
     """
