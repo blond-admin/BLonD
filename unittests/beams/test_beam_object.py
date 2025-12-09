@@ -193,12 +193,12 @@ class testBeamClass(unittest.TestCase):
         )
         self.assertIsInstance(
             self.beam.n_macroparticles_not_alive,
-            np.int64,
+            int,
             msg="Beam: n_macroparticles_not_alive is not an int",
         )
         self.assertIsInstance(
             self.beam.n_macroparticles_alive,
-            np.int64,
+            int,
             msg="Beam: n_macroparticles_alive is not an int",
         )
         self.assertIsInstance(
