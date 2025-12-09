@@ -120,8 +120,8 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         n_rf: int,
         section_index: int,
         local_wakefield: WakeField | None,
-        cavity_feedback: LocalFeedback | tuple[LocalFeedback, ...] | None,
-        beam_feedback: Blond2BeamFeedback | None,
+        cavity_feedback: tuple[LocalFeedback, ...] | None = None,
+        beam_feedback: Blond2BeamFeedback | None = None,
         name: str | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
     ):
@@ -138,11 +138,10 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
             pass
         else:
             for feedback in cavity_feedback:
-                if isinstance(feedback, LocalFeedback):
-                    pass  # TODO: fix, currently, one cannot setup the cavity without setting up the RF station first and vice versa
-                    # cavity_feedback.set_parent_rf_station(rf_station=self)
-                else:
-                    raise ValueError(cavity_feedback)
+                assert isinstance(feedback, LocalFeedback), (
+                    "given feedback is not a LocalFeedback"
+                )
+                feedback.set_parent_rf_station(rf_station=self)
 
         if beam_feedback is None:
             pass
@@ -201,11 +200,6 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         super().on_init_simulation(simulation=simulation)
         self._magnetic_cycle = simulation.magnetic_cycle
         self._ring = simulation.ring
-
-        if (self._cavity_feedback is not None) and (
-            not hasattr(self._cavity_feedback, "__iter__")
-        ):
-            self._cavity_feedback = [self._cavity_feedback]
 
     def on_run_simulation(
         self,
@@ -279,7 +273,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
     def attach_cavity_feedback(self, cavity_feedback: LocalFeedback):
         """Attach cavity feedback to the RF station after initialization."""
         # TODO: This can also be list of cavity feedbacks and can also be called multiple times to keep adding CCFBs
-        cavity_feedback.set_parent_cavity(cavity=self)
+        cavity_feedback.set_parent_rf_station(cavity=self)
         self._cavity_feedback = cavity_feedback
 
     def calc_synchrotron_tune_single_harmonic(
@@ -323,7 +317,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
             beta=beam.reference_beta,
             energy=beam.reference_total_energy,
             phi_s=phi_s,
-            harmonic=self.harmonic,
+            harmonic=self.get_main_harmonic(),
             eta_0=eta_0,
         )
 
@@ -539,9 +533,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         harmonic: float | None = None,
         section_index: int = 0,
         local_wakefield: WakeField | None = None,
-        cavity_feedback: LocalFeedback
-        | tuple[LocalFeedback, ...]
-        | None = None,
+        cavity_feedback: tuple[LocalFeedback, ...] | None = None,
         beam_feedback: Blond2BeamFeedback | None = None,
         name: str | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
@@ -893,9 +885,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         main_harmonic_idx: int,
         section_index: int = 0,
         local_wakefield: WakeField | None = None,
-        cavity_feedback: LocalFeedback
-        | tuple[LocalFeedback, ...]
-        | None = None,
+        cavity_feedback: tuple[LocalFeedback, ...] | None = None,
         beam_feedback: Blond2BeamFeedback | None = None,
         name: str | None = None,
     ):
