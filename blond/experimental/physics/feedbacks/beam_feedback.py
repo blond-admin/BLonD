@@ -185,14 +185,8 @@ class Blond2BeamFeedback(LocalFeedback):
         phase is already w.r.t. the instantaneous RF phase.
         """
         # Main RF frequency at the present turn
-        omega_rf = (
-            self._parent_rf_station._omega_rf[0]
-            + self._parent_rf_station.delta_omega_rf
-        )
-        phi_rf = (
-                self._parent_rf_station.phi_rf[0] + self._parent_rf_station.delta_phi_rf
-        )
-
+        omega_rf = self._parent_rf_station.get_main_harmonic_omega_rf_current()
+        phi_rf = self._parent_rf_station.get_main_harmonic_phi_rf_current()
         if self.time_offset is None:
             coeff = backend.specials.beam_phase(
                 self.profile.hist_x,

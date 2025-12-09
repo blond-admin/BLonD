@@ -95,7 +95,7 @@ class Blond3:
         cavity = SingleHarmonicRfStation()
         cavity.harmonic = 1
         cavity.voltage = 8e3
-        cavity.phi_rf = np.pi
+        cavity.phi_rf_design = np.pi
         profile = StaticProfile(
             blond2.profile.cut_left,
             blond2.profile.cut_right,

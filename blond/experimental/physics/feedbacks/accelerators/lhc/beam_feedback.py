@@ -87,8 +87,8 @@ class LHCBeamControl(BeamFeedbackBase):
     def beam_phase(self):
         # Main RF frequency at the present turn
         counter = self.cavities[0]._turn_i
-        omega_rf = self.cavities[0].omega_rf
-        phi_rf = self.cavities[0].phi_rf
+        omega_rf = self.cavities[0].omega_rf_actual
+        phi_rf = self.cavities[0].phi_rf_actual
 
         if self.time_offset is None:
             coeff = backend.specials.beam_phase(

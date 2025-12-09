@@ -445,7 +445,7 @@ class TestSingleHarmonicCavity(unittest.TestCase):
         simulation = Mock(Simulation)
         simulation.turn_i = DynamicParameter(0)
         with self.assertRaises(ValueError):
-            self.single_harmonic_cavity.phi_rf = None
+            self.single_harmonic_cavity.phi_rf_design = None
             self.single_harmonic_cavity.on_init_simulation(
                 simulation=simulation
             )

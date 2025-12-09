@@ -67,7 +67,7 @@ def simulate_BLonD3():
     cavity1 = SingleHarmonicCavity()
     cavity1.harmonic = 1
     cavity1.voltage = 8e3
-    cavity1.phi_rf = np.pi
+    cavity1.phi_rf_design = np.pi
 
     drift = DriftSimple(
         orbit_length=ring.circumference,

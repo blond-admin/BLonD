@@ -67,7 +67,7 @@ def main():
     rf_station_1 = SingleHarmonicRfStation()
     rf_station_1.harmonic = 1
     rf_station_1.voltage = 8e3
-    rf_station_1.phi_rf = np.pi
+    rf_station_1.phi_rf_design = np.pi
 
     drift = DriftSimple(
         orbit_length=ring.circumference,

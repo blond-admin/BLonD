@@ -225,7 +225,7 @@ class PassiveCavity(IQCavityFeedback):
         self.update_fb_variables()
         self.update_rf_variables()
 
-        t_rf = 2 * np.pi / self._parent_rf_station.omega_rf
+        t_rf = 2 * np.pi / self._parent_rf_station.omega_rf_actual
         self.sampling_time = self.n_periods_coarse * t_rf
 
         if self._initial_v_coarse is None:

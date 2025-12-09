@@ -25,7 +25,7 @@ class TestXsuiteRFBucketMatcher(unittest.TestCase):
         simulation = self.example.simulation
         cavity = simulation.ring.elements.get_element(SingleHarmonicRfStation)
         cavity.voltage = voltage
-        cavity.phi_rf = phase
+        cavity.phi_rf_design = phase
         zmax = simulation.ring.circumference / (2 * np.amin(cavity.harmonic))
         simulation.prepare_beam(
             beam=self.example.beam1,

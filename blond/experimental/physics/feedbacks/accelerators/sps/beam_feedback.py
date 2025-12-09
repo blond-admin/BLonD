@@ -117,8 +117,8 @@ class SPSBeamControl(BeamFeedbackBase):
     def beam_phase(self):
         # Main RF frequency at the present turn
         counter = self.cavities[0]._turn_i
-        omega_rf = self.cavities[0].omega_rf[0]
-        phi_rf = self.cavities[0].phi_rf[0]
+        omega_rf = self.cavities[0].omega_rf_actual[0]
+        phi_rf = self.cavities[0].phi_rf_actual[0]
 
         if self.time_offset is None:
             coeff = backend.specials.beam_phase(
@@ -189,7 +189,7 @@ class SPSBeamControl(BeamFeedbackBase):
         self.domega_dphi = -self.k_phi_n[counter] * self.dphi_z2 - self.k_phi_nm1[counter] * self.dphi_z3
 
         # Synchro Loop
-        self.epsilon = self.cavities[0].phi_rf - self.phi_sync[counter]
+        self.epsilon = self.cavities[0].phi_rf_actual - self.phi_sync[counter]
         self.Zeta += self.epsilon_z1
         self.domega_sync = -self.k_eps_n[counter] * self.epsilon - self.k_z_n[counter] * self.Zeta
 
@@ -401,13 +401,8 @@ class SpsFBeamFeedback(Blond2BeamFeedback):
         Note that this beam phase is already w.r.t. the instantaneous RF phase.
         """
         # Main RF frequency at the present turn
-        omega_rf = (
-            self._parent_rf_station._omega_rf[0]
-            + self._parent_rf_station.delta_omega_rf[0]
-        )
-        phi_rf = (
-                self._parent_rf_station.phi_rf[0] + self._parent_rf_station.delta_phi_rf
-        )
+        omega_rf = self._parent_rf_station.get_main_harmonic_omega_rf_current()
+        phi_rf = self._parent_rf_station.get_main_harmonic_phi_rf_current()
 
         if self.alpha != 0.0:
             indexes = np.logical_and(

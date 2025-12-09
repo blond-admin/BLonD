@@ -211,24 +211,24 @@ class IQCavityFeedback(LocalFeedback):
 
         self.T_s = (
                            self.n_periods_coarse * 2 * np.pi
-                   ) / self._parent_rf_station.omega_rf[self.harmonic_index]
+                   ) / self._parent_rf_station.omega_rf_actual[self.harmonic_index]
         # TODO REMWORK/REMOVE
         t_rev = float(
             (2 * np.pi * self._parent_rf_station.harmonic[self.harmonic_index])
-            / self._parent_rf_station.omega_rf[self.harmonic_index]
+            / self._parent_rf_station.omega_rf_actual[self.harmonic_index]
         )
         # TODO REMWORK/REMOVE
         t_rf = t_rev / float(self._parent_rf_station.harmonic[self.harmonic_index])
 
         self.n_coarse = round(t_rev / self.T_s)
         self.omega_carrier = (
-                self._parent_rf_station.omega_rf[self.harmonic_index]
+                self._parent_rf_station.omega_rf_actual[self.harmonic_index]
                 / self.n_periods_coarse
         )
         # FIXME NO REDECLARATION!
 
         self.omega_rf = float(
-            self._parent_rf_station.omega_rf[self.harmonic_index]
+            self._parent_rf_station.omega_rf_actual[self.harmonic_index]
         )
         self.dT = 0
 
@@ -297,7 +297,7 @@ class IQCavityFeedback(LocalFeedback):
         # Present RF angular frequency
         if omega_rf is None:
             self.omega_rf = float(
-                self._parent_rf_station.omega_rf[self.harmonic_index]
+                self._parent_rf_station.omega_rf_actual[self.harmonic_index]
             )
         else:
             self.omega_rf = omega_rf

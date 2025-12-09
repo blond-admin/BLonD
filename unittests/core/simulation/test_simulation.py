@@ -41,7 +41,7 @@ class TestSimulation(unittest.TestCase):
         cavity1 = SingleHarmonicRfStation()
         cavity1.harmonic = 35640
         cavity1.voltage = 6e6
-        cavity1.phi_rf = 0
+        cavity1.phi_rf_design = 0
 
         N_TURNS = int(1e3)
         magnetic_cycle = MagneticCyclePerTurn(
@@ -454,7 +454,7 @@ class TestSimulation(unittest.TestCase):
         cavity1 = SingleHarmonicRfStation()
         cavity1.harmonic = 35640
         cavity1.voltage = 6e6
-        cavity1.phi_rf = 0
+        cavity1.phi_rf_design = 0
 
         N_TURNS = int((20 * 60) * 11e3)
         energies = np.linspace(450e9, 7e12, N_TURNS)

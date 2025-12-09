@@ -719,7 +719,7 @@ class SPSOneTurnFeedback(IQCavityFeedback):
         # TODO REMWORK/REMOVE
         t_rev = float(
             (2 * np.pi * self._parent_rf_station.harmonic[self.harmonic_index])
-            / self._parent_rf_station.omega_rf[self.harmonic_index]
+            / self._parent_rf_station.omega_rf_actual[self.harmonic_index]
         )
         # TODO REMWORK/REMOVE
         t_rf = t_rev / float(self._parent_rf_station.harmonic[self.harmonic_index])

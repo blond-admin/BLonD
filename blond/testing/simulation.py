@@ -47,7 +47,7 @@ class ExampleSimulation01:
         rf_station = SingleHarmonicRfStation()
         rf_station.harmonic = 35640
         rf_station.voltage = 6e6
-        rf_station.phi_rf = 0
+        rf_station.phi_rf_design = 0
 
         N_TURNS = 10
         energy_cycle = MagneticCyclePerTurn(
@@ -128,7 +128,7 @@ class SimulationTwoRfStations:
         )
         rf_station_2.harmonic = backend.float(35640)
         rf_station_2.voltage = backend.float(6e6)
-        rf_station_2.phi_rf = backend.float(0)
+        rf_station_2.phi_rf_design = backend.float(0)
 
         N_TURNS = int(1e6)
         energy_cycle = ConstantMagneticCycle(
@@ -188,7 +188,7 @@ class SimulationTwoRfStationsWithWake:
         )
         rf_station_2.harmonic = 35640
         rf_station_2.voltage = 6e6
-        rf_station_2.phi_rf = 0
+        rf_station_2.phi_rf_design = 0
 
         N_TURNS = int(1e6)
         energy_cycle = MagneticCyclePerTurn(
