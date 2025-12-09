@@ -11,11 +11,11 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from collections.abc import Callable
 from copy import deepcopy
 from pstats import SortKey
 from typing import TYPE_CHECKING
-from warnings import warn
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -1191,7 +1191,7 @@ class Simulation(Preparable):
                 for b in beams
             )
             if particles_above_threshold:
-                warn(
+                warnings.warn(
                     f"There are more than"
                     f" {self._particle_performance_waning_threshold}"
                     f" particles in your beam."
@@ -1304,10 +1304,10 @@ class Simulation(Preparable):
             User defined function `def myfunction(simulation: Simulation): ...`
             that is called each turn.
         """
-        warn("Untested code", NotTestedWarning, stacklevel=2)
+        warnings.warn("Untested code", NotTestedWarning, stacklevel=2)
 
         if callback is not None:
-            warn(
+            warnings.warn(
                 "Callbacks are currently not supported for simulations"
                 " with counter-rotating beams.",
                 UserWarning,
