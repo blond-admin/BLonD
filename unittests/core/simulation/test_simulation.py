@@ -38,10 +38,11 @@ class TestSimulation(unittest.TestCase):
     def setUp(self):
         ring = Ring(circumference=26658.883)
 
-        cavity1 = SingleHarmonicRfStation()
-        cavity1.harmonic = 35640
-        cavity1.voltage = 6e6
-        cavity1.phi_rf = 0
+        cavity1 = SingleHarmonicRfStation(
+            harmonic=35640,
+            voltage=6e6,
+            phi_rf=0
+        )
 
         N_TURNS = int(1e3)
         magnetic_cycle = MagneticCyclePerTurn(
@@ -454,7 +455,7 @@ class TestSimulation(unittest.TestCase):
         cavity1 = SingleHarmonicRfStation()
         cavity1.harmonic = 35640
         cavity1.voltage = 6e6
-        cavity1.phi_rf = 0
+        cavity1.phi_rf_design = 0
 
         N_TURNS = int((20 * 60) * 11e3)
         energies = np.linspace(450e9, 7e12, N_TURNS)
@@ -580,6 +581,7 @@ class TestSimulation(unittest.TestCase):
         from blond import backend
 
         beam_mock.common_array_size = int(1e32)
+        beam_mock.reference_beta = 1  # cavity initialisation
         special_mode_org = backend.specials_mode
         backend.set_specials(mode="python")
         with self.assertWarns(PerformanceWarning):

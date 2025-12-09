@@ -221,9 +221,9 @@ class TestRfStationPhaseObservation(unittest.TestCase):
             SingleHarmonicRfStation,
         )
         rf_station.n_rf = 12
-        rf_station.phi_rf = 1
+        rf_station.phi_rf_actual = 1
         rf_station.delta_phi_rf = 1
-        rf_station._omega_rf = 1
+        rf_station.omega_rf_actual = 1
         rf_station.delta_omega_rf = 1
         rf_station.voltage = 1
         self.rf_station_phase_observation = RfStationPhaseObservation(

@@ -25,6 +25,7 @@ from scipy.constants import speed_of_light as c0
 
 from blond.core.backends.backend import backend
 from blond.core.base import BeamPhysicsRelevant, DynamicParameter, Schedulable
+from blond.core.ring.helpers import requires
 from blond.experimental.physics.feedbacks.base import LocalFeedback
 from blond.experimental.physics.feedbacks.beam_feedback import (
     BeamFeedbackBase,
@@ -139,6 +140,8 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         if cavity_feedback is None:
             pass
         else:
+            if isinstance(cavity_feedback, LocalFeedback):
+                cavity_feedback = (cavity_feedback,)
             for feedback in cavity_feedback:
                 assert isinstance(feedback, LocalFeedback), (
                     "given feedback is not a LocalFeedback"
@@ -154,9 +157,9 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         self._ring: Ring | None = None
 
         # TODO MOVE
-        self._omega_rf_design: NumpyArray | float | None = None
+        self.omega_rf_design: NumpyArray | float | None = None
         self.delta_omega_rf: NumpyArray | float = 0.0
-        self._phi_rf_design: NumpyArray | float | None = None
+        self.phi_rf_design: NumpyArray | float | None = None
         self.delta_phi_rf: NumpyArray | float = 0.0
         self._t_rf: float | None = None
         self._t_rev: float | None = None
@@ -168,22 +171,22 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
     @property
     def omega_rf(self):
         """RF angular frequency."""
-        return self._omega_rf_design + self.delta_omega_rf
+        return self.omega_rf_design + self.delta_omega_rf
 
     @omega_rf.setter
     def omega_rf(self, value: float | NumpyArray):
         """Setting RF angular frequency."""
-        self.delta_omega_rf = value - self._omega_rf_design
+        self.delta_omega_rf = value - self.omega_rf_design
 
     @property
     def phi_rf(self):
         """RF phase."""
-        return self._phi_rf_design + self.delta_phi_rf
+        return self.phi_rf_design + self.delta_phi_rf
 
     @phi_rf.setter
     def phi_rf(self, value: float | NumpyArray):
         """Setting RF angular frequency."""
-        self.delta_phi_rf = value - self._phi_rf_design
+        self.delta_phi_rf = value - self.phi_rf_design
 
     def on_init_simulation(self, simulation: Simulation) -> None:
         """Lateinit method when `simulation.__init__` is called.
@@ -203,6 +206,7 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         else:
             self._cavity_feedback = (self._cavity_feedback,)
 
+    @requires(["Beam", "BeamBaseClass"])
     def on_run_simulation(
         self,
         simulation: Simulation,
@@ -413,14 +417,14 @@ class RfStationBaseClass(RfManipulationBaseClass, Schedulable, ABC):
         # Accumulated phase offset due to beam phase loop or frequency offset
         if np.any(self.delta_omega_rf != 0):
             assert self.harmonic is not None
-            assert self._omega_rf is not None
+            assert self.omega_rf is not None
             assert self.delta_omega_rf is not None
             phi_increment = (
                 2.0
                 * np.pi
                 * self.harmonic[:]
                 * self.delta_omega_rf
-                / self._omega_rf[:]
+                / self.omega_rf[:]
             )
 
             self.delta_phi_rf += phi_increment
@@ -535,7 +539,9 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         harmonic: float | None = None,
         section_index: int = 0,
         local_wakefield: WakeField | None = None,
-        cavity_feedback: tuple[LocalFeedback, ...] | None = None,
+        cavity_feedback: LocalFeedback
+        | tuple[LocalFeedback, ...]
+        | None = None,
         beam_feedback: Blond2BeamFeedback | None = None,
         name: str | None = None,
         **kwargs: dict[str, Any],  # for MRO of fused elements
@@ -550,7 +556,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
             **kwargs,  # for MRO of fused elements
         )
         self.voltage: float | None = voltage
-        self._phi_rf_design: float | None = phi_rf
+        self.phi_rf_design: float | None = phi_rf
         self.harmonic: float | None = harmonic
 
     def get_main_harmonic(self) -> float:
@@ -563,7 +569,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
 
     def get_main_harmonic_phi_rf(self) -> float:
         """Returns the phi_rf of the main harmonic, in [rad]."""
-        return self._phi_rf_design
+        return self.phi_rf_design
 
     def get_main_harmonic_omega_rf_design(
         self,
@@ -618,11 +624,11 @@ class SingleHarmonicRfStation(RfStationBaseClass):
             )
 
     def _update_beam_based_attributes(self, beam: BeamBaseClass) -> None:
-        self._omega_rf_design = self.calc_omega_rf_design(
+        self.omega_rf_design = self.calc_omega_rf_design(
             beam_beta=beam.reference_beta,
             ring_circumference=self._ring.circumference,
         )
-        """self._t_rf = (2 * np.pi) / self._omega_rf
+        """self._t_rf = (2 * np.pi) / self.omega_rf
         self._t_rev = self._t_rf * self.harmonic
         try:
             self.phi_s = self.calc_phi_s_single_harmonic(beam=beam)
@@ -683,7 +689,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
                 * np.pi
                 * self.harmonic
                 * (self.delta_omega_rf)
-                / self._omega_rf_design
+                / self.omega_rf_design
             )
 
             self.delta_phi_rf += phi_increment
@@ -760,8 +766,8 @@ class SingleHarmonicRfStation(RfStationBaseClass):
             RF station voltage in [V] at time `ts`
         """
         voltage = self.voltage
-        phi_rf = self.phi_rf + self.delta_phi_rf
-        omega_rf = self._omega_rf + self.delta_omega_rf
+        phi_rf = self.phi_rf
+        omega_rf = self.omega_rf
         return voltage * np.sin(omega_rf * ts + phi_rf)
 
     @staticmethod
@@ -772,6 +778,7 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         harmonic: float,
         circumference: float,
         total_energy: float,
+        beam_reference_beta: float,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
     ) -> SingleHarmonicRfStation:
@@ -791,6 +798,8 @@ class SingleHarmonicRfStation(RfStationBaseClass):
             Synchrotron circumference in [m]
         total_energy
             Target total energy in [eV]
+        beam_reference_beta
+            Beam velocity as a fraction of the speed of light [1]
         local_wakefield
             Optional wakefield to interact with beam
         cavity_feedback
@@ -827,12 +836,14 @@ class SingleHarmonicRfStation(RfStationBaseClass):
         simulation.turn_i = Mock(DynamicParameter)
         simulation.turn_i.value = 0
 
+        beam = Mock(BeamBaseClass)
+        beam.reference_beta = beam_reference_beta
         single_harmonic_rf_station.on_init_simulation(simulation=simulation)
         single_harmonic_rf_station.on_run_simulation(
             simulation=simulation,
             n_turns=1,
             turn_i_init=simulation.turn_i.value,
-            beam=Mock(BeamBaseClass),
+            beam=beam,
         )
         return single_harmonic_rf_station
 
@@ -882,7 +893,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         self,
         voltage: NumpyArray,
         phi_rf: NumpyArray,
-        harmonics: NumpyArray,
+        harmonic: NumpyArray,
         n_harmonics: int,
         main_harmonic_idx: int,
         section_index: int = 0,
@@ -909,8 +920,8 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         self.main_harmonic_idx = main_harmonic_idx
 
         self.voltage = voltage
-        self._phi_rf_design = phi_rf
-        self.harmonic = harmonics
+        self.phi_rf_design = phi_rf
+        self.harmonic = harmonic
         self.delta_phi_rf: NumpyArray | None = backend.zeros(
             n_harmonics
         )  # TODO
@@ -919,12 +930,12 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         )  # TODO
         self.voltage: NumpyArray | None = voltage
         self.phi_rf: NumpyArray | None = phi_rf
-        self.harmonic: NumpyArray | None = harmonics
+        self.harmonic: NumpyArray | None = harmonic
 
         for array_name, input_array in (
             ("voltage", voltage),
             ("phi_rf", phi_rf),
-            ("harmonic", harmonics),
+            ("harmonic", harmonic),
         ):
             if input_array is not None and len(input_array) != n_harmonics:
                 raise ValueError(
@@ -967,12 +978,12 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             )
 
     def _update_beam_based_attributes(self, beam: BeamBaseClass) -> None:
-        self._omega_rf_design = self.calc_omega_rf_design(
+        self.omega_rf_design = self.calc_omega_rf_design(
             beam_beta=beam.reference_beta,
             ring_circumference=self._ring.circumference,
         )
 
-        self._t_rf = (2 * np.pi) / self._omega_rf_design
+        self._t_rf = (2 * np.pi) / self.omega_rf_design
         self._t_rev = (
             self.get_main_harmonic_t_rf_current() * self.get_main_harmonic()
         )
@@ -1190,7 +1201,7 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         circumference: float,
         total_energy: float,
         main_harmonic_idx: int,
-        reference_beta: float,
+        beam_reference_beta: float,
         local_wakefield: WakeField | None = None,
         cavity_feedback: LocalFeedback | None = None,
         beam_feedback: Blond2BeamFeedback | None = None,
@@ -1211,10 +1222,12 @@ class MultiHarmonicRfStation(RfStationBaseClass):
             Synchrotron circumference in [m]
         total_energy
             Target total energy in [eV]
+        beam_reference_beta
+            Beam velocity as a fraction of the speed of light [1]
         main_harmonic_idx
             Index of the cavity's main harmonic
             Used to calculate attributes that rely on only one harmonic.
-        reference_beta
+        beam_reference_beta
             Beam reference fraction of speed of light (v/c0) [].
         local_wakefield
             Optional wakefield to interact with beam
@@ -1255,15 +1268,14 @@ class MultiHarmonicRfStation(RfStationBaseClass):
         simulation.magnetic_cycle = energy_cycle
         simulation.turn_i = Mock(DynamicParameter)
         simulation.turn_i.value = 0
+        beam = Mock(BeamBaseClass)
+        beam.reference_beta = beam_reference_beta
         multi_harmonic_rf_station.on_init_simulation(simulation=simulation)
         multi_harmonic_rf_station.on_run_simulation(
             simulation=simulation,
             n_turns=1,
             turn_i_init=simulation.turn_i.value,
-            beam=Mock(BeamBaseClass),
-            main_harmonic_idx=main_harmonic_idx,
+            beam=beam,
         )
-        beam = Mock(BeamBaseClass)
-        beam.reference_beta = reference_beta
-        multi_harmonic_rf_station._update_beam_based_attributes(beam)
+
         return multi_harmonic_rf_station
