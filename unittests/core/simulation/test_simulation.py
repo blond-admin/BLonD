@@ -378,7 +378,7 @@ class TestSimulation(unittest.TestCase):
             / cavity.harmonic,
             20000,
         )
-        phis = ts * cavity.calc_omega(
+        phis = ts * cavity.calc_omega_rf_design(
             beam_beta=self.beam.reference_beta,
             ring_circumference=self.simulation.ring.circumference,
         )
@@ -496,7 +496,7 @@ class TestSimulation(unittest.TestCase):
             / cavity.harmonic,
             20000,
         )
-        phis = ts * cavity.calc_omega(
+        phis = ts * cavity.calc_omega_rf_design(
             beam_beta=beam.reference_beta,
             ring_circumference=simulation.ring.circumference,
         )

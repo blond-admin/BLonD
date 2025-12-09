@@ -64,8 +64,8 @@ def rf_voltage_calculation(
 
     """
     voltages = np.ascontiguousarray(rf_params.voltage[:])
-    omega_rf = np.ascontiguousarray(rf_params._omega_rf[:])
-    phi_rf = np.ascontiguousarray(rf_params.phi_rf[:])
+    omega_rf = np.ascontiguousarray(rf_params.omega_rf_actual[:])
+    phi_rf = np.ascontiguousarray(rf_params.phi_rf_actual[:])
     # TODO: test with multiple harmonics, think about 800 MHz OTFB
     if cavityFB is not None:
         # Allocate memory for rf_voltage and reset it to zero
@@ -168,7 +168,7 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
         n_shift = 1550  # how many rf-buckets to shift beam
         omega_rf = float(
-            rf.calc_omega(
+            rf.calc_omega_rf_design(
                 beam_beta=self.beam.reference_beta,
                 ring_circumference=ring.circumference,
             )
@@ -224,7 +224,6 @@ class TestSPSCavityFeedback(unittest.TestCase):
 
         """
         self.OTFB = SPSCavityFeedback(
-            rf,
             self.profile,
             G_llrf=20,
             G_tx=[1.0355739238973907, 1.078403005653143],
